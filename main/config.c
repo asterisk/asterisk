@@ -1503,8 +1503,6 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		if (cfmtime)
 			cfmtime->mtime = statbuf.st_mtime;
 
-		ast_verb(2, "Parsing '%s': ", fn);
-			fflush(stdout);
 		if (!(f = fopen(fn, "r"))) {
 			ast_debug(1, "No file to parse: %s\n", fn);
 			ast_verb(2, "Parsing '%s': Not found (%s)\n", fn, strerror(errno));

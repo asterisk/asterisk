@@ -1502,8 +1502,7 @@ static struct sigaction urg_handler = {
 static void _hup_handler(int num)
 {
 	int a = 0, save_errno = errno;
-	if (option_verbose > 1) 
-		printf("Received HUP signal -- Reloading configs\n");
+	printf("Received HUP signal -- Reloading configs\n");
 	if (restartnow)
 		execvp(_argv[0], _argv);
 	sig_flags.need_reload = 1;
@@ -1589,8 +1588,7 @@ int ast_set_priority(int pri)
 			ast_log(LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
-			if (option_verbose)
-				ast_verbose("Set to realtime thread\n");
+			ast_verb(1, "Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
 		/* According to the manpage, these parameters can never fail. */
@@ -1602,8 +1600,7 @@ int ast_set_priority(int pri)
 			ast_log(LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
-			if (option_verbose)
-				ast_verbose("Set to high priority\n");
+			ast_verb(1, "Set to high priority\n");
 	} else {
 		/* According to the manpage, these parameters can never fail. */
 		setpriority(PRIO_PROCESS, 0, 0);
@@ -1675,7 +1672,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 			ast_begin_shutdown(0);
 		}
 		if (option_verbose && ast_opt_console) {
-			ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
+			ast_verb(0, "Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 		}
 		for (;;) {
 			if (!ast_active_channels() || shuttingdown != niceness) {
@@ -1690,7 +1687,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	ast_mutex_lock(&safe_system_lock);
 	if (shuttingdown != niceness) {
 		if (shuttingdown == NOT_SHUTTING_DOWN && option_verbose && ast_opt_console) {
-			ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
+			ast_verb(0, "Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
 		}
 		ast_mutex_unlock(&safe_system_lock);
 		return 0;
@@ -1729,12 +1726,10 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			}
 		}
 	}
-	if (option_verbose)
-		ast_verbose("Executing last minute cleanups\n");
+	ast_verb(0, "Executing last minute cleanups\n");
 	ast_run_atexits();
 	/* Called on exit */
-	if (option_verbose && ast_opt_console)
-		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
+	ast_verb(0, "Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
 	ast_debug(1, "Asterisk ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (ast_socket > -1) {
@@ -1750,14 +1745,12 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 	printf("%s", term_quit());
 	if (restart) {
 		int i;
-		if (option_verbose || ast_opt_console)
-			ast_verbose("Preparing for Asterisk restart...\n");
+		ast_verb(0, "Preparing for Asterisk restart...\n");
 		/* Mark all FD's for closing on exec */
 		for (i = 3; i < 32768; i++) {
 			fcntl(i, F_SETFD, FD_CLOEXEC);
 		}
-		if (option_verbose || ast_opt_console)
-			ast_verbose("Asterisk is now restarting...\n");
+		ast_verb(0, "Asterisk is now restarting...\n");
 		restartnow = 1;
 
 		/* close logger */
@@ -1802,11 +1795,6 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 {
 	const char *c;
 
-	/* Check for verboser preamble */
-	if (*s == 127) {
-		s++;
-	}
-
 	if (!strncmp(s, cmp, strlen(cmp))) {
 		c = s + strlen(cmp);
 		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
@@ -1815,10 +1803,25 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 	return NULL;
 }
 
+/* These gymnastics are due to platforms which designate char as unsigned by
+ * default. Level is the negative character -- offset by 1, because \0 is the
+ * EOS delimiter. */
+#define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
+#define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
+
 static void console_verboser(const char *s)
 {
 	char tmp[80];
 	const char *c = NULL;
+	char level = 0;
+
+	if (VERBOSE_HASMAGIC(s)) {
+		level = VERBOSE_MAGIC2LEVEL(s);
+		s++;
+		if (level > option_verbose) {
+			return;
+		}
+	}
 
 	if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
 	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
@@ -1827,14 +1830,11 @@ static void console_verboser(const char *s)
 		fputs(tmp, stdout);
 		fputs(c, stdout);
 	} else {
-		if (*s == 127) {
-			s++;
-		}
 		fputs(s, stdout);
 	}
 
 	fflush(stdout);
-	
+
 	/* Wake up a poll()ing console */
 	if (ast_opt_console && consolethread != AST_PTHREADT_NULL) {
 		pthread_kill(consolethread, SIGURG);
@@ -1883,8 +1883,35 @@ static int remoteconsolehandler(char *s)
 		else
 			ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		ret = 1;
-	}
-	if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
+	} else if (strncasecmp(s, "core set verbose ", 17) == 0) {
+		int old_verbose = option_verbose;
+		if (strncasecmp(s + 17, "atleast ", 8) == 0) {
+			int tmp;
+			if (sscanf(s + 25, "%d", &tmp) != 1) {
+				fprintf(stderr, "Usage: core set verbose [atleast] <level>\n");
+			} else {
+				if (tmp > option_verbose) {
+					option_verbose = tmp;
+				}
+				if (old_verbose != option_verbose) {
+					fprintf(stdout, "Set remote console verbosity from %d to %d\n", old_verbose, option_verbose);
+				} else {
+					fprintf(stdout, "Verbosity level unchanged.\n");
+				}
+			}
+		} else {
+			if (sscanf(s + 17, "%d", &option_verbose) != 1) {
+				fprintf(stderr, "Usage: core set verbose [atleast] <level>\n");
+			} else {
+				if (old_verbose != option_verbose) {
+					fprintf(stdout, "Set remote console verbosity to %d\n", option_verbose);
+				} else {
+					fprintf(stdout, "Verbosity level unchanged.\n");
+				}
+			}
+		}
+		ret = 1;
+	} else if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 	    (s[4] == '\0' || isspace(s[4]))) {
 		quit_handler(0, SHUTDOWN_FAST, 0);
 		ret = 1;
@@ -2198,6 +2225,23 @@ static struct ast_cli_entry cli_asterisk[] = {
 #endif /* ! LOW_MEMORY */
 };
 
+struct el_read_char_state_struct {
+	unsigned int line_full:1;
+	unsigned int prev_line_full:1;
+	char prev_line_verbosity;
+};
+
+static int el_read_char_state_init(void *ptr)
+{
+	struct el_read_char_state_struct *state = ptr;
+	state->line_full = 1;
+	state->prev_line_full = 1;
+	state->prev_line_verbosity = 0;
+	return 0;
+}
+
+AST_THREADSTORAGE_CUSTOM(el_read_char_state, el_read_char_state_init, ast_free_ptr);
+
 static int ast_el_read_char(EditLine *editline, char *cp)
 {
 	int num_read = 0;
@@ -2207,6 +2251,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 	int max;
 #define EL_BUF_SIZE 512
 	char buf[EL_BUF_SIZE];
+	struct el_read_char_state_struct *state = ast_threadstorage_get(&el_read_char_state, sizeof(*state));
 
 	for (;;) {
 		max = 1;
@@ -2236,7 +2281,8 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			}
 		}
 		if (fds[0].revents) {
-			char *tmp;
+			char level = 0;
+			char *curline = buf, *nextline;
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
@@ -2269,22 +2315,37 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 
 			buf[res] = '\0';
 
-			/* Strip preamble from asynchronous events, too */
-			for (tmp = buf; *tmp; tmp++) {
-				if (*tmp == 127) {
-					memmove(tmp, tmp + 1, strlen(tmp));
-					tmp--;
-					res--;
-				}
-			}
-
 			/* Write over the CLI prompt */
 			if (!ast_opt_exec && !lastpos) {
 				if (write(STDOUT_FILENO, "\r[0K", 5) < 0) {
 				}
 			}
-			if (write(STDOUT_FILENO, buf, res) < 0) {
-			}
+
+			do {
+				state->prev_line_full = state->line_full;
+				if ((nextline = strchr(curline, '\n'))) {
+					state->line_full = 1;
+					nextline++;
+				} else {
+					state->line_full = 0;
+					nextline = strchr(curline, '\0');
+				}
+
+				if (state->prev_line_full && VERBOSE_HASMAGIC(curline)) {
+					level = VERBOSE_MAGIC2LEVEL(curline);
+					curline++;
+				} else {
+					level = state->prev_line_verbosity;
+				}
+				if ((!state->prev_line_full && state->prev_line_verbosity <= option_verbose) || (state->prev_line_full && level <= option_verbose)) {
+					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
+					}
+				}
+
+				state->prev_line_verbosity = level;
+				curline = nextline;
+			} while (!ast_strlen_zero(curline));
+
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
 				return(1);
@@ -2795,22 +2856,20 @@ static void ast_remotecontrol(char *data)
 	else
 		pid = -1;
 	if (!data) {
-		char tmp[80];
-		snprintf(tmp, sizeof(tmp), "core set verbose atleast %d", option_verbose);
-		fdsend(ast_consock, tmp);
-		snprintf(tmp, sizeof(tmp), "core set debug atleast %d", option_debug);
-		fdsend(ast_consock, tmp);
-		if (!ast_opt_mute)
+		if (!ast_opt_mute) {
 			fdsend(ast_consock, "logger mute silent");
-		else 
+		} else {
 			printf("log and verbose output currently muted ('logger mute' to unmute)\n");
+		}
 	}
 
 	if (ast_opt_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
+		int linefull = 1, prev_linefull = 1, prev_line_verbose = 0;
 		struct pollfd fds;
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
+
 		while (ast_poll(&fds, 1, 60000) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
@@ -2824,18 +2883,34 @@ static void ast_remotecontrol(char *data)
 			}
 
 			do {
+				prev_linefull = linefull;
 				if ((nextline = strchr(curline, '\n'))) {
+					linefull = 1;
 					nextline++;
 				} else {
+					linefull = 0;
 					nextline = strchr(curline, '\0');
 				}
 
 				/* Skip verbose lines */
-				if (*curline != 127) {
+				/* Prev line full? | Line is verbose | Last line verbose? | Print
+				 * TRUE            | TRUE*           | TRUE               | FALSE
+				 * TRUE            | TRUE*           | FALSE              | FALSE
+				 * TRUE            | FALSE*          | TRUE               | TRUE
+				 * TRUE            | FALSE*          | FALSE              | TRUE
+				 * FALSE           | TRUE            | TRUE*              | FALSE
+				 * FALSE           | TRUE            | FALSE*             | TRUE
+				 * FALSE           | FALSE           | TRUE*              | FALSE
+				 * FALSE           | FALSE           | FALSE*             | TRUE
+				 */
+				if ((!prev_linefull && !prev_line_verbose) || (prev_linefull && *curline > 0)) {
+					prev_line_verbose = 0;
 					not_written = 0;
 					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
 						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
 					}
+				} else {
+					prev_line_verbose = 1;
 				}
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
@@ -2874,14 +2949,6 @@ static void ast_remotecontrol(char *data)
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
-				/* Strip preamble from output */
-				char *temp;
-				for (temp = ebuf; *temp; temp++) {
-					if (*temp == 127) {
-						memmove(temp, temp + 1, strlen(temp));
-						temp--;
-					}
-				}
 				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
 					ast_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
@@ -3580,8 +3647,7 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to drop unneeded groups\n");
 			exit(1);
 		}
-		if (option_verbose)
-			ast_verbose("Running as group '%s'\n", rungroup);
+		ast_verb(1, "Running as group '%s'\n", rungroup);
 	}
 
 	if (runuser && !ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)) {
@@ -3621,8 +3687,7 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", (int)pw->pw_uid, runuser);
 			exit(1);
 		}
-		if (option_verbose)
-			ast_verbose("Running as user '%s'\n", runuser);
+		ast_verb(1, "Running as user '%s'\n", runuser);
 #ifdef HAVE_CAP
 		if (has_cap) {
 			cap_t cap;
@@ -3676,8 +3741,9 @@ int main(int argc, char *argv[])
 	printf("%s", term_end());
 	fflush(stdout);
 
-	if (ast_opt_console && !option_verbose) 
+	if (ast_opt_console && !option_verbose) {
 		ast_verbose("[ Initializing Custom Configuration Options ]\n");
+	}
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
@@ -3952,15 +4018,14 @@ int main(int argc, char *argv[])
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
-	if (ast_opt_console && !option_verbose)
-		ast_verbose(" ]\n");
-	if (option_verbose || ast_opt_console)
-		ast_verbose("%s", term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
-	if (ast_opt_no_fork)
+	ast_verb(0, "%s\n", term_color(tmp, "Asterisk Ready.", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+	if (ast_opt_no_fork) {
 		consolethread = pthread_self();
+	}
 
-	if (pipe(sig_alert_pipe))
+	if (pipe(sig_alert_pipe)) {
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
+	}
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
 	manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");

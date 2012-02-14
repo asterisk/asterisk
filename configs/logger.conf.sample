@@ -73,7 +73,7 @@
 ;    notice
 ;    warning
 ;    error
-;    verbose
+;    verbose(<level>)
 ;    dtmf
 ;    fax
 ;    security
@@ -92,6 +92,10 @@
 ; that there is no value in specifying both "*" and specific level names for
 ; a filename; the "*" level means all levels, and the remaining level names
 ; will be ignored.
+;
+; Verbose takes an additional argument, in the form of an integer level.
+; Messages with higher levels will be ignored.  If verbose is specified at
+; all, it will default to 3.
 ;
 ; We highly recommend that you DO NOT turn on debug mode if you are simply
 ; running a production system.  Debug mode turns on a LOT of extra messages,

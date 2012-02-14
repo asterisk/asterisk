@@ -68,19 +68,20 @@ int logger_reload(void);
 void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
 /*! Send a verbose message (based on verbose level)
- 	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
- 	ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
- 	This will print the message to the console if the verbose level is set to a level >= 3
- 	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
- 	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
+ *	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
+ *	ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
+ *	This will print the message to the console if the verbose level is set to a level >= 3
+ *	Note the absence of a comma after the VERBOSE_PREFIX_3.  This is important.
+ *	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_4 are defined.
+ *  \version 11 added level parameter
  */
-void __attribute__((format(printf, 4, 5))) __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...);
+void __attribute__((format(printf, 5, 6))) __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...);
 
-#define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__,  __VA_ARGS__)
+#define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, __VA_ARGS__)
 
-void __attribute__((format(printf, 4, 0))) __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap);
+void __attribute__((format(printf, 5, 0))) __ast_verbose_ap(const char *file, int line, const char *func, int level, const char *fmt, va_list ap);
 
-#define ast_verbose_ap(fmt, ap)	__ast_verbose_ap(__FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ap)
+#define ast_verbose_ap(fmt, ap)	__ast_verbose_ap(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, fmt, ap)
 
 void __attribute__((format(printf, 2, 3))) ast_child_verbose(int level, const char *fmt, ...);
 
@@ -238,22 +239,7 @@ void ast_logger_unregister_level(const char *name);
 		ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
 } while (0)
 
-#define VERBOSITY_ATLEAST(level) (option_verbose >= (level) || (ast_opt_verb_module && ast_verbose_get_by_module(AST_MODULE) >= (level)))
-
-#define ast_verb(level, ...) do { \
-	if (VERBOSITY_ATLEAST((level)) ) { \
-		if (level >= 4) \
-			ast_verbose(VERBOSE_PREFIX_4 __VA_ARGS__); \
-		else if (level == 3) \
-			ast_verbose(VERBOSE_PREFIX_3 __VA_ARGS__); \
-		else if (level == 2) \
-			ast_verbose(VERBOSE_PREFIX_2 __VA_ARGS__); \
-		else if (level == 1) \
-			ast_verbose(VERBOSE_PREFIX_1 __VA_ARGS__); \
-		else \
-			ast_verbose(__VA_ARGS__); \
-	} \
-} while (0)
+#define ast_verb(level, ...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__)
 
 #ifndef _LOGGER_BACKTRACE_H
 #define _LOGGER_BACKTRACE_H

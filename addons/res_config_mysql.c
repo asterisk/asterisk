@@ -1417,11 +1417,7 @@ static int unload_module(void)
 static int reload(void)
 {
 	parse_config(1);
-
-	if (option_verbose > 1) {
-		ast_verb(2, "MySQL RealTime reloaded.\n");
-	}
-
+	ast_verb(2, "MySQL RealTime reloaded.\n");
 	return 0;
 }
 

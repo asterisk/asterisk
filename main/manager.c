@@ -5123,7 +5123,7 @@ static void purge_sessions(int n_max)
 	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
 		ao2_lock(session);
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
-			if (session->authenticated && (VERBOSITY_ATLEAST(2)) && manager_displayconnects(session)) {
+			if (session->authenticated && manager_displayconnects(session)) {
 				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
 					session->username, ast_inet_ntoa(session->sin.sin_addr));
 			}

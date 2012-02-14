@@ -4369,7 +4369,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			ast_channel_trace_update(c);
 #endif
 			ast_debug(1, "Launching '%s'\n", app->name);
-			if (VERBOSITY_ATLEAST(3)) {
+			{
 				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
 				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
 					exten, context, priority,

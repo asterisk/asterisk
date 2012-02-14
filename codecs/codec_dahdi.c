@@ -176,13 +176,11 @@ static void dahdi_write_frame(struct codec_dahdi_pvt *dahdip, const uint8_t *buf
 	struct pollfd p = {0};
 	if (!count) return;
 	res = write(dahdip->fd, buffer, count);
-	if (option_verbose > 10) {
-		if (-1 == res) {
-			ast_log(LOG_ERROR, "Failed to write to transcoder: %s\n", strerror(errno));
-		}
-		if (count != res) {
-			ast_log(LOG_ERROR, "Requested write of %zd bytes, but only wrote %d bytes.\n", count, res);
-		}
+	if (-1 == res) {
+		ast_log(LOG_ERROR, "Failed to write to transcoder: %s\n", strerror(errno));
+	}
+	if (count != res) {
+		ast_log(LOG_ERROR, "Requested write of %zd bytes, but only wrote %d bytes.\n", count, res);
 	}
 	p.fd = dahdip->fd;
 	p.events = POLLOUT;

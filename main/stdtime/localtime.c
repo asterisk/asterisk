@@ -261,6 +261,19 @@ static AST_LIST_HEAD_STATIC(localelist, locale_entry);
 static pthread_t inotify_thread = AST_PTHREADT_NULL;
 static ast_cond_t initialization;
 static ast_mutex_t initialization_lock;
+
+static void add_notify(struct state *sp, const char *path);
+
+/*! Start a notification for every entry already in the list. */
+static void common_startup(void) {
+	struct state *sp;
+	AST_LIST_LOCK(&zonelist);
+	AST_LIST_TRAVERSE(&zonelist, sp, list) {
+		add_notify(sp, sp->name);
+	}
+	AST_LIST_UNLOCK(&zonelist);
+}
+
 #ifdef HAVE_INOTIFY
 static int inotify_fd = -1;
 
@@ -284,6 +297,8 @@ static void *inotify_daemon(void *data)
 		inotify_thread = AST_PTHREADT_NULL;
 		return NULL;
 	}
+
+	common_startup();
 
 	for (;/*ever*/;) {
 		/* This read should block, most of the time. */
@@ -377,6 +392,8 @@ static void *kqueue_daemon(void *data)
 
 	ast_cond_signal(&initialization);
 	ast_mutex_unlock(&initialization_lock);
+
+	common_startup();
 
 	for (;/*ever*/;) {
 		if (kevent(queue_fd, NULL, 0, &kev, 1, NULL) < 0) {
@@ -537,6 +554,8 @@ static void *notify_daemon(void *data)
 	ast_mutex_lock(&initialization_lock);
 	ast_cond_broadcast(&initialization);
 	ast_mutex_unlock(&initialization_lock);
+
+	common_startup();
 
 	for (;/*ever*/;) {
 		char		fullname[FILENAME_MAX + 1];
@@ -703,7 +722,14 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 			return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
 			return -1;
-		add_notify(sp, name);
+		if (ast_fully_booted) {
+			/* If we don't wait until Asterisk is fully booted, it's possible
+			 * that the watcher thread gets started in the parent process,
+			 * before daemon(3) is called, and the thread won't propagate to
+			 * the child.  Given that bootup only takes a few seconds, it's
+			 * reasonable to only start the watcher later. */
+			add_notify(sp, name);
+		}
 	}
 	nread = read(fid, u.buf, sizeof u.buf);
 	if (close(fid) < 0 || nread <= 0)

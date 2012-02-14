@@ -54,6 +54,10 @@ Configuration Files:
    - dnsmgr.conf
    - dsp.conf
 
+ - The 'verbose' setting in logger.conf now takes an optional argument,
+   specifying the verbosity level for each logging destination.  The default,
+   if not otherwise specified, is a verbosity of 3.
+
 AMI:
   - DBDelTree now correctly returns an error when 0 rows are deleted just as
     the DBDel action does.
