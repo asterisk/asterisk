@@ -476,8 +476,11 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 			} 
 	 	}
 
-		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", "Channel: %s\r\nChanneltype: %s\r\n"
+		if (ch) {
+			manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", 
+				"Channel: %s\r\nChanneltype: %s\r\n"
 				"CallRef: %d\r\n", ast_channel_name(ch), "OOH323", i->call_reference);
+		}
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 
