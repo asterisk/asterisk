@@ -353,7 +353,7 @@ static int reload(void)
 
 	ast_mutex_lock(&lock);
 	res = load_config(1);
-	ast_mutex_lock(&lock);
+	ast_mutex_unlock(&lock);
 
 	return res;
 }
