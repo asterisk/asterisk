@@ -819,7 +819,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			hangup from the channel except when using DeadAGI. A fast AGI server will
 			correspondingly receive a HANGUP inline with the command dialog. Both of theses
 			signals may be disabled by setting the <variable>AGISIGHUP</variable> channel
-			variable to <literal>no</literal> before executing the AGI application.</para>
+			variable to <literal>no</literal> before executing the AGI application.
+			Alternatively, if you would like the AGI application to exit immediately
+			after a channel hangup is detected, set the <variable>AGIEXITONHANGUP</variable>
+			variable to <literal>yes</literal>.</para>
 			<para>Use the CLI command <literal>agi show commands</literal> to list available agi
 			commands.</para>
 			<para>This application sets the following channel variable upon completion:</para>
@@ -3477,10 +3480,14 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	int retry = AGI_NANDFS_RETRY;
 	int send_sighup;
 	const char *sighup_str;
+	const char *exit_on_hangup_str;
+	int exit_on_hangup;
 	
 	ast_channel_lock(chan);
 	sighup_str = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
-	send_sighup = ast_strlen_zero(sighup_str) || !ast_false(sighup_str);
+	send_sighup = !ast_false(sighup_str);
+	exit_on_hangup_str = pbx_builtin_getvar_helper(chan, "AGIEXITONHANGUP");
+	exit_on_hangup = ast_true(exit_on_hangup_str);
 	ast_channel_unlock(chan);
 
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
@@ -3503,6 +3510,9 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				} else if (agi->fast) {
 					ast_agi_send(agi->fd, chan, "HANGUP\n");
 				}
+			}
+			if (exit_on_hangup) {
+				break;
 			}
 		}
 		ms = -1;

@@ -188,6 +188,12 @@ res_corosync
    is a replacement for the res_ais module that was in previous releases of
    Asterisk.
 
+AGI
+---
+ * A new channel variable, AGIEXITONHANGUP, has been added which allows
+   Asterisk to behave like it did in Asterisk 1.4 and earlier where the
+   AGI application would exit immediately after a channel hangup is detected.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
