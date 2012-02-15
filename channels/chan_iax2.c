@@ -1160,9 +1160,6 @@ static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fm
 	ast_verbose("%s", buf);
 }
 
-static int maxtrunkcall = TRUNK_CALL_START;
-static int maxnontrunkcall = 1;
-
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
@@ -2001,7 +1998,15 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 	return 0;
 }
 
-static void update_max_trunk(void)
+#ifdef IAX_OLD_FIND
+
+static int maxtrunkcall = TRUNK_CALL_START;
+static int maxnontrunkcall = 1;
+
+#define update_max_trunk() __update_max_trunk()
+#define update_max_nontrunk() __update_max_nontrunk()
+
+static void __update_max_trunk(void)
 {
 	int max = TRUNK_CALL_START;
 	int x;
@@ -2018,7 +2023,7 @@ static void update_max_trunk(void)
 		ast_debug(1, "New max trunk callno is %d\n", max);
 }
 
-static void update_max_nontrunk(void)
+static void __update_max_nontrunk(void)
 {
 	int max = 1;
 	int x;
@@ -2031,6 +2036,13 @@ static void update_max_nontrunk(void)
 	if (iaxdebug)
 		ast_debug(1, "New max nontrunk callno is %d\n", max);
 }
+
+#else
+
+#define update_max_trunk() do { } while (0)
+#define update_max_nontrunk() do { } while (0)
+
+#endif
 
 static int make_trunk(unsigned short callno, int locked)
 {
