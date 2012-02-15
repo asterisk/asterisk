@@ -3507,7 +3507,7 @@ retry:
 		ast_channel_unlock(owner);
 	}
 
-	if (callno & 0x4000) {
+	if (callno & TRUNK_CALL_START) {
 		update_max_trunk();
 	}
 }
