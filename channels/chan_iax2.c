@@ -1161,9 +1161,6 @@ static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fm
 	ast_verbose("%s", buf);
 }
 
-static int maxtrunkcall = TRUNK_CALL_START;
-static int maxnontrunkcall = 1;
-
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
@@ -2077,37 +2074,6 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 	return 0;
 }
 
-static void update_max_trunk(void)
-{
-	int max = TRUNK_CALL_START;
-	int x;
-
-	/* XXX Prolly don't need locks here XXX */
-	for (x = TRUNK_CALL_START; x < ARRAY_LEN(iaxs) - 1; x++) {
-		if (iaxs[x]) {
-			max = x + 1;
-		}
-	}
-
-	maxtrunkcall = max;
-	if (iaxdebug)
-		ast_debug(1, "New max trunk callno is %d\n", max);
-}
-
-static void update_max_nontrunk(void)
-{
-	int max = 1;
-	int x;
-	/* XXX Prolly don't need locks here XXX */
-	for (x=1;x<TRUNK_CALL_START - 1; x++) {
-		if (iaxs[x])
-			max = x + 1;
-	}
-	maxnontrunkcall = max;
-	if (iaxdebug)
-		ast_debug(1, "New max nontrunk callno is %d\n", max);
-}
-
 static int make_trunk(unsigned short callno, int locked)
 {
 	int x;
@@ -2160,10 +2126,9 @@ static int make_trunk(unsigned short callno, int locked)
 	if (!locked)
 		ast_mutex_unlock(&iaxsl[x]);
 
+	/* We moved this call from a non-trunked to a trunked call */
 	ast_debug(1, "Made call %d into trunk call %d\n", callno, x);
-	/* We move this call from a non-trunked to a trunked call */
-	update_max_trunk();
-	update_max_nontrunk();
+
 	return res;
 }
 
@@ -2889,41 +2854,6 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 		if (dcallno) {
 			ast_mutex_unlock(&iaxsl[dcallno]);
 		}
-#ifdef IAX_OLD_FIND
-		/* If we get here, we SHOULD NOT find a call structure for this
-		   callno; if we do, it means that there is a call structure that
-		   has a peer callno but did NOT get entered into the hash table,
-		   which is bad.
-
-		   If we find a call structure using this old, slow method, output a log
-		   message so we'll know about it. After a few months of leaving this in
-		   place, if we don't hear about people seeing these messages, we can
-		   remove this code for good.
-		*/
-
-		for (x = 1; !res && x < maxnontrunkcall; x++) {
-			ast_mutex_lock(&iaxsl[x]);
-			if (iaxs[x]) {
-				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
-					res = x;
-				}
-			}
-			if (!res || !return_locked)
-				ast_mutex_unlock(&iaxsl[x]);
-		}
-		for (x = TRUNK_CALL_START; !res && x < maxtrunkcall; x++) {
-			ast_mutex_lock(&iaxsl[x]);
-			if (iaxs[x]) {
-				/* Look for an exact match */
-				if (match(sin, callno, dcallno, iaxs[x], check_dcallno)) {
-					res = x;
-				}
-			}
-			if (!res || !return_locked)
-				ast_mutex_unlock(&iaxsl[x]);
-		}
-#endif
 	}
 	if (!res && (new >= NEW_ALLOW)) {
 		struct callno_entry *callno_entry;
@@ -2953,7 +2883,6 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 		ast_mutex_lock(&iaxsl[x]);
 
 		iaxs[x] = new_iax(sin, host);
-		update_max_nontrunk();
 		if (iaxs[x]) {
 			if (iaxdebug)
 				ast_debug(1, "Creating new call structure %d\n", x);
@@ -3505,10 +3434,6 @@ retry:
 
 	if (owner) {
 		ast_channel_unlock(owner);
-	}
-
-	if (callno & TRUNK_CALL_START) {
-		update_max_trunk();
 	}
 }
 

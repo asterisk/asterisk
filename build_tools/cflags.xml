@@ -68,9 +68,6 @@
 			<defaultenabled>no</defaultenabled>
 			<support_level>extended</support_level>
 		</member>
-		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
-			<support_level>extended</support_level>
-		</member>
 		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
 			<support_level>extended</support_level>
 		</member>
