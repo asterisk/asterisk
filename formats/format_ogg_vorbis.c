@@ -80,6 +80,27 @@ struct ogg_vorbis_desc {	/* format specific parameters */
 	int eos;
 };
 
+#if !defined(HAVE_VORBIS_OPEN_CALLBACKS)
+/*
+ * Declared for backward compatibility with vorbisfile v1.1.2.
+ * Code taken from vorbisfile.h v1.2.0.
+ */
+static int _ov_header_fseek_wrap(FILE *f, ogg_int64_t off, int whence)
+{
+	if (f == NULL) {
+		return -1;
+	}
+	return fseek(f, off, whence);
+}
+
+static ov_callbacks OV_CALLBACKS_NOCLOSE = {
+  (size_t (*)(void *, size_t, size_t, void *))  fread,
+  (int (*)(void *, ogg_int64_t, int))           _ov_header_fseek_wrap,
+  (int (*)(void *))                             NULL,
+  (long (*)(void *))                            ftell
+};
+#endif	/* !defined(HAVE_VORBIS_OPEN_CALLBACKS) */
+
 /*!
  * \brief Create a new OGG/Vorbis filestream and set it up for reading.
  * \param s File that points to on disk storage of the OGG/Vorbis data.
