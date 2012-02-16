@@ -234,7 +234,6 @@ int ooSocketCreate (OOSOCKET* psocket)
 int ooSocketCreateUDP (OOSOCKET* psocket) 
 {
    int on;
-   struct linger linger;
 
    OOSOCKET sock = socket (AF_INET,
                              SOCK_DGRAM,
