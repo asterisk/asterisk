@@ -82,7 +82,6 @@ void* ooh323c_call_thread(void* dummy)
  struct callthread* mycthread = (struct callthread *)dummy;
  struct pollfd pfds[1];
  char c;
- int res;
 
  do {
 
@@ -101,7 +100,7 @@ void* ooh323c_call_thread(void* dummy)
 	pfds[0].events = POLLIN;
 	ooSocketPoll(pfds, 1, SEC_TO_HOLD_THREAD * 1000);
 	if (ooPDRead(pfds, 1, mycthread->thePipe[0]))
-		res = read(mycthread->thePipe[0], &c, 1);
+		read(mycthread->thePipe[0], &c, 1);
 
  	ast_mutex_lock(&callThreadsLock);
 	ast_mutex_lock(&mycthread->lock);
@@ -129,7 +128,6 @@ void* ooh323c_call_thread(void* dummy)
 
 int ooh323c_start_call_thread(ooCallData *call) {
  char c = 'c';
- int res;
  struct callthread *cur = callThreads;
 
  ast_mutex_lock(&callThreadsLock);
@@ -182,7 +180,7 @@ int ooh323c_start_call_thread(ooCallData *call) {
 		ast_debug(1,"using existing call thread for call %s\n", call->callToken);
 	cur->inUse = TRUE;
 	cur->call = call;
-	res = write(cur->thePipe[1], &c, 1);
+	write(cur->thePipe[1], &c, 1);
 	ast_mutex_unlock(&cur->lock);
 
  }

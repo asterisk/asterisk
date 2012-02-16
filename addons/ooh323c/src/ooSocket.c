@@ -252,8 +252,6 @@ int ooSocketCreateUDP (OOSOCKET* psocket)
       OOTRACEERR1("Error:Failed to set socket option SO_REUSEADDR\n");
       return ASN_E_INVSOCKET;
    }
-   linger.l_onoff = 1;
-   linger.l_linger = 0;
    /*if (setsockopt (sock, SOL_SOCKET, SO_LINGER, 
                  (const char* ) &linger, sizeof (linger)) == -1)
       return ASN_E_INVSOCKET;
