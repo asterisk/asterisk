@@ -10843,10 +10843,10 @@ struct ast_format_cap *cap = NULL;
 #ifndef	NEW_ASTERISK
 		myrpt->rxchannel->whentohangup = 0;
 #endif
-		myrpt->rxchannel->appl = "Apprpt";
-		myrpt->rxchannel->data = "(Repeater Rx)";
+		ast_channel_appl_set(myrpt->rxchannel, "Apprpt");
+		ast_channel_data_set(myrpt->rxchannel, "(Repeater Rx)");
 		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
-				tmpstr,tele,myrpt->rxchannel->name);
+				tmpstr, tele, ast_channel_name(myrpt->rxchannel));
 		ast_call(myrpt->rxchannel,tele,999);
 		if (myrpt->rxchannel->_state != AST_STATE_UP)
 		{
@@ -10901,10 +10901,10 @@ struct ast_format_cap *cap = NULL;
 #ifndef	NEW_ASTERISK
 			myrpt->txchannel->whentohangup = 0;
 #endif
-			myrpt->txchannel->appl = "Apprpt";
-			myrpt->txchannel->data = "(Repeater Tx)";
+			ast_channel_appl_set(myrpt->txchannel, "Apprpt");
+			ast_channel_data_set(myrpt->txchannel, "(Repeater Tx)");
 			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
-					tmpstr,tele,myrpt->txchannel->name);
+					tmpstr, tele, ast_channel_name(myrpt->txchannel));
 			ast_call(myrpt->txchannel,tele,999);
 			if (myrpt->rxchannel->_state != AST_STATE_UP)
 			{
@@ -11032,7 +11032,7 @@ struct ast_format_cap *cap = NULL;
 	myrpt->conf = ci.confno;
 	/* make a conference for the pseudo */
 	ci.chan = 0;
-	if ((strstr(myrpt->txchannel->name,"pseudo") == NULL) &&
+	if ((strstr(ast_channel_name(myrpt->txchannel), "pseudo") == NULL) &&
 		(myrpt->dahditxchannel == myrpt->txchannel))
 	{
 		/* get tx channel's port number */
