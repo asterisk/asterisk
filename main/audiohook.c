@@ -783,10 +783,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	int middle_frame_manipulated = 0;
 	int removed = 0;
 
-	/* Don't translate our frame if we aren't going to bother to use it */
-	if (ast_audiohook_write_list_empty(audiohook_list))
-		return end_frame;
-
 	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
 	if (!(middle_frame = audiohook_list_translate_to_slin(audiohook_list, direction, start_frame))) {
 		return frame;
