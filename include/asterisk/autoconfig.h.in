@@ -1009,6 +1009,9 @@
 /* Define to 1 if you have the Vorbis library. */
 #undef HAVE_VORBIS
 
+/* Define if your system has OV_CALLBACKS_NOCLOSE declared. */
+#undef HAVE_VORBIS_OPEN_CALLBACKS
+
 /* Define if your system has the VoiceTronix API libraries. */
 #undef HAVE_VPB
 
