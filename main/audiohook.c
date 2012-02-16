@@ -621,10 +621,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	struct ast_audiohook *audiohook = NULL;
 	int samples = frame->samples;
 
-	/* Don't translate our frame if we aren't going to bother to use it */
-	if (ast_audiohook_write_list_empty(audiohook_list))
-		return end_frame;
-
 	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
 	/* If the frame coming in is not signed linear we have to send it through the in_translate path */
 	if (frame->subclass.codec != AST_FORMAT_SLINEAR) {
