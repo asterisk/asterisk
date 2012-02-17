@@ -517,8 +517,11 @@ static void rebuild_matrix(int samples)
 					/* Is x->y->z a better choice than x->z?
 					 * There are three conditions for x->y->z to be a better choice than x->z
 					 * 1. if there is no step directly between x->z then x->y->z is the best and only current option.
-					 * 2. if x->y->z results in a more optimal sample rate conversion. */
+					 * 2. if x->y->z costs less and the sample rate conversion is no less optimal.
+					 * 3. if x->y->z results in a more optimal sample rate conversion. */
 					if (!tr_matrix[x][z].step) {
+						better_choice = 1;
+					} else if ((newcost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) {
 						better_choice = 1;
 					} else if (new_rate_change < tr_matrix[x][z].rate_change) {
 						better_choice = 1;
