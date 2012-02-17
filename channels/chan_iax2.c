@@ -14750,7 +14750,7 @@ static int load_module(void)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
 	if ((timer = ast_timer_open())) {
-		ast_timer_set_rate(timer, trunkfreq);
+		ast_timer_set_rate(timer, 1000 / trunkfreq);
 	}
 
 	if (set_config(config, 0) == -1) {
