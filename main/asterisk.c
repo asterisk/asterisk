@@ -2334,6 +2334,9 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				if (state->prev_line_full && VERBOSE_HASMAGIC(curline)) {
 					level = VERBOSE_MAGIC2LEVEL(curline);
 					curline++;
+				} else if (state->prev_line_full && !VERBOSE_HASMAGIC(curline)) {
+					/* Non-verbose output */
+					level = 0;
 				} else {
 					level = state->prev_line_verbosity;
 				}
