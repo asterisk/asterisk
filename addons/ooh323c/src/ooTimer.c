@@ -101,6 +101,7 @@ OOBOOL ooTimerExpired (OOTimer* pTimer)
 void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
 {
    OOTimer* pTimer;
+   int stat;
 
    while (pList->count > 0) {
       pTimer = (OOTimer*) pList->head->data;
@@ -111,6 +112,8 @@ void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
           * a long duration callback.                                   
           */
          if (pTimer->reRegister) ooTimerReset (pctxt, pList, pTimer);
+
+         stat = (*pTimer->timeoutCB)(pTimer->cbData);
 
          if (!pTimer->reRegister) {
             ooTimerDelete (pctxt, pList, pTimer);

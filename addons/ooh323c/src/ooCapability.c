@@ -1104,12 +1104,14 @@ struct H245AudioCapability* ooCapabilityCreateNonStandardCapability
    (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir)
 {
    H245AudioCapability *pAudio=NULL;
+   OOCapParams *params;
    if(!epCap || !epCap->params)
    {
      OOTRACEERR1("Error:Invalid capability parameters to "
                  "ooCapabilityCreateSimpleCapability.\n");
      return NULL;
    }
+   params =(OOCapParams*)epCap->params;
    pAudio = (H245AudioCapability*)memAlloc(pctxt, 
                                                 sizeof(H245AudioCapability));
    if(!pAudio)
@@ -1226,6 +1228,7 @@ struct H245DataApplicationCapability* ooCapabilityCreateT38Capability
    (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir)
 {
    H245DataApplicationCapability *pT38=NULL;
+   OOCapParams *params;
    H245DataMode_application *pT38app;
    if(!epCap || !epCap->params)
    {
@@ -1233,6 +1236,7 @@ struct H245DataApplicationCapability* ooCapabilityCreateT38Capability
                  "ooCapabilityCreateSimpleCapability.\n");
      return NULL;
    }
+   params =(OOCapParams*)epCap->params;
    pT38 = (H245DataApplicationCapability*)memAlloc(pctxt, 
                                                 sizeof(H245DataApplicationCapability));
    if(!pT38)

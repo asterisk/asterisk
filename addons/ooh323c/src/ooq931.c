@@ -2183,7 +2183,7 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
    ooAliases *pNewAlias=NULL, *alias=NULL;
    struct timespec ts;
    struct timeval tv;
-   int i=0, irand=0;
+   int i=0, irand=0, ret = OO_OK;
    /* Note: We keep same callToken, for new call which is going
       to replace an existing call, thus treating it as a single call.*/
 
@@ -2235,7 +2235,7 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
    {
      /* No need to check registration status here as it is already checked for
         MakeCall command */
-      ooGkClientSendAdmissionRequest(gH323ep.gkClient, fwdedCall, FALSE);
+      ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, fwdedCall, FALSE);
       fwdedCall->callState = OO_CALL_WAITING_ADMISSION;
       ast_mutex_lock(&fwdedCall->Lock);
 	  tv = ast_tvnow();
@@ -2249,7 +2249,7 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
    }
    if (fwdedCall->callState < OO_CALL_CLEAR) {
       ast_mutex_lock(&fwdedCall->Lock);
-      ooH323CallAdmitted (fwdedCall);
+      ret = ooH323CallAdmitted (fwdedCall);
       ast_mutex_unlock(&fwdedCall->Lock);
    }
 
@@ -2276,6 +2276,7 @@ int ooH323NewCall(char *callToken) {
 
 int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
 {
+   OOCTXT *pctxt;
    OOH323CallData *call;
    int ret=OO_OK, i=0, irand=0;
    char tmp[30]="\0";
@@ -2302,6 +2303,7 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
       return OO_FAILED;
    }
 
+   pctxt = call->pctxt;
    if(opts)
    {
       if(opts->fastStart)
