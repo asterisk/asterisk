@@ -189,7 +189,8 @@ forcejitterbuffer=no
 ; increasing the time between sending trunk messages, the trunk's payload size will increase as
 ; well.  Note, depending on the size set by trunkmtu, messages may be sent more often than
 ; specified.  For example if a trunk's message size grows to the trunkmtu size before 20ms is
-; reached that message will be sent immediately.
+; reached that message will be sent immediately.  Acceptable values are between 10ms and
+; 1000ms.
 ;
 ; trunkfreq=20     ; How frequently to send trunk msgs (in ms). This is 20ms by default.
 

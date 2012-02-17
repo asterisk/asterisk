@@ -13245,8 +13245,13 @@ static int set_config(const char *config_file, int reload)
 			ast_set2_flag64((&globalflags), i || ast_true(v->value), IAX_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
-			if (trunkfreq < 10)
+			if (trunkfreq < 10) {
+				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 10ms instead.\n");
 				trunkfreq = 10;
+			} else if (trunkfreq > 1000) {
+				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 1000ms instead.\n");
+				trunkfreq = 1000;
+			}
 		} else if (!strcasecmp(v->name, "trunkmtu")) {
 			mtuv = atoi(v->value);
 			if (mtuv  == 0 )
