@@ -2240,6 +2240,13 @@ static void my_set_dialing(void *pvt, int is_dialing)
 	p->dialing = is_dialing;
 }
 
+static void my_set_outgoing(void *pvt, int is_outgoing)
+{
+	struct dahdi_pvt *p = pvt;
+
+	p->outgoing = is_outgoing;
+}
+
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 static void my_set_digital(void *pvt, int is_digital)
 {
@@ -3362,6 +3369,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.fixup_chans = my_pri_fixup_chans,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
+	.set_outgoing = my_set_outgoing,
 	.set_digital = my_set_digital,
 	.set_callerid = my_set_callerid,
 	.set_dnid = my_set_dnid,
@@ -3532,6 +3540,7 @@ static struct sig_ss7_callback dahdi_ss7_callbacks =
 	.handle_link_exception = my_handle_link_exception,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
+	.set_outgoing = my_set_outgoing,
 	.set_digital = my_set_digital,
 	.set_inservice = my_set_inservice,
 	.set_locallyblocked = my_set_locallyblocked,
@@ -3673,6 +3682,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_cadence = my_set_cadence,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
+	.set_outgoing = my_set_outgoing,
 	.set_ringtimeout = my_set_ringtimeout,
 	.set_waitingfordt = my_set_waitingfordt,
 	.check_waitingfordt = my_check_waitingfordt,

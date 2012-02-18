@@ -129,6 +129,7 @@ struct sig_pri_callback {
 	void (* const set_alarm)(void *pvt, int in_alarm);
 	void (* const set_dialing)(void *pvt, int is_dialing);
 	void (* const set_digital)(void *pvt, int is_digital);
+	void (* const set_outgoing)(void *pvt, int is_outgoing);
 	void (* const set_callerid)(void *pvt, const struct ast_party_caller *caller);
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);

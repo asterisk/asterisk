@@ -180,6 +180,14 @@ static void sig_pri_set_digital(struct sig_pri_chan *p, int is_digital)
 	}
 }
 
+static void sig_pri_set_outgoing(struct sig_pri_chan *p, int is_outgoing)
+{
+	p->outgoing = is_outgoing;
+	if (p->calls->set_outgoing) {
+		p->calls->set_outgoing(p->chan_pvt, is_outgoing);
+	}
+}
+
 void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
 {
 	/*
@@ -993,10 +1001,10 @@ struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law
 
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
-	p->outgoing = 1;
+	sig_pri_set_outgoing(p, 1);
 	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
 	if (!ast) {
-		p->outgoing = 0;
+		sig_pri_set_outgoing(p, 0);
 	}
 	return ast;
 }
@@ -6330,7 +6338,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 		return 0;
 	}
 
-	p->outgoing = 0;
+	sig_pri_set_outgoing(p, 0);
 	sig_pri_set_digital(p, 0);	/* push up to parent for EC*/
 #if defined(HAVE_PRI_CALL_WAITING)
 	if (p->is_call_waiting) {
@@ -6541,7 +6549,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 
 	p->dialdest[0] = '\0';
-	p->outgoing = 1;
+	sig_pri_set_outgoing(p, 1);
 
 	ast_copy_string(dest, rdest, sizeof(dest));
 	AST_NONSTANDARD_APP_ARGS(args, dest, '/');

@@ -140,6 +140,7 @@ struct sig_ss7_callback {
 	void (* const set_alarm)(void *pvt, int in_alarm);
 	void (* const set_dialing)(void *pvt, int is_dialing);
 	void (* const set_digital)(void *pvt, int is_digital);
+	void (* const set_outgoing)(void *pvt, int is_outgoing);
 	void (* const set_inservice)(void *pvt, int is_inservice);
 	void (* const set_locallyblocked)(void *pvt, int is_blocked);
 	void (* const set_remotelyblocked)(void *pvt, int is_blocked);
