@@ -120,6 +120,14 @@ static void sig_ss7_set_digital(struct sig_ss7_chan *p, int is_digital)
 	}
 }
 
+static void sig_ss7_set_outgoing(struct sig_ss7_chan *p, int is_outgoing)
+{
+	p->outgoing = is_outgoing;
+	if (p->calls->set_outgoing) {
+		p->calls->set_outgoing(p->chan_pvt, is_outgoing);
+	}
+}
+
 static void sig_ss7_set_inservice(struct sig_ss7_chan *p, int is_inservice)
 {
 	if (p->calls->set_inservice) {
@@ -1570,7 +1578,7 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 
 	p->owner = NULL;
 	sig_ss7_set_dialing(p, 0);
-	p->outgoing = 0;
+	sig_ss7_set_outgoing(p, 0);
 	p->progress = 0;
 	p->rlt = 0;
 	p->exten[0] = '\0';
@@ -1755,10 +1763,10 @@ struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law
 {
 	struct ast_channel *ast;
 
-	p->outgoing = 1;
+	sig_ss7_set_outgoing(p, 1);
 	ast = sig_ss7_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
 	if (!ast) {
-		p->outgoing = 0;
+		sig_ss7_set_outgoing(p, 0);
 
 		/* Release the allocated channel.  Only have to deal with the linkset lock. */
 		ast_mutex_lock(&p->ss7->lock);
