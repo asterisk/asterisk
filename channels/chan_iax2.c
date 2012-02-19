@@ -12407,6 +12407,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		peer->pokeexpire = -1;
 		peer->sockfd = defaultsockfd;
 		peer->addr.ss.ss_family = AF_INET;
+		peer->addr.len = sizeof(struct sockaddr_in);
 		if (ast_string_field_init(peer, 32))
 			peer = peer_unref(peer);
 	}
