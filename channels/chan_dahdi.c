@@ -1733,7 +1733,7 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 			if (num)
 				ast_copy_string(numbuf, num, ANALOG_MAX_CID);
 
-			ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
+			ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
 			return 0;
 		}
 	}
@@ -10551,7 +10551,7 @@ static void *analog_ss_thread(void *data)
 					}
 					if (res == 1) {
 						callerid_get(cs, &name, &number, &flags);
-						ast_log(LOG_NOTICE, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
+						ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 					}
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
