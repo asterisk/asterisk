@@ -10636,7 +10636,7 @@ static void *analog_ss_thread(void *data)
 					}
 					if (res == 1) {
 						callerid_get(cs, &name, &number, &flags);
-						ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
+						ast_log(LOG_NOTICE, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 					}
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
