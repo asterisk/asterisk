@@ -127,7 +127,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		goto outrun;
 	}
 	ast_indicate(chan, -1);
-	retrydahdi = strcasecmp(chan->tech->type, "DAHDI");
+	retrydahdi = strcasecmp(ast_channel_tech(chan)->type, "DAHDI");
 dahdiretry:
 	origfd = chan->fds[0];
 	if (retrydahdi) {
@@ -277,7 +277,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 	
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	while(!confno && (++retrycnt < 4)) {

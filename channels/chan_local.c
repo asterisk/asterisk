@@ -241,7 +241,7 @@ static int local_setoption(struct ast_channel *ast, int option, void * data, int
 	}
 
 	/* get the tech pvt */
-	if (!(p = ast->tech_pvt)) {
+	if (!(p = ast_channel_tech_pvt(ast))) {
 		return -1;
 	}
 	ao2_ref(p, 1);
@@ -321,7 +321,7 @@ static int local_devicestate(const char *data)
 /*! \brief Return the bridged channel of a Local channel */
 static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
 {
-	struct local_pvt *p = bridge->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(bridge);
 	struct ast_channel *bridged = bridge;
 
 	if (!p) {
@@ -363,7 +363,7 @@ static int local_queryoption(struct ast_channel *ast, int option, void *data, in
 	}
 
 	/* for some reason the channel is not locked in channel.c when this function is called */
-	if (!(p = ast->tech_pvt)) {
+	if (!(p = ast_channel_tech_pvt(ast))) {
 		return -1;
 	}
 
@@ -419,7 +419,7 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 	}
 
 	/* do not queue frame if generator is on both local channels */
-	if (us && us->generator && other->generator) {
+	if (us && ast_channel_generator(us) && ast_channel_generator(other)) {
 		return 0;
 	}
 
@@ -447,7 +447,7 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 
 static int local_answer(struct ast_channel *ast)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int isoutbound;
 	int res = -1;
 
@@ -520,21 +520,21 @@ static void check_bridge(struct local_pvt *p)
 			if (!ast_check_hangup(p->chan->_bridge)) {
 				if (!ast_channel_trylock(p->owner)) {
 					if (!ast_check_hangup(p->owner)) {
-						if (p->owner->monitor && !p->chan->_bridge->monitor) {
+						if (ast_channel_monitor(p->owner) && !ast_channel_monitor(p->chan->_bridge)) {
 							/* If a local channel is being monitored, we don't want a masquerade
 							 * to cause the monitor to go away. Since the masquerade swaps the monitors,
 							 * pre-swapping the monitors before the masquerade will ensure that the monitor
 							 * ends up where it is expected.
 							 */
-							tmp = p->owner->monitor;
-							p->owner->monitor = p->chan->_bridge->monitor;
-							p->chan->_bridge->monitor = tmp;
+							tmp = ast_channel_monitor(p->owner);
+							ast_channel_monitor_set(p->owner, ast_channel_monitor(p->chan->_bridge));
+							ast_channel_monitor_set(p->chan->_bridge, tmp);
 						}
-						if (p->chan->audiohooks) {
+						if (ast_channel_audiohooks(p->chan)) {
 							struct ast_audiohook_list *audiohooks_swapper;
-							audiohooks_swapper = p->chan->audiohooks;
-							p->chan->audiohooks = p->owner->audiohooks;
-							p->owner->audiohooks = audiohooks_swapper;
+							audiohooks_swapper = ast_channel_audiohooks(p->chan);
+							ast_channel_audiohooks_set(p->chan, ast_channel_audiohooks(p->owner));
+							ast_channel_audiohooks_set(p->owner, audiohooks_swapper);
 						}
 
 						/* If any Caller ID was set, preserve it after masquerade like above. We must check
@@ -587,7 +587,7 @@ static struct ast_frame  *local_read(struct ast_channel *ast)
 
 static int local_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	int isoutbound;
 
@@ -618,7 +618,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct local_pvt *p = newchan->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(newchan);
 
 	if (!p) {
 		return -1;
@@ -651,7 +651,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int local_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = 0;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
@@ -718,7 +718,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 
 static int local_digit_begin(struct ast_channel *ast, char digit)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF_BEGIN, };
 	int isoutbound;
@@ -740,7 +740,7 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF_END, };
 	int isoutbound;
@@ -763,7 +763,7 @@ static int local_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 
 static int local_sendtext(struct ast_channel *ast, const char *text)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_TEXT, };
 	int isoutbound;
@@ -785,7 +785,7 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_HTML, };
 	int isoutbound;
@@ -811,7 +811,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
  *         dest is the dial string */
 static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int pvt_locked = 0;
 
 	struct ast_channel *owner = NULL;
@@ -961,11 +961,11 @@ return_cleanup:
 /*! \brief Hangup a call through the local proxy channel */
 static int local_hangup(struct ast_channel *ast)
 {
-	struct local_pvt *p = ast->tech_pvt;
+	struct local_pvt *p = ast_channel_tech_pvt(ast);
 	int isoutbound;
 	int hangup_chan = 0;
 	int res = 0;
-	struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = ast->hangupcause };
+	struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = ast_channel_hangupcause(ast) };
 	struct ast_channel *owner = NULL;
 	struct ast_channel *chan = NULL;
 
@@ -997,7 +997,7 @@ static int local_hangup(struct ast_channel *ast)
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
 		if ((status) && (p->owner)) {
-			p->owner->hangupcause = p->chan->hangupcause;
+			ast_channel_hangupcause_set(p->owner, ast_channel_hangupcause(p->chan));
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		}
 
@@ -1012,7 +1012,7 @@ static int local_hangup(struct ast_channel *ast)
 		p->owner = NULL;
 	}
 
-	ast->tech_pvt = NULL; /* this is one of our locked channels, doesn't matter which */
+	ast_channel_tech_pvt_set(ast, NULL); /* this is one of our locked channels, doesn't matter which */
 
 	if (!p->owner && !p->chan) {
 		ao2_unlock(p);
@@ -1137,7 +1137,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 		t = "";
 
 	if (p->owner)
-		ama = p->owner->amaflags;
+		ama = ast_channel_amaflags(p->owner);
 	else
 		ama = 0;
 	if (!(tmp = ast_channel_alloc(1, state, 0, 0, t, p->exten, p->context, linkedid, ama, "Local/%s@%s-%04x;1", p->exten, p->context, randnum))
@@ -1149,10 +1149,11 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 		return NULL;
 	}
 
-	tmp2->tech = tmp->tech = &local_tech;
+	ast_channel_tech_set(tmp, &local_tech);
+	ast_channel_tech_set(tmp2, &local_tech);
 
-	ast_format_cap_copy(tmp->nativeformats, p->reqcap);
-	ast_format_cap_copy(tmp2->nativeformats, p->reqcap);
+	ast_format_cap_copy(ast_channel_nativeformats(tmp), p->reqcap);
+	ast_format_cap_copy(ast_channel_nativeformats(tmp2), p->reqcap);
 
 	/* Determine our read/write format and set it on each channel */
 	ast_best_codec(p->reqcap, &fmt);
@@ -1165,8 +1166,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 	ast_format_copy(&tmp->rawreadformat, &fmt);
 	ast_format_copy(&tmp2->rawreadformat, &fmt);
 
-	tmp->tech_pvt = p;
-	tmp2->tech_pvt = p;
+	ast_channel_tech_pvt_set(tmp, p);
+	ast_channel_tech_pvt_set(tmp2, p);
 
 	p->owner = tmp;
 	p->chan = tmp2;
@@ -1176,8 +1177,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 	ast_channel_context_set(tmp, p->context);
 	ast_channel_context_set(tmp2, p->context);
 	ast_channel_exten_set(tmp2, p->exten);
-	tmp->priority = 1;
-	tmp2->priority = 1;
+	ast_channel_priority_set(tmp, 1);
+	ast_channel_priority_set(tmp2, 1);
 
 	ast_jb_configure(tmp, &p->jb_conf);
 
@@ -1268,7 +1269,7 @@ static int manager_optimize_away(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	p = c->tech_pvt;
+	p = ast_channel_tech_pvt(c);
 	ast_channel_unref(c);
 	c = NULL;
 

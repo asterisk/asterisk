@@ -209,7 +209,7 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		return -1;
 
 	ast_channel_lock(chan);
-	cdr = chan->cdr;
+	cdr = ast_channel_cdr(chan);
 	if (!cdr) {
 		ast_channel_unlock(chan);
 		return -1;
@@ -279,7 +279,7 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		return -1;
 
 	ast_channel_lock(chan);
-	cdr = chan->cdr;
+	cdr = ast_channel_cdr(chan);
 	if (!cdr) {
 		ast_channel_unlock(chan);
 		return -1;

@@ -824,7 +824,7 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	}
 	digits[7] = digit + '0';
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (!ast_test_flag(&flags, OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
 			res = ast_answer(chan);

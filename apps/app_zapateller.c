@@ -98,7 +98,7 @@ static int zapateller_exec(struct ast_channel *chan, const char *data)
 
 	pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "NOTHING");
 	ast_stopstream(chan);
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (answer) {
 			res = ast_answer(chan);
 			pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "ANSWERED");

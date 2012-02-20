@@ -87,9 +87,9 @@ static int nbs_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct nbs_pvt *p;
 
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "nbs_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
@@ -164,21 +164,21 @@ static struct nbs_pvt *nbs_alloc(const char *data)
 static int nbs_hangup(struct ast_channel *ast)
 {
 	struct nbs_pvt *p;
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 	ast_debug(1, "nbs_hangup(%s)\n", ast_channel_name(ast));
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	nbs_destroy(p);
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	ast_setstate(ast, AST_STATE_DOWN);
 	return 0;
 }
 
 static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 {
-	struct nbs_pvt *p = ast->tech_pvt;
+	struct nbs_pvt *p = ast_channel_tech_pvt(ast);
 	
 
 	/* Some nice norms */
@@ -198,7 +198,7 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 
 static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct nbs_pvt *p = ast->tech_pvt;
+	struct nbs_pvt *p = ast_channel_tech_pvt(ast);
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
@@ -209,7 +209,7 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n", ast_getformatname(&frame->subclass.format));
 		return 0;
 	}
-	if (ast->_state != AST_STATE_UP) {
+	if (ast_channel_state(ast) != AST_STATE_UP) {
 		/* Don't try tos end audio on-hook */
 		return 0;
 	}
@@ -223,17 +223,17 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1, state, 0, 0, "", "s", context, linkedid, 0, "NBS/%s", i->stream);
 	if (tmp) {
-		tmp->tech = &nbs_tech;
+		ast_channel_tech_set(tmp, &nbs_tech);
 		ast_channel_set_fd(tmp, 0, nbs_fd(i->nbs));
 
-		ast_format_cap_add(tmp->nativeformats, &prefformat);
+		ast_format_cap_add(ast_channel_nativeformats(tmp), &prefformat);
 		ast_format_copy(&tmp->rawreadformat, &prefformat);
 		ast_format_copy(&tmp->rawwriteformat, &prefformat);
 		ast_format_copy(&tmp->writeformat, &prefformat);
 		ast_format_copy(&tmp->readformat, &prefformat);
 		if (state == AST_STATE_RING)
-			tmp->rings = 1;
-		tmp->tech_pvt = i;
+			ast_channel_rings_set(tmp, 1);
+		ast_channel_tech_pvt_set(tmp, i);
 		ast_channel_context_set(tmp, context);
 		ast_channel_exten_set(tmp, "s");
 		ast_channel_language_set(tmp, "");

@@ -1,30 +1,30 @@
 /*
- * Asterisk -- An open source telephony toolkit.
+ *Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2012, Digium, Inc.
+ *Copyright (C) 2012, Digium, Inc.
  *
- * Mark Spencer <markster@digium.com>
+ *Mark Spencer <markster@digium.com>
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
- * any of the maintainers of this project for assistance;
- * the project provides a web site, mailing lists and IRC
- * channels for your use.
+ *See http://www.asterisk.org for more information about
+ *the Asterisk project. Please do not directly contact
+ *any of the maintainers of this project for assistance;
+ *the project provides a web site, mailing lists and IRC
+ *channels for your use.
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License Version 2. See the LICENSE file
- * at the top of the source tree.
+ *This program is free software, distributed under the terms of
+ *the GNU General Public License Version 2. See the LICENSE file
+ *at the top of the source tree.
  */
 
 /*! \file
  *
- * \brief Channel Accessor API
+ *\brief Channel Accessor API
  *
- * This file is intended to be the only file that ever accesses the
- * internals of an ast_channel. All other files should use the
- * accessor functions defined here.
+ *This file is intended to be the only file that ever accesses the
+ *internals of an ast_channel. All other files should use the
+ *accessor functions defined here.
  *
- * \author Terry Wilson
+ *\author Terry Wilson
  */
 
 #include "asterisk.h"
@@ -67,14 +67,14 @@ AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
 	MEMBER(ast_channel, __do_not_use_parkinglot, AST_DATA_STRING)			\
 	MEMBER(ast_channel, __do_not_use_hangupsource, AST_DATA_STRING)			\
 	MEMBER(ast_channel, __do_not_use_dialcontext, AST_DATA_STRING)			\
-	MEMBER(ast_channel, rings, AST_DATA_INTEGER)				\
-	MEMBER(ast_channel, priority, AST_DATA_INTEGER)				\
-	MEMBER(ast_channel, macropriority, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, adsicpe, AST_DATA_INTEGER)				\
-	MEMBER(ast_channel, fin, AST_DATA_UNSIGNED_INTEGER)			\
-	MEMBER(ast_channel, fout, AST_DATA_UNSIGNED_INTEGER)			\
-	MEMBER(ast_channel, emulate_dtmf_duration, AST_DATA_UNSIGNED_INTEGER)	\
-	MEMBER(ast_channel, visible_indication, AST_DATA_INTEGER)		\
+	MEMBER(ast_channel, __do_not_use_rings, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, __do_not_use_priority, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, __do_not_use_macropriority, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, __do_not_use_adsicpe, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, __do_not_use_fin, AST_DATA_UNSIGNED_INTEGER)			\
+	MEMBER(ast_channel, __do_not_use_fout, AST_DATA_UNSIGNED_INTEGER)			\
+	MEMBER(ast_channel, __do_not_use_emulate_dtmf_duration, AST_DATA_UNSIGNED_INTEGER)	\
+	MEMBER(ast_channel, __do_not_use_visible_indication, AST_DATA_INTEGER)		\
 	MEMBER(ast_channel, __do_not_use_context, AST_DATA_STRING)				\
 	MEMBER(ast_channel, __do_not_use_exten, AST_DATA_STRING)				\
 	MEMBER(ast_channel, __do_not_use_macrocontext, AST_DATA_STRING)			\
@@ -142,39 +142,39 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	ast_data_add_codec(tree, "writeformat", &chan->writeformat);
 	ast_data_add_codec(tree, "rawreadformat", &chan->rawreadformat);
 	ast_data_add_codec(tree, "rawwriteformat", &chan->rawwriteformat);
-	ast_data_add_codecs(tree, "nativeformats", chan->nativeformats);
+	ast_data_add_codecs(tree, "nativeformats", ast_channel_nativeformats(chan));
 
 	/* state */
 	enum_node = ast_data_add_node(tree, "state");
 	if (!enum_node) {
 		return -1;
 	}
-	ast_data_add_str(enum_node, "text", ast_state2str(chan->_state));
-	ast_data_add_int(enum_node, "value", chan->_state);
+	ast_data_add_str(enum_node, "text", ast_state2str(ast_channel_state(chan)));
+	ast_data_add_int(enum_node, "value", ast_channel_state(chan));
 
 	/* hangupcause */
 	enum_node = ast_data_add_node(tree, "hangupcause");
 	if (!enum_node) {
 		return -1;
 	}
-	ast_data_add_str(enum_node, "text", ast_cause2str(chan->hangupcause));
-	ast_data_add_int(enum_node, "value", chan->hangupcause);
+	ast_data_add_str(enum_node, "text", ast_cause2str(ast_channel_hangupcause(chan)));
+	ast_data_add_int(enum_node, "value", ast_channel_hangupcause(chan));
 
 	/* amaflags */
 	enum_node = ast_data_add_node(tree, "amaflags");
 	if (!enum_node) {
 		return -1;
 	}
-	ast_data_add_str(enum_node, "text", ast_cdr_flags2str(chan->amaflags));
-	ast_data_add_int(enum_node, "value", chan->amaflags);
+	ast_data_add_str(enum_node, "text", ast_cdr_flags2str(ast_channel_amaflags(chan)));
+	ast_data_add_int(enum_node, "value", ast_channel_amaflags(chan));
 
 	/* transfercapability */
 	enum_node = ast_data_add_node(tree, "transfercapability");
 	if (!enum_node) {
 		return -1;
 	}
-	ast_data_add_str(enum_node, "text", ast_transfercapability2str(chan->transfercapability));
-	ast_data_add_int(enum_node, "value", chan->transfercapability);
+	ast_data_add_str(enum_node, "text", ast_transfercapability2str(ast_channel_transfercapability(chan)));
+	ast_data_add_int(enum_node, "value", ast_channel_transfercapability(chan));
 
 	/* _softphangup */
 	data_softhangup = ast_data_add_node(tree, "softhangup");
@@ -218,12 +218,12 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 #endif
 
 	/* tone zone */
-	if (chan->zone) {
+	if (ast_channel_zone(chan)) {
 		data_zones = ast_data_add_node(tree, "zone");
 		if (!data_zones) {
 			return -1;
 		}
-		ast_tone_zone_data_add_structure(data_zones, chan->zone);
+		ast_tone_zone_data_add_structure(data_zones, ast_channel_zone(chan));
 	}
 
 	/* insert cdr */
@@ -232,7 +232,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 		return -1;
 	}
 
-	ast_cdr_data_add_structure(data_cdr, chan->cdr, 1);
+	ast_cdr_data_add_structure(data_cdr, ast_channel_cdr(chan), 1);
 
 	return 0;
 }
@@ -351,4 +351,336 @@ const char *ast_channel_macroexten(const struct ast_channel *chan)
 void ast_channel_macroexten_set(struct ast_channel *chan, const char *value)
 {
 	ast_copy_string(chan->__do_not_use_macroexten, value, sizeof(chan->__do_not_use_macroexten));
+}
+
+
+char ast_channel_emulate_dtmf_digit(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_emulate_dtmf_digit;
+}
+void ast_channel_emulate_dtmf_digit_set(struct ast_channel *chan, char value)
+{
+	chan->__do_not_use_emulate_dtmf_digit = value;
+}
+int ast_channel_amaflags(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_amaflags;
+}
+void ast_channel_amaflags_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_amaflags = value;
+}
+#ifdef HAVE_EPOLL
+int ast_channel_epfd(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_epfd;
+}
+void ast_channel_epfd_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_epfd = value;
+}
+#endif
+int ast_channel_fdno(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_fdno;
+}
+void ast_channel_fdno_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_fdno = value;
+}
+int ast_channel_hangupcause(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_hangupcause;
+}
+void ast_channel_hangupcause_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_hangupcause = value;
+}
+int ast_channel_macropriority(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_macropriority;
+}
+void ast_channel_macropriority_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_macropriority = value;
+}
+int ast_channel_priority(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_priority;
+}
+void ast_channel_priority_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_priority = value;
+}
+int ast_channel_rings(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_rings;
+}
+void ast_channel_rings_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_rings = value;
+}
+int ast_channel_streamid(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_streamid;
+}
+void ast_channel_streamid_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_streamid = value;
+}
+int ast_channel_timingfd(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_timingfd;
+}
+void ast_channel_timingfd_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_timingfd = value;
+}
+int ast_channel_visible_indication(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_visible_indication;
+}
+void ast_channel_visible_indication_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_visible_indication = value;
+}
+int ast_channel_vstreamid(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_vstreamid;
+}
+void ast_channel_vstreamid_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_vstreamid = value;
+}
+unsigned short ast_channel_transfercapability(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_transfercapability;
+}
+void ast_channel_transfercapability_set(struct ast_channel *chan, unsigned short value)
+{
+	chan->__do_not_use_transfercapability = value;
+}
+unsigned int ast_channel_emulate_dtmf_duration(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_emulate_dtmf_duration;
+}
+void ast_channel_emulate_dtmf_duration_set(struct ast_channel *chan, unsigned int value)
+{
+	chan->__do_not_use_emulate_dtmf_duration = value;
+}
+unsigned int ast_channel_fin(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_fin;
+}
+void ast_channel_fin_set(struct ast_channel *chan, unsigned int value)
+{
+	chan->__do_not_use_fin = value;
+}
+unsigned int ast_channel_fout(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_fout;
+}
+void ast_channel_fout_set(struct ast_channel *chan, unsigned int value)
+{
+	chan->__do_not_use_fout = value;
+}
+unsigned long ast_channel_insmpl(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_insmpl;
+}
+void ast_channel_insmpl_set(struct ast_channel *chan, unsigned long value)
+{
+	chan->__do_not_use_insmpl = value;
+}
+unsigned long ast_channel_outsmpl(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_outsmpl;
+}
+void ast_channel_outsmpl_set(struct ast_channel *chan, unsigned long value)
+{
+	chan->__do_not_use_outsmpl = value;
+}
+void *ast_channel_generatordata(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_generatordata;
+}
+void ast_channel_generatordata_set(struct ast_channel *chan, void *value)
+{
+	chan->__do_not_use_generatordata = value;
+}
+void *ast_channel_music_state(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_music_state;
+}
+void ast_channel_music_state_set(struct ast_channel *chan, void *value)
+{
+	chan->__do_not_use_music_state = value;
+}
+void *ast_channel_tech_pvt(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_tech_pvt;
+}
+void ast_channel_tech_pvt_set(struct ast_channel *chan, void *value)
+{
+	chan->__do_not_use_tech_pvt = value;
+}
+void *ast_channel_timingdata(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_timingdata;
+}
+void ast_channel_timingdata_set(struct ast_channel *chan, void *value)
+{
+	chan->__do_not_use_timingdata = value;
+}
+struct ast_audiohook_list *ast_channel_audiohooks(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_audiohooks;
+}
+void ast_channel_audiohooks_set(struct ast_channel *chan, struct ast_audiohook_list *value)
+{
+	chan->__do_not_use_audiohooks = value;
+}
+struct ast_cdr *ast_channel_cdr(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_cdr;
+}
+void ast_channel_cdr_set(struct ast_channel *chan, struct ast_cdr *value)
+{
+	chan->__do_not_use_cdr = value;
+}
+struct ast_channel *ast_channel_masq(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_masq;
+}
+void ast_channel_masq_set(struct ast_channel *chan, struct ast_channel *value)
+{
+	chan->__do_not_use_masq = value;
+}
+struct ast_channel *ast_channel_masqr(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_masqr;
+}
+void ast_channel_masqr_set(struct ast_channel *chan, struct ast_channel *value)
+{
+	chan->__do_not_use_masqr = value;
+}
+struct ast_channel_monitor *ast_channel_monitor(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_monitor;
+}
+void ast_channel_monitor_set(struct ast_channel *chan, struct ast_channel_monitor *value)
+{
+	chan->__do_not_use_monitor = value;
+}
+struct ast_filestream *ast_channel_stream(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_stream;
+}
+void ast_channel_stream_set(struct ast_channel *chan, struct ast_filestream *value)
+{
+	chan->__do_not_use_stream = value;
+}
+struct ast_filestream *ast_channel_vstream(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_vstream;
+}
+void ast_channel_vstream_set(struct ast_channel *chan, struct ast_filestream *value)
+{
+	chan->__do_not_use_vstream = value;
+}
+struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_nativeformats;
+}
+void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
+{
+	chan->__do_not_use_nativeformats = value;
+}
+struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_framehooks;
+}
+void ast_channel_framehooks_set(struct ast_channel *chan, struct ast_framehook_list *value)
+{
+	chan->__do_not_use_framehooks = value;
+}
+struct ast_generator *ast_channel_generator(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_generator;
+}
+void ast_channel_generator_set(struct ast_channel *chan, struct ast_generator *value)
+{
+	chan->__do_not_use_generator = value;
+}
+struct ast_pbx *ast_channel_pbx(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_pbx;
+}
+void ast_channel_pbx_set(struct ast_channel *chan, struct ast_pbx *value)
+{
+	chan->__do_not_use_pbx = value;
+}
+struct ast_sched_context *ast_channel_sched(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_sched;
+}
+void ast_channel_sched_set(struct ast_channel *chan, struct ast_sched_context *value)
+{
+	chan->__do_not_use_sched = value;
+}
+struct ast_timer *ast_channel_timer(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_timer;
+}
+void ast_channel_timer_set(struct ast_channel *chan, struct ast_timer *value)
+{
+	chan->__do_not_use_timer = value;
+}
+struct ast_tone_zone *ast_channel_zone(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_zone;
+}
+void ast_channel_zone_set(struct ast_channel *chan, struct ast_tone_zone *value)
+{
+	chan->__do_not_use_zone = value;
+}
+struct ast_trans_pvt *ast_channel_readtrans(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_readtrans;
+}
+void ast_channel_readtrans_set(struct ast_channel *chan, struct ast_trans_pvt *value)
+{
+	chan->__do_not_use_readtrans = value;
+}
+struct ast_trans_pvt *ast_channel_writetrans(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_writetrans;
+}
+void ast_channel_writetrans_set(struct ast_channel *chan, struct ast_trans_pvt *value)
+{
+	chan->__do_not_use_writetrans = value;
+}
+const struct ast_channel_tech *ast_channel_tech(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_tech;
+}
+void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tech *value)
+{
+	chan->__do_not_use_tech = value;
+}
+enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_adsicpe;
+}
+void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value)
+{
+	chan->__do_not_use_adsicpe = value;
+}
+enum ast_channel_state ast_channel_state(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_state;
+}
+void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state value)
+{
+	chan->__do_not_use_state = value;
 }

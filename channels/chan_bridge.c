@@ -79,7 +79,7 @@ struct bridge_pvt {
 /*! \brief Called when the user of this channel wants to get the actual channel in the bridge */
 static struct ast_channel *bridge_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
 {
-	struct bridge_pvt *p = chan->tech_pvt;
+	struct bridge_pvt *p = ast_channel_tech_pvt(chan);
 	return (chan == p->input) ? p->output : bridge;
 }
 
@@ -92,7 +92,7 @@ static struct ast_frame  *bridge_read(struct ast_channel *ast)
 /*! \brief Called when a frame should be written out to a channel */
 static int bridge_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct bridge_pvt *p = ast->tech_pvt;
+	struct bridge_pvt *p = ast_channel_tech_pvt(ast);
 	struct ast_channel *other = NULL;
 
 	ao2_lock(p);
@@ -118,7 +118,7 @@ static int bridge_write(struct ast_channel *ast, struct ast_frame *f)
 /*! \brief Called when the channel should actually be dialed */
 static int bridge_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct bridge_pvt *p = ast->tech_pvt;
+	struct bridge_pvt *p = ast_channel_tech_pvt(ast);
 
 	/* If no bridge has been provided on the input channel, bail out */
 	if (!ast->bridge) {
@@ -134,7 +134,7 @@ static int bridge_call(struct ast_channel *ast, const char *dest, int timeout)
 /*! \brief Called when a channel should be hung up */
 static int bridge_hangup(struct ast_channel *ast)
 {
-	struct bridge_pvt *p = ast->tech_pvt;
+	struct bridge_pvt *p = ast_channel_tech_pvt(ast);
 
 	if (!p) {
 		return 0;
@@ -148,7 +148,7 @@ static int bridge_hangup(struct ast_channel *ast)
 	}
 	ao2_unlock(p);
 
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	ao2_ref(p, -1);
 
 	return 0;
@@ -177,15 +177,17 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 	}
 
 	/* Setup parameters on both new channels */
-	p->input->tech = p->output->tech = &bridge_tech;
+	ast_channel_tech_set(p->input, &bridge_tech);
+	ast_channel_tech_set(p->output, &bridge_tech);
 
 	ao2_ref(p, 2);
-	p->input->tech_pvt = p->output->tech_pvt = p;
+	ast_channel_tech_pvt_set(p->input, p);
+	ast_channel_tech_pvt_set(p->output, p);
 
 	ast_format_set(&slin, AST_FORMAT_SLINEAR, 0);
 
-	ast_format_cap_add(p->input->nativeformats, &slin);
-	ast_format_cap_add(p->output->nativeformats, &slin);
+	ast_format_cap_add(ast_channel_nativeformats(p->input), &slin);
+	ast_format_cap_add(ast_channel_nativeformats(p->output), &slin);
 	ast_format_copy(&p->input->readformat, &slin);
 	ast_format_copy(&p->output->readformat, &slin);
 	ast_format_copy(&p->input->rawreadformat, &slin);

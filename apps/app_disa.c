@@ -131,9 +131,9 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 	struct ast_tone_zone_sound *ts = NULL;
 
 	if (ast_app_has_voicemail(mailbox, NULL)) {
-		ts = ast_get_indication_tone(chan->zone, "dialrecall");
+		ts = ast_get_indication_tone(ast_channel_zone(chan), "dialrecall");
 	} else {
-		ts = ast_get_indication_tone(chan->zone, "dial");
+		ts = ast_get_indication_tone(ast_channel_zone(chan), "dial");
 	}
 
 	if (ts) {
@@ -147,8 +147,8 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 static int disa_exec(struct ast_channel *chan, const char *data)
 {
 	int i = 0, j, k = 0, did_ignore = 0, special_noanswer = 0;
-	int firstdigittimeout = (chan->pbx ? chan->pbx->rtimeoutms : 20000);
-	int digittimeout = (chan->pbx ? chan->pbx->dtimeoutms : 10000);
+	int firstdigittimeout = (ast_channel_pbx(chan) ? ast_channel_pbx(chan)->rtimeoutms : 20000);
+	int digittimeout = (ast_channel_pbx(chan) ? ast_channel_pbx(chan)->dtimeoutms : 10000);
 	struct ast_flags flags;
 	char *tmp, exten[AST_MAX_EXTENSION] = "", acctcode[20]="";
 	char pwline[256];
@@ -187,7 +187,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 	ast_debug(1, "Mailbox: %s\n",args.mailbox);
 
 	if (!ast_test_flag(&flags, NOANSWER_FLAG)) {
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			/* answer */
 			ast_answer(chan);
 		}
@@ -226,7 +226,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
 			if (f->data.uint32)
-				chan->hangupcause = f->data.uint32;
+				ast_channel_hangupcause_set(chan, f->data.uint32);
 			ast_frfree(f);
 			ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 			return -1;
@@ -380,7 +380,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 				ast_channel_accountcode_set(chan, acctcode);
 
 			if (special_noanswer) cdr_flags.flags = 0;
-			ast_cdr_reset(chan->cdr, &cdr_flags);
+			ast_cdr_reset(ast_channel_cdr(chan), &cdr_flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
 			return 0;
 		}

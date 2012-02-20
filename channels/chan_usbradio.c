@@ -1684,7 +1684,7 @@ static void ring(struct chan_usbradio_pvt *o, int x)
  */
 static int usbradio_call(struct ast_channel *c, const char *dest, int timeout)
 {
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 
 	o->stophid = 0;
 	time(&o->lasthidtime);
@@ -1699,7 +1699,7 @@ static int usbradio_call(struct ast_channel *c, const char *dest, int timeout)
 static int usbradio_answer(struct ast_channel *c)
 {
 #ifndef	NEW_ASTERISK
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 #endif
 
 	ast_setstate(c, AST_STATE_UP);
@@ -1712,14 +1712,14 @@ static int usbradio_answer(struct ast_channel *c)
 
 static int usbradio_hangup(struct ast_channel *c)
 {
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 
 	//ast_log(LOG_NOTICE, "usbradio_hangup()\n");
 #ifndef	NEW_ASTERISK
 	o->cursound = -1;
 	o->nosound = 0;
 #endif
-	c->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(c, NULL);
 	o->owner = NULL;
 	ast_module_unref(ast_module_info->self);
 	if (o->hookstate) {
@@ -1741,7 +1741,7 @@ static int usbradio_hangup(struct ast_channel *c)
 /* used for data coming from the network */
 static int usbradio_write(struct ast_channel *c, struct ast_frame *f)
 {
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 
 	traceusb2(("usbradio_write() o->nosound= %i\n",o->nosound));
 
@@ -1786,7 +1786,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 {
 	int res, src, datalen, oldpttout;
 	int cd,sd;
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 	struct ast_frame *f = &o->read_f,*f1;
 	struct ast_frame wf = { AST_FRAME_CONTROL };
 	time_t now;
@@ -2059,7 +2059,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	}
 
 	o->readpos = AST_FRIENDLY_OFFSET;	/* reset read pointer for next frame */
-	if (c->_state != AST_STATE_UP)	/* drop data if frame is not up */
+	if (ast_channel_state(c) != AST_STATE_UP)	/* drop data if frame is not up */
 		return f;
 	/* ok we can build and deliver the frame to the caller */
 	f->frametype = AST_FRAME_VOICE;
@@ -2103,7 +2103,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 
 static int usbradio_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct chan_usbradio_pvt *o = newchan->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(newchan);
 	ast_log(LOG_WARNING,"usbradio_fixup()\n");
 	o->owner = newchan;
 	return 0;
@@ -2111,7 +2111,7 @@ static int usbradio_fixup(struct ast_channel *oldchan, struct ast_channel *newch
 
 static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
-	struct chan_usbradio_pvt *o = c->tech_pvt;
+	struct chan_usbradio_pvt *o = ast_channel_tech_pvt(c);
 	int res = -1;
 
 	switch (cond) {
@@ -2178,14 +2178,14 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Radio/%s", o->name);
 	if (c == NULL)
 		return NULL;
-	c->tech = &usbradio_tech;
+	ast_channel_tech_set(c, &usbradio_tech);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
 	c->fds[0] = o->sounddev;	/* -1 if device closed, override later */
-	ast_format_cap_add(c->nativeformats, &slin);
+	ast_format_cap_add(ast_channel_nativeformats(c), &slin);
 	ast_format_set(&c->readformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&c->writeformat, AST_FORMAT_SLINEAR, 0);
-	c->tech_pvt = o;
+	ast_channel_tech_pvt_set(c, o);
 
 	if (!ast_strlen_zero(o->language))
 		ast_channel_language_set(c, o->language);

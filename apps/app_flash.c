@@ -79,7 +79,7 @@ static int flash_exec(struct ast_channel *chan, const char *data)
 	int x;
 	struct dahdi_params dahdip;
 
-	if (strcasecmp(chan->tech->type, "DAHDI")) {
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
 		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
 		return -1;
 	}

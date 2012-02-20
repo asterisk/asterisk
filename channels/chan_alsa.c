@@ -366,7 +366,7 @@ static int alsa_answer(struct ast_channel *c)
 static int alsa_hangup(struct ast_channel *c)
 {
 	ast_mutex_lock(&alsalock);
-	c->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(c, NULL);
 	alsa.owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
 	ast_module_unref(ast_module_info->self);
@@ -489,7 +489,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		/* A real frame */
 		readpos = 0;
 		left = FRAME_SIZE;
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			/* Don't transmit unless it's up */
 			ast_mutex_unlock(&alsalock);
 			return &f;
@@ -517,7 +517,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct chan_alsa_pvt *p = newchan->tech_pvt;
+	struct chan_alsa_pvt *p = ast_channel_tech_pvt(newchan);
 
 	ast_mutex_lock(&alsalock);
 	p->owner = newchan;
@@ -570,13 +570,13 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "", p->exten, p->context, linkedid, 0, "ALSA/%s", indevname)))
 		return NULL;
 
-	tmp->tech = &alsa_tech;
+	ast_channel_tech_set(tmp, &alsa_tech);
 	ast_channel_set_fd(tmp, 0, readdev);
 	ast_format_set(&tmp->readformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&tmp->writeformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(tmp->nativeformats, &tmp->writeformat);
+	ast_format_cap_add(ast_channel_nativeformats(tmp), &tmp->writeformat);
 
-	tmp->tech_pvt = p;
+	ast_channel_tech_pvt_set(tmp, p);
 	if (!ast_strlen_zero(p->context))
 		ast_channel_context_set(tmp, p->context);
 	if (!ast_strlen_zero(p->exten))

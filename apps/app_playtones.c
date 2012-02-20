@@ -87,7 +87,7 @@ static int handle_playtones(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	ts = ast_get_indication_tone(chan->zone, str);
+	ts = ast_get_indication_tone(ast_channel_zone(chan), str);
 
 	if (ts) {
 		res = ast_playtones_start(chan, 0, ts->data, 0);

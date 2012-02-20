@@ -1125,7 +1125,7 @@ static struct ast_udptl_protocol *get_proto(struct ast_channel *chan)
 
 	AST_RWLIST_RDLOCK(&protos);
 	AST_RWLIST_TRAVERSE(&protos, cur, list) {
-		if (cur->type == chan->tech->type)
+		if (cur->type == ast_channel_tech(chan)->type)
 			break;
 	}
 	AST_RWLIST_UNLOCK(&protos);
@@ -1170,8 +1170,8 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_channel_unlock(c1);
 		return -1;
 	}
-	pvt0 = c0->tech_pvt;
-	pvt1 = c1->tech_pvt;
+	pvt0 = ast_channel_tech_pvt(c0);
+	pvt1 = ast_channel_tech_pvt(c1);
 	p0 = pr0->get_udptl_info(c0);
 	p1 = pr1->get_udptl_info(c1);
 	if (!p0 || !p1) {
@@ -1200,9 +1200,9 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	cs[1] = c1;
 	cs[2] = NULL;
 	for (;;) {
-		if ((c0->tech_pvt != pvt0) ||
-			(c1->tech_pvt != pvt1) ||
-			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
+		if ((ast_channel_tech_pvt(c0) != pvt0) ||
+			(ast_channel_tech_pvt(c1) != pvt1) ||
+			(ast_channel_masq(c0) || ast_channel_masqr(c0) || ast_channel_masq(c1) || ast_channel_masqr(c1))) {
 				ast_debug(1, "Oooh, something is weird, backing out\n");
 				/* Tell it to try again later */
 				return -3;

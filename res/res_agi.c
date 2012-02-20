@@ -1726,7 +1726,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	ast_agi_send(fd, chan, "agi_request: %s\n", request);
 	ast_agi_send(fd, chan, "agi_channel: %s\n", ast_channel_name(chan));
 	ast_agi_send(fd, chan, "agi_language: %s\n", ast_channel_language(chan));
-	ast_agi_send(fd, chan, "agi_type: %s\n", chan->tech->type);
+	ast_agi_send(fd, chan, "agi_type: %s\n", ast_channel_tech(chan)->type);
 	ast_agi_send(fd, chan, "agi_uniqueid: %s\n", ast_channel_uniqueid(chan));
 	ast_agi_send(fd, chan, "agi_version: %s\n", ast_get_version());
 
@@ -1747,7 +1747,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	/* Context information */
 	ast_agi_send(fd, chan, "agi_context: %s\n", ast_channel_context(chan));
 	ast_agi_send(fd, chan, "agi_extension: %s\n", ast_channel_exten(chan));
-	ast_agi_send(fd, chan, "agi_priority: %d\n", chan->priority);
+	ast_agi_send(fd, chan, "agi_priority: %d\n", ast_channel_priority(chan));
 	ast_agi_send(fd, chan, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
 	/* User information */
@@ -1768,7 +1768,7 @@ static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, const cha
 	int res = 0;
 
 	/* Answer the channel */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -1975,7 +1975,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
-	sample_offset = (chan->stream) ? ast_tellstream(fs) : max_length;
+	sample_offset = (ast_channel_stream(chan)) ? ast_tellstream(fs) : max_length;
 	ast_stopstream(chan);
 	if (res == 1) {
 		/* Stop this command, don't print a result line, as there is a new command */
@@ -2002,9 +2002,9 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 
 	if ( argc == 5 )
 		timeout = atoi(argv[4]);
-	else if (chan->pbx->dtimeoutms) {
+	else if (ast_channel_pbx(chan)->dtimeoutms) {
 		/* by default dtimeout is set to 5sec */
-		timeout = chan->pbx->dtimeoutms; /* in msec */
+		timeout = ast_channel_pbx(chan)->dtimeoutms; /* in msec */
 	}
 
 	if (!(fs = ast_openstream(chan, argv[2], ast_channel_language(chan)))) {
@@ -2031,7 +2031,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
-	sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
+	sample_offset = (ast_channel_stream(chan))?ast_tellstream(fs):max_length;
 	ast_stopstream(chan);
 	if (res == 1) {
 		/* Stop this command, don't print a result line, as there is a new command */
@@ -2331,7 +2331,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 		/* Request a video update */
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
-		chan->stream = fs;
+		ast_channel_stream_set(chan, fs);
 		ast_applystream(chan,fs);
 		/* really should have checks */
 		ast_seekstream(fs, sample_offset, SEEK_SET);
@@ -2542,12 +2542,12 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 	struct ast_channel *c;
 	if (argc == 2) {
 		/* no argument: supply info on the current channel */
-		ast_agi_send(agi->fd, chan, "200 result=%d\n", chan->_state);
+		ast_agi_send(agi->fd, chan, "200 result=%d\n", ast_channel_state(chan));
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
 		if ((c = ast_channel_get_by_name(argv[2]))) {
-			ast_agi_send(agi->fd, chan, "200 result=%d\n", c->_state);
+			ast_agi_send(agi->fd, chan, "200 result=%d\n", ast_channel_state(c));
 			c = ast_channel_unref(c);
 			return RESULT_SUCCESS;
 		}
@@ -2955,10 +2955,10 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	/* Go into loop reading in frames, passing to speech thingy, checking for hangup, all that jazz */
 	while (ast_strlen_zero(reason)) {
 		/* Run scheduled items */
-                ast_sched_runq(chan->sched);
+                ast_sched_runq(ast_channel_sched(chan));
 
 		/* See maximum time of waiting */
-		if ((res = ast_sched_wait(chan->sched)) < 0)
+		if ((res = ast_sched_wait(ast_channel_sched(chan))) < 0)
 			res = 1000;
 
 		/* Wait for frame */
@@ -2984,8 +2984,8 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		ast_mutex_lock(&speech->lock);
 
 		/* See if we need to quiet the audio stream playback */
-		if (ast_test_flag(speech, AST_SPEECH_QUIET) && chan->stream) {
-			current_offset = ast_tellstream(chan->stream);
+		if (ast_test_flag(speech, AST_SPEECH_QUIET) && ast_channel_stream(chan)) {
+			current_offset = ast_tellstream(ast_channel_stream(chan));
 			ast_stopstream(chan);
 			ast_clear_flag(speech, AST_SPEECH_QUIET);
 		}
@@ -2994,7 +2994,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
 			/* If the stream is done, start timeout calculation */
-			if ((timeout > 0) && start == 0 && ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL))) {
+			if ((timeout > 0) && start == 0 && ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL))) {
 				ast_stopstream(chan);
 				time(&start);
 			}
@@ -3004,7 +3004,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			break;
 		case AST_SPEECH_STATE_WAIT:
 			/* Cue waiting sound if not already playing */
-			if ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL)) {
+			if ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL)) {
 				ast_stopstream(chan);
 				/* If a processing sound exists, or is not none - play it */
 				if (!ast_strlen_zero(speech->processing_sound) && strcasecmp(speech->processing_sound, "none"))
@@ -3393,8 +3393,8 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 			ast_module_ref(c->mod);
 		/* If the AGI command being executed is an actual application (using agi exec)
 		the app field will be updated in pbx_exec via handle_exec */
-		if (chan->cdr && !ast_check_hangup(chan) && strcasecmp(argv[0], "EXEC"))
-			ast_cdr_setapp(chan->cdr, "AGI", buf);
+		if (ast_channel_cdr(chan) && !ast_check_hangup(chan) && strcasecmp(argv[0], "EXEC"))
+			ast_cdr_setapp(ast_channel_cdr(chan), "AGI", buf);
 
 		res = c->handler(chan, agi, argc, argv);
 		if (c->mod != ast_module_info->self)

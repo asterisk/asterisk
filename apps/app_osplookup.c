@@ -2878,9 +2878,9 @@ static int ospfinished_exec(
 	}
 	ast_debug(1, "OSPFinish: cause '%d'\n", cause);
 
-	if (chan->cdr) {
-		start = chan->cdr->start.tv_sec;
-		connect = chan->cdr->answer.tv_sec;
+	if (ast_channel_cdr(chan)) {
+		start = ast_channel_cdr(chan)->start.tv_sec;
+		connect = ast_channel_cdr(chan)->answer.tv_sec;
 		if (connect) {
 			end = time(NULL);
 		} else {

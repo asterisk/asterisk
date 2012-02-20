@@ -148,7 +148,7 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 
 	ast_get_time_t(ast_strlen_zero(args.timeval) ? NULL : args.timeval, &unixtime, time(NULL), NULL);
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		res = ast_answer(chan);
 	}
 

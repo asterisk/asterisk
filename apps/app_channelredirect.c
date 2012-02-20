@@ -96,7 +96,7 @@ static int asyncgoto_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 
-	if (chan2->pbx) {
+	if (ast_channel_pbx(chan2)) {
 		ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 	}
 

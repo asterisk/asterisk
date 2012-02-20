@@ -125,7 +125,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 
 	ast_debug(1, "Preparing detect of '%s', sil=%d, min=%d, max=%d, analysistime=%d\n", args.filename, sil, min, max, analysistime);
 	do {
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			if ((res = ast_answer(chan))) {
 				break;
 			}
@@ -149,8 +149,8 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 			break;
 		}
 		detection_start = ast_tvnow();
-		while (chan->stream) {
-			res = ast_sched_wait(chan->sched);
+		while (ast_channel_stream(chan)) {
+			res = ast_sched_wait(ast_channel_sched(chan));
 			if ((res < 0) && !chan->timingfunc) {
 				res = 0;
 				break;
@@ -227,7 +227,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 				}
 				ast_frfree(fr);
 			}
-			ast_sched_runq(chan->sched);
+			ast_sched_runq(ast_channel_sched(chan));
 		}
 		ast_stopstream(chan);
 	} while (0);

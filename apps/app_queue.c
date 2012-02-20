@@ -3096,8 +3096,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	/* on entry here, we know that tmp->chan == NULL */
 	if (tmp->member->paused) {
 		ast_debug(1, "%s paused, can't receive call\n", tmp->interface);
-		if (qe->chan->cdr) {
-			ast_cdr_busy(qe->chan->cdr);
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_busy(ast_channel_cdr(qe->chan));
 		}
 		tmp->stillgoing = 0;
 		return 0;
@@ -3107,8 +3107,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		(!tmp->lastqueue && qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))) {
 		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
 				(tmp->lastqueue ? tmp->lastqueue->name : qe->parent->name), tmp->interface);
-		if (qe->chan->cdr) {
-			ast_cdr_busy(qe->chan->cdr);
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_busy(ast_channel_cdr(qe->chan));
 		}
 		tmp->stillgoing = 0;
 		(*busies)++;
@@ -3126,8 +3126,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
 			ast_debug(1, "%s in use, can't receive call\n", tmp->interface);
-			if (qe->chan->cdr) {
-				ast_cdr_busy(qe->chan->cdr);
+			if (ast_channel_cdr(qe->chan)) {
+				ast_cdr_busy(ast_channel_cdr(qe->chan));
 			}
 			tmp->stillgoing = 0;
 			return 0;
@@ -3136,8 +3136,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	if (use_weight && compare_weight(qe->parent,tmp->member)) {
 		ast_debug(1, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
-		if (qe->chan->cdr) {
-			ast_cdr_busy(qe->chan->cdr);
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_busy(ast_channel_cdr(qe->chan));
 		}
 		tmp->stillgoing = 0;
 		(*busies)++;
@@ -3151,10 +3151,10 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		location = "";
 
 	/* Request the peer */
-	tmp->chan = ast_request(tech, qe->chan->nativeformats, qe->chan, location, &status);
+	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), qe->chan, location, &status);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
-		if (qe->chan->cdr) {
-			ast_cdr_busy(qe->chan->cdr);
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_busy(ast_channel_cdr(qe->chan));
 		}
 		tmp->stillgoing = 0;
 
@@ -3205,7 +3205,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	ast_channel_datastore_inherit(qe->chan, tmp->chan);
 
 	/* Presense of ADSI CPE on outgoing channel follows ours */
-	tmp->chan->adsicpe = qe->chan->adsicpe;
+	ast_channel_adsicpe_set(tmp->chan, ast_channel_adsicpe(qe->chan));
 
 	/* Inherit context and extension */
 	macrocontext = pbx_builtin_getvar_helper(qe->chan, "MACRO_CONTEXT");
@@ -3218,17 +3218,17 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	if (ast_cdr_isset_unanswered()) {
 		/* they want to see the unanswered dial attempts! */
 		/* set up the CDR fields on all the CDRs to give sensical information */
-		ast_cdr_setdestchan(tmp->chan->cdr, ast_channel_name(tmp->chan));
-		strcpy(tmp->chan->cdr->clid, qe->chan->cdr->clid);
-		strcpy(tmp->chan->cdr->channel, qe->chan->cdr->channel);
-		strcpy(tmp->chan->cdr->src, qe->chan->cdr->src);
-		strcpy(tmp->chan->cdr->dst, ast_channel_exten(qe->chan));
-		strcpy(tmp->chan->cdr->dcontext, ast_channel_context(qe->chan));
-		strcpy(tmp->chan->cdr->lastapp, qe->chan->cdr->lastapp);
-		strcpy(tmp->chan->cdr->lastdata, qe->chan->cdr->lastdata);
-		tmp->chan->cdr->amaflags = qe->chan->cdr->amaflags;
-		strcpy(tmp->chan->cdr->accountcode, qe->chan->cdr->accountcode);
-		strcpy(tmp->chan->cdr->userfield, qe->chan->cdr->userfield);
+		ast_cdr_setdestchan(ast_channel_cdr(tmp->chan), ast_channel_name(tmp->chan));
+		strcpy(ast_channel_cdr(tmp->chan)->clid, ast_channel_cdr(qe->chan)->clid);
+		strcpy(ast_channel_cdr(tmp->chan)->channel, ast_channel_cdr(qe->chan)->channel);
+		strcpy(ast_channel_cdr(tmp->chan)->src, ast_channel_cdr(qe->chan)->src);
+		strcpy(ast_channel_cdr(tmp->chan)->dst, ast_channel_exten(qe->chan));
+		strcpy(ast_channel_cdr(tmp->chan)->dcontext, ast_channel_context(qe->chan));
+		strcpy(ast_channel_cdr(tmp->chan)->lastapp, ast_channel_cdr(qe->chan)->lastapp);
+		strcpy(ast_channel_cdr(tmp->chan)->lastdata, ast_channel_cdr(qe->chan)->lastdata);
+		ast_channel_cdr(tmp->chan)->amaflags = ast_channel_cdr(qe->chan)->amaflags;
+		strcpy(ast_channel_cdr(tmp->chan)->accountcode, ast_channel_cdr(qe->chan)->accountcode);
+		strcpy(ast_channel_cdr(tmp->chan)->userfield, ast_channel_cdr(qe->chan)->userfield);
 	}
 
 	ast_channel_unlock(tmp->chan);
@@ -3268,7 +3268,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
 			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
 			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
-			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), qe->chan->priority, ast_channel_uniqueid(qe->chan),
+			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), ast_channel_priority(qe->chan), ast_channel_uniqueid(qe->chan),
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 
 		ast_channel_unlock(tmp->chan);
@@ -3640,7 +3640,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_copy_string(ochan_name, ast_channel_name(o->chan), sizeof(ochan_name));
 				ast_channel_unlock(o->chan);
 			}
-			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
+			if (o->stillgoing && (o->chan) &&  (ast_channel_state(o->chan) == AST_STATE_UP)) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 					if (update_connectedline) {
@@ -3699,7 +3699,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					/* Before processing channel, go ahead and check for forwarding */
 					ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", inchan_name, tech, stuff, ochan_name);
 					/* Setup parameters */
-					o->chan = ast_request(tech, in->nativeformats, in, stuff, &status);
+					o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &status);
 					if (!o->chan) {
 						ast_log(LOG_NOTICE,
 							"Forwarding failed to create channel to dial '%s/%s'\n",
@@ -3799,8 +3799,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_BUSY:
 							ast_verb(3, "%s is busy\n", ochan_name);
-							if (in->cdr)
-								ast_cdr_busy(in->cdr);
+							if (ast_channel_cdr(in))
+								ast_cdr_busy(ast_channel_cdr(in));
 							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
@@ -3818,8 +3818,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_CONGESTION:
 							ast_verb(3, "%s is circuit-busy\n", ochan_name);
-							if (in->cdr)
-								ast_cdr_busy(in->cdr);
+							if (ast_channel_cdr(in))
+								ast_cdr_busy(ast_channel_cdr(in));
 							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime * 1000, qe, on, membername, qe->parent->autopauseunavail);
@@ -3914,7 +3914,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				*to = -1;
 				if (f) {
 					if (f->data.uint32) {
-						in->hangupcause = f->data.uint32;
+						ast_channel_hangupcause_set(in, f->data.uint32);
 					}
 					ast_frfree(f);
 				}
@@ -4648,7 +4648,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			tmp->q_next = outgoing;
 			outgoing = tmp;		
 			/* If this line is up, don't try anybody else */
-			if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
+			if (outgoing->chan && (ast_channel_state(outgoing->chan) == AST_STATE_UP))
 				break;
 		} else {
 			callattempt_free(tmp);
@@ -4717,8 +4717,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				if (!o->chan) {
 					continue;
 				}
-				if (strcmp(o->chan->cdr->dstchannel, qe->chan->cdr->dstchannel) == 0) {
-					ast_set_flag(o->chan->cdr, AST_CDR_FLAG_POST_DISABLED);
+				if (strcmp(ast_channel_cdr(o->chan)->dstchannel, ast_channel_cdr(qe->chan)->dstchannel) == 0) {
+					ast_set_flag(ast_channel_cdr(o->chan), AST_CDR_FLAG_POST_DISABLED);
 					break;
 				}
 			}
@@ -4727,9 +4727,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
-		if (!strcmp(qe->chan->tech->type, "DAHDI"))
+		if (!strcmp(ast_channel_tech(qe->chan)->type, "DAHDI"))
 			ast_channel_setoption(qe->chan, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
-		if (!strcmp(peer->tech->type, "DAHDI"))
+		if (!strcmp(ast_channel_tech(peer)->type, "DAHDI"))
 			ast_channel_setoption(peer, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
 		/* Update parameters for the queue */
 		time(&now);
@@ -4806,8 +4806,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		else
 			ast_moh_stop(qe->chan);
 		/* If appropriate, log that we have a destination channel */
-		if (qe->chan->cdr) {
-			ast_cdr_setdestchan(qe->chan->cdr, ast_channel_name(peer));
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_setdestchan(ast_channel_cdr(qe->chan), ast_channel_name(peer));
 		}
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(qe->chan, peer);
@@ -4815,7 +4815,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", ast_channel_name(qe->chan), ast_channel_name(peer));
 			record_abandoned(qe);
-			ast_cdr_failed(qe->chan->cdr);
+			ast_cdr_failed(ast_channel_cdr(qe->chan));
 			ast_hangup(peer);
 			ao2_ref(member, -1);
 			return -1;
@@ -4872,8 +4872,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_channel_unlock(qe->chan);
 				if (monitorfilename) {
 					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
-				} else if (qe->chan->cdr) {
-					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1, X_REC_IN | X_REC_OUT);
+				} else if (ast_channel_cdr(qe->chan)) {
+					ast_monitor_start(which, qe->parent->monfmt, ast_channel_cdr(qe->chan)->uniqueid, 1, X_REC_IN | X_REC_OUT);
 				} else {
 					/* Last ditch effort -- no CDR, make up something */
 					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
@@ -4888,8 +4888,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				if (mixmonapp) {
 					ast_debug(1, "Starting MixMonitor as requested.\n");
 					if (!monitorfilename) {
-						if (qe->chan->cdr) {
-							ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid));
+						if (ast_channel_cdr(qe->chan)) {
+							ast_copy_string(tmpid, ast_channel_cdr(qe->chan)->uniqueid, sizeof(tmpid));
 						} else {
 							snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
 						}
@@ -4959,12 +4959,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					
 					ast_debug(1, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
 					/* We purposely lock the CDR so that pbx_exec does not update the application data */
-					if (qe->chan->cdr) {
-						ast_set_flag(qe->chan->cdr, AST_CDR_FLAG_LOCKED);
+					if (ast_channel_cdr(qe->chan)) {
+						ast_set_flag(ast_channel_cdr(qe->chan), AST_CDR_FLAG_LOCKED);
 					}
 					pbx_exec(qe->chan, mixmonapp, mixmonargs);
-					if (qe->chan->cdr) {
-						ast_clear_flag(qe->chan->cdr, AST_CDR_FLAG_LOCKED);
+					if (ast_channel_cdr(qe->chan)) {
+						ast_clear_flag(ast_channel_cdr(qe->chan), AST_CDR_FLAG_LOCKED);
 					}
 				} else {
 					ast_log(LOG_WARNING, "Asked to run MixMonitor on this call, but cannot find the MixMonitor app!\n");
@@ -5039,7 +5039,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				/* Set where we came from */
 				ast_channel_context_set(peer, "app_queue_gosub_virtual_context");
 				ast_channel_exten_set(peer, "s");
-				peer->priority = 0;
+				ast_channel_priority_set(peer, 0);
 
 				gosub_argstart = strchr(gosubexec, ',');
 				if (gosub_argstart) {
@@ -5102,12 +5102,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "CONNECT", "%ld|%s|%ld", (long) time(NULL) - qe->start, ast_channel_uniqueid(peer),
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
 
-		if (qe->chan->cdr) {
+		if (ast_channel_cdr(qe->chan)) {
 			struct ast_cdr *cdr;
 			struct ast_cdr *newcdr;
 
 			/* Only work with the last CDR in the stack*/
-			cdr = qe->chan->cdr;
+			cdr = ast_channel_cdr(qe->chan);
 			while (cdr->next) {
 				cdr = cdr->next;
 			}

@@ -952,7 +952,7 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 		p->owner = c;
 	p->isidlecall = 0;
 	p->alreadyhungup = 0;
-	c->transfercapability = transfercapability;
+	ast_channel_transfercapability_set(c, transfercapability);
 	pbx_builtin_setvar_helper(c, "TRANSFERCAPABILITY",
 		ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL) {
@@ -1302,7 +1302,7 @@ static void sig_pri_kill_call(struct sig_pri_span *pri, q931_call *call, int cau
 		sig_pri_span_devstate_changed(pri);
 		return;
 	}
-	pri->pvts[chanpos]->owner->hangupcause = cause;
+	ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, cause);
 	pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 }
@@ -1839,7 +1839,7 @@ static void *do_idle_thread(void *v_pvt)
 				/* Launch the PBX */
 				ast_channel_exten_set(chan, pvt->pri->idleext);
 				ast_channel_context_set(chan, pvt->pri->idlecontext);
-				chan->priority = 1;
+				ast_channel_priority_set(chan, 1);
 				ast_verb(4, "Idle channel '%s' answered, sending to %s@%s\n", ast_channel_name(chan), ast_channel_exten(chan), ast_channel_context(chan));
 				ast_pbx_run(chan);
 				/* It's already hungup, return immediately */
@@ -1878,7 +1878,7 @@ static void *pri_ss_thread(void *data)
 	 * In the bizarre case where the channel has become a zombie before we
 	 * even get started here, abort safely.
 	 */
-	if (!chan->tech_pvt) {
+	if (!ast_channel_tech_pvt(chan)) {
 		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", ast_channel_name(chan));
 		ast_hangup(chan);
 		return NULL;
@@ -1973,7 +1973,7 @@ static void *pri_ss_thread(void *data)
 		}
 	} else {
 		ast_debug(1, "No such possible extension '%s' in context '%s'\n", exten, ast_channel_context(chan));
-		chan->hangupcause = AST_CAUSE_UNALLOCATED;
+		ast_channel_hangupcause_set(chan, AST_CAUSE_UNALLOCATED);
 		ast_hangup(chan);
 		p->exten[0] = '\0';
 		/* Since we send release complete here, we won't get one */
@@ -6409,7 +6409,7 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->owner) {
 							ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
 
-							pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
+							ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->proceeding.cause);
 							pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 						}
 					}
@@ -6545,8 +6545,8 @@ static void *pri_dchannel(void *vpri)
 							sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCBS);
 							sig_pri_lock_owner(pri, chanpos);
 							if (pri->pvts[chanpos]->owner) {
-								pri->pvts[chanpos]->owner->hangupcause = PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION;
-								switch (pri->pvts[chanpos]->owner->_state) {
+								ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+								switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
 								case AST_STATE_BUSY:
 								case AST_STATE_UP:
 									ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
@@ -6691,8 +6691,8 @@ static void *pri_dchannel(void *vpri)
 						int do_hangup = 0;
 
 						/* Queue a BUSY instead of a hangup if our cause is appropriate */
-						pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-						switch (pri->pvts[chanpos]->owner->_state) {
+						ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
+						switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
 						case AST_STATE_BUSY:
 						case AST_STATE_UP:
 							do_hangup = 1;
@@ -6839,8 +6839,8 @@ static void *pri_dchannel(void *vpri)
 				if (pri->pvts[chanpos]->owner) {
 					int do_hangup = 0;
 
-					pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-					switch (pri->pvts[chanpos]->owner->_state) {
+					ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
+					switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
 					case AST_STATE_BUSY:
 					case AST_STATE_UP:
 						do_hangup = 1;
@@ -7231,7 +7231,7 @@ void sig_pri_init_pri(struct sig_pri_span *pri)
 int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 {
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -7278,7 +7278,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 			p->call = NULL;
 		} else {
 			const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
-			int icause = ast->hangupcause ? ast->hangupcause : -1;
+			int icause = ast_channel_hangupcause(ast) ? ast_channel_hangupcause(ast) : -1;
 
 			p->alreadyhungup = 1;
 			if (!ast_strlen_zero(cause)) {
@@ -7442,7 +7442,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		return -1;
 	}
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sig_pri_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
@@ -7544,7 +7544,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		return -1;
 	}
 
-	sig_pri_set_digital(p, IS_DIGITAL(ast->transfercapability));	/* push up to parent for EC */
+	sig_pri_set_digital(p, IS_DIGITAL(ast_channel_transfercapability(ast)));	/* push up to parent for EC */
 
 #if defined(HAVE_PRI_CALL_WAITING)
 	if (p->is_call_waiting) {
@@ -7565,13 +7565,13 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		pri_sr_set_channel(sr, PVT_TO_CHANNEL(p), exclusive, 1);
 	}
 
-	pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability,
+	pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast_channel_transfercapability(ast),
 		(p->digital ? -1 : layer1));
 
 	if (p->pri->facilityenable)
 		pri_facility_enable(p->pri->pri);
 
-	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
+	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", ast_channel_transfercapability(ast), ast_transfercapability2str(ast_channel_transfercapability(ast)));
 	dp_strip = 0;
 	pridialplan = p->pri->dialplan - 1;
 	if (pridialplan == -2 || pridialplan == -3) { /* compute dynamically */
@@ -7862,19 +7862,19 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 	switch (condition) {
 	case AST_CONTROL_BUSY:
 		if (p->priindication_oob || p->no_b_channel) {
-			chan->hangupcause = AST_CAUSE_USER_BUSY;
+			ast_channel_hangupcause_set(chan, AST_CAUSE_USER_BUSY);
 			chan->_softhangup |= AST_SOFTHANGUP_DEV;
 			res = 0;
 			break;
 		}
 		res = sig_pri_play_tone(p, SIG_PRI_TONE_BUSY);
 		if (p->call_level < SIG_PRI_CALL_LEVEL_ALERTING && !p->outgoing) {
-			chan->hangupcause = AST_CAUSE_USER_BUSY;
+			ast_channel_hangupcause_set(chan, AST_CAUSE_USER_BUSY);
 			p->progress = 1;/* No need to send plain PROGRESS after this. */
 			if (p->pri && p->pri->pri) {
 				pri_grab(p, p->pri);
 #ifdef HAVE_PRI_PROG_W_CAUSE
-				pri_progress_with_cause(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 1, chan->hangupcause);
+				pri_progress_with_cause(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 1, ast_channel_hangupcause(chan));
 #else
 				pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
 #endif
@@ -7893,8 +7893,8 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			}
 		}
 		res = sig_pri_play_tone(p, SIG_PRI_TONE_RINGTONE);
-		if (chan->_state != AST_STATE_UP) {
-			if (chan->_state != AST_STATE_RING)
+		if (ast_channel_state(chan) != AST_STATE_UP) {
+			if (ast_channel_state(chan) != AST_STATE_RING)
 				ast_setstate(chan, AST_STATE_RINGING);
 		}
 		break;
@@ -7941,17 +7941,17 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			break;
 		}
 		/* Otherwise, treat as congestion */
-		chan->hangupcause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+		ast_channel_hangupcause_set(chan, AST_CAUSE_INVALID_NUMBER_FORMAT);
 		/* Falls through */
 	case AST_CONTROL_CONGESTION:
 		if (p->priindication_oob || p->no_b_channel) {
 			/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
-			switch (chan->hangupcause) {
+			switch (ast_channel_hangupcause(chan)) {
 			case AST_CAUSE_USER_BUSY:
 			case AST_CAUSE_NORMAL_CLEARING:
 			case 0:/* Cause has not been set. */
 				/* Supply a more appropriate cause. */
-				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+				ast_channel_hangupcause_set(chan, AST_CAUSE_SWITCH_CONGESTION);
 				break;
 			default:
 				break;
@@ -7963,12 +7963,12 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		res = sig_pri_play_tone(p, SIG_PRI_TONE_CONGESTION);
 		if (p->call_level < SIG_PRI_CALL_LEVEL_ALERTING && !p->outgoing) {
 			/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
-			switch (chan->hangupcause) {
+			switch (ast_channel_hangupcause(chan)) {
 			case AST_CAUSE_USER_BUSY:
 			case AST_CAUSE_NORMAL_CLEARING:
 			case 0:/* Cause has not been set. */
 				/* Supply a more appropriate cause. */
-				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+				ast_channel_hangupcause_set(chan, AST_CAUSE_SWITCH_CONGESTION);
 				break;
 			default:
 				break;
@@ -7977,7 +7977,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			if (p->pri && p->pri->pri) {
 				pri_grab(p, p->pri);
 #ifdef HAVE_PRI_PROG_W_CAUSE
-				pri_progress_with_cause(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 1, chan->hangupcause);
+				pri_progress_with_cause(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 1, ast_channel_hangupcause(chan));
 #else
 				pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
 #endif
@@ -8279,7 +8279,7 @@ int sig_pri_available(struct sig_pri_chan **pvt, int is_specific_channel)
  * functions should handle it normally (generate inband DTMF) */
 int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char digit)
 {
-	if (ast->_state == AST_STATE_DIALING) {
+	if (ast_channel_state(ast) == AST_STATE_DIALING) {
 		if (pvt->call_level < SIG_PRI_CALL_LEVEL_OVERLAP) {
 			unsigned int len;
 

@@ -843,16 +843,16 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 		goto e_return;
 	}
 
-	chn->tech = &mbl_tech;
-	ast_format_cap_add(chn->nativeformats, &prefformat);
+	ast_channel_tech_set(chn, &mbl_tech);
+	ast_format_cap_add(ast_channel_nativeformats(chn), &prefformat);
 	ast_format_copy(&chn->rawreadformat, &prefformat);
 	ast_format_copy(&chn->rawwriteformat, &prefformat);
 	ast_format_copy(&chn->writeformat, &prefformat);
 	ast_format_copy(&chn->readformat, &prefformat);
-	chn->tech_pvt = pvt;
+	ast_channel_tech_pvt_set(chn, pvt);
 
 	if (state == AST_STATE_RING)
-		chn->rings = 1;
+		ast_channel_rings_set(chn, 1);
 
 	ast_channel_language_set(chn, "en");
 	pvt->owner = chn;
@@ -947,7 +947,7 @@ static int mbl_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	dest_dev = ast_strdupa(dest);
 
-	pvt = ast->tech_pvt;
+	pvt = ast_channel_tech_pvt(ast);
 
 	if (pvt->type == MBL_TYPE_PHONE) {
 		dest_num = strchr(dest_dev, '/');
@@ -958,7 +958,7 @@ static int mbl_call(struct ast_channel *ast, const char *dest, int timeout)
 		*dest_num++ = 0x00;
 	}
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "mbl_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
@@ -1001,11 +1001,11 @@ static int mbl_hangup(struct ast_channel *ast)
 
 	struct mbl_pvt *pvt;
 
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
-	pvt = ast->tech_pvt;
+	pvt = ast_channel_tech_pvt(ast);
 
 	ast_debug(1, "[%s] hanging up device\n", pvt->id);
 
@@ -1024,7 +1024,7 @@ static int mbl_hangup(struct ast_channel *ast)
 	pvt->incoming = 0;
 	pvt->needring = 0;
 	pvt->owner = NULL;
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 
 	ast_mutex_unlock(&pvt->lock);
 
@@ -1039,7 +1039,7 @@ static int mbl_answer(struct ast_channel *ast)
 
 	struct mbl_pvt *pvt;
 
-	pvt = ast->tech_pvt;
+	pvt = ast_channel_tech_pvt(ast);
 
 	if (pvt->type == MBL_TYPE_HEADSET)
 		return 0;
@@ -1058,7 +1058,7 @@ static int mbl_answer(struct ast_channel *ast)
 
 static int mbl_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
-	struct mbl_pvt *pvt = ast->tech_pvt;
+	struct mbl_pvt *pvt = ast_channel_tech_pvt(ast);
 
 	if (pvt->type == MBL_TYPE_HEADSET)
 		return 0;
@@ -1080,7 +1080,7 @@ static int mbl_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 static struct ast_frame *mbl_read(struct ast_channel *ast)
 {
 
-	struct mbl_pvt *pvt = ast->tech_pvt;
+	struct mbl_pvt *pvt = ast_channel_tech_pvt(ast);
 	struct ast_frame *fr = &ast_null_frame;
 	int r;
 
@@ -1134,7 +1134,7 @@ e_return:
 static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 
-	struct mbl_pvt *pvt = ast->tech_pvt;
+	struct mbl_pvt *pvt = ast_channel_tech_pvt(ast);
 	struct ast_frame *f;
 
 	ast_debug(3, "*** mbl_write\n");
@@ -1162,7 +1162,7 @@ static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 static int mbl_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 
-	struct mbl_pvt *pvt = newchan->tech_pvt;
+	struct mbl_pvt *pvt = ast_channel_tech_pvt(newchan);
 
 	if (!pvt) {
 		ast_debug(1, "fixup failed, no pvt on newchan\n");

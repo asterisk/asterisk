@@ -135,7 +135,7 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 	
 	ast_stopstream(chan);
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 		
 	if (res) {

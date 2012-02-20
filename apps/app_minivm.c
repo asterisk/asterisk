@@ -1945,7 +1945,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			ast_channel_context(chan),
 			ast_channel_macrocontext(chan), 
 			ast_channel_exten(chan),
-			chan->priority,
+			ast_channel_priority(chan),
 			ast_channel_name(chan),
 			callerid,
 			date, 
@@ -2172,7 +2172,7 @@ static int minivm_record_exec(struct ast_channel *chan, const char *data)
 	memset(&leave_options, 0, sizeof(leave_options));
 
 	/* Answer channel if it's not already answered */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	if (ast_strlen_zero(data))  {
@@ -2274,7 +2274,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Answer channel if it's not already answered */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	/* Setup pre-file if appropriate */
@@ -2377,7 +2377,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
 			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
-		chan->priority = 0;
+		ast_channel_priority_set(chan, 0);
 		pbx_builtin_setvar_helper(chan, "MVM_GREET_STATUS", "USEREXIT");
 		res = 0;
 	} else if (res == '0') { /* Check for a '0' here */
@@ -2389,7 +2389,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
-			chan->priority = 0;
+			ast_channel_priority_set(chan, 0);
 			pbx_builtin_setvar_helper(chan, "MVM_GREET_STATUS", "USEREXIT");
 		}
 		res =  0;
@@ -2518,7 +2518,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Answer channel if it's not already answered */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 	
 	/* Here's where the action is */

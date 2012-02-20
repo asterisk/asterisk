@@ -142,9 +142,9 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", ast_channel_context(chan), ast_channel_exten(chan),
-		chan->priority,
+		ast_channel_priority(chan),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
-	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
+	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 	}
@@ -182,7 +182,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	ast_variables_destroy(oh.vars);
 	ast_party_id_free(&caller_id);
 	if (dchan) {
-		if (dchan->_state == AST_STATE_UP) {
+		if (ast_channel_state(dchan) == AST_STATE_UP) {
 			ast_verb(4, "Channel %s was answered.\n", ast_channel_name(dchan));
 		} else {
 			ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(dchan));

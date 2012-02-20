@@ -93,7 +93,7 @@ static int syslog_log(struct ast_cdr *cdr)
 	/* We need to dup here since the cdr actually belongs to the other channel,
 	   so when we release this channel we don't want the CDR getting cleaned
 	   up prematurely. */
-	dummy->cdr = ast_cdr_dup(cdr);
+	ast_channel_cdr_set(dummy, ast_cdr_dup(cdr));
 
 	AST_RWLIST_RDLOCK(&sinks);
 

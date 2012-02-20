@@ -930,8 +930,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			set_one_cid(cdr, c);
 			cdr_seq_inc(cdr);
 
-			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
-			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
+			cdr->disposition = (ast_channel_state(c) == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
+			cdr->amaflags = ast_channel_amaflags(c) ? ast_channel_amaflags(c) :  ast_default_amaflags;
 			ast_copy_string(cdr->accountcode, ast_channel_accountcode(c), sizeof(cdr->accountcode));
 			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(c), sizeof(cdr->peeraccount));
 			/* Destination information */
@@ -1019,7 +1019,7 @@ char *ast_cdr_flags2str(int flag)
 
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = ast_channel_cdr(chan);
 	const char *old_acct = "";
 
 	if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
@@ -1045,7 +1045,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 
 int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = ast_channel_cdr(chan);
 	const char *old_acct = "";
 
 	if (!ast_strlen_zero(ast_channel_peeraccount(chan))) {
@@ -1074,7 +1074,7 @@ int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
 	struct ast_cdr *cdr;
 	int newflag = ast_cdr_amaflags2int(flag);
 	if (newflag) {
-		for (cdr = chan->cdr; cdr; cdr = cdr->next) {
+		for (cdr = ast_channel_cdr(chan); cdr; cdr = cdr->next) {
 			if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 				cdr->amaflags = newflag;
 			}
@@ -1086,7 +1086,7 @@ int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
 
 int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = ast_channel_cdr(chan);
 
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
@@ -1098,7 +1098,7 @@ int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
 
 int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = ast_channel_cdr(chan);
 
 	for ( ; cdr ; cdr = cdr->next) {
 		int len = strlen(cdr->userfield);
@@ -1112,7 +1112,7 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 
 int ast_cdr_update(struct ast_channel *c)
 {
-	struct ast_cdr *cdr = c->cdr;
+	struct ast_cdr *cdr = ast_channel_cdr(c);
 
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {

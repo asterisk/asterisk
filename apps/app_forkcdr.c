@@ -183,7 +183,7 @@ static void ast_cdr_fork(struct ast_channel *chan, struct ast_flags optflags, ch
 	struct ast_cdr *newcdr;
 	struct ast_flags flags = { AST_CDR_FLAG_KEEP_VARS };
 
-	cdr = chan->cdr;
+	cdr = ast_channel_cdr(chan);
 
 	while (cdr->next)
 		cdr = cdr->next;
@@ -240,7 +240,7 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 
-	if (!chan->cdr) {
+	if (!ast_channel_cdr(chan)) {
 		ast_log(LOG_WARNING, "Channel does not have a CDR\n");
 		return 0;
 	}
@@ -256,7 +256,7 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_strlen_zero(data)) {
 		int keepvars = ast_test_flag(&flags, OPT_KEEPVARS) ? 1 : 0;
-		ast_set2_flag(chan->cdr, keepvars, AST_CDR_FLAG_KEEP_VARS);
+		ast_set2_flag(ast_channel_cdr(chan), keepvars, AST_CDR_FLAG_KEEP_VARS);
 	}
 	
 	ast_cdr_fork(chan, flags, opts[OPT_ARG_VARSET]);

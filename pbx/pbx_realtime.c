@@ -352,7 +352,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				if(!ast_strlen_zero(tmp))
 					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
 				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
-						ast_channel_exten(chan), ast_channel_context(chan), chan->priority,
+						ast_channel_exten(chan), ast_channel_context(chan), ast_channel_priority(chan),
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
@@ -364,7 +364,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 							  "Application: %s\r\n"
 							  "AppData: %s\r\n"
 							  "Uniqueid: %s\r\n",
-							  ast_channel_name(chan), ast_channel_context(chan), ast_channel_exten(chan), chan->priority, app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", ast_channel_uniqueid(chan));
+							  ast_channel_name(chan), ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan), app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", ast_channel_uniqueid(chan));
 				
 				res = pbx_exec(chan, a, appdata);
 			} else

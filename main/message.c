@@ -616,7 +616,7 @@ static struct ast_channel *create_msg_q_chan(void)
 
 	ast_channel_unlink(chan);
 
-	chan->tech = &msg_chan_tech_hack;
+	ast_channel_tech_set(chan, &msg_chan_tech_hack);
 
 	if (!(ds = ast_datastore_alloc(&msg_datastore, NULL))) {
 		ast_hangup(chan);

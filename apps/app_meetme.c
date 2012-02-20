@@ -2174,7 +2174,7 @@ static int can_write(struct ast_channel *chan, struct ast_flags64 *confflags)
 		return 1;
 	}
 
-	return (chan->_state == AST_STATE_UP);
+	return (ast_channel_state(chan) == AST_STATE_UP);
 }
 
 static void send_talking_event(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking)
@@ -2677,7 +2677,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
-	retrydahdi = (strcasecmp(chan->tech->type, "DAHDI") || (chan->audiohooks || chan->monitor) ? 1 : 0);
+	retrydahdi = (strcasecmp(ast_channel_tech(chan)->type, "DAHDI") || (ast_channel_audiohooks(chan) || ast_channel_monitor(chan)) ? 1 : 0);
 	user->dahdichannel = !retrydahdi;
 
  dahdiretry:
@@ -3218,14 +3218,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			if (c) {
 				char dtmfstr[2] = "";
 
-				if (c->fds[0] != origfd || (user->dahdichannel && (c->audiohooks || c->monitor))) {
+				if (c->fds[0] != origfd || (user->dahdichannel && (ast_channel_audiohooks(c) || ast_channel_monitor(c)))) {
 					if (using_pseudo) {
 						/* Kill old pseudo */
 						close(fd);
 						using_pseudo = 0;
 					}
 					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
-					retrydahdi = (strcasecmp(c->tech->type, "DAHDI") || (c->audiohooks || c->monitor) ? 1 : 0);
+					retrydahdi = (strcasecmp(ast_channel_tech(c)->type, "DAHDI") || (ast_channel_audiohooks(c) || ast_channel_monitor(c)) ? 1 : 0);
 					user->dahdichannel = !retrydahdi;
 					goto dahdiretry;
 				}
@@ -4244,7 +4244,7 @@ static int count_exec(struct ast_channel *chan, const char *data)
 		snprintf(val, sizeof(val), "%d", count);
 		pbx_builtin_setvar_helper(chan, args.varname, val);
 	} else {
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			ast_answer(chan);
 		}
 		res = ast_say_number(chan, count, "", ast_channel_language(chan), (char *) NULL); /* Needs gender */
@@ -4282,7 +4282,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 		notdata = data;
 	}
 	
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	info = ast_strdupa(notdata);

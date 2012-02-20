@@ -106,14 +106,14 @@ static int transfer_exec(struct ast_channel *chan, const char *data)
 		tech = dest;
 		dest = slash + 1;
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
-		if (strncasecmp(chan->tech->type, tech, len)) {
+		if (strncasecmp(ast_channel_tech(chan)->type, tech, len)) {
 			pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 			return 0;
 		}
 	}
 
 	/* Check if the channel supports transfer before we try it */
-	if (!chan->tech->transfer) {
+	if (!ast_channel_tech(chan)->transfer) {
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "UNSUPPORTED");
 		return 0;
 	}

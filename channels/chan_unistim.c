@@ -1957,19 +1957,19 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 		   ast_quiet_chan(peerc);
 		   ast_quiet_chan(peerd); */
 
-		if (peera->cdr && peerb->cdr) {
-			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
-		} else if (peera->cdr) {
-			peerb->cdr = peera->cdr;
+		if (ast_channel_cdr(peera) && ast_channel_cdr(peerb)) {
+			ast_channel_cdr_set(peerb, ast_cdr_append(ast_channel_cdr(peerb), ast_channel_cdr(peera)));
+		} else if (ast_channel_cdr(peera)) {
+			ast_channel_cdr_set(peerb, ast_channel_cdr(peera));
 		}
-		peera->cdr = NULL;
+		ast_channel_cdr_set(peera, NULL);
 
-		if (peerb->cdr && peerc->cdr) {
-			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
-		} else if (peerc->cdr) {
-			peerb->cdr = peerc->cdr;
+		if (ast_channel_cdr(peerb) && ast_channel_cdr(peerc)) {
+			ast_channel_cdr_set(peerb, ast_cdr_append(ast_channel_cdr(peerb), ast_channel_cdr(peerc)));
+		} else if (ast_channel_cdr(peerc)) {
+			ast_channel_cdr_set(peerb, ast_channel_cdr(peerc));
 		}
-		peerc->cdr = NULL;
+		ast_channel_cdr_set(peerc, NULL);
 
 		if (ast_channel_masquerade(peerb, peerc)) {
 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", ast_channel_name(peerb),
@@ -2050,7 +2050,7 @@ static void IgnoreCall(struct unistimsession *pte)
 static void *unistim_ss(void *data)
 {
 	struct ast_channel *chan = data;
-	struct unistim_subchannel *sub = chan->tech_pvt;
+	struct unistim_subchannel *sub = ast_channel_tech_pvt(chan);
 	struct unistim_line *l = sub->parent;
 	struct unistimsession *s = l->parent->session;
 	int res;
@@ -2129,15 +2129,15 @@ static void start_rtp(struct unistim_subchannel *sub)
 	sin.sin_port = htons(sub->parent->parent->rtp_port);
 	ast_sockaddr_from_sin(&sin_tmp, &sin);
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
-	if (!(ast_format_cap_iscompatible(sub->owner->nativeformats, &sub->owner->readformat))) {
+	if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), &sub->owner->readformat))) {
 		struct ast_format tmpfmt;
 		char tmp[256];
-		ast_best_codec(sub->owner->nativeformats, &tmpfmt);
+		ast_best_codec(ast_channel_nativeformats(sub->owner), &tmpfmt);
 		ast_log(LOG_WARNING,
 				"Our read/writeformat has been changed to something incompatible: %s, using %s best codec from %s\n",
 				ast_getformatname(&sub->owner->readformat),
 				ast_getformatname(&tmpfmt),
-				ast_getformatname_multiple(tmp, sizeof(tmp), sub->owner->nativeformats));
+				ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(sub->owner)));
 		ast_format_copy(&sub->owner->readformat, &tmpfmt);
 		ast_format_copy(&sub->owner->writeformat, &tmpfmt);
 	}
@@ -3721,11 +3721,11 @@ static struct unistimsession *channel_to_session(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Unistim callback function called with a null channel\n");
 		return NULL;
 	}
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Unistim callback function called without a tech_pvt\n");
 		return NULL;
 	}
-	sub = ast->tech_pvt;
+	sub = ast_channel_tech_pvt(ast);
 
 	if (!sub->parent) {
 		ast_log(LOG_WARNING, "Unistim callback function called without a line\n");
@@ -3756,8 +3756,8 @@ static int unistim_call(struct ast_channel *ast, const char *dest, int timeout)
 		return -1;
 	}
 
-	sub = ast->tech_pvt;
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	sub = ast_channel_tech_pvt(ast);
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "unistim_call called on %s, neither down nor reserved\n",
 				ast_channel_name(ast));
 		return -1;
@@ -3821,12 +3821,12 @@ static int unistim_hangup(struct ast_channel *ast)
 	struct unistimsession *s;
 
 	s = channel_to_session(ast);
-	sub = ast->tech_pvt;
+	sub = ast_channel_tech_pvt(ast);
 	if (!s) {
 		ast_debug(1, "Asked to hangup channel not connected\n");
 		ast_mutex_lock(&sub->lock);
 		sub->owner = NULL;
-		ast->tech_pvt = NULL;
+		ast_channel_tech_pvt_set(ast, NULL);
 		sub->alreadygone = 0;
 		ast_mutex_unlock(&sub->lock);
 		if (sub->rtp) {
@@ -3845,7 +3845,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		if (unistimdebug)
 			ast_verb(0, "Real call disconnected while talking to threeway\n");
 		sub->owner = NULL;
-		ast->tech_pvt = NULL;
+		ast_channel_tech_pvt_set(ast, NULL);
 		return 0;
 	}
 	if ((l->subs[SUB_REAL]->owner) && (sub->subtype == SUB_THREEWAY) &&
@@ -3861,14 +3861,14 @@ static int unistim_hangup(struct ast_channel *ast)
 		l->parent->moh = 0;
 		ast_mutex_lock(&sub->lock);
 		sub->owner = NULL;
-		ast->tech_pvt = NULL;
+		ast_channel_tech_pvt_set(ast, NULL);
 		ast_mutex_unlock(&sub->lock);
 		unalloc_sub(l, SUB_THREEWAY);
 		return 0;
 	}
 	ast_mutex_lock(&sub->lock);
 	sub->owner = NULL;
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	sub->alreadygone = 0;
 	ast_mutex_unlock(&sub->lock);
 	if (!s) {
@@ -3932,7 +3932,7 @@ static int unistim_answer(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "unistim_answer on a disconnected device ?\n");
 		return -1;
 	}
-	sub = ast->tech_pvt;
+	sub = ast_channel_tech_pvt(ast);
 	l = sub->parent;
 
 	if ((!sub->rtp) && (!l->subs[SUB_THREEWAY]))
@@ -3946,7 +3946,7 @@ static int unistim_answer(struct ast_channel *ast)
 	else
 		send_text_status(l->parent->session, "Hangup Transf");
 	send_start_timer(l->parent->session);
-	if (ast->_state != AST_STATE_UP)
+	if (ast_channel_state(ast) != AST_STATE_UP)
 		ast_setstate(ast, AST_STATE_UP);
 	return res;
 }
@@ -4027,7 +4027,7 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 		return &ast_null_frame;
 	}
 
-	switch (ast->fdno) {
+	switch (ast_channel_fdno(ast)) {
 	case 0:
 		f = ast_rtp_instance_read(sub->rtp, 0);     /* RTP Audio */
 		break;
@@ -4041,14 +4041,14 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (!(ast_format_cap_iscompatible(sub->owner->nativeformats, &f->subclass.format))) {
+			if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), &f->subclass.format))) {
 				char tmp[256];
 				ast_debug(1,
 						"Oooh, format changed from %s to %s\n",
-						ast_getformatname_multiple(tmp, sizeof(tmp), sub->owner->nativeformats),
+						ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(sub->owner)),
 						ast_getformatname(&f->subclass.format));
 
-				ast_format_cap_set(sub->owner->nativeformats, &f->subclass.format);
+				ast_format_cap_set(ast_channel_nativeformats(sub->owner), &f->subclass.format);
 				ast_set_read_format(sub->owner, &sub->owner->readformat);
 				ast_set_write_format(sub->owner, &sub->owner->writeformat);
 			}
@@ -4061,7 +4061,7 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 static struct ast_frame *unistim_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
-	struct unistim_subchannel *sub = ast->tech_pvt;
+	struct unistim_subchannel *sub = ast_channel_tech_pvt(ast);
 
 	ast_mutex_lock(&sub->lock);
 	fr = unistim_rtp_read(ast, sub);
@@ -4072,7 +4072,7 @@ static struct ast_frame *unistim_read(struct ast_channel *ast)
 
 static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct unistim_subchannel *sub = ast->tech_pvt;
+	struct unistim_subchannel *sub = ast_channel_tech_pvt(ast);
 	int res = 0;
 
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -4084,12 +4084,12 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(ast_format_cap_iscompatible(ast->nativeformats, &frame->subclass.format))) {
+		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &frame->subclass.format))) {
 			char tmp[256];
 			ast_log(LOG_WARNING,
 					"Asked to transmit frame type %s, while native formats is %s (read/write = (%s/%s)\n",
 					ast_getformatname(&frame->subclass.format),
-					ast_getformatname_multiple(tmp, sizeof(tmp), ast->nativeformats),
+					ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(ast)),
 					ast_getformatname(&ast->readformat),
 					ast_getformatname(&ast->writeformat));
 			return -1;
@@ -4109,7 +4109,7 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 
 static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct unistim_subchannel *p = newchan->tech_pvt;
+	struct unistim_subchannel *p = ast_channel_tech_pvt(newchan);
 	struct unistim_line *l = p->parent;
 
 	ast_mutex_lock(&p->lock);
@@ -4195,12 +4195,12 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	if (!s)
 		return -1;
 
-	sub = ast->tech_pvt;
+	sub = ast_channel_tech_pvt(ast);
 	l = sub->parent;
 
 	switch (ind) {
 	case AST_CONTROL_RINGING:
-		if (ast->_state != AST_STATE_UP) {
+		if (ast_channel_state(ast) != AST_STATE_UP) {
 			send_text(TEXT_LINE2, TEXT_NORMAL, s, "Ringing...");
 			in_band_indication(ast, l->parent->tz, "ring");
 			s->device->missed_call = -1;
@@ -4208,7 +4208,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 		}
 		return -1;
 	case AST_CONTROL_BUSY:
-		if (ast->_state != AST_STATE_UP) {
+		if (ast_channel_state(ast) != AST_STATE_UP) {
 			sub->alreadygone = 1;
 			send_text(TEXT_LINE2, TEXT_NORMAL, s, "Busy");
 			in_band_indication(ast, l->parent->tz, "busy");
@@ -4221,7 +4221,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 		 * of incomplete as congestion
 		 */
 	case AST_CONTROL_CONGESTION:
-		if (ast->_state != AST_STATE_UP) {
+		if (ast_channel_state(ast) != AST_STATE_UP) {
 			sub->alreadygone = 1;
 			send_text(TEXT_LINE2, TEXT_NORMAL, s, "Congestion");
 			in_band_indication(ast, l->parent->tz, "congestion");
@@ -4560,15 +4560,15 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		return NULL;
 	}
 
-	ast_format_cap_copy(tmp->nativeformats, l->cap);
-	if (ast_format_cap_is_empty(tmp->nativeformats))
-		ast_format_cap_copy(tmp->nativeformats, global_cap);
-	ast_best_codec(tmp->nativeformats, &tmpfmt);
+	ast_format_cap_copy(ast_channel_nativeformats(tmp), l->cap);
+	if (ast_format_cap_is_empty(ast_channel_nativeformats(tmp)))
+		ast_format_cap_copy(ast_channel_nativeformats(tmp), global_cap);
+	ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
 	if (unistimdebug) {
 		char tmp1[256], tmp2[256], tmp3[256];
 		ast_verb(0, "Best codec = %s from nativeformats %s (line cap=%s global=%s)\n",
 			ast_getformatname(&tmpfmt),
-			ast_getformatname_multiple(tmp1, sizeof(tmp1), tmp->nativeformats),
+			ast_getformatname_multiple(tmp1, sizeof(tmp1), ast_channel_nativeformats(tmp)),
 			ast_getformatname_multiple(tmp2, sizeof(tmp2), l->cap),
 			ast_getformatname_multiple(tmp3, sizeof(tmp3), global_cap));
 	}
@@ -4584,14 +4584,14 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 /*      tmp->type = type; */
 	ast_setstate(tmp, state);
 	if (state == AST_STATE_RING)
-		tmp->rings = 1;
-	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
+		ast_channel_rings_set(tmp, 1);
+	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
 	ast_format_copy(&tmp->writeformat, &tmpfmt);
 	ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
 	ast_format_copy(&tmp->readformat, &tmpfmt);
 	ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-	tmp->tech_pvt = sub;
-	tmp->tech = &unistim_tech;
+	ast_channel_tech_pvt_set(tmp, sub);
+	ast_channel_tech_set(tmp, &unistim_tech);
 	if (!ast_strlen_zero(l->language))
 		ast_channel_language_set(tmp, l->language);
 	sub->owner = tmp;
@@ -4616,7 +4616,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 			ast_free(instr);
 		}
 	}
-	tmp->priority = 1;
+	ast_channel_priority_set(tmp, 1);
 	if (state != AST_STATE_DOWN) {
 		if (unistimdebug)
 			ast_verb(0, "Starting pbx in unistim_new\n");
@@ -5653,7 +5653,7 @@ static int reload_config(void)
 
 static enum ast_rtp_glue_result unistim_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-	struct unistim_subchannel *sub = chan->tech_pvt;
+	struct unistim_subchannel *sub = ast_channel_tech_pvt(chan);
 
 	ao2_ref(sub->rtp, +1);
 	*instance = sub->rtp;

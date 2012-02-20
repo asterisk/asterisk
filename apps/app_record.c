@@ -260,7 +260,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_copy_string(tmp, args.filename, sizeof(tmp));
 	/* end of routine mentioned */
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, OPTION_SKIP)) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "SKIP");

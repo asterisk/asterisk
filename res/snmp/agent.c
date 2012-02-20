@@ -284,7 +284,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANTYPE:
-		strncpy(string_ret, chan->tech->type, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_tech(chan)->type, sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
@@ -306,16 +306,16 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANMASQ:
-		if (chan->masq && !ast_strlen_zero(ast_channel_name(chan->masq))) {
-			strncpy(string_ret, ast_channel_name(chan->masq), sizeof(string_ret));
+		if (ast_channel_masq(chan) && !ast_strlen_zero(ast_channel_name(ast_channel_masq(chan)))) {
+			strncpy(string_ret, ast_channel_name(ast_channel_masq(chan)), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANMASQR:
-		if (chan->masqr && !ast_strlen_zero(ast_channel_name(chan->masqr))) {
-			strncpy(string_ret, ast_channel_name(chan->masqr), sizeof(string_ret));
+		if (ast_channel_masqr(chan) && !ast_strlen_zero(ast_channel_name(ast_channel_masqr(chan)))) {
+			strncpy(string_ret, ast_channel_name(ast_channel_masqr(chan)), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
@@ -363,7 +363,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMACROPRI:
-		long_ret = chan->macropriority;
+		long_ret = ast_channel_macropriority(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANEXTEN:
@@ -373,7 +373,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANPRI:
-		long_ret = chan->priority;
+		long_ret = ast_channel_priority(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANACCOUNTCODE:
@@ -407,15 +407,15 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANSTATE:
-		long_ret = chan->_state & 0xffff;
+		long_ret = ast_channel_state(chan) & 0xffff;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANMUTED:
-		long_ret = chan->_state & AST_STATE_MUTE ? 1 : 2;
+		long_ret = ast_channel_state(chan) & AST_STATE_MUTE ? 1 : 2;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANRINGS:
-		long_ret = chan->rings;
+		long_ret = ast_channel_rings(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDDNID:
@@ -475,23 +475,23 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANAMAFLAGS:
-		long_ret = chan->amaflags;
+		long_ret = ast_channel_amaflags(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANADSI:
-		long_ret = chan->adsicpe;
+		long_ret = ast_channel_adsicpe(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANTONEZONE:
-		if (chan->zone) {
-			strncpy(string_ret, chan->zone->country, sizeof(string_ret));
+		if (ast_channel_zone(chan)) {
+			strncpy(string_ret, ast_channel_zone(chan)->country, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANHANGUPCAUSE:
-		long_ret = chan->hangupcause;
+		long_ret = ast_channel_hangupcause(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANVARIABLES:
@@ -511,7 +511,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = bits_ret;
 		break;
 	case ASTCHANTRANSFERCAP:
-		long_ret = chan->transfercapability;
+		long_ret = ast_channel_transfercapability(chan);
 		ret = (u_char *)&long_ret;
 	default:
 		break;
@@ -593,7 +593,7 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 		}
 
 		while ((chan = ast_channel_iterator_next(iter))) {
-			if (chan->tech == tech) {
+			if (ast_channel_tech(chan) == tech) {
 				long_ret++;
 			}
 			chan = ast_channel_unref(chan);

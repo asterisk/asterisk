@@ -382,26 +382,26 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 
 	if (ch) {
 		ast_channel_lock(ch);
-		ch->tech = &ooh323_tech;
+		ast_channel_tech_set(ch, &ooh323_tech);
 
 		if (cap)
 			ast_best_codec(cap, &tmpfmt);
 		if (!tmpfmt.id)
 			ast_codec_pref_index(&i->prefs, 0, &tmpfmt);
 
-		ast_format_cap_add(ch->nativeformats, &tmpfmt);
+		ast_format_cap_add(ast_channel_nativeformats(ch), &tmpfmt);
 		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
 		ast_format_copy(&ch->rawreadformat, &tmpfmt);
 
 		ast_jb_configure(ch, &global_jbconf);
 
 		if (state == AST_STATE_RING)
-			ch->rings = 1;
+			ast_channel_rings_set(ch, 1);
 
-		ch->adsicpe = AST_ADSI_UNAVAILABLE;
+		ast_channel_adsicpe_set(ch, AST_ADSI_UNAVAILABLE);
 		ast_set_write_format(ch, &tmpfmt);
 		ast_set_read_format(ch, &tmpfmt);
-		ch->tech_pvt = i;
+		ast_channel_tech_pvt_set(ch, i);
 		i->owner = ch;
 		ast_module_ref(myself);
 
@@ -439,7 +439,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		ast_channel_context_set(ch, i->context);
 		ast_channel_exten_set(ch, i->exten);
 
-		ch->priority = 1;
+		ast_channel_priority_set(ch, 1);
 
       		if(!ast_test_flag(i, H323_OUTGOING)) {
 		
@@ -464,7 +464,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 			ast_channel_accountcode_set(ch, i->accountcode);
 		
 		if (i->amaflags)
-			ch->amaflags = i->amaflags;
+			ast_channel_amaflags_set(ch, i->amaflags);
 
 		ast_setstate(ch, state);
 		if (state != AST_STATE_DOWN) {
@@ -860,7 +860,7 @@ struct ooh323_peer *find_peer(const char * name, int port)
 static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 {
 	char dtmf[2];
-	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
+	struct ooh323_pvt *p = (struct ooh323_pvt *) ast_channel_tech_pvt(chan);
 	int res = 0;
 	
 	if (gH323Debug)
@@ -893,7 +893,7 @@ static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 
 static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int duration)
 {
-	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
+	struct ooh323_pvt *p = (struct ooh323_pvt *) ast_channel_tech_pvt(chan);
 	int res = 0;
 
 	if (gH323Debug)
@@ -922,7 +922,7 @@ static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int d
 
 static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct ooh323_pvt *p = ast->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(ast);
 	char destination[256];
    	int res=0, i;
 	const char *val = NULL;
@@ -938,7 +938,7 @@ static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 		ast_verb(0, "---   ooh323_call- %s\n", dest);
 
 
-   	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+   	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "ooh323_call called on %s, neither down nor "
 								"reserved\n", ast_channel_name(ast));
 		return -1;
@@ -994,7 +994,7 @@ static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	destination[sizeof(destination)-1]='\0';
 
-	opts.transfercap = ast->transfercapability;
+	opts.transfercap = ast_channel_transfercapability(ast);
 	opts.fastStart = p->faststart;
 	opts.tunneling = p->h245tunneling;
 
@@ -1019,7 +1019,7 @@ static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 
 static int ooh323_hangup(struct ast_channel *ast)
 {
-	struct ooh323_pvt *p = ast->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(ast);
    	int q931cause = AST_CAUSE_NORMAL_CLEARING;
 
 	if (gH323Debug)
@@ -1028,8 +1028,8 @@ static int ooh323_hangup(struct ast_channel *ast)
 	if (p) {
 		ast_mutex_lock(&p->lock);
 
-        if (ast->hangupcause) {
-                q931cause = ast->hangupcause;
+        if (ast_channel_hangupcause(ast)) {
+                q931cause = ast_channel_hangupcause(ast);
         } else {
                 const char *cause = pbx_builtin_getvar_helper(ast, "DIALSTATUS");
                 if (cause) {
@@ -1051,7 +1051,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 
 		if (gH323Debug)
 			ast_verb(0, "    hanging %s with cause: %d\n", p->username, q931cause);
-		ast->tech_pvt = NULL; 
+		ast_channel_tech_pvt_set(ast, NULL); 
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
          		ooHangCall(p->callToken, 
 				ooh323_convert_hangupcause_asteriskToH323(q931cause), q931cause);
@@ -1061,7 +1061,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 			ast_set_flag(p, H323_NEEDDESTROY);
 		/* detach channel here */
 		if (p->owner) {
-			p->owner->tech_pvt = NULL;
+			ast_channel_tech_pvt_set(p->owner, NULL);
 			p->owner = NULL;
 			ast_module_unref(myself);
 		}
@@ -1086,7 +1086,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 
 static int ooh323_answer(struct ast_channel *ast)
 {
-	struct ooh323_pvt *p = ast->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(ast);
 	char *callToken = (char *)NULL;
 
 	if (gH323Debug)
@@ -1096,7 +1096,7 @@ static int ooh323_answer(struct ast_channel *ast)
 
 		ast_mutex_lock(&p->lock);
 		callToken = (p->callToken ? strdup(p->callToken) : NULL);
-		if (ast->_state != AST_STATE_UP) {
+		if (ast_channel_state(ast) != AST_STATE_UP) {
 			ast_channel_lock(ast);
 			if (!p->alertsent) {
 	    			if (gH323Debug) {
@@ -1129,7 +1129,7 @@ static struct ast_frame *ooh323_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
-	struct ooh323_pvt *p = ast->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(ast);
 
 	if (!p) return &null_frame;
 
@@ -1145,7 +1145,7 @@ static struct ast_frame *ooh323_read(struct ast_channel *ast)
 
 static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct ooh323_pvt *p = ast->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(ast);
 	int res = 0;
 	char buf[256];
 
@@ -1171,12 +1171,12 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 			}
 
 
-			if (!(ast_format_cap_iscompatible(ast->nativeformats, &f->subclass.format))) {
-				if (!(ast_format_cap_is_empty(ast->nativeformats))) {
+			if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &f->subclass.format))) {
+				if (!(ast_format_cap_is_empty(ast_channel_nativeformats(ast)))) {
 					ast_log(LOG_WARNING,
 							"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 							ast_getformatname(&f->subclass.format),
-							ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
+							ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
 							ast_getformatname(&ast->readformat),
 							ast_getformatname(&ast->writeformat));
 
@@ -1212,7 +1212,7 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 static int ooh323_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 
-	struct ooh323_pvt *p = (struct ooh323_pvt *) ast->tech_pvt;
+	struct ooh323_pvt *p = (struct ooh323_pvt *) ast_channel_tech_pvt(ast);
 	char *callToken = (char *)NULL;
 	int res = -1;
 
@@ -1256,7 +1256,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_PROGRESS:
-		if (ast->_state != AST_STATE_UP) {
+		if (ast_channel_state(ast) != AST_STATE_UP) {
 	    		if (!p->progsent) {
 	     			if (gH323Debug) {
 					ast_debug(1, "Sending manual progress for %s, res = %d\n", callToken,
@@ -1269,7 +1269,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		}
 	    break;
       case AST_CONTROL_RINGING:
-		if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
+		if (ast_channel_state(ast) == AST_STATE_RING || ast_channel_state(ast) == AST_STATE_RINGING) {
 			if (!p->alertsent) {
 				if (gH323Debug) {
 					ast_debug(1, "Sending manual ringback for %s, res = %d\n",
@@ -1391,7 +1391,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
 {
 
-	struct ooh323_pvt *p = (struct ooh323_pvt *) ast->tech_pvt;
+	struct ooh323_pvt *p = (struct ooh323_pvt *) ast_channel_tech_pvt(ast);
 	int res = -1;
 	enum ast_t38_state state = T38_STATE_UNAVAILABLE;
 	char* cp;
@@ -1452,7 +1452,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 
 static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct ooh323_pvt *p = newchan->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(newchan);
 
 	if (!p) return -1;
 
@@ -1513,7 +1513,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 		if (gH323Debug)
 	  		ast_verb(0, "Writeformat before update %s/%s\n", 
 			  ast_getformatname(&p->owner->writeformat),
-			  ast_getformatname_multiple(formats, sizeof(formats), p->owner->nativeformats));
+			  ast_getformatname_multiple(formats, sizeof(formats), ast_channel_nativeformats(p->owner)));
 		if (txframes)
 			ast_codec_pref_setsize(&p->prefs, fmt, txframes);
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &p->prefs);
@@ -1526,7 +1526,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 				 p->rtp, p->dtmfcodec, "audio", "cisco-telephone-event", 0);
 		}
 
-		ast_format_cap_set(p->owner->nativeformats, fmt);
+		ast_format_cap_set(ast_channel_nativeformats(p->owner), fmt);
 	  	ast_set_write_format(p->owner, &p->owner->writeformat);
 	  	ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_channel_unlock(p->owner);
@@ -1572,7 +1572,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 		if (gH323Debug)
 	  		ast_verb(0, "Readformat before update %s\n", 
 				  ast_getformatname(&p->owner->readformat));
-		ast_format_cap_set(p->owner->nativeformats, fmt);
+		ast_format_cap_set(ast_channel_nativeformats(p->owner), fmt);
 	  	ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_channel_unlock(p->owner);
    	} else
@@ -1628,7 +1628,7 @@ int onAlerting(ooCallData *call)
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 		ast_channel_queue_connected_line_update(c, &connected, &update_connected);
 	}
-	if (c->_state != AST_STATE_UP)
+	if (ast_channel_state(c) != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
 
 	ast_queue_control(c, AST_CONTROL_RINGING);
@@ -1684,7 +1684,7 @@ int onProgress(ooCallData *call)
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 		ast_channel_queue_connected_line_update(c, &connected, &update_connected);
 	}
-	if (c->_state != AST_STATE_UP)
+	if (ast_channel_state(c) != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
 
 	ast_queue_control(c, AST_CONTROL_PROGRESS);
@@ -2154,14 +2154,14 @@ int onCallCleared(ooCallData *call)
 		if (!ast_test_flag(p, H323_ALREADYGONE)) { 
 
 			ast_set_flag(p, H323_ALREADYGONE);
-			p->owner->hangupcause = call->q931cause;
+			ast_channel_hangupcause_set(p->owner, call->q931cause);
 			p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			ast_queue_hangup_with_cause(p->owner,call->q931cause);
 		}
    	}
 
    	if(p->owner) {
-    		p->owner->tech_pvt = NULL;
+    		ast_channel_tech_pvt_set(p->owner, NULL);
 		ast_channel_unlock(p->owner);
     		p->owner = NULL;
 		ast_module_unref(myself);
@@ -3419,7 +3419,7 @@ static struct ast_cli_entry cli_ooh323[] = {
 /*! \brief OOH323 Dialplan function - reads ooh323 settings */
 static int function_ooh323_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ooh323_pvt *p = chan->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(chan);
 
 	ast_channel_lock(chan);
 	if (!p) {
@@ -3427,8 +3427,8 @@ static int function_ooh323_read(struct ast_channel *chan, const char *cmd, char 
 		return -1;
 	}
 
-	if (strcmp(chan->tech->type, "OOH323")) {
-		ast_log(LOG_ERROR, "This function is only supported on OOH323 channels, Channel is %s\n", chan->tech->type);
+	if (strcmp(ast_channel_tech(chan)->type, "OOH323")) {
+		ast_log(LOG_ERROR, "This function is only supported on OOH323 channels, Channel is %s\n", ast_channel_tech(chan)->type);
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -3464,7 +3464,7 @@ static int function_ooh323_read(struct ast_channel *chan, const char *cmd, char 
 /*! \brief OOH323 Dialplan function - writes ooh323 settings */
 static int function_ooh323_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ooh323_pvt *p = chan->tech_pvt;
+	struct ooh323_pvt *p = ast_channel_tech_pvt(chan);
 	int res = -1;
 
 	ast_channel_lock(chan);
@@ -3473,8 +3473,8 @@ static int function_ooh323_write(struct ast_channel *chan, const char *cmd, char
 		return -1;
 	}
 
-	if (strcmp(chan->tech->type, "OOH323")) {
-		ast_log(LOG_ERROR, "This function is only supported on OOH323 channels, Channel is %s\n", chan->tech->type);
+	if (strcmp(ast_channel_tech(chan)->type, "OOH323")) {
+		ast_log(LOG_ERROR, "This function is only supported on OOH323 channels, Channel is %s\n", ast_channel_tech(chan)->type);
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -3857,7 +3857,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 				DEADLOCK_AVOIDANCE(&cur->lock);
          		}           
 			ast_debug(1, "Detaching from %s\n", ast_channel_name(cur->owner));
-			cur->owner->tech_pvt = NULL;
+			ast_channel_tech_pvt_set(cur->owner, NULL);
 			ast_channel_unlock(cur->owner);
 			cur->owner = NULL;
 			ast_module_unref(myself);
@@ -4092,7 +4092,7 @@ static enum ast_rtp_glue_result ooh323_get_rtp_peer(struct ast_channel *chan, st
 	struct ooh323_pvt *p = NULL;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
-	if (!(p = (struct ooh323_pvt *) chan->tech_pvt))
+	if (!(p = (struct ooh323_pvt *) ast_channel_tech_pvt(chan)))
 		return AST_RTP_GLUE_RESULT_FORBID;
 
 	if (!(p->rtp)) {
@@ -4115,7 +4115,7 @@ static enum ast_rtp_glue_result ooh323_get_vrtp_peer(struct ast_channel *chan, s
 	struct ooh323_pvt *p = NULL;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
-	if (!(p = (struct ooh323_pvt *) chan->tech_pvt))
+	if (!(p = (struct ooh323_pvt *) ast_channel_tech_pvt(chan)))
 		return AST_RTP_GLUE_RESULT_FORBID;
 
 	if (!(p->rtp)) {
@@ -4200,7 +4200,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		ast_log(LOG_WARNING, "Unknown format.\n");
 		return -1;
 	}
-	p = (struct ooh323_pvt *) chan->tech_pvt;
+	p = (struct ooh323_pvt *) ast_channel_tech_pvt(chan);
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;
@@ -4415,7 +4415,7 @@ static struct ast_udptl *ooh323_get_udptl_peer(struct ast_channel *chan)
 	struct ooh323_pvt *p;
 	struct ast_udptl *udptl = NULL;
 
-	p = chan->tech_pvt;
+	p = ast_channel_tech_pvt(chan);
 	if (!p)
 		return NULL;
 
@@ -4430,7 +4430,7 @@ static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udp
 {
 	struct ooh323_pvt *p;
 
-	p = chan->tech_pvt;
+	p = ast_channel_tech_pvt(chan);
 	if (!p)
 		return -1;
 	ast_mutex_lock(&p->lock);
@@ -4589,7 +4589,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 	struct ast_frame *f;
 	struct ast_frame *dfr = NULL;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
-	switch (ast->fdno) {
+	switch (ast_channel_fdno(ast)) {
 	case 0:
 		f = ast_rtp_instance_read(p->rtp, 0);	/* RTP Audio */
 		break;
@@ -4616,9 +4616,9 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 
 	if (f && p->owner && !p->faxmode && (f->frametype == AST_FRAME_VOICE)) {
 		/* We already hold the channel lock */
-		if (!(ast_format_cap_iscompatible(p->owner->nativeformats, &f->subclass.format))) {
+		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(p->owner), &f->subclass.format))) {
 			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
-			ast_format_cap_set(p->owner->nativeformats, &f->subclass.format);
+			ast_format_cap_set(ast_channel_nativeformats(p->owner), &f->subclass.format);
 			ast_set_read_format(p->owner, &p->owner->readformat);
 			ast_set_write_format(p->owner, &p->owner->writeformat);
 		}

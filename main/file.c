@@ -128,16 +128,16 @@ int ast_stopstream(struct ast_channel *tmp)
 	ast_channel_lock(tmp);
 
 	/* Stop a running stream if there is one */
-	if (tmp->stream) {
-		ast_closestream(tmp->stream);
-		tmp->stream = NULL;
+	if (ast_channel_stream(tmp)) {
+		ast_closestream(ast_channel_stream(tmp));
+		ast_channel_stream_set(tmp, NULL);
 		if (tmp->oldwriteformat.id && ast_set_write_format(tmp, &tmp->oldwriteformat))
 			ast_log(LOG_WARNING, "Unable to restore format back to %s\n", ast_getformatname(&tmp->oldwriteformat));
 	}
 	/* Stop the video stream too */
-	if (tmp->vstream != NULL) {
-		ast_closestream(tmp->vstream);
-		tmp->vstream = NULL;
+	if (ast_channel_vstream(tmp) != NULL) {
+		ast_closestream(ast_channel_vstream(tmp));
+		ast_channel_vstream_set(tmp, NULL);
 	}
 
 	ast_channel_unlock(tmp);
@@ -300,13 +300,13 @@ static void filestream_close(struct ast_filestream *f)
 	switch (format_type)
 	{
 	case AST_FORMAT_TYPE_AUDIO:
-		f->owner->stream = NULL;
-		AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
+		ast_channel_stream_set(f->owner, NULL);
+		AST_SCHED_DEL_ACCESSOR(ast_channel_sched(f->owner), f->owner, ast_channel_streamid, ast_channel_streamid_set);
 		ast_settimeout(f->owner, 0, NULL, NULL);
 		break;
 	case AST_FORMAT_TYPE_VIDEO:
-		f->owner->vstream = NULL;
-		AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
+		ast_channel_vstream_set(f->owner, NULL);
+		AST_SCHED_DEL_ACCESSOR(ast_channel_sched(f->owner), f->owner, ast_channel_vstreamid, ast_channel_vstreamid_set);
 		break;
 	default:
 		ast_log(AST_LOG_WARNING, "Unable to schedule deletion of filestream with unsupported type %s\n", f->fmt->name);
@@ -498,13 +498,13 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				s->trans = NULL;
 				s->filename = NULL;
 				if (AST_FORMAT_GET_TYPE(s->fmt->format.id) == AST_FORMAT_TYPE_AUDIO) {
-					if (chan->stream)
-						ast_closestream(chan->stream);
-					chan->stream = s;
+					if (ast_channel_stream(chan))
+						ast_closestream(ast_channel_stream(chan));
+					ast_channel_stream_set(chan, s);
 				} else {
-					if (chan->vstream)
-						ast_closestream(chan->vstream);
-					chan->vstream = s;
+					if (ast_channel_vstream(chan))
+						ast_closestream(ast_channel_vstream(chan));
+					ast_channel_vstream_set(chan, s);
 				}
 				ast_free(fn);
 				break;
@@ -679,7 +679,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	if (!asis) {
 		/* do this first, otherwise we detect the wrong writeformat */
 		ast_stopstream(chan);
-		if (chan->generator)
+		if (ast_channel_generator(chan))
 			ast_deactivate_generator(chan);
 	}
 	if (preflang == NULL)
@@ -712,7 +712,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	}
 	res = filehelper(buf, chan, NULL, ACTION_OPEN);
 	if (res >= 0)
-		return chan->stream;
+		return ast_channel_stream(chan);
 	return NULL;
 }
 
@@ -736,7 +736,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 		return NULL;
 
 	/* is the channel capable of video without translation ?*/
-	if (!ast_format_cap_has_type(chan->nativeformats, AST_FORMAT_TYPE_VIDEO)) {
+	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO)) {
 		return NULL;
 	}
 	if (!(tmp_cap = ast_format_cap_alloc_nolock())) {
@@ -753,7 +753,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	while (!ast_format_cap_iter_next(tmp_cap, &tmp_fmt)) {
 		fmt = ast_getformatname(&tmp_fmt);
 		if ((AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_VIDEO) ||
-			!ast_format_cap_iscompatible(chan->nativeformats, &tmp_fmt)) {
+			!ast_format_cap_iscompatible(ast_channel_nativeformats(chan), &tmp_fmt)) {
 			continue;
 		}
 
@@ -761,7 +761,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 		if (fd >= 0) {
 			ast_format_cap_iter_end(tmp_cap);
 			tmp_cap = ast_format_cap_destroy(tmp_cap);
-			return chan->vstream;
+			return ast_channel_vstream(chan);
 		}
 		ast_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	}
@@ -838,7 +838,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		if (s->owner->timingfd > -1) {
+		if (ast_channel_timingfd(s->owner) > -1) {
 			float samp_rate = (float) ast_format_rate(&s->fmt->format);
 			unsigned int rate;
 
@@ -846,8 +846,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 			ast_settimeout(s->owner, rate, ast_fsread_audio, s);
 		} else {
-			s->owner->streamid = ast_sched_add(s->owner->sched, 
-				whennext / (ast_format_rate(&s->fmt->format) / 1000), ast_fsread_audio, s);
+			ast_channel_streamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_rate(&s->fmt->format) / 1000), ast_fsread_audio, s));
 		}
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
@@ -855,7 +854,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 	return FSREAD_SUCCESS_SCHED;
 
 return_failure:
-	s->owner->streamid = -1;
+	ast_channel_streamid_set(s->owner, -1);
 	ast_settimeout(s->owner, 0, NULL, NULL);
 	return FSREAD_FAILURE;
 }
@@ -887,7 +886,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
 				ast_frfree(fr);
 			}
-			s->owner->vstreamid = -1;
+			ast_channel_vstreamid_set(s->owner, -1);
 			return FSREAD_FAILURE;
 		}
 
@@ -897,9 +896,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	}
 
 	if (whennext != s->lasttimeout) {
-		s->owner->vstreamid = ast_sched_add(s->owner->sched, 
-			whennext / (ast_format_rate(&s->fmt->format) / 1000), 
-			ast_fsread_video, s);
+		ast_channel_vstreamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_rate(&s->fmt->format) / 1000), ast_fsread_video, s));
 		s->lasttimeout = whennext;
 		return FSREAD_SUCCESS_NOSCHED;
 	}
@@ -1018,7 +1015,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 
 	fs = ast_openstream(chan, filename, preflang);
 	if (!fs) {
-		ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), chan->nativeformats), strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), ast_channel_nativeformats(chan)), strerror(errno));
 		return -1;
 	}
 
@@ -1260,7 +1257,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 	if (ast_test_flag(c, AST_FLAG_MASQ_NOSTREAM))
 		orig_chan_name = ast_strdupa(ast_channel_name(c));
 
-	while (c->stream) {
+	while (ast_channel_stream(c)) {
 		int res;
 		int ms;
 
@@ -1270,7 +1267,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			break;
 		}
 
-		ms = ast_sched_wait(c->sched);
+		ms = ast_sched_wait(ast_channel_sched(c));
 
 		if (ms < 0 && !c->timingfunc) {
 			ast_stopstream(c);
@@ -1324,15 +1321,15 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					res = fr->subclass.integer;
 					if (strchr(forward, res)) {
 						int eoftest;
-						ast_stream_fastforward(c->stream, skip_ms);
-						eoftest = fgetc(c->stream->f);
-						if (feof(c->stream->f)) {
-							ast_stream_rewind(c->stream, skip_ms);
+						ast_stream_fastforward(ast_channel_stream(c), skip_ms);
+						eoftest = fgetc(ast_channel_stream(c)->f);
+						if (feof(ast_channel_stream(c)->f)) {
+							ast_stream_rewind(ast_channel_stream(c), skip_ms);
 						} else {
-							ungetc(eoftest, c->stream->f);
+							ungetc(eoftest, ast_channel_stream(c)->f);
 						}
 					} else if (strchr(reverse, res)) {
-						ast_stream_rewind(c->stream, skip_ms);
+						ast_stream_rewind(ast_channel_stream(c), skip_ms);
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
 						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
@@ -1379,7 +1376,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			}
 			ast_frfree(fr);
 		}
-		ast_sched_runq(c->sched);
+		ast_sched_runq(ast_channel_sched(c));
 	}
 
 	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);

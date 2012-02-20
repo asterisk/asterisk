@@ -215,7 +215,7 @@ static int waitfor_exec(struct ast_channel *chan, const char *data, int wait_for
 	time_t waitstart;
 	struct ast_silence_generator *silgen = NULL;
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		res = ast_answer(chan); /* Answer the channel */
 	}
 

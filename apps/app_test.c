@@ -162,7 +162,7 @@ static int testclient_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 
 	/* Wait a few just to be sure things get started */
@@ -329,7 +329,7 @@ static int testserver_exec(struct ast_channel *chan, const char *data)
 	char testid[80]="";
 	char fn[80];
 	FILE *f;
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 	/* Read version */
 	ast_debug(1, "Read client version\n");

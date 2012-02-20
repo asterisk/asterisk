@@ -378,8 +378,8 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 		return NULL;
 	}
 	ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0);
-	tmp->tech = &record_tech;
-	ast_format_cap_add_all(tmp->nativeformats);
+	ast_channel_tech_set(tmp, &record_tech);
+	ast_format_cap_add_all(ast_channel_nativeformats(tmp));
 	ast_format_copy(&tmp->writeformat, &fmt);
 	ast_format_copy(&tmp->rawwriteformat, &fmt);
 	ast_format_copy(&tmp->readformat, &fmt);
@@ -873,7 +873,7 @@ static void destroy_conference_bridge(void *obj)
 	ast_mutex_destroy(&conference_bridge->playback_lock);
 
 	if (conference_bridge->playback_chan) {
-		struct ast_channel *underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
+		struct ast_channel *underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
 		if (underlying_channel) {
 			ast_hangup(underlying_channel);
 		}
@@ -1159,10 +1159,10 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 			ast_mutex_unlock(&conference_bridge->playback_lock);
 			return -1;
 		}
-		underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
+		underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
 	} else {
 		/* Channel was already available so we just need to add it back into the bridge */
-		underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
+		underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
 		ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL, 0);
 	}
 
@@ -1333,7 +1333,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	);
 	ast_bridge_features_init(&conference_bridge_user.features);
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 
@@ -1729,14 +1729,14 @@ static int action_dialplan_exec(struct ast_bridge_channel *bridge_channel, struc
 	/*save off*/
 	exten = ast_strdupa(ast_channel_exten(bridge_channel->chan));
 	context = ast_strdupa(ast_channel_context(bridge_channel->chan));
-	priority = bridge_channel->chan->priority;
-	pbx = bridge_channel->chan->pbx;
-	bridge_channel->chan->pbx = NULL;
+	priority = ast_channel_priority(bridge_channel->chan);
+	pbx = ast_channel_pbx(bridge_channel->chan);
+	ast_channel_pbx_set(bridge_channel->chan, NULL);
 
 	/*set new*/
 	ast_channel_exten_set(bridge_channel->chan, menu_action->data.dialplan_args.exten);
 	ast_channel_context_set(bridge_channel->chan, menu_action->data.dialplan_args.context);
-	bridge_channel->chan->priority = menu_action->data.dialplan_args.priority;
+	ast_channel_priority_set(bridge_channel->chan, menu_action->data.dialplan_args.priority);
 
 	ast_channel_unlock(bridge_channel->chan);
 
@@ -1748,8 +1748,8 @@ static int action_dialplan_exec(struct ast_bridge_channel *bridge_channel, struc
 
 	ast_channel_exten_set(bridge_channel->chan, exten);
 	ast_channel_context_set(bridge_channel->chan, context);
-	bridge_channel->chan->priority = priority;
-	bridge_channel->chan->pbx = pbx;
+	ast_channel_priority_set(bridge_channel->chan, priority);
+	ast_channel_pbx_set(bridge_channel->chan, pbx);
 
 	ast_channel_unlock(bridge_channel->chan);
 

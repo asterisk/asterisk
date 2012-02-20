@@ -169,7 +169,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 			}
 			snprintf(tmp, sizeof(tmp), "%d", status);
 			ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
-			if ((inuse <= 1) && (tempchan = ast_request(tech, chan->nativeformats, chan, number, &status))) {
+			if ((inuse <= 1) && (tempchan = ast_request(tech, ast_channel_nativeformats(chan), chan, number, &status))) {
 					ast_str_append(&tmp_availchan, 0, "%s%s", ast_str_strlen(tmp_availchan) ? "&" : "", ast_channel_name(tempchan));
 					
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);

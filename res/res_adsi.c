@@ -211,7 +211,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	char ack[3];
 	struct ast_frame *f;
 
-	if (chan->adsicpe == AST_ADSI_UNAVAILABLE) {
+	if (ast_channel_adsicpe(chan) == AST_ADSI_UNAVAILABLE) {
 		/* Don't bother if we know they don't support ADSI */
 		errno = ENOSYS;
 		return -1;
@@ -219,7 +219,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 
 	while (retries < maxretries) {
 		struct ast_format tmpfmt;
-		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
+		if (!(ast_channel_adsicpe(chan) & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
 			ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0);
 			ast_gen_cas(buf, 0, 680, &tmpfmt);
@@ -235,8 +235,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				if (((res = ast_waitfor(chan, waittime)) < 1)) {
 					/* Didn't get back DTMF A in time */
 					ast_debug(1, "No ADSI CPE detected (%d)\n", res);
-					if (!chan->adsicpe) {
-						chan->adsicpe = AST_ADSI_UNAVAILABLE;
+					if (!ast_channel_adsicpe(chan)) {
+						ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
 					}
 					errno = ENOSYS;
 					return -1;
@@ -249,8 +249,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				if (f->frametype == AST_FRAME_DTMF) {
 					if (f->subclass.integer == 'A') {
 						/* Okay, this is an ADSI CPE.  Note this for future reference, too */
-						if (!chan->adsicpe) {
-							chan->adsicpe = AST_ADSI_AVAILABLE;
+						if (!ast_channel_adsicpe(chan)) {
+							ast_channel_adsicpe_set(chan, AST_ADSI_AVAILABLE);
 						}
 						break;
 					} else {
@@ -259,8 +259,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 						} else {
 							ast_log(LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass.integer);
 						}
-						if (!chan->adsicpe) {
-							chan->adsicpe = AST_ADSI_UNAVAILABLE;
+						if (!ast_channel_adsicpe(chan)) {
+							ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
 						}
 						errno =	ENOSYS;
 						ast_frfree(f);
@@ -367,7 +367,7 @@ int AST_OPTIONAL_API_NAME(ast_adsi_end_download)(struct ast_channel *chan)
 int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
-	int msglens[5], msgtypes[5], newdatamode = (chan->adsicpe & ADSI_FLAG_DATAMODE), res, x, waitforswitch = 0;
+	int msglens[5], msgtypes[5], newdatamode = (ast_channel_adsicpe(chan) & ADSI_FLAG_DATAMODE), res, x, waitforswitch = 0;
 	struct ast_format writeformat;
 	struct ast_format readformat;
 
@@ -424,7 +424,7 @@ int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *ch
 	}
 
 	if (!res) {
-		chan->adsicpe = (chan->adsicpe & ~ADSI_FLAG_DATAMODE) | newdatamode;
+		ast_channel_adsicpe_set(chan, (ast_channel_adsicpe(chan) & ~ADSI_FLAG_DATAMODE) | newdatamode);
 	}
 
 	if (writeformat.id) {
@@ -787,7 +787,7 @@ int AST_OPTIONAL_API_NAME(ast_adsi_voice_mode)(unsigned char *buf, int when)
 
 int AST_OPTIONAL_API_NAME(ast_adsi_available)(struct ast_channel *chan)
 {
-	int cpe = chan->adsicpe & 0xff;
+	int cpe = ast_channel_adsicpe(chan) & 0xff;
 	if ((cpe == AST_ADSI_AVAILABLE) ||
 	    (cpe == AST_ADSI_UNKNOWN)) {
 		return 1;

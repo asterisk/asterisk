@@ -133,7 +133,7 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if ((res = ast_answer(chan)))
 			return -1;
 	}

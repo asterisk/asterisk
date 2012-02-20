@@ -743,13 +743,13 @@ static void *do_notify(void *data)
 		goto notify_cleanup;
 	}
 
-	chan->tech = &null_tech;
+	ast_channel_tech_set(chan, &null_tech);
 	ast_format_set(&chan->writeformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&chan->readformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&chan->rawwriteformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&chan->rawreadformat, AST_FORMAT_SLINEAR, 0);
 	/* clear native formats and set to slinear. write format is signlear so just use that to set it */
-	ast_format_cap_set(chan->nativeformats, &chan->writeformat);
+	ast_format_cap_set(ast_channel_nativeformats(chan), &chan->writeformat);
 
 	if (!(datastore = ast_datastore_alloc(&event_notification_datastore, NULL))) {
 		ast_log(LOG_ERROR, "Could not allocate datastore, notification not being sent!\n");
@@ -793,7 +793,7 @@ static void *do_notify(void *data)
 		if (ast_strlen_zero(event->owner->notify_app)) {
 			ast_channel_context_set(answered, event->owner->notify_context);
 			ast_channel_exten_set(answered, event->owner->notify_extension);
-			answered->priority = 1;
+			ast_channel_priority_set(answered, 1);
 			ast_pbx_run(answered);
 		}
 	}

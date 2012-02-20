@@ -185,7 +185,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	}
 
 	/* Answer if it's not already going */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 	ast_stopstream(chan);
 	ast_indicate(chan, -1);

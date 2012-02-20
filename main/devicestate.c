@@ -274,7 +274,7 @@ enum ast_device_state ast_parse_device_state(const char *device)
 		return AST_DEVICE_UNKNOWN;
 	}
 
-	res = (chan->_state == AST_STATE_RINGING) ? AST_DEVICE_RINGING : AST_DEVICE_INUSE;
+	res = (ast_channel_state(chan) == AST_STATE_RINGING) ? AST_DEVICE_RINGING : AST_DEVICE_INUSE;
 	
 	chan = ast_channel_unref(chan);
 

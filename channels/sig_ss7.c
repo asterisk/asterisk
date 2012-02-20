@@ -257,7 +257,7 @@ static struct ast_channel *sig_ss7_new_ast_channel(struct sig_ss7_chan *p, int s
 		p->owner = ast;
 	}
 	p->alreadyhungup = 0;
-	ast->transfercapability = transfercapability;
+	ast_channel_transfercapability_set(ast, transfercapability);
 	pbx_builtin_setvar_helper(ast, "TRANSFERCAPABILITY",
 		ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL) {
@@ -893,7 +893,7 @@ void *ss7_linkset(void *data)
 					}
 					p->call_level = SIG_SS7_CALL_LEVEL_GLARE;
 					if (p->owner) {
-						p->owner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
 						ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 						ast_channel_unlock(p->owner);
 					}
@@ -1036,7 +1036,7 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_private(p);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
-					p->owner->hangupcause = e->rel.cause;
+					ast_channel_hangupcause_set(p->owner, e->rel.cause);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 					ast_channel_unlock(p->owner);
 				}
@@ -1571,7 +1571,7 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 {
 	int res = 0;
 
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -1588,7 +1588,7 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 	if (p->ss7call) {
 		if (!p->alreadyhungup) {
 			const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
-			int icause = ast->hangupcause ? ast->hangupcause : -1;
+			int icause = ast_channel_hangupcause(ast) ? ast_channel_hangupcause(ast) : -1;
 
 			if (cause) {
 				if (atoi(cause)) {
@@ -1682,7 +1682,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 
 		res = sig_ss7_play_tone(p, SIG_SS7_TONE_RINGTONE);
 
-		if (chan->_state != AST_STATE_UP && chan->_state != AST_STATE_RING) {
+		if (ast_channel_state(chan) != AST_STATE_UP && ast_channel_state(chan) != AST_STATE_RING) {
 			ast_setstate(chan, AST_STATE_RINGING);
 		}
 		break;
@@ -1690,7 +1690,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",ast_channel_name(chan));
 		ss7_grab(p, p->ss7);
 		/* This IF sends the FAR for an answered ALEG call */
-		if (chan->_state == AST_STATE_UP && (p->rlt != 1)){
+		if (ast_channel_state(chan) == AST_STATE_UP && (p->rlt != 1)){
 			if ((isup_far(p->ss7->ss7, p->ss7call)) != -1) {
 				p->rlt = 1;
 			}
@@ -1726,10 +1726,10 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 			res = 0;
 			break;
 		}
-		chan->hangupcause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+		ast_channel_hangupcause_set(chan, AST_CAUSE_INVALID_NUMBER_FORMAT);
 		break;
 	case AST_CONTROL_CONGESTION:
-		chan->hangupcause = AST_CAUSE_CONGESTION;
+		ast_channel_hangupcause_set(chan, AST_CAUSE_CONGESTION);
 		break;
 	case AST_CONTROL_HOLD:
 		ast_moh_start(chan, data, p->mohinterpret);

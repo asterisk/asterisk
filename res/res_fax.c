@@ -1882,7 +1882,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* make sure the channel is up */
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_answer(chan)) {
 			ast_string_field_set(details, resultstr, "error answering channel");
 			set_channel_variables(chan, details);
@@ -2374,7 +2374,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* make sure the channel is up */
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_answer(chan)) {
 			ast_string_field_set(details, resultstr, "error answering channel");
 			set_channel_variables(chan, details);
@@ -3097,7 +3097,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		/* framehooks are called in __ast_read() before frame format
 		 * translation is done, so we need to translate here */
 		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR)) {
-			if (active->readtrans && (f = ast_translate(active->readtrans, f, 1)) == NULL) {
+			if (ast_channel_readtrans(active) && (f = ast_translate(ast_channel_readtrans(active), f, 1)) == NULL) {
 				f = &ast_null_frame;
 				ao2_ref(details, -1);
 				return f;
@@ -3109,7 +3109,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		 * write would fail, or even if a failure would be fatal so for
 		 * now we'll just ignore the return value. */
 		gateway->s->tech->write(gateway->s, f);
-		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR) && active->readtrans) {
+		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR) && ast_channel_readtrans(active)) {
 			/* Only free the frame if we translated / duplicated it - otherwise,
 			 * let whatever is outside the frame hook do it */
 			ast_frfree(f);

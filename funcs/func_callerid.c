@@ -1043,8 +1043,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		chan->redirecting.from.number.valid = 1;
 		ast_free(chan->redirecting.from.number.str);
 		chan->redirecting.from.number.str = ast_strdup(value);
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
+		if (ast_channel_cdr(chan)) {
+			ast_cdr_setcid(ast_channel_cdr(chan), chan);
 		}
 	} else if (!strcasecmp("dnid", member.argv[0])) {
 		ast_party_dialed_set_init(&dialed, &chan->dialed);
@@ -1063,8 +1063,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 				dialed.number.str = ast_strdup(value);
 				ast_trim_blanks(dialed.number.str);
 				ast_party_dialed_set(&chan->dialed, &dialed);
-				if (chan->cdr) {
-					ast_cdr_setcid(chan->cdr, chan);
+				if (ast_channel_cdr(chan)) {
+					ast_cdr_setcid(ast_channel_cdr(chan), chan);
 				}
 			} else if (member.argc == 3 && !strcasecmp("plan", member.argv[2])) {
 				/* dnid-num-plan */
@@ -1073,8 +1073,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 
 				if (('0' <= val[0]) && (val[0] <= '9')) {
 					chan->dialed.number.plan = atoi(val);
-					if (chan->cdr) {
-						ast_cdr_setcid(chan->cdr, chan);
+					if (ast_channel_cdr(chan)) {
+						ast_cdr_setcid(ast_channel_cdr(chan), chan);
 					}
 				} else {
 					ast_log(LOG_ERROR,
@@ -1093,8 +1093,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 			switch (status) {
 			case ID_FIELD_VALID:
 				ast_party_dialed_set(&chan->dialed, &dialed);
-				if (chan->cdr) {
-					ast_cdr_setcid(chan->cdr, chan);
+				if (ast_channel_cdr(chan)) {
+					ast_cdr_setcid(ast_channel_cdr(chan), chan);
 				}
 				break;
 			case ID_FIELD_INVALID:
@@ -1113,8 +1113,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 
 		if (('0' <= val[0]) && (val[0] <= '9')) {
 			chan->caller.ani2 = atoi(val);
-			if (chan->cdr) {
-				ast_cdr_setcid(chan->cdr, chan);
+			if (ast_channel_cdr(chan)) {
+				ast_cdr_setcid(ast_channel_cdr(chan), chan);
 			}
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid ani2 '%s', value unchanged\n", val);
@@ -1130,8 +1130,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		switch (status) {
 		case ID_FIELD_VALID:
 			ast_party_caller_set(&chan->caller, &caller, NULL);
-			if (chan->cdr) {
-				ast_cdr_setcid(chan->cdr, chan);
+			if (ast_channel_cdr(chan)) {
+				ast_cdr_setcid(ast_channel_cdr(chan), chan);
 			}
 			break;
 		case ID_FIELD_INVALID:
@@ -1147,8 +1147,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		switch (status) {
 		case ID_FIELD_VALID:
 			ast_channel_set_caller_event(chan, &caller, NULL);
-			if (chan->cdr) {
-				ast_cdr_setcid(chan->cdr, chan);
+			if (ast_channel_cdr(chan)) {
+				ast_cdr_setcid(ast_channel_cdr(chan), chan);
 			}
 			break;
 		case ID_FIELD_INVALID:

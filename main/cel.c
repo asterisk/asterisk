@@ -477,7 +477,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 
 	ast_channel_appl_set(tchan, ast_strdup(record.application_name));
 	ast_channel_data_set(tchan, ast_strdup(record.application_data));
-	tchan->amaflags = record.amaflag;
+	ast_channel_amaflags_set(tchan, record.amaflag);
 
 	return tchan;
 }
@@ -566,7 +566,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, ast_channel_name(chan),
 		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_appl(chan), ""),
 		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_data(chan), ""),
-		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, chan->amaflags,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, ast_channel_amaflags(chan),
 		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, ast_channel_accountcode(chan),
 		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, ast_channel_peeraccount(chan),
 		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, ast_channel_uniqueid(chan),

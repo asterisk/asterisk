@@ -2716,7 +2716,7 @@ static int ast_rtp_dtmf_compatible(struct ast_channel *chan0, struct ast_rtp_ins
 	 * --------------------------------------------------
 	 */
 	return (((ast_rtp_instance_get_prop(instance0, AST_RTP_PROPERTY_DTMF) != ast_rtp_instance_get_prop(instance1, AST_RTP_PROPERTY_DTMF)) ||
-		 (!chan0->tech->send_digit_begin != !chan1->tech->send_digit_begin)) ? 0 : 1);
+		 (!ast_channel_tech(chan0)->send_digit_begin != !ast_channel_tech(chan1)->send_digit_begin)) ? 0 : 1);
 }
 
 static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username)

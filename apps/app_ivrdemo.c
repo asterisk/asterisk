@@ -108,7 +108,7 @@ static int skel_exec(struct ast_channel *chan, const char *data)
 
 	/* Do our thing here */
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_ivr_menu_run(chan, &ivr_demo, tmp);

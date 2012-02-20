@@ -200,9 +200,9 @@ static int dahdiras_exec(struct ast_channel *chan, const char *data)
 	args = ast_strdupa(data);
 	
 	/* Answer the channel if it's not up */
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
-	if (strcasecmp(chan->tech->type, "DAHDI")) {
+	if (strcasecmp(ast_channel_tech(chan)->type, "DAHDI")) {
 		/* If it's not a DAHDI channel, we're done.  Wait a couple of
 		   seconds and then hangup... */
 		ast_verb(2, "Channel %s is not a DAHDI channel\n", ast_channel_name(chan));

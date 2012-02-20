@@ -454,7 +454,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		if (strcasestr(args.options, "noanswer"))
 			option_noanswer = 1;
 	} 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			goto done;

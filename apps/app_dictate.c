@@ -132,7 +132,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 	ast_safe_sleep(chan, 200);
@@ -278,7 +278,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 							if (!(fs = ast_openstream(chan, path, ast_channel_language(chan))))
 								break;
 							ast_seekstream(fs, samples, SEEK_SET);
-							chan->stream = NULL;
+							ast_channel_stream_set(chan, NULL);
 						}
 						lastop = DMODE_PLAY;
 					}

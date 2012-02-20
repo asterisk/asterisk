@@ -64,9 +64,9 @@ void ast_image_unregister(struct ast_imager *img)
 
 int ast_supports_images(struct ast_channel *chan)
 {
-	if (!chan || !chan->tech)
+	if (!chan || !ast_channel_tech(chan))
 		return 0;
-	if (!chan->tech->send_image)
+	if (!ast_channel_tech(chan)->send_image)
 		return 0;
 	return 1;
 }
@@ -157,10 +157,10 @@ int ast_send_image(struct ast_channel *chan, const char *filename)
 {
 	struct ast_frame *f;
 	int res = -1;
-	if (chan->tech->send_image) {
+	if (ast_channel_tech(chan)->send_image) {
 		f = ast_read_image(filename, ast_channel_language(chan), NULL);
 		if (f) {
-			res = chan->tech->send_image(chan, f);
+			res = ast_channel_tech(chan)->send_image(chan, f);
 			ast_frfree(f);
 		}
 	}

@@ -6506,9 +6506,9 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 		return -1;
 	}
 
-	if (((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) || !dest) {
+	if (((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) || !dest) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast_channel_name(ast));
-		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+		ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
@@ -6516,7 +6516,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 	ch = MISDN_ASTERISK_TECH_PVT(ast);
 	if (!ch) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, chan_list *ch==NULL\n", ast_channel_name(ast));
-		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+		ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
@@ -6524,7 +6524,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 	newbc = ch->bc;
 	if (!newbc) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, newbc==NULL\n", ast_channel_name(ast));
-		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+		ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
@@ -6546,7 +6546,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 		if (!cc_record) {
 			AST_LIST_UNLOCK(&misdn_cc_records_db);
 			ast_log(LOG_WARNING, " --> ! misdn_call called on %s, cc_record==NULL\n", ast_channel_name(ast));
-			ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+			ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
 			ast_setstate(ast, AST_STATE_DOWN);
 			return -1;
 		}
@@ -6633,9 +6633,9 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 		}
 		debug_numtype(port, newbc->caller.number_type, "LTON");
 
-		newbc->capability = ast->transfercapability;
+		newbc->capability = ast_channel_transfercapability(ast);
 		pbx_builtin_setvar_helper(ast, "TRANSFERCAPABILITY", ast_transfercapability2str(newbc->capability));
-		if (ast->transfercapability == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
+		if (ast_channel_transfercapability(ast) == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
 			chan_misdn_log(2, port, " --> * Call with flag Digital\n");
 		}
 
@@ -6714,7 +6714,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 
 		snprintf(tmp, sizeof(tmp), "%d", exceed);
 		pbx_builtin_setvar_helper(ast, "MAX_OVERFLOW", tmp);
-		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+		ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
@@ -6732,7 +6732,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 	if (r == -ENOCHAN) {
 		chan_misdn_log(0, port, " --> * Theres no Channel at the moment .. !\n");
 		chan_misdn_log(1, port, " --> * SEND: State Down pid:%d\n", newbc ? newbc->pid : -1);
-		ast->hangupcause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
+		ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
@@ -6740,7 +6740,7 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 	chan_misdn_log(2, port, " --> * SEND: State Dialing pid:%d\n", newbc ? newbc->pid : 1);
 
 	ast_setstate(ast, AST_STATE_DIALING);
-	ast->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+	ast_channel_hangupcause_set(ast, AST_CAUSE_NORMAL_CLEARING);
 
 	if (newbc->nt) {
 		stop_bc_tones(ch);
@@ -7084,7 +7084,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		}
 	}
 
-	if (ast->_state == AST_STATE_RESERVED || p->state == MISDN_NOTHING) {
+	if (ast_channel_state(ast) == AST_STATE_RESERVED || p->state == MISDN_NOTHING) {
 		/* between request and call */
 		ast_debug(1, "State Reserved (or nothing) => chanIsAvail\n");
 		release_chan_early(p);
@@ -7113,7 +7113,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		stop_bc_tones(p);
 	}
 
-	bc->out_cause = ast->hangupcause ? ast->hangupcause : AST_CAUSE_NORMAL_CLEARING;
+	bc->out_cause = ast_channel_hangupcause(ast) ? ast_channel_hangupcause(ast) : AST_CAUSE_NORMAL_CLEARING;
 
 	/* Channel lock is already held when we are called. */
 	//ast_channel_lock(ast);
@@ -7642,7 +7642,7 @@ static int dialtone_indicate(struct chan_list *cl)
 
 	chan_misdn_log(3, cl->bc->port, " --> Dial\n");
 
-	cl->ts = ast_get_indication_tone(ast->zone, "dial");
+	cl->ts = ast_get_indication_tone(ast_channel_zone(ast), "dial");
 
 	if (cl->ts) {
 		cl->notxtone = 0;
@@ -8135,7 +8135,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
 
 		ast_best_codec(cap, &tmpfmt);
-		ast_format_cap_add(tmp->nativeformats, &prefformat);
+		ast_format_cap_add(ast_channel_nativeformats(tmp), &prefformat);
 		ast_format_copy(&tmp->writeformat, &tmpfmt);
 		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
 		ast_format_copy(&tmp->readformat, &tmpfmt);
@@ -8147,9 +8147,9 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		chlist->ast = tmp;
 
 		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
-		tmp->tech = bridging ? &misdn_tech : &misdn_tech_wo_bridge;
+		ast_channel_tech_set(tmp, bridging ? &misdn_tech : &misdn_tech_wo_bridge);
 
-		tmp->priority = 1;
+		ast_channel_priority_set(tmp, 1);
 
 		if (exten) {
 			ast_channel_exten_set(tmp, exten);
@@ -8169,7 +8169,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		}
 		ast_channel_set_fd(tmp, 0, chlist->pipe[0]);
 
-		tmp->rings = (state == AST_STATE_RING) ? 1 : 0;
+		ast_channel_rings_set(tmp, (state == AST_STATE_RING) ? 1 : 0);
 
 		ast_jb_configure(tmp, misdn_get_global_jbconf());
 	} else {
@@ -8454,7 +8454,7 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 			S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
 			S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""));
 
-		if (ast->_state != AST_STATE_RESERVED) {
+		if (ast_channel_state(ast) != AST_STATE_RESERVED) {
 			chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
 			ast_setstate(ast, AST_STATE_DOWN);
 		}
@@ -8511,7 +8511,7 @@ static void release_chan_early(struct chan_list *ch)
 		ast_ch = MISDN_ASTERISK_TECH_PVT(ast);
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 
-		if (ast->_state != AST_STATE_RESERVED) {
+		if (ast_channel_state(ast) != AST_STATE_RESERVED) {
 			ast_setstate(ast, AST_STATE_DOWN);
 		}
 		ast_channel_unlock(ast);
@@ -8695,7 +8695,7 @@ static int send_cause2ast(struct ast_channel *ast, struct misdn_bchannel *bc, st
 		return 0;
 	}
 
-	ast->hangupcause = bc->cause;
+	ast_channel_hangupcause_set(ast, bc->cause);
 
 	can_hangup = -1;
 	switch (bc->cause) {
@@ -8923,7 +8923,7 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 		ast_log(LOG_ERROR, "Unable to allocate channel!\n");
 		return;
 	}
-	chan->priority = notify->priority;
+	ast_channel_priority_set(chan, notify->priority);
 	ast_free(chan->dialed.number.str);
 	chan->dialed.number.str = ast_strdup(notify->exten);
 
@@ -10169,7 +10169,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		export_ch(chan, bc, ch);
 
-		ch->ast->rings = 1;
+		ast_channel_rings_set(ch->ast, 1);
 		ast_setstate(ch->ast, AST_STATE_RINGING);
 
 		/* Update asterisk channel caller information */
@@ -10204,7 +10204,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
-		chan->transfercapability = bc->capability;
+		ast_channel_transfercapability_set(chan, bc->capability);
 
 		switch (bc->capability) {
 		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
@@ -10585,7 +10585,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				start_bc_tones(ch);
 
 				if (ch->ast) {
-					ch->ast->hangupcause = bc->cause;
+					ast_channel_hangupcause_set(ch->ast, bc->cause);
 					if (bc->cause == AST_CAUSE_USER_BUSY) {
 						ast_queue_control(ch->ast, AST_CONTROL_BUSY);
 					}
@@ -10724,13 +10724,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 
-		if (!ast->generator) {
+		if (!ast_channel_generator(ast)) {
 			break;
 		}
 
-		tmp = ast->generatordata;
-		ast->generatordata = NULL;
-		generate = ast->generator->generate;
+		tmp = ast_channel_generatordata(ast);
+		ast_channel_generatordata_set(ast, NULL);
+		generate = ast_channel_generator(ast)->generate;
 
 		if (tone_len < 0 || tone_len > 512) {
 			ast_log(LOG_NOTICE, "TONE_GEN: len was %d, set to 128\n", tone_len);
@@ -10738,7 +10738,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		res = generate(ast, tmp, tone_len, tone_len);
-		ast->generatordata = tmp;
+		ast_channel_generatordata_set(ast, tmp);
 
 		if (res) {
 			ast_log(LOG_WARNING, "Auto-deactivating generator\n");
@@ -10885,7 +10885,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		bridged = ast_bridged_channel(ch->ast);
 		if (bridged) {
-			chan_misdn_log(2, bc->port, "Bridge Partner is of type: %s\n", bridged->tech->type);
+			chan_misdn_log(2, bc->port, "Bridge Partner is of type: %s\n", ast_channel_tech(bridged)->type);
 			ch->l3id = bc->l3_id;
 
 			/* forget the channel now */
@@ -12028,7 +12028,7 @@ static int misdn_command_exec(struct ast_channel *chan, const char *data)
 		if (strcasecmp(misdn_commands[index].name, subcommand.name) == 0) {
 			strcpy(subcommand.name, misdn_commands[index].name);
 			if (misdn_commands[index].misdn_only
-				&& strcasecmp(chan->tech->type, misdn_type) != 0) {
+				&& strcasecmp(ast_channel_tech(chan)->type, misdn_type) != 0) {
 				ast_log(LOG_WARNING,
 					"%s(%s) only makes sense with %s channels!\n",
 					misdn_command_name, subcommand.name, misdn_type);
@@ -12055,9 +12055,9 @@ static int misdn_facility_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(arg)[99];
 	);
 
-	chan_misdn_log(0, 0, "TYPE: %s\n", chan->tech->type);
+	chan_misdn_log(0, 0, "TYPE: %s\n", ast_channel_tech(chan)->type);
 
-	if (strcasecmp(chan->tech->type, misdn_type)) {
+	if (strcasecmp(ast_channel_tech(chan)->type, misdn_type)) {
 		ast_log(LOG_WARNING, "misdn_facility only makes sense with %s channels!\n", misdn_type);
 		return -1;
 	}
@@ -12252,7 +12252,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, const char *data)
 	int txgain = 0;
 	int change_jitter = 0;
 
-	if (strcasecmp(chan->tech->type, misdn_type)) {
+	if (strcasecmp(ast_channel_tech(chan)->type, misdn_type)) {
 		ast_log(LOG_WARNING, "misdn_set_opt makes sense only with %s channels!\n", misdn_type);
 		return -1;
 	}

@@ -419,11 +419,11 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 		return NULL;
 	}
 
-	chan->tech = &console_tech;
+	ast_channel_tech_set(chan, &console_tech);
 	ast_format_set(&chan->readformat, AST_FORMAT_SLINEAR16, 0);
 	ast_format_set(&chan->writeformat, AST_FORMAT_SLINEAR16, 0);
-	ast_format_cap_add(chan->nativeformats, &chan->readformat);
-	chan->tech_pvt = ref_pvt(pvt);
+	ast_format_cap_add(ast_channel_nativeformats(chan), &chan->readformat);
+	ast_channel_tech_pvt_set(chan, ref_pvt(pvt));
 
 	pvt->owner = chan;
 
@@ -434,7 +434,7 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(chan)) {
-			chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+			ast_channel_hangupcause_set(chan, AST_CAUSE_SWITCH_CONGESTION);
 			ast_hangup(chan);
 			chan = NULL;
 		} else
@@ -503,7 +503,7 @@ static int console_text(struct ast_channel *c, const char *text)
 
 static int console_hangup(struct ast_channel *c)
 {
-	struct console_pvt *pvt = c->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(c);
 
 	ast_verb(1, V_BEGIN "Hangup on Console" V_END);
 
@@ -511,14 +511,14 @@ static int console_hangup(struct ast_channel *c)
 	pvt->owner = NULL;
 	stop_stream(pvt);
 
-	c->tech_pvt = unref_pvt(pvt);
+	ast_channel_tech_pvt_set(c, unref_pvt(pvt));
 
 	return 0;
 }
 
 static int console_answer(struct ast_channel *c)
 {
-	struct console_pvt *pvt = c->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(c);
 
 	ast_verb(1, V_BEGIN "Call from Console has been Answered" V_END);
 
@@ -556,7 +556,7 @@ static struct ast_frame *console_read(struct ast_channel *chan)
 
 static int console_call(struct ast_channel *c, const char *dest, int timeout)
 {
-	struct console_pvt *pvt = c->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(c);
 	enum ast_control_frame_type ctrl;
 
 	ast_verb(1, V_BEGIN "Call to device '%s' on console from '%s' <%s>" V_END,
@@ -586,7 +586,7 @@ static int console_call(struct ast_channel *c, const char *dest, int timeout)
 
 static int console_write(struct ast_channel *chan, struct ast_frame *f)
 {
-	struct console_pvt *pvt = chan->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(chan);
 
 	Pa_WriteStream(pvt->stream, f->data.ptr, f->samples);
 
@@ -595,7 +595,7 @@ static int console_write(struct ast_channel *chan, struct ast_frame *f)
 
 static int console_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen)
 {
-	struct console_pvt *pvt = chan->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(chan);
 	int res = 0;
 
 	switch (cond) {
@@ -631,7 +631,7 @@ static int console_indicate(struct ast_channel *chan, int cond, const void *data
 
 static int console_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct console_pvt *pvt = newchan->tech_pvt;
+	struct console_pvt *pvt = ast_channel_tech_pvt(newchan);
 
 	pvt->owner = newchan;
 

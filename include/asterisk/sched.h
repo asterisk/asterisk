@@ -56,6 +56,19 @@ extern "C" {
 		(_sched_res); \
 	})
 
+#define AST_SCHED_DEL_ACCESSOR(sched, obj, getter, setter) \
+	({ \
+		int _count = 0; \
+		int _sched_res = -1; \
+		while (getter(obj) > -1 && (_sched_res = ast_sched_del(sched, getter(obj))) && ++_count < 10) \
+			usleep(1); \
+		if (_count == 10) { \
+			ast_debug(3, "Unable to cancel schedule ID %d.\n", getter(obj)); \
+		} \
+		setter(obj, -1); \
+		(_sched_res); \
+	})
+
 /*!
  * \brief schedule task to get deleted and call unref function
  * \sa AST_SCHED_DEL

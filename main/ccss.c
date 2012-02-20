@@ -2686,7 +2686,7 @@ static void *generic_recall(void *data)
 
 	ast_channel_exten_set(chan, generic_pvt->exten);
 	ast_channel_context_set(chan, generic_pvt->context);
-	chan->priority = 1;
+	ast_channel_priority_set(chan, 1);
 
 	pbx_builtin_setvar_helper(chan, "CC_EXTEN", generic_pvt->exten);
 	pbx_builtin_setvar_helper(chan, "CC_CONTEXT", generic_pvt->context);
@@ -4045,7 +4045,7 @@ void ast_cc_call_failed(struct ast_channel *incoming, struct ast_channel *outgoi
 	struct cc_control_payload payload;
 	struct ast_cc_config_params *cc_params;
 
-	if (outgoing->hangupcause != AST_CAUSE_BUSY && outgoing->hangupcause != AST_CAUSE_CONGESTION) {
+	if (ast_channel_hangupcause(outgoing) != AST_CAUSE_BUSY && ast_channel_hangupcause(outgoing) != AST_CAUSE_CONGESTION) {
 		/* It doesn't make sense to try to offer CCBS to the caller if the reason for ast_call
 		 * failing is something other than busy or congestion
 		 */

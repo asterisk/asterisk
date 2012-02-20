@@ -1529,8 +1529,8 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
-	if (c->cdr && !ast_check_hangup(c))
-		ast_cdr_setapp(c->cdr, app->name, data);
+	if (ast_channel_cdr(c) && !ast_check_hangup(c))
+		ast_cdr_setapp(ast_channel_cdr(c), app->name, data);
 
 	/* save channel values */
 	saved_c_appl= ast_channel_appl(c);
@@ -3314,14 +3314,14 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 		} else if (!strcmp(var, "CONTEXT")) {
 			s = ast_channel_context(c);
 		} else if (!strcmp(var, "PRIORITY")) {
-			ast_str_set(str, maxlen, "%d", c->priority);
+			ast_str_set(str, maxlen, "%d", ast_channel_priority(c));
 			s = ast_str_buffer(*str);
 		} else if (!strcmp(var, "CHANNEL")) {
 			s = ast_channel_name(c);
 		} else if (!strcmp(var, "UNIQUEID")) {
 			s = ast_channel_uniqueid(c);
 		} else if (!strcmp(var, "HANGUPCAUSE")) {
-			ast_str_set(str, maxlen, "%d", c->hangupcause);
+			ast_str_set(str, maxlen, "%d", ast_channel_hangupcause(c));
 			s = ast_str_buffer(*str);
 		}
 	}
@@ -3438,7 +3438,7 @@ static int raise_exception(struct ast_channel *chan, const char *reason, int pri
 	ast_string_field_set(exception, reason, reason);
 	ast_string_field_set(exception, context, ast_channel_context(chan));
 	ast_string_field_set(exception, exten, ast_channel_exten(chan));
-	exception->priority = chan->priority;
+	exception->priority = ast_channel_priority(chan);
 	set_ext_pri(chan, "e", priority);
 	return 0;
 }
@@ -4363,7 +4363,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_channel_context_set(c, context);
 			if (ast_channel_exten(c) != exten)
 				ast_channel_exten_set(c, exten);
-			c->priority = priority;
+			ast_channel_priority_set(c, priority);
 			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 #ifdef CHANNEL_TRACE
 			ast_channel_trace_update(c);
@@ -4386,7 +4386,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"Application: %s\r\n"
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
-					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, app->name, passdata, ast_channel_uniqueid(c));
+					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), app->name, passdata, ast_channel_uniqueid(c));
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
@@ -5058,7 +5058,7 @@ static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
 	ast_channel_lock(c);
 	ast_channel_exten_set(c, exten);
-	c->priority = pri;
+	ast_channel_priority_set(c, pri);
 	ast_channel_unlock(c);
 }
 
@@ -5090,7 +5090,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 				buf[pos++] = digit;
 				buf[pos] = '\0';
 			}
-			waittime = c->pbx->dtimeoutms;
+			waittime = ast_channel_pbx(c)->dtimeoutms;
 		}
 	}
 	return 0;
@@ -5103,25 +5103,28 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	int res = 0;
 	int autoloopflag;
 	int error = 0;		/* set an error conditions */
+	struct ast_pbx *pbx;
 
 	/* A little initial setup here */
-	if (c->pbx) {
+	if (ast_channel_pbx(c)) {
 		ast_log(LOG_WARNING, "%s already has PBX structure??\n", ast_channel_name(c));
 		/* XXX and now what ? */
-		ast_free(c->pbx);
+		ast_free(ast_channel_pbx(c));
 	}
-	if (!(c->pbx = ast_calloc(1, sizeof(*c->pbx))))
+	if (!(pbx = ast_calloc(1, sizeof(*pbx)))) {
 		return -1;
+	}
+	ast_channel_pbx_set(c, pbx);
 	/* Set reasonable defaults */
-	c->pbx->rtimeoutms = 10000;
-	c->pbx->dtimeoutms = 5000;
+	ast_channel_pbx(c)->rtimeoutms = 10000;
+	ast_channel_pbx(c)->dtimeoutms = 5000;
 
 	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
 
 	if (ast_strlen_zero(ast_channel_exten(c))) {
 		/* If not successful fall back to 's' - but only if there is no given exten  */
-		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority);
+		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c));
 		/* XXX the original code used the existing priority in the call to
 		 * ast_exists_extension(), and reset it to 1 afterwards.
 		 * I believe the correct thing is to set it to 1 immediately.
@@ -5130,7 +5133,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	}
 
 	ast_channel_lock(c);
-	if (c->cdr) {
+	if (ast_channel_cdr(c)) {
 		/* allow CDR variables that have been collected after channel was created to be visible during call */
 		ast_cdr_update(c);
 	}
@@ -5143,11 +5146,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		int timeout = 0;
 
 		/* loop on priorities in this context/exten */
-		while (!(res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), c->priority,
+		while (!(res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c),
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
 			&found, 1))) {
 			if (!ast_check_hangup(c)) {
-				++c->priority;
+				ast_channel_priority_set(c, ast_channel_priority(c) + 1);
 				continue;
 			}
 
@@ -5178,7 +5181,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				break;
 			}
 			ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
-				ast_channel_exten(c), c->priority);
+				ast_channel_exten(c), ast_channel_priority(c));
 			error = 1;
 			break;
 		} /* end while  - from here on we can use 'break' to go out */
@@ -5190,8 +5193,8 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				dst_exten[pos++] = digit = res;
 				dst_exten[pos] = '\0';
 			} else if (res == AST_PBX_INCOMPLETE) {
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
 
 				/* Don't cycle on incomplete - this will happen if the only extension that matches is our "incomplete" extension */
 				if (!ast_matchmore_extension(c, ast_channel_context(c), ast_channel_exten(c), 1,
@@ -5203,15 +5206,15 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					pos = strlen(dst_exten);
 				}
 			} else {
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
 
 				if ((res == AST_PBX_ERROR)
 					&& ast_exists_extension(c, ast_channel_context(c), "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 					/* if we are already on the 'e' exten, don't jump to it again */
 					if (!strcmp(ast_channel_exten(c), "e")) {
-						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
 						error = 1;
 					} else {
 						raise_exception(c, "ERROR", 1);
@@ -5242,7 +5245,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					/* Call timed out with no special extension to jump to. */
 				}
 				ast_channel_lock(c);
-				if (c->cdr) {
+				if (ast_channel_cdr(c)) {
 					ast_cdr_update(c);
 				}
 				ast_channel_unlock(c);
@@ -5286,9 +5289,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		} else {	/* keypress received, get more digits for a full extension */
 			int waittime = 0;
 			if (digit)
-				waittime = c->pbx->dtimeoutms;
+				waittime = ast_channel_pbx(c)->dtimeoutms;
 			else if (!autofallthrough)
-				waittime = c->pbx->rtimeoutms;
+				waittime = ast_channel_pbx(c)->rtimeoutms;
 			if (!waittime) {
 				const char *status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
@@ -5350,7 +5353,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				}
 			}
 			ast_channel_lock(c);
-			if (c->cdr) {
+			if (ast_channel_cdr(c)) {
 				ast_verb(2, "CDR updated on %s\n",ast_channel_name(c));
 				ast_cdr_update(c);
 			}
@@ -5371,24 +5374,24 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		&& ast_exists_extension(c, ast_channel_context(c), "h", 1,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 		set_ext_pri(c, "h", 1);
-		if (c->cdr && ast_opt_end_cdr_before_h_exten) {
-			ast_cdr_end(c->cdr);
+		if (ast_channel_cdr(c) && ast_opt_end_cdr_before_h_exten) {
+			ast_cdr_end(ast_channel_cdr(c));
 		}
-		while ((res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), c->priority,
+		while ((res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c),
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
 			&found, 1)) == 0) {
-			c->priority++;
+			ast_channel_priority_set(c, ast_channel_priority(c) + 1);
 		}
 		if (found && res) {
 			/* Something bad happened, or a hangup has been requested. */
-			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
-			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
 		}
 	}
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	ast_clear_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
-	pbx_destroy(c->pbx);
-	c->pbx = NULL;
+	pbx_destroy(ast_channel_pbx(c));
+	ast_channel_pbx_set(c, NULL);
 
 	if (!args || !args->no_hangup_chan) {
 		ast_hangup(c);
@@ -8297,10 +8300,11 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 	if (!ast_strlen_zero(exten))
 		ast_channel_exten_set(chan, exten);
 	if (priority > -1) {
-		chan->priority = priority;
+		ast_channel_priority_set(chan, priority);
 		/* see flag description in channel.h for explanation */
-		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP))
-			chan->priority--;
+		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP)) {
+			ast_channel_priority_set(chan, ast_channel_priority(chan) - 1);
+		}
 	}
 
 	ast_channel_unlock(chan);
@@ -8326,7 +8330,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	} tmpvars = { 0, };
 
 	ast_channel_lock(chan);
-	if (chan->pbx) { /* This channel is currently in the PBX */
+	if (ast_channel_pbx(chan)) { /* This channel is currently in the PBX */
 		ast_explicit_goto(chan, context, exten, priority + 1);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 		ast_channel_unlock(chan);
@@ -8341,11 +8345,11 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	tmpvars.context = ast_strdupa(ast_channel_context(chan));
 	tmpvars.linkedid = ast_strdupa(ast_channel_linkedid(chan));
 	tmpvars.name = ast_strdupa(ast_channel_name(chan));
-	tmpvars.amaflags = chan->amaflags;
-	tmpvars.state = chan->_state;
+	tmpvars.amaflags = ast_channel_amaflags(chan);
+	tmpvars.state = ast_channel_state(chan);
 	ast_format_copy(&tmpvars.writeformat, &chan->writeformat);
 	ast_format_copy(&tmpvars.readformat, &chan->readformat);
-	tmpvars.cdr = chan->cdr ? ast_cdr_dup(chan->cdr) : NULL;
+	tmpvars.cdr = ast_channel_cdr(chan) ? ast_cdr_dup(ast_channel_cdr(chan)) : NULL;
 
 	ast_channel_unlock(chan);
 
@@ -8358,8 +8362,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 
 	/* copy the cdr info over */
 	if (tmpvars.cdr) {
-		ast_cdr_discard(tmpchan->cdr);
-		tmpchan->cdr = tmpvars.cdr;
+		ast_cdr_discard(ast_channel_cdr(tmpchan));
+		ast_channel_cdr_set(tmpchan, tmpvars.cdr);
 		tmpvars.cdr = NULL;
 	}
 
@@ -8856,7 +8860,7 @@ static void *async_wait(void *data)
 	struct ast_frame *f;
 	struct ast_app *app;
 
-	while (timeout && (chan->_state != AST_STATE_UP)) {
+	while (timeout && (ast_channel_state(chan) != AST_STATE_UP)) {
 		res = ast_waitfor(chan, timeout);
 		if (res < 1)
 			break;
@@ -8874,7 +8878,7 @@ static void *async_wait(void *data)
 		}
 		ast_frfree(f);
 	}
-	if (chan->_state == AST_STATE_UP) {
+	if (ast_channel_state(chan) == AST_STATE_UP) {
 		if (!ast_strlen_zero(as->app)) {
 			app = pbx_findapp(as->app);
 			if (app) {
@@ -8888,7 +8892,7 @@ static void *async_wait(void *data)
 			if (!ast_strlen_zero(as->exten))
 				ast_channel_exten_set(chan, as->exten);
 			if (as->priority > 0)
-				chan->priority = as->priority;
+				ast_channel_priority_set(chan, as->priority);
 			/* Run the PBX */
 			if (ast_pbx_run(chan)) {
 				ast_log(LOG_ERROR, "Failed to start PBX on %s\n", ast_channel_name(chan));
@@ -8916,20 +8920,20 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	if (!chan)
 		return -1;  /* failure */
 
-	chan->cdr = ast_cdr_alloc();
-	if (!chan->cdr) {
+	ast_channel_cdr_set(chan, ast_cdr_alloc());
+	if (!ast_channel_cdr(chan)) {
 		/* allocation of the cdr failed */
 		chan = ast_channel_unref(chan);   /* free the channel */
 		return -1;                /* return failure */
 	}
 
 	/* allocation of the cdr was successful */
-	ast_cdr_init(chan->cdr, chan);  /* initialize our channel's cdr */
-	ast_cdr_start(chan->cdr);       /* record the start and stop time */
-	ast_cdr_end(chan->cdr);
-	ast_cdr_failed(chan->cdr);      /* set the status to failed */
-	ast_cdr_detach(chan->cdr);      /* post and free the record */
-	chan->cdr = NULL;
+	ast_cdr_init(ast_channel_cdr(chan), chan);  /* initialize our channel's cdr */
+	ast_cdr_start(ast_channel_cdr(chan));       /* record the start and stop time */
+	ast_cdr_end(ast_channel_cdr(chan));
+	ast_cdr_failed(ast_channel_cdr(chan));      /* set the status to failed */
+	ast_cdr_detach(ast_channel_cdr(chan));      /* post and free the record */
+	ast_channel_cdr_set(chan, NULL);
 	chan = ast_channel_unref(chan);         /* free the channel */
 
 	return 0;  /* success */
@@ -8959,7 +8963,7 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 				ast_channel_lock(chan);
 		}
 		if (chan) {
-			if (chan->_state == AST_STATE_UP) {
+			if (ast_channel_state(chan) == AST_STATE_UP) {
 					res = 0;
 				ast_verb(4, "Channel %s was answered.\n", ast_channel_name(chan));
 
@@ -8989,11 +8993,11 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 			} else {
 				ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(chan));
 
-				if (chan->cdr) { /* update the cdr */
+				if (ast_channel_cdr(chan)) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
-					if (ast_cdr_disposition(chan->cdr, chan->hangupcause))
-						ast_cdr_failed(chan->cdr);
+					if (ast_cdr_disposition(ast_channel_cdr(chan), ast_channel_hangupcause(chan)))
+						ast_cdr_failed(ast_channel_cdr(chan));
 				}
 
 				if (channel) {
@@ -9127,7 +9131,7 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 			ast_set_variables(chan, vars);
 			if (account)
 				ast_cdr_setaccount(chan, account);
-			if (chan->_state == AST_STATE_UP) {
+			if (ast_channel_state(chan) == AST_STATE_UP) {
 				res = 0;
 				ast_verb(4, "Channel %s was answered.\n", ast_channel_name(chan));
 				tmp = ast_calloc(1, sizeof(*tmp));
@@ -9163,11 +9167,11 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 				}
 			} else {
 				ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(chan));
-				if (chan->cdr) { /* update the cdr */
+				if (ast_channel_cdr(chan)) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
-					if (ast_cdr_disposition(chan->cdr, chan->hangupcause))
-						ast_cdr_failed(chan->cdr);
+					if (ast_cdr_disposition(ast_channel_cdr(chan), ast_channel_hangupcause(chan)))
+						ast_cdr_failed(ast_channel_cdr(chan));
 				}
 				ast_hangup(chan);
 			}
@@ -9499,9 +9503,9 @@ static int pbx_builtin_busy(struct ast_channel *chan, const char *data)
 	ast_indicate(chan, AST_CONTROL_BUSY);
 	/* Don't change state of an UP channel, just indicate
 	   busy in audio */
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_setstate(chan, AST_STATE_BUSY);
-		ast_cdr_busy(chan->cdr);
+		ast_cdr_busy(ast_channel_cdr(chan));
 	}
 	wait_for_hangup(chan, data);
 	return -1;
@@ -9515,9 +9519,9 @@ static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
 	/* Don't change state of an UP channel, just indicate
 	   congestion in audio */
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_setstate(chan, AST_STATE_BUSY);
-		ast_cdr_congestion(chan->cdr);
+		ast_cdr_congestion(ast_channel_cdr(chan));
 	}
 	wait_for_hangup(chan, data);
 	return -1;
@@ -9544,7 +9548,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (!ast_strlen_zero(args.delay) && (chan->_state != AST_STATE_UP))
+	if (!ast_strlen_zero(args.delay) && (ast_channel_state(chan) != AST_STATE_UP))
 		delay = atoi(data);
 
 	if (delay < 0) {
@@ -9571,7 +9575,7 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
 	/* If the channel is hungup, stop waiting */
 	if (ast_check_hangup(chan)) {
 		return -1;
-	} else if (chan->_state != AST_STATE_UP && answer) {
+	} else if (ast_channel_state(chan) != AST_STATE_UP && answer) {
 		__ast_answer(chan, 0, 1);
 	}
 
@@ -9600,7 +9604,7 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
 	}
 
-	ast_cdr_reset(chan->cdr, &flags);
+	ast_cdr_reset(ast_channel_cdr(chan), &flags);
 
 	return 0;
 }
@@ -9629,21 +9633,21 @@ static int pbx_builtin_hangup(struct ast_channel *chan, const char *data)
 		char *endptr;
 
 		if ((cause = ast_str2cause(data)) > -1) {
-			chan->hangupcause = cause;
+			ast_channel_hangupcause_set(chan, cause);
 			return -1;
 		}
 
 		cause = strtol((const char *) data, &endptr, 10);
 		if (cause != 0 || (data != endptr)) {
-			chan->hangupcause = cause;
+			ast_channel_hangupcause_set(chan, cause);
 			return -1;
 		}
 
 		ast_log(LOG_WARNING, "Invalid cause given to Hangup(): \"%s\"\n", (char *) data);
 	}
 
-	if (!chan->hangupcause) {
-		chan->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+	if (!ast_channel_hangupcause(chan)) {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL_CLEARING);
 	}
 
 	return -1;
@@ -9827,7 +9831,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
 		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL), strlen(opts[0]));
 	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {
-		struct ast_tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
+		struct ast_tone_zone_sound *ts = ast_get_indication_tone(ast_channel_zone(chan), "dial");
 		if (ts) {
 			ast_playtones_start(chan, 0, ts->data, 0);
 			ts = ast_tone_zone_sound_unref(ts);
@@ -9838,8 +9842,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 	/* Wait for "n" seconds */
 	if (!ast_app_parse_timelen(args.timeout, &ms, TIMELEN_SECONDS) && ms > 0) {
 		/* Yay! */
-	} else if (chan->pbx) {
-		ms = chan->pbx->rtimeoutms;
+	} else if (ast_channel_pbx(chan)) {
+		ms = ast_channel_pbx(chan)->rtimeoutms;
 	} else {
 		ms = 10000;
 	}
@@ -9849,7 +9853,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 		if (ast_check_hangup(chan)) {
 			/* Call is hungup for some reason. */
 			res = -1;
-		} else if (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Timeout on %s, continuing...\n", ast_channel_name(chan));
 		} else if (ast_exists_extension(chan, ast_channel_context(chan), "t", 1,
@@ -9923,7 +9927,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	}
 
 	/* Answer if need be */
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, BACKGROUND_SKIP)) {
 			goto done;
 		} else if (!ast_test_flag(&flags, BACKGROUND_NOANSWER)) {
@@ -9983,7 +9987,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 		snprintf(buf, sizeof(buf), "%c", res);
 		ast_channel_exten_set(chan, buf);
 		ast_channel_context_set(chan, args.context);
-		chan->priority = 0;
+		ast_channel_priority_set(chan, 0);
 		res = 0;
 	}
 done:
@@ -9998,7 +10002,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, const char *data)
 {
 	int res = ast_parseable_goto(chan, data);
 	if (!res)
-		ast_verb(3, "Goto (%s,%s,%d)\n", ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1);
+		ast_verb(3, "Goto (%s,%s,%d)\n", ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 1);
 	return res;
 }
 
@@ -10223,7 +10227,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
 		} else if (!chan) {
 			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '='\n", pair.name);
 		} else {
-			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, ast_channel_exten(chan), ast_channel_context(chan), chan->priority);
+			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, ast_channel_exten(chan), ast_channel_context(chan), ast_channel_priority(chan));
 		}
 	}
 
@@ -10756,7 +10760,7 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 	/* At this point we have a priority and maybe an extension and a context */
 
 	if (mode)
-		ipri = chan->priority + (ipri * mode);
+		ipri = ast_channel_priority(chan) + (ipri * mode);
 
 	if (async)
 		ast_async_goto(chan, context, exten, ipri);

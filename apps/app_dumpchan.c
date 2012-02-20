@@ -83,8 +83,8 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	if (!c)
 		return 0;
 
-	if (c->cdr) {
-		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+	if (ast_channel_cdr(c)) {
+		elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
@@ -128,7 +128,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		"Data=               %s\n"
 		"Blocking_in=        %s\n",
 		ast_channel_name(c),
-		c->tech->type,
+		ast_channel_tech(c)->type,
 		ast_channel_uniqueid(c),
 		ast_channel_linkedid(c),
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
@@ -139,21 +139,21 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		S_COR(c->redirecting.from.number.valid, c->redirecting.from.number.str, "(N/A)"),
 		ast_channel_parkinglot(c),
 		ast_channel_language(c),	
-		ast_state2str(c->_state),
-		c->_state,
-		c->rings, 
-		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats),
+		ast_state2str(ast_channel_state(c)),
+		ast_channel_state(c),
+		ast_channel_rings(c), 
+		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
 		ast_getformatname(&c->writeformat),
 		ast_getformatname(&c->readformat),
 		ast_getformatname(&c->rawwriteformat),
 		ast_getformatname(&c->rawreadformat),
-		c->writetrans ? "Yes" : "No",
-		ast_translate_path_to_str(c->writetrans, &write_transpath),
-		c->readtrans ? "Yes" : "No",
-		ast_translate_path_to_str(c->readtrans, &read_transpath),
+		ast_channel_writetrans(c) ? "Yes" : "No",
+		ast_translate_path_to_str(ast_channel_writetrans(c), &write_transpath),
+		ast_channel_readtrans(c) ? "Yes" : "No",
+		ast_translate_path_to_str(ast_channel_readtrans(c), &read_transpath),
 		c->fds[0],
-		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		ast_channel_fin(c) & ~DEBUGCHAN_FLAG, (ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		ast_channel_fout(c) & ~DEBUGCHAN_FLAG, (ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		(long)c->whentohangup.tv_sec,
 		hour,
 		min,
@@ -162,7 +162,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
 		ast_channel_context(c),
 		ast_channel_exten(c),
-		c->priority,
+		ast_channel_priority(c),
 		ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
 		ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
 		ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)",

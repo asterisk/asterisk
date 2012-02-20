@@ -266,7 +266,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		/* If they hung up, leave */
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
 			if (f->data.uint32) {
-				chan->hangupcause = f->data.uint32;
+				ast_channel_hangupcause_set(chan, f->data.uint32);
 			}
 			ast_frfree(f);
 			res = -1;
@@ -597,7 +597,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, const char *data)
 
 	/* Answer the channel if it is not already */
 	ast_verb(4, "AlarmReceiver: Answering channel\n");
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if ((res = ast_answer(chan)))
 			return -1;
 	}

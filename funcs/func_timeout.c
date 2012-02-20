@@ -100,15 +100,15 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	case 'r':
 	case 'R':
-		if (chan->pbx) {
-			snprintf(buf, len, "%.3f", chan->pbx->rtimeoutms / 1000.0);
+		if (ast_channel_pbx(chan)) {
+			snprintf(buf, len, "%.3f", ast_channel_pbx(chan)->rtimeoutms / 1000.0);
 		}
 		break;
 
 	case 'd':
 	case 'D':
-		if (chan->pbx) {
-			snprintf(buf, len, "%.3f", chan->pbx->dtimeoutms / 1000.0);
+		if (ast_channel_pbx(chan)) {
+			snprintf(buf, len, "%.3f", ast_channel_pbx(chan)->dtimeoutms / 1000.0);
 		}
 		break;
 
@@ -168,17 +168,17 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 
 	case 'r':
 	case 'R':
-		if (chan->pbx) {
-			chan->pbx->rtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000;
-			ast_verb(3, "Response timeout set to %.3f\n", chan->pbx->rtimeoutms / 1000.0);
+		if (ast_channel_pbx(chan)) {
+			ast_channel_pbx(chan)->rtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000;
+			ast_verb(3, "Response timeout set to %.3f\n", ast_channel_pbx(chan)->rtimeoutms / 1000.0);
 		}
 		break;
 
 	case 'd':
 	case 'D':
-		if (chan->pbx) {
-			chan->pbx->dtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000;
-			ast_verb(3, "Digit timeout set to %.3f\n", chan->pbx->dtimeoutms / 1000.0);
+		if (ast_channel_pbx(chan)) {
+			ast_channel_pbx(chan)->dtimeoutms = when.tv_sec * 1000 + when.tv_usec / 1000;
+			ast_verb(3, "Digit timeout set to %.3f\n", ast_channel_pbx(chan)->dtimeoutms / 1000.0);
 		}
 		break;
 

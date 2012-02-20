@@ -520,23 +520,23 @@ static void clear_caller(struct findme_user *tmpuser)
 	if (tmpuser && tmpuser->ochan && tmpuser->state >= 0) {
 		outbound = tmpuser->ochan;
 		ast_channel_lock(outbound);
-		if (!outbound->cdr) {
-			outbound->cdr = ast_cdr_alloc();
-			if (outbound->cdr) {
-				ast_cdr_init(outbound->cdr, outbound);
+		if (!ast_channel_cdr(outbound)) {
+			ast_channel_cdr_set(outbound, ast_cdr_alloc());
+			if (ast_channel_cdr(outbound)) {
+				ast_cdr_init(ast_channel_cdr(outbound), outbound);
 			}
 		}
-		if (outbound->cdr) {
+		if (ast_channel_cdr(outbound)) {
 			char tmp[256];
 
 			snprintf(tmp, sizeof(tmp), "%s/%s", "Local", tmpuser->dialarg);
-			ast_cdr_setapp(outbound->cdr, "FollowMe", tmp);
+			ast_cdr_setapp(ast_channel_cdr(outbound), "FollowMe", tmp);
 			ast_cdr_update(outbound);
-			ast_cdr_start(outbound->cdr);
-			ast_cdr_end(outbound->cdr);
+			ast_cdr_start(ast_channel_cdr(outbound));
+			ast_cdr_end(ast_channel_cdr(outbound));
 			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(outbound->cdr, outbound->hangupcause)) {
-				ast_cdr_failed(outbound->cdr);
+			if (ast_cdr_disposition(ast_channel_cdr(outbound), ast_channel_hangupcause(outbound))) {
+				ast_cdr_failed(ast_channel_cdr(outbound));
 			}
 		} else {
 			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
@@ -624,7 +624,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						tmpuser->state = 1;
 						tmpuser->digts = 0;
 						if (!ast_streamfile(tmpuser->ochan, callfromname, ast_channel_language(tmpuser->ochan))) {
-							ast_sched_runq(tmpuser->ochan->sched);
+							ast_sched_runq(ast_channel_sched(tmpuser->ochan));
 						} else {
 							ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
 							return NULL;
@@ -633,16 +633,16 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						tmpuser->state = 2;
 						tmpuser->digts = 0;
 						if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, ast_channel_language(tmpuser->ochan)))
-							ast_sched_runq(tmpuser->ochan->sched);
+							ast_sched_runq(ast_channel_sched(tmpuser->ochan));
 						else {
 							ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
 							return NULL;
 						}
 					}
 				}
-				if (tmpuser->ochan->stream) {
-					ast_sched_runq(tmpuser->ochan->sched);
-					tmpto = ast_sched_wait(tmpuser->ochan->sched);
+				if (ast_channel_stream(tmpuser->ochan)) {
+					ast_sched_runq(ast_channel_sched(tmpuser->ochan));
+					tmpto = ast_sched_wait(ast_channel_sched(tmpuser->ochan));
 					if (tmpto > 0 && tmpto < to)
 						to = tmpto;
 					else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
@@ -721,7 +721,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					case AST_CONTROL_HANGUP:
 						ast_verb(3, "%s received a hangup frame.\n", ast_channel_name(winner));
 						if (f->data.uint32) {
-							winner->hangupcause = f->data.uint32;
+							ast_channel_hangupcause_set(winner, f->data.uint32);
 						}
 						if (dg == 0) {
 							ast_verb(3, "The calling channel hungup. Need to drop everyone else.\n");
@@ -732,13 +732,13 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					case AST_CONTROL_ANSWER:
 						ast_verb(3, "%s answered %s\n", ast_channel_name(winner), ast_channel_name(caller));
 						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
-						winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-						caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+						ast_channel_hangupcause_set(winner, AST_CAUSE_NORMAL_CLEARING);
+						ast_channel_hangupcause_set(caller, AST_CAUSE_NORMAL_CLEARING);
 						ast_verb(3, "Starting playback of %s\n", callfromname);
 						if (dg > 0) {
 							if (!ast_strlen_zero(namerecloc)) {
 								if (!ast_streamfile(winner, callfromname, ast_channel_language(winner))) {
-									ast_sched_runq(winner->sched);
+									ast_sched_runq(ast_channel_sched(winner));
 									tmpuser->state = 1;
 								} else {
 									ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
@@ -748,7 +748,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							} else {
 								tmpuser->state = 2;
 								if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, ast_channel_language(tmpuser->ochan)))
-									ast_sched_runq(tmpuser->ochan->sched);
+									ast_sched_runq(ast_channel_sched(tmpuser->ochan));
 								else {
 									ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
 									ast_frfree(f);
@@ -838,7 +838,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					}
 				} 
 				if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
-					if (winner->stream)
+					if (ast_channel_stream(winner))
 						ast_stopstream(winner);
 					tmpuser->digts = 0;
 					ast_debug(1, "DTMF received: %c\n", (char) f->subclass.integer);
@@ -953,7 +953,7 @@ static void findmeexec(struct fm_args *tpargs)
 				continue;
 			}
 
-			outbound = ast_request("Local", caller->nativeformats, caller, dialarg, &dg);
+			outbound = ast_request("Local", ast_channel_nativeformats(caller), caller, dialarg, &dg);
 			if (outbound) {
 				ast_channel_lock_both(caller, outbound);
 				ast_connected_line_copy_from_caller(&outbound->connected, &caller->caller);
@@ -974,21 +974,21 @@ static void findmeexec(struct fm_args *tpargs)
 				} else {
 					ast_verb(3, "couldn't reach at this number.\n");
 					ast_channel_lock(outbound);
-					if (!outbound->cdr) {
-						outbound->cdr = ast_cdr_alloc();
+					if (!ast_channel_cdr(outbound)) {
+						ast_channel_cdr_set(outbound, ast_cdr_alloc());
 					}
-					if (outbound->cdr) {
+					if (ast_channel_cdr(outbound)) {
 						char tmp[256];
 
-						ast_cdr_init(outbound->cdr, outbound);
+						ast_cdr_init(ast_channel_cdr(outbound), outbound);
 						snprintf(tmp, sizeof(tmp), "%s/%s", "Local", dialarg);
-						ast_cdr_setapp(outbound->cdr, "FollowMe", tmp);
+						ast_cdr_setapp(ast_channel_cdr(outbound), "FollowMe", tmp);
 						ast_cdr_update(outbound);
-						ast_cdr_start(outbound->cdr);
-						ast_cdr_end(outbound->cdr);
+						ast_cdr_start(ast_channel_cdr(outbound));
+						ast_cdr_end(ast_channel_cdr(outbound));
 						/* If the cause wasn't handled properly */
-						if (ast_cdr_disposition(outbound->cdr, outbound->hangupcause)) {
-							ast_cdr_failed(outbound->cdr);
+						if (ast_cdr_disposition(ast_channel_cdr(outbound), ast_channel_hangupcause(outbound))) {
+							ast_cdr_failed(ast_channel_cdr(outbound));
 						}
 					} else {
 						ast_log(LOG_ERROR, "Unable to create Call Detail Record\n");
@@ -1130,13 +1130,13 @@ static void end_bridge_callback(void *data)
 	time(&end);
 
 	ast_channel_lock(chan);
-	if (chan->cdr->answer.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", (long) end - chan->cdr->answer.tv_sec);
+	if (ast_channel_cdr(chan)->answer.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", (long) end - ast_channel_cdr(chan)->answer.tv_sec);
 		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
 	}
 
-	if (chan->cdr->start.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", (long) end - chan->cdr->start.tv_sec);
+	if (ast_channel_cdr(chan)->start.tv_sec) {
+		snprintf(buf, sizeof(buf), "%ld", (long) end - ast_channel_cdr(chan)->start.tv_sec);
 		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
 	}
 	ast_channel_unlock(chan);
@@ -1223,7 +1223,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	ast_mutex_unlock(&f->lock);
 
 	/* Forget the 'N' option if the call is already up. */
-	if (chan->_state == AST_STATE_UP) {
+	if (ast_channel_state(chan) == AST_STATE_UP) {
 		ast_clear_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER);
 	}
 
@@ -1232,7 +1232,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		ast_indicate(chan, AST_CONTROL_RINGING);
 	} else {
 		/* Answer the call */
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			ast_answer(chan);
 		}
 
@@ -1279,7 +1279,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	if (targs.status != 100) {
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
-			if (chan->_state != AST_STATE_UP) {
+			if (ast_channel_state(chan) != AST_STATE_UP) {
 				ast_answer(chan);
 			}
 		} else {
@@ -1310,7 +1310,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
-			if (caller->_state != AST_STATE_UP) {
+			if (ast_channel_state(caller) != AST_STATE_UP) {
 				ast_answer(caller);
 			}
 		} else {

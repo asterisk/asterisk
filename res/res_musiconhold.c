@@ -260,15 +260,15 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state;
 
-	if (!chan || !chan->music_state) {
+	if (!chan || !ast_channel_music_state(chan)) {
 		return;
 	}
 
-	state = chan->music_state;
+	state = ast_channel_music_state(chan);
 
-	if (chan->stream) {
-		ast_closestream(chan->stream);
-		chan->stream = NULL;
+	if (ast_channel_stream(chan)) {
+		ast_closestream(ast_channel_stream(chan));
+		ast_channel_stream_set(chan, NULL);
 	}
 	
 	ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
@@ -286,13 +286,13 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 
 static int ast_moh_files_next(struct ast_channel *chan) 
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = ast_channel_music_state(chan);
 	int tries;
 
 	/* Discontinue a stream if it is running already */
-	if (chan->stream) {
-		ast_closestream(chan->stream);
-		chan->stream = NULL;
+	if (ast_channel_stream(chan)) {
+		ast_closestream(ast_channel_stream(chan));
+		ast_channel_stream_set(chan, NULL);
 	}
 
 	if (ast_test_flag(state->class, MOH_ANNOUNCEMENT) && state->announcement == 0) {
@@ -357,13 +357,13 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	if (state->samples) {
 		size_t loc;
 		/* seek *SHOULD* be good since it's from a known location */
-		ast_seekstream(chan->stream, state->samples, SEEK_SET);
+		ast_seekstream(ast_channel_stream(chan), state->samples, SEEK_SET);
 		/* if the seek failed then recover because if there is not a valid read,
 		 * moh_files_generate will return -1 and MOH will stop */
-		loc = ast_tellstream(chan->stream);
+		loc = ast_tellstream(ast_channel_stream(chan));
 		if (state->samples > loc && loc) {
 			/* seek one sample from the end for one guaranteed valid read */
-			ast_seekstream(chan->stream, 1, SEEK_END);
+			ast_seekstream(ast_channel_stream(chan), 1, SEEK_END);
 		}
 	}
 
@@ -374,9 +374,9 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
 
-	if (!(chan->stream && (f = ast_readframe(chan->stream)))) {
+	if (!(ast_channel_stream(chan) && (f = ast_readframe(ast_channel_stream(chan))))) {
 		if (!ast_moh_files_next(chan))
-			f = ast_readframe(chan->stream);
+			f = ast_readframe(ast_channel_stream(chan));
 	}
 
 	return f;
@@ -384,7 +384,7 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 
 static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = ast_channel_music_state(chan);
 
 	/* In order to prevent a recursive call to this function as a result
 	 * of setting the moh write format back on the channel. Clear
@@ -403,7 +403,7 @@ static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 
 static int moh_files_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_frame *f = NULL;
 	int res = 0;
 
@@ -443,11 +443,11 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	struct moh_files_state *state;
 	struct mohclass *class = params;
 
-	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
-		chan->music_state = state;
+	if (!ast_channel_music_state(chan) && (state = ast_calloc(1, sizeof(*state)))) {
+		ast_channel_music_state_set(chan, state);
 		ast_module_ref(ast_module_info->self);
 	} else {
-		state = chan->music_state;
+		state = ast_channel_music_state(chan);
 		if (!state) {
 			return NULL;
 		}
@@ -479,7 +479,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, ast_channel_name(chan));
 	
-	return chan->music_state;
+	return ast_channel_music_state(chan);
 }
 
 static int moh_digit_match(void *obj, void *arg, int flags)
@@ -956,7 +956,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	if (chan) {
 		struct moh_files_state *state;
 
-		state = chan->music_state;
+		state = ast_channel_music_state(chan);
 		if (state && state->class) {
 			state->class = mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 		}
@@ -976,11 +976,11 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	struct moh_files_state *state;
 
 	/* Initiating music_state for current channel. Channel should know name of moh class */
-	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
-		chan->music_state = state;
+	if (!ast_channel_music_state(chan) && (state = ast_calloc(1, sizeof(*state)))) {
+		ast_channel_music_state_set(chan, state);
 		ast_module_ref(ast_module_info->self);
 	} else {
-		state = chan->music_state;
+		state = ast_channel_music_state(chan);
 		if (!state) {
 			return NULL;
 		}
@@ -1312,7 +1312,7 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = ast_channel_music_state(chan);
 
 	if (state) {
 		if (state->class) {
@@ -1321,8 +1321,8 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 				mohclass_unref(state->class, "Uh Oh. Cleaning up MOH with an active class");
 			ast_log(LOG_WARNING, "Uh Oh. Cleaning up MOH with an active class\n");
 		}
-		ast_free(chan->music_state);
-		chan->music_state = NULL;
+		ast_free(ast_channel_music_state(chan));
+		ast_channel_music_state_set(chan, NULL);
 		/* Only held a module reference if we had a music state */
 		ast_module_unref(ast_module_info->self);
 	}
@@ -1355,7 +1355,7 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass = NULL;
-	struct moh_files_state *state = chan->music_state;
+	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
 	int res;
 	int realtime_possible = ast_check_realtime("musiconhold");
@@ -1578,10 +1578,10 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 	ast_deactivate_generator(chan);
 
 	ast_channel_lock(chan);
-	if (chan->music_state) {
-		if (chan->stream) {
-			ast_closestream(chan->stream);
-			chan->stream = NULL;
+	if (ast_channel_music_state(chan)) {
+		if (ast_channel_stream(chan)) {
+			ast_closestream(ast_channel_stream(chan));
+			ast_channel_stream_set(chan, NULL);
 		}
 	}
 

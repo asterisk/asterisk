@@ -402,7 +402,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	newframe = gosub_allocate_frame(ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1, max_argc);
+	newframe = gosub_allocate_frame(ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 1, max_argc);
 
 	if (!newframe) {
 		return -1;
@@ -415,13 +415,13 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
-		ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority,
+		ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
-				ast_channel_context(chan), ast_channel_exten(chan), ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
+				ast_channel_context(chan), ast_channel_exten(chan), ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan));
 		ast_channel_context_set(chan, newframe->context);
 		ast_channel_exten_set(chan, newframe->extension);
-		chan->priority = newframe->priority;
+		ast_channel_priority_set(chan, newframe->priority);
 		ast_free(newframe);
 		return -1;
 	}
@@ -607,7 +607,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	/* Save previous location, since we're going to change it */
 	ast_copy_string(old_context, ast_channel_context(chan), sizeof(old_context));
 	ast_copy_string(old_extension, ast_channel_exten(chan), sizeof(old_extension));
-	old_priority = chan->priority;
+	old_priority = ast_channel_priority(chan);
 
 	if (!(theapp = pbx_findapp("Gosub"))) {
 		ast_log(LOG_ERROR, "Gosub() cannot be found in the list of loaded applications\n");
@@ -622,12 +622,12 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	 * call a Gosub for the CALLEE channel in Dial or Queue.
 	 */
 	if (argc == 5) {
-		if (asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority + (chan->pbx ? 1 : 0), argv[4]) < 0) {
+		if (asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority + (ast_channel_pbx(chan) ? 1 : 0), argv[4]) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 			gosub_args = NULL;
 		}
 	} else {
-		if (asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority + (chan->pbx ? 1 : 0)) < 0) {
+		if (asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority + (ast_channel_pbx(chan) ? 1 : 0)) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 			gosub_args = NULL;
 		}
@@ -639,7 +639,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 		ast_debug(1, "Trying gosub with arguments '%s'\n", gosub_args);
 
 		if ((res = pbx_exec(chan, theapp, gosub_args)) == 0) {
-			struct ast_pbx *pbx = chan->pbx;
+			struct ast_pbx *pbx = ast_channel_pbx(chan);
 			struct ast_pbx_args args;
 			struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 			AST_LIST_HEAD(, gosub_stack_frame) *oldlist = stack_store->data;
@@ -649,14 +649,14 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 			memset(&args, 0, sizeof(args));
 			args.no_hangup_chan = 1;
 			/* Suppress warning about PBX already existing */
-			chan->pbx = NULL;
+			ast_channel_pbx_set(chan, NULL);
 			ast_agi_send(agi->fd, chan, "100 result=0 Trying...\n");
 			ast_pbx_run_args(chan, &args);
 			ast_agi_send(agi->fd, chan, "200 result=0 Gosub complete\n");
-			if (chan->pbx) {
-				ast_free(chan->pbx);
+			if (ast_channel_pbx(chan)) {
+				ast_free(ast_channel_pbx(chan));
 			}
-			chan->pbx = pbx;
+			ast_channel_pbx_set(chan, pbx);
 		} else {
 			ast_agi_send(agi->fd, chan, "200 result=%d Gosub failed\n", res);
 		}
@@ -669,7 +669,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	/* Restore previous location */
 	ast_channel_context_set(chan, old_context);
 	ast_channel_exten_set(chan, old_extension);
-	chan->priority = old_priority;
+	ast_channel_priority_set(chan, old_priority);
 
 	return RESULT_SUCCESS;
 }

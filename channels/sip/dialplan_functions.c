@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
 {
-	struct sip_pvt *p = chan->tech_pvt;
+	struct sip_pvt *p = ast_channel_tech_pvt(chan);
 	char *parse = ast_strdupa(preparse);
 	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -57,7 +57,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	/* Sanity check */
-	if (!IS_SIP_TECH(chan->tech)) {
+	if (!IS_SIP_TECH(ast_channel_tech(chan))) {
 		ast_log(LOG_ERROR, "Cannot call %s on a non-SIP channel\n", funcname);
 		return 0;
 	}
@@ -348,8 +348,8 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 		res = AST_TEST_NOT_RUN;
 		goto done;
 	}
-	chan->tech = &sip_tech;
-	chan->tech_pvt = p;
+	ast_channel_tech_set(chan, &sip_tech);
+	ast_channel_tech_pvt_set(chan, p);
 	p->owner = chan;
 
 	varstr = ast_str_create(16);

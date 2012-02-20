@@ -1531,7 +1531,7 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 {
 	struct ast_bridge_video_talker_src_data *data;
 	/* If the channel doesn't support video, we don't care about it */
-	if (!ast_format_cap_has_type(chan->nativeformats, AST_FORMAT_TYPE_VIDEO)) {
+	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO)) {
 		return;
 	}
 

@@ -298,18 +298,18 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
-		if (!(ast_format_cap_identical(ast->nativeformats, p->chan->nativeformats))) { \
+		if (!(ast_format_cap_identical(ast_channel_nativeformats(ast), ast_channel_nativeformats(p->chan)))) { \
 			char tmp1[256], tmp2[256]; \
-			ast_debug(1, "Native formats changing from '%s' to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), p->chan->nativeformats)); \
+			ast_debug(1, "Native formats changing from '%s' to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast_channel_nativeformats(ast)), ast_getformatname_multiple(tmp2, sizeof(tmp2), ast_channel_nativeformats(p->chan))); \
 			/* Native formats changed, reset things */ \
-			ast_format_cap_copy(ast->nativeformats, p->chan->nativeformats); \
+			ast_format_cap_copy(ast_channel_nativeformats(ast), ast_channel_nativeformats(p->chan)); \
 			ast_debug(1, "Resetting read to '%s' and write to '%s'\n", ast_getformatname(&ast->readformat), ast_getformatname(&ast->writeformat));\
 			ast_set_read_format(ast, &ast->readformat); \
 			ast_set_write_format(ast, &ast->writeformat); \
 		} \
-		if ((ast_format_cmp(&p->chan->readformat, &ast->rawreadformat) != AST_FORMAT_CMP_EQUAL) && !p->chan->generator)  \
+		if ((ast_format_cmp(&p->chan->readformat, &ast->rawreadformat) != AST_FORMAT_CMP_EQUAL) && !ast_channel_generator(p->chan))  \
 			ast_set_read_format(p->chan, &ast->rawreadformat); \
-		if ((ast_format_cmp(&p->chan->writeformat, &ast->rawwriteformat) != AST_FORMAT_CMP_EQUAL) && !p->chan->generator) \
+		if ((ast_format_cmp(&p->chan->writeformat, &ast->rawwriteformat) != AST_FORMAT_CMP_EQUAL) && !ast_channel_generator(p->chan)) \
 			ast_set_write_format(p->chan, &ast->rawwriteformat); \
 	} \
 } while(0)
@@ -525,7 +525,7 @@ static int agent_cleanup(struct agent_pvt *p)
 	ast_mutex_lock(&p->lock);
 	chan = p->owner;
 	p->owner = NULL;
-	chan->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(chan, NULL);
 	/* Release ownership of the agent to other threads (presumably running the login app). */
 	p->app_sleep_cond = 1;
 	p->app_lock_flag = 0;
@@ -558,7 +558,7 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 	int res = -1;
 	if (!p)
 		return -1;
-	if (!ast->monitor) {
+	if (!ast_channel_monitor(ast)) {
 		snprintf(filename, sizeof(filename), "agent-%s-%s",p->agent, ast_channel_uniqueid(ast));
 		/* substitute . for - */
 		if ((pointer = strchr(filename, '.')))
@@ -570,8 +570,8 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 #if 0
 		ast_verbose("name is %s, link is %s\n",tmp, tmp2);
 #endif
-		if (!ast->cdr)
-			ast->cdr = ast_cdr_alloc();
+		if (!ast_channel_cdr(ast))
+			ast_channel_cdr_set(ast, ast_cdr_alloc());
 		ast_cdr_setuserfield(ast, tmp2);
 		res = 0;
 	} else
@@ -581,12 +581,12 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 
 static int agent_start_monitoring(struct ast_channel *ast, int needlock)
 {
-	return __agent_start_monitoring(ast, ast->tech_pvt, needlock);
+	return __agent_start_monitoring(ast, ast_channel_tech_pvt(ast), needlock);
 }
 
 static struct ast_frame *agent_read(struct ast_channel *ast)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	struct ast_frame *f = NULL;
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
 	int cur_time = time(NULL);
@@ -601,7 +601,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	}
 	if (p->chan) {
 		ast_copy_flags(p->chan, ast, AST_FLAG_EXCEPTION);
-		p->chan->fdno = (ast->fdno == AST_AGENT_FD) ? AST_TIMING_FD : ast->fdno;
+		ast_channel_fdno_set(p->chan, (ast_channel_fdno(ast) == AST_AGENT_FD) ? AST_TIMING_FD : ast_channel_fdno(ast));
 		f = ast_read(p->chan);
 	} else
 		f = &ast_null_frame;
@@ -616,7 +616,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	} else {
 		/* if acknowledgement is not required, and the channel is up, we may have missed
 			an AST_CONTROL_ANSWER (if there was one), so mark the call acknowledged anyway */
-		if (!p->ackcall && !p->acknowledged && p->chan && (p->chan->_state == AST_STATE_UP)) {
+		if (!p->ackcall && !p->acknowledged && p->chan && (ast_channel_state(p->chan) == AST_STATE_UP)) {
 			p->acknowledged = 1;
 		}
 
@@ -697,7 +697,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
-		if (strcasecmp(p->chan->tech->type, "Local")) {
+		if (strcasecmp(ast_channel_tech(p->chan)->type, "Local")) {
 			p->chan->_bridge = ast;
 			if (p->chan)
 				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", ast_channel_name(p->chan), ast_channel_name(p->chan->_bridge));
@@ -711,7 +711,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 
 static int agent_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan) 
@@ -722,7 +722,7 @@ static int agent_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 
 static int agent_sendtext(struct ast_channel *ast, const char *text)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan) 
@@ -733,7 +733,7 @@ static int agent_sendtext(struct ast_channel *ast, const char *text)
 
 static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	CHECK_FORMATS(ast, p);
 	ast_mutex_lock(&p->lock);
@@ -758,7 +758,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct agent_pvt *p = newchan->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(newchan);
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
@@ -772,7 +772,7 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int agent_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan && !ast_check_hangup(p->chan)) {
@@ -786,7 +786,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 			usleep(1);
 			ast_channel_lock(ast);
 		}
-  		res = p->chan->tech->indicate ? p->chan->tech->indicate(p->chan, condition, data, datalen) : -1;
+  		res = ast_channel_tech(p->chan)->indicate ? ast_channel_tech(p->chan)->indicate(p->chan, condition, data, datalen) : -1;
 		ast_channel_unlock(p->chan);
 	} else
 		res = 0;
@@ -796,7 +796,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 
 static int agent_digit_begin(struct ast_channel *ast, char digit)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	ast_mutex_lock(&p->lock);
 	if (p->chan) {
 		ast_senddigit_begin(p->chan, digit);
@@ -807,7 +807,7 @@ static int agent_digit_begin(struct ast_channel *ast, char digit)
 
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	ast_mutex_lock(&p->lock);
 	if (p->chan) {
 		ast_senddigit_end(p->chan, digit, duration);
@@ -818,7 +818,7 @@ static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 
 static int agent_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 	int newstate=0;
 	struct ast_channel *chan;
@@ -859,7 +859,7 @@ static int agent_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	if (!res) {
 		struct ast_format tmpfmt;
-		res = ast_set_read_format_from_cap(p->chan, p->chan->nativeformats);
+		res = ast_set_read_format_from_cap(p->chan, ast_channel_nativeformats(p->chan));
 		ast_debug(3, "Set read format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(&tmpfmt));
@@ -871,7 +871,7 @@ static int agent_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	if (!res) {
 		struct ast_format tmpfmt;
-		res = ast_set_write_format_from_cap(p->chan, p->chan->nativeformats);
+		res = ast_set_write_format_from_cap(p->chan, ast_channel_nativeformats(p->chan));
 		ast_debug(3, "Set write format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(&tmpfmt));
@@ -902,11 +902,11 @@ struct ast_channel* agent_get_base_channel(struct ast_channel *chan)
 	struct ast_channel *base = chan;
 
 	/* chan is locked by the calling function */
-	if (!chan || !chan->tech_pvt) {
-		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) with a tech_pvt (0x%ld) to get a base channel.\n", (long)chan, (chan)?(long)chan->tech_pvt:(long)NULL);
+	if (!chan || !ast_channel_tech_pvt(chan)) {
+		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) with a tech_pvt (0x%ld) to get a base channel.\n", (long)chan, (chan)?(long)ast_channel_tech_pvt(chan):(long)NULL);
 		return NULL;
 	}
-	p = chan->tech_pvt;
+	p = ast_channel_tech_pvt(chan);
 	if (p->chan) 
 		base = p->chan;
 	return base;
@@ -920,7 +920,7 @@ int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
 		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) and a base channel (0x%ld) for setting.\n", (long)chan, (long)base);
 		return -1;
 	}
-	p = chan->tech_pvt;
+	p = ast_channel_tech_pvt(chan);
 	if (!p) {
 		ast_log(LOG_ERROR, "whoa, channel %s is missing his tech_pvt structure!!.\n", ast_channel_name(chan));
 		return -1;
@@ -931,7 +931,7 @@ int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
 
 static int agent_hangup(struct ast_channel *ast)
 {
-	struct agent_pvt *p = ast->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	struct ast_channel *indicate_chan = NULL;
 	char *tmp_moh; /* moh buffer for indicating after unlocking p */
 
@@ -943,7 +943,7 @@ static int agent_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	p->app_sleep_cond = 1;
 	p->acknowledged = 0;
 
@@ -958,8 +958,8 @@ static int agent_hangup(struct ast_channel *ast)
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
 
-	ast_debug(1, "Hangup called for state %s\n", ast_state2str(ast->_state));
-	if (p->start && (ast->_state != AST_STATE_UP)) {
+	ast_debug(1, "Hangup called for state %s\n", ast_state2str(ast_channel_state(ast)));
+	if (p->start && (ast_channel_state(ast) != AST_STATE_UP)) {
 		p->start = 0;
 	} else
 		p->start = 0;
@@ -1078,7 +1078,7 @@ static int agent_ack_sleep(void *data)
 
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
 {
-	struct agent_pvt *p = bridge->tech_pvt;
+	struct agent_pvt *p = ast_channel_tech_pvt(bridge);
 	struct ast_channel *ret = NULL;
 
 	if (p) {
@@ -1111,9 +1111,9 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 		return NULL;
 	}
 
-	tmp->tech = &agent_tech;
+	ast_channel_tech_set(tmp, &agent_tech);
 	if (p->chan) {
-		ast_format_cap_copy(tmp->nativeformats, p->chan->nativeformats);
+		ast_format_cap_copy(ast_channel_nativeformats(tmp), ast_channel_nativeformats(p->chan));
 		ast_format_copy(&tmp->writeformat, &p->chan->writeformat);
 		ast_format_copy(&tmp->rawwriteformat, &p->chan->writeformat);
 		ast_format_copy(&tmp->readformat, &p->chan->readformat);
@@ -1127,12 +1127,12 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 		ast_format_set(&tmp->rawwriteformat, AST_FORMAT_SLINEAR, 0);
 		ast_format_set(&tmp->readformat, AST_FORMAT_SLINEAR, 0);
 		ast_format_set(&tmp->rawreadformat, AST_FORMAT_SLINEAR, 0);
-		ast_format_cap_add(tmp->nativeformats, &tmp->writeformat);
+		ast_format_cap_add(ast_channel_nativeformats(tmp), &tmp->writeformat);
 	}
 	/* Safe, agentlock already held */
-	tmp->tech_pvt = p;
+	ast_channel_tech_pvt_set(tmp, p);
 	p->owner = tmp;
-	tmp->priority = 1;
+	ast_channel_priority_set(tmp, 1);
 	return tmp;
 }
 
@@ -1990,7 +1990,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
 		if (!ast_strlen_zero(args.agent_id))
@@ -2097,14 +2097,14 @@ static int login_exec(struct ast_channel *chan, const char *data)
 					ast_mutex_lock(&p->lock);
 					if (!res) {
 						struct ast_format tmpfmt;
-						res = ast_set_read_format_from_cap(chan, chan->nativeformats);
+						res = ast_set_read_format_from_cap(chan, ast_channel_nativeformats(chan));
 						if (res) {
 							ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(&tmpfmt));
 						}
 					}
 					if (!res) {
 						struct ast_format tmpfmt;
-						res = ast_set_write_format_from_cap(chan, chan->nativeformats);
+						res = ast_set_write_format_from_cap(chan, ast_channel_nativeformats(chan));
 						if (res) {
 							ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(&tmpfmt));
 						}
@@ -2123,8 +2123,8 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n",
 							      p->agent, ast_channel_name(chan), ast_channel_uniqueid(chan));
-						if (update_cdr && chan->cdr)
-							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
+						if (update_cdr && ast_channel_cdr(chan))
+							snprintf(ast_channel_cdr(chan)->channel, sizeof(ast_channel_cdr(chan)->channel), "Agent/%s", p->agent);
 						ast_queue_log("NONE", ast_channel_uniqueid(chan), agent, "AGENTLOGIN", "%s", ast_channel_name(chan));
 						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
 								    ast_getformatname(&chan->readformat), ast_getformatname(&chan->writeformat));
@@ -2294,7 +2294,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 			AST_LIST_LOCK(&agents);
 			AST_LIST_TRAVERSE(&agents, p, list) {
 				if (!strcasecmp(p->agent, tmp)) {
-					if (changeoutgoing) snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
+					if (changeoutgoing) snprintf(ast_channel_cdr(chan)->channel, sizeof(ast_channel_cdr(chan)->channel), "Agent/%s", p->agent);
 					__agent_start_monitoring(chan, p, 1);
 					break;
 				}

@@ -902,8 +902,8 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		bc = ast_bridged_channel(c);
 
 		if (!count) {
-			if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
-				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+			if ((concise || verbose)  && ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
+				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_cdr(c)->start) / 1000);
 				if (verbose) {
 					int durh = duration / 3600;
 					int durm = (duration % 3600) / 60;
@@ -914,18 +914,18 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				}				
 			}
 			if (concise) {
-				ast_cli(a->fd, CONCISE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, ast_state2str(c->_state),
+				ast_cli(a->fd, CONCISE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_state2str(ast_channel_state(c)),
 					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
 					S_OR(ast_channel_data(c), ""),	/* XXX different from verbose ? */
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 					S_OR(ast_channel_accountcode(c), ""),
 					S_OR(ast_channel_peeraccount(c), ""),
-					c->amaflags, 
+					ast_channel_amaflags(c), 
 					durbuf,
 					bc ? ast_channel_name(bc) : "(None)",
 					ast_channel_uniqueid(c));
 			} else if (verbose) {
-				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, ast_state2str(c->_state),
+				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_state2str(ast_channel_state(c)),
 					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
 					ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)" ): "(None)",
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
@@ -938,10 +938,10 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				char appdata[40] = "(None)";
 				
 				if (!ast_strlen_zero(ast_channel_context(c)) && !ast_strlen_zero(ast_channel_exten(c))) 
-					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", ast_channel_exten(c), ast_channel_context(c), c->priority);
+					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", ast_channel_exten(c), ast_channel_context(c), ast_channel_priority(c));
 				if (ast_channel_appl(c))
 					snprintf(appdata, sizeof(appdata), "%s(%s)", ast_channel_appl(c), S_OR(ast_channel_data(c), ""));
-				ast_cli(a->fd, FORMAT_STRING, ast_channel_name(c), locbuf, ast_state2str(c->_state), appdata);
+				ast_cli(a->fd, FORMAT_STRING, ast_channel_name(c), locbuf, ast_state2str(ast_channel_state(c)), appdata);
 			}
 		}
 		ast_channel_unlock(c);
@@ -1280,13 +1280,13 @@ static int channel_set_debug(void *obj, void *arg, void *data, int flags)
 
 	ast_channel_lock(chan);
 
-	if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
+	if (!(ast_channel_fin(chan) & DEBUGCHAN_FLAG) || !(ast_channel_fout(chan) & DEBUGCHAN_FLAG)) {
 		if (args->is_off) {
-			chan->fin &= ~DEBUGCHAN_FLAG;
-			chan->fout &= ~DEBUGCHAN_FLAG;
+			ast_channel_fin_set(chan, ast_channel_fin(chan) & ~DEBUGCHAN_FLAG);
+			ast_channel_fout_set(chan, ast_channel_fout(chan) & ~DEBUGCHAN_FLAG);
 		} else {
-			chan->fin |= DEBUGCHAN_FLAG;
-			chan->fout |= DEBUGCHAN_FLAG;
+			ast_channel_fin_set(chan, ast_channel_fin(chan) | DEBUGCHAN_FLAG);
+			ast_channel_fout_set(chan, ast_channel_fout(chan) | DEBUGCHAN_FLAG);
 		}
 		ast_cli(args->fd, "Debugging %s on channel %s\n", args->is_off ? "disabled" : "enabled",
 				ast_channel_name(chan));
@@ -1430,8 +1430,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	ast_channel_lock(c);
 
-	if (c->cdr) {
-		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+	if (ast_channel_cdr(c)) {
+		elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
@@ -1475,27 +1475,27 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    Application: %s\n"
 		"           Data: %s\n"
 		"    Blocking in: %s\n",
-		ast_channel_name(c), c->tech->type, ast_channel_uniqueid(c), ast_channel_linkedid(c),
+		ast_channel_name(c), ast_channel_tech(c)->type, ast_channel_uniqueid(c), ast_channel_linkedid(c),
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
 		S_COR(c->caller.id.name.valid, c->caller.id.name.str, "(N/A)"),
 		S_COR(c->connected.id.number.valid, c->connected.id.number.str, "(N/A)"),
 		S_COR(c->connected.id.name.valid, c->connected.id.name.str, "(N/A)"),
 		S_OR(c->dialed.number.str, "(N/A)"),
 		ast_channel_language(c),	
-		ast_state2str(c->_state), c->_state, c->rings, 
-		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats),
+		ast_state2str(ast_channel_state(c)), ast_channel_state(c), ast_channel_rings(c), 
+		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
 		ast_getformatname(&c->writeformat),
 		ast_getformatname(&c->readformat),
-		c->writetrans ? "Yes" : "No",
-		ast_translate_path_to_str(c->writetrans, &write_transpath),
-		c->readtrans ? "Yes" : "No",
-		ast_translate_path_to_str(c->readtrans, &read_transpath),
+		ast_channel_writetrans(c) ? "Yes" : "No",
+		ast_translate_path_to_str(ast_channel_writetrans(c), &write_transpath),
+		ast_channel_readtrans(c) ? "Yes" : "No",
+		ast_translate_path_to_str(ast_channel_readtrans(c), &read_transpath),
 		c->fds[0],
-		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		ast_channel_fin(c) & ~DEBUGCHAN_FLAG, (ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		ast_channel_fout(c) & ~DEBUGCHAN_FLAG, (ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		(long)c->whentohangup.tv_sec,
 		cdrtime, c->_bridge ? ast_channel_name(c->_bridge) : "<none>", ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
-		ast_channel_context(c), ast_channel_exten(c), c->priority, c->callgroup, c->pickupgroup, (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
+		ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), c->callgroup, c->pickupgroup, (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
 		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
 	
@@ -1503,7 +1503,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
-	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &obuf, '=', '\n', 1)) {
+	if (ast_channel_cdr(c) && ast_cdr_serialize_variables(ast_channel_cdr(c), &obuf, '=', '\n', 1)) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 

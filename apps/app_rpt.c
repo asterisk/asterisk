@@ -1380,7 +1380,7 @@ static int priority_jump(struct rpt *myrpt, struct ast_channel *chan)
 	int res=0;
 
 	// if (ast_test_flag(&flags,OPT_JUMP) && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0){
-	if (ast_goto_if_exists(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 101) == 0){
+	if (ast_goto_if_exists(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 101) == 0){
 		res = 0;
 	} else {
 		res = -1;
@@ -3278,7 +3278,7 @@ static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration
         if ((res = ast_tonepair_start(chan, f1, f2, duration, amplitude)))
                 return res;
                                                                                                                                             
-        while(chan->generatordata) {
+        while(ast_channel_generatordata(chan)) {
 		if (ast_safe_sleep(chan,1)) return -1;
 	}
 
@@ -4035,8 +4035,8 @@ struct ast_format_cap *cap = NULL;
 		pthread_exit(NULL);
 	}
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (mychannel->cdr) 
-		ast_set_flag(mychannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+	if (ast_channel_cdr(mychannel)) 
+		ast_set_flag(ast_channel_cdr(mychannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 	rpt_mutex_lock(&myrpt->lock);
 	mytele->chan = mychannel;
@@ -5172,7 +5172,7 @@ struct ast_format_cap *cap = NULL;
 			myrpt->stopgen = 0;
 			break;
 		}
-	        while(mychannel->generatordata && (myrpt->stopgen <= 0)) {
+	        while(ast_channel_generatordata(mychannel) && (myrpt->stopgen <= 0)) {
 			if (ast_safe_sleep(mychannel,1)) break;
 		    	imdone = 1;
 			}
@@ -5317,8 +5317,8 @@ struct ast_format_cap *cap = NULL;
 		pthread_exit(NULL);
 	}
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (mychannel->cdr)
-		ast_set_flag(mychannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+	if (ast_channel_cdr(mychannel))
+		ast_set_flag(ast_channel_cdr(mychannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf; /* use the pseudo conference */
@@ -5345,8 +5345,8 @@ struct ast_format_cap *cap = NULL;
 		pthread_exit(NULL);
 	}
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (genchannel->cdr)
-		ast_set_flag(genchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+	if (ast_channel_cdr(genchannel))
+		ast_set_flag(ast_channel_cdr(genchannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
@@ -5492,7 +5492,7 @@ struct ast_format_cap *cap = NULL;
 	
 	if (myrpt->p.acctcode)
 		ast_cdr_setaccount(mychannel,myrpt->p.acctcode);
-	mychannel->priority = 1;
+	ast_channel_priority_set(mychannel, 1);
 	ast_channel_undefer_dtmf(mychannel);
 	if (ast_pbx_start(mychannel) < 0)
 	{
@@ -5542,7 +5542,7 @@ struct ast_format_cap *cap = NULL;
 	}
 	while(myrpt->callmode)
 	{
-		if ((!mychannel->pbx) && (myrpt->callmode != 4))
+		if ((!ast_channel_pbx(mychannel)) && (myrpt->callmode != 4))
 		{
 		    /* If patch is setup for far end disconnect */
 			if(myrpt->patchfarenddisconnect || (myrpt->p.duplex < 2)){ 
@@ -5586,7 +5586,7 @@ struct ast_format_cap *cap = NULL;
 		ast_log(LOG_NOTICE, "exit channel loop\n");
 	rpt_mutex_unlock(&myrpt->lock);
 	tone_zone_play_tone(genchannel->fds[0],-1);
-	if (mychannel->pbx) ast_softhangup(mychannel,AST_SOFTHANGUP_DEV);
+	if (ast_channel_pbx(mychannel)) ast_softhangup(mychannel,AST_SOFTHANGUP_DEV);
 	ast_hangup(genchannel);
 	rpt_mutex_lock(&myrpt->lock);
 	myrpt->callmode = 0;
@@ -5819,8 +5819,8 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		ast_set_read_format_by_id(l->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(l->chan, AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-		if (l->chan->cdr)
-			ast_set_flag(l->chan->cdr,AST_CDR_FLAG_POST_DISABLED);
+		if (ast_channel_cdr(l->chan))
+			ast_set_flag(ast_channel_cdr(l->chan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 #ifndef	NEW_ASTERISK
 		l->chan->whentohangup = 0;
@@ -5860,8 +5860,8 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	ast_set_read_format_by_id(l->pchan, AST_FORMAT_SLINEAR);
 	ast_set_write_format_by_id(l->pchan, AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (l->pchan->cdr)
-		ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
+	if (ast_channel_cdr(l->pchan))
+		ast_set_flag(ast_channel_cdr(l->pchan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 	/* make a conference for the tx */
 	ci.chan = 0;
@@ -13366,7 +13366,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 
 		if ((!myrpt->p.nobusyout) && m)
 		{
-			if (chan->_state != AST_STATE_UP)
+			if (ast_channel_state(chan) != AST_STATE_UP)
 			{
 				ast_indicate(chan,AST_CONTROL_BUSY);
 			}
@@ -13374,7 +13374,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 
-		if (chan->_state != AST_STATE_UP)
+		if (ast_channel_state(chan) != AST_STATE_UP)
 		{
 			ast_answer(chan);
 			if (!phone_mode) send_newkey(chan);
@@ -13429,7 +13429,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 		/* At this point we have a priority and maybe an extension and a context */
-		chan->priority = atoi(priority);
+		ast_channel_priority_set(chan, atoi(priority));
 #ifdef OLD_ASTERISK
 		if(exten && strcasecmp(exten, "BYEXTENSION"))
 #else
@@ -13439,13 +13439,13 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		if(context)
 			ast_channel_context_set(chan, context);
 		} else {  /* increment the priority by default*/
-			chan->priority++;
+			ast_channel_priority(chan)++;
 		}
 
 		ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n",
-			ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
+			ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
-		if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
+		if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 		}
@@ -13673,8 +13673,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		ast_set_read_format_by_id(l->pchan,AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(l->pchan,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-		if (l->pchan->cdr)
-			ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
+		if (ast_channel_cdr(l->pchan))
+			ast_set_flag(ast_channel_cdr(l->pchan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 		/* make a conference for the tx */
 		ci.chan = 0;
@@ -13693,7 +13693,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
 		__kickshort(myrpt);
 		rpt_mutex_unlock(&myrpt->lock);
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			ast_answer(chan);
 			if (!phone_mode) send_newkey(chan);
 		}
@@ -13721,8 +13721,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		{
 			ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-			if (chan->cdr)
-				ast_set_flag(chan->cdr,AST_CDR_FLAG_POST_DISABLED);
+			if (ast_channel_cdr(chan))
+				ast_set_flag(ast_channel_cdr(chan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 			return -1;
 		}		
@@ -13747,8 +13747,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 					rpt_mutex_unlock(&myrpt->lock);
 					ast_log(LOG_WARNING, "Trying to use busy link (repeater node %s) on %s\n",rpt_vars[i].name,tmp);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-					if (chan->cdr)
-						ast_set_flag(chan->cdr,AST_CDR_FLAG_POST_DISABLED);
+					if (ast_channel_cdr(chan))
+						ast_set_flag(ast_channel_cdr(chan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 					return -1;
 				}
@@ -13764,8 +13764,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 					if (ast_safe_sleep(chan,500) == -1)
 					{
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-						if (chan->cdr)
-							ast_set_flag(chan->cdr,AST_CDR_FLAG_POST_DISABLED);
+						if (ast_channel_cdr(chan))
+							ast_set_flag(ast_channel_cdr(chan),AST_CDR_FLAG_POST_DISABLED);
 #endif
 						return -1;
 					}
@@ -13818,8 +13818,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		ast_set_read_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-		if (myrpt->rxchannel->cdr)
-			ast_set_flag(myrpt->rxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+		if (ast_channel_cdr(myrpt->rxchannel))
+			ast_set_flag(ast_channel_cdr(myrpt->rxchannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 #ifndef	NEW_ASTERISK
 		myrpt->rxchannel->whentohangup = 0;
@@ -13860,8 +13860,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			ast_set_read_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			ast_set_write_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-			if (myrpt->txchannel->cdr)
-				ast_set_flag(myrpt->txchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+			if (ast_channel_cdr(myrpt->txchannel))
+				ast_set_flag(ast_channel_cdr(myrpt->txchannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 #ifndef	NEW_ASTERISK
 			myrpt->txchannel->whentohangup = 0;
@@ -13904,8 +13904,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 	ast_set_read_format_by_id(myrpt->pchannel,AST_FORMAT_SLINEAR);
 	ast_set_write_format_by_id(myrpt->pchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
-	if (myrpt->pchannel->cdr)
-		ast_set_flag(myrpt->pchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+	if (ast_channel_cdr(myrpt->pchannel))
+		ast_set_flag(ast_channel_cdr(myrpt->pchannel),AST_CDR_FLAG_POST_DISABLED);
 #endif
 	if (!myrpt->dahdirxchannel) myrpt->dahdirxchannel = myrpt->pchannel;
 	if (!myrpt->dahditxchannel) myrpt->dahditxchannel = myrpt->pchannel;
@@ -14028,7 +14028,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		i = 128;
 		ioctl(myrpt->dahdirxchannel->fds[0],DAHDI_ECHOCANCEL,&i);
 	}
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
 		if (!phone_mode) send_newkey(chan);
 	}

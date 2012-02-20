@@ -191,10 +191,10 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	}
 	if (ast_test_flag(&flags, OPT_INDICATION)) {
 		if (!ast_strlen_zero(arglist.filename)) {
-			ts = ast_get_indication_tone(chan->zone, arglist.filename);
+			ts = ast_get_indication_tone(ast_channel_zone(chan), arglist.filename);
 		}
 	}
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, arglist.variable, "");
@@ -210,7 +210,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 			ast_stopstream(chan);
 			if (ts && ts->data[0]) {
 				if (!to)
-					to = chan->pbx ? chan->pbx->rtimeoutms : 6000;
+					to = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->rtimeoutms : 6000;
 				res = ast_playtones_start(chan, 0, ts->data, 0);
 				for (x = 0; x < maxdigits; ) {
 					res = ast_waitfordigit(chan, to);

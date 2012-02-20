@@ -164,17 +164,17 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (timeout <= 0)
-		timeout = chan->pbx ? chan->pbx->rtimeoutms : 10000;
+		timeout = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->rtimeoutms : 10000;
 
 	if (digit_timeout <= 0)
-		digit_timeout = chan->pbx ? chan->pbx->dtimeoutms : 5000;
+		digit_timeout = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->dtimeoutms : 5000;
 
 	if (ast_test_flag(&flags, OPT_INDICATION) && !ast_strlen_zero(arglist.filename)) {
-		ts = ast_get_indication_tone(chan->zone, arglist.filename);
+		ts = ast_get_indication_tone(ast_channel_zone(chan), arglist.filename);
 	}
 
 	do {
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			if (ast_test_flag(&flags, OPT_SKIP)) {
 				/* At the user's option, skip if the line is not up */
 				pbx_builtin_setvar_helper(chan, arglist.variable, "");

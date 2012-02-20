@@ -3157,8 +3157,8 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	ast_channel_lock(c);
 	if (causecode > 0) {
 		ast_debug(1, "Setting hangupcause of channel %s to %d (is %d now)\n",
-				ast_channel_name(c), causecode, c->hangupcause);
-		c->hangupcause = causecode;
+				ast_channel_name(c), causecode, ast_channel_hangupcause(c));
+		ast_channel_hangupcause_set(c, causecode);
 	}
 	ast_softhangup_nolock(c, AST_SOFTHANGUP_EXPLICIT);
 	ast_channel_unlock(c);
@@ -3326,9 +3326,9 @@ static int action_status(struct mansession *s, const struct message *m)
 		} else {
 			bridge[0] = '\0';
 		}
-		if (c->pbx) {
-			if (c->cdr) {
-				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+		if (ast_channel_pbx(c)) {
+			if (ast_channel_cdr(c)) {
+				elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
 			}
 			astman_append(s,
 			"Event: Status\r\n"
@@ -3356,9 +3356,9 @@ static int action_status(struct mansession *s, const struct message *m)
 			S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
 			S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
 			ast_channel_accountcode(c),
-			c->_state,
-			ast_state2str(c->_state), ast_channel_context(c),
-			ast_channel_exten(c), c->priority, (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
+			ast_channel_state(c),
+			ast_state2str(ast_channel_state(c)), ast_channel_context(c),
+			ast_channel_exten(c), ast_channel_priority(c), (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
 		} else {
 			astman_append(s,
 				"Event: Status\r\n"
@@ -3381,7 +3381,7 @@ static int action_status(struct mansession *s, const struct message *m)
 				S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
 				S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
 				ast_channel_accountcode(c),
-				ast_state2str(c->_state), bridge, ast_channel_uniqueid(c),
+				ast_state2str(ast_channel_state(c)), bridge, ast_channel_uniqueid(c),
 				ast_str_buffer(str), idText);
 		}
 
@@ -3500,7 +3500,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (chan->pbx) {
+	if (ast_channel_pbx(chan)) {
 		ast_channel_lock(chan);
 		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 		ast_channel_unlock(chan);
@@ -3510,7 +3510,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	if (!res) {
 		if (!ast_strlen_zero(name2)) {
 			if (chan2) {
-				if (chan2->pbx) {
+				if (ast_channel_pbx(chan2)) {
 					ast_channel_lock(chan2);
 					ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 					ast_channel_unlock(chan2);
@@ -4577,8 +4577,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		ast_channel_lock(c);
 
 		bc = ast_bridged_channel(c);
-		if (c->cdr && !ast_tvzero(c->cdr->start)) {
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+		if (ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_cdr(c)->start) / 1000);
 			durh = duration / 3600;
 			durm = (duration % 3600) / 60;
 			durs = duration % 60;
@@ -4605,8 +4605,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
 			"BridgedUniqueID: %s\r\n"
-			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), ast_channel_context(c), ast_channel_exten(c), c->priority, c->_state,
-			ast_state2str(c->_state), ast_channel_appl(c) ? ast_channel_appl(c) : "", ast_channel_data(c) ? S_OR(ast_channel_data(c), "") : "",
+			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_state(c),
+			ast_state2str(ast_channel_state(c)), ast_channel_appl(c) ? ast_channel_appl(c) : "", ast_channel_data(c) ? S_OR(ast_channel_data(c), "") : "",
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
 			S_COR(c->connected.id.number.valid, c->connected.id.number.str, ""),

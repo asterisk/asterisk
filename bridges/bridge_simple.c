@@ -57,7 +57,7 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 	/* See if we need to make these compatible */
 	if ((ast_format_cmp(&c0->writeformat, &c1->readformat) == AST_FORMAT_CMP_EQUAL) &&
 		(ast_format_cmp(&c0->readformat, &c1->writeformat) == AST_FORMAT_CMP_EQUAL) &&
-		(ast_format_cap_identical(c0->nativeformats, c1->nativeformats))) {
+		(ast_format_cap_identical(ast_channel_nativeformats(c0), ast_channel_nativeformats(c1)))) {
 		return 0;
 	}
 

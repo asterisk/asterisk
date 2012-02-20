@@ -95,7 +95,7 @@ static int sendtext_exec(struct ast_channel *chan, const char *data)
 	ast_str_get_encoded_str(&str, -1, data);
 
 	ast_channel_lock(chan);
-	if (!chan->tech->send_text) {
+	if (!ast_channel_tech(chan)->send_text) {
 		ast_channel_unlock(chan);
 		/* Does not support transport */
 		pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);

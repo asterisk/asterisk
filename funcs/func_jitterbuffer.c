@@ -218,7 +218,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		return frame;
 	}
 
-	if (chan->fdno == AST_JITTERBUFFER_FD && framedata->timer) {
+	if (ast_channel_fdno(chan) == AST_JITTERBUFFER_FD && framedata->timer) {
 		ast_timer_ack(framedata->timer, 1);
 	}
 

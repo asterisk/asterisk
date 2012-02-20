@@ -1988,7 +1988,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 		goto done;
 	}
 	
-	if (chan->_state != AST_STATE_UP) {		/* make sure channel is answered before any TX */
+	if (ast_channel_state(chan) != AST_STATE_UP) {		/* make sure channel is answered before any TX */
 		ast_answer(chan);
 	}
 

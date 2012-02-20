@@ -252,7 +252,7 @@ static int write_cdr(struct ast_cdr *cdr)
 			ast_mutex_unlock(&lock);
 			return 0;
 		}
-		dummy->cdr = ast_cdr_dup(cdr);
+		ast_channel_cdr_set(dummy, ast_cdr_dup(cdr));
 		AST_LIST_TRAVERSE(&sql_values, value, list) {
 			pbx_substitute_variables_helper(dummy, value->expression, subst_buf, sizeof(subst_buf) - 1);
 			escaped = sqlite3_mprintf("%q", subst_buf);

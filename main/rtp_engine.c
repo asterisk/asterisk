@@ -843,17 +843,17 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			break;
 		}
 		/* Check if anything changed */
-		if ((c0->tech_pvt != pvt0) ||
-		    (c1->tech_pvt != pvt1) ||
-		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks) ||
-		    (!ast_framehook_list_is_empty(c0->framehooks) || !ast_framehook_list_is_empty(c1->framehooks))) {
+		if ((ast_channel_tech_pvt(c0) != pvt0) ||
+		    (ast_channel_tech_pvt(c1) != pvt1) ||
+		    (ast_channel_masq(c0) || ast_channel_masqr(c0) || ast_channel_masq(c1) || ast_channel_masqr(c1)) ||
+		    (ast_channel_monitor(c0) || ast_channel_audiohooks(c0) || ast_channel_monitor(c1) || ast_channel_audiohooks(c1)) ||
+		    (!ast_framehook_list_is_empty(ast_channel_framehooks(c0)) || !ast_framehook_list_is_empty(ast_channel_framehooks(c1)))) {
 			ast_debug(1, "rtp-engine-local-bridge: Oooh, something is weird, backing out\n");
 			/* If a masquerade needs to happen we have to try to read in a frame so that it actually happens. Without this we risk being called again and going into a loop */
-			if ((c0->masq || c0->masqr) && (fr = ast_read(c0))) {
+			if ((ast_channel_masq(c0) || ast_channel_masqr(c0)) && (fr = ast_read(c0))) {
 				ast_frfree(fr);
 			}
-			if ((c1->masq || c1->masqr) && (fr = ast_read(c1))) {
+			if ((ast_channel_masq(c1) || ast_channel_masqr(c1)) && (fr = ast_read(c1))) {
 				ast_frfree(fr);
 			}
 			res = AST_BRIDGE_RETRY;
@@ -1041,11 +1041,11 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 	cs[2] = NULL;
 	for (;;) {
 		/* Check if anything changed */
-		if ((c0->tech_pvt != pvt0) ||
-		    (c1->tech_pvt != pvt1) ||
-		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks) ||
-		    (!ast_framehook_list_is_empty(c0->framehooks) || !ast_framehook_list_is_empty(c1->framehooks))) {
+		if ((ast_channel_tech_pvt(c0) != pvt0) ||
+		    (ast_channel_tech_pvt(c1) != pvt1) ||
+		    (ast_channel_masq(c0) || ast_channel_masqr(c0) || ast_channel_masq(c1) || ast_channel_masqr(c1)) ||
+		    (ast_channel_monitor(c0) || ast_channel_audiohooks(c0) || ast_channel_monitor(c1) || ast_channel_audiohooks(c1)) ||
+		    (!ast_framehook_list_is_empty(ast_channel_framehooks(c0)) || !ast_framehook_list_is_empty(ast_channel_framehooks(c1)))) {
 			ast_debug(1, "Oooh, something is weird, backing out\n");
 			res = AST_BRIDGE_RETRY;
 			break;
@@ -1187,14 +1187,14 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 				ast_rtp_instance_get_remote_address(instance1, &t1);
 				ast_sockaddr_copy(&ac1, &t1);
 				/* Update codec information */
-				if (glue0->get_codec && c0->tech_pvt) {
+				if (glue0->get_codec && ast_channel_tech_pvt(c0)) {
 					ast_format_cap_remove_all(cap0);
 					ast_format_cap_remove_all(oldcap0);
 					glue0->get_codec(c0, cap0);
 					ast_format_cap_append(oldcap0, cap0);
 
 				}
-				if (glue1->get_codec && c1->tech_pvt) {
+				if (glue1->get_codec && ast_channel_tech_pvt(c1)) {
 					ast_format_cap_remove_all(cap1);
 					ast_format_cap_remove_all(oldcap1);
 					glue0->get_codec(c1, cap1);
@@ -1243,18 +1243,18 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 
 	if (ast_test_flag(c0, AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c0));
-	} else if (c0->tech_pvt != pvt0) {
+	} else if (ast_channel_tech_pvt(c0) != pvt0) {
 		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
-	} else if (glue0 != ast_rtp_instance_get_glue(c0->tech->type)) {
+	} else if (glue0 != ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) {
 		ast_debug(1, "Channel c0->'%s' technology changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 	} else if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c0));
 	}
 	if (ast_test_flag(c1, AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c1));
-	} else if (c1->tech_pvt != pvt1) {
+	} else if (ast_channel_tech_pvt(c1) != pvt1) {
 		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
-	} else if (glue1 != ast_rtp_instance_get_glue(c1->tech->type)) {
+	} else if (glue1 != ast_rtp_instance_get_glue(ast_channel_tech(c1)->type)) {
 		ast_debug(1, "Channel c1->'%s' technology changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 	} else if (glue1->update_peer(c1, NULL, NULL, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c1));
@@ -1318,7 +1318,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	}
 
 	/* Grab glue that binds each channel to something using the RTP engine */
-	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
+	if (!(glue0 = ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) || !(glue1 = ast_rtp_instance_get_glue(ast_channel_tech(c1)->type))) {
 		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
@@ -1397,12 +1397,12 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	/* Depending on the end result for bridging either do a local bridge or remote bridge */
 	if (audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) {
 		ast_verb(3, "Locally bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
-		res = local_bridge_loop(c0, c1, instance0, instance1, timeoutms, flags, fo, rc, c0->tech_pvt, c1->tech_pvt);
+		res = local_bridge_loop(c0, c1, instance0, instance1, timeoutms, flags, fo, rc, ast_channel_tech_pvt(c0), ast_channel_tech_pvt(c1));
 	} else {
 		ast_verb(3, "Remotely bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 		res = remote_bridge_loop(c0, c1, instance0, instance1, vinstance0, vinstance1,
 				tinstance0, tinstance1, glue0, glue1, cap0, cap1, timeoutms, flags,
-				fo, rc, c0->tech_pvt, c1->tech_pvt);
+				fo, rc, ast_channel_tech_pvt(c0), ast_channel_tech_pvt(c1));
 	}
 
 	instance0->glue = NULL;
@@ -1460,7 +1460,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	}
 
 	/* Grab glue that binds each channel to something using the RTP engine */
-	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
+	if (!(glue0 = ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) || !(glue1 = ast_rtp_instance_get_glue(ast_channel_tech(c1)->type))) {
 		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
@@ -1561,7 +1561,7 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 	}
 
 	/* Grab glue that binds each channel to something using the RTP engine */
-	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
+	if (!(glue0 = ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) || !(glue1 = ast_rtp_instance_get_glue(ast_channel_tech(c1)->type))) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
@@ -1735,7 +1735,7 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 
 	ast_channel_lock(peer);
 
-	if (!(glue = ast_rtp_instance_get_glue(peer->tech->type))) {
+	if (!(glue = ast_rtp_instance_get_glue(ast_channel_tech(peer)->type))) {
 		ast_channel_unlock(peer);
 		return -1;
 	}

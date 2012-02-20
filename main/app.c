@@ -122,14 +122,14 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	}
 
 	if (!timeout) {
-		if (chan->pbx && chan->pbx->dtimeoutms) {
-			timeout = chan->pbx->dtimeoutms;
+		if (ast_channel_pbx(chan) && ast_channel_pbx(chan)->dtimeoutms) {
+			timeout = ast_channel_pbx(chan)->dtimeoutms;
 		} else {
 			timeout = 5000;
 		}
 	}
 
-	if ((ts = ast_get_indication_tone(chan->zone, "dial"))) {
+	if ((ts = ast_get_indication_tone(ast_channel_zone(chan), "dial"))) {
 		res = ast_playtones_start(chan, 0, ts->data, 0);
 		ts = ast_tone_zone_sound_unref(ts);
 	} else {
@@ -193,8 +193,8 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 		}
 		if (ast_strlen_zero(filename)) {
 			/* set timeouts for the last prompt */
-			fto = c->pbx ? c->pbx->rtimeoutms : 6000;
-			to = c->pbx ? c->pbx->dtimeoutms : 2000;
+			fto = ast_channel_pbx(c) ? ast_channel_pbx(c)->rtimeoutms : 6000;
+			to = ast_channel_pbx(c) ? ast_channel_pbx(c)->dtimeoutms : 2000;
 
 			if (timeout > 0) {
 				fto = to = timeout;
@@ -207,7 +207,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 			 * get rid of the long timeout between
 			 * prompts, and make it 50ms */
 			fto = 50;
-			to = c->pbx ? c->pbx->dtimeoutms : 2000;
+			to = ast_channel_pbx(c) ? ast_channel_pbx(c)->dtimeoutms : 2000;
 		}
 		res = ast_readstring(c, s, maxlen, to, fto, "#");
 		if (res == AST_GETDATA_EMPTY_END_TERMINATED) {
@@ -599,7 +599,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			strcat(breaks, restart);
 		}
 	}
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		res = ast_answer(chan);
 	}
 
@@ -617,7 +617,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		res = ast_streamfile(chan, file, ast_channel_language(chan));
 		if (!res) {
 			if (pause_restart_point) {
-				ast_seekstream(chan->stream, pause_restart_point, SEEK_SET);
+				ast_seekstream(ast_channel_stream(chan), pause_restart_point, SEEK_SET);
 				pause_restart_point = 0;
 			}
 			else if (end || offset < 0) {
@@ -626,12 +626,12 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 				}
 				ast_verb(3, "ControlPlayback seek to offset %ld from end\n", offset);
 
-				ast_seekstream(chan->stream, offset, SEEK_END);
+				ast_seekstream(ast_channel_stream(chan), offset, SEEK_END);
 				end = NULL;
 				offset = 0;
 			} else if (offset) {
 				ast_verb(3, "ControlPlayback seek to offset %ld\n", offset);
-				ast_seekstream(chan->stream, offset, SEEK_SET);
+				ast_seekstream(ast_channel_stream(chan), offset, SEEK_SET);
 				offset = 0;
 			}
 			res = ast_waitstream_fr(chan, breaks, fwd, rev, skipms);
@@ -649,7 +649,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		}
 
 		if (suspend && strchr(suspend, res)) {
-			pause_restart_point = ast_tellstream(chan->stream);
+			pause_restart_point = ast_tellstream(ast_channel_stream(chan));
 			for (;;) {
 				ast_stopstream(chan);
 				if (!(res = ast_waitfordigit(chan, 1000))) {
@@ -677,8 +677,8 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	if (pause_restart_point) {
 		offset = pause_restart_point;
 	} else {
-		if (chan->stream) {
-			offset = ast_tellstream(chan->stream);
+		if (ast_channel_stream(chan)) {
+			offset = ast_tellstream(ast_channel_stream(chan));
 		} else {
 			offset = -8;  /* indicate end of file */
 		}
@@ -689,7 +689,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	}
 
 	/* If we are returning a digit cast it as char */
-	if (res > 0 || chan->stream) {
+	if (res > 0 || ast_channel_stream(chan)) {
 		res = (char)res;
 	}
 
@@ -1692,7 +1692,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 		}
 		return res;
 	case AST_ACTION_WAITOPTION:
-		if (!(res = ast_waitfordigit(chan, chan->pbx ? chan->pbx->rtimeoutms : 10000))) {
+		if (!(res = ast_waitfordigit(chan, ast_channel_pbx(chan) ? ast_channel_pbx(chan)->rtimeoutms : 10000))) {
 			return 't';
 		}
 		return res;
@@ -1750,7 +1750,7 @@ static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, c
 	int res = 0;
 	int ms;
 	while (option_matchmore(menu, exten)) {
-		ms = chan->pbx ? chan->pbx->dtimeoutms : 5000;
+		ms = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->dtimeoutms : 5000;
 		if (strlen(exten) >= maxexten - 1) {
 			break;
 		}

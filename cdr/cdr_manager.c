@@ -165,7 +165,7 @@ static int manager_log(struct ast_cdr *cdr)
 			ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
 			return 0;
 		}
-		dummy->cdr = ast_cdr_dup(cdr);
+		ast_channel_cdr_set(dummy, ast_cdr_dup(cdr));
 		pbx_substitute_variables_helper(dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
 		ast_channel_unref(dummy);
 	}

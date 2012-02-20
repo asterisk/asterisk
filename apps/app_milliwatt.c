@@ -127,7 +127,7 @@ static int old_milliwatt_exec(struct ast_channel *chan)
 	ast_set_write_format_by_id(chan, AST_FORMAT_ULAW);
 	ast_set_read_format_by_id(chan, AST_FORMAT_ULAW);
 
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 

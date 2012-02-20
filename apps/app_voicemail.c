@@ -4756,7 +4756,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #endif
 		/* flag added for Urgent */
 		fprintf(p, "X-Asterisk-VM-Flag: %s" ENDL, flag);
-		fprintf(p, "X-Asterisk-VM-Priority: %d" ENDL, chan->priority);
+		fprintf(p, "X-Asterisk-VM-Priority: %d" ENDL, ast_channel_priority(chan));
 		fprintf(p, "X-Asterisk-VM-Caller-channel: %s" ENDL, ast_channel_name(chan));
 		fprintf(p, "X-Asterisk-VM-Caller-ID-Num: %s" ENDL, enc_cidnum);
 		fprintf(p, "X-Asterisk-VM-Caller-ID-Name: %s" ENDL, enc_cidname);
@@ -5897,7 +5897,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
 			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
-		chan->priority = 0;
+		ast_channel_priority_set(chan, 0);
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		ast_free(tmp);
@@ -5915,7 +5915,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
-			chan->priority = 0;
+			ast_channel_priority_set(chan, 0);
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		}
@@ -6009,7 +6009,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				
 		/* Store information in real-time storage */
 		if (ast_check_realtime("voicemail_data")) {
-			snprintf(priority, sizeof(priority), "%d", chan->priority);
+			snprintf(priority, sizeof(priority), "%d", ast_channel_priority(chan));
 			snprintf(origtime, sizeof(origtime), "%ld", (long) time(NULL));
 			get_date(date, sizeof(date));
 			ast_callerid_merge(callerid, sizeof(callerid),
@@ -6061,7 +6061,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				ast_channel_exten(chan),
 				S_COR(chan->redirecting.from.number.valid,
 					chan->redirecting.from.number.str, "unknown"),
-				chan->priority,
+				ast_channel_priority(chan),
 				ast_channel_name(chan),
 				callerid,
 				date, (long) time(NULL),
@@ -7319,7 +7319,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* make backup copies */
 				old_context = ast_strdupa(ast_channel_context(chan));
 				old_exten = ast_strdupa(ast_channel_exten(chan));
-				old_priority = chan->priority;
+				old_priority = ast_channel_priority(chan);
 
 				/* call the the Directory, changes the channel */
 				snprintf(vmcontext, sizeof(vmcontext), "%s,,v", context ? context : "default");
@@ -7330,7 +7330,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* restore the old context, exten, and priority */
 				ast_channel_context_set(chan, old_context);
 				ast_channel_exten_set(chan, old_exten);
-				chan->priority = old_priority;
+				ast_channel_priority_set(chan, old_priority);
 			} else {
 				ast_log(AST_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 				ast_clear_flag((&globalflags), VM_DIRECFORWARD);
@@ -9996,7 +9996,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	memset(&vmus, 0, sizeof(vmus));
 
 	ast_test_suite_event_notify("START", "Message: vm_execmain started");
-	if (chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_debug(1, "Before ast_answer\n");
 		ast_answer(chan);
 	}
@@ -10727,7 +10727,7 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 	
 	memset(&leave_options, 0, sizeof(leave_options));
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	if (!ast_strlen_zero(data)) {
@@ -12789,6 +12789,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 
 	struct ast_channel *test_channel1 = NULL;
 	int res = -1;
+	struct ast_format_cap *nativeformats;
 
 	static const struct ast_channel_tech fake_tech = {
 		.write = fake_write,
@@ -12814,11 +12815,12 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 
 	/* normally this is done in the channel driver */
 	ast_format_set(&test_channel1->writeformat, AST_FORMAT_GSM, 0);
-	ast_format_cap_add(test_channel1->nativeformats, &test_channel1->writeformat);
+	nativeformats = ast_channel_nativeformats(test_channel1);
+	ast_format_cap_add(nativeformats, &test_channel1->writeformat);
 	ast_format_set(&test_channel1->rawwriteformat, AST_FORMAT_GSM, 0);
 	ast_format_set(&test_channel1->readformat, AST_FORMAT_GSM, 0);
 	ast_format_set(&test_channel1->rawreadformat, AST_FORMAT_GSM, 0);
-	test_channel1->tech = &fake_tech;
+	ast_channel_tech_set(test_channel1, &fake_tech);
 
 	ast_test_status_update(test, "Test playing of extension when greeting is not available...\n");
 	snprintf(dir, sizeof(dir), "%s@%s", TEST_EXTENSION, TEST_CONTEXT); /* not a dir, don't get confused */
@@ -13446,7 +13448,7 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 		ast_verb(3, "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, ast_channel_context(chan));
 		ast_channel_exten_set(chan, destination);
 		ast_channel_context_set(chan, outgoing_context);
-		chan->priority = 0;
+		ast_channel_priority_set(chan, 0);
 		return 9;
 	}
 	return 0;

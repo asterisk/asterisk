@@ -787,7 +787,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		ast_channel_unlock(chan);
 	}
 
-	if (chan->_state != AST_STATE_UP)
+	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
 	ast_set_flag(chan, AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */

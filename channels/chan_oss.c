@@ -308,7 +308,7 @@ static char *oss_active;	 /*!< the active device */
 /*! \brief return the pointer to the video descriptor */
 struct video_desc *get_video_desc(struct ast_channel *c)
 {
-	struct chan_oss_pvt *o = c ? c->tech_pvt : find_desc(oss_active);
+	struct chan_oss_pvt *o = c ? ast_channel_tech_pvt(c) : find_desc(oss_active);
 	return o ? o->env : NULL;
 }
 static struct chan_oss_pvt oss_default = {
@@ -592,7 +592,7 @@ static int oss_text(struct ast_channel *c, const char *text)
  */
 static int oss_call(struct ast_channel *c, const char *dest, int timeout)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(name);
@@ -634,7 +634,7 @@ static int oss_call(struct ast_channel *c, const char *dest, int timeout)
  */
 static int oss_answer(struct ast_channel *c)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 	ast_verbose(" << Console call has been answered >> \n");
 	ast_setstate(c, AST_STATE_UP);
 	o->hookstate = 1;
@@ -643,9 +643,9 @@ static int oss_answer(struct ast_channel *c)
 
 static int oss_hangup(struct ast_channel *c)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 
-	c->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(c, NULL);
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
 	console_video_uninit(o->env);
@@ -664,7 +664,7 @@ static int oss_hangup(struct ast_channel *c)
 static int oss_write(struct ast_channel *c, struct ast_frame *f)
 {
 	int src;
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 
 	/*
 	 * we could receive a block which is not a multiple of our
@@ -695,7 +695,7 @@ static int oss_write(struct ast_channel *c, struct ast_frame *f)
 static struct ast_frame *oss_read(struct ast_channel *c)
 {
 	int res;
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 	struct ast_frame *f = &o->read_f;
 
 	/* XXX can be simplified returning &ast_null_frame */
@@ -716,7 +716,7 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 		return f;
 
 	o->readpos = AST_FRIENDLY_OFFSET;	/* reset read pointer for next frame */
-	if (c->_state != AST_STATE_UP)	/* drop data if frame is not up */
+	if (ast_channel_state(c) != AST_STATE_UP)	/* drop data if frame is not up */
 		return f;
 	/* ok we can build and deliver the frame to the caller */
 	f->frametype = AST_FRAME_VOICE;
@@ -743,14 +743,14 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct chan_oss_pvt *o = newchan->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(newchan);
 	o->owner = newchan;
 	return 0;
 }
 
 static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
-	struct chan_oss_pvt *o = c->tech_pvt;
+	struct chan_oss_pvt *o = ast_channel_tech_pvt(c);
 	int res = 0;
 
 	switch (cond) {
@@ -792,20 +792,20 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Console/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
-	c->tech = &oss_tech;
+	ast_channel_tech_set(c, &oss_tech);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
 	ast_channel_set_fd(c, 0, o->sounddev); /* -1 if device closed, override later */
 
 	ast_format_set(&c->readformat, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&c->writeformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(c->nativeformats, &c->readformat);
+	ast_format_cap_add(ast_channel_nativeformats(c), &c->readformat);
 
 	/* if the console makes the call, add video to the offer */
 	/* if (state == AST_STATE_RINGING) TODO XXX CONSOLE VIDEO IS DISABLED UNTIL IT GETS A MAINTAINER
 		c->nativeformats |= console_video_formats; */
 
-	c->tech_pvt = o;
+	ast_channel_tech_pvt_set(c, o);
 
 	if (!ast_strlen_zero(o->language))
 		ast_channel_language_set(c, o->language);

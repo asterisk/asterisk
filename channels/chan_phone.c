@@ -202,7 +202,7 @@ static struct ast_channel_tech *cur_tech;
 
 static int phone_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen)
 {
-	struct phone_pvt *p = chan->tech_pvt;
+	struct phone_pvt *p = ast_channel_tech_pvt(chan);
 	int res=-1;
 	ast_debug(1, "Requested indication %d on channel %s\n", condition, ast_channel_name(chan));
 	switch(condition) {
@@ -230,7 +230,7 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 
 static int phone_fixup(struct ast_channel *old, struct ast_channel *new)
 {
-	struct phone_pvt *pvt = old->tech_pvt;
+	struct phone_pvt *pvt = ast_channel_tech_pvt(old);
 	if (pvt && pvt->owner == old)
 		pvt->owner = new;
 	return 0;
@@ -246,7 +246,7 @@ static int phone_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 {
 	struct phone_pvt *p;
 	int outdigit;
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 	ast_debug(1, "Dialed %c\n", digit);
 	switch(digit) {
 	case '0':
@@ -312,9 +312,9 @@ static int phone_call(struct ast_channel *ast, const char *dest, int timeout)
 		ast_copy_string(cid.number, ast->connected.id.number.str, sizeof(cid.number));
 	}
 
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
@@ -342,9 +342,9 @@ static int phone_call(struct ast_channel *ast, const char *dest, int timeout)
 static int phone_hangup(struct ast_channel *ast)
 {
 	struct phone_pvt *p;
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 	ast_debug(1, "phone_hangup(%s)\n", ast_channel_name(ast));
-	if (!ast->tech_pvt) {
+	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -377,10 +377,10 @@ static int phone_hangup(struct ast_channel *ast)
 	p->obuflen = 0;
 	p->dialtone = 0;
 	memset(p->ext, 0, sizeof(p->ext));
-	((struct phone_pvt *)(ast->tech_pvt))->owner = NULL;
+	((struct phone_pvt *)(ast_channel_tech_pvt(ast)))->owner = NULL;
 	ast_module_unref(ast_module_info->self);
 	ast_verb(3, "Hungup '%s'\n", ast_channel_name(ast));
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	ast_setstate(ast, AST_STATE_DOWN);
 	restart_monitor();
 	return 0;
@@ -389,7 +389,7 @@ static int phone_hangup(struct ast_channel *ast)
 static int phone_setup(struct ast_channel *ast)
 {
 	struct phone_pvt *p;
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 	ioctl(p->fd, PHONE_CPT_STOP);
 	/* Nothing to answering really, just start recording */
 	if (ast->rawreadformat.id == AST_FORMAT_G729A) {
@@ -456,7 +456,7 @@ static int phone_setup(struct ast_channel *ast)
 static int phone_answer(struct ast_channel *ast)
 {
 	struct phone_pvt *p;
-	p = ast->tech_pvt;
+	p = ast_channel_tech_pvt(ast);
 	/* In case it's a LineJack, take it off hook */
 	if (p->mode == MODE_FXO) {
 		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_OFF_HOOK))
@@ -466,7 +466,7 @@ static int phone_answer(struct ast_channel *ast)
 	}
 	phone_setup(ast);
 	ast_debug(1, "phone_answer(%s)\n", ast_channel_name(ast));
-	ast->rings = 0;
+	ast_channel_rings_set(ast, 0);
 	ast_setstate(ast, AST_STATE_UP);
 	return 0;
 }
@@ -489,7 +489,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 {
 	int res;
 	union telephony_exception phonee;
-	struct phone_pvt *p = ast->tech_pvt;
+	struct phone_pvt *p = ast_channel_tech_pvt(ast);
 	char digit;
 
 	/* Some nice norms */
@@ -519,7 +519,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 		if (!res && (p->mode != MODE_FXO))
 			return NULL;
 		else {
-			if (ast->_state == AST_STATE_RINGING) {
+			if (ast_channel_state(ast) == AST_STATE_RINGING) {
 				/* They've picked up the phone */
 				p->fr.frametype = AST_FRAME_CONTROL;
 				p->fr.subclass.integer = AST_CONTROL_ANSWER;
@@ -527,7 +527,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 				ast_setstate(ast, AST_STATE_UP);
 				return &p->fr;
 			}  else 
-				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast->_state);
+				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast_channel_state(ast));
 		}
 	}
 #if 1
@@ -548,7 +548,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 static struct ast_frame  *phone_read(struct ast_channel *ast)
 {
 	int res;
-	struct phone_pvt *p = ast->tech_pvt;
+	struct phone_pvt *p = ast_channel_tech_pvt(ast);
 	
 
 	/* Some nice norms */
@@ -639,13 +639,13 @@ static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int fr
 static int phone_send_text(struct ast_channel *ast, const char *text)
 {
     int length = strlen(text);
-    return phone_write_buf(ast->tech_pvt, text, length, length, 0) == 
+    return phone_write_buf(ast_channel_tech_pvt(ast), text, length, length, 0) == 
            length ? 0 : -1;
 }
 
 static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct phone_pvt *p = ast->tech_pvt;
+	struct phone_pvt *p = ast_channel_tech_pvt(ast);
 	int res;
 	int maxfr=0;
 	char *pos;
@@ -674,7 +674,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		phone_setup(ast);
 	}
 #else
-	if (ast->_state != AST_STATE_UP) {
+	if (ast_channel_state(ast) != AST_STATE_UP) {
 		/* Don't try tos end audio on-hook */
 		return 0;
 	}
@@ -852,28 +852,28 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 	struct ast_format tmpfmt;
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", i->ext, i->context, linkedid, 0, "Phone/%s", i->dev + 5);
 	if (tmp) {
-		tmp->tech = cur_tech;
+		ast_channel_tech_set(tmp, cur_tech);
 		ast_channel_set_fd(tmp, 0, i->fd);
 		/* XXX Switching formats silently causes kernel panics XXX */
 		if (i->mode == MODE_FXS &&
 		    ioctl(i->fd, PHONE_QUERY_CODEC, &queried_codec) == 0) {
 			if (queried_codec.type == LINEAR16) {
-				ast_format_cap_add(tmp->nativeformats, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+				ast_format_cap_add(ast_channel_nativeformats(tmp), ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 				ast_format_copy(&tmp->rawreadformat, &tmpfmt);
 				ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
 			} else {
 				ast_format_cap_remove(prefcap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 			}
 		} else {
-			ast_format_cap_copy(tmp->nativeformats, prefcap);
-			ast_best_codec(tmp->nativeformats, &tmpfmt);
+			ast_format_cap_copy(ast_channel_nativeformats(tmp), prefcap);
+			ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
 			ast_format_copy(&tmp->rawreadformat, &tmpfmt);
 			ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
 		}
 		/* no need to call ast_setstate: the channel_alloc already did its job */
 		if (state == AST_STATE_RING)
-			tmp->rings = 1;
-		tmp->tech_pvt = i;
+			ast_channel_rings_set(tmp, 1);
+		ast_channel_tech_pvt_set(tmp, i);
 		ast_channel_context_set(tmp, cntx);
 		if (!ast_strlen_zero(i->ext))
 			ast_channel_exten_set(tmp, i->ext);

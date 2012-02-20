@@ -797,7 +797,7 @@ static int transmit(fax_session *s)
 	pbx_builtin_setvar_helper(s->chan, "FAXRESOLUTION", NULL);
 	pbx_builtin_setvar_helper(s->chan, "FAXBITRATE", NULL); 
 
-	if (s->chan->_state != AST_STATE_UP) {
+	if (ast_channel_state(s->chan) != AST_STATE_UP) {
 		/* Shouldn't need this, but checking to see if channel is already answered
 		 * Theoretically asterisk should already have answered before running the app */
 		res = ast_answer(s->chan);

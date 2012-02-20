@@ -386,7 +386,7 @@ static int jingle_ringing_ack(void *data, ikspak *pak)
 
 static int jingle_answer(struct ast_channel *ast)
 {
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 	struct jingle *client = p->parent;
 	int res = 0;
 
@@ -399,7 +399,7 @@ static int jingle_answer(struct ast_channel *ast)
 
 static enum ast_rtp_glue_result jingle_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-	struct jingle_pvt *p = chan->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(chan);
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_FORBID;
 
 	if (!p)
@@ -418,7 +418,7 @@ static enum ast_rtp_glue_result jingle_get_rtp_peer(struct ast_channel *chan, st
 
 static void jingle_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
 {
-	struct jingle_pvt *p = chan->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(chan);
 	ast_mutex_lock(&p->lock);
 	ast_format_cap_copy(result, p->peercap);
 	ast_mutex_unlock(&p->lock);
@@ -428,7 +428,7 @@ static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 {
 	struct jingle_pvt *p;
 
-	p = chan->tech_pvt;
+	p = ast_channel_tech_pvt(chan);
 	if (!p)
 		return -1;
 	ast_mutex_lock(&p->lock);
@@ -842,7 +842,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_log(LOG_WARNING, "Unable to allocate Jingle channel structure!\n");
 		return NULL;
 	}
-	tmp->tech = &jingle_tech;
+	ast_channel_tech_set(tmp, &jingle_tech);
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
@@ -858,12 +858,12 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(i->rtp), i->rtp, &i->prefs);
 
 	ast_codec_choose(&i->prefs, what, 1, &tmpfmt);
-	ast_format_cap_add(tmp->nativeformats, &tmpfmt);
+	ast_format_cap_add(ast_channel_nativeformats(tmp), &tmpfmt);
 
 	ast_format_cap_iter_start(i->jointcap);
 	while (!(ast_format_cap_iter_next(i->jointcap, &tmpfmt))) {
 		if (AST_FORMAT_GET_TYPE(tmpfmt.id) == AST_FORMAT_TYPE_VIDEO) {
-			ast_format_cap_add(tmp->nativeformats, &tmpfmt);
+			ast_format_cap_add(ast_channel_nativeformats(tmp), &tmpfmt);
 		}
 	}
 	ast_format_cap_iter_end(i->jointcap);
@@ -877,16 +877,16 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_channel_set_fd(tmp, 3, ast_rtp_instance_fd(i->vrtp, 1));
 	}
 	if (state == AST_STATE_RING)
-		tmp->rings = 1;
-	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
+		ast_channel_rings_set(tmp, 1);
+	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
 
 
-	ast_best_codec(tmp->nativeformats, &tmpfmt);
+	ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
 	ast_format_copy(&tmp->writeformat, &tmpfmt);
 	ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
 	ast_format_copy(&tmp->readformat, &tmpfmt);
 	ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-	tmp->tech_pvt = i;
+	ast_channel_tech_pvt_set(tmp, i);
 
 	tmp->callgroup = client->callgroup;
 	tmp->pickupgroup = client->pickupgroup;
@@ -895,7 +895,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	if (!ast_strlen_zero(client->accountcode))
 		ast_channel_accountcode_set(tmp, client->accountcode);
 	if (client->amaflags)
-		tmp->amaflags = client->amaflags;
+		ast_channel_amaflags_set(tmp, client->amaflags);
 	if (!ast_strlen_zero(client->language))
 		ast_channel_language_set(tmp, client->language);
 	if (!ast_strlen_zero(client->musicclass))
@@ -912,12 +912,12 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
 		tmp->dialed.number.str = ast_strdup(i->exten);
 	}
-	tmp->priority = 1;
+	ast_channel_priority_set(tmp, 1);
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
-		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+		ast_channel_hangupcause_set(tmp, AST_CAUSE_SWITCH_CONGESTION);
 		ast_hangup(tmp);
 		tmp = NULL;
 	}
@@ -1229,10 +1229,10 @@ static struct ast_frame *jingle_rtp_read(struct ast_channel *ast, struct jingle_
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (!(ast_format_cap_iscompatible(p->owner->nativeformats, &f->subclass.format))) {
+			if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(p->owner), &f->subclass.format))) {
 				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
-				ast_format_cap_remove_bytype(p->owner->nativeformats, AST_FORMAT_TYPE_AUDIO);
-				ast_format_cap_add(p->owner->nativeformats, &f->subclass.format);
+				ast_format_cap_remove_bytype(ast_channel_nativeformats(p->owner), AST_FORMAT_TYPE_AUDIO);
+				ast_format_cap_add(ast_channel_nativeformats(p->owner), &f->subclass.format);
 				ast_set_read_format(p->owner, &p->owner->readformat);
 				ast_set_write_format(p->owner, &p->owner->writeformat);
 			}
@@ -1249,7 +1249,7 @@ static struct ast_frame *jingle_rtp_read(struct ast_channel *ast, struct jingle_
 static struct ast_frame *jingle_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 
 	ast_mutex_lock(&p->lock);
 	fr = jingle_rtp_read(ast, p);
@@ -1260,17 +1260,17 @@ static struct ast_frame *jingle_read(struct ast_channel *ast)
 /*! \brief Send frame to media channel (rtp) */
 static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 	int res = 0;
 	char buf[256];
 
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
-		if (!(ast_format_cap_iscompatible(ast->nativeformats, &frame->subclass.format))) {
+		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &frame->subclass.format))) {
 			ast_log(LOG_WARNING,
 					"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 					ast_getformatname(&frame->subclass.format),
-					ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
+					ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
 					ast_getformatname(&ast->readformat),
 					ast_getformatname(&ast->writeformat));
 			return 0;
@@ -1306,7 +1306,7 @@ static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 
 static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct jingle_pvt *p = newchan->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(newchan);
 	ast_mutex_lock(&p->lock);
 
 	if ((p->owner != oldchan)) {
@@ -1342,7 +1342,7 @@ static int jingle_sendtext(struct ast_channel *chan, const char *text)
 {
 	int res = 0;
 	struct aji_client *client = NULL;
-	struct jingle_pvt *p = chan->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(chan);
 
 
 	if (!p->parent) {
@@ -1360,7 +1360,7 @@ static int jingle_sendtext(struct ast_channel *chan, const char *text)
 
 static int jingle_digit(struct ast_channel *ast, char digit, unsigned int duration)
 {
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 	struct jingle *client = p->parent;
 	iks *iq, *jingle, *dtmf;
 	char buffer[2] = {digit, '\0'};
@@ -1500,9 +1500,9 @@ static int jingle_auto_congest(void *nothing)
  * 	dest is the dial string */
 static int jingle_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(ast) != AST_STATE_DOWN) && (ast_channel_state(ast) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "jingle_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
@@ -1525,13 +1525,13 @@ static int jingle_call(struct ast_channel *ast, const char *dest, int timeout)
 /*! \brief Hangup a call through the jingle proxy channel */
 static int jingle_hangup(struct ast_channel *ast)
 {
-	struct jingle_pvt *p = ast->tech_pvt;
+	struct jingle_pvt *p = ast_channel_tech_pvt(ast);
 	struct jingle *client;
 
 	ast_mutex_lock(&p->lock);
 	client = p->parent;
 	p->owner = NULL;
-	ast->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(ast, NULL);
 	if (!p->alreadygone)
 		jingle_action(client, p, JINGLE_TERMINATE);
 	ast_mutex_unlock(&p->lock);

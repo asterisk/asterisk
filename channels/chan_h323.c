@@ -341,11 +341,11 @@ static int oh323_simulate_dtmf_end(const void *data)
 /*! \brief Channel and private structures should be already locked */
 static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 {
-	h323_format chan_nativeformats_bits = ast_format_cap_to_old_bitfield(c->nativeformats);
+	h323_format chan_nativeformats_bits = ast_format_cap_to_old_bitfield(ast_channel_nativeformats(c));
 	if (chan_nativeformats_bits != pvt->nativeformats) {
 		if (h323debug)
 			ast_debug(1, "Preparing %s for new native format\n", ast_channel_name(c));
-		ast_format_cap_from_old_bitfield(c->nativeformats, pvt->nativeformats);
+		ast_format_cap_from_old_bitfield(ast_channel_nativeformats(c), pvt->nativeformats);
 		ast_set_read_format(c, &c->readformat);
 		ast_set_write_format(c, &c->writeformat);
 	}
@@ -353,7 +353,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		if (h323debug)
 			ast_debug(1, "Process pending hangup for %s\n", ast_channel_name(c));
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
-		c->hangupcause = pvt->hangupcause;
+		ast_channel_hangupcause_set(c, pvt->hangupcause);
 		ast_queue_hangup_with_cause(c, pvt->hangupcause);
 		pvt->needhangup = 0;
 		pvt->newstate = pvt->newcontrol = pvt->newdigit = pvt->DTMFsched = -1;
@@ -406,7 +406,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 /*! \brief Only channel structure should be locked */
 static void oh323_update_info(struct ast_channel *c)
 {
-	struct oh323_pvt *pvt = c->tech_pvt;
+	struct oh323_pvt *pvt = ast_channel_tech_pvt(c);
 
 	if (pvt) {
 		ast_mutex_lock(&pvt->lock);
@@ -472,7 +472,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 		ast_channel_lock(pvt->owner);
 		if (h323debug)
 			ast_debug(1, "Detaching from %s\n", ast_channel_name(pvt->owner));
-		pvt->owner->tech_pvt = NULL;
+		ast_channel_tech_pvt_set(pvt->owner, NULL);
 		ast_channel_unlock(pvt->owner);
 	}
 	cur = iflist;
@@ -509,7 +509,7 @@ static void oh323_destroy(struct oh323_pvt *pvt)
 
 static int oh323_digit_begin(struct ast_channel *c, char digit)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	char *token;
 
 	if (!pvt) {
@@ -550,7 +550,7 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
  */
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	char *token;
 
 	if (!pvt) {
@@ -590,14 +590,14 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	int res = 0;
-	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *)ast_channel_tech_pvt(c);
 	const char *addr;
 	char called_addr[1024];
 
 	if (h323debug) {
 		ast_debug(1, "Calling to %s on %s\n", dest, ast_channel_name(c));
 	}
-	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
+	if ((ast_channel_state(c) != AST_STATE_DOWN) && (ast_channel_state(c) != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)\n", ast_channel_name(c));
 		return -1;
 	}
@@ -649,12 +649,12 @@ static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 	} else
 		pvt->options.redirect_reason = -1;
 
-	pvt->options.transfer_capability = c->transfercapability;
+	pvt->options.transfer_capability = ast_channel_transfercapability(c);
 
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
-	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", c->transfercapability, ast_transfercapability2str(c->transfercapability));
+	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", ast_channel_transfercapability(c), ast_transfercapability2str(ast_channel_transfercapability(c)));
 	if (h323debug)
 		ast_debug(1, "Placing outgoing call to %s, %d/%d\n", called_addr, pvt->options.dtmfcodec[0], pvt->options.dtmfcodec[1]);
 	ast_mutex_unlock(&pvt->lock);
@@ -670,7 +670,7 @@ static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 static int oh323_answer(struct ast_channel *c)
 {
 	int res;
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	char *token;
 
 	if (h323debug)
@@ -684,7 +684,7 @@ static int oh323_answer(struct ast_channel *c)
 		ast_free(token);
 
 	oh323_update_info(c);
-	if (c->_state != AST_STATE_UP) {
+	if (ast_channel_state(c) != AST_STATE_UP) {
 		ast_setstate(c, AST_STATE_UP);
 	}
 	return res;
@@ -692,7 +692,7 @@ static int oh323_answer(struct ast_channel *c)
 
 static int oh323_hangup(struct ast_channel *c)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	int q931cause = AST_CAUSE_NORMAL_CLEARING;
 	char *call_token;
 
@@ -700,7 +700,7 @@ static int oh323_hangup(struct ast_channel *c)
 	if (h323debug)
 		ast_debug(1, "Hanging up and scheduling destroy of call %s\n", ast_channel_name(c));
 
-	if (!c->tech_pvt) {
+	if (!ast_channel_tech_pvt(c)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -713,10 +713,10 @@ static int oh323_hangup(struct ast_channel *c)
 	}
 
 	pvt->owner = NULL;
-	c->tech_pvt = NULL;
+	ast_channel_tech_pvt_set(c, NULL);
 
-	if (c->hangupcause) {
-		q931cause = c->hangupcause;
+	if (ast_channel_hangupcause(c)) {
+		q931cause = ast_channel_hangupcause(c);
 	} else {
 		const char *cause = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 		if (cause) {
@@ -775,7 +775,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 	if (f && pvt->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (!ast_format_cap_iscompatible(pvt->owner->nativeformats, &f->subclass.format)) {
+			if (!ast_format_cap_iscompatible(ast_channel_nativeformats(pvt->owner), &f->subclass.format)) {
 				/* Try to avoid deadlock */
 				if (ast_channel_trylock(pvt->owner)) {
 					ast_log(LOG_NOTICE, "Format changed but channel is locked. Ignoring frame...\n");
@@ -783,7 +783,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 				}
 				if (h323debug)
 					ast_debug(1, "Oooh, format changed to '%s'\n", ast_getformatname(&f->subclass.format));
-				ast_format_cap_set(pvt->owner->nativeformats, &f->subclass.format);
+				ast_format_cap_set(ast_channel_nativeformats(pvt->owner), &f->subclass.format);
 
 				pvt->nativeformats = ast_format_to_old_bitfield(&f->subclass.format);
 
@@ -817,10 +817,10 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 static struct ast_frame *oh323_read(struct ast_channel *c)
 {
 	struct ast_frame *fr;
-	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *)ast_channel_tech_pvt(c);
 	ast_mutex_lock(&pvt->lock);
 	__oh323_update_info(c, pvt);
-	switch(c->fdno) {
+	switch(ast_channel_fdno(c)) {
 	case 0:
 		fr = oh323_rtp_read(pvt);
 		break;
@@ -831,7 +831,7 @@ static struct ast_frame *oh323_read(struct ast_channel *c)
 			fr = &ast_null_frame;
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unable to handle fd %d on channel %s\n", c->fdno, ast_channel_name(c));
+		ast_log(LOG_ERROR, "Unable to handle fd %d on channel %s\n", ast_channel_fdno(c), ast_channel_name(c));
 		fr = &ast_null_frame;
 		break;
 	}
@@ -841,7 +841,7 @@ static struct ast_frame *oh323_read(struct ast_channel *c)
 
 static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE) {
@@ -851,10 +851,10 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(ast_format_cap_iscompatible(c->nativeformats, &frame->subclass.format))) {
+		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(c), &frame->subclass.format))) {
 			char tmp[256];
 			ast_log(LOG_WARNING, "Asked to transmit frame type '%s', while native formats is '%s' (read/write = %s/%s)\n",
-				ast_getformatname(&frame->subclass.format), ast_getformatname_multiple(tmp, sizeof(tmp), c->nativeformats), ast_getformatname(&c->readformat), ast_getformatname(&c->writeformat));
+				ast_getformatname(&frame->subclass.format), ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(c)), ast_getformatname(&c->readformat), ast_getformatname(&c->writeformat));
 			return 0;
 		}
 	}
@@ -871,7 +871,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 static int oh323_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(c);
 	char *token = (char *)NULL;
 	int res = -1;
 	int got_progress;
@@ -890,13 +890,13 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 
 	switch(condition) {
 	case AST_CONTROL_RINGING:
-		if (c->_state == AST_STATE_RING || c->_state == AST_STATE_RINGING) {
+		if (ast_channel_state(c) == AST_STATE_RING || ast_channel_state(c) == AST_STATE_RINGING) {
 			h323_send_alerting(token);
 			res = (got_progress ? 0 : -1);	/* Do not simulate any audio tones if we got PROGRESS message */
 		}
 		break;
 	case AST_CONTROL_PROGRESS:
-		if (c->_state != AST_STATE_UP) {
+		if (ast_channel_state(c) != AST_STATE_UP) {
 			/* Do not send PROGRESS message more than once */
 			if (!got_progress)
 				h323_send_progress(token);
@@ -904,7 +904,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		}
 		break;
 	case AST_CONTROL_BUSY:
-		if (c->_state != AST_STATE_UP) {
+		if (ast_channel_state(c) != AST_STATE_UP) {
 			h323_answering_call(token, 1);
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
 			res = 0;
@@ -915,7 +915,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		 * at this time.  Treat a response of Incomplete as if it were congestion.
 		 */
 	case AST_CONTROL_CONGESTION:
-		if (c->_state != AST_STATE_UP) {
+		if (ast_channel_state(c) != AST_STATE_UP) {
 			h323_answering_call(token, 1);
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
 			res = 0;
@@ -959,7 +959,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) newchan->tech_pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) ast_channel_tech_pvt(newchan);
 
 	ast_mutex_lock(&pvt->lock);
 	if (pvt->owner != oldchan) {
@@ -1049,17 +1049,17 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 	ast_module_ref(ast_module_info->self);
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
-		ch->tech = &oh323_tech;
+		ast_channel_tech_set(ch, &oh323_tech);
 		if (!(fmt = pvt->jointcapability) && !(fmt = pvt->options.capability))
 			fmt = global_options.capability;
 
-		ast_format_cap_from_old_bitfield(ch->nativeformats, fmt);
-		ast_codec_choose(&pvt->options.prefs, ch->nativeformats, 1, &tmpfmt)/* | (pvt->jointcapability & AST_FORMAT_VIDEO_MASK)*/;
+		ast_format_cap_from_old_bitfield(ast_channel_nativeformats(ch), fmt);
+		ast_codec_choose(&pvt->options.prefs, ast_channel_nativeformats(ch), 1, &tmpfmt)/* | (pvt->jointcapability & AST_FORMAT_VIDEO_MASK)*/;
 
-		ast_format_cap_set(ch->nativeformats, &tmpfmt);
+		ast_format_cap_set(ast_channel_nativeformats(ch), &tmpfmt);
 
-		pvt->nativeformats = ast_format_cap_to_old_bitfield(ch->nativeformats);
-		ast_best_codec(ch->nativeformats, &tmpfmt);
+		pvt->nativeformats = ast_format_cap_to_old_bitfield(ast_channel_nativeformats(ch));
+		ast_best_codec(ast_channel_nativeformats(ch), &tmpfmt);
 		ast_format_copy(&ch->writeformat, &tmpfmt);
 		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
 		ast_format_copy(&ch->readformat, &tmpfmt);
@@ -1082,7 +1082,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 #endif
 		if (state == AST_STATE_RING) {
-			ch->rings = 1;
+			ast_channel_rings_set(ch, 1);
 		}
 		/* Allocate dsp for in-band DTMF support */
 		if (pvt->options.dtmfmode & H323_DTMF_INBAND) {
@@ -1090,18 +1090,18 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ast_dsp_set_features(pvt->vad, DSP_FEATURE_DIGIT_DETECT);
 		}
 		/* Register channel functions. */
-		ch->tech_pvt = pvt;
+		ast_channel_tech_pvt_set(ch, pvt);
 		/* Set the owner of this channel */
 		pvt->owner = ch;
 
 		ast_channel_context_set(ch, pvt->context);
 		ast_channel_exten_set(ch, pvt->exten);
-		ch->priority = 1;
+		ast_channel_priority_set(ch, 1);
 		if (!ast_strlen_zero(pvt->accountcode)) {
 			ast_channel_accountcode_set(ch, pvt->accountcode);
 		}
 		if (pvt->amaflags) {
-			ch->amaflags = pvt->amaflags;
+			ast_channel_amaflags_set(ch, pvt->amaflags);
 		}
 
 		/* Don't use ast_set_callerid() here because it will
@@ -1124,7 +1124,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->dialed.number.str = ast_strdup(pvt->exten);
 		}
 		if (pvt->cd.transfer_capability >= 0)
-			ch->transfercapability = pvt->cd.transfer_capability;
+			ast_channel_transfercapability_set(ch, pvt->cd.transfer_capability);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(ch));
@@ -2074,12 +2074,12 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 			ast_format_cap_from_old_bitfield(pvt_native, pvt->nativeformats);
 
 			/* Re-build translation path only if native format(s) has been changed */
-			if (!(ast_format_cap_identical(pvt->owner->nativeformats, pvt_native))) {
+			if (!(ast_format_cap_identical(ast_channel_nativeformats(pvt->owner), pvt_native))) {
 				if (h323debug) {
 					char tmp[256], tmp2[256];
-					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), pvt_native), ast_getformatname_multiple(tmp2, sizeof(tmp2), pvt->owner->nativeformats), ast_getformatname(&pvt->owner->readformat), ast_getformatname(&pvt->owner->writeformat));
+					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), pvt_native), ast_getformatname_multiple(tmp2, sizeof(tmp2), ast_channel_nativeformats(pvt->owner)), ast_getformatname(&pvt->owner->readformat), ast_getformatname(&pvt->owner->writeformat));
 				}
-				ast_format_cap_copy(pvt->owner->nativeformats, pvt_native);
+				ast_format_cap_copy(ast_channel_nativeformats(pvt->owner), pvt_native);
 				ast_set_read_format(pvt->owner, &pvt->owner->readformat);
 				ast_set_write_format(pvt->owner, &pvt->owner->writeformat);
 			}
@@ -2481,7 +2481,7 @@ static void hangup_connection(unsigned int call_reference, const char *token, in
 	}
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
 		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-		pvt->owner->hangupcause = pvt->hangupcause = cause;
+		ast_channel_hangupcause_set(pvt->owner, pvt->hangupcause = cause);
 		ast_queue_hangup_with_cause(pvt->owner, cause);
 		ast_channel_unlock(pvt->owner);
 	}
@@ -3218,7 +3218,7 @@ static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, str
 	struct oh323_pvt *pvt;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
-	if (!(pvt = (struct oh323_pvt *)chan->tech_pvt))
+	if (!(pvt = (struct oh323_pvt *)ast_channel_tech_pvt(chan)))
 		return AST_RTP_GLUE_RESULT_FORBID;
 
 	ast_mutex_lock(&pvt->lock);
@@ -3280,7 +3280,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 	mode = convertcap(&chan->writeformat);
 #endif
 
-	pvt = (struct oh323_pvt *) chan->tech_pvt;
+	pvt = (struct oh323_pvt *) ast_channel_tech_pvt(chan);
 	if (!pvt) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;

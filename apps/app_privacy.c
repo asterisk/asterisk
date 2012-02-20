@@ -108,7 +108,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 		ast_verb(3, "CallerID number present: Skipping\n");
 	} else {
 		/*Answer the channel if it is not already*/
-		if (chan->_state != AST_STATE_UP) {
+		if (ast_channel_state(chan) != AST_STATE_UP) {
 			if ((res = ast_answer(chan))) {
 				return -1;
 			}
