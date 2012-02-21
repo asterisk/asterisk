@@ -2926,7 +2926,7 @@ static int generator_force(const void *data)
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
 {
 	int res = 0;
-	void *generatordata;
+	void *generatordata = NULL;
 
 	ast_channel_lock(chan);
 	if (ast_channel_generatordata(chan)) {
@@ -2937,10 +2937,12 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	if (gen->alloc && !(generatordata = gen->alloc(chan, params))) {
 		res = -1;
 	}
+	if (generatordata) {
+		ast_channel_generator_set(chan, gen);
+	}
 	if (!res) {
 		ast_settimeout(chan, 50, generator_force, chan);
 		ast_channel_generatordata_set(chan, generatordata);
-		ast_channel_generator_set(chan, gen);
 	}
 	ast_channel_unlock(chan);
 

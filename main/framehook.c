@@ -104,12 +104,14 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
 	framehook->chan = chan;
 
 	/* create the framehook list if it didn't already exist */
-	if (!ast_channel_framehooks(chan) && !(fh_list = ast_calloc(1, sizeof(*ast_channel_framehooks(chan))))) {
-		ast_free(framehook);
-		return -1;
+	if (!ast_channel_framehooks(chan)) {
+		if (!(fh_list = ast_calloc(1, sizeof(*ast_channel_framehooks(chan))))) {
+			ast_free(framehook);
+			return -1;
+		}
+		ast_channel_framehooks_set(chan, fh_list);
 	}
 
-	ast_channel_framehooks_set(chan, fh_list);
 	framehook->id = ++ast_channel_framehooks(chan)->id_count;
 	AST_LIST_INSERT_TAIL(&ast_channel_framehooks(chan)->list, framehook, list);
 
