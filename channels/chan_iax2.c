@@ -2570,15 +2570,21 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 		if (a->argc < 4 || a->argc > 5)
 			return CLI_SHOWUSAGE;
 
-		ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
+		if (a->argc == 4) {
+			ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
+		}
+
 		i = ao2_iterator_init(peercnts, 0);
 		while ((peercnt = ao2_iterator_next(&i))) {
 			sin.sin_addr.s_addr = peercnt->addr;
-			if (a->argc == 5 && (!strcasecmp(a->argv[4], ast_inet_ntoa(sin.sin_addr)))) {
+			if (a->argc == 5) {
+				if (!strcasecmp(a->argv[4], ast_inet_ntoa(sin.sin_addr))) {
+					ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
 					ast_cli(a->fd, "%-15s %-12d %-12d\n", ast_inet_ntoa(sin.sin_addr), peercnt->cur, peercnt->limit);
 					ao2_ref(peercnt, -1);
 					found = 1;
 					break;
+				}
 			} else {
 				ast_cli(a->fd, "%-15s %-12d %-12d\n", ast_inet_ntoa(sin.sin_addr), peercnt->cur, peercnt->limit);
 			}
@@ -2599,7 +2605,7 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 				ao2_container_count(callno_pool),
 				ao2_container_count(callno_pool_trunk));
 		} else if (a->argc == 5 && !found) {
-			ast_cli(a->fd, "No callnumber table entries for %s found\n", a->argv[4] );
+			ast_cli(a->fd, "No call number table entries for %s found\n", a->argv[4] );
 		}
 
 
