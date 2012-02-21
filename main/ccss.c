@@ -630,7 +630,7 @@ static void ccss_notify_device_state_change(const char *device, enum cc_state st
 	devstate = cc_state_to_devstate(state);
 
 	ast_log_dynamic_level(cc_logger_level,
-		"Notification of CCSS state change to '%s', device state '%s' for device '%s'",
+		"Notification of CCSS state change to '%s', device state '%s' for device '%s'\n",
 		cc_state_to_string(state), ast_devstate2str(devstate), device);
 
 	ast_devstate_changed(devstate, "ccss:%s", device);
