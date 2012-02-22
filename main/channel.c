@@ -3850,7 +3850,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					/* There was no begin, turn this into a begin and send the end later */
 					f->frametype = AST_FRAME_DTMF_BEGIN;
 					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
-					ast_channel_emulate_dtmf_digit_set(chan, f->subclass.integer);
+					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
 					chan->dtmf_tv = ast_tvnow();
 					if (f->len) {
 						if (f->len > AST_MIN_DTMF_DURATION)
@@ -3897,7 +3897,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				if (f->len < AST_MIN_DTMF_DURATION && !ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY)) {
 					ast_log(LOG_DTMF, "DTMF end '%c' has duration %ld but want minimum %d, emulating on %s\n", f->subclass.integer, f->len, AST_MIN_DTMF_DURATION, ast_channel_name(chan));
 					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
-					ast_channel_emulate_dtmf_digit_set(chan, f->subclass.integer);
+					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
 					ast_channel_emulate_dtmf_duration_set(chan, AST_MIN_DTMF_DURATION - f->len);
 					ast_frfree(f);
 					f = &ast_null_frame;
@@ -3940,17 +3940,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				struct timeval now = ast_tvnow();
 				if (!ast_channel_emulate_dtmf_duration(chan)) {
 					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
-					ast_channel_emulate_dtmf_digit_set(chan, 0);
+					ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 				} else if (ast_tvdiff_ms(now, chan->dtmf_tv) >= ast_channel_emulate_dtmf_duration(chan)) {
 					ast_channel_emulate_dtmf_duration_set(chan, 0);
 					ast_frfree(f);
 					f = &chan->dtmff;
 					f->frametype = AST_FRAME_DTMF_END;
-					f->subclass.integer = ast_channel_emulate_dtmf_digit(chan);
+					f->subclass.integer = ast_channel_dtmf_digit_to_emulate(chan);
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
 					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
-					ast_channel_emulate_dtmf_digit_set(chan, 0);
+					ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass.integer, ast_channel_name(chan));
 					if (ast_channel_audiohooks(chan)) {
 						struct ast_frame *old_frame = f;
@@ -3969,7 +3969,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 * between DTMF digits. */
 			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !ast_channel_emulate_dtmf_duration(chan)) {
 				ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
-				ast_channel_emulate_dtmf_digit_set(chan, 0);
+				ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 			}
 
 			if (dropaudio || ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
@@ -3986,7 +3986,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &chan->dtmff;
 					f->frametype = AST_FRAME_DTMF_END;
-					f->subclass.integer = ast_channel_emulate_dtmf_digit(chan);
+					f->subclass.integer = ast_channel_dtmf_digit_to_emulate(chan);
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
 					if (ast_channel_audiohooks(chan)) {

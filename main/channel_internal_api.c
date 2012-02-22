@@ -354,13 +354,13 @@ void ast_channel_macroexten_set(struct ast_channel *chan, const char *value)
 }
 
 
-char ast_channel_emulate_dtmf_digit(const struct ast_channel *chan)
+char ast_channel_dtmf_digit_to_emulate(const struct ast_channel *chan)
 {
-	return chan->__do_not_use_emulate_dtmf_digit;
+	return chan->__do_not_use_dtmf_digit_to_emulate;
 }
-void ast_channel_emulate_dtmf_digit_set(struct ast_channel *chan, char value)
+void ast_channel_dtmf_digit_to_emulate_set(struct ast_channel *chan, char value)
 {
-	chan->__do_not_use_emulate_dtmf_digit = value;
+	chan->__do_not_use_dtmf_digit_to_emulate = value;
 }
 int ast_channel_amaflags(const struct ast_channel *chan)
 {

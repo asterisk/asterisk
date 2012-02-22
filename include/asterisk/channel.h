@@ -904,7 +904,7 @@ struct ast_channel {
 	char __do_not_use_exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
 	char __do_not_use_macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char __do_not_use_macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
-	char __do_not_use_emulate_dtmf_digit;			/*!< Digit being emulated */
+	char __do_not_use_dtmf_digit_to_emulate;			/*!< Digit being emulated */
 };
 
 /*! \brief ast_channel_tech Properties */
@@ -3646,8 +3646,8 @@ void ast_channel_macrocontext_set(struct ast_channel *chan, const char *value);
 const char *ast_channel_macroexten(const struct ast_channel *chan);
 void ast_channel_macroexten_set(struct ast_channel *chan, const char *value);
 
-char ast_channel_emulate_dtmf_digit(const struct ast_channel *chan);
-void ast_channel_emulate_dtmf_digit_set(struct ast_channel *chan, char value);
+char ast_channel_dtmf_digit_to_emulate(const struct ast_channel *chan);
+void ast_channel_dtmf_digit_to_emulate_set(struct ast_channel *chan, char value);
 int ast_channel_amaflags(const struct ast_channel *chan);
 void ast_channel_amaflags_set(struct ast_channel *chan, int value);
 int ast_channel_epfd(const struct ast_channel *chan);
