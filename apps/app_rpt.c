@@ -5912,6 +5912,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				sprintf(sx,"%s:4569/%s",s1,sy + 1);
 				s1 = sx;
 			}
+			strsep(&s,",");
 			rpt_mutex_lock(&myrpt->lock);
 			l = myrpt->links.next;
 			/* try to find this one in queue */
@@ -10329,6 +10330,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		sprintf(sx,"%s:4569/%s",s1,sy + 1);
 		s1 = sx;
 	}
+	strsep(&s,",");
 	snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 	tele = strchr(deststr, '/');
 	if (!tele) {
