@@ -805,11 +805,7 @@ static void parse_user_information (struct isdn_msg msgs[], msg_t *msg, struct m
 
 static msg_t *build_user_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	USER_INFORMATION_t *user_information;
 	msg_t *msg =(msg_t*)create_l3msg(CC_USER_INFORMATION | REQUEST, MT_USER_INFORMATION,  bc?bc->l3_id:-1, sizeof(USER_INFORMATION_t) ,nt);
-
-	user_information=(USER_INFORMATION_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building USER_INFORMATION Msg\n");
@@ -828,11 +824,7 @@ static void parse_suspend_reject (struct isdn_msg msgs[], msg_t *msg, struct mis
 
 static msg_t *build_suspend_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	SUSPEND_REJECT_t *suspend_reject;
 	msg_t *msg =(msg_t*)create_l3msg(CC_SUSPEND_REJECT | REQUEST, MT_SUSPEND_REJECT,  bc?bc->l3_id:-1, sizeof(SUSPEND_REJECT_t) ,nt);
-
-	suspend_reject=(SUSPEND_REJECT_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building SUSPEND_REJECT Msg\n");
@@ -851,11 +843,7 @@ static void parse_resume_reject (struct isdn_msg msgs[], msg_t *msg, struct misd
 
 static msg_t *build_resume_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	RESUME_REJECT_t *resume_reject;
 	msg_t *msg =(msg_t*)create_l3msg(CC_RESUME_REJECT | REQUEST, MT_RESUME_REJECT,  bc?bc->l3_id:-1, sizeof(RESUME_REJECT_t) ,nt);
-
-	resume_reject=(RESUME_REJECT_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building RESUME_REJECT Msg\n");
@@ -874,11 +862,7 @@ static void parse_hold (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchanne
 
 static msg_t *build_hold (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	HOLD_t *hold;
 	msg_t *msg =(msg_t*)create_l3msg(CC_HOLD | REQUEST, MT_HOLD,  bc?bc->l3_id:-1, sizeof(HOLD_t) ,nt);
-
-	hold=(HOLD_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building HOLD Msg\n");
@@ -897,11 +881,7 @@ static void parse_suspend (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 
 static msg_t *build_suspend (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	SUSPEND_t *suspend;
 	msg_t *msg =(msg_t*)create_l3msg(CC_SUSPEND | REQUEST, MT_SUSPEND,  bc?bc->l3_id:-1, sizeof(SUSPEND_t) ,nt);
-
-	suspend=(SUSPEND_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building SUSPEND Msg\n");
@@ -920,11 +900,7 @@ static void parse_resume (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchan
 
 static msg_t *build_resume (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	RESUME_t *resume;
 	msg_t *msg =(msg_t*)create_l3msg(CC_RESUME | REQUEST, MT_RESUME,  bc?bc->l3_id:-1, sizeof(RESUME_t) ,nt);
-
-	resume=(RESUME_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building RESUME Msg\n");
@@ -943,11 +919,7 @@ static void parse_hold_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct m
 
 static msg_t *build_hold_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	HOLD_ACKNOWLEDGE_t *hold_acknowledge;
 	msg_t *msg =(msg_t*)create_l3msg(CC_HOLD_ACKNOWLEDGE | REQUEST, MT_HOLD_ACKNOWLEDGE,  bc?bc->l3_id:-1, sizeof(HOLD_ACKNOWLEDGE_t) ,nt);
-
-	hold_acknowledge=(HOLD_ACKNOWLEDGE_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building HOLD_ACKNOWLEDGE Msg\n");
@@ -966,11 +938,7 @@ static void parse_suspend_acknowledge (struct isdn_msg msgs[], msg_t *msg, struc
 
 static msg_t *build_suspend_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	SUSPEND_ACKNOWLEDGE_t *suspend_acknowledge;
 	msg_t *msg =(msg_t*)create_l3msg(CC_SUSPEND_ACKNOWLEDGE | REQUEST, MT_SUSPEND_ACKNOWLEDGE,  bc?bc->l3_id:-1, sizeof(SUSPEND_ACKNOWLEDGE_t) ,nt);
-
-	suspend_acknowledge=(SUSPEND_ACKNOWLEDGE_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building SUSPEND_ACKNOWLEDGE Msg\n");
@@ -989,11 +957,7 @@ static void parse_resume_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct
 
 static msg_t *build_resume_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	RESUME_ACKNOWLEDGE_t *resume_acknowledge;
 	msg_t *msg =(msg_t*)create_l3msg(CC_RESUME_ACKNOWLEDGE | REQUEST, MT_RESUME_ACKNOWLEDGE,  bc?bc->l3_id:-1, sizeof(RESUME_ACKNOWLEDGE_t) ,nt);
-
-	resume_acknowledge=(RESUME_ACKNOWLEDGE_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building RESUME_ACKNOWLEDGE Msg\n");
@@ -1012,11 +976,7 @@ static void parse_hold_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_
 
 static msg_t *build_hold_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	HOLD_REJECT_t *hold_reject;
 	msg_t *msg =(msg_t*)create_l3msg(CC_HOLD_REJECT | REQUEST, MT_HOLD_REJECT,  bc?bc->l3_id:-1, sizeof(HOLD_REJECT_t) ,nt);
-
-	hold_reject=(HOLD_REJECT_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building HOLD_REJECT Msg\n");
@@ -1035,11 +995,7 @@ static void parse_retrieve (struct isdn_msg msgs[], msg_t *msg, struct misdn_bch
 
 static msg_t *build_retrieve (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	RETRIEVE_t *retrieve;
 	msg_t *msg =(msg_t*)create_l3msg(CC_RETRIEVE | REQUEST, MT_RETRIEVE,  bc?bc->l3_id:-1, sizeof(RETRIEVE_t) ,nt);
-
-	retrieve=(RETRIEVE_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building RETRIEVE Msg\n");
@@ -1082,11 +1038,7 @@ static void parse_retrieve_reject (struct isdn_msg msgs[], msg_t *msg, struct mi
 
 static msg_t *build_retrieve_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	RETRIEVE_REJECT_t *retrieve_reject;
 	msg_t *msg =(msg_t*)create_l3msg(CC_RETRIEVE_REJECT | REQUEST, MT_RETRIEVE_REJECT,  bc?bc->l3_id:-1, sizeof(RETRIEVE_REJECT_t) ,nt);
-
-	retrieve_reject=(RETRIEVE_REJECT_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building RETRIEVE_REJECT Msg\n");
@@ -1577,11 +1529,7 @@ static void parse_status_enquiry (struct isdn_msg msgs[], msg_t *msg, struct mis
 
 static msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	STATUS_ENQUIRY_t *status_enquiry;
 	msg_t *msg =(msg_t*)create_l3msg(CC_STATUS_ENQUIRY | REQUEST, MT_STATUS_ENQUIRY,  bc?bc->l3_id:-1, sizeof(STATUS_ENQUIRY_t) ,nt);
-
-	status_enquiry=(STATUS_ENQUIRY_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building STATUS_ENQUIRY Msg\n");
@@ -1645,11 +1593,7 @@ static void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchan
 
 static msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	STATUS_t *status;
 	msg_t *msg =(msg_t*)create_l3msg(CC_STATUS | REQUEST, MT_STATUS,  bc?bc->l3_id:-1, sizeof(STATUS_t) ,nt);
-
-	status=(STATUS_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building STATUS Msg\n");
@@ -1666,11 +1610,7 @@ static void parse_timeout (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 
 static msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	STATUS_t *status;
 	msg_t *msg =(msg_t*)create_l3msg(CC_STATUS | REQUEST, MT_STATUS,  bc?bc->l3_id:-1, sizeof(STATUS_t) ,nt);
-
-	status=(STATUS_t*)((msg->data+HEADER_LEN));
 
 #ifdef DEBUG
 	printf("Building STATUS Msg\n");
