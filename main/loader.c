@@ -239,7 +239,9 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 
 	AST_LIST_LOCK(&mod->users);
 	while ((u = AST_LIST_REMOVE_HEAD(&mod->users, entry))) {
-		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
+		if (u->chan) {
+			ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
+		}
 		ast_atomic_fetchadd_int(&mod->usecount, -1);
 		ast_free(u);
 	}

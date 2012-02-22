@@ -496,6 +496,7 @@ int ast_calendar_register(struct ast_calendar_tech *tech)
 		}
 	}
 	AST_LIST_INSERT_HEAD(&techs, tech, list);
+	tech->user = ast_module_user_add(NULL);
 	AST_LIST_UNLOCK(&techs);
 
 	ast_verb(2, "Registered calendar type '%s' (%s)\n", tech->type, tech->description);
@@ -528,6 +529,7 @@ void ast_calendar_unregister(struct ast_calendar_tech *tech)
 		ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, match_caltech_cb, tech);
 
 		AST_LIST_REMOVE_CURRENT(list);
+		ast_module_user_remove(iter->user);
 		ast_verb(2, "Unregistered calendar type '%s'\n", tech->type);
 		break;
 	}

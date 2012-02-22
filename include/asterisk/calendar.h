@@ -25,6 +25,7 @@
 #include "asterisk/linkedlists.h"
 #include "asterisk/lock.h"
 #include "asterisk/dial.h"
+#include "asterisk/module.h"
 
 /*! \file calendar.h
  * \brief A general API for managing calendar events with Asterisk
@@ -69,6 +70,7 @@ struct ast_calendar_tech {
 	const char *type;
 	const char *description;
 	const char *module;
+	struct ast_module_user *user;
 	int (* is_busy)(struct ast_calendar *calendar); /*!< Override default busy determination */
 	void *(* load_calendar)(void *data);   /*!< Create private structure, add calendar events, etc. */
 	void *(* unref_calendar)(void *obj);   /*!< Function to be called to free the private structure */
