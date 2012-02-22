@@ -5712,6 +5712,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		sprintf(sx,"%s:4569/%s",s1,sy + 1);
 		s1 = sx;
 	}
+	strsep(&s,",");
 	rpt_mutex_lock(&myrpt->lock);
 	l = myrpt->links.next;
 	/* try to find this one in queue */
