@@ -653,7 +653,8 @@ static void send_digit_to_chan(struct chan_list *cl, char digit);
 
 static int pbx_start_chan(struct chan_list *ch);
 
-#define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
+#define MISDN_ASTERISK_TECH_PVT(ast) ast_channel_tech_pvt(ast)
+#define MISDN_ASTERISK_TECH_PVT_SET(ast, value) ast_channel_tech_pvt_set(ast, value)
 
 #include "asterisk/strings.h"
 
@@ -7061,7 +7062,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		ast_mutex_unlock(&release_lock);
 		return -1;
 	}
-	MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+	MISDN_ASTERISK_TECH_PVT_SET(ast, NULL);
 
 	if (!misdn_chan_is_valid(p)) {
 		ast_mutex_unlock(&release_lock);
@@ -8143,7 +8144,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 
 		/* Link the channel and private together */
 		chan_list_ref(chlist, "Give a reference to ast_channel");
-		MISDN_ASTERISK_TECH_PVT(tmp) = chlist;
+		MISDN_ASTERISK_TECH_PVT_SET(tmp, chlist);
 		chlist->ast = tmp;
 
 		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
@@ -8445,7 +8446,7 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 		struct chan_list *ast_ch;
 
 		ast_ch = MISDN_ASTERISK_TECH_PVT(ast);
-		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+		MISDN_ASTERISK_TECH_PVT_SET(ast, NULL);
 		chan_misdn_log(1, bc->port,
 			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s>\n",
 			bc->pid,
@@ -8509,7 +8510,7 @@ static void release_chan_early(struct chan_list *ch)
 		struct chan_list *ast_ch;
 
 		ast_ch = MISDN_ASTERISK_TECH_PVT(ast);
-		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+		MISDN_ASTERISK_TECH_PVT_SET(ast, NULL);
 
 		if (ast_channel_state(ast) != AST_STATE_RESERVED) {
 			ast_setstate(ast, AST_STATE_DOWN);
