@@ -1,3 +1,55 @@
+2012-02-23  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.1.3 Released.
+
+	* channels/chan_sip.c: Fix ACK routing for non-2xx responses.
+
+	  When we send an ACK for a 2xx response to an INVITE, we are supposed
+	  to use the learned route set. However, when we receive a non-2xx
+	  final response to an INVITE, we are supposed to send the ACK to the
+	  same place we initially sent the INVITE.
+
+	  We had been doing this up until the changes went in that would build
+	  a route set from provisional responses. That introduced a regression
+	  where we would use the learned route set under all circumstances.
+
+	  With this change, we now will set the destination of our ACK based on
+	  the invitestate. If it is INV_COMPLETED then that means that we have
+	  received a non-2xx final response (INV_TERMINATED indicates a 2xx
+	  response was received).  If it is INV_CANCELLED, then that means the
+	  call is being canceled, which means that we should be ACKing a 487
+	  response.
+
+	  The other change introduced here is setting the invitestate to
+	  INV_CONFIRMED when we send an ACK *after* the reqprep instead of
+	  before. This way, we can tell in reqprep more easily what the
+	  invitestate is prior to sending the ACK.
+
+	  (closes issue ASTERISK-19389)
+ 	  reported by Karsten Wemheuer
+	  patches:
+	    ASTERISK-19389v2.patch uploaded by Mark Michelson (license #5049)
+
+	* channels/chan_sip.c: Fix regressions with regards to route-set
+	  creation on early dialogs.
+
+	  This fixes two main issues:
+	  1. Asterisk would send a CANCEL to the route created by the provisional
+	     response instead of using the same destination it did in the initial
+	     INVITE.
+	  2. If a new route set arrives in a 200 OK than was in the 1XX response
+	     (perfectly possible if our outbound INVITE gets forked), then the
+	     route set in the 200 OK needs to overwrite the route set in the 1XX
+	     response.
+	  (closes issue ASTERISK-19358)
+	  Reported by: Karsten Wemheuer
+	  Tested by: Karsten Wemheuer
+	  patches:
+	   ASTERISK-19358.patch uploaded by Mark Michelson (license 5049)
+	   ASTERISK-19358.patch uploaded by Stefan Schmidt (license 6034)
+
+ 	  Review: https://reviewboard.asterisk.org/r/1749
+
 2012-02-09  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.1.2 Released.
