@@ -1392,10 +1392,8 @@ static int priority_jump(struct rpt *myrpt, struct ast_channel *chan)
 static int linkcount(struct rpt *myrpt)
 {
 	struct	rpt_link *l;
-	char *reverse_patch_state;
- 	int numoflinks;
+	int numoflinks;
 
-	reverse_patch_state = "DOWN";
 	numoflinks = 0;
 	l = myrpt->links.next;
 	while(l && (l != &myrpt->links)){
@@ -1404,13 +1402,8 @@ static int linkcount(struct rpt *myrpt)
 			"maximum number of links exceeds %d in rpt_do_stats()!",MAX_STAT_LINKS);
 			break;
 		}
-		//if (l->name[0] == '0'){ /* Skip '0' nodes */
-		//	reverse_patch_state = "UP";
-		//	l = l->next;
-		//	continue;
-		//}
 		numoflinks++;
-	 
+
 		l = l->next;
 	}
 	ast_log(LOG_NOTICE, "numoflinks=%i\n",numoflinks);
@@ -2939,7 +2932,7 @@ static int rpt_do_stats(int fd, int argc, const char * const *argv)
 
 static int rpt_do_lstats(int fd, int argc, const char * const *argv)
 {
-	int i,j;
+	int i;
 	char *connstate;
 	struct rpt *myrpt;
 	struct rpt_link *l;
@@ -2959,7 +2952,6 @@ static int rpt_do_lstats(int fd, int argc, const char * const *argv)
 			myrpt = &rpt_vars[i];
 			rpt_mutex_lock(&myrpt->lock); /* LOCK */
 			/* Traverse the list of connected nodes */
-			j = 0;
 			l = myrpt->links.next;
 			while(l && (l != &myrpt->links)){
 				if (l->name[0] == '0'){ /* Skip '0' nodes */
@@ -3964,7 +3956,7 @@ struct	rpt *myrpt;
 struct	rpt_link *l,*l1,linkbase;
 struct	ast_channel *mychannel;
 int vmajor, vminor, m;
-char *p,*ct,*ct_copy,*ident, *nodename,*cp;
+char *p,*ct,*ct_copy,*ident, *nodename;
 time_t t;
 #ifdef	NEW_ASTERISK
 struct ast_tm localtm;
@@ -4562,7 +4554,6 @@ struct ast_format_cap *cap = NULL;
 		res = ast_streamfile(mychannel, "rpt/invalid-freq", ast_channel_language(mychannel));
 		break;
 	    case REMMODE:
-		cp = 0;
 		wait_interval(myrpt, DLY_TELEM, mychannel);
 		switch(myrpt->remmode)
 		{
@@ -5701,7 +5692,7 @@ static void send_newkey(struct ast_channel *chan)
 
 static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 {
-	char *val, *s, *s1, *s2, *tele;
+	char *val, *s, *s1, *tele;
 	char lstr[MAXLINKLIST],*strs[MAXLINKLIST];
 	char tmp[300], deststr[300] = "",modechange = 0;
 	char sx[320],*sy;
@@ -5737,7 +5728,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		sprintf(sx,"%s:4569/%s",s1,sy + 1);
 		s1 = sx;
 	}
-	s2 = strsep(&s,",");
+	strsep(&s,",");
 	rpt_mutex_lock(&myrpt->lock);
 	l = myrpt->links.next;
 	/* try to find this one in queue */
@@ -5899,7 +5890,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 static int function_ilink(struct rpt *myrpt, char *param, char *digits, int command_source, struct rpt_link *mylink)
 {
 
-	char *val, *s, *s1, *s2;
+	char *val, *s, *s1;
 	char tmp[300];
 	char digitbuf[MAXNODESTR],*strs[MAXLINKLIST];
 	char mode,perma;
@@ -5940,7 +5931,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				sprintf(sx,"%s:4569/%s",s1,sy + 1);
 				s1 = sx;
 			}
-			s2 = strsep(&s,",");
+			strsep(&s,",");
 			rpt_mutex_lock(&myrpt->lock);
 			l = myrpt->links.next;
 			/* try to find this one in queue */
@@ -6396,7 +6387,6 @@ static int function_playback(struct rpt *myrpt, char *param, char *digitbuf, int
 static int function_cop(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink)
 {
 	char string[16];
-	int res;
 
 	int i, r;
 
@@ -6405,8 +6395,7 @@ static int function_cop(struct rpt *myrpt, char *param, char *digitbuf, int comm
 	
 	switch(myatoi(param)){
 		case 1: /* System reset */
-			res = system("killall -9 asterisk");
-			return DC_COMPLETE;
+			return system("killall -9 asterisk");
 
 		case 2:
 			myrpt->p.s[myrpt->p.sysstate_cur].txdisable = 0;
@@ -7830,7 +7819,7 @@ int	band,txoffset = 0,txpower = 0,rxpl;
 static int setrtx(struct rpt *myrpt)
 {
 char tmp[MAXREMSTR] = "",*s,rigstr[200],pwr,res = 0;
-int	band,txoffset = 0,txpower = 0,rxpl,txpl;
+int	band,rxpl,txpl;
 float ofac;
 double txfreq;
 
@@ -7892,31 +7881,6 @@ double txfreq;
 		if(debug)
 			printf("@@@@ Bad TX PL: %s\n", myrpt->txpl);
 	 	return -1;
-	}
-	
-	switch(myrpt->offset)
-	{
-	    case REM_MINUS:
-		txoffset = 0;
-		break;
-	    case REM_PLUS:
-		txoffset = 0x10;
-		break;
-	    case REM_SIMPLEX:
-		txoffset = 0x20;
-		break;
-	}
-	switch(myrpt->powerlevel)
-	{
-	    case REM_LOWPWR:
-		txpower = 0;
-		break;
-	    case REM_MEDPWR:
-		txpower = 0x20;
-		break;
-	    case REM_HIPWR:
-		txpower = 0x10;
-		break;
 	}
 
 	res = setrtx_check(myrpt);
@@ -8389,11 +8353,10 @@ static int check_freq_ft897(int m, int d, int *defmode)
 static int set_freq_ft897(struct rpt *myrpt, char *newfreq)
 {
 	unsigned char cmdstr[5];
-	int fd,m,d;
+	int m,d;
 	char mhz[MAXREMSTR];
 	char decimals[MAXREMSTR];
 
-	fd = 0;
 	if(debug) 
 		printf("New frequency: %s\n",newfreq);
 
@@ -8921,9 +8884,8 @@ static int set_freq_ic706(struct rpt *myrpt, char *newfreq)
 {
 	unsigned char cmdstr[20];
 	char mhz[MAXREMSTR], decimals[MAXREMSTR];
-	int fd,m,d;
+	int m,d;
 
-	fd = 0;
 	if(debug) 
 		ast_log(LOG_NOTICE,"newfreq:%s\n",newfreq); 			
 
@@ -10361,7 +10323,7 @@ int	res;
 
 static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 {
-	char *val, *s, *s1, *s2, *tele;
+	char *val, *s, *s1, *tele;
 	char tmp[300], deststr[300] = "";
 	char sx[320],*sy;
 	struct ast_format_cap *cap = NULL;
@@ -10388,7 +10350,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		sprintf(sx,"%s:4569/%s",s1,sy + 1);
 		s1 = sx;
 	}
-	s2 = strsep(&s,",");
+	strsep(&s,",");
 	snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 	tele = strchr(deststr, '/');
 	if (!tele) {
@@ -12034,12 +11996,11 @@ struct ast_format_cap *cap = NULL;
 		}			
 		if (myrpt->cmdAction.state == CMD_STATE_READY)
 		{ /* there is a command waiting to be processed */
-			int status;
 			myrpt->cmdAction.state = CMD_STATE_EXECUTING;
 			// lose the lock
 			rpt_mutex_unlock(&myrpt->lock);
 			// do the function
-			status = (*function_table[myrpt->cmdAction.functionNumber].function)(myrpt,myrpt->cmdAction.param, myrpt->cmdAction.digits, myrpt->cmdAction.command_source, NULL);
+			(*function_table[myrpt->cmdAction.functionNumber].function)(myrpt,myrpt->cmdAction.param, myrpt->cmdAction.digits, myrpt->cmdAction.command_source, NULL);
 			// get the lock again
 			rpt_mutex_lock(&myrpt->lock);
 			myrpt->cmdAction.state = CMD_STATE_IDLE;
