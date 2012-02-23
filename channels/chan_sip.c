@@ -10354,10 +10354,14 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 
 	add_header(req, "Via", p->via);
 	/*
-	 * Use the learned route set unless this is a CANCEL. For a CANCEL
-	 * we have to send to the same destination as the original INVITE.
+	 * Use the learned route set unless this is a CANCEL on an ACK for a non-2xx
+	 * final response. For a CANCEL or ACK, we have to send to the same destination
+	 * as the original INVITE.
 	 */
-	if (p->route && sipmethod != SIP_CANCEL) {
+	if (sipmethod == SIP_CANCEL ||
+			(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED))) {
+		set_destination(p, ast_strdupa(p->uri));
+	} else if (p->route) {
 		set_destination(p, p->route->hop);
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
@@ -13584,13 +13588,13 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, uint32_t seqno, en
 {
 	struct sip_request resp;
 	
-	if (sipmethod == SIP_ACK) {
-		p->invitestate = INV_CONFIRMED;
-	}
-
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	if (sipmethod == SIP_CANCEL && p->answered_elsewhere) {
 		add_header(&resp, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
+	}
+
+	if (sipmethod == SIP_ACK) {
+		p->invitestate = INV_CONFIRMED;
 	}
 
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
