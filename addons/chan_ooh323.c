@@ -4167,7 +4167,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	/* XXX Deal with Video */
 	struct ooh323_pvt *p;
 	struct ast_sockaddr tmp;
-	int mode;
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_set_peer - %s\n", chan->name);
@@ -4176,7 +4175,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		return 0;
 	}
 
-	mode = ooh323_convertAsteriskCapToH323Cap(&chan->writeformat); 
 	p = (struct ooh323_pvt *) chan->tech_pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
