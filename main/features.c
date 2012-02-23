@@ -776,6 +776,7 @@ static struct ast_exten *get_parking_exten(const char *exten_str, struct ast_cha
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	const char *app_at_exten;
 
+	ast_debug(4, "Checking if %s@%s is a parking exten\n", exten_str, context);
 	exten = pbx_find_extension(chan, NULL, &q, context, exten_str, 1, NULL, NULL,
 		E_MATCH);
 	if (!exten) {
@@ -1380,7 +1381,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *park_me, struct
 static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
 	struct parkeduser *pu = args->pu;
-	const char *event_from;
+	const char *event_from;		/*!< Channel name that is parking the call. */
 	char app_data[AST_MAX_EXTENSION + AST_MAX_CONTEXT];
 
 	if (pu == NULL) {
@@ -1399,10 +1400,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	if (chan != peer) {
 		if (ast_test_flag(args, AST_PARK_OPT_RINGING)) {
 			pu->hold_method = AST_CONTROL_RINGING;
-			ast_indicate(pu->chan, AST_CONTROL_RINGING);
+			ast_indicate(chan, AST_CONTROL_RINGING);
 		} else {
 			pu->hold_method = AST_CONTROL_HOLD;
-			ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+			ast_indicate_data(chan, AST_CONTROL_HOLD,
 				S_OR(pu->parkinglot->cfg.mohclass, NULL),
 				!ast_strlen_zero(pu->parkinglot->cfg.mohclass) ? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0);
 		}
@@ -1413,7 +1414,9 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	if (args->extout)
 		*(args->extout) = pu->parkingnum;
 
-	if (peer) { 
+	if (peer) {
+		event_from = S_OR(args->orig_chan_name, peer->name);
+
 		/*
 		 * This is so ugly that it hurts, but implementing
 		 * get_base_channel() on local channels could have ugly side
@@ -1428,7 +1431,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 			char other_side[AST_CHANNEL_NAME];
 			char *c;
 
-			ast_copy_string(other_side, S_OR(args->orig_chan_name, peer->name), sizeof(other_side));
+			ast_copy_string(other_side, event_from, sizeof(other_side));
 			if ((c = strrchr(other_side, ';'))) {
 				*++c = '1';
 			}
@@ -1441,8 +1444,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 				tmpchan = ast_channel_unref(tmpchan);
 			}
 		} else {
-			ast_copy_string(pu->peername, S_OR(args->orig_chan_name, peer->name), sizeof(pu->peername));
+			ast_copy_string(pu->peername, event_from, sizeof(pu->peername));
 		}
+	} else {
+		event_from = S_OR(pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"), chan->name);
 	}
 
 	/*
@@ -1478,18 +1483,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
 	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %d seconds\n",
-		pu->chan->name, pu->parkingnum, pu->parkinglot->name,
+		chan->name, pu->parkingnum, pu->parkinglot->name,
 		pu->context, pu->exten, pu->priority, (pu->parkingtime / 1000));
 
-	ast_cel_report_event(pu->chan, AST_CEL_PARK_START, NULL, pu->parkinglot->name, peer);
+	ast_cel_report_event(chan, AST_CEL_PARK_START, NULL, pu->parkinglot->name, peer);
 
-	if (peer) {
-		event_from = peer->name;
-	} else {
-		event_from = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER");
-	}
-
-	ast_manager_event(pu->chan, EVENT_FLAG_CALL, "ParkedCall",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
 		"Parkinglot: %s\r\n"
@@ -1500,14 +1499,19 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		"ConnectedLineNum: %s\r\n"
 		"ConnectedLineName: %s\r\n"
 		"Uniqueid: %s\r\n",
-		pu->parkingexten, pu->chan->name, pu->parkinglot->name, event_from ? event_from : "",
+		pu->parkingexten, chan->name, pu->parkinglot->name, event_from,
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
-		S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
-		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
-		S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
-		S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
-		pu->chan->uniqueid
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
+		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>"),
+		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, "<unknown>"),
+		S_COR(chan->connected.id.name.valid, chan->connected.id.name.str, "<unknown>"),
+		chan->uniqueid
 		);
+	ast_debug(4, "peer->name: %s\n", peer ? peer->name : "-No peer-");
+	ast_debug(4, "args->orig_chan_name: %s\n", args->orig_chan_name ? args->orig_chan_name : "-none-");
+	ast_debug(4, "pu->peername: %s\n", pu->peername);
+	ast_debug(4, "AMI ParkedCall Channel: %s\n", chan->name);
+	ast_debug(4, "AMI ParkedCall From: %s\n", event_from);
 
 	if (peer && adsipark && ast_adsi_available(peer)) {
 		adsi_announce_park(peer, pu->parkingexten);	/* Only supports parking numbers */
@@ -1542,7 +1546,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	if (peer == chan) { /* pu->notquiteyet = 1 */
 		/* Wake up parking thread if we're really done */
 		pu->hold_method = AST_CONTROL_HOLD;
-		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+		ast_indicate_data(chan, AST_CONTROL_HOLD,
 			S_OR(pu->parkinglot->cfg.mohclass, NULL),
 			!ast_strlen_zero(pu->parkinglot->cfg.mohclass) ? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0);
 		pu->notquiteyet = 0;
@@ -3849,12 +3853,12 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	struct ast_silence_generator *silgen = NULL;
 	const char *h_context;
 
-	if (chan && peer) {
-		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
-		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
-	} else if (chan) {
-		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
-	}
+	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
+	pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
+
+	/* Clear any BLINDTRANSFER since the transfer has completed. */
+	pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
+	pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", NULL);
 
 	set_bridge_features_on_config(config, pbx_builtin_getvar_helper(chan, "BRIDGE_FEATURES"));
 	add_features_datastores(chan, peer, config);
@@ -4887,13 +4891,7 @@ END_OPTIONS );
 /*! \brief Park a call */
 static int park_call_exec(struct ast_channel *chan, const char *data)
 {
-	/* Cache the original channel name in case we get masqueraded in the middle
-	 * of a park--it is still theoretically possible for a transfer to happen before
-	 * we get here, but it is _really_ unlikely */
-	char *orig_chan_name = ast_strdupa(chan->name);
-	struct ast_park_call_args args = {
-		.orig_chan_name = orig_chan_name,
-	};
+	struct ast_park_call_args args = { 0, };
 	struct ast_flags flags = { 0 };
 	char orig_exten[AST_MAX_EXTENSION];
 	int orig_priority;
@@ -4901,6 +4899,19 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 	const char *pl_name;
 	char *parse;
 	struct park_app_args app_args;
+
+	/*
+	 * Cache the original channel name because we are going to
+	 * masquerade the channel.  Prefer the BLINDTRANSFER channel
+	 * name over this channel name.  BLINDTRANSFER could be set if
+	 * the parking access extension did not get detected and we are
+	 * executing the Park application from the dialplan.
+	 *
+	 * The orig_chan_name is used to return the call to the
+	 * originator on parking timeout.
+	 */
+	args.orig_chan_name = ast_strdupa(S_OR(
+		pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"), chan->name));
 
 	/* Answer if call is not up */
 	if (chan->_state != AST_STATE_UP) {
