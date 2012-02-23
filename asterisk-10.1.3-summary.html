@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-10.1.3</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-10.1.3</h3>
+<h3 align="center">Date: 2012-02-23</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-10.1.2.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+13 seanbright<br/>
+8 rmudgett<br/>
+4 pabelanger<br/>
+3 kmoore<br/>
+3 mmichelson<br/>
+2 file<br/>
+2 qwell<br/>
+2 twilson<br/>
+1 alecdavis<br/>
+1 may<br/>
+1 mjordan<br/>
+</td>
+<td>
+</td>
+<td>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354656">354656</a></td><td>kmoore</td><td>Make the config parser remove escaping backslashes</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17121">ASTERISK-17121</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354703">354703</a></td><td>kmoore</td><td>Fix parsing of SIP headers where compact and non-compact headers are mixed</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17192">ASTERISK-17192</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354750">354750</a></td><td>twilson</td><td>Note that CDRs are immutable once a bridge is torn down</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16923">ASTERISK-16923</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354836">354836</a></td><td>rmudgett</td><td>Fix AMI Redirect ExtraChannel not redirecting to the same exten and context.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16974">ASTERISK-16974</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354890">354890</a></td><td>qwell</td><td>Fix a voicemail memory leak with heard/deleted messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354938">354938</a></td><td>file</td><td>Don't try to play sound files that do not exist.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19188">ASTERISK-19188</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354959">354959</a></td><td>rmudgett</td><td>Fix reconnecting to pgsql database after connection loss.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16982">ASTERISK-16982</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355010">355010</a></td><td>file</td><td>Only allow one 'dialplan reload' to execute at a time as otherwise they would share the same common local context list.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355057">355057</a></td><td>rmudgett</td><td>Fix occasional incorrectly delayed call-file execution.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19081">ASTERISK-19081</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355137">355137</a></td><td>may</td><td>call manager_event only if there is not null channel structure</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19298">ASTERISK-19298</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355183">355183</a></td><td>seanbright</td><td>Clear the high order bit from the destination call number before sending.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355229">355229</a></td><td>qwell</td><td>Don't enable sqlite3 CDRs by default in sample configs.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355271">355271</a></td><td>mmichelson</td><td>Properly invert the return of a strncmp call.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355320">355320</a></td><td>rmudgett</td><td>Fix lock typo that should be unlock in cel_sqlite_custom reload.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19356">ASTERISK-19356</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355375">355375</a></td><td>rmudgett</td><td>Fix voicemail problems when using ogg/vorbis.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16926">ASTERISK-16926</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355449">355449</a></td><td>seanbright</td><td>Use TRUNK_CALL_START as originally intended.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355467">355467</a></td><td>seanbright</td><td>Only use maxtrunkcall and maxnontrunkcall in chan_iax2 if IAX_OLD_FIND is specified.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355530">355530</a></td><td>seanbright</td><td>When IAX2 debugging is enabled, make sure to log 'apathetic' messages too.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355575">355575</a></td><td>rmudgett</td><td>Fix AMI Monitor action without File header converting channel name into filename.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355620">355620</a></td><td>rmudgett</td><td>Fix compile problem when old version of libvorbisfile v1.1.2 is used.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19370">ASTERISK-19370</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355623">355623</a></td><td>seanbright</td><td>Revert a change to audio_audiohook_write_list that had no affect.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355733">355733</a></td><td>mmichelson</td><td>Fix regressions with regards to route-set creation on early dialogs.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19358">ASTERISK-19358</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355747">355747</a></td><td>seanbright</td><td>Pass the correct value to ast_timer_set_rate() for IAX2 trunking.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355794">355794</a></td><td>seanbright</td><td>Don't allow trunkfreq to be greater than 1000ms.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355851">355851</a></td><td>alecdavis</td><td>push 'outgoing' flag from sig_XXX up to chan_dahdi</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19316">ASTERISK-19316</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355895">355895</a></td><td>pabelanger</td><td>Fix -Werror=unused-but-set-variable compiler error (gcc 4.6.2)</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355896">355896</a></td><td>pabelanger</td><td>Revert commit</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355902">355902</a></td><td>seanbright</td><td>Set the length of the ast_sockaddr, so that we can set it's port later.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355905">355905</a></td><td>seanbright</td><td>Add some boilerplate documentation for IAXVAR and IAXPEER.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355950">355950</a></td><td>seanbright</td><td>Change some debug messages from LOG_DEBUG to ast_debug.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355953">355953</a></td><td>seanbright</td><td>This was a LOG_NOTICE, so roll it back.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=355998">355998</a></td><td>seanbright</td><td>Remove spurious warning when 'qualifyfreqnotok' is set successfully.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17176">ASTERISK-17176</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356074">356074</a></td><td>kmoore</td><td>Add missing newline to ccss state change notification</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356108">356108</a></td><td>seanbright</td><td>Make 'iax2 show callnumber usage' output make sense when an IP is passed in.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356215">356215</a></td><td>mjordan</td><td>Fix potential buffer overrun and memory leak when executing "sip show peers"</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19231">ASTERISK-19231</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-19361">ASTERISK-19361</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356297">356297</a></td><td>twilson</td><td>Track module use count for res_calendar</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356428">356428</a></td><td>pabelanger</td><td>Multiple revisions 356290,356335,356337</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356431">356431</a></td><td>pabelanger</td><td>Fix -Werror=unused-but-set-variable compiler error (gcc 4.6.2)</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356476">356476</a></td><td>mmichelson</td><td>Fix ACK routing for non-2xx responses.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19389">ASTERISK-19389</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=356522">356522</a></td><td>rmudgett</td><td>Fix blind transfer parking issues if the dialed extension is not recognized as a parking extension.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19322">ASTERISK-19322</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+addons/chan_ooh323.c                   |    7
+apps/app_confbridge.c                  |    8
+apps/app_rpt.c                         |   69 +----
+apps/app_voicemail.c                   |   23 -
+autoconf/ast_c_declare_check.m4        |   31 ++
+cel/cel_sqlite3_custom.c               |    2
+channels/chan_dahdi.c                  |   10
+channels/chan_iax2.c                   |   62 +++--
+channels/chan_sip.c                    |  115 +++++----
+channels/sig_analog.c                  |   16 -
+channels/sig_analog.h                  |    1
+channels/sig_pri.c                     |   16 -
+channels/sig_pri.h                     |    1
+channels/sig_ss7.c                     |   14 -
+channels/sig_ss7.h                     |    1
+configs/cdr_sqlite3_custom.conf.sample |    8
+configs/extconfig.conf.sample          |    4
+configs/iax.conf.sample                |    3
+configure.ac                           |    5
+formats/format_ogg_vorbis.c            |  399 +++++++++++----------------------
+funcs/func_cdr.c                       |    4
+include/asterisk/autoconfig.h.in       |   16 -
+include/asterisk/calendar.h            |    2
+main/audiohook.c                       |    4
+main/ccss.c                            |    2
+main/config.c                          |    4
+main/features.c                        |   81 +++---
+main/loader.c                          |    4
+main/manager.c                         |    7
+pbx/pbx_config.c                       |   10
+pbx/pbx_spool.c                        |   41 ++-
+res/res_calendar.c                     |    2
+res/res_config_pgsql.c                 |   66 +++++
+res/res_monitor.c                      |   22 +
+34 files changed, 567 insertions(+), 493 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
