@@ -571,14 +571,12 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 	char *ext = NULL;
 	char tmp[256];
 	char formats[FORMAT_STRING_SIZE];
-	int oldformat;
 	int port = 0;
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_request - data %s format %s\n", (char*)data,  
 										ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,format));
 
-	oldformat = format;
 	format &= AST_FORMAT_AUDIO_MASK;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%lld'\n", (long long) format);
@@ -3920,7 +3918,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	struct sockaddr_in them;
 	struct sockaddr_in us;
 	struct ast_sockaddr tmp;
-	int mode;
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_set_peer - %s\n", chan->name);
@@ -3929,7 +3926,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		return 0;
 	}
 
-	mode = ooh323_convertAsteriskCapToH323Cap(chan->writeformat); 
 	p = (struct ooh323_pvt *) chan->tech_pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
