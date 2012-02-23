@@ -341,7 +341,8 @@ AST_TEST_DEFINE(crypto_loaded_test)
 
 AST_TEST_DEFINE(adsi_loaded_test)
 {
-	struct ast_channel c = { .adsicpe = AST_ADSI_AVAILABLE, };
+	struct ast_channel *c;
+	int res;
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "adsi_loaded_test";
@@ -353,7 +354,13 @@ AST_TEST_DEFINE(adsi_loaded_test)
 		break;
 	}
 
-	return ast_adsi_available(&c) ? AST_TEST_PASS : AST_TEST_FAIL;
+	if (!(c = ast_dummy_channel_alloc())) {
+		return AST_TEST_FAIL;
+	}
+	ast_channel_adsicpe_set(c, AST_ADSI_AVAILABLE);
+	res = ast_adsi_available(c) ? AST_TEST_PASS : AST_TEST_FAIL;
+	c = ast_channel_unref(c);
+	return res;
 }
 
 static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, const char * const argv[])
