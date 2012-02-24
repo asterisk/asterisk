@@ -426,7 +426,7 @@ static struct ao2_container *internal_ao2_container_alloc(struct ao2_container *
 	return c;
 }
 
-struct ao2_container *__ao2_container_alloc_debug(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
+struct ao2_container *__ao2_container_alloc_debug(unsigned int n_buckets, ao2_hash_fn *hash_fn,
 						  ao2_callback_fn *cmp_fn, const char *tag, char *file, int line,
 						  const char *funcname, int ref_debug)
 {
@@ -439,7 +439,7 @@ struct ao2_container *__ao2_container_alloc_debug(const unsigned int n_buckets, 
 	return internal_ao2_container_alloc(c, num_buckets, hash_fn, cmp_fn);
 }
 
-struct ao2_container *__ao2_container_alloc(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
+struct ao2_container *__ao2_container_alloc(unsigned int n_buckets, ao2_hash_fn *hash_fn,
 					    ao2_callback_fn *cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
@@ -788,14 +788,14 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
 }
 
 void *__ao2_callback_data_debug(struct ao2_container *c,
-				const enum search_flags flags,
+				enum search_flags flags,
 				ao2_callback_data_fn *cb_fn, void *arg, void *data,
 				const char *tag, char *file, int line, const char *funcname)
 {
 	return internal_ao2_callback(c, flags, cb_fn, arg, data, WITH_DATA, tag, file, line, funcname);
 }
 
-void *__ao2_callback_data(struct ao2_container *c, const enum search_flags flags,
+void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 			  ao2_callback_data_fn *cb_fn, void *arg, void *data)
 {
 	return internal_ao2_callback(c, flags, cb_fn, arg, data, WITH_DATA, NULL, NULL, 0, NULL);
