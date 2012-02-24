@@ -1327,6 +1327,7 @@ struct tcptls_packet {
 };
 /*! \brief Definition of a thread that handles a socket */
 struct sip_threadinfo {
+	/*! TRUE if the thread needs to kill itself.  (The module is being unloaded.) */
 	int stop;
 	int alert_pipe[2];          /*! Used to alert tcptls thread when packet is ready to be written */
 	pthread_t threadid;
