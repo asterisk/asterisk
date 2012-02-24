@@ -30,13 +30,23 @@ struct ast_srtp_cb {
 };
 
 struct ast_srtp_res {
+	/*! Create a new SRTP session for an RTP instance with a default policy */
 	int (*create)(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
+	/* Replace an existing SRTP session with a new session, along with a new default policy */
+	int (*replace)(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
+	/*! Destroy an SRTP session, along with all associated policies */
 	void (*destroy)(struct ast_srtp *srtp);
+	/* Add a new stream to an existing SRTP session.  Note that the policy cannot be for a wildcard SSRC */
 	int (*add_stream)(struct ast_srtp *srtp, struct ast_srtp_policy *policy);
+	/* Change the source on an existing SRTP session. */
 	int (*change_source)(struct ast_srtp *srtp, unsigned int from_ssrc, unsigned int to_ssrc);
+	/* Set a callback function */
 	void (*set_cb)(struct ast_srtp *srtp, const struct ast_srtp_cb *cb, void *data);
+	/* Unprotect SRTP data */
 	int (*unprotect)(struct ast_srtp *srtp, void *buf, int *size, int rtcp);
+	/* Protect RTP data */
 	int (*protect)(struct ast_srtp *srtp, void **buf, int *size, int rtcp);
+	/* Obtain a random cryptographic key */
 	int (*get_random)(unsigned char *key, size_t len);
 };
 
