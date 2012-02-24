@@ -5756,10 +5756,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	ast_format_cap_from_old_bitfield(ast_channel_nativeformats(tmp), capability);
 	ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
 
-	ast_format_copy(&tmp->readformat, &tmpfmt);
-	ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-	ast_format_copy(&tmp->writeformat, &tmpfmt);
-	ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+	ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
 
 	ast_channel_tech_pvt_set(tmp, CALLNO_TO_PTR(i->callno));
 
@@ -9353,8 +9353,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	}
 
 	/* Make formats okay */
-	chan1m->readformat = chan1->readformat;
-	chan1m->writeformat = chan1->writeformat;
+	ast_format_copy(ast_channel_readformat(chan1m), ast_channel_readformat(chan1));
+	ast_format_copy(ast_channel_writeformat(chan1m), ast_channel_writeformat(chan1));
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(chan1m, chan1)) {
@@ -9377,8 +9377,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	   back the announcement */
 
 	/* Make formats okay */
-	chan2m->readformat = chan2->readformat;
-	chan2m->writeformat = chan2->writeformat;
+	ast_format_copy(ast_channel_readformat(chan2m), ast_channel_readformat(chan2));
+	ast_format_copy(ast_channel_writeformat(chan2m), ast_channel_writeformat(chan2));
 	ast_channel_parkinglot_set(chan2m, ast_channel_parkinglot(chan2));
 
 	/* Prepare for taking over the channel */
@@ -10367,8 +10367,8 @@ static int socket_process(struct iax2_thread *thread)
 								struct ast_format_cap *native = ast_channel_nativeformats(iaxs[fr->callno]->owner);
 								if (orignative) {
 									ast_format_cap_set(native, &f.subclass.format);
-									if (iaxs[fr->callno]->owner->readformat.id) {
-										ast_set_read_format(iaxs[fr->callno]->owner, &iaxs[fr->callno]->owner->readformat);
+									if (ast_channel_readformat(iaxs[fr->callno]->owner)->id) {
+										ast_set_read_format(iaxs[fr->callno]->owner, ast_channel_readformat(iaxs[fr->callno]->owner));
 									}
 									ast_format_cap_copy(native, orignative);
 									ast_channel_unlock(iaxs[fr->callno]->owner);
@@ -10873,10 +10873,10 @@ static int socket_process(struct iax2_thread *thread)
 						ast_verb(3, "Format for call is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(iaxs[fr->callno]->owner)));
 
 						/* Setup read/write formats properly. */
-						if (iaxs[fr->callno]->owner->writeformat.id)
-							ast_set_write_format(iaxs[fr->callno]->owner, &iaxs[fr->callno]->owner->writeformat);
-						if (iaxs[fr->callno]->owner->readformat.id)
-							ast_set_read_format(iaxs[fr->callno]->owner, &iaxs[fr->callno]->owner->readformat);
+						if (ast_channel_writeformat(iaxs[fr->callno]->owner)->id)
+							ast_set_write_format(iaxs[fr->callno]->owner, ast_channel_writeformat(iaxs[fr->callno]->owner));
+						if (ast_channel_readformat(iaxs[fr->callno]->owner)->id)
+							ast_set_read_format(iaxs[fr->callno]->owner, ast_channel_readformat(iaxs[fr->callno]->owner));
 						ast_channel_unlock(iaxs[fr->callno]->owner);
 					}
 				}
@@ -12182,8 +12182,8 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 			}
 			ast_format_cap_set(ast_channel_nativeformats(c), &best_fmt_native);
 		}
-		ast_best_codec(ast_channel_nativeformats(c), &c->readformat);
-		ast_format_copy(&c->writeformat, &c->readformat);
+		ast_best_codec(ast_channel_nativeformats(c), ast_channel_readformat(c));
+		ast_format_copy(ast_channel_writeformat(c), ast_channel_readformat(c));
 	}
 
 	return c;

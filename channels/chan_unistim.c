@@ -2129,19 +2129,19 @@ static void start_rtp(struct unistim_subchannel *sub)
 	sin.sin_port = htons(sub->parent->parent->rtp_port);
 	ast_sockaddr_from_sin(&sin_tmp, &sin);
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
-	if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), &sub->owner->readformat))) {
+	if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), ast_channel_readformat(sub->owner)))) {
 		struct ast_format tmpfmt;
 		char tmp[256];
 		ast_best_codec(ast_channel_nativeformats(sub->owner), &tmpfmt);
 		ast_log(LOG_WARNING,
 				"Our read/writeformat has been changed to something incompatible: %s, using %s best codec from %s\n",
-				ast_getformatname(&sub->owner->readformat),
+				ast_getformatname(ast_channel_readformat(sub->owner)),
 				ast_getformatname(&tmpfmt),
 				ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(sub->owner)));
-		ast_format_copy(&sub->owner->readformat, &tmpfmt);
-		ast_format_copy(&sub->owner->writeformat, &tmpfmt);
+		ast_format_copy(ast_channel_readformat(sub->owner), &tmpfmt);
+		ast_format_copy(ast_channel_writeformat(sub->owner), &tmpfmt);
 	}
-	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, &sub->owner->readformat, 0);
+	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, ast_channel_readformat(sub->owner), 0);
 	/* Setting up RTP of the phone */
 	if (public_ip.sin_family == 0)  /* NAT IP override ?   */
 		memcpy(&public, &us, sizeof(public));   /* No defined, using IP from recvmsg  */
@@ -2150,12 +2150,12 @@ static void start_rtp(struct unistim_subchannel *sub)
 	if (unistimdebug) {
 		ast_verb(0, "RTP started : Our IP/port is : %s:%hd with codec %s\n",
 			 ast_inet_ntoa(us.sin_addr),
-			 htons(us.sin_port), ast_getformatname(&sub->owner->readformat));
+			 htons(us.sin_port), ast_getformatname(ast_channel_readformat(sub->owner)));
 		ast_verb(0, "Starting phone RTP stack. Our public IP is %s\n",
 					ast_inet_ntoa(public.sin_addr));
 	}
-	if ((sub->owner->readformat.id == AST_FORMAT_ULAW) ||
-		(sub->owner->readformat.id == AST_FORMAT_ALAW)) {
+	if ((ast_channel_readformat(sub->owner)->id == AST_FORMAT_ULAW) ||
+		(ast_channel_readformat(sub->owner)->id == AST_FORMAT_ALAW)) {
 		if (unistimdebug)
 			ast_verb(0, "Sending packet_send_rtp_packet_size for codec %d\n", codec);
 		memcpy(buffsend + SIZE_HEADER, packet_send_rtp_packet_size,
@@ -2250,17 +2250,17 @@ static void start_rtp(struct unistim_subchannel *sub)
 		/* Codec */
 		buffsend[40] = codec;
 		buffsend[41] = codec;
-		if (sub->owner->readformat.id == AST_FORMAT_ULAW)
+		if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_ULAW)
 			buffsend[42] = 1;       /* 1 = 20ms (160 bytes), 2 = 40ms (320 bytes) */
-		else if (sub->owner->readformat.id == AST_FORMAT_ALAW)
+		else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_ALAW)
 			buffsend[42] = 1;       /* 1 = 20ms (160 bytes), 2 = 40ms (320 bytes) */
-		else if (sub->owner->readformat.id == AST_FORMAT_G723_1)
+		else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_G723_1)
 			buffsend[42] = 2;       /* 1 = 30ms (24 bytes), 2 = 60 ms (48 bytes) */
-		else if (sub->owner->readformat.id == AST_FORMAT_G729A)
+		else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_G729A)
 			buffsend[42] = 2;       /* 1 = 10ms (10 bytes), 2 = 20ms (20 bytes) */
 		else
 			ast_log(LOG_WARNING, "Unsupported codec %s!\n",
-					ast_getformatname(&sub->owner->readformat));
+					ast_getformatname(ast_channel_readformat(sub->owner)));
 		/* Source port for transmit RTP and Destination port for receiving RTP */
 		buffsend[45] = (htons(sin.sin_port) & 0xff00) >> 8;
 		buffsend[46] = (htons(sin.sin_port) & 0x00ff);
@@ -4049,8 +4049,8 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 						ast_getformatname(&f->subclass.format));
 
 				ast_format_cap_set(ast_channel_nativeformats(sub->owner), &f->subclass.format);
-				ast_set_read_format(sub->owner, &sub->owner->readformat);
-				ast_set_write_format(sub->owner, &sub->owner->writeformat);
+				ast_set_read_format(sub->owner, ast_channel_readformat(sub->owner));
+				ast_set_write_format(sub->owner, ast_channel_writeformat(sub->owner));
 			}
 		}
 	}
@@ -4090,8 +4090,8 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 					"Asked to transmit frame type %s, while native formats is %s (read/write = (%s/%s)\n",
 					ast_getformatname(&frame->subclass.format),
 					ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(ast)),
-					ast_getformatname(&ast->readformat),
-					ast_getformatname(&ast->writeformat));
+					ast_getformatname(ast_channel_readformat(ast)),
+					ast_getformatname(ast_channel_writeformat(ast)));
 			return -1;
 		}
 	}
@@ -4586,10 +4586,10 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if (state == AST_STATE_RING)
 		ast_channel_rings_set(tmp, 1);
 	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
-	ast_format_copy(&tmp->writeformat, &tmpfmt);
-	ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
-	ast_format_copy(&tmp->readformat, &tmpfmt);
-	ast_format_copy(&tmp->rawreadformat, &tmpfmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
 	ast_channel_tech_pvt_set(tmp, sub);
 	ast_channel_tech_set(tmp, &unistim_tech);
 	if (!ast_strlen_zero(l->language))

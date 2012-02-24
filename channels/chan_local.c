@@ -1157,14 +1157,14 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 
 	/* Determine our read/write format and set it on each channel */
 	ast_best_codec(p->reqcap, &fmt);
-	ast_format_copy(&tmp->writeformat, &fmt);
-	ast_format_copy(&tmp2->writeformat, &fmt);
-	ast_format_copy(&tmp->rawwriteformat, &fmt);
-	ast_format_copy(&tmp2->rawwriteformat, &fmt);
-	ast_format_copy(&tmp->readformat, &fmt);
-	ast_format_copy(&tmp2->readformat, &fmt);
-	ast_format_copy(&tmp->rawreadformat, &fmt);
-	ast_format_copy(&tmp2->rawreadformat, &fmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &fmt);
+	ast_format_copy(ast_channel_writeformat(tmp2), &fmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp2), &fmt);
+	ast_format_copy(ast_channel_readformat(tmp), &fmt);
+	ast_format_copy(ast_channel_readformat(tmp2), &fmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp2), &fmt);
 
 	ast_channel_tech_pvt_set(tmp, p);
 	ast_channel_tech_pvt_set(tmp2, p);

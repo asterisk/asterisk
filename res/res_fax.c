@@ -1355,7 +1355,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	if (details->caps & AST_FAX_TECH_AUDIO) {
 		expected_frametype = AST_FRAME_VOICE;;
 		ast_format_set(&expected_framesubclass.format, AST_FORMAT_SLINEAR, 0);
-		ast_format_copy(&orig_write_format, &chan->writeformat);
+		ast_format_copy(&orig_write_format, ast_channel_writeformat(chan));
 		if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set write format to signed linear'.\n", ast_channel_name(chan));
  			ao2_lock(faxregistry.container);
@@ -1365,7 +1365,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			ast_channel_unlock(chan);
 			return -1;
 		}
-		ast_format_copy(&orig_read_format, &chan->readformat);
+		ast_format_copy(&orig_read_format, ast_channel_readformat(chan));
 		if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set read format to signed linear.\n", ast_channel_name(chan));
  			ao2_lock(faxregistry.container);
@@ -3004,11 +3004,11 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 		/* we are bridged, change r/w formats to SLIN for v21 preamble
 		 * detection and T.30 */
-		ast_format_copy(&gateway->chan_read_format, &chan->readformat);
-		ast_format_copy(&gateway->chan_write_format, &chan->readformat);
+		ast_format_copy(&gateway->chan_read_format, ast_channel_readformat(chan));
+		ast_format_copy(&gateway->chan_write_format, ast_channel_readformat(chan));
 
-		ast_format_copy(&gateway->peer_read_format, &peer->readformat);
-		ast_format_copy(&gateway->peer_write_format, &peer->readformat);
+		ast_format_copy(&gateway->peer_read_format, ast_channel_readformat(peer));
+		ast_format_copy(&gateway->peer_write_format, ast_channel_readformat(peer));
 
 		ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
@@ -3272,8 +3272,8 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	switch (event) {
 	case AST_FRAMEHOOK_EVENT_ATTACHED:
 		/* Setup format for DSP on ATTACH*/
-		ast_format_copy(&faxdetect->orig_format, &chan->readformat);
-		switch (chan->readformat.id) {
+		ast_format_copy(&faxdetect->orig_format, ast_channel_readformat(chan));
+		switch (ast_channel_readformat(chan)->id) {
 			case AST_FORMAT_SLINEAR:
 			case AST_FORMAT_ALAW:
 			case AST_FORMAT_ULAW:

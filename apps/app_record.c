@@ -291,7 +291,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	/* The end of beep code.  Now the recording starts */
 
 	if (silence > 0) {
-		ast_format_copy(&rfmt, &chan->readformat);
+		ast_format_copy(&rfmt, ast_channel_readformat(chan));
 		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");

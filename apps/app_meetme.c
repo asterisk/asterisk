@@ -3717,7 +3717,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						 )) {
 						int idx;
 						for (idx = 0; idx < AST_FRAME_BITS; idx++) {
-							if (ast_format_to_old_bitfield(&chan->rawwriteformat) & (1 << idx)) {
+							if (ast_format_to_old_bitfield(ast_channel_rawwriteformat(chan)) & (1 << idx)) {
 								break;
 							}
 						}

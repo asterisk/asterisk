@@ -797,9 +797,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		setformat(o, O_RDWR);
 	ast_channel_set_fd(c, 0, o->sounddev); /* -1 if device closed, override later */
 
-	ast_format_set(&c->readformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&c->writeformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(ast_channel_nativeformats(c), &c->readformat);
+	ast_format_set(ast_channel_readformat(c), AST_FORMAT_SLINEAR, 0);
+	ast_format_set(ast_channel_writeformat(c), AST_FORMAT_SLINEAR, 0);
+	ast_format_cap_add(ast_channel_nativeformats(c), ast_channel_readformat(c));
 
 	/* if the console makes the call, add video to the offer */
 	/* if (state == AST_STATE_RINGING) TODO XXX CONSOLE VIDEO IS DISABLED UNTIL IT GETS A MAINTAINER

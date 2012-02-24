@@ -2183,8 +2183,8 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 		setformat(o, O_RDWR);
 	c->fds[0] = o->sounddev;	/* -1 if device closed, override later */
 	ast_format_cap_add(ast_channel_nativeformats(c), &slin);
-	ast_format_set(&c->readformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&c->writeformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(ast_channel_readformat(c), AST_FORMAT_SLINEAR, 0);
+	ast_format_set(ast_channel_writeformat(c), AST_FORMAT_SLINEAR, 0);
 	ast_channel_tech_pvt_set(c, o);
 
 	if (!ast_strlen_zero(o->language))

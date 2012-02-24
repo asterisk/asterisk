@@ -380,10 +380,10 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0);
 	ast_channel_tech_set(tmp, &record_tech);
 	ast_format_cap_add_all(ast_channel_nativeformats(tmp));
-	ast_format_copy(&tmp->writeformat, &fmt);
-	ast_format_copy(&tmp->rawwriteformat, &fmt);
-	ast_format_copy(&tmp->readformat, &fmt);
-	ast_format_copy(&tmp->rawreadformat, &fmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &fmt);
+	ast_format_copy(ast_channel_readformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &fmt);
 	return tmp;
 }
 

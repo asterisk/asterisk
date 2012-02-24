@@ -138,7 +138,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 	int (*ast_dsp_func)(struct ast_dsp*, struct ast_frame*, int*) =
 				wait_for_silence ? ast_dsp_silence : ast_dsp_noise;
 
-	ast_format_copy(&rfmt, &chan->readformat); /* Set to linear mode */
+	ast_format_copy(&rfmt, ast_channel_readformat(chan)); /* Set to linear mode */
 	if ((res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set channel to linear mode, giving up\n");
 		return -1;

@@ -512,7 +512,7 @@ static void *linear_alloc(struct ast_channel *chan, void *params)
 		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
 	}
 
-	ast_format_copy(&ls->origwfmt, &chan->writeformat);
+	ast_format_copy(&ls->origwfmt, ast_channel_writeformat(chan));
 
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", ast_channel_name(chan));
@@ -828,7 +828,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, silencethreshold);
-		ast_format_copy(&rfmt, &chan->readformat);
+		ast_format_copy(&rfmt, ast_channel_readformat(chan));
 		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");

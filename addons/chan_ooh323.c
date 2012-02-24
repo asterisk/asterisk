@@ -390,8 +390,8 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 			ast_codec_pref_index(&i->prefs, 0, &tmpfmt);
 
 		ast_format_cap_add(ast_channel_nativeformats(ch), &tmpfmt);
-		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
-		ast_format_copy(&ch->rawreadformat, &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(ch), &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(ch), &tmpfmt);
 
 		ast_jb_configure(ch, &global_jbconf);
 
@@ -1177,8 +1177,8 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 							"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 							ast_getformatname(&f->subclass.format),
 							ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
-							ast_getformatname(&ast->readformat),
-							ast_getformatname(&ast->writeformat));
+							ast_getformatname(ast_channel_readformat(ast)),
+							ast_getformatname(ast_channel_writeformat(ast)));
 
 					ast_set_write_format(ast, &f->subclass.format);
 				} else {
@@ -1512,7 +1512,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 		}
 		if (gH323Debug)
 	  		ast_verb(0, "Writeformat before update %s/%s\n", 
-			  ast_getformatname(&p->owner->writeformat),
+			  ast_getformatname(ast_channel_writeformat(p->owner)),
 			  ast_getformatname_multiple(formats, sizeof(formats), ast_channel_nativeformats(p->owner)));
 		if (txframes)
 			ast_codec_pref_setsize(&p->prefs, fmt, txframes);
@@ -1527,8 +1527,8 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 		}
 
 		ast_format_cap_set(ast_channel_nativeformats(p->owner), fmt);
-	  	ast_set_write_format(p->owner, &p->owner->writeformat);
-	  	ast_set_read_format(p->owner, &p->owner->readformat);
+	  	ast_set_write_format(p->owner, ast_channel_writeformat(p->owner));
+	  	ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
 		ast_channel_unlock(p->owner);
    	} else
 		ast_log(LOG_ERROR, "No owner found\n");
@@ -1571,9 +1571,9 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 
 		if (gH323Debug)
 	  		ast_verb(0, "Readformat before update %s\n", 
-				  ast_getformatname(&p->owner->readformat));
+				  ast_getformatname(ast_channel_readformat(p->owner)));
 		ast_format_cap_set(ast_channel_nativeformats(p->owner), fmt);
-	  	ast_set_read_format(p->owner, &p->owner->readformat);
+	  	ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
 		ast_channel_unlock(p->owner);
    	} else
 		ast_log(LOG_ERROR, "No owner found\n");
@@ -4196,7 +4196,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		return 0;
 	}
 
-	if (ooh323_convertAsteriskCapToH323Cap(&chan->writeformat) < 0) {
+	if (ooh323_convertAsteriskCapToH323Cap(ast_channel_writeformat(chan)) < 0) {
 		ast_log(LOG_WARNING, "Unknown format.\n");
 		return -1;
 	}
@@ -4619,8 +4619,8 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(p->owner), &f->subclass.format))) {
 			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
 			ast_format_cap_set(ast_channel_nativeformats(p->owner), &f->subclass.format);
-			ast_set_read_format(p->owner, &p->owner->readformat);
-			ast_set_write_format(p->owner, &p->owner->writeformat);
+			ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
+			ast_set_write_format(p->owner, ast_channel_writeformat(p->owner));
 		}
 		if (((p->dtmfmode & H323_DTMF_INBAND) || (p->faxdetect & FAXDETECT_CNG)) && p->vad &&
 		    (f->subclass.format.id == AST_FORMAT_SLINEAR || f->subclass.format.id == AST_FORMAT_ALAW ||

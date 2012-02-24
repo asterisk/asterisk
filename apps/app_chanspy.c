@@ -1123,7 +1123,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 		ast_clear_flag(&flags, AST_FLAGS_ALL);
 	}
 
-	ast_format_copy(&oldwf, &chan->writeformat);
+	ast_format_copy(&oldwf, ast_channel_writeformat(chan));
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
@@ -1247,7 +1247,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		ast_clear_flag(&flags, AST_FLAGS_ALL);
 	}
 
-	oldwf = chan->writeformat;
+	ast_format_copy(&oldwf, ast_channel_writeformat(chan));
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
@@ -1297,7 +1297,7 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 	ast_set_flag(&flags, OPTION_DTMF_CYCLE);
 	ast_set_flag(&flags, OPTION_DAHDI_SCAN);
 
-	ast_format_copy(&oldwf, &chan->writeformat);
+	ast_format_copy(&oldwf, ast_channel_writeformat(chan));
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;

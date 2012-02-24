@@ -4525,8 +4525,8 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 			if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &f->subclass.format))) {
 				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
 				ast_format_cap_set(ast_channel_nativeformats(ast), &f->subclass.format);
-				ast_set_read_format(ast, &ast->readformat);
-				ast_set_write_format(ast, &ast->writeformat);
+				ast_set_read_format(ast, ast_channel_readformat(ast));
+				ast_set_write_format(ast, ast_channel_writeformat(ast));
 			}
 		}
 	}
@@ -4560,8 +4560,8 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 				ast_getformatname(&frame->subclass.format),
 				ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
-				ast_getformatname(&ast->readformat),
-				ast_getformatname(&ast->writeformat));
+				ast_getformatname(ast_channel_readformat(ast)),
+				ast_getformatname(ast_channel_writeformat(ast)));
 			return -1;
 		}
 	}
@@ -4900,10 +4900,10 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		if (state == AST_STATE_RING) {
 			ast_channel_rings_set(tmp, 1);
 		}
-		ast_format_copy(&tmp->writeformat, &tmpfmt);
-		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
-		ast_format_copy(&tmp->readformat, &tmpfmt);
-		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
+		ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
 
 		if (!ast_strlen_zero(l->language))
 			ast_channel_language_set(tmp, l->language);

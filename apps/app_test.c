@@ -93,7 +93,7 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 	struct ast_frame *f;
 	struct ast_format rformat;
 
-	ast_format_copy(&rformat, &chan->readformat);
+	ast_format_copy(&rformat, ast_channel_readformat(chan));
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_NOTICE, "Unable to set to linear mode!\n");
 		return -1;

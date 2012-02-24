@@ -392,7 +392,7 @@ static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 	if (&state->origwfmt.id) {
 		struct ast_format tmp;
 
-		ast_format_copy(&tmp, &chan->writeformat);
+		ast_format_copy(&tmp, ast_channel_writeformat(chan));
 		if (state->mohwfmt.id) {
 			ast_format_clear(&state->origwfmt);
 			ast_set_write_format(chan, &state->mohwfmt);
@@ -470,8 +470,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	}
 
 	state->class = mohclass_ref(class, "Reffing music class for channel");
-	ast_format_copy(&state->origwfmt, &chan->writeformat);
-	ast_format_copy(&state->mohwfmt, &chan->writeformat);
+	ast_format_copy(&state->origwfmt, ast_channel_writeformat(chan));
+	ast_format_copy(&state->mohwfmt, ast_channel_writeformat(chan));
 
 	/* For comparison on restart of MOH (see above) */
 	ast_copy_string(state->name, class->name, sizeof(state->name));
@@ -992,7 +992,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	}
 
 	if ((res = mohalloc(class))) {
-		ast_format_copy(&res->origwfmt, &chan->writeformat);
+		ast_format_copy(&res->origwfmt, ast_channel_writeformat(chan));
 		if (ast_set_write_format(chan, &class->format)) {
 			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", ast_channel_name(chan), ast_codec2str(&class->format));
 			moh_release(NULL, res);

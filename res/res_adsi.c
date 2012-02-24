@@ -371,8 +371,8 @@ int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *ch
 	struct ast_format writeformat;
 	struct ast_format readformat;
 
-	ast_format_copy(&writeformat, &chan->writeformat);
-	ast_format_copy(&readformat, &chan->readformat);
+	ast_format_copy(&writeformat, ast_channel_writeformat(chan));
+	ast_format_copy(&readformat, ast_channel_readformat(chan));
 
 	for (x = 0; x < msglen; x += (msg[x+1]+2)) {
 		if (msg[x] == ADSI_SWITCH_TO_DATA) {

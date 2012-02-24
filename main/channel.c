@@ -2541,13 +2541,13 @@ static void free_translation(struct ast_channel *clonechan)
 	ast_channel_writetrans_set(clonechan, NULL);
 	ast_channel_readtrans_set(clonechan, NULL);
 	if (ast_format_cap_is_empty(ast_channel_nativeformats(clonechan))) {
-		ast_format_clear(&clonechan->rawwriteformat);
-		ast_format_clear(&clonechan->rawreadformat);
+		ast_format_clear(ast_channel_rawwriteformat(clonechan));
+		ast_format_clear(ast_channel_rawreadformat(clonechan));
 	} else {
 		struct ast_format tmpfmt;
 		ast_best_codec(ast_channel_nativeformats(clonechan), &tmpfmt);
-		ast_format_copy(&clonechan->rawwriteformat, &tmpfmt);
-		ast_format_copy(&clonechan->rawreadformat, &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(clonechan), &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(clonechan), &tmpfmt);
 	}
 }
 
@@ -2911,7 +2911,7 @@ static int generator_force(const void *data)
 	if (!tmp || !generate)
 		return 0;
 
-	res = generate(chan, tmp, 0, ast_format_rate(&chan->writeformat) / 50);
+	res = generate(chan, tmp, 0, ast_format_rate(ast_channel_writeformat(chan)) / 50);
 
 	ast_channel_generatordata_set(chan, tmp);
 
@@ -3477,9 +3477,9 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 
 		ast_channel_generatordata_set(chan, NULL);     /* reset, to let writes go through */
 
-		if (ast_format_cmp(&f->subclass.format, &chan->writeformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+		if (ast_format_cmp(&f->subclass.format, ast_channel_writeformat(chan)) == AST_FORMAT_CMP_NOT_EQUAL) {
 			float factor;
-			factor = ((float) ast_format_rate(&chan->writeformat)) / ((float) ast_format_rate(&f->subclass.format));
+			factor = ((float) ast_format_rate(ast_channel_writeformat(chan))) / ((float) ast_format_rate(&f->subclass.format));
 			samples = (int) ( ((float) f->samples) * factor );
 		} else {
 			samples = f->samples;
@@ -4522,7 +4522,7 @@ int ast_prod(struct ast_channel *chan)
 	/* Send an empty audio frame to get things moving */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_debug(1, "Prodding channel '%s'\n", ast_channel_name(chan));
-		ast_format_copy(&a.subclass.format, &chan->rawwriteformat);
+		ast_format_copy(&a.subclass.format, ast_channel_rawwriteformat(chan));
 		a.data.ptr = nothing + AST_FRIENDLY_OFFSET;
 		a.src = "ast_prod"; /* this better match check in ast_write */
 		if (ast_write(chan, &a))
@@ -4778,7 +4778,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
-		if (ast_format_cmp(&fr->subclass.format, &chan->rawwriteformat) != AST_FORMAT_CMP_NOT_EQUAL) {
+		if (ast_format_cmp(&fr->subclass.format, ast_channel_rawwriteformat(chan)) != AST_FORMAT_CMP_NOT_EQUAL) {
 			f = fr;
 		} else {
 			/* XXX Something is not right we are not compatible with this frame bad things can happen
@@ -4788,10 +4788,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			 * JIRA issues related to this :-
 			 * ASTERISK-14384, ASTERISK-17502, ASTERISK-17541, ASTERISK-18063, ASTERISK-18325, ASTERISK-18422*/
 			if ((!ast_format_cap_iscompatible(ast_channel_nativeformats(chan), &fr->subclass.format)) &&
-			    (ast_format_cmp(&chan->writeformat, &fr->subclass.format) != AST_FORMAT_CMP_EQUAL)) {
+			    (ast_format_cmp(ast_channel_writeformat(chan), &fr->subclass.format) != AST_FORMAT_CMP_EQUAL)) {
 				char nf[512];
 				ast_log(LOG_WARNING, "Codec mismatch on channel %s setting write format to %s from %s native formats %s\n",
-					ast_channel_name(chan), ast_getformatname(&fr->subclass.format), ast_getformatname(&chan->writeformat),
+					ast_channel_name(chan), ast_getformatname(&fr->subclass.format), ast_getformatname(ast_channel_writeformat(chan)),
 					ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(chan)));
 				ast_set_write_format_by_id(chan, fr->subclass.format.id);
 			}
@@ -5072,8 +5072,8 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 
 	res = set_format(chan,
 		cap,
-		&chan->rawreadformat,
-		&chan->readformat,
+		ast_channel_rawreadformat(chan),
+		ast_channel_readformat(chan),
 		&trans,
 		0);
 
@@ -5095,8 +5095,8 @@ int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 
 	res = set_format(chan,
 		cap,
-		&chan->rawreadformat,
-		&chan->readformat,
+		ast_channel_rawreadformat(chan),
+		ast_channel_readformat(chan),
 		&trans,
 		0);
 
@@ -5111,8 +5111,8 @@ int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap
 	int res;
 	res = set_format(chan,
 		cap,
-		&chan->rawreadformat,
-		&chan->readformat,
+		ast_channel_rawreadformat(chan),
+		ast_channel_readformat(chan),
 		&trans,
 		0);
 	ast_channel_readtrans_set(chan, trans);
@@ -5131,8 +5131,8 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 
 	res = set_format(chan,
 		cap,
-		&chan->rawwriteformat,
-		&chan->writeformat,
+		ast_channel_rawwriteformat(chan),
+		ast_channel_writeformat(chan),
 		&trans,
 		1);
 
@@ -5154,8 +5154,8 @@ int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 
 	res = set_format(chan,
 		cap,
-		&chan->rawwriteformat,
-		&chan->writeformat,
+		ast_channel_rawwriteformat(chan),
+		ast_channel_writeformat(chan),
 		&trans,
 		1);
 
@@ -5170,8 +5170,8 @@ int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_ca
 	int res;
 	res = set_format(chan,
 		cap,
-		&chan->rawwriteformat,
-		&chan->writeformat,
+		ast_channel_rawwriteformat(chan),
+		ast_channel_writeformat(chan),
 		&trans,
 		1);
 	ast_channel_writetrans_set(chan, trans);
@@ -5805,8 +5805,8 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 		return 0;
 	}
 
-	if ((ast_format_cmp(&from->readformat, &to->writeformat) != AST_FORMAT_CMP_NOT_EQUAL) &&
-		(ast_format_cmp(&to->readformat, &from->writeformat) != AST_FORMAT_CMP_NOT_EQUAL)) {
+	if ((ast_format_cmp(ast_channel_readformat(from), ast_channel_writeformat(to)) != AST_FORMAT_CMP_NOT_EQUAL) &&
+		(ast_format_cmp(ast_channel_readformat(to), ast_channel_writeformat(from)) != AST_FORMAT_CMP_NOT_EQUAL)) {
 		/* Already compatible!  Moving on ... */
 		return 0;
 	}
@@ -6449,8 +6449,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	char masqn[AST_CHANNEL_NAME];
 	char zombn[AST_CHANNEL_NAME];
 
-	ast_format_copy(&rformat, &original->readformat);
-	ast_format_copy(&wformat, &original->writeformat);
+	ast_format_copy(&rformat, ast_channel_readformat(original));
+	ast_format_copy(&wformat, ast_channel_writeformat(original));
 
 	/* XXX This operation is a bit odd.  We're essentially putting the guts of
 	 * the clone channel into the original channel.  Start by killing off the
@@ -6621,13 +6621,13 @@ int ast_do_masquerade(struct ast_channel *original)
 	}
 
 	/* Swap the raw formats */
-	ast_format_copy(&tmp_format, &original->rawreadformat);
-	ast_format_copy(&original->rawreadformat, &clonechan->rawreadformat);
-	ast_format_copy(&clonechan->rawreadformat, &tmp_format);
+	ast_format_copy(&tmp_format, ast_channel_rawreadformat(original));
+	ast_format_copy(ast_channel_rawreadformat(original), ast_channel_rawreadformat(clonechan));
+	ast_format_copy(ast_channel_rawreadformat(clonechan), &tmp_format);
 
-	ast_format_copy(&tmp_format, &original->rawwriteformat);
-	ast_format_copy(&original->rawwriteformat, &clonechan->rawwriteformat);
-	ast_format_copy(&clonechan->rawwriteformat, &tmp_format);
+	ast_format_copy(&tmp_format, ast_channel_rawwriteformat(original));
+	ast_format_copy(ast_channel_rawwriteformat(original), ast_channel_rawwriteformat(clonechan));
+	ast_format_copy(ast_channel_rawwriteformat(clonechan), &tmp_format);
 
 	clonechan->_softhangup = AST_SOFTHANGUP_DEV;
 
@@ -7525,8 +7525,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			}
 		}
 
-		if (((ast_format_cmp(&c1->readformat, &c0->writeformat) == AST_FORMAT_CMP_NOT_EQUAL) ||
-			(ast_format_cmp(&c0->readformat, &c1->writeformat) == AST_FORMAT_CMP_NOT_EQUAL) ||
+		if (((ast_format_cmp(ast_channel_readformat(c1), ast_channel_writeformat(c0)) == AST_FORMAT_CMP_NOT_EQUAL) ||
+			(ast_format_cmp(ast_channel_readformat(c0), ast_channel_writeformat(c1)) == AST_FORMAT_CMP_NOT_EQUAL) ||
 		    !ast_format_cap_identical(ast_channel_nativeformats(c0), o0nativeformats) ||
 			!ast_format_cap_identical(ast_channel_nativeformats(c1), o1nativeformats)) &&
 		    !(ast_channel_generator(c0) || ast_channel_generator(c1))) {
@@ -7653,7 +7653,7 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 
 	if (!(ts = ast_calloc(1, sizeof(*ts))))
 		return NULL;
-	ast_format_copy(&ts->origwfmt, &chan->writeformat);
+	ast_format_copy(&ts->origwfmt, ast_channel_writeformat(chan));
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", ast_channel_name(chan));
 		tonepair_release(NULL, ts);
@@ -8082,7 +8082,7 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
 		return NULL;
 	}
 
-	ast_format_copy(&state->old_write_format, &chan->writeformat);
+	ast_format_copy(&state->old_write_format, ast_channel_writeformat(chan));
 
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could not set write format to SLINEAR\n");

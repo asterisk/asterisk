@@ -8347,8 +8347,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	tmpvars.name = ast_strdupa(ast_channel_name(chan));
 	tmpvars.amaflags = ast_channel_amaflags(chan);
 	tmpvars.state = ast_channel_state(chan);
-	ast_format_copy(&tmpvars.writeformat, &chan->writeformat);
-	ast_format_copy(&tmpvars.readformat, &chan->readformat);
+	ast_format_copy(&tmpvars.writeformat, ast_channel_writeformat(chan));
+	ast_format_copy(&tmpvars.readformat, ast_channel_readformat(chan));
 	tmpvars.cdr = ast_channel_cdr(chan) ? ast_cdr_dup(ast_channel_cdr(chan)) : NULL;
 
 	ast_channel_unlock(chan);
@@ -8368,8 +8368,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	}
 
 	/* Make formats okay */
-	ast_format_copy(&tmpchan->readformat, &tmpvars.readformat);
-	ast_format_copy(&tmpchan->writeformat, &tmpvars.writeformat);
+	ast_format_copy(ast_channel_readformat(tmpchan), &tmpvars.readformat);
+	ast_format_copy(ast_channel_writeformat(tmpchan), &tmpvars.writeformat);
 
 	/* Setup proper location. Never hold another channel lock while calling this function. */
 	ast_explicit_goto(tmpchan, S_OR(context, tmpvars.context), S_OR(exten, tmpvars.exten), priority);

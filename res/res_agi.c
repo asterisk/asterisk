@@ -2289,7 +2289,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	}
 
 	if (silence > 0) {
-		ast_format_copy(&rfmt, &chan->readformat);
+		ast_format_copy(&rfmt, ast_channel_readformat(chan));
 		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
@@ -2937,7 +2937,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		offset = atoi(argv[4]);
 
 	/* We want frames coming in signed linear */
-	ast_format_copy(&old_read_format, &chan->readformat);
+	ast_format_copy(&old_read_format, ast_channel_readformat(chan));
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 		return RESULT_SUCCESS;
@@ -3934,7 +3934,7 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_ERROR, "EAGI cannot be run on a dead/hungup channel, please use AGI.\n");
 		return 0;
 	}
-	ast_format_copy(&readformat, &chan->readformat);
+	ast_format_copy(&readformat, ast_channel_readformat(chan));
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", ast_channel_name(chan));
 		return -1;

@@ -572,9 +572,9 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 
 	ast_channel_tech_set(tmp, &alsa_tech);
 	ast_channel_set_fd(tmp, 0, readdev);
-	ast_format_set(&tmp->readformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&tmp->writeformat, AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(ast_channel_nativeformats(tmp), &tmp->writeformat);
+	ast_format_set(ast_channel_readformat(tmp), AST_FORMAT_SLINEAR, 0);
+	ast_format_set(ast_channel_writeformat(tmp), AST_FORMAT_SLINEAR, 0);
+	ast_format_cap_add(ast_channel_nativeformats(tmp), ast_channel_writeformat(tmp));
 
 	ast_channel_tech_pvt_set(tmp, p);
 	if (!ast_strlen_zero(p->context))

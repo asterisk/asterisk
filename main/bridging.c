@@ -553,11 +553,11 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_format formats[2];
-	ast_format_copy(&formats[0], &bridge_channel->chan->readformat);
-	ast_format_copy(&formats[1], &bridge_channel->chan->writeformat);
+	ast_format_copy(&formats[0], ast_channel_readformat(bridge_channel->chan));
+	ast_format_copy(&formats[1], ast_channel_writeformat(bridge_channel->chan));
 
 	/* Are the formats currently in use something ths bridge can handle? */
-	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &bridge_channel->chan->readformat)) {
+	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, ast_channel_readformat(bridge_channel->chan))) {
 		struct ast_format best_format;
 		ast_best_codec(bridge->technology->format_capabilities, &best_format);
 
@@ -917,8 +917,8 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 {
 	struct ast_format formats[2];
 	enum ast_bridge_channel_state state;
-	ast_format_copy(&formats[0], &bridge_channel->chan->readformat);
-	ast_format_copy(&formats[1], &bridge_channel->chan->writeformat);
+	ast_format_copy(&formats[0], ast_channel_readformat(bridge_channel->chan));
+	ast_format_copy(&formats[1], ast_channel_writeformat(bridge_channel->chan));
 
 	/* Record the thread that will be the owner of us */
 	bridge_channel->thread = pthread_self();
@@ -1035,13 +1035,13 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 	ao2_unlock(bridge_channel->bridge);
 
 	/* Restore original formats of the channel as they came in */
-	if (ast_format_cmp(&bridge_channel->chan->readformat, &formats[0]) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(ast_channel_readformat(bridge_channel->chan), &formats[0]) == AST_FORMAT_CMP_NOT_EQUAL) {
 		ast_debug(1, "Bridge is returning %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
 		if (ast_set_read_format(bridge_channel->chan, &formats[0])) {
 			ast_debug(1, "Bridge failed to return channel %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
 		}
 	}
-	if (ast_format_cmp(&bridge_channel->chan->writeformat, &formats[1]) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(ast_channel_writeformat(bridge_channel->chan), &formats[1]) == AST_FORMAT_CMP_NOT_EQUAL) {
 		ast_debug(1, "Bridge is returning %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
 		if (ast_set_write_format(bridge_channel->chan, &formats[1])) {
 			ast_debug(1, "Bridge failed to return channel %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);

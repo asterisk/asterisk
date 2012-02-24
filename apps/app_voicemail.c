@@ -12814,12 +12814,12 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 	}
 
 	/* normally this is done in the channel driver */
-	ast_format_set(&test_channel1->writeformat, AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_writeformat(test_channel1), AST_FORMAT_GSM, 0);
 	nativeformats = ast_channel_nativeformats(test_channel1);
-	ast_format_cap_add(nativeformats, &test_channel1->writeformat);
-	ast_format_set(&test_channel1->rawwriteformat, AST_FORMAT_GSM, 0);
-	ast_format_set(&test_channel1->readformat, AST_FORMAT_GSM, 0);
-	ast_format_set(&test_channel1->rawreadformat, AST_FORMAT_GSM, 0);
+	ast_format_cap_add(nativeformats, ast_channel_writeformat(test_channel1));
+	ast_format_set(ast_channel_rawwriteformat(test_channel1), AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_readformat(test_channel1), AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_rawreadformat(test_channel1), AST_FORMAT_GSM, 0);
 	ast_channel_tech_set(test_channel1, &fake_tech);
 
 	ast_test_status_update(test, "Test playing of extension when greeting is not available...\n");

@@ -9116,15 +9116,15 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return f;
 	}
 
-	if (ast->rawreadformat.id == AST_FORMAT_SLINEAR) {
+	if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_SLINEAR) {
 		if (!p->subs[idx].linear) {
 			p->subs[idx].linear = 1;
 			res = dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, idx);
 		}
-	} else if ((ast->rawreadformat.id == AST_FORMAT_ULAW) ||
-		(ast->rawreadformat.id == AST_FORMAT_ALAW)) {
+	} else if ((ast_channel_rawreadformat(ast)->id == AST_FORMAT_ULAW) ||
+		(ast_channel_rawreadformat(ast)->id == AST_FORMAT_ALAW)) {
 		if (p->subs[idx].linear) {
 			p->subs[idx].linear = 0;
 			res = dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
@@ -9132,7 +9132,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, idx);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(&ast->rawreadformat));
+		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast_channel_rawreadformat(ast)));
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
@@ -9224,7 +9224,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	}
 
 	p->subs[idx].f.frametype = AST_FRAME_VOICE;
-	ast_format_copy(&p->subs[idx].f.subclass.format, &ast->rawreadformat);
+	ast_format_copy(&p->subs[idx].f.subclass.format, ast_channel_rawreadformat(ast));
 	p->subs[idx].f.samples = READ_SIZE;
 	p->subs[idx].f.mallocd = 0;
 	p->subs[idx].f.offset = AST_FRIENDLY_OFFSET;
@@ -9675,10 +9675,10 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	ast_channel_set_fd(tmp, 0, i->subs[idx].dfd);
 	ast_format_cap_add(ast_channel_nativeformats(tmp), &deflaw);
 	/* Start out assuming ulaw since it's smaller :) */
-	ast_format_copy(&tmp->rawreadformat, &deflaw);
-	ast_format_copy(&tmp->readformat, &deflaw);
-	ast_format_copy(&tmp->rawwriteformat, &deflaw);
-	ast_format_copy(&tmp->writeformat, &deflaw);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &deflaw);
+	ast_format_copy(ast_channel_readformat(tmp), &deflaw);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &deflaw);
+	ast_format_copy(ast_channel_writeformat(tmp), &deflaw);
 	i->subs[idx].linear = 0;
 	dahdi_setlinear(i->subs[idx].dfd, i->subs[idx].linear);
 	features = 0;

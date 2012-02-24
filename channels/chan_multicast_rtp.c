@@ -159,10 +159,10 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 	ast_channel_tech_set(chan, &multicast_rtp_tech);
 
 	ast_format_cap_add(ast_channel_nativeformats(chan), &fmt);
-	ast_format_copy(&chan->writeformat, &fmt);
-	ast_format_copy(&chan->rawwriteformat, &fmt);
-	ast_format_copy(&chan->readformat, &fmt);
-	ast_format_copy(&chan->rawreadformat, &fmt);
+	ast_format_copy(ast_channel_writeformat(chan), &fmt);
+	ast_format_copy(ast_channel_rawwriteformat(chan), &fmt);
+	ast_format_copy(ast_channel_readformat(chan), &fmt);
+	ast_format_copy(ast_channel_rawreadformat(chan), &fmt);
 
 	ast_channel_tech_pvt_set(chan, instance);
 

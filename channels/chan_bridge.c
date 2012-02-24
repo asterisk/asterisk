@@ -188,14 +188,14 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 
 	ast_format_cap_add(ast_channel_nativeformats(p->input), &slin);
 	ast_format_cap_add(ast_channel_nativeformats(p->output), &slin);
-	ast_format_copy(&p->input->readformat, &slin);
-	ast_format_copy(&p->output->readformat, &slin);
-	ast_format_copy(&p->input->rawreadformat, &slin);
-	ast_format_copy(&p->output->rawreadformat, &slin);
-	ast_format_copy(&p->input->writeformat, &slin);
-	ast_format_copy(&p->output->writeformat, &slin);
-	ast_format_copy(&p->input->rawwriteformat, &slin);
-	ast_format_copy(&p->output->rawwriteformat, &slin);
+	ast_format_copy(ast_channel_readformat(p->input), &slin);
+	ast_format_copy(ast_channel_readformat(p->output), &slin);
+	ast_format_copy(ast_channel_rawreadformat(p->input), &slin);
+	ast_format_copy(ast_channel_rawreadformat(p->output), &slin);
+	ast_format_copy(ast_channel_writeformat(p->input), &slin);
+	ast_format_copy(ast_channel_writeformat(p->output), &slin);
+	ast_format_copy(ast_channel_rawwriteformat(p->input), &slin);
+	ast_format_copy(ast_channel_rawwriteformat(p->output), &slin);
 
 	ast_answer(p->output);
 	ast_answer(p->input);

@@ -6589,8 +6589,8 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s read/write = %s/%s\n",
 				ast_getformatname(&frame->subclass.format),
 				ast_getformatname_multiple(s1, sizeof(s1), ast_channel_nativeformats(ast)),
-				ast_getformatname(&ast->readformat),
-				ast_getformatname(&ast->writeformat));
+				ast_getformatname(ast_channel_readformat(ast)),
+				ast_getformatname(ast_channel_writeformat(ast)));
 			return 0;
 		}
 		if (p) {
@@ -7230,12 +7230,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
 
-	ast_format_copy(&tmp->writeformat, &fmt);
-	ast_format_copy(&tmp->rawwriteformat, &fmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &fmt);
 	ast_rtp_instance_set_write_format(i->rtp, &fmt);
 
-	ast_format_copy(&tmp->readformat, &fmt);
-	ast_format_copy(&tmp->rawreadformat, &fmt);
+	ast_format_copy(ast_channel_readformat(tmp), &fmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &fmt);
 	ast_rtp_instance_set_read_format(i->rtp, &fmt);
 
 	ast_channel_tech_pvt_set(tmp, dialog_ref(i, "sip_new: set chan->tech_pvt to i"));
@@ -7579,8 +7579,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			ast_getformatname(&f->subclass.format));
 		ast_format_cap_remove_bytype(ast_channel_nativeformats(p->owner), AST_FORMAT_TYPE_AUDIO);
 		ast_format_cap_add(ast_channel_nativeformats(p->owner), &f->subclass.format);
-		ast_set_read_format(p->owner, &p->owner->readformat);
-		ast_set_write_format(p->owner, &p->owner->writeformat);
+		ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
+		ast_set_write_format(p->owner, ast_channel_writeformat(p->owner));
 	}
 
 	if (f && p->dsp) {
@@ -9656,8 +9656,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_format_cap_joint_append(p->caps, vpeercapability, ast_channel_nativeformats(p->owner));
 		ast_format_cap_joint_append(p->caps, tpeercapability, ast_channel_nativeformats(p->owner));
 
-		ast_set_read_format(p->owner, &p->owner->readformat);
-		ast_set_write_format(p->owner, &p->owner->writeformat);
+		ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
+		ast_set_write_format(p->owner, ast_channel_writeformat(p->owner));
 	}
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (!ast_sockaddr_isnull(sa) || !ast_sockaddr_isnull(vsa) || !ast_sockaddr_isnull(tsa) || !ast_sockaddr_isnull(isa)) && (!sendonly || sendonly == -1)) {
@@ -22303,8 +22303,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	}
 
 	/* Make formats okay */
-	transferee->readformat = chan1->readformat;
-	transferee->writeformat = chan1->writeformat;
+	ast_format_copy(ast_channel_readformat(transferee), ast_channel_readformat(chan1));
+	ast_format_copy(ast_channel_writeformat(transferee), ast_channel_writeformat(chan1));
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(transferee, chan1)) {
@@ -22327,8 +22327,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	   back the announcement */
 
 	/* Make formats okay */
-	transferer->readformat = chan2->readformat;
-	transferer->writeformat = chan2->writeformat;
+	ast_format_copy(ast_channel_readformat(transferer), ast_channel_readformat(chan2));
+	ast_format_copy(ast_channel_writeformat(transferer), ast_channel_writeformat(chan2));
 	ast_channel_parkinglot_set(transferer, ast_channel_parkinglot(chan2));
 
 	/* Prepare for taking over the channel */

@@ -131,7 +131,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 			}
 		}
 
-		ast_format_copy(&origrformat, &chan->readformat);
+		ast_format_copy(&origrformat, ast_channel_readformat(chan));
 		if ((ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR))) {
 			ast_log(LOG_WARNING, "Unable to set read format to linear!\n");
 			res = -1;

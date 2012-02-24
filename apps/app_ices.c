@@ -145,7 +145,7 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	ast_format_copy(&oreadformat, &chan->readformat);
+	ast_format_copy(&oreadformat, ast_channel_readformat(chan));
 	res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		close(fds[0]);

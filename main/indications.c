@@ -147,7 +147,7 @@ static void *playtones_alloc(struct ast_channel *chan, void *params)
 		return NULL;
 	}
 
-	ast_format_copy(&ps->origwfmt, &chan->writeformat);
+	ast_format_copy(&ps->origwfmt, ast_channel_writeformat(chan));
 
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", ast_channel_name(chan));

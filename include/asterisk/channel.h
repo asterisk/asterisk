@@ -869,7 +869,7 @@ struct ast_channel {
 	int __do_not_use_fdno;					/*!< Which fd had an event detected on */
 	int __do_not_use_streamid;					/*!< For streaming playback, the schedule ID */
 	int __do_not_use_vstreamid;					/*!< For streaming video playback, the schedule ID */
-	struct ast_format oldwriteformat;  /*!< Original writer format */
+	struct ast_format __do_not_use_oldwriteformat;  /*!< Original writer format */
 	int __do_not_use_timingfd;					/*!< Timing fd */
 	enum ast_channel_state __do_not_use_state;			/*!< State of line -- Don't write directly, use ast_setstate() */
 	int __do_not_use_rings;					/*!< Number of rings so far */
@@ -885,10 +885,10 @@ struct ast_channel {
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
 	int alertpipe[2];
 	struct ast_format_cap *__do_not_use_nativeformats;         /*!< Kinds of data this channel can natively handle */
-	struct ast_format readformat;            /*!< Requested read format (after translation) */
-	struct ast_format writeformat;           /*!< Requested write format (after translation) */
-	struct ast_format rawreadformat;         /*!< Raw read format (before translation) */
-	struct ast_format rawwriteformat;        /*!< Raw write format (before translation) */
+	struct ast_format __do_not_use_readformat;            /*!< Requested read format (after translation) */
+	struct ast_format __do_not_use_writeformat;           /*!< Requested write format (after translation) */
+	struct ast_format __do_not_use_rawreadformat;         /*!< Raw read format (before translation) */
+	struct ast_format __do_not_use_rawwriteformat;        /*!< Raw write format (before translation) */
 	unsigned int __do_not_use_emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
 #ifdef HAVE_EPOLL
 	int __do_not_use_epfd;
@@ -3731,4 +3731,12 @@ void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe 
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
 /* XXX Internal use only, make sure to move later */
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state);
+
+/* Format getters */
+struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan);
+struct ast_format *ast_channel_rawreadformat(struct ast_channel *chan);
+struct ast_format *ast_channel_rawwriteformat(struct ast_channel *chan);
+struct ast_format *ast_channel_readformat(struct ast_channel *chan);
+struct ast_format *ast_channel_writeformat(struct ast_channel *chan);
+
 #endif /* _ASTERISK_CHANNEL_H */

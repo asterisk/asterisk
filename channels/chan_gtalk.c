@@ -1170,10 +1170,10 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
 
 	ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
-	ast_format_copy(&tmp->writeformat, &tmpfmt);
-	ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
-	ast_format_copy(&tmp->readformat, &tmpfmt);
-	ast_format_copy(&tmp->rawreadformat, &tmpfmt);
+	ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
+	ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
 	ast_channel_tech_pvt_set(tmp, i);
 
 	tmp->callgroup = client->callgroup;
@@ -1628,8 +1628,8 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
 				ast_format_cap_remove_bytype(ast_channel_nativeformats(p->owner), AST_FORMAT_TYPE_AUDIO);
 				ast_format_cap_add(ast_channel_nativeformats(p->owner), &f->subclass.format);
-				ast_set_read_format(p->owner, &p->owner->readformat);
-				ast_set_write_format(p->owner, &p->owner->writeformat);
+				ast_set_read_format(p->owner, ast_channel_readformat(p->owner));
+				ast_set_write_format(p->owner, ast_channel_writeformat(p->owner));
 			}
 			/* if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
@@ -1666,8 +1666,8 @@ static int gtalk_write(struct ast_channel *ast, struct ast_frame *frame)
 					"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 					ast_getformatname(&frame->subclass.format),
 					ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
-					ast_getformatname(&ast->readformat),
-					ast_getformatname(&ast->writeformat));
+					ast_getformatname(ast_channel_readformat(ast)),
+					ast_getformatname(ast_channel_writeformat(ast)));
 			return 0;
 		}
 		if (p) {
@@ -1992,8 +1992,8 @@ static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 					ast_channel_name(chan),
 					jid,
 					resource,
-					ast_getformatname(&chan->readformat),
-					ast_getformatname(&chan->writeformat)
+					ast_getformatname(ast_channel_readformat(chan)),
+					ast_getformatname(ast_channel_writeformat(chan))
 					);
 			else
 				ast_log(LOG_WARNING, "No available channel\n");

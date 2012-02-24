@@ -392,7 +392,7 @@ static int phone_setup(struct ast_channel *ast)
 	p = ast_channel_tech_pvt(ast);
 	ioctl(p->fd, PHONE_CPT_STOP);
 	/* Nothing to answering really, just start recording */
-	if (ast->rawreadformat.id == AST_FORMAT_G729A) {
+	if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_G729A) {
 		/* Prefer g729 */
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput.id != AST_FORMAT_G729A) {
@@ -402,7 +402,7 @@ static int phone_setup(struct ast_channel *ast)
 				return -1;
 			}
 		}
-        } else if (ast->rawreadformat.id == AST_FORMAT_G723_1) {
+        } else if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_G723_1) {
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput.id != AST_FORMAT_G723_1) {
 			ast_format_set(&p->lastinput, AST_FORMAT_G723_1, 0);
@@ -411,7 +411,7 @@ static int phone_setup(struct ast_channel *ast)
 				return -1;
 			}
 		}
-	} else if (ast->rawreadformat.id == AST_FORMAT_SLINEAR) {
+	} else if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_SLINEAR) {
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput.id != AST_FORMAT_SLINEAR) {
 			ast_format_set(&p->lastinput, AST_FORMAT_SLINEAR, 0);
@@ -420,7 +420,7 @@ static int phone_setup(struct ast_channel *ast)
 				return -1;
 			}
 		}
-	} else if (ast->rawreadformat.id == AST_FORMAT_ULAW) {
+	} else if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_ULAW) {
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput.id != AST_FORMAT_ULAW) {
 			ast_format_set(&p->lastinput, AST_FORMAT_ULAW, 0);
@@ -431,16 +431,16 @@ static int phone_setup(struct ast_channel *ast)
 		}
 	} else if (p->mode == MODE_FXS) {
 		ioctl(p->fd, PHONE_REC_STOP);
-		if (ast_format_cmp(&p->lastinput, &ast->rawreadformat) == AST_FORMAT_CMP_NOT_EQUAL) {
-			ast_format_copy(&p->lastinput, &ast->rawreadformat);
-			if (ioctl(p->fd, PHONE_REC_CODEC, &ast->rawreadformat)) {
+		if (ast_format_cmp(&p->lastinput, ast_channel_rawreadformat(ast)) == AST_FORMAT_CMP_NOT_EQUAL) {
+			ast_format_copy(&p->lastinput, ast_channel_rawreadformat(ast));
+			if (ioctl(p->fd, PHONE_REC_CODEC, ast_channel_rawreadformat(ast))) {
 				ast_log(LOG_WARNING, "Failed to set codec to %s\n", 
-					ast_getformatname(&ast->rawreadformat));
+					ast_getformatname(ast_channel_rawreadformat(ast)));
 				return -1;
 			}
 		}
 	} else {
-		ast_log(LOG_WARNING, "Can't do format %s\n", ast_getformatname(&ast->rawreadformat));
+		ast_log(LOG_WARNING, "Can't do format %s\n", ast_getformatname(ast_channel_rawreadformat(ast)));
 		return -1;
 	}
 	if (ioctl(p->fd, PHONE_REC_START)) {
@@ -859,16 +859,16 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		    ioctl(i->fd, PHONE_QUERY_CODEC, &queried_codec) == 0) {
 			if (queried_codec.type == LINEAR16) {
 				ast_format_cap_add(ast_channel_nativeformats(tmp), ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-				ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-				ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+				ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
+				ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
 			} else {
 				ast_format_cap_remove(prefcap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 			}
 		} else {
 			ast_format_cap_copy(ast_channel_nativeformats(tmp), prefcap);
 			ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
-			ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-			ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+			ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
+			ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
 		}
 		/* no need to call ast_setstate: the channel_alloc already did its job */
 		if (state == AST_STATE_RING)

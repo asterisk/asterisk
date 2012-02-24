@@ -195,7 +195,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", ast_channel_name(chan),
 		S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, "(N/A)"),
 		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "(N/A)"),
-		ast_getformatname(&chan->readformat));
+		ast_getformatname(ast_channel_readformat(chan)));
 
 	/* Lets parse the arguments. */
 	if (!ast_strlen_zero(parse)) {
@@ -244,7 +244,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold, maximumWordLength);
 
 	/* Set read format to signed linear so we get signed linear frames in */
-	ast_format_copy(&readFormat, &chan->readformat);
+	ast_format_copy(&readFormat, ast_channel_readformat(chan));
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0 ) {
 		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");

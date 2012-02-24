@@ -131,8 +131,8 @@ int ast_stopstream(struct ast_channel *tmp)
 	if (ast_channel_stream(tmp)) {
 		ast_closestream(ast_channel_stream(tmp));
 		ast_channel_stream_set(tmp, NULL);
-		if (tmp->oldwriteformat.id && ast_set_write_format(tmp, &tmp->oldwriteformat))
-			ast_log(LOG_WARNING, "Unable to restore format back to %s\n", ast_getformatname(&tmp->oldwriteformat));
+		if (ast_channel_oldwriteformat(tmp)->id && ast_set_write_format(tmp, ast_channel_oldwriteformat(tmp)))
+			ast_log(LOG_WARNING, "Unable to restore format back to %s\n", ast_getformatname(ast_channel_oldwriteformat(tmp)));
 	}
 	/* Stop the video stream too */
 	if (ast_channel_vstream(tmp) != NULL) {
@@ -467,7 +467,7 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				FILE *bfile;
 				struct ast_filestream *s;
 
-				if ((ast_format_cmp(&chan->writeformat, &f->format) == AST_FORMAT_CMP_NOT_EQUAL) &&
+				if ((ast_format_cmp(ast_channel_writeformat(chan), &f->format) == AST_FORMAT_CMP_NOT_EQUAL) &&
 				     !(((AST_FORMAT_GET_TYPE(f->format.id) == AST_FORMAT_TYPE_AUDIO) && fmt) ||
 					  ((AST_FORMAT_GET_TYPE(f->format.id) == AST_FORMAT_TYPE_VIDEO) && fmt))) {
 					ast_free(fn);
@@ -701,7 +701,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	}
 
 	/* Set the channel to a format we can work with and save off the previous format. */
-	ast_format_copy(&chan->oldwriteformat, &chan->writeformat);
+	ast_format_copy(ast_channel_oldwriteformat(chan), ast_channel_writeformat(chan));
 	/* Set the channel to the best format that exists for the file. */
 	res = ast_set_write_format_from_cap(chan, file_fmt_cap);
 	/* don't need this anymore now that the channel's write format is set. */
@@ -1049,7 +1049,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	res = ast_playstream(fs);
 	if (!res && vfs)
 		res = ast_playstream(vfs);
-	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), filename, ast_getformatname(&chan->writeformat), preflang ? preflang : "default");
+	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), filename, ast_getformatname(ast_channel_writeformat(chan)), preflang ? preflang : "default");
 
 	return res;
 }

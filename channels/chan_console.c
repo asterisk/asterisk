@@ -420,9 +420,9 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 	}
 
 	ast_channel_tech_set(chan, &console_tech);
-	ast_format_set(&chan->readformat, AST_FORMAT_SLINEAR16, 0);
-	ast_format_set(&chan->writeformat, AST_FORMAT_SLINEAR16, 0);
-	ast_format_cap_add(ast_channel_nativeformats(chan), &chan->readformat);
+	ast_format_set(ast_channel_readformat(chan), AST_FORMAT_SLINEAR16, 0);
+	ast_format_set(ast_channel_writeformat(chan), AST_FORMAT_SLINEAR16, 0);
+	ast_format_cap_add(ast_channel_nativeformats(chan), ast_channel_readformat(chan));
 	ast_channel_tech_pvt_set(chan, ref_pvt(pvt));
 
 	pvt->owner = chan;

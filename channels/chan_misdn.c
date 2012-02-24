@@ -8137,10 +8137,10 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 
 		ast_best_codec(cap, &tmpfmt);
 		ast_format_cap_add(ast_channel_nativeformats(tmp), &prefformat);
-		ast_format_copy(&tmp->writeformat, &tmpfmt);
-		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
-		ast_format_copy(&tmp->readformat, &tmpfmt);
-		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
+		ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
 
 		/* Link the channel and private together */
 		chan_list_ref(chlist, "Give a reference to ast_channel");

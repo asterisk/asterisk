@@ -836,8 +836,8 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 	cs[2] = NULL;
 	for (;;) {
 		/* If the underlying formats have changed force this bridge to break */
-		if ((ast_format_cmp(&c0->rawreadformat, &c1->rawwriteformat) == AST_FORMAT_CMP_NOT_EQUAL) ||
-			(ast_format_cmp(&c1->rawreadformat, &c0->rawwriteformat) == AST_FORMAT_CMP_NOT_EQUAL)) {
+		if ((ast_format_cmp(ast_channel_rawreadformat(c0), ast_channel_rawwriteformat(c1)) == AST_FORMAT_CMP_NOT_EQUAL) ||
+			(ast_format_cmp(ast_channel_rawreadformat(c1), ast_channel_rawwriteformat(c0)) == AST_FORMAT_CMP_NOT_EQUAL)) {
 			ast_debug(1, "rtp-engine-local-bridge: Oooh, formats changed, backing out\n");
 			res = AST_BRIDGE_FAILED_NOWARN;
 			break;

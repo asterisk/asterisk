@@ -126,7 +126,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 1 && args.filename) {
 		filename = args.filename;
 	}
-	ast_format_copy(&oldr, &chan->readformat);
+	ast_format_copy(&oldr, ast_channel_readformat(chan));
 	if ((res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
 		return -1;

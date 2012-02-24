@@ -876,8 +876,8 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 
 	/* Make formats okay */
-	xferchan->readformat = chan->readformat;
-	xferchan->writeformat = chan->writeformat;
+	ast_format_copy(ast_channel_readformat(xferchan), ast_channel_readformat(chan));
+	ast_format_copy(ast_channel_writeformat(xferchan), ast_channel_writeformat(chan));
 
 	if (ast_channel_masquerade(xferchan, chan)) {
 		/* Failed to setup masquerade. */
@@ -1672,8 +1672,8 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, s
 	}
 
 	/* Make formats okay */
-	chan->readformat = rchan->readformat;
-	chan->writeformat = rchan->writeformat;
+	ast_format_copy(ast_channel_readformat(chan), ast_channel_readformat(rchan));
+	ast_format_copy(ast_channel_writeformat(chan), ast_channel_writeformat(rchan));
 
 	if (ast_channel_masquerade(chan, rchan)) {
 		park_space_abort(args->pu);
@@ -2726,8 +2726,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_channel_visible_indication_set(xferchan, AST_CONTROL_RINGING);
 
 	/* Make formats okay */
-	xferchan->readformat = transferee->readformat;
-	xferchan->writeformat = transferee->writeformat;
+	ast_format_copy(ast_channel_readformat(xferchan), ast_channel_readformat(transferee));
+	ast_format_copy(ast_channel_writeformat(xferchan), ast_channel_writeformat(transferee));
 
 	ast_channel_masquerade(xferchan, transferee);
 	ast_explicit_goto(xferchan, ast_channel_context(transferee), ast_channel_exten(transferee), ast_channel_priority(transferee));
@@ -6828,8 +6828,8 @@ static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *t
 	ast_moh_stop(chan);
 	ast_channel_lock_both(chan, tmpchan);
 	ast_setstate(tmpchan, ast_channel_state(chan));
-	tmpchan->readformat = chan->readformat;
-	tmpchan->writeformat = chan->writeformat;
+	ast_format_copy(ast_channel_readformat(tmpchan), ast_channel_readformat(chan));
+	ast_format_copy(ast_channel_writeformat(tmpchan), ast_channel_writeformat(chan));
 	ast_channel_unlock(chan);
 	ast_channel_unlock(tmpchan);
 
@@ -7937,10 +7937,10 @@ static struct ast_channel *create_test_channel(const struct ast_channel_tech *fa
 	/* normally this is done in the channel driver */
 	ast_format_cap_add(ast_channel_nativeformats(test_channel1), ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
 
-	ast_format_set(&test_channel1->writeformat, AST_FORMAT_GSM, 0);
-	ast_format_set(&test_channel1->rawwriteformat, AST_FORMAT_GSM, 0);
-	ast_format_set(&test_channel1->readformat, AST_FORMAT_GSM, 0);
-	ast_format_set(&test_channel1->rawreadformat, AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_writeformat(test_channel1), AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_rawwriteformat(test_channel1), AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_readformat(test_channel1), AST_FORMAT_GSM, 0);
+	ast_format_set(ast_channel_rawreadformat(test_channel1), AST_FORMAT_GSM, 0);
 
 	ast_channel_tech_set(test_channel1, fake_tech);
 

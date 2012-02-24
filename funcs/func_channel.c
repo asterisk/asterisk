@@ -317,9 +317,9 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			tmpcap = ast_format_cap_destroy(tmpcap);
 		}
 	} else if (!strcasecmp(data, "audioreadformat")) {
-		ast_copy_string(buf, ast_getformatname(&chan->readformat), len);
+		ast_copy_string(buf, ast_getformatname(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
-		ast_copy_string(buf, ast_getformatname(&chan->writeformat), len);
+		ast_copy_string(buf, ast_getformatname(ast_channel_writeformat(chan)), len);
 #ifdef CHANNEL_TRACE
 	} else if (!strcasecmp(data, "trace")) {
 		ast_channel_lock(chan);

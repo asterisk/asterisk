@@ -227,10 +227,10 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 		ast_channel_set_fd(tmp, 0, nbs_fd(i->nbs));
 
 		ast_format_cap_add(ast_channel_nativeformats(tmp), &prefformat);
-		ast_format_copy(&tmp->rawreadformat, &prefformat);
-		ast_format_copy(&tmp->rawwriteformat, &prefformat);
-		ast_format_copy(&tmp->writeformat, &prefformat);
-		ast_format_copy(&tmp->readformat, &prefformat);
+		ast_format_copy(ast_channel_rawreadformat(tmp), &prefformat);
+		ast_format_copy(ast_channel_rawwriteformat(tmp), &prefformat);
+		ast_format_copy(ast_channel_writeformat(tmp), &prefformat);
+		ast_format_copy(ast_channel_readformat(tmp), &prefformat);
 		if (state == AST_STATE_RING)
 			ast_channel_rings_set(tmp, 1);
 		ast_channel_tech_pvt_set(tmp, i);

@@ -465,7 +465,7 @@ static int transmit_audio(fax_session *s)
         t30state = &fax.t30_state;
 #endif
 
-	ast_format_copy(&original_read_fmt, &s->chan->readformat);
+	ast_format_copy(&original_read_fmt, ast_channel_readformat(s->chan));
 	if (original_read_fmt.id != AST_FORMAT_SLINEAR) {
 		res = ast_set_read_format_by_id(s->chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
@@ -474,7 +474,7 @@ static int transmit_audio(fax_session *s)
 		}
 	}
 
-	ast_format_copy(&original_write_fmt, &s->chan->writeformat);
+	ast_format_copy(&original_write_fmt, ast_channel_writeformat(s->chan));
 	if (original_write_fmt.id != AST_FORMAT_SLINEAR) {
 		res = ast_set_write_format_by_id(s->chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {

@@ -678,7 +678,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	}
 
 	/* Record old read format */
-	ast_format_copy(&oldreadformat, &chan->readformat);
+	ast_format_copy(&oldreadformat, ast_channel_readformat(chan));
 
 	/* Change read format to be signed linear */
 	if (ast_set_read_format(chan, &speech->format))

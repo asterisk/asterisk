@@ -845,10 +845,10 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 
 	ast_channel_tech_set(chn, &mbl_tech);
 	ast_format_cap_add(ast_channel_nativeformats(chn), &prefformat);
-	ast_format_copy(&chn->rawreadformat, &prefformat);
-	ast_format_copy(&chn->rawwriteformat, &prefformat);
-	ast_format_copy(&chn->writeformat, &prefformat);
-	ast_format_copy(&chn->readformat, &prefformat);
+	ast_format_copy(ast_channel_rawreadformat(chn), &prefformat);
+	ast_format_copy(ast_channel_rawwriteformat(chn), &prefformat);
+	ast_format_copy(ast_channel_writeformat(chn), &prefformat);
+	ast_format_copy(ast_channel_readformat(chn), &prefformat);
 	ast_channel_tech_pvt_set(chn, pvt);
 
 	if (state == AST_STATE_RING)

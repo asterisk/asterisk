@@ -2320,7 +2320,7 @@ static void *do_chanreads(void *pvt)
 		ast_mutex_unlock(&p->play_dtmf_lock);
 
 		if (p->owner) {
-			ast_format_copy(&tmpfmt, &p->owner->rawreadformat);
+			ast_format_copy(&tmpfmt, ast_channel_rawreadformat(p->owner));
 		} else {
 			ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0);
 		}
@@ -2458,8 +2458,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		 * linear since we can then adjust volume in this modules.
 		 */
 		ast_format_cap_add(ast_channel_nativeformats(tmp), ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
-		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
 		if (state == AST_STATE_RING) {
 			ast_channel_rings_set(tmp, 1);
 			cid_name[0] = '\0';

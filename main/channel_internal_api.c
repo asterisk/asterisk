@@ -137,11 +137,11 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 		}
 	}
 
-	ast_data_add_codec(tree, "oldwriteformat", &chan->oldwriteformat);
-	ast_data_add_codec(tree, "readformat", &chan->readformat);
-	ast_data_add_codec(tree, "writeformat", &chan->writeformat);
-	ast_data_add_codec(tree, "rawreadformat", &chan->rawreadformat);
-	ast_data_add_codec(tree, "rawwriteformat", &chan->rawwriteformat);
+	ast_data_add_codec(tree, "oldwriteformat", ast_channel_oldwriteformat(chan));
+	ast_data_add_codec(tree, "readformat", ast_channel_readformat(chan));
+	ast_data_add_codec(tree, "writeformat", ast_channel_writeformat(chan));
+	ast_data_add_codec(tree, "rawreadformat", ast_channel_rawreadformat(chan));
+	ast_data_add_codec(tree, "rawwriteformat", ast_channel_rawwriteformat(chan));
 	ast_data_add_codecs(tree, "nativeformats", ast_channel_nativeformats(chan));
 
 	/* state */
@@ -683,4 +683,24 @@ enum ast_channel_state ast_channel_state(const struct ast_channel *chan)
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state value)
 {
 	chan->__do_not_use_state = value;
+}
+struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_oldwriteformat;
+}
+struct ast_format *ast_channel_rawreadformat(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_rawreadformat;
+}
+struct ast_format *ast_channel_rawwriteformat(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_rawwriteformat;
+}
+struct ast_format *ast_channel_readformat(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_readformat;
+}
+struct ast_format *ast_channel_writeformat(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_writeformat;
 }
