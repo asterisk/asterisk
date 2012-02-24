@@ -63,10 +63,12 @@ struct ast_srtp_policy {
 	srtp_policy_t sp;
 };
 
+/*! Tracks whether or not we've initialized the libsrtp library */
 static int g_initialized = 0;
 
 /* SRTP functions */
 static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
+static int ast_srtp_replace(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
 static void ast_srtp_destroy(struct ast_srtp *srtp);
 static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *policy);
 static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc, unsigned int to_ssrc);
@@ -85,6 +87,7 @@ static void ast_srtp_policy_set_ssrc(struct ast_srtp_policy *policy, unsigned lo
 
 static struct ast_srtp_res srtp_res = {
 	.create = ast_srtp_create,
+	.replace = ast_srtp_replace,
 	.destroy = ast_srtp_destroy,
 	.add_stream = ast_srtp_add_stream,
 	.change_source = ast_srtp_change_source,
@@ -343,35 +346,33 @@ tryagain:
 	}
 
 	if (retry == 0  && res == err_status_replay_old) {
-		ast_log(LOG_WARNING, "SRTP unprotect: %s\n", srtp_errstr(res));
+		ast_log(AST_LOG_NOTICE, "SRTP unprotect failed with %s, retrying\n", srtp_errstr(res));
 
 		if (srtp->session) {
 			struct ast_srtp_policy *policy;
 			struct ao2_iterator it;
 			int policies_count;
 
-			// dealloc first
-			ast_log(LOG_WARNING, "SRTP destroy before re-create\n");
+			/* dealloc first */
+			ast_debug(5, "SRTP destroy before re-create\n");
 			srtp_dealloc(srtp->session);
 
-			// get the count
+			/* get the count */
 			policies_count = ao2_container_count(srtp->policies);
 
-			// get the first to build up
+			/* get the first to build up */
 			it = ao2_iterator_init(srtp->policies, 0);
 			policy = ao2_iterator_next(&it);
 
-			ast_log(LOG_WARNING, "SRTP try to re-create\n");
+			ast_debug(5, "SRTP try to re-create\n");
 			if (policy) {
 				if (srtp_create(&srtp->session, &policy->sp) == err_status_ok) {
-					ast_log(LOG_WARNING, "SRTP re-created with first policy\n");
-
-					// unref first element
+					ast_debug(5, "SRTP re-created with first policy\n");
 					ao2_t_ref(policy, -1, "Unreffing first policy for re-creating srtp session");
 
-					// if we have more than one policy, add them afterwards
+					/* if we have more than one policy, add them */
 					if (policies_count > 1) {
-						ast_log(LOG_WARNING, "Add all the other %d policies\n",
+						ast_debug(5, "Add all the other %d policies\n",
 							policies_count - 1);
 						while ((policy = ao2_iterator_next(&it))) {
 							srtp_add_stream(srtp->session, &policy->sp);
@@ -391,7 +392,7 @@ tryagain:
 
 	if (res != err_status_ok && res != err_status_replay_fail ) {
 		if ((srtp->warned >= 10) && !((srtp->warned - 10) % 100)) {
-			ast_log(LOG_WARNING, "SRTP unprotect: %s %d\n", srtp_errstr(res), srtp->warned);
+			ast_log(AST_LOG_WARNING, "SRTP unprotect failed with: %s %d\n", srtp_errstr(res), srtp->warned);
 			srtp->warned = 11;
 		} else {
 			srtp->warned++;
@@ -446,6 +447,14 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 	return 0;
 }
 
+static int ast_srtp_replace(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy)
+{
+	if ((*srtp) != NULL) {
+		ast_srtp_destroy(*srtp);
+	}
+	return ast_srtp_create(srtp, rtp, policy);
+}
+
 static void ast_srtp_destroy(struct ast_srtp *srtp)
 {
 	if (srtp->session) {
@@ -463,13 +472,28 @@ static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *po
 {
 	struct ast_srtp_policy *match;
 
+	/* For existing streams, replace if its an SSRC stream, or bail if its a wildcard */
 	if ((match = find_policy(srtp, &policy->sp, OBJ_POINTER))) {
-		ast_debug(3, "Policy already exists, not re-adding\n");
-		ao2_t_ref(match, -1, "Unreffing already existing policy");
-		return -1;
+		if (policy->sp.ssrc.type != ssrc_specific) {
+			ast_log(AST_LOG_WARNING, "Cannot replace an existing wildcard policy");
+			ao2_t_ref(match, -1, "Unreffing already existing policy");
+			return -1;
+		} else {
+			if (srtp_remove_stream(srtp->session, match->sp.ssrc.value) != err_status_ok) {
+				ast_log(AST_LOG_WARNING, "Failed to remove SRTP stream for SSRC %d\n", match->sp.ssrc.value);
+			}
+			ao2_t_unlink(srtp->policies, match, "Remove existing match policy");
+			ao2_t_ref(match, -1, "Unreffing already existing policy");
+		}
 	}
 
+	ast_debug(3, "Adding new policy for %s %d\n",
+		policy->sp.ssrc.type == ssrc_specific ? "SSRC" : "type",
+		policy->sp.ssrc.type == ssrc_specific ? policy->sp.ssrc.value : policy->sp.ssrc.type);
 	if (srtp_add_stream(srtp->session, &policy->sp) != err_status_ok) {
+		ast_log(AST_LOG_WARNING, "Failed to add SRTP stream for %s %d\n",
+			policy->sp.ssrc.type == ssrc_specific ? "SSRC" : "type",
+			policy->sp.ssrc.type == ssrc_specific ? policy->sp.ssrc.value : policy->sp.ssrc.type);
 		return -1;
 	}
 
@@ -487,7 +511,7 @@ static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc,
 	};
 	err_status_t status;
 
-	/* If we find a mach, return and unlink it from the container so we
+	/* If we find a match, return and unlink it from the container so we
 	 * can change the SSRC (which is part of the hash) and then have
 	 * ast_srtp_add_stream link it back in if all is well */
 	if ((match = find_policy(srtp, &sp, OBJ_POINTER | OBJ_UNLINK))) {
@@ -503,6 +527,16 @@ static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc,
 	return 0;
 }
 
+static void res_srtp_shutdown(void)
+{
+	srtp_install_event_handler(NULL);
+	if (srtp_shutdown() != err_status_ok) {
+		ast_log(AST_LOG_WARNING, "Failed to de-initialize libsrtp\n");
+	}
+	ast_rtp_engine_unregister_srtp();
+	g_initialized = 0;
+}
+
 static int res_srtp_init(void)
 {
 	if (g_initialized) {
@@ -510,12 +544,20 @@ static int res_srtp_init(void)
 	}
 
 	if (srtp_init() != err_status_ok) {
+		ast_log(AST_LOG_WARNING, "Failed to initialize libsrtp\n");
 		return -1;
 	}
 
 	srtp_install_event_handler(srtp_event_cb);
 
-	return ast_rtp_engine_register_srtp(&srtp_res, &policy_res);
+	if (ast_rtp_engine_register_srtp(&srtp_res, &policy_res)) {
+		ast_log(AST_LOG_WARNING, "Failed to register SRTP with rtp engine\n");
+		res_srtp_shutdown();
+		return -1;
+	}
+
+	g_initialized = 1;
+	return 0;
 }
 
 /*
@@ -529,7 +571,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_rtp_engine_unregister_srtp();
+	res_srtp_shutdown();
 	return 0;
 }
 

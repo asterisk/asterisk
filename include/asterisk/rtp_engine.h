@@ -1833,7 +1833,25 @@ struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance)
  */
 int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level);
 
-int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *policy);
+/*!
+ * \brief Add or replace the SRTP policies for the given RTP instance
+ *
+ * \param instance the RTP instance
+ * \param remote_policy the remote endpoint's policy
+ * \param local_policy our policy for this RTP instance's remote endpoint
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy* remote_policy, struct ast_srtp_policy *local_policy);
+
+/*!
+ * \brief Obtain the SRTP instance associated with an RTP instance
+ *
+ * \param instance the RTP instance
+ * \retval the SRTP instance on success
+ * \retval NULL if no SRTP instance exists
+ */
 struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance);
 
 #if defined(__cplusplus) || defined(c_plusplus)
