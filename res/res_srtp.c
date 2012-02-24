@@ -530,9 +530,6 @@ static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc,
 static void res_srtp_shutdown(void)
 {
 	srtp_install_event_handler(NULL);
-	if (srtp_shutdown() != err_status_ok) {
-		ast_log(AST_LOG_WARNING, "Failed to de-initialize libsrtp\n");
-	}
 	ast_rtp_engine_unregister_srtp();
 	g_initialized = 0;
 }
