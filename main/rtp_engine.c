@@ -1856,17 +1856,24 @@ int ast_rtp_engine_srtp_is_registered(void)
 	return res_srtp && res_srtp_policy;
 }
 
-int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *policy)
+int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *remote_policy, struct ast_srtp_policy *local_policy)
 {
+	int res = 0;
+
 	if (!res_srtp) {
 		return -1;
 	}
 
 	if (!instance->srtp) {
-		return res_srtp->create(&instance->srtp, instance, policy);
+		res = res_srtp->create(&instance->srtp, instance, remote_policy);
 	} else {
-		return res_srtp->add_stream(instance->srtp, policy);
+		res = res_srtp->replace(&instance->srtp, instance, remote_policy);
 	}
+	if (!res) {
+		res = res_srtp->add_stream(instance->srtp, local_policy);
+	}
+
+	return res;
 }
 
 struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance)
