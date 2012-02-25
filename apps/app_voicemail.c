@@ -8042,9 +8042,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
+	int last_msg_idx = 0;
 
 #ifndef IMAP_STORAGE
-	int last_msg_idx;
 	int res = 0, nummsg;
 	char fn2[PATH_MAX];
 #endif
@@ -8121,7 +8121,8 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	if (vms->deleted) {
 		/* Since we now expunge after each delete, deleting in reverse order
 		 * ensures that no reordering occurs between each step. */
-		for (x = vms->dh_arraysize - 1; x >= 0; x--) {
+		last_msg_idx = vms->dh_arraysize;
+		for (x = last_msg_idx - 1; x >= 0; x--) {
 			if (vms->deleted[x]) {
 				ast_debug(3, "IMAP delete of %d\n", x);
 				DELETE(vms->curdir, x, vms->fn, vmu);
@@ -8131,10 +8132,10 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 #endif
 
 done:
-	if (vms->deleted) {
+	if (vms->deleted && last_msg_idx) {
 		ast_free(vms->deleted);
 	}
-	if (vms->heard) {
+	if (vms->heard && last_msg_idx) {
 		ast_free(vms->heard);
 	}
 
