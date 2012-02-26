@@ -2571,11 +2571,26 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 
 static int ooh323_do_reload(void)
 {
+	extern OOH323EndPoint gH323ep;
+
 	if (gH323Debug) {
 		ast_verb(0, "---   ooh323_do_reload\n");
 	}
 
+	/* Gatekeeper */
+	if (gH323ep.gkClient) {
+		ooGkClientDestroy();
+	}
+
    	reload_config(1);
+
+	/* Gatekeeper */
+	if (gRasGkMode == RasUseSpecificGatekeeper || 
+		gRasGkMode == RasDiscoverGatekeeper) {
+		ooGkClientInit(gRasGkMode, (gRasGkMode == RasUseSpecificGatekeeper) ? 
+								gGatekeeper : 0, 0);
+		ooGkClientStart(gH323ep.gkClient);
+	}
 
 	if (gH323Debug) {
 		ast_verb(0, "+++   ooh323_do_reload\n");

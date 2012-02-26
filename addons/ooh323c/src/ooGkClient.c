@@ -170,23 +170,25 @@ void ooGkClientPrintConfig(ooGkClient *pGkClient)
 
 int ooGkClientDestroy(void)
 {
+   ooGkClient *pGkClient = gH323ep.gkClient;
+
    if(gH323ep.gkClient)
    {
-      if(gH323ep.gkClient->state == GkClientRegistered)
+      ast_mutex_lock(&pGkClient->Lock);
+      gH323ep.gkClient = NULL;
+      if(pGkClient->state == GkClientRegistered)
       {
          OOTRACEINFO1("Unregistering from Gatekeeper\n");
-         if(ooGkClientSendURQ(gH323ep.gkClient, NULL)!=OO_OK)
+         if(ooGkClientSendURQ(pGkClient, NULL)!=OO_OK)
             OOTRACEERR1("Error:Failed to send URQ to gatekeeper\n");
       }
       OOTRACEINFO1("Destroying Gatekeeper Client\n");
-      ooGkClientCloseChannel(gH323ep.gkClient);
-      freeContext(&gH323ep.gkClient->msgCtxt);
-      freeContext(&gH323ep.gkClient->ctxt);
-      ast_mutex_lock(&gH323ep.gkClient->Lock);
-      ast_mutex_unlock(&gH323ep.gkClient->Lock);
-      ast_mutex_destroy(&gH323ep.gkClient->Lock);
-      memFreePtr(&gH323ep.ctxt, gH323ep.gkClient);
-      gH323ep.gkClient = NULL;
+      ooGkClientCloseChannel(pGkClient);
+      freeContext(&pGkClient->msgCtxt);
+      freeContext(&pGkClient->ctxt);
+      ast_mutex_unlock(&pGkClient->Lock);
+      ast_mutex_destroy(&pGkClient->Lock);
+      memFreePtr(&gH323ep.ctxt, pGkClient);
    }
    return OO_OK;
 }
