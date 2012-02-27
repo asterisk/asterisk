@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct ast_netsock {
 	ASTOBJ_COMPONENTS(struct ast_netsock);
-	struct sockaddr_in bindaddr;
+	struct ast_sockaddr bindaddr;
 	int sockfd;
 	int *ioref;
 	struct io_context *ioc;
@@ -89,22 +89,22 @@ int ast_netsock_release(struct ast_netsock_list *list)
 	return 0;
 }
 
-struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
-				     struct sockaddr_in *sa)
+struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list, struct ast_sockaddr *addr)
 {
 	struct ast_netsock *sock = NULL;
 
 	ASTOBJ_CONTAINER_TRAVERSE(list, !sock, {
 		ASTOBJ_RDLOCK(iterator);
-		if (!inaddrcmp(&iterator->bindaddr, sa))
+		if (!ast_sockaddr_cmp(&iterator->bindaddr, addr)) {
 			sock = iterator;
+		}
 		ASTOBJ_UNLOCK(iterator);
 	});
 
 	return sock;
 }
 
-struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, int cos, ast_io_cb callback, void *data)
+struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct ast_sockaddr *bindaddr, int tos, int cos, ast_io_cb callback, void *data)
 {
 	int netsocket = -1;
 	int *ioref;
@@ -120,10 +120,13 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		return NULL;
 	}
 	if (setsockopt(netsocket, SOL_SOCKET, SO_REUSEADDR, (char *)&reuseFlag, sizeof reuseFlag) < 0) {
-			ast_log(LOG_WARNING, "Error setting SO_REUSEADDR on sockfd '%d'\n", netsocket);
+		ast_log(LOG_WARNING, "Error setting SO_REUSEADDR on sockfd '%d'\n", netsocket);
 	}
-	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
+	if (ast_bind(netsocket, bindaddr)) {
+		ast_log(LOG_ERROR,
+			"Unable to bind to %s: %s\n",
+			ast_sockaddr_stringify(bindaddr),
+			strerror(errno));
 		close(netsocket);
 		return NULL;
 	}
@@ -161,26 +164,17 @@ int ast_netsock_set_qos(int sockfd, int tos, int cos, const char *desc)
 
 struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data)
 {
-	struct sockaddr_in sin;
-	char *tmp;
-	char *host;
-	char *port;
-	int portno;
+	struct ast_sockaddr addr;
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(defaultport);
-	tmp = ast_strdupa(bindinfo);
+	if (ast_sockaddr_parse(&addr, bindinfo, 0)) {
+		if (!ast_sockaddr_port(&addr)) {
+			ast_sockaddr_set_port(&addr, defaultport);
+		}
 
-	host = strsep(&tmp, ":");
-	port = tmp;
+		return ast_netsock_bindaddr(list, ioc, &addr, tos, cos, callback, data);
+	}
 
-	if (port && ((portno = atoi(port)) > 0))
-		sin.sin_port = htons(portno);
-
-	inet_aton(host, &sin.sin_addr);
-
-	return ast_netsock_bindaddr(list, ioc, &sin, tos, cos, callback, data);
+	return NULL;
 }
 
 int ast_netsock_sockfd(const struct ast_netsock *ns)
@@ -188,9 +182,9 @@ int ast_netsock_sockfd(const struct ast_netsock *ns)
 	return ns ? ns-> sockfd : -1;
 }
 
-const struct sockaddr_in *ast_netsock_boundaddr(const struct ast_netsock *ns)
+const struct ast_sockaddr *ast_netsock_boundaddr(const struct ast_netsock *ns)
 {
-	return &(ns->bindaddr);
+	return &ns->bindaddr;
 }
 
 void *ast_netsock_data(const struct ast_netsock *ns)

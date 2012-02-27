@@ -12266,19 +12266,17 @@ static int get_auth_methods(const char *value)
 /*! \brief Check if address can be used as packet source.
  \return 0  address available, 1  address unavailable, -1  error
 */
-static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
+static int check_srcaddr(struct ast_sockaddr *addr)
 {
 	int sd;
-	int res;
 
-	sd = socket(AF_INET, SOCK_DGRAM, 0);
+	sd = socket(ast_sockaddr_is_ipv4(addr) ? AF_INET : AF_INET6, SOCK_DGRAM, 0);
 	if (sd < 0) {
 		ast_log(LOG_ERROR, "Socket: %s\n", strerror(errno));
 		return -1;
 	}
 
-	res = bind(sd, sa, salen);
-	if (res < 0) {
+	if (ast_bind(sd, addr) < 0) {
 		ast_debug(1, "Can't bind: %s\n", strerror(errno));
 		close(sd);
 		return 1;
@@ -12293,19 +12291,18 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
   not found. */
 static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 {
-	struct sockaddr_in sin;
-	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr addr;
 	int nonlocal = 1;
 	int port = IAX_DEFAULT_PORTNO;
 	int sockfd = defaultsockfd;
 	char *tmp;
-	char *addr;
+	char *host;
 	char *portstr;
 
 	if (!(tmp = ast_strdupa(srcaddr)))
 		return -1;
 
-	addr = strsep(&tmp, ":");
+	host = strsep(&tmp, ":");
 	portstr = tmp;
 
 	if (portstr) {
@@ -12314,27 +12311,25 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			port = IAX_DEFAULT_PORTNO;
 	}
 
-	sin_tmp.ss.ss_family = AF_INET;
-	if (!ast_get_ip(&sin_tmp, addr)) {
-		struct ast_netsock *sock;
-		int res;
+	addr.ss.ss_family = AF_INET;
 
-		ast_sockaddr_to_sin(&sin_tmp, &sin);
-		sin.sin_port = 0;
-		sin.sin_family = AF_INET;
-		res = check_srcaddr((struct sockaddr *) &sin, sizeof(sin));
-		if (res == 0) {
+	if (!ast_get_ip(&addr, host)) {
+		struct ast_netsock *sock;
+
+		if (check_srcaddr(&addr) == 0) {
 			/* ip address valid. */
-			sin.sin_port = htons(port);
-			if (!(sock = ast_netsock_find(netsock, &sin)))
-				sock = ast_netsock_find(outsock, &sin);
+			ast_sockaddr_set_port(&addr, port);
+
+			if (!(sock = ast_netsock_find(netsock, &addr)))
+				sock = ast_netsock_find(outsock, &addr);
 			if (sock) {
 				sockfd = ast_netsock_sockfd(sock);
 				nonlocal = 0;
 			} else {
 				/* INADDR_ANY matches anyway! */
-				sin.sin_addr.s_addr = INADDR_ANY;
-				if (ast_netsock_find(netsock, &sin)) {
+				ast_sockaddr_parse(&addr, "0.0.0.0", 0);
+				ast_sockaddr_set_port(&addr, port);
+				if (ast_netsock_find(netsock, &addr)) {
 					sock = ast_netsock_bind(outsock, io, srcaddr, port, qos.tos, qos.cos, socket_read, NULL);
 					if (sock) {
 						sockfd = ast_netsock_sockfd(sock);
@@ -12351,13 +12346,17 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	peer->sockfd = sockfd;
 
 	if (nonlocal == 1) {
-		ast_log(LOG_WARNING, "Non-local or unbound address specified (%s) in sourceaddress for '%s', reverting to default\n",
-			srcaddr, peer->name);
+		ast_log(LOG_WARNING,
+			"Non-local or unbound address specified (%s) in sourceaddress for '%s', reverting to default\n",
+			srcaddr,
+			peer->name);
 		return -1;
-        } else if (nonlocal == 2) {
-		ast_log(LOG_WARNING, "Unable to bind to sourceaddress '%s' for '%s', reverting to default\n",
-			srcaddr, peer->name);
-			return -1;
+	} else if (nonlocal == 2) {
+		ast_log(LOG_WARNING,
+			"Unable to bind to sourceaddress '%s' for '%s', reverting to default\n",
+			srcaddr,
+			peer->name);
+		return -1;
 	} else {
 		ast_debug(1, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
 		return 0;

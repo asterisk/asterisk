@@ -30,6 +30,7 @@ extern "C" {
 
 #include "asterisk/network.h"
 #include "asterisk/io.h"
+#include "asterisk/netsock2.h"
 
 struct ast_netsock;
 
@@ -43,12 +44,12 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 				     const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data);
 
 struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc,
-					 struct sockaddr_in *bindaddr, int tos, int cos, ast_io_cb callback, void *data);
+					 struct ast_sockaddr *bindaddr, int tos, int cos, ast_io_cb callback, void *data);
 
 int ast_netsock_release(struct ast_netsock_list *list);
 
 struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
-				     struct sockaddr_in *sa);
+				     struct ast_sockaddr *addr);
 
 /*!
  * \deprecated Use ast_seq_qos in netsock2.h which properly handles IPv4 and IPv6
@@ -58,7 +59,7 @@ int ast_netsock_set_qos(int sockfd, int tos, int cos, const char *desc);
 
 int ast_netsock_sockfd(const struct ast_netsock *ns);
 
-const struct sockaddr_in *ast_netsock_boundaddr(const struct ast_netsock *ns);
+const struct ast_sockaddr *ast_netsock_boundaddr(const struct ast_netsock *ns);
 
 void *ast_netsock_data(const struct ast_netsock *ns);
 
