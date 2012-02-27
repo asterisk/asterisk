@@ -12332,11 +12332,9 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 				sockfd = ast_netsock_sockfd(sock);
 				nonlocal = 0;
 			} else {
-				unsigned int orig_saddr = sin.sin_addr.s_addr;
 				/* INADDR_ANY matches anyway! */
 				sin.sin_addr.s_addr = INADDR_ANY;
 				if (ast_netsock_find(netsock, &sin)) {
-					sin.sin_addr.s_addr = orig_saddr;
 					sock = ast_netsock_bind(outsock, io, srcaddr, port, qos.tos, qos.cos, socket_read, NULL);
 					if (sock) {
 						sockfd = ast_netsock_sockfd(sock);
