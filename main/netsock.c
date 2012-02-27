@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj.h"
 
@@ -127,7 +128,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		return NULL;
 	}
 
-	ast_netsock_set_qos(netsocket, tos, cos, "IAX2");
+	ast_set_qos(netsocket, tos, cos, "IAX2");
 
 	ast_enable_packet_fragmentation(netsocket);
 
@@ -153,25 +154,10 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	return ns;
 }
 
-int ast_netsock_set_qos(int netsocket, int tos, int cos, const char *desc)
+int ast_netsock_set_qos(int sockfd, int tos, int cos, const char *desc)
 {
-	int res;
-
-	if ((res = setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))))
-		ast_log(LOG_WARNING, "Unable to set %s TOS to %d, may be you have no root privileges\n", desc, tos);
-	else if (tos)
-		ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
-
-#if defined(linux)
-	if (setsockopt(netsocket, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos)))
-		ast_log(LOG_WARNING, "Unable to set %s CoS to %d\n", desc, cos);
-	else if (cos)
-		ast_verb(2, "Using %s CoS mark %d\n", desc, cos);
-#endif
-
-	return res;
+	return ast_set_qos(sockfd, tos, cos, desc);
 }
-
 
 struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data)
 {

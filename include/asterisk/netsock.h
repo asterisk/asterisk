@@ -54,7 +54,7 @@ struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
  * \deprecated Use ast_seq_qos in netsock2.h which properly handles IPv4 and IPv6
  *             sockets, instead.
  */
-int ast_netsock_set_qos(int netsocket, int tos, int cos, const char *desc);
+int ast_netsock_set_qos(int sockfd, int tos, int cos, const char *desc);
 
 int ast_netsock_sockfd(const struct ast_netsock *ns);
 
