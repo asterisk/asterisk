@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2008, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -473,6 +473,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	}
 
 	/* Table structure not already cached; build it now. */
+	ast_mutex_lock(&obj->lock);
 	do {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -543,6 +544,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 		AST_RWLIST_RDLOCK(&(tableptr->columns));
 		break;
 	} while (1);
+	ast_mutex_unlock(&obj->lock);
 
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
@@ -589,6 +591,8 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 	int attempt;
 	SQLHSTMT stmt;
 
+	ast_mutex_lock(&obj->lock);
+
 	for (attempt = 0; attempt < 2; attempt++) {
 		stmt = exec_cb(obj, data);
 
@@ -605,6 +609,8 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 		}
 	}
 
+	ast_mutex_unlock(&obj->lock);
+
 	return stmt;
 }
 
@@ -615,6 +621,8 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 	SQLSMALLINT diagbytes=0;
 	unsigned char state[10], diagnostic[256];
 	SQLHSTMT stmt;
+
+	ast_mutex_lock(&obj->lock);
 
 	for (attempt = 0; attempt < 2; attempt++) {
 		/* This prepare callback may do more than just prepare -- it may also
@@ -666,6 +674,8 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 		}
 	}
 
+	ast_mutex_unlock(&obj->lock);
+
 	return stmt;
 }
 
@@ -675,6 +685,8 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	SQLINTEGER nativeerror=0, numfields=0;
 	SQLSMALLINT diagbytes=0;
 	unsigned char state[10], diagnostic[256];
+
+	ast_mutex_lock(&obj->lock);
 
 	res = SQLExecute(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
@@ -692,6 +704,8 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	} else {
 		obj->last_used = ast_tvnow();
 	}
+
+	ast_mutex_unlock(&obj->lock);
 
 	return res;
 }
@@ -1198,6 +1212,18 @@ static int aoro2_obj_cb(void *vobj, void *arg, int flags)
 	return 0;
 }
 
+/* This function should only be called for shared connections. Otherwise, the lack of
+ * setting vobj->used breaks EOR_TX searching. For nonshared connections, use
+ * aoro2_obj_cb instead. */
+static int aoro2_obj_notx_cb(void *vobj, void *arg, int flags)
+{
+	struct odbc_obj *obj = vobj;
+	if (!obj->tx) {
+		return CMP_MATCH | CMP_STOP;
+	}
+	return 0;
+}
+
 struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno)
 {
 	struct odbc_obj *obj = NULL;
@@ -1256,7 +1282,13 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			class = NULL;
 		}
 
-		if (obj && ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
+		if (!obj) {
+			return NULL;
+		}
+
+		ast_mutex_lock(&obj->lock);
+
+		if (ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
 			/* Ensure this connection has autocommit turned off. */
 			if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
 				SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
@@ -1295,7 +1327,13 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			}
 		}
 
-		if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
+		if (!obj) {
+			return NULL;
+		}
+
+		ast_mutex_lock(&obj->lock);
+
+		if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
 			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
 			for (i = 0; i < numfields; i++) {
 				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
@@ -1308,7 +1346,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		}
 	} else {
 		/* Non-pooled connection: multiple modules can use the same connection. */
-		if ((obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, NO_TX))) {
+		if ((obj = ao2_callback(class->obj_container, 0, aoro2_obj_notx_cb, NO_TX))) {
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ast_assert(ao2_ref(class, 0) > 1);
 			ao2_ref(class, -1);
@@ -1335,7 +1373,13 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			}
 		}
 
-		if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_ON, 0) == SQL_ERROR) {
+		if (!obj) {
+			return NULL;
+		}
+
+		ast_mutex_lock(&obj->lock);
+
+		if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_ON, 0) == SQL_ERROR) {
 			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
 			for (i = 0; i < numfields; i++) {
 				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
@@ -1348,8 +1392,10 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		}
 	}
 
+	ast_assert(obj != NULL);
+
 	/* Set the isolation property */
-	if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_TXN_ISOLATION, (void *)(long)obj->parent->isolation, 0) == SQL_ERROR) {
+	if (SQLSetConnectAttr(obj->con, SQL_ATTR_TXN_ISOLATION, (void *)(long)obj->parent->isolation, 0) == SQL_ERROR) {
 		SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
 		for (i = 0; i < numfields; i++) {
 			SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
@@ -1361,29 +1407,29 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		}
 	}
 
-	if (obj && ast_test_flag(&flags, RES_ODBC_CONNECTED) && !obj->up) {
+	if (ast_test_flag(&flags, RES_ODBC_CONNECTED) && !obj->up) {
 		/* Check if this connection qualifies for reconnection, with negative connection cache time */
 		if (time(NULL) > obj->parent->last_negative_connect.tv_sec + obj->parent->negative_connection_cache.tv_sec) {
 			odbc_obj_connect(obj);
 		}
-	} else if (obj && ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
+	} else if (ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
 		ast_odbc_sanity_check(obj);
-	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck) {
+	} else if (obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck) {
 		odbc_obj_connect(obj);
 	}
 
 #ifdef DEBUG_THREADS
-	if (obj) {
-		ast_copy_string(obj->file, file, sizeof(obj->file));
-		ast_copy_string(obj->function, function, sizeof(obj->function));
-		obj->lineno = lineno;
-	}
+	ast_copy_string(obj->file, file, sizeof(obj->file));
+	ast_copy_string(obj->function, function, sizeof(obj->function));
+	obj->lineno = lineno;
 #endif
+
+	/* We had it locked because of the obj_connects we see here. */
+	ast_mutex_unlock(&obj->lock);
+
 	ast_assert(class == NULL);
 
-	if (obj) {
-		ast_assert(ao2_ref(obj, 0) > 1);
-	}
+	ast_assert(ao2_ref(obj, 0) > 1);
 	return obj;
 }
 
@@ -1431,15 +1477,16 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 	SQLINTEGER err;
 	short int mlen;
 	unsigned char msg[200], state[10];
+	SQLHDBC con;
 
 	/* Nothing to disconnect */
 	if (!obj->con) {
 		return ODBC_SUCCESS;
 	}
 
-	ast_mutex_lock(&obj->lock);
-
-	res = SQLDisconnect(obj->con);
+	con = obj->con;
+	obj->con = NULL;
+	res = SQLDisconnect(con);
 
 	if (obj->parent) {
 		if (res == SQL_SUCCESS || res == SQL_SUCCESS_WITH_INFO) {
@@ -1449,16 +1496,14 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 		}
 	}
 
-	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, obj->con) == SQL_SUCCESS)) {
-		obj->con = NULL;
-		ast_log(LOG_DEBUG, "Database handle deallocated\n");
+	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con) == SQL_SUCCESS)) {
+		ast_log(LOG_DEBUG, "Database handle %p deallocated\n", con);
 	} else {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
-		ast_log(LOG_WARNING, "Unable to deallocate database handle? %d errno=%d %s\n", res, (int)err, msg);
+		SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
+		ast_log(LOG_WARNING, "Unable to deallocate database handle %p? %d errno=%d %s\n", con, res, (int)err, msg);
 	}
 
 	obj->up = 0;
-	ast_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
 }
 
@@ -1472,40 +1517,43 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	SQLINTEGER enable = 1;
 	char *tracefile = "/tmp/odbc.trace";
 #endif
-	ast_mutex_lock(&obj->lock);
+	SQLHDBC con;
 
 	if (obj->up) {
 		odbc_obj_disconnect(obj);
 		ast_log(LOG_NOTICE, "Re-connecting %s\n", obj->parent->name);
 	} else {
+		ast_assert(obj->con == NULL);
 		ast_log(LOG_NOTICE, "Connecting %s\n", obj->parent->name);
 	}
 
-	res = SQLAllocHandle(SQL_HANDLE_DBC, obj->parent->env, &obj->con);
+	res = SQLAllocHandle(SQL_HANDLE_DBC, obj->parent->env, &con);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
 		obj->parent->last_negative_connect = ast_tvnow();
-		ast_mutex_unlock(&obj->lock);
 		return ODBC_FAIL;
 	}
-	SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *)(long) obj->parent->conntimeout, 0);
-	SQLSetConnectAttr(obj->con, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER *)(long) obj->parent->conntimeout, 0);
+	SQLSetConnectAttr(con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *)(long) obj->parent->conntimeout, 0);
+	SQLSetConnectAttr(con, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER *)(long) obj->parent->conntimeout, 0);
 #ifdef NEEDTRACE
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
+	SQLSetConnectAttr(con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
+	SQLSetConnectAttr(con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
 #endif
 
-	res = SQLConnect(obj->con,
+	res = SQLConnect(con,
 		   (SQLCHAR *) obj->parent->dsn, SQL_NTS,
 		   (SQLCHAR *) obj->parent->username, SQL_NTS,
 		   (SQLCHAR *) obj->parent->password, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
 		obj->parent->last_negative_connect = ast_tvnow();
-		ast_mutex_unlock(&obj->lock);
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
+		if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con) != SQL_SUCCESS)) {
+			SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
+			ast_log(LOG_WARNING, "Unable to deallocate database handle %p? %d errno=%d %s\n", con, res, (int)err, msg);
+		}
 		return ODBC_FAIL;
 	} else {
 		ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->parent->name, obj->parent->dsn);
@@ -1513,7 +1561,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 		obj->last_used = ast_tvnow();
 	}
 
-	ast_mutex_unlock(&obj->lock);
+	obj->con = con;
 	return ODBC_SUCCESS;
 }
 
