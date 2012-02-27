@@ -29,7 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#ifndef __linux__ 
+#ifndef __linux__
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__Darwin__) || defined(__GLIBC__)
 #include <net/if_dl.h>
 #endif
@@ -107,13 +107,13 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 {
 	int netsocket = -1;
 	int *ioref;
-	
+
 	struct ast_netsock *ns;
 	const int reuseFlag = 1;
-	
+
 	/* Make a UDP socket */
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-	
+
 	if (netsocket < 0) {
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		return NULL;
@@ -128,20 +128,20 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	}
 
 	ast_netsock_set_qos(netsocket, tos, cos, "IAX2");
-		
+
 	ast_enable_packet_fragmentation(netsocket);
 
 	if (!(ns = ast_calloc(1, sizeof(*ns)))) {
 		close(netsocket);
 		return NULL;
 	}
-	
+
 	/* Establish I/O callback for socket read */
 	if (!(ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns))) {
 		close(netsocket);
 		ast_free(ns);
 		return NULL;
-	}	
+	}
 	ASTOBJ_INIT(ns);
 	ns->ioref = ioref;
 	ns->ioc = ioc;
@@ -156,22 +156,22 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 int ast_netsock_set_qos(int netsocket, int tos, int cos, const char *desc)
 {
 	int res;
-	
+
 	if ((res = setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))))
 		ast_log(LOG_WARNING, "Unable to set %s TOS to %d, may be you have no root privileges\n", desc, tos);
 	else if (tos)
 		ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
 
-#if defined(linux)								
+#if defined(linux)
 	if (setsockopt(netsocket, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos)))
 		ast_log(LOG_WARNING, "Unable to set %s CoS to %d\n", desc, cos);
 	else if (cos)
 		ast_verb(2, "Using %s CoS mark %d\n", desc, cos);
 #endif
-							
+
 	return res;
 }
-													
+
 
 struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data)
 {
@@ -281,7 +281,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 #if defined(ifa_broadaddr) && !defined(SOLARIS)
 	char eid_str[20];
 	struct ifaddrs *ifap;
-	
+
 	if (getifaddrs(&ifap) == 0) {
 		struct ifaddrs *p;
 		for (p = ifap; p; p = p->ifa_next) {
@@ -308,7 +308,7 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s)
 	if (sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x", &eid_int[0], &eid_int[1], &eid_int[2],
 		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
 		 	return -1;
-	
+
 	for (x = 0; x < 6; x++)
 		eid->eid[x] = eid_int[x];
 
