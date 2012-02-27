@@ -1304,7 +1304,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 		/* Update connected line to caller if available. */
 		if (targs.pending_out_connected_update) {
-			if (ast_channel_connected_line_macro(outbound, caller, &targs.connected_out, 1, 0)) {
+			if (ast_channel_connected_line_sub(outbound, caller, &targs.connected_out, 0) &&
+				ast_channel_connected_line_macro(outbound, caller, &targs.connected_out, 1, 0)) {
 				ast_channel_update_connected_line(caller, &targs.connected_out, NULL);
 			}
 		}
@@ -1329,7 +1330,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 		/* Update connected line to winner if changed. */
 		if (targs.pending_in_connected_update) {
-			if (ast_channel_connected_line_macro(caller, outbound, &targs.connected_in, 0, 0)) {
+			if (ast_channel_connected_line_sub(caller, outbound, &targs.connected_in, 0) &&
+				ast_channel_connected_line_macro(caller, outbound, &targs.connected_in, 0, 0)) {
 				ast_channel_update_connected_line(outbound, &targs.connected_in, NULL);
 			}
 		}

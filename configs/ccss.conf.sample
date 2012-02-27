@@ -187,6 +187,12 @@
 ;
 ;cc_callback_macro=
 ;
+; Alternatively, the administrator may run a subroutine. By default
+; there is no callback subroutine configured.  The subroutine should
+; be specified in the format: [[context,]exten,]priority
+;
+;cc_callback_sub=
+;
 ; When using an ISDN phone and a generic CC agent, Asterisk is unable
 ; to determine the dialstring that should be used when calling back
 ; the original caller. Furthermore, if you desire to use any dialstring-

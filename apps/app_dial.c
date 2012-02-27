@@ -956,7 +956,8 @@ static void do_forward(struct chanlist *o,
 		ast_party_redirecting_init(&redirecting);
 		ast_party_redirecting_copy(&redirecting, &c->redirecting);
 		ast_channel_unlock(c);
-		if (ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
+		if (ast_channel_redirecting_sub(c, in, &redirecting, 0) &&
+			ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
 			ast_channel_update_redirecting(in, &redirecting, NULL);
 		}
 		ast_party_redirecting_free(&redirecting);
@@ -1105,7 +1106,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 					if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->pending_connected_update) {
-							if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+							if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
+								ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
 								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
@@ -1175,7 +1177,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 						if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->pending_connected_update) {
-								if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+								if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
+									ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
 									ast_channel_update_connected_line(in, &o->connected, NULL);
 								}
 							} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
@@ -1308,7 +1311,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_party_connected_line_free(&connected);
 						o->pending_connected_update = 1;
 					} else {
-						if (ast_channel_connected_line_macro(c, in, f, 1, 1)) {
+						if (ast_channel_connected_line_sub(c, in, f, 1) &&
+							ast_channel_connected_line_macro(c, in, f, 1, 1)) {
 							ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 						}
 					}
@@ -1329,7 +1333,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(in));
 					} else if (single) {
 						ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
-						if (ast_channel_redirecting_macro(c, in, f, 1, 1)) {
+						if (ast_channel_redirecting_sub(c, in, f, 1) &&
+							ast_channel_redirecting_macro(c, in, f, 1, 1)) {
 							ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
 						}
 						pa->sentringing = 0;
@@ -1488,12 +1493,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						break;
 					case AST_CONTROL_CONNECTED_LINE:
-						if (ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
+						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
+							ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
 					case AST_CONTROL_REDIRECTING:
-						if (ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
+						if (ast_channel_redirecting_sub(in, o->chan, f, 1) &&
+							ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;

@@ -35,6 +35,11 @@ res_ais:
 Dialplan Functions:
  - MAILBOX_EXISTS has been deprecated. Use VM_INFO with the 'exists' parameter
    instead.
+ - Macro has been deprecated in favor of GoSub.  For redirecting and connected
+   line purposes use the following variables instead of their macro equivalents:
+   REDIRECTING_SEND_SUB, REDIRECTING_SEND_SUB_ARGS,
+   CONNECTED_LINE_SEND_SUB, CONNECTED_LINE_SEND_SUB_ARGS.
+
 
 func_enum:
  - ENUM query functions now return a count of -1 on lookup error to
@@ -61,6 +66,10 @@ Configuration Files:
 AMI:
   - DBDelTree now correctly returns an error when 0 rows are deleted just as
     the DBDel action does.
+
+CCSS:
+ - Macro is deprecated. Use cc_callback_sub instead of cc_callback_macro
+   in channel configurations.
 
 app_meetme:
   - The 'c' option (announce user count) will now work even if the 'q' (quiet)

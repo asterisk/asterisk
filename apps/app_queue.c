@@ -3645,7 +3645,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 					if (update_connectedline) {
 						if (o->pending_connected_update) {
-							if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
+							if (ast_channel_connected_line_sub(o->chan, in, &o->connected, 0) &&
+								ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!o->dial_callerid_absent) {
@@ -3744,8 +3745,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						ast_party_redirecting_init(&redirecting);
 						ast_party_redirecting_copy(&redirecting, &o->chan->redirecting);
 						ast_channel_unlock(o->chan);
-						res = ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0);
-						if (res) {
+						if ((res = ast_channel_redirecting_sub(o->chan, in, &redirecting, 0)) &&
+							(res = ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0))) {
 							ast_channel_update_redirecting(in, &redirecting, NULL);
 						}
 						ast_party_redirecting_free(&redirecting);
@@ -3774,7 +3775,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 								if (update_connectedline) {
 									if (o->pending_connected_update) {
-										if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
+										if (ast_channel_connected_line_sub(o->chan, in, &o->connected, 0) &&
+											ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 											ast_channel_update_connected_line(in, &o->connected, NULL);
 										}
 									} else if (!o->dial_callerid_absent) {
@@ -3858,7 +3860,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_party_connected_line_free(&connected);
 								o->pending_connected_update = 1;
 							} else {
-								if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
+								if (ast_channel_connected_line_sub(o->chan, in, f, 1) &&
+									ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
 									ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 								}
 							}
@@ -3879,7 +3882,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verb(3, "Redirecting update to %s prevented\n", inchan_name);
 							} else if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ochan_name, inchan_name);
-								if (ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
+								if (ast_channel_redirecting_sub(o->chan, in, f, 1) &&
+									ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
 									ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
 								}
 							}

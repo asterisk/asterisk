@@ -247,26 +247,77 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
 	return res;
 }
 
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char * const macro_name, const char * const macro_args)
+static int app_exec_dialplan(struct ast_channel *autoservice_chan, struct ast_channel *exec_chan, const char * const args, int use_gosub)
 {
-	struct ast_app *macro_app;
-	int res;
-	char buf[1024];
 
-	macro_app = pbx_findapp("Macro");
-	if (!macro_app) {
-		ast_log(LOG_WARNING, "Cannot run macro '%s' because the 'Macro' application in not available\n", macro_name);
+	struct ast_app *app;
+	int res;
+	char * app_type = use_gosub ? "GoSub" : "Macro";
+
+	app = pbx_findapp(app_type);
+	if (!app) {
+		ast_log(LOG_WARNING, "Cannot run '%s' because the '%s' application is not available\n", args, app_type);
 		return -1;
 	}
-	snprintf(buf, sizeof(buf), "%s%s%s", macro_name, ast_strlen_zero(macro_args) ? "" : ",", S_OR(macro_args, ""));
 	if (autoservice_chan) {
 		ast_autoservice_start(autoservice_chan);
 	}
-	res = pbx_exec(macro_chan, macro_app, buf);
+	res = pbx_exec(exec_chan, app, args);
+	if (use_gosub && !res) {
+		struct ast_pbx_args gosub_args = {{0}};
+		struct ast_pbx *pbx = ast_channel_pbx(exec_chan);
+		/* supress warning about a pbx already being on the channel */
+		ast_channel_pbx_set(exec_chan, NULL);
+		gosub_args.no_hangup_chan = 1;
+		ast_pbx_run_args(exec_chan, &gosub_args);
+		if (ast_channel_pbx(exec_chan)) {
+			ast_free(ast_channel_pbx(exec_chan));
+		}
+		ast_channel_pbx_set(exec_chan, pbx);
+	}
 	if (autoservice_chan) {
 		ast_autoservice_stop(autoservice_chan);
 	}
 	return res;
+}
+
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char * const name, const char * const args)
+{
+	char buf[1024];
+	snprintf(buf, sizeof(buf), "%s%s%s", name, ast_strlen_zero(args) ? "" : ",", S_OR(args, ""));
+	return app_exec_dialplan(autoservice_chan, macro_chan, buf, 0);
+}
+
+int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char * const location, const char * const args)
+{
+	char buf[1024];
+	size_t offset = snprintf(buf, sizeof(buf), "%s", location);
+	/* need to bump the priority by one if we already have a pbx */
+	if (ast_channel_pbx(sub_chan)) {
+		int iprio;
+		const char * priority = location;
+		const char * next = strchr(priority,',');
+		/* jump to the priority portion of the location */
+		if (next) {
+			priority = next + 1;
+		}
+		next = strchr(priority,',');
+		if (next) {
+			priority = next + 1;
+		}
+		/* if the priority isn't numeric, it's as if we never took this branch... */
+		if (sscanf(priority, "%d", &iprio)) {
+			offset = priority - location;
+			iprio++;
+			if (offset < sizeof(buf)) {
+				offset += snprintf(buf + offset, sizeof(buf) - offset, "%d", iprio);
+			}
+		}
+	}
+	if (offset < sizeof(buf)) {
+		snprintf(buf + offset, sizeof(buf) - offset, "%s%s%s", ast_strlen_zero(args) ? "" : "(", S_OR(args, ""), ast_strlen_zero(args) ? "" : ")");
+	}
+	return app_exec_dialplan(autoservice_chan, sub_chan, buf, 1);
 }
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;

@@ -156,6 +156,7 @@ struct ast_cc_config_params {
 	unsigned int cc_max_agents;
 	unsigned int cc_max_monitors;
 	char cc_callback_macro[AST_MAX_EXTENSION];
+	char cc_callback_sub[AST_MAX_EXTENSION];
 	char cc_agent_dialstring[AST_MAX_EXTENSION];
 };
 
@@ -654,6 +655,7 @@ static const struct ast_cc_config_params cc_default_params = {
 	.cc_max_agents = CC_MAX_AGENTS_DEFAULT,
 	.cc_max_monitors = CC_MAX_MONITORS_DEFAULT,
 	.cc_callback_macro = "",
+	.cc_callback_sub = "",
 	.cc_agent_dialstring = "",
 };
 
@@ -751,6 +753,8 @@ int ast_cc_get_param(struct ast_cc_config_params *params, const char * const nam
 
 	if (!strcasecmp(name, "cc_callback_macro")) {
 		value = ast_get_cc_callback_macro(params);
+	} else if (!strcasecmp(name, "cc_callback_sub")) {
+		value = ast_get_cc_callback_sub(params);
 	} else if (!strcasecmp(name, "cc_agent_policy")) {
 		value = agent_policy_to_str(ast_get_cc_agent_policy(params));
 	} else if (!strcasecmp(name, "cc_monitor_policy")) {
@@ -800,6 +804,9 @@ int ast_cc_set_param(struct ast_cc_config_params *params, const char * const nam
 	} else if (!strcasecmp(name, "cc_callback_macro")) {
 		ast_set_cc_callback_macro(params, value);
 		return 0;
+	} else if (!strcasecmp(name, "cc_callback_sub")) {
+		ast_set_cc_callback_sub(params, value);
+		return 0;
 	}
 
 	if (!sscanf(value, "%30u", &value_as_uint) == 1) {
@@ -836,6 +843,7 @@ int ast_cc_is_config_param(const char * const name)
 				!strcasecmp(name, "cc_max_agents") ||
 				!strcasecmp(name, "cc_max_monitors") ||
 				!strcasecmp(name, "cc_callback_macro") ||
+				!strcasecmp(name, "cc_callback_sub") ||
 				!strcasecmp(name, "cc_agent_dialstring") ||
 				!strcasecmp(name, "cc_recall_timer"));
 }
@@ -978,12 +986,27 @@ const char *ast_get_cc_callback_macro(struct ast_cc_config_params *config)
 	return config->cc_callback_macro;
 }
 
+const char *ast_get_cc_callback_sub(struct ast_cc_config_params *config)
+{
+	return config->cc_callback_sub;
+}
+
 void ast_set_cc_callback_macro(struct ast_cc_config_params *config, const char * const value)
 {
+	ast_log(LOG_WARNING, "Usage of cc_callback_macro is deprecated.  Please use cc_callback_sub instead.\n");
 	if (ast_strlen_zero(value)) {
 		config->cc_callback_macro[0] = '\0';
 	} else {
 		ast_copy_string(config->cc_callback_macro, value, sizeof(config->cc_callback_macro));
+	}
+}
+
+void ast_set_cc_callback_sub(struct ast_cc_config_params *config, const char * const value)
+{
+	if (ast_strlen_zero(value)) {
+		config->cc_callback_sub[0] = '\0';
+	} else {
+		ast_copy_string(config->cc_callback_sub, value, sizeof(config->cc_callback_sub));
 	}
 }
 
@@ -2651,6 +2674,7 @@ static void *generic_recall(void *data)
 	int reason;
 	struct ast_channel *chan;
 	const char *callback_macro = ast_get_cc_callback_macro(agent->cc_params);
+	const char *callback_sub = ast_get_cc_callback_sub(agent->cc_params);
 	unsigned int recall_timer = ast_get_cc_recall_timer(agent->cc_params) * 1000;
 	struct ast_format tmp_fmt;
 	struct ast_format_cap *tmp_cap = ast_format_cap_alloc_nolock();
@@ -2696,6 +2720,16 @@ static void *generic_recall(void *data)
 				agent->core_id, agent->device_name);
 		if (ast_app_run_macro(NULL, chan, callback_macro, NULL)) {
 			ast_cc_failed(agent->core_id, "Callback macro to %s failed. Maybe a hangup?", agent->device_name);
+			ast_hangup(chan);
+			return NULL;
+		}
+	}
+
+	if (!ast_strlen_zero(callback_sub)) {
+		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback subroutine configured for agent %s\n",
+				agent->core_id, agent->device_name);
+		if (ast_app_run_sub(NULL, chan, callback_sub, NULL)) {
+			ast_cc_failed(agent->core_id, "Callback subroutine to %s failed. Maybe a hangup?", agent->device_name);
 			ast_hangup(chan);
 			return NULL;
 		}

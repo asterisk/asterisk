@@ -3819,7 +3819,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_party_connected_line_free(&connected);
 						break;
 					}
-					if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
+					if (ast_channel_connected_line_sub(NULL, chan, &connected, 0) &&
+						ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
 						ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
 							read_action_payload->payload,
 							read_action_payload->payload_size);
@@ -5237,7 +5238,8 @@ static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channe
 		ast_channel_lock(orig);
 		ast_party_redirecting_copy(&redirecting, &orig->redirecting);
 		ast_channel_unlock(orig);
-		if (ast_channel_redirecting_macro(orig, parent, &redirecting, 1, 0)) {
+		if (ast_channel_redirecting_sub(orig, parent, &redirecting, 0) &&
+			ast_channel_redirecting_macro(orig, parent, &redirecting, 1, 0)) {
 			ast_channel_update_redirecting(parent, &redirecting, NULL);
 		}
 		ast_party_redirecting_free(&redirecting);
@@ -7128,12 +7130,14 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_REDIRECTING:
-				if (ast_channel_redirecting_macro(who, other, f, other == c0, 1)) {
+				if (ast_channel_redirecting_sub(who, other, f, 1) &&
+					ast_channel_redirecting_macro(who, other, f, other == c0, 1)) {
 					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				}
 				break;
 			case AST_CONTROL_CONNECTED_LINE:
-				if (ast_channel_connected_line_macro(who, other, f, other == c0, 1)) {
+				if (ast_channel_connected_line_sub(who, other, f, 1) &&
+					ast_channel_connected_line_macro(who, other, f, other == c0, 1)) {
 					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				}
 				break;
@@ -9362,6 +9366,7 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
 
 int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int is_caller, int is_frame)
 {
+	static int deprecation_warning = 0;
 	const char *macro;
 	const char *macro_args;
 	int retval;
@@ -9379,6 +9384,10 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 		return -1;
 	}
 
+	if (!deprecation_warning) {
+		deprecation_warning = 1;
+		ast_log(LOG_WARNING, "Usage of CONNECTED_LINE_CALLE[ER]_SEND_MACRO is deprecated.  Please use CONNECTED_LINE_SEND_SUB instead.\n");
+	}
 	if (is_frame) {
 		const struct ast_frame *frame = connected_info;
 
@@ -9401,6 +9410,7 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *redirecting_info, int is_caller, int is_frame)
 {
+	static int deprecation_warning = 0;
 	const char *macro;
 	const char *macro_args;
 	int retval;
@@ -9418,6 +9428,10 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 		return -1;
 	}
 
+	if (!deprecation_warning) {
+		deprecation_warning = 1;
+		ast_log(LOG_WARNING, "Usage of REDIRECTING_CALLE[ER]_SEND_MACRO is deprecated.  Please use REDIRECTING_SEND_SUB instead.\n");
+	}
 	if (is_frame) {
 		const struct ast_frame *frame = redirecting_info;
 
@@ -9434,6 +9448,81 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 		ast_channel_lock(macro_chan);
 		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting, NULL);
 		ast_channel_unlock(macro_chan);
+	}
+
+	return retval;
+}
+
+int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const void *connected_info, int is_frame)
+{
+	const char *sub;
+	const char *sub_args;
+	int retval;
+
+	ast_channel_lock(sub_chan);
+	sub = pbx_builtin_getvar_helper(sub_chan, "CONNECTED_LINE_SEND_SUB");
+	sub = ast_strdupa(S_OR(sub, ""));
+	sub_args = pbx_builtin_getvar_helper(sub_chan, "CONNECTED_LINE_SEND_SUB_ARGS");
+	sub_args = ast_strdupa(S_OR(sub_args, ""));
+
+	if (ast_strlen_zero(sub)) {
+		ast_channel_unlock(sub_chan);
+		return -1;
+	}
+
+	if (is_frame) {
+		const struct ast_frame *frame = connected_info;
+
+		ast_connected_line_parse_data(frame->data.ptr, frame->datalen, &sub_chan->connected);
+	} else {
+		const struct ast_party_connected_line *connected = connected_info;
+
+		ast_party_connected_line_copy(&sub_chan->connected, connected);
+	}
+	ast_channel_unlock(sub_chan);
+
+	if (!(retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args))) {
+		ast_channel_lock(sub_chan);
+		ast_channel_update_connected_line(sub_chan, &sub_chan->connected, NULL);
+		ast_channel_unlock(sub_chan);
+	}
+
+	return retval;
+}
+
+int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const void *redirecting_info, int is_frame)
+{
+	const char *sub;
+	const char *sub_args;
+	int retval;
+
+	ast_channel_lock(sub_chan);
+	sub = pbx_builtin_getvar_helper(sub_chan, "REDIRECTING_SEND_SUB");
+	sub = ast_strdupa(S_OR(sub, ""));
+	sub_args = pbx_builtin_getvar_helper(sub_chan, "REDIRECTING_SEND_SUB_ARGS");
+	sub_args = ast_strdupa(S_OR(sub_args, ""));
+
+	if (ast_strlen_zero(sub)) {
+		ast_channel_unlock(sub_chan);
+		return -1;
+	}
+
+	if (is_frame) {
+		const struct ast_frame *frame = redirecting_info;
+
+		ast_redirecting_parse_data(frame->data.ptr, frame->datalen, &sub_chan->redirecting);
+	} else {
+		const struct ast_party_redirecting *redirecting = redirecting_info;
+
+		ast_party_redirecting_copy(&sub_chan->redirecting, redirecting);
+	}
+	ast_channel_unlock(sub_chan);
+
+	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args);
+	if (!retval) {
+		ast_channel_lock(sub_chan);
+		ast_channel_update_redirecting(sub_chan, &sub_chan->redirecting, NULL);
+		ast_channel_unlock(sub_chan);
 	}
 
 	return retval;

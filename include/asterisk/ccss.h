@@ -386,10 +386,27 @@ const char *ast_get_cc_callback_macro(struct ast_cc_config_params *config);
  * \since 1.8
  * \brief Set the callback_macro name
  * \param config The configuration to set the callback_macro on
- * \param value The new callback macro  we want to change to
+ * \param value The new callback macro we want to change to
  * \retval void
  */
 void ast_set_cc_callback_macro(struct ast_cc_config_params *config, const char * const value);
+
+/*!
+ * \since 11
+ * \brief Get the name of the callback subroutine
+ * \param config The configuration to retrieve the callback_sub from
+ * \return The callback_sub name
+ */
+const char *ast_get_cc_callback_sub(struct ast_cc_config_params *config);
+
+/*!
+ * \since 11
+ * \brief Set the callback subroutine name
+ * \param config The configuration to set the callback_sub on
+ * \param value The new callback subroutine we want to change to
+ * \retval void
+ */
+void ast_set_cc_callback_sub(struct ast_cc_config_params *config, const char * const value);
 
 /* END CONFIGURATION FUNCTIONS */
 

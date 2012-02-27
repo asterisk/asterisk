@@ -3418,30 +3418,56 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
  * \since 1.8
  * \brief Run a connected line interception macro and update a channel's connected line
  * information
+ * \deprecated You should use the ast_channel_connected_line_sub() function instead.
  *
  * Whenever we want to update a channel's connected line information, we may need to run
  * a macro so that an administrator can manipulate the information before sending it
  * out. This function both runs the macro and sends the update to the channel.
  *
  * \param autoservice_chan Channel to place into autoservice while the macro is running.
- * 	It is perfectly safe for this to be NULL
+ * It is perfectly safe for this to be NULL
  * \param macro_chan The channel to run the macro on. Also the channel from which we
- * 	determine which macro we need to run.
+ * determine which macro we need to run.
  * \param connected_info Either an ast_party_connected_line or ast_frame pointer of type
- * 	AST_CONTROL_CONNECTED_LINE
- * \param caller If true, then run CONNECTED_LINE_CALLER_SEND_MACRO, otherwise run
- * 	CONNECTED_LINE_CALLEE_SEND_MACRO
+ * AST_CONTROL_CONNECTED_LINE
+ * \param is_caller If true, then run CONNECTED_LINE_CALLER_SEND_MACRO with arguments from
+ * CONNECTED_LINE_CALLER_SEND_MACRO_ARGS, otherwise run CONNECTED_LINE_CALLEE_SEND_MACRO
+ * with arguments from CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS
  * \param frame If true, then connected_info is an ast_frame pointer, otherwise it is an
- * 	ast_party_connected_line pointer.
+ * ast_party_connected_line pointer.
  * \retval 0 Success
  * \retval -1 Either the macro does not exist, or there was an error while attempting to
- * 	run the macro
+ * run the macro
  *
  * \todo Have multiple return codes based on the MACRO_RESULT
  * \todo Make constants so that caller and frame can be more expressive than just '1' and
- * 	'0'
+ * '0'
  */
-int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int caller, int frame);
+int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int is_caller, int frame);
+
+/*!
+ * \since 11
+ * \brief Run a connected line interception subroutine and update a channel's connected line
+ * information
+ *
+ * Whenever we want to update a channel's connected line information, we may need to run
+ * a subroutine so that an administrator can manipulate the information before sending it
+ * out. This function both runs the subroutine specified by CONNECTED_LINE_SEND_SUB and
+ * sends the update to the channel.
+ *
+ * \param autoservice_chan Channel to place into autoservice while the sub is running.
+ * It is perfectly safe for this to be NULL
+ * \param sub_chan The channel to run the subroutine on. Also the channel from which we
+ * determine which subroutine we need to run.
+ * \param connected_info Either an ast_party_connected_line or ast_frame pointer of type
+ * AST_CONTROL_CONNECTED_LINE
+ * \param frame If true, then connected_info is an ast_frame pointer, otherwise it is an
+ * ast_party_connected_line pointer.
+ * \retval 0 Success
+ * \retval -1 Either the subroutine does not exist, or there was an error while attempting to
+ * run the subroutine
+ */
+int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const void *connected_info, int frame);
 
 /*!
  * \brief Insert into an astdata tree, the channel structure.
@@ -3467,6 +3493,7 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree, struct as
 /*!
  * \since 1.8
  * \brief Run a redirecting interception macro and update a channel's redirecting information
+ * \deprecated You should use the ast_channel_redirecting_sub() function instead.
  *
  * \details
  * Whenever we want to update a channel's redirecting information, we may need to run
@@ -3479,8 +3506,9 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree, struct as
  * determine which macro we need to run.
  * \param redirecting_info Either an ast_party_redirecting or ast_frame pointer of type
  * AST_CONTROL_REDIRECTING
- * \param is_caller If true, then run REDIRECTING_CALLER_SEND_MACRO, otherwise run
- * REDIRECTING_CALLEE_SEND_MACRO
+ * \param is_caller If true, then run REDIRECTING_CALLER_SEND_MACRO with arguments from
+ * REDIRECTING_CALLER_SEND_MACRO_ARGS, otherwise run REDIRECTING_CALLEE_SEND_MACRO with
+ * arguments from REDIRECTING_CALLEE_SEND_MACRO_ARGS
  * \param is_frame If true, then redirecting_info is an ast_frame pointer, otherwise it is an
  * ast_party_redirecting pointer.
  *
@@ -3493,6 +3521,31 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree, struct as
  * '0'
  */
 int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *redirecting_info, int is_caller, int is_frame);
+
+/*!
+ * \since 11
+ * \brief Run a redirecting interception subroutine and update a channel's redirecting information
+ *
+ * \details
+ * Whenever we want to update a channel's redirecting information, we may need to run
+ * a subroutine so that an administrator can manipulate the information before sending it
+ * out. This function both runs the subroutine specified by REDIRECTING_SEND_SUB and
+ * sends the update to the channel.
+ *
+ * \param autoservice_chan Channel to place into autoservice while the subroutine is running.
+ * It is perfectly safe for this to be NULL
+ * \param sub_chan The channel to run the subroutine on. Also the channel from which we
+ * determine which subroutine we need to run.
+ * \param redirecting_info Either an ast_party_redirecting or ast_frame pointer of type
+ * AST_CONTROL_REDIRECTING
+ * \param is_frame If true, then redirecting_info is an ast_frame pointer, otherwise it is an
+ * ast_party_redirecting pointer.
+ *
+ * \retval 0 Success
+ * \retval -1 Either the subroutine does not exist, or there was an error while attempting to
+ * run the subroutine
+ */
+int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const void *redirecting_info, int is_frame);
 
 #include "asterisk/ccss.h"
 

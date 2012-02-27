@@ -131,8 +131,28 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel 
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel
 		*macro_chan, const char * const macro_name, const char * const macro_args);
+
+/*!
+ * \since 11
+ * \brief Run a subroutine on a channel, placing a second channel into autoservice.
+ *
+ * This is a shorthand method that makes it very easy to run a subroutine on any given
+ * channel. It is perfectly reasonable to supply a NULL autoservice_chan here in case
+ * there is no channel to place into autoservice. It is very important that the
+ * autoservice_chan parameter is not locked prior to calling ast_app_run_sub. A
+ * deadlock could result, otherwise.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the subroutine is run
+ * \param sub_chan The channel to run the subroutine on
+ * \param name The name of the subroutine to run
+ * \param args The arguments to pass to the subroutien
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel
+		*sub_chan, const char * const name, const char * const args);
 
 /*!
  * \brief Set voicemail function callbacks

@@ -2408,7 +2408,8 @@ static void atxfer_fail_cleanup(struct ast_channel *transferee, struct ast_chann
 	 * Party B was the caller to party C and is the last known mode
 	 * for party B.
 	 */
-	if (ast_channel_connected_line_macro(transferee, transferer, connected_line, 1, 0)) {
+	if (ast_channel_connected_line_sub(transferee, transferer, connected_line, 0) &&
+		ast_channel_connected_line_macro(transferee, transferer, connected_line, 1, 0)) {
 		ast_channel_update_connected_line(transferer, connected_line, NULL);
 	}
 	ast_party_connected_line_free(connected_line);
@@ -2816,7 +2817,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_party_connected_line_copy(&connected_line, &transferer->connected);
 	ast_channel_unlock(transferer);
 	connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-	if (ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
+	if (ast_channel_connected_line_sub(newchan, xferchan, &connected_line, 0) &&
+		ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
 		ast_channel_update_connected_line(xferchan, &connected_line, NULL);
 	}
 
@@ -2825,7 +2827,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_connected_line_copy_from_caller(&connected_line, &xferchan->caller);
 	ast_channel_unlock(xferchan);
 	connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-	if (ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
+	if (ast_channel_connected_line_sub(xferchan, newchan, &connected_line, 0) &&
+		ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
 		ast_channel_update_connected_line(newchan, &connected_line, NULL);
 	}
 
@@ -3614,7 +3617,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 						ast_party_connected_line_free(&connected);
 					} else {
 						ast_autoservice_start(transferee);
-						if (ast_channel_connected_line_macro(chan, caller, f, 1, 1)) {
+						if (ast_channel_connected_line_sub(chan, caller, f, 1) &&
+							ast_channel_connected_line_macro(chan, caller, f, 1, 1)) {
 							ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE,
 								f->data.ptr, f->datalen);
 						}
@@ -3623,7 +3627,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 				} else if (f->subclass.integer == AST_CONTROL_REDIRECTING) {
 					if (!caller_hungup) {
 						ast_autoservice_start(transferee);
-						if (ast_channel_redirecting_macro(chan, caller, f, 1, 1)) {
+						if (ast_channel_redirecting_sub(chan, caller, f, 1) &&
+							ast_channel_redirecting_macro(chan, caller, f, 1, 1)) {
 							ast_indicate_data(caller, AST_CONTROL_REDIRECTING,
 								f->data.ptr, f->datalen);
 						}
@@ -4151,16 +4156,16 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 				ast_indicate(other, f->subclass.integer);
 				break;
 			case AST_CONTROL_CONNECTED_LINE:
-				if (!ast_channel_connected_line_macro(who, other, f, who != chan, 1)) {
-					break;
+				if (ast_channel_connected_line_sub(who, other, f, 1) &&
+					ast_channel_connected_line_macro(who, other, f, who != chan, 1)) {
+					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				}
-				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_REDIRECTING:
-				if (!ast_channel_redirecting_macro(who, other, f, who != chan, 1)) {
-					break;
+				if (ast_channel_redirecting_sub(who, other, f, 1) &&
+					ast_channel_redirecting_macro(who, other, f, who != chan, 1)) {
+					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				}
-				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_AOC:
 			case AST_CONTROL_HOLD:
@@ -5172,7 +5177,8 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		ast_connected_line_copy_from_caller(&connected, &chan->caller);
 		ast_channel_unlock(chan);
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		if (ast_channel_connected_line_macro(chan, peer, &connected, 0, 0)) {
+		if (ast_channel_connected_line_sub(chan, peer, &connected, 0) &&
+			ast_channel_connected_line_macro(chan, peer, &connected, 0, 0)) {
 			ast_channel_update_connected_line(peer, &connected, NULL);
 		}
 
@@ -5187,7 +5193,8 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		ast_connected_line_copy_from_caller(&connected, &peer->caller);
 		ast_channel_unlock(peer);
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		if (ast_channel_connected_line_macro(peer, chan, &connected, 1, 0)) {
+		if (ast_channel_connected_line_sub(peer, chan, &connected, 0) &&
+			ast_channel_connected_line_macro(peer, chan, &connected, 1, 0)) {
 			ast_channel_update_connected_line(chan, &connected, NULL);
 		}
 
@@ -7319,7 +7326,8 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_party_connected_line_copy(&connected_caller, &target->connected);
 	ast_channel_unlock(target);/* The pickup race is avoided so we do not need the lock anymore. */
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
+	if (ast_channel_connected_line_sub(NULL, chan, &connected_caller, 0) &&
+		ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
 		ast_channel_update_connected_line(chan, &connected_caller, NULL);
 	}
 	ast_party_connected_line_free(&connected_caller);
