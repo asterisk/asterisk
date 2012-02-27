@@ -476,6 +476,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                                     ; user options for whatever reason.  The behavior is similar to
                                                     ; how SIP URI's were typically handled in 1.6.2, hence the name.
 
+;send_diversion=no              ; Default "yes"     ; Asterisk normally sends Diversion headers with certain SIP
+                                                    ; invites to relay data about forwarded calls. If this option
+                                                    ; is disabled, Asterisk won't send Diversion headers unless
+                                                    ; they are added manually.
+
 ; The shrinkcallerid function removes '(', ' ', ')', non-trailing '.', and '-' not
 ; in square brackets.  For example, the caller id value 555.5555 becomes 5555555
 ; when this option is enabled.  Disabling this option results in no modification

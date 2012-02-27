@@ -65,6 +65,8 @@ SIP Changes
    which set the force_rport and comedia options automatically if Asterisk
    detects that an incoming SIP request crossed a NAT after being sent by
    the remote endpoint.
+ * Adds an option send_diversion which can be disabled to prevent
+   diversion headers from automatically being added to invites.
 
 Chan_local changes
 ------------------
