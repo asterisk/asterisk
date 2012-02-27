@@ -44,7 +44,6 @@ enum {
 
 /*! \brief ODBC container */
 struct odbc_obj {
-	ast_mutex_t lock;
 	SQLHDBC  con;                   /*!< ODBC Connection Handle */
 	struct odbc_class *parent;      /*!< Information about the connection is protected */
 	struct timeval last_used;       /*!< Used by idlecheck to determine if the connection should be renegotiated */

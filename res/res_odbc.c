@@ -416,7 +416,6 @@ static void odbc_obj_destructor(void *data)
 	struct odbc_class *class = obj->parent;
 	obj->parent = NULL;
 	odbc_obj_disconnect(obj);
-	ast_mutex_destroy(&obj->lock);
 	ao2_ref(class, -1);
 }
 
@@ -473,7 +472,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	}
 
 	/* Table structure not already cached; build it now. */
-	ast_mutex_lock(&obj->lock);
+	ao2_lock(obj);
 	do {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -544,7 +543,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 		AST_RWLIST_RDLOCK(&(tableptr->columns));
 		break;
 	} while (1);
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
@@ -591,7 +590,7 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 	int attempt;
 	SQLHSTMT stmt;
 
-	ast_mutex_lock(&obj->lock);
+	ao2_lock(obj);
 
 	for (attempt = 0; attempt < 2; attempt++) {
 		stmt = exec_cb(obj, data);
@@ -609,7 +608,7 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 		}
 	}
 
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 
 	return stmt;
 }
@@ -622,7 +621,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 	unsigned char state[10], diagnostic[256];
 	SQLHSTMT stmt;
 
-	ast_mutex_lock(&obj->lock);
+	ao2_lock(obj);
 
 	for (attempt = 0; attempt < 2; attempt++) {
 		/* This prepare callback may do more than just prepare -- it may also
@@ -674,7 +673,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 		}
 	}
 
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 
 	return stmt;
 }
@@ -686,7 +685,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	SQLSMALLINT diagbytes=0;
 	unsigned char state[10], diagnostic[256];
 
-	ast_mutex_lock(&obj->lock);
+	ao2_lock(obj);
 
 	res = SQLExecute(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
@@ -705,7 +704,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 		obj->last_used = ast_tvnow();
 	}
 
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 
 	return res;
 }
@@ -981,7 +980,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %d\n  Connections in use: %d\n", class->limit, class->count);
 
 				while ((current = ao2_iterator_next(&aoi2))) {
-					ast_mutex_lock(&current->lock);
+					ao2_lock(current);
 #ifdef DEBUG_THREADS
 					ast_cli(a->fd, "    - Connection %d: %s (%s:%d %s)\n", ++count,
 						current->used ? "in use" :
@@ -992,7 +991,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 						current->used ? "in use" :
 						current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
 #endif
-					ast_mutex_unlock(&current->lock);
+					ao2_unlock(current);
 					ao2_ref(current, -1);
 				}
 				ao2_iterator_destroy(&aoi2);
@@ -1202,13 +1201,13 @@ static int aoro2_class_cb(void *obj, void *arg, int flags)
 static int aoro2_obj_cb(void *vobj, void *arg, int flags)
 {
 	struct odbc_obj *obj = vobj;
-	ast_mutex_lock(&obj->lock);
+	ao2_lock(obj);
 	if ((arg == NO_TX && !obj->tx) || (arg == EOR_TX && !obj->used) || (arg == USE_TX && obj->tx && !obj->used)) {
 		obj->used = 1;
-		ast_mutex_unlock(&obj->lock);
+		ao2_unlock(obj);
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 	return 0;
 }
 
@@ -1257,7 +1256,6 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				return NULL;
 			}
 			ast_assert(ao2_ref(obj, 0) == 1);
-			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
 			class = NULL;
@@ -1286,7 +1284,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			return NULL;
 		}
 
-		ast_mutex_lock(&obj->lock);
+		ao2_lock(obj);
 
 		if (ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
 			/* Ensure this connection has autocommit turned off. */
@@ -1312,7 +1310,6 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				ast_debug(3, "Unable to allocate object\n");
 				return NULL;
 			}
-			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
 			class = NULL;
@@ -1331,7 +1328,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			return NULL;
 		}
 
-		ast_mutex_lock(&obj->lock);
+		ao2_lock(obj);
 
 		if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
 			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
@@ -1359,7 +1356,6 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 				ast_debug(3, "Unable to allocate object\n");
 				return NULL;
 			}
-			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
 			class = NULL;
@@ -1377,7 +1373,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			return NULL;
 		}
 
-		ast_mutex_lock(&obj->lock);
+		ao2_lock(obj);
 
 		if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_ON, 0) == SQL_ERROR) {
 			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
@@ -1425,7 +1421,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 #endif
 
 	/* We had it locked because of the obj_connects we see here. */
-	ast_mutex_unlock(&obj->lock);
+	ao2_unlock(obj);
 
 	ast_assert(class == NULL);
 
@@ -1759,11 +1755,11 @@ static int data_odbc_provider_handler(const struct ast_data_search *search,
 				continue;
 			}
 
-			ast_mutex_lock(&current->lock);
+			ao2_lock(current);
 			ast_data_add_str(data_odbc_connection, "status", current->used ? "in use" :
 					current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
 			ast_data_add_bool(data_odbc_connection, "transactional", current->tx);
-			ast_mutex_unlock(&current->lock);
+			ao2_unlock(current);
 
 			if (class->haspool) {
 				ast_data_add_int(data_odbc_connection, "number", ++count);
