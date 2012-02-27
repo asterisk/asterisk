@@ -4375,8 +4375,16 @@ before_you_go:
 	
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-	if (bridge_cdr && new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))
-		ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
+	/* If the channel CDR has been modified during the call, record the changes in the bridge cdr */
+	if (new_chan_cdr && bridge_cdr) {
+		ast_cdr_copy_vars(bridge_cdr, new_chan_cdr);
+		ast_copy_string(bridge_cdr->userfield, new_chan_cdr->userfield, sizeof(bridge_cdr->userfield));
+		bridge_cdr->amaflags = new_chan_cdr->amaflags;
+		ast_copy_string(bridge_cdr->accountcode, new_chan_cdr->accountcode, sizeof(bridge_cdr->accountcode));
+		if (ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED)) {
+			ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
+		}
+	}
 
 	/* we can post the bridge CDR at this point */
 	if (bridge_cdr) {
