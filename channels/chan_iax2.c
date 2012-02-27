@@ -12270,7 +12270,7 @@ static int check_srcaddr(struct ast_sockaddr *addr)
 {
 	int sd;
 
-	sd = socket(ast_sockaddr_is_ipv4(addr) ? AF_INET : AF_INET6, SOCK_DGRAM, 0);
+	sd = socket(addr->ss.ss_family, SOCK_DGRAM, 0);
 	if (sd < 0) {
 		ast_log(LOG_ERROR, "Socket: %s\n", strerror(errno));
 		return -1;
@@ -12302,8 +12302,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	if (!(tmp = ast_strdupa(srcaddr)))
 		return -1;
 
-	host = strsep(&tmp, ":");
-	portstr = tmp;
+	ast_sockaddr_split_hostport(tmp, &host, &portstr, 0);
 
 	if (portstr) {
 		port = atoi(portstr);

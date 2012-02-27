@@ -167,6 +167,11 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 	struct ast_sockaddr addr;
 
 	if (ast_sockaddr_parse(&addr, bindinfo, 0)) {
+		if (!ast_sockaddr_is_ipv4(&addr)) {
+			ast_log(LOG_WARNING, "Only IPv4 addresses are supported at this time.\n");
+			return NULL;
+		}
+
 		if (!ast_sockaddr_port(&addr)) {
 			ast_sockaddr_set_port(&addr, defaultport);
 		}
