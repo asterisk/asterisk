@@ -69,7 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/causes.h"
 #include "asterisk/dsp.h"
 #include "asterisk/devicestate.h"
@@ -4775,7 +4775,7 @@ static int reload_config(int reload)
 		} else {
 			ast_verb(2, "MGCP Listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-			ast_netsock_set_qos(mgcpsock, qos.tos, qos.cos, "MGCP");
+			ast_set_qos(mgcpsock, qos.tos, qos.cos, "MGCP");
 		}
 	}
 	ast_mutex_unlock(&netlock);

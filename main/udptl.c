@@ -64,7 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
 
@@ -1007,7 +1007,7 @@ void ast_udptl_set_tag(struct ast_udptl *udptl, const char *format, ...)
 
 int ast_udptl_setqos(struct ast_udptl *udptl, unsigned int tos, unsigned int cos)
 {
-	return ast_netsock_set_qos(udptl->fd, tos, cos, "UDPTL");
+	return ast_set_qos(udptl->fd, tos, cos, "UDPTL");
 }
 
 void ast_udptl_set_peer(struct ast_udptl *udptl, const struct ast_sockaddr *them)

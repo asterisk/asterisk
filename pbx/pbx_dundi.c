@@ -58,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/utils.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
 #include "asterisk/acl.h"
@@ -4865,7 +4865,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_netsock_set_qos(netsocket, tos, 0, "DUNDi");
+	ast_set_qos(netsocket, tos, 0, "DUNDi");
 
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");

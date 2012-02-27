@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/rtp_engine.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -7834,7 +7834,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 			}
 			ast_verb(2, "Skinny listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-			ast_netsock_set_qos(skinnysock, qos.tos, qos.cos, "Skinny");
+			ast_set_qos(skinnysock, qos.tos, qos.cos, "Skinny");
 			ast_pthread_create_background(&accept_t, NULL, accept_thread, NULL);
 		}
 	}

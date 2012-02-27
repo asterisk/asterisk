@@ -65,7 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/event.h"
 #include "asterisk/rtp_engine.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -5646,7 +5646,7 @@ static int reload_config(void)
 		unistimsock = -1;
 	} else {
 		ast_verb(2, "UNISTIM Listening on %s:%d\n", ast_inet_ntoa(bindaddr.sin_addr), htons(bindaddr.sin_port));
-		ast_netsock_set_qos(unistimsock, qos.tos, qos.cos, "UNISTIM");
+		ast_set_qos(unistimsock, qos.tos, qos.cos, "UNISTIM");
 	}
 	return 0;
 }
