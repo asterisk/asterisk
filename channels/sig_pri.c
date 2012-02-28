@@ -5060,7 +5060,7 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 					{
 						/* We will not accept incoming call waiting calls. */
-						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_INCOMPATIBLE_DESTINATION);
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
 						break;
 					}
 #if defined(HAVE_PRI_CALL_WAITING)
