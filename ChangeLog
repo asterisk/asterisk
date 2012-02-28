@@ -9,8 +9,6 @@
 	  to Matt Riddell for tracking this down.
 	  (closes issue ASTERISK-19385)
 	  Reported by: ornix
-	  patches:
-	    callerid.diff uploaded by Matt Riddell (license #5023)
 
 	* channels/chan_sip.c: Fix ACK routing for non-2xx responses.
 
