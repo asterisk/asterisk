@@ -352,7 +352,7 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 			if (__res2) { \
 				ast_log(LOG_WARNING, "Could not unlock channel '%s': %s.  {{{Originally locked at %s line %d: (%s) '%s'}}}  I will NOT try to relock.\n", #chan, strerror(__res2), __filename, __lineno, __func, __mutex_name); \
 			} else { \
-				__ao2_lock(chan, __filename, __func, __lineno, __mutex_name); \
+				__ao2_lock(chan, AO2_LOCK_REQ_MUTEX, __filename, __func, __lineno, __mutex_name); \
 			} \
 		} \
 	} while (0)

@@ -39,6 +39,7 @@ struct ast_format_cap {
 	/* The capabilities structure is just an ao2 container of ast_formats */
 	struct ao2_container *formats;
 	struct ao2_iterator it;
+	/*! TRUE if the formats container created without a lock. */
 	int nolock;
 };
 
@@ -69,8 +70,11 @@ static struct ast_format_cap *cap_alloc_helper(int nolock)
 	if (!cap) {
 		return NULL;
 	}
-	cap->nolock = nolock ? OBJ_NOLOCK : 0;
-	if (!(cap->formats = ao2_container_alloc(283, hash_cb, cmp_cb))) {
+	cap->nolock = nolock;
+	cap->formats = ao2_container_alloc_options(
+		nolock ? AO2_ALLOC_OPT_LOCK_NOLOCK : AO2_ALLOC_OPT_LOCK_MUTEX,
+		283, hash_cb, cmp_cb);
+	if (!cap->formats) {
 		ast_free(cap);
 		return NULL;
 	}
@@ -109,11 +113,7 @@ void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *for
 		return;
 	}
 	ast_format_copy(fnew, format);
-	if (cap->nolock) {
-		ao2_link_nolock(cap->formats, fnew);
-	} else {
-		ao2_link(cap->formats, fnew);
-	}
+	ao2_link(cap->formats, fnew);
 	ao2_ref(fnew, -1);
 }
 
@@ -157,7 +157,7 @@ static int append_cb(void *obj, void *arg, int flag)
 
 void ast_format_cap_append(struct ast_format_cap *dst, const struct ast_format_cap *src)
 {
-	ao2_callback(src->formats, OBJ_NODATA | src->nolock, append_cb, dst);
+	ao2_callback(src->formats, OBJ_NODATA, append_cb, dst);
 }
 
 static int copy_cb(void *obj, void *arg, int flag)
@@ -172,7 +172,7 @@ static int copy_cb(void *obj, void *arg, int flag)
 void ast_format_cap_copy(struct ast_format_cap *dst, const struct ast_format_cap *src)
 {
 	ast_format_cap_remove_all(dst);
-	ao2_callback(src->formats, OBJ_NODATA | src->nolock, copy_cb, dst);
+	ao2_callback(src->formats, OBJ_NODATA, copy_cb, dst);
 }
 
 struct ast_format_cap *ast_format_cap_dup(const struct ast_format_cap *cap)
@@ -186,7 +186,7 @@ struct ast_format_cap *ast_format_cap_dup(const struct ast_format_cap *cap)
 	if (!dst) {
 		return NULL;
 	}
-	ao2_callback(cap->formats, OBJ_NODATA | cap->nolock, copy_cb, dst);
+	ao2_callback(cap->formats, OBJ_NODATA, copy_cb, dst);
 	return dst;
 }
 
@@ -209,8 +209,8 @@ static int find_exact_cb(void *obj, void *arg, int flag)
 int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format)
 {
 	struct ast_format *fremove;
-	fremove = ao2_callback(cap->formats, OBJ_POINTER | OBJ_UNLINK | cap->nolock, find_exact_cb, format);
 
+	fremove = ao2_callback(cap->formats, OBJ_POINTER | OBJ_UNLINK, find_exact_cb, format);
 	if (fremove) {
 		ao2_ref(fremove, -1);
 		return 0;
@@ -249,7 +249,7 @@ int ast_format_cap_remove_byid(struct ast_format_cap *cap, enum ast_format_id id
 	};
 
 	ao2_callback(cap->formats,
-		OBJ_NODATA | cap->nolock | OBJ_MULTIPLE | OBJ_UNLINK,
+		OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK,
 		multiple_by_id_cb,
 		&data);
 
@@ -271,14 +271,14 @@ static int multiple_by_type_cb(void *obj, void *arg, int flag)
 void ast_format_cap_remove_bytype(struct ast_format_cap *cap, enum ast_format_type type)
 {
 	ao2_callback(cap->formats,
-		OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE | cap->nolock,
+		OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
 		multiple_by_type_cb,
 		&type);
 }
 
 void ast_format_cap_remove_all(struct ast_format_cap *cap)
 {
-	ao2_callback(cap->formats, OBJ_NODATA | cap->nolock | OBJ_MULTIPLE | OBJ_UNLINK, NULL, NULL);
+	ao2_callback(cap->formats, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, NULL, NULL);
 }
 
 void ast_format_cap_set(struct ast_format_cap *cap, struct ast_format *format)
@@ -291,8 +291,8 @@ int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const
 {
 	struct ast_format *f;
 	struct ast_format_cap *tmp_cap = (struct ast_format_cap *) cap;
-	f = ao2_find(tmp_cap->formats, (struct ast_format *) format, OBJ_POINTER | tmp_cap->nolock);
 
+	f = ao2_find(tmp_cap->formats, format, OBJ_POINTER);
 	if (f) {
 		ast_format_copy(result, f);
 		ao2_ref(f, -1);
@@ -310,7 +310,8 @@ int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct a
 	if (!tmp_cap) {
 		return 0;
 	}
-	f = ao2_find(tmp_cap->formats, (struct ast_format *) format, OBJ_POINTER | tmp_cap->nolock);
+
+	f = ao2_find(tmp_cap->formats, format, OBJ_POINTER);
 	if (f) {
 		ao2_ref(f, -1);
 		return 1;
@@ -345,7 +346,7 @@ int ast_format_cap_best_byid(const struct ast_format_cap *cap, enum ast_format_i
 
 	ast_format_clear(result);
 	ao2_callback(cap->formats,
-		OBJ_MULTIPLE | OBJ_NODATA | cap->nolock,
+		OBJ_MULTIPLE | OBJ_NODATA,
 		find_best_byid_cb,
 		&data);
 	return result->id ? 1 : 0;
@@ -389,11 +390,11 @@ int ast_format_cap_has_joint(const struct ast_format_cap *cap1, const struct ast
 		.joint_cap = NULL,
 	};
 
-	it = ao2_iterator_init(cap1->formats, cap1->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap1->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		data.format = tmp;
 		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA | cap2->nolock,
+			OBJ_MULTIPLE | OBJ_NODATA,
 			find_joint_cb,
 			&data);
 		ao2_ref(tmp, -1);
@@ -412,7 +413,7 @@ int ast_format_cap_identical(const struct ast_format_cap *cap1, const struct ast
 		return 0; /* if they are not the same size, they are not identical */
 	}
 
-	it = ao2_iterator_init(cap1->formats, cap1->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap1->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		if (!ast_format_cap_iscompatible(cap2, tmp)) {
 			ao2_ref(tmp, -1);
@@ -439,11 +440,11 @@ struct ast_format_cap *ast_format_cap_joint(const struct ast_format_cap *cap1, c
 		return NULL;
 	}
 
-	it = ao2_iterator_init(cap1->formats, cap1->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap1->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		data.format = tmp;
 		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA | cap2->nolock,
+			OBJ_MULTIPLE | OBJ_NODATA,
 			find_joint_cb,
 			&data);
 		ao2_ref(tmp, -1);
@@ -469,11 +470,11 @@ static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast
 	if (!append) {
 		ast_format_cap_remove_all(result);
 	}
-	it = ao2_iterator_init(cap1->formats, cap1->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap1->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		data.format = tmp;
 		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA | cap2->nolock,
+			OBJ_MULTIPLE | OBJ_NODATA,
 			find_joint_cb,
 			&data);
 		ao2_ref(tmp, -1);
@@ -505,7 +506,7 @@ struct ast_format_cap *ast_format_cap_get_type(const struct ast_format_cap *cap,
 
 	/* for each format in cap1, see if that format is
 	 * compatible with cap2. If so copy it to the result */
-	it = ao2_iterator_init(cap->formats, cap->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		if (AST_FORMAT_GET_TYPE(tmp->id) == ftype) {
 			/* copy format */
@@ -529,7 +530,7 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_format_ty
 	struct ao2_iterator it;
 	struct ast_format *tmp;
 
-	it = ao2_iterator_init(cap->formats, cap->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		if (AST_FORMAT_GET_TYPE(tmp->id) == type) {
 			ao2_ref(tmp, -1);
@@ -545,18 +546,16 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_format_ty
 
 void ast_format_cap_iter_start(struct ast_format_cap *cap)
 {
-	if (!cap->nolock) {
-		ao2_lock(cap->formats);
-	}
-	cap->it = ao2_iterator_init(cap->formats, cap->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	/* We can unconditionally lock even if the container has no lock. */
+	ao2_lock(cap->formats);
+	cap->it = ao2_iterator_init(cap->formats, AO2_ITERATOR_DONTLOCK);
 }
 
 void ast_format_cap_iter_end(struct ast_format_cap *cap)
 {
 	ao2_iterator_destroy(&cap->it);
-	if (!cap->nolock) {
-		ao2_unlock(cap->formats);
-	}
+	/* We can unconditionally unlock even if the container has no lock. */
+	ao2_unlock(cap->formats);
 }
 
 int ast_format_cap_iter_next(struct ast_format_cap *cap, struct ast_format *format)
@@ -614,7 +613,7 @@ uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap)
 	struct ao2_iterator it;
 	struct ast_format *tmp;
 
-	it = ao2_iterator_init(cap->formats, cap->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		res |= ast_format_to_old_bitfield(tmp);
 		ao2_ref(tmp, -1);

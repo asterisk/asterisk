@@ -390,12 +390,24 @@ murf
  */
 typedef void (*ao2_destructor_fn)(void *);
 
+/*! \brief Options available when allocating an ao2 object. */
+enum ao2_alloc_opts {
+	/*! The ao2 object has a recursive mutex lock associated with it. */
+	AO2_ALLOC_OPT_LOCK_MUTEX = (0 << 0),
+	/*! The ao2 object has a non-recursive read/write lock associated with it. */
+	AO2_ALLOC_OPT_LOCK_RWLOCK = (1 << 0),
+	/*! The ao2 object has no lock associated with it. */
+	AO2_ALLOC_OPT_LOCK_NOLOCK = (2 << 0),
+	/*! The ao2 object locking option field mask. */
+	AO2_ALLOC_OPT_LOCK_MASK = (3 << 0),
+};
 
 /*!
  * \brief Allocate and initialize an object.
  *
  * \param data_size The sizeof() of the user-defined structure.
  * \param destructor_fn The destructor function (can be NULL)
+ * \param options The ao2 object options (See enum ao2_alloc_opts)
  * \param debug_msg An ao2 object debug tracing message.
  * \return A pointer to user-data.
  *
@@ -413,30 +425,45 @@ typedef void (*ao2_destructor_fn)(void *);
 
 #if defined(REF_DEBUG)
 
+#define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
+	__ao2_alloc_debug((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_alloc_options(data_size, destructor_fn, options) \
+	__ao2_alloc_debug((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc_debug((data_size), (destructor_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
 
 #elif defined(__AST_DEBUG_MALLOC)
 
+#define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
+	__ao2_alloc_debug((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_alloc_options(data_size, destructor_fn, options) \
+	__ao2_alloc_debug((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc_debug((data_size), (destructor_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 
 #else
 
+#define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
+	__ao2_alloc((data_size), (destructor_fn), (options))
+#define ao2_alloc_options(data_size, destructor_fn, options) \
+	__ao2_alloc((data_size), (destructor_fn), (options))
+
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc((data_size), (destructor_fn))
+	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc((data_size), (destructor_fn))
+	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX)
 
 #endif
 
-void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, const char *tag,
+void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options, const char *tag,
 	const char *file, int line, const char *funcname, int ref_debug);
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn);
+void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options);
 
 /*! @} */
 
@@ -476,10 +503,20 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn);
 
 #endif
 
-int __ao2_ref_debug(void *o, int delta, const char *tag, char *file, int line, const char *funcname);
+int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *funcname);
 int __ao2_ref(void *o, int delta);
 
 /*! @} */
+
+/*! \brief Which lock to request. */
+enum ao2_lock_req {
+	/*! Request the mutex lock be acquired. */
+	AO2_LOCK_REQ_MUTEX,
+	/*! Request the read lock be acquired. */
+	AO2_LOCK_REQ_RDLOCK,
+	/*! Request the write lock be acquired. */
+	AO2_LOCK_REQ_WRLOCK,
+};
 
 /*! \brief
  * Lock an object.
@@ -487,8 +524,10 @@ int __ao2_ref(void *o, int delta);
  * \param a A pointer to the object we want to lock.
  * \return 0 on success, other values on error.
  */
-int __ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
-#define ao2_lock(a) __ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_lock(void *a, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var);
+#define ao2_lock(a) __ao2_lock(a, AO2_LOCK_REQ_MUTEX, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+#define ao2_rdlock(a) __ao2_lock(a, AO2_LOCK_REQ_RDLOCK, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+#define ao2_wrlock(a) __ao2_lock(a, AO2_LOCK_REQ_WRLOCK, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 
 /*! \brief
  * Unlock an object.
@@ -505,8 +544,10 @@ int __ao2_unlock(void *a, const char *file, const char *func, int line, const ch
  * \param a A pointer to the object we want to lock.
  * \return 0 on success, other values on error.
  */
-int __ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
-#define ao2_trylock(a) __ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_trylock(void *a, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var);
+#define ao2_trylock(a) __ao2_trylock(a, AO2_LOCK_REQ_MUTEX, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+#define ao2_tryrdlock(a) __ao2_trylock(a, AO2_LOCK_REQ_RDLOCK, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+#define ao2_trywrlock(a) __ao2_trylock(a, AO2_LOCK_REQ_WRLOCK, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 
 /*!
  * \brief Return the mutex lock address of an object
@@ -693,9 +734,17 @@ enum search_flags {
 	 */
 	OBJ_CONTINUE = (1 << 4),
 	/*!
-	 * \brief By using this flag, the ao2_container being searched will _NOT_
-	 * be locked.  Only use this flag if the ao2_container is being protected
-	 * by another mechanism other that the internal ao2_lock.
+	 * \brief Assume that the ao2_container is already locked.
+	 *
+	 * \note For ao2_containers that have mutexes, no locking will
+	 * be done.
+	 *
+	 * \note For ao2_containers that have RWLOCKs, the lock will be
+	 * promoted to write mode as needed.  The lock will be returned
+	 * to the original locked state.
+	 *
+	 * \note Only use this flag if the ao2_container is manually
+	 * locked already.
 	 */
 	OBJ_NOLOCK = (1 << 5),
 	/*!
@@ -732,6 +781,7 @@ struct ao2_container;
  * We allocate space for a struct astobj_container, struct container
  * and the buckets[] array.
  *
+ * \param options Container ao2 object options (See enum ao2_alloc_opts)
  * \param n_buckets Number of buckets for hash
  * \param hash_fn Pointer to a function computing a hash value.
  * \param cmp_fn Pointer to a compare function used by ao2_find. (NULL to match everything)
@@ -744,32 +794,47 @@ struct ao2_container;
 
 #if defined(REF_DEBUG)
 
+#define ao2_t_container_alloc_options(options, n_buckets, hash_fn, cmp_fn, tag) \
+	__ao2_container_alloc_debug((options), (n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_container_alloc_options(options, n_buckets, hash_fn, cmp_fn) \
+	__ao2_container_alloc_debug((options), (n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
 #define ao2_t_container_alloc(n_buckets, hash_fn, cmp_fn, tag) \
-	__ao2_container_alloc_debug((n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_container_alloc_debug(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
 #define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	__ao2_container_alloc_debug((n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_container_alloc_debug(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
 
 #elif defined(__AST_DEBUG_MALLOC)
 
+#define ao2_t_container_alloc_options(options, n_buckets, hash_fn, cmp_fn, tag) \
+	__ao2_container_alloc_debug((options), (n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_container_alloc_options(options, n_buckets, hash_fn, cmp_fn) \
+	__ao2_container_alloc_debug((options), (n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+
 #define ao2_t_container_alloc(n_buckets, hash_fn, cmp_fn, tag) \
-	__ao2_container_alloc_debug((n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+	__ao2_container_alloc_debug(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 #define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	__ao2_container_alloc_debug((n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+	__ao2_container_alloc_debug(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 
 #else
 
+#define ao2_t_container_alloc_options(options, n_buckets, hash_fn, cmp_fn, tag) \
+	__ao2_container_alloc((options), (n_buckets), (hash_fn), (cmp_fn))
+#define ao2_container_alloc_options(options, n_buckets, hash_fn, cmp_fn) \
+	__ao2_container_alloc((options), (n_buckets), (hash_fn), (cmp_fn))
+
 #define ao2_t_container_alloc(n_buckets, hash_fn, cmp_fn, tag) \
-	__ao2_container_alloc((n_buckets), (hash_fn), (cmp_fn))
+	__ao2_container_alloc(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn))
 #define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	__ao2_container_alloc((n_buckets), (hash_fn), (cmp_fn))
+	__ao2_container_alloc(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn))
 
 #endif
 
-struct ao2_container *__ao2_container_alloc(unsigned int n_buckets, ao2_hash_fn *hash_fn,
-	ao2_callback_fn *cmp_fn);
-struct ao2_container *__ao2_container_alloc_debug(unsigned int n_buckets,
-	ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, char *file, int line, const char *funcname, int ref_debug);
+struct ao2_container *__ao2_container_alloc(unsigned int options,
+	unsigned int n_buckets, ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
+struct ao2_container *__ao2_container_alloc_debug(unsigned int options,
+	unsigned int n_buckets, ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn,
+	const char *tag, const char *file, int line, const char *funcname, int ref_debug);
 
 /*! \brief
  * Returns the number of elements in a container.
@@ -810,7 +875,7 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
  * \retval NULL on error.
  */
 struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags);
-struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, enum search_flags flags, const char *tag, char *file, int line, const char *funcname, int ref_debug);
+struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, enum search_flags flags, const char *tag, const char *file, int line, const char *funcname, int ref_debug);
 #if defined(REF_DEBUG)
 
 #define ao2_t_container_clone(orig, flags, tag)	__ao2_container_clone_debug(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
@@ -843,6 +908,7 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
  *
  * \param container The container to operate on.
  * \param obj The object to be added.
+ * \param flags search_flags to control linking the object.  (OBJ_NOLOCK)
  * \param tag used for debugging.
  *
  * \retval NULL on errors.
@@ -860,20 +926,20 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 #define ao2_t_link(container, obj, tag)					__ao2_link_debug((container), (obj), 0, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_link(container, obj)						__ao2_link_debug((container), (obj), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define ao2_t_link_nolock(container, obj, tag)			__ao2_link_debug((container), (obj), OBJ_NOLOCK, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_link_nolock(container, obj)					__ao2_link_debug((container), (obj), OBJ_NOLOCK, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_link_flags(container, obj, flags, tag)	__ao2_link_debug((container), (obj), (flags), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_link_flags(container, obj, flags)			__ao2_link_debug((container), (obj), (flags), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 
 #define ao2_t_link(container, obj, tag)					__ao2_link((container), (obj), 0)
 #define ao2_link(container, obj)						__ao2_link((container), (obj), 0)
 
-#define ao2_t_link_nolock(container, obj, tag)			__ao2_link((container), (obj), OBJ_NOLOCK)
-#define ao2_link_nolock(container, obj)					__ao2_link((container), (obj), OBJ_NOLOCK)
+#define ao2_t_link_flags(container, obj, flags, tag)	__ao2_link((container), (obj), (flags))
+#define ao2_link_flags(container, obj, flags)			__ao2_link((container), (obj), (flags))
 
 #endif
 
-void *__ao2_link_debug(struct ao2_container *c, void *new_obj, int flags, const char *tag, char *file, int line, const char *funcname);
+void *__ao2_link_debug(struct ao2_container *c, void *new_obj, int flags, const char *tag, const char *file, int line, const char *funcname);
 void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
 
 /*!
@@ -881,6 +947,7 @@ void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
  *
  * \param container The container to operate on.
  * \param obj The object to unlink.
+ * \param flags search_flags to control unlinking the object.  (OBJ_NOLOCK)
  * \param tag used for debugging.
  *
  * \retval NULL, always
@@ -898,20 +965,20 @@ void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
 #define ao2_t_unlink(container, obj, tag)				__ao2_unlink_debug((container), (obj), 0, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_unlink(container, obj)						__ao2_unlink_debug((container), (obj), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define ao2_t_unlink_nolock(container, obj, tag)		__ao2_unlink_debug((container), (obj), OBJ_NOLOCK, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_unlink_nolock(container, obj)				__ao2_unlink_debug((container), (obj), OBJ_NOLOCK, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_unlink_flags(container, obj, flags, tag)	__ao2_unlink_debug((container), (obj), (flags), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_unlink_flags(container, obj, flags)			__ao2_unlink_debug((container), (obj), (flags), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 
 #define ao2_t_unlink(container, obj, tag)				__ao2_unlink((container), (obj), 0)
 #define ao2_unlink(container, obj)						__ao2_unlink((container), (obj), 0)
 
-#define ao2_t_unlink_nolock(container, obj, tag)		__ao2_unlink((container), (obj), OBJ_NOLOCK)
-#define ao2_unlink_nolock(container, obj)				__ao2_unlink((container), (obj), OBJ_NOLOCK)
+#define ao2_t_unlink_flags(container, obj, flags, tag)	__ao2_unlink((container), (obj), (flags))
+#define ao2_unlink_flags(container, obj, flags)			__ao2_unlink((container), (obj), (flags))
 
 #endif
 
-void *__ao2_unlink_debug(struct ao2_container *c, void *obj, int flags, const char *tag, char *file, int line, const char *funcname);
+void *__ao2_unlink_debug(struct ao2_container *c, void *obj, int flags, const char *tag, const char *file, int line, const char *funcname);
 void *__ao2_unlink(struct ao2_container *c, void *obj, int flags);
 
 
@@ -1010,7 +1077,7 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags);
 #endif
 
 void *__ao2_callback_debug(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_fn *cb_fn, void *arg, const char *tag, char *file, int line,
+	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
 	const char *funcname);
 void *__ao2_callback(struct ao2_container *c, enum search_flags flags, ao2_callback_fn *cb_fn, void *arg);
 
@@ -1048,7 +1115,7 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags, ao2_callb
 #endif
 
 void *__ao2_callback_data_debug(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, char *file,
+	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
 	int line, const char *funcname);
 void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_data_fn *cb_fn, void *arg, void *data);
@@ -1073,7 +1140,7 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 #endif
 
 void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags,
-	const char *tag, char *file, int line, const char *funcname);
+	const char *tag, const char *file, int line, const char *funcname);
 void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags);
 
 /*! \brief
@@ -1176,8 +1243,18 @@ struct ao2_iterator {
  * of the iterator.
  */
 enum ao2_iterator_flags {
-	/*! Prevents ao2_iterator_next() from locking the container
-	 * while retrieving the next object from it.
+	/*!
+	 * \brief Assume that the ao2_container is already locked.
+	 *
+	 * \note For ao2_containers that have mutexes, no locking will
+	 * be done.
+	 *
+	 * \note For ao2_containers that have RWLOCKs, the lock will be
+	 * promoted to write mode as needed.  The lock will be returned
+	 * to the original locked state.
+	 *
+	 * \note Only use this flag if the ao2_container is manually
+	 * locked already.
 	 */
 	AO2_ITERATOR_DONTLOCK = (1 << 0),
 	/*! Indicates that the iterator was dynamically allocated by
@@ -1234,7 +1311,7 @@ void ao2_iterator_destroy(struct ao2_iterator *i);
 
 #endif
 
-void *__ao2_iterator_next_debug(struct ao2_iterator *a, const char *tag, char *file, int line, const char *funcname);
+void *__ao2_iterator_next_debug(struct ao2_iterator *a, const char *tag, const char *file, int line, const char *funcname);
 void *__ao2_iterator_next(struct ao2_iterator *a);
 
 /* extra functions */
