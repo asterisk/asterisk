@@ -19,6 +19,11 @@
 ===
 ===========================================================
 
+From 10.3 to 10.4:
+
+* If no transport is specified in sip.conf, transport will default to UDP.
+  Also, if multiple transport= lines are used, only the last will be used.
+
 From 1.8 to 10:
 
 cel_pgsql:
