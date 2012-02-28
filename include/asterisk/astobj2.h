@@ -776,6 +776,58 @@ struct ao2_container *__ao2_container_alloc_debug(unsigned int n_buckets,
  */
 int ao2_container_count(struct ao2_container *c);
 
+/*!
+ * \brief Copy all object references in the src container into the dest container.
+ * \since 11.0
+ *
+ * \param dest Container to copy src object references into.
+ * \param src Container to copy all object references from.
+ * \param flags OBJ_NOLOCK if a lock is already held on both containers.
+ *    Otherwise, the src container is locked first.
+ *
+ * \pre The dest container must be empty.  If the duplication fails, the
+ * dest container will be returned empty.
+ *
+ * \note This can potentially be expensive because a malloc is
+ * needed for every object in the src container.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags);
+
+/*!
+ * \brief Create a clone/copy of the given container.
+ * \since 11.0
+ *
+ * \param orig Container to copy all object references from.
+ * \param flags OBJ_NOLOCK if a lock is already held on the container.
+ *
+ * \note This can potentially be expensive because a malloc is
+ * needed for every object in the orig container.
+ *
+ * \retval Clone container on success.
+ * \retval NULL on error.
+ */
+struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags);
+struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, enum search_flags flags, const char *tag, char *file, int line, const char *funcname, int ref_debug);
+#if defined(REF_DEBUG)
+
+#define ao2_t_container_clone(orig, flags, tag)	__ao2_container_clone_debug(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_container_clone(orig, flags)		__ao2_container_clone_debug(orig, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
+#elif defined(__AST_DEBUG_MALLOC)
+
+#define ao2_t_container_clone(orig, flags, tag)	__ao2_container_clone_debug(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_container_clone(orig, flags)		__ao2_container_clone_debug(orig, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+
+#else
+
+#define ao2_t_container_clone(orig, flags, tag)	__ao2_container_clone(orig, flags)
+#define ao2_container_clone(orig, flags)		__ao2_container_clone(orig, flags)
+
+#endif
+
 /*@} */
 
 /*! \name Object Management

@@ -27,6 +27,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #define REF_FILE "/tmp/refs"
 
+#if defined(TEST_FRAMEWORK)
+/* We are building with the test framework enabled so enable AO2 debug tests as well. */
+#define AO2_DEBUG 1
+#endif	/* defined(TEST_FRAMEWORK) */
+
 /*!
  * astobj2 objects are always preceded by this data structure,
  * which contains a lock, a reference counter,
@@ -1007,6 +1012,109 @@ static void container_destruct_debug(void *_c)
 #endif
 }
 
+/*!
+ * \internal
+ * \brief Put obj into the arg container.
+ * \since 11.0
+ *
+ * \param obj  pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \retval 0 on success.
+ * \retval CMP_STOP|CMP_MATCH on error.
+ */
+static int dup_obj_cb(void *obj, void *arg, int flags)
+{
+	struct ao2_container *dest = arg;
+
+	return __ao2_link(dest, obj, OBJ_NOLOCK) ? 0 : (CMP_MATCH | CMP_STOP);
+}
+
+int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags)
+{
+	void *obj;
+	int res = 0;
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_lock(src);
+		ao2_lock(dest);
+	}
+	obj = __ao2_callback(src, OBJ_NOLOCK, dup_obj_cb, dest);
+	if (obj) {
+		/* Failed to put this obj into the dest container. */
+		__ao2_ref(obj, -1);
+
+		/* Remove all items from the dest container. */
+		__ao2_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
+			NULL);
+		res = -1;
+	}
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(dest);
+		ao2_unlock(src);
+	}
+
+	return res;
+}
+
+struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags)
+{
+	struct ao2_container *clone;
+	int failed;
+
+	/* Create the clone container with the same properties as the original. */
+	clone = __ao2_container_alloc(orig->n_buckets, orig->hash_fn, orig->cmp_fn);
+	if (!clone) {
+		return NULL;
+	}
+
+	if (flags & OBJ_NOLOCK) {
+		ao2_lock(clone);
+	}
+	failed = ao2_container_dup(clone, orig, flags);
+	if (flags & OBJ_NOLOCK) {
+		ao2_unlock(clone);
+	}
+	if (failed) {
+		/* Object copy into the clone container failed. */
+		__ao2_ref(clone, -1);
+		clone = NULL;
+	}
+	return clone;
+}
+
+struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, enum search_flags flags, const char *tag, char *file, int line, const char *funcname, int ref_debug)
+{
+	struct ao2_container *clone;
+	int failed;
+
+	/* Create the clone container with the same properties as the original. */
+	clone = __ao2_container_alloc_debug(orig->n_buckets, orig->hash_fn, orig->cmp_fn, tag,
+		file, line, funcname, ref_debug);
+	if (!clone) {
+		return NULL;
+	}
+
+	if (flags & OBJ_NOLOCK) {
+		ao2_lock(clone);
+	}
+	failed = ao2_container_dup(clone, orig, flags);
+	if (flags & OBJ_NOLOCK) {
+		ao2_unlock(clone);
+	}
+	if (failed) {
+		/* Object copy into the clone container failed. */
+		if (ref_debug) {
+			__ao2_ref_debug(clone, -1, tag, file, line, funcname);
+		} else {
+			__ao2_ref(clone, -1);
+		}
+		clone = NULL;
+	}
+	return clone;
+}
+
 #ifdef AO2_DEBUG
 static int print_cb(void *obj, void *arg, int flag)
 {
@@ -1045,6 +1153,7 @@ static char *handle_astobj2_stats(struct ast_cli_entry *e, int cmd, struct ast_c
 static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_container *c1;
+	struct ao2_container *c2;
 	int i, lim;
 	char *obj;
 	static int prof_id = -1;
@@ -1099,8 +1208,17 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		 */
 		ao2_t_ref(obj, -1, "test");
 	}
+
 	ast_cli(a->fd, "testing callbacks\n");
 	ao2_t_callback(c1, 0, print_cb, a, "test callback");
+
+	ast_cli(a->fd, "testing container cloning\n");
+	c2 = ao2_container_clone(c1, 0);
+	if (ao2_container_count(c1) != ao2_container_count(c2)) {
+		ast_cli(a->fd, "Cloned container does not have the same number of objects!\n");
+	}
+	ao2_t_callback(c2, 0, print_cb, a, "test callback");
+
 	ast_cli(a->fd, "testing iterators, remove every second object\n");
 	{
 		struct ao2_iterator ai;
@@ -1122,6 +1240,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 		ao2_iterator_destroy(&ai);
 	}
+
 	ast_cli(a->fd, "testing callbacks again\n");
 	ao2_t_callback(c1, 0, print_cb, a, "test callback");
 
@@ -1130,6 +1249,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	ast_cli(a->fd, "destroy container\n");
 	ao2_t_ref(c1, -1, "");	/* destroy container */
+	ao2_t_ref(c2, -1, "");	/* destroy container */
 	handle_astobj2_stats(e, CLI_HANDLER, &fake_args);
 	return CLI_SUCCESS;
 }

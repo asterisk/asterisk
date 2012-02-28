@@ -109,9 +109,11 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 {
 	struct ao2_container *c1;
 	struct ao2_container *c2;
+	struct ao2_container *c3 = NULL;
 	struct ao2_iterator it;
 	struct ao2_iterator *mult_it;
 	struct test_obj *obj;
+	struct test_obj *obj2;
 	struct test_obj tmp_obj;
 	int bucket_size;
 	int increment = 0;
@@ -153,6 +155,44 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 	}
 
 	ast_test_status_update(test, "Container created: random bucket size %d: number of items: %d\n", bucket_size, lim);
+
+	/* Testing ao2_container_clone */
+	c3 = ao2_container_clone(c1, 0);
+	if (!c3) {
+		ast_test_status_update(test, "ao2_container_clone failed.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	if (ao2_container_count(c1) != ao2_container_count(c3)) {
+		ast_test_status_update(test, "Cloned container does not have the same number of objects.\n");
+		res = AST_TEST_FAIL;
+	} else {
+		it = ao2_iterator_init(c1, 0);
+		for (; (obj = ao2_t_iterator_next(&it, "test orig")); ao2_t_ref(obj, -1, "test orig")) {
+			/*
+			 * Unlink the matching object from the cloned container to make
+			 * the next search faster.  This is a big speed optimization!
+			 * It reduces the container with 100000 objects test time from
+			 * 18 seconds to 200 ms.
+			 */
+			obj2 = ao2_t_callback(c3, OBJ_POINTER | OBJ_UNLINK, ao2_match_by_addr, obj,
+				"test clone");
+			if (obj2) {
+				ao2_t_ref(obj2, -1, "test clone");
+				continue;
+			}
+			ast_test_status_update(test,
+				"Orig container has an object %p not in the clone container.\n", obj);
+			res = AST_TEST_FAIL;
+		}
+		ao2_iterator_destroy(&it);
+		if (ao2_container_count(c3)) {
+			ast_test_status_update(test, "Cloned container still has objects.\n");
+			res = AST_TEST_FAIL;
+		}
+	}
+	ao2_t_ref(c3, -1, "bye c3");
+	c3 = NULL;
 
 	/* Testing ao2_find with no flags */
 	num = 100;
@@ -335,6 +375,9 @@ cleanup:
 	}
 	if (c2) {
 		ao2_t_ref(c2, -1, "bye c2");
+	}
+	if (c3) {
+		ao2_t_ref(c3, -1, "bye c3");
 	}
 
 	if (destructor_count > 0) {
