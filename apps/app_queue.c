@@ -1291,17 +1291,32 @@ static int queue_cmp_cb(void *obj, void *arg, int flags)
 }
 
 #ifdef REF_DEBUG_ONLY_QUEUES
-#define queue_ref(a)	__ao2_ref_debug(a,1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_unref(a)	__ao2_ref_debug(a,-1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_t_ref(a,b)	__ao2_ref_debug(a,1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_t_unref(a,b)	__ao2_ref_debug(a,-1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queues_t_link(c,q,tag)	__ao2_link_debug(c,q,tag,__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queues_t_unlink(c,q,tag)	__ao2_unlink_debug(c,q,tag,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define queue_ref(q)				_queue_ref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queue_unref(q)				_queue_unref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queue_t_ref(q, tag)			_queue_ref(q, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queue_t_unref(q, tag)		_queue_unref(q, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queues_t_link(c, q, tag)	__ao2_link_debug(c, q, 0, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queues_t_unlink(c, q, tag)	__ao2_unlink_debug(c, q, 0, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline struct call_queue *_queue_ref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
+{
+	__ao2_ref_debug(q, 1, tag, file, line, filename);
+	return q;
+}
+
+static inline struct call_queue *_queue_unref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
+{
+	__ao2_ref_debug(q, -1, tag, file, line, filename);
+	return NULL;
+}
+
 #else
-#define queue_t_ref(a,b)	queue_ref(a)
-#define queue_t_unref(a,b)	queue_unref(a)
-#define queues_t_link(c,q,tag)	ao2_t_link(c,q,tag)
-#define queues_t_unlink(c,q,tag)	ao2_t_unlink(c,q,tag)
+
+#define queue_t_ref(q, tag)			queue_ref(q)
+#define queue_t_unref(q, tag)		queue_unref(q)
+#define queues_t_link(c, q, tag)	ao2_t_link(c, q, tag)
+#define queues_t_unlink(c, q, tag)	ao2_t_unlink(c, q, tag)
+
 static inline struct call_queue *queue_ref(struct call_queue *q)
 {
 	ao2_ref(q, 1);

@@ -889,7 +889,8 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 	ast_copy_string(tmp_class.name, name, sizeof(tmp_class.name));
 
 #ifdef REF_DEBUG
-	moh = __ao2_find_debug(mohclasses, &tmp_class, flags, "get_mohbyname", (char *) file, lineno, funcname);
+	moh = __ao2_find_debug(mohclasses, &tmp_class, flags,
+		"get_mohbyname", file, lineno, funcname);
 #else
 	moh = __ao2_find(mohclasses, &tmp_class, flags);
 #endif
@@ -1338,9 +1339,11 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 
 	if ((class =
 #ifdef REF_DEBUG
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor, "Allocating new moh class", file, line, funcname, 1)
+			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
+				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 1)
 #elif defined(__AST_DEBUG_MALLOC)
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor, "Allocating new moh class", file, line, funcname, 0)
+			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
+				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 0)
 #else
 			ao2_alloc(sizeof(*class), moh_class_destructor)
 #endif

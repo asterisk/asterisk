@@ -931,11 +931,11 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 #if defined(REF_DEBUG)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line,
-		function, 1);
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 1);
 #elif defined(__AST_DEBUG_MALLOC)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line,
-		function, 0);
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 0);
 #else
 	tmp = ao2_alloc(sizeof(*tmp), ast_channel_destructor);
 #endif
@@ -1179,11 +1179,11 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	struct varshead *headp;
 
 #if defined(REF_DEBUG)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel",
-		file, line, function, 1);
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "dummy channel", file, line, function, 1);
 #elif defined(__AST_DEBUG_MALLOC)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel",
-		file, line, function, 0);
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "dummy channel", file, line, function, 0);
 #else
 	tmp = ao2_alloc(sizeof(*tmp), ast_dummy_channel_destructor);
 #endif
