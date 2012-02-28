@@ -18,6 +18,11 @@
 ===
 ===========================================================
 
+From 1.8.11 to 1.8.12:
+
+* If no transport is specified in sip.conf, transport will default to UDP.
+  Also, if multiple transport= lines are used, only the last will be used.
+
 From 1.6.2 to 1.8:
 
 * When using TLS with Manager and the HTTP server, the desired port
@@ -171,9 +176,6 @@ From 1.6.2 to 1.8:
 * The sip.conf allowoverlap option now accepts 'dtmf' as a value.  If you
   are using the early media DTMF overlap dialing method you now need to set
   allowoverlap=dtmf.
-
-* If no transport is specified in sip.conf, transport will default to UDP.
-  Also, if multiple transport= lines are used, only the last will be used.
 
 From 1.6.1 to 1.6.2:
 
