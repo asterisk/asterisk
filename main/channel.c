@@ -1097,7 +1097,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		
 	ast_channel_context_set(tmp, S_OR(context, "default"));
 	ast_channel_exten_set(tmp, S_OR(exten, "s"));
-	ast_channel_priority_set(tmp, -1);
+	ast_channel_priority_set(tmp, 1);
 
 	ast_channel_cdr_set(tmp, ast_cdr_alloc());
 	ast_cdr_init(ast_channel_cdr(tmp), tmp);
