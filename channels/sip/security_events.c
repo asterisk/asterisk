@@ -365,6 +365,7 @@ int sip_report_security_event(const struct sip_pvt *p, const struct sip_request 
 		sip_report_invalid_peer(p);
 		break;
 	case AUTH_FAKE_AUTH:
+		sip_report_invalid_peer(p);
 		break;
 	case AUTH_UNKNOWN_DOMAIN:
 		snprintf(aclname, sizeof(aclname), "domain_must_match");
