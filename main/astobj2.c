@@ -180,7 +180,7 @@ int __ao2_trylock(void *user_data, const char *file, const char *func, int line,
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 	int ret;
-	
+
 	if (p == NULL)
 		return -1;
 	ret = __ast_pthread_mutex_trylock(file, line, func, var, &p->priv_data.lock);
@@ -195,7 +195,7 @@ int __ao2_trylock(void *user_data, const char *file, const char *func, int line,
 void *ao2_object_get_lockaddr(void *obj)
 {
 	struct astobj2 *p = INTERNAL_OBJ(obj);
-	
+
 	if (p == NULL)
 		return NULL;
 
@@ -210,7 +210,7 @@ void *ao2_object_get_lockaddr(void *obj)
 int __ao2_ref_debug(void *user_data, const int delta, const char *tag, char *file, int line, const char *funcname)
 {
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
-	
+
 	if (obj == NULL)
 		return -1;
 
@@ -259,7 +259,7 @@ static int internal_ao2_ref(void *user_data, const int delta)
 	ret = ast_atomic_fetchadd_int(&obj->priv_data.ref_counter, delta);
 	current_value = ret + delta;
 
-#ifdef AO2_DEBUG	
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_refs, delta);
 #endif
 
@@ -392,7 +392,7 @@ struct ao2_container {
 	/*! variable size */
 	struct bucket buckets[0];
 };
- 
+
 /*!
  * \brief always zero hash function
  *
@@ -418,7 +418,7 @@ static struct ao2_container *internal_ao2_container_alloc(struct ao2_container *
 
 	if (!c)
 		return NULL;
-	
+
 	c->version = 1;	/* 0 is a reserved value here */
 	c->n_buckets = hash_fn ? n_buckets : 1;
 	c->hash_fn = hash_fn ? hash_fn : hash_zero;
@@ -474,7 +474,7 @@ struct bucket_entry {
 	AST_LIST_ENTRY(bucket_entry) entry;
 	int version;
 	struct astobj2 *astobj;		/* pointer to internal data */
-}; 
+};
 
 /*
  * link an object to a container
@@ -574,9 +574,9 @@ void *__ao2_unlink(struct ao2_container *c, void *user_data, int flags)
 	return NULL;
 }
 
-/*! 
- * \brief special callback that matches all 
- */ 
+/*!
+ * \brief special callback that matches all
+ */
 static int cb_true(void *user_data, void *arg, int flags)
 {
 	return CMP_MATCH;
@@ -592,7 +592,7 @@ static int cb_true_data(void *user_data, void *arg, void *data, int flags)
 
 /*!
  * Browse the container using different stategies accoding the flags.
- * \return Is a pointer to an object or to a list of object if OBJ_MULTIPLE is 
+ * \return Is a pointer to an object or to a list of object if OBJ_MULTIPLE is
  * specified.
  * Luckily, for debug purposes, the added args (tag, file, line, funcname)
  * aren't an excessive load to the system, as the callback should not be
@@ -710,7 +710,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				}
 			}
 
-			/* If we are in OBJ_MULTIPLE mode and OBJ_NODATE is off, 
+			/* If we are in OBJ_MULTIPLE mode and OBJ_NODATE is off,
 			 * link the object into the container that will hold the results.
 			 */
 			if (ret && (multi_container != NULL)) {
@@ -834,7 +834,7 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 	};
 
 	ao2_ref(c, +1);
-	
+
 	return a;
 }
 
@@ -861,7 +861,7 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *a, struct bucket_en
 	void *ret = NULL;
 
 	*q = NULL;
-	
+
 	if (INTERNAL_OBJ(a->c) == NULL)
 		return NULL;
 
@@ -927,7 +927,7 @@ void *__ao2_iterator_next_debug(struct ao2_iterator *a, const char *tag, char *f
 	void *ret = NULL;
 
 	ret = internal_ao2_iterator_next(a, &p);
-	
+
 	if (p) {
 		/* inc refcount of returned object */
 		__ao2_ref_debug(ret, 1, tag, file, line, funcname);
@@ -945,7 +945,7 @@ void *__ao2_iterator_next(struct ao2_iterator *a)
 	void *ret = NULL;
 
 	ret = internal_ao2_iterator_next(a, &p);
-	
+
 	if (p) {
 		/* inc refcount of returned object */
 		__ao2_ref(ret, 1);
@@ -965,13 +965,13 @@ static int cd_cb(void *obj, void *arg, int flag)
 	__ao2_ref(obj, -1);
 	return 0;
 }
-	
+
 static int cd_cb_debug(void *obj, void *arg, int flag)
 {
 	__ao2_ref_debug(obj, -1, "deref object via container destroy",  __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	return 0;
 }
-	
+
 static void container_destruct(void *_c)
 {
 	struct ao2_container *c = _c;
