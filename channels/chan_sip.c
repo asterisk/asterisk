@@ -1280,7 +1280,7 @@ static int auto_congest(const void *arg);
 static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method);
 static void free_old_route(struct sip_route *route);
 static void list_route(struct sip_route *route);
-static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards);
+static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp);
 static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
 					      struct sip_request *req, const char *uri);
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
@@ -10352,7 +10352,15 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	snprintf(tmp, sizeof(tmp), "%d %s", seqno, sip_methods[sipmethod].text);
 
 	add_header(req, "Via", p->via);
-	if (p->route) {
+	/*
+	 * Use the learned route set unless this is a CANCEL on an ACK for a non-2xx
+	 * final response. For a CANCEL or ACK, we have to send to the same destination
+	 * as the original INVITE.
+	 */
+	if (sipmethod == SIP_CANCEL ||
+			(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED))) {
+		set_destination(p, ast_strdupa(p->uri));
+	} else if (p->route) {
 		set_destination(p, p->route->hop);
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
@@ -13579,13 +13587,13 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 {
 	struct sip_request resp;
 	
-	if (sipmethod == SIP_ACK) {
-		p->invitestate = INV_CONFIRMED;
-	}
-
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	if (sipmethod == SIP_CANCEL && p->answered_elsewhere) {
 		add_header(&resp, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
+	}
+
+	if (sipmethod == SIP_ACK) {
+		p->invitestate = INV_CONFIRMED;
 	}
 
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
@@ -14150,8 +14158,9 @@ static void list_route(struct sip_route *route)
 	}
 }
 
-/*! \brief Build route list from Record-Route header */
-static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards)
+/*! \brief Build route list from Record-Route header 
+    \param resp the SIP response code or 0 for a request */
+static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp)
 {
 	struct sip_route *thishop, *head, *tail;
 	int start = 0;
@@ -14169,9 +14178,12 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		p->route = NULL;
 	}
 
-	/* We only want to create the route set the first time this is called */
-	p->route_persistent = 1;
-	
+	/* We only want to create the route set the first time this is called except
+	   it is called from a provisional response.*/
+	if ((resp < 100) || (resp > 199)) {
+		p->route_persistent = 1;
+	}
+
 	/* Build a tailq, then assign it to p->route when done.
 	 * If backwards, we add entries from the head so they end up
 	 * in reverse order. However, we do need to maintain a correct
@@ -19957,7 +19969,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		 * */
 		parse_ok_contact(p, req);
 		if (!reinvite) {
-			build_route(p, req, 1);
+			build_route(p, req, 1, resp);
 		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
@@ -20007,7 +20019,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		 * */
 		parse_ok_contact(p, req);
 		if (!reinvite) {
-			build_route(p, req, 1);
+			build_route(p, req, 1, resp);
 		}
 		if (!req->ignore && p->owner) {
 			struct ast_party_redirecting redirecting;
@@ -20033,7 +20045,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		 * */
 		parse_ok_contact(p, req);
 		if (!reinvite) {
-			build_route(p, req, 1);
+			build_route(p, req, 1, resp);
 		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
@@ -20133,7 +20145,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			parse_ok_contact(p, req);
 			/* Save Record-Route for any later requests we make on this dialogue */
 			if (!reinvite)
-				build_route(p, req, 1);
+				build_route(p, req, 1, resp);
 
 			if(set_address_from_contact(p)) {
 				/* Bad contact - we don't know how to reach this device */
@@ -22637,7 +22649,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			*recount = 1;
 
 			/* Save Record-Route for any later requests we make on this dialogue */
-			build_route(p, req, 0);
+			build_route(p, req, 0, 0);
 
 			if (c) {
 				ast_party_redirecting_init(&redirecting);
@@ -24519,7 +24531,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (sipdebug)
 			ast_debug(4, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 		check_via(p, req);
-		build_route(p, req, 0);
+		build_route(p, req, 0, 0);
 	} else if (req->debug && req->ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
