@@ -449,6 +449,9 @@ static int odbc_log(struct ast_cdr *cdr)
 				case SQL_CHAR:
 				case SQL_VARCHAR:
 				case SQL_LONGVARCHAR:
+				case SQL_WCHAR:
+				case SQL_WVARCHAR:
+				case SQL_WLONGVARCHAR:
 				case SQL_BINARY:
 				case SQL_VARBINARY:
 				case SQL_LONGVARBINARY:
