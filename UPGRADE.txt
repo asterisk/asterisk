@@ -18,7 +18,7 @@
 ===
 ===========================================================
 
-From 1.8.11 to 1.8.12:
+From 1.8.10 to 1.8.11:
 
 * If no transport is specified in sip.conf, transport will default to UDP.
   Also, if multiple transport= lines are used, only the last will be used.

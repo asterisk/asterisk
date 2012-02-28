@@ -223,6 +223,9 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
 				; unauthenticated sessions that will be allowed
                                 ; to connect at any given time. (default: 100)
 
+transport=udp                   ; Set the default transports.  The order determines the primary default transport.
+                                ; If tcpenable=no and the transport set is tcp, we will fallback to UDP.
+
 srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Note: Asterisk only uses the first host
                                 ; in SRV records
