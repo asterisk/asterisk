@@ -421,7 +421,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 				chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
 		ast_copy_string(chan->context, newframe->context, sizeof(chan->context));
 		ast_copy_string(chan->exten, newframe->extension, sizeof(chan->exten));
-		chan->priority = newframe->priority;
+		chan->priority = newframe->priority - 1;
 		ast_free(newframe);
 		return -1;
 	}
