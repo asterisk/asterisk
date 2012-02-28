@@ -19,7 +19,7 @@
 ===
 ===========================================================
 
-From 10.3 to 10.4:
+From 10.2 to 10.3:
 
 * If no transport is specified in sip.conf, transport will default to UDP.
   Also, if multiple transport= lines are used, only the last will be used.
