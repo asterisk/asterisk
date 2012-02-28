@@ -131,12 +131,6 @@ HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_sessio
 	return write(tcptls_session->fd, buf, count);
 }
 
-static void session_instance_destructor(void *obj)
-{
-	struct ast_tcptls_session_instance *i = obj;
-	ast_mutex_destroy(&i->lock);
-}
-
 /*! \brief
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
@@ -285,7 +279,7 @@ void *ast_tcptls_server_root(void *data)
 			}
 			continue;
 		}
-		tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
+		tcptls_session = ao2_alloc(sizeof(*tcptls_session), NULL);
 		if (!tcptls_session) {
 			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
 			if (close(fd)) {
@@ -293,8 +287,6 @@ void *ast_tcptls_server_root(void *data)
 			}
 			continue;
 		}
-
-		ast_mutex_init(&tcptls_session->lock);
 
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
@@ -477,11 +469,10 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		}
 	}
 
-	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor))) {
+	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), NULL))) {
 		goto error;
 	}
 
-	ast_mutex_init(&tcptls_session->lock);
 	tcptls_session->client = 1;
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;

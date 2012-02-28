@@ -155,8 +155,6 @@ struct ast_tcptls_session_instance {
 	int client;
 	struct ast_sockaddr remote_address;
 	struct ast_tcptls_session_args *parent;
-	/*! \todo XXX Why do we still use this lock when this struct is allocated as an ao2 object which has its own lock? */
-	ast_mutex_t lock;
 };
 
 #if defined(HAVE_FUNOPEN)

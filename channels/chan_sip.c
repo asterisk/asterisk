@@ -2440,7 +2440,7 @@ static int sip_tcptls_write(struct ast_tcptls_session_instance *tcptls_session, 
 		return XMIT_ERROR;
 	}
 
-	ast_mutex_lock(&tcptls_session->lock);
+	ao2_lock(tcptls_session);
 
 	if ((tcptls_session->fd == -1) ||
 		!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
@@ -2467,7 +2467,7 @@ static int sip_tcptls_write(struct ast_tcptls_session_instance *tcptls_session, 
 	}
 	ao2_unlock(th);
 
-	ast_mutex_unlock(&tcptls_session->lock);
+	ao2_unlock(tcptls_session);
 	ao2_t_ref(th, -1, "In sip_tcptls_write, unref threadinfo object after finding it");
 	return res;
 
@@ -2478,7 +2478,7 @@ tcptls_write_setup_error:
 	if (packet) {
 		ao2_t_ref(packet, -1, "could not allocate packet's data");
 	}
-	ast_mutex_unlock(&tcptls_session->lock);
+	ao2_unlock(tcptls_session);
 
 	return XMIT_ERROR;
 }
@@ -2692,9 +2692,9 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 					}
 				}
 
-				ast_mutex_lock(&tcptls_session->lock);
+				ao2_lock(tcptls_session);
 				if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
-					ast_mutex_unlock(&tcptls_session->lock);
+					ao2_unlock(tcptls_session);
 					if (after_poll) {
 						goto cleanup;
 					} else {
@@ -2702,7 +2702,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 						continue;
 					}
 				}
-				ast_mutex_unlock(&tcptls_session->lock);
+				ao2_unlock(tcptls_session);
 				after_poll = 0;
 				if (me->stop) {
 					 goto cleanup;
@@ -2742,9 +2742,9 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 						}
 					}
 
-					ast_mutex_lock(&tcptls_session->lock);
+					ao2_lock(tcptls_session);
 					if (!(bytes_read = fread(buf, 1, MIN(sizeof(buf) - 1, cl), tcptls_session->f))) {
-						ast_mutex_unlock(&tcptls_session->lock);
+						ao2_unlock(tcptls_session);
 						if (after_poll) {
 							goto cleanup;
 						} else {
@@ -2753,7 +2753,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 						}
 					}
 					buf[bytes_read] = '\0';
-					ast_mutex_unlock(&tcptls_session->lock);
+					ao2_unlock(tcptls_session);
 					after_poll = 0;
 					if (me->stop) {
 						goto cleanup;
@@ -2823,10 +2823,10 @@ cleanup:
 	}
 
 	if (tcptls_session) {
-		ast_mutex_lock(&tcptls_session->lock);
+		ao2_lock(tcptls_session);
 		ast_tcptls_close_session_file(tcptls_session);
 		tcptls_session->parent = NULL;
-		ast_mutex_unlock(&tcptls_session->lock);
+		ao2_unlock(tcptls_session);
 
 		ao2_ref(tcptls_session, -1);
 		tcptls_session = NULL;
