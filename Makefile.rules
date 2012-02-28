@@ -87,14 +87,14 @@ endif
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
 
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
 
@@ -111,7 +111,7 @@ endif
 %.oo: %.ii
 	$(ECHO_PREFIX) echo "   [CXXi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(OPTIMIZE) $(CXX_CFLAGS)
+	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(CXX_CFLAGS) $(OPTIMIZE)
 endif
 	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
 
