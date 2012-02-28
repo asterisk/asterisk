@@ -382,7 +382,7 @@ int ast_sockaddr_parse(struct ast_sockaddr *addr, const char *str, int flags);
  * port MUST NOT be present.
  *
  * \param family Only addresses of the given family will be returned. Use 0 or
- * AST_SOCKADDR_UNSPEC to get addresses of all families.
+ * AST_AF_UNSPEC to get addresses of all families.
  *
  * \retval 0 Failure
  * \retval non-zero The number of elements in addrs array.
