@@ -1175,6 +1175,7 @@ static const struct permalias {
 	{ EVENT_FLAG_CC, "cc" },
 	{ EVENT_FLAG_AOC, "aoc" },
 	{ EVENT_FLAG_TEST, "test" },
+	{ EVENT_FLAG_MESSAGE, "message" },
 	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
@@ -4023,7 +4024,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		format = 0;
 		ast_parse_allow_disallow(NULL, &format, codecs, 1);
 	}
-	if (!ast_strlen_zero(app)) {
+	if (!ast_strlen_zero(app) && s->session) {
 		/* To run the System application (or anything else that goes to
 		 * shell), you must have the additional System privilege */
 		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
@@ -5159,10 +5160,17 @@ int ast_manager_unregister(char *action)
 	return 0;
 }
 
-static int manager_state_cb(char *context, char *exten, int state, void *data)
+static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	/* Notify managers of change */
 	char hint[512];
+	int state = info->exten_state;
+
+	/* only interested in device state for this right now */
+	if (info->reason !=  AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
+
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
 
 	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
