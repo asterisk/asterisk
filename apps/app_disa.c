@@ -314,9 +314,9 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 				if (j == '#') { /* end of extension .. maybe */
 					if (i == 0
 						&& (ast_matchmore_extension(chan, args.context, "#", 1,
-							S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+							S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))
 							|| ast_exists_extension(chan, args.context, "#", 1,
-								S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) ) {
+								S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) ) {
 						/* Let the # be the part of, or the entire extension */
 					} else {
 						break;
@@ -347,7 +347,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 
 			/* if can do some more, do it */
 			if (!ast_matchmore_extension(chan, args.context, exten, 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				break;
 			}
 		}
@@ -360,7 +360,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		struct ast_flags cdr_flags = { AST_CDR_FLAG_POSTED };
 
 		if (!ast_exists_extension(chan, args.context, exten, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			exten[0] = 'i';
 			exten[1] = '\0';
@@ -368,7 +368,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		}
 		if (!recheck
 			|| ast_exists_extension(chan, args.context, exten, 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			ast_playtones_stop(chan);
 			/* We're authenticated and have a target extension */
 			if (!ast_strlen_zero(args.cid)) {

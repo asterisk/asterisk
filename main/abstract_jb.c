@@ -134,7 +134,7 @@ static long get_now(struct ast_jb *jb, struct timeval *tv);
 
 static void jb_choose_impl(struct ast_channel *chan)
 {
-	struct ast_jb *jb = &chan->jb;
+	struct ast_jb *jb = ast_channel_jb(chan);
 	struct ast_jb_conf *jbconf = &jb->conf;
 	const struct ast_jb_impl *test_impl;
 	int i, avail_impl_count = ARRAY_LEN(avail_impl);
@@ -156,8 +156,8 @@ static void jb_choose_impl(struct ast_channel *chan)
 
 int ast_jb_do_usecheck(struct ast_channel *c0, struct ast_channel *c1)
 {
-	struct ast_jb *jb0 = &c0->jb;
-	struct ast_jb *jb1 = &c1->jb;
+	struct ast_jb *jb0 = ast_channel_jb(c0);
+	struct ast_jb *jb1 = ast_channel_jb(c1);
 	struct ast_jb_conf *conf0 = &jb0->conf;
 	struct ast_jb_conf *conf1 = &jb1->conf;
 	int c0_wants_jitter = ast_channel_tech(c0)->properties & AST_CHAN_TP_WANTSJITTER;
@@ -217,8 +217,8 @@ int ast_jb_do_usecheck(struct ast_channel *c0, struct ast_channel *c1)
 
 int ast_jb_get_when_to_wakeup(struct ast_channel *c0, struct ast_channel *c1, int time_left)
 {
-	struct ast_jb *jb0 = &c0->jb;
-	struct ast_jb *jb1 = &c1->jb;
+	struct ast_jb *jb0 = ast_channel_jb(c0);
+	struct ast_jb *jb1 = ast_channel_jb(c1);
 	int c0_use_jb = ast_test_flag(jb0, JB_USE);
 	int c0_jb_is_created = ast_test_flag(jb0, JB_CREATED);
 	int c1_use_jb = ast_test_flag(jb1, JB_USE);
@@ -257,7 +257,7 @@ int ast_jb_get_when_to_wakeup(struct ast_channel *c0, struct ast_channel *c1, in
 
 int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 {
-	struct ast_jb *jb = &chan->jb;
+	struct ast_jb *jb = ast_channel_jb(chan);
 	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *frr;
@@ -322,8 +322,8 @@ int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 
 void ast_jb_get_and_deliver(struct ast_channel *c0, struct ast_channel *c1)
 {
-	struct ast_jb *jb0 = &c0->jb;
-	struct ast_jb *jb1 = &c1->jb;
+	struct ast_jb *jb0 = ast_channel_jb(c0);
+	struct ast_jb *jb1 = ast_channel_jb(c1);
 	int c0_use_jb = ast_test_flag(jb0, JB_USE);
 	int c0_jb_is_created = ast_test_flag(jb0, JB_CREATED);
 	int c1_use_jb = ast_test_flag(jb1, JB_USE);
@@ -339,7 +339,7 @@ void ast_jb_get_and_deliver(struct ast_channel *c0, struct ast_channel *c1)
 
 static void jb_get_and_deliver(struct ast_channel *chan)
 {
-	struct ast_jb *jb = &chan->jb;
+	struct ast_jb *jb = ast_channel_jb(chan);
 	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *f, finterp = { .frametype = AST_FRAME_VOICE, };
@@ -399,7 +399,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 
 static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 {
-	struct ast_jb *jb = &chan->jb;
+	struct ast_jb *jb = ast_channel_jb(chan);
 	struct ast_jb_conf *jbconf = &jb->conf;
 	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj;
@@ -486,7 +486,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 
 void ast_jb_destroy(struct ast_channel *chan)
 {
-	struct ast_jb *jb = &chan->jb;
+	struct ast_jb *jb = ast_channel_jb(chan);
 	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *f;
@@ -566,19 +566,19 @@ int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *
 
 void ast_jb_configure(struct ast_channel *chan, const struct ast_jb_conf *conf)
 {
-	memcpy(&chan->jb.conf, conf, sizeof(*conf));
+	memcpy(&ast_channel_jb(chan)->conf, conf, sizeof(*conf));
 }
 
 
 void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf)
 {
-	memcpy(conf, &chan->jb.conf, sizeof(*conf));
+	memcpy(conf, &ast_channel_jb((struct ast_channel *) chan)->conf, sizeof(*conf));
 }
 
 void ast_jb_empty_and_reset(struct ast_channel *c0, struct ast_channel *c1)
 {
-	struct ast_jb *jb0 = &c0->jb;
-	struct ast_jb *jb1 = &c1->jb;
+	struct ast_jb *jb0 = ast_channel_jb(c0);
+	struct ast_jb *jb1 = ast_channel_jb(c1);
 	int c0_use_jb = ast_test_flag(jb0, JB_USE);
 	int c0_jb_is_created = ast_test_flag(jb0, JB_CREATED);
 	int c1_use_jb = ast_test_flag(jb1, JB_USE);

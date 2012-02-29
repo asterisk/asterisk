@@ -937,7 +937,7 @@ static void findmeexec(struct fm_args *tpargs)
 			}
 
 			/* We check if the extension exists, before creating the ast_channel struct */
-			if (!ast_exists_extension(caller, tpargs->context, number, 1, S_COR(caller->caller.id.number.valid, caller->caller.id.number.str, NULL))) {
+			if (!ast_exists_extension(caller, tpargs->context, number, 1, S_COR(ast_channel_caller(caller)->id.number.valid, ast_channel_caller(caller)->id.number.str, NULL))) {
 				ast_log(LOG_ERROR, "Extension '%s@%s' doesn't exist\n", number, tpargs->context);
 				continue;
 			}
@@ -956,7 +956,7 @@ static void findmeexec(struct fm_args *tpargs)
 			outbound = ast_request("Local", ast_channel_nativeformats(caller), caller, dialarg, &dg);
 			if (outbound) {
 				ast_channel_lock_both(caller, outbound);
-				ast_connected_line_copy_from_caller(&outbound->connected, &caller->caller);
+				ast_connected_line_copy_from_caller(ast_channel_connected(outbound), ast_channel_caller(caller));
 				ast_channel_inherit_variables(caller, outbound);
 				ast_channel_datastore_inherit(caller, outbound);
 				ast_channel_language_set(outbound, ast_channel_language(caller));
@@ -1266,7 +1266,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	targs.chan = chan;
 	ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
 	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&targs.connected_in, &chan->caller);
+	ast_connected_line_copy_from_caller(&targs.connected_in, ast_channel_caller(chan));
 	ast_channel_unlock(chan);
 
 	findmeexec(&targs);

@@ -2387,8 +2387,8 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	}
 
 	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, "INBOX",
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
 		fn, introfn, fmt, duration, 1, chan, NULL, 1, flag);
 	/* read mail file to memory */
 	len = ftell(p);
@@ -5457,8 +5457,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	}
 	ast_unlock_path(todir);
 	notify_new_message(chan, recip, NULL, recipmsgnum, duration, fmt,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
 		flag);
 	
 	return res;
@@ -5796,17 +5796,17 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (ast_test_flag(vmu, VM_OPERATOR)) {
 		if (!ast_strlen_zero(vmu->exit)) {
 			if (ast_exists_extension(chan, vmu->exit, "o", 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 				ouseexten = 1;
 			}
 		} else if (ast_exists_extension(chan, ast_channel_context(chan), "o", 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
 		} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
 			&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "o", 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
 		}
@@ -5814,15 +5814,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	if (!ast_strlen_zero(vmu->exit)) {
 		if (ast_exists_extension(chan, vmu->exit, "a", 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
 		}
 	} else if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
 	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
 		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "a", 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
 		ausemacro = 1;
 	}
@@ -5833,7 +5833,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			e[0] = *code;
 			if (strchr(ecodes, e[0]) == NULL
 				&& ast_canmatch_extension(chan, ast_channel_context(chan), e, 1,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
 			}
 		}
@@ -6013,8 +6013,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			snprintf(origtime, sizeof(origtime), "%ld", (long) time(NULL));
 			get_date(date, sizeof(date));
 			ast_callerid_merge(callerid, sizeof(callerid),
-				S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+				S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 				"Unknown");
 			ast_store_realtime("voicemail_data",
 				"origmailbox", ext,
@@ -6036,8 +6036,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (txt) {
 			get_date(date, sizeof(date));
 			ast_callerid_merge(callerid, sizeof(callerid),
-				S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+				S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 				"Unknown");
 			fprintf(txt, 
 				";\n"
@@ -6059,8 +6059,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				ast_channel_context(chan),
 				ast_channel_macrocontext(chan), 
 				ast_channel_exten(chan),
-				S_COR(chan->redirecting.from.number.valid,
-					chan->redirecting.from.number.str, "unknown"),
+				S_COR(ast_channel_redirecting(chan)->from.number.valid,
+					ast_channel_redirecting(chan)->from.number.str, "unknown"),
 				ast_channel_priority(chan),
 				ast_channel_name(chan),
 				callerid,
@@ -6178,13 +6178,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					if (ast_fileexists(fn, NULL, NULL)) {
 #ifdef IMAP_STORAGE
 						notify_new_message(chan, vmu, vms, msgnum, duration, fmt,
-							S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-							S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+							S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
+							S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
 							flag);
 #else
 						notify_new_message(chan, vmu, NULL, msgnum, duration, fmt,
-							S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-							S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+							S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
+							S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
 							flag);
 #endif
 					}
@@ -9864,8 +9864,8 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			return -1;
 		}
 		if (ast_strlen_zero(mailbox)) {
-			if (chan->caller.id.number.valid && chan->caller.id.number.str) {
-				ast_copy_string(mailbox, chan->caller.id.number.str, mailbox_size);
+			if (ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str) {
+				ast_copy_string(mailbox, ast_channel_caller(chan)->id.number.str, mailbox_size);
 			} else {
 				ast_verb(3, "Username not entered\n");	
 				return -1;
@@ -9874,7 +9874,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			/* user entered '*' */
 			ast_verb(4, "Mailbox begins with '*', attempting jump to extension 'a'\n");
 			if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				return -1;
 			}
 			ast_verb(4, "Jump to extension 'a' failed; setting mailbox to NULL\n");
@@ -9909,7 +9909,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				/* user entered '*' */
 				ast_verb(4, "Password begins with '*', attempting jump to extension 'a'\n");
 				if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 					mailbox[0] = '*';
 					return -1;
 				}

@@ -1510,10 +1510,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		"Uniqueid: %s\r\n",
 		pu->parkingexten, ast_channel_name(chan), pu->parkinglot->name, event_from,
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>"),
-		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, "<unknown>"),
-		S_COR(chan->connected.id.name.valid, chan->connected.id.name.str, "<unknown>"),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>"),
+		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, "<unknown>"),
 		ast_channel_uniqueid(chan)
 		);
 	ast_debug(4, "peer: %s\n", peer ? ast_channel_name(peer) : "-No peer-");
@@ -2069,10 +2069,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
 			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 		} else {
-			caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
-				caller_chan->caller.id.number.str, ast_channel_name(caller_chan)));
-			callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
-				callee_chan->caller.id.number.str, ast_channel_name(callee_chan)));
+			caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(caller_chan)->id.number.valid,
+				ast_channel_caller(caller_chan)->id.number.str, ast_channel_name(caller_chan)));
+			callee_chan_id = ast_strdupa(S_COR(ast_channel_caller(callee_chan)->id.number.valid,
+				ast_channel_caller(callee_chan)->id.number.str, ast_channel_name(callee_chan)));
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
 			touch_filename = alloca(len);
@@ -2185,10 +2185,10 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 			snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
 			snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
 		} else {
-			caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
-				caller_chan->caller.id.number.str, ast_channel_name(caller_chan)));
-			callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
-				callee_chan->caller.id.number.str, ast_channel_name(callee_chan)));
+			caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(caller_chan)->id.number.valid,
+				ast_channel_caller(caller_chan)->id.number.str, ast_channel_name(caller_chan)));
+			callee_chan_id = ast_strdupa(S_COR(ast_channel_caller(callee_chan)->id.number.valid,
+				ast_channel_caller(callee_chan)->id.number.str, ast_channel_name(callee_chan)));
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
 			touch_filename = alloca(len);
@@ -2532,7 +2532,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	/* Save connected line info for party B about party A in case transfer fails. */
 	ast_party_connected_line_init(&connected_line);
 	ast_channel_lock(transferer);
-	ast_party_connected_line_copy(&connected_line, &transferer->connected);
+	ast_party_connected_line_copy(&connected_line, ast_channel_connected(transferer));
 	ast_channel_unlock(transferer);
 	connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 
@@ -2814,7 +2814,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	 * Due to a limitation regarding when callerID is set on a Local channel,
 	 * we use the transferer's connected line information here.
 	 */
-	ast_party_connected_line_copy(&connected_line, &transferer->connected);
+	ast_party_connected_line_copy(&connected_line, ast_channel_connected(transferer));
 	ast_channel_unlock(transferer);
 	connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	if (ast_channel_connected_line_sub(newchan, xferchan, &connected_line, 0) &&
@@ -2824,7 +2824,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* Transfer party A connected line to party C */
 	ast_channel_lock(xferchan);
-	ast_connected_line_copy_from_caller(&connected_line, &xferchan->caller);
+	ast_connected_line_copy_from_caller(&connected_line, ast_channel_caller(xferchan));
 	ast_channel_unlock(xferchan);
 	connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	if (ast_channel_connected_line_sub(xferchan, newchan, &connected_line, 0) &&
@@ -3457,7 +3457,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller_name);
 
 	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&chan->connected, &requestor->caller);
+	ast_connected_line_copy_from_caller(ast_channel_connected(chan), ast_channel_caller(requestor));
 	ast_channel_unlock(chan);
 
 	if (ast_call(chan, addr, timeout)) {
@@ -3608,7 +3608,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 						struct ast_party_connected_line connected;
 
 						/* Just save it for the transfer. */
-						ast_party_connected_line_set_init(&connected, &caller->connected);
+						ast_party_connected_line_set_init(&connected, ast_channel_connected(caller));
 						res = ast_connected_line_parse_data(f->data.ptr, f->datalen,
 							&connected);
 						if (!res) {
@@ -4320,11 +4320,11 @@ before_you_go:
 	if (ast_test_flag(&config->features_caller, AST_FEATURE_NO_H_EXTEN)) {
 		h_context = NULL;
 	} else if (ast_exists_extension(chan, ast_channel_context(chan), "h", 1,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		h_context = ast_channel_context(chan);
 	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
 		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "h", 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		h_context = ast_channel_macrocontext(chan);
 	} else {
 		h_context = NULL;
@@ -4372,7 +4372,7 @@ before_you_go:
 
 		while ((spawn_error = ast_spawn_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
 			ast_channel_priority(chan),
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 			&found, 1)) == 0) {
 			ast_channel_priority_set(chan, ast_channel_priority(chan) + 1);
 		}
@@ -4530,10 +4530,10 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		pu->parkingexten, 
 		ast_channel_name(pu->chan),
 		pu->parkinglot->name,
-		S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
-		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
-		S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
-		S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
+		S_COR(ast_channel_caller(pu->chan)->id.number.valid, ast_channel_caller(pu->chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(pu->chan)->id.name.valid, ast_channel_caller(pu->chan)->id.name.str, "<unknown>"),
+		S_COR(ast_channel_connected(pu->chan)->id.number.valid, ast_channel_connected(pu->chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_connected(pu->chan)->id.name.valid, ast_channel_connected(pu->chan)->id.name.str, "<unknown>"),
 		ast_channel_uniqueid(pu->chan)
 		);
 }
@@ -5141,10 +5141,10 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 			"Uniqueid: %s\r\n",
 			pu->parkingexten, ast_channel_name(pu->chan), pu->parkinglot->name,
 			ast_channel_name(chan),
-			S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
-			S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
-			S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
-			S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
+			S_COR(ast_channel_caller(pu->chan)->id.number.valid, ast_channel_caller(pu->chan)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_caller(pu->chan)->id.name.valid, ast_channel_caller(pu->chan)->id.name.str, "<unknown>"),
+			S_COR(ast_channel_connected(pu->chan)->id.number.valid, ast_channel_connected(pu->chan)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_connected(pu->chan)->id.name.valid, ast_channel_connected(pu->chan)->id.name.str, "<unknown>"),
 			ast_channel_uniqueid(pu->chan)
 			);
 
@@ -5174,7 +5174,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 
 		/* Send our caller-id to peer. */
 		ast_channel_lock(chan);
-		ast_connected_line_copy_from_caller(&connected, &chan->caller);
+		ast_connected_line_copy_from_caller(&connected, ast_channel_caller(chan));
 		ast_channel_unlock(chan);
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 		if (ast_channel_connected_line_sub(chan, peer, &connected, 0) &&
@@ -5190,7 +5190,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		 * connected line information after connection.
 		 */
 		ast_channel_lock(peer);
-		ast_connected_line_copy_from_caller(&connected, &peer->caller);
+		ast_connected_line_copy_from_caller(&connected, ast_channel_caller(peer));
 		ast_channel_unlock(peer);
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 		if (ast_channel_connected_line_sub(peer, chan, &connected, 0) &&
@@ -7099,10 +7099,10 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 				curlot->name,
 				cur->parkingnum, ast_channel_name(cur->chan), cur->peername,
 				(long) cur->start.tv_sec + (long) (cur->parkingtime / 1000) - (long) time(NULL),
-				S_COR(cur->chan->caller.id.number.valid, cur->chan->caller.id.number.str, ""),	/* XXX in other places it is <unknown> */
-				S_COR(cur->chan->caller.id.name.valid, cur->chan->caller.id.name.str, ""),
-				S_COR(cur->chan->connected.id.number.valid, cur->chan->connected.id.number.str, ""),	/* XXX in other places it is <unknown> */
-				S_COR(cur->chan->connected.id.name.valid, cur->chan->connected.id.name.str, ""),
+				S_COR(ast_channel_caller(cur->chan)->id.number.valid, ast_channel_caller(cur->chan)->id.number.str, ""),	/* XXX in other places it is <unknown> */
+				S_COR(ast_channel_caller(cur->chan)->id.name.valid, ast_channel_caller(cur->chan)->id.name.str, ""),
+				S_COR(ast_channel_connected(cur->chan)->id.number.valid, ast_channel_connected(cur->chan)->id.number.str, ""),	/* XXX in other places it is <unknown> */
+				S_COR(ast_channel_connected(cur->chan)->id.name.valid, ast_channel_connected(cur->chan)->id.name.str, ""),
 				idText);
 			++numparked;
 		}
@@ -7323,7 +7323,7 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_channel_datastore_add(target, ds_pickup);
 
 	ast_party_connected_line_init(&connected_caller);
-	ast_party_connected_line_copy(&connected_caller, &target->connected);
+	ast_party_connected_line_copy(&connected_caller, ast_channel_connected(target));
 	ast_channel_unlock(target);/* The pickup race is avoided so we do not need the lock anymore. */
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_sub(NULL, chan, &connected_caller, 0) &&
@@ -7334,7 +7334,7 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 
 	ast_channel_lock(chan);
 	chan_name = ast_strdupa(ast_channel_name(chan));
-	ast_connected_line_copy_from_caller(&connected_caller, &chan->caller);
+	ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(chan));
 	ast_channel_unlock(chan);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);

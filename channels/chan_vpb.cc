@@ -694,8 +694,8 @@ static void get_callerid(struct vpb_pvt *p)
 					strcpy(p->cid_name, cli_struct->cn);
 				}
 				ast_verb(4, "CID record - got [%s] [%s]\n",
-					S_COR(owner->caller.id.number.valid, owner->caller.id.number.str, ""),
-					S_COR(owner->caller.id.name.valid, owner->caller.id.name.str, ""));
+					S_COR(ast_channel_caller(owner)->id.number.valid, ast_channel_caller(owner)->id.number.str, ""),
+					S_COR(ast_channel_caller(owner)->id.name.valid, ast_channel_caller(owner)->id.name.str, ""));
 				snprintf(p->callerid, sizeof(p->callerid), "%s %s", cli_struct->cldn, cli_struct->cn);
 			} else {
 				ast_log(LOG_ERROR, "CID record - No caller id avalable on %s \n", p->dev);
@@ -781,15 +781,15 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	} else {
 		ast_log(LOG_ERROR, "%s: Failed to create Caller ID struct\n", p->dev);
 	}
-	ast_party_number_free(&owner->caller.id.number);
-	ast_party_number_init(&owner->caller.id.number);
-	ast_party_name_free(&owner->caller.id.name);
-	ast_party_name_init(&owner->caller.id.name);
+	ast_party_number_free(&ast_channel_caller(owner)->id.number);
+	ast_party_number_init(&ast_channel_caller(owner)->id.number);
+	ast_party_name_free(&ast_channel_caller(owner)->id.name);
+	ast_party_name_init(&ast_channel_caller(owner)->id.name);
 	if (number)
 		ast_shrink_phone_number(number);
 	ast_set_callerid(owner,
 		number, name,
-		owner->caller.ani.number.valid ? NULL : number);
+		ast_channel_caller(owner)->ani.number.valid ? NULL : number);
 	if (!ast_strlen_zero(name)){
 		snprintf(p->callerid, sizeof(p->callerid), "%s %s", number, name);
 	} else {
@@ -900,7 +900,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
 
 					if (ast_exists_extension(p->owner, target_context, "fax", 1,
-						S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
+						S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL))) {
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(p->owner));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));

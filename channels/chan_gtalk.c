@@ -1178,8 +1178,8 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 
 	tmp->callgroup = client->callgroup;
 	tmp->pickupgroup = client->pickupgroup;
-	tmp->caller.id.name.presentation = client->callingpres;
-	tmp->caller.id.number.presentation = client->callingpres;
+	ast_channel_caller(tmp)->id.name.presentation = client->callingpres;
+	ast_channel_caller(tmp)->id.number.presentation = client->callingpres;
 	if (!ast_strlen_zero(client->accountcode))
 		ast_channel_accountcode_set(tmp, client->accountcode);
 	if (client->amaflags)
@@ -1196,7 +1196,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	ast_channel_exten_set(tmp, i->exten);
 
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
-		tmp->dialed.number.str = ast_strdup(i->exten);
+		ast_channel_dialed(tmp)->number.str = ast_strdup(i->exten);
 	}
 	ast_channel_priority_set(tmp, 1);
 	if (i->rtp)

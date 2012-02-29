@@ -2097,7 +2097,7 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 					ast_mutex_unlock(&p->lock);
 					ast_channel_unlock(ast);
 					if (ast_exists_extension(ast, target_context, "fax", 1,
-						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
+						S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
 						ast_channel_lock(ast);
 						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
@@ -5486,7 +5486,7 @@ static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
 
 		c = args.ext;
 		if (!p->hidecallerid) {
-			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+			l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 		} else {
 			l = NULL;
 		}
@@ -7860,7 +7860,7 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 					ast_mutex_unlock(&p->lock);
 					ast_channel_unlock(ast);
 					if (ast_exists_extension(ast, target_context, "fax", 1,
-						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
+						S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
 						ast_channel_lock(ast);
 						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
@@ -8541,14 +8541,14 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					cid_num[0] = 0;
 					cid_name[0] = 0;
 					if (p->dahditrcallerid && p->owner) {
-						if (p->owner->caller.id.number.valid
-							&& p->owner->caller.id.number.str) {
-							ast_copy_string(cid_num, p->owner->caller.id.number.str,
+						if (ast_channel_caller(p->owner)->id.number.valid
+							&& ast_channel_caller(p->owner)->id.number.str) {
+							ast_copy_string(cid_num, ast_channel_caller(p->owner)->id.number.str,
 								sizeof(cid_num));
 						}
-						if (p->owner->caller.id.name.valid
-							&& p->owner->caller.id.name.str) {
-							ast_copy_string(cid_name, p->owner->caller.id.name.str,
+						if (ast_channel_caller(p->owner)->id.name.valid
+							&& ast_channel_caller(p->owner)->id.name.str) {
+							ast_copy_string(cid_name, ast_channel_caller(p->owner)->id.name.str,
 								sizeof(cid_name));
 						}
 					}
@@ -8668,13 +8668,13 @@ winkflashdone:
 		case SIG_FEATDMF_TA:
 			switch (p->whichwink) {
 			case 0:
-				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->caller.ani2,
-					S_COR(p->owner->caller.ani.number.valid,
-						p->owner->caller.ani.number.str, ""));
+				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", ast_channel_caller(p->owner)->ani2,
+					S_COR(ast_channel_caller(p->owner)->ani.number.valid,
+						ast_channel_caller(p->owner)->ani.number.str, ""));
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#",
-					p->owner->caller.ani2,
-					S_COR(p->owner->caller.ani.number.valid,
-						p->owner->caller.ani.number.str, ""));
+					ast_channel_caller(p->owner)->ani2,
+					S_COR(ast_channel_caller(p->owner)->ani.number.valid,
+						ast_channel_caller(p->owner)->ani.number.str, ""));
 				break;
 			case 1:
 				ast_copy_string(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));
@@ -9762,34 +9762,34 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (!ast_strlen_zero(i->exten))
 		ast_channel_exten_set(tmp, i->exten);
 	if (!ast_strlen_zero(i->rdnis)) {
-		tmp->redirecting.from.number.valid = 1;
-		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+		ast_channel_redirecting(tmp)->from.number.valid = 1;
+		ast_channel_redirecting(tmp)->from.number.str = ast_strdup(i->rdnis);
 	}
 	if (!ast_strlen_zero(i->dnid)) {
-		tmp->dialed.number.str = ast_strdup(i->dnid);
+		ast_channel_dialed(tmp)->number.str = ast_strdup(i->dnid);
 	}
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	if (!ast_strlen_zero(i->cid_ani)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_ani);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_ani);
 	} else if (!ast_strlen_zero(i->cid_num)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 	}
 #else
 	if (!ast_strlen_zero(i->cid_num)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 	}
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
-	tmp->caller.id.name.presentation = i->callingpres;
-	tmp->caller.id.number.presentation = i->callingpres;
-	tmp->caller.id.number.plan = i->cid_ton;
-	tmp->caller.ani2 = i->cid_ani2;
-	tmp->caller.id.tag = ast_strdup(i->cid_tag);
+	ast_channel_caller(tmp)->id.name.presentation = i->callingpres;
+	ast_channel_caller(tmp)->id.number.presentation = i->callingpres;
+	ast_channel_caller(tmp)->id.number.plan = i->cid_ton;
+	ast_channel_caller(tmp)->ani2 = i->cid_ani2;
+	ast_channel_caller(tmp)->id.tag = ast_strdup(i->cid_tag);
 	/* clear the fake event in case we posted one before we had ast_channel */
 	i->fake_event = 0;
 	/* Assure there is no confmute on this channel */
@@ -10217,7 +10217,7 @@ static void *analog_ss_thread(void *data)
 		}
 
 		if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			ast_channel_exten_set(chan, exten);
 			if (p->dsp) ast_dsp_digitreset(p->dsp);
 			res = ast_pbx_run(chan);
@@ -10368,10 +10368,10 @@ static void *analog_ss_thread(void *data)
 				ast_verb(3, "Disabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				ast_party_number_free(&chan->caller.id.number);
-				ast_party_number_init(&chan->caller.id.number);
-				ast_party_name_free(&chan->caller.id.name);
-				ast_party_name_init(&chan->caller.id.name);
+				ast_party_number_free(&ast_channel_caller(chan)->id.number);
+				ast_party_number_init(&ast_channel_caller(chan)->id.number);
+				ast_party_name_free(&ast_channel_caller(chan)->id.name);
+				ast_party_name_init(&ast_channel_caller(chan)->id.name);
 				res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -10468,10 +10468,10 @@ static void *analog_ss_thread(void *data)
 					goto quit;
 				}
 			} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), exten, 1,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))
 				&& !canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<Unknown Caller>"),
 					ast_channel_context(chan));
 				break;
 			}

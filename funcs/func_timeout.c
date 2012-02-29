@@ -90,11 +90,11 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 	switch (*data) {
 	case 'a':
 	case 'A':
-		if (ast_tvzero(chan->whentohangup)) {
+		if (ast_tvzero(*ast_channel_whentohangup(chan))) {
 			ast_copy_string(buf, "0", len);
 		} else {
 			myt = ast_tvnow();
-			snprintf(buf, len, "%.3f", ast_tvdiff_ms(chan->whentohangup, myt) / 1000.0);
+			snprintf(buf, len, "%.3f", ast_tvdiff_ms(*ast_channel_whentohangup(chan), myt) / 1000.0);
 		}
 		break;
 
@@ -156,7 +156,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	case 'a':
 	case 'A':
 		ast_channel_setwhentohangup_tv(chan, when);
-		if (!ast_tvzero(chan->whentohangup)) {
+		if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
 			when = ast_tvadd(when, ast_tvnow());
 			ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",
 				ast_localtime(&when, &myt, NULL));

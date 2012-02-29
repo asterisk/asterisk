@@ -561,8 +561,8 @@ static int console_call(struct ast_channel *c, const char *dest, int timeout)
 
 	ast_verb(1, V_BEGIN "Call to device '%s' on console from '%s' <%s>" V_END,
 		dest,
-		S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
-		S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""));
+		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, ""),
+		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""));
 
 	console_pvt_lock(pvt);
 

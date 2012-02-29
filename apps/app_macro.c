@@ -304,7 +304,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 
 	snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
 	if (!ast_exists_extension(chan, fullmacro, "s", 1,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		if (!ast_context_find(fullmacro)) 
 			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'. Was called by %s@%s\n", fullmacro, macro, ast_channel_exten(chan), ast_channel_context(chan));
 		else
@@ -376,7 +376,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		struct ast_context *c;
 		struct ast_exten *e;
 		int foundx;
@@ -393,7 +393,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 						ast_log(LOG_WARNING, "Unable to lock context?\n");
 					} else {
 						e = find_matching_priority(c, ast_channel_exten(chan), ast_channel_priority(chan),
-							S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
+							S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 						if (e) { /* This will only be undefined for pbx_realtime, which is majorly broken. */
 							ast_copy_string(runningapp, ast_get_extension_app(e), sizeof(runningapp));
 							ast_copy_string(runningdata, ast_get_extension_app_data(e), sizeof(runningdata));
@@ -410,7 +410,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
 		res = ast_spawn_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 			&foundx, 1);
 		if (res) {
 			/* Something bad happened, or a hangup has been requested. */
@@ -555,7 +555,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 			if (sscanf(offsets, "%30d", &offset) == 1) {
 				if (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
 					ast_channel_priority(chan) + offset + 1,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 					ast_channel_priority_set(chan, ast_channel_priority(chan) + offset);
 				}
 			}

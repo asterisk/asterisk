@@ -3363,7 +3363,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 		case 't':
 			ast_channel_unlock(chan);
 			if (ast_exists_extension(chan, target_context, "fax", 1,
-			    S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			    S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				ast_channel_lock(chan);
 				ast_verb(2, "Redirecting '%s' to fax extension due to %s detection\n",
 					ast_channel_name(chan), (result == 'f') ? "CNG" : "T38");

@@ -309,7 +309,7 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	
 	/* Extract the caller ID location */
 	ast_copy_string(workstring,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		sizeof(workstring));
 	ast_shrink_phone_number(workstring);
 	if (ast_strlen_zero(workstring)) {
@@ -317,7 +317,7 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	} else {
 		cl = workstring;
 	}
-	cn = S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>");
+	cn = S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>");
 
 	/* Get the current time */
 	t = ast_tvnow();

@@ -1451,7 +1451,7 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 	}
 
 	if (!p->hidecallerid) {
-		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+		l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 	} else {
 		l = NULL;
 	}
@@ -1500,10 +1500,10 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 		}
 	}
 	isup_set_calling(p->ss7call, l ? (l + calling_nai_strip) : NULL, ss7_calling_nai,
-		p->use_callingpres ? cid_pres2ss7pres(ast->connected.id.number.presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
-		p->use_callingpres ? cid_pres2ss7screen(ast->connected.id.number.presentation) : SS7_SCREENING_USER_PROVIDED);
+		p->use_callingpres ? cid_pres2ss7pres(ast_channel_connected(ast)->id.number.presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
+		p->use_callingpres ? cid_pres2ss7screen(ast_channel_connected(ast)->id.number.presentation) : SS7_SCREENING_USER_PROVIDED);
 
-	isup_set_oli(p->ss7call, ast->connected.ani2);
+	isup_set_oli(p->ss7call, ast_channel_connected(ast)->ani2);
 	isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
 	/* Set the charge number if it is set */

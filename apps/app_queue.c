@@ -2610,10 +2610,10 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			"Count: %d\r\n"
 			"Uniqueid: %s\r\n",
 			ast_channel_name(qe->chan),
-			S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
-			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
-			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
-			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
+			S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
+			S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
+			S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
+			S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
 			q->name, qe->pos, q->count, ast_channel_uniqueid(qe->chan));
 		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, ast_channel_name(qe->chan), qe->pos );
 	}
@@ -2670,7 +2670,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 	/* If the extension is bad, then reset the digits to blank */
 	if (!ast_canmatch_extension(qe->chan, qe->context, qe->digits, 1,
-		S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, NULL))) {
 		qe->digits[0] = '\0';
 		return 0;
 	}
@@ -3190,30 +3190,30 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	}
 	ast_channel_appl_set(tmp->chan, "AppQueue");
 	ast_channel_data_set(tmp->chan, "(Outgoing Line)");
-	memset(&tmp->chan->whentohangup, 0, sizeof(tmp->chan->whentohangup));
+	memset(ast_channel_whentohangup(tmp->chan), 0, sizeof(*ast_channel_whentohangup(tmp->chan)));
 
 	/* If the new channel has no callerid, try to guess what it should be */
-	if (!tmp->chan->caller.id.number.valid) {
-		if (qe->chan->connected.id.number.valid) {
+	if (!ast_channel_caller(tmp->chan)->id.number.valid) {
+		if (ast_channel_connected(qe->chan)->id.number.valid) {
 			struct ast_party_caller caller;
 
-			ast_party_caller_set_init(&caller, &tmp->chan->caller);
-			caller.id = qe->chan->connected.id;
-			caller.ani = qe->chan->connected.ani;
+			ast_party_caller_set_init(&caller, ast_channel_caller(tmp->chan));
+			caller.id = ast_channel_connected(qe->chan)->id;
+			caller.ani = ast_channel_connected(qe->chan)->ani;
 			ast_channel_set_caller_event(tmp->chan, &caller, NULL);
-		} else if (!ast_strlen_zero(qe->chan->dialed.number.str)) {
-			ast_set_callerid(tmp->chan, qe->chan->dialed.number.str, NULL, NULL);
+		} else if (!ast_strlen_zero(ast_channel_dialed(qe->chan)->number.str)) {
+			ast_set_callerid(tmp->chan, ast_channel_dialed(qe->chan)->number.str, NULL, NULL);
 		} else if (!ast_strlen_zero(S_OR(ast_channel_macroexten(qe->chan), ast_channel_exten(qe->chan)))) {
 			ast_set_callerid(tmp->chan, S_OR(ast_channel_macroexten(qe->chan), ast_channel_exten(qe->chan)), NULL, NULL); 
 		}
 		tmp->dial_callerid_absent = 1;
 	}
 
-	ast_party_redirecting_copy(&tmp->chan->redirecting, &qe->chan->redirecting);
+	ast_party_redirecting_copy(ast_channel_redirecting(tmp->chan), ast_channel_redirecting(qe->chan));
 
-	tmp->chan->dialed.transit_network_select = qe->chan->dialed.transit_network_select;
+	ast_channel_dialed(tmp->chan)->transit_network_select = ast_channel_dialed(qe->chan)->transit_network_select;
 
-	ast_connected_line_copy_from_caller(&tmp->chan->connected, &qe->chan->caller);
+	ast_connected_line_copy_from_caller(ast_channel_connected(tmp->chan), ast_channel_caller(qe->chan));
 
 	/* Inherit specially named variables from parent channel */
 	ast_channel_inherit_variables(qe->chan, tmp->chan);
@@ -3279,10 +3279,10 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			"Uniqueid: %s\r\n"
 			"%s",
 			qe->parent->name, tmp->interface, tmp->member->membername, ast_channel_name(qe->chan), ast_channel_name(tmp->chan),
-			S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),
-			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
-			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
-			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
+			S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, "unknown"),
+			S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
+			S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),
+			S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
 			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), ast_channel_priority(qe->chan), ast_channel_uniqueid(qe->chan),
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 
@@ -3666,7 +3666,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							}
 						} else if (!o->dial_callerid_absent) {
 							ast_channel_lock(o->chan);
-							ast_connected_line_copy_from_caller(&connected_caller, &o->chan->caller);
+							ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
 							ast_channel_unlock(o->chan);
 							connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 							ast_channel_update_connected_line(in, &connected_caller, NULL);
@@ -3731,24 +3731,24 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 						ast_channel_accountcode_set(o->chan, ast_channel_accountcode(in));
 
-						ast_channel_set_redirecting(o->chan, &original->redirecting, NULL);
-						if (!o->chan->redirecting.from.number.valid
-							|| ast_strlen_zero(o->chan->redirecting.from.number.str)) {
+						ast_channel_set_redirecting(o->chan, ast_channel_redirecting(original), NULL);
+						if (!ast_channel_redirecting(o->chan)->from.number.valid
+							|| ast_strlen_zero(ast_channel_redirecting(o->chan)->from.number.str)) {
 							/*
 							 * The call was not previously redirected so it is
 							 * now redirected from this number.
 							 */
-							ast_party_number_free(&o->chan->redirecting.from.number);
-							ast_party_number_init(&o->chan->redirecting.from.number);
-							o->chan->redirecting.from.number.valid = 1;
-							o->chan->redirecting.from.number.str =
+							ast_party_number_free(&ast_channel_redirecting(o->chan)->from.number);
+							ast_party_number_init(&ast_channel_redirecting(o->chan)->from.number);
+							ast_channel_redirecting(o->chan)->from.number.valid = 1;
+							ast_channel_redirecting(o->chan)->from.number.str =
 								ast_strdup(S_OR(ast_channel_macroexten(in), ast_channel_exten(in)));
 						}
 
-						o->chan->dialed.transit_network_select = in->dialed.transit_network_select;
+						ast_channel_dialed(o->chan)->transit_network_select = ast_channel_dialed(in)->transit_network_select;
 
-						ast_party_caller_copy(&o->chan->caller, &in->caller);
-						ast_party_connected_line_copy(&o->chan->connected, &original->connected);
+						ast_party_caller_copy(ast_channel_caller(o->chan), ast_channel_caller(in));
+						ast_party_connected_line_copy(ast_channel_connected(o->chan), ast_channel_connected(original));
 
 						/*
 						 * We must unlock o->chan before calling
@@ -3758,7 +3758,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						 * seem a bit unusual here.
 						 */
 						ast_party_redirecting_init(&redirecting);
-						ast_party_redirecting_copy(&redirecting, &o->chan->redirecting);
+						ast_party_redirecting_copy(&redirecting, ast_channel_redirecting(o->chan));
 						ast_channel_unlock(o->chan);
 						if ((res = ast_channel_redirecting_sub(o->chan, in, &redirecting, 0)) &&
 							(res = ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0))) {
@@ -3796,7 +3796,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 										}
 									} else if (!o->dial_callerid_absent) {
 										ast_channel_lock(o->chan);
-										ast_connected_line_copy_from_caller(&connected_caller, &o->chan->caller);
+										ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
 										ast_channel_unlock(o->chan);
 										connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 										ast_channel_update_connected_line(in, &connected_caller, NULL);
@@ -4576,7 +4576,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	while ((cur = ao2_iterator_next(&memi))) {
 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
 		struct ast_dialed_interface *di;
-		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
+		AST_LIST_HEAD(,ast_dialed_interface) *dialed_interfaces;
 		if (!tmp) {
 			ao2_ref(cur, -1);
 			ao2_iterator_destroy(&memi);
@@ -4650,7 +4650,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 * previously acquired connected line info could have been set
 		 * through the CONNECTED_LINE dialplan function.
 		 */
-		ast_party_connected_line_copy(&tmp->connected, &qe->chan->connected);
+		ast_party_connected_line_copy(&tmp->connected, ast_channel_connected(qe->chan));
 		ast_channel_unlock(qe->chan);
 
 		tmp->stillgoing = -1;
@@ -5064,8 +5064,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				if (gosub_argstart) {
 					const char *what_is_s = "s";
 					*gosub_argstart = 0;
-					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL)) &&
-						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
+					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
 						what_is_s = "~~s~~";
 					}
 					if (asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
@@ -5075,8 +5075,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					*gosub_argstart = ',';
 				} else {
 					const char *what_is_s = "s";
-					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL)) &&
-						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
+					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
 						what_is_s = "~~s~~";
 					}
 					if (asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
@@ -6135,7 +6135,7 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
 		S_OR(args.url, ""),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		qe.opos);
 	copy_rules(&qe, args.rule);
 	qe.pr = AST_LIST_FIRST(&qe.qe_rules);
@@ -7615,10 +7615,10 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					"%s"
 					"\r\n",
 					q->name, pos++, ast_channel_name(qe->chan), ast_channel_uniqueid(qe->chan),
-					S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),
-					S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
-					S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
-					S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
+					S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, "unknown"),
+					S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
+					S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),
+					S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
 					(long) (now - qe->start), idText);
 			}
 		}

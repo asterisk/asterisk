@@ -976,12 +976,12 @@ static void *video_thread(void *arg)
 		ast_channel_lock(chan);
 
 		/* AST_LIST_INSERT_TAIL is only good for one frame, cannot use here */
-		if (chan->readq.first == NULL) {
-			chan->readq.first = f;
+		if (ast_channel_readq(chan).first == NULL) {
+			ast_channel_readq(chan).first = f;
 		} else {
-			chan->readq.last->frame_list.next = f;
+			ast_channel_readq(chan).last->frame_list.next = f;
 		}
-		chan->readq.last = p;
+		ast_channel_readq(chan).last = p;
 		/*
 		 * more or less same as ast_queue_frame, but extra
 		 * write on the alertpipe to signal frames.

@@ -1895,7 +1895,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	h.dcs = 0xF1;                           /* default */
 
 	ast_copy_string(h.cli,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		sizeof(h.cli));
 
 	if (ast_strlen_zero(sms_args.queue)) {

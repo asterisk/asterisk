@@ -149,14 +149,14 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		}
 		collect[x++] = res;
 		if (!ast_matchmore_extension(chan, context, collect, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			break;
 		}
 	}
 
 	if (res >= 0) {
 		res = ast_exists_extension(chan, context, collect, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL)) ? 1 : 0;
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL)) ? 1 : 0;
 	}
 
 	return res;

@@ -103,8 +103,8 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(checkcontext);
 	);
 
-	if (chan->caller.id.number.valid
-		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+	if (ast_channel_caller(chan)->id.number.valid
+		&& !ast_strlen_zero(ast_channel_caller(chan)->id.number.str)) {
 		ast_verb(3, "CallerID number present: Skipping\n");
 	} else {
 		/*Answer the channel if it is not already*/
@@ -195,9 +195,9 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 			 * be passed out to other channels.  This is the point of the
 			 * privacy application.
 			 */
-			chan->caller.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-			chan->caller.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-			chan->caller.id.number.plan = 0;/* Unknown */
+			ast_channel_caller(chan)->id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+			ast_channel_caller(chan)->id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+			ast_channel_caller(chan)->id.number.plan = 0;/* Unknown */
 
 			ast_set_callerid(chan, phone, "Privacy Manager", NULL);
 

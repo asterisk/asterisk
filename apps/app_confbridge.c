@@ -548,8 +548,8 @@ static void send_join_event(struct ast_channel *chan, const char *conf_name)
 		ast_channel_name(chan),
 		ast_channel_uniqueid(chan),
 		conf_name,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>")
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>")
 	);
 }
 
@@ -564,8 +564,8 @@ static void send_leave_event(struct ast_channel *chan, const char *conf_name)
 		ast_channel_name(chan),
 		ast_channel_uniqueid(chan),
 		conf_name,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>")
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>")
 	);
 }
 
@@ -2008,7 +2008,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			ast_cli(a->fd, "%-17s", participant->u_profile.name);
 			ast_cli(a->fd, "%-17s", participant->b_profile.name);
 			ast_cli(a->fd, "%-17s", participant->menu_name);
-			ast_cli(a->fd, "%-17s", S_COR(participant->chan->caller.id.number.valid, participant->chan->caller.id.number.str, "<unknown>"));
+			ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"));
 			ast_cli(a->fd, "\n");
 		}
 		ao2_unlock(bridge);
@@ -2346,8 +2346,8 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 			"\r\n",
 			id_text,
 			bridge->name,
-			S_COR(participant->chan->caller.id.number.valid, participant->chan->caller.id.number.str, "<unknown>"),
-			S_COR(participant->chan->caller.id.name.valid, participant->chan->caller.id.name.str, "<no name>"),
+			S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_caller(participant->chan)->id.name.valid, ast_channel_caller(participant->chan)->id.name.str, "<no name>"),
 			ast_channel_name(participant->chan),
 			ast_test_flag(&participant->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
 			ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No");

@@ -3770,14 +3770,14 @@ static int unistim_call(struct ast_channel *ast, const char *dest, int timeout)
 	Sendicon(TEXT_LINE0, FAV_ICON_NONE, session);
 
 	if (sub->owner) {
-		if (sub->owner->connected.id.number.valid
-			&& sub->owner->connected.id.number.str) {
+		if (ast_channel_connected(sub->owner)->id.number.valid
+			&& ast_channel_connected(sub->owner)->id.number.str) {
 			if (session->device->height == 1) {
-				send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.number.str);
+				send_text(TEXT_LINE0, TEXT_NORMAL, session, ast_channel_connected(sub->owner)->id.number.str);
 			} else {
-				send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number.str);
+				send_text(TEXT_LINE1, TEXT_NORMAL, session, ast_channel_connected(sub->owner)->id.number.str);
 			}
-			change_callerid(session, 0, sub->owner->connected.id.number.str);
+			change_callerid(session, 0, ast_channel_connected(sub->owner)->id.number.str);
 		} else {
 			if (session->device->height == 1) {
 				send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERID);
@@ -3786,10 +3786,10 @@ static int unistim_call(struct ast_channel *ast, const char *dest, int timeout)
 			}
 			change_callerid(session, 0, DEFAULTCALLERID);
 		}
-		if (sub->owner->connected.id.name.valid
-			&& sub->owner->connected.id.name.str) {
-			send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.name.str);
-			change_callerid(session, 1, sub->owner->connected.id.name.str);
+		if (ast_channel_connected(sub->owner)->id.name.valid
+			&& ast_channel_connected(sub->owner)->id.name.str) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, session, ast_channel_connected(sub->owner)->id.name.str);
+			change_callerid(session, 1, ast_channel_connected(sub->owner)->id.name.str);
 		} else {
 			send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERNAME);
 			change_callerid(session, 1, DEFAULTCALLERNAME);
@@ -4607,12 +4607,12 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		instr = ast_strdup(l->cid_num);
 		if (instr) {
 			ast_callerid_parse(instr, &name, &loc);
-			tmp->caller.id.number.valid = 1;
-			ast_free(tmp->caller.id.number.str);
-			tmp->caller.id.number.str = ast_strdup(loc);
-			tmp->caller.id.name.valid = 1;
-			ast_free(tmp->caller.id.name.str);
-			tmp->caller.id.name.str = ast_strdup(name);
+			ast_channel_caller(tmp)->id.number.valid = 1;
+			ast_free(ast_channel_caller(tmp)->id.number.str);
+			ast_channel_caller(tmp)->id.number.str = ast_strdup(loc);
+			ast_channel_caller(tmp)->id.name.valid = 1;
+			ast_free(ast_channel_caller(tmp)->id.name.str);
+			ast_channel_caller(tmp)->id.name.str = ast_strdup(name);
 			ast_free(instr);
 		}
 	}

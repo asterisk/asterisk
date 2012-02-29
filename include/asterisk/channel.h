@@ -709,6 +709,10 @@ enum ast_t38_state {
 	T38_STATE_NEGOTIATED,	/*!< T38 established */
 };
 
+AST_LIST_HEAD_NOLOCK(ast_datastore_list, ast_datastore);
+AST_LIST_HEAD_NOLOCK(ast_autochan_list, ast_autochan);
+AST_LIST_HEAD_NOLOCK(ast_readq_list, ast_frame);
+
 /*!
  * \page AstChannel ast_channel locking and reference tracking
  *
@@ -821,7 +825,7 @@ struct ast_channel {
 		AST_STRING_FIELD(__do_not_use_dialcontext);  /*!< Dial: Extension context that we were called from */
 	);
 
-	struct timeval whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
+	struct timeval __do_not_use_whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
 
 	/*!
@@ -829,35 +833,34 @@ struct ast_channel {
 	 * \note Set on incoming channels to indicate the originally dialed party.
 	 * \note Dialed Number Identifier (DNID)
 	 */
-	struct ast_party_dialed dialed;
+	struct ast_party_dialed __do_not_use_dialed;
 
 	/*!
 	 * \brief Channel Caller ID information.
 	 * \note The caller id information is the caller id of this
 	 * channel when it is used to initiate a call.
 	 */
-	struct ast_party_caller caller;
+	struct ast_party_caller __do_not_use_caller;
 
 	/*!
 	 * \brief Channel Connected Line ID information.
 	 * \note The connected line information identifies the channel
 	 * connected/bridged to this channel.
 	 */
-	struct ast_party_connected_line connected;
+	struct ast_party_connected_line __do_not_use_connected;
 
 	/*! \brief Redirecting/Diversion information */
-	struct ast_party_redirecting redirecting;
+	struct ast_party_redirecting __do_not_use_redirecting;
 
-	struct ast_frame dtmff;				/*!< DTMF frame */
-	struct varshead varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
+	struct ast_frame __do_not_use_dtmff;				/*!< DTMF frame */
+	struct varshead __do_not_use_varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
 	ast_group_t callgroup;				/*!< Call group for call pickups */
 	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
-	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
-	struct ast_jb jb;				/*!< The jitterbuffer state */
-	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
-	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores; /*!< Data stores on the channel */
-	AST_LIST_HEAD_NOLOCK(autochans, ast_autochan) autochans; /*!< Autochans on the channel */
-
+	struct ast_readq_list __do_not_use_readq;
+	struct ast_jb __do_not_use_jb;				/*!< The jitterbuffer state */
+	struct timeval __do_not_use_dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
+	struct ast_datastore_list __do_not_use_datastores; /*!< Data stores on the channel */
+	struct ast_autochan_list __do_not_use_autochans; /*!< Autochans on the channel */
 	unsigned long __do_not_use_insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long __do_not_use_outsmpl;				/*!< Track the read/written samples for monitor use */
 
@@ -3792,4 +3795,27 @@ struct ast_format *ast_channel_rawwriteformat(struct ast_channel *chan);
 struct ast_format *ast_channel_readformat(struct ast_channel *chan);
 struct ast_format *ast_channel_writeformat(struct ast_channel *chan);
 
+/* Other struct getters */
+struct ast_frame *ast_channel_dtmff(struct ast_channel *chan);
+struct ast_jb *ast_channel_jb(struct ast_channel *chan);
+struct ast_party_caller *ast_channel_caller(struct ast_channel *chan);
+struct ast_party_connected_line *ast_channel_connected(struct ast_channel *chan);
+struct ast_party_dialed *ast_channel_dialed(struct ast_channel *chan);
+struct ast_party_redirecting *ast_channel_redirecting(struct ast_channel *chan);
+struct timeval *ast_channel_dtmf_tv(struct ast_channel *chan);
+struct timeval *ast_channel_whentohangup(struct ast_channel *chan);
+struct varshead *ast_channel_varshead(struct ast_channel *chan);
+
+/* Other struct setters */
+void ast_channel_caller_set(struct ast_channel *chan, struct ast_party_caller *value);
+void ast_channel_connected_set(struct ast_channel *chan, struct ast_party_connected_line *value);
+void ast_channel_dialed_set(struct ast_channel *chan, struct ast_party_dialed *value);
+void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redirecting *value);
+void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value);
+void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value);
+
+/* List getters */
+struct ast_datastore_list *ast_channel_datastores(struct ast_channel *chan);
+struct ast_autochan_list *ast_channel_autochans(struct ast_channel *chan);
+struct ast_readq_list *ast_channel_readq(struct ast_channel *chan);
 #endif /* _ASTERISK_CHANNEL_H */

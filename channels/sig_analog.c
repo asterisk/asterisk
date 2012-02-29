@@ -719,8 +719,8 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 		 * The three-way party we're about to transfer is on hold if he
 		 * is not in a three way conference.
 		 */
-		if (ast_channel_transfer_masquerade(owner_real, &owner_real->connected, 0,
-			bridge_3way, &owner_3way->connected, !inthreeway)) {
+		if (ast_channel_transfer_masquerade(owner_real, ast_channel_connected(owner_real), 0,
+			bridge_3way, ast_channel_connected(owner_3way), !inthreeway)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 				ast_channel_name(bridge_3way), ast_channel_name(owner_real));
 			return -1;
@@ -745,8 +745,8 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 		 * The three-way party we're about to transfer is on hold if he
 		 * is not in a three way conference.
 		 */
-		if (ast_channel_transfer_masquerade(owner_3way, &owner_3way->connected,
-			!inthreeway, bridge_real, &owner_real->connected, 0)) {
+		if (ast_channel_transfer_masquerade(owner_3way, ast_channel_connected(owner_3way),
+			!inthreeway, bridge_real, ast_channel_connected(owner_real), 0)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 				ast_channel_name(bridge_real), ast_channel_name(owner_3way));
 			return -1;
@@ -1017,8 +1017,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 	char dest[256]; /* must be same length as p->dialdest */
 
 	ast_debug(1, "CALLING CID_NAME: %s CID_NUM:: %s\n",
-		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
-		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""));
+		S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, ""),
+		S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, ""));
 
 	ast_copy_string(dest, rdest, sizeof(dest));
 	ast_copy_string(p->dialdest, rdest, sizeof(p->dialdest));
@@ -1076,13 +1076,13 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 			analog_set_dialing(p, 1);
 		} else {
 			/* Call waiting call */
-			if (ast->connected.id.number.valid && ast->connected.id.number.str) {
-				ast_copy_string(p->callwait_num, ast->connected.id.number.str, sizeof(p->callwait_num));
+			if (ast_channel_connected(ast)->id.number.valid && ast_channel_connected(ast)->id.number.str) {
+				ast_copy_string(p->callwait_num, ast_channel_connected(ast)->id.number.str, sizeof(p->callwait_num));
 			} else {
 				p->callwait_num[0] = '\0';
 			}
-			if (ast->connected.id.name.valid && ast->connected.id.name.str) {
-				ast_copy_string(p->callwait_name, ast->connected.id.name.str, sizeof(p->callwait_name));
+			if (ast_channel_connected(ast)->id.name.valid && ast_channel_connected(ast)->id.name.str) {
+				ast_copy_string(p->callwait_name, ast_channel_connected(ast)->id.name.str, sizeof(p->callwait_name));
 			} else {
 				p->callwait_name[0] = '\0';
 			}
@@ -1097,8 +1097,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 			}
 
 		}
-		n = ast->connected.id.name.valid ? ast->connected.id.name.str : NULL;
-		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+		n = ast_channel_connected(ast)->id.name.valid ? ast_channel_connected(ast)->id.name.str : NULL;
+		l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 		if (l) {
 			ast_copy_string(p->lastcid_num, l, sizeof(p->lastcid_num));
 		} else {
@@ -1185,7 +1185,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 
 		switch (mysig) {
 		case ANALOG_SIG_FEATD:
-			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+			l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 			if (l) {
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			} else {
@@ -1193,7 +1193,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 			}
 			break;
 		case ANALOG_SIG_FEATDMF:
-			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+			l = ast_channel_connected(ast)->id.number.valid ? ast_channel_connected(ast)->id.number.str : NULL;
 			if (l) {
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			} else {
@@ -2068,7 +2068,7 @@ static void *__analog_ss_thread(void *data)
 		analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_DTMF);
 
 		if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1,
-			chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)) {
+			ast_channel_caller(chan)->id.number.valid ? ast_channel_caller(chan)->id.number.str : NULL)) {
 			ast_channel_exten_set(chan, exten);
 			analog_dsp_reset_and_flush_digits(p);
 			res = ast_pbx_run(chan);
@@ -2226,10 +2226,10 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Disabling Caller*ID on %s\n", ast_channel_name(chan));
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				ast_party_number_free(&chan->caller.id.number);
-				ast_party_number_init(&chan->caller.id.number);
-				ast_party_name_free(&chan->caller.id.name);
-				ast_party_name_init(&chan->caller.id.name);
+				ast_party_number_free(&ast_channel_caller(chan)->id.number);
+				ast_party_number_init(&ast_channel_caller(chan)->id.number);
+				ast_party_name_free(&ast_channel_caller(chan)->id.name);
+				ast_party_name_init(&ast_channel_caller(chan)->id.name);
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2341,11 +2341,11 @@ static void *__analog_ss_thread(void *data)
 					goto quit;
 				}
 			} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), exten, 1,
-				chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)
+				ast_channel_caller(chan)->id.number.valid ? ast_channel_caller(chan)->id.number.str : NULL)
 				&& !analog_canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
-					chan->caller.id.number.valid && chan->caller.id.number.str
-						? chan->caller.id.number.str : "<Unknown Caller>",
+					ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str
+						? ast_channel_caller(chan)->id.number.str : "<Unknown Caller>",
 					ast_channel_context(chan));
 				break;
 			}
@@ -3179,14 +3179,14 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					cid_num[0] = '\0';
 					cid_name[0] = '\0';
 					if (p->dahditrcallerid && p->owner) {
-						if (p->owner->caller.id.number.valid
-							&& p->owner->caller.id.number.str) {
-							ast_copy_string(cid_num, p->owner->caller.id.number.str,
+						if (ast_channel_caller(p->owner)->id.number.valid
+							&& ast_channel_caller(p->owner)->id.number.str) {
+							ast_copy_string(cid_num, ast_channel_caller(p->owner)->id.number.str,
 								sizeof(cid_num));
 						}
-						if (p->owner->caller.id.name.valid
-							&& p->owner->caller.id.name.str) {
-							ast_copy_string(cid_name, p->owner->caller.id.name.str,
+						if (ast_channel_caller(p->owner)->id.name.valid
+							&& ast_channel_caller(p->owner)->id.name.str) {
+							ast_copy_string(cid_name, ast_channel_caller(p->owner)->id.name.str,
 								sizeof(cid_name));
 						}
 					}
@@ -3331,13 +3331,13 @@ winkflashdone:
 		case ANALOG_SIG_FEATDMF_TA:
 			switch (p->whichwink) {
 			case 0:
-				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->caller.ani2,
-					S_COR(p->owner->caller.ani.number.valid,
-						p->owner->caller.ani.number.str, ""));
+				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", ast_channel_caller(p->owner)->ani2,
+					S_COR(ast_channel_caller(p->owner)->ani.number.valid,
+						ast_channel_caller(p->owner)->ani.number.str, ""));
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#",
-					p->owner->caller.ani2,
-					S_COR(p->owner->caller.ani.number.valid,
-						p->owner->caller.ani.number.str, ""));
+					ast_channel_caller(p->owner)->ani2,
+					S_COR(ast_channel_caller(p->owner)->ani.number.valid,
+						ast_channel_caller(p->owner)->ani.number.str, ""));
 				break;
 			case 1:
 				ast_copy_string(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));

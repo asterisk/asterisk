@@ -604,10 +604,10 @@ static int oss_call(struct ast_channel *c, const char *dest, int timeout)
 
 	ast_verbose(" << Call to device '%s' dnid '%s' rdnis '%s' on console from '%s' <%s> >>\n",
 		dest,
-		S_OR(c->dialed.number.str, ""),
-		S_COR(c->redirecting.from.number.valid, c->redirecting.from.number.str, ""),
-		S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
-		S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""));
+		S_OR(ast_channel_dialed(c)->number.str, ""),
+		S_COR(ast_channel_redirecting(c)->from.number.valid, ast_channel_redirecting(c)->from.number.str, ""),
+		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, ""),
+		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""));
 	if (!ast_strlen_zero(args.flags) && strcasecmp(args.flags, "answer") == 0) {
 		f.subclass.integer = AST_CONTROL_ANSWER;
 		ast_queue_frame(c, &f);
@@ -812,11 +812,11 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 	if (!ast_strlen_zero(o->cid_num)) {
-		c->caller.ani.number.valid = 1;
-		c->caller.ani.number.str = ast_strdup(o->cid_num);
+		ast_channel_caller(c)->ani.number.valid = 1;
+		ast_channel_caller(c)->ani.number.str = ast_strdup(o->cid_num);
 	}
 	if (!ast_strlen_zero(ext)) {
-		c->dialed.number.str = ast_strdup(ext);
+		ast_channel_dialed(c)->number.str = ast_strdup(ext);
 	}
 
 	o->owner = c;
@@ -1195,7 +1195,7 @@ static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (ctx == NULL)			/* supply default context if needed */
 		ctx = ast_strdupa(ast_channel_context(o->owner));
 	if (!ast_exists_extension(b, ctx, ext, 1,
-		S_COR(b->caller.id.number.valid, b->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(b)->id.number.valid, ast_channel_caller(b)->id.number.str, NULL))) {
 		ast_cli(a->fd, "No such extension exists\n");
 	} else {
 		ast_cli(a->fd, "Whee, transferring %s to %s@%s.\n", ast_channel_name(b), ext, ctx);

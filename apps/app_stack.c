@@ -344,7 +344,7 @@ static int return_exec(struct ast_channel *chan, const char *data)
 static int gosub_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
-	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	AST_LIST_HEAD(,gosub_stack_frame) *oldlist;
 	struct gosub_stack_frame *newframe, *lastframe;
 	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
 	int i, max_argc = 0;
@@ -416,7 +416,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
 		ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
 				ast_channel_context(chan), ast_channel_exten(chan), ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan));
 		ast_channel_context_set(chan, newframe->context);
@@ -561,7 +561,7 @@ static int peek_read(struct ast_channel *chan, const char *cmd, char *data, char
 	*buf = '\0';
 
 	ast_channel_lock(chan);
-	AST_LIST_TRAVERSE(&chan->varshead, variables, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), variables, entries) {
 		if (!strcmp(args.name, ast_var_name(variables)) && ++found > n) {
 			ast_copy_string(buf, ast_var_value(variables), len);
 			break;
@@ -592,14 +592,14 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	if (sscanf(argv[3], "%30d", &priority) != 1 || priority < 1) {
 		/* Lookup the priority label */
 		priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3],
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 		if (priority < 0) {
 			ast_log(LOG_ERROR, "Priority '%s' not found in '%s@%s'\n", argv[3], argv[2], argv[1]);
 			ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 			return RESULT_FAILURE;
 		}
 	} else if (!ast_exists_extension(chan, argv[1], argv[2], priority,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 		return RESULT_FAILURE;
 	}
@@ -642,7 +642,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 			struct ast_pbx *pbx = ast_channel_pbx(chan);
 			struct ast_pbx_args args;
 			struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
-			AST_LIST_HEAD(, gosub_stack_frame) *oldlist = stack_store->data;
+			AST_LIST_HEAD(,gosub_stack_frame) *oldlist = stack_store->data;
 			struct gosub_stack_frame *cur = AST_LIST_FIRST(oldlist);
 			cur->is_agi = 1;
 

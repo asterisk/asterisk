@@ -2282,7 +2282,7 @@ static int ospauth_exec(
 	}
 	ast_debug(1, "OSPAuth: provider '%s'\n", provider);
 
-	headp = &chan->varshead;
+	headp = ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINPEERIP")) {
 			source = ast_var_value(current);
@@ -2295,7 +2295,7 @@ static int ospauth_exec(
 	ast_debug(1, "OSPAuth: token size '%zd'\n", strlen(token));
 
 	res = osp_auth(provider, &handle, source,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 		ast_channel_exten(chan), token, &timelimit);
 	if (res > 0) {
 		status = AST_OSP_SUCCESS;
@@ -2409,7 +2409,7 @@ static int osplookup_exec(
 	headers.divhost = "";
 	headers.pciuser = "";
 
-	headp = &chan->varshead;
+	headp = ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINACTUALSRC")) {
 			actualsrc = ast_var_value(current);
@@ -2509,7 +2509,7 @@ static int osplookup_exec(
 	}
 
 	res = osp_lookup(provider, callidtypes, actualsrc, srcdev,
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
 		args.exten, snetid, &np, &headers, cinfo, &results);
 	if (res > 0) {
 		status = AST_OSP_SUCCESS;
@@ -2676,7 +2676,7 @@ static int ospnext_exec(
 	results.intimelimit = OSP_DEF_TIMELIMIT;
 	results.numdests = 0;
 
-	headp = &chan->varshead;
+	headp = ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
 			if (sscanf(ast_var_value(current), "%30d", &results.inhandle) != 1) {
@@ -2843,7 +2843,7 @@ static int ospfinished_exec(
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	headp = &chan->varshead;
+	headp = ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
 			if (sscanf(ast_var_value(current), "%30d", &inhandle) != 1) {

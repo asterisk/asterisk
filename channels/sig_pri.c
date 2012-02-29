@@ -889,10 +889,10 @@ static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_chan
 /*! \todo XXX Original called data can be put in a channel data store that is inherited. */
 
 	memset(&pri_redirecting, 0, sizeof(pri_redirecting));
-	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast->redirecting.from);
-	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast->redirecting.to);
-	pri_redirecting.count = ast->redirecting.count;
-	pri_redirecting.reason = ast_to_pri_reason(ast->redirecting.reason);
+	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast_channel_redirecting(ast)->from);
+	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast_channel_redirecting(ast)->to);
+	pri_redirecting.count = ast_channel_redirecting(ast)->count;
+	pri_redirecting.reason = ast_to_pri_reason(ast_channel_redirecting(ast)->reason);
 
 	pri_redirecting_update(pvt->pri->pri, pvt->call, &pri_redirecting);
 }
@@ -1918,8 +1918,8 @@ static void *pri_ss_thread(void *data)
 		exten[0] = 's';
 		exten[1] = '\0';
 	} else {
-		ast_free(chan->dialed.number.str);
-		chan->dialed.number.str = ast_strdup(exten);
+		ast_free(ast_channel_dialed(chan)->number.str);
+		ast_channel_dialed(chan)->number.str = ast_strdup(exten);
 
 		if (p->pri->append_msn_to_user_tag && p->pri->nodetype != PRI_NETWORK) {
 			/*
@@ -1928,8 +1928,8 @@ static void *pri_ss_thread(void *data)
 			 */
 			snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
 				exten);
-			ast_free(chan->caller.id.tag);
-			chan->caller.id.tag = ast_strdup(p->user_tag);
+			ast_free(ast_channel_caller(chan)->id.tag);
+			ast_channel_caller(chan)->id.tag = ast_strdup(p->user_tag);
 		}
 	}
 	sig_pri_play_tone(p, -1);
@@ -2237,7 +2237,7 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 		ast_str_append(&msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
 		ast_str_append(&msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(owner));
 
-		sig_pri_event_party_id(&msg, "CallerID", &owner->connected.id);
+		sig_pri_event_party_id(&msg, "CallerID", &ast_channel_connected(owner)->id);
 	} else {
 		/*
 		 * Since we no longer have an owner channel,
@@ -2439,10 +2439,10 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	ast_mutex_unlock(&pri->lock);
 	retval = ast_channel_transfer_masquerade(
 		call_2->ast,
-		&call_2->ast->connected,
+		ast_channel_connected(call_2->ast),
 		call_2->held,
 		transferee,
-		&call_1->ast->connected,
+		ast_channel_connected(call_1->ast),
 		call_1->held);
 
 	/* Reacquire the pri->lock to hold off completion of the transfer masquerade. */
@@ -4130,7 +4130,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 #if defined(HAVE_PRI_SUBADDR)
 				if (ast_connected.id.subaddress.valid) {
-					ast_party_subaddress_set(&owner->caller.id.subaddress,
+					ast_party_subaddress_set(&ast_channel_caller(owner)->id.subaddress,
 						&ast_connected.id.subaddress);
 					if (ast_connected.id.subaddress.str) {
 						ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
@@ -4146,7 +4146,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 						ast_party_id_presentation(&ast_connected.id);
 					sig_pri_set_caller_id(pri->pvts[chanpos]);
 
-					ast_party_caller_set_init(&ast_caller, &owner->caller);
+					ast_party_caller_set_init(&ast_caller, ast_channel_caller(owner));
 					ast_caller.id = ast_connected.id;
 					ast_caller.ani = ast_connected.id;
 					ast_channel_set_caller_event(owner, &ast_caller, NULL);
@@ -4167,7 +4167,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
 				sig_pri_redirecting_convert(&ast_redirecting, &subcmd->u.redirecting,
-					&owner->redirecting, pri);
+					ast_channel_redirecting(owner), pri);
 				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 
@@ -4239,7 +4239,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 					break;
 				}
 				sig_pri_redirecting_convert(&ast_redirecting, &pri_deflection,
-					&owner->redirecting, pri);
+					ast_channel_redirecting(owner), pri);
 				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
@@ -6104,7 +6104,7 @@ static void *pri_dchannel(void *vpri)
 								/* Set Calling Subaddress */
 								sig_pri_lock_owner(pri, chanpos);
 								sig_pri_set_subaddress(
-									&pri->pvts[chanpos]->owner->caller.id.subaddress,
+									&ast_channel_caller(pri->pvts[chanpos]->owner)->id.subaddress,
 									&e->ring.calling.subaddress);
 								if (!e->ring.calling.subaddress.type
 									&& !ast_strlen_zero(
@@ -6119,7 +6119,7 @@ static void *pri_dchannel(void *vpri)
 								/* Set Called Subaddress */
 								sig_pri_lock_owner(pri, chanpos);
 								sig_pri_set_subaddress(
-									&pri->pvts[chanpos]->owner->dialed.subaddress,
+									&ast_channel_dialed(pri->pvts[chanpos]->owner)->subaddress,
 									&e->ring.called_subaddress);
 								if (!e->ring.called_subaddress.type
 									&& !ast_strlen_zero(
@@ -6229,7 +6229,7 @@ static void *pri_dchannel(void *vpri)
 								/* Set Calling Subaddress */
 								sig_pri_lock_owner(pri, chanpos);
 								sig_pri_set_subaddress(
-									&pri->pvts[chanpos]->owner->caller.id.subaddress,
+									&ast_channel_caller(pri->pvts[chanpos]->owner)->id.subaddress,
 									&e->ring.calling.subaddress);
 								if (!e->ring.calling.subaddress.type
 									&& !ast_strlen_zero(
@@ -6244,7 +6244,7 @@ static void *pri_dchannel(void *vpri)
 								/* Set Called Subaddress */
 								sig_pri_lock_owner(pri, chanpos);
 								sig_pri_set_subaddress(
-									&pri->pvts[chanpos]->owner->dialed.subaddress,
+									&ast_channel_dialed(pri->pvts[chanpos]->owner)->subaddress,
 									&e->ring.called_subaddress);
 								if (!e->ring.called_subaddress.type
 									&& !ast_strlen_zero(
@@ -7434,8 +7434,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 
 	ast_debug(1, "CALLER NAME: %s NUM: %s\n",
-		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
-		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""));
+		S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, ""),
+		S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, ""));
 
 	if (!p->pri) {
 		ast_log(LOG_ERROR, "Could not find pri on channel %d\n", p->channel);
@@ -7491,14 +7491,14 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 	l = NULL;
 	n = NULL;
 	if (!p->hidecallerid) {
-		if (ast->connected.id.number.valid) {
+		if (ast_channel_connected(ast)->id.number.valid) {
 			/* If we get to the end of this loop without breaking, there's no
 			 * calleridnum.  This is done instead of testing for "unknown" or
 			 * the thousands of other ways that the calleridnum could be
 			 * invalid. */
-			for (l = ast->connected.id.number.str; l && *l; l++) {
+			for (l = ast_channel_connected(ast)->id.number.str; l && *l; l++) {
 				if (strchr("0123456789", *l)) {
-					l = ast->connected.id.number.str;
+					l = ast_channel_connected(ast)->id.number.str;
 					break;
 				}
 			}
@@ -7506,7 +7506,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 			l = NULL;
 		}
 		if (!p->hidecalleridname) {
-			n = ast->connected.id.name.valid ? ast->connected.id.name.str : NULL;
+			n = ast_channel_connected(ast)->id.name.valid ? ast_channel_connected(ast)->id.name.str : NULL;
 		}
 	}
 
@@ -7691,8 +7691,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
 			p->pri->nodetype == PRI_NETWORK
 				? c + p->stripmsd + dp_strip
-				: S_COR(ast->connected.id.number.valid,
-					ast->connected.id.number.str, ""));
+				: S_COR(ast_channel_connected(ast)->id.number.valid,
+					ast_channel_connected(ast)->id.number.str, ""));
 	} else {
 		ast_copy_string(p->user_tag, p->pri->initial_user_tag, sizeof(p->user_tag));
 	}
@@ -7701,8 +7701,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 	 * Replace the caller id tag from the channel creation
 	 * with the actual tag value.
 	 */
-	ast_free(ast->caller.id.tag);
-	ast->caller.id.tag = ast_strdup(p->user_tag);
+	ast_free(ast_channel_caller(ast)->id.tag);
+	ast_channel_caller(ast)->id.tag = ast_strdup(p->user_tag);
 
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;
@@ -7722,7 +7722,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		}
 	} else if (prilocaldialplan == -1) {
 		/* Use the numbering plan passed in. */
-		prilocaldialplan = ast->connected.id.number.plan;
+		prilocaldialplan = ast_channel_connected(ast)->id.number.plan;
 	}
 	if (l != NULL) {
 		while (*l > '9' && *l != '*' && *l != '#') {
@@ -7781,14 +7781,14 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 		}
 	}
 	pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
-		p->use_callingpres ? ast->connected.id.number.presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
+		p->use_callingpres ? ast_channel_connected(ast)->id.number.presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
 
 #if defined(HAVE_PRI_SUBADDR)
-	if (ast->connected.id.subaddress.valid) {
+	if (ast_channel_connected(ast)->id.subaddress.valid) {
 		struct pri_party_subaddress subaddress;
 
 		memset(&subaddress, 0, sizeof(subaddress));
-		sig_pri_party_subaddress_from_ast(&subaddress, &ast->connected.id.subaddress);
+		sig_pri_party_subaddress_from_ast(&subaddress, &ast_channel_connected(ast)->id.subaddress);
 		pri_sr_set_caller_subaddress(sr, &subaddress);
 	}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
@@ -8021,7 +8021,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 
 			pri_grab(p, p->pri);
 			memset(&connected, 0, sizeof(connected));
-			sig_pri_party_id_from_ast(&connected.id, &chan->connected.id);
+			sig_pri_party_id_from_ast(&connected.id, &ast_channel_connected(chan)->id);
 
 			/* Determine the connected line numbering plan to actually use. */
 			switch (p->pri->cpndialplan) {

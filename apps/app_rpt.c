@@ -5465,14 +5465,14 @@ struct ast_format_cap *cap = NULL;
 		if(instr){
 			ast_callerid_parse(instr, &name, &loc);
 			if(loc){
-				mychannel->caller.id.number.valid = 1;
-				ast_free(mychannel->caller.id.number.str);
-				mychannel->caller.id.number.str = ast_strdup(loc);
+				ast_channel_caller(mychannel)->id.number.valid = 1;
+				ast_free(ast_channel_caller(mychannel)->id.number.str);
+				ast_channel_caller(mychannel)->id.number.str = ast_strdup(loc);
 			}
 			if(name){
-				mychannel->caller.id.name.valid = 1;
-				ast_free(mychannel->caller.id.name.str);
-				mychannel->caller.id.name.str = ast_strdup(name);
+				ast_channel_caller(mychannel)->id.name.valid = 1;
+				ast_free(ast_channel_caller(mychannel)->id.name.str);
+				ast_channel_caller(mychannel)->id.name.str = ast_strdup(name);
 			}
 			ast_free(instr);
 		}
@@ -5821,9 +5821,9 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		if (debug > 3)
 			ast_log(LOG_NOTICE, "rpt (remote) initiating call to %s/%s on %s\n",
 		deststr, tele, ast_channel_name(l->chan));
-		l->chan->caller.id.number.valid = 1;
-		ast_free(l->chan->caller.id.number.str);
-		l->chan->caller.id.number.str = ast_strdup(myrpt->name);
+		ast_channel_caller(l->chan)->id.number.valid = 1;
+		ast_free(ast_channel_caller(l->chan)->id.number.str);
+		ast_channel_caller(l->chan)->id.number.str = ast_strdup(myrpt->name);
 		ast_call(l->chan,tele,999);
 	}
 	else {
@@ -10374,9 +10374,9 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		ast_channel_data_set(l->chan, "(Remote Rx)");
 		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
 			deststr, tele, ast_channel_name(l->chan));
-		l->chan->caller.id.number.valid = 1;
-		ast_free(l->chan->caller.id.number.str);
-		l->chan->caller.id.number.str = ast_strdup(myrpt->name);
+		ast_channel_caller(l->chan)->id.number.valid = 1;
+		ast_free(ast_channel_caller(l->chan)->id.number.str);
+		ast_channel_caller(l->chan)->id.number.str = ast_strdup(myrpt->name);
                 ast_call(l->chan,tele,999); 
 
 	}
@@ -13405,9 +13405,9 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 
 		ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n",
 			ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
 		if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 		}
   
@@ -13436,7 +13436,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
         char hisip[100],nodeip[100],*val, *s, *s1, *s2, *s3, *b,*b1;
 
 		/* look at callerid to see what node this comes from */
-		b = S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL);
+		b = S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
 		if (!b) /* if doesn't have caller id */
 		{
 			ast_log(LOG_WARNING, "Does not have callerid on %s\n",tmp);
@@ -13558,7 +13558,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 		/* look at callerid to see what node this comes from */
-		b = S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL);
+		b = S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
 		if (!b) /* if doesn't have caller id */
 		{
 			ast_log(LOG_WARNING, "Doesnt have callerid on %s\n",tmp);
@@ -14033,7 +14033,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 				ast_cli_command(nullfd,mycmd);
 		} else ast_cli_command(nullfd,mycmd);
 		/* look at callerid to see what node this comes from */
-		b = S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL);
+		b = S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
 		if (!b) /* if doesn't have caller id */
 		{
 			b1 = "0";
@@ -14544,7 +14544,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		char mycmd[100],*b,*b1;
 
 		/* look at callerid to see what node this comes from */
-		b = S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL);
+		b = S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
 		if (!b) /* if doesn't have caller id */
 		{
 			b1 = "0";

@@ -845,7 +845,7 @@ static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout)
 	ast_debug(3, "MGCP mgcp_call(%s)\n", ast_channel_name(ast));
 	sub = ast_channel_tech_pvt(ast);
 	p = sub->parent;
-	headp = &ast->varshead;
+	headp = ast_channel_varshead(ast);
 	AST_LIST_TRAVERSE(headp,current,entries) {
 		/* Check whether there is an ALERT_INFO variable */
 		if (strcasecmp(ast_var_name(current),"ALERT_INFO") == 0) {
@@ -900,8 +900,8 @@ static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout)
 		}
 
 		transmit_notify_request_with_callerid(sub, tone,
-			S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""),
-			S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""));
+			S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, ""),
+			S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, ""));
 		ast_setstate(ast, AST_STATE_RINGING);
 
 		if (sub->next->owner && !ast_strlen_zero(sub->next->cxident) && !ast_strlen_zero(sub->next->callid)) {
@@ -973,8 +973,8 @@ static int mgcp_hangup(struct ast_channel *ast)
 				/* ncs fix! */
 				bridged = ast_bridged_channel(sub->next->owner);
 				transmit_notify_request_with_callerid(p->sub, (p->ncs ? "L/wt1" : "L/wt"),
-					S_COR(bridged->caller.id.number.valid, bridged->caller.id.number.str, ""),
-					S_COR(bridged->caller.id.name.valid, bridged->caller.id.name.str, ""));
+					S_COR(ast_channel_caller(bridged)->id.number.valid, ast_channel_caller(bridged)->id.number.str, ""),
+					S_COR(ast_channel_caller(bridged)->id.name.valid, ast_channel_caller(bridged)->id.name.str, ""));
 			}
 		} else {
 			/* set our other connection as the primary and swith over to it */
@@ -984,8 +984,8 @@ static int mgcp_hangup(struct ast_channel *ast)
 			if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
 				bridged = ast_bridged_channel(sub->next->owner);
 				transmit_notify_request_with_callerid(p->sub, "L/rg",
-					S_COR(bridged->caller.id.number.valid, bridged->caller.id.number.str, ""),
-					S_COR(bridged->caller.id.name.valid, bridged->caller.id.name.str, ""));
+					S_COR(ast_channel_caller(bridged)->id.number.valid, ast_channel_caller(bridged)->id.number.str, ""),
+					S_COR(ast_channel_caller(bridged)->id.name.valid, ast_channel_caller(bridged)->id.name.str, ""));
 			}
 		}
 
@@ -1540,8 +1540,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
 		if (!ast_strlen_zero(i->cid_num)) {
-			tmp->caller.ani.number.valid = 1;
-			tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+			ast_channel_caller(tmp)->ani.number.valid = 1;
+			ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 		}
 
 		if (!i->adsi) {
@@ -3022,12 +3022,12 @@ static void *mgcp_ss(void *data)
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
 					ast_channel_exten_set(chan, p->dtmf_buf);
-					chan->dialed.number.str = ast_strdup(p->dtmf_buf);
+					ast_channel_dialed(chan)->number.str = ast_strdup(p->dtmf_buf);
 					memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 					ast_set_callerid(chan,
 						p->hidecallerid ? "" : p->cid_num,
 						p->hidecallerid ? "" : p->cid_name,
-						chan->caller.ani.number.valid ? NULL : p->cid_num);
+						ast_channel_caller(chan)->ani.number.valid ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					/*dahdi_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
@@ -3157,10 +3157,10 @@ static void *mgcp_ss(void *data)
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			timeout = firstdigittimeout;
 		} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), p->dtmf_buf, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))
 			&& ((p->dtmf_buf[0] != '*') || (strlen(p->dtmf_buf) > 2))) {
 			ast_debug(1, "Can't match %s from '%s' in context %s\n", p->dtmf_buf,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<Unknown Caller>"),
 				ast_channel_context(chan));
 			break;
 		}

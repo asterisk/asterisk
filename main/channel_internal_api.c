@@ -196,7 +196,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	}
 	channel_data_add_flags(data_flags, chan);
 
-	ast_data_add_uint(tree, "timetohangup", chan->whentohangup.tv_sec);
+	ast_data_add_uint(tree, "timetohangup", ast_channel_whentohangup(chan)->tv_sec);
 
 #if 0	/* XXX AstData: ast_callerid no longer exists. (Equivalent code not readily apparent.) */
 	/* callerid */
@@ -703,4 +703,76 @@ struct ast_format *ast_channel_readformat(struct ast_channel *chan)
 struct ast_format *ast_channel_writeformat(struct ast_channel *chan)
 {
 	return &chan->__do_not_use_writeformat;
+}
+struct ast_datastore_list *ast_channel_datastores(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_datastores;
+}
+struct ast_autochan_list *ast_channel_autochans(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_autochans;
+}
+struct ast_readq_list *ast_channel_readq(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_readq;
+}
+struct ast_frame *ast_channel_dtmff(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_dtmff;
+}
+struct ast_jb *ast_channel_jb(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_jb;
+}
+struct ast_party_caller *ast_channel_caller(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_caller;
+}
+struct ast_party_connected_line *ast_channel_connected(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_connected;
+}
+struct ast_party_dialed *ast_channel_dialed(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_dialed;
+}
+struct ast_party_redirecting *ast_channel_redirecting(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_redirecting;
+}
+struct timeval *ast_channel_dtmf_tv(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_dtmf_tv;
+}
+struct timeval *ast_channel_whentohangup(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_whentohangup;
+}
+struct varshead *ast_channel_varshead(struct ast_channel *chan)
+{
+	return &chan->__do_not_use_varshead;
+}
+void ast_channel_caller_set(struct ast_channel *chan, struct ast_party_caller *value)
+{
+	chan->__do_not_use_caller = *value;
+}
+void ast_channel_connected_set(struct ast_channel *chan, struct ast_party_connected_line *value)
+{
+	chan->__do_not_use_connected = *value;
+}
+void ast_channel_dialed_set(struct ast_channel *chan, struct ast_party_dialed *value)
+{
+	chan->__do_not_use_dialed = *value;
+}
+void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redirecting *value)
+{
+	chan->__do_not_use_redirecting = *value;
+}
+void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value)
+{
+	chan->__do_not_use_dtmf_tv = *value;
+}
+void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value)
+{
+	chan->__do_not_use_whentohangup = *value;
 }

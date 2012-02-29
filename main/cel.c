@@ -414,7 +414,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		return NULL;
 	}
 
-	headp = &tchan->varshead;
+	headp = ast_channel_varshead(tchan);
 
 	/* first, get the variables from the event */
 	if (ast_cel_fill_record(event, &record)) {
@@ -452,15 +452,15 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
-	tchan->caller.id.name.valid = 1;
-	tchan->caller.id.name.str = ast_strdup(record.caller_id_name);
-	tchan->caller.id.number.valid = 1;
-	tchan->caller.id.number.str = ast_strdup(record.caller_id_num);
-	tchan->caller.ani.number.valid = 1;
-	tchan->caller.ani.number.str = ast_strdup(record.caller_id_ani);
-	tchan->redirecting.from.number.valid = 1;
-	tchan->redirecting.from.number.str = ast_strdup(record.caller_id_rdnis);
-	tchan->dialed.number.str = ast_strdup(record.caller_id_dnid);
+	ast_channel_caller(tchan)->id.name.valid = 1;
+	ast_channel_caller(tchan)->id.name.str = ast_strdup(record.caller_id_name);
+	ast_channel_caller(tchan)->id.number.valid = 1;
+	ast_channel_caller(tchan)->id.number.str = ast_strdup(record.caller_id_num);
+	ast_channel_caller(tchan)->ani.number.valid = 1;
+	ast_channel_caller(tchan)->ani.number.str = ast_strdup(record.caller_id_ani);
+	ast_channel_redirecting(tchan)->from.number.valid = 1;
+	ast_channel_redirecting(tchan)->from.number.str = ast_strdup(record.caller_id_rdnis);
+	ast_channel_dialed(tchan)->number.str = ast_strdup(record.caller_id_dnid);
 
 	ast_channel_exten_set(tchan, record.extension);
 	ast_channel_context_set(tchan, record.context);
@@ -552,15 +552,15 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
 		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, userdefevname,
 		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
+			S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""),
 		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, ""),
+			S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""),
 		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, ""),
+			S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, ""),
 		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR,
-			S_OR(chan->dialed.number.str, ""),
+			S_OR(ast_channel_dialed(chan)->number.str, ""),
 		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, ast_channel_exten(chan),
 		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, ast_channel_context(chan),
 		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, ast_channel_name(chan),

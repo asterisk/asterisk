@@ -890,8 +890,8 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 
 	tmp->callgroup = client->callgroup;
 	tmp->pickupgroup = client->pickupgroup;
-	tmp->caller.id.name.presentation = client->callingpres;
-	tmp->caller.id.number.presentation = client->callingpres;
+	ast_channel_caller(tmp)->id.name.presentation = client->callingpres;
+	ast_channel_caller(tmp)->id.number.presentation = client->callingpres;
 	if (!ast_strlen_zero(client->accountcode))
 		ast_channel_accountcode_set(tmp, client->accountcode);
 	if (client->amaflags)
@@ -906,11 +906,11 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
 	if (!ast_strlen_zero(i->cid_num)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 	}
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
-		tmp->dialed.number.str = ast_strdup(i->exten);
+		ast_channel_dialed(tmp)->number.str = ast_strdup(i->exten);
 	}
 	ast_channel_priority_set(tmp, 1);
 	if (i->rtp)
@@ -1390,9 +1390,9 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	iks_insert_node(jingle, dtmf);
 
 	ast_mutex_lock(&p->lock);
-	if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN || duration == 0) {
+	if (ast_channel_dtmff(ast)->frametype == AST_FRAME_DTMF_BEGIN || duration == 0) {
 		iks_insert_attrib(dtmf, "action", "button-down");
-	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END || duration != 0) {
+	} else if (ast_channel_dtmff(ast)->frametype == AST_FRAME_DTMF_END || duration != 0) {
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
 	ast_aji_send(client->connection, iq);

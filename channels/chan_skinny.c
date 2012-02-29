@@ -2467,15 +2467,15 @@ static void send_callinfo(struct skinny_subchannel *sub)
 	d = l->device;
 	
 	if (sub->calldirection == SKINNY_INCOMING) {
-		fromname = S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, "");
-		fromnum = S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, "");
-		toname = S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, "");
-		tonum = S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, "");
+		fromname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
+		fromnum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, "");
+		toname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
+		tonum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
-		fromname = S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, "");
-		fromnum = S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, "");
-		toname = S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, l->lastnumberdialed);
-		tonum = S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, l->lastnumberdialed);
+		fromname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
+		fromnum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
+		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, l->lastnumberdialed);
+		tonum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, l->lastnumberdialed);
 	} else {
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
 		return;
@@ -2502,15 +2502,15 @@ static void push_callinfo(struct skinny_subline *subline, struct skinny_subchann
 	d = l->device;
 	
 	if (sub->calldirection == SKINNY_INCOMING) {
-		fromname = S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, "");
-		fromnum = S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, "");
-		toname = S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, "");
-		tonum = S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, "");
+		fromname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
+		fromnum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, "");
+		toname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
+		tonum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
-		fromname = S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, "");
-		fromnum = S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, "");
-		toname = S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, l->lastnumberdialed);
-		tonum = S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, l->lastnumberdialed);
+		fromname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
+		fromnum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
+		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, l->lastnumberdialed);
+		tonum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, l->lastnumberdialed);
 	} else {
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
 		return;
@@ -3143,10 +3143,10 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
 
-	if (!c->caller.id.number.valid
-		|| ast_strlen_zero(c->caller.id.number.str)
-		|| !c->connected.id.number.valid
-		|| ast_strlen_zero(c->connected.id.number.str))
+	if (!ast_channel_caller(c)->id.number.valid
+		|| ast_strlen_zero(ast_channel_caller(c)->id.number.str)
+		|| !ast_channel_connected(c)->id.number.valid
+		|| ast_strlen_zero(ast_channel_connected(c)->id.number.str))
 		return;
 
 	if (skinnydebug) {
@@ -4230,14 +4230,14 @@ static void *skinny_newcall(void *data)
 	ast_set_callerid(c,
 		l->hidecallerid ? "" : l->cid_num,
 		l->hidecallerid ? "" : l->cid_name,
-		c->caller.ani.number.valid ? NULL : l->cid_num);
+		ast_channel_caller(c)->ani.number.valid ? NULL : l->cid_num);
 #if 1	/* XXX This code is probably not necessary */
-	ast_party_number_free(&c->connected.id.number);
-	ast_party_number_init(&c->connected.id.number);
-	c->connected.id.number.valid = 1;
-	c->connected.id.number.str = ast_strdup(ast_channel_exten(c));
-	ast_party_name_free(&c->connected.id.name);
-	ast_party_name_init(&c->connected.id.name);
+	ast_party_number_free(&ast_channel_connected(c)->id.number);
+	ast_party_number_init(&ast_channel_connected(c)->id.number);
+	ast_channel_connected(c)->id.number.valid = 1;
+	ast_channel_connected(c)->id.number.str = ast_strdup(ast_channel_exten(c));
+	ast_party_name_free(&ast_channel_connected(c)->id.name);
+	ast_party_name_init(&ast_channel_connected(c)->id.name);
 #endif
 	ast_setstate(c, AST_STATE_RING);
 	if (!sub->rtp) {
@@ -4332,10 +4332,10 @@ static void *skinny_ss(void *data)
 			}
 			return NULL;
 		} else if (!ast_canmatch_extension(c, ast_channel_context(c), sub->exten, 1,
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))
+			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))
 			&& ((sub->exten[0] != '*') || (!ast_strlen_zero(sub->exten) > 2))) {
 			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", sub->exten,
-				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<Unknown Caller>"),
+				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<Unknown Caller>"),
 				ast_channel_context(c));
 			if (d->hookstate == SKINNY_OFFHOOK) {
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
@@ -4396,7 +4396,7 @@ static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 		return -1;
 	}
 
-	AST_LIST_TRAVERSE(&ast->varshead, current, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(ast), current, entries) {
 		if (!(strcasecmp(ast_var_name(current),"SKINNY_AUTOANSWER"))) {
 			if (d->hookstate == SKINNY_ONHOOK && !sub->aa_sched) {
 				char buf[24];
@@ -4937,8 +4937,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
 		if (!ast_strlen_zero(l->cid_num)) {
-			tmp->caller.ani.number.valid = 1;
-			tmp->caller.ani.number.str = ast_strdup(l->cid_num);
+			ast_channel_caller(tmp)->ani.number.valid = 1;
+			ast_channel_caller(tmp)->ani.number.str = ast_strdup(l->cid_num);
 		}
 
 		ast_channel_priority_set(tmp, 1);

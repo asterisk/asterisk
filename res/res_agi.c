@@ -1732,17 +1732,17 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 
 	/* ANI/DNIS */
 	ast_agi_send(fd, chan, "agi_callerid: %s\n",
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "unknown"));
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "unknown"));
 	ast_agi_send(fd, chan, "agi_calleridname: %s\n",
-		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "unknown"));
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "unknown"));
 	ast_agi_send(fd, chan, "agi_callingpres: %d\n",
-		ast_party_id_presentation(&chan->caller.id));
-	ast_agi_send(fd, chan, "agi_callingani2: %d\n", chan->caller.ani2);
-	ast_agi_send(fd, chan, "agi_callington: %d\n", chan->caller.id.number.plan);
-	ast_agi_send(fd, chan, "agi_callingtns: %d\n", chan->dialed.transit_network_select);
-	ast_agi_send(fd, chan, "agi_dnid: %s\n", S_OR(chan->dialed.number.str, "unknown"));
+		ast_party_id_presentation(&ast_channel_caller(chan)->id));
+	ast_agi_send(fd, chan, "agi_callingani2: %d\n", ast_channel_caller(chan)->ani2);
+	ast_agi_send(fd, chan, "agi_callington: %d\n", ast_channel_caller(chan)->id.number.plan);
+	ast_agi_send(fd, chan, "agi_callingtns: %d\n", ast_channel_dialed(chan)->transit_network_select);
+	ast_agi_send(fd, chan, "agi_dnid: %s\n", S_OR(ast_channel_dialed(chan)->number.str, "unknown"));
 	ast_agi_send(fd, chan, "agi_rdnis: %s\n",
-		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "unknown"));
+		S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, "unknown"));
 
 	/* Context information */
 	ast_agi_send(fd, chan, "agi_context: %s\n", ast_channel_context(chan));
@@ -2233,7 +2233,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, cons
 
 	if (sscanf(argv[2], "%30d", &pri) != 1) {
 		pri = ast_findlabel_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), argv[2],
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 		if (pri < 1)
 			return RESULT_SHOWUSAGE;
 	}

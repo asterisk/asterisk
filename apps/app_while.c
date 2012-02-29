@@ -168,10 +168,10 @@ static int find_matching_endwhile(struct ast_channel *chan)
 				int cur_priority = ast_channel_priority(chan) + 1, level=1;
 
 				for (e = find_matching_priority(c, ast_channel_exten(chan), cur_priority,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 					e;
 					e = find_matching_priority(c, ast_channel_exten(chan), ++cur_priority,
-						S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+						S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 					if (!strcasecmp(ast_get_extension_app(e), "WHILE")) {
 						level++;
 					} else if (!strcasecmp(ast_get_extension_app(e), "ENDWHILE")) {

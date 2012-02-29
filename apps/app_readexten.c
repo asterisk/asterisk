@@ -230,9 +230,9 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 
 			exten[x] = res;
 			if (!ast_matchmore_extension(chan, arglist.context, exten, 1 /* priority */,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				if (!ast_exists_extension(chan, arglist.context, exten, 1,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))
 					&& res == '#') {
 					exten[x] = '\0';
 				}
@@ -244,7 +244,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 			break;
 
 		if (ast_exists_extension(chan, arglist.context, exten, 1,
-			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 			ast_debug(3, "User entered valid extension '%s'\n", exten);
 			pbx_builtin_setvar_helper(chan, arglist.variable, exten);
 			status = "OK";

@@ -108,8 +108,8 @@ static int zapateller_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (nocallerid	/* Zap caller if no caller id. */
-		&& chan->caller.id.number.valid
-		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+		&& ast_channel_caller(chan)->id.number.valid
+		&& !ast_strlen_zero(ast_channel_caller(chan)->id.number.str)) {
 		/* We have caller id. */
 		return res;
 	}

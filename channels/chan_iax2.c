@@ -5078,8 +5078,8 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	l = c->connected.id.number.valid ? c->connected.id.number.str : NULL;
-	n = c->connected.id.name.valid ? c->connected.id.name.str : NULL;
+	l = ast_channel_connected(c)->id.number.valid ? ast_channel_connected(c)->id.number.str : NULL;
+	n = ast_channel_connected(c)->id.name.valid ? ast_channel_connected(c)->id.name.str : NULL;
 
 	/* Now build request */	
 	memset(&ied, 0, sizeof(ied));
@@ -5098,33 +5098,33 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 	if (l) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES,
-			ast_party_id_presentation(&c->connected.id));
+			ast_party_id_presentation(&ast_channel_connected(c)->id));
 	} else if (n) {
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES,
-			ast_party_id_presentation(&c->connected.id));
+			ast_party_id_presentation(&ast_channel_connected(c)->id));
 	} else {
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
 	}
 
-	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->connected.id.number.plan);
-	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->dialed.transit_network_select);
+	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, ast_channel_connected(c)->id.number.plan);
+	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, ast_channel_dialed(c)->transit_network_select);
 
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
 	if (ast_test_flag64(iaxs[callno], IAX_SENDANI)
-		&& c->connected.ani.number.valid
-		&& c->connected.ani.number.str) {
-		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->connected.ani.number.str);
+		&& ast_channel_connected(c)->ani.number.valid
+		&& ast_channel_connected(c)->ani.number.str) {
+		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, ast_channel_connected(c)->ani.number.str);
 	}
 
 	if (!ast_strlen_zero(ast_channel_language(c)))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, ast_channel_language(c));
-	if (!ast_strlen_zero(c->dialed.number.str)) {
-		iax_ie_append_str(&ied, IAX_IE_DNID, c->dialed.number.str);
+	if (!ast_strlen_zero(ast_channel_dialed(c)->number.str)) {
+		iax_ie_append_str(&ied, IAX_IE_DNID, ast_channel_dialed(c)->number.str);
 	}
-	if (c->redirecting.from.number.valid
-		&& !ast_strlen_zero(c->redirecting.from.number.str)) {
-		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->redirecting.from.number.str);
+	if (ast_channel_redirecting(c)->from.number.valid
+		&& !ast_strlen_zero(ast_channel_redirecting(c)->from.number.str)) {
+		iax_ie_append_str(&ied, IAX_IE_RDNIS, ast_channel_redirecting(c)->from.number.str);
 	}
 
 	if (pds.context)
@@ -5768,21 +5768,21 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
 	if (!ast_strlen_zero(i->ani)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->ani);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->ani);
 	} else if (!ast_strlen_zero(i->cid_num)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 	}
-	tmp->dialed.number.str = ast_strdup(i->dnid);
+	ast_channel_dialed(tmp)->number.str = ast_strdup(i->dnid);
 	if (!ast_strlen_zero(i->rdnis)) {
-		tmp->redirecting.from.number.valid = 1;
-		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+		ast_channel_redirecting(tmp)->from.number.valid = 1;
+		ast_channel_redirecting(tmp)->from.number.str = ast_strdup(i->rdnis);
 	}
-	tmp->caller.id.name.presentation = i->calling_pres;
-	tmp->caller.id.number.presentation = i->calling_pres;
-	tmp->caller.id.number.plan = i->calling_ton;
-	tmp->dialed.transit_network_select = i->calling_tns;
+	ast_channel_caller(tmp)->id.name.presentation = i->calling_pres;
+	ast_channel_caller(tmp)->id.number.presentation = i->calling_pres;
+	ast_channel_caller(tmp)->id.number.plan = i->calling_ton;
+	ast_channel_dialed(tmp)->transit_network_select = i->calling_tns;
 	if (!ast_strlen_zero(i->language))
 		ast_channel_language_set(tmp, i->language);
 	if (!ast_strlen_zero(i->accountcode))
@@ -11597,8 +11597,8 @@ immediatedial:
 					S_COR(connected.id.number.valid, connected.id.number.str, ""),
 					S_COR(connected.id.name.valid, connected.id.name.str, ""),
 					NULL);
-				iaxs[fr->callno]->owner->caller.id.number.presentation = connected.id.number.presentation;
-				iaxs[fr->callno]->owner->caller.id.name.presentation = connected.id.name.presentation;
+				ast_channel_caller(iaxs[fr->callno]->owner)->id.number.presentation = connected.id.number.presentation;
+				ast_channel_caller(iaxs[fr->callno]->owner)->id.name.presentation = connected.id.name.presentation;
 			}
 		}
 		ast_party_connected_line_free(&connected);

@@ -143,16 +143,16 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 
 	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", ast_channel_context(chan), ast_channel_exten(chan),
 		ast_channel_priority(chan),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
 	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
-		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 	}
 
 	/* Save the CallerID because the masquerade turns chan into a ZOMBIE. */
 	ast_party_id_init(&caller_id);
 	ast_channel_lock(chan);
-	ast_party_id_copy(&caller_id, &chan->caller.id);
+	ast_party_id_copy(&caller_id, &ast_channel_caller(chan)->id);
 	ast_channel_unlock(chan);
 
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout

@@ -620,20 +620,20 @@ static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 	/* make sure null terminated */
 	called_addr[sizeof(called_addr) - 1] = '\0';
 
-	if (c->connected.id.number.valid && c->connected.id.number.str) {
-		ast_copy_string(pvt->options.cid_num, c->connected.id.number.str, sizeof(pvt->options.cid_num));
+	if (ast_channel_connected(c)->id.number.valid && ast_channel_connected(c)->id.number.str) {
+		ast_copy_string(pvt->options.cid_num, ast_channel_connected(c)->id.number.str, sizeof(pvt->options.cid_num));
 	}
 
-	if (c->connected.id.name.valid && c->connected.id.name.str) {
-		ast_copy_string(pvt->options.cid_name, c->connected.id.name.str, sizeof(pvt->options.cid_name));
+	if (ast_channel_connected(c)->id.name.valid && ast_channel_connected(c)->id.name.str) {
+		ast_copy_string(pvt->options.cid_name, ast_channel_connected(c)->id.name.str, sizeof(pvt->options.cid_name));
 	}
 
-	if (c->redirecting.from.number.valid && c->redirecting.from.number.str) {
-		ast_copy_string(pvt->options.cid_rdnis, c->redirecting.from.number.str, sizeof(pvt->options.cid_rdnis));
+	if (ast_channel_redirecting(c)->from.number.valid && ast_channel_redirecting(c)->from.number.str) {
+		ast_copy_string(pvt->options.cid_rdnis, ast_channel_redirecting(c)->from.number.str, sizeof(pvt->options.cid_rdnis));
 	}
 
-	pvt->options.presentation = ast_party_id_presentation(&c->connected.id);
-	pvt->options.type_of_number = c->connected.id.number.plan;
+	pvt->options.presentation = ast_party_id_presentation(&ast_channel_connected(c)->id);
+	pvt->options.type_of_number = ast_channel_connected(c)->id.number.plan;
 
 	if ((addr = pbx_builtin_getvar_helper(c, "PRIREDIRECTREASON"))) {
 		if (!strcasecmp(addr, "UNKNOWN"))
@@ -1107,21 +1107,21 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
 		if (!ast_strlen_zero(cid_num)) {
-			ch->caller.ani.number.valid = 1;
-			ch->caller.ani.number.str = ast_strdup(cid_num);
+			ast_channel_caller(ch)->ani.number.valid = 1;
+			ast_channel_caller(ch)->ani.number.str = ast_strdup(cid_num);
 		}
 
 		if (pvt->cd.redirect_reason >= 0) {
-			ch->redirecting.from.number.valid = 1;
-			ch->redirecting.from.number.str = ast_strdup(pvt->cd.redirect_number);
+			ast_channel_redirecting(ch)->from.number.valid = 1;
+			ast_channel_redirecting(ch)->from.number.str = ast_strdup(pvt->cd.redirect_number);
 			pbx_builtin_setvar_helper(ch, "PRIREDIRECTREASON", redirectingreason2str(pvt->cd.redirect_reason));
 		}
-		ch->caller.id.name.presentation = pvt->cd.presentation;
-		ch->caller.id.number.presentation = pvt->cd.presentation;
-		ch->caller.id.number.plan = pvt->cd.type_of_number;
+		ast_channel_caller(ch)->id.name.presentation = pvt->cd.presentation;
+		ast_channel_caller(ch)->id.number.presentation = pvt->cd.presentation;
+		ast_channel_caller(ch)->id.number.plan = pvt->cd.type_of_number;
 
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
-			ch->dialed.number.str = ast_strdup(pvt->exten);
+			ast_channel_dialed(ch)->number.str = ast_strdup(pvt->exten);
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ast_channel_transfercapability_set(ch, pvt->cd.transfer_capability);

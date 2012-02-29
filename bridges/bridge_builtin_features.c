@@ -85,7 +85,7 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 
 	/* Before we actually dial out let's inherit appropriate information. */
 	ast_channel_lock_both(caller, chan);
-	ast_connected_line_copy_from_caller(&chan->connected, &caller->caller);
+	ast_connected_line_copy_from_caller(ast_channel_connected(chan), ast_channel_caller(caller));
 	ast_channel_inherit_variables(caller, chan);
 	ast_channel_datastore_inherit(caller, chan);
 	ast_channel_unlock(chan);

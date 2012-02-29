@@ -997,7 +997,7 @@ static void clearvar_prefix(struct ast_channel *chan, const char *prefix)
 {
 	struct ast_var_t *var;
 	int len = strlen(prefix);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->varshead, var, entries) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_varshead(chan), var, entries) {
 		if (strncasecmp(prefix, ast_var_name(var), len) == 0) {
 			AST_LIST_REMOVE_CURRENT(entries);
 			ast_free(var);
@@ -1096,7 +1096,7 @@ static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, 
 	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 	memset(buf, 0, len);
 
-	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), newvar, entries) {
 		if (strncasecmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
 			/* Copy everything after the prefix */
 			strncat(buf, ast_var_name(newvar) + ast_str_strlen(prefix), len - strlen(buf) - 1);
@@ -1117,7 +1117,7 @@ static int hashkeys_read2(struct ast_channel *chan, const char *cmd, char *data,
 
 	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 
-	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), newvar, entries) {
 		if (strncasecmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
 			/* Copy everything after the prefix */
 			ast_str_append(buf, len, "%s", ast_var_name(newvar) + ast_str_strlen(prefix));
@@ -1693,12 +1693,12 @@ AST_TEST_DEFINE(test_FIELDNUM)
 
 	for (i = 0; i < ARRAY_LEN(test_args); i++) {
 		struct ast_var_t *var = ast_var_assign("FIELDS", test_args[i].fields);
-		AST_LIST_INSERT_HEAD(&chan->varshead, var, entries);
+		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
 
 		snprintf(expression, sizeof(expression), "${FIELDNUM(%s,%s,%s)}", var->name, test_args[i].delim, test_args[i].field);
 		ast_str_substitute_variables(&str, 0, chan, expression);
 
-		AST_LIST_REMOVE(&chan->varshead, var, entries);
+		AST_LIST_REMOVE(ast_channel_varshead(chan), var, entries);
 		ast_var_delete(var);
 
 		if (strcasecmp(ast_str_buffer(str), test_args[i].expected)) {
@@ -1795,7 +1795,7 @@ AST_TEST_DEFINE(test_STRREPLACE)
 		char tmp[512], tmp2[512] = "";
 
 		struct ast_var_t *var = ast_var_assign("test_string", test_strings[i][0]);
-		AST_LIST_INSERT_HEAD(&chan->varshead, var, entries);
+		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
 
 		if (test_strings[i][3]) {
 			snprintf(tmp, sizeof(tmp), "${STRREPLACE(%s,%s,%s,%s)}", "test_string", test_strings[i][1], test_strings[i][2], test_strings[i][3]);

@@ -272,7 +272,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 
 	ast_channel_appl_set(channel->owner, "AppDial2");
 	ast_channel_data_set(channel->owner, "(Outgoing Line)");
-	memset(&channel->owner->whentohangup, 0, sizeof(channel->owner->whentohangup));
+	memset(ast_channel_whentohangup(channel->owner), 0, sizeof(*ast_channel_whentohangup(channel->owner)));
 
 	/* Inherit everything from he who spawned this dial */
 	if (chan) {
@@ -280,11 +280,11 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_channel_datastore_inherit(chan, channel->owner);
 
 		/* Copy over callerid information */
-		ast_party_redirecting_copy(&channel->owner->redirecting, &chan->redirecting);
+		ast_party_redirecting_copy(ast_channel_redirecting(channel->owner), ast_channel_redirecting(chan));
 
-		channel->owner->dialed.transit_network_select = chan->dialed.transit_network_select;
+		ast_channel_dialed(channel->owner)->transit_network_select = ast_channel_dialed(chan)->transit_network_select;
 
-		ast_connected_line_copy_from_caller(&channel->owner->connected, &chan->caller);
+		ast_connected_line_copy_from_caller(ast_channel_connected(channel->owner), ast_channel_caller(chan));
 
 		ast_channel_language_set(channel->owner, ast_channel_language(chan));
 		ast_channel_accountcode_set(channel->owner, ast_channel_accountcode(chan));

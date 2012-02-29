@@ -884,7 +884,7 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 	} else if (!strcasecmp(a->argv[1], "list")) {
 		ast_cli(a->fd, "MixMonitor ID\tFile\tReceive File\tTransmit File\n");
 		ast_cli(a->fd, "=========================================================================\n");
-		AST_LIST_TRAVERSE(&chan->datastores, datastore, entry) {
+		AST_LIST_TRAVERSE(ast_channel_datastores(chan), datastore, entry) {
 			if (datastore->info == &mixmonitor_ds_info) {
 				char *filename = "";
 				char *filename_read = "";

@@ -333,7 +333,7 @@ static int lua_get_variable_value(lua_State *L)
 	if (!ast_strlen_zero(name) && name[strlen(name) - 1] == ')') {
 		value = ast_func_read(chan, name, workspace, LUA_BUF_SIZE) ? NULL : workspace;
 	} else {
-		pbx_retrieve_variable(chan, name, &value, workspace, LUA_BUF_SIZE, &chan->varshead);
+		pbx_retrieve_variable(chan, name, &value, workspace, LUA_BUF_SIZE, ast_channel_varshead(chan));
 	}
 	
 	if (autoservice)
@@ -574,7 +574,7 @@ static int lua_get_variable(lua_State *L)
 	/* if this is not a request for a dialplan funciton attempt to retrieve
 	 * the value of the variable */
 	if (!ast_strlen_zero(name) && name[strlen(name) - 1] != ')') {
-		pbx_retrieve_variable(chan, name, &value, workspace, LUA_BUF_SIZE, &chan->varshead);
+		pbx_retrieve_variable(chan, name, &value, workspace, LUA_BUF_SIZE, ast_channel_varshead(chan));
 	}
 
 	if (value) {

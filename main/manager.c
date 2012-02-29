@@ -3351,10 +3351,10 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			ast_channel_name(c),
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<unknown>"),
-			S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
-			S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
-			S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
+			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
+			S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
 			ast_channel_accountcode(c),
 			ast_channel_state(c),
 			ast_state2str(ast_channel_state(c)), ast_channel_context(c),
@@ -3376,10 +3376,10 @@ static int action_status(struct mansession *s, const struct message *m)
 				"%s"
 				"\r\n",
 				ast_channel_name(c),
-				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<unknown>"),
-				S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
-				S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
-				S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
+				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
+				S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
 				ast_channel_accountcode(c),
 				ast_state2str(ast_channel_state(c)), bridge, ast_channel_uniqueid(c),
 				ast_str_buffer(str), idText);
@@ -4607,10 +4607,10 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"BridgedUniqueID: %s\r\n"
 			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_state(c),
 			ast_state2str(ast_channel_state(c)), ast_channel_appl(c) ? ast_channel_appl(c) : "", ast_channel_data(c) ? S_OR(ast_channel_data(c), "") : "",
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
-			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
-			S_COR(c->connected.id.number.valid, c->connected.id.number.str, ""),
-			S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
+			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""),
+			S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, ""),
+			S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, ""),
+			S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, ""),
 			durbuf, S_OR(ast_channel_accountcode(c), ""), bc ? ast_channel_name(bc) : "", bc ? ast_channel_uniqueid(bc) : "");
 
 		ast_channel_unlock(c);

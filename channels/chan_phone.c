@@ -301,15 +301,15 @@ static int phone_call(struct ast_channel *ast, const char *dest, int timeout)
     snprintf(cid.hour, sizeof(cid.hour),   "%02d", tm.tm_hour);
     snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
-	if (!ast->connected.id.name.valid
-		|| ast_strlen_zero(ast->connected.id.name.str)) {
+	if (!ast_channel_connected(ast)->id.name.valid
+		|| ast_strlen_zero(ast_channel_connected(ast)->id.name.str)) {
 		strcpy(cid.name, DEFAULT_CALLER_ID);
 	} else {
-		ast_copy_string(cid.name, ast->connected.id.name.str, sizeof(cid.name));
+		ast_copy_string(cid.name, ast_channel_connected(ast)->id.name.str, sizeof(cid.name));
 	}
 
-	if (ast->connected.id.number.valid && ast->connected.id.number.str) {
-		ast_copy_string(cid.number, ast->connected.id.number.str, sizeof(cid.number));
+	if (ast_channel_connected(ast)->id.number.valid && ast_channel_connected(ast)->id.number.str) {
+		ast_copy_string(cid.number, ast_channel_connected(ast)->id.number.str, sizeof(cid.number));
 	}
 
 	p = ast_channel_tech_pvt(ast);
@@ -885,8 +885,8 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a NewCallerID event before the NewChannel event */
 		if (!ast_strlen_zero(i->cid_num)) {
-			tmp->caller.ani.number.valid = 1;
-			tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+			ast_channel_caller(tmp)->ani.number.valid = 1;
+			ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 		}
 
 		i->owner = tmp;

@@ -945,23 +945,23 @@ static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 	ast_mutex_lock(&p->lock);
 	ast_set_flag(p, H323_OUTGOING);
-	if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+	if (ast_channel_connected(ast)->id.number.valid && ast_channel_connected(ast)->id.number.str) {
 		free(p->callerid_num);
-		p->callerid_num = strdup(ast->connected.id.number.str);
+		p->callerid_num = strdup(ast_channel_connected(ast)->id.number.str);
 	}
 
-	if (ast->connected.id.name.valid && ast->connected.id.name.str) {
+	if (ast_channel_connected(ast)->id.name.valid && ast_channel_connected(ast)->id.name.str) {
 		free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.name.str);
-	} else if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+		p->callerid_name = strdup(ast_channel_connected(ast)->id.name.str);
+	} else if (ast_channel_connected(ast)->id.number.valid && ast_channel_connected(ast)->id.number.str) {
 		free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.number.str);
+		p->callerid_name = strdup(ast_channel_connected(ast)->id.number.str);
 	} else {
-		ast->connected.id.name.valid = 1;
-		free(ast->connected.id.name.str);
-		ast->connected.id.name.str = strdup(gCallerID);
+		ast_channel_connected(ast)->id.name.valid = 1;
+		free(ast_channel_connected(ast)->id.name.str);
+		ast_channel_connected(ast)->id.name.str = strdup(gCallerID);
 		free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.name.str);
+		p->callerid_name = strdup(ast_channel_connected(ast)->id.name.str);
 	}
 
 	/* Retrieve vars */
@@ -1294,15 +1294,15 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		}
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
-		if (!ast->connected.id.name.valid
-			|| ast_strlen_zero(ast->connected.id.name.str)) {
+		if (!ast_channel_connected(ast)->id.name.valid
+			|| ast_strlen_zero(ast_channel_connected(ast)->id.name.str)) {
 			break;
 		}
 		if (gH323Debug) {
 			ast_debug(1, "Sending connected line info for %s (%s)\n",
-				callToken, ast->connected.id.name.str);
+				callToken, ast_channel_connected(ast)->id.name.str);
 		}
-		ooSetANI(callToken, ast->connected.id.name.str);
+		ooSetANI(callToken, ast_channel_connected(ast)->id.name.str);
 		break;
 
       case AST_CONTROL_T38_PARAMETERS:
@@ -4661,7 +4661,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 			const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
 			if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
 			    (ast_exists_extension(p->owner, target_context, "fax", 1,
-		            S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
+		            S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL)))) {
 				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
 				pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
 				if (ast_async_goto(p->owner, target_context, "fax", 1)) {
@@ -4739,7 +4739,7 @@ void onModeChanged(ooCallData *call, int t38mode) {
 				target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
                         	if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
                             		(ast_exists_extension(p->owner, target_context, "fax", 1,
-                            		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
+                            		S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL)))) {
                                 	ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
                                 	pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
                                 	if (ast_async_goto(p->owner, target_context, "fax", 1)) {

@@ -511,7 +511,7 @@ static void check_bridge(struct local_pvt *p)
 	   frames on the owner channel (because they would be transferred to the
 	   outbound channel during the masquerade)
 	*/
-	if (p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(&p->owner->readq)) {
+	if (p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(ast_channel_readq(p->owner))) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -544,27 +544,18 @@ static void check_bridge(struct local_pvt *p)
 						 * thread (which is the to be masqueraded away local channel) before both local
 						 * channels are optimized away.
 						 */
-						if (p->owner->caller.id.name.valid || p->owner->caller.id.number.valid
-							|| p->owner->caller.id.subaddress.valid || p->owner->caller.ani.name.valid
-							|| p->owner->caller.ani.number.valid || p->owner->caller.ani.subaddress.valid) {
-							struct ast_party_caller tmp;
-							tmp = p->owner->caller;
-							p->owner->caller = p->chan->_bridge->caller;
-							p->chan->_bridge->caller = tmp;
+						if (ast_channel_caller(p->owner)->id.name.valid || ast_channel_caller(p->owner)->id.number.valid
+							|| ast_channel_caller(p->owner)->id.subaddress.valid || ast_channel_caller(p->owner)->ani.name.valid
+							|| ast_channel_caller(p->owner)->ani.number.valid || ast_channel_caller(p->owner)->ani.subaddress.valid) {
+							SWAP(*ast_channel_caller(p->owner), *ast_channel_caller(p->chan->_bridge));
 						}
-						if (p->owner->redirecting.from.name.valid || p->owner->redirecting.from.number.valid
-							|| p->owner->redirecting.from.subaddress.valid || p->owner->redirecting.to.name.valid
-							|| p->owner->redirecting.to.number.valid || p->owner->redirecting.to.subaddress.valid) {
-							struct ast_party_redirecting tmp;
-							tmp = p->owner->redirecting;
-							p->owner->redirecting = p->chan->_bridge->redirecting;
-							p->chan->_bridge->redirecting = tmp;
+						if (ast_channel_redirecting(p->owner)->from.name.valid || ast_channel_redirecting(p->owner)->from.number.valid
+							|| ast_channel_redirecting(p->owner)->from.subaddress.valid || ast_channel_redirecting(p->owner)->to.name.valid
+							|| ast_channel_redirecting(p->owner)->to.number.valid || ast_channel_redirecting(p->owner)->to.subaddress.valid) {
+							SWAP(*ast_channel_redirecting(p->owner), *ast_channel_redirecting(p->chan->_bridge));
 						}
-						if (p->owner->dialed.number.str || p->owner->dialed.subaddress.valid) {
-							struct ast_party_dialed tmp;
-							tmp = p->owner->dialed;
-							p->owner->dialed = p->chan->_bridge->dialed;
-							p->chan->_bridge->dialed = tmp;
+						if (ast_channel_dialed(p->owner)->number.str || ast_channel_dialed(p->owner)->subaddress.valid) {
+							SWAP(*ast_channel_dialed(p->owner), *ast_channel_dialed(p->chan->_bridge));
 						}
 
 
@@ -690,11 +681,11 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			unsigned char frame_data[1024];
 			if (condition == AST_CONTROL_CONNECTED_LINE) {
 				if (isoutbound) {
-					ast_connected_line_copy_to_caller(&the_other_channel->caller, &this_channel->connected);
+					ast_connected_line_copy_to_caller(ast_channel_caller(the_other_channel), ast_channel_connected(this_channel));
 				}
-				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), &this_channel->connected, NULL);
+				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), ast_channel_connected(this_channel), NULL);
 			} else {
-				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting, NULL);
+				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), ast_channel_redirecting(this_channel), NULL);
 			}
 			f.subclass.integer = condition;
 			f.data.ptr = frame_data;
@@ -853,12 +844,12 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	 * All these failure points just return -1. The individual strings will
 	 * be cleared when we destroy the channel.
 	 */
-	ast_party_redirecting_copy(&chan->redirecting, &owner->redirecting);
+	ast_party_redirecting_copy(ast_channel_redirecting(chan), ast_channel_redirecting(owner));
 
-	ast_party_dialed_copy(&chan->dialed, &owner->dialed);
+	ast_party_dialed_copy(ast_channel_dialed(chan), ast_channel_dialed(owner));
 
-	ast_connected_line_copy_to_caller(&chan->caller, &owner->connected);
-	ast_connected_line_copy_from_caller(&chan->connected, &owner->caller);
+	ast_connected_line_copy_to_caller(ast_channel_caller(chan), ast_channel_connected(owner));
+	ast_connected_line_copy_from_caller(ast_channel_connected(chan), ast_channel_caller(owner));
 
 	ast_channel_language_set(chan, ast_channel_language(owner));
 	ast_channel_accountcode_set(chan, ast_channel_accountcode(owner));
@@ -874,13 +865,13 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
-	AST_LIST_TRAVERSE(&owner->varshead, varptr, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(owner), varptr, entries) {
 		namelen = strlen(varptr->name);
 		len = sizeof(struct ast_var_t) + namelen + strlen(varptr->value) + 2;
 		if ((new = ast_calloc(1, len))) {
 			memcpy(new, varptr, len);
 			new->value = &(new->name[0]) + namelen + 1;
-			AST_LIST_INSERT_TAIL(&chan->varshead, new, entries);
+			AST_LIST_INSERT_TAIL(ast_channel_varshead(chan), new, entries);
 		}
 	}
 	ast_channel_datastore_inherit(owner, chan);
@@ -902,7 +893,7 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	ast_channel_unlock(chan);
 
 	if (!ast_exists_extension(chan, context, exten, 1,
-		S_COR(owner->caller.id.number.valid, owner->caller.id.number.str, NULL))) {
+		S_COR(ast_channel_caller(owner)->id.number.valid, ast_channel_caller(owner)->id.number.str, NULL))) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", exten, context);
 		res = -1;
 		chan = ast_channel_unref(chan); /* we already unlocked it, so clear it hear so the cleanup label won't touch it. */

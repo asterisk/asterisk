@@ -252,9 +252,9 @@ AST_TEST_DEFINE(test_substitution)
 	 */
 	TEST(test_chan_integer(test, c, &c->caller.id.number.presentation, "${CALLINGPRES}"));
 #endif
-	TEST(test_chan_integer(test, c, &c->caller.ani2, "${CALLINGANI2}"));
-	TEST(test_chan_integer(test, c, &c->caller.id.number.plan, "${CALLINGTON}"));
-	TEST(test_chan_integer(test, c, &c->dialed.transit_network_select, "${CALLINGTNS}"));
+	TEST(test_chan_integer(test, c, &ast_channel_caller(c)->ani2, "${CALLINGANI2}"));
+	TEST(test_chan_integer(test, c, &ast_channel_caller(c)->id.number.plan, "${CALLINGTON}"));
+	TEST(test_chan_integer(test, c, &ast_channel_dialed(c)->transit_network_select, "${CALLINGTNS}"));
 	TEST(test_chan_integer_accessor(test, c, ast_channel_hangupcause_set, "${HANGUPCAUSE}"));
 	TEST(test_chan_integer_accessor(test, c, ast_channel_priority_set, "${PRIORITY}"));
 	TEST(test_chan_string(test, c, ast_channel_context_set, ast_channel_context, "${CONTEXT}"));

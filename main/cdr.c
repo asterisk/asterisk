@@ -893,18 +893,18 @@ static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 	}
 
 	/* Grab source from ANI or normal Caller*ID */
-	num = S_COR(c->caller.ani.number.valid, c->caller.ani.number.str,
-		S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL));
+	num = S_COR(ast_channel_caller(c)->ani.number.valid, ast_channel_caller(c)->ani.number.str,
+		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL));
 	ast_callerid_merge(cdr->clid, sizeof(cdr->clid),
-		S_COR(c->caller.id.name.valid, c->caller.id.name.str, NULL), num, "");
+		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, NULL), num, "");
 	ast_copy_string(cdr->src, S_OR(num, ""), sizeof(cdr->src));
-	ast_cdr_setvar(cdr, "dnid", S_OR(c->dialed.number.str, ""), 0);
+	ast_cdr_setvar(cdr, "dnid", S_OR(ast_channel_dialed(c)->number.str, ""), 0);
 
-	if (c->caller.id.subaddress.valid) {
-		ast_cdr_setvar(cdr, "callingsubaddr", S_OR(c->caller.id.subaddress.str, ""), 0);
+	if (ast_channel_caller(c)->id.subaddress.valid) {
+		ast_cdr_setvar(cdr, "callingsubaddr", S_OR(ast_channel_caller(c)->id.subaddress.str, ""), 0);
 	}
-	if (c->dialed.subaddress.valid) {
-		ast_cdr_setvar(cdr, "calledsubaddr", S_OR(c->dialed.subaddress.str, ""), 0);
+	if (ast_channel_dialed(c)->subaddress.valid) {
+		ast_cdr_setvar(cdr, "calledsubaddr", S_OR(ast_channel_dialed(c)->subaddress.str, ""), 0);
 	}
 }
 

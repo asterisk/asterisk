@@ -5643,7 +5643,7 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 
 	/* Check whether there is vxml_url, distinctive ring variables */
-	headp=&ast->varshead;
+	headp=ast_channel_varshead(ast);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		/* Check whether there is a VXML_URL variable */
 		if (!p->options->vxml_url && !strcasecmp(ast_var_name(current), "VXML_URL")) {
@@ -5727,7 +5727,7 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 		ast_channel_hangupcause_set(ast, AST_CAUSE_USER_BUSY);
 		return res;
 	}
-	p->callingpres = ast_party_id_presentation(&ast->caller.id);
+	p->callingpres = ast_party_id_presentation(&ast_channel_caller(ast)->id);
 	ast_rtp_instance_available_formats(p->rtp, p->caps, p->prefcaps, p->jointcaps);
 	p->jointnoncodeccapability = p->noncodeccapability;
 
@@ -7139,7 +7139,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
-	tmp->caller.id.tag = ast_strdup(i->cid_tag);
+	ast_channel_caller(tmp)->id.tag = ast_strdup(i->cid_tag);
 
 	ast_channel_tech_set(tmp, (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ? &sip_tech_info : &sip_tech);
 
@@ -7242,8 +7242,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	tmp->callgroup = i->callgroup;
 	tmp->pickupgroup = i->pickupgroup;
-	tmp->caller.id.name.presentation = i->callingpres;
-	tmp->caller.id.number.presentation = i->callingpres;
+	ast_channel_caller(tmp)->id.name.presentation = i->callingpres;
+	ast_channel_caller(tmp)->id.number.presentation = i->callingpres;
 	if (!ast_strlen_zero(i->parkinglot)) {
 		ast_channel_parkinglot_set(tmp, i->parkinglot);
 	}
@@ -7283,16 +7283,16 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
 	if (!ast_strlen_zero(i->cid_num)) {
-		tmp->caller.ani.number.valid = 1;
-		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		ast_channel_caller(tmp)->ani.number.valid = 1;
+		ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 	}
 	if (!ast_strlen_zero(i->rdnis)) {
-		tmp->redirecting.from.number.valid = 1;
-		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+		ast_channel_redirecting(tmp)->from.number.valid = 1;
+		ast_channel_redirecting(tmp)->from.number.str = ast_strdup(i->rdnis);
 	}
 
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
-		tmp->dialed.number.str = ast_strdup(i->exten);
+		ast_channel_dialed(tmp)->number.str = ast_strdup(i->exten);
 	}
 
 	ast_channel_priority_set(tmp, 1);
@@ -7628,7 +7628,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 			sip_pvt_unlock(p);
 			ast_channel_unlock(ast);
 			if (ast_exists_extension(ast, target_context, "fax", 1,
-				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
+				S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
 				ast_channel_lock(ast);
 				sip_pvt_lock(p);
 				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(ast));
@@ -9605,7 +9605,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
 						ast_channel_unlock(p->owner);
 						if (ast_exists_extension(p->owner, target_context, "fax", 1,
-							S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
+							S_COR(ast_channel_caller(p->owner)->id.number.valid, ast_channel_caller(p->owner)->id.number.str, NULL))) {
 							ast_verb(2, "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", ast_channel_name(p->owner));
 							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
 							if (ast_async_goto(p->owner, target_context, "fax", 1)) {
@@ -11230,15 +11230,15 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	}
 
-	if (p->owner && p->owner->connected.id.number.valid
-		&& p->owner->connected.id.number.str) {
-		lid_num = p->owner->connected.id.number.str;
+	if (p->owner && ast_channel_connected(p->owner)->id.number.valid
+		&& ast_channel_connected(p->owner)->id.number.str) {
+		lid_num = ast_channel_connected(p->owner)->id.number.str;
 	}
-	if (p->owner && p->owner->connected.id.name.valid
-		&& p->owner->connected.id.name.str) {
-		lid_name = p->owner->connected.id.name.str;
+	if (p->owner && ast_channel_connected(p->owner)->id.name.valid
+		&& ast_channel_connected(p->owner)->id.name.str) {
+		lid_name = ast_channel_connected(p->owner)->id.name.str;
 	}
-	lid_pres = (p->owner) ? ast_party_id_presentation(&p->owner->connected.id) : AST_PRES_NUMBER_NOT_AVAILABLE;
+	lid_pres = (p->owner) ? ast_party_id_presentation(&ast_channel_connected(p->owner)->id) : AST_PRES_NUMBER_NOT_AVAILABLE;
 
 	if (ast_strlen_zero(lid_num))
 		return 0;
@@ -12381,9 +12381,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 	if (p->owner) {
-		if ((ast_party_id_presentation(&p->owner->connected.id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
-			l = p->owner->connected.id.number.valid ? p->owner->connected.id.number.str : NULL;
-			n = p->owner->connected.id.name.valid ? p->owner->connected.id.name.str : NULL;
+		if ((ast_party_id_presentation(&ast_channel_connected(p->owner)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			l = ast_channel_connected(p->owner)->id.number.valid ? ast_channel_connected(p->owner)->id.number.str : NULL;
+			n = ast_channel_connected(p->owner)->id.name.valid ? ast_channel_connected(p->owner)->id.name.str : NULL;
 		} else {
 			/* Even if we are using RPID, we shouldn't leak information in the From if the user wants
 			 * their callerid restricted */
@@ -12551,17 +12551,17 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 		return;
 	}
 
-	diverting_number = pvt->owner->redirecting.from.number.str;
-	if (!pvt->owner->redirecting.from.number.valid
+	diverting_number = ast_channel_redirecting(pvt->owner)->from.number.str;
+	if (!ast_channel_redirecting(pvt->owner)->from.number.valid
 		|| ast_strlen_zero(diverting_number)) {
 		return;
 	}
 
-	reason = sip_reason_code_to_str(pvt->owner->redirecting.reason);
+	reason = sip_reason_code_to_str(ast_channel_redirecting(pvt->owner)->reason);
 
 	/* We at least have a number to place in the Diversion header, which is enough */
-	diverting_name = pvt->owner->redirecting.from.name.str;
-	if (!pvt->owner->redirecting.from.name.valid
+	diverting_name = ast_channel_redirecting(pvt->owner)->from.name.str;
+	if (!ast_channel_redirecting(pvt->owner)->from.name.valid
 		|| ast_strlen_zero(diverting_name)) {
 		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number,
 				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
@@ -12696,7 +12696,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	
 		ast_channel_lock(chan);
 
-		headp = &chan->varshead;
+		headp = ast_channel_varshead(chan);
 
 		if (!headp) {
 			ast_log(LOG_WARNING, "No Headp for the channel...ooops!\n");
@@ -13093,13 +13093,13 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 					int need;
 
 					ast_channel_lock(caller);
-					cid_num = S_COR(caller->caller.id.number.valid,
-						caller->caller.id.number.str, "");
+					cid_num = S_COR(ast_channel_caller(caller)->id.number.valid,
+						ast_channel_caller(caller)->id.number.str, "");
 					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
 					local_target = alloca(need);
 					snprintf(local_target, need, "sip:%s@%s", cid_num, p->fromdomain);
-					local_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
-						caller->caller.id.name.str, ""));
+					local_display = ast_strdupa(S_COR(ast_channel_caller(caller)->id.name.valid,
+						ast_channel_caller(caller)->id.name.str, ""));
 					ast_channel_unlock(caller);
 					caller = ast_channel_unref(caller);
 				}
@@ -13421,15 +13421,15 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return;
 	}
-	if (!p->owner->connected.id.number.valid
-		|| ast_strlen_zero(p->owner->connected.id.number.str)) {
+	if (!ast_channel_connected(p->owner)->id.number.valid
+		|| ast_strlen_zero(ast_channel_connected(p->owner)->id.number.str)) {
 		return;
 	}
 
 	append_history(p, "ConnectedLine", "%s party is now %s <%s>",
 		ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "Calling" : "Called",
-		S_COR(p->owner->connected.id.name.valid, p->owner->connected.id.name.str, ""),
-		S_COR(p->owner->connected.id.number.valid, p->owner->connected.id.number.str, ""));
+		S_COR(ast_channel_connected(p->owner)->id.name.valid, ast_channel_connected(p->owner)->id.name.str, ""),
+		S_COR(ast_channel_connected(p->owner)->id.number.valid, ast_channel_connected(p->owner)->id.number.str, ""));
 
 	if (ast_channel_state(p->owner) == AST_STATE_UP || ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		struct sip_request req;
@@ -15575,8 +15575,8 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 
 		if (p->owner) {
 			ast_set_callerid(p->owner, cid_num, cid_name, NULL);
-			p->owner->caller.id.name.presentation = callingpres;
-			p->owner->caller.id.number.presentation = callingpres;
+			ast_channel_caller(p->owner)->id.name.presentation = callingpres;
+			ast_channel_caller(p->owner)->id.number.presentation = callingpres;
 		}
 	}
 
@@ -15684,8 +15684,8 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 
 	if (p->owner) {
 		ast_set_callerid(p->owner, cid_num, cid_name, NULL);
-		p->owner->caller.id.name.presentation = callingpres;
-		p->owner->caller.id.number.presentation = callingpres;
+		ast_channel_caller(p->owner)->id.name.presentation = callingpres;
+		ast_channel_caller(p->owner)->id.number.presentation = callingpres;
 	}
 
 	return 1;
@@ -24014,9 +24014,9 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	ast_party_connected_line_init(&connected_to_transferee);
 	ast_party_connected_line_init(&connected_to_target);
 	/* No need to lock current->chan1 here since it was locked in sipsock_read */
-	ast_party_connected_line_copy(&connected_to_transferee, &current->chan1->connected);
+	ast_party_connected_line_copy(&connected_to_transferee, ast_channel_connected(current->chan1));
 	/* No need to lock target.chan1 here since it was locked in get_sip_pvt_byid_locked */
-	ast_party_connected_line_copy(&connected_to_target, &target.chan1->connected);
+	ast_party_connected_line_copy(&connected_to_target, ast_channel_connected(target.chan1));
 	connected_to_target.source = connected_to_transferee.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	res = attempt_transfer(current, &target);
 	if (res) {
@@ -30540,7 +30540,7 @@ static int sip_removeheader(struct ast_channel *chan, const char *data)
 	}
 	ast_channel_lock(chan);
 
-	headp=&chan->varshead;
+	headp=ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE_SAFE_BEGIN (headp, newvariable, entries) {
 		if (strncasecmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
 			if (removeall || (!strncasecmp(ast_var_value(newvariable),inbuf,strlen(inbuf)))) {

@@ -1587,8 +1587,8 @@ static int action_agents(struct mansession *s, const struct message *m)
 		if (p->chan) {
 			loginChan = ast_strdupa(ast_channel_name(p->chan));
 			if (owner && owner->_bridge) {
-				talkingto = S_COR(p->chan->caller.id.number.valid,
-					p->chan->caller.id.number.str, "n/a");
+				talkingto = S_COR(ast_channel_caller(p->chan)->id.number.valid,
+					ast_channel_caller(p->chan)->id.number.str, "n/a");
 				if ((bridge = ast_bridged_channel(owner))) {
 					talkingtoChan = ast_strdupa(ast_channel_name(bridge));
 				} else {
@@ -2282,12 +2282,12 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 		if (strchr(data, 'c'))
 			changeoutgoing = 1;
 	}
-	if (chan->caller.id.number.valid
-		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+	if (ast_channel_caller(chan)->id.number.valid
+		&& !ast_strlen_zero(ast_channel_caller(chan)->id.number.str)) {
 		const char *tmp;
 		char agentvar[AST_MAX_BUF];
 		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID,
-			chan->caller.id.number.str);
+			ast_channel_caller(chan)->id.number.str);
 		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {
 			struct agent_pvt *p;
 			ast_copy_string(agent, tmp, sizeof(agent));

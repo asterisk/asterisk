@@ -676,14 +676,14 @@ static void chan_cleanup(struct ast_channel *chan)
 	/*
 	 * Destroy all other datastores.
 	 */
-	while ((ds = AST_LIST_REMOVE_HEAD(&chan->datastores, entry))) {
+	while ((ds = AST_LIST_REMOVE_HEAD(ast_channel_datastores(chan), entry))) {
 		ast_datastore_free(ds);
 	}
 
 	/*
 	 * Destroy all channel variables.
 	 */
-	headp = &chan->varshead;
+	headp = ast_channel_varshead(chan);
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries))) {
 		ast_var_delete(vardata);
 	}

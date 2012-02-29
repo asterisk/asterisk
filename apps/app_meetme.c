@@ -1509,8 +1509,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			if (!concise) {
 				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
 					user->user_no,
-					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
-					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
+					S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
+					S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<no name>"),
 					ast_channel_name(user->chan),
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "(Admin)" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "(Listen only)" : "",
@@ -1520,8 +1520,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			} else {
 				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
 					user->user_no,
-					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, ""),
-					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, ""),
+					S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, ""),
+					S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, ""),
 					ast_channel_name(user->chan),
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "1" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "1" : "",
@@ -2788,10 +2788,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			"ConnectedLineName: %s\r\n",
 			ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno,
 			user->user_no,
-			S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
-			S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
-			S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
-			S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<unknown>")
+			S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<unknown>"),
+			S_COR(ast_channel_connected(user->chan)->id.number.valid, ast_channel_connected(user->chan)->id.number.str, "<unknown>"),
+			S_COR(ast_channel_connected(user->chan)->id.name.valid, ast_channel_connected(user->chan)->id.name.str, "<unknown>")
 			);
 		sent_event = 1;
 	}
@@ -3862,10 +3862,10 @@ bailoutandtrynormal:
 				"Duration: %ld\r\n",
 				ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno,
 				user->user_no,
-				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
-				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
-				S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
-				S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<unknown>"),
+				S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<unknown>"),
+				S_COR(ast_channel_connected(user->chan)->id.number.valid, ast_channel_connected(user->chan)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_connected(user->chan)->id.name.valid, ast_channel_connected(user->chan)->id.name.str, "<unknown>"),
 				(long)(now.tv_sec - user->jointime));
 		}
 
@@ -4960,10 +4960,10 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 				idText,
 				cnf->confno,
 				user->user_no,
-				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
-				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
-				S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
-				S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<no name>"),
+				S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<no name>"),
+				S_COR(ast_channel_connected(user->chan)->id.number.valid, ast_channel_connected(user->chan)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_connected(user->chan)->id.name.valid, ast_channel_connected(user->chan)->id.name.str, "<no name>"),
 				ast_channel_name(user->chan),
 				ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "Yes" : "No",
 				ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "Listen only" : ast_test_flag64(&user->userflags, CONFFLAG_TALKER) ? "Talk only" : "Talk and listen",
@@ -5662,16 +5662,16 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 	caller_is_saved = 0;
 	if (!sla.attempt_callerid) {
 		caller_is_saved = 1;
-		caller = ringing_trunk->trunk->chan->caller;
-		ast_party_caller_init(&ringing_trunk->trunk->chan->caller);
+		caller = *ast_channel_caller(ringing_trunk->trunk->chan);
+		ast_party_caller_init(ast_channel_caller(ringing_trunk->trunk->chan));
 	}
 
 	res = ast_dial_run(dial, ringing_trunk->trunk->chan, 1);
 	
 	/* Restore saved caller ID */
 	if (caller_is_saved) {
-		ast_party_caller_free(&ringing_trunk->trunk->chan->caller);
-		ringing_trunk->trunk->chan->caller = caller;
+		ast_party_caller_free(ast_channel_caller(ringing_trunk->trunk->chan));
+		ast_channel_caller_set(ringing_trunk->trunk->chan, &caller);
 	}
 	
 	if (res != AST_DIAL_RESULT_TRYING) {
@@ -6201,16 +6201,16 @@ static void *dial_trunk(void *data)
 	caller_is_saved = 0;
 	if (!sla.attempt_callerid) {
 		caller_is_saved = 1;
-		caller = trunk_ref->chan->caller;
-		ast_party_caller_init(&trunk_ref->chan->caller);
+		caller = *ast_channel_caller(trunk_ref->chan);
+		ast_party_caller_init(ast_channel_caller(trunk_ref->chan));
 	}
 
 	dial_res = ast_dial_run(dial, trunk_ref->chan, 1);
 
 	/* Restore saved caller ID */
 	if (caller_is_saved) {
-		ast_party_caller_free(&trunk_ref->chan->caller);
-		trunk_ref->chan->caller = caller;
+		ast_party_caller_free(ast_channel_caller(trunk_ref->chan));
+		ast_channel_caller_set(trunk_ref->chan, &caller);
 	}
 
 	if (dial_res != AST_DIAL_RESULT_TRYING) {

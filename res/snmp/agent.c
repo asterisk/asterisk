@@ -322,9 +322,9 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANWHENHANGUP:
-		if (!ast_tvzero(chan->whentohangup)) {
+		if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
 			gettimeofday(&tval, NULL);
-			long_ret = difftime(chan->whentohangup.tv_sec, tval.tv_sec) * 100 - tval.tv_usec / 10000;
+			long_ret = difftime(ast_channel_whentohangup(chan)->tv_sec, tval.tv_sec) * 100 - tval.tv_usec / 10000;
 			ret= (u_char *)&long_ret;
 		}
 		break;
@@ -419,59 +419,59 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDDNID:
-		if (chan->dialed.number.str) {
-			strncpy(string_ret, chan->dialed.number.str, sizeof(string_ret));
+		if (ast_channel_dialed(chan)->number.str) {
+			strncpy(string_ret, ast_channel_dialed(chan)->number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNUM:
-		if (chan->caller.id.number.valid && chan->caller.id.number.str) {
-			strncpy(string_ret, chan->caller.id.number.str, sizeof(string_ret));
+		if (ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str) {
+			strncpy(string_ret, ast_channel_caller(chan)->id.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNAME:
-		if (chan->caller.id.name.valid && chan->caller.id.name.str) {
-			strncpy(string_ret, chan->caller.id.name.str, sizeof(string_ret));
+		if (ast_channel_caller(chan)->id.name.valid && ast_channel_caller(chan)->id.name.str) {
+			strncpy(string_ret, ast_channel_caller(chan)->id.name.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDANI:
-		if (chan->caller.ani.number.valid && chan->caller.ani.number.str) {
-			strncpy(string_ret, chan->caller.ani.number.str, sizeof(string_ret));
+		if (ast_channel_caller(chan)->ani.number.valid && ast_channel_caller(chan)->ani.number.str) {
+			strncpy(string_ret, ast_channel_caller(chan)->ani.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDRDNIS:
-		if (chan->redirecting.from.number.valid && chan->redirecting.from.number.str) {
-			strncpy(string_ret, chan->redirecting.from.number.str, sizeof(string_ret));
+		if (ast_channel_redirecting(chan)->from.number.valid && ast_channel_redirecting(chan)->from.number.str) {
+			strncpy(string_ret, ast_channel_redirecting(chan)->from.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDPRES:
-		long_ret = ast_party_id_presentation(&chan->caller.id);
+		long_ret = ast_party_id_presentation(&ast_channel_caller(chan)->id);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDANI2:
-		long_ret = chan->caller.ani2;
+		long_ret = ast_channel_caller(chan)->ani2;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDTON:
-		long_ret = chan->caller.id.number.plan;
+		long_ret = ast_channel_caller(chan)->id.number.plan;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDTNS:
-		long_ret = chan->dialed.transit_network_select;
+		long_ret = ast_channel_dialed(chan)->transit_network_select;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANAMAFLAGS:
