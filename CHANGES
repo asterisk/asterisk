@@ -205,6 +205,9 @@ AGI
  * A new channel variable, AGIEXITONHANGUP, has been added which allows
    Asterisk to behave like it did in Asterisk 1.4 and earlier where the
    AGI application would exit immediately after a channel hangup is detected.
+ * IPv6 addresses are now supported when using FastAGI (agi://).  Hostnames
+   are resolved and each address is attempted in turn until one succeeds or
+   all fail.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------

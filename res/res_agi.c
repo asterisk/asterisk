@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/xmldoc.h"
 #include "asterisk/srv.h"
 #include "asterisk/test.h"
+#include "asterisk/netsock2.h"
 
 #define AST_API_MODULE
 #include "asterisk/agi.h"
@@ -1445,15 +1446,15 @@ async_agi_abort:
 	FastAGI defaults to port 4573 */
 static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 {
-	int s, flags, res, port = AGI_PORT;
+	int s = 0, flags, res;
 	struct pollfd pfds[1];
-	char *host, *c, *script;
-	struct sockaddr_in addr_in;
-	struct hostent *hp;
-	struct ast_hostent ahp;
+	char *host, *script;
+	int num_addrs = 0, i = 0;
+	struct ast_sockaddr *addrs;
 
 	/* agiurl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
+
 	/* Strip off any script name */
 	if ((script = strchr(host, '/'))) {
 		*script++ = '\0';
@@ -1461,35 +1462,48 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 		script = "";
 	}
 
-	if ((c = strchr(host, ':'))) {
-		*c++ = '\0';
-		port = atoi(c);
-	}
-	if (!(hp = ast_gethostbyname(host, &ahp))) {
+	if (!(num_addrs = ast_sockaddr_resolve(&addrs, host, 0, AST_AF_UNSPEC))) {
 		ast_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
 		return AGI_RESULT_FAILURE;
 	}
-	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-		return AGI_RESULT_FAILURE;
+
+	for (i = 0; i < num_addrs; i++) {
+		if (!ast_sockaddr_port(&addrs[i])) {
+			ast_sockaddr_set_port(&addrs[i], AGI_PORT);
+		}
+
+		if ((s = socket(addrs[i].ss.ss_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+			ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+			continue;
+		}
+
+		if ((flags = fcntl(s, F_GETFL)) < 0) {
+			ast_log(LOG_WARNING, "fcntl(F_GETFL) failed: %s\n", strerror(errno));
+			close(s);
+			continue;
+		}
+
+		if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
+			ast_log(LOG_WARNING, "fnctl(F_SETFL) failed: %s\n", strerror(errno));
+			close(s);
+			continue;
+		}
+
+		if (ast_connect(s, &addrs[i]) && (errno != EINPROGRESS)) {
+			ast_log(LOG_WARNING, "Connection to %s failed with unexpected error: %s\n",
+				ast_sockaddr_stringify(&addrs[i]),
+				strerror(errno));
+			close(s);
+			continue;
+		}
+
+		break;
 	}
-	if ((flags = fcntl(s, F_GETFL)) < 0) {
-		ast_log(LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
-		close(s);
-		return AGI_RESULT_FAILURE;
-	}
-	if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING, "Fnctl(F_SETFL) failed: %s\n", strerror(errno));
-		close(s);
-		return AGI_RESULT_FAILURE;
-	}
-	memset(&addr_in, 0, sizeof(addr_in));
-	addr_in.sin_family = AF_INET;
-	addr_in.sin_port = htons(port);
-	memcpy(&addr_in.sin_addr, hp->h_addr, sizeof(addr_in.sin_addr));
-	if (connect(s, (struct sockaddr *)&addr_in, sizeof(addr_in)) && (errno != EINPROGRESS)) {
-		ast_log(LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
-		close(s);
+
+	ast_free(addrs);
+
+	if (i == num_addrs) {
+		ast_log(LOG_WARNING, "Couldn't connect to any host.  FastAGI failed.\n");
 		return AGI_RESULT_FAILURE;
 	}
 
