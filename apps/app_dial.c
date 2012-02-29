@@ -2313,10 +2313,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		ast_channel_dialed(tc)->transit_network_select = ast_channel_dialed(chan)->transit_network_select;
 
 		if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
-			ast_channel_peeraccount_set(tc, ast_channel_accountcode(chan));
+			ast_channel_accountcode_set(tc, ast_channel_accountcode(chan));
 		}
-		if (ast_strlen_zero(ast_channel_musicclass(tc)))
+		if (ast_strlen_zero(ast_channel_musicclass(tc))) {
 			ast_channel_musicclass_set(tc, ast_channel_musicclass(chan));
+		}
 
 		/* Pass ADSI CPE and transfer capability */
 		ast_channel_adsicpe_set(tc, ast_channel_adsicpe(chan));
