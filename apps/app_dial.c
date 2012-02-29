@@ -2307,7 +2307,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		tc->dialed.transit_network_select = chan->dialed.transit_network_select;
 
 		if (!ast_strlen_zero(chan->accountcode)) {
-			ast_string_field_set(tc, peeraccount, chan->accountcode);
+			ast_string_field_set(tc, accountcode, chan->accountcode);
 		}
 		if (ast_strlen_zero(tc->musicclass))
 			ast_string_field_set(tc, musicclass, chan->musicclass);
