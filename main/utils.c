@@ -1773,7 +1773,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 			return;
 		}
 		vsprintf(target, format, ap);
-		va_end(ap);
+		va_end(ap); /* XXX va_end without va_start? */
 		__ast_string_field_release_active(*pool_head, *ptr);
 		*ptr = target;
 	} else if (*ptr != target) {
