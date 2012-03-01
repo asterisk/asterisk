@@ -1,3 +1,16 @@
+2012-03-01  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.2.0-rc4 Released.
+
+	* main/acl.c: Prevent outbound SIP NOTIFY packets from displaying a
+	  port of 0.
+
+	  In the change from 1.6.2 to 1.8, ast_sockaddr was introduced which
+	  changed the behavior of ast_find_ourip such that port number was
+	  wiped out.  This caused the port in internip (which is used for
+	  Contact and Call-ID on NOTIFYs) to be 0.  This change causes
+	  ast_find_ourip to be port-preserving again.
+
 2012-02-28  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.2.0-rc3 Released.
