@@ -85,15 +85,15 @@ static int flash_exec(struct ast_channel *chan, const char *data)
 	}
 	
 	memset(&dahdip, 0, sizeof(dahdip));
-	res = ioctl(chan->fds[0], DAHDI_GET_PARAMS, &dahdip);
+	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip);
 	if (!res) {
 		if (dahdip.sigtype & __DAHDI_SIG_FXS) {
 			x = DAHDI_FLASH;
-			res = ioctl(chan->fds[0], DAHDI_HOOK, &x);
+			res = ioctl(ast_channel_fd(chan, 0), DAHDI_HOOK, &x);
 			if (!res || (errno == EINPROGRESS)) {
 				if (res) {
 					/* Wait for the event to finish */
-					dahdi_wait_event(chan->fds[0]);
+					dahdi_wait_event(ast_channel_fd(chan, 0));
 				}
 				res = ast_safe_sleep(chan, 1000);
 				ast_verb(3, "Flashed channel %s\n", ast_channel_name(chan));

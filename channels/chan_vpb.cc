@@ -2450,8 +2450,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 			ast_channel_tech_set(tmp, &vpb_tech);
 		}
 
-		tmp->callgroup = me->callgroup;
-		tmp->pickupgroup = me->pickupgroup;
+		ast_channel_callgroup_set(tmp, me->callgroup);
+		ast_channel_pickupgroup_set(tmp, me->pickupgroup);
 	       
 		/* Linear is the preferred format. Although Voicetronix supports other formats
 		 * they are all converted to/from linear in the vpb code. Best for us to use

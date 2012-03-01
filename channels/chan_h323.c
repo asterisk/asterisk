@@ -352,7 +352,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	if (pvt->needhangup) {
 		if (h323debug)
 			ast_debug(1, "Process pending hangup for %s\n", ast_channel_name(c));
-		c->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(c, AST_SOFTHANGUP_DEV);
 		ast_channel_hangupcause_set(c, pvt->hangupcause);
 		ast_queue_hangup_with_cause(c, pvt->hangupcause);
 		pvt->needhangup = 0;
@@ -2456,7 +2456,7 @@ static void cleanup_connection(unsigned call_reference, const char *call_token)
 	pvt->alreadygone = 1;
 	/* Send hangup */
 	if (pvt->owner) {
-		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(pvt->owner, AST_SOFTHANGUP_DEV);
 		ast_queue_hangup(pvt->owner);
 		ast_channel_unlock(pvt->owner);
 	}
@@ -2480,7 +2480,7 @@ static void hangup_connection(unsigned int call_reference, const char *token, in
 		return;
 	}
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
-		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(pvt->owner, AST_SOFTHANGUP_DEV);
 		ast_channel_hangupcause_set(pvt->owner, pvt->hangupcause = cause);
 		ast_queue_hangup_with_cause(pvt->owner, cause);
 		ast_channel_unlock(pvt->owner);

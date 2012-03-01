@@ -241,7 +241,7 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
 	ast_channel_lock(target);
-	if (chan != target && (chan->pickupgroup & target->callgroup)
+	if (chan != target && (ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
 		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;

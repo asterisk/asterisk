@@ -1286,7 +1286,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 		dahdic.chan = 0;
 		dahdic.confno = cnf->dahdiconf;
 		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
-		if (ioctl(cnf->chan->fds[0], DAHDI_SETCONF, &dahdic)) {
+		if (ioctl(ast_channel_fd(cnf->chan, 0), DAHDI_SETCONF, &dahdic)) {
 			if (test) {
 				ast_test_status_update(test, "Error setting conference on pseudo channel\n");
 			}
@@ -2439,7 +2439,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		dahdic.chan = 0;
 		dahdic.confno = conf->dahdiconf;
 		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
-		if (ioctl(conf->lchan->fds[0], DAHDI_SETCONF, &dahdic)) {
+		if (ioctl(ast_channel_fd(conf->lchan, 0), DAHDI_SETCONF, &dahdic)) {
 			ast_log(LOG_WARNING, "Error starting listen channel\n");
 			ast_hangup(conf->lchan);
 			conf->lchan = NULL;
@@ -2681,7 +2681,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	user->dahdichannel = !retrydahdi;
 
  dahdiretry:
-	origfd = chan->fds[0];
+	origfd = ast_channel_fd(chan, 0);
 	if (retrydahdi) {
 		/* open pseudo in non-blocking mode */
 		fd = open("/dev/dahdi/pseudo", O_RDWR | O_NONBLOCK);
@@ -2710,7 +2710,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		nfds = 1;
 	} else {
 		/* XXX Make sure we're not running on a pseudo channel XXX */
-		fd = chan->fds[0];
+		fd = ast_channel_fd(chan, 0);
 		nfds = 0;
 	}
 	memset(&dahdic, 0, sizeof(dahdic));
@@ -3218,7 +3218,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			if (c) {
 				char dtmfstr[2] = "";
 
-				if (c->fds[0] != origfd || (user->dahdichannel && (ast_channel_audiohooks(c) || ast_channel_monitor(c)))) {
+				if (ast_channel_fd(c, 0) != origfd || (user->dahdichannel && (ast_channel_audiohooks(c) || ast_channel_monitor(c)))) {
 					if (using_pseudo) {
 						/* Kill old pseudo */
 						close(fd);
@@ -3420,7 +3420,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 										dahdic.chan = 0;
 										dahdic.confno = conf->dahdiconf;
 										dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
-										if (ioctl(conf->lchan->fds[0], DAHDI_SETCONF, &dahdic)) {
+										if (ioctl(ast_channel_fd(conf->lchan, 0), DAHDI_SETCONF, &dahdic)) {
 											ast_log(LOG_WARNING, "Error starting listen channel\n");
 											ast_hangup(conf->lchan);
 											conf->lchan = NULL;

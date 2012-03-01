@@ -31,6 +31,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <unistd.h>
+#include <fcntl.h>
+
 #include "asterisk/channel.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/data.h"
@@ -181,13 +184,13 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	if (!data_softhangup) {
 		return -1;
 	}
-	ast_data_add_bool(data_softhangup, "dev", chan->_softhangup & AST_SOFTHANGUP_DEV);
-	ast_data_add_bool(data_softhangup, "asyncgoto", chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO);
-	ast_data_add_bool(data_softhangup, "shutdown", chan->_softhangup & AST_SOFTHANGUP_SHUTDOWN);
-	ast_data_add_bool(data_softhangup, "timeout", chan->_softhangup & AST_SOFTHANGUP_TIMEOUT);
-	ast_data_add_bool(data_softhangup, "appunload", chan->_softhangup & AST_SOFTHANGUP_APPUNLOAD);
-	ast_data_add_bool(data_softhangup, "explicit", chan->_softhangup & AST_SOFTHANGUP_EXPLICIT);
-	ast_data_add_bool(data_softhangup, "unbridge", chan->_softhangup & AST_SOFTHANGUP_UNBRIDGE);
+	ast_data_add_bool(data_softhangup, "dev", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_DEV);
+	ast_data_add_bool(data_softhangup, "asyncgoto", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO);
+	ast_data_add_bool(data_softhangup, "shutdown", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_SHUTDOWN);
+	ast_data_add_bool(data_softhangup, "timeout", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_TIMEOUT);
+	ast_data_add_bool(data_softhangup, "appunload", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_APPUNLOAD);
+	ast_data_add_bool(data_softhangup, "explicit", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_EXPLICIT);
+	ast_data_add_bool(data_softhangup, "unbridge", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_UNBRIDGE);
 
 	/* channel flags */
 	data_flags = ast_data_add_node(tree, "flags");
@@ -752,27 +755,205 @@ struct varshead *ast_channel_varshead(struct ast_channel *chan)
 {
 	return &chan->__do_not_use_varshead;
 }
+void ast_channel_dtmff_set(struct ast_channel *chan, struct ast_frame *value)
+{
+	memcpy(&chan->__do_not_use_dtmff, value, sizeof(chan->__do_not_use_dtmff));
+}
+void ast_channel_jb_set(struct ast_channel *chan, struct ast_jb *value)
+{
+	memcpy(&chan->__do_not_use_jb, value, sizeof(chan->__do_not_use_jb));
+}
 void ast_channel_caller_set(struct ast_channel *chan, struct ast_party_caller *value)
 {
-	chan->__do_not_use_caller = *value;
+	memcpy(&chan->__do_not_use_caller, value, sizeof(chan->__do_not_use_caller));
 }
 void ast_channel_connected_set(struct ast_channel *chan, struct ast_party_connected_line *value)
 {
-	chan->__do_not_use_connected = *value;
+	memcpy(&chan->__do_not_use_connected, value, sizeof(chan->__do_not_use_connected));
 }
 void ast_channel_dialed_set(struct ast_channel *chan, struct ast_party_dialed *value)
 {
-	chan->__do_not_use_dialed = *value;
+	memcpy(&chan->__do_not_use_dialed, value, sizeof(chan->__do_not_use_dialed));
 }
 void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redirecting *value)
 {
-	chan->__do_not_use_redirecting = *value;
+	memcpy(&chan->__do_not_use_redirecting, value, sizeof(chan->__do_not_use_redirecting));
 }
 void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value)
 {
-	chan->__do_not_use_dtmf_tv = *value;
+	memcpy(&chan->__do_not_use_dtmf_tv, value, sizeof(chan->__do_not_use_dtmf_tv));
 }
 void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value)
 {
-	chan->__do_not_use_whentohangup = *value;
+	memcpy(&chan->__do_not_use_whentohangup, value, sizeof(chan->__do_not_use_whentohangup));
 }
+void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value)
+{
+	memcpy(&chan->__do_not_use_varshead, value, sizeof(chan->__do_not_use_varshead));
+}
+
+/* Evil softhangup accessors */
+int ast_channel_softhangup_internal_flag(struct ast_channel * chan)
+{
+	return chan->__do_not_use_softhangup;
+}
+void ast_channel_softhangup_internal_flag_set(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_softhangup = value;
+}
+void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int value)
+{
+	chan->__do_not_use_softhangup |= value;
+}
+void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value)
+{
+	chan ->__do_not_use_softhangup &= ~value;
+}
+
+/* Typedef accessors */
+ast_group_t ast_channel_callgroup(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_callgroup;
+}
+void ast_channel_callgroup_set(struct ast_channel *chan, ast_group_t value)
+{
+	chan->__do_not_use_callgroup = value;
+}
+ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_pickupgroup;
+}
+void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value)
+{
+	chan->__do_not_use_pickupgroup = value;
+}
+
+/* Alertpipe functions */
+int ast_channel_alert_write(struct ast_channel *chan)
+{
+	char blah = 0x7F;
+	return ast_channel_alert_writable(chan) && write(chan->__do_not_use_alertpipe[1], &blah, sizeof(blah)) != sizeof(blah);
+}
+
+ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan)
+{
+	int flags;
+	char blah;
+
+	if (!ast_channel_internal_alert_readable(chan)) {
+		return AST_ALERT_NOT_READABLE;
+	}
+
+	flags = fcntl(chan->__do_not_use_alertpipe[0], F_GETFL);
+	/* For some odd reason, the alertpipe occasionally loses nonblocking status,
+	 * which immediately causes a deadlock scenario.  Detect and prevent this. */
+	if ((flags & O_NONBLOCK) == 0) {
+		ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", ast_channel_name(chan));
+		if (fcntl(chan->__do_not_use_alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+			ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+			return AST_ALERT_READ_FATAL;
+		}
+	}
+	if (read(chan->__do_not_use_alertpipe[0], &blah, sizeof(blah)) < 0) {
+		if (errno != EINTR && errno != EAGAIN) {
+			ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+			return AST_ALERT_READ_FAIL;
+		}
+	}
+
+	return AST_ALERT_READ_SUCCESS;
+}
+
+int ast_channel_alert_writable(struct ast_channel *chan)
+{
+	return chan->__do_not_use_alertpipe[1] > -1;
+}
+
+int ast_channel_internal_alert_readable(struct ast_channel *chan)
+{
+	return chan->__do_not_use_alertpipe[0] > -1;
+}
+
+void ast_channel_internal_alertpipe_clear(struct ast_channel *chan)
+{
+	chan->__do_not_use_alertpipe[0] = chan->__do_not_use_alertpipe[1] = -1;
+}
+
+void ast_channel_internal_alertpipe_close(struct ast_channel *chan)
+{
+	if (ast_channel_internal_alert_readable(chan)) {
+		close(chan->__do_not_use_alertpipe[0]);
+	}
+	if (ast_channel_alert_writable(chan)) {
+		close(chan->__do_not_use_alertpipe[1]);
+	}
+}
+
+int ast_channel_internal_alertpipe_init(struct ast_channel *chan)
+{
+	if (pipe(chan->__do_not_use_alertpipe)) {
+		ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe! Try increasing max file descriptors with ulimit -n\n");
+		return -1;
+	} else {
+		int flags = fcntl(chan->__do_not_use_alertpipe[0], F_GETFL);
+		if (fcntl(chan->__do_not_use_alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+			ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+			return -1;
+		}
+		flags = fcntl(chan->__do_not_use_alertpipe[1], F_GETFL);
+		if (fcntl(chan->__do_not_use_alertpipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
+			ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int ast_channel_internal_alert_readfd(struct ast_channel *chan)
+{
+	return chan->__do_not_use_alertpipe[0];
+}
+
+void ast_channel_internal_alertpipe_swap(struct ast_channel *chan1, struct ast_channel *chan2)
+{
+	int i;
+	for (i = 0; i < ARRAY_LEN(chan1->__do_not_use_alertpipe); i++) {
+		SWAP(chan1->__do_not_use_alertpipe[i], chan2->__do_not_use_alertpipe[i]);
+	}
+}
+
+/* file descriptor array accessors */
+void ast_channel_internal_fd_set(struct ast_channel *chan, int which, int value)
+{
+	chan->__do_not_use_fds[which] = value;
+}
+void ast_channel_internal_fd_clear(struct ast_channel *chan, int which)
+{
+	ast_channel_internal_fd_set(chan, which, -1);
+}
+void ast_channel_internal_fd_clear_all(struct ast_channel *chan)
+{
+	int i;
+	for (i = 0; i < AST_MAX_FDS; i++) {
+		ast_channel_internal_fd_clear(chan, i);
+	}
+}
+int ast_channel_fd(const struct ast_channel *chan, int which)
+{
+	return chan->__do_not_use_fds[which];
+}
+int ast_channel_fd_isset(const struct ast_channel *chan, int which)
+{
+	return ast_channel_fd(chan, which) > -1;
+}
+
+#ifdef HAVE_EPOLL
+struct ast_epoll_data *ast_channel_internal_epfd_data(const struct ast_channel *chan, int which)
+{
+	return chan->__do_not_use_epfd_data[which];
+}
+void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , struct ast_epoll_data *value)
+{
+	chan->__do_not_use_epfd_data[which] = value;
+}
+#endif

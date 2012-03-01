@@ -583,14 +583,14 @@ int ast_channel_trace_disable(struct ast_channel *chan)
 /*! \brief Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
 {
-	if (chan->_softhangup)		/* yes if soft hangup flag set */
+	if (ast_channel_softhangup_internal_flag(chan))		/* yes if soft hangup flag set */
 		return 1;
 	if (ast_tvzero(*ast_channel_whentohangup(chan)))	/* no if no hangup scheduled */
 		return 0;
 	if (ast_tvdiff_ms(*ast_channel_whentohangup(chan), ast_tvnow()) > 0)		/* no if hangup time has not come yet. */
 		return 0;
 	ast_debug(4, "Hangup time has come: %" PRIi64 "\n", ast_tvdiff_ms(*ast_channel_whentohangup(chan), ast_tvnow()));
-	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;	/* record event */
+	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_TIMEOUT);	/* record event */
 	return 1;
 }
 
@@ -921,8 +921,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
-	int x;
-	int flags;
 	struct varshead *headp;
 	char *tech = "", *tech2 = NULL;
 	struct ast_format_cap *nativeformats;
@@ -960,12 +958,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * the destructor can know not to close them.
 	 */
 	ast_channel_timingfd_set(tmp, -1);
-	for (x = 0; x < ARRAY_LEN(tmp->alertpipe); ++x) {
-		tmp->alertpipe[x] = -1;
-	}
-	for (x = 0; x < ARRAY_LEN(tmp->fds); ++x) {
-		tmp->fds[x] = -1;
-	}
+	ast_channel_internal_alertpipe_clear(tmp);
+	ast_channel_internal_fd_clear_all(tmp);
+
 #ifdef HAVE_EPOLL
 	ast_channel_epfd(tmp) = epoll_create(25);
 #endif
@@ -1004,22 +999,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_timingfd_set(tmp, ast_timer_fd(ast_channel_timer(tmp)));
 	}
 
-	if (needqueue) {
-		if (pipe(tmp->alertpipe)) {
-			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe! Try increasing max file descriptors with ulimit -n\n");
-			return ast_channel_unref(tmp);
-		} else {
-			flags = fcntl(tmp->alertpipe[0], F_GETFL);
-			if (fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				return ast_channel_unref(tmp);
-			}
-			flags = fcntl(tmp->alertpipe[1], F_GETFL);
-			if (fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
-				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				return ast_channel_unref(tmp);
-			}
-		}
+	if (needqueue && ast_channel_internal_alertpipe_init(tmp)) {
+		return ast_channel_unref(tmp);
 	}
 
 	/*
@@ -1034,7 +1015,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	/* Always watch the alertpipe */
-	ast_channel_set_fd(tmp, AST_ALERT_FD, tmp->alertpipe[0]);
+	ast_channel_set_fd(tmp, AST_ALERT_FD, ast_channel_internal_alert_readfd(tmp));
 	/* And timing pipe */
 	ast_channel_set_fd(tmp, AST_TIMING_FD, ast_channel_timingfd(tmp));
 
@@ -1308,11 +1289,8 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 		AST_LIST_APPEND_LIST(ast_channel_readq(chan), &frames, frame_list);
 	}
 
-	if (chan->alertpipe[1] > -1) {
-		int blah[new_frames];
-
-		memset(blah, 1, sizeof(blah));
-		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != (sizeof(blah))) {
+	if (ast_channel_alert_writable(chan)) {
+		if (ast_channel_alert_write(chan)) {
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %d): %s!\n",
 				ast_channel_name(chan), queued_frames, strerror(errno));
 		}
@@ -1343,7 +1321,7 @@ int ast_queue_hangup(struct ast_channel *chan)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	/* Yeah, let's not change a lock-critical value without locking */
 	if (!ast_channel_trylock(chan)) {
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 		manager_event(EVENT_FLAG_CALL, "HangupRequest",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n",
@@ -1364,7 +1342,7 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 
 	/* Yeah, let's not change a lock-critical value without locking */
 	if (!ast_channel_trylock(chan)) {
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 		if (cause < 0)
 			f.data.uint32 = ast_channel_hangupcause(chan);
 
@@ -2185,7 +2163,6 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 static void ast_channel_destructor(void *obj)
 {
 	struct ast_channel *chan = obj;
-	int fd;
 #ifdef HAVE_EPOLL
 	int i;
 #endif
@@ -2256,17 +2233,15 @@ static void ast_channel_destructor(void *obj)
 	ast_party_redirecting_free(ast_channel_redirecting(chan));
 
 	/* Close pipes if appropriate */
-	if ((fd = chan->alertpipe[0]) > -1)
-		close(fd);
-	if ((fd = chan->alertpipe[1]) > -1)
-		close(fd);
+	ast_channel_internal_alertpipe_close(chan);
 	if (ast_channel_timer(chan)) {
 		ast_timer_close(ast_channel_timer(chan));
 	}
 #ifdef HAVE_EPOLL
 	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (chan->epfd_data[i])
-			free(chan->epfd_data[i]);
+		if (ast_channel_internal_epfd_data(chan, i)) {
+			ast_free(ast_channel_internal_epfd_data(chan, i));
+		}
 	}
 	close(ast_channel_epfd(chan));
 #endif
@@ -2410,9 +2385,9 @@ void ast_channel_set_fd(struct ast_channel *chan, int which, int fd)
 	struct epoll_event ev;
 	struct ast_epoll_data *aed = NULL;
 
-	if (chan->fds[which] > -1) {
-		epoll_ctl(ast_channel_epfd(chan), EPOLL_CTL_DEL, chan->fds[which], &ev);
-		aed = chan->epfd_data[which];
+	if (ast_channel_fd_isset(chan, which)) {
+		epoll_ctl(ast_channel_epfd(chan), EPOLL_CTL_DEL, ast_channel_fd(chan, which), &ev);
+		aed = ast_channel_internal_epfd_data(chan, which);
 	}
 
 	/* If this new fd is valid, add it to the epoll */
@@ -2420,7 +2395,7 @@ void ast_channel_set_fd(struct ast_channel *chan, int which, int fd)
 		if (!aed && (!(aed = ast_calloc(1, sizeof(*aed)))))
 			return;
 		
-		chan->epfd_data[which] = aed;
+		ast_channel_internal_epfd_data_set(chan, which, aed);
 		aed->chan = chan;
 		aed->which = which;
 		
@@ -2429,11 +2404,11 @@ void ast_channel_set_fd(struct ast_channel *chan, int which, int fd)
 		epoll_ctl(ast_channel_epfd(chan), EPOLL_CTL_ADD, fd, &ev);
 	} else if (aed) {
 		/* We don't have to keep around this epoll data structure now */
-		free(aed);
-		chan->epfd_data[which] = NULL;
+		ast_free(aed);
+		ast_channel_epfd_data_set(chan, which, NULL);
 	}
 #endif
-	chan->fds[which] = fd;
+	ast_channel_internal_fd_set(chan, which, fd);
 	return;
 }
 
@@ -2449,11 +2424,12 @@ void ast_poll_channel_add(struct ast_channel *chan0, struct ast_channel *chan1)
 
 	/* Iterate through the file descriptors on chan1, adding them to chan0 */
 	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (chan1->fds[i] == -1)
+		if (!ast_channel_fd_isset(chan1, i)) {
 			continue;
+		}
 		ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
-		ev.data.ptr = chan1->epfd_data[i];
-		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_ADD, chan1->fds[i], &ev);
+		ev.data.ptr = ast_channel_internal_epfd_data(chan1, i);
+		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_ADD, ast_channel_fd(chan1, i), &ev);
 	}
 
 #endif
@@ -2471,9 +2447,10 @@ void ast_poll_channel_del(struct ast_channel *chan0, struct ast_channel *chan1)
 		return;
 
 	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (chan1->fds[i] == -1)
+		if (!ast_channel_fd_isset(chan1, i)) {
 			continue;
-		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_DEL, chan1->fds[i], &ev);
+		}
+		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_DEL, ast_channel_fd(chan1, i), &ev);
 	}
 
 #endif
@@ -2484,9 +2461,9 @@ void ast_channel_clear_softhangup(struct ast_channel *chan, int flag)
 {
 	ast_channel_lock(chan);
 
-	chan->_softhangup &= ~flag;
+	ast_channel_softhangup_internal_flag_clear(chan, flag);
 
-	if (!chan->_softhangup) {
+	if (!ast_channel_softhangup_internal_flag(chan)) {
 		struct ast_frame *fr;
 
 		/* If we have completely cleared the softhangup flag,
@@ -2510,7 +2487,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
 	ast_debug(1, "Soft-Hanging up channel '%s'\n", ast_channel_name(chan));
 	/* Inform channel driver that we need to be hung up, if it cares */
-	chan->_softhangup |= cause;
+	ast_channel_softhangup_internal_flag_add(chan, cause);
 	ast_queue_frame(chan, &ast_null_frame);
 	/* Interrupt any poll call or such */
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING))
@@ -3012,7 +2989,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			diff = ast_tvsub(*ast_channel_whentohangup(c[x]), now);
 			if (diff.tv_sec < 0 || ast_tvzero(diff)) {
 				/* Should already be hungup */
-				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_softhangup_internal_flag_add(c[x], AST_SOFTHANGUP_TIMEOUT);
 				ast_channel_unlock(c[x]);
 				return c[x];
 			}
@@ -3043,7 +3020,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		for (y = 0; y < AST_MAX_FDS; y++) {
 			fdmap[max].fdno = y;  /* fd y is linked to this pfds */
 			fdmap[max].chan = x;  /* channel x is linked to this pfds */
-			max += ast_add_fd(&pfds[max], c[x]->fds[y]);
+			max += ast_add_fd(&pfds[max], ast_channel_fd(c[x], y));
 		}
 		CHECK_BLOCKING(c[x]);
 	}
@@ -3079,7 +3056,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		now = ast_tvnow();
 		for (x = 0; x < n; x++) {
 			if (!ast_tvzero(*ast_channel_whentohangup(c[x])) && ast_tvcmp(*ast_channel_whentohangup(c[x]), now) <= 0) {
-				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_softhangup_internal_flag_add(c[x], AST_SOFTHANGUP_TIMEOUT);
 				if (winner == NULL)
 					winner = c[x];
 			}
@@ -3144,7 +3121,7 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
 		if ((diff = ast_tvdiff_ms(*ast_channel_whentohangup(chan), ast_tvnow())) < 0) {
 			/* They should already be hungup! */
-			chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_TIMEOUT);
 			ast_channel_unlock(chan);
 			return NULL;
 		}
@@ -3177,7 +3154,7 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	/* If this channel has a timeout see if it expired */
 	if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
 		if (ast_tvdiff_ms(ast_tvnow(), *ast_channel_whentohangup(chan)) >= 0) {
-			chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_TIMEOUT);
 			winner = chan;
 		}
 	}
@@ -3226,7 +3203,7 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 			if (whentohangup == 0)
 				now = ast_tvnow();
 			if ((diff = ast_tvdiff_ms(*ast_channel_whentohangup(c[i]), now)) < 0) {
-				c[i]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
 				ast_channel_unlock(c[i]);
 				return c[i];
 			}
@@ -3262,7 +3239,7 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 		now = ast_tvnow();
 		for (i = 0; i < n; i++) {
 			if (!ast_tvzero(*ast_channel_whentohangup(c[i])) && ast_tvdiff_ms(now, *ast_channel_whentohangup(c[i])) >= 0) {
-				c[i]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
 				if (!winner)
 					winner = c[i];
 			}
@@ -3576,7 +3553,6 @@ static inline int calc_monitor_jump(int samples, int sample_rate, int seek_rate)
 static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
 	struct ast_frame *f = NULL;	/* the return value */
-	int blah;
 	int prestate;
 	int cause = 0;
 
@@ -3609,7 +3585,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		 * ast_queue_control() will be called repeatedly, but will only
 		 * queue the first end-of-Q frame.
 		 */
-		if (chan->_softhangup) {
+		if (ast_channel_softhangup_internal_flag(chan)) {
 			ast_queue_control(chan, AST_CONTROL_END_OF_Q);
 		} else {
 			goto done;
@@ -3640,22 +3616,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1) {
-		int flags = fcntl(chan->alertpipe[0], F_GETFL);
-		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
-		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
-		if ((flags & O_NONBLOCK) == 0) {
-			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", ast_channel_name(chan));
-			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				f = &ast_null_frame;
-				goto done;
-			}
-		}
-		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
-			if (errno != EINTR && errno != EAGAIN)
-				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
-		}
+	if (ast_channel_internal_alert_read(chan) == AST_ALERT_READ_FATAL) {
+		f = &ast_null_frame;
+		goto done;
 	}
 
 	if (ast_channel_timingfd(chan) > -1 && ast_channel_fdno(chan) == AST_TIMING_FD) {
@@ -3693,7 +3656,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			break;
 		}
 
-	} else if (chan->fds[AST_GENERATOR_FD] > -1 && ast_channel_fdno(chan) == AST_GENERATOR_FD) {
+	} else if (ast_channel_fd_isset(chan, AST_GENERATOR_FD) && ast_channel_fdno(chan) == AST_GENERATOR_FD) {
 		/* if the AST_GENERATOR_FD is set, call the generator with args
 		 * set to -1 so it can do whatever it needs to.
 		 */
@@ -3704,7 +3667,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		f = &ast_null_frame;
 		ast_channel_fdno_set(chan, -1);
 		goto done;
-	} else if (chan->fds[AST_JITTERBUFFER_FD] > -1 && ast_channel_fdno(chan) == AST_JITTERBUFFER_FD) {
+	} else if (ast_channel_fd_isset(chan, AST_JITTERBUFFER_FD) && ast_channel_fdno(chan) == AST_JITTERBUFFER_FD) {
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 	}
 
@@ -3729,14 +3692,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		if (!f) {
 			/* There were no acceptable frames on the readq. */
 			f = &ast_null_frame;
-			if (chan->alertpipe[0] > -1) {
-				int poke = 0;
-				/* Restore the state of the alertpipe since we aren't ready for any
-				 * of the frames in the readq. */
-				if (write(chan->alertpipe[1], &poke, sizeof(poke)) != sizeof(poke)) {
-					ast_log(LOG_ERROR, "Failed to write to alertpipe: %s\n", strerror(errno));
-				}
-			}
+			ast_channel_alert_write(chan);
 		}
 
 		/* Interpret hangup and end-of-Q frames to return NULL */
@@ -3744,7 +3700,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		if (f->frametype == AST_FRAME_CONTROL) {
 			switch (f->subclass.integer) {
 			case AST_CONTROL_HANGUP:
-				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+				ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 				cause = f->data.uint32;
 				/* Fall through */
 			case AST_CONTROL_END_OF_Q:
@@ -4084,8 +4040,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		}
 	} else {
 		/* Make sure we always return NULL in the future */
-		if (!chan->_softhangup) {
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		if (!ast_channel_softhangup_internal_flag(chan)) {
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 		}
 		if (cause)
 			ast_channel_hangupcause_set(chan, cause);
@@ -4908,7 +4864,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				AST_LIST_NEXT(cur, frame_list) = NULL;
 				if (!skip) {
 					if ((res = ast_channel_tech(chan)->write(chan, cur)) < 0) {
-						chan->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 						skip = 1;
 					} else if (next) {
 						/* don't do this for the last frame in the list,
@@ -4946,7 +4902,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0) {
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 	} else {
 		ast_channel_fout_set(chan, FRAMECOUNT_INC(ast_channel_fout(chan)));
 	}
@@ -6442,7 +6398,7 @@ static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer
  */
 int ast_do_masquerade(struct ast_channel *original)
 {
-	int x, i;
+	int x;
 	int res=0;
 	int origstate;
 	int visible_indication;
@@ -6603,11 +6559,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_channel_tech_pvt_set(clonechan, t_pvt);
 
 	/* Swap the alertpipes */
-	for (i = 0; i < 2; i++) {
-		x = original->alertpipe[i];
-		original->alertpipe[i] = clonechan->alertpipe[i];
-		clonechan->alertpipe[i] = x;
-	}
+	ast_channel_internal_alertpipe_swap(original, clonechan);
 
 	/* 
 	 * Swap the readq's.  The end result should be this:
@@ -6629,12 +6581,8 @@ int ast_do_masquerade(struct ast_channel *original)
 
 		while ((current = AST_LIST_REMOVE_HEAD(&tmp_readq, frame_list))) {
 			AST_LIST_INSERT_TAIL(ast_channel_readq(original), current, frame_list);
-			if (original->alertpipe[1] > -1) {
-				int poke = 0;
-
-				if (write(original->alertpipe[1], &poke, sizeof(poke)) < 0) {
-					ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
-				}
+			if (ast_channel_alert_write(original)) {
+				ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
 			}
 		}
 	}
@@ -6648,7 +6596,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_format_copy(ast_channel_rawwriteformat(original), ast_channel_rawwriteformat(clonechan));
 	ast_format_copy(ast_channel_rawwriteformat(clonechan), &tmp_format);
 
-	clonechan->_softhangup = AST_SOFTHANGUP_DEV;
+	ast_channel_softhangup_internal_flag_set(clonechan, AST_SOFTHANGUP_DEV);
 
 	/* And of course, so does our current state.  Note we need not
 	   call ast_setstate since the event manager doesn't really consider
@@ -6689,7 +6637,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Copy the FD's other than the generator fd */
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		if (x != AST_GENERATOR_FD)
-			ast_channel_set_fd(original, x, clonechan->fds[x]);
+			ast_channel_set_fd(original, x, ast_channel_fd(clonechan, x));
 	}
 
 	ast_app_group_update(clonechan, original);
@@ -7113,11 +7061,11 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			/* No frame received within the specified timeout - check if we have to deliver now */
 			if (jb_in_use)
 				ast_jb_get_and_deliver(c0, c1);
-			if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
-				if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+			if ((ast_channel_softhangup_internal_flag(c0) | ast_channel_softhangup_internal_flag(c1)) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+				if (ast_channel_softhangup_internal_flag(c0) & AST_SOFTHANGUP_UNBRIDGE) {
 					ast_channel_clear_softhangup(c0, AST_SOFTHANGUP_UNBRIDGE);
 				}
-				if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+				if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 					ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 				}
 				c0->_bridge = c1;
@@ -7469,11 +7417,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_clear_flag(config, AST_FEATURE_WARNING_ACTIVE);
 		}
 
-		if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
-			if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+		if ((ast_channel_softhangup_internal_flag(c0) | ast_channel_softhangup_internal_flag(c1)) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+			if (ast_channel_softhangup_internal_flag(c0) & AST_SOFTHANGUP_UNBRIDGE) {
 				ast_channel_clear_softhangup(c0, AST_SOFTHANGUP_UNBRIDGE);
 			}
-			if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+			if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 				ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 			}
 			c0->_bridge = c1;
@@ -7519,7 +7467,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
 
-				if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+				if ((ast_channel_softhangup_internal_flag(c0) | ast_channel_softhangup_internal_flag(c1)) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
 					continue;
 				}
 

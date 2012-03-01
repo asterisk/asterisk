@@ -129,7 +129,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	ast_indicate(chan, -1);
 	retrydahdi = strcasecmp(ast_channel_tech(chan)->type, "DAHDI");
 dahdiretry:
-	origfd = chan->fds[0];
+	origfd = ast_channel_fd(chan, 0);
 	if (retrydahdi) {
 		fd = open("/dev/dahdi/pseudo", O_RDWR);
 		if (fd < 0) {
@@ -162,7 +162,7 @@ dahdiretry:
 		nfds = 1;
 	} else {
 		/* XXX Make sure we're not running on a pseudo channel XXX */
-		fd = chan->fds[0];
+		fd = ast_channel_fd(chan, 0);
 		nfds = 0;
 	}
 	memset(&dahdic, 0, sizeof(dahdic));
@@ -199,7 +199,7 @@ dahdiretry:
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 		if (c) {
-			if (c->fds[0] != origfd) {
+			if (ast_channel_fd(c, 0) != origfd) {
 				if (retrydahdi) {
 					/* Kill old pseudo */
 					close(fd);
@@ -215,7 +215,7 @@ dahdiretry:
 				ret = 0;
 				ast_frfree(f);
 				break;
-			} else if (fd != chan->fds[0]) {
+			} else if (fd != ast_channel_fd(chan, 0)) {
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (f->subclass.format.id == AST_FORMAT_ULAW) {
 						/* Carefully write */
@@ -243,7 +243,7 @@ dahdiretry:
 				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 		}
 	}
-	if (fd != chan->fds[0])
+	if (fd != ast_channel_fd(chan, 0))
 		close(fd);
 	else {
 		/* Take out of conference */

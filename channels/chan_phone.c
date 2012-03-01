@@ -318,7 +318,7 @@ static int phone_call(struct ast_channel *ast, const char *dest, int timeout)
 		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
-	ast_debug(1, "Ringing %s on %s (%d)\n", dest, ast_channel_name(ast), ast->fds[0]);
+	ast_debug(1, "Ringing %s on %s (%d)\n", dest, ast_channel_name(ast), ast_channel_fd(ast, 0));
 
 	start = IXJ_PHONE_RING_START(cid);
 	if (start == -1)
@@ -893,7 +893,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		ast_module_ref(ast_module_info->self);
 		if (state != AST_STATE_DOWN) {
 			if (state == AST_STATE_RING) {
-				ioctl(tmp->fds[0], PHONE_RINGBACK);
+				ioctl(ast_channel_fd(tmp, 0), PHONE_RINGBACK);
 				i->cpt = 1;
 			}
 			if (ast_pbx_start(tmp)) {

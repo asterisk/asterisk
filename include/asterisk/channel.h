@@ -807,7 +807,7 @@ struct ast_channel {
 							 *   in the CHANNEL dialplan function */
 	struct ast_channel_monitor *__do_not_use_monitor;		/*!< Channel monitoring */
 #ifdef HAVE_EPOLL
-	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
+	struct ast_epoll_data *__do_not_use_epfd_data[AST_MAX_FDS];
 #endif
 
 	AST_DECLARE_STRING_FIELDS(
@@ -854,8 +854,8 @@ struct ast_channel {
 
 	struct ast_frame __do_not_use_dtmff;				/*!< DTMF frame */
 	struct varshead __do_not_use_varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
-	ast_group_t callgroup;				/*!< Call group for call pickups */
-	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
+	ast_group_t __do_not_use_callgroup;				/*!< Call group for call pickups */
+	ast_group_t __do_not_use_pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	struct ast_readq_list __do_not_use_readq;
 	struct ast_jb __do_not_use_jb;				/*!< The jitterbuffer state */
 	struct timeval __do_not_use_dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
@@ -864,10 +864,10 @@ struct ast_channel {
 	unsigned long __do_not_use_insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long __do_not_use_outsmpl;				/*!< Track the read/written samples for monitor use */
 
-	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
+	int __do_not_use_fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
 							 *   these file descriptors, so at least one must be non -1.
 							 *   See \arg \ref AstFileDesc */
-	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
+	int __do_not_use_softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
 							 *   directly, use ast_softhangup() */
 	int __do_not_use_fdno;					/*!< Which fd had an event detected on */
 	int __do_not_use_streamid;					/*!< For streaming playback, the schedule ID */
@@ -886,7 +886,7 @@ struct ast_channel {
 							 *   the counter is only in the remaining bits */
 	int __do_not_use_hangupcause;				/*!< Why is the channel hanged up. See causes.h */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
-	int alertpipe[2];
+	int __do_not_use_alertpipe[2];
 	struct ast_format_cap *__do_not_use_nativeformats;         /*!< Kinds of data this channel can natively handle */
 	struct ast_format __do_not_use_readformat;            /*!< Requested read format (after translation) */
 	struct ast_format __do_not_use_writeformat;           /*!< Requested write format (after translation) */
@@ -3785,8 +3785,13 @@ void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tec
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
+
 /* XXX Internal use only, make sure to move later */
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state);
+void ast_channel_softhangup_internal_flag_set(struct ast_channel *chan, int value);
+void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int value);
+void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value);
+int ast_channel_softhangup_internal_flag(struct ast_channel * chan);
 
 /* Format getters */
 struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan);
@@ -3806,16 +3811,57 @@ struct timeval *ast_channel_dtmf_tv(struct ast_channel *chan);
 struct timeval *ast_channel_whentohangup(struct ast_channel *chan);
 struct varshead *ast_channel_varshead(struct ast_channel *chan);
 
-/* Other struct setters */
+void ast_channel_dtmff_set(struct ast_channel *chan, struct ast_frame *value);
+void ast_channel_jb_set(struct ast_channel *chan, struct ast_jb *value);
 void ast_channel_caller_set(struct ast_channel *chan, struct ast_party_caller *value);
 void ast_channel_connected_set(struct ast_channel *chan, struct ast_party_connected_line *value);
 void ast_channel_dialed_set(struct ast_channel *chan, struct ast_party_dialed *value);
 void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redirecting *value);
 void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value);
 void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value);
+void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value);
 
 /* List getters */
 struct ast_datastore_list *ast_channel_datastores(struct ast_channel *chan);
 struct ast_autochan_list *ast_channel_autochans(struct ast_channel *chan);
 struct ast_readq_list *ast_channel_readq(struct ast_channel *chan);
+
+/* Typedef accessors */
+ast_group_t ast_channel_callgroup(const struct ast_channel *chan);
+void ast_channel_callgroup_set(struct ast_channel *chan, ast_group_t value);
+ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan);
+void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value);
+
+/* Alertpipe accessors--the "internal" functions for channel.c use only */
+typedef enum {
+	AST_ALERT_READ_SUCCESS = 0,
+	AST_ALERT_NOT_READABLE,
+	AST_ALERT_READ_FAIL,
+	AST_ALERT_READ_FATAL,
+} ast_alert_status_t;
+int ast_channel_alert_write(struct ast_channel *chan);
+int ast_channel_alert_writable(struct ast_channel *chan);
+ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan);
+int ast_channel_internal_alert_readable(struct ast_channel *chan);
+void ast_channel_internal_alertpipe_clear(struct ast_channel *chan);
+void ast_channel_internal_alertpipe_close(struct ast_channel *chan);
+int ast_channel_internal_alert_readfd(struct ast_channel *chan);
+int ast_channel_internal_alertpipe_init(struct ast_channel *chan);
+/*! \brief Swap the interal alertpipe between two channels
+ * \note Handle all of the necessary locking before calling this
+ */
+void ast_channel_internal_alertpipe_swap(struct ast_channel *chan1, struct ast_channel *chan2);
+
+/* file descriptor array accessors */
+void ast_channel_internal_fd_clear(struct ast_channel *chan, int which);
+void ast_channel_internal_fd_clear_all(struct ast_channel *chan);
+void ast_channel_internal_fd_set(struct ast_channel *chan, int which, int value);
+int ast_channel_fd(const struct ast_channel *chan, int which);
+int ast_channel_fd_isset(const struct ast_channel *chan, int which);
+
+/* epoll data internal accessors */
+#ifdef HAVE_EPOLL
+struct ast_epoll_data *ast_channel_internal_epfd_data(const struct ast_channel *chan, int which);
+void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , struct ast_epoll_data *value);
+#endif
 #endif /* _ASTERISK_CHANNEL_H */

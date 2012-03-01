@@ -95,7 +95,7 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 	}
 
 	/* Execute RAS on File handles */
-	dup2(chan->fds[0], STDIN_FILENO);
+	dup2(ast_channel_fd(chan, 0), STDIN_FILENO);
 
 	/* Drop high priority */
 	if (ast_opt_high_priority)
@@ -139,7 +139,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 	struct dahdi_bufferinfo savebi;
 	int x;
 	
-	res = ioctl(chan->fds[0], DAHDI_GET_BUFINFO, &savebi);
+	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_BUFINFO, &savebi);
 	if(res) {
 		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", ast_channel_name(chan));
 		return;
@@ -175,10 +175,10 @@ static void run_ras(struct ast_channel *chan, char *args)
 			}
 			/* Throw back into audio mode */
 			x = 1;
-			ioctl(chan->fds[0], DAHDI_AUDIOMODE, &x);
+			ioctl(ast_channel_fd(chan, 0), DAHDI_AUDIOMODE, &x);
 
 			/* Restore saved values */
-			res = ioctl(chan->fds[0], DAHDI_SET_BUFINFO, &savebi);
+			res = ioctl(ast_channel_fd(chan, 0), DAHDI_SET_BUFINFO, &savebi);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", ast_channel_name(chan));
 			}
@@ -209,7 +209,7 @@ static int dahdiras_exec(struct ast_channel *chan, const char *data)
 		sleep(2);
 	} else {
 		memset(&dahdip, 0, sizeof(dahdip));
-		if (ioctl(chan->fds[0], DAHDI_GET_PARAMS, &dahdip)) {
+		if (ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip)) {
 			ast_log(LOG_WARNING, "Unable to get DAHDI parameters\n");
 		} else if (dahdip.sigtype != DAHDI_SIG_CLEAR) {
 			ast_verb(2, "Channel %s is not a clear channel\n", ast_channel_name(chan));

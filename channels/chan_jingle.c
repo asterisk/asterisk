@@ -888,8 +888,8 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
 	ast_channel_tech_pvt_set(tmp, i);
 
-	tmp->callgroup = client->callgroup;
-	tmp->pickupgroup = client->pickupgroup;
+	ast_channel_callgroup_set(tmp, client->callgroup);
+	ast_channel_pickupgroup_set(tmp, client->pickupgroup);
 	ast_channel_caller(tmp)->id.name.presentation = client->callingpres;
 	ast_channel_caller(tmp)->id.number.presentation = client->callingpres;
 	if (!ast_strlen_zero(client->accountcode))

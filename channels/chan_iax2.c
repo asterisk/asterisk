@@ -5547,8 +5547,8 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			if (ast_tvzero(waittimer)) {
 				waittimer = now;
 			} else if (now.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
-				c0->_softhangup |= AST_SOFTHANGUP_DEV;
-				c1->_softhangup |= AST_SOFTHANGUP_DEV;
+				ast_channel_softhangup_internal_flag_add(c0, AST_SOFTHANGUP_DEV);
+				ast_channel_softhangup_internal_flag_add(c1, AST_SOFTHANGUP_DEV);
 				*fo = NULL;
 				*rc = c0;
 				res = AST_BRIDGE_COMPLETE;

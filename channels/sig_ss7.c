@@ -444,7 +444,7 @@ static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic
 		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
 			sig_ss7_lock_private(linkset->pvts[i]);
 			if (linkset->pvts[i]->owner)
-				linkset->pvts[i]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				ast_channel_softhangup_internal_flag_add(linkset->pvts[i]->owner, AST_SOFTHANGUP_DEV);
 			sig_ss7_unlock_private(linkset->pvts[i]);
 		}
 	}

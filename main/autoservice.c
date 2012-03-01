@@ -277,7 +277,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	/* Now autoservice thread should have no references to our entry
 	   and we can safely destroy it */
 
-	if (!chan->_softhangup) {
+	if (!ast_channel_softhangup_internal_flag(chan)) {
 		res = 0;
 	}
 

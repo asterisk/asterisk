@@ -4138,7 +4138,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			 * but it doesn't hurt to check AST_SOFTHANGUP_UNBRIDGE either.
 			 */
 			ast_channel_lock(chan);
-			if (chan->_softhangup & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)) {
+			if (ast_channel_softhangup_internal_flag(chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)) {
 				ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
 			}
 			ast_channel_unlock(chan);
@@ -4726,12 +4726,12 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 			struct ast_frame *f;
 			int y;
 
-			if (chan->fds[x] == -1) {
+			if (!ast_channel_fd_isset(chan, x)) {
 				continue;	/* nothing on this descriptor */
 			}
 
 			for (y = 0; y < nfds; y++) {
-				if (pfds[y].fd == chan->fds[x]) {
+				if (pfds[y].fd == ast_channel_fd(chan, x)) {
 					/* Found poll record! */
 					break;
 				}
@@ -4792,7 +4792,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 		} /* End for */
 		if (x >= AST_MAX_FDS) {
 std:		for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
-				if (chan->fds[x] > -1) {
+				if (ast_channel_fd_isset(chan, x)) {
 					void *tmp = ast_realloc(*new_pfds,
 						(*new_nfds + 1) * sizeof(struct pollfd));
 
@@ -4800,7 +4800,7 @@ std:		for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 						continue;
 					}
 					*new_pfds = tmp;
-					(*new_pfds)[*new_nfds].fd = chan->fds[x];
+					(*new_pfds)[*new_nfds].fd = ast_channel_fd(chan, x);
 					(*new_pfds)[*new_nfds].events = POLLIN | POLLERR | POLLPRI;
 					(*new_pfds)[*new_nfds].revents = 0;
 					(*new_nfds)++;
@@ -7249,7 +7249,7 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
 	ast_channel_lock(target);
-	if (chan != target && (chan->pickupgroup & target->callgroup)
+	if (chan != target && (ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
 		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;

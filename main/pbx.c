@@ -5079,7 +5079,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 		/* As long as we're willing to wait, and as long as it's not defined,
 		   keep reading digits until we can't possibly get a right answer anymore.  */
 		digit = ast_waitfordigit(c, waittime);
-		if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
+		if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_ASYNCGOTO) {
 			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 		} else {
 			if (!digit)	/* No entry */
@@ -5155,11 +5155,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			}
 
 			/* Check softhangup flags. */
-			if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
+			if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_ASYNCGOTO) {
 				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 				continue;
 			}
-			if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
+			if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_TIMEOUT) {
 				if (ast_exists_extension(c, ast_channel_context(c), "T", 1,
 					S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
 					set_ext_pri(c, "T", 1);
@@ -5222,11 +5222,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					}
 				}
 
-				if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
+				if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_ASYNCGOTO) {
 					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 					continue;
 				}
-				if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
+				if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_TIMEOUT) {
 					if (ast_exists_extension(c, ast_channel_context(c), "T", 1,
 						S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
 						set_ext_pri(c, "T", 1);
@@ -5283,7 +5283,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				error = 1; /* we know what to do with it */
 				break;
 			}
-		} else if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
+		} else if (ast_channel_softhangup_internal_flag(c) & AST_SOFTHANGUP_TIMEOUT) {
 			/* If we get this far with AST_SOFTHANGUP_TIMEOUT, then we know that the "T" extension is next. */
 			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 		} else {	/* keypress received, get more digits for a full extension */

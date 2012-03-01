@@ -321,11 +321,12 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 #define CLEANUP(ast, p) do { \
 	int x; \
 	if (p->chan) { \
-		for (x=0;x<AST_MAX_FDS;x++) {\
-			if (x != AST_TIMING_FD) \
-				ast_channel_set_fd(ast, x, p->chan->fds[x]); \
+		for (x = 0; x < AST_MAX_FDS; x++) { \
+			if (x != AST_TIMING_FD) { \
+				ast_channel_set_fd(ast, x, ast_channel_fd(p->chan, x)); \
+			} \
 		} \
-		ast_channel_set_fd(ast, AST_AGENT_FD, p->chan->fds[AST_TIMING_FD]); \
+		ast_channel_set_fd(ast, AST_AGENT_FD, ast_channel_fd(p->chan, AST_TIMING_FD)); \
 	} \
 } while(0)
 

@@ -5550,7 +5550,7 @@ static void *pri_dchannel(void *vpri)
 				for (x = pri->numchans; x >= 0; x--) {
 					/* find a candidate channel */
 					if (pri->pvts[x] && pri->pvts[x]->owner && pri->pvts[x]->isidlecall) {
-						pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(pri->pvts[x]->owner, AST_SOFTHANGUP_DEV);
 						haveidles++;
 						/* Stop if we have enough idle channels or
 						  can't spare any more active idle ones */
@@ -5697,7 +5697,7 @@ static void *pri_dchannel(void *vpri)
 									p->call = NULL;
 								}
 								if (p->owner)
-									p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 							}
 							sig_pri_set_alarm(p, 1);
 						}
@@ -5740,7 +5740,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						/* Force soft hangup if appropriate */
 						if (pri->pvts[chanpos]->owner)
-							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				} else {
@@ -5753,7 +5753,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[x]->call = NULL;
 							}
  							if (pri->pvts[x]->owner)
-								pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								ast_channel_softhangup_internal_flag_add(pri->pvts[x]->owner, AST_SOFTHANGUP_DEV);
 							sig_pri_unlock_private(pri->pvts[x]);
 						}
 				}
@@ -6732,10 +6732,10 @@ static void *pri_dchannel(void *vpri)
 								 * AST_CONTROL_HANGUP frame to guarantee that frame gets read before hangup */
 								pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
 							} else {
-								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 							}
 #else
-							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 						}
 					} else {
@@ -6885,10 +6885,10 @@ static void *pri_dchannel(void *vpri)
 							 * to guarantee that frame gets read before hangup */
 							pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
 						} else {
-							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 						}
 #else
-						pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 					}
 					ast_verb(3, "Span %d: Channel %d/%d got hangup request, cause %d\n",
@@ -6986,7 +6986,7 @@ static void *pri_dchannel(void *vpri)
 									"Span %d: Got restart ack on channel %d/%d with owner\n",
 									pri->span, pri->pvts[chanpos]->logicalspan,
 									pri->pvts[chanpos]->prioffset);
-								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 							}
 							pri->pvts[chanpos]->resetting = 0;
 							ast_verb(3,
@@ -7012,7 +7012,7 @@ static void *pri_dchannel(void *vpri)
 							"Span %d: Got restart ack on channel %d/%d with owner\n",
 							pri->span, pri->pvts[chanpos]->logicalspan,
 							pri->pvts[chanpos]->prioffset);
-						pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 					}
 					pri->pvts[chanpos]->resetting = 0;
 					ast_verb(3,
@@ -7863,7 +7863,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_BUSY:
 		if (p->priindication_oob || p->no_b_channel) {
 			ast_channel_hangupcause_set(chan, AST_CAUSE_USER_BUSY);
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
@@ -7956,7 +7956,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			default:
 				break;
 			}
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
@@ -8788,7 +8788,7 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 				p->call = NULL;
 			}
 			if (p->owner)
-				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 		}
 	}
 	sig_pri_span_devstate_changed(p->pri);

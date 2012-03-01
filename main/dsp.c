@@ -1437,7 +1437,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		return ast_frisolate(&dsp->f);
 	}
 	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && ast_dsp_busydetect(dsp)) {
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_CONTROL;
 		dsp->f.subclass.integer = AST_CONTROL_BUSY;

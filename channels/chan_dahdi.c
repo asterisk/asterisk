@@ -3078,7 +3078,7 @@ static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 	old_chan->owner = NULL;
 	if (new_chan->owner) {
 		ast_channel_tech_pvt_set(new_chan->owner, new_chan);
-		new_chan->owner->fds[0] = new_chan->subs[SUB_REAL].dfd;
+		ast_channel_fd_set(new_chan->owner, 0, new_chan->subs[SUB_REAL].dfd);
 		new_chan->subs[SUB_REAL].owner = old_chan->subs[SUB_REAL].owner;
 		old_chan->subs[SUB_REAL].owner = NULL;
 	}
@@ -3936,7 +3936,7 @@ static void dahdi_r2_on_protocol_error(openr2_chan_t *r2chan, openr2_protocol_er
 	ast_log(LOG_ERROR, "MFC/R2 protocol error on chan %d: %s\n", openr2_chan_get_number(r2chan), openr2_proto_get_error(reason));
 	if (p->owner) {
 		ast_channel_hangupcause_set(p->owner, AST_CAUSE_PROTOCOL_ERROR);
-		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 	}
 	ast_mutex_lock(&p->lock);
 	p->mfcr2call = 0;
@@ -4110,7 +4110,7 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 	/* when we have an owner we don't call dahdi_r2_disconnect_call here, that will
 	   be done in dahdi_hangup */
 	if (ast_channel_state(p->owner) == AST_STATE_UP) {
-		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 		ast_mutex_unlock(&p->lock);
 	} else if (openr2_chan_get_direction(r2chan) == OR2_DIR_FORWARD) {
 		/* being the forward side we must report what happened to the call to whoever requested it */
@@ -4127,7 +4127,7 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 			p->subs[SUB_REAL].needcongestion = 1;
 			break;
 		default:
-			p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 		}
 		ast_mutex_unlock(&p->lock);
 	} else {
@@ -7297,8 +7297,8 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 	op0 = p0 = ast_channel_tech_pvt(c0);
 	op1 = p1 = ast_channel_tech_pvt(c1);
-	ofd0 = c0->fds[0];
-	ofd1 = c1->fds[0];
+	ofd0 = ast_channel_fd(c0, 0);
+	ofd1 = ast_channel_fd(c1, 0);
 	oc0 = p0->owner;
 	oc1 = p1->owner;
 
@@ -7503,8 +7503,8 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		if (!timeoutms ||
 			(op0 != p0) ||
 			(op1 != p1) ||
-			(ofd0 != c0->fds[0]) ||
-			(ofd1 != c1->fds[0]) ||
+			(ofd0 != ast_channel_fd(c0, 0)) ||
+			(ofd1 != ast_channel_fd(c1, 0)) ||
 			(p0->subs[SUB_REAL].owner && (os0 > -1) && (os0 != ast_channel_state(p0->subs[SUB_REAL].owner))) ||
 			(p1->subs[SUB_REAL].owner && (os1 > -1) && (os1 != ast_channel_state(p1->subs[SUB_REAL].owner))) ||
 			(oc0 != p0->owner) ||
@@ -7730,7 +7730,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 			ast_channel_name(p->subs[SUB_REAL].owner), ast_channel_name(p->subs[SUB_THREEWAY].owner));
-		p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_set(p->subs[SUB_THREEWAY].owner, ast_channel_softhangup_internal_flag(p->subs[SUB_THREEWAY].owner) | AST_SOFTHANGUP_DEV);
 		return -1;
 	}
 	return 0;
@@ -8208,7 +8208,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						   hanging up.  Hangup both channels now */
 						if (p->subs[SUB_THREEWAY].owner)
 							ast_queue_hangup_with_cause(p->subs[SUB_THREEWAY].owner, AST_CAUSE_NO_ANSWER);
-						p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						ast_debug(1, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 						ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 					} else if ((ast_channel_pbx(ast)) || (ast_channel_state(ast) == AST_STATE_UP)) {
@@ -8226,7 +8226,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 								dahdi_ring_phone(p);
 							} else {
 								if ((res = attempt_transfer(p)) < 0) {
-									p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 									if (p->subs[SUB_THREEWAY].owner)
 										ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 								} else if (res) {
@@ -8237,7 +8237,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 								}
 							}
 						} else {
-							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 							if (p->subs[SUB_THREEWAY].owner)
 								ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 						}
@@ -8614,7 +8614,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					}
 					/* Drop the last call and stop the conference */
 					ast_verb(3, "Dropping three-way call on %s\n", ast_channel_name(p->subs[SUB_THREEWAY].owner));
-					p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+					ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 					p->subs[SUB_REAL].inthreeway = 0;
 					p->subs[SUB_THREEWAY].inthreeway = 0;
 				} else {
@@ -8640,7 +8640,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					} else {
 						ast_verb(3, "Dumping incomplete call on on %s\n", ast_channel_name(p->subs[SUB_THREEWAY].owner));
 						swap_subs(p, SUB_THREEWAY, SUB_REAL);
-						p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						p->owner = p->subs[SUB_REAL].owner;
 						if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
 							ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
@@ -8895,7 +8895,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		return f;
 	}
 	if (!(p->radio || (p->oprmode < 0)))
-		ast_debug(1, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
+		ast_debug(1, "Exception on %d, channel %d\n", ast_channel_fd(ast, 0), p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast_channel_name(ast), ast_channel_name(p->owner));
@@ -9738,8 +9738,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	ast_channel_tech_pvt_set(tmp, i);
 	if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
 		/* Only FXO signalled stuff can be picked up */
-		tmp->callgroup = i->callgroup;
-		tmp->pickupgroup = i->pickupgroup;
+		ast_channel_callgroup_set(tmp, i->callgroup);
+		ast_channel_pickupgroup_set(tmp, i->pickupgroup);
 	}
 	if (!ast_strlen_zero(i->parkinglot))
 		ast_channel_parkinglot_set(tmp, i->parkinglot);

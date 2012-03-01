@@ -1531,8 +1531,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 			ast_channel_amaflags_set(tmp, i->amaflags);
 		sub->owner = tmp;
 		ast_module_ref(ast_module_info->self);
-		tmp->callgroup = i->callgroup;
-		tmp->pickupgroup = i->pickupgroup;
+		ast_channel_callgroup_set(tmp, i->callgroup);
+		ast_channel_pickupgroup_set(tmp, i->pickupgroup);
 		ast_channel_call_forward_set(tmp, i->call_forward);
 		ast_channel_context_set(tmp, i->context);
 		ast_channel_exten_set(tmp, i->exten);
@@ -3258,7 +3258,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 			ast_channel_name(p->sub->owner), ast_channel_name(p->sub->next->owner));
-		p->sub->next->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(p->sub->next->owner, AST_SOFTHANGUP_DEV);
 		if (p->sub->next->owner) {
 			p->sub->next->alreadygone = 1;
 			mgcp_queue_hangup(p->sub->next);

@@ -2155,7 +2155,7 @@ int onCallCleared(ooCallData *call)
 
 			ast_set_flag(p, H323_ALREADYGONE);
 			ast_channel_hangupcause_set(p->owner, call->q931cause);
-			p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 			ast_queue_hangup_with_cause(p->owner,call->q931cause);
 		}
    	}

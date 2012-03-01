@@ -399,11 +399,11 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANCALLGROUP:
-		long_ret = chan->callgroup;
+		long_ret = ast_channel_callgroup(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANPICKUPGROUP:
-		long_ret = chan->pickupgroup;
+		long_ret = ast_channel_pickupgroup(chan);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANSTATE:

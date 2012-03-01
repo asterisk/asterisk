@@ -3603,7 +3603,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 		f = &p->subs[idx].f;
 		return f;
 	}
-	ast_debug(1, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
+	ast_debug(1, "Exception on %d, channel %d\n", ast_channel_fd(ast, 0), p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast_channel_name(ast), ast_channel_name(p->owner));

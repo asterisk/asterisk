@@ -972,7 +972,6 @@ static void *video_thread(void *arg)
 			}
 			continue;
 		}
-		fd = chan->alertpipe[1];
 		ast_channel_lock(chan);
 
 		/* AST_LIST_INSERT_TAIL is only good for one frame, cannot use here */
@@ -986,10 +985,9 @@ static void *video_thread(void *arg)
 		 * more or less same as ast_queue_frame, but extra
 		 * write on the alertpipe to signal frames.
 		 */
-		if (fd > -1) {
-			int blah = 1, l = sizeof(blah);
+		if (ast_channel_alertable(chan)) {
 			for (p = f; p; p = AST_LIST_NEXT(p, frame_list)) {
-				if (write(fd, &blah, l) != l)
+				if (ast_channel_alert(chan)) {
 					ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d: %s!\n",
 						ast_channel_name(chan), f->frametype, f->subclass, strerror(errno));
 			}

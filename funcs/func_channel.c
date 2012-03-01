@@ -394,10 +394,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, transfercapability_table[ast_channel_transfercapability(chan) & 0x1f], len);
 	} else if (!strcasecmp(data, "callgroup")) {
 		char groupbuf[256];
-		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->callgroup), len);
+		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), ast_channel_callgroup(chan)), len);
 	} else if (!strcasecmp(data, "pickupgroup")) {
 		char groupbuf[256];
-		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->pickupgroup), len);
+		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), ast_channel_pickupgroup(chan)), len);
 	} else if (!strcasecmp(data, "amaflags")) {
 		char amabuf[256];
 		snprintf(amabuf,sizeof(amabuf), "%d", ast_channel_amaflags(chan));
@@ -486,9 +486,9 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			new_zone = ast_tone_zone_unref(new_zone);
 		}
 	} else if (!strcasecmp(data, "callgroup")) {
-		chan->callgroup = ast_get_group(value);
+		ast_channel_callgroup_set(chan, ast_get_group(value));
 	} else if (!strcasecmp(data, "pickupgroup")) {
-		chan->pickupgroup = ast_get_group(value);
+		ast_channel_pickupgroup_set(chan, ast_get_group(value));
 	} else if (!strcasecmp(data, "txgain")) {
 		sscanf(value, "%4hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);

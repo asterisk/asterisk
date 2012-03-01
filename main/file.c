@@ -1381,7 +1381,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 
 	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 
-	return (err || c->_softhangup) ? -1 : 0;
+	return (err || ast_channel_softhangup_internal_flag(c)) ? -1 : 0;
 }
 
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *reverse, int ms)

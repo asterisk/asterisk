@@ -1916,13 +1916,13 @@ static void swap_subs(struct unistim_line *p, int a, int b)
 	p->subs[a]->rtp = p->subs[b]->rtp;
 	p->subs[b]->rtp = rtp;
 
-	fds = p->subs[a]->owner->fds[0];
-	p->subs[a]->owner->fds[0] = p->subs[b]->owner->fds[0];
-	p->subs[b]->owner->fds[0] = fds;
+	fds = ast_channel_fd(p->subs[a]->owner, 0);
+	ast_channel_internal_fd_set(p->subs[a]->owner, 0, ast_channel_fd(p->subs[b]->owner, 0));
+	ast_channel_internal_fd_set(p->subs[b]->owner, 0, fds);
 
-	fds = p->subs[a]->owner->fds[1];
-	p->subs[a]->owner->fds[1] = p->subs[b]->owner->fds[1];
-	p->subs[b]->owner->fds[1] = fds;
+	fds = ast_channel_fd(p->subs[a]->owner, 1);
+	ast_channel_internal_fd_set(p->subs[a]->owner, 1, ast_channel_fd(p->subs[b]->owner, 1));
+	ast_channel_internal_fd_set(p->subs[b]->owner, 1, fds);
 }
 
 static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subchannel *p2)
@@ -2113,8 +2113,8 @@ static void start_rtp(struct unistim_subchannel *sub)
 	}
 	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	if (sub->owner) {
-		sub->owner->fds[0] = ast_rtp_instance_fd(sub->rtp, 0);
-		sub->owner->fds[1] = ast_rtp_instance_fd(sub->rtp, 1);
+		ast_channel_internal_fd_set(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
+		ast_channel_internal_fd_set(sub->owner, 1, ast_rtp_instance_fd(sub->rtp, 1));
 	}
 	ast_rtp_instance_set_qos(sub->rtp, qos.tos_audio, qos.cos_audio, "UNISTIM RTP");
 	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, sub->parent->parent->nat);
@@ -4575,8 +4575,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug)
 			ast_verb(0, "New unistim channel with a previous rtp handle ?\n");
-		tmp->fds[0] = ast_rtp_instance_fd(sub->rtp, 0);
-		tmp->fds[1] = ast_rtp_instance_fd(sub->rtp, 1);
+		ast_channel_internal_fd_set(tmp, 0, ast_rtp_instance_fd(sub->rtp, 0));
+		ast_channel_internal_fd_set(tmp, 1, ast_rtp_instance_fd(sub->rtp, 1));
 	}
 	if (sub->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
@@ -4599,8 +4599,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	usecnt++;
 	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
-	tmp->callgroup = l->callgroup;
-	tmp->pickupgroup = l->pickupgroup;
+	ast_channel_callgroup_set(tmp, l->callgroup);
+	ast_channel_pickupgroup_set(tmp, l->pickupgroup);
 	ast_channel_call_forward_set(tmp, l->parent->call_forward);
 	if (!ast_strlen_zero(l->cid_num)) {
 		char *name, *loc, *instr;

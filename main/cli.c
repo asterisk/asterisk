@@ -1490,12 +1490,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_translate_path_to_str(ast_channel_writetrans(c), &write_transpath),
 		ast_channel_readtrans(c) ? "Yes" : "No",
 		ast_translate_path_to_str(ast_channel_readtrans(c), &read_transpath),
-		c->fds[0],
+		ast_channel_fd(c, 0),
 		ast_channel_fin(c) & ~DEBUGCHAN_FLAG, (ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		ast_channel_fout(c) & ~DEBUGCHAN_FLAG, (ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		(long)ast_channel_whentohangup(c)->tv_sec,
 		cdrtime, c->_bridge ? ast_channel_name(c->_bridge) : "<none>", ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
-		ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), c->callgroup, c->pickupgroup, (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
+		ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_callgroup(c), ast_channel_pickupgroup(c), (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
 		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
 	

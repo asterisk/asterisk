@@ -4915,8 +4915,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			ast_channel_amaflags_set(tmp, l->amaflags);
 
 		ast_module_ref(ast_module_info->self);
-		tmp->callgroup = l->callgroup;
-		tmp->pickupgroup = l->pickupgroup;
+		ast_channel_callgroup_set(tmp, l->callgroup);
+		ast_channel_pickupgroup_set(tmp, l->pickupgroup);
 
 		/* XXX Need to figure out how to handle CFwdNoAnswer */
 		if (l->cfwdtype & SKINNY_CFWD_ALL) {

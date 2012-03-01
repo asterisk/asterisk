@@ -5845,7 +5845,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_debug(1, "Detaching from %s\n", ast_channel_name(p->owner));
 		ast_channel_tech_pvt_set(p->owner, NULL);
 		/* Make sure that the channel knows its backend is going away */
-		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
 		if (lockowner)
 			ast_channel_unlock(p->owner);
 		/* Give the channel a chance to react before deallocation */
@@ -7240,8 +7240,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	ast_channel_tech_pvt_set(tmp, dialog_ref(i, "sip_new: set chan->tech_pvt to i"));
 
-	tmp->callgroup = i->callgroup;
-	tmp->pickupgroup = i->pickupgroup;
+	ast_channel_callgroup_set(tmp, i->callgroup);
+	ast_channel_pickupgroup_set(tmp, i->pickupgroup);
 	ast_channel_caller(tmp)->id.name.presentation = i->callingpres;
 	ast_channel_caller(tmp)->id.number.presentation = i->callingpres;
 	if (!ast_strlen_zero(i->parkinglot)) {

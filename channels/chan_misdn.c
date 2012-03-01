@@ -5983,8 +5983,8 @@ static int read_config(struct chan_list *ch)
 	misdn_cfg_get(port, MISDN_CFG_PICKUPGROUP, &pg, sizeof(pg));
 	misdn_cfg_get(port, MISDN_CFG_CALLGROUP, &cg, sizeof(cg));
 	chan_misdn_log(5, port, " --> * CallGrp:%s PickupGrp:%s\n", ast_print_group(buf, sizeof(buf), cg), ast_print_group(buf2, sizeof(buf2), pg));
-	ast->pickupgroup = pg;
-	ast->callgroup = cg;
+	ast_channel_pickupgroup_set(ast, pg);
+	ast_channel_callgroup_set(ast, cg);
 
 	if (ch->originator == ORG_AST) {
 		char callerid[BUFFERSIZE + 1];
