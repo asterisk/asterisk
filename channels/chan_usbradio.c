@@ -1526,8 +1526,9 @@ static int setformat(struct chan_usbradio_pvt *o, int mode)
 		ast_log(LOG_WARNING, "Unable to re-open DSP device %d: %s\n", o->devicenum, strerror(errno));
 		return -1;
 	}
-	if (o->owner)
-		o->owner->fds[0] = fd;
+	if (o->owner) {
+		ast_channel_internal_fd_set(o->owner, 0, fd);
+	}
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	fmt = AFMT_S16_LE;
@@ -2181,7 +2182,7 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 	ast_channel_tech_set(c, &usbradio_tech);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
-	c->fds[0] = o->sounddev;	/* -1 if device closed, override later */
+	ast_channel_internal_fd_set(c, 0, o->sounddev);/* -1 if device closed, override later */
 	ast_format_cap_add(ast_channel_nativeformats(c), &slin);
 	ast_format_set(ast_channel_readformat(c), AST_FORMAT_SLINEAR, 0);
 	ast_format_set(ast_channel_writeformat(c), AST_FORMAT_SLINEAR, 0);
