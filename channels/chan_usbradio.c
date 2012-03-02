@@ -1118,7 +1118,7 @@ static void kickptt(struct chan_usbradio_pvt *o)
 static void *hidthread(void *arg)
 {
 	unsigned char buf[4],bufsave[4],keyed;
-	char lastrx, txtmp;
+	char txtmp;
 	int res;
 	struct usb_device *usb_dev;
 	struct usb_dev_handle *usb_handle;
@@ -1157,7 +1157,6 @@ static void *hidthread(void *arg)
 		pthread_exit(NULL);
 	}
 	traceusb1(("hidthread: Starting normally on %s!!\n",o->name));
-	lastrx = 0;
 	// popen 
 	while (!o->stophid) {
 		pfd.fd = o->pttkick[0];
@@ -2871,11 +2870,9 @@ static void tune_rxinput(int fd, struct chan_usbradio_pvt *o)
 	float settingmax;
 	
 	int setting=0, tries=0, tmpdiscfactor, meas;
-	int tunetype=0;
 
 	settingmax = o->micmax;
 
-	if(o->pmrChan->rxDemod)tunetype=1;
 	o->pmrChan->b.tuning=1;
 
 	setting = settingstart;
