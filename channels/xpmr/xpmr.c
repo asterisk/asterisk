@@ -480,7 +480,7 @@ i16 pmr_rx_frontend(t_pmr_sps *mySps)
 	#define DCgainBpfNoise 	65536
 
 	i16 samples,iOutput, *input, *output, *noutput;
-	i16 *x, *coef, *coef2;
+	i16 *x, *coef;
     i32 i, naccum, outputGain, calcAdjust;
 	i64 y;
 	i16 nx, hyst, setpt, compOut;
@@ -500,7 +500,6 @@ i16 pmr_rx_frontend(t_pmr_sps *mySps)
 
 	nx        = mySps->nx;
 	coef      = mySps->coef;
-	coef2     = mySps->coef2;
 
 	calcAdjust = mySps->calcAdjust;
 	outputGain = mySps->outputGain;
@@ -779,7 +778,7 @@ i16 gp_inte_00(t_pmr_sps *mySps)
 	i16 npoints;
  	i16 *input, *output;
 
-	i32 inputGain, outputGain,calcAdjust;
+	i32 outputGain;
 	i32	i;
 	i32 accum;
 
@@ -794,9 +793,7 @@ i16 gp_inte_00(t_pmr_sps *mySps)
 
 	npoints=mySps->nSamples;
 
-	inputGain=mySps->inputGain;
 	outputGain=mySps->outputGain;
-	calcAdjust=mySps->calcAdjust;
 
 	coeff00=((i16*)mySps->coef)[0];
 	coeff01=((i16*)mySps->coef)[1];
@@ -824,13 +821,12 @@ i16 gp_diff(t_pmr_sps *mySps)
 {
  	i16 *input, *output;
 	i16 npoints;
-	i32 inputGain, outputGain, calcAdjust;
+	i32 outputGain, calcAdjust;
 	i32	i;
 	i32 temp0,temp1;
  	i16 x0;
 	i32 _y0;
 	i16 a0,a1;
-	i16 b0;
 	i16 *coef;
 	i16 *x;
 
@@ -839,7 +835,6 @@ i16 gp_diff(t_pmr_sps *mySps)
 
 	npoints=mySps->nSamples;
 
-	inputGain=mySps->inputGain;
 	outputGain=mySps->outputGain;
 	calcAdjust=mySps->calcAdjust;
 
@@ -847,7 +842,6 @@ i16 gp_diff(t_pmr_sps *mySps)
 	x=(i16*)(mySps->x);
 	a0=coef[0];
 	a1=coef[1];
-	b0=coef[2];
 
 	x0=x[0];
 
@@ -875,10 +869,10 @@ i16 gp_diff(t_pmr_sps *mySps)
 */
 i16 CenterSlicer(t_pmr_sps *mySps)
 {
-	i16 npoints,lhit,uhit;
+	i16 npoints/*, lhit, uhit*/;
  	i16 *input, *output, *buff;
 
-	i32 inputGain, outputGain, inputGainB;
+	i32 inputGainB;
 	i32	i;
 	i32 accum;
 
@@ -901,8 +895,6 @@ i16 CenterSlicer(t_pmr_sps *mySps)
 
 	npoints=mySps->nSamples;
 
-	inputGain=mySps->inputGain;
-	outputGain=mySps->outputGain;
 	inputGainB=mySps->inputGainB;
 
 	amax=mySps->amax;
@@ -922,26 +914,26 @@ i16 CenterSlicer(t_pmr_sps *mySps)
 		#endif
 		accum=input[i];
 
-		lhit=uhit=0;
+		/* lhit=uhit=0; */
 
 		if(accum>amax)
 		{
 			amax=accum;
-			uhit=1;
+			/* uhit=1; */
 			if(amin<(amax-setpt))
 			{
 				amin=(amax-setpt);
-				lhit=1;
+				/* lhit=1; */
 			}
 		}
 		else if(accum<amin)
 		{
 			amin=accum;
-			lhit=1;
+			/* lhit=1; */
 			if(amax>(amin+setpt))
 			{
 				amax=(amin+setpt);
-				uhit=1;
+				/* uhit=1; */
 			}
 		}
 		#if 0
@@ -1010,7 +1002,6 @@ i16 MeasureBlock(t_pmr_sps *mySps)
 	i16 npoints;
  	i16 *input, *output;
 
-	i32 inputGain, outputGain;
 	i32	i;
 	i32 accum;
 
@@ -1039,9 +1030,6 @@ i16 MeasureBlock(t_pmr_sps *mySps)
 	output	= mySps->sink;
 
 	npoints=mySps->nSamples;
-
-	inputGain=mySps->inputGain;
-	outputGain=mySps->outputGain;
 
 	amax=mySps->amax;
 	amin=mySps->amin;
@@ -1102,7 +1090,7 @@ i16 SoftLimiter(t_pmr_sps *mySps)
 	//i16 samples, lhit,uhit;
  	i16 *input, *output;
 
-	i32 inputGain, outputGain;
+	i32 /*inputGain, */outputGain;
 	i32	i;
 	i32 accum;
 	i32  tmp;
@@ -1111,12 +1099,11 @@ i16 SoftLimiter(t_pmr_sps *mySps)
 	i32  amin;			// buffer amplitude minimum
 	//i32  apeak;		// buffer amplitude peak
 	i32  setpt;			// amplitude set point for amplitude comparator
-	i16  compOut;		// amplitude comparator output
 
 	input   = mySps->source;
 	output	= mySps->sink;
 
-	inputGain=mySps->inputGain;
+	/* inputGain=mySps->inputGain; */
 	outputGain=mySps->outputGain;
 
 	npoints=mySps->nSamples;
@@ -1137,7 +1124,6 @@ i16 SoftLimiter(t_pmr_sps *mySps)
 		    tmp=((accum-setpt)*4)/128;
 		    accum=setpt+tmp;
 			if(accum>amax)accum=amax;
-			compOut=1;
 			accum=setpt;
 		}
 		else if(accum<-setpt)
@@ -1145,7 +1131,6 @@ i16 SoftLimiter(t_pmr_sps *mySps)
 		    tmp=((accum+setpt)*4)/128;
 		    accum=(-setpt)-tmp;
 			if(accum<amin)accum=amin;
-			compOut=1;
 			accum=-setpt;
 		}
 
@@ -1392,8 +1377,8 @@ i16 DelayLine(t_pmr_sps *mySps)
 i16 ctcss_detect(t_pmr_chan *pChan)
 {
 	i16 i,points2do,*pInput,hit,thit,relax;
-	i16 tnum, tmp,indexNow,gain,diffpeak;
-	i16 difftrig;
+	i16 tnum, tmp,indexNow,diffpeak;
+	/* i16 difftrig; */
 	i16 tv0,tv1,tv2,tv3,indexDebug;
 	i16 points=0;
 	i16 indexWas=0;
@@ -1408,10 +1393,11 @@ i16 ctcss_detect(t_pmr_chan *pChan)
 
 	relax  = pChan->rxCtcss->relax;
 	pInput = pChan->rxCtcss->input;
-	gain   = pChan->rxCtcss->gain;
 
+	/*
 	if(relax) difftrig=(-0.1*M_Q15);
 	else difftrig=(-0.05*M_Q15);
+	*/
 
 	thit=hit=-1;
 
