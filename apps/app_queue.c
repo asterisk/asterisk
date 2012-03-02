@@ -135,6 +135,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="d">
 						<para>data-quality (modem) call (minimum delay).</para>
 					</option>
+					<option name="F" argsep="^">
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" />
+						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis>
+						to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
+						<note>
+							<para>Any channel variables you want the called channel to inherit from the caller channel must be
+							prefixed with one or two underbars ('_').</para>
+						</note>
+					</option>
+					<option name="F">
+						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis> to the next priority of
+						the current extension and <emphasis>start</emphasis> execution at that location.</para>
+						<note>
+							<para>Any channel variables you want the called channel to inherit from the caller channel must be
+							prefixed with one or two underbars ('_').</para>
+						</note>
+						<note>
+							<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+						</note>
+					</option>
 					<option name="h">
 						<para>Allow <emphasis>callee</emphasis> to hang up by pressing <literal>*</literal>.</para>
 					</option>
@@ -849,6 +871,56 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 enum {
+	OPT_MARK_AS_ANSWERED =       (1 << 0),
+	OPT_GO_ON =                  (1 << 1),
+	OPT_DATA_QUALITY =           (1 << 2),
+	OPT_CALLEE_GO_ON =           (1 << 3),
+	OPT_CALLEE_HANGUP =          (1 << 4),
+	OPT_CALLER_HANGUP =          (1 << 5),
+	OPT_IGNORE_CALL_FW =         (1 << 6),
+	OPT_UPDATE_CONNECTED =       (1 << 7),
+	OPT_CALLEE_PARK =            (1 << 8),
+	OPT_CALLER_PARK =            (1 << 9),
+	OPT_NO_RETRY =               (1 << 10),
+	OPT_RINGING =                (1 << 11),
+	OPT_RING_WHEN_RINGING =      (1 << 12),
+	OPT_CALLEE_TRANSFER =        (1 << 13),
+	OPT_CALLER_TRANSFER =        (1 << 14),
+	OPT_CALLEE_AUTOMIXMON =      (1 << 15),
+	OPT_CALLER_AUTOMIXMON =      (1 << 16),
+	OPT_CALLEE_AUTOMON =         (1 << 17),
+	OPT_CALLER_AUTOMON =         (1 << 18),
+};
+
+enum {
+	OPT_ARG_CALLEE_GO_ON = 0,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE
+};
+
+AST_APP_OPTIONS(queue_exec_options, BEGIN_OPTIONS
+	AST_APP_OPTION('C', OPT_MARK_AS_ANSWERED),
+	AST_APP_OPTION('c', OPT_GO_ON),
+	AST_APP_OPTION('d', OPT_DATA_QUALITY),
+	AST_APP_OPTION_ARG('F', OPT_CALLEE_GO_ON, OPT_ARG_CALLEE_GO_ON),
+	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
+	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
+	AST_APP_OPTION('i', OPT_IGNORE_CALL_FW),
+	AST_APP_OPTION('I', OPT_UPDATE_CONNECTED),
+	AST_APP_OPTION('k', OPT_CALLEE_PARK),
+	AST_APP_OPTION('K', OPT_CALLER_PARK),
+	AST_APP_OPTION('n', OPT_NO_RETRY),
+	AST_APP_OPTION('r', OPT_RINGING),
+	AST_APP_OPTION('R', OPT_RING_WHEN_RINGING),
+	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
+	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
+	AST_APP_OPTION('x', OPT_CALLEE_AUTOMIXMON),
+	AST_APP_OPTION('X', OPT_CALLER_AUTOMIXMON),
+	AST_APP_OPTION('w', OPT_CALLEE_AUTOMON),
+	AST_APP_OPTION('W', OPT_CALLER_AUTOMON),
+END_OPTIONS);
+
+enum {
 	QUEUE_STRATEGY_RINGALL = 0,
 	QUEUE_STRATEGY_LEASTRECENT,
 	QUEUE_STRATEGY_FEWESTCALLS,
@@ -1229,6 +1301,21 @@ static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 		if (queue_results[i].id == res) {
 			pbx_builtin_setvar_helper(chan, "QUEUESTATUS", queue_results[i].text);
 			return;
+		}
+	}
+}
+
+/*!
+ * \internal
+ * \brief Converts delimited '^' characters in a target priority/extension/context string
+ *  to commas so that they can be used with ast_parseable_goto.
+ * \param s string that '^' characters are being replaced in.
+ */
+static void replace_macro_delimiter(char *s)
+{
+	for (; *s; s++) {
+		if (*s == '^') {
+			*s = ',';
 		}
 	}
 }
@@ -4413,7 +4500,9 @@ static void end_bridge_callback(void *data)
 	}
 }
 
-/*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
+/*!
+ * \internal
+ * \brief A large function which calls members, updates statistics, and bridges the caller and a member
  *
  * Here is the process of this function
  * 1. Process any options passed to the Queue() application. Options here mean the third argument to Queue()
@@ -4430,7 +4519,8 @@ static void end_bridge_callback(void *data)
  * 9. Do any post processing after the call has disconnected.
  *
  * \param[in] qe the queue_ent structure which corresponds to the caller attempting to reach members
- * \param[in] options the options passed as the third parameter to the Queue() application
+ * \param[in] opts the options passed as the third parameter to the Queue() application
+ * \param[in] opt_args the options passed as the third parameter to the Queue() application
  * \param[in] announceoverride filename to play to user when waiting 
  * \param[in] url the url passed as the fourth parameter to the Queue() application
  * \param[in,out] tries the number of times we have tried calling queue members
@@ -4440,7 +4530,7 @@ static void end_bridge_callback(void *data)
  * \param[in] gosub the gosub passed as the seventh parameter to the Queue() application
  * \param[in] ringing 1 if the 'r' option is set, otherwise 0
  */
-static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *macro, const char *gosub, int ringing)
+static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char **opt_args, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *macro, const char *gosub, int ringing)
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
@@ -4499,62 +4589,59 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		res = 0;
 		goto out;
 	}
-		
-	for (; options && *options; options++)
-		switch (*options) {
-		case 't':
-			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_REDIRECT);
-			break;
-		case 'T':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_REDIRECT);
-			break;
-		case 'w':
-			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMON);
-			break;
-		case 'W':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
-			break;
-		case 'c':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_NO_H_EXTEN);
-			break;
-		case 'd':
-			nondataquality = 0;
-			break;
-		case 'h':
-			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_DISCONNECT);
-			break;
-		case 'H':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
-			break;
-		case 'k':
-			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_PARKCALL);
-			break;
-		case 'K':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
-			break;
-		case 'n':
-			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED)
-				(*tries)++;
-			else
-				*tries = ao2_container_count(qe->parent->members);
-			*noption = 1;
-			break;
-		case 'i':
-			forwardsallowed = 0;
-			break;
-		case 'I':
-			update_connectedline = 0;
-			break;
-		case 'x':
-			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMIXMON);
-			break;
-		case 'X':
-			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMIXMON);
-			break;
-		case 'C':
-			qe->cancel_answered_elsewhere = 1;
-			break;
-		}
+
+	if (ast_test_flag(&opts, OPT_CALLEE_TRANSFER)) {
+		ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_REDIRECT);
+	}
+	if (ast_test_flag(&opts, OPT_CALLER_TRANSFER)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_REDIRECT);
+	}
+	if (ast_test_flag(&opts, OPT_CALLEE_AUTOMON)) {
+		ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMON);
+	}
+	if (ast_test_flag(&opts, OPT_CALLER_AUTOMON)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
+	}
+	if (ast_test_flag(&opts, OPT_GO_ON)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_NO_H_EXTEN);
+	}
+	if (ast_test_flag(&opts, OPT_DATA_QUALITY)) {
+		nondataquality = 0;
+	}
+	if (ast_test_flag(&opts, OPT_CALLEE_HANGUP)) {
+		ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_DISCONNECT);
+	}
+	if (ast_test_flag(&opts, OPT_CALLER_HANGUP)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
+	}
+	if (ast_test_flag(&opts, OPT_CALLEE_PARK)) {
+		ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_PARKCALL);
+	}
+	if (ast_test_flag(&opts, OPT_CALLER_PARK)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
+	}
+	if (ast_test_flag(&opts, OPT_NO_RETRY)) {
+		if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED)
+			(*tries)++;
+		else
+			*tries = ao2_container_count(qe->parent->members);
+		*noption = 1;
+	}
+	if (ast_test_flag(&opts, OPT_IGNORE_CALL_FW)) {
+		forwardsallowed = 0;
+	}
+	if (ast_test_flag(&opts, OPT_UPDATE_CONNECTED)) {
+		update_connectedline = 0;
+	}
+	if (ast_test_flag(&opts, OPT_CALLEE_AUTOMIXMON)) {
+		ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMIXMON);
+	}
+	if (ast_test_flag(&opts, OPT_CALLER_AUTOMIXMON)) {
+		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMIXMON);
+	}
+	if (ast_test_flag(&opts, OPT_MARK_AS_ANSWERED)) {
+		qe->cancel_answered_elsewhere = 1;
+	}
 
 	/* if the calling channel has the ANSWERED_ELSEWHERE flag set, make sure this is inherited. 
 		(this is mainly to support chan_local)
@@ -4743,6 +4830,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 		}
 	} else { /* peer is valid */
+		/* These variables are used with the F option without arguments (callee jumps to next priority after queue) */
+		char *caller_context;
+		char *caller_extension;
+		int caller_priority;
+
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -4870,12 +4962,17 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* try to set queue variables if configured to do so*/
 		set_queue_variables(qe->parent, qe->chan);
 		set_queue_variables(qe->parent, peer);
-		
+
 		ast_channel_lock(qe->chan);
+		/* Copy next destination data for 'F' option (no args) */
+		caller_context = ast_strdupa(ast_channel_context(qe->chan));
+		caller_extension = ast_strdupa(ast_channel_exten(qe->chan));
+		caller_priority = ast_channel_priority(qe->chan);
 		if ((monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME"))) {
 				monitorfilename = ast_strdupa(monitorfilename);
 		}
 		ast_channel_unlock(qe->chan);
+
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
@@ -5220,7 +5317,30 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (transfer_ds) {
 			ast_datastore_free(transfer_ds);
 		}
-		ast_hangup(peer);
+
+		if (!ast_check_hangup(peer) && ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
+			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
+				int res;
+				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+				if (res == AST_PBX_SUCCESS) {
+					ast_pbx_start(peer);
+				} else {
+					ast_hangup(peer);
+				}
+			} else { /* F() */
+				int res;
+				res = ast_goto_if_exists(peer, caller_context, caller_extension, caller_priority + 1);
+				if (res == AST_PBX_GOTO_FAILED) {
+					ast_hangup(peer);
+				} else {
+					ast_pbx_start(peer);
+				}
+			}
+		} else {
+			ast_hangup(peer);
+		}
+
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
 	}
@@ -6037,14 +6157,20 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	);
 	/* Our queue entry */
 	struct queue_ent qe = { 0 };
-	
+	struct ast_flags opts = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,macro[,gosub[,rule[,position]]]]]]]]]\n");
 		return -1;
 	}
-	
+
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(queue_exec_options, &opts, opt_args, args.options);
+	}
 
 	/* Setup our queue entry */
 	qe.start = time(NULL);
@@ -6098,15 +6224,17 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_channel_unlock(chan);
 
-	if (args.options && (strchr(args.options, 'r')))
+	if (ast_test_flag(&opts, OPT_RINGING)) {
 		ringing = 1;
+	}
 
-	if (ringing != 1 && args.options && (strchr(args.options, 'R'))) {
+	if (ringing != 1 && ast_test_flag(&opts, OPT_RING_WHEN_RINGING)) {
 		qe.ring_when_ringing = 1;
 	}
 
-	if (args.options && (strchr(args.options, 'c')))
+	if (ast_test_flag(&opts, OPT_GO_ON)) {
 		qcontinue = 1;
+	}
 
 	if (args.position) {
 		position = atoi(args.position);
@@ -6198,7 +6326,7 @@ check_turns:
 		}
 
 		/* Try calling all queue members for 'timeout' seconds */
-		res = try_calling(&qe, args.options, args.announceoverride, args.url, &tries, &noption, args.agi, args.macro, args.gosub, ringing);
+		res = try_calling(&qe, opts, opt_args, args.announceoverride, args.url, &tries, &noption, args.agi, args.macro, args.gosub, ringing);
 		if (res) {
 			goto stop;
 		}
