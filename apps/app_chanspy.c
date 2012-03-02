@@ -742,23 +742,18 @@ static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
 		return NULL;
 	}
 
-redo:
-	if (!(next = ast_channel_iterator_next(iter))) {
-		return NULL;
-	}
+	for (; (next = ast_channel_iterator_next(iter)); ast_channel_unref(next)) {
+		if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)
+			|| next == chan) {
+			continue;
+		}
 
-	if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)) {
+		autochan_store = ast_autochan_setup(next);
 		ast_channel_unref(next);
-		goto redo;
-	} else if (next == chan) {
-		ast_channel_unref(next);
-		goto redo;
+
+		return autochan_store;
 	}
-
-	autochan_store = ast_autochan_setup(next);
-	ast_channel_unref(next);
-
-	return autochan_store;
+	return NULL;
 }
 
 static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
