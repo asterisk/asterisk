@@ -3342,6 +3342,16 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 	c->timingfunc = func;
 	ast_channel_timingdata_set(c, data);
 
+	if (func == NULL && rate == 0 && ast_channel_fdno(c) == AST_TIMING_FD) {
+		/* Clearing the timing func and setting the rate to 0
+		 * means that we don't want to be reading from the timingfd
+		 * any more. Setting c->fdno to -1 means we won't have any
+		 * errant reads from the timingfd, meaning we won't potentially
+		 * miss any important frames.
+		 */
+		ast_channel_fdno_set(c, -1);
+	}
+
 	ast_channel_unlock(c);
 
 	return res;
@@ -3614,13 +3624,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	prestate = ast_channel_state(chan);
 
-	/* Read and ignore anything on the alertpipe, but read only
-	   one sizeof(blah) per frame that we send from it */
-	if (ast_channel_internal_alert_read(chan) == AST_ALERT_READ_FATAL) {
-		f = &ast_null_frame;
-		goto done;
-	}
-
 	if (ast_channel_timingfd(chan) > -1 && ast_channel_fdno(chan) == AST_TIMING_FD) {
 		enum ast_timer_event res;
 
@@ -3669,6 +3672,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		goto done;
 	} else if (ast_channel_fd_isset(chan, AST_JITTERBUFFER_FD) && ast_channel_fdno(chan) == AST_JITTERBUFFER_FD) {
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+	}
+
+	/* Read and ignore anything on the alertpipe, but read only
+	   one sizeof(blah) per frame that we send from it */
+	if (ast_channel_internal_alert_read(chan) == AST_ALERT_READ_FATAL) {
+		f = &ast_null_frame;
+		goto done;
 	}
 
 	/* Check for pending read queue */
