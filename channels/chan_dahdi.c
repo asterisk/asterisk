@@ -3078,7 +3078,7 @@ static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 	old_chan->owner = NULL;
 	if (new_chan->owner) {
 		ast_channel_tech_pvt_set(new_chan->owner, new_chan);
-		ast_channel_fd_set(new_chan->owner, 0, new_chan->subs[SUB_REAL].dfd);
+		ast_channel_internal_fd_set(new_chan->owner, 0, new_chan->subs[SUB_REAL].dfd);
 		new_chan->subs[SUB_REAL].owner = old_chan->subs[SUB_REAL].owner;
 		old_chan->subs[SUB_REAL].owner = NULL;
 	}
