@@ -4435,7 +4435,6 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	int retval;
 	int chanpos_old;
 	int chanpos_new;
-	struct ast_channel *bridged;
 	struct ast_channel *owner;
 
 	chanpos_old = pri_find_principle_by_call(pri, ev->hold.call);
@@ -4456,9 +4455,11 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	if (!owner) {
 		goto done_with_private;
 	}
-	bridged = ast_bridged_channel(owner);
-	if (!bridged) {
-		/* Cannot hold a call that is not bridged. */
+	if (pri->pvts[chanpos_old]->call_level != SIG_PRI_CALL_LEVEL_CONNECT) {
+		/*
+		 * Make things simple.  Don't allow placing a call on hold that
+		 * is not connected.
+		 */
 		goto done_with_owner;
 	}
 	chanpos_new = pri_find_empty_nobch(pri);
