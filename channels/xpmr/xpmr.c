@@ -1555,7 +1555,7 @@ i16 ctcss_detect(t_pmr_chan *pChan)
 			}
 			#endif
 			indexWas=indexNow;
-			ptdet->zIndex=(++ptdet->zIndex)%4;
+			ptdet->zIndex=(ptdet->zIndex + 1) % 4;
 		}
 		ptdet->counter-=(points2do*CTCSS_SCOUNT_MUL);
 
@@ -2019,7 +2019,7 @@ t_pmr_chan	*createPmrChannel(t_pmr_chan *tChan, i16 numSamples)
 	pSps->sigProc=pmr_rx_frontend;
 	pSps->enabled=1;
 	pSps->decimator=pSps->decimate=6;
-	pSps->interpolate=pSps->interpolate=1;
+	pSps->interpolate=1;
 	pSps->nSamples=pChan->nSamplesRx;
 	pSps->ncoef=taps_fir_bpf_noise_1;
 	pSps->size_coef=2;
