@@ -897,6 +897,26 @@ int ast_check_digits(const char *arg),
 )
 
 /*!
+ * \brief Convert the tech portion of a device string to upper case
+ *
+ * \retval dev_str Returns the char* passed in for convenience
+ */
+AST_INLINE_API(
+char *ast_tech_to_upper(char *dev_str),
+{
+	char *pos;
+	if (!dev_str || !strchr(dev_str, '/')) {
+		return dev_str;
+	}
+
+	for (pos = dev_str; *pos && *pos != '/'; pos++) {
+		*pos = toupper(*pos);
+	}
+	return dev_str;
+}
+)
+
+/*!
  * \brief Compute a hash value on a string
  *
  * This famous hash algorithm was written by Dan Bernstein and is

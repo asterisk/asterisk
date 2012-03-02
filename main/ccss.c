@@ -1232,7 +1232,10 @@ static int generic_monitor_cmp_fn(void *obj, void *arg, int flags)
 
 static struct generic_monitor_instance_list *find_generic_monitor_instance_list(const char * const device_name)
 {
-	struct generic_monitor_instance_list finder = {.device_name = device_name};
+	struct generic_monitor_instance_list finder = {0};
+	char *uppertech = ast_strdupa(device_name);
+	ast_tech_to_upper(uppertech);
+	finder.device_name = uppertech;
 
 	return ao2_t_find(generic_monitors, &finder, OBJ_POINTER, "Finding generic monitor instance list");
 }
@@ -1254,15 +1257,18 @@ static struct generic_monitor_instance_list *create_new_generic_list(struct ast_
 {
 	struct generic_monitor_instance_list *generic_list = ao2_t_alloc(sizeof(*generic_list),
 			generic_monitor_instance_list_destructor, "allocate generic monitor instance list");
+	char * device_name;
 
 	if (!generic_list) {
 		return NULL;
 	}
 
-	if (!(generic_list->device_name = ast_strdup(monitor->interface->device_name))) {
+	if (!(device_name = ast_strdup(monitor->interface->device_name))) {
 		cc_unref(generic_list, "Failed to strdup the monitor's device name");
 		return NULL;
 	}
+	ast_tech_to_upper(device_name);
+	generic_list->device_name = device_name;
 
 	if (!(generic_list->sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE,
 		generic_monitor_devstate_cb, "Requesting CC", NULL,
