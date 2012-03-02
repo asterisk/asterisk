@@ -97,8 +97,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="m">
 						<argument name="mailbox" required="true" />
-						<para>Create a copy of the recording as a voicemail in the indicated <emphasis>mailbox</emphasis(es)</para>
-						separated by commas eg. m(1111@default,2222@default,...)
+						<para>Create a copy of the recording as a voicemail in the indicated <emphasis>mailbox</emphasis>(es)
+						separated by commas eg. m(1111@default,2222@default,...)</para>
 					</option>
 				</optionlist>
 			</parameter>
