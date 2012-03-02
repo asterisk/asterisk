@@ -13011,7 +13011,7 @@ static void set_config_destroy(void)
 {
 	strcpy(accountcode, "");
 	strcpy(language, "");
-	strcpy(mohinterpret, "default");
+	strcpy(mohinterpret, "");
 	strcpy(mohsuggest, "");
 	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
