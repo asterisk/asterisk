@@ -3558,6 +3558,16 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 	c->timingfunc = func;
 	c->timingdata = data;
 
+	if (func == NULL && rate == 0 && c->fdno == AST_TIMING_FD) {
+		/* Clearing the timing func and setting the rate to 0
+		 * means that we don't want to be reading from the timingfd
+		 * any more. Setting c->fdno to -1 means we won't have any
+		 * errant reads from the timingfd, meaning we won't potentially
+		 * miss any important frames.
+		 */
+		c->fdno = -1;
+	}
+
 	ast_channel_unlock(c);
 
 	return res;
@@ -3830,27 +3840,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 
 	prestate = chan->_state;
-
-	/* Read and ignore anything on the alertpipe, but read only
-	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1) {
-		int flags = fcntl(chan->alertpipe[0], F_GETFL);
-		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
-		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
-		if ((flags & O_NONBLOCK) == 0) {
-			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", chan->name);
-			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				f = &ast_null_frame;
-				goto done;
-			}
-		}
-		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
-			if (errno != EINTR && errno != EAGAIN)
-				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
-		}
-	}
-
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD) {
 		enum ast_timer_event res;
 
@@ -3900,6 +3889,27 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	} else if (chan->fds[AST_JITTERBUFFER_FD] > -1 && chan->fdno == AST_JITTERBUFFER_FD) {
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 	}
+
+	/* Read and ignore anything on the alertpipe, but read only
+	   one sizeof(blah) per frame that we send from it */
+	if (chan->alertpipe[0] > -1) {
+		int flags = fcntl(chan->alertpipe[0], F_GETFL);
+		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
+		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
+		if ((flags & O_NONBLOCK) == 0) {
+			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", chan->name);
+			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+				f = &ast_null_frame;
+				goto done;
+			}
+		}
+		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
+			if (errno != EINTR && errno != EAGAIN)
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+		}
+	}
+
 
 	/* Check for pending read queue */
 	if (!AST_LIST_EMPTY(&chan->readq)) {
