@@ -748,8 +748,10 @@ redo:
 	}
 
 	if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)) {
+		ast_channel_unref(next);
 		goto redo;
 	} else if (next == chan) {
+		ast_channel_unref(next);
 		goto redo;
 	}
 
