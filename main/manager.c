@@ -5852,10 +5852,20 @@ static void process_output(struct mansession *s, struct ast_str **out, struct as
 		xml_translate(out, "", params, format);
 	}
 
-	fclose(s->f);
-	s->f = NULL;
-	close(s->fd);
-	s->fd = -1;
+	if (s->f) {
+		if (fclose(s->f)) {
+			ast_log(LOG_ERROR, "fclose() failed: %s\n", strerror(errno));
+		}
+		s->f = NULL;
+		s->fd = -1;
+	} else if (s->fd != -1) {
+		if (close(s->fd)) {
+			ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
+		}
+		s->fd = -1;
+	} else {
+		ast_log(LOG_ERROR, "process output attempted to close file/file descriptor on mansession without a valid file or file descriptor.\n");
+	}
 }
 
 static int generic_http_callback(struct ast_tcptls_session_instance *ser,
