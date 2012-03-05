@@ -2600,17 +2600,17 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig
 
 static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, float txdrc, int law);
 
-#if defined(HAVE_PRI)
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 /*!
  * \internal
- * \brief Open the PRI channel media path.
+ * \brief Open the PRI/SS7 channel media path.
  * \since 1.8
  *
  * \param p Channel private control structure.
  *
  * \return Nothing
  */
-static void my_pri_open_media(void *p)
+static void my_pri_ss7_open_media(void *p)
 {
 	struct dahdi_pvt *pvt = p;
 	int res;
@@ -2649,7 +2649,7 @@ static void my_pri_open_media(void *p)
 		pvt->dsp_features = 0;
 	}
 }
-#endif	/* defined(HAVE_PRI) */
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 
 #if defined(HAVE_PRI)
 /*!
@@ -3384,7 +3384,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.module_ref = my_module_ref,
 	.module_unref = my_module_unref,
 	.dial_digits = my_pri_dial_digits,
-	.open_media = my_pri_open_media,
+	.open_media = my_pri_ss7_open_media,
 	.ami_channel_event = my_ami_channel_event,
 };
 #endif	/* defined(HAVE_PRI) */
@@ -3547,6 +3547,7 @@ static struct sig_ss7_callback dahdi_ss7_callbacks =
 	.set_remotelyblocked = my_set_remotelyblocked,
 	.set_callerid = my_set_callerid,
 	.set_dnid = my_set_dnid,
+	.open_media = my_pri_ss7_open_media,
 };
 #endif	/* defined(HAVE_SS7) */
 
@@ -4461,11 +4462,13 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		zo.dialstr[1] = digit;
 		zo.dialstr[2] = '\0';
 		if ((res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Couldn't dial digit %c: %s\n", digit, strerror(errno));
+			ast_log(LOG_WARNING, "Channel %s couldn't dial digit %c: %s\n",
+				chan->name, digit, strerror(errno));
 		else
 			pvt->dialing = 1;
 	} else {
-		ast_debug(1, "Started VLDTMF digit '%c'\n", digit);
+		ast_debug(1, "Channel %s started VLDTMF digit '%c'\n",
+			chan->name, digit);
 		pvt->dialing = 1;
 		pvt->begindigit = digit;
 	}
@@ -4501,7 +4504,8 @@ static int dahdi_digit_end(struct ast_channel *chan, char digit, unsigned int du
 
 	if (pvt->begindigit) {
 		x = -1;
-		ast_debug(1, "Ending VLDTMF digit '%c'\n", digit);
+		ast_debug(1, "Channel %s ending VLDTMF digit '%c'\n",
+			chan->name, digit);
 		res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SENDTONE, &x);
 		pvt->dialing = 0;
 		pvt->begindigit = 0;
