@@ -1671,6 +1671,12 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 
 	switch (condition) {
 	case AST_CONTROL_BUSY:
+		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+			ast_channel_hangupcause_set(chan, AST_CAUSE_USER_BUSY);
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
+			res = 0;
+			break;
+		}
 		res = sig_ss7_play_tone(p, SIG_SS7_TONE_BUSY);
 		break;
 	case AST_CONTROL_RINGING:
@@ -1729,15 +1735,23 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		res = 0;
 		break;
 	case AST_CONTROL_INCOMPLETE:
-		/* If the channel is connected, wait for additional input */
-		if (p->call_level == SIG_SS7_CALL_LEVEL_CONNECT) {
+		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+			ast_channel_hangupcause_set(chan, AST_CAUSE_INVALID_NUMBER_FORMAT);
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
-		ast_channel_hangupcause_set(chan, AST_CAUSE_INVALID_NUMBER_FORMAT);
+		/* Wait for DTMF digits to complete the dialed number. */
+		res = 0;
 		break;
 	case AST_CONTROL_CONGESTION:
-		ast_channel_hangupcause_set(chan, AST_CAUSE_CONGESTION);
+		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+			ast_channel_hangupcause_set(chan, AST_CAUSE_CONGESTION);
+			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
+			res = 0;
+			break;
+		}
+		res = sig_ss7_play_tone(p, SIG_SS7_TONE_CONGESTION);
 		break;
 	case AST_CONTROL_HOLD:
 		ast_moh_start(chan, data, p->mohinterpret);
