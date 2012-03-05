@@ -1,0 +1,325 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-10.2.0</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-10.2.0</h3>
+<h3 align="center">Date: 2012-03-05</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-10.1.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+19 rmudgett<br/>
+17 mjordan<br/>
+12 kmoore<br/>
+11 jrose<br/>
+8 mmichelson<br/>
+6 kpfleming<br/>
+5 twilson<br/>
+3 bebuild<br/>
+3 russell<br/>
+3 wdoekes<br/>
+2 alecdavis<br/>
+2 file<br/>
+2 schmidts<br/>
+2 seanbright<br/>
+1 may<br/>
+1 pabelanger<br/>
+1 Yuri<br/>
+</td>
+<td>
+1 Kristjan Vrban<br/>
+</td>
+<td>
+1 rossbeer<br/>
+1 ys<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19057">ASTERISK-19057</a>: message-summary NOTIFY: Port in Message-Account added twice  and mwi_from (sip.conf) has no effect<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351762">351762</a><br/>
+Reporter: ys<br/>
+Coders: Yuri<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19173">ASTERISK-19173</a>: All blind transfers failing on 1.8.9.0-rc1<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352228">352228</a><br/>
+Reporter: rossbeer<br/>
+Testers: Kristjan Vrban<br/>
+Coders: mmichelson<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349451">349451</a></td><td>jrose</td><td>Fix documentation for SayNumber to reflect the fact that language is changed in CHANNEL()</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18962">ASTERISK-18962</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349502">349502</a></td><td>jrose</td><td>Adds Subscription-State header to notify with call completion. per RFC3265</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17953">ASTERISK-17953</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349505">349505</a></td><td>kmoore</td><td>Update autosupport script and man page</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349532">349532</a></td><td>kmoore</td><td>Make debian init script conform to the LSB standard</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17958">ASTERISK-17958</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349559">349559</a></td><td>rmudgett</td><td>Fix segfault in chan_dahdi for CHANNEL(dahdi_span) evaluation on hangup.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19142">ASTERISK-19142</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349608">349608</a></td><td>mjordan</td><td>Free successfully translated frame in fax_gateway_framehook</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19133">ASTERISK-19133</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349619">349619</a></td><td>mjordan</td><td>Fix for ConfBridge config parser unlocking channel mutex too many times</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19042">ASTERISK-19042</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349673">349673</a></td><td>jrose</td><td>Ensures Asterisk closes when receiving terminal signals in 'no fork' mode.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19127">ASTERISK-19127</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349729">349729</a></td><td>jrose</td><td>Fix an issue where dsp.c would interpret multiple dtmf events from a single key press.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17493">ASTERISK-17493</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349732">349732</a></td><td>kmoore</td><td>Allow playback of formats that don't support seeking</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18994">ASTERISK-18994</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349820">349820</a></td><td>rmudgett</td><td>Make not assume that the cel_sqlite3_custom SQL table primary key is AcctId.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18963">ASTERISK-18963</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349822">349822</a></td><td>mjordan</td><td>Fix premature free'ing of the frame committed in r349608</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349873">349873</a></td><td>rmudgett</td><td>Fix memory leaks in app_followme find_realtime().</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19055">ASTERISK-19055</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349928">349928</a></td><td>kmoore</td><td>Fix lua goto detection to prevent unexpected behavior with confbridge</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18976">ASTERISK-18976</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=349977">349977</a></td><td>twilson</td><td>Don't leak CID in From header when presentation=unavailable</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16538">ASTERISK-16538</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350024">350024</a></td><td>kmoore</td><td>Prevent SLA settings from getting wiped out on reload</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350076">350076</a></td><td>rmudgett</td><td>Make Asterisk -x command line parameter imply -r parameter presence.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19094">ASTERISK-19094</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350129">350129</a></td><td>rmudgett</td><td>Multiple revisions 350127-350128</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17339">ASTERISK-17339</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350180">350180</a></td><td>wdoekes</td><td>Fix shutdown handling of sqlite3 astdb.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18883">ASTERISK-18883</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350221">350221</a></td><td>rmudgett</td><td>Fix joinable thread terminating without joiner memory leak in chan_iax.c.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17339">ASTERISK-17339</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-17825">ASTERISK-17825</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350312">350312</a></td><td>rmudgett</td><td>Fix absolute/relative time mismatch in LOCK function.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16868">ASTERISK-16868</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350415">350415</a></td><td>rmudgett</td><td>Make FollowMe optionally update connected line information when the accepting endpoint is bridged.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18969">ASTERISK-18969</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350453">350453</a></td><td>rmudgett</td><td>Remove extraneous BRIDGEPEER AMI VarSet event on a CEL dummy channel.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19180">ASTERISK-19180</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350502">350502</a></td><td>jrose</td><td>Adds peer to CEL report on CEL_BRIDGE_START and CEL_BRIDGE_END</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17940">ASTERISK-17940</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350550">350550</a></td><td>mjordan</td><td>Fix crash from bridge channel hangup race condition in ConfBridge</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18988">ASTERISK-18988</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-18885">ASTERISK-18885</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-19100">ASTERISK-19100</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350553">350553</a></td><td>mjordan</td><td>Realtime queues failed to load queue information without queue member table</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19170">ASTERISK-19170</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350585">350585</a></td><td>rmudgett</td><td>Add missing CEL logging fields to various CEL backends.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17190">ASTERISK-17190</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350680">350680</a></td><td>mmichelson</td><td>Set port to a default sane value if a bogus one is provided when parsing hostnames.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350731">350731</a></td><td>kmoore</td><td>Make sure asterisk builds on OpenBSD</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18929">ASTERISK-18929</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350734">350734</a></td><td>rmudgett</td><td>Correct eventtype names in cel_odbc and cel_pgsql sample files</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350737">350737</a></td><td>kmoore</td><td>Run bootstrap.sh for the for the ASTERISK-18929 fix</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18929">ASTERISK-18929</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350790">350790</a></td><td>kpfleming</td><td>Multiple revisions 350788-350789</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350838">350838</a></td><td>kpfleming</td><td>Ensure that all AC_LANG_PROGRAM calls in the configure script are properly quoted.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350886">350886</a></td><td>wdoekes</td><td>Fix -Werror=unused-but-set-variable compile error in utils/extconf.c.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-15350">ASTERISK-15350</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350889">350889</a></td><td>wdoekes</td><td>Allow only one thread at a time to do asterisk cleanup/shutdown.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18883">ASTERISK-18883</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350938">350938</a></td><td>seanbright</td><td>Sort the output of 'database show' by key.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350976">350976</a></td><td>file</td><td>Add missing code to set direct RTP setup information during dialing.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=350978">350978</a></td><td>seanbright</td><td>Sort the output of 'database showkey' as well.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351028">351028</a></td><td>mjordan</td><td>Create and initialize udptl only when dialog negotiates for image media</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16698">ASTERISK-16698</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-16794">ASTERISK-16794</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351081">351081</a></td><td>twilson</td><td>Don't prematurely stop SIP session timer</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18996">ASTERISK-18996</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351131">351131</a></td><td>twilson</td><td>Ensure ACK retransmit & hangup on non-200 response to INVITE</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17717">ASTERISK-17717</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351183">351183</a></td><td>russell</td><td>Add some missing locking in chan_sip.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18979">ASTERISK-18979</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351234">351234</a></td><td>mjordan</td><td>Fix udptl issue with initial INVITE introduced by r351027</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351286">351286</a></td><td>mmichelson</td><td>Use built-in parsing functions for Contact and Record-Route headers.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18990">ASTERISK-18990</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351289">351289</a></td><td>jrose</td><td>Adds pjmedia probation concepts to res_rtp_asterisk's learning mode.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351308">351308</a></td><td>mmichelson</td><td>Eliminate odd initialization of probation variable.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351408">351408</a></td><td>schmidts</td><td>The get_pai function in chan_sip.c didn't recognized a proper callerid name and</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351451">351451</a></td><td>mjordan</td><td>Include iLBC source code for distribution with Asterisk</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18943">ASTERISK-18943</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351505">351505</a></td><td>file</td><td>Prevent crash when an SDP offer is received with an encrypted video stream when support for video is disabled and res_srtp is loaded.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19202">ASTERISK-19202</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351560">351560</a></td><td>jrose</td><td>Eliminates doubling the :port part of SIP Notify Message-Account headers.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19057">ASTERISK-19057</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351612">351612</a></td><td>kmoore</td><td>Correct output of RTCP jitter statistics in SR and RR reports</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-14530">ASTERISK-14530</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351646">351646</a></td><td>rmudgett</td><td>Misc minor fixes in reqresp_parser.c and chan_sip.c.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351708">351708</a></td><td>schmidts</td><td>enable doxygen build for files in the channels/sip folder like reqresp_parser.c</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351761">351761</a></td><td>mjordan</td><td>Remove unused variable 'tmp' from helpfun in ilbc codec</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351816">351816</a></td><td>kmoore</td><td>Remove more set, but unused variables in the ilbc codec</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351818">351818</a></td><td>kmoore</td><td>Restore LSF_check function calls from set/unused variable removal</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351859">351859</a></td><td>kmoore</td><td></td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=351861">351861</a></td><td>kmoore</td><td>More corrections for the ilbc code</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352015">352015</a></td><td>mmichelson</td><td>Fix RTP reference leak.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19192">ASTERISK-19192</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352017">352017</a></td><td>mmichelson</td><td>Remove XXX comment that is not necessary.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352035">352035</a></td><td>rmudgett</td><td>Fix ast_app_dtget() time unit inconsistency.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16817">ASTERISK-16817</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352091">352091</a></td><td>rmudgett</td><td>Fix sip_cfg.notifycid to be set with the defined enum values.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19232">ASTERISK-19232</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352149">352149</a></td><td>mjordan</td><td>Correctly apply FAXOPT settings (V17, V27, V29) before starting spandsp layer</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16409">ASTERISK-16409</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352231">352231</a></td><td>mmichelson</td><td>Fix grammar of comment.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352292">352292</a></td><td>rmudgett</td><td>Fix locking issues with channel datastores in func_odbc.c.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17948">ASTERISK-17948</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352373">352373</a></td><td>jrose</td><td>Set core sounds version to 1.4.22.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18978">ASTERISK-18978</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352430">352430</a></td><td>mmichelson</td><td>Don't do a DNS lookup on an outbound REGISTER host if there is an outbound proxy configured.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16550">ASTERISK-16550</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352512">352512</a></td><td>jrose</td><td>Redocuments sip types peer, user, friend in sip.conf.sample</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-15537">ASTERISK-15537</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352515">352515</a></td><td>twilson</td><td>Clean up some SIP registry-related memory leaks</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352516">352516</a></td><td>kpfleming</td><td>Eliminate unnecessary rebuilds of main/format*.c.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352520">352520</a></td><td>rmudgett</td><td>Fixes for sending SIP MESSAGE outside of calls.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18992">ASTERISK-18992</a>, <a href="https://issues.asterisk.org/jira/browse/ASTERISK-18917">ASTERISK-18917</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352556">352556</a></td><td>twilson</td><td>Remove some extraneous debugging from registry memleak fix</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352616">352616</a></td><td>kpfleming</td><td>Avoid unnecessary rebuilds of main/test.c.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352651">352651</a></td><td>pabelanger</td><td>Fix -Werror=unused-but-set-variable compiler error (gcc 4.6.2)</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352705">352705</a></td><td>alecdavis</td><td>Cleanup dialog-info+xml Notify dialog</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352756">352756</a></td><td>jrose</td><td>Copy amaflags to sip_pvt from peer during create_addr_from_peer</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19029">ASTERISK-19029</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352817">352817</a></td><td>may</td><td>Fix outbound DTMF for inband mode (tell asterisk core to generate DTMF</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19233">ASTERISK-19233</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352863">352863</a></td><td>alecdavis</td><td>rfc4235 - Section 4.1: Versions MUST be representable using a non-negative 32 bit integer.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352956">352956</a></td><td>rmudgett</td><td>Audit of ao2_iterator_init() usage for v1.8.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352965">352965</a></td><td>jrose</td><td>Make failed PauseMonitor and UnpauseMonitor with no valid channel not close AMI session.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19249">ASTERISK-19249</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=352992">352992</a></td><td>rmudgett</td><td>Audit of ao2_iterator_init() usage for v10.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=353039">353039</a></td><td>rmudgett</td><td>Audit of ao2_iterator_init() usage for v10.  Missed one.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=353078">353078</a></td><td>russell</td><td>Update ast_set_default_eid() to find more network interfaces.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=353127">353127</a></td><td>kpfleming</td><td>Add 'L16-256' MIME subtype alias for slin16.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=353176">353176</a></td><td>russell</td><td>Find even more network interfaces.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=353261">353261</a></td><td>kpfleming</td><td>Clarify log WARNING message when port-zero SDP 'm' lines received.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354883">354883</a></td><td>mjordan</td><td>Create 10.2.0-rc2 tag</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354885">354885</a></td><td>mjordan</td><td>Commit r353397,354000,353916,354496,354543,354548 for 10.2.0-rc2</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=354887">354887</a></td><td>bebuild</td><td>Importing release summary for 10.2.0-rc2 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357262">357262</a></td><td>mjordan</td><td>Create 10.2.0-rc3</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357265">357265</a></td><td>mjordan</td><td>Updates for 10.2.0-rc3</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357269">357269</a></td><td>mjordan</td><td>Updated ChangeLog slightly</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357270">357270</a></td><td>bebuild</td><td>Importing release summary for 10.2.0-rc3 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357718">357718</a></td><td>mjordan</td><td>Create tag for 10.2.0-rc4</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357730">357730</a></td><td>mjordan</td><td>Merge 357667, update ChangeLog and .version</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=357739">357739</a></td><td>bebuild</td><td>Importing release summary for 10.2.0-rc4 release.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                               |    2
+CHANGES                                |   29
+ChangeLog                              |   13
+addons/chan_mobile.c                   |    9
+addons/chan_ooh323.c                   |   23
+apps/app_chanspy.c                     |   13
+apps/app_confbridge.c                  |    6
+apps/app_dial.c                        |    4
+apps/app_followme.c                    |  338 -
+apps/app_meetme.c                      |   31
+apps/app_queue.c                       |   39
+apps/app_voicemail.c                   |   17
+apps/confbridge/conf_config_parser.c   |    6
+asterisk-10.2.0-rc3-summary.html       |   62
+asterisk-10.2.0-rc3-summary.txt        |   91
+asterisk-10.2.0-rc4-summary.html       |   60
+asterisk-10.2.0-rc4-summary.txt        |   89
+autoconf/ast_gcc_attribute.m4          |    8
+autoconf/libcurl.m4                    |    4
+bootstrap.sh                           |    4
+bridges/bridge_builtin_features.c      |    8
+cel/cel_manager.c                      |   34
+cel/cel_odbc.c                         |    2
+cel/cel_sqlite3_custom.c               |    2
+channels/chan_bridge.c                 |   90
+channels/chan_dahdi.c                  |   15
+channels/chan_h323.c                   |    7
+channels/chan_iax2.c                   |   24
+channels/chan_sip.c                    |  878 +-
+channels/sip/config_parser.c           |    4
+channels/sip/include/sip.h             |   14
+channels/sip/reqresp_parser.c          |  200
+codecs/codec_ilbc.c                    |    1
+codecs/ilbc/FrameClassify.c            |  114
+codecs/ilbc/FrameClassify.h            |   27
+codecs/ilbc/LICENSE                    |   29
+codecs/ilbc/LICENSE_ADDENDUM           |   55
+codecs/ilbc/LPCdecode.c                |  158
+codecs/ilbc/LPCdecode.h                |   52
+codecs/ilbc/LPCencode.c                |  239
+codecs/ilbc/LPCencode.h                |   28
+codecs/ilbc/Makefile                   |   11
+codecs/ilbc/PATENTS                    |   24
+codecs/ilbc/StateConstructW.c          |   86
+codecs/ilbc/StateConstructW.h          |   31
+codecs/ilbc/StateSearchW.c             |  211
+codecs/ilbc/StateSearchW.h             |   52
+codecs/ilbc/anaFilter.c                |   72
+codecs/ilbc/anaFilter.h                |   30
+codecs/ilbc/constants.c                |  770 ++
+codecs/ilbc/constants.h                |   80
+codecs/ilbc/createCB.c                 |  231
+codecs/ilbc/createCB.h                 |   58
+codecs/ilbc/doCPLC.c                   |  270
+codecs/ilbc/doCPLC.h                   |   29
+codecs/ilbc/enhancer.c                 |  701 ++
+codecs/ilbc/enhancer.h                 |   36
+codecs/ilbc/extract-cfile.awk          |   24
+codecs/ilbc/filter.c                   |  175
+codecs/ilbc/filter.h                   |   80
+codecs/ilbc/gainquant.c                |  116
+codecs/ilbc/gainquant.h                |   30
+codecs/ilbc/getCBvec.c                 |  193
+codecs/ilbc/getCBvec.h                 |   25
+codecs/ilbc/helpfun.c                  |  324
+codecs/ilbc/helpfun.h                  |  106
+codecs/ilbc/hpInput.c                  |   65
+codecs/ilbc/hpInput.h                  |   24
+codecs/ilbc/hpOutput.c                 |   61
+codecs/ilbc/hpOutput.h                 |   24
+codecs/ilbc/iCBConstruct.c             |  112
+codecs/ilbc/iCBConstruct.h             |   40
+codecs/ilbc/iCBSearch.c                |  512 +
+codecs/ilbc/iCBSearch.h                |   37
+codecs/ilbc/iLBC_decode.c              |  651 +
+codecs/ilbc/iLBC_decode.h              |   42
+codecs/ilbc/iLBC_define.h              |  217
+codecs/ilbc/iLBC_encode.c              |  543 +
+codecs/ilbc/iLBC_encode.h              |   39
+codecs/ilbc/iLBC_test.c                |  314
+codecs/ilbc/lsf.c                      |  283
+codecs/ilbc/lsf.h                      |   27
+codecs/ilbc/packing.c                  |  182
+codecs/ilbc/packing.h                  |   68
+codecs/ilbc/rfc3951.txt                |10867 +++++++++++++++++++++++++++++++++
+codecs/ilbc/syntFilter.c               |   80
+codecs/ilbc/syntFilter.h               |   24
+configs/cel.conf.sample                |    6
+configs/cel_custom.conf.sample         |   13
+configs/cel_odbc.conf.sample           |   53
+configs/cel_pgsql.conf.sample          |   54
+configs/cel_sqlite3_custom.conf.sample |   16
+configs/rtp.conf.sample                |    7
+configs/sip.conf.sample                |   28
+configure.ac                           |  119
+contrib/asterisk-ng-doxygen            |    1
+contrib/init.d/rc.debian.asterisk      |    2
+contrib/scripts/autosupport            |  100
+contrib/scripts/autosupport.8          |    9
+contrib/scripts/get_ilbc_source.sh     |    7
+contrib/scripts/install_prereq         |    4
+contrib/scripts/valgrind_compare       |   21
+funcs/func_lock.c                      |   23
+funcs/func_odbc.c                      |   24
+funcs/func_timeout.c                   |    4
+include/asterisk/autoconfig.h.in       |   14
+include/asterisk/bridging.h            |    7
+include/asterisk/indications.h         |    3
+include/asterisk/netsock2.h            |    8
+main/acl.c                             |    9
+main/app.c                             |   12
+main/asterisk.c                        |  213
+main/bridging.c                        |    6
+main/cel.c                             |   15
+main/db.c                              |   20
+main/dsp.c                             |   63
+main/features.c                        |   15
+main/file.c                            |   16
+main/format.c                          |    1
+main/format_cap.c                      |    1
+main/format_pref.c                     |    1
+main/indications.c                     |    2
+main/message.c                         |   13
+main/netsock.c                         |   32
+main/pbx.c                             |    3
+main/rtp_engine.c                      |    5
+main/taskprocessor.c                   |    2
+main/test.c                            |    8
+pbx/pbx_lua.c                          |  106
+res/res_fax.c                          |    5
+res/res_fax_spandsp.c                  |   49
+res/res_monitor.c                      |   35
+res/res_odbc.c                         |    5
+res/res_pktccops.c                     |    6
+res/res_rtp_asterisk.c                 |   85
+res/res_srtp.c                         |   46
+res/snmp/agent.c                       |    9
+sounds/Makefile                        |    2
+tests/test_format_api.c                |    1
+utils/extconf.c                        |    7
+140 files changed, 20841 insertions(+), 1281 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

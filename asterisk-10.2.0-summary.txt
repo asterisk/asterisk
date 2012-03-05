@@ -1,0 +1,540 @@
+                                Release Summary
+
+                                asterisk-10.2.0
+
+                                Date: 2012-03-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.1.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   19 rmudgett              1 Kristjan Vrban         1 rossbeer               
+   17 mjordan                                        1 ys                     
+   12 kmoore                
+   11 jrose                 
+   8 mmichelson             
+   6 kpfleming              
+   5 twilson                
+   3 bebuild                
+   3 russell                
+   3 wdoekes                
+   2 alecdavis              
+   2 file                   
+   2 schmidts               
+   2 seanbright             
+   1 may                    
+   1 pabelanger             
+   1 Yuri                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_sip/Subscriptions
+
+   ASTERISK-19057: message-summary NOTIFY: Port in Message-Account added
+   twice and mwi_from (sip.conf) has no effect
+   Revision: 351762
+   Reporter: ys
+   Coders: Yuri
+
+  Category: Channels/chan_sip/Transfers
+
+   ASTERISK-19173: All blind transfers failing on 1.8.9.0-rc1
+   Revision: 352228
+   Reporter: rossbeer
+   Testers: Kristjan Vrban
+   Coders: mmichelson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
++------------------------------------------------------------------------------+
+|Revision|Author    |Summary                                   |Issues         |
+|        |          |                                          |Referenced     |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Fix documentation for SayNumber to reflect|               |
+|349451  |jrose     |the fact that language is changed in      |ASTERISK-18962 |
+|        |          |CHANNEL()                                 |               |
+|--------+----------+------------------------------------------+---------------|
+|349502  |jrose     |Adds Subscription-State header to notify  |ASTERISK-17953 |
+|        |          |with call completion. per RFC3265         |               |
+|--------+----------+------------------------------------------+---------------|
+|349505  |kmoore    |Update autosupport script and man page    |               |
+|--------+----------+------------------------------------------+---------------|
+|349532  |kmoore    |Make debian init script conform to the LSB|ASTERISK-17958 |
+|        |          |standard                                  |               |
+|--------+----------+------------------------------------------+---------------|
+|349559  |rmudgett  |Fix segfault in chan_dahdi for            |ASTERISK-19142 |
+|        |          |CHANNEL(dahdi_span) evaluation on hangup. |               |
+|--------+----------+------------------------------------------+---------------|
+|349608  |mjordan   |Free successfully translated frame in     |ASTERISK-19133 |
+|        |          |fax_gateway_framehook                     |               |
+|--------+----------+------------------------------------------+---------------|
+|349619  |mjordan   |Fix for ConfBridge config parser unlocking|ASTERISK-19042 |
+|        |          |channel mutex too many times              |               |
+|--------+----------+------------------------------------------+---------------|
+|349673  |jrose     |Ensures Asterisk closes when receiving    |ASTERISK-19127 |
+|        |          |terminal signals in 'no fork' mode.       |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Fix an issue where dsp.c would interpret  |               |
+|349729  |jrose     |multiple dtmf events from a single key    |ASTERISK-17493 |
+|        |          |press.                                    |               |
+|--------+----------+------------------------------------------+---------------|
+|349732  |kmoore    |Allow playback of formats that don't      |ASTERISK-18994 |
+|        |          |support seeking                           |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Make not assume that the                  |               |
+|349820  |rmudgett  |cel_sqlite3_custom SQL table primary key  |ASTERISK-18963 |
+|        |          |is AcctId.                                |               |
+|--------+----------+------------------------------------------+---------------|
+|349822  |mjordan   |Fix premature free'ing of the frame       |               |
+|        |          |committed in r349608                      |               |
+|--------+----------+------------------------------------------+---------------|
+|349873  |rmudgett  |Fix memory leaks in app_followme          |ASTERISK-19055 |
+|        |          |find_realtime().                          |               |
+|--------+----------+------------------------------------------+---------------|
+|349928  |kmoore    |Fix lua goto detection to prevent         |ASTERISK-18976 |
+|        |          |unexpected behavior with confbridge       |               |
+|--------+----------+------------------------------------------+---------------|
+|349977  |twilson   |Don't leak CID in From header when        |ASTERISK-16538 |
+|        |          |presentation=unavailable                  |               |
+|--------+----------+------------------------------------------+---------------|
+|350024  |kmoore    |Prevent SLA settings from getting wiped   |               |
+|        |          |out on reload                             |               |
+|--------+----------+------------------------------------------+---------------|
+|350076  |rmudgett  |Make Asterisk -x command line parameter   |ASTERISK-19094 |
+|        |          |imply -r parameter presence.              |               |
+|--------+----------+------------------------------------------+---------------|
+|350129  |rmudgett  |Multiple revisions 350127-350128          |ASTERISK-17339 |
+|--------+----------+------------------------------------------+---------------|
+|350180  |wdoekes   |Fix shutdown handling of sqlite3 astdb.   |ASTERISK-18883 |
+|--------+----------+------------------------------------------+---------------|
+|350221  |rmudgett  |Fix joinable thread terminating without   |ASTERISK-17339,|
+|        |          |joiner memory leak in chan_iax.c.         |ASTERISK-17825 |
+|--------+----------+------------------------------------------+---------------|
+|350312  |rmudgett  |Fix absolute/relative time mismatch in    |ASTERISK-16868 |
+|        |          |LOCK function.                            |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Make FollowMe optionally update connected |               |
+|350415  |rmudgett  |line information when the accepting       |ASTERISK-18969 |
+|        |          |endpoint is bridged.                      |               |
+|--------+----------+------------------------------------------+---------------|
+|350453  |rmudgett  |Remove extraneous BRIDGEPEER AMI VarSet   |ASTERISK-19180 |
+|        |          |event on a CEL dummy channel.             |               |
+|--------+----------+------------------------------------------+---------------|
+|350502  |jrose     |Adds peer to CEL report on                |ASTERISK-17940 |
+|        |          |CEL_BRIDGE_START and CEL_BRIDGE_END       |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Fix crash from bridge channel hangup race |ASTERISK-18988,|
+|350550  |mjordan   |condition in ConfBridge                   |ASTERISK-18885,|
+|        |          |                                          |ASTERISK-19100 |
+|--------+----------+------------------------------------------+---------------|
+|350553  |mjordan   |Realtime queues failed to load queue      |ASTERISK-19170 |
+|        |          |information without queue member table    |               |
+|--------+----------+------------------------------------------+---------------|
+|350585  |rmudgett  |Add missing CEL logging fields to various |ASTERISK-17190 |
+|        |          |CEL backends.                             |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Set port to a default sane value if a     |               |
+|350680  |mmichelson|bogus one is provided when parsing        |               |
+|        |          |hostnames.                                |               |
+|--------+----------+------------------------------------------+---------------|
+|350731  |kmoore    |Make sure asterisk builds on OpenBSD      |ASTERISK-18929 |
+|--------+----------+------------------------------------------+---------------|
+|350734  |rmudgett  |Correct eventtype names in cel_odbc and   |               |
+|        |          |cel_pgsql sample files                    |               |
+|--------+----------+------------------------------------------+---------------|
+|350737  |kmoore    |Run bootstrap.sh for the for the          |ASTERISK-18929 |
+|        |          |ASTERISK-18929 fix                        |               |
+|--------+----------+------------------------------------------+---------------|
+|350790  |kpfleming |Multiple revisions 350788-350789          |               |
+|--------+----------+------------------------------------------+---------------|
+|350838  |kpfleming |Ensure that all AC_LANG_PROGRAM calls in  |               |
+|        |          |the configure script are properly quoted. |               |
+|--------+----------+------------------------------------------+---------------|
+|350886  |wdoekes   |Fix -Werror=unused-but-set-variable       |ASTERISK-15350 |
+|        |          |compile error in utils/extconf.c.         |               |
+|--------+----------+------------------------------------------+---------------|
+|350889  |wdoekes   |Allow only one thread at a time to do     |ASTERISK-18883 |
+|        |          |asterisk cleanup/shutdown.                |               |
+|--------+----------+------------------------------------------+---------------|
+|350938  |seanbright|Sort the output of 'database show' by key.|               |
+|--------+----------+------------------------------------------+---------------|
+|350976  |file      |Add missing code to set direct RTP setup  |               |
+|        |          |information during dialing.               |               |
+|--------+----------+------------------------------------------+---------------|
+|350978  |seanbright|Sort the output of 'database showkey' as  |               |
+|        |          |well.                                     |               |
+|--------+----------+------------------------------------------+---------------|
+|351028  |mjordan   |Create and initialize udptl only when     |ASTERISK-16698,|
+|        |          |dialog negotiates for image media         |ASTERISK-16794 |
+|--------+----------+------------------------------------------+---------------|
+|351081  |twilson   |Don't prematurely stop SIP session timer  |ASTERISK-18996 |
+|--------+----------+------------------------------------------+---------------|
+|351131  |twilson   |Ensure ACK retransmit & hangup on non-200 |ASTERISK-17717 |
+|        |          |response to INVITE                        |               |
+|--------+----------+------------------------------------------+---------------|
+|351183  |russell   |Add some missing locking in chan_sip.     |ASTERISK-18979 |
+|--------+----------+------------------------------------------+---------------|
+|351234  |mjordan   |Fix udptl issue with initial INVITE       |               |
+|        |          |introduced by r351027                     |               |
+|--------+----------+------------------------------------------+---------------|
+|351286  |mmichelson|Use built-in parsing functions for Contact|ASTERISK-18990 |
+|        |          |and Record-Route headers.                 |               |
+|--------+----------+------------------------------------------+---------------|
+|351289  |jrose     |Adds pjmedia probation concepts to        |               |
+|        |          |res_rtp_asterisk's learning mode.         |               |
+|--------+----------+------------------------------------------+---------------|
+|351308  |mmichelson|Eliminate odd initialization of probation |               |
+|        |          |variable.                                 |               |
+|--------+----------+------------------------------------------+---------------|
+|351408  |schmidts  |The get_pai function in chan_sip.c didn't |               |
+|        |          |recognized a proper callerid name and     |               |
+|--------+----------+------------------------------------------+---------------|
+|351451  |mjordan   |Include iLBC source code for distribution |ASTERISK-18943 |
+|        |          |with Asterisk                             |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Prevent crash when an SDP offer is        |               |
+|351505  |file      |received with an encrypted video stream   |ASTERISK-19202 |
+|        |          |when support for video is disabled and    |               |
+|        |          |res_srtp is loaded.                       |               |
+|--------+----------+------------------------------------------+---------------|
+|351560  |jrose     |Eliminates doubling the :port part of SIP |ASTERISK-19057 |
+|        |          |Notify Message-Account headers.           |               |
+|--------+----------+------------------------------------------+---------------|
+|351612  |kmoore    |Correct output of RTCP jitter statistics  |ASTERISK-14530 |
+|        |          |in SR and RR reports                      |               |
+|--------+----------+------------------------------------------+---------------|
+|351646  |rmudgett  |Misc minor fixes in reqresp_parser.c and  |               |
+|        |          |chan_sip.c.                               |               |
+|--------+----------+------------------------------------------+---------------|
+|351708  |schmidts  |enable doxygen build for files in the     |               |
+|        |          |channels/sip folder like reqresp_parser.c |               |
+|--------+----------+------------------------------------------+---------------|
+|351761  |mjordan   |Remove unused variable 'tmp' from helpfun |               |
+|        |          |in ilbc codec                             |               |
+|--------+----------+------------------------------------------+---------------|
+|351816  |kmoore    |Remove more set, but unused variables in  |               |
+|        |          |the ilbc codec                            |               |
+|--------+----------+------------------------------------------+---------------|
+|351818  |kmoore    |Restore LSF_check function calls from     |               |
+|        |          |set/unused variable removal               |               |
+|--------+----------+------------------------------------------+---------------|
+|351859  |kmoore    |                                          |               |
+|--------+----------+------------------------------------------+---------------|
+|351861  |kmoore    |More corrections for the ilbc code        |               |
+|--------+----------+------------------------------------------+---------------|
+|352015  |mmichelson|Fix RTP reference leak.                   |ASTERISK-19192 |
+|--------+----------+------------------------------------------+---------------|
+|352017  |mmichelson|Remove XXX comment that is not necessary. |               |
+|--------+----------+------------------------------------------+---------------|
+|352035  |rmudgett  |Fix ast_app_dtget() time unit             |ASTERISK-16817 |
+|        |          |inconsistency.                            |               |
+|--------+----------+------------------------------------------+---------------|
+|352091  |rmudgett  |Fix sip_cfg.notifycid to be set with the  |ASTERISK-19232 |
+|        |          |defined enum values.                      |               |
+|--------+----------+------------------------------------------+---------------|
+|352149  |mjordan   |Correctly apply FAXOPT settings (V17, V27,|ASTERISK-16409 |
+|        |          |V29) before starting spandsp layer        |               |
+|--------+----------+------------------------------------------+---------------|
+|352231  |mmichelson|Fix grammar of comment.                   |               |
+|--------+----------+------------------------------------------+---------------|
+|352292  |rmudgett  |Fix locking issues with channel datastores|ASTERISK-17948 |
+|        |          |in func_odbc.c.                           |               |
+|--------+----------+------------------------------------------+---------------|
+|352373  |jrose     |Set core sounds version to 1.4.22.        |ASTERISK-18978 |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Don't do a DNS lookup on an outbound      |               |
+|352430  |mmichelson|REGISTER host if there is an outbound     |ASTERISK-16550 |
+|        |          |proxy configured.                         |               |
+|--------+----------+------------------------------------------+---------------|
+|352512  |jrose     |Redocuments sip types peer, user, friend  |ASTERISK-15537 |
+|        |          |in sip.conf.sample                        |               |
+|--------+----------+------------------------------------------+---------------|
+|352515  |twilson   |Clean up some SIP registry-related memory |               |
+|        |          |leaks                                     |               |
+|--------+----------+------------------------------------------+---------------|
+|352516  |kpfleming |Eliminate unnecessary rebuilds of         |               |
+|        |          |main/format*.c.                           |               |
+|--------+----------+------------------------------------------+---------------|
+|352520  |rmudgett  |Fixes for sending SIP MESSAGE outside of  |ASTERISK-18992,|
+|        |          |calls.                                    |ASTERISK-18917 |
+|--------+----------+------------------------------------------+---------------|
+|352556  |twilson   |Remove some extraneous debugging from     |               |
+|        |          |registry memleak fix                      |               |
+|--------+----------+------------------------------------------+---------------|
+|352616  |kpfleming |Avoid unnecessary rebuilds of main/test.c.|               |
+|--------+----------+------------------------------------------+---------------|
+|352651  |pabelanger|Fix -Werror=unused-but-set-variable       |               |
+|        |          |compiler error (gcc 4.6.2)                |               |
+|--------+----------+------------------------------------------+---------------|
+|352705  |alecdavis |Cleanup dialog-info+xml Notify dialog     |               |
+|--------+----------+------------------------------------------+---------------|
+|352756  |jrose     |Copy amaflags to sip_pvt from peer during |ASTERISK-19029 |
+|        |          |create_addr_from_peer                     |               |
+|--------+----------+------------------------------------------+---------------|
+|352817  |may       |Fix outbound DTMF for inband mode (tell   |ASTERISK-19233 |
+|        |          |asterisk core to generate DTMF            |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |rfc4235 - Section 4.1: Versions MUST be   |               |
+|352863  |alecdavis |representable using a non-negative 32 bit |               |
+|        |          |integer.                                  |               |
+|--------+----------+------------------------------------------+---------------|
+|352956  |rmudgett  |Audit of ao2_iterator_init() usage for    |               |
+|        |          |v1.8.                                     |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Make failed PauseMonitor and              |               |
+|352965  |jrose     |UnpauseMonitor with no valid channel not  |ASTERISK-19249 |
+|        |          |close AMI session.                        |               |
+|--------+----------+------------------------------------------+---------------|
+|352992  |rmudgett  |Audit of ao2_iterator_init() usage for    |               |
+|        |          |v10.                                      |               |
+|--------+----------+------------------------------------------+---------------|
+|353039  |rmudgett  |Audit of ao2_iterator_init() usage for    |               |
+|        |          |v10. Missed one.                          |               |
+|--------+----------+------------------------------------------+---------------|
+|353078  |russell   |Update ast_set_default_eid() to find more |               |
+|        |          |network interfaces.                       |               |
+|--------+----------+------------------------------------------+---------------|
+|353127  |kpfleming |Add 'L16-256' MIME subtype alias for      |               |
+|        |          |slin16.                                   |               |
+|--------+----------+------------------------------------------+---------------|
+|353176  |russell   |Find even more network interfaces.        |               |
+|--------+----------+------------------------------------------+---------------|
+|353261  |kpfleming |Clarify log WARNING message when port-zero|               |
+|        |          |SDP 'm' lines received.                   |               |
+|--------+----------+------------------------------------------+---------------|
+|354883  |mjordan   |Create 10.2.0-rc2 tag                     |               |
+|--------+----------+------------------------------------------+---------------|
+|        |          |Commit                                    |               |
+|354885  |mjordan   |r353397,354000,353916,354496,354543,354548|               |
+|        |          |for 10.2.0-rc2                            |               |
+|--------+----------+------------------------------------------+---------------|
+|354887  |bebuild   |Importing release summary for 10.2.0-rc2  |               |
+|        |          |release.                                  |               |
+|--------+----------+------------------------------------------+---------------|
+|357262  |mjordan   |Create 10.2.0-rc3                         |               |
+|--------+----------+------------------------------------------+---------------|
+|357265  |mjordan   |Updates for 10.2.0-rc3                    |               |
+|--------+----------+------------------------------------------+---------------|
+|357269  |mjordan   |Updated ChangeLog slightly                |               |
+|--------+----------+------------------------------------------+---------------|
+|357270  |bebuild   |Importing release summary for 10.2.0-rc3  |               |
+|        |          |release.                                  |               |
+|--------+----------+------------------------------------------+---------------|
+|357718  |mjordan   |Create tag for 10.2.0-rc4                 |               |
+|--------+----------+------------------------------------------+---------------|
+|357730  |mjordan   |Merge 357667, update ChangeLog and        |               |
+|        |          |.version                                  |               |
+|--------+----------+------------------------------------------+---------------|
+|357739  |bebuild   |Importing release summary for 10.2.0-rc4  |               |
+|        |          |release.                                  |               |
++------------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                               |    2
+ CHANGES                                |   29
+ ChangeLog                              |   13
+ addons/chan_mobile.c                   |    9
+ addons/chan_ooh323.c                   |   23
+ apps/app_chanspy.c                     |   13
+ apps/app_confbridge.c                  |    6
+ apps/app_dial.c                        |    4
+ apps/app_followme.c                    |  338 -
+ apps/app_meetme.c                      |   31
+ apps/app_queue.c                       |   39
+ apps/app_voicemail.c                   |   17
+ apps/confbridge/conf_config_parser.c   |    6
+ asterisk-10.2.0-rc3-summary.html       |   62
+ asterisk-10.2.0-rc3-summary.txt        |   91
+ asterisk-10.2.0-rc4-summary.html       |   60
+ asterisk-10.2.0-rc4-summary.txt        |   89
+ autoconf/ast_gcc_attribute.m4          |    8
+ autoconf/libcurl.m4                    |    4
+ bootstrap.sh                           |    4
+ bridges/bridge_builtin_features.c      |    8
+ cel/cel_manager.c                      |   34
+ cel/cel_odbc.c                         |    2
+ cel/cel_sqlite3_custom.c               |    2
+ channels/chan_bridge.c                 |   90
+ channels/chan_dahdi.c                  |   15
+ channels/chan_h323.c                   |    7
+ channels/chan_iax2.c                   |   24
+ channels/chan_sip.c                    |  878 +-
+ channels/sip/config_parser.c           |    4
+ channels/sip/include/sip.h             |   14
+ channels/sip/reqresp_parser.c          |  200
+ codecs/codec_ilbc.c                    |    1
+ codecs/ilbc/FrameClassify.c            |  114
+ codecs/ilbc/FrameClassify.h            |   27
+ codecs/ilbc/LICENSE                    |   29
+ codecs/ilbc/LICENSE_ADDENDUM           |   55
+ codecs/ilbc/LPCdecode.c                |  158
+ codecs/ilbc/LPCdecode.h                |   52
+ codecs/ilbc/LPCencode.c                |  239
+ codecs/ilbc/LPCencode.h                |   28
+ codecs/ilbc/Makefile                   |   11
+ codecs/ilbc/PATENTS                    |   24
+ codecs/ilbc/StateConstructW.c          |   86
+ codecs/ilbc/StateConstructW.h          |   31
+ codecs/ilbc/StateSearchW.c             |  211
+ codecs/ilbc/StateSearchW.h             |   52
+ codecs/ilbc/anaFilter.c                |   72
+ codecs/ilbc/anaFilter.h                |   30
+ codecs/ilbc/constants.c                |  770 ++
+ codecs/ilbc/constants.h                |   80
+ codecs/ilbc/createCB.c                 |  231
+ codecs/ilbc/createCB.h                 |   58
+ codecs/ilbc/doCPLC.c                   |  270
+ codecs/ilbc/doCPLC.h                   |   29
+ codecs/ilbc/enhancer.c                 |  701 ++
+ codecs/ilbc/enhancer.h                 |   36
+ codecs/ilbc/extract-cfile.awk          |   24
+ codecs/ilbc/filter.c                   |  175
+ codecs/ilbc/filter.h                   |   80
+ codecs/ilbc/gainquant.c                |  116
+ codecs/ilbc/gainquant.h                |   30
+ codecs/ilbc/getCBvec.c                 |  193
+ codecs/ilbc/getCBvec.h                 |   25
+ codecs/ilbc/helpfun.c                  |  324
+ codecs/ilbc/helpfun.h                  |  106
+ codecs/ilbc/hpInput.c                  |   65
+ codecs/ilbc/hpInput.h                  |   24
+ codecs/ilbc/hpOutput.c                 |   61
+ codecs/ilbc/hpOutput.h                 |   24
+ codecs/ilbc/iCBConstruct.c             |  112
+ codecs/ilbc/iCBConstruct.h             |   40
+ codecs/ilbc/iCBSearch.c                |  512 +
+ codecs/ilbc/iCBSearch.h                |   37
+ codecs/ilbc/iLBC_decode.c              |  651 +
+ codecs/ilbc/iLBC_decode.h              |   42
+ codecs/ilbc/iLBC_define.h              |  217
+ codecs/ilbc/iLBC_encode.c              |  543 +
+ codecs/ilbc/iLBC_encode.h              |   39
+ codecs/ilbc/iLBC_test.c                |  314
+ codecs/ilbc/lsf.c                      |  283
+ codecs/ilbc/lsf.h                      |   27
+ codecs/ilbc/packing.c                  |  182
+ codecs/ilbc/packing.h                  |   68
+ codecs/ilbc/rfc3951.txt                |10867 +++++++++++++++++++++++++++++++++
+ codecs/ilbc/syntFilter.c               |   80
+ codecs/ilbc/syntFilter.h               |   24
+ configs/cel.conf.sample                |    6
+ configs/cel_custom.conf.sample         |   13
+ configs/cel_odbc.conf.sample           |   53
+ configs/cel_pgsql.conf.sample          |   54
+ configs/cel_sqlite3_custom.conf.sample |   16
+ configs/rtp.conf.sample                |    7
+ configs/sip.conf.sample                |   28
+ configure.ac                           |  119
+ contrib/asterisk-ng-doxygen            |    1
+ contrib/init.d/rc.debian.asterisk      |    2
+ contrib/scripts/autosupport            |  100
+ contrib/scripts/autosupport.8          |    9
+ contrib/scripts/get_ilbc_source.sh     |    7
+ contrib/scripts/install_prereq         |    4
+ contrib/scripts/valgrind_compare       |   21
+ funcs/func_lock.c                      |   23
+ funcs/func_odbc.c                      |   24
+ funcs/func_timeout.c                   |    4
+ include/asterisk/autoconfig.h.in       |   14
+ include/asterisk/bridging.h            |    7
+ include/asterisk/indications.h         |    3
+ include/asterisk/netsock2.h            |    8
+ main/acl.c                             |    9
+ main/app.c                             |   12
+ main/asterisk.c                        |  213
+ main/bridging.c                        |    6
+ main/cel.c                             |   15
+ main/db.c                              |   20
+ main/dsp.c                             |   63
+ main/features.c                        |   15
+ main/file.c                            |   16
+ main/format.c                          |    1
+ main/format_cap.c                      |    1
+ main/format_pref.c                     |    1
+ main/indications.c                     |    2
+ main/message.c                         |   13
+ main/netsock.c                         |   32
+ main/pbx.c                             |    3
+ main/rtp_engine.c                      |    5
+ main/taskprocessor.c                   |    2
+ main/test.c                            |    8
+ pbx/pbx_lua.c                          |  106
+ res/res_fax.c                          |    5
+ res/res_fax_spandsp.c                  |   49
+ res/res_monitor.c                      |   35
+ res/res_odbc.c                         |    5
+ res/res_pktccops.c                     |    6
+ res/res_rtp_asterisk.c                 |   85
+ res/res_srtp.c                         |   46
+ res/snmp/agent.c                       |    9
+ sounds/Makefile                        |    2
+ tests/test_format_api.c                |    1
+ utils/extconf.c                        |    7
+ 140 files changed, 20841 insertions(+), 1281 deletions(-)
+
+     ----------------------------------------------------------------------
