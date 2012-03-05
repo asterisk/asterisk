@@ -22304,6 +22304,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 			}
 			transmit_response_reliable(p, "491 Request Pending", req);
+			p->pendinginvite = seqno;
+			check_via(p, req);
+			copy_request(&p->initreq, req);
 			ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 			/* Don't destroy dialog here */
 			res = 0;
@@ -22323,6 +22326,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->owner) {
 			ast_debug(3, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
 			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			p->pendinginvite = seqno;
+			check_via(p, req);
+			copy_request(&p->initreq, req);
 			/* Do not destroy existing call */
 			res = -1;
 			goto request_invite_cleanup;
@@ -22339,6 +22345,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			p->invitestate = INV_COMPLETED;
+			p->pendinginvite = seqno;
+			check_via(p, req);
+			copy_request(&p->initreq, req);
 			res = -1;
 			goto request_invite_cleanup;
 		}
@@ -22440,6 +22449,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 			refer_locked = 0;
 			p->invitestate = INV_COMPLETED;
+			p->pendinginvite = seqno;
+			check_via(p, req);
+			copy_request(&p->initreq, req);
 			res = -1;
 			goto request_invite_cleanup;
 		}
