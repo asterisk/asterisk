@@ -2,8 +2,7 @@
 ; Inter-Asterisk eXchange v2 (IAX2) Channel Driver configuration
 ;
 ; This configuration is read when the chan_iax2.so module is loaded, and is
-; re-read when the module is reloaded, such as when the invoking the CLI
-; command:
+; re-read when the module is reloaded, such as when invoking the CLI command:
 ;
 ;     *CLI> iax2 reload
 ;
@@ -388,7 +387,7 @@ autokill=yes
 ;
 ;allowfwdownload=yes
 
-;rtcachefriends=yes	; Cache realtime friends by adding them to the internal list
+;rtcachefriends=yes ; Cache realtime friends by adding them to the internal list
                     ; just like friends added from the config file only on a
                     ; as-needed basis? (yes|no)
 
