@@ -2145,7 +2145,7 @@ int ast_channel_setoption(struct ast_channel *channel, int option, void *data, i
  *
  * \param capabilities to pick best codec out of
  * \param result stucture to store the best codec in.
- * \retval on success, pointer to result structure 
+ * \retval on success, pointer to result structure
  * \retval on failure, NULL
  */
 struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format *result);
@@ -3656,23 +3656,24 @@ void ast_channel_unlink(struct ast_channel *chan);
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);
 
-#define DECLARE_STRINGFIELD_SETTERS_FOR(field) void ast_channel_##field##_set(struct ast_channel *chan, const char *field); \
-void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) __attribute__((format(printf, 2, 0))); \
-void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+#define DECLARE_STRINGFIELD_SETTERS_FOR(field)	\
+	void ast_channel_##field##_set(struct ast_channel *chan, const char *field); \
+	void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) __attribute__((format(printf, 2, 0))); \
+	void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) __attribute__((format(printf, 2, 3)))
 
-DECLARE_STRINGFIELD_SETTERS_FOR(name)
-DECLARE_STRINGFIELD_SETTERS_FOR(language)
-DECLARE_STRINGFIELD_SETTERS_FOR(musicclass)
-DECLARE_STRINGFIELD_SETTERS_FOR(accountcode)
-DECLARE_STRINGFIELD_SETTERS_FOR(peeraccount)
-DECLARE_STRINGFIELD_SETTERS_FOR(userfield)
-DECLARE_STRINGFIELD_SETTERS_FOR(call_forward)
-DECLARE_STRINGFIELD_SETTERS_FOR(uniqueid)
-DECLARE_STRINGFIELD_SETTERS_FOR(linkedid)
-DECLARE_STRINGFIELD_SETTERS_FOR(parkinglot)
-DECLARE_STRINGFIELD_SETTERS_FOR(hangupsource)
-DECLARE_STRINGFIELD_SETTERS_FOR(dialcontext)
-	
+DECLARE_STRINGFIELD_SETTERS_FOR(name);
+DECLARE_STRINGFIELD_SETTERS_FOR(language);
+DECLARE_STRINGFIELD_SETTERS_FOR(musicclass);
+DECLARE_STRINGFIELD_SETTERS_FOR(accountcode);
+DECLARE_STRINGFIELD_SETTERS_FOR(peeraccount);
+DECLARE_STRINGFIELD_SETTERS_FOR(userfield);
+DECLARE_STRINGFIELD_SETTERS_FOR(call_forward);
+DECLARE_STRINGFIELD_SETTERS_FOR(uniqueid);
+DECLARE_STRINGFIELD_SETTERS_FOR(linkedid);
+DECLARE_STRINGFIELD_SETTERS_FOR(parkinglot);
+DECLARE_STRINGFIELD_SETTERS_FOR(hangupsource);
+DECLARE_STRINGFIELD_SETTERS_FOR(dialcontext);
+
 const char *ast_channel_name(const struct ast_channel *chan);
 const char *ast_channel_language(const struct ast_channel *chan);
 const char *ast_channel_musicclass(const struct ast_channel *chan);
