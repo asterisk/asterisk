@@ -153,6 +153,22 @@ static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked)
 
 /*!
  * \internal
+ * \brief Open the SS7 channel media path.
+ * \since 1.8.12
+ *
+ * \param p Channel private control structure.
+ *
+ * \return Nothing
+ */
+static void sig_ss7_open_media(struct sig_ss7_chan *p)
+{
+	if (p->calls->open_media) {
+		p->calls->open_media(p->chan_pvt);
+	}
+}
+
+/*!
+ * \internal
  * \brief Set the caller id information in the parent module.
  * \since 1.8
  *
@@ -807,12 +823,7 @@ void *ss7_linkset(void *data)
 						sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_PROGRESS);
 						p->progress = 1;
 						sig_ss7_set_dialing(p, 0);
-#if 0	/* This code no longer seems to be necessary so I did not convert it. */
-						if (p->dsp && p->dsp_features) {
-							ast_dsp_set_features(p->dsp, p->dsp_features);
-							p->dsp_features = 0;
-						}
-#endif
+						sig_ss7_open_media(p);
 					}
 					break;
 				default:
@@ -1184,12 +1195,8 @@ void *ss7_linkset(void *data)
 						p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 					}
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_ANSWER);
-#if 0	/* This code no longer seems to be necessary so I did not convert it. */
-					if (p->dsp && p->dsp_features) {
-						ast_dsp_set_features(p->dsp, p->dsp_features);
-						p->dsp_features = 0;
-					}
-#endif
+					sig_ss7_set_dialing(p, 0);
+					sig_ss7_open_media(p);
 					sig_ss7_set_echocanceller(p, 1);
 					sig_ss7_unlock_private(p);
 				}
@@ -1622,6 +1629,7 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
 	if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
 		p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 	}
+	sig_ss7_open_media(p);
 	res = isup_anm(p->ss7->ss7, p->ss7call);
 	ss7_rel(p->ss7);
 	return res;
