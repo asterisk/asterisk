@@ -2254,7 +2254,7 @@ static int my_get_sub_fd(void *pvt, enum analog_sub sub)
 	return p->subs[dahdi_sub].dfd;
 }
 
-static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
+static void my_set_cadence(void *pvt, int *cid_rings, struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = pvt;
 
@@ -2262,11 +2262,11 @@ static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
 	if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
 			ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast_channel_name(ast), strerror(errno));
-		*cidrings = cidrings[p->distinctivering - 1];
+		*cid_rings = cidrings[p->distinctivering - 1];
 	} else {
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
 			ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast_channel_name(ast), strerror(errno));
-		*cidrings = p->sendcalleridafter;
+		*cid_rings = p->sendcalleridafter;
 	}
 }
 
