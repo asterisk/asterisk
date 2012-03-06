@@ -73,6 +73,11 @@ Chan_local changes
  * Added a manager event "LocalBridge" for local channel call bridges between
    the two pseudo-channels created.
 
+Chan_dahdi changes
+------------------
+ * Added dialtone_detect option for analog ports to disconnect incoming
+   calls when dialtone is detected.
+
 Codec changes
 -------------
  * Codec lists may now be modified by the '!' character, to allow succinct

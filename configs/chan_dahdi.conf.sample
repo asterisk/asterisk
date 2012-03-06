@@ -551,6 +551,17 @@ usecallerid=yes
 ; marking the line as once again available for use with outgoing calls.
 ;waitfordialtone=yes
 ;
+; For analog lines, enables Asterisk to use dialtone detection per channel
+; if an incoming call was hung up before it was answered.  If dialtone is
+; detected, the call is hung up.
+; no:       Disabled. (Default)
+; yes:      Look for dialtone for 10000 ms after answer.
+; <number>: Look for dialtone for the specified number of ms after answer.
+; always:   Look for dialtone for the entire call.  Dialtone may return
+;           if the far end hangs up first.
+;
+;dialtone_detect=no
+;
 ; The following option enables receiving MWI on FXO lines.  The default
 ; value is no.
 ; 	The mwimonitor can take the following values
