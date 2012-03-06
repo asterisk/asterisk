@@ -737,6 +737,7 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 {
 	char ourhost[MAXHOSTNAMELEN] = "";
 	struct ast_sockaddr root;
+	int res, port = ast_sockaddr_port(ourip);
 
 	/* just use the bind address if it is nonzero */
 	if (!ast_sockaddr_is_any(bindaddr)) {
@@ -749,6 +750,8 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
 		if (resolve_first(ourip, ourhost, PARSE_PORT_FORBID, family) == 0) {
+			/* reset port since resolve_first wipes this out */
+			ast_sockaddr_set_port(ourip, port);
 			return 0;
 		}
 	}
@@ -756,8 +759,12 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 	/* A.ROOT-SERVERS.NET. */
 	if (!resolve_first(&root, "A.ROOT-SERVERS.NET", PARSE_PORT_FORBID, 0) &&
 	    !ast_ouraddrfor(&root, ourip)) {
+		/* reset port since resolve_first wipes this out */
+		ast_sockaddr_set_port(ourip, port);
 		return 0;
 	}
-	return get_local_address(ourip);
+	res = get_local_address(ourip);
+	ast_sockaddr_set_port(ourip, port);
+	return res;
 }
 
