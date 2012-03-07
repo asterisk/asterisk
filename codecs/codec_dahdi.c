@@ -265,13 +265,13 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		}
 	} else {
 		pvt->f.datalen = res;
-		pvt->f.samples = dahdip->required_samples;
 		pvt->f.frametype = AST_FRAME_VOICE;
 		ast_format_copy(&pvt->f.subclass.format, &pvt->t->dst_format);
 		pvt->f.mallocd = 0;
 		pvt->f.offset = AST_FRIENDLY_OFFSET;
 		pvt->f.src = pvt->t->name;
 		pvt->f.data.ptr = pvt->outbuf.c;
+		pvt->f.samples = ast_codec_get_samples(&pvt->f);
 
 		pvt->samples = 0;
 		pvt->datalen = 0;
