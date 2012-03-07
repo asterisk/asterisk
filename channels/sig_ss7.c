@@ -449,8 +449,11 @@ static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic
 	for (i = 0; i < linkset->numchans; i++) {
 		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
 			sig_ss7_lock_private(linkset->pvts[i]);
-			if (linkset->pvts[i]->owner)
-				linkset->pvts[i]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			sig_ss7_lock_owner(linkset, i);
+			if (linkset->pvts[i]->owner) {
+				ast_softhangup_nolock(linkset->pvts[i]->owner, AST_SOFTHANGUP_DEV);
+				ast_channel_unlock(linkset->pvts[i]->owner);
+			}
 			sig_ss7_unlock_private(linkset->pvts[i]);
 		}
 	}
@@ -1663,7 +1666,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_BUSY:
 		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
 			chan->hangupcause = AST_CAUSE_USER_BUSY;
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
@@ -1727,7 +1730,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_INCOMPLETE:
 		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
 			chan->hangupcause = AST_CAUSE_INVALID_NUMBER_FORMAT;
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
@@ -1737,7 +1740,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_CONGESTION:
 		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
 			chan->hangupcause = AST_CAUSE_CONGESTION;
-			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
 			res = 0;
 			break;
 		}
