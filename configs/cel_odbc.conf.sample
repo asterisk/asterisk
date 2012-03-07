@@ -92,6 +92,7 @@
 ;connection=sqlserver
 ;table=AsteriskCEL
 ;usegmtime=yes ; defaults to no
+;allowleapsecond=no ; allow leap second in SQL column for eventtime, default yes.
 ;alias src => source
 ;alias channel => source_channel
 ;alias dst => dest

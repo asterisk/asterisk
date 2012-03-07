@@ -80,6 +80,7 @@ struct tables {
 	char *connection;
 	char *table;
 	unsigned int usegmtime:1;
+	unsigned int allowleapsec:1;
 	AST_LIST_HEAD_NOLOCK(odbc_columns, columns) columns;
 	AST_RWLIST_ENTRY(tables) list;
 };
@@ -97,7 +98,7 @@ static int load_config(void)
 	char columnname[80];
 	char connection[40];
 	char table[40];
-	int lenconnection, lentable, usegmtime = 0;
+	int lenconnection, lentable;
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
@@ -133,10 +134,6 @@ static int load_config(void)
 		}
 		ast_copy_string(connection, tmp, sizeof(connection));
 		lenconnection = strlen(connection);
-
-		if (!ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "usegmtime"))) {
-			usegmtime = ast_true(tmp);
-		}
 
 		/* When loading, we want to be sure we can connect. */
 		obj = ast_odbc_request_obj(connection, 1);
@@ -174,11 +171,20 @@ static int load_config(void)
 			break;
 		}
 
-		tableptr->usegmtime = usegmtime;
 		tableptr->connection = (char *)tableptr + sizeof(*tableptr);
 		tableptr->table = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1;
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
 		ast_copy_string(tableptr->table, table, lentable + 1);
+
+		tableptr->usegmtime = 0;
+		if (!ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "usegmtime"))) {
+			tableptr->usegmtime = ast_true(tmp);
+		}
+
+		tableptr->allowleapsec = 1;
+		if (!ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "allowleapsecond"))) {
+			tableptr->allowleapsec = ast_true(tmp);
+		}
 
 		ast_verb(3, "Found CEL table %s@%s.\n", tableptr->table, tableptr->connection);
 
@@ -407,6 +413,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 
 		AST_LIST_TRAVERSE(&(tableptr->columns), entry, list) {
 			int datefield = 0;
+			int unknown = 0;
 			if (strcasecmp(entry->celname, "eventtime") == 0) {
 				datefield = 1;
 			}
@@ -418,7 +425,17 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				struct timeval date_tv = record.event_time;
 				struct ast_tm tm = { 0, };
 				ast_localtime(&date_tv, &tm, tableptr->usegmtime ? "UTC" : NULL);
-				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S", &tm);
+				/* SQL server 2008 added datetime2 and datetimeoffset data types, that
+				   are reported to SQLColumns() as SQL_WVARCHAR, according to "Enhanced
+				   Date/Time Type Behavior with Previous SQL Server Versions (ODBC)".
+				   Here we format the event time with fraction seconds, so these new
+				   column types will be set to high-precision event time. However, 'date'
+				   and 'time' columns, also newly introduced, reported as SQL_WVARCHAR
+				   too, and insertion of the value formatted here into these will fail.
+				   This should be ok, however, as nobody is going to store just event
+				   date or just time for CDR purposes.
+				 */
+				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S.%q", &tm);
 				colptr = colbuf;
 			} else {
 				if (strcmp(entry->celname, "userdeftype") == 0) {
@@ -459,13 +476,16 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					snprintf(colbuf, sizeof(colbuf), "%d", record.amaflag);
 				} else if (strcmp(entry->celname, "extra") == 0) {
 					ast_copy_string(colbuf, record.extra, sizeof(colbuf));
+				} else if (strcmp(entry->celname, "eventtype") == 0) {
+					snprintf(colbuf, sizeof(colbuf), "%d", record.event_type);
 				} else {
 					colbuf[0] = 0;
+					unknown = 1;
 				}
 				colptr = colbuf;
 			}
 
-			if (colptr) {
+			if (colptr && !unknown) {
 				/* Check first if the column filters this entry.  Note that this
 				 * is very specifically NOT ast_strlen_zero(), because the filter
 				 * could legitimately specify that the field is blank, which is
@@ -536,24 +556,32 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						continue;
 					} else {
 						int year = 0, month = 0, day = 0;
-						if (sscanf(colptr, "%4d-%2d-%2d", &year, &month, &day) != 3 || year <= 0 ||
-							month <= 0 || month > 12 || day < 0 || day > 31 ||
-							((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
-							(month == 2 && year % 400 == 0 && day > 29) ||
-							(month == 2 && year % 100 == 0 && day > 28) ||
-							(month == 2 && year % 4 == 0 && day > 29) ||
-							(month == 2 && year % 4 != 0 && day > 28)) {
-							ast_log(LOG_WARNING, "CEL variable %s is not a valid date ('%s').\n", entry->name, colptr);
-							continue;
-						}
+						if (strcasecmp(entry->name, "eventdate") == 0) {
+							struct ast_tm tm;
+							ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
+							year = tm.tm_year + 1900;
+							month = tm.tm_mon + 1;
+							day = tm.tm_mday;
+						} else {
+							if (sscanf(colptr, "%4d-%2d-%2d", &year, &month, &day) != 3 || year <= 0 ||
+								month <= 0 || month > 12 || day < 0 || day > 31 ||
+								((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
+								(month == 2 && year % 400 == 0 && day > 29) ||
+								(month == 2 && year % 100 == 0 && day > 28) ||
+								(month == 2 && year % 4 == 0 && day > 29) ||
+								(month == 2 && year % 4 != 0 && day > 28)) {
+								ast_log(LOG_WARNING, "CEL variable %s is not a valid date ('%s').\n", entry->name, colptr);
+								continue;
+							}
 
-						if (year > 0 && year < 100) {
-							year += 2000;
+							if (year > 0 && year < 100) {
+								year += 2000;
+							}
 						}
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(17);
-						ast_str_append(&sql2, 0, "%s{ d '%04d-%02d-%02d' }", first ? "" : ",", year, month, day);
+						ast_str_append(&sql2, 0, "%s{d '%04d-%02d-%02d'}", first ? "" : ",", year, month, day);
 					}
 					break;
 				case SQL_TYPE_TIME:
@@ -561,16 +589,24 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						continue;
 					} else {
 						int hour = 0, minute = 0, second = 0;
-						int count = sscanf(colptr, "%2d:%2d:%2d", &hour, &minute, &second);
+						if (strcasecmp(entry->name, "eventdate") == 0) {
+							struct ast_tm tm;
+							ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
+							hour = tm.tm_hour;
+							minute = tm.tm_min;
+							second = (tableptr->allowleapsec || tm.tm_sec < 60) ? tm.tm_sec : 59;
+						} else {
+							int count = sscanf(colptr, "%2d:%2d:%2d", &hour, &minute, &second);
 
-						if ((count != 2 && count != 3) || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
-							ast_log(LOG_WARNING, "CEL variable %s is not a valid time ('%s').\n", entry->name, colptr);
-							continue;
+							if ((count != 2 && count != 3) || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > (tableptr->allowleapsec ? 60 : 59)) {
+								ast_log(LOG_WARNING, "CEL variable %s is not a valid time ('%s').\n", entry->name, colptr);
+								continue;
+							}
 						}
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(15);
-						ast_str_append(&sql2, 0, "%s{ t '%02d:%02d:%02d' }", first ? "" : ",", hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{t '%02d:%02d:%02d'}", first ? "" : ",", hour, minute, second);
 					}
 					break;
 				case SQL_TYPE_TIMESTAMP:
@@ -579,37 +615,44 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						continue;
 					} else {
 						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
-						int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
+						if (strcasecmp(entry->name, "eventdate") == 0) {
+							struct ast_tm tm;
+							ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
+							year = tm.tm_year + 1900;
+							month = tm.tm_mon + 1;
+							day = tm.tm_mday;
+							hour = tm.tm_hour;
+							minute = tm.tm_min;
+							second = (tableptr->allowleapsec || tm.tm_sec < 60) ? tm.tm_sec : 59;
+						} else {
+							int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
 
-						if ((count != 3 && count != 5 && count != 6) || year <= 0 ||
-							month <= 0 || month > 12 || day < 0 || day > 31 ||
-							((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
-							(month == 2 && year % 400 == 0 && day > 29) ||
-							(month == 2 && year % 100 == 0 && day > 28) ||
-							(month == 2 && year % 4 == 0 && day > 29) ||
-							(month == 2 && year % 4 != 0 && day > 28) ||
-							hour > 23 || minute > 59 || second > 59 || hour < 0 || minute < 0 || second < 0) {
-							ast_log(LOG_WARNING, "CEL variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
-							continue;
-						}
+							if ((count != 3 && count != 5 && count != 6) || year <= 0 ||
+								month <= 0 || month > 12 || day < 0 || day > 31 ||
+								((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
+								(month == 2 && year % 400 == 0 && day > 29) ||
+								(month == 2 && year % 100 == 0 && day > 28) ||
+								(month == 2 && year % 4 == 0 && day > 29) ||
+								(month == 2 && year % 4 != 0 && day > 28) ||
+								hour > 23 || minute > 59 || second > (tableptr->allowleapsec ? 60 : 59) || hour < 0 || minute < 0 || second < 0) {
+								ast_log(LOG_WARNING, "CEL variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
+								continue;
+							}
 
-						if (year > 0 && year < 100) {
-							year += 2000;
+							if (year > 0 && year < 100) {
+								year += 2000;
+							}
 						}
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
-						LENGTHEN_BUF2(26);
-						ast_str_append(&sql2, 0, "%s{ ts '%04d-%02d-%02d %02d:%02d:%02d' }", first ? "" : ",", year, month, day, hour, minute, second);
+						LENGTHEN_BUF2(27);
+						ast_str_append(&sql2, 0, "%s{ts '%04d-%02d-%02d %02d:%02d:%02d'}", first ? "" : ",", year, month, day, hour, minute, second);
 					}
 					break;
 				case SQL_INTEGER:
 					{
 						int integer = 0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							integer = (int) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30d", &integer) != 1) {
+						if (sscanf(colptr, "%30d", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -622,12 +665,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_BIGINT:
 					{
 						long long integer = 0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							integer = (long long) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30lld", &integer) != 1) {
-							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
+						int ret;
+						if ((ret = sscanf(colptr, "%30lld", &integer)) != 1) {
+							ast_log(LOG_WARNING, "CEL variable %s is not an integer. (%d - '%s')\n", entry->name, ret, colptr);
 							continue;
 						}
 
@@ -639,28 +679,20 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_SMALLINT:
 					{
 						short integer = 0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							integer = (short) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30hd", &integer) != 1) {
+						if (sscanf(colptr, "%30hd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
-						LENGTHEN_BUF2(6);
+						LENGTHEN_BUF2(7);
 						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_TINYINT:
 					{
 						char integer = 0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							integer = (char) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
+						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -673,11 +705,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_BIT:
 					{
 						char integer = 0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							integer = (char) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
+						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -693,17 +721,13 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_DECIMAL:
 					{
 						double number = 0.0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							number = (double)record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30lf", &number) != 1) {
+						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
 						}
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
-						LENGTHEN_BUF2(entry->decimals);
+						LENGTHEN_BUF2(entry->decimals + 2);
 						ast_str_append(&sql2, 0, "%s%*.*lf", first ? "" : ",", entry->decimals, entry->radix, number);
 					}
 					break;
@@ -712,11 +736,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_DOUBLE:
 					{
 						double number = 0.0;
-						if (strcasecmp(entry->name, "eventtype") == 0) {
-							number = (double) record.event_type;
-						} else if (ast_strlen_zero(colptr)) {
-							continue;
-						} else if (sscanf(colptr, "%30lf", &number) != 1) {
+						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
 						}
