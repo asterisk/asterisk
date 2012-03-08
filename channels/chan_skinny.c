@@ -5392,7 +5392,7 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 {
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	struct skinny_subchannel *activatesub = NULL;
+	struct skinny_subchannel *activate_sub = NULL;
 	struct skinny_subchannel *tsub;
 
 	if (skinnydebug) {
@@ -5408,9 +5408,9 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 		d->hookstate = SKINNY_ONHOOK;
 		transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
 		if (sub->related) {
-			activatesub = sub->related;
+			activate_sub = sub->related;
 			setsubstate(sub, SUBSTATE_ONHOOK);
-			l->activesub = activatesub;
+			l->activesub = activate_sub;
 			if (l->activesub->substate != SUBSTATE_HOLD) {
 				ast_log(LOG_WARNING, "Sub-%d was related but not at SUBSTATE_HOLD\n", sub->callid);
 				return;
@@ -5420,20 +5420,20 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 			setsubstate(sub, SUBSTATE_ONHOOK);
 			AST_LIST_TRAVERSE(&l->sub, tsub, list) {
 				if (tsub->substate == SUBSTATE_CALLWAIT) {
-					activatesub = tsub;
+					activate_sub = tsub;
 				}
 			}
-			if (activatesub) {
-				setsubstate(activatesub, SUBSTATE_RINGIN);
+			if (activate_sub) {
+				setsubstate(activate_sub, SUBSTATE_RINGIN);
 				return;
 			}
 			AST_LIST_TRAVERSE(&l->sub, tsub, list) {
 				if (tsub->substate == SUBSTATE_HOLD) {
-					activatesub = tsub;
+					activate_sub = tsub;
 				}
 			}
-			if (activatesub) {
-				setsubstate(activatesub, SUBSTATE_HOLD);
+			if (activate_sub) {
+				setsubstate(activate_sub, SUBSTATE_HOLD);
 				return;
 			}
 		}
@@ -6674,7 +6674,6 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		break;
 	case KEYPAD_BUTTON_MESSAGE:
 	    {
-		struct skinny_device *d = s->device;
 		struct skinny_subchannel *sub;
 		int lineInstance;
 		int callReference;

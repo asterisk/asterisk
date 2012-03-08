@@ -1018,7 +1018,7 @@ static void *do_monitor(void *data)
 	struct phone_pvt *i;
 	int tonepos = 0;
 	/* The tone we're playing this round */
-	struct timeval tv = { 0, 0 };
+	struct timeval to = { 0, 0 };
 	int dotone;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -1055,7 +1055,7 @@ static void *do_monitor(void *data)
 				if (i->dialtone && i->mode != MODE_SIGMA) {
 					/* Remember we're going to have to come back and play
 					   more dialtones */
-					if (ast_tvzero(tv)) {
+					if (ast_tvzero(to)) {
 						/* If we're due for a dialtone, play one */
 						if (write(i->fd, DialTone + tonepos, 240) != 240) {
 							ast_log(LOG_WARNING, "Dial tone write error\n");
@@ -1075,13 +1075,13 @@ static void *do_monitor(void *data)
 			if (tonepos >= sizeof(DialTone)) {
 				tonepos = 0;
 			}
-			if (ast_tvzero(tv)) {
-				tv = ast_tv(0, 30000);
+			if (ast_tvzero(to)) {
+				to = ast_tv(0, 30000);
 			}
-			res = ast_poll2(fds, inuse_fds, &tv);
+			res = ast_poll2(fds, inuse_fds, &to);
 		} else {
 			res = ast_poll(fds, inuse_fds, -1);
-			tv = ast_tv(0, 0);
+			to = ast_tv(0, 0);
 			tonepos = 0;
 		}
 		/* Okay, select has finished.  Let's see what happened.  */
@@ -1437,7 +1437,6 @@ static int load_module(void)
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(context, v->value, sizeof(context));
 		} else if (!strcasecmp(v->name, "format")) {
-			struct ast_format tmpfmt;
 			if (!strcasecmp(v->value, "g729")) {
 				ast_format_cap_set(prefcap, ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0));
 			} else if (!strcasecmp(v->value, "g723.1")) {

@@ -958,9 +958,9 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 		/* put the initiator attribute to lower case if we receive the call
 		 * otherwise GoogleTalk won't establish the session */
 		if (!p->initiator) {
-		        char c;
+			char cur;
 			char *t = lowerfrom = ast_strdupa(from);
-			while (((c = *t) != '/') && (*t++ = tolower(c)));
+			while (((cur = *t) != '/') && (*t++ = tolower(cur)));
 		}
 		iks_insert_attrib(gtalk, "initiator", (p->initiator) ? to : lowerfrom);
 		iks_insert_attrib(gtalk, "xmlns", GOOGLE_NS);

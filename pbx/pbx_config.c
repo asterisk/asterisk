@@ -1632,8 +1632,8 @@ process_extension:
 						v->value, cxt, v->lineno, vfile);
 				}
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-				char *stringp = realvalue;
 				char *appl, *data;
+				stringp = realvalue;
 				
 				if (!strcasecmp(v->name, "switch")) {
 					pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);

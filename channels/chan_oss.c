@@ -1099,16 +1099,16 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (o->owner) {	/* already in a call */
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, { 0 } };
-		const char *s;
+		const char *digits;
 
 		if (a->argc == e->args) {	/* argument is mandatory here */
 			ast_cli(a->fd, "Already in a call. You can only dial digits until you hangup.\n");
 			return CLI_FAILURE;
 		}
-		s = a->argv[e->args];
+		digits = a->argv[e->args];
 		/* send the string one char at a time */
-		for (i = 0; i < strlen(s); i++) {
-			f.subclass.integer = s[i];
+		for (i = 0; i < strlen(digits); i++) {
+			f.subclass.integer = digits[i];
 			ast_queue_frame(o->owner, &f);
 		}
 		return CLI_SUCCESS;

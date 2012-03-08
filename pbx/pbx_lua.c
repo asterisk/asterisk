@@ -1257,7 +1257,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 	lua_State *L;
 
 	if (!chan) {
-		lua_State *L = luaL_newstate();
+		L = luaL_newstate();
 		if (!L) {
 			ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
 			return NULL;
