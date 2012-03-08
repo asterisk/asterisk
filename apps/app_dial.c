@@ -2697,11 +2697,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				if (gosub_args) {
 					res9 = pbx_exec(peer, theapp, gosub_args);
 					if (!res9) {
-						struct ast_pbx_args args;
+						struct ast_pbx_args pbx_args;
 						/* A struct initializer fails to compile for this case ... */
-						memset(&args, 0, sizeof(args));
-						args.no_hangup_chan = 1;
-						ast_pbx_run_args(peer, &args);
+						memset(&pbx_args, 0, sizeof(pbx_args));
+						pbx_args.no_hangup_chan = 1;
+						ast_pbx_run_args(peer, &pbx_args);
 					}
 					ast_free(gosub_args);
 					ast_debug(1, "Gosub exited with status %d\n", res9);
@@ -2869,9 +2869,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
 				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
 			} else { /* F() */
-				int res;
-				res = ast_goto_if_exists(peer, ast_channel_context(chan), ast_channel_exten(chan), (ast_channel_priority(chan)) + 1); 
-				if (res == AST_PBX_GOTO_FAILED) {
+				int goto_res;
+				goto_res = ast_goto_if_exists(peer, ast_channel_context(chan), ast_channel_exten(chan), (ast_channel_priority(chan)) + 1); 
+				if (goto_res == AST_PBX_GOTO_FAILED) {
 					ast_hangup(peer);
 					goto out;
 				}

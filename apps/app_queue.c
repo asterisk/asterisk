@@ -3567,7 +3567,7 @@ static void record_abandoned(struct queue_ent *qe)
 }
 
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
-static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername, int pause)
+static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername, int autopause)
 {
 	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
 
@@ -3597,7 +3597,7 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 	}
 	ast_queue_log(qe->parent->name, ast_channel_uniqueid(qe->chan), membername, "RINGNOANSWER", "%d", rnatime);
-	if (qe->parent->autopause != QUEUE_AUTOPAUSE_OFF && pause) {
+	if (qe->parent->autopause != QUEUE_AUTOPAUSE_OFF && autopause) {
 		if (qe->parent->autopausedelay > 0) {
 			struct member *mem;
 			ao2_lock(qe->parent);
@@ -5320,18 +5320,15 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 
 		if (!ast_check_hangup(peer) && ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
 			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				int res;
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-				res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-				if (res == AST_PBX_SUCCESS) {
+
+				if (ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]) == AST_PBX_SUCCESS) {
 					ast_pbx_start(peer);
 				} else {
 					ast_hangup(peer);
 				}
 			} else { /* F() */
-				int res;
-				res = ast_goto_if_exists(peer, caller_context, caller_extension, caller_priority + 1);
-				if (res == AST_PBX_GOTO_FAILED) {
+				if (ast_goto_if_exists(peer, caller_context, caller_extension, caller_priority + 1) == AST_PBX_GOTO_FAILED) {
 					ast_hangup(peer);
 				} else {
 					ast_pbx_start(peer);
@@ -5674,11 +5671,13 @@ static int set_member_penalty(const char *queuename, const char *interface, int 
 
 	if (ast_strlen_zero(queuename)) { /* This means we need to iterate through all the queues. */
 		if (ast_check_realtime("queues")) {
-			char *queuename;
+			char *name;
 			queue_config = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
 			if (queue_config) {
-				for (queuename = ast_category_browse(queue_config, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(queue_config, queuename)) {
-					if ((q = find_load_queue_rt_friendly(queuename))) {
+				for (name = ast_category_browse(queue_config, NULL);
+					 !ast_strlen_zero(name);
+					 name = ast_category_browse(queue_config, name)) {
+					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
 						foundinterface += set_member_penalty_help_members(q, interface, penalty);
 					}
