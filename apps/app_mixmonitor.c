@@ -424,7 +424,7 @@ static void *mixmonitor_thread(void *obj)
 	struct mixmonitor *mixmonitor = obj;
 	struct ast_filestream **fs = NULL;
 	unsigned int oflags;
-	char *ext;
+	char *ext = "";
 	char *last_slash;
 	int errflag = 0;
 
@@ -507,8 +507,13 @@ static void *mixmonitor_thread(void *obj)
 	ast_verb(2, "End MixMonitor Recording %s\n", mixmonitor->name);
 
 	if (!AST_LIST_EMPTY(&mixmonitor->recipient_list)) {
-		ast_verb(3, "Copying recordings for Mixmonitor %s to voicemail recipients\n", mixmonitor->name);
-		copy_to_voicemail(mixmonitor, ext);
+		if (ast_strlen_zero(ext)) {
+			ast_log(LOG_ERROR, "No file extension set for Mixmonitor %s. Skipping copy to voicemail.\n",
+				mixmonitor -> name);
+		} else {
+			ast_verb(3, "Copying recordings for Mixmonitor %s to voicemail recipients\n", mixmonitor->name);
+			copy_to_voicemail(mixmonitor, ext);
+		}
 	} else {
 		ast_debug(3, "No recipients to forward monitor to, moving on.\n");
 	}
