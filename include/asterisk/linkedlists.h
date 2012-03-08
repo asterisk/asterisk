@@ -747,24 +747,24 @@ struct {								\
  * \param sortfield Name of the field on which the list is sorted
  * \since 1.6.1
  */
-#define AST_LIST_INSERT_SORTALPHA(head, elm, field, sortfield) do { \
-	if (!(head)->first) {                                           \
-		(head)->first = (elm);                                      \
-		(head)->last = (elm);                                       \
-	} else {                                                        \
-		typeof((head)->first) cur = (head)->first, prev = NULL;     \
-		while (cur && strcmp(cur->sortfield, elm->sortfield) < 0) { \
-			prev = cur;                                             \
-			cur = cur->field.next;                                  \
-		}                                                           \
-		if (!prev) {                                                \
-			AST_LIST_INSERT_HEAD(head, elm, field);                 \
-		} else if (!cur) {                                          \
-			AST_LIST_INSERT_TAIL(head, elm, field);                 \
-		} else {                                                    \
-			AST_LIST_INSERT_AFTER(head, prev, elm, field);          \
-		}                                                           \
-	}                                                               \
+#define AST_LIST_INSERT_SORTALPHA(head, elm, field, sortfield) do {     \
+	if (!(head)->first) {                                               \
+		(head)->first = (elm);                                          \
+		(head)->last = (elm);                                           \
+	} else {                                                            \
+		typeof((head)->first) __cur = (head)->first, __prev = NULL;     \
+		while (__cur && strcmp(__cur->sortfield, elm->sortfield) < 0) { \
+			__prev = __cur;                                             \
+			__cur = __cur->field.next;                                  \
+		}                                                               \
+		if (!__prev) {                                                  \
+			AST_LIST_INSERT_HEAD(head, elm, field);                     \
+		} else if (!__cur) {                                            \
+			AST_LIST_INSERT_TAIL(head, elm, field);                     \
+		} else {                                                        \
+			AST_LIST_INSERT_AFTER(head, __prev, elm, field);            \
+		}                                                               \
+	}                                                                   \
 } while (0)
 
 #define AST_RWLIST_INSERT_SORTALPHA	AST_LIST_INSERT_SORTALPHA
@@ -830,14 +830,14 @@ struct {								\
  * This macro is safe to call on an empty list.
  */
 #define AST_LIST_REMOVE_HEAD(head, field) ({				\
-		typeof((head)->first) cur = (head)->first;		\
-		if (cur) {						\
-			(head)->first = cur->field.next;		\
-			cur->field.next = NULL;				\
-			if ((head)->last == cur)			\
+		typeof((head)->first) __cur = (head)->first;		\
+		if (__cur) {						\
+			(head)->first = __cur->field.next;		\
+			__cur->field.next = NULL;			\
+			if ((head)->last == __cur)			\
 				(head)->last = NULL;			\
 		}							\
-		cur;							\
+		__cur;							\
 	})
 
 #define AST_RWLIST_REMOVE_HEAD AST_LIST_REMOVE_HEAD
