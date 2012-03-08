@@ -343,10 +343,15 @@ AC_ARG_ENABLE([dev-mode],
 	      AST_DEVMODE=yes
 	      NOISY_BUILD=yes
 	      ;;
+	      strict)
+	      AST_DEVMODE=yes
+	      AST_DEVMODE_STRICT=yes
+	      ;;
 	      *) AC_MSG_ERROR(bad value ${enableval} for --enable-dev-mode)  ;;
 	esac])
 AC_SUBST(NOISY_BUILD)
 AC_SUBST(AST_DEVMODE)
+AC_SUBST(AST_DEVMODE_STRICT)
 
 AST_CODE_COVERAGE=no
 AC_ARG_ENABLE([coverage],

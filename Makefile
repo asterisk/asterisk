@@ -72,6 +72,7 @@ export NOISY_BUILD        # Used in Makefile.rules
 export MENUSELECT_CFLAGS  # Options selected in menuselect.
 export AST_DEVMODE        # Set to "yes" for additional compiler
                           # and runtime checks
+export AST_DEVMODE_STRICT # Enables shadow warnings (-Wshadow)
 
 export _SOLINK            # linker flags for all shared objects
 export SOLINK             # linker flags for loadable modules
@@ -224,6 +225,9 @@ ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=-Wundef
   _ASTCFLAGS+=-Wmissing-format-attribute
   _ASTCFLAGS+=-Wformat=2
+  ifeq ($(AST_DEVMODE_STRICT),yes)
+    _ASTCFLAGS+=-Wshadow
+  endif
   ADDL_TARGETS+=validate-docs
 endif
 
