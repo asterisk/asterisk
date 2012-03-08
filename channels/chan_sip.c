@@ -30584,9 +30584,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char *extension, *domain;
 
 	cdest = ast_strdupa(dest);
-	
+
 	extension = strsep(&cdest, "@");
-	domain = strsep(&cdest, ":");
+	domain = cdest;
 	if (ast_strlen_zero(extension)) {
 		ast_log(LOG_ERROR, "Missing mandatory argument: extension\n");
 		return 0;
