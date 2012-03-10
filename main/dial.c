@@ -47,6 +47,7 @@ struct ast_dial {
 	enum ast_dial_result state;                        /*!< Status of dial */
 	void *options[AST_DIAL_OPTION_MAX];                /*!< Global options */
 	ast_dial_state_callback state_callback;            /*!< Status callback */
+	void *user_data;                                   /*!< Attached user data */
 	AST_LIST_HEAD(, ast_dial_channel) channels; /*!< Channels being dialed */
 	pthread_t thread;                                  /*!< Thread (if running in async) */
 	ast_mutex_t lock;                                  /*! Lock to protect the thread information above */
@@ -1047,6 +1048,16 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback)
 {
 	dial->state_callback = callback;
+}
+
+void ast_dial_set_user_data(struct ast_dial *dial, void *user_data)
+{
+	dial->user_data = user_data;
+}
+
+void *ast_dial_get_user_data(struct ast_dial *dial)
+{
+	return dial->user_data;
 }
 
 /*! \brief Set the maximum time (globally) allowed for trying to ring phones

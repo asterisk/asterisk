@@ -187,6 +187,8 @@ static int set_user_option(const char *name, const char *value, struct user_prof
 		ast_copy_string(u_profile->pin, value, sizeof(u_profile->pin));
 	} else if (!strcasecmp(name, "music_on_hold_class")) {
 		ast_copy_string(u_profile->moh_class, value, sizeof(u_profile->moh_class));
+	} else if (!strcasecmp(name, "announcement")) {
+		ast_copy_string(u_profile->announcement, value, sizeof(u_profile->announcement));
 	} else if (!strcasecmp(name, "denoise")) {
 		ast_set2_flag(u_profile, ast_true(value), USER_OPT_DENOISE);
 	} else if (!strcasecmp(name, "dsp_talking_threshold")) {
@@ -515,6 +517,7 @@ static int parse_user(const char *cat, struct ast_config *cfg)
 	u_profile->talking_threshold = DEFAULT_TALKING_THRESHOLD;
 	memset(u_profile->pin, 0, sizeof(u_profile->pin));
 	memset(u_profile->moh_class, 0, sizeof(u_profile->moh_class));
+	memset(u_profile->announcement, 0, sizeof(u_profile->announcement));
 	for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 		if (!strcasecmp(var->name, "type")) {
 			continue;
@@ -859,6 +862,8 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"MOH Class:               %s\n",
 		ast_strlen_zero(u_profile.moh_class) ?
 		"default" : u_profile.moh_class);
+	ast_cli(a->fd,"Announcement:            %s\n",
+		u_profile.announcement);
 	ast_cli(a->fd,"Quiet:                   %s\n",
 		u_profile.flags & USER_OPT_QUIET ?
 		"enabled" : "disabled");

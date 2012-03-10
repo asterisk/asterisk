@@ -26,8 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>dahdi</depend>
-	<depend>app_meetme</depend>
+	<depend>app_confbridge</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -76,7 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Quiet, do not play beep to caller</para>
 					</option>
 					<option name="r">
-						<para>Record the page into a file (meetme option <literal>r</literal>)</para>
+						<para>Record the page into a file (ConfBridge option <literal>r</literal>)</para>
 					</option>
 					<option name="s">
 						<para>Only dial a channel if its device state says that it is <literal>NOT_INUSE</literal></para>
@@ -105,7 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			destroyed when the original callers leaves.</para>
 		</description>
 		<see-also>
-			<ref type="application">MeetMe</ref>
+			<ref type="application">ConfBridge</ref>
 		</see-also>
 	</application>
  ***/
@@ -136,12 +135,46 @@ AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('n', PAGE_NOCALLERANNOUNCE),
 });
 
+/* We use this structure as a way to pass this to all dialed channels */
+struct page_options {
+	char *opts[OPT_ARG_ARRAY_SIZE];
+	struct ast_flags flags;
+};
+
+static void page_state_callback(struct ast_dial *dial)
+{
+	struct ast_channel *chan;
+	struct page_options *options;
+
+	if (ast_dial_state(dial) != AST_DIAL_RESULT_ANSWERED ||
+	    !(chan = ast_dial_answered(dial)) ||
+	    !(options = ast_dial_get_user_data(dial))) {
+		return;
+	}
+
+	ast_func_write(chan, "CONFBRIDGE(bridge,template)", "default_bridge");
+
+	if (ast_test_flag(&options->flags, PAGE_RECORD)) {
+		ast_func_write(chan, "CONFBRIDGE(bridge,record_conference)", "yes");
+	}
+
+	ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
+	ast_func_write(chan, "CONFBRIDGE(user,end_marked)", "yes");
+
+	if (!ast_test_flag(&options->flags, PAGE_DUPLEX)) {
+		ast_func_write(chan, "CONFBRIDGE(user,startmuted)", "yes");
+	}
+
+	if (ast_test_flag(&options->flags, PAGE_ANNOUNCE) && !ast_strlen_zero(options->opts[OPT_ARG_ANNOUNCE])) {
+		ast_func_write(chan, "CONFBRIDGE(user,announcement)", options->opts[OPT_ARG_ANNOUNCE]);
+	}
+}
 
 static int page_exec(struct ast_channel *chan, const char *data)
 {
 	char *tech, *resource, *tmp;
-	char meetmeopts[128], originator[AST_CHANNEL_NAME], *opts[OPT_ARG_ARRAY_SIZE];
-	struct ast_flags flags = { 0 };
+	char confbridgeopts[128], originator[AST_CHANNEL_NAME];
+	struct page_options options = { { 0, }, { 0, } };
 	unsigned int confid = ast_random();
 	struct ast_app *app;
 	int res = 0, pos = 0, i = 0;
@@ -161,8 +194,8 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!(app = pbx_findapp("MeetMe"))) {
-		ast_log(LOG_WARNING, "There is no MeetMe application available!\n");
+	if (!(app = pbx_findapp("ConfBridge"))) {
+		ast_log(LOG_WARNING, "There is no ConfBridge application available!\n");
 		return -1;
 	};
 
@@ -176,20 +209,14 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_strlen_zero(args.options)) {
-		ast_app_parse_options(page_opts, &flags, opts, args.options);
+		ast_app_parse_options(page_opts, &options.flags, options.opts, args.options);
 	}
 
 	if (!ast_strlen_zero(args.timeout)) {
 		timeout = atoi(args.timeout);
 	}
 
-	if (ast_test_flag(&flags, PAGE_ANNOUNCE) && !ast_strlen_zero(opts[OPT_ARG_ANNOUNCE])) {
-		snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)G(%s)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
-						 (ast_test_flag(&flags, PAGE_RECORD) ? "r" : ""), opts[OPT_ARG_ANNOUNCE] );
-	} else {
-		snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
-		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
-	}
+	snprintf(confbridgeopts, sizeof(confbridgeopts), "ConfBridge,%u", confid);
 
 	/* Count number of extensions in list by number of ampersands + 1 */
 	num_dials = 1;
@@ -222,7 +249,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		}
 
 		/* Ensure device is not in use if skip option is enabled */
-		if (ast_test_flag(&flags, PAGE_SKIP)) {
+		if (ast_test_flag(&options.flags, PAGE_SKIP)) {
 			state = ast_device_state(tech);
 			if (state == AST_DEVICE_UNKNOWN) {
 				ast_log(LOG_WARNING, "Destination '%s' has device state '%s'. Paging anyway.\n", tech, ast_devstate2str(state));
@@ -247,15 +274,18 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		}
 
 		/* Set ANSWER_EXEC as global option */
-		ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, meetmeopts);
+		ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, confbridgeopts);
 
 		if (timeout) {
 			ast_dial_set_global_timeout(dial, timeout * 1000);
 		}
 
-		if (ast_test_flag(&flags, PAGE_IGNORE_FORWARDS)) {
+		if (ast_test_flag(&options.flags, PAGE_IGNORE_FORWARDS)) {
 			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL);
 		}
+
+		ast_dial_set_state_callback(dial, &page_state_callback);
+		ast_dial_set_user_data(dial, &options);
 
 		/* Run this dial in async mode */
 		ast_dial_run(dial, chan, 1);
@@ -264,29 +294,32 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		dial_list[pos++] = dial;
 	}
 
-	if (!ast_test_flag(&flags, PAGE_QUIET)) {
+	if (!ast_test_flag(&options.flags, PAGE_QUIET)) {
 		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 		if (!res)
 			res = ast_waitstream(chan, "");
 	}
 
 	if (!res) {
-		/* Default behaviour */
-		snprintf(meetmeopts, sizeof(meetmeopts), "%ud,A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
-			(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
-		if (ast_test_flag(&flags, PAGE_ANNOUNCE) && !ast_strlen_zero(opts[OPT_ARG_ANNOUNCE]) &&
-				!ast_test_flag(&flags, PAGE_NOCALLERANNOUNCE)) {
-			snprintf(meetmeopts, sizeof(meetmeopts), "%ud,A%s%sqxdG(%s)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
- 			  (ast_test_flag(&flags, PAGE_RECORD) ? "r" : ""), opts[OPT_ARG_ANNOUNCE] );
+		ast_func_write(chan, "CONFBRIDGE(bridge,template)", "default_bridge");
+
+		if (ast_test_flag(&options.flags, PAGE_RECORD)) {
+			ast_func_write(chan, "CONFBRIDGE(bridge,record_conference)", "yes");
 		}
-		pbx_exec(chan, app, meetmeopts);
+
+		ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
+		ast_func_write(chan, "CONFBRIDGE(user,marked)", "yes");
+
+		snprintf(confbridgeopts, sizeof(confbridgeopts), "%u", confid);
+
+		pbx_exec(chan, app, confbridgeopts);
 	}
 
 	/* Go through each dial attempt cancelling, joining, and destroying */
 	for (i = 0; i < pos; i++) {
 		struct ast_dial *dial = dial_list[i];
 
-		/* We have to wait for the async thread to exit as it's possible Meetme won't throw them out immediately */
+		/* We have to wait for the async thread to exit as it's possible ConfBridge won't throw them out immediately */
 		ast_dial_join(dial);
 
 		/* Hangup all channels */

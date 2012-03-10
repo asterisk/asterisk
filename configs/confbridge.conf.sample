@@ -126,6 +126,7 @@ type=user
                          ; the conference. This option is off by default.
 ;dtmf_passthrough=yes  ; Sets whether or not DTMF should pass through the conference.
                        ; This option is off by default.
+;announcement=</path/to/file> ; Play a sound file to the user when they join the conference.
 
 ; --- ConfBridge Bridge Profile Options ---
 [default_bridge]

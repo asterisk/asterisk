@@ -152,6 +152,19 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
  */
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
 
+/*! \brief Set user data on a dial structure
+ * \param dial The dial structure to set a user data pointer on
+ * \param user_data The user data pointer
+ * \return nothing
+ */
+void ast_dial_set_user_data(struct ast_dial *dial, void *user_data);
+
+/*! \brief Return the user data on a dial structure
+ * \param dial The dial structure
+ * \return A pointer to the user data
+ */
+void *ast_dial_get_user_data(struct ast_dial *dial);
+
 /*! \brief Set the maximum time (globally) allowed for trying to ring phones
  * \param dial The dial structure to apply the time limit to
  * \param timeout Maximum time allowed in milliseconds

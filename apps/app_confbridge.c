@@ -997,6 +997,17 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 		ast_devstate_changed(AST_DEVICE_INUSE, "confbridge:%s", conference_bridge->name);
 	}
 
+	/* If an announcement is to be played play it */
+	if (!ast_strlen_zero(conference_bridge_user->u_profile.announcement)) {
+		if (play_prompt_to_channel(conference_bridge,
+					   conference_bridge_user->chan,
+					   conference_bridge_user->u_profile.announcement)) {
+			ao2_unlock(conference_bridge);
+			leave_conference_bridge(conference_bridge, conference_bridge_user);
+			return NULL;
+		}
+	}
+
 	/* If the caller is a marked user or is waiting for a marked user to enter pass 'em off, otherwise pass them off to do regular joining stuff */
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_MARKEDUSER | USER_OPT_WAITMARKED)) {
 		if (post_join_marked(conference_bridge, conference_bridge_user)) {

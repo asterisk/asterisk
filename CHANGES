@@ -39,6 +39,8 @@ ConfBridge
    occurs to be overriden using sound_participants_unmuted and sound_participants_muted.
  * Added menu action participant_count.  This will playback the number of current
    participants in a conference.
+ * Added announcement configuration option to user profile. If set the sound file will
+   be played to the user, and only the user, upon joining the conference bridge.
 
 Voicemail
 ------------------

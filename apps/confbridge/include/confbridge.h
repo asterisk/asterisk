@@ -128,6 +128,7 @@ struct user_profile {
 	char name[128];
 	char pin[MAX_PIN];
 	char moh_class[128];
+	char announcement[PATH_MAX];
 	unsigned int flags;
 	unsigned int announce_user_count_all_after;
 	/*! The time in ms of talking before a user is considered to be talking by the dsp. */
