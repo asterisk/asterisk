@@ -80,6 +80,23 @@ Chan_dahdi changes
  * Added dialtone_detect option for analog ports to disconnect incoming
    calls when dialtone is detected.
 
+Chan_unistim changes
+--------------------
+ * Added ability to use multiple lines on phone, so for one device in 
+   configuration multiple lines can be defined, it allows to have multiple calls
+   on one phone, callwaiting and switching between calls.
+ * Added option 'sharpdial' allowing end dialing by pressing # key
+ * Added options 'cwstyle', 'cwvolume' controlling callwaiting appearance
+ * Added global 'debug' option, that enables debug in channel driver
+ * Added ability for translation on-screen menu to multiple languages. Tested on
+   Russian languages.  Supported encodings: ISO 8859-1, ISO 8859-2, ISO 8859-4, 
+   ISO 8859-5, ISO 2022-JP. Language controlled by 'language' and on-screen 
+   menu of phone
+ * Reworked dialing number input: added dialing by timeout, immediate dial on 
+   on dialplan compare, phone number length now not limited by screen size
+ * Added ability for pickup a call using fetures.conf defined value and 
+   on-screen key
+
 Codec changes
 -------------
  * Codec lists may now be modified by the '!' character, to allow succinct

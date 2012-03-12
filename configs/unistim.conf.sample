@@ -11,10 +11,12 @@ port=5000                    ; UDP port
 ;cos=3                  ; Sets 802.1p priority for signaling packets.
 ;cos_audio=5            ; Sets 802.1p priority for RTP audio packets.
 ;
+;debug=yes              ; Enable debug (default no)
 ;keepalive=120               ; in seconds, default = 120
 ;public_ip=                  ; if asterisk is behind a nat, specify your public IP
 ;autoprovisioning=no         ; Allow undeclared phones to register an extension. See README for important
                              ; informations. no (default), yes, tn.
+;mohsuggest=default
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; SIP channel. Defaults to "no". An enabled jitterbuffer will
@@ -46,7 +48,9 @@ port=5000                    ; UDP port
 ;device=000ae4012345         ; mac address of the phone
 ;rtp_port=10000              ; RTP port used by the phone, default = 10000. RTCP = rtp_port+1
 ;rtp_method=0                ; If you don't have sound, you can try 1, 2 or 3, default = 0
+                             ; value 3 works on newer i2004, 1120E and 1140E
 ;status_method=0             ; If you don't see status text, try 1, default = 0
+                             ; value 1 works on 1120E and 1140E
 ;titledefault=Asterisk       ; default = "TimeZone (your time zone)". 12 characters max
 ;height=3                    ; default = 3, the number of display lines the device can show
                              ; For example on a Nortel I2001 or I2002, set this to 1
@@ -59,6 +63,9 @@ port=5000                    ; UDP port
 ;country=us                  ; country (ccTLD) for dial tone frequency. See README, default = us
 ;ringvolume=2                ; ring volume : 0,1,2,3, can be overrided by Dial(), default = 2
 ;ringstyle=3                 ; ring style : 0 to 7, can be overrided by Dial(), default = 3
+;cwvolume=2                  ; ring volume : 0,1,2,3, default = 0
+;cwstyle=3                   ; ring style : 0 to 7, default = 2
+;sharpdial=1                 ; dial number by pressing #, default = 0
 ;callhistory=1               ; 0 = disable, 1 = enable call history, default = 1
 ;callerid="Customer Support" <555-234-5678>
 ;context=default             ; context, default="default"
@@ -66,8 +73,8 @@ port=5000                    ; UDP port
 ;linelabel="Support"         ; Softkey label for the next line=> entry, 9 char max.
 ;extension=none              ; Add an extension into the dialplan. Only valid in context specified previously.
                              ; none=don't add (default), ask=prompt user, line=use the line number
-;line => 100                 ; Only one line by device is currently supported.
-                             ; Beware ! only bookmark and softkey entries are allowed after line=>
+;line => 100                 ; Any number of lines can be defined in any order with bookmarks
+;line => 200                 ; After line defined it placed in next available slot
 ;bookmark=Hans C.@123        ; Use a softkey to dial 123. Name : 9 char max
 ;bookmark=Mailbox@011@54     ; 54 shows a mailbox icon. See #define FAV_ICON_ for other values (32 to 63)
 ;bookmark=Test@*@USTM/violet ; Display an icon if violet is connected (dynamic), only for unistim device

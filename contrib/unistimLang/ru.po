@@ -1,0 +1,220 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-02-13 11:09+0600\n"
+"PO-Revision-Date: 2011-02-13 11:45+0600\n"
+"Last-Translator: Igor Goncharovsky <igor.goncharovsky@gmail.com>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=8859-5\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: Russian\n"
+"X-Poedit-SourceCharset: 8859-5\n"
+
+#: chan_unistim.c:2706
+msgid "Enter forward"
+msgstr "���� �������������"
+
+#: chan_unistim.c:2707
+msgid "Fwd    Cancel BackSp Erase"
+msgstr "���    ������ ������ �����"
+
+#: chan_unistim.c:2724
+msgid "Enter the number to dial"
+msgstr "������� �����. �����"
+
+#: chan_unistim.c:2725
+msgid "and press Call"
+msgstr "� ������� �����"
+
+#: chan_unistim.c:2727
+msgid "Call   Redial BackSp Erase"
+msgstr "�����  ������ ������ �����"
+
+#: chan_unistim.c:2814 chan_unistim.c:2946 chan_unistim.c:3272
+#: chan_unistim.c:4539 chan_unistim.c:4633
+msgid "Hangup Transf"
+msgstr "������ �������"
+
+#: chan_unistim.c:2831
+msgid "Calling..."
+msgstr "�����..."
+
+#: chan_unistim.c:2834
+msgid "Calling :"
+msgstr "����� :"
+
+#: chan_unistim.c:2836 chan_unistim.c:2888
+msgid "Dialing..."
+msgstr "�����..."
+
+#: chan_unistim.c:2838
+msgid "Hangup"
+msgstr "������"
+
+#: chan_unistim.c:2886
+msgid "Calling (pre-transfer)"
+msgstr "����� (�� �������������)"
+
+#: chan_unistim.c:2890
+msgid "TransfrCancel"
+msgstr "������� ������"
+
+#: chan_unistim.c:2945
+msgid "is on-line"
+msgstr "��������"
+
+#: chan_unistim.c:3266
+msgid "Dial Cancel,back to priv. call."
+msgstr "����� �������������� � ������"
+
+#: chan_unistim.c:3268
+msgid "Dialing canceled,"
+msgstr "����� �������,"
+
+#: chan_unistim.c:3269 chan_unistim.c:4537
+msgid "switching back to"
+msgstr "������������� ����� �"
+
+#: chan_unistim.c:3270 chan_unistim.c:4538
+msgid "previous call."
+msgstr "����������� ������"
+
+#: chan_unistim.c:3318 chan_unistim.c:3519
+msgid "Select               Cancel"
+msgstr "�����                ������"
+
+#: chan_unistim.c:3366
+msgid "Select BackSp Erase  Cancel"
+msgstr "�����  ������ ������ ������"
+
+#: chan_unistim.c:3557
+msgid "Please enter a Terminal"
+msgstr "������� ��������"
+
+#: chan_unistim.c:3558
+msgid "Number (TN) :"
+msgstr "����� (TN) :"
+
+msgid "Number:"
+msgstr "�����:"
+
+#: chan_unistim.c:3562
+msgid "Enter  BackSpcErase"
+msgstr "����   ������ ������"
+
+#: chan_unistim.c:3634
+msgid "Invalid Terminal Number."
+msgstr "�������� ����� ���������"
+
+#: chan_unistim.c:3635 chan_unistim.c:3645
+msgid "Please try again :"
+msgstr "���������� ���������"
+
+#: chan_unistim.c:3644
+msgid "Invalid extension."
+msgstr "������������ �����."
+
+#: chan_unistim.c:3734
+msgid "Prev   "
+msgstr "����   "
+
+#: chan_unistim.c:3738
+msgid "Next   "
+msgstr "�����   "
+
+#: chan_unistim.c:3740
+msgid "Redial "
+msgstr "������ "
+
+#: chan_unistim.c:3743
+#, c-format
+msgid "%s%s%sCancel"
+msgstr "%s%s%s������"
+
+#: chan_unistim.c:3815
+#, c-format
+msgid "Fwd to: %s"
+msgstr "�������. �: %s"
+
+#: chan_unistim.c:3818
+msgid "Call forwarded to :"
+msgstr "����� ��������� � :"
+
+#: chan_unistim.c:3822
+msgid "Dial   Redial NoFwd  "
+msgstr "�����  ������ �����."
+
+#: chan_unistim.c:3826
+msgid "Dial   Recal  Fwd    Unregis"
+msgstr "����� ������ ��� ���������"
+
+#: chan_unistim.c:3828
+msgid "Dial   Recal  Fwd    Pickup"
+msgstr "�����  ������ ���    ������"
+
+#: chan_unistim.c:3837
+#, c-format
+msgid "%d unanswered call"
+msgstr "%d ����������� �����"
+
+#: chan_unistim.c:3839
+#, c-format
+msgid "%d unanswered calls"
+msgstr "%d ����������� ������(��)"
+
+#: chan_unistim.c:4071
+msgid "Sorry, this phone is not"
+msgstr "��������, ������� ��"
+
+#: chan_unistim.c:4072
+msgid "registered in unistim.cfg"
+msgstr "��������������� � unistim.conf"
+
+#: chan_unistim.c:4476
+msgid "Accept               Ignore"
+msgstr "�������              �����"
+
+#: chan_unistim.c:4536
+msgid "Three way call canceled,"
+msgstr "����-����.����� �������"
+
+#: chan_unistim.c:4629
+msgid "is now on-line"
+msgstr "������ ���������"
+
+#: chan_unistim.c:4631
+msgid "Transf Cancel"
+msgstr "������ ������"
+
+#: chan_unistim.c:4895
+msgid "Ringing..."
+msgstr "������..."
+
+#: chan_unistim.c:4904
+msgid "Busy"
+msgstr "�����"
+
+#: chan_unistim.c:4913
+msgid "Congestion"
+msgstr "��������"
+
+#: chan_unistim.c:5183
+msgid "Message :"
+msgstr "��������� :"
+
+msgid "IgorG"
+msgstr "�����"
+
+msgid "Shared"
+msgstr "�����"
+
+msgid "Change codec"
+msgstr "����� ������"
+
+msgid "Contrast"
+msgstr "��������"
+
+msgid "Language"
+msgstr "����"

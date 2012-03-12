@@ -83,6 +83,10 @@ SIP
    a call is terminated due to RTP stream inactivity or SIP session timer
    expiration.
 
+chan_unistim
+ - Due to massive update in chan_unistim phone keys functions and on-screen 
+   information changed.
+
 users.conf:
  - A defined user with hasvoicemail=yes now finally uses a Gosub to stdexten
    as documented in extensions.conf.sample since v1.6.0 instead of a Macro as
