@@ -2912,19 +2912,17 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 
 	ast_channel_lock(chan);
 	if (ast_channel_generatordata(chan)) {
-		if (ast_channel_generator(chan) && ast_channel_generator(chan)->release)
+		if (ast_channel_generator(chan) && ast_channel_generator(chan)->release) {
 			ast_channel_generator(chan)->release(chan, ast_channel_generatordata(chan));
-		ast_channel_generatordata_set(chan, NULL);
+		}
 	}
 	if (gen->alloc && !(generatordata = gen->alloc(chan, params))) {
 		res = -1;
 	}
-	if (generatordata) {
-		ast_channel_generator_set(chan, gen);
-	}
+	ast_channel_generatordata_set(chan, generatordata);
 	if (!res) {
 		ast_settimeout(chan, 50, generator_force, chan);
-		ast_channel_generatordata_set(chan, generatordata);
+		ast_channel_generator_set(chan, gen);
 	}
 	ast_channel_unlock(chan);
 
@@ -4928,13 +4926,29 @@ done:
 	return res;
 }
 
+struct set_format_trans_access {
+	struct ast_trans_pvt *(*get)(const struct ast_channel *chan);
+	void (*set)(struct ast_channel *chan, struct ast_trans_pvt *value);
+};
+
+static const struct set_format_trans_access set_format_readtrans = {
+	.get = ast_channel_readtrans,
+	.set = ast_channel_readtrans_set,
+};
+
+static const struct set_format_trans_access set_format_writetrans = {
+	.get = ast_channel_writetrans,
+	.set = ast_channel_writetrans_set,
+};
+
 static int set_format(struct ast_channel *chan,
 	struct ast_format_cap *cap_set,
 	struct ast_format *rawformat,
 	struct ast_format *format,
-	struct ast_trans_pvt **trans,
+	const struct set_format_trans_access *trans,
 	const int direction)
 {
+	struct ast_trans_pvt *trans_pvt;
 	struct ast_format_cap *cap_native = ast_channel_nativeformats(chan);
 	struct ast_format best_set_fmt;
 	struct ast_format best_native_fmt;
@@ -4954,10 +4968,12 @@ static int set_format(struct ast_channel *chan,
 		ast_format_cap_set(ast_channel_nativeformats(chan), &best_set_fmt);
 		ast_channel_unlock(chan);
 
-		if (*trans) {
-			ast_translator_free_path(*trans);
+		trans_pvt = trans->get(chan);
+		if (trans_pvt) {
+			ast_translator_free_path(trans_pvt);
+			trans->set(chan, NULL);
 		}
-		*trans = NULL;
+
 		/* If there is a generator on the channel, it needs to know about this
 		 * change if it is the write format. */
 		if (direction && ast_channel_generatordata(chan)) {
@@ -4987,7 +5003,7 @@ static int set_format(struct ast_channel *chan,
 
 	if ((ast_format_cmp(rawformat, &best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_format_cmp(format, &best_set_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
-		((ast_format_cmp(rawformat, format) != AST_FORMAT_CMP_NOT_EQUAL) || (*trans))) {
+		((ast_format_cmp(rawformat, format) != AST_FORMAT_CMP_NOT_EQUAL) || trans->get(chan))) {
 		/* the channel is already in these formats, so nothing to do */
 		ast_channel_unlock(chan);
 		return 0;
@@ -4997,10 +5013,11 @@ static int set_format(struct ast_channel *chan,
 	/* User perspective is fmt */
 	ast_format_copy(format, &best_set_fmt);
 
-	/* Free any read translation we have right now */
-	if (*trans) {
-		ast_translator_free_path(*trans);
-		*trans = NULL;
+	/* Free any translation we have right now */
+	trans_pvt = trans->get(chan);
+	if (trans_pvt) {
+		ast_translator_free_path(trans_pvt);
+		trans->set(chan, NULL);
 	}
 
 	/* Build a translation path from the raw format to the desired format */
@@ -5014,12 +5031,13 @@ static int set_format(struct ast_channel *chan,
 	} else {
 		if (!direction) {
 			/* reading */
-			*trans = ast_translator_build_path(format, rawformat);
+			trans_pvt = ast_translator_build_path(format, rawformat);
 		} else {
 			/* writing */
-			*trans = ast_translator_build_path(rawformat, format);
+			trans_pvt = ast_translator_build_path(rawformat, format);
 		}
-		res = *trans ? 0 : -1;
+		trans->set(chan, trans_pvt);
+		res = trans_pvt ? 0 : -1;
 	}
 	ast_channel_unlock(chan);
 
@@ -5039,8 +5057,8 @@ static int set_format(struct ast_channel *chan,
 int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 {
 	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
-	struct ast_trans_pvt *trans = NULL;
 	int res;
+
 	if (!cap) {
 		return -1;
 	}
@@ -5050,10 +5068,9 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 		cap,
 		ast_channel_rawreadformat(chan),
 		ast_channel_readformat(chan),
-		&trans,
+		&set_format_readtrans,
 		0);
 
-	ast_channel_readtrans_set(chan, trans);
 	ast_format_cap_destroy(cap);
 	return res;
 }
@@ -5062,8 +5079,8 @@ int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 {
 	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
 	struct ast_format tmp_format;
-	struct ast_trans_pvt *trans = NULL;
 	int res;
+
 	if (!cap) {
 		return -1;
 	}
@@ -5073,33 +5090,28 @@ int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 		cap,
 		ast_channel_rawreadformat(chan),
 		ast_channel_readformat(chan),
-		&trans,
+		&set_format_readtrans,
 		0);
 
-	ast_channel_readtrans_set(chan, trans);
 	ast_format_cap_destroy(cap);
 	return res;
 }
 
 int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap *cap)
 {
-	struct ast_trans_pvt *trans = NULL;
-	int res;
-	res = set_format(chan,
+	return set_format(chan,
 		cap,
 		ast_channel_rawreadformat(chan),
 		ast_channel_readformat(chan),
-		&trans,
+		&set_format_readtrans,
 		0);
-	ast_channel_readtrans_set(chan, trans);
-	return res;
 }
 
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 {
 	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
-	struct ast_trans_pvt *trans = NULL;
 	int res;
+
 	if (!cap) {
 		return -1;
 	}
@@ -5109,10 +5121,9 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 		cap,
 		ast_channel_rawwriteformat(chan),
 		ast_channel_writeformat(chan),
-		&trans,
+		&set_format_writetrans,
 		1);
 
-	ast_channel_writetrans_set(chan, trans);
 	ast_format_cap_destroy(cap);
 	return res;
 }
@@ -5121,8 +5132,8 @@ int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 {
 	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
 	struct ast_format tmp_format;
-	struct ast_trans_pvt *trans = NULL;
 	int res;
+
 	if (!cap) {
 		return -1;
 	}
@@ -5132,26 +5143,21 @@ int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 		cap,
 		ast_channel_rawwriteformat(chan),
 		ast_channel_writeformat(chan),
-		&trans,
+		&set_format_writetrans,
 		1);
 
-	ast_channel_writetrans_set(chan, trans);
 	ast_format_cap_destroy(cap);
 	return res;
 }
 
 int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_cap *cap)
 {
-	struct ast_trans_pvt *trans = NULL;
-	int res;
-	res = set_format(chan,
+	return set_format(chan,
 		cap,
 		ast_channel_rawwriteformat(chan),
 		ast_channel_writeformat(chan),
-		&trans,
+		&set_format_writetrans,
 		1);
-	ast_channel_writetrans_set(chan, trans);
-	return res;
 }
 
 const char *ast_channel_reason2str(int reason)
