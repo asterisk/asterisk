@@ -18,6 +18,15 @@
 ===
 ===========================================================
 
+From 1.8.11 to 1.8.12:
+* In AEL dialplans, the "h" extension will now be inherited from prior
+  calling contexts, just as it had in 1.4.  If you have created an AEL
+  dialplan from scratch in earlier versions of 1.8, you may want to
+  check that the execution of "h" extensions in earlier contexts is what
+  you want.  If you want to interrupt this functionality, simply placing
+  an "h" extension in the macro where you want no inheritance to take
+  place should be sufficient.
+
 From 1.8.10 to 1.8.11:
 
 * If no transport is specified in sip.conf, transport will default to UDP.

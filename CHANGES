@@ -9,6 +9,16 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 1.8.9.11 ----------------------------
+------------------------------------------------------------------------------
+
+Gosub changes
+-------------
+ * A new function, STACK_PEEK, has been added, to correlate for functionality
+   available in AEL in 1.4 that disappeared in 1.8.  STACK_PEEK permits the
+   user to see the location of the calling Gosub from within the subroutine.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.8.9.0 -----------------------------
 ------------------------------------------------------------------------------
 
