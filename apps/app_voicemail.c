@@ -7464,8 +7464,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* NULL category for IMAP storage */
 				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox,
 					dstvms->curbox,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-					S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL),
+					S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
 					vmstmp.fn, vmstmp.introfn, fmt, duration, attach_user_voicemail, chan,
 					NULL, urgent_str);
 #else
