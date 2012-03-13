@@ -8019,8 +8019,34 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			struct pri_party_connected_line connected;
 			int dialplan;
 			int prefix_strip;
+			int colp_allowed = 0;
 
 			pri_grab(p, p->pri);
+
+			/* Check if a connected line update is allowed at this time. */
+			switch (p->pri->colp_send) {
+			case SIG_PRI_COLP_BLOCK:
+				break;
+			case SIG_PRI_COLP_CONNECT:
+				/*
+				 * Outgoing calls receive CONNECT and act like an update before
+				 * the call is connected.
+				 */
+				if (p->call_level <= SIG_PRI_CALL_LEVEL_ALERTING && !p->outgoing) {
+					colp_allowed = 1;
+				}
+				break;
+			case SIG_PRI_COLP_UPDATE:
+				colp_allowed = 1;
+				break;
+			}
+			if (!colp_allowed) {
+				pri_rel(p->pri);
+				ast_debug(1, "Blocked AST_CONTROL_CONNECTED_LINE on %s\n",
+					ast_channel_name(chan));
+				break;
+			}
+
 			memset(&connected, 0, sizeof(connected));
 			sig_pri_party_id_from_ast(&connected.id, &ast_channel_connected(chan)->id);
 

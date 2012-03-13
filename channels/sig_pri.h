@@ -391,6 +391,15 @@ struct sig_pri_mbox {
 };
 #endif	/* defined(HAVE_PRI_MWI) */
 
+enum sig_pri_colp_signaling {
+	/*! Block all connected line updates. */
+	SIG_PRI_COLP_BLOCK,
+	/*! Only send connected line information with the CONNECT message. */
+	SIG_PRI_COLP_CONNECT,
+	/*! Allow all connected line updates. */
+	SIG_PRI_COLP_UPDATE,
+};
+
 struct sig_pri_span {
 	/* Should be set by user */
 	struct ast_cc_config_params *cc_params;			/*!< CC config parameters for each new call. */
@@ -452,6 +461,8 @@ struct sig_pri_span {
 	char privateprefix[20];					/*!< for private dialplans */
 	char unknownprefix[20];					/*!< for unknown dialplans */
 	enum sig_pri_moh_signaling moh_signaling;
+	/*! Send connected line signaling to peer option. */
+	enum sig_pri_colp_signaling colp_send;
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
 #if defined(HAVE_PRI_DISPLAY_TEXT)
 	unsigned long display_flags_send;		/*!< PRI_DISPLAY_OPTION_xxx flags for display text sending */

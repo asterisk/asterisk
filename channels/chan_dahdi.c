@@ -1407,6 +1407,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.localprefix = "",
 			.privateprefix = "",
 			.unknownprefix = "",
+			.colp_send = SIG_PRI_COLP_UPDATE,
 			.resetinterval = -1,
 		},
 #endif
@@ -12691,6 +12692,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #if defined(HAVE_PRI_L2_PERSISTENCE)
 						pris[span].pri.l2_persistence = conf->pri.pri.l2_persistence;
 #endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
+						pris[span].pri.colp_send = conf->pri.pri.colp_send;
 #if defined(HAVE_PRI_AOC_EVENTS)
 						pris[span].pri.aoc_passthrough_flag = conf->pri.pri.aoc_passthrough_flag;
 						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
@@ -17975,6 +17977,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->pri.pri.l2_persistence = PRI_L2_PERSISTENCE_DEFAULT;
 				}
 #endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
+			} else if (!strcasecmp(v->name, "colp_send")) {
+				if (!strcasecmp(v->value, "block")) {
+					confp->pri.pri.colp_send = SIG_PRI_COLP_BLOCK;
+				} else if (!strcasecmp(v->value, "connect")) {
+					confp->pri.pri.colp_send = SIG_PRI_COLP_CONNECT;
+				} else if (!strcasecmp(v->value, "update")) {
+					confp->pri.pri.colp_send = SIG_PRI_COLP_UPDATE;
+				} else {
+					confp->pri.pri.colp_send = SIG_PRI_COLP_UPDATE;
+				}
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {
