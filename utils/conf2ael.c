@@ -668,6 +668,36 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	localized_merge_contexts_and_delete(extcontexts, exttable, registrar);
 }
 
+const char *ast_get_context_name(struct ast_context *con);
+const char *ast_get_context_name(struct ast_context *con)
+{
+	return con ? con->name : NULL;
+}
+
+struct ast_exten *ast_walk_context_extensions(struct ast_context *con, struct ast_exten *exten);
+struct ast_exten *ast_walk_context_extensions(struct ast_context *con, struct ast_exten *exten)
+{
+	return NULL;
+}
+
+struct ast_include *ast_walk_context_includes(struct ast_context *con, struct ast_include *inc);
+struct ast_include *ast_walk_context_includes(struct ast_context *con, struct ast_include *inc)
+{
+	return NULL;
+}
+
+struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con, struct ast_ignorepat *ip);
+struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con, struct ast_ignorepat *ip)
+{
+	return NULL;
+}
+
+struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
+struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw)
+{
+	return NULL;
+}
+
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass,
 									 struct pbx_find_info *q,
