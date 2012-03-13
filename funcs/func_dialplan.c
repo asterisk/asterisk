@@ -122,4 +122,8 @@ static int load_module(void)
 	return ast_custom_function_register(&isexten_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialplan Context/Extension/Priority Checking Functions");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Dialplan Context/Extension/Priority Checking Functions",
+	.load = load_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_APP_DEPEND,
+	);
