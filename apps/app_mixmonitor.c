@@ -375,7 +375,7 @@ static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 
 	ast_audiohook_attach(chan, audiohook);
 
-	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
+	if (!res && ast_test_flag(ast_channel_flags(chan), AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
 
 	return res;

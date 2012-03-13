@@ -2306,7 +2306,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 static void unistim_quiet_chan(struct ast_channel *chan)
 {
 	if (chan && ast_channel_state(chan) == AST_STATE_UP) {
-		if (ast_test_flag(chan, AST_FLAG_MOH)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH)) {
 			ast_moh_stop(chan);
 		} else if (ast_channel_generatordata(chan)) {
 			ast_deactivate_generator(chan);
@@ -2959,11 +2959,11 @@ static void swap_subs(struct unistim_subchannel *a, struct unistim_subchannel *b
 /* Step 1 : Music On Hold for peer, Dialing screen for us */
 static void transfer_call_step1(struct unistimsession *pte)
 {
-	struct unistim_subchannel *sub, *sub_trans;
+	struct unistim_subchannel *sub /*, *sub_trans */;
 	struct unistim_device *d = pte->device;
 
 	sub = get_sub(d, SUB_REAL);
-	sub_trans = get_sub(d, SUB_THREEWAY);
+	/* sub_trans = get_sub(d, SUB_THREEWAY); */
 
 	if (!sub || !sub->owner) {
 		ast_log(LOG_WARNING, "Unable to find subchannel for music on hold\n");
@@ -4856,7 +4856,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	refresh_all_favorite(s); /* Update favicons in case of DND keys */
 	if (s->state == STATE_RINGING && sub->subtype == SUB_RING) {
 		send_no_ring(s);
-		if (!ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE) && ast_channel_hangupcause(ast) != AST_CAUSE_ANSWERED_ELSEWHERE) {
+		if (!ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE) && ast_channel_hangupcause(ast) != AST_CAUSE_ANSWERED_ELSEWHERE) {
 			d->missed_call++;
 			write_history(s, 'i', 1);
 		}
@@ -5872,7 +5872,7 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			if (!sub->owner) {
 				tmp = (void *) -42;
 			} else {
-				tmp = sub->owner->_bridge;
+				tmp = ast_channel_internal_bridged_channel(sub->owner);
 			}
 			ast_cli(a->fd,
 					"-->subtype=%s chan=%p rtp=%p bridge=%p line=%p alreadygone=%d softkey=%d\n",

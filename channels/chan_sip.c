@@ -6328,7 +6328,7 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_debug(1, "Asked to hangup channel that was not connected\n");
 		return 0;
 	}
-	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE) || ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
+	if (ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE) || ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 		ast_debug(1, "This call was answered elsewhere");
 		if (ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 			ast_debug(1, "####### It's the cause code, buddy. The cause code!!!\n");
@@ -6358,7 +6358,7 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 
-	if (ast_test_flag(ast, AST_FLAG_ZOMBIE)) {
+	if (ast_test_flag(ast_channel_flags(ast), AST_FLAG_ZOMBIE)) {
 		if (p->refer)
 			ast_debug(1, "SIP Transfer: Hanging up Zombie channel %s after transfer ... Call-ID: %s\n", ast_channel_name(ast), p->callid);
 		else
@@ -6690,9 +6690,9 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	int ret = -1;
 	struct sip_pvt *p;
 
-	if (newchan && ast_test_flag(newchan, AST_FLAG_ZOMBIE))
+	if (newchan && ast_test_flag(ast_channel_flags(newchan), AST_FLAG_ZOMBIE))
 		ast_debug(1, "New channel is zombie\n");
-	if (oldchan && ast_test_flag(oldchan, AST_FLAG_ZOMBIE))
+	if (oldchan && ast_test_flag(ast_channel_flags(oldchan), AST_FLAG_ZOMBIE))
 		ast_debug(1, "Old channel is zombie\n");
 
 	if (!newchan || !ast_channel_tech_pvt(newchan)) {
@@ -22415,7 +22415,7 @@ static int sip_pickup(struct ast_channel *chan)
 static void ast_quiet_chan(struct ast_channel *chan)
 {
 	if (chan && ast_channel_state(chan) == AST_STATE_UP) {
-		if (ast_test_flag(chan, AST_FLAG_MOH))
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
 			ast_moh_stop(chan);
 		else if (ast_channel_generatordata(chan))
 			ast_deactivate_generator(chan);

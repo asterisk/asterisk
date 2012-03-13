@@ -693,7 +693,7 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception,
 		if (outgoing->chan && (outgoing->chan != exception)) {
 			if (answered_elsewhere) {
 				/* The flag is used for local channel inheritance and stuff */
-				ast_set_flag(outgoing->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+				ast_set_flag(ast_channel_flags(outgoing->chan), AST_FLAG_ANSWERED_ELSEWHERE);
 				/* This is for the channel drivers */
 				ast_channel_hangupcause_set(outgoing->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 			}
@@ -2327,12 +2327,12 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (outbound_group)
 			ast_app_group_set_channel(tc, outbound_group);
 		/* If the calling channel has the ANSWERED_ELSEWHERE flag set, inherit it. This is to support local channels */
-		if (ast_test_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE))
-			ast_set_flag(tc, AST_FLAG_ANSWERED_ELSEWHERE);
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ANSWERED_ELSEWHERE))
+			ast_set_flag(ast_channel_flags(tc), AST_FLAG_ANSWERED_ELSEWHERE);
 
 		/* Check if we're forced by configuration */
 		if (ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE))
-			 ast_set_flag(tc, AST_FLAG_ANSWERED_ELSEWHERE);
+			 ast_set_flag(ast_channel_flags(tc), AST_FLAG_ANSWERED_ELSEWHERE);
 
 
 		/* Inherit context and extension */
@@ -2509,13 +2509,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", opt_args[OPT_ARG_ANNOUNCE]);
 			}
 
-			ast_set_flag(peer, AST_FLAG_END_DTMF_ONLY);
+			ast_set_flag(ast_channel_flags(peer), AST_FLAG_END_DTMF_ONLY);
 			while (ast_channel_stream(peer)) {
 				int ms;
 
 				ms = ast_sched_wait(ast_channel_sched(peer));
 
-				if (ms < 0 && !peer->timingfunc) {
+				if (ms < 0 && !ast_channel_timingfunc(peer)) {
 					ast_stopstream(peer);
 					break;
 				}
@@ -2557,7 +2557,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				}
 				ast_sched_runq(ast_channel_sched(peer));
 			}
-			ast_clear_flag(peer, AST_FLAG_END_DTMF_ONLY);
+			ast_clear_flag(ast_channel_flags(peer), AST_FLAG_END_DTMF_ONLY);
 		}
 
 		if (chan && peer && ast_test_flag64(&opts, OPT_GOTO) && !ast_strlen_zero(opt_args[OPT_ARG_GOTO])) {
@@ -2847,8 +2847,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			
 			ast_channel_exten_set(peer, "h");
 			ast_channel_priority_set(peer, 1);
-			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
-			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
+			autoloopflag = ast_test_flag(ast_channel_flags(peer), AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
+			ast_set_flag(ast_channel_flags(peer), AST_FLAG_IN_AUTOLOOP);
 
 			while ((res9 = ast_spawn_extension(peer, ast_channel_context(peer), ast_channel_exten(peer),
 				ast_channel_priority(peer),
@@ -2862,7 +2862,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(peer), ast_channel_exten(peer), ast_channel_priority(peer), ast_channel_name(peer));
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(peer), ast_channel_exten(peer), ast_channel_priority(peer), ast_channel_name(peer));
 			}
-			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
+			ast_set2_flag(ast_channel_flags(peer), autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
 		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
 			if(!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
@@ -2985,7 +2985,7 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 		int continue_exec;
 
 		ast_channel_data_set(chan, "Retrying");
-		if (ast_test_flag(chan, AST_FLAG_MOH))
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
 			ast_moh_stop(chan);
 
 		res = dial_exec_full(chan, args.dialdata, &peerflags, &continue_exec);
@@ -3002,7 +3002,7 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
 				if (!res && sleepms) {
-					if (!ast_test_flag(chan, AST_FLAG_MOH))
+					if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
 					res = ast_waitfordigit(chan, sleepms);
 				}
@@ -3015,7 +3015,7 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
 				if (sleepms) {
-					if (!ast_test_flag(chan, AST_FLAG_MOH))
+					if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
 					if (!res)
 						res = ast_waitfordigit(chan, sleepms);
@@ -3038,7 +3038,7 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 	else if (res == 1)
 		res = 0;
 
-	if (ast_test_flag(chan, AST_FLAG_MOH))
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
 		ast_moh_stop(chan);
  done:
 	return res;

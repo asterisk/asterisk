@@ -151,7 +151,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 		detection_start = ast_tvnow();
 		while (ast_channel_stream(chan)) {
 			res = ast_sched_wait(ast_channel_sched(chan));
-			if ((res < 0) && !chan->timingfunc) {
+			if ((res < 0) && !ast_channel_timingfunc(chan)) {
 				res = 0;
 				break;
 			}

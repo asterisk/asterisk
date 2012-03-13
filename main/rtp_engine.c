@@ -1245,7 +1245,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		cs[1] = cs[2];
 	}
 
-	if (ast_test_flag(c0, AST_FLAG_ZOMBIE)) {
+	if (ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c0));
 	} else if (ast_channel_tech_pvt(c0) != pvt0) {
 		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
@@ -1254,7 +1254,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 	} else if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c0));
 	}
-	if (ast_test_flag(c1, AST_FLAG_ZOMBIE)) {
+	if (ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c1));
 	} else if (ast_channel_tech_pvt(c1) != pvt1) {
 		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));

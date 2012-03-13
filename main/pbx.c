@@ -5119,8 +5119,8 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	ast_channel_pbx(c)->rtimeoutms = 10000;
 	ast_channel_pbx(c)->dtimeoutms = 5000;
 
-	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
-	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
+	autoloopflag = ast_test_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
+	ast_set_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);
 
 	if (ast_strlen_zero(ast_channel_exten(c))) {
 		/* If not successful fall back to 's' - but only if there is no given exten  */
@@ -5370,7 +5370,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	}
 
 	if ((!args || !args->no_hangup_chan)
-		&& !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN)
+		&& !ast_test_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN)
 		&& ast_exists_extension(c, ast_channel_context(c), "h", 1,
 			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
 		set_ext_pri(c, "h", 1);
@@ -5388,8 +5388,8 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
 		}
 	}
-	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
-	ast_clear_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
+	ast_set2_flag(ast_channel_flags(c), autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	ast_clear_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
 	pbx_destroy(ast_channel_pbx(c));
 	ast_channel_pbx_set(c, NULL);
 
@@ -8302,7 +8302,7 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 	if (priority > -1) {
 		ast_channel_priority_set(chan, priority);
 		/* see flag description in channel.h for explanation */
-		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
 			ast_channel_priority_set(chan, ast_channel_priority(chan) - 1);
 		}
 	}
@@ -9977,7 +9977,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	 * users can EXEC Background and reasonably expect that the DTMF code will
 	 * be returned (see #16434).
 	 */
-	if (!ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS)
+	if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS)
 		&& (exten[0] = res)
 		&& ast_canmatch_extension(chan, args.context, exten, 1,
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))

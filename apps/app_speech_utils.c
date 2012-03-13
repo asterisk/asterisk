@@ -721,7 +721,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	/* Okay it's streaming so go into a loop grabbing frames! */
 	while (done == 0) {
 		/* If the filename is null and stream is not running, start up a new sound file */
-		if (!quieted && (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL) && (filename = strsep(&filename_tmp, "&"))) {
+		if (!quieted && (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) && (filename = strsep(&filename_tmp, "&"))) {
 			/* Discard old stream information */
 			ast_stopstream(chan);
 			/* Start new stream */
@@ -769,7 +769,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
 			/* If audio playback has stopped do a check for timeout purposes */
-			if (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL)
+			if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL)
 				ast_stopstream(chan);
 			if (!quieted && ast_channel_stream(chan) == NULL && timeout && started == 0 && !filename_tmp) {
 				if (timeout == -1) {
@@ -795,7 +795,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 							speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
 						}
 					}
-				} else if (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL) {
+				} else if (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL) {
 					ast_stopstream(chan);
 					if (speech->processing_sound != NULL) {
 						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {

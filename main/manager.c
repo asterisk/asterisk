@@ -3321,8 +3321,8 @@ static int action_status(struct mansession *s, const struct message *m)
 		}
 
 		channels++;
-		if (c->_bridge) {
-			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", ast_channel_name(c->_bridge), ast_channel_uniqueid(c->_bridge));
+		if (ast_channel_internal_bridged_channel(c)) {
+			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", ast_channel_name(ast_channel_internal_bridged_channel(c)), ast_channel_uniqueid(ast_channel_internal_bridged_channel(c)));
 		} else {
 			bridge[0] = '\0';
 		}
@@ -3502,7 +3502,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 
 	if (ast_channel_pbx(chan)) {
 		ast_channel_lock(chan);
-		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 		ast_channel_unlock(chan);
 	}
 
@@ -3512,7 +3512,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 			if (chan2) {
 				if (ast_channel_pbx(chan2)) {
 					ast_channel_lock(chan2);
-					ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+					ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 					ast_channel_unlock(chan2);
 				}
 				if (!ast_strlen_zero(context2)) {

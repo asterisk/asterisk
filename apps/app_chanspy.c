@@ -489,7 +489,7 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
 	res = ast_audiohook_attach(autochan->chan, audiohook);
 
-	if (!res && ast_test_flag(autochan->chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(autochan->chan))) {
+	if (!res && ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(autochan->chan))) {
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);
 	}
 	return res;
@@ -583,7 +583,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	}
 
 	ast_channel_lock(chan);
-	ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
 
 	csth.volfactor = *volfactor;
@@ -699,7 +699,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		ast_deactivate_generator(chan);
 
 	ast_channel_lock(chan);
-	ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
 
 	if (ast_test_flag(flags, OPTION_WHISPER | OPTION_BARGE | OPTION_DTMF_SWITCH_MODES)) {
@@ -787,7 +787,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	if (ast_channel_state(chan) != AST_STATE_UP)
 		ast_answer(chan);
 
-	ast_set_flag(chan, AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
 	waitms = 100;
 
@@ -800,7 +800,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			if (!res)
 				res = ast_waitstream(chan, "");
 			else if (res < 0) {
-				ast_clear_flag(chan, AST_FLAG_SPYING);
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_SPYING);
 				break;
 			}
 			if (!ast_strlen_zero(exitcontext)) {
@@ -831,7 +831,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
 			iter = ast_channel_iterator_destroy(iter);
-			ast_clear_flag(chan, AST_FLAG_SPYING);
+			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_SPYING);
 			break;
 		}
 		if (!ast_strlen_zero(exitcontext)) {
@@ -873,7 +873,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				continue;
 			}
 
-			if (ast_check_hangup(autochan->chan) || ast_test_flag(autochan->chan, AST_FLAG_SPYING)) {
+			if (ast_check_hangup(autochan->chan) || ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_SPYING)) {
 				continue;
 			}
 
@@ -1024,7 +1024,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	}
 exit:
 
-	ast_clear_flag(chan, AST_FLAG_SPYING);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_SPYING);
 
 	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
 

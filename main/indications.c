@@ -163,9 +163,9 @@ static void *playtones_alloc(struct ast_channel *chan, void *params)
 
 	/* Let interrupts interrupt :) */
 	if (pd->interruptible) {
-		ast_set_flag(chan, AST_FLAG_WRITE_INT);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT);
 	} else {
-		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT);
 	}
 
 	return ps;

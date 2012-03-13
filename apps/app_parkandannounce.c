@@ -137,7 +137,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	ast_verb(3, "Dial Tech,String: (%s,%s)\n", dialtech, args.dial);
 
 	if (!ast_strlen_zero(args.return_context)) {
-		ast_clear_flag(chan, AST_FLAG_IN_AUTOLOOP);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
 		ast_parseable_goto(chan, args.return_context);
 	}
 

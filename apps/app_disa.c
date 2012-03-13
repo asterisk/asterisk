@@ -204,7 +204,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 
 	play_dialtone(chan, args.mailbox);
 
-	ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 
 	for (;;) {
 		  /* if outa time, give em reorder */
@@ -220,7 +220,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		}
 
 		if (!(f = ast_read(chan))) {
-			ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 			return -1;
 		}
 
@@ -228,7 +228,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			if (f->data.uint32)
 				ast_channel_hangupcause_set(chan, f->data.uint32);
 			ast_frfree(f);
-			ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 			return -1;
 		}
 
@@ -257,7 +257,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 						fp = fopen(args.passcode,"r");
 						if (!fp) {
 							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,ast_channel_name(chan));
-							ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+							ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 							return -1;
 						}
 						pwline[0] = 0;
@@ -353,7 +353,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 
 	if (k == 3) {
 		int recheck = 0;

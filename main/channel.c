@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/data.h"
+#include "asterisk/channel_internal.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -928,21 +929,12 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	struct ast_timer *timer;
 
 	/* If shutting down, don't allocate any new channels */
-	if (shutting_down) {
+	if (ast_shutting_down()) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Refusing due to active shutdown\n");
 		return NULL;
 	}
 
-#if defined(REF_DEBUG)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 1);
-#elif defined(__AST_DEBUG_MALLOC)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 0);
-#else
-	tmp = ao2_alloc(sizeof(*tmp), ast_channel_destructor);
-#endif
-	if (!tmp) {
+	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor))) {
 		/* Channel structure allocation failure. */
 		return NULL;
 	}
@@ -999,10 +991,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_timingfd_set(tmp, ast_timer_fd(ast_channel_timer(tmp)));
 	}
 
-	if (needqueue && ast_channel_internal_alertpipe_init(tmp)) {
-		return ast_channel_unref(tmp);
-	}
-
 	/*
 	 * This is the last place the channel constructor can fail.
 	 *
@@ -1010,7 +998,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * AST_CEL_CHANNEL_END is not posted if we have not posted the
 	 * AST_CEL_CHANNEL_START yet.
 	 */
-	if ((ast_string_field_init(tmp, 128))) {
+
+	if (needqueue && ast_channel_internal_alertpipe_init(tmp)) {
 		return ast_channel_unref(tmp);
 	}
 
@@ -1132,6 +1121,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 			ast_channel_uniqueid(tmp));
 	}
 
+	ast_channel_internal_finalize(tmp);
 	return tmp;
 }
 
@@ -1164,22 +1154,9 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	struct ast_channel *tmp;
 	struct varshead *headp;
 
-#if defined(REF_DEBUG)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "dummy channel", file, line, function, 1);
-#elif defined(__AST_DEBUG_MALLOC)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "dummy channel", file, line, function, 0);
-#else
-	tmp = ao2_alloc(sizeof(*tmp), ast_dummy_channel_destructor);
-#endif
-	if (!tmp) {
+	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor))) {
 		/* Dummy channel structure allocation failure. */
 		return NULL;
-	}
-
-	if ((ast_string_field_init(tmp, 128))) {
-		return ast_channel_unref(tmp);
 	}
 
 	headp = ast_channel_varshead(tmp);
@@ -1196,7 +1173,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	unsigned int new_voice_frames = 0;
 	unsigned int queued_frames = 0;
 	unsigned int queued_voice_frames = 0;
-	AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
+	AST_LIST_HEAD_NOLOCK(,ast_frame) frames;
 
 	ast_channel_lock(chan);
 
@@ -1296,8 +1273,8 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 		}
 	} else if (ast_channel_timingfd(chan) > -1) {
 		ast_timer_enable_continuous(ast_channel_timer(chan));
-	} else if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
-		pthread_kill(chan->blocker, SIGURG);
+	} else if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING)) {
+		pthread_kill(ast_channel_blocker(chan), SIGURG);
 	}
 
 	ast_channel_unlock(chan);
@@ -1380,8 +1357,8 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 	int pre = 0;
 
 	if (chan) {
-		pre = ast_test_flag(chan, AST_FLAG_DEFER_DTMF);
-		ast_set_flag(chan, AST_FLAG_DEFER_DTMF);
+		pre = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
 	}
 	return pre;
 }
@@ -1390,7 +1367,7 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 void ast_channel_undefer_dtmf(struct ast_channel *chan)
 {
 	if (chan)
-		ast_clear_flag(chan, AST_FLAG_DEFER_DTMF);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
 }
 
 struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
@@ -2172,8 +2149,7 @@ static void ast_channel_destructor(void *obj)
 	struct ast_datastore *datastore;
 	char device_name[AST_CHANNEL_NAME];
 
-	if (ast_channel_name(chan)) {
-		/* The string fields were initialized. */
+	if (ast_channel_internal_is_finalized(chan)) {
 		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
 		ast_cel_check_retire_linkedid(chan);
 	}
@@ -2199,10 +2175,9 @@ static void ast_channel_destructor(void *obj)
 		ast_sched_context_destroy(ast_channel_sched(chan));
 	}
 
-	if (ast_channel_name(chan)) {
+	if (ast_channel_internal_is_finalized(chan)) {
 		char *dashptr;
 
-		/* The string fields were initialized. */
 		ast_copy_string(device_name, ast_channel_name(chan), sizeof(device_name));
 		if ((dashptr = strrchr(device_name, '-'))) {
 			*dashptr = '\0';
@@ -2268,7 +2243,7 @@ static void ast_channel_destructor(void *obj)
 		ast_channel_zone_set(chan, ast_tone_zone_unref(ast_channel_zone(chan)));
 	}
 
-	ast_string_field_free_memory(chan);
+	ast_channel_internal_cleanup(chan);
 
 	if (device_name[0]) {
 		/*
@@ -2308,7 +2283,7 @@ static void ast_dummy_channel_destructor(void *obj)
 		ast_channel_cdr_set(chan, NULL);
 	}
 
-	ast_string_field_free_memory(chan);
+	ast_channel_internal_cleanup(chan);
 }
 
 struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
@@ -2490,8 +2465,8 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 	ast_channel_softhangup_internal_flag_add(chan, cause);
 	ast_queue_frame(chan, &ast_null_frame);
 	/* Interrupt any poll call or such */
-	if (ast_test_flag(chan, AST_FLAG_BLOCKING))
-		pthread_kill(chan->blocker, SIGURG);
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING))
+		pthread_kill(ast_channel_blocker(chan), SIGURG);
 	return 0;
 }
 
@@ -2597,14 +2572,14 @@ int ast_hangup(struct ast_channel *chan)
 		 * Mark it as a zombie already so ast_do_masquerade() will know
 		 * to free it later.
 		 */
-		ast_set_flag(chan, AST_FLAG_ZOMBIE);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE);
 		destroy_hooks(chan);
 		ast_channel_unlock(chan);
 		return 0;
 	}
 
-	if (!(was_zombie = ast_test_flag(chan, AST_FLAG_ZOMBIE))) {
-		ast_set_flag(chan, AST_FLAG_ZOMBIE);
+	if (!(was_zombie = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE))) {
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE);
 	}
 
 	ast_channel_unlock(chan);
@@ -2640,11 +2615,11 @@ int ast_hangup(struct ast_channel *chan)
 	snprintf(extra_str, sizeof(extra_str), "%d,%s,%s", ast_channel_hangupcause(chan), ast_channel_hangupsource(chan), S_OR(pbx_builtin_getvar_helper(chan, "DIALSTATUS"), ""));
 	ast_cel_report_event(chan, AST_CEL_HANGUP, NULL, extra_str, NULL);
 
-	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING)) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 			"is blocked by thread %ld in procedure %s!  Expect a failure\n",
-			(long) pthread_self(), ast_channel_name(chan), (long)chan->blocker, ast_channel_blockproc(chan));
-		ast_assert(ast_test_flag(chan, AST_FLAG_BLOCKING) == 0);
+			(long) pthread_self(), ast_channel_name(chan), (long)ast_channel_blocker(chan), ast_channel_blockproc(chan));
+		ast_assert(ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING) == 0);
 	}
 	if (!was_zombie) {
 		ast_debug(1, "Hanging up channel '%s'\n", ast_channel_name(chan));
@@ -2700,13 +2675,13 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 	ast_channel_lock(chan);
 
 	/* You can't answer an outbound call */
-	if (ast_test_flag(chan, AST_FLAG_OUTGOING)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING)) {
 		ast_channel_unlock(chan);
 		return 0;
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -2860,7 +2835,7 @@ void ast_deactivate_generator(struct ast_channel *chan)
 		ast_channel_generatordata_set(chan, NULL);
 		ast_channel_generator_set(chan, NULL);
 		ast_channel_set_fd(chan, AST_GENERATOR_FD, -1);
-		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT);
 		ast_settimeout(chan, 0, NULL, NULL);
 	}
 	ast_channel_unlock(chan);
@@ -3044,7 +3019,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		res = ast_poll(pfds, max, rms);
 	}
 	for (x = 0; x < n; x++)
-		ast_clear_flag(c[x], AST_FLAG_BLOCKING);
+		ast_clear_flag(ast_channel_flags(c[x]), AST_FLAG_BLOCKING);
 	if (res < 0) { /* Simulate a timeout if we were interrupted */
 		if (errno != EINTR)
 			*ms = -1;
@@ -3076,9 +3051,9 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		if (fdmap[x].chan >= 0) {	/* this is a channel */
 			winner = c[fdmap[x].chan];	/* override previous winners */
 			if (res & POLLPRI)
-				ast_set_flag(winner, AST_FLAG_EXCEPTION);
+				ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 			else
-				ast_clear_flag(winner, AST_FLAG_EXCEPTION);
+				ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 			ast_channel_fdno_set(winner, fdmap[x].fdno);
 		} else {			/* this is an fd */
 			if (outfd)
@@ -3140,7 +3115,7 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	res = epoll_wait(ast_channel_epfd(chan), ev, 1, rms);
 
 	/* Stop blocking */
-	ast_clear_flag(chan, AST_FLAG_BLOCKING);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 
 	/* Simulate a timeout if we were interrupted */
 	if (res < 0) {
@@ -3167,9 +3142,9 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	aed = ev[0].data.ptr;
 	ast_channel_fdno_set(chan, aed->which);
 	if (ev[0].events & EPOLLPRI)
-		ast_set_flag(chan, AST_FLAG_EXCEPTION);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 	else
-		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 
 	if (*ms > 0) {
 		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
@@ -3225,7 +3200,7 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	res = epoll_wait(ast_channel_epfd(c[0]), ev, 25, rms);
 
 	for (i = 0; i < n; i++)
-		ast_clear_flag(c[i], AST_FLAG_BLOCKING);
+		ast_clear_flag(ast_channel_flags(c[i]), AST_FLAG_BLOCKING);
 
 	if (res < 0) {
 		if (errno != EINTR)
@@ -3257,9 +3232,9 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 
 		winner = aed->chan;
 		if (ev[i].events & EPOLLPRI)
-			ast_set_flag(winner, AST_FLAG_EXCEPTION);
+			ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 		else
-			ast_clear_flag(winner, AST_FLAG_EXCEPTION);
+			ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 		ast_channel_fdno_set(winner, aed->which);
 	}
 
@@ -3337,7 +3312,7 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 
 	res = ast_timer_set_rate(ast_channel_timer(c), real_rate);
 
-	c->timingfunc = func;
+	ast_channel_timingfunc_set(c, func);
 	ast_channel_timingdata_set(c, data);
 
 	if (func == NULL && rate == 0 && ast_channel_fdno(c) == AST_TIMING_FD) {
@@ -3358,11 +3333,11 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 {
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
+	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
 
 	/* Only look for the end of DTMF, don't bother with the beginning and don't emulate things */
-	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
+	ast_set_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 
 	/* Wait for a digit, no more than ms milliseconds total. */
 	
@@ -3377,12 +3352,12 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			if (errno == 0 || errno == EINTR)
 				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
-			ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+			ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 			return -1;
 		} else if (outfd > -1) {
 			/* The FD we were watching has something waiting */
 			ast_log(LOG_WARNING, "The FD we were waiting for has something waiting. Waitfordigit returning numeric 1\n");
-			ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+			ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 			return 1;
 		} else if (rchan) {
 			int res;
@@ -3396,13 +3371,13 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			case AST_FRAME_DTMF_END:
 				res = f->subclass.integer;
 				ast_frfree(f);
-				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 				return res;
 			case AST_FRAME_CONTROL:
 				switch (f->subclass.integer) {
 				case AST_CONTROL_HANGUP:
 					ast_frfree(f);
-					ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
@@ -3436,7 +3411,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 		}
 	}
 
-	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 
 	return 0; /* Time is up */
 }
@@ -3462,7 +3437,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		int res;
 		int samples;
 
-		if (chan->timingfunc) {
+		if (ast_channel_timingfunc(chan)) {
 			ast_debug(1, "Generator got voice, switching to phase locked mode\n");
 			ast_settimeout(chan, 0, NULL, NULL);
 		}
@@ -3495,7 +3470,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		}
 
 	} else if (f->frametype == AST_FRAME_CNG) {
-		if (ast_channel_generator(chan) && !chan->timingfunc && (ast_channel_timingfd(chan) > -1)) {
+		if (ast_channel_generator(chan) && !ast_channel_timingfunc(chan) && (ast_channel_timingfd(chan) > -1)) {
 			ast_debug(1, "Generator got CNG, switching to timed mode\n");
 			ast_settimeout(chan, 50, generator_force, chan);
 		}
@@ -3522,7 +3497,7 @@ static inline void queue_dtmf_readq(struct ast_channel *chan, struct ast_frame *
  */
 static inline int should_skip_dtmf(struct ast_channel *chan)
 {
-	if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF)) {
 		/* We're in the middle of emulating a digit, or DTMF has been
 		 * explicitly deferred.  Skip this digit, then. */
 		return 1;
@@ -3582,7 +3557,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	ast_channel_lock(chan);
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		if (ast_channel_generator(chan))
 			ast_deactivate_generator(chan);
 
@@ -3627,7 +3602,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (ast_channel_timingfd(chan) > -1 && ast_channel_fdno(chan) == AST_TIMING_FD) {
 		enum ast_timer_event res;
 
-		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 
 		res = ast_timer_get_event(ast_channel_timer(chan));
 
@@ -3635,9 +3610,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		case AST_TIMING_EVENT_EXPIRED:
 			ast_timer_ack(ast_channel_timer(chan), 1);
 
-			if (chan->timingfunc) {
+			if (ast_channel_timingfunc(chan)) {
 				/* save a copy of func/data before unlocking the channel */
-				int (*func)(const void *) = chan->timingfunc;
+				ast_timing_func_t func = ast_channel_timingfunc(chan);
 				void *data = ast_channel_timingdata(chan);
 				ast_channel_fdno_set(chan, -1);
 				ast_channel_unlock(chan);
@@ -3671,7 +3646,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		ast_channel_fdno_set(chan, -1);
 		goto done;
 	} else if (ast_channel_fd_isset(chan, AST_JITTERBUFFER_FD) && ast_channel_fdno(chan) == AST_JITTERBUFFER_FD) {
-		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 	}
 
 	/* Read and ignore anything on the alertpipe, but read only
@@ -3722,8 +3697,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 		}
 	} else {
-		chan->blocker = pthread_self();
-		if (ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
+		ast_channel_blocker_set(chan, pthread_self());
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION)) {
 			if (ast_channel_tech(chan)->exception)
 				f = ast_channel_tech(chan)->exception(chan);
 			else {
@@ -3731,7 +3706,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = &ast_null_frame;
 			}
 			/* Clear the exception flag */
-			ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 		} else if (ast_channel_tech(chan) && ast_channel_tech(chan)->read)
 			f = ast_channel_tech(chan)->read(chan);
 		else
@@ -3765,7 +3740,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		switch (f->frametype) {
 		case AST_FRAME_CONTROL:
 			if (f->subclass.integer == AST_CONTROL_ANSWER) {
-				if (!ast_test_flag(chan, AST_FLAG_OUTGOING)) {
+				if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING)) {
 					ast_debug(1, "Ignoring answer on an inbound call!\n");
 					ast_frfree(f);
 					f = &ast_null_frame;
@@ -3807,11 +3782,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			send_dtmf_event(chan, "Received", f->subclass.integer, "No", "Yes");
 			ast_log(LOG_DTMF, "DTMF end '%c' received on %s, duration %ld ms\n", f->subclass.integer, ast_channel_name(chan), f->len);
 			/* Queue it up if DTMF is deferred, or if DTMF emulation is forced. */
-			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF) || ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF) || ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF)) {
 				queue_dtmf_readq(chan, f);
 				ast_frfree(f);
 				f = &ast_null_frame;
-			} else if (!ast_test_flag(chan, AST_FLAG_IN_DTMF | AST_FLAG_END_DTMF_ONLY)) {
+			} else if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF | AST_FLAG_END_DTMF_ONLY)) {
 				if (!ast_tvzero(*ast_channel_dtmf_tv(chan)) && 
 				    ast_tvdiff_ms(ast_tvnow(), *ast_channel_dtmf_tv(chan)) < AST_MIN_DTMF_GAP) {
 					/* If it hasn't been long enough, defer this digit */
@@ -3822,7 +3797,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					/* There was no begin, turn this into a begin and send the end later */
 					struct timeval tv = ast_tvnow();
 					f->frametype = AST_FRAME_DTMF_BEGIN;
-					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+					ast_set_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
 					ast_channel_dtmf_tv_set(chan, &tv);
 					if (f->len) {
@@ -3845,9 +3820,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				}
 			} else {
 				struct timeval now = ast_tvnow();
-				if (ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+				if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF)) {
 					ast_log(LOG_DTMF, "DTMF end accepted with begin '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
-					ast_clear_flag(chan, AST_FLAG_IN_DTMF);
+					ast_clear_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF);
 					if (!f->len)
 						f->len = ast_tvdiff_ms(now, *ast_channel_dtmf_tv(chan));
 
@@ -3867,9 +3842,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_log(LOG_DTMF, "DTMF end accepted without begin '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
 					f->len = AST_MIN_DTMF_DURATION;
 				}
-				if (f->len < AST_MIN_DTMF_DURATION && !ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY)) {
+				if (f->len < AST_MIN_DTMF_DURATION && !ast_test_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY)) {
 					ast_log(LOG_DTMF, "DTMF end '%c' has duration %ld but want minimum %d, emulating on %s\n", f->subclass.integer, f->len, AST_MIN_DTMF_DURATION, ast_channel_name(chan));
-					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+					ast_set_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
 					ast_channel_emulate_dtmf_duration_set(chan, AST_MIN_DTMF_DURATION - f->len);
 					ast_frfree(f);
@@ -3892,7 +3867,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		case AST_FRAME_DTMF_BEGIN:
 			send_dtmf_event(chan, "Received", f->subclass.integer, "Yes", "No");
 			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass.integer, ast_channel_name(chan));
-			if ( ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY | AST_FLAG_EMULATE_DTMF) || 
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY | AST_FLAG_EMULATE_DTMF) || 
 			    (!ast_tvzero(*ast_channel_dtmf_tv(chan)) && 
 			      ast_tvdiff_ms(ast_tvnow(), *ast_channel_dtmf_tv(chan)) < AST_MIN_DTMF_GAP) ) {
 				ast_log(LOG_DTMF, "DTMF begin ignored '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
@@ -3900,7 +3875,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = &ast_null_frame;
 			} else {
 				struct timeval now = ast_tvnow();
-				ast_set_flag(chan, AST_FLAG_IN_DTMF);
+				ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF);
 				ast_channel_dtmf_tv_set(chan, &now);
 				ast_log(LOG_DTMF, "DTMF begin passthrough '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
 			}
@@ -3910,10 +3885,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 * is reached , because we want to make sure we pass at least one
 			 * voice frame through before starting the next digit, to ensure a gap
 			 * between DTMF digits. */
-			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF)) {
 				struct timeval now = ast_tvnow();
 				if (!ast_channel_emulate_dtmf_duration(chan)) {
-					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
+					ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 					ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 				} else if (ast_tvdiff_ms(now, *ast_channel_dtmf_tv(chan)) >= ast_channel_emulate_dtmf_duration(chan)) {
 					ast_channel_emulate_dtmf_duration_set(chan, 0);
@@ -3923,7 +3898,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f->subclass.integer = ast_channel_dtmf_digit_to_emulate(chan);
 					f->len = ast_tvdiff_ms(now, *ast_channel_dtmf_tv(chan));
 					ast_channel_dtmf_tv_set(chan, &now);
-					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
+					ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 					ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass.integer, ast_channel_name(chan));
 					if (ast_channel_audiohooks(chan)) {
@@ -3941,19 +3916,19 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 * is reached , because we want to make sure we pass at least one
 			 * voice frame through before starting the next digit, to ensure a gap
 			 * between DTMF digits. */
-			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !ast_channel_emulate_dtmf_duration(chan)) {
-				ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF) && !ast_channel_emulate_dtmf_duration(chan)) {
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 				ast_channel_dtmf_digit_to_emulate_set(chan, 0);
 			}
 
-			if (dropaudio || ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+			if (dropaudio || ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF)) {
 				if (dropaudio)
 					ast_read_generator_actions(chan, f);
 				ast_frfree(f);
 				f = &ast_null_frame;
 			}
 
-			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF) && !ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF)) {
 				struct timeval now = ast_tvnow();
 				if (ast_tvdiff_ms(now, *ast_channel_dtmf_tv(chan)) >= ast_channel_emulate_dtmf_duration(chan)) {
 					ast_channel_emulate_dtmf_duration_set(chan, 0);
@@ -4162,7 +4137,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	ast_channel_lock(chan);
 
 	/* Don't bother if the channel is about to go away, anyway. */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		res = -1;
 		goto indicate_cleanup;
 	}
@@ -4388,7 +4363,7 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 
 	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -4415,7 +4390,7 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	} else if (ast_channel_tech(chan)->send_text) {
 		res = ast_channel_tech(chan)->send_text(chan, text);
 	}
-	ast_clear_flag(chan, AST_FLAG_BLOCKING);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 	ast_channel_unlock(chan);
 	return res;
 }
@@ -4636,7 +4611,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		usleep(1);
 	}
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
 		goto done;
 
 	/* Handle any pending masquerades */
@@ -4661,14 +4636,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	}
 
 	if (ast_channel_generatordata(chan) && (!fr->src || strcasecmp(fr->src, "ast_prod"))) {
-		if (ast_test_flag(chan, AST_FLAG_WRITE_INT)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT)) {
 				ast_deactivate_generator(chan);
 		} else {
 			if (fr->frametype == AST_FRAME_DTMF_END) {
 				/* There is a generator running while we're in the middle of a digit.
 				 * It's probably inband DTMF, so go ahead and pass it so it can
 				 * stop the generator */
-				ast_clear_flag(chan, AST_FLAG_BLOCKING);
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 				ast_channel_unlock(chan);
 				res = ast_senddigit_end(chan, fr->subclass.integer, fr->len);
 				ast_channel_lock(chan);
@@ -4699,7 +4674,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				f = fr;
 		}
 		send_dtmf_event(chan, "Sent", fr->subclass.integer, "Yes", "No");
-		ast_clear_flag(chan, AST_FLAG_BLOCKING);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_begin(chan, fr->subclass.integer);
 		ast_channel_lock(chan);
@@ -4715,7 +4690,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			}
 		}
 		send_dtmf_event(chan, "Sent", fr->subclass.integer, "No", "Yes");
-		ast_clear_flag(chan, AST_FLAG_BLOCKING);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_end(chan, fr->subclass.integer, fr->len);
 		ast_channel_lock(chan);
@@ -4908,7 +4883,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	if (f && f != fr)
 		ast_frfree(f);
-	ast_clear_flag(chan, AST_FLAG_BLOCKING);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0) {
@@ -5208,7 +5183,7 @@ static void handle_cause(int cause, int *outstate)
  */
 static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channel *parent, struct ast_channel *orig)
 {
-	if (!ast_test_flag(parent, AST_FLAG_ZOMBIE) && !ast_check_hangup(parent)) {
+	if (!ast_test_flag(ast_channel_flags(parent), AST_FLAG_ZOMBIE) && !ast_check_hangup(parent)) {
 		struct ast_party_redirecting redirecting;
 
 		/*
@@ -5633,13 +5608,13 @@ int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
-	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
+	if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
 		if (ast_channel_cdr(chan)) {
 			ast_set_flag(ast_channel_cdr(chan), AST_CDR_FLAG_DIALED);
 		}
 		if (ast_channel_tech(chan)->call)
 			res = ast_channel_tech(chan)->call(chan, addr, timeout);
-		ast_set_flag(chan, AST_FLAG_OUTGOING);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING);
 	}
 	ast_channel_unlock(chan);
 	return res;
@@ -5658,7 +5633,7 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
-	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
+	if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
 		if (ast_channel_tech(chan)->transfer) {
 			res = ast_channel_tech(chan)->transfer(chan, dest);
 			if (!res)
@@ -5714,7 +5689,7 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 	struct ast_silence_generator *silgen = NULL;
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
+	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
 	if (!len)
 		return -1;
@@ -5870,8 +5845,8 @@ static int __ast_channel_masquerade(struct ast_channel *original, struct ast_cha
 
 		ast_channel_lock_both(original, clonechan);
 
-		if (ast_test_flag(original, AST_FLAG_ZOMBIE)
-			|| ast_test_flag(clonechan, AST_FLAG_ZOMBIE)) {
+		if (ast_test_flag(ast_channel_flags(original), AST_FLAG_ZOMBIE)
+			|| ast_test_flag(ast_channel_flags(clonechan), AST_FLAG_ZOMBIE)) {
 			/* Zombies! Run! */
 			ast_log(LOG_WARNING,
 				"Can't setup masquerade. One or both channels is dead. (%s <-- %s)\n",
@@ -5886,15 +5861,15 @@ static int __ast_channel_masquerade(struct ast_channel *original, struct ast_cha
 		 * (i.e. chan_agent) and if so, we don't really want to
 		 * masquerade it, but its proxy
 		 */
-		if (original->_bridge
-			&& (original->_bridge != ast_bridged_channel(original))
-			&& (original->_bridge->_bridge != original)) {
-			final_orig = original->_bridge;
+		if (ast_channel_internal_bridged_channel(original)
+			&& (ast_channel_internal_bridged_channel(original) != ast_bridged_channel(original))
+			&& (ast_channel_internal_bridged_channel(ast_channel_internal_bridged_channel(original)) != original)) {
+			final_orig = ast_channel_internal_bridged_channel(original);
 		}
-		if (clonechan->_bridge
-			&& (clonechan->_bridge != ast_bridged_channel(clonechan))
-			&& (clonechan->_bridge->_bridge != clonechan)) {
-			final_clone = clonechan->_bridge;
+		if (ast_channel_internal_bridged_channel(clonechan)
+			&& (ast_channel_internal_bridged_channel(clonechan) != ast_bridged_channel(clonechan))
+			&& (ast_channel_internal_bridged_channel(ast_channel_internal_bridged_channel(clonechan)) != clonechan)) {
+			final_clone = ast_channel_internal_bridged_channel(clonechan);
 		}
 		if (ast_channel_tech(final_clone)->get_base_channel
 			&& (base = ast_channel_tech(final_clone)->get_base_channel(final_clone))) {
@@ -5927,8 +5902,8 @@ static int __ast_channel_masquerade(struct ast_channel *original, struct ast_cha
 			original = final_orig;
 			clonechan = final_clone;
 
-			if (ast_test_flag(original, AST_FLAG_ZOMBIE)
-				|| ast_test_flag(clonechan, AST_FLAG_ZOMBIE)) {
+			if (ast_test_flag(ast_channel_flags(original), AST_FLAG_ZOMBIE)
+				|| ast_test_flag(ast_channel_flags(clonechan), AST_FLAG_ZOMBIE)) {
 				/* Zombies! Run! */
 				ast_log(LOG_WARNING,
 					"Can't setup masquerade. One or both channels is dead. (%s <-- %s)\n",
@@ -6263,14 +6238,14 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 	linkedid = oldest_linkedid(ast_channel_linkedid(chan), ast_channel_linkedid(peer));
 	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(chan));
 	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(peer));
-	if (chan->_bridge) {
+	if (ast_channel_internal_bridged_channel(chan)) {
 		bridged = ast_bridged_channel(chan);
 		if (bridged != peer) {
 			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
 			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
 		}
 	}
-	if (peer->_bridge) {
+	if (ast_channel_internal_bridged_channel(peer)) {
 		bridged = ast_bridged_channel(peer);
 		if (bridged != chan) {
 			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
@@ -6283,13 +6258,13 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 
 	ast_channel_change_linkedid(chan, linkedid);
 	ast_channel_change_linkedid(peer, linkedid);
-	if (chan->_bridge) {
+	if (ast_channel_internal_bridged_channel(chan)) {
 		bridged = ast_bridged_channel(chan);
 		if (bridged != peer) {
 			ast_channel_change_linkedid(bridged, linkedid);
 		}
 	}
-	if (peer->_bridge) {
+	if (ast_channel_internal_bridged_channel(peer)) {
 		bridged = ast_bridged_channel(peer);
 		if (bridged != chan) {
 			ast_channel_change_linkedid(bridged, linkedid);
@@ -6684,7 +6659,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
 	/* Clone exception  becomes real one, as with fdno */
-	ast_set_flag(original, ast_test_flag(clonechan, AST_FLAG_EXCEPTION | AST_FLAG_OUTGOING));
+	ast_set_flag(ast_channel_flags(original), ast_test_flag(ast_channel_flags(clonechan), AST_FLAG_EXCEPTION | AST_FLAG_OUTGOING));
 	ast_channel_fdno_set(original, ast_channel_fdno(clonechan));
 	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
@@ -6732,9 +6707,9 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* copy over accuntcode and set peeraccount across the bridge */
 	ast_channel_accountcode_set(original, S_OR(ast_channel_accountcode(clonechan), ""));
-	if (original->_bridge) {
-		/* XXX - should we try to lock original->_bridge here? */
-		ast_channel_peeraccount_set(original->_bridge, S_OR(ast_channel_accountcode(clonechan), ""));
+	if (ast_channel_internal_bridged_channel(original)) {
+		/* XXX - should we try to lock original's bridged channel here? */
+		ast_channel_peeraccount_set(ast_channel_internal_bridged_channel(original), S_OR(ast_channel_accountcode(clonechan), ""));
 		ast_cel_report_event(original, AST_CEL_BRIDGE_UPDATE, NULL, NULL, NULL);
 	}
 
@@ -6769,7 +6744,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
-	if (ast_test_flag(clonechan, AST_FLAG_ZOMBIE)) {
+	if (ast_test_flag(ast_channel_flags(clonechan), AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Destroying channel clone '%s'\n", ast_channel_name(clonechan));
 		ast_channel_unlock(clonechan);
 		ast_manager_event(clonechan, EVENT_FLAG_CALL, "Hangup",
@@ -6785,13 +6760,13 @@ int ast_do_masquerade(struct ast_channel *original)
 		clonechan = ast_channel_release(clonechan);
 	} else {
 		ast_debug(1, "Released clone lock on '%s'\n", ast_channel_name(clonechan));
-		ast_set_flag(clonechan, AST_FLAG_ZOMBIE);
+		ast_set_flag(ast_channel_flags(clonechan), AST_FLAG_ZOMBIE);
 		ast_queue_frame(clonechan, &ast_null_frame);
 	}
 
 	/* Signal any blocker */
-	if (ast_test_flag(original, AST_FLAG_BLOCKING))
-		pthread_kill(original->blocker, SIGURG);
+	if (ast_test_flag(ast_channel_flags(original), AST_FLAG_BLOCKING))
+		pthread_kill(ast_channel_blocker(original), SIGURG);
 	ast_debug(1, "Done Masquerading %s (%d)\n", ast_channel_name(original), ast_channel_state(original));
 
 	if ((bridged = ast_bridged_channel(original))) {
@@ -6942,7 +6917,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 {
 	struct ast_channel *bridged;
-	bridged = chan->_bridge;
+	bridged = ast_channel_internal_bridged_channel(chan);
 	if (bridged && ast_channel_tech(bridged)->bridged_channel)
 		bridged = ast_channel_tech(bridged)->bridged_channel(chan, bridged);
 	return bridged;
@@ -7086,8 +7061,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 					ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 				}
-				c0->_bridge = c1;
-				c1->_bridge = c0;
+				ast_channel_internal_bridged_channel_set(c0, c1);
+				ast_channel_internal_bridged_channel_set(c1, c0);
 			}
 			continue;
 		}
@@ -7307,20 +7282,20 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 	*fo = NULL;
 
-	if (c0->_bridge) {
+	if (ast_channel_internal_bridged_channel(c0)) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n",
-			ast_channel_name(c0), ast_channel_name(c0->_bridge));
+			ast_channel_name(c0), ast_channel_name(ast_channel_internal_bridged_channel(c0)));
 		return -1;
 	}
-	if (c1->_bridge) {
+	if (ast_channel_internal_bridged_channel(c1)) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n",
-			ast_channel_name(c1), ast_channel_name(c1->_bridge));
+			ast_channel_name(c1), ast_channel_name(ast_channel_internal_bridged_channel(c1)));
 		return -1;
 	}
 	
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
-	    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1))
+	if (ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
+	    ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1))
 		return -1;
 
 	o0nativeformats = ast_format_cap_dup(ast_channel_nativeformats(c0));
@@ -7348,8 +7323,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	}
 
 	/* Keep track of bridge */
-	c0->_bridge = c1;
-	c1->_bridge = c0;
+	ast_channel_internal_bridged_channel_set(c0, c1);
+	ast_channel_internal_bridged_channel_set(c1, c0);
 
 	ast_set_owners_and_peers(c0, c1);
 
@@ -7375,9 +7350,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	}
 
 	if (!ast_channel_tech(c0)->send_digit_begin)
-		ast_set_flag(c1, AST_FLAG_END_DTMF_ONLY);
+		ast_set_flag(ast_channel_flags(c1), AST_FLAG_END_DTMF_ONLY);
 	if (!ast_channel_tech(c1)->send_digit_begin)
-		ast_set_flag(c0, AST_FLAG_END_DTMF_ONLY);
+		ast_set_flag(ast_channel_flags(c0), AST_FLAG_END_DTMF_ONLY);
 	manager_bridge_event(1, 1, c0, c1);
 
 	/* Before we enter in and bridge these two together tell them both the source of audio has changed */
@@ -7442,22 +7417,22 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 				ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 			}
-			c0->_bridge = c1;
-			c1->_bridge = c0;
+			ast_channel_internal_bridged_channel_set(c0, c1);
+			ast_channel_internal_bridged_channel_set(c1, c0);
 			ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
 
 		/* Stop if we're a zombie or need a soft hangup */
-		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
-		    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
+		if (ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
+		    ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
 			res = 0;
 			ast_debug(1, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
 				ast_channel_name(c0), ast_channel_name(c1),
-				ast_test_flag(c0, AST_FLAG_ZOMBIE) ? "Yes" : "No",
+				ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) ? "Yes" : "No",
 				ast_check_hangup(c0) ? "Yes" : "No",
-				ast_test_flag(c1, AST_FLAG_ZOMBIE) ? "Yes" : "No",
+				ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE) ? "Yes" : "No",
 				ast_check_hangup(c1) ? "Yes" : "No");
 			break;
 		}
@@ -7476,27 +7451,27 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    !ast_channel_masq(c0) && !ast_channel_masqr(c0) && !ast_channel_masq(c1) && !ast_channel_masqr(c1)) {
 			int timeoutms = to - 1000 > 0 ? to - 1000 : to;
 			/* Looks like they share a bridge method and nothing else is in the way */
-			ast_set_flag(c0, AST_FLAG_NBRIDGE);
-			ast_set_flag(c1, AST_FLAG_NBRIDGE);
+			ast_set_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
+			ast_set_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
 			if ((res = ast_channel_tech(c0)->bridge(c0, c1, config->flags, fo, rc, timeoutms)) == AST_BRIDGE_COMPLETE) {
 				manager_bridge_event(0, 1, c0, c1);
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", ast_channel_name(c0), ast_channel_name(c1));
 
-				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
-				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
+				ast_clear_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
+				ast_clear_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
 
 				if ((ast_channel_softhangup_internal_flag(c0) | ast_channel_softhangup_internal_flag(c1)) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
 					continue;
 				}
 
-				c0->_bridge = NULL;
-				c1->_bridge = NULL;
+				ast_channel_internal_bridged_channel_set(c0, NULL);
+				ast_channel_internal_bridged_channel_set(c1, NULL);
 				ast_format_cap_destroy(o0nativeformats);
 				ast_format_cap_destroy(o1nativeformats);
 				return res;
 			} else {
-				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
-				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
+				ast_clear_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
+				ast_clear_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
 			}
 			switch (res) {
 			case AST_BRIDGE_RETRY:
@@ -7540,15 +7515,15 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		}
 	}
 
-	ast_clear_flag(c0, AST_FLAG_END_DTMF_ONLY);
-	ast_clear_flag(c1, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(c0), AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(c1), AST_FLAG_END_DTMF_ONLY);
 
 	/* Now that we have broken the bridge the source will change yet again */
 	ast_indicate(c0, AST_CONTROL_SRCUPDATE);
 	ast_indicate(c1, AST_CONTROL_SRCUPDATE);
 
-	c0->_bridge = NULL;
-	c1->_bridge = NULL;
+	ast_channel_internal_bridged_channel_set(c0, NULL);
+	ast_channel_internal_bridged_channel_set(c1, NULL);
 
 	manager_bridge_event(0, 1, c0, c1);
 	ast_debug(1, "Bridge stops bridging channels %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
@@ -7658,7 +7633,7 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 		ts->modulate = 0;
 	}
 	/* Let interrupts interrupt :) */
-	ast_set_flag(chan, AST_FLAG_WRITE_INT);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT);
 	return ts;
 }
 

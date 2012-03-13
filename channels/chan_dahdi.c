@@ -7741,7 +7741,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 			ast_channel_name(p->subs[SUB_REAL].owner), ast_channel_name(p->subs[SUB_THREEWAY].owner));
-		ast_channel_softhangup_internal_flag_set(p->subs[SUB_THREEWAY].owner, ast_channel_softhangup_internal_flag(p->subs[SUB_THREEWAY].owner) | AST_SOFTHANGUP_DEV);
+		ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 		return -1;
 	}
 	return 0;
@@ -9150,7 +9150,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	readbuf = ((unsigned char *)p->subs[idx].buffer) + AST_FRIENDLY_OFFSET;
 	CHECK_BLOCKING(ast);
 	res = read(p->subs[idx].dfd, readbuf, p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE);
-	ast_clear_flag(ast, AST_FLAG_BLOCKING);
+	ast_clear_flag(ast_channel_flags(ast), AST_FLAG_BLOCKING);
 	/* Check for hangup */
 	if (res < 0) {
 		f = NULL;
@@ -10549,7 +10549,7 @@ static void *analog_ss_thread(void *data)
 				 * emulation.  The DTMF digits can come so fast that emulation
 				 * can drop some of them.
 				 */
-				ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
+				ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 				res = 4000;/* This is a typical OFF time between rings. */
 				for (;;) {
 					struct ast_frame *f;
@@ -10580,7 +10580,7 @@ static void *analog_ss_thread(void *data)
 						ast_channel_state(chan) == AST_STATE_RINGING)
 						break; /* Got ring */
 				}
-				ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 				dtmfbuf[k] = '\0';
 				dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
 				/* Got cid and ring. */

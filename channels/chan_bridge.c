@@ -121,12 +121,12 @@ static int bridge_call(struct ast_channel *ast, const char *dest, int timeout)
 	struct bridge_pvt *p = ast_channel_tech_pvt(ast);
 
 	/* If no bridge has been provided on the input channel, bail out */
-	if (!ast->bridge) {
+	if (!ast_channel_internal_bridge(ast)) {
 		return -1;
 	}
 
 	/* Impart the output channel upon the given bridge of the input channel */
-	ast_bridge_impart(p->input->bridge, p->output, NULL, NULL, 0);
+	ast_bridge_impart(ast_channel_internal_bridge(p->input), p->output, NULL, NULL, 0);
 
 	return 0;
 }

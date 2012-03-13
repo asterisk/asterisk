@@ -713,6 +713,7 @@ AST_LIST_HEAD_NOLOCK(ast_datastore_list, ast_datastore);
 AST_LIST_HEAD_NOLOCK(ast_autochan_list, ast_autochan);
 AST_LIST_HEAD_NOLOCK(ast_readq_list, ast_frame);
 
+typedef int(*ast_timing_func_t)(const void *data);
 /*!
  * \page AstChannel ast_channel locking and reference tracking
  *
@@ -764,151 +765,7 @@ AST_LIST_HEAD_NOLOCK(ast_readq_list, ast_frame);
  * gets called before the channel goes away.
  */
 
-/*!
- * \brief Main Channel structure associated with a channel.
- *
- * \note XXX It is important to remember to increment .cleancount each time
- *       this structure is changed. XXX
- *
- * \note When adding fields to this structure, it is important to add the field
- *       'in position' with like-aligned fields, so as to keep the compiler from
- *       having to add padding to align fields. The structure's fields are sorted
- *       in this order: pointers, structures, long, int/enum, short, char. This
- *       is especially important on 64-bit architectures, where mixing 4-byte
- *       and 8-byte fields causes 4 bytes of padding to be added before many
- *       8-byte fields.
- */
-struct ast_channel {
-	const struct ast_channel_tech *__do_not_use_tech;		/*!< Technology (point to channel driver) */
-	void *__do_not_use_tech_pvt;					/*!< Private data used by the technology driver */
-	void *__do_not_use_music_state;				/*!< Music State*/
-	void *__do_not_use_generatordata;				/*!< Current generator data if there is any */
-	struct ast_generator *__do_not_use_generator;		/*!< Current active data generator */
-	struct ast_channel * _bridge;			/*!< Who are we bridged to, if we're bridged.
-							 *   Who is proxying for us, if we are proxied (i.e. chan_agent).
-							 *   Do not access directly, use ast_bridged_channel(chan) */
-	struct ast_channel *__do_not_use_masq;			/*!< Channel that will masquerade as us */
-	struct ast_channel *__do_not_use_masqr;			/*!< Who we are masquerading as */
-	const char *__do_not_use_blockproc;				/*!< Procedure causing blocking */
-	const char *__do_not_use_appl;				/*!< Current application */
-	const char *__do_not_use_data;				/*!< Data passed to current application */
-	struct ast_sched_context *__do_not_use_sched;                /*!< Schedule context */
-	struct ast_filestream *__do_not_use_stream;			/*!< Stream itself. */
-	struct ast_filestream *__do_not_use_vstream;			/*!< Video Stream itself. */
-	int (*timingfunc)(const void *data);
-	void *__do_not_use_timingdata;
-	struct ast_pbx *__do_not_use_pbx;				/*!< PBX private structure for this channel */
-	struct ast_trans_pvt *__do_not_use_writetrans;		/*!< Write translation path */
-	struct ast_trans_pvt *__do_not_use_readtrans;		/*!< Read translation path */
-	struct ast_audiohook_list *__do_not_use_audiohooks;
-	struct ast_framehook_list *__do_not_use_framehooks;
-	struct ast_cdr *__do_not_use_cdr;				/*!< Call Detail Record */
-	struct ast_tone_zone *__do_not_use_zone;			/*!< Tone zone as set in indications.conf or
-							 *   in the CHANNEL dialplan function */
-	struct ast_channel_monitor *__do_not_use_monitor;		/*!< Channel monitoring */
-#ifdef HAVE_EPOLL
-	struct ast_epoll_data *__do_not_use_epfd_data[AST_MAX_FDS];
-#endif
-
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(__do_not_use_name);         /*!< ASCII unique channel name */
-		AST_STRING_FIELD(__do_not_use_language);     /*!< Language requested for voice prompts */
-		AST_STRING_FIELD(__do_not_use_musicclass);   /*!< Default music class */
-		AST_STRING_FIELD(__do_not_use_accountcode);  /*!< Account code for billing */
-		AST_STRING_FIELD(__do_not_use_peeraccount);  /*!< Peer account code for billing */
-		AST_STRING_FIELD(__do_not_use_userfield);    /*!< Userfield for CEL billing */
-		AST_STRING_FIELD(__do_not_use_call_forward); /*!< Where to forward to if asked to dial on this interface */
-		AST_STRING_FIELD(__do_not_use_uniqueid);     /*!< Unique Channel Identifier */
-		AST_STRING_FIELD(__do_not_use_linkedid);     /*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(__do_not_use_parkinglot);   /*! Default parking lot, if empty, default parking lot  */
-		AST_STRING_FIELD(__do_not_use_hangupsource); /*! Who is responsible for hanging up this channel */
-		AST_STRING_FIELD(__do_not_use_dialcontext);  /*!< Dial: Extension context that we were called from */
-	);
-
-	struct timeval __do_not_use_whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
-	pthread_t blocker;				/*!< If anyone is blocking, this is them */
-
-	/*!
-	 * \brief Dialed/Called information.
-	 * \note Set on incoming channels to indicate the originally dialed party.
-	 * \note Dialed Number Identifier (DNID)
-	 */
-	struct ast_party_dialed __do_not_use_dialed;
-
-	/*!
-	 * \brief Channel Caller ID information.
-	 * \note The caller id information is the caller id of this
-	 * channel when it is used to initiate a call.
-	 */
-	struct ast_party_caller __do_not_use_caller;
-
-	/*!
-	 * \brief Channel Connected Line ID information.
-	 * \note The connected line information identifies the channel
-	 * connected/bridged to this channel.
-	 */
-	struct ast_party_connected_line __do_not_use_connected;
-
-	/*! \brief Redirecting/Diversion information */
-	struct ast_party_redirecting __do_not_use_redirecting;
-
-	struct ast_frame __do_not_use_dtmff;				/*!< DTMF frame */
-	struct varshead __do_not_use_varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
-	ast_group_t __do_not_use_callgroup;				/*!< Call group for call pickups */
-	ast_group_t __do_not_use_pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
-	struct ast_readq_list __do_not_use_readq;
-	struct ast_jb __do_not_use_jb;				/*!< The jitterbuffer state */
-	struct timeval __do_not_use_dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
-	struct ast_datastore_list __do_not_use_datastores; /*!< Data stores on the channel */
-	struct ast_autochan_list __do_not_use_autochans; /*!< Autochans on the channel */
-	unsigned long __do_not_use_insmpl;				/*!< Track the read/written samples for monitor use */
-	unsigned long __do_not_use_outsmpl;				/*!< Track the read/written samples for monitor use */
-
-	int __do_not_use_fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
-							 *   these file descriptors, so at least one must be non -1.
-							 *   See \arg \ref AstFileDesc */
-	int __do_not_use_softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
-							 *   directly, use ast_softhangup() */
-	int __do_not_use_fdno;					/*!< Which fd had an event detected on */
-	int __do_not_use_streamid;					/*!< For streaming playback, the schedule ID */
-	int __do_not_use_vstreamid;					/*!< For streaming video playback, the schedule ID */
-	struct ast_format __do_not_use_oldwriteformat;  /*!< Original writer format */
-	int __do_not_use_timingfd;					/*!< Timing fd */
-	enum ast_channel_state __do_not_use_state;			/*!< State of line -- Don't write directly, use ast_setstate() */
-	int __do_not_use_rings;					/*!< Number of rings so far */
-	int __do_not_use_priority;					/*!< Dialplan: Current extension priority */
-	int __do_not_use_macropriority;				/*!< Macro: Current non-macro priority. See app_macro.c */
-	int __do_not_use_amaflags;					/*!< Set BEFORE PBX is started to determine AMA flags */
-	enum ast_channel_adsicpe __do_not_use_adsicpe;		/*!< Whether or not ADSI is detected on CPE */
-	unsigned int __do_not_use_fin;				/*!< Frames in counters. The high bit is a debug mask, so
-							 *   the counter is only in the remaining bits */
-	unsigned int __do_not_use_fout;				/*!< Frames out counters. The high bit is a debug mask, so
-							 *   the counter is only in the remaining bits */
-	int __do_not_use_hangupcause;				/*!< Why is the channel hanged up. See causes.h */
-	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
-	int __do_not_use_alertpipe[2];
-	struct ast_format_cap *__do_not_use_nativeformats;         /*!< Kinds of data this channel can natively handle */
-	struct ast_format __do_not_use_readformat;            /*!< Requested read format (after translation) */
-	struct ast_format __do_not_use_writeformat;           /*!< Requested write format (after translation) */
-	struct ast_format __do_not_use_rawreadformat;         /*!< Raw read format (before translation) */
-	struct ast_format __do_not_use_rawwriteformat;        /*!< Raw write format (before translation) */
-	unsigned int __do_not_use_emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
-#ifdef HAVE_EPOLL
-	int __do_not_use_epfd;
-#endif
-	int __do_not_use_visible_indication;                         /*!< Indication currently playing on the channel */
-
-	unsigned short __do_not_use_transfercapability;		/*!< ISDN Transfer Capability - AST_FLAG_DIGITAL is not enough */
-
-	struct ast_bridge *bridge;                      /*!< Bridge this channel is participating in */
-	struct ast_timer *__do_not_use_timer;			/*!< timer object that provided timingfd */
-
-	char __do_not_use_context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
-	char __do_not_use_exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
-	char __do_not_use_macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
-	char __do_not_use_macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
-	char __do_not_use_dtmf_digit_to_emulate;			/*!< Digit being emulated */
-};
+struct ast_channel;
 
 /*! \brief ast_channel_tech Properties */
 enum {
@@ -2473,12 +2330,12 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 }
 
 #define CHECK_BLOCKING(c) do { 	 \
-	if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
-		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), ast_channel_name(c), (long) (c)->blocker, ast_channel_blockproc(c)); \
+	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) {\
+		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), ast_channel_name(c), (long) ast_channel_blocker(c), ast_channel_blockproc(c)); \
 	} else { \
-		(c)->blocker = pthread_self(); \
+		ast_channel_blocker_set((c), pthread_self()); \
 		ast_channel_blockproc_set((c), __PRETTY_FUNCTION__); \
-		ast_set_flag(c, AST_FLAG_BLOCKING); \
+		ast_set_flag(ast_channel_flags(c), AST_FLAG_BLOCKING); \
 	} } while (0)
 
 ast_group_t ast_get_group(const char *s);
@@ -3739,50 +3596,50 @@ unsigned long ast_channel_insmpl(const struct ast_channel *chan);
 void ast_channel_insmpl_set(struct ast_channel *chan, unsigned long value);
 unsigned long ast_channel_outsmpl(const struct ast_channel *chan);
 void ast_channel_outsmpl_set(struct ast_channel *chan, unsigned long value);
-void * ast_channel_generatordata(const struct ast_channel *chan);
-void ast_channel_generatordata_set(struct ast_channel *chan, void * value);
-void * ast_channel_music_state(const struct ast_channel *chan);
-void ast_channel_music_state_set(struct ast_channel *chan, void * value);
-void * ast_channel_tech_pvt(const struct ast_channel *chan);
-void ast_channel_tech_pvt_set(struct ast_channel *chan, void * value);
-void * ast_channel_timingdata(const struct ast_channel *chan);
-void ast_channel_timingdata_set(struct ast_channel *chan, void * value);
-struct ast_audiohook_list * ast_channel_audiohooks(const struct ast_channel *chan);
-void ast_channel_audiohooks_set(struct ast_channel *chan, struct ast_audiohook_list * value);
-struct ast_cdr * ast_channel_cdr(const struct ast_channel *chan);
-void ast_channel_cdr_set(struct ast_channel *chan, struct ast_cdr * value);
-struct ast_channel * ast_channel__bridge(const struct ast_channel *chan);
-void ast_channel__bridge_set(struct ast_channel *chan, struct ast_channel * value);
-struct ast_channel * ast_channel_masq(const struct ast_channel *chan);
-void ast_channel_masq_set(struct ast_channel *chan, struct ast_channel * value);
-struct ast_channel * ast_channel_masqr(const struct ast_channel *chan);
-void ast_channel_masqr_set(struct ast_channel *chan, struct ast_channel * value);
-struct ast_channel_monitor * ast_channel_monitor(const struct ast_channel *chan);
-void ast_channel_monitor_set(struct ast_channel *chan, struct ast_channel_monitor * value);
-struct ast_filestream * ast_channel_stream(const struct ast_channel *chan);
-void ast_channel_stream_set(struct ast_channel *chan, struct ast_filestream * value);
-struct ast_filestream * ast_channel_vstream(const struct ast_channel *chan);
-void ast_channel_vstream_set(struct ast_channel *chan, struct ast_filestream * value);
-struct ast_format_cap * ast_channel_nativeformats(const struct ast_channel *chan);
-void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap * value);
-struct ast_framehook_list * ast_channel_framehooks(const struct ast_channel *chan);
-void ast_channel_framehooks_set(struct ast_channel *chan, struct ast_framehook_list * value);
-struct ast_generator * ast_channel_generator(const struct ast_channel *chan);
-void ast_channel_generator_set(struct ast_channel *chan, struct ast_generator * value);
-struct ast_pbx * ast_channel_pbx(const struct ast_channel *chan);
-void ast_channel_pbx_set(struct ast_channel *chan, struct ast_pbx * value);
-struct ast_sched_context * ast_channel_sched(const struct ast_channel *chan);
-void ast_channel_sched_set(struct ast_channel *chan, struct ast_sched_context * value);
-struct ast_timer * ast_channel_timer(const struct ast_channel *chan);
-void ast_channel_timer_set(struct ast_channel *chan, struct ast_timer * value);
-struct ast_tone_zone * ast_channel_zone(const struct ast_channel *chan);
-void ast_channel_zone_set(struct ast_channel *chan, struct ast_tone_zone * value);
-struct ast_trans_pvt * ast_channel_readtrans(const struct ast_channel *chan);
-void ast_channel_readtrans_set(struct ast_channel *chan, struct ast_trans_pvt * value);
-struct ast_trans_pvt * ast_channel_writetrans(const struct ast_channel *chan);
-void ast_channel_writetrans_set(struct ast_channel *chan, struct ast_trans_pvt * value);
-const struct ast_channel_tech * ast_channel_tech(const struct ast_channel *chan);
-void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tech * value);
+void *ast_channel_generatordata(const struct ast_channel *chan);
+void ast_channel_generatordata_set(struct ast_channel *chan, void *value);
+void *ast_channel_music_state(const struct ast_channel *chan);
+void ast_channel_music_state_set(struct ast_channel *chan, void *value);
+void *ast_channel_tech_pvt(const struct ast_channel *chan);
+void ast_channel_tech_pvt_set(struct ast_channel *chan, void *value);
+void *ast_channel_timingdata(const struct ast_channel *chan);
+void ast_channel_timingdata_set(struct ast_channel *chan, void *value);
+struct ast_audiohook_list *ast_channel_audiohooks(const struct ast_channel *chan);
+void ast_channel_audiohooks_set(struct ast_channel *chan, struct ast_audiohook_list *value);
+struct ast_cdr *ast_channel_cdr(const struct ast_channel *chan);
+void ast_channel_cdr_set(struct ast_channel *chan, struct ast_cdr *value);
+struct ast_channel *ast_channel__bridge(const struct ast_channel *chan);
+void ast_channel__bridge_set(struct ast_channel *chan, struct ast_channel *value);
+struct ast_channel *ast_channel_masq(const struct ast_channel *chan);
+void ast_channel_masq_set(struct ast_channel *chan, struct ast_channel *value);
+struct ast_channel *ast_channel_masqr(const struct ast_channel *chan);
+void ast_channel_masqr_set(struct ast_channel *chan, struct ast_channel *value);
+struct ast_channel_monitor *ast_channel_monitor(const struct ast_channel *chan);
+void ast_channel_monitor_set(struct ast_channel *chan, struct ast_channel_monitor *value);
+struct ast_filestream *ast_channel_stream(const struct ast_channel *chan);
+void ast_channel_stream_set(struct ast_channel *chan, struct ast_filestream *value);
+struct ast_filestream *ast_channel_vstream(const struct ast_channel *chan);
+void ast_channel_vstream_set(struct ast_channel *chan, struct ast_filestream *value);
+struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan);
+void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value);
+struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan);
+void ast_channel_framehooks_set(struct ast_channel *chan, struct ast_framehook_list *value);
+struct ast_generator *ast_channel_generator(const struct ast_channel *chan);
+void ast_channel_generator_set(struct ast_channel *chan, struct ast_generator *value);
+struct ast_pbx *ast_channel_pbx(const struct ast_channel *chan);
+void ast_channel_pbx_set(struct ast_channel *chan, struct ast_pbx *value);
+struct ast_sched_context *ast_channel_sched(const struct ast_channel *chan);
+void ast_channel_sched_set(struct ast_channel *chan, struct ast_sched_context *value);
+struct ast_timer *ast_channel_timer(const struct ast_channel *chan);
+void ast_channel_timer_set(struct ast_channel *chan, struct ast_timer *value);
+struct ast_tone_zone *ast_channel_zone(const struct ast_channel *chan);
+void ast_channel_zone_set(struct ast_channel *chan, struct ast_tone_zone *value);
+struct ast_trans_pvt *ast_channel_readtrans(const struct ast_channel *chan);
+void ast_channel_readtrans_set(struct ast_channel *chan, struct ast_trans_pvt *value);
+struct ast_trans_pvt *ast_channel_writetrans(const struct ast_channel *chan);
+void ast_channel_writetrans_set(struct ast_channel *chan, struct ast_trans_pvt *value);
+const struct ast_channel_tech *ast_channel_tech(const struct ast_channel *chan);
+void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tech *value);
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
@@ -3792,7 +3649,7 @@ void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state);
 void ast_channel_softhangup_internal_flag_set(struct ast_channel *chan, int value);
 void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int value);
 void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value);
-int ast_channel_softhangup_internal_flag(struct ast_channel * chan);
+int ast_channel_softhangup_internal_flag(struct ast_channel *chan);
 
 /* Format getters */
 struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan);
@@ -3865,4 +3722,18 @@ int ast_channel_fd_isset(const struct ast_channel *chan, int which);
 struct ast_epoll_data *ast_channel_internal_epfd_data(const struct ast_channel *chan, int which);
 void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , struct ast_epoll_data *value);
 #endif
+
+pthread_t ast_channel_blocker(const struct ast_channel *chan);
+void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);
+
+ast_timing_func_t ast_channel_timingfunc(const struct ast_channel *chan);
+void ast_channel_timingfunc_set(struct ast_channel *chan, ast_timing_func_t value);
+
+struct ast_bridge *ast_channel_internal_bridge(const struct ast_channel *chan);
+void ast_channel_internal_bridge_set(struct ast_channel *chan, struct ast_bridge *value);
+
+struct ast_channel *ast_channel_internal_bridged_channel(const struct ast_channel *chan);
+void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct ast_channel *value);
+
+struct ast_flags *ast_channel_flags(struct ast_channel *chan);
 #endif /* _ASTERISK_CHANNEL_H */

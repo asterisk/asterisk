@@ -1142,7 +1142,7 @@ static int alloc_playback_chan(struct conference_bridge *conference_bridge)
 	}
 	cap = ast_format_cap_destroy(cap);
 
-	conference_bridge->playback_chan->bridge = conference_bridge->bridge;
+	ast_channel_internal_bridge_set(conference_bridge->playback_chan, conference_bridge->bridge);
 
 	if (ast_call(conference_bridge->playback_chan, "", 0)) {
 		ast_hangup(conference_bridge->playback_chan);

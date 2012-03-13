@@ -503,10 +503,10 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 	case ASTCHANFLAGS:
 		bits_ret[0] = 0;
 		for (bit = 0; bit < 8; bit++)
-			bits_ret[0] |= ((chan->flags & (1 << bit)) >> bit) << (7 - bit);
+			bits_ret[0] |= ((ast_channel_flags(chan)->flags & (1 << bit)) >> bit) << (7 - bit);
 		bits_ret[1] = 0;
 		for (bit = 0; bit < 8; bit++)
-			bits_ret[1] |= (((chan->flags >> 8) & (1 << bit)) >> bit) << (7 - bit);
+			bits_ret[1] |= (((ast_channel_flags(chan)->flags >> 8) & (1 << bit)) >> bit) << (7 - bit);
 		*var_len = 2;
 		ret = bits_ret;
 		break;

@@ -601,7 +601,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		p->start = cur_time;
 	}
 	if (p->chan) {
-		ast_copy_flags(p->chan, ast, AST_FLAG_EXCEPTION);
+		ast_copy_flags(ast_channel_flags(p->chan), ast_channel_flags(ast), AST_FLAG_EXCEPTION);
 		ast_channel_fdno_set(p->chan, (ast_channel_fdno(ast) == AST_AGENT_FD) ? AST_TIMING_FD : ast_channel_fdno(ast));
 		f = ast_read(p->chan);
 	} else
@@ -609,7 +609,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	if (!f) {
 		/* If there's a channel, make it NULL */
 		if (p->chan) {
-			p->chan->_bridge = NULL;
+			ast_channel_internal_bridged_channel_set(p->chan, NULL);
 			p->chan = NULL;
 			ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
 			p->acknowledged = 0;
@@ -697,11 +697,11 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	}
 
 	CLEANUP(ast,p);
-	if (p->chan && !p->chan->_bridge) {
+	if (p->chan && !ast_channel_internal_bridged_channel(p->chan)) {
 		if (strcasecmp(ast_channel_tech(p->chan)->type, "Local")) {
-			p->chan->_bridge = ast;
+			ast_channel_internal_bridged_channel_set(p->chan, ast);
 			if (p->chan)
-				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", ast_channel_name(p->chan), ast_channel_name(p->chan->_bridge));
+				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", ast_channel_name(p->chan), ast_channel_name(ast_channel_internal_bridged_channel(p->chan)));
 		}
 	}
 	ast_mutex_unlock(&p->lock);
@@ -964,7 +964,7 @@ static int agent_hangup(struct ast_channel *ast)
 	} else
 		p->start = 0;
 	if (p->chan) {
-		p->chan->_bridge = NULL;
+		ast_channel_internal_bridged_channel_set(p->chan, NULL);
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (p->dead) {
 			ast_channel_lock(p->chan);
@@ -1083,8 +1083,8 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 
 	if (p) {
 		if (chan == p->chan)
-			ret = bridge->_bridge;
-		else if (chan == bridge->_bridge)
+			ret = ast_channel_internal_bridged_channel(bridge);
+		else if (chan == ast_channel_internal_bridged_channel(bridge))
 			ret = p->chan;
 	}
 
@@ -1586,7 +1586,7 @@ static int action_agents(struct mansession *s, const struct message *m)
 
 		if (p->chan) {
 			loginChan = ast_strdupa(ast_channel_name(p->chan));
-			if (owner && owner->_bridge) {
+			if (owner && ast_channel_internal_bridged_channel(owner)) {
 				talkingto = S_COR(ast_channel_caller(p->chan)->id.number.valid,
 					ast_channel_caller(p->chan)->id.number.str, "n/a");
 				if ((bridge = ast_bridged_channel(owner))) {

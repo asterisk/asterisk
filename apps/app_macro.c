@@ -373,8 +373,8 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		argc++;
 	}
 	ast_channel_unlock(chan);
-	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
+	autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
 	while (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		struct ast_context *c;
@@ -512,7 +512,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	/* Reset the depth back to what it was when the routine was entered (like if we called Macro recursively) */
 	snprintf(depthc, sizeof(depthc), "%d", depth);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
-	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	ast_set2_flag(ast_channel_flags(chan), autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
   	for (x = 1; x < argc; x++) {
   		/* Restore old arguments and delete ours */

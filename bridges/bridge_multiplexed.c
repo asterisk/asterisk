@@ -236,11 +236,11 @@ static void *multiplexed_thread_function(void *data)
 				}
 			}
 		}
-		if (winner && winner->bridge) {
-			struct ast_bridge *bridge = winner->bridge;
+		if (winner && ast_channel_internal_bridge(winner)) {
+			struct ast_bridge *bridge = ast_channel_internal_bridge(winner);
 			int stop = 0;
 			ao2_unlock(multiplexed_thread);
-			while ((bridge = winner->bridge) && ao2_trylock(bridge)) {
+			while ((bridge = ast_channel_internal_bridge(winner)) && ao2_trylock(bridge)) {
 				sched_yield();
 				if (multiplexed_thread->thread == AST_PTHREADT_STOP) {
 					stop = 1;

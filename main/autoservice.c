@@ -198,9 +198,9 @@ int ast_autoservice_start(struct ast_channel *chan)
 	as->use_count = 1;
 
 	ast_channel_lock(chan);
-	as->orig_end_dtmf_flag = ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY) ? 1 : 0;
+	as->orig_end_dtmf_flag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY) ? 1 : 0;
 	if (!as->orig_end_dtmf_flag)
-		ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
 
 	AST_LIST_LOCK(&aslist);
@@ -282,7 +282,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	}
 
 	if (!as->orig_end_dtmf_flag) {
-		ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	}
 
 	ast_channel_lock(chan);

@@ -640,7 +640,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	}
 
  	while (1) {
- 		if (ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
+ 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
  			ast_chan_log(LOG_ERROR, chan, "Is a zombie\n");
  			break;
  		}

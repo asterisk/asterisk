@@ -2496,8 +2496,8 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argc >= 3 ? argv[2] : "");
 
 	if ((app_to_exec = pbx_findapp(argv[1]))) {
-		if (!(workaround = ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS))) {
-			ast_set_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+		if (!(workaround = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS))) {
+			ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 		if (ast_compat_res_agi && argc >= 3 && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr;
@@ -2518,7 +2518,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 			res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
 		}
 		if (!workaround) {
-			ast_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
@@ -3008,7 +3008,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
 			/* If the stream is done, start timeout calculation */
-			if ((timeout > 0) && start == 0 && ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL))) {
+			if ((timeout > 0) && start == 0 && ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL))) {
 				ast_stopstream(chan);
 				time(&start);
 			}
@@ -3018,7 +3018,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 			break;
 		case AST_SPEECH_STATE_WAIT:
 			/* Cue waiting sound if not already playing */
-			if ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && chan->timingfunc == NULL)) {
+			if ((!ast_channel_stream(chan)) || (ast_channel_streamid(chan) == -1 && ast_channel_timingfunc(chan) == NULL)) {
 				ast_stopstream(chan);
 				/* If a processing sound exists, or is not none - play it */
 				if (!ast_strlen_zero(speech->processing_sound) && strcasecmp(speech->processing_sound, "none"))

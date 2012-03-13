@@ -1040,7 +1040,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 		ast_debug(1, "Ooh, found a video stream, too, format %s\n", ast_getformatname(&vfs->fmt->format));
 	}
 
-	if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MASQ_NOSTREAM))
 		fs->orig_chan_name = ast_strdup(ast_channel_name(chan));
 	if (ast_applystream(chan, fs))
 		return -1;
@@ -1252,9 +1252,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		reverse = "";
 
 	/* Switch the channel to end DTMF frame only. waitstream_core doesn't care about the start of DTMF. */
-	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
+	ast_set_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 
-	if (ast_test_flag(c, AST_FLAG_MASQ_NOSTREAM))
+	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_MASQ_NOSTREAM))
 		orig_chan_name = ast_strdupa(ast_channel_name(c));
 
 	while (ast_channel_stream(c)) {
@@ -1269,7 +1269,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 
 		ms = ast_sched_wait(ast_channel_sched(c));
 
-		if (ms < 0 && !c->timingfunc) {
+		if (ms < 0 && !ast_channel_timingfunc(c)) {
 			ast_stopstream(c);
 			break;
 		}
@@ -1279,7 +1279,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			res = ast_waitfor(c, ms);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
-				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 				return res;
 			}
 		} else {
@@ -1290,11 +1290,11 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				if (errno == EINTR)
 					continue;
 				ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
-				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 				return -1;
 			} else if (outfd > -1) { /* this requires cmdfd set */
 				/* The FD we were watching has something waiting */
-				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 				return 1;
 			}
 			/* if rchan is set, it is 'c' */
@@ -1303,7 +1303,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		if (res > 0) {
 			struct ast_frame *fr = ast_read(c);
 			if (!fr) {
-				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 				return -1;
 			}
 			switch (fr->frametype) {
@@ -1314,7 +1314,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
 						res = fr->subclass.integer;
 						ast_frfree(fr);
-						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+						ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 						return res;
 					}
 				} else {
@@ -1332,7 +1332,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						ast_stream_rewind(ast_channel_stream(c), skip_ms);
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
-						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+						ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 						return res;
 					}					
 				}
@@ -1343,7 +1343,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
-					ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
@@ -1379,7 +1379,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		ast_sched_runq(ast_channel_sched(c));
 	}
 
-	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 
 	return (err || ast_channel_softhangup_internal_flag(c)) ? -1 : 0;
 }

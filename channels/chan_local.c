@@ -339,8 +339,8 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 		/* Now see if the opposite channel is bridged to anything */
 		if (!bridged) {
 			bridged = bridge;
-		} else if (bridged->_bridge) {
-			bridged = bridged->_bridge;
+		} else if (ast_channel_internal_bridged_channel(bridged)) {
+			bridged = ast_channel_internal_bridged_channel(bridged);
 		}
 	}
 
@@ -502,7 +502,7 @@ static void check_bridge(struct local_pvt *p)
 	/* since we had to unlock p to get the bridged chan, validate our
 	 * data once again and verify the bridged channel is what we expect
 	 * it to be in order to perform this optimization */
-	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || !p->owner || !p->chan || (p->chan->_bridge != bridged_chan)) {
+	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || !p->owner || !p->chan || (ast_channel_internal_bridged_channel(p->chan) != bridged_chan)) {
 		return;
 	}
 
@@ -511,24 +511,24 @@ static void check_bridge(struct local_pvt *p)
 	   frames on the owner channel (because they would be transferred to the
 	   outbound channel during the masquerade)
 	*/
-	if (p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(ast_channel_readq(p->owner))) {
+	if (ast_channel_internal_bridged_channel(p->chan) /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(ast_channel_readq(p->owner))) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
-		if (!ast_channel_trylock(p->chan->_bridge)) {
-			if (!ast_check_hangup(p->chan->_bridge)) {
+		if (!ast_channel_trylock(ast_channel_internal_bridged_channel(p->chan))) {
+			if (!ast_check_hangup(ast_channel_internal_bridged_channel(p->chan))) {
 				if (!ast_channel_trylock(p->owner)) {
 					if (!ast_check_hangup(p->owner)) {
-						if (ast_channel_monitor(p->owner) && !ast_channel_monitor(p->chan->_bridge)) {
+						if (ast_channel_monitor(p->owner) && !ast_channel_monitor(ast_channel_internal_bridged_channel(p->chan))) {
 							/* If a local channel is being monitored, we don't want a masquerade
 							 * to cause the monitor to go away. Since the masquerade swaps the monitors,
 							 * pre-swapping the monitors before the masquerade will ensure that the monitor
 							 * ends up where it is expected.
 							 */
 							tmp = ast_channel_monitor(p->owner);
-							ast_channel_monitor_set(p->owner, ast_channel_monitor(p->chan->_bridge));
-							ast_channel_monitor_set(p->chan->_bridge, tmp);
+							ast_channel_monitor_set(p->owner, ast_channel_monitor(ast_channel_internal_bridged_channel(p->chan)));
+							ast_channel_monitor_set(ast_channel_internal_bridged_channel(p->chan), tmp);
 						}
 						if (ast_channel_audiohooks(p->chan)) {
 							struct ast_audiohook_list *audiohooks_swapper;
@@ -547,26 +547,26 @@ static void check_bridge(struct local_pvt *p)
 						if (ast_channel_caller(p->owner)->id.name.valid || ast_channel_caller(p->owner)->id.number.valid
 							|| ast_channel_caller(p->owner)->id.subaddress.valid || ast_channel_caller(p->owner)->ani.name.valid
 							|| ast_channel_caller(p->owner)->ani.number.valid || ast_channel_caller(p->owner)->ani.subaddress.valid) {
-							SWAP(*ast_channel_caller(p->owner), *ast_channel_caller(p->chan->_bridge));
+							SWAP(*ast_channel_caller(p->owner), *ast_channel_caller(ast_channel_internal_bridged_channel(p->chan)));
 						}
 						if (ast_channel_redirecting(p->owner)->from.name.valid || ast_channel_redirecting(p->owner)->from.number.valid
 							|| ast_channel_redirecting(p->owner)->from.subaddress.valid || ast_channel_redirecting(p->owner)->to.name.valid
 							|| ast_channel_redirecting(p->owner)->to.number.valid || ast_channel_redirecting(p->owner)->to.subaddress.valid) {
-							SWAP(*ast_channel_redirecting(p->owner), *ast_channel_redirecting(p->chan->_bridge));
+							SWAP(*ast_channel_redirecting(p->owner), *ast_channel_redirecting(ast_channel_internal_bridged_channel(p->chan)));
 						}
 						if (ast_channel_dialed(p->owner)->number.str || ast_channel_dialed(p->owner)->subaddress.valid) {
-							SWAP(*ast_channel_dialed(p->owner), *ast_channel_dialed(p->chan->_bridge));
+							SWAP(*ast_channel_dialed(p->owner), *ast_channel_dialed(ast_channel_internal_bridged_channel(p->chan)));
 						}
 
 
 						ast_app_group_update(p->chan, p->owner);
-						ast_channel_masquerade(p->owner, p->chan->_bridge);
+						ast_channel_masquerade(p->owner, ast_channel_internal_bridged_channel(p->chan));
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
 					ast_channel_unlock(p->owner);
 				}
 			}
-			ast_channel_unlock(p->chan->_bridge);
+			ast_channel_unlock(ast_channel_internal_bridged_channel(p->chan));
 		}
 	}
 }
@@ -629,7 +629,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	}
 
 	/* Do not let a masquerade cause a Local channel to be bridged to itself! */
-	if (!ast_check_hangup(newchan) && ((p->owner && p->owner->_bridge == p->chan) || (p->chan && p->chan->_bridge == p->owner))) {
+	if (!ast_check_hangup(newchan) && ((p->owner && ast_channel_internal_bridged_channel(p->owner) == p->chan) || (p->chan && ast_channel_internal_bridged_channel(p->chan) == p->owner))) {
 		ast_log(LOG_WARNING, "You can not bridge a Local channel to itself!\n");
 		ao2_unlock(p);
 		ast_queue_hangup(newchan);
@@ -859,8 +859,8 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	ast_channel_cc_params_init(chan, ast_channel_get_cc_config_params(owner));
 
 	/* Make sure we inherit the ANSWERED_ELSEWHERE flag if it's set on the queue/dial call request in the dialplan */
-	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
-		ast_set_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE);
+	if (ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE)) {
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ANSWERED_ELSEWHERE);
 	}
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
@@ -980,8 +980,8 @@ static int local_hangup(struct ast_channel *ast)
 
 	isoutbound = IS_OUTBOUND(ast, p); /* just comparing pointer of ast */
 
-	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
-		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+	if (p->chan && ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE)) {
+		ast_set_flag(ast_channel_flags(p->chan), AST_FLAG_ANSWERED_ELSEWHERE);
 		ast_debug(2, "This local call has the ANSWERED_ELSEWHERE flag set.\n");
 	}
 

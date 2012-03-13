@@ -1562,7 +1562,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		ast_channel_name(chan), ast_channel_uniqueid(chan),
 		mohclass->name);
 
-	ast_set_flag(chan, AST_FLAG_MOH);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 
 	if (mohclass->total_files) {
 		res = ast_activate_generator(chan, &moh_file_stream, mohclass);
@@ -1577,7 +1577,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
-	ast_clear_flag(chan, AST_FLAG_MOH);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
 	ast_channel_lock(chan);

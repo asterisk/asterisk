@@ -645,7 +645,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					tmpto = ast_sched_wait(ast_channel_sched(tmpuser->ochan));
 					if (tmpto > 0 && tmpto < to)
 						to = tmpto;
-					else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
+					else if (tmpto < 0 && !ast_channel_timingfunc(tmpuser->ochan)) {
 						ast_stopstream(tmpuser->ochan);
 						if (tmpuser->state == 1) {
 							ast_verb(3, "Playback of the call-from file appears to be done.\n");

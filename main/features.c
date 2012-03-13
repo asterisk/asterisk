@@ -892,7 +892,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 	ast_parseable_goto(xferchan, goto_on_transfer);
 	ast_channel_state_set(xferchan, AST_STATE_UP);
-	ast_clear_flag(xferchan, AST_FLAGS_ALL);	
+	ast_clear_flag(ast_channel_flags(xferchan), AST_FLAGS_ALL);	
 	ast_channel_clear_softhangup(xferchan, AST_SOFTHANGUP_ALL);
 
 	if (ast_do_masquerade(xferchan) || ast_pbx_start(xferchan)) {
@@ -1547,10 +1547,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		 * parking space number do not continue playing it back.  This
 		 * is the case if an attended transfer occurs.
 		 */
-		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
+		ast_set_flag(ast_channel_flags(peer), AST_FLAG_MASQ_NOSTREAM);
 		/* Tell the peer channel the number of the parking space */
 		ast_say_digits(peer, pu->parkingnum, "", ast_channel_language(peer));
-		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
+		ast_clear_flag(ast_channel_flags(peer), AST_FLAG_MASQ_NOSTREAM);
 	}
 	if (peer == chan) { /* pu->notquiteyet = 1 */
 		/* Wake up parking thread if we're really done */
@@ -2354,7 +2354,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	} else {
 		/* Set the transferee's new extension, since it exists, using transferer context */
 		ast_debug(1, "About to explicit goto %s, it has a PBX.\n", ast_channel_name(transferee));
-		ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+		ast_set_flag(ast_channel_flags(transferee), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 		set_c_e_p(transferee, transferer_real_context, xferto, 0);
 
 		/*
@@ -2586,13 +2586,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		/* ast_bridge_call clears AST_FLAG_BRIDGE_HANGUP_DONT, but we don't
 		   want that to happen here because we're also in another bridge already
 		 */
-		if (ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT)) {
 			hangup_dont = 1;
 		}
 		/* Let party B and party C talk as long as they want. */
 		ast_bridge_call(transferer, newchan, &bconfig);
 		if (hangup_dont) {
-			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+			ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT);
 		}
 
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
@@ -2733,13 +2733,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_channel_masquerade(xferchan, transferee);
 	ast_explicit_goto(xferchan, ast_channel_context(transferee), ast_channel_exten(transferee), ast_channel_priority(transferee));
 	ast_channel_state_set(xferchan, AST_STATE_UP);
-	ast_clear_flag(xferchan, AST_FLAGS_ALL);
+	ast_clear_flag(ast_channel_flags(xferchan), AST_FLAGS_ALL);
 
 	/* Do the masquerade manually to make sure that is is completed. */
 	ast_do_masquerade(xferchan);
 
 	ast_channel_state_set(newchan, AST_STATE_UP);
-	ast_clear_flag(newchan, AST_FLAGS_ALL);
+	ast_clear_flag(ast_channel_flags(newchan), AST_FLAGS_ALL);
 	tobj = ast_calloc(1, sizeof(*tobj));
 	if (!tobj) {
 		ast_hangup(xferchan);
@@ -3714,13 +3714,13 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), ast_channel_amaflags(chan), ast_channel_macrocontext(chan), ast_channel_macroexten(chan), ast_channel_macropriority(chan));
 	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
 		ast_channel_masq(chan), ast_channel_masqr(chan),
-		chan->_bridge, ast_channel_uniqueid(chan), ast_channel_linkedid(chan));
+		ast_channel_internal_bridged_channel(chan), ast_channel_uniqueid(chan), ast_channel_linkedid(chan));
 	if (ast_channel_masqr(chan)) {
 		ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
 			ast_channel_name(ast_channel_masqr(chan)), ast_channel_cdr(ast_channel_masqr(chan)));
 	}
-	if (chan->_bridge) {
-		ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", ast_channel_name(chan->_bridge));
+	if (ast_channel_internal_bridged_channel(chan)) {
+		ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", ast_channel_name(ast_channel_internal_bridged_channel(chan)));
 	}
 
 	ast_log(LOG_NOTICE, "===== done ====\n");
@@ -4024,7 +4024,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 				ast_cdr_answer(chan_cdr); /* for the sake of cli status checks */
 			}
 		}
-		if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT) && (chan_cdr || peer_cdr)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT) && (chan_cdr || peer_cdr)) {
 			if (chan_cdr) {
 				ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
 			}
@@ -4051,8 +4051,8 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
 
-		if (ast_test_flag(chan, AST_FLAG_ZOMBIE)
-			|| ast_test_flag(peer, AST_FLAG_ZOMBIE)) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
+			|| ast_test_flag(ast_channel_flags(peer), AST_FLAG_ZOMBIE)) {
 			/* Zombies are present time to leave! */
 			res = -1;
 			if (f) {
@@ -4122,7 +4122,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			}
 		}
 		if (res < 0) {
-			if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_test_flag(peer, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan) && !ast_check_hangup(peer)) {
+			if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) && !ast_test_flag(ast_channel_flags(peer), AST_FLAG_ZOMBIE) && !ast_check_hangup(chan) && !ast_check_hangup(peer)) {
 				ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", ast_channel_name(chan), ast_channel_name(peer));
 			}
 			goto before_you_go;
@@ -4139,7 +4139,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			 */
 			ast_channel_lock(chan);
 			if (ast_channel_softhangup_internal_flag(chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)) {
-				ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+				ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT);
 			}
 			ast_channel_unlock(chan);
 			res = -1;
@@ -4300,8 +4300,8 @@ before_you_go:
 		silgen = NULL;
 	}
 
-	if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT)) {
-		ast_clear_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT); /* its job is done */
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT)) {
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT); /* its job is done */
 		if (bridge_cdr) {
 			ast_cdr_discard(bridge_cdr);
 			/* QUESTION: should we copy bridge_cdr fields to the peer before we throw it away? */
@@ -4345,8 +4345,8 @@ before_you_go:
 		 */
 		ast_softhangup(chan, AST_SOFTHANGUP_APPUNLOAD);
 
-		autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
-		ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
+		autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
 		if (bridge_cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
 		}
@@ -4395,7 +4395,7 @@ before_you_go:
 			}
 		}
 		/* An "h" exten has been run, so indicate that one has been run. */
-		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_RUN);
 		ast_channel_unlock(chan);
 
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
@@ -4403,7 +4403,7 @@ before_you_go:
 			ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
 		}
-		ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
+		ast_set2_flag(ast_channel_flags(chan), autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	}
 	
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
@@ -4747,9 +4747,9 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 			}
 
 			if (pfds[y].revents & POLLPRI) {
-				ast_set_flag(chan, AST_FLAG_EXCEPTION);
+				ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 			} else {
-				ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 			}
 			ast_channel_fdno_set(chan, x);
 
@@ -7227,7 +7227,7 @@ static const struct ast_datastore_info pickup_active = {
 
 int ast_can_pickup(struct ast_channel *chan)
 {
-	if (!ast_channel_pbx(chan) && !ast_channel_masq(chan) && !ast_test_flag(chan, AST_FLAG_ZOMBIE)
+	if (!ast_channel_pbx(chan) && !ast_channel_masq(chan) && !ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
 		&& (ast_channel_state(chan) == AST_STATE_RINGING
 			|| ast_channel_state(chan) == AST_STATE_RING
 			/*
@@ -7353,7 +7353,7 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	}
 	
 	/* setting this flag to generate a reason header in the cancel message to the ringing channel */
-	ast_set_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ANSWERED_ELSEWHERE);
 
 	if (ast_channel_masquerade(target, chan)) {
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name,

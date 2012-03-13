@@ -818,7 +818,7 @@ static void bridge_channel_feature(struct ast_bridge *bridge, struct ast_bridge_
 	int look_for_dtmf = 1, dtmf_len = 0;
 
 	/* The channel is now under our control and we don't really want any begin frames to do our DTMF matching so disable 'em at the core level */
-	ast_set_flag(bridge_channel->chan, AST_FLAG_END_DTMF_ONLY);
+	ast_set_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_END_DTMF_ONLY);
 
 	/* Wait for DTMF on the channel and put it into a buffer. If the buffer matches any feature hook execute the hook. */
 	while (look_for_dtmf) {
@@ -863,7 +863,7 @@ static void bridge_channel_feature(struct ast_bridge *bridge, struct ast_bridge_
 	}
 
 	/* Since we are done bringing DTMF in return to using both begin and end frames */
-	ast_clear_flag(bridge_channel->chan, AST_FLAG_END_DTMF_ONLY);
+	ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_END_DTMF_ONLY);
 
 	/* If a hook was actually matched execute it on this channel, otherwise stream up the DTMF to the other channels */
 	if (hook) {
@@ -967,7 +967,7 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 	/* Actually execute the respective threading model, and keep our bridge thread alive */
 	while (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 		/* Update bridge pointer on channel */
-		bridge_channel->chan->bridge = bridge_channel->bridge;
+		ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
 		/* If the technology requires a thread and one is not running, start it up */
 		if (bridge_channel->bridge->thread == AST_PTHREADT_NULL && (bridge_channel->bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_THREAD)) {
 			bridge_channel->bridge->stop = 0;
@@ -1006,7 +1006,7 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 		}
 	}
 
-	bridge_channel->chan->bridge = NULL;
+	ast_channel_internal_bridge_set(bridge_channel->chan, NULL);
 
 	/* See if we need to dissolve the bridge itself if they hung up */
 	if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_END) {
