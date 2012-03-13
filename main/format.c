@@ -81,7 +81,7 @@ static int interface_hash_cb(const void *obj, const int flags)
 
 void ast_format_copy(struct ast_format *dst, const struct ast_format *src)
 {
-	memcpy(dst, src, sizeof(struct ast_format));
+	*dst = *src;
 }
 
 void ast_format_set_video_mark(struct ast_format *format)
