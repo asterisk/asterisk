@@ -67,7 +67,24 @@ static void clm_node_get_cb(SaInvocationT invocation,
 static void clm_track_cb(const SaClmClusterNotificationBufferT *notif_buffer,
 	SaUint32T num_members, SaAisErrorT error)
 {
+	unsigned int i;
+	unsigned int node_joined = 0;
 
+	ast_debug(1, "Cluster membership changed. Number of members: %u\n", num_members);
+
+	for (i = 0; i < notif_buffer->numberOfItems; i++) {
+		SaClmClusterNotificationT *notif = notif_buffer->notification + i;
+
+		if (notif->clusterChange == SA_CLM_NODE_JOINED) {
+			node_joined = 1;
+			break;
+		}
+	}
+
+	if (node_joined) {
+		ast_debug(1, "A node has joined the cluster, dumping event cache.\n");
+		ast_ais_cmd(AST_AIS_CMD_MEMBERSHIP_CHANGED);
+	}
 }
 
 static char *ais_clm_show_members(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -135,11 +152,18 @@ static struct ast_cli_entry ais_cli[] = {
 
 int ast_ais_clm_load_module(void)
 {
+	SaAisErrorT ais_res;
+
 	clm_init_res = saClmInitialize(&clm_handle, &clm_callbacks, &ais_version);
 	if (clm_init_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Could not initialize cluster membership service: %s\n",
 			ais_err2str(clm_init_res));
 		return -1;
+	}
+
+	ais_res = saClmClusterTrack(clm_handle, SA_TRACK_CHANGES, NULL);
+	if (ais_res != SA_AIS_OK) {
+		ast_log(LOG_ERROR, "Error starting tracking of cluster membership changes.\n");
 	}
 
 	ast_cli_register_multiple(ais_cli, ARRAY_LEN(ais_cli));
