@@ -4408,8 +4408,10 @@ before_you_go:
 	
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	new_chan_cdr = pick_unlocked_cdr(ast_channel_cdr(chan)); /* the proper chan cdr, if there are forked cdrs */
-	/* If the channel CDR has been modified during the call, record the changes in the bridge cdr */
-	if (new_chan_cdr && bridge_cdr) {
+	/* If the channel CDR has been modified during the call, record the changes in the bridge cdr,
+	 * BUT, if we've gone through the h extension block above, the CDR got swapped so don't overwrite
+	 * what was done in the h extension. What a mess. This is why you never touch CDR code. */
+	if (new_chan_cdr && bridge_cdr && !h_context) {
 		ast_cdr_copy_vars(bridge_cdr, new_chan_cdr);
 		ast_copy_string(bridge_cdr->userfield, new_chan_cdr->userfield, sizeof(bridge_cdr->userfield));
 		bridge_cdr->amaflags = new_chan_cdr->amaflags;
