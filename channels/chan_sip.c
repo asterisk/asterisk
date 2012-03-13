@@ -27270,8 +27270,6 @@ static int sip_devicestate(void *data)
 			res = AST_DEVICE_UNAVAILABLE;
 		}
 		sip_unref_peer(p, "sip_unref_peer, from sip_devicestate, release ref from sip_find_peer");
-	} else {
-		res = AST_DEVICE_UNKNOWN;
 	}
 
 	return res;
