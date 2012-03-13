@@ -3136,6 +3136,7 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 	int offset, length;
 	int i, need_substring;
 	struct varshead *places[2] = { headp, &globals };	/* list of places where we may look */
+	char workspace[20];
 
 	if (c) {
 		ast_channel_lock(c);
@@ -3211,7 +3212,6 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 		} else if (!strcmp(var, "SYSTEMNAME")) {
 			s = ast_config_AST_SYSTEM_NAME;
 		} else if (!strcmp(var, "ENTITYID")) {
-			char workspace[20];
 			ast_eid_to_str(workspace, sizeof(workspace), &ast_eid_default);
 			s = workspace;
 		}
