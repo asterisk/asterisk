@@ -60,9 +60,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 static struct {
 	pthread_t id;
+	int alert_pipe[2];
 	unsigned int stop:1;
 } dispatch_thread = {
 	.id = AST_PTHREADT_NULL,
+	.alert_pipe = { -1, -1 },
 };
 
 SaVersionT ais_version = { 'B', 1, 1 };
@@ -116,7 +118,11 @@ static void *dispatch_thread_handler(void *data)
 {
 	SaSelectionObjectT clm_fd, evt_fd;
 	int res;
-	struct pollfd pfd[2] = { { .events = POLLIN, }, { .events = POLLIN, } };
+	struct pollfd pfd[3] = {
+		{ .events = POLLIN, },
+		{ .events = POLLIN, },
+		{ .events = POLLIN, },
+	};
 	SaAisErrorT ais_res;
 
 	ais_res = saClmSelectionObjectGet(clm_handle, &clm_fd);
@@ -135,12 +141,14 @@ static void *dispatch_thread_handler(void *data)
 
 	pfd[0].fd = clm_fd;
 	pfd[1].fd = evt_fd;
+	pfd[2].fd = dispatch_thread.alert_pipe[0];
 
 	while (!dispatch_thread.stop) {
 		pfd[0].revents = 0;
 		pfd[1].revents = 0;
+		pfd[2].revents = 0;
 
-		res = ast_poll(pfd, 2, -1);
+		res = ast_poll(pfd, ARRAY_LEN(pfd), -1);
 		if (res == -1 && errno != EINTR && errno != EAGAIN) {
 			ast_log(LOG_ERROR, "Select error (%s) dispatch thread going away now, "
 				"and the module will no longer operate.\n", strerror(errno));
@@ -153,15 +161,45 @@ static void *dispatch_thread_handler(void *data)
 		if (pfd[1].revents & POLLIN) {
 			saEvtDispatch(evt_handle,   SA_DISPATCH_ALL);
 		}
+		if (pfd[2].revents & POLLIN) {
+			enum ast_ais_cmd cmd;
+			ast_debug(1, "Got a command in the poll() loop\n");
+			if (read(dispatch_thread.alert_pipe[0], &cmd, sizeof(cmd)) != -1) {
+				switch (cmd) {
+				case AST_AIS_CMD_MEMBERSHIP_CHANGED:
+					ast_ais_evt_membership_changed();
+					break;
+				case AST_AIS_CMD_EXIT:
+					break;
+				}
+			}
+		}
 	}
 
 	return NULL;
 }
 
+int ast_ais_cmd(enum ast_ais_cmd cmd)
+{
+	int res;
+
+	res = write(dispatch_thread.alert_pipe[1], (char *) &cmd, sizeof(cmd));
+
+	ast_debug(1, "AIS cmd: %d, res: %d\n", cmd, res);
+
+	return res;
+}
+
 static int load_module(void)
 {
-	if (ast_ais_clm_load_module())
+	if (pipe(dispatch_thread.alert_pipe) == -1) {
+		ast_log(LOG_ERROR, "Failed to create alert pipe: %s (%d)\n",
+				strerror(errno), errno);
 		goto return_error;
+	}
+
+	if (ast_ais_clm_load_module())
+		goto clm_failed;
 
 	if (ast_ais_evt_load_module())
 		goto evt_failed;
@@ -178,6 +216,9 @@ dispatch_failed:
 	ast_ais_evt_unload_module();
 evt_failed:
 	ast_ais_clm_unload_module();
+clm_failed:
+	close(dispatch_thread.alert_pipe[0]);
+	close(dispatch_thread.alert_pipe[1]);
 return_error:
 	return AST_MODULE_LOAD_DECLINE;
 }
@@ -189,8 +230,21 @@ static int unload_module(void)
 
 	if (dispatch_thread.id != AST_PTHREADT_NULL) {
 		dispatch_thread.stop = 1;
-		pthread_kill(dispatch_thread.id, SIGURG); /* poke! */
+		if (ast_ais_cmd(AST_AIS_CMD_EXIT) == -1) {
+			ast_log(LOG_ERROR, "Failed to write to pipe: %s (%d)\n",
+					strerror(errno), errno);
+		}
 		pthread_join(dispatch_thread.id, NULL);
+	}
+
+	if (dispatch_thread.alert_pipe[0] != -1) {
+		close(dispatch_thread.alert_pipe[0]);
+		dispatch_thread.alert_pipe[0] = -1;
+	}
+
+	if (dispatch_thread.alert_pipe[1] != -1) {
+		close(dispatch_thread.alert_pipe[1]);
+		dispatch_thread.alert_pipe[1] = -1;
 	}
 
 	return 0;

@@ -45,4 +45,13 @@ int ast_ais_evt_unload_module(void);
 
 const char *ais_err2str(SaAisErrorT error);
 
+void ast_ais_evt_membership_changed(void);
+
+enum ast_ais_cmd {
+	AST_AIS_CMD_EXIT,
+	AST_AIS_CMD_MEMBERSHIP_CHANGED,
+};
+
+int ast_ais_cmd(enum ast_ais_cmd cmd);
+
 #endif /* RES_AIS_AIS_H */
