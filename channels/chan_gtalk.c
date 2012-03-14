@@ -979,7 +979,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	struct gtalk_pvt *tmp = NULL;
 	struct aji_resource *resources = NULL;
 	struct aji_buddy *buddy = NULL;
-	char idroster[200];
+	char idroster[200] = "";
 	char *data, *exten = NULL;
 	struct ast_sockaddr bindaddr_tmp;
 
