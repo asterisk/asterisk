@@ -4730,15 +4730,19 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (ast_format_cmp(&fr->subclass.format, ast_channel_rawwriteformat(chan)) != AST_FORMAT_CMP_NOT_EQUAL) {
 			f = fr;
 		} else {
-			/* XXX Something is not right we are not compatible with this frame bad things can happen
-			 * problems range from no/one-way audio to unexplained line hangups as a last resort try adjust the format
-			 * ideally we do not want to do this and this indicates a deeper problem for now we log these events to
-			 * eliminate user impact and help identify the problem areas
-			 * JIRA issues related to this :-
-			 * ASTERISK-14384, ASTERISK-17502, ASTERISK-17541, ASTERISK-18063, ASTERISK-18325, ASTERISK-18422*/
 			if ((!ast_format_cap_iscompatible(ast_channel_nativeformats(chan), &fr->subclass.format)) &&
 			    (ast_format_cmp(ast_channel_writeformat(chan), &fr->subclass.format) != AST_FORMAT_CMP_EQUAL)) {
 				char nf[512];
+
+				/*
+				 * XXX Something is not right.  We are not compatible with this
+				 * frame.  Bad things can happen.  Problems range from no audio,
+				 * one-way audio, to unexplained line hangups.  As a last resort
+				 * try to adjust the format.  Ideally, we do not want to do this
+				 * because it indicates a deeper problem.  For now, we log these
+				 * events to reduce user impact and help identify the problem
+				 * areas.
+				 */
 				ast_log(LOG_WARNING, "Codec mismatch on channel %s setting write format to %s from %s native formats %s\n",
 					ast_channel_name(chan), ast_getformatname(&fr->subclass.format), ast_getformatname(ast_channel_writeformat(chan)),
 					ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(chan)));

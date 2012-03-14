@@ -823,13 +823,21 @@ static void senddialendevent(struct ast_channel *src, const char *dialstatus)
 /*!
  * helper function for wait_for_answer()
  *
+ * \param o Outgoing call channel list.
+ * \param num Incoming call channel cause accumulation
+ * \param peerflags Dial option flags
+ * \param single_caller_bored From wait_for_answer: single && !caller_entertained
+ * \param to Remaining call timeout time.
+ * \param forced_clid OPT_FORCECLID caller id to send
+ * \param stored_clid Caller id representing the called party if needed
+ *
  * XXX this code is highly suspicious, as it essentially overwrites
  * the outgoing channel without properly deleting it.
  *
- * \todo eventually this function should be intergrated into and replaced by ast_call_forward() 
+ * \todo eventually this function should be intergrated into and replaced by ast_call_forward()
  */
 static void do_forward(struct chanlist *o,
-	struct cause_args *num, struct ast_flags64 *peerflags, int single, int *to,
+	struct cause_args *num, struct ast_flags64 *peerflags, int single_caller_bored, int *to,
 	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
 {
 	char tmpchan[256];
@@ -871,8 +879,9 @@ static void do_forward(struct chanlist *o,
 		/* Setup parameters */
 		c = o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &cause);
 		if (c) {
-			if (single)
+			if (single_caller_bored) {
 				ast_channel_make_compatible(o->chan, in);
+			}
 			ast_channel_inherit_variables(in, o->chan);
 			ast_channel_datastore_inherit(in, o->chan);
 			/* When a call is forwarded, we don't want to track new interfaces
@@ -893,7 +902,7 @@ static void do_forward(struct chanlist *o,
 	} else {
 		struct ast_party_redirecting redirecting;
 
-		if (single && CAN_EARLY_BRIDGE(peerflags, c, in)) {
+		if (single_caller_bored && CAN_EARLY_BRIDGE(peerflags, c, in)) {
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
@@ -987,7 +996,7 @@ static void do_forward(struct chanlist *o,
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
 		}
-		if (single) {
+		if (single_caller_bored) {
 			ast_indicate(in, -1);
 		}
 	}
@@ -1016,6 +1025,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct ast_channel *peer = NULL;
 	/* single is set if only one destination is enabled */
 	int single = outgoing && !outgoing->next;
+	int caller_entertained = outgoing
+		&& ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK);
 #ifdef HAVE_EPOLL
 	struct chanlist *epollo;
 #endif
@@ -1029,7 +1040,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	ast_party_connected_line_init(&connected_caller);
 	if (single) {
 		/* Turn off hold music, etc */
-		if (!ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK)) {
+		if (!caller_entertained) {
 			ast_deactivate_generator(in);
 			/* If we are calling a single channel, and not providing ringback or music, */
 			/* then, make them compatible for in-band tone purpose */
@@ -1154,7 +1165,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					ast_frfree(f);
 				}
-				do_forward(o, &num, peerflags, single, to, forced_clid, stored_clid);
+				do_forward(o, &num, peerflags, single && !caller_entertained, to,
+					forced_clid, stored_clid);
 				continue;
 			}
 			f = ast_read(winner);
@@ -1169,7 +1181,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				handle_cause(ast_channel_hangupcause(in), &num);
 				continue;
 			}
-			if (f->frametype == AST_FRAME_CONTROL) {
+			switch (f->frametype) {
+			case AST_FRAME_CONTROL:
 				switch (f->subclass.integer) {
 				case AST_CONTROL_ANSWER:
 					/* This is our guy if someone answered. */
@@ -1266,8 +1279,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (ignore_cc || cc_frame_received || num_ringing == numlines) {
 						ast_verb(3, "%s is ringing\n", ast_channel_name(c));
 						/* Setup early media if appropriate */
-						if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
+						if (single && !caller_entertained
+							&& CAN_EARLY_BRIDGE(peerflags, in, c)) {
 							ast_channel_early_bridge(in, c);
+						}
 						if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK) && ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
 							ast_indicate(in, AST_CONTROL_RINGING);
 							pa->sentringing++;
@@ -1277,8 +1292,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_PROGRESS:
 					ast_verb(3, "%s is making progress passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
 					/* Setup early media if appropriate */
-					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
+					if (single && !caller_entertained
+						&& CAN_EARLY_BRIDGE(peerflags, in, c)) {
 						ast_channel_early_bridge(in, c);
+					}
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK)) {
 						if (single || (!single && !pa->sentringing)) {
 							ast_indicate(in, AST_CONTROL_PROGRESS);
@@ -1292,12 +1309,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				case AST_CONTROL_VIDUPDATE:
-					ast_verb(3, "%s requested a video update, passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
-					ast_indicate(in, AST_CONTROL_VIDUPDATE);
-					break;
 				case AST_CONTROL_SRCUPDATE:
-					ast_verb(3, "%s requested a source update, passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
-					ast_indicate(in, AST_CONTROL_SRCUPDATE);
+				case AST_CONTROL_SRCCHANGE:
+					if (!single || caller_entertained) {
+						break;
+					}
+					ast_verb(3, "%s requested media update control %d, passing it to %s\n",
+						ast_channel_name(c), f->subclass.integer, ast_channel_name(in));
+					ast_indicate(in, f->subclass.integer);
 					break;
 				case AST_CONTROL_CONNECTED_LINE:
 					if (ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
@@ -1342,16 +1361,20 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					break;
 				case AST_CONTROL_PROCEEDING:
 					ast_verb(3, "%s is proceeding passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
-					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
+					if (single && !caller_entertained
+						&& CAN_EARLY_BRIDGE(peerflags, in, c)) {
 						ast_channel_early_bridge(in, c);
+					}
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROCEEDING);
 					break;
 				case AST_CONTROL_HOLD:
+					/* XXX this should be saved like AST_CONTROL_CONNECTED_LINE for !single || caller_entertained */
 					ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(c));
-					ast_indicate(in, AST_CONTROL_HOLD);
+					ast_indicate_data(in, AST_CONTROL_HOLD, f->data.ptr, f->datalen);
 					break;
 				case AST_CONTROL_UNHOLD:
+					/* XXX this should be saved like AST_CONTROL_CONNECTED_LINE for !single || caller_entertained */
 					ast_verb(3, "Call on %s left from hold\n", ast_channel_name(c));
 					ast_indicate(in, AST_CONTROL_UNHOLD);
 					break;
@@ -1366,7 +1389,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				case -1:
-					if (!ast_test_flag64(outgoing, OPT_RINGBACK | OPT_MUSICBACK)) {
+					if (single && !caller_entertained) {
 						ast_verb(3, "%s stopped sounds\n", ast_channel_name(c));
 						ast_indicate(in, -1);
 						pa->sentringing = 0;
@@ -1374,26 +1397,29 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					break;
 				default:
 					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
-				}
-			} else if (single) {
-				switch (f->frametype) {
-				case AST_FRAME_VOICE:
-				case AST_FRAME_IMAGE:
-				case AST_FRAME_TEXT:
-					if (!ast_test_flag64(outgoing, OPT_RINGBACK | OPT_MUSICBACK) && ast_write(in, f)) {
-						ast_log(LOG_WARNING, "Unable to write frametype: %d\n",
-							f->frametype);
-					}
-					break;
-				case AST_FRAME_HTML:
-					if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
-						&& ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
-						ast_log(LOG_WARNING, "Unable to send URL\n");
-					}
-					break;
-				default:
 					break;
 				}
+				break;
+			case AST_FRAME_VOICE:
+			case AST_FRAME_IMAGE:
+				if (caller_entertained) {
+					break;
+				}
+				/* Fall through */
+			case AST_FRAME_TEXT:
+				if (single && ast_write(in, f)) {
+					ast_log(LOG_WARNING, "Unable to write frametype: %d\n",
+						f->frametype);
+				}
+				break;
+			case AST_FRAME_HTML:
+				if (single && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
+					&& ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
+					ast_log(LOG_WARNING, "Unable to send URL\n");
+				}
+				break;
+			default:
+				break;
 			}
 			ast_frfree(f);
 		} /* end for */
@@ -1474,6 +1500,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					break;
 				case AST_FRAME_VOICE:
 				case AST_FRAME_IMAGE:
+					if (!single || caller_entertained) {
+						/*
+						 * We are calling multiple parties or caller is being
+						 * entertained and has thus not been made compatible.
+						 * No need to check any other called parties.
+						 */
+						goto skip_frame;
+					}
+					/* Fall through */
 				case AST_FRAME_TEXT:
 				case AST_FRAME_DTMF_BEGIN:
 				case AST_FRAME_DTMF_END:
@@ -1485,12 +1520,27 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_FRAME_CONTROL:
 					switch (f->subclass.integer) {
 					case AST_CONTROL_HOLD:
+						ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(o->chan));
+						ast_indicate_data(o->chan, AST_CONTROL_HOLD, f->data.ptr, f->datalen);
+						break;
 					case AST_CONTROL_UNHOLD:
+						ast_verb(3, "Call on %s left from hold\n", ast_channel_name(o->chan));
+						ast_indicate(o->chan, AST_CONTROL_UNHOLD);
+						break;
 					case AST_CONTROL_VIDUPDATE:
 					case AST_CONTROL_SRCUPDATE:
-						ast_verb(3, "%s requested special control %d, passing it to %s\n",
+					case AST_CONTROL_SRCCHANGE:
+						if (!single || caller_entertained) {
+							/*
+							 * We are calling multiple parties or caller is being
+							 * entertained and has thus not been made compatible.
+							 * No need to check any other called parties.
+							 */
+							goto skip_frame;
+						}
+						ast_verb(3, "%s requested media update control %d, passing it to %s\n",
 							ast_channel_name(in), f->subclass.integer, ast_channel_name(o->chan));
-						ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						ast_indicate(o->chan, f->subclass.integer);
 						break;
 					case AST_CONTROL_CONNECTED_LINE:
 						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
@@ -1505,13 +1555,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 						break;
 					default:
-						break;
+						/* We are not going to do anything with this frame. */
+						goto skip_frame;
 					}
 					break;
 				default:
-					break;
+					/* We are not going to do anything with this frame. */
+					goto skip_frame;
 				}
 			}
+skip_frame:;
 			ast_frfree(f);
 		}
 		if (!*to)
