@@ -4354,7 +4354,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -4466,7 +4466,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
