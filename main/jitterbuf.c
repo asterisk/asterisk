@@ -109,50 +109,60 @@ void jb_destroy(jitterbuf *jb)
 	ast_free(jb);
 }
 
-
-
-#if 0
-static int longcmp(const void *a, const void *b) 
+static int check_resync(jitterbuf *jb, long ts, long now, long ms, const enum jb_frame_type type, long *delay)
 {
-	return *(long *)a - *(long *)b;
-}
-#endif
-
-/*!	\brief simple history manipulation 
- 	\note maybe later we can make the history buckets variable size, or something? */
-/* drop parameter determines whether we will drop outliers to minimize
- * delay */
-static int history_put(jitterbuf *jb, long ts, long now, long ms) 
-{
-	long delay = now - (ts - jb->info.resync_offset);
+	long numts = 0;
 	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
-	long kicked;
 
-	/* don't add special/negative times to history */
-	if (ts <= 0) 
-		return 0;
+	/* Check for overfill of the buffer */
+	if (jb->frames) {
+		numts = jb->frames->prev->ts - jb->frames->ts;
+	}
+
+	if (numts >= (jb->info.conf.max_jitterbuf)) {
+		if (!jb->dropem) {
+			ast_debug(1, "Attempting to exceed Jitterbuf max %ld timeslots\n",
+				jb->info.conf.max_jitterbuf);
+			jb->dropem = 1;
+		}
+		jb->info.frames_dropped++;
+		return -1;
+	} else {
+		jb->dropem = 0;
+	}
 
 	/* check for drastic change in delay */
 	if (jb->info.conf.resync_threshold != -1) {
-		if (abs(delay - jb->info.last_delay) > threshold) {
+		if (abs(*delay - jb->info.last_delay) > threshold) {
 			jb->info.cnt_delay_discont++;
-			if (jb->info.cnt_delay_discont > 3) {
-				/* resync the jitterbuffer */
+			/* resync the jitterbuffer on 3 consecutive discontinuities,
+			 * or immediately if a control frame */
+			if ((jb->info.cnt_delay_discont > 3) || (type == JB_TYPE_CONTROL)) {
 				jb->info.cnt_delay_discont = 0;
 				jb->hist_ptr = 0;
 				jb->hist_maxbuf_valid = 0;
-
-				jb_warn("Resyncing the jb. last_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.last_delay, delay, threshold, ts - now);
+				jb_warn("Resyncing the jb. last_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.last_delay, *delay, threshold, ts - now);
 				jb->info.resync_offset = ts - now;
-				jb->info.last_delay = delay = 0; /* after resync, frame is right on time */
+				jb->info.last_delay = *delay = 0; /* after resync, frame is right on time */
 			} else {
+				jb->info.frames_dropped++;
 				return -1;
 			}
 		} else {
-			jb->info.last_delay = delay;
+			jb->info.last_delay = *delay;
 			jb->info.cnt_delay_discont = 0;
 		}
 	}
+	return 0;
+}
+
+static int history_put(jitterbuf *jb, long ts, long now, long ms, long delay)
+{
+	long kicked;
+
+	/* don't add special/negative times to history */
+	if (ts <= 0)
+		return 0;
 
 	kicked = jb->history[jb->hist_ptr % JB_HISTORY_SZ];
 
@@ -506,33 +516,17 @@ static void jb_dbgqueue(jitterbuf *jb)
 
 enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts, long now) 
 {
-	long numts;
-
+	long delay = now - (ts - jb->info.resync_offset);
 	jb_dbg2("jb_put(%x,%x,%ld,%ld,%ld)\n", jb, data, ms, ts, now);
 
-	numts = 0;
-	if (jb->frames)
-		numts = jb->frames->prev->ts - jb->frames->ts;
-
-	if (numts >= jb->info.conf.max_jitterbuf) {
-		if (!jb->dropem) {
-			ast_debug(1, "Attempting to exceed Jitterbuf max %ld timeslots\n",
-				jb->info.conf.max_jitterbuf);
-			jb->dropem = 1;
-		}
-		jb->info.frames_dropped++;
+	if (check_resync(jb, ts, now, ms, type, &delay)) {
 		return JB_DROP;
-	} else {
-		jb->dropem = 0;
 	}
 
 	if (type == JB_TYPE_VOICE) {
 		/* presently, I'm only adding VOICE frames to history and drift calculations; mostly because with the
 		 * IAX integrations, I'm sending retransmitted control frames with their awkward timestamps through */
-		if (history_put(jb,ts,now,ms)) {
-			jb->info.frames_dropped++;
-			return JB_DROP;
-		}
+		history_put(jb, ts, now, ms, delay);
 	}
 
 	jb->info.frames_in++;
@@ -551,7 +545,6 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 	long diff;
 	static int dbg_cnt = 0;
 
-	/*if ((now - jb_next(jb)) > 2 * jb->info.last_voice_ms) jb_warn("SCHED: %ld", (now - jb_next(jb))); */
 	/* get jitter info */
 	history_get(jb);
 
@@ -632,8 +625,6 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 				jb->info.frames_late++;
 				jb->info.frames_lost--;
 				jb_dbg("l");
-				/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.next_voice_ts - jb->info.current, frame->ts, queue_next(jb));
-				jb_warninfo(jb); */
 				return JB_DROP;
 			}
 		}
@@ -748,8 +739,6 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 			jb->info.frames_late++;
 			jb->info.frames_lost--;
 			jb_dbg("l");
-			/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.next_voice_ts - jb->info.current, frame->ts, queue_next(jb));
-			jb_warninfo(jb); */
 			return JB_DROP;
 		} else {
 			/* voice frame */
