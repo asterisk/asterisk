@@ -182,7 +182,7 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #endif
 #define AST_LOG_DTMF    __LOG_DTMF, _A_
 
-#define NUMLOGLEVELS 7
+#define NUMLOGLEVELS 32
 
 /*!
  * \brief Get the debug level for a module
