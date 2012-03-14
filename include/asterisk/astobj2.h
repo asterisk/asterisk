@@ -1297,8 +1297,11 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags);
  * and any other resources it may be holding.
  *
  */
+#if defined(TEST_FRAMEWORK)
+void ao2_iterator_destroy(struct ao2_iterator *i) __attribute__((noinline));
+#else
 void ao2_iterator_destroy(struct ao2_iterator *i);
-
+#endif
 #ifdef REF_DEBUG
 
 #define ao2_t_iterator_next(iter, tag) __ao2_iterator_next_debug((iter), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
