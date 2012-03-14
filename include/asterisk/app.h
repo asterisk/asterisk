@@ -452,7 +452,7 @@ int ast_app_group_list_unlock(void);
   ast_app_separate_args() will perform that function before parsing
   the arguments.
  */
-#define AST_DECLARE_APP_ARGS(name, arglist) AST_DEFINE_APP_ARGS_TYPE(, arglist) name
+#define AST_DECLARE_APP_ARGS(name, arglist) AST_DEFINE_APP_ARGS_TYPE(, arglist) name = { 0, }
 
 /*!
   \brief Define a structure type to hold an application's arguments.
