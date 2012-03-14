@@ -520,7 +520,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 
 static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int buflen, uint8_t *ifp, unsigned int ifp_len)
 {
-	uint8_t fec[LOCAL_FAX_MAX_DATAGRAM * 2];
+	uint8_t fec[LOCAL_FAX_MAX_DATAGRAM * 2] = { 0, };
 	int i;
 	int j;
 	int seq;
