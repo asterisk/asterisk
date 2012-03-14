@@ -3976,12 +3976,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_party_connected_line_free(&connected);
 						break;
 					}
+					ast_channel_unlock(chan);
 					if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
 						ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
 							read_action_payload->payload,
 							read_action_payload->payload_size);
 					}
 					ast_party_connected_line_free(&connected);
+					ast_channel_lock(chan);
 					break;
 				}
 				ast_frfree(f);
@@ -9368,10 +9370,16 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	}
 	ast_channel_unlock(macro_chan);
 
-	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
+	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+	if (!retval) {
+		struct ast_party_connected_line saved_connected;
+
+		ast_party_connected_line_init(&saved_connected);
 		ast_channel_lock(macro_chan);
-		ast_channel_update_connected_line(macro_chan, &macro_chan->connected, NULL);
+		ast_party_connected_line_copy(&saved_connected, &macro_chan->connected);
 		ast_channel_unlock(macro_chan);
+		ast_channel_update_connected_line(macro_chan, &saved_connected, NULL);
+		ast_party_connected_line_free(&saved_connected);
 	}
 
 	return retval;
@@ -9409,9 +9417,14 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
 	if (!retval) {
+		struct ast_party_redirecting saved_redirecting;
+
+		ast_party_redirecting_init(&saved_redirecting);
 		ast_channel_lock(macro_chan);
-		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting, NULL);
+		ast_party_redirecting_copy(&saved_redirecting, &macro_chan->redirecting);
 		ast_channel_unlock(macro_chan);
+		ast_channel_update_redirecting(macro_chan, &saved_redirecting, NULL);
+		ast_party_redirecting_free(&saved_redirecting);
 	}
 
 	return retval;
