@@ -1525,6 +1525,7 @@ int ast_call(struct ast_channel *chan, const char *addr, int timeout);
 
 /*!
  * \brief Indicates condition of channel
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \note Indicate a condition such as AST_CONTROL_BUSY, AST_CONTROL_RINGING, or AST_CONTROL_CONGESTION on a channel
  * \param chan channel to change the indication
  * \param condition which condition to indicate on the channel
@@ -1534,6 +1535,7 @@ int ast_indicate(struct ast_channel *chan, int condition);
 
 /*!
  * \brief Indicates condition of channel, with payload
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \note Indicate a condition such as AST_CONTROL_HOLD with payload being music on hold class
  * \param chan channel to change the indication
  * \param condition which condition to indicate on the channel

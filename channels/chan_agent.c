@@ -967,9 +967,7 @@ static int agent_hangup(struct ast_channel *ast)
 		ast_channel_internal_bridged_channel_set(p->chan, NULL);
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (p->dead) {
-			ast_channel_lock(p->chan);
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
-			ast_channel_unlock(p->chan);
 		} else if (p->loginstart) {
 			indicate_chan = ast_channel_ref(p->chan);
 			tmp_moh = ast_strdupa(p->moh);
@@ -978,11 +976,9 @@ static int agent_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&p->lock);
 
 	if (indicate_chan) {
-		ast_channel_lock(indicate_chan);
 		ast_indicate_data(indicate_chan, AST_CONTROL_HOLD,
 			S_OR(tmp_moh, NULL),
 			!ast_strlen_zero(tmp_moh) ? strlen(tmp_moh) + 1 : 0);
-		ast_channel_unlock(indicate_chan);
 		indicate_chan = ast_channel_unref(indicate_chan);
 	}
 
