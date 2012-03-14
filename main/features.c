@@ -3163,7 +3163,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 					res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				}
 				if (feature) {
-					memcpy(feature, &builtin_features[x], sizeof(feature));
+					memcpy(feature, &builtin_features[x], sizeof(*feature));
 				}
 				feature_detected = 1;
 				break;
@@ -3193,7 +3193,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 					if (operation) {
 						res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
 					}
-					memcpy(feature, fge->feature, sizeof(feature));
+					memcpy(feature, fge->feature, sizeof(*feature));
 					if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 						AST_RWLIST_UNLOCK(&feature_groups);
 						break;
@@ -3226,7 +3226,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 				res = tmpfeature->operation(chan, peer, config, code, sense, tmpfeature);
 			}
 			if (feature) {
-				memcpy(feature, tmpfeature, sizeof(feature));
+				memcpy(feature, tmpfeature, sizeof(*feature));
 			}
 			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 				AST_RWLIST_UNLOCK(&feature_list);
