@@ -153,7 +153,7 @@ static FILE *qlog;
  * logchannels list.
  */
 
-static char *levels[32] = {
+static char *levels[NUMLOGLEVELS] = {
 	"DEBUG",
 	"---EVENT---",		/* no longer used */
 	"NOTICE",
@@ -164,7 +164,7 @@ static char *levels[32] = {
 };
 
 /*! \brief Colors used in the console for logging */
-static const int colors[32] = {
+static const int colors[NUMLOGLEVELS] = {
 	COLOR_BRGREEN,
 	COLOR_BRBLUE,		/* no longer used */
 	COLOR_YELLOW,
