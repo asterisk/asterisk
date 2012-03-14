@@ -469,7 +469,7 @@ int _ast_sched_del(struct sched_context *con, int id, const char *file, int line
 	struct sched *s, tmp = {
 		.id = id,
 	};
-	int *last_id = ast_threadstorage_get(&last_del_id, sizeof(int *));
+	int *last_id = ast_threadstorage_get(&last_del_id, sizeof(int));
 
 	DEBUG(ast_debug(1, "ast_sched_del(%d)\n", id));
 
