@@ -514,7 +514,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		ast_gethostbyname(hostname, &hp);
 		remote_address_tmp.sin_family = AF_INET;
 		remote_address_tmp.sin_port = htons(port);
-		memcpy(&remote_address_tmp.sin_addr.s_addr, hp.hp.h_addr, sizeof(hp.hp.h_addr));
+		memcpy(&remote_address_tmp.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
 		ast_sockaddr_from_sin(&ivr_desc.remote_address, &remote_address_tmp);
 		if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
 			goto exit;
