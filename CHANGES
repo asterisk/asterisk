@@ -131,6 +131,12 @@ Applications
    manually specify timezone and format) There are other beneftis eg. format can
    now be used without specifying time zone as well.
 
+ * Added 'b' and 'B' options to Dial.  These options will allow you to run
+   last-minute dialplan on the caller and callee channels while the Dial
+   application is executing, but before the call is started.  For example you
+   can use the 'b' option to run dialplan on the callee channel to get the name
+   of the newly created channel right away.
+
 Parking
 ------------
  * New per parking lot options: comebackcontext and comebackdialtime. See

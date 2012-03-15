@@ -331,6 +331,8 @@ struct ast_pbx_args {
 		struct {
 			/*! Do not hangup the channel when the PBX is complete. */
 			unsigned int no_hangup_chan:1;
+			/*! Reuse existing pbx on the channel (used for arbitrarily jumping into dialplan) */
+			unsigned int use_existing_pbx:1;
 		};
 	};
 };
@@ -1110,6 +1112,23 @@ void pbx_set_overrideswitch(const char *newval);
  * \note This function will handle locking the channel as needed.
  */
 int ast_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
+
+/*!
+ * \note This function will check the validity of a goto target, see
+ *       if it's reachable given the current channel state, and save the
+ *       parsed tokens to the given buffers.
+ */
+int ast_pbx_exten_parse(struct ast_channel *chan, const char *goto_target, struct ast_str *context, struct ast_str *exten, struct ast_str *priority, struct varshead *varshead);
+
+/*!
+ * \note This function will run dialplan on a channel at context,exten,priority
+ */
+enum ast_pbx_result ast_pbx_exten_run_parseargs(struct ast_channel *chan, const char *gosub_args, int restore_dialplan_location);
+
+/*!
+ * \note This function will run dialplan on a channel at context,exten,priority and set also ARG
+ */
+enum ast_pbx_result ast_pbx_exten_run(struct ast_channel *chan, const char *context, const char *exten, int priority, struct varshead *varshead, int restore_dialplan_location);
 
 /*!
  * \note This function will handle locking the channel as needed.

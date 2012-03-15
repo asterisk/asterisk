@@ -5105,19 +5105,21 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	int error = 0;		/* set an error conditions */
 	struct ast_pbx *pbx;
 
-	/* A little initial setup here */
-	if (ast_channel_pbx(c)) {
-		ast_log(LOG_WARNING, "%s already has PBX structure??\n", ast_channel_name(c));
-		/* XXX and now what ? */
-		ast_free(ast_channel_pbx(c));
-	}
-	if (!(pbx = ast_calloc(1, sizeof(*pbx)))) {
-		return -1;
-	}
-	ast_channel_pbx_set(c, pbx);
-	/* Set reasonable defaults */
-	ast_channel_pbx(c)->rtimeoutms = 10000;
-	ast_channel_pbx(c)->dtimeoutms = 5000;
+	if (!args || !args->use_existing_pbx) {
+		/* A little initial setup here */
+		if (ast_channel_pbx(c)) {
+			ast_log(LOG_WARNING, "%s already has PBX structure??\n", ast_channel_name(c));
+			/* XXX and now what ? */
+			ast_free(ast_channel_pbx(c));
+		}
+		if (!(pbx = ast_calloc(1, sizeof(*pbx)))) {
+			return -1;
+		}
+		ast_channel_pbx_set(c, pbx);
+		/* Set reasonable defaults */
+		ast_channel_pbx(c)->rtimeoutms = 10000;
+		ast_channel_pbx(c)->dtimeoutms = 5000;
+        }
 
 	autoloopflag = ast_test_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);
@@ -5390,8 +5392,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	}
 	ast_set2_flag(ast_channel_flags(c), autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	ast_clear_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
-	pbx_destroy(ast_channel_pbx(c));
-	ast_channel_pbx_set(c, NULL);
+
+        if (!args || !args->use_existing_pbx) {
+		pbx_destroy(ast_channel_pbx(c));
+		ast_channel_pbx_set(c, NULL);
+        }
 
 	if (!args || !args->no_hangup_chan) {
 		ast_hangup(c);
@@ -10843,4 +10848,238 @@ int ast_pbx_init(void)
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 
 	return (hints && hintdevices && statecbs) ? 0 : -1;
+}
+
+/*! \brief return the pieces of a goto style target if it's valid.
+ *
+ *  \param chan         Channel on which to test target validity
+ *  \param goto_target  Goto target string. ([[context,]extension,]priority) see below for examples
+ *  \param context      Parsed context (ast_str must be pre created)
+ *  \param exten        Parsed exten (ast_str must be pre created)
+ *  \param priority     Parsed priority (ast_str must be pre created) (can be null if not needed)
+ *  \param varshead     Parsed variables from the gosub (can be null if not needed)
+ *
+ *  \return -1 on failure
+ *  \return parsed priority integer on success (> 0)
+ *
+ *  \note lock channel before calling
+ *
+ *  \example goto_target valid format: priority
+ *  \example goto_target valid format: label
+ *  \example goto_target valid format: exten,priority
+ *  \example goto_target valid format: exten,label
+ *  \example goto_target valid format: context,exten,priority
+ *  \example goto_target valid format: context,exten,label
+ *  \example goto_target <valid_format>(args)
+ */
+int ast_pbx_exten_parse(struct ast_channel *chan, const char *goto_target, struct ast_str *context, struct ast_str *exten, struct ast_str *priority, struct varshead *varshead)
+{
+	int parse_args = 0;
+	char *target = ast_strdupa(goto_target); /* Target must be writable for AST_STANDARD_RAW_ARGS */
+	char *start_args = target;
+	int ipriority;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(context);
+		AST_APP_ARG(exten);
+		AST_APP_ARG(priority);
+	);
+	AST_DECLARE_APP_ARGS(args2,
+		AST_APP_ARG(argval)[100];
+	);
+
+	ast_str_truncate(context, 0);
+	ast_str_truncate(exten,	  0);
+
+	/* Find the args (if any) */
+	if (varshead && ((start_args = strchr(start_args, '(')) != NULL)) {
+		char *end_args;
+
+		parse_args = 1;
+		*start_args = 0;
+		start_args++;
+
+		if ((end_args = strchr(start_args, ')')) != NULL) {
+			*end_args = 0;
+		}
+		else {
+			ast_log(LOG_WARNING, "Ouch.  No closing paren for Gosub parameters: '%s'?\n", goto_target);
+		}
+	}
+
+	AST_STANDARD_RAW_ARGS(args, target);
+
+	if (priority) {
+		ast_str_truncate(priority, 0);
+	}
+
+	if (ast_strlen_zero(goto_target)) {
+		ast_log(LOG_WARNING, "goto_target cannot be empty ([[context,]extension,]priority)\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.exten)) {
+		/* Only a priority in this one */
+		args.priority = args.context;
+		args.exten    = (char *) ast_channel_exten(chan);
+		args.context  = (char *) ast_channel_context(chan);
+	} else if (ast_strlen_zero(args.priority)) {
+		/* Only an extension and priority in this one */
+		args.priority = args.exten;
+		args.exten    = args.context;
+		args.context  = (char *) ast_channel_context(chan);
+	}
+
+	if (sscanf(args.priority, "%d", &ipriority) > 0) {
+		if (!ast_exists_extension(chan, args.context, args.exten, ipriority, S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
+		      ast_log(LOG_WARNING, "priority based goto target not found: %s\n", goto_target);
+		      ipriority = 0;
+		      return -1;
+		}
+	} else {
+		if (!(ipriority = ast_findlabel_extension(chan, args.context, args.exten, args.priority, S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL)))) {
+			ast_log(LOG_WARNING, "label based goto target not found: %s\n", goto_target);
+			ipriority = 0;
+			return -1;
+		}
+	}
+
+	ast_str_set(&context, 0, "%s", args.context);
+	ast_str_set(&exten,   0, "%s", args.exten);
+
+	if (priority) {
+		ast_str_set(&priority, 0, "%s", args.priority);
+	}
+
+	if (parse_args) {
+		int i;
+		struct ast_str *argument_name = ast_str_create(64);
+		struct ast_var_t *variable;
+		int argument_num = 1;
+
+		AST_STANDARD_RAW_ARGS(args2, start_args);
+
+		for (i = 0; i < args2.argc; i++) {
+			ast_str_truncate(argument_name, 0);
+			ast_str_append(&argument_name, 0, "ARG%d", argument_num);
+
+			variable = ast_var_assign(ast_str_buffer(argument_name), args2.argval[i]);
+			AST_LIST_INSERT_TAIL(varshead, variable, entries);
+			argument_num++;
+
+			ast_log(LOG_WARNING, "Setting '%s' to '%s' %p\n", ast_str_buffer(argument_name), args2.argval[i], variable);
+			ast_debug(1, "Setting '%s' to '%s'\n", ast_str_buffer(argument_name), args2.argval[i]);
+		}
+
+		ast_free(argument_name);
+	}
+
+	return ipriority;
+}
+
+/*! \brief run dialplan on a channel, optionally restoring the channel to the previous dialplan location
+ *
+ *  \param chan                       Channel on which to run dialplan
+ *  \param args                       Gosub style args in the form of context,exten,priority(arg1,arg2,argn,...)
+ *  \param restore_dialplan_location  1/0 whether to restore the channel's dialplan location to where it was before we were called
+ *
+ *  \retval AST_PBX_SUCCESS on success
+ *  \retval AST_PBX_ERROR   on error
+ *
+ */
+enum ast_pbx_result ast_pbx_exten_run_parseargs(struct ast_channel *chan, const char *gosub_args, int restore_dialplan_location) {
+	struct varshead varshead;
+	struct ast_var_t *variable;
+	struct ast_str *context = ast_str_create(64);
+	struct ast_str *exten = ast_str_create(64);
+	int ipriority;
+	enum ast_pbx_result res = AST_PBX_ERROR;
+
+        memset(&varshead, 0, sizeof(varshead));
+
+	if ((ipriority = ast_pbx_exten_parse(chan, gosub_args, context, exten, NULL, &varshead)) > 0) {
+		res = ast_pbx_exten_run(chan, ast_str_buffer(context), ast_str_buffer(exten), ipriority, &varshead, 1);
+	}
+
+        AST_LIST_TRAVERSE_SAFE_BEGIN(&varshead, variable, entries) {
+		AST_LIST_REMOVE_CURRENT(entries);
+		ast_var_delete(variable);
+	}
+        AST_LIST_TRAVERSE_SAFE_END;
+
+	ast_free(context);
+	ast_free(exten);
+
+	return res;
+}
+
+/*! \brief run dialplan on a channel, optionally restoring the channel to the previous dialplan location
+ *
+ *  \param chan                       Channel on which to run dialplan
+ *  \param context                    Context in which to execute
+ *  \param exten                      Exten within the context
+ *  \param priority                   Priority within the exten
+ *  \param varshead                   Array of arguments to pass to destination.  Args will be set in the form of ARG1,ARG2,ARGn,...
+ *  \param restore_dialplan_location  1/0 whether to restore the channel's dialplan location to where it was before we were called
+ *
+ *  \retval AST_PBX_HANGUP on error
+ *  \retval AST_PBX_OK on success
+ *
+ */
+enum ast_pbx_result ast_pbx_exten_run(struct ast_channel *chan, const char *context, const char *exten, int priority, struct varshead *varshead, int restore_dialplan_location)
+{
+	struct ast_str *backup_context;
+	struct ast_str *backup_exten;
+	int backup_priority;
+	enum ast_pbx_result res;
+	struct ast_pbx_args run_args;
+	struct ast_var_t *variable;
+
+	/* Back up current dialplan location */
+	if (restore_dialplan_location) {
+		backup_context = ast_str_create(64);
+		backup_exten   = ast_str_create(64);
+
+		ast_str_set(&backup_context, 0, "%s", ast_channel_context(chan));
+		ast_str_set(&backup_exten,   0, "%s", ast_channel_exten(chan));
+		backup_priority = ast_channel_priority(chan);
+	}
+
+	/* New dialplan location */
+	ast_channel_context_set(chan, context);
+	ast_channel_exten_set(chan, exten);
+	ast_channel_priority_set(chan, priority);
+
+	/* set args, if any */
+	if (varshead) {
+		AST_LIST_TRAVERSE(varshead, variable, entries) {
+			pbx_builtin_pushvar_helper(chan, ast_var_name(variable), ast_var_value(variable));
+		}
+	}
+
+        memset(&run_args, 0, sizeof(run_args));
+	if (ast_channel_pbx(chan)) {
+		run_args.use_existing_pbx = 1;
+	}
+	run_args.no_hangup_chan = 1;
+	res = __ast_pbx_run(chan, &run_args);
+
+	/* Allow use of previously set variables.  Ie: if there was previously ARG1,ARG2,etc set on the channel
+	   we want access to those old values since the dialplan we ran is now finished */
+	if (varshead) {
+		AST_LIST_TRAVERSE(varshead, variable, entries) {
+			pbx_builtin_setvar_helper(chan, ast_var_name(variable), NULL);
+		}
+	}
+
+	if (restore_dialplan_location) {
+		/* Restore current dialplan location */
+		ast_channel_context_set(chan, ast_str_buffer(backup_context));
+		ast_channel_exten_set(chan, ast_str_buffer(backup_exten));
+		ast_channel_priority_set(chan, backup_priority);
+
+		ast_free(backup_context);
+		ast_free(backup_exten);
+	}
+
+	return res;
 }
