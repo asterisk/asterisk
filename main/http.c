@@ -61,9 +61,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_PREFIX 80
 #define DEFAULT_SESSION_LIMIT 100
 
-#define DEFAULT_HTTP_PORT 8080
-#define DEFAULT_HTTPS_PORT 8089
-
 /* See http.h for more information about the SSL implementation */
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define	DO_SSL	/* comment in/out if you want to support ssl */
@@ -1025,18 +1022,20 @@ static int __ast_http_load(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct sockaddr_in tmp = {0,};
 	struct sockaddr_in tmp2 = {0,};
-	int http_tls_was_enabled = 0;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
-	http_tls_was_enabled = (reload && http_tls_cfg.enabled);
-
+	/* default values */
 	tmp.sin_family = AF_INET;
-	tmp.sin_port = htons(DEFAULT_HTTP_PORT);
+	tmp.sin_port = htons(8088);
 	ast_sockaddr_from_sin(&http_desc.local_address, &tmp);
+
+	tmp2.sin_family = AF_INET;
+	tmp2.sin_port = htons(8089);
+	ast_sockaddr_from_sin(&https_desc.local_address, &tmp2);
 
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile) {
@@ -1059,8 +1058,6 @@ static int __ast_http_load(int reload)
 		ast_free(redirect);
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
-
-	ast_sockaddr_setnull(&https_desc.local_address);
 
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
@@ -1110,16 +1107,13 @@ static int __ast_http_load(int reload)
 
 		ast_config_destroy(cfg);
 	}
-	/* if the https address has not been set, default is the same as non secure http */
+	/* if the https addres has not been set, default is the same as non secure http */
 	ast_sockaddr_to_sin(&http_desc.local_address, &tmp);
 	ast_sockaddr_to_sin(&https_desc.local_address, &tmp2);
 	if (!tmp2.sin_addr.s_addr) {
 		tmp2.sin_addr = tmp.sin_addr;
+		ast_sockaddr_from_sin(&https_desc.local_address, &tmp2);
 	}
-	if (!tmp2.sin_port) {
-		tmp2.sin_port = htons(DEFAULT_HTTPS_PORT);
-	}
-	ast_sockaddr_from_sin(&https_desc.local_address, &tmp2);
 	if (!enabled) {
 		ast_sockaddr_setnull(&http_desc.local_address);
 		ast_sockaddr_setnull(&https_desc.local_address);
@@ -1129,10 +1123,7 @@ static int __ast_http_load(int reload)
 	}
 	enablestatic = newenablestatic;
 	ast_tcptls_server_start(&http_desc);
-	/* If https was enabled previously but now is not, then stop the service */
-	if (http_tls_was_enabled && !http_tls_cfg.enabled) {
-		ast_tcptls_server_stop(&https_desc);
-	} else if (ast_ssl_setup(https_desc.tls_cfg)) {
+	if (ast_ssl_setup(https_desc.tls_cfg)) {
 		ast_tcptls_server_start(&https_desc);
 	}
 

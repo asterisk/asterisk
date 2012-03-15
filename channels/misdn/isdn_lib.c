@@ -2316,11 +2316,12 @@ static int handle_timers(msg_t* msg)
 					break;
 			}
 			if (it) {
-				mISDN_write_frame(stack->midev, msg->data, frm->addr,
-						  MGR_TIMER | RESPONSE, 0, 0, NULL, TIMEOUT_1SEC);
+				int ret;
+				ret = mISDN_write_frame(stack->midev, msg->data, frm->addr,
+							MGR_TIMER | RESPONSE, 0, 0, NULL, TIMEOUT_1SEC);
 				test_and_clear_bit(FLG_TIMER_RUNING, (long unsigned int *)&it->Flags);
 				pthread_mutex_lock(&stack->nstlock);
-				it->function(it->data);
+				ret = it->function(it->data);
 				pthread_mutex_unlock(&stack->nstlock);
 				free_msg(msg);
 				return 1;
@@ -4515,6 +4516,7 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
+	iframe_t dact;
 	char buf[128];
 
 	switch (bc->bc_state) {
@@ -4533,6 +4535,10 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 
 	bc->generate_tone=0;
 
+	dact.prim = DL_RELEASE | REQUEST;
+	dact.addr = bc->addr | FLG_MSG_DOWN;
+	dact.dinfo = 0;
+	dact.len = 0;
 	mISDN_write_frame(stack->midev, buf, bc->addr | FLG_MSG_DOWN, DL_RELEASE|REQUEST,0,0,NULL, TIMEOUT_1SEC);
 
 	clear_ibuffer(bc->astbuf);
@@ -4548,6 +4554,7 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	char buf[4096 + mISDN_HEADER_LEN];
 	iframe_t *frm = (iframe_t*)buf;
+	int r;
 
 	switch (bc->bc_state) {
 		case BCHAN_ACTIVATED:
@@ -4571,7 +4578,7 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 		cb_log(6, stack->port, "Writing %d data bytes\n",len);
 
 	cb_log(9, stack->port, "Writing %d bytes 2 mISDN\n",len);
-	mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_INFINIT);
+	r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_INFINIT);
 	return 0;
 }
 

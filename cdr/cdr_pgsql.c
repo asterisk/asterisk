@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2003 - 2012
+ * Copyright (C) 2003 - 2006
  *
  * Matthew D. Hardeman <mhardemn@papersoft.com>
  * Adapted from the MySQL CDR logger originally by James Sharp
@@ -81,7 +81,6 @@ static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
 						ast_free(sql);                                    \
 						ast_free(sql2);                                   \
 						AST_RWLIST_UNLOCK(&psql_columns);                 \
-						ast_mutex_unlock(&pgsql_lock);                    \
 						return -1;                                        \
 					}                                                     \
 				}                                                         \
@@ -95,7 +94,6 @@ static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
 						ast_free(sql);                    \
 						ast_free(sql2);                   \
 						AST_RWLIST_UNLOCK(&psql_columns); \
-						ast_mutex_unlock(&pgsql_lock);    \
 						return -1;                        \
 					}                                     \
 				}                                         \
@@ -134,10 +132,14 @@ static int pgsql_log(struct ast_cdr *cdr)
 		struct ast_str *sql = ast_str_create(maxsize), *sql2 = ast_str_create(maxsize2);
 		char buf[257], escapebuf[513], *value;
 		int first = 1;
-
+  
 		if (!sql || !sql2) {
-			ast_free(sql);
-			ast_free(sql2);
+			if (sql) {
+				ast_free(sql);
+			}
+			if (sql2) {
+				ast_free(sql2);
+			}
 			return -1;
 		}
 
@@ -268,10 +270,9 @@ static int pgsql_log(struct ast_cdr *cdr)
 				}
 			}
 			first = 0;
-		}
-
-		LENGTHEN_BUF1(ast_str_strlen(sql2) + 2);
+  		}
 		AST_RWLIST_UNLOCK(&psql_columns);
+		LENGTHEN_BUF1(ast_str_strlen(sql2) + 2);
 		ast_str_append(&sql, 0, ")%s)", ast_str_buffer(sql2));
 		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
 
@@ -333,34 +334,44 @@ static int pgsql_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-/* This function should be called without holding the pgsql_columns lock */
-static void empty_columns(void)
+static int unload_module(void)
 {
 	struct columns *current;
+
+	ast_cdr_unregister(name);
+
+	PQfinish(conn);
+
+	if (pghostname) {
+		ast_free(pghostname);
+	}
+	if (pgdbname) {
+		ast_free(pgdbname);
+	}
+	if (pgdbuser) {
+		ast_free(pgdbuser);
+	}
+	if (pgpassword) {
+		ast_free(pgpassword);
+	}
+	if (pgdbport) {
+		ast_free(pgdbport);
+	}
+	if (table) {
+		ast_free(table);
+	}
+	if (encoding) {
+		ast_free(encoding);
+	}
+	if (tz) {
+		ast_free(tz);
+	}
+
 	AST_RWLIST_WRLOCK(&psql_columns);
 	while ((current = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
 		ast_free(current);
 	}
 	AST_RWLIST_UNLOCK(&psql_columns);
-
-}
-
-static int unload_module(void)
-{
-	ast_cdr_unregister(name);
-
-	PQfinish(conn);
-
-	ast_free(pghostname);
-	ast_free(pgdbname);
-	ast_free(pgdbuser);
-	ast_free(pgpassword);
-	ast_free(pgdbport);
-	ast_free(table);
-	ast_free(encoding);
-	ast_free(tz);
-
-	empty_columns();
 
 	return 0;
 }
@@ -378,18 +389,12 @@ static int config_module(int reload)
 	if ((cfg = ast_config_load(config, config_flags)) == NULL || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
 		return -1;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
-	}
-
-	ast_mutex_lock(&pgsql_lock);
 
 	if (!(var = ast_variable_browse(cfg, "global"))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
-		ast_log(LOG_NOTICE, "cdr_pgsql configuration contains no global section, skipping module %s.\n",
-			reload ? "reload" : "load");
-		return -1;
+		return 0;
 	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "hostname"))) {
@@ -397,10 +402,10 @@ static int config_module(int reload)
 		tmp = "";	/* connect via UNIX-socket by default */
 	}
 
-	ast_free(pghostname);
+	if (pghostname)
+		ast_free(pghostname);
 	if (!(pghostname = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -409,10 +414,10 @@ static int config_module(int reload)
 		tmp = "asteriskcdrdb";
 	}
 
-	ast_free(pgdbname);
+	if (pgdbname)
+		ast_free(pgdbname);
 	if (!(pgdbname = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -421,10 +426,10 @@ static int config_module(int reload)
 		tmp = "asterisk";
 	}
 
-	ast_free(pgdbuser);
+	if (pgdbuser)
+		ast_free(pgdbuser);
 	if (!(pgdbuser = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -433,10 +438,10 @@ static int config_module(int reload)
 		tmp = "";
 	}
 
-	ast_free(pgpassword);
+	if (pgpassword)
+		ast_free(pgpassword);
 	if (!(pgpassword = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -445,10 +450,10 @@ static int config_module(int reload)
 		tmp = "5432";
 	}
 
-	ast_free(pgdbport);
+	if (pgdbport)
+		ast_free(pgdbport);
 	if (!(pgdbport = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -457,10 +462,10 @@ static int config_module(int reload)
 		tmp = "cdr";
 	}
 
-	ast_free(table);
+	if (table)
+		ast_free(table);
 	if (!(table = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -469,10 +474,11 @@ static int config_module(int reload)
 		tmp = "LATIN9";
 	}
 
-	ast_free(encoding);
+	if (encoding) {
+		ast_free(encoding);
+	}
 	if (!(encoding = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -480,12 +486,12 @@ static int config_module(int reload)
 		tmp = "";
 	}
 
-	ast_free(tz);
-	tz = NULL;
-
+	if (tz) {
+		ast_free(tz);
+		tz = NULL;
+	}
 	if (!ast_strlen_zero(tmp) && !(tz = ast_strdup(tmp))) {
 		ast_config_destroy(cfg);
-		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	}
 
@@ -571,7 +577,6 @@ static int config_module(int reload)
 			ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
 			PQclear(result);
 			unload_module();
-			ast_mutex_unlock(&pgsql_lock);
 			return AST_MODULE_LOAD_DECLINE;
 		}
 
@@ -580,12 +585,8 @@ static int config_module(int reload)
 			ast_log(LOG_ERROR, "cdr_pgsql: Failed to query database columns. No columns found, does the table exist?\n");
 			PQclear(result);
 			unload_module();
-			ast_mutex_unlock(&pgsql_lock);
 			return AST_MODULE_LOAD_DECLINE;
 		}
-
-		/* Clear out the columns list. */
-		empty_columns();
 
 		for (i = 0; i < rows; i++) {
 			fname = PQgetvalue(result, i, 0);
@@ -615,9 +616,7 @@ static int config_module(int reload)
 				} else {
 					cur->hasdefault = 0;
 				}
-				AST_RWLIST_WRLOCK(&psql_columns);
 				AST_RWLIST_INSERT_TAIL(&psql_columns, cur, list);
-				AST_RWLIST_UNLOCK(&psql_columns);
 			}
 		}
 		PQclear(result);
@@ -630,17 +629,12 @@ static int config_module(int reload)
 
 	ast_config_destroy(cfg);
 
-	ast_mutex_unlock(&pgsql_lock);
-	return 0;
+	return ast_cdr_register(name, ast_module_info->description, pgsql_log);
 }
 
 static int load_module(void)
 {
-	if (config_module(0)) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	return ast_cdr_register(name, ast_module_info->description, pgsql_log)
-		? AST_MODULE_LOAD_DECLINE : 0;
+	return config_module(0) ? AST_MODULE_LOAD_DECLINE : 0;
 }
 
 static int reload(void)

@@ -161,9 +161,15 @@ static int sdp_crypto_activate(struct sdp_crypto *p, int suite_val, unsigned cha
 		goto err;
 	}
 
-	/* Add the SRTP policies */
-	if (ast_rtp_instance_add_srtp_policy(rtp, remote_policy, local_policy)) {
-		ast_log(LOG_WARNING, "Could not set SRTP policies\n");
+	/* FIXME MIKMA */
+	/* ^^^ I wish I knew what needed fixing... */
+	if (ast_rtp_instance_add_srtp_policy(rtp, local_policy)) {
+		ast_log(LOG_WARNING, "Could not set local SRTP policy\n");
+		goto err;
+	}
+
+	if (ast_rtp_instance_add_srtp_policy(rtp, remote_policy)) {
+		ast_log(LOG_WARNING, "Could not set remote SRTP policy\n");
 		goto err;
 	}
 
@@ -270,8 +276,10 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 			ast_log(LOG_ERROR, "Could not allocate memory for a_crypto\n");
 			return -1;
 		}
+
 		snprintf(p->a_crypto, attr_len + 10, "a=crypto:%s %s inline:%s\r\n", tag, suite, p->local_key64);
 	}
+
 	return 0;
 }
 

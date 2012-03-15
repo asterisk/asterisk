@@ -2729,25 +2729,21 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 	}
 }
 
-static void destroy_hooks(struct ast_channel *chan)
-{
-	if (chan->audiohooks) {
-		ast_audiohook_detach_list(chan->audiohooks);
-		chan->audiohooks = NULL;
-	}
-
-	ast_framehook_list_destroy(chan);
-}
-
 /*! \brief Hangup a channel */
 int ast_hangup(struct ast_channel *chan)
 {
 	char extra_str[64]; /* used for cel logging below */
-	int was_zombie;
 
 	ast_autoservice_stop(chan);
 
+	ao2_lock(channels);
 	ast_channel_lock(chan);
+
+	if (chan->audiohooks) {
+		ast_audiohook_detach_list(chan->audiohooks);
+		chan->audiohooks = NULL;
+	}
+	ast_framehook_list_destroy(chan);
 
 	/*
 	 * Do the masquerade if someone is setup to masquerade into us.
@@ -2759,13 +2755,16 @@ int ast_hangup(struct ast_channel *chan)
 	 */
 	while (chan->masq) {
 		ast_channel_unlock(chan);
+		ao2_unlock(channels);
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 
 			/* Abort the loop or we might never leave. */
+			ao2_lock(channels);
 			ast_channel_lock(chan);
 			break;
 		}
+		ao2_lock(channels);
 		ast_channel_lock(chan);
 	}
 
@@ -2776,20 +2775,13 @@ int ast_hangup(struct ast_channel *chan)
 		 * to free it later.
 		 */
 		ast_set_flag(chan, AST_FLAG_ZOMBIE);
-		destroy_hooks(chan);
 		ast_channel_unlock(chan);
+		ao2_unlock(channels);
 		return 0;
 	}
 
-	if (!(was_zombie = ast_test_flag(chan, AST_FLAG_ZOMBIE))) {
-		ast_set_flag(chan, AST_FLAG_ZOMBIE);
-	}
-
-	ast_channel_unlock(chan);
 	ao2_unlink(channels, chan);
-	ast_channel_lock(chan);
-
-	destroy_hooks(chan);
+	ao2_unlock(channels);
 
 	free_translation(chan);
 	/* Close audio stream */
@@ -2824,9 +2816,14 @@ int ast_hangup(struct ast_channel *chan)
 			(long) pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
 		ast_assert(ast_test_flag(chan, AST_FLAG_BLOCKING) == 0);
 	}
-	if (!was_zombie) {
+	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Hanging up channel '%s'\n", chan->name);
 
+		/*
+		 * This channel is now dead so mark it as a zombie so anyone
+		 * left holding a reference to this channel will not use it.
+		 */
+		ast_set_flag(chan, AST_FLAG_ZOMBIE);
 		if (chan->tech->hangup) {
 			chan->tech->hangup(chan);
 		}
@@ -3507,16 +3504,6 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 	c->timingfunc = func;
 	c->timingdata = data;
 
-	if (func == NULL && rate == 0 && c->fdno == AST_TIMING_FD) {
-		/* Clearing the timing func and setting the rate to 0
-		 * means that we don't want to be reading from the timingfd
-		 * any more. Setting c->fdno to -1 means we won't have any
-		 * errant reads from the timingfd, meaning we won't potentially
-		 * miss any important frames.
-		 */
-		c->fdno = -1;
-	}
-
 	ast_channel_unlock(c);
 
 	return res;
@@ -3578,8 +3565,6 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 				case AST_CONTROL_CONNECTED_LINE:
 				case AST_CONTROL_REDIRECTING:
 				case AST_CONTROL_UPDATE_RTP_PEER:
-				case AST_CONTROL_HOLD:
-				case AST_CONTROL_UNHOLD:
 				case -1:
 					/* Unimportant */
 					break;
@@ -3791,6 +3776,27 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 
 	prestate = chan->_state;
+
+	/* Read and ignore anything on the alertpipe, but read only
+	   one sizeof(blah) per frame that we send from it */
+	if (chan->alertpipe[0] > -1) {
+		int flags = fcntl(chan->alertpipe[0], F_GETFL);
+		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
+		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
+		if ((flags & O_NONBLOCK) == 0) {
+			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", chan->name);
+			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
+				f = &ast_null_frame;
+				goto done;
+			}
+		}
+		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
+			if (errno != EINTR && errno != EAGAIN)
+				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+		}
+	}
+
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD) {
 		enum ast_timer_event res;
 
@@ -3838,27 +3844,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->fdno = -1;
 		goto done;
 	}
-
-	/* Read and ignore anything on the alertpipe, but read only
-	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1) {
-		int flags = fcntl(chan->alertpipe[0], F_GETFL);
-		/* For some odd reason, the alertpipe occasionally loses nonblocking status,
-		 * which immediately causes a deadlock scenario.  Detect and prevent this. */
-		if ((flags & O_NONBLOCK) == 0) {
-			ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", chan->name);
-			if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-				ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				f = &ast_null_frame;
-				goto done;
-			}
-		}
-		if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
-			if (errno != EINTR && errno != EAGAIN)
-				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
-		}
-	}
-
 
 	/* Check for pending read queue */
 	if (!AST_LIST_EMPTY(&chan->readq)) {
@@ -3976,14 +3961,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_party_connected_line_free(&connected);
 						break;
 					}
-					ast_channel_unlock(chan);
 					if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
 						ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
 							read_action_payload->payload,
 							read_action_payload->payload_size);
 					}
 					ast_party_connected_line_free(&connected);
-					ast_channel_lock(chan);
 					break;
 				}
 				ast_frfree(f);
@@ -4916,18 +4899,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (fr->subclass.codec == chan->rawwriteformat) {
 			f = fr;
 		} else {
+			/* XXX Something is not right we are not compatible with this frame bad things can happen
+			 * problems range from no/one-way audio to unexplained line hangups as a last resort try adjust the format
+			 * ideally we do not want to do this and this indicates a deeper problem for now we log these events to
+			 * eliminate user impact and help identify the problem areas
+			 * JIRA issues related to this :-
+			 * ASTERISK-14384, ASTERISK-17502, ASTERISK-17541, ASTERISK-18063, ASTERISK-18325, ASTERISK-18422*/
 			if ((!(fr->subclass.codec & chan->nativeformats)) && (chan->writeformat != fr->subclass.codec)) {
 				char nf[512];
-
-				/*
-				 * XXX Something is not right.  We are not compatible with this
-				 * frame.  Bad things can happen.  Problems range from no audio,
-				 * one-way audio, to unexplained line hangups.  As a last resort
-				 * try to adjust the format.  Ideally, we do not want to do this
-				 * because it indicates a deeper problem.  For now, we log these
-				 * events to reduce user impact and help identify the problem
-				 * areas.
-				 */
 				ast_log(LOG_WARNING, "Codec mismatch on channel %s setting write format to %s from %s native formats %s\n",
 					chan->name, ast_getformatname(fr->subclass.codec), ast_getformatname(chan->writeformat),
 					ast_getformatname_multiple(nf, sizeof(nf), chan->nativeformats & AST_FORMAT_AUDIO_MASK));
@@ -9370,16 +9349,10 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	}
 	ast_channel_unlock(macro_chan);
 
-	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
-	if (!retval) {
-		struct ast_party_connected_line saved_connected;
-
-		ast_party_connected_line_init(&saved_connected);
+	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
 		ast_channel_lock(macro_chan);
-		ast_party_connected_line_copy(&saved_connected, &macro_chan->connected);
+		ast_channel_update_connected_line(macro_chan, &macro_chan->connected, NULL);
 		ast_channel_unlock(macro_chan);
-		ast_channel_update_connected_line(macro_chan, &saved_connected, NULL);
-		ast_party_connected_line_free(&saved_connected);
 	}
 
 	return retval;
@@ -9417,14 +9390,9 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
 	if (!retval) {
-		struct ast_party_redirecting saved_redirecting;
-
-		ast_party_redirecting_init(&saved_redirecting);
 		ast_channel_lock(macro_chan);
-		ast_party_redirecting_copy(&saved_redirecting, &macro_chan->redirecting);
+		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting, NULL);
 		ast_channel_unlock(macro_chan);
-		ast_channel_update_redirecting(macro_chan, &saved_redirecting, NULL);
-		ast_party_redirecting_free(&saved_redirecting);
 	}
 
 	return retval;

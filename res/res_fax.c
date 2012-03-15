@@ -249,28 +249,13 @@ static AST_RWLIST_HEAD_STATIC(faxmodules, fax_module);
 #define RES_FAX_STATUSEVENTS 0
 #define RES_FAX_MODEM (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29)
 
-struct fax_options {
+static struct {
 	enum ast_fax_modems modems;
 	uint32_t statusevents:1;
 	uint32_t ecm:1;
 	unsigned int minrate;	
 	unsigned int maxrate;
-};
-
-static struct fax_options general_options;
-
-static const struct fax_options default_options = {
-	.minrate = RES_FAX_MINRATE,
-	.maxrate = RES_FAX_MAXRATE,
-	.statusevents = RES_FAX_STATUSEVENTS,
-	.modems = RES_FAX_MODEM,
-	.ecm = AST_FAX_OPTFLAG_TRUE,
-};
-
-AST_RWLOCK_DEFINE_STATIC(options_lock);
-
-static void get_general_options(struct fax_options* options);
-static void set_general_options(const struct fax_options* options);
+} general_options;
 
 static const char *config = "res_fax.conf";
 
@@ -383,7 +368,6 @@ static void destroy_session_details(void *details)
 static struct ast_fax_session_details *session_details_new(void)
 {
 	struct ast_fax_session_details *d;
-	struct fax_options options;
 
 	if (!(d = ao2_alloc(sizeof(*d), destroy_session_details))) {
 		return NULL;
@@ -394,8 +378,6 @@ static struct ast_fax_session_details *session_details_new(void)
 		return NULL;
 	}
 
-	get_general_options(&options);
-
 	AST_LIST_HEAD_INIT_NOLOCK(&d->documents);
 
 	/* These options need to be set to the configured default and may be overridden by
@@ -403,11 +385,11 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->option.request_t38 = AST_FAX_OPTFLAG_FALSE;
 	d->option.send_cng = AST_FAX_OPTFLAG_FALSE;
 	d->option.send_ced = AST_FAX_OPTFLAG_FALSE;
-	d->option.ecm = options.ecm;
-	d->option.statusevents = options.statusevents;
-	d->modems = options.modems;
-	d->minrate = options.minrate;
-	d->maxrate = options.maxrate;
+	d->option.ecm = general_options.ecm;
+	d->option.statusevents = general_options.statusevents;
+	d->modems = general_options.modems;
+	d->minrate = general_options.minrate;
+	d->maxrate = general_options.maxrate;
 
 	return d;
 }
@@ -443,18 +425,12 @@ static struct ast_fax_session_details *find_or_create_details(struct ast_channel
 
 unsigned int ast_fax_maxrate(void)
 {
-	struct fax_options options;
-	get_general_options(&options);
-
-	return options.maxrate;
+	return general_options.maxrate;
 }
 
 unsigned int ast_fax_minrate(void)
 {
-	struct fax_options options;
-	get_general_options(&options);
-
-	return options.minrate;
+	return general_options.minrate;
 }
 
 static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
@@ -2452,7 +2428,6 @@ static char *cli_fax_show_settings(struct ast_cli_entry *e, int cmd, struct ast_
 {
 	struct fax_module *fax;
 	char modems[128] = "";
-	struct fax_options options;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2465,14 +2440,12 @@ static char *cli_fax_show_settings(struct ast_cli_entry *e, int cmd, struct ast_
 		return NULL;
 	}
 
-	get_general_options(&options);
-
 	ast_cli(a->fd, "FAX For Asterisk Settings:\n");
-	ast_cli(a->fd, "\tECM: %s\n", options.ecm ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "\tStatus Events: %s\n",  options.statusevents ? "On" : "Off");
-	ast_cli(a->fd, "\tMinimum Bit Rate: %d\n", options.minrate);
-	ast_cli(a->fd, "\tMaximum Bit Rate: %d\n", options.maxrate);
-	ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
+	ast_cli(a->fd, "\tECM: %s\n", general_options.ecm ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "\tStatus Events: %s\n",  general_options.statusevents ? "On" : "Off");
+	ast_cli(a->fd, "\tMinimum Bit Rate: %d\n", general_options.minrate);
+	ast_cli(a->fd, "\tMaximum Bit Rate: %d\n", general_options.maxrate);
+	ast_fax_modem_to_str(general_options.modems, modems, sizeof(modems));
 	ast_cli(a->fd, "\tModem Modulations Allowed: %s\n", modems);
 	ast_cli(a->fd, "\n\nFAX Technology Modules:\n\n");
 	AST_RWLIST_RDLOCK(&faxmodules);
@@ -2615,60 +2588,35 @@ static struct ast_cli_entry fax_cli[] = {
 	AST_CLI_DEFINE(cli_fax_show_stats, "Summarize FAX session history"),
 };
 
-static void set_general_options(const struct fax_options *options)
-{
-	ast_rwlock_wrlock(&options_lock);
-	general_options = *options;
-	ast_rwlock_unlock(&options_lock);
-}
-
-static void get_general_options(struct fax_options *options)
-{
-	ast_rwlock_rdlock(&options_lock);
-	*options = general_options;
-	ast_rwlock_unlock(&options_lock);
-}
-
 /*! \brief configure res_fax */
-static int set_config(int reload)
+static int set_config(const char *config_file)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { 0 };
 	char modems[128] = "";
-	struct fax_options options;
-	int res = 0;
 
-	options = default_options;
-
-	/* When we're not reloading, we have to be certain to set the general options
-	 * to the defaults in case config loading goes wrong at some point. On a reload,
-	 * the general options need to stay the same as what they were prior to the
-	 * reload rather than being reset to the defaults.
-	 */
-	if (!reload) {
-		set_general_options(&options);
-	}
+	/* set defaults */	
+	general_options.minrate = RES_FAX_MINRATE;
+	general_options.maxrate = RES_FAX_MAXRATE;	
+	general_options.statusevents = RES_FAX_STATUSEVENTS;
+	general_options.modems = RES_FAX_MODEM;
+	general_options.ecm = AST_FAX_OPTFLAG_TRUE;
 
 	/* read configuration */
-	if (!(cfg = ast_config_load2(config, "res_fax", config_flags))) {
-		ast_log(LOG_NOTICE, "Configuration file '%s' not found, %s options.\n",
-				config, reload ? "not changing" : "using default");
+	if (!(cfg = ast_config_load2(config_file, "res_fax", config_flags))) {
+		ast_log(LOG_NOTICE, "Configuration file '%s' not found, using default options.\n", config_file);
 		return 0;
 	}
 
 	if (cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_NOTICE, "Configuration file '%s' is invalid, %s options.\n",
-				config, reload ? "not changing" : "using default");
+		ast_log(LOG_NOTICE, "Configuration file '%s' is invalid, using default options.\n", config_file);
 		return 0;
 	}
 
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		return 0;
-	}
-
-	if (reload) {
-		options = default_options;
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load2(config_file, "res_fax", config_flags);
 	}
 
 	/* create configuration */
@@ -2678,54 +2626,49 @@ static int set_config(int reload)
 		if (!strcasecmp(v->name, "minrate")) {
 			ast_debug(3, "reading minrate '%s' from configuration file\n", v->value);
 			if ((rate = fax_rate_str_to_int(v->value)) == 0) {
-				res = -1;
-				goto end;
+				ast_config_destroy(cfg);
+				return -1;
 			}
-			options.minrate = rate;
+			general_options.minrate = rate;
 		} else if (!strcasecmp(v->name, "maxrate")) {
 			ast_debug(3, "reading maxrate '%s' from configuration file\n", v->value);
 			if ((rate = fax_rate_str_to_int(v->value)) == 0) {
-				res = -1;
-				goto end;
+				ast_config_destroy(cfg);
+				return -1;
 			}
-			options.maxrate = rate;
+			general_options.maxrate = rate;
 		} else if (!strcasecmp(v->name, "statusevents")) {
 			ast_debug(3, "reading statusevents '%s' from configuration file\n", v->value);
-			options.statusevents = ast_true(v->value);
+			general_options.statusevents = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ecm")) {
 			ast_debug(3, "reading ecm '%s' from configuration file\n", v->value);
-			options.ecm = ast_true(v->value);
+			general_options.ecm = ast_true(v->value);
 		} else if ((!strcasecmp(v->name, "modem")) || (!strcasecmp(v->name, "modems"))) {
-			options.modems = 0;
-			update_modem_bits(&options.modems, v->value);
+			general_options.modems = 0;
+			update_modem_bits(&general_options.modems, v->value);
 		}
 	}
 
-	if (options.maxrate < options.minrate) {
-		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", options.maxrate, options.minrate);
-		res = -1;
-		goto end;
-	}
-
-	if (check_modem_rate(options.modems, options.minrate)) {
-		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, options.minrate);
-		res = -1;
-		goto end;
-	}
-
-	if (check_modem_rate(options.modems, options.maxrate)) {
-		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, options.maxrate);
-		res = -1;
-		goto end;
-	}
-
-	set_general_options(&options);
-
-end:
 	ast_config_destroy(cfg);
-	return res;
+
+	if (general_options.maxrate < general_options.minrate) {
+		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", general_options.maxrate, general_options.minrate);
+		return -1;
+	}
+
+	if (check_modem_rate(general_options.modems, general_options.minrate)) {
+		ast_fax_modem_to_str(general_options.modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, general_options.minrate);
+		return -1;
+	}
+
+	if (check_modem_rate(general_options.modems, general_options.maxrate)) {
+		ast_fax_modem_to_str(general_options.modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, general_options.maxrate);
+		return -1;
+	}
+
+	return 0;
 }
 
 /*! \brief FAXOPT read function returns the contents of a FAX option */
@@ -2886,7 +2829,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	
-	if (set_config(0) < 0) {
+	if (set_config(config) < 0) {
 		ast_log(LOG_ERROR, "failed to load configuration file '%s'\n", config);
 		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
@@ -2911,16 +2854,9 @@ static int load_module(void)
 	return res;
 }
 
-static int reload_module(void)
-{
-	set_config(1);
-	return 0;
-}
-
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Generic FAX Applications",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload_module,
 		.load_pri = AST_MODPRI_APP_DEPEND,
 	       );

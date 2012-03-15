@@ -7938,9 +7938,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
-	int last_msg_idx = 0;
 
 #ifndef IMAP_STORAGE
+	int last_msg_idx;
 	int res = 0, nummsg;
 	char fn2[PATH_MAX];
 #endif
@@ -8017,8 +8017,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	if (vms->deleted) {
 		/* Since we now expunge after each delete, deleting in reverse order
 		 * ensures that no reordering occurs between each step. */
-		last_msg_idx = vms->dh_arraysize;
-		for (x = last_msg_idx - 1; x >= 0; x--) {
+		for (x = vms->dh_arraysize - 1; x >= 0; x--) {
 			if (vms->deleted[x]) {
 				ast_debug(3, "IMAP delete of %d\n", x);
 				DELETE(vms->curdir, x, vms->fn, vmu);
@@ -8028,11 +8027,11 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 #endif
 
 done:
-	if (vms->deleted && last_msg_idx) {
-		ast_free(vms->deleted);
+	if (vms->deleted && vmu->maxmsg) {
+		memset(vms->deleted, 0, vms->dh_arraysize * sizeof(int));
 	}
-	if (vms->heard && last_msg_idx) {
-		ast_free(vms->heard);
+	if (vms->heard && vmu->maxmsg) {
+		memset(vms->heard, 0, vms->dh_arraysize * sizeof(int));
 	}
 
 	return 0;
@@ -10021,6 +10020,17 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	vmstate_insert(&vms);
 	init_vm_state(&vms);
 #endif
+	/* Avoid allocating a buffer of 0 bytes, because some platforms really don't like that. */
+	if (!(vms.deleted = ast_calloc(vmu->maxmsg ? vmu->maxmsg : 1, sizeof(int)))) {
+		ast_log(AST_LOG_ERROR, "Could not allocate memory for deleted message storage!\n");
+		cmd = ast_play_and_wait(chan, "an-error-has-occured");
+		return -1;
+	}
+	if (!(vms.heard = ast_calloc(vmu->maxmsg ? vmu->maxmsg : 1, sizeof(int)))) {
+		ast_log(AST_LOG_ERROR, "Could not allocate memory for heard message storage!\n");
+		cmd = ast_play_and_wait(chan, "an-error-has-occured");
+		return -1;
+	}
 	
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
@@ -10603,6 +10613,10 @@ out:
 #endif
 	if (vmu)
 		free_user(vmu);
+	if (vms.deleted)
+		ast_free(vms.deleted);
+	if (vms.heard)
+		ast_free(vms.heard);
 
 #ifdef IMAP_STORAGE
 	pthread_setspecific(ts_vmstate.key, NULL);

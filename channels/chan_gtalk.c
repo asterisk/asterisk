@@ -979,7 +979,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	struct gtalk_pvt *tmp = NULL;
 	struct aji_resource *resources = NULL;
 	struct aji_buddy *buddy = NULL;
-	char idroster[200] = "";
+	char idroster[200];
 	char *data, *exten = NULL;
 	struct ast_sockaddr bindaddr_tmp;
 
@@ -2077,12 +2077,12 @@ static int gtalk_load_config(void)
 {
 	char *cat = NULL;
 	struct ast_config *cfg = NULL;
-	char context[AST_MAX_CONTEXT] = "";
-	char parkinglot[AST_MAX_CONTEXT] = "";
+	char context[AST_MAX_CONTEXT];
+	char parkinglot[AST_MAX_CONTEXT];
 	int allowguest = 1;
 	struct ast_variable *var;
 	struct gtalk *member;
-	struct ast_codec_pref prefs = { "", };
+	struct ast_codec_pref prefs;
 	struct aji_client_container *clients;
 	struct gtalk_candidate *global_candidates = NULL;
 	struct hostent *hp;

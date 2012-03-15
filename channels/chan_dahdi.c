@@ -1733,7 +1733,7 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 			if (num)
 				ast_copy_string(numbuf, num, ANALOG_MAX_CID);
 
-			ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
+			ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
 			return 0;
 		}
 	}
@@ -2210,7 +2210,7 @@ static int my_get_sub_fd(void *pvt, enum analog_sub sub)
 	return p->subs[dahdi_sub].dfd;
 }
 
-static void my_set_cadence(void *pvt, int *cid_rings, struct ast_channel *ast)
+static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = pvt;
 
@@ -2218,11 +2218,11 @@ static void my_set_cadence(void *pvt, int *cid_rings, struct ast_channel *ast)
 	if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
 			ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
-		*cid_rings = cidrings[p->distinctivering - 1];
+		*cidrings = cidrings[p->distinctivering - 1];
 	} else {
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
 			ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
-		*cid_rings = p->sendcalleridafter;
+		*cidrings = p->sendcalleridafter;
 	}
 }
 
@@ -2238,13 +2238,6 @@ static void my_set_dialing(void *pvt, int is_dialing)
 	struct dahdi_pvt *p = pvt;
 
 	p->dialing = is_dialing;
-}
-
-static void my_set_outgoing(void *pvt, int is_outgoing)
-{
-	struct dahdi_pvt *p = pvt;
-
-	p->outgoing = is_outgoing;
 }
 
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -2600,17 +2593,17 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig
 
 static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, float txdrc, int law);
 
-#if defined(HAVE_PRI) || defined(HAVE_SS7)
+#if defined(HAVE_PRI)
 /*!
  * \internal
- * \brief Open the PRI/SS7 channel media path.
+ * \brief Open the PRI channel media path.
  * \since 1.8
  *
  * \param p Channel private control structure.
  *
  * \return Nothing
  */
-static void my_pri_ss7_open_media(void *p)
+static void my_pri_open_media(void *p)
 {
 	struct dahdi_pvt *pvt = p;
 	int res;
@@ -2647,39 +2640,6 @@ static void my_pri_ss7_open_media(void *p)
 	if (pvt->dsp_features && pvt->dsp) {
 		ast_dsp_set_features(pvt->dsp, pvt->dsp_features);
 		pvt->dsp_features = 0;
-	}
-}
-#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
-
-#if defined(HAVE_PRI)
-/*!
- * \internal
- * \brief Ask DAHDI to dial the given dial string.
- * \since 1.8.11
- *
- * \param p Channel private control structure.
- * \param dial_string String to pass to DAHDI to dial.
- *
- * \note The channel private lock needs to be held when calling.
- *
- * \return Nothing
- */
-static void my_pri_dial_digits(void *p, const char *dial_string)
-{
-	struct dahdi_dialoperation zo = {
-		.op = DAHDI_DIAL_OP_APPEND,
-	};
-	struct dahdi_pvt *pvt = p;
-	int res;
-
-	snprintf(zo.dialstr, sizeof(zo.dialstr), "T%s", dial_string);
-	ast_debug(1, "Channel %d: Sending '%s' to DAHDI_DIAL.\n", pvt->channel, zo.dialstr);
-	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo);
-	if (res) {
-		ast_log(LOG_WARNING, "Channel %d: Couldn't dial '%s': %s\n",
-			pvt->channel, dial_string, strerror(errno));
-	} else {
-		pvt->dialing = 1;
 	}
 }
 #endif	/* defined(HAVE_PRI) */
@@ -3369,7 +3329,6 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.fixup_chans = my_pri_fixup_chans,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
-	.set_outgoing = my_set_outgoing,
 	.set_digital = my_set_digital,
 	.set_callerid = my_set_callerid,
 	.set_dnid = my_set_dnid,
@@ -3383,8 +3342,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.update_span_devstate = dahdi_pri_update_span_devstate,
 	.module_ref = my_module_ref,
 	.module_unref = my_module_unref,
-	.dial_digits = my_pri_dial_digits,
-	.open_media = my_pri_ss7_open_media,
+	.open_media = my_pri_open_media,
 	.ami_channel_event = my_ami_channel_event,
 };
 #endif	/* defined(HAVE_PRI) */
@@ -3540,14 +3498,12 @@ static struct sig_ss7_callback dahdi_ss7_callbacks =
 	.handle_link_exception = my_handle_link_exception,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
-	.set_outgoing = my_set_outgoing,
 	.set_digital = my_set_digital,
 	.set_inservice = my_set_inservice,
 	.set_locallyblocked = my_set_locallyblocked,
 	.set_remotelyblocked = my_set_remotelyblocked,
 	.set_callerid = my_set_callerid,
 	.set_dnid = my_set_dnid,
-	.open_media = my_pri_ss7_open_media,
 };
 #endif	/* defined(HAVE_SS7) */
 
@@ -3683,7 +3639,6 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_cadence = my_set_cadence,
 	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
-	.set_outgoing = my_set_outgoing,
 	.set_ringtimeout = my_set_ringtimeout,
 	.set_waitingfordt = my_set_waitingfordt,
 	.check_waitingfordt = my_check_waitingfordt,
@@ -4462,13 +4417,11 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		zo.dialstr[1] = digit;
 		zo.dialstr[2] = '\0';
 		if ((res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Channel %s couldn't dial digit %c: %s\n",
-				chan->name, digit, strerror(errno));
+			ast_log(LOG_WARNING, "Couldn't dial digit %c: %s\n", digit, strerror(errno));
 		else
 			pvt->dialing = 1;
 	} else {
-		ast_debug(1, "Channel %s started VLDTMF digit '%c'\n",
-			chan->name, digit);
+		ast_debug(1, "Started VLDTMF digit '%c'\n", digit);
 		pvt->dialing = 1;
 		pvt->begindigit = digit;
 	}
@@ -4504,8 +4457,7 @@ static int dahdi_digit_end(struct ast_channel *chan, char digit, unsigned int du
 
 	if (pvt->begindigit) {
 		x = -1;
-		ast_debug(1, "Channel %s ending VLDTMF digit '%c'\n",
-			chan->name, digit);
+		ast_debug(1, "Ending VLDTMF digit '%c'\n", digit);
 		res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SENDTONE, &x);
 		pvt->dialing = 0;
 		pvt->begindigit = 0;
@@ -7940,29 +7892,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			tone_zone_play_tone(p->subs[idx].dfd, -1);
 		break;
 	case DAHDI_EVENT_DIALCOMPLETE:
-		/* DAHDI has completed dialing all digits sent using DAHDI_DIAL. */
-#if defined(HAVE_PRI)
-		if (dahdi_sig_pri_lib_handles(p->sig)) {
-			if (p->inalarm) {
-				break;
-			}
-			if (ioctl(p->subs[idx].dfd, DAHDI_DIALING, &x) == -1) {
-				ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s: %s\n", ast->name,
-					strerror(errno));
-				return NULL;
-			}
-			if (x) {
-				/* Still dialing in DAHDI driver */
-				break;
-			}
-			/*
-			 * The ast channel is locked and the private may be locked more
-			 * than once.
-			 */
-			sig_pri_dial_complete(p->sig_pvt, ast);
-			break;
-		}
-#endif	/* defined(HAVE_PRI) */
 #ifdef HAVE_OPENR2
 		if ((p->sig & SIG_MFCR2) && p->r2chan && ast->_state != AST_STATE_UP) {
 			/* we don't need to do anything for this event for R2 signaling

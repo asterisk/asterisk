@@ -451,6 +451,7 @@ AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
 AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [unixodbc])
+AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([X11], [X11], [x11])
@@ -2072,13 +2073,14 @@ fi
 
 AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [dahdi/tonezone.h], [${tonezone_extra} ${DAHDI_INCLUDE}])
 
+AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
+
 if test "${OSARCH}" = "OpenBSD";
 then
-	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc -lvorbisfile -logg])
+	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc -logg])
 else
-	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc -lvorbisfile])
+	AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
 fi
-AST_C_DECLARE_CHECK([VORBIS_OPEN_CALLBACKS], [OV_CALLBACKS_NOCLOSE], [vorbis/vorbisfile.h])
 
 AC_LANG_PUSH(C++)
 

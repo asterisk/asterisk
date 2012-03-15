@@ -165,9 +165,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description>
-			<para>Gets information associated with the specified IAX2 peer.</para>
-		</description>
+		<description></description>
 		<see-also>
 			<ref type="function">SIPPEER</ref>
 		</see-also>
@@ -179,9 +177,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="varname" required="true" />
 		</syntax>
-		<description>
-			<para>Gets or sets a variable that is sent to a remote IAX2 peer during call setup.</para>
-		</description>
+		<description></description>
 	</function>
 	<manager name="IAXpeers" language="en_US">
 		<synopsis>
@@ -1164,6 +1160,9 @@ static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fm
 	ast_verbose("%s", buf);
 }
 
+static int maxtrunkcall = TRUNK_CALL_START;
+static int maxnontrunkcall = 1;
+
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
@@ -2002,15 +2001,7 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 	return 0;
 }
 
-#ifdef IAX_OLD_FIND
-
-static int maxtrunkcall = TRUNK_CALL_START;
-static int maxnontrunkcall = 1;
-
-#define update_max_trunk() __update_max_trunk()
-#define update_max_nontrunk() __update_max_nontrunk()
-
-static void __update_max_trunk(void)
+static void update_max_trunk(void)
 {
 	int max = TRUNK_CALL_START;
 	int x;
@@ -2027,7 +2018,7 @@ static void __update_max_trunk(void)
 		ast_debug(1, "New max trunk callno is %d\n", max);
 }
 
-static void __update_max_nontrunk(void)
+static void update_max_nontrunk(void)
 {
 	int max = 1;
 	int x;
@@ -2040,13 +2031,6 @@ static void __update_max_nontrunk(void)
 	if (iaxdebug)
 		ast_debug(1, "New max nontrunk callno is %d\n", max);
 }
-
-#else
-
-#define update_max_trunk() do { } while (0)
-#define update_max_nontrunk() do { } while (0)
-
-#endif
 
 static int make_trunk(unsigned short callno, int locked)
 {
@@ -2570,21 +2554,15 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 		if (a->argc < 4 || a->argc > 5)
 			return CLI_SHOWUSAGE;
 
-		if (a->argc == 4) {
-			ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
-		}
-
+		ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
 		i = ao2_iterator_init(peercnts, 0);
 		while ((peercnt = ao2_iterator_next(&i))) {
 			sin.sin_addr.s_addr = peercnt->addr;
-			if (a->argc == 5) {
-				if (!strcasecmp(a->argv[4], ast_inet_ntoa(sin.sin_addr))) {
-					ast_cli(a->fd, "%-15s %-12s %-12s\n", "Address", "Callno Usage", "Callno Limit");
+			if (a->argc == 5 && (!strcasecmp(a->argv[4], ast_inet_ntoa(sin.sin_addr)))) {
 					ast_cli(a->fd, "%-15s %-12d %-12d\n", ast_inet_ntoa(sin.sin_addr), peercnt->cur, peercnt->limit);
 					ao2_ref(peercnt, -1);
 					found = 1;
 					break;
-				}
 			} else {
 				ast_cli(a->fd, "%-15s %-12d %-12d\n", ast_inet_ntoa(sin.sin_addr), peercnt->cur, peercnt->limit);
 			}
@@ -2605,7 +2583,7 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 				ao2_container_count(callno_pool),
 				ao2_container_count(callno_pool_trunk));
 		} else if (a->argc == 5 && !found) {
-			ast_cli(a->fd, "No call number table entries for %s found\n", a->argv[4] );
+			ast_cli(a->fd, "No callnumber table entries for %s found\n", a->argv[4] );
 		}
 
 
@@ -3453,7 +3431,7 @@ retry:
 		ast_channel_unlock(owner);
 	}
 
-	if (callno & TRUNK_CALL_START) {
+	if (callno & 0x4000) {
 		update_max_trunk();
 	}
 }
@@ -4362,7 +4340,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -4474,7 +4452,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -4721,16 +4699,12 @@ static int send_apathetic_reply(unsigned short callno, unsigned short dcallno,
 	}
 
 	data.f.scallno = htons(0x8000 | callno);
-	data.f.dcallno = htons(dcallno & ~IAX_FLAG_RETRANS);
+	data.f.dcallno = htons(dcallno);
 	data.f.ts = htonl(ts);
 	data.f.iseqno = seqno;
 	data.f.oseqno = 0;
 	data.f.type = AST_FRAME_IAX;
 	data.f.csub = compress_subclass(command);
-
-	if (iaxdebug) {
-		iax_outputframe(NULL, &data.f, 0, sin, size - sizeof(struct ast_iax2_full_hdr));
-	}
 
 	return sendto(sockfd, &data, size, 0, (struct sockaddr *)sin, sizeof(*sin));
 }
@@ -8294,8 +8268,9 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	int newcall = 0;
 	char newip[256];
 	struct iax_ie_data ied;
-	struct sockaddr_in new = { 0, };
-
+	struct sockaddr_in new;
+	
+	
 	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
 		memmove(&new, ies->apparent_addr, sizeof(new));
@@ -12397,7 +12372,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		peer->pokeexpire = -1;
 		peer->sockfd = defaultsockfd;
 		peer->addr.ss.ss_family = AF_INET;
-		peer->addr.len = sizeof(struct sockaddr_in);
 		if (ast_string_field_init(peer, 32))
 			peer = peer_unref(peer);
 	}
@@ -12583,7 +12557,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "qualifyfreqnotok")) {
 				if (sscanf(v->value, "%30d", &peer->pokefreqnotok) != 1) {
 					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
-				}
+				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
 				ast_string_field_set(peer, zonetag, v->value);
 			} else if (!strcasecmp(v->name, "adsi")) {
@@ -12996,7 +12970,7 @@ static void set_config_destroy(void)
 {
 	strcpy(accountcode, "");
 	strcpy(language, "");
-	strcpy(mohinterpret, "");
+	strcpy(mohinterpret, "default");
 	strcpy(mohsuggest, "");
 	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
@@ -13237,13 +13211,8 @@ static int set_config(const char *config_file, int reload)
 			ast_set2_flag64((&globalflags), i || ast_true(v->value), IAX_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
-			if (trunkfreq < 10) {
-				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 10ms instead.\n");
+			if (trunkfreq < 10)
 				trunkfreq = 10;
-			} else if (trunkfreq > 1000) {
-				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 1000ms instead.\n");
-				trunkfreq = 1000;
-			}
 		} else if (!strcasecmp(v->name, "trunkmtu")) {
 			mtuv = atoi(v->value);
 			if (mtuv  == 0 )
@@ -14731,7 +14700,7 @@ static int load_module(void)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
 	if ((timer = ast_timer_open())) {
-		ast_timer_set_rate(timer, 1000 / trunkfreq);
+		ast_timer_set_rate(timer, trunkfreq);
 	}
 
 	if (set_config(config, 0) == -1) {

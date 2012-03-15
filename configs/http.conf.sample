@@ -54,7 +54,8 @@ bindaddr=127.0.0.1
 ; explicitly enable tls, define the port to use,
 ; and have a certificate somewhere.
 ;tlsenable=yes          ; enable tls - default no.
-;tlsbindaddr=0.0.0.0:8089    ; address and port to bind to - default is bindaddr and port 8089.
+;tlsbindport=4433       ; port to use - default is 8089
+;tlsbindaddr=0.0.0.0    ; address to bind to - default is bindaddr.
 ;
 ;tlscertfile=</path/to/certificate.pem>  ; path to the certificate file (*.pem) only.
 ;tlsprivatekey=</path/to/private.pem>    ; path to private key file (*.pem) only.

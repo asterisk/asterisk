@@ -333,12 +333,10 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 			seq++;
 			ast_mutex_unlock(&monitorlock);
 
-			/* Replace all '/' chars from the channel name with '-' chars. */
 			channel_name = ast_strdupa(chan->name);
-			for (p = channel_name; (p = strchr(p, '/')); ) {
+			while ((p = strchr(channel_name, '/'))) {
 				*p = '-';
 			}
-
 			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%d-%s",
 					 ast_config_AST_MONITOR_DIR, (int)time(NULL), channel_name);
 			monitor->filename_changed = 1;
@@ -582,8 +580,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 			ast_mkdir(dirname(name), 0777);
 		}
 
-		/*!
-		 * \note We cannot just compare filenames, due to symlinks, relative
+		/*!\note We cannot just compare filenames, due to symlinks, relative
 		 * paths, and other possible filesystem issues.  We could use
 		 * realpath(3), but its use is discouraged.  However, if we try to
 		 * create the same file from two different paths, the second will
@@ -642,9 +639,9 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 */
 static int start_monitor_exec(struct ast_channel *chan, const char *data)
 {
-	char *arg;
-	char *options;
-	char *delay;
+	char *arg = NULL;
+	char *options = NULL;
+	char *delay = NULL;
 	char *urlprefix = NULL;
 	char tmp[256];
 	int stream_action = X_REC_IN | X_REC_OUT;
@@ -684,7 +681,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		urlprefix = arg;
 	}
 
-	if (!ast_strlen_zero(urlprefix) && !ast_strlen_zero(args.fname_base)) {
+	if (urlprefix) {
 		snprintf(tmp, sizeof(tmp), "%s/%s.%s", urlprefix, args.fname_base,
 			((strcmp(args.format, "gsm")) ? "wav" : "gsm"));
 		ast_channel_lock(chan);
@@ -760,13 +757,12 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 	}
 
 	if (ast_strlen_zero(fname)) {
-		/* No filename specified, default to the channel name. */
+		/* No filename base specified, default to channel name as per CLI */
 		ast_channel_lock(c);
 		fname = ast_strdupa(c->name);
 		ast_channel_unlock(c);
-
-		/* Replace all '/' chars from the channel name with '-' chars. */
-		for (d = (char *) fname; (d = strchr(d, '/')); ) {
+		/* Channels have the format technology/channel_name - have to replace that /  */
+		if ((d = strchr(fname, '/'))) {
 			*d = '-';
 		}
 	}
