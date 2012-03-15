@@ -11029,7 +11029,7 @@ enum ast_pbx_result ast_pbx_exten_run(struct ast_channel *chan, const char *cont
 {
 	struct ast_str *backup_context;
 	struct ast_str *backup_exten;
-	int backup_priority;
+	int backup_priority = 0;
 	enum ast_pbx_result res;
 	struct ast_pbx_args run_args;
 	struct ast_var_t *variable;
