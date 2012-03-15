@@ -17397,18 +17397,21 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m, "ActionID");
-		if (!ast_strlen_zero(id))
+		if (!ast_strlen_zero(id)) {
 			snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+		}
 	}
 
 	switch (argc) {
 	case 5:
 		if (!strcasecmp(argv[3], "like")) {
-			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB)) {
 				return CLI_SHOWUSAGE;
+			}
 			havepattern = TRUE;
-		} else
+		} else {
 			return CLI_SHOWUSAGE;
+		}
 	case 3:
 		break;
 	default:
@@ -17456,7 +17459,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	qsort(peerarray, total_peers, sizeof(struct sip_peer *), peercomparefunc);
 
-	for(k=0; k < total_peers; k++) {
+	for(k = 0; k < total_peers; k++) {
 		char status[20] = "";
 		char srch[2000];
 		char pstatus;
@@ -17484,17 +17487,18 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			continue;
 		}
 
-		if (!ast_strlen_zero(peer->username) && !s)
+		if (!ast_strlen_zero(peer->username) && !s) {
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
-		else
+		} else {
 			ast_copy_string(name, peer->name, sizeof(name));
+		}
 
 		pstatus = peer_status(peer, status, sizeof(status));
-		if (pstatus == 1)
+		if (pstatus == 1) {
 			peers_mon_online++;
-		else if (pstatus == 0)
+		} else if (pstatus == 0) {
 			peers_mon_offline++;
-		else {
+		} else {
 			if (ast_sockaddr_isnull(&peer->addr) ||
 			    !ast_sockaddr_port(&peer->addr)) {
 				peers_unmon_offline++;
@@ -17503,18 +17507,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			}
 		}
 
-		snprintf(srch, sizeof(srch), FORMAT2, name,
-			tmp_host,
-			peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ?
-				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " A " : " a " :
-				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
-			peer->ha ? " A " : "   ",	/* permit/deny */
-			tmp_port, status,
-			peer->description ? peer->description : "",
-			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
-
-		if (!s)  {/* Normal CLI list */
+		if (!s) { /* Normal CLI list */
 			ast_cli(fd, FORMAT2, name,
 			tmp_host,
 			peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
@@ -17524,7 +17517,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			peer->ha ? " A " : "   ",       /* permit/deny */
 			tmp_port, status,
 			peer->description ? peer->description : "",
-			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
+			realtimepeers ? (peer->is_realtime ? "Cached RT" : "") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
 			astman_append(s,
@@ -17558,22 +17551,25 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
 			peer->ha ? "yes" : "no",       /* permit/deny */
 			status,
-			realtimepeers ? (peer->is_realtime ? "yes":"no") : "no",
+			realtimepeers ? (peer->is_realtime ? "yes" : "no") : "no",
 			peer->description);
 		}
 		ao2_unlock(peer);
 		peer = peerarray[k] = sip_unref_peer(peer, "toss iterator peer ptr");
 	}
 
-	if (!s)
+	if (!s) {
 		ast_cli(fd, "%d sip peers [Monitored: %d online, %d offline Unmonitored: %d online, %d offline]\n",
 		        total_peers, peers_mon_online, peers_mon_offline, peers_unmon_online, peers_unmon_offline);
+	}
 
-	if (havepattern)
+	if (havepattern) {
 		regfree(&regexbuf);
+	}
 
-	if (total)
+	if (total) {
 		*total = total_peers;
+	}
 
 	ast_free(peerarray);
 
