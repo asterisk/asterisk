@@ -17461,7 +17461,6 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	for(k = 0; k < total_peers; k++) {
 		char status[20] = "";
-		char srch[2000];
 		char pstatus;
 
 		/*
