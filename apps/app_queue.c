@@ -3756,7 +3756,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
 							ast_channel_unlock(o->chan);
 							connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-							ast_channel_update_connected_line(in, &connected_caller, NULL);
+							if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
+								ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
+								ast_channel_update_connected_line(in, &connected_caller, NULL);
+							}
 							ast_party_connected_line_free(&connected_caller);
 						}
 					}
@@ -3886,7 +3889,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 										ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
 										ast_channel_unlock(o->chan);
 										connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-										ast_channel_update_connected_line(in, &connected_caller, NULL);
+										if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
+											ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
+											ast_channel_update_connected_line(in, &connected_caller, NULL);
+										}
 										ast_party_connected_line_free(&connected_caller);
 									}
 								}
