@@ -526,7 +526,8 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 
 	/* We now hold the channel lock on spyee */
 
-	if (ast_check_hangup(chan) || ast_check_hangup(spyee_autochan->chan)) {
+	if (ast_check_hangup(chan) || ast_check_hangup(spyee_autochan->chan) ||
+			ast_test_flag(spyee_autochan->chan, AST_FLAG_ZOMBIE)) {
 		return 0;
 	}
 
