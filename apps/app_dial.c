@@ -108,21 +108,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					channel before doing anything on the called channel. You will rarely need to use
 					this option, the default behavior is adequate in most cases.</para>
 				</option>
-				<option name="b" argsep=",">
-					<para>Before initiating the actual call, Gosub to the specified
-					context,exten,priority using the newly created channel(s).</para>
-                                        <para>The Gosub will be executed for each destination channel</para>
-					<argument name="context" required="true"/>
-					<argument name="exten" required="true"/>
-					<argument name="priority" required="true"/>
-				</option>
-				<option name="B" argsep=",">
-					<para>Before initiating the actual call, Gosub to the specified
-					context,exten,priority using the current channel</para>
-					<argument name="context" required="true"/>
-					<argument name="exten" required="true"/>
-					<argument name="priority" required="true"/>
-				</option>
 				<option name="C">
 					<para>Reset the call detail record (CDR) for this call.</para>
 				</option>
@@ -605,8 +590,6 @@ enum {
 #define OPT_FORCE_CID_TAG    (1LLU << 38)
 #define OPT_FORCE_CID_PRES   (1LLU << 39)
 #define OPT_CALLER_ANSWER    (1LLU << 40)
-#define OPT_PREDIAL_CALLEE_GOSUB  (1LLU << 41)
-#define OPT_PREDIAL_CALLER_GOSUB  (1LLU << 42)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -626,8 +609,6 @@ enum {
 	OPT_ARG_FORCECLID,
 	OPT_ARG_FORCE_CID_TAG,
 	OPT_ARG_FORCE_CID_PRES,
-	OPT_ARG_PREDIAL_CALLER_GOSUB,
-	OPT_ARG_PREDIAL_CALLEE_GOSUB,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -671,14 +652,12 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('x', OPT_CALLEE_MIXMONITOR),
 	AST_APP_OPTION('X', OPT_CALLER_MIXMONITOR),
 	AST_APP_OPTION('z', OPT_CANCEL_TIMEOUT),
-	AST_APP_OPTION_ARG('b', OPT_PREDIAL_CALLEE_GOSUB, OPT_ARG_PREDIAL_CALLEE_GOSUB),
-	AST_APP_OPTION_ARG('B', OPT_PREDIAL_CALLER_GOSUB, OPT_ARG_PREDIAL_CALLER_GOSUB),
 END_OPTIONS );
 
 #define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
 	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK |  \
-	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_PREDIAL_CALLER_GOSUB | OPT_PREDIAL_CALLEE_GOSUB) && \
+	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB) && \
 	!ast_channel_audiohooks(chan) && !ast_channel_audiohooks(peer) && \
 	ast_framehook_list_is_empty(ast_channel_framehooks(chan)) && ast_framehook_list_is_empty(ast_channel_framehooks(peer)))
 
@@ -2190,22 +2169,14 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 	ast_channel_lock(chan);
 	if ((outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP_ONCE"))) {
-		outbound_group = ast_strdupa(outbound_group);
+		outbound_group = ast_strdupa(outbound_group);	
 		pbx_builtin_setvar_helper(chan, "OUTBOUND_GROUP_ONCE", NULL);
 	} else if ((outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP"))) {
 		outbound_group = ast_strdupa(outbound_group);
 	}
-	ast_channel_unlock(chan);
+	ast_channel_unlock(chan);	
 	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE |
-			 OPT_CANCEL_TIMEOUT | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_FORCECLID | OPT_PREDIAL_CALLER_GOSUB | OPT_PREDIAL_CALLEE_GOSUB);
-
-	/* PREDIAL: Run gosub on the caller's channel */
-	if (ast_test_flag64(&opts, OPT_PREDIAL_CALLER_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLER_GOSUB])) {
-		struct ast_channel *c = chan;
-		const char *goto_target = opt_args[OPT_ARG_PREDIAL_CALLER_GOSUB];
-
-		ast_pbx_exten_run_parseargs(c, goto_target, 1);
-	}
+			 OPT_CANCEL_TIMEOUT | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_FORCECLID);
 
 	/* loop through the list of dial destinations */
 	rest = args.peers;
@@ -2435,22 +2406,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		ast_channel_unlock(tc);
 		ast_channel_unlock(chan);
-
-		/* PREDIAL: Run gosub on the callee's channel
-		 * We run the callee predial before ast_call() in case the user wishes to do something on the newly created channel
-		 * before the channel does anything important
-		 *
-		 * Inside the target gosub we will be able to do something with the newly created channel name
-		 * ie: now the calling channel can know what channel will be used to call the destination
-		 * ex: now we will know that SIP/abc-123 is calling SIP/def-124
-		 */
-		if (ast_test_flag64(&opts, OPT_PREDIAL_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLEE_GOSUB])) {
-			struct ast_channel *c = tc;
-			const char *goto_target = opt_args[OPT_ARG_PREDIAL_CALLEE_GOSUB];
-
-			ast_pbx_exten_run_parseargs(c, goto_target, 1);
-		}
-
 		res = ast_call(tc, numsubst, 0); /* Place the call, but don't wait on the answer */
 		ast_channel_lock(chan);
 
