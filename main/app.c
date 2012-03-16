@@ -281,22 +281,24 @@ static int app_exec_dialplan(struct ast_channel *autoservice_chan, struct ast_ch
 	return res;
 }
 
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char * const name, const char * const args)
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *name, const char *args)
 {
 	char buf[1024];
 	snprintf(buf, sizeof(buf), "%s%s%s", name, ast_strlen_zero(args) ? "" : ",", S_OR(args, ""));
 	return app_exec_dialplan(autoservice_chan, macro_chan, buf, 0);
 }
 
-int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char * const location, const char * const args)
+int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *location, const char *args)
 {
 	char buf[1024];
 	size_t offset = snprintf(buf, sizeof(buf), "%s", location);
+
 	/* need to bump the priority by one if we already have a pbx */
 	if (ast_channel_pbx(sub_chan)) {
 		int iprio;
-		const char * priority = location;
-		const char * next = strchr(priority,',');
+		const char *priority = location;
+		const char *next = strchr(priority,',');
+
 		/* jump to the priority portion of the location */
 		if (next) {
 			priority = next + 1;
@@ -314,8 +316,8 @@ int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *su
 			}
 		}
 	}
-	if (offset < sizeof(buf)) {
-		snprintf(buf + offset, sizeof(buf) - offset, "%s%s%s", ast_strlen_zero(args) ? "" : "(", S_OR(args, ""), ast_strlen_zero(args) ? "" : ")");
+	if (!ast_strlen_zero(args) && offset < sizeof(buf)) {
+		snprintf(buf + offset, sizeof(buf) - offset, "(%s)", args);
 	}
 	return app_exec_dialplan(autoservice_chan, sub_chan, buf, 1);
 }

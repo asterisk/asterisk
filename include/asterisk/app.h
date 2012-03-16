@@ -131,8 +131,8 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel
-		*macro_chan, const char * const macro_name, const char * const macro_args);
+int ast_app_run_macro(struct ast_channel *autoservice_chan,
+	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
 
 /*!
  * \since 11
@@ -151,8 +151,8 @@ int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel
-		*sub_chan, const char * const name, const char * const args);
+int ast_app_run_sub(struct ast_channel *autoservice_chan,
+	struct ast_channel *sub_chan, const char *name, const char *args);
 
 /*!
  * \brief Set voicemail function callbacks
