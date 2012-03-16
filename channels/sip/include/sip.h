@@ -1046,7 +1046,7 @@ struct sip_pvt {
 	uint32_t init_icseq;                    /*!< Initial incoming seqno from first request */
 	ast_group_t callgroup;                  /*!< Call group */
 	ast_group_t pickupgroup;                /*!< Pickup group */
-	int lastinvite;                         /*!< Last Cseq of invite */
+	uint32_t lastinvite;                    /*!< Last seqno of invite */
 	struct ast_flags flags[3];              /*!< SIP_ flags */
 
 	/* boolean flags that don't belong in flags */
