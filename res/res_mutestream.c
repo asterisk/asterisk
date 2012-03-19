@@ -37,13 +37,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 89545 $")
 
-//#include <time.h>
-//#include <string.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <unistd.h>
-//#include <errno.h>
-
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -79,14 +72,54 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 89545 $")
 		</syntax>
 		<description>
 			<para>The MUTEAUDIO function can be used to mute inbound (to the PBX) or outbound audio in a call.
-			Example:
+			</para>
+			<para>Examples:
 			</para>
 			<para>
 			MUTEAUDIO(in)=on
+			</para>
+			<para>
 			MUTEAUDIO(in)=off
 			</para>
 		</description>
 	</function>
+	<manager name="MuteAudio" language="en_US">
+		<synopsis>
+			Mute an audio stream.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The channel you want to mute.</para>
+			</parameter>
+			<parameter name="Direction" required="true">
+				<enumlist>
+					<enum name="in">
+						<para>Set muting on inbound audio stream. (to the PBX)</para>
+					</enum>
+					<enum name="out">
+						<para>Set muting on outbound audio stream. (from the PBX)</para>
+					</enum>
+					<enum name="all">
+						<para>Set muting on inbound and outbound audio streams.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="State" required="true">
+				<enumlist>
+					<enum name="on">
+						<para>Turn muting on.</para>
+					</enum>
+					<enum name="off">
+						<para>Turn muting off.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Mute an incoming or outgoing audio stream on a channel.</para>
+		</description>
+	</manager>
  ***/
 
 
@@ -98,9 +131,6 @@ struct mute_information {
 };
 
 
-#define TRUE 1
-#define FALSE 0
-
 /*! Datastore destroy audiohook callback */
 static void destroy_callback(void *data)
 {
@@ -110,8 +140,6 @@ static void destroy_callback(void *data)
 	ast_audiohook_destroy(&mute->audiohook);
 	ast_free(mute);
 	ast_module_unref(ast_module_info->self);
-
-	return;
 }
 
 /*! \brief Static structure for datastore information */
@@ -205,6 +233,7 @@ static int func_mute_write(struct ast_channel *chan, const char *cmd, char *data
 	struct ast_datastore *datastore = NULL;
 	struct mute_information *mute = NULL;
 	int is_new = 0;
+	int turnon;
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &mute_datastore, NULL))) {
@@ -214,17 +243,17 @@ static int func_mute_write(struct ast_channel *chan, const char *cmd, char *data
 		}
 		is_new = 1;
 	}
-
 	mute = datastore->data;
 
+	turnon = ast_true(value);
 	if (!strcasecmp(data, "out")) {
-		mute->mute_write = ast_true(value);
-		ast_debug(1, "%s channel - outbound \n", ast_true(value) ? "Muting" : "Unmuting");
+		mute->mute_write = turnon;
+		ast_debug(1, "%s channel - outbound \n", turnon ? "Muting" : "Unmuting");
 	} else if (!strcasecmp(data, "in")) {
-		mute->mute_read = ast_true(value);
-		ast_debug(1, "%s channel - inbound  \n", ast_true(value) ? "Muting" : "Unmuting");
+		mute->mute_read = turnon;
+		ast_debug(1, "%s channel - inbound  \n", turnon ? "Muting" : "Unmuting");
 	} else if (!strcasecmp(data,"all")) {
-		mute->mute_write = mute->mute_read = ast_true(value);
+		mute->mute_write = mute->mute_read = turnon;
 	}
 
 	if (is_new) {
@@ -241,8 +270,8 @@ static int func_mute_write(struct ast_channel *chan, const char *cmd, char *data
 
 /* Function for debugging - might be useful */
 static struct ast_custom_function mute_function = {
-        .name = "MUTEAUDIO",
-        .write = func_mute_write,
+	.name = "MUTEAUDIO",
+	.write = func_mute_write,
 };
 
 static int manager_mutestream(struct mansession *s, const struct message *m)
@@ -251,12 +280,12 @@ static int manager_mutestream(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m,"ActionID");
 	const char *state = astman_get_header(m,"State");
 	const char *direction = astman_get_header(m,"Direction");
-	char id_text[256] = "";
+	char id_text[256];
 	struct ast_channel *c = NULL;
 	struct ast_datastore *datastore = NULL;
 	struct mute_information *mute = NULL;
 	int is_new = 0;
-	int turnon = TRUE;
+	int turnon;
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "Channel not specified");
@@ -271,9 +300,6 @@ static int manager_mutestream(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	/* Ok, we have everything */
-	if (!ast_strlen_zero(id)) {
-		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
-	}
 
 	c = ast_channel_get_by_name(channel);
 	if (!c) {
@@ -287,13 +313,14 @@ static int manager_mutestream(struct mansession *s, const struct message *m)
 		if (!(datastore = initialize_mutehook(c))) {
 			ast_channel_unlock(c);
 			ast_channel_unref(c);
+			astman_send_error(s, m, "Memory allocation failure");
 			return 0;
 		}
 		is_new = 1;
 	}
 	mute = datastore->data;
-	turnon = ast_true(state);
 
+	turnon = ast_true(state);
 	if (!strcasecmp(direction, "in")) {
 		mute->mute_read = turnon;
 	} else if (!strcasecmp(direction, "out")) {
@@ -304,37 +331,36 @@ static int manager_mutestream(struct mansession *s, const struct message *m)
 
 	if (is_new) {
 		if (mute_add_audiohook(c, mute, datastore)) {
-			/* Can't add audiohook - already printed error message */
+			/* Can't add audiohook */
 			ast_datastore_free(datastore);
 			ast_free(mute);
+			ast_channel_unlock(c);
+			ast_channel_unref(c);
+			astman_send_error(s, m, "Couldn't add mute audiohook");
+			return 0;
 		}
 	}
 	ast_channel_unlock(c);
 	ast_channel_unref(c);
 
+	if (!ast_strlen_zero(id)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
+	} else {
+		id_text[0] = '\0';
+	}
 	astman_append(s, "Response: Success\r\n"
-				   "%s"
-				   "\r\n\r\n", id_text);
+		"%s"
+		"\r\n", id_text);
 	return 0;
 }
-
-
-static const char mandescr_mutestream[] =
-"Description: Mute an incoming or outbound audio stream in a channel.\n"
-"Variables: \n"
-"  Channel: <name>           The channel you want to mute.\n"
-"  Direction: in | out |all  The stream you want to mute.\n"
-"  State: on | off           Whether to turn mute on or off.\n"
-"  ActionID: <id>            Optional action ID for this AMI transaction.\n";
 
 
 static int load_module(void)
 {
 	int res;
-	res = ast_custom_function_register(&mute_function);
 
-	res |= ast_manager_register2("MuteAudio", EVENT_FLAG_SYSTEM, manager_mutestream,
-                        "Mute an audio stream", mandescr_mutestream);
+	res = ast_custom_function_register(&mute_function);
+	res |= ast_manager_register_xml("MuteAudio", EVENT_FLAG_SYSTEM, manager_mutestream);
 
 	return (res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS);
 }
@@ -343,7 +369,7 @@ static int unload_module(void)
 {
 	ast_custom_function_unregister(&mute_function);
 	/* Unregister AMI actions */
-        ast_manager_unregister("MuteAudio");
+	ast_manager_unregister("MuteAudio");
 
 	return 0;
 }
