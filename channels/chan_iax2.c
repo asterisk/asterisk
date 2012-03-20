@@ -8763,7 +8763,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			ast_db_put("IAX/Registry", p->name, data);
 			ast_verb(3, "Registered IAX2 '%s' (%s) at %s:%d\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPost: %d\r\n", p->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", p->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			register_peer_exten(p, 1);
 			ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag64(p, IAX_TEMPONLY)) {

@@ -66,6 +66,8 @@ Configuration Files:
 AMI:
   - DBDelTree now correctly returns an error when 0 rows are deleted just as
     the DBDel action does.
+  - The IAX2 PeerStatus event now sends a 'Port' header.  In Asterisk 10, this was
+    erroneously being sent as a 'Post' header.
 
 CCSS:
  - Macro is deprecated. Use cc_callback_sub instead of cc_callback_macro
