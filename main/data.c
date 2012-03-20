@@ -3319,7 +3319,7 @@ int ast_data_init(void)
 
 	res |= ast_cli_register_multiple(cli_data, ARRAY_LEN(cli_data));
 
-	res |= ast_manager_register_xml("DataGet", 0, manager_data_get);
+	res |= ast_manager_register_xml_core("DataGet", 0, manager_data_get);
 
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_data_get);

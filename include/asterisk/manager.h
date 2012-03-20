@@ -149,6 +149,7 @@ struct manager_action {
 	int authority;
 	/*! Function to be called */
 	int (*func)(struct mansession *s, const struct message *m);
+	struct ast_module *module;		/*!< Module this action belongs to */
 	/*! Where the documentation come from. */
 	enum ast_doc_src docsrc;
 	/*! For easy linking */
@@ -164,29 +165,44 @@ struct manager_action {
 
 /*! \brief External routines may register/unregister manager callbacks this way 
  * \note  Use ast_manager_register2() to register with help text for new manager commands */
-#define ast_manager_register(a, b, c, d) ast_manager_register2(a, b, c, d, NULL)
+#define ast_manager_register(action, authority, func, synopsis) ast_manager_register2(action, authority, func, ast_module_info->self, synopsis, NULL)
 
 /*! \brief Register a manager callback using XML documentation to describe the manager. */
-#define ast_manager_register_xml(a, b, c) ast_manager_register2(a, b, c, NULL, NULL)
+#define ast_manager_register_xml(action, authority, func) ast_manager_register2(action, authority, func, ast_module_info->self, NULL, NULL)
 
-/*! \brief Register a manager command with the manager interface 
- 	\param action Name of the requested Action:
-	\param authority Required authority for this command
-	\param func Function to call for this command
-	\param synopsis Help text (one line, up to 30 chars) for CLI manager show commands
-	\param description Help text, several lines
-*/
+/*!
+ * \brief Register a manager callback using XML documentation to describe the manager.
+ *
+ * \note For Asterisk core modules that are not independently
+ * loadable.
+ *
+ * \warning If you use ast_manager_register_xml() instead when
+ * you need to use this function, Asterisk will crash on load.
+ */
+#define ast_manager_register_xml_core(action, authority, func) ast_manager_register2(action, authority, func, NULL, NULL, NULL)
+
+/*!
+ * \brief Register a manager command with the manager interface
+ * \param action Name of the requested Action:
+ * \param authority Required authority for this command
+ * \param func Function to call for this command
+ * \param module The module containing func.  (NULL if module is part of core and not loadable)
+ * \param synopsis Help text (one line, up to 30 chars) for CLI manager show commands
+ * \param description Help text, several lines
+ */
 int ast_manager_register2(
 	const char *action,
 	int authority,
 	int (*func)(struct mansession *s, const struct message *m),
+	struct ast_module *module,
 	const char *synopsis,
 	const char *description);
 
-/*! \brief Unregister a registered manager command 
-	\param action Name of registered Action:
-*/
-int ast_manager_unregister( char *action );
+/*!
+ * \brief Unregister a registered manager command
+ * \param action Name of registered Action:
+ */
+int ast_manager_unregister(const char *action);
 
 /*! 
  * \brief Verify a session's read permissions against a permission mask.  

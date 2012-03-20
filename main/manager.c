@@ -1975,7 +1975,15 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 
 			ao2_lock(act_found);
 			if (act_found->registered && act_found->func) {
+				if (act_found->module) {
+					ast_module_ref(act_found->module);
+				}
+				ao2_unlock(act_found);
 				ret = act_found->func(&s, &m);
+				ao2_lock(act_found);
+				if (act_found->module) {
+					ast_module_unref(act_found->module);
+				}
 			} else {
 				ret = -1;
 			}
@@ -4789,8 +4797,16 @@ static int process_message(struct mansession *s, const struct message *m)
 			ao2_lock(act_found);
 			if (act_found->registered && act_found->func) {
 				ast_debug(1, "Running action '%s'\n", act_found->action);
+				if (act_found->module) {
+					ast_module_ref(act_found->module);
+				}
+				ao2_unlock(act_found);
 				ret = act_found->func(s, m);
 				acted = 1;
+				ao2_lock(act_found);
+				if (act_found->module) {
+					ast_module_unref(act_found->module);
+				}
 			}
 			ao2_unlock(act_found);
 		}
@@ -5283,7 +5299,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 /*! \brief
  * support functions to register/unregister AMI action handlers,
  */
-int ast_manager_unregister(char *action)
+int ast_manager_unregister(const char *action)
 {
 	struct manager_action *cur;
 
@@ -5378,7 +5394,7 @@ static void action_destroy(void *obj)
 
 /*! \brief register a new command with manager, including online help. This is
 	the preferred way to register a manager command */
-int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, const struct message *m), const char *synopsis, const char *description)
+int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, const struct message *m), struct ast_module *module, const char *synopsis, const char *description)
 {
 	struct manager_action *cur;
 
@@ -5394,6 +5410,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
+	cur->module = module;
 #ifdef AST_XML_DOCS
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
 		char *tmpxml;
@@ -6658,40 +6675,40 @@ static int __init_manager(int reload)
 
 	if (!registered) {
 		/* Register default actions */
-		ast_manager_register_xml("Ping", 0, action_ping);
-		ast_manager_register_xml("Events", 0, action_events);
-		ast_manager_register_xml("Logoff", 0, action_logoff);
-		ast_manager_register_xml("Login", 0, action_login);
-		ast_manager_register_xml("Challenge", 0, action_challenge);
-		ast_manager_register_xml("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup);
-		ast_manager_register_xml("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status);
-		ast_manager_register_xml("Setvar", EVENT_FLAG_CALL, action_setvar);
-		ast_manager_register_xml("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar);
-		ast_manager_register_xml("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig);
-		ast_manager_register_xml("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson);
-		ast_manager_register_xml("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig);
-		ast_manager_register_xml("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig);
-		ast_manager_register_xml("ListCategories", EVENT_FLAG_CONFIG, action_listcategories);
-		ast_manager_register_xml("Redirect", EVENT_FLAG_CALL, action_redirect);
-		ast_manager_register_xml("Atxfer", EVENT_FLAG_CALL, action_atxfer);
-		ast_manager_register_xml("Originate", EVENT_FLAG_ORIGINATE, action_originate);
-		ast_manager_register_xml("Command", EVENT_FLAG_COMMAND, action_command);
-		ast_manager_register_xml("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate);
-		ast_manager_register_xml("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout);
-		ast_manager_register_xml("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus);
-		ast_manager_register_xml("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount);
-		ast_manager_register_xml("ListCommands", 0, action_listcommands);
-		ast_manager_register_xml("SendText", EVENT_FLAG_CALL, action_sendtext);
-		ast_manager_register_xml("UserEvent", EVENT_FLAG_USER, action_userevent);
-		ast_manager_register_xml("WaitEvent", 0, action_waitevent);
-		ast_manager_register_xml("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings);
-		ast_manager_register_xml("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus);
-		ast_manager_register_xml("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
-		ast_manager_register_xml("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
-		ast_manager_register_xml("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
-		ast_manager_register_xml("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
-		ast_manager_register_xml("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
-		ast_manager_register_xml("Filter", EVENT_FLAG_SYSTEM, action_filter);
+		ast_manager_register_xml_core("Ping", 0, action_ping);
+		ast_manager_register_xml_core("Events", 0, action_events);
+		ast_manager_register_xml_core("Logoff", 0, action_logoff);
+		ast_manager_register_xml_core("Login", 0, action_login);
+		ast_manager_register_xml_core("Challenge", 0, action_challenge);
+		ast_manager_register_xml_core("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup);
+		ast_manager_register_xml_core("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status);
+		ast_manager_register_xml_core("Setvar", EVENT_FLAG_CALL, action_setvar);
+		ast_manager_register_xml_core("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar);
+		ast_manager_register_xml_core("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig);
+		ast_manager_register_xml_core("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson);
+		ast_manager_register_xml_core("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig);
+		ast_manager_register_xml_core("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig);
+		ast_manager_register_xml_core("ListCategories", EVENT_FLAG_CONFIG, action_listcategories);
+		ast_manager_register_xml_core("Redirect", EVENT_FLAG_CALL, action_redirect);
+		ast_manager_register_xml_core("Atxfer", EVENT_FLAG_CALL, action_atxfer);
+		ast_manager_register_xml_core("Originate", EVENT_FLAG_ORIGINATE, action_originate);
+		ast_manager_register_xml_core("Command", EVENT_FLAG_COMMAND, action_command);
+		ast_manager_register_xml_core("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate);
+		ast_manager_register_xml_core("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout);
+		ast_manager_register_xml_core("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus);
+		ast_manager_register_xml_core("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount);
+		ast_manager_register_xml_core("ListCommands", 0, action_listcommands);
+		ast_manager_register_xml_core("SendText", EVENT_FLAG_CALL, action_sendtext);
+		ast_manager_register_xml_core("UserEvent", EVENT_FLAG_USER, action_userevent);
+		ast_manager_register_xml_core("WaitEvent", 0, action_waitevent);
+		ast_manager_register_xml_core("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings);
+		ast_manager_register_xml_core("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus);
+		ast_manager_register_xml_core("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
+		ast_manager_register_xml_core("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
+		ast_manager_register_xml_core("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
+		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
+		ast_manager_register_xml_core("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
+		ast_manager_register_xml_core("Filter", EVENT_FLAG_SYSTEM, action_filter);
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

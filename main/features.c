@@ -8193,9 +8193,9 @@ int ast_features_init(void)
 	if (!res)
 		res = ast_register_application2(parkcall, park_call_exec, NULL, NULL, NULL);
 	if (!res) {
-		ast_manager_register_xml("ParkedCalls", 0, manager_parking_status);
-		ast_manager_register_xml("Park", EVENT_FLAG_CALL, manager_park);
-		ast_manager_register_xml("Bridge", EVENT_FLAG_CALL, action_bridge);
+		ast_manager_register_xml_core("ParkedCalls", 0, manager_parking_status);
+		ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
+		ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 	}
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
