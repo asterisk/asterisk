@@ -4452,17 +4452,18 @@ static int extension_presence_state_helper(struct ast_exten *e, char **subtype, 
 {
 	struct ast_str *hint_app = ast_str_thread_get(&extensionstate_buf, 32);
 	char *presence_provider;
+	const char *app;
 
 	if (!e || !hint_app) {
 		return -1;
 	}
 
-	ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(e));
-	presence_provider = parse_hint_presence(hint_app);
-
-	if (ast_strlen_zero(presence_provider)) {
+	app = ast_get_extension_app(e);
+	if (ast_strlen_zero(app)) {
 		return -1;
 	}
+	ast_str_set(&hint_app, 0, "%s", app);
+	presence_provider = parse_hint_presence(hint_app);
 
 	return ast_presence_state(presence_provider, subtype, message);
 }
