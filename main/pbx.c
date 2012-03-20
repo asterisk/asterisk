@@ -4546,6 +4546,7 @@ static int handle_presencechange(void *datap)
 	i = ao2_iterator_init(hints, 0);
 	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		struct ast_state_cb *state_cb;
+		const char *app;
 		char *parse;
 
 		ao2_lock(hint);
@@ -4557,14 +4558,14 @@ static int handle_presencechange(void *datap)
 		}
 
 		/* Does this hint monitor the device that changed state? */
-		ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(hint->exten));
-		parse = parse_hint_presence(hint_app);
-		if (ast_strlen_zero(parse)) {
+		app = ast_get_extension_app(hint->exten);
+		if (ast_strlen_zero(app)) {
 			/* The hint does not monitor presence at all. */
 			ao2_unlock(hint);
 			continue;
 		}
-
+		ast_str_set(&hint_app, 0, "%s", app);
+		parse = parse_hint_presence(hint_app);
 		if (strcasecmp(parse, pc->provider)) {
 			/* The hint does not monitor the presence provider. */
 			ao2_unlock(hint);
