@@ -4361,6 +4361,8 @@ static char *parse_hint_presence(struct ast_str *hint_args)
 	if ((tmp = strrchr(copy, ','))) {
 		*tmp = '\0';
 		tmp++;
+	} else {
+		return NULL;
 	}
 	ast_str_set(&hint_args, 0, "%s", tmp);
 	return ast_str_buffer(hint_args);
@@ -4464,6 +4466,11 @@ static int extension_presence_state_helper(struct ast_exten *e, char **subtype, 
 	}
 	ast_str_set(&hint_app, 0, "%s", app);
 	presence_provider = parse_hint_presence(hint_app);
+
+	if (ast_strlen_zero(presence_provider)) {
+		/* No presence string in the hint */
+		return 0;
+	}
 
 	return ast_presence_state(presence_provider, subtype, message);
 }
