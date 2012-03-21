@@ -27505,7 +27505,7 @@ $as_echo "#define HAVE_GMIME 1" >>confdefs.h
 
 if test "x${PBX_GMIME}" = "x0" -a "${PKGCONFIG}" != "No"; then
 	# Later versions of GMime use pkg-config
-	for ver in 2.0 2.2 2.4; do
+	for ver in 2.0 2.2 2.4 2.6; do
 		if ! ${PKGCONFIG} --exists gmime-$ver; then
 			continue
 		fi
