@@ -4574,6 +4574,10 @@ static int handle_presencechange(void *datap)
 		}
 		ast_str_set(&hint_app, 0, "%s", app);
 		parse = parse_hint_presence(hint_app);
+		if (ast_strlen_zero(parse)) {
+			ao2_unlock(hint);
+			continue;
+		}
 		if (strcasecmp(parse, pc->provider)) {
 			/* The hint does not monitor the presence provider. */
 			ao2_unlock(hint);
