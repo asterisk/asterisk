@@ -182,13 +182,13 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 	orig_len = len;
 	if (s->missing_samples == 0) {
 		/* As the gap in real speech starts we need to assess the last known pitch,
-	   	and prepare the synthetic data we will use for fill-in */
+		and prepare the synthetic data we will use for fill-in */
 		normalise_history(s);
 		s->pitch = amdf_pitch(PLC_PITCH_MIN, PLC_PITCH_MAX, s->history + PLC_HISTORY_LEN - CORRELATION_SPAN - PLC_PITCH_MIN, CORRELATION_SPAN);
 		/* We overlap a 1/4 wavelength */
 		pitch_overlap = s->pitch >> 2;
 		/* Cook up a single cycle of pitch, using a single of the real signal with 1/4
-	   	cycle OLA'ed to make the ends join up nicely */
+		cycle OLA'ed to make the ends join up nicely */
 		/* The first 3/4 of the cycle is a simple copy */
 		for (i = 0;  i < s->pitch - pitch_overlap;  i++)
 			s->pitchbuf[i] = s->history[PLC_HISTORY_LEN - s->pitch + i];
@@ -200,11 +200,11 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 			new_weight += new_step;
 		}
 		/* We should now be ready to fill in the gap with repeated, decaying cycles
-	   	of what is in pitchbuf */
+		of what is in pitchbuf */
 
 		/* We need to OLA the first 1/4 wavelength of the synthetic data, to smooth
-	   	it into the previous real data. To avoid the need to introduce a delay
-	   	in the stream, reverse the last 1/4 wavelength, and OLA with that. */
+		it into the previous real data. To avoid the need to introduce a delay
+		in the stream, reverse the last 1/4 wavelength, and OLA with that. */
 		gain = 1.0;
 		new_step = 1.0 / pitch_overlap;
 		old_step = new_step;

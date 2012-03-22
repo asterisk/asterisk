@@ -663,7 +663,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		} else {
 			limit = samples;
 		}
-		/* The following unrolled loop takes only 35% (rough estimate) of the 
+		/* The following unrolled loop takes only 35% (rough estimate) of the
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample; j < limit; j++) {
 			famp = amp[j];
@@ -787,7 +787,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 }
 
 static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[],
-                 int samples, int squelch, int relax)
+		int samples, int squelch, int relax)
 {
 	float energy[6];
 	int best;
@@ -813,7 +813,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		} else {
 			limit = samples;
 		}
-		/* The following unrolled loop takes only 35% (rough estimate) of the 
+		/* The following unrolled loop takes only 35% (rough estimate) of the
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample;  j < limit;  j++) {
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
@@ -1781,7 +1781,7 @@ static int _dsp_init(int reload)
 	for (v = ast_variable_browse(cfg, "default"); v; v = v->next) {
 		if (!strcasecmp(v->name, "silencethreshold")) {
 			if (sscanf(v->value, "%30d", &cfg_threshold) < 1) {
-                                ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
 			} else if (cfg_threshold < 0) {
 				ast_log(LOG_WARNING, "Invalid silence threshold '%d' specified, using default\n", cfg_threshold);
 			} else {

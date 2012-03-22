@@ -1404,7 +1404,7 @@ int check_contexts(char *file, int line )
 			ast_unlock_contexts();
 	}
 
-	/* loop thru all contexts, and verify the exten structure compares to the 
+	/* loop thru all contexts, and verify the exten structure compares to the
 	   hashtab structure */
 	for(c2=contexts;c2;c2=c2->next) {
 		c1 = find_context_locked(c2->name);
@@ -1430,7 +1430,7 @@ int check_contexts(char *file, int line )
 				}
 			}
 
-			/* is every entry in the root_table also in the root list? */ 
+			/* is every entry in the root_table also in the root list? */
 			if (!c2->root_table) {
 				if (c2->root) {
 					ast_log(LOG_NOTICE,"Called from: %s:%d: No c2->root_table for context %s!\n", file, line, c2->name);
@@ -2025,7 +2025,7 @@ static void insert_in_next_chars_alt_char_list(struct match_char **parent_ptr, s
 		node->alt_char = (*parent_ptr);
 		*parent_ptr = node;
 		return;
-	} 
+	}
 
 	lcurr = *parent_ptr;
 	for (curr = (*parent_ptr)->alt_char; curr; curr = curr->alt_char) {
@@ -5403,7 +5403,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 /*!
  * \brief Increase call count for channel
  * \retval 0 on success
- * \retval non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached 
+ * \retval non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached
 */
 static int increase_call_count(const struct ast_channel *c)
 {
@@ -7499,7 +7499,7 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 
 				dupdstr = ast_strdup(prio_item->data);
 
-				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label, 
+				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label,
 										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, prio_item->datad, prio_item->registrar);
 				if (!res1 && new_exten_item && new_prio_item){
 					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
@@ -9827,7 +9827,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(waitexten_opts, &flags, opts, args.options);
 
 	if (ast_test_flag(&flags, WAITEXTEN_MOH) && !opts[0] ) {
-		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n"); 
+		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n");
 	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
 		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL), strlen(opts[0]));
 	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {

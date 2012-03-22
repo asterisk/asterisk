@@ -257,13 +257,13 @@ static struct ast_generator playtones = {
 
 int ast_tone_zone_part_parse(const char *s, struct ast_tone_zone_part *tone_data)
 {
-	if (sscanf(s, "%30u+%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
+	if (sscanf(s, "%30u+%30u/%30u", &tone_data->freq1, &tone_data->freq2,
 			&tone_data->time) == 3) {
 		/* f1+f2/time format */
 	} else if (sscanf(s, "%30u+%30u", &tone_data->freq1, &tone_data->freq2) == 2) {
 		/* f1+f2 format */
 		tone_data->time = 0;
-	} else if (sscanf(s, "%30u*%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "%30u*%30u/%30u", &tone_data->freq1, &tone_data->freq2,
 			&tone_data->time) == 3) {
 		/* f1*f2/time format */
 		tone_data->modulate = 1;
@@ -278,7 +278,7 @@ int ast_tone_zone_part_parse(const char *s, struct ast_tone_zone_part *tone_data
 		/* f1 format */
 		tone_data->freq2 = 0;
 		tone_data->time = 0;
-	} else if (sscanf(s, "M%30u+M%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "M%30u+M%30u/%30u", &tone_data->freq1, &tone_data->freq2,
 			&tone_data->time) == 3) {
 		/* Mf1+Mf2/time format */
 		tone_data->midinote = 1;
@@ -286,7 +286,7 @@ int ast_tone_zone_part_parse(const char *s, struct ast_tone_zone_part *tone_data
 		/* Mf1+Mf2 format */
 		tone_data->time = 0;
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%30u*M%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "M%30u*M%30u/%30u", &tone_data->freq1, &tone_data->freq2,
 			&tone_data->time) == 3) {
 		/* Mf1*Mf2/time format */
 		tone_data->modulate = 1;
@@ -416,7 +416,7 @@ struct ao2_iterator ast_tone_zone_iterator_init(void)
 	return ao2_iterator_init(ast_tone_zones, 0);
 }
 
-/*! \brief Set global indication country 
+/*! \brief Set global indication country
    If no country is specified or we are unable to find the zone, then return not found */
 static int ast_set_indication_country(const char *country)
 {

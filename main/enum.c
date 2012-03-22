@@ -35,7 +35,7 @@
  * - ENUM SIP: http://www.ietf.org/rfc/rfc3764.txt
  * - IANA ENUM Services: http://www.iana.org/assignments/enum-services
  *
- * - I-ENUM: 
+ * - I-ENUM:
  *   http://tools.ietf.org/wg/enum/draft-ietf-enum-combined/
  *   http://tools.ietf.org/wg/enum/draft-ietf-enum-branch-location-record/
  *
@@ -84,7 +84,7 @@ static char ienum_branchlabel[32] = "i";
 #define ENUMLOOKUP_BLR_TXT      1
 #define ENUMLOOKUP_BLR_EBL      2
 static int ebl_alg = ENUMLOOKUP_BLR_CC;
- 
+
 /* EBL record provisional type code */
 #define T_EBL      65300
 
@@ -95,7 +95,7 @@ AST_MUTEX_DEFINE_STATIC(enumlock);
  * Input: E.164 number w/o leading +
  *
  * Output: number of digits in the country code
- * 	   0 on invalid number
+ *	   0 on invalid number
  *
  * Algorithm:
  *   3 digits is the default length of a country code.
@@ -113,13 +113,13 @@ static int cclen(const char *number)
 	}
 
 	strncpy(digits, number, 2);
-	
+
 	if (!sscanf(digits, "%30d", &cc)) {
 		return 0;
 	}
 
 	if (cc / 10 == 1 || cc / 10 == 7)
-        	return 1;
+		return 1;
 
 	if (cc == 20 || cc == 27 || (cc >= 30 && cc <= 34) || cc == 36 ||
 	    cc == 39 || cc == 40 || cc == 41 || (cc >= 40 && cc <= 41) ||
@@ -150,7 +150,7 @@ static int txt_callback(void *context, unsigned char *answer, int len, unsigned 
 		return 0;
 	}
 
-	/* RFC1035: 
+	/* RFC1035:
 	 *
 	 * <character-string> is a single length octet followed by that number of characters.
 	 * TXT-DATA        One or more <character-string>s.
@@ -181,11 +181,11 @@ static int txt_callback(void *context, unsigned char *answer, int len, unsigned 
 /*
  * Input: CC code
  *
- * Output: number of digits in the number before the i-enum branch 
+ * Output: number of digits in the number before the i-enum branch
  *
  * Algorithm:  Build <ienum_branchlabel>.c.c.<suffix> and look for a TXT lookup.
- * 		Return atoi(TXT-record).
- * 		Return -1 on not found.
+ *		Return atoi(TXT-record).
+ *		Return -1 on not found.
  *
  */
 static int blr_txt(const char *cc, const char *suffix)
@@ -228,7 +228,7 @@ static int blr_txt(const char *cc, const char *suffix)
 			return ret;
 		}
 	}
-	
+
 	ast_verb(3, "blr_txt() BLR TXT record for %s not found (apex: %s)\n", cc, suffix);
 
 	return -1;
@@ -251,7 +251,7 @@ static int ebl_callback(void *context, unsigned char *answer, int len, unsigned 
 	c->pos = 0;	/* default to empty */
 	c->separator[0] = 0;
 	c->sep_len = 0;
-	c->apex[0] = 0;	
+	c->apex[0] = 0;
 	c->apex_len = 0;
 
 	if (answer == NULL) {
@@ -270,8 +270,8 @@ static int ebl_callback(void *context, unsigned char *answer, int len, unsigned 
 	 *    +--+--+--+--+--+--+--+--+
 	 *
 	 *  where POSITION is a single byte, SEPARATOR is a <character-string>
-	 *  and APEX is a <domain-name>. 
-	 * 
+	 *  and APEX is a <domain-name>.
+	 *
 	 */
 
 	c->pos = *answer++;
@@ -295,7 +295,7 @@ static int ebl_callback(void *context, unsigned char *answer, int len, unsigned 
 	answer += i;
 	len -= i;
 
-	if ((i = dn_expand((unsigned char *)fullanswer, (unsigned char *)answer + len, 
+	if ((i = dn_expand((unsigned char *)fullanswer, (unsigned char *)answer + len,
 				(unsigned char *)answer, c->apex, sizeof(c->apex) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return 0;
@@ -310,11 +310,11 @@ static int ebl_callback(void *context, unsigned char *answer, int len, unsigned 
 /*
  * Input: CC code
  *
- * Output: number of digits in the number before the i-enum branch 
+ * Output: number of digits in the number before the i-enum branch
  *
- * Algorithm:  Build <ienum_branchlabel>.c.c.<suffix> and look for an EBL record 
- * 		Return pos and fill in separator and apex.
- * 		Return -1 on not found.
+ * Algorithm:  Build <ienum_branchlabel>.c.c.<suffix> and look for an EBL record
+ *		Return pos and fill in separator and apex.
+ *		Return -1 on not found.
  *
  */
 static int blr_ebl(const char *cc, const char *suffix, char *separator, int sep_len, char* apex, int apex_len)
@@ -481,7 +481,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		return -1;
 	}
 
-	/* this takes the first character of the regexp (which is a delimiter) 
+	/* this takes the first character of the regexp (which is a delimiter)
 	 * and uses that character to find the index of the second delimiter */
 	delim = regexp[0];
 	delim2 = strchr(regexp + 1, delim);
@@ -690,10 +690,10 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	/*
 	 * Process options:
 	 *
-	 * 	c	Return count, not URI
-	 * 	i	Use infrastructure ENUM 
-	 * 	s	Do ISN transformation
-	 * 	d	Direct DNS query: no reversing.
+	 *	c	Return count, not URI
+	 *	i	Use infrastructure ENUM
+	 *	s	Do ISN transformation
+	 *	d	Direct DNS query: no reversing.
 	 *
 	 */
 	if (options != NULL) {
@@ -716,7 +716,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			number, tech, suffix, context->options, context->position);
 
 	/*
-	 * This code does more than simple RFC3261 ENUM. All these rewriting 
+	 * This code does more than simple RFC3261 ENUM. All these rewriting
 	 * schemes have in common that they build the FQDN for the NAPTR lookup
 	 * by concatenating
 	 *    - a number which needs be flipped and "."-seperated 	(left)
@@ -734,7 +734,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	ast_copy_string(left, number, sizeof(left));
 	middle[0] = '\0';
 	/*
-	 * I-ENUM can change the apex, thus we copy it 
+	 * I-ENUM can change the apex, thus we copy it
 	 */
 	ast_copy_string(apex, suffix, sizeof(apex));
 	/* ISN rewrite */
@@ -931,7 +931,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *txt, int txt
 	if (chan && ast_autoservice_start(chan) < 0) {
 		return -1;
 	}
- 
+
 	if (pos > 128) {
 		pos = 128;
 	}
@@ -982,11 +982,11 @@ static int private_enum_init(int reload)
 			ebl_alg = ENUMLOOKUP_BLR_CC; /* default */
 
 			if (!strcasecmp(string, "txt"))
-				ebl_alg = ENUMLOOKUP_BLR_TXT; 
+				ebl_alg = ENUMLOOKUP_BLR_TXT;
 			else if (!strcasecmp(string, "ebl"))
-				ebl_alg = ENUMLOOKUP_BLR_EBL; 
+				ebl_alg = ENUMLOOKUP_BLR_EBL;
 			else if (!strcasecmp(string, "cc"))
-				ebl_alg = ENUMLOOKUP_BLR_CC; 
+				ebl_alg = ENUMLOOKUP_BLR_CC;
 			else
 				ast_log(LOG_WARNING, "No valid parameter for ienum/ebl_alg.\n");
 		}

@@ -20,7 +20,7 @@
  *
  * \brief Privacy Routines
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -96,7 +96,7 @@ int ast_privacy_set(char *dest, char *cid, int status)
 		return 0;
 	}
 	snprintf(key, sizeof(key), "%s/%s", dest, trimcid);
-	if (status == AST_PRIVACY_UNKNOWN) 
+	if (status == AST_PRIVACY_UNKNOWN)
 		res = ast_db_del("privacy", key);
 	else if (status == AST_PRIVACY_ALLOW)
 		res = ast_db_put("privacy", key, "allow");

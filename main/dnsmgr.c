@@ -20,7 +20,7 @@
  *
  * \brief Background DNS update manager
  *
- * \author Kevin P. Fleming <kpfleming@digium.com> 
+ * \author Kevin P. Fleming <kpfleming@digium.com>
  *
  * \bug There is a minor race condition.  In the event that an IP address
  * of a dnsmgr managed host changes, there is the potential for the consumer

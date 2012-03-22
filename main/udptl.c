@@ -2,7 +2,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * UDPTL support for T.38
- * 
+ *
  * Copyright (C) 2005, Steve Underwood, partly based on RTP code which is
  * Copyright (C) 1999-2009, Digium, Inc.
  *
@@ -23,16 +23,16 @@
  * this code.
  */
 
-/*! 
- * \file 
+/*!
+ * \file
  *
  * \brief UDPTL support for T.38 faxing
- * 
+ *
  *
  * \author Mark Spencer <markster@digium.com>
  * \author Steve Underwood <steveu@coppice.org>
  * \author Kevin P. Fleming <kpfleming@digium.com>
- * 
+ *
  * \page T38fax_udptl T.38 support :: UDPTL
  *
  * Asterisk supports T.38 fax passthrough, origination and termination. It does
@@ -41,7 +41,7 @@
  *
  * UDPTL is handled very much like RTP. It can be reinvited to go directly between
  * the endpoints, without involving Asterisk in the media stream.
- * 
+ *
  * \b References:
  * - chan_sip.c
  * - udptl.c
@@ -478,7 +478,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 				//fprintf(stderr, "Fixed packet %d, len %d\n", j, l);
 				s->f[ifp_no].frametype = AST_FRAME_MODEM;
 				s->f[ifp_no].subclass.integer = AST_MODEM_T38;
-			
+
 				s->f[ifp_no].mallocd = 0;
 				s->f[ifp_no].seqno = j;
 				s->f[ifp_no].datalen = s->rx[l].buf_len;
@@ -499,7 +499,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 		/* Decode the primary IFP packet */
 		s->f[ifp_no].frametype = AST_FRAME_MODEM;
 		s->f[ifp_no].subclass.integer = AST_MODEM_T38;
-		
+
 		s->f[ifp_no].mallocd = 0;
 		s->f[ifp_no].seqno = seq_no;
 		s->f[ifp_no].datalen = ifp_len;
@@ -541,7 +541,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 	   redundancy sets later on. */
 	s->tx[entry].buf_len = ifp_len;
 	memcpy(s->tx[entry].buf, ifp, ifp_len);
-	
+
 	/* Build the UDPTLPacket */
 
 	len = 0;
@@ -928,7 +928,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 
 	udptl->error_correction_span = udptlfecspan;
 	udptl->error_correction_entries = udptlfecentries;
-	
+
 	udptl->far_max_datagram = -1;
 	udptl->far_max_ifp = -1;
 	udptl->local_max_ifp = -1;
@@ -1059,7 +1059,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	/* If there is no data length, return immediately */
 	if (f->datalen == 0)
 		return 0;
-	
+
 	if ((f->frametype != AST_FRAME_MODEM) ||
 	    (f->subclass.integer != AST_MODEM_T38)) {
 		ast_log(LOG_WARNING, "UDPTL (%s): UDPTL can only send T.38 data.\n",
@@ -1091,7 +1091,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), seq, len);
 		}
 	}
-		
+
 	return 0;
 }
 
@@ -1149,7 +1149,7 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	void *pvt0;
 	void *pvt1;
 	int to;
-	
+
 	ast_channel_lock(c0);
 	while (ast_channel_trylock(c1)) {
 		ast_channel_unlock(c0);
@@ -1211,16 +1211,16 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_udptl_get_peer(p1, &t1);
 		ast_udptl_get_peer(p0, &t0);
 		if (ast_sockaddr_cmp(&t1, &ac1)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s\n", 
+			ast_debug(1, "Oooh, '%s' changed end address to %s\n",
 				ast_channel_name(c1), ast_sockaddr_stringify(&t1));
-			ast_debug(1, "Oooh, '%s' was %s\n", 
+			ast_debug(1, "Oooh, '%s' was %s\n",
 				ast_channel_name(c1), ast_sockaddr_stringify(&ac1));
 			ast_sockaddr_copy(&ac1, &t1);
 		}
 		if (ast_sockaddr_cmp(&t0, &ac0)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s\n", 
+			ast_debug(1, "Oooh, '%s' changed end address to %s\n",
 				ast_channel_name(c0), ast_sockaddr_stringify(&t0));
-			ast_debug(1, "Oooh, '%s' was %s\n", 
+			ast_debug(1, "Oooh, '%s' was %s\n",
 				ast_channel_name(c0), ast_sockaddr_stringify(&ac0));
 			ast_sockaddr_copy(&ac0, &t0);
 		}
@@ -1263,7 +1263,7 @@ static char *handle_cli_udptl_set_debug(struct ast_cli_entry *e, int cmd, struct
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "udptl set debug {on|off|ip}";
-		e->usage = 
+		e->usage =
 			"Usage: udptl set debug {on|off|ip host[:port]}\n"
 			"       Enable or disable dumping of UDPTL packets.\n"
 			"       If ip is specified, limit the dumped packets to those to and from\n"

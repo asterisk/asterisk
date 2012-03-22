@@ -117,8 +117,8 @@ static void  CB_ADD_LEN(struct ast_str **cb, const char *str, int len)
 	ast_str_append(cb, 0, "%s", str);
 }
 
-static void CB_RESET(struct ast_str *cb, struct ast_str *llb)  
-{ 
+static void CB_RESET(struct ast_str *cb, struct ast_str *llb)
+{
 	if (cb) {
 		ast_str_reset(cb);
 	}
@@ -128,7 +128,7 @@ static void CB_RESET(struct ast_str *cb, struct ast_str *llb)
 }
 
 static struct ast_comment *ALLOC_COMMENT(struct ast_str *buffer)
-{ 
+{
 	struct ast_comment *x = NULL;
 	if (!buffer || !ast_str_strlen(buffer)) {
 		return NULL;
@@ -320,12 +320,12 @@ static void ast_variable_move(struct ast_variable *dst_var, struct ast_variable 
 struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size)
 {
 	/* a file should be included ONCE. Otherwise, if one of the instances is changed,
-	 * then all be changed. -- how do we know to include it? -- Handling modified 
+	 * then all be changed. -- how do we know to include it? -- Handling modified
 	 * instances is possible, I'd have
 	 * to create a new master for each instance. */
 	struct ast_config_include *inc;
 	struct stat statbuf;
-	
+
 	inc = ast_include_find(conf, included_file);
 	if (inc) {
 		do {
@@ -335,7 +335,7 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 		ast_log(LOG_WARNING,"'%s', line %d:  Same File included more than once! This data will be saved in %s if saved back to disk.\n", from_file, from_lineno, real_included_file_name);
 	} else
 		*real_included_file_name = 0;
-	
+
 	inc = ast_calloc(1,sizeof(struct ast_config_include));
 	if (!inc) {
 		return NULL;
@@ -346,7 +346,7 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 		inc->included_file = ast_strdup(real_included_file_name);
 	else
 		inc->included_file = ast_strdup(included_file);
-	
+
 	inc->exec = is_exec;
 	if (is_exec)
 		inc->exec_file = ast_strdup(exec_file);
@@ -361,7 +361,7 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 	/* attach this new struct to the conf struct */
 	inc->next = conf->includes;
 	conf->includes = inc;
-	
+
 	return inc;
 }
 
@@ -373,10 +373,10 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 
 	int from_len = strlen(from_file);
 	int to_len = strlen(to_file);
-	
+
 	if (strcmp(from_file, to_file) == 0) /* no use wasting time if the name is the same */
 		return;
-	
+
 	/* the manager code allows you to read in one config file, then
 	 * write it back out under a different name. But, the new arrangement
 	 * ties output lines to the file name. So, before you try to write
@@ -620,7 +620,7 @@ static struct ast_variable *variable_clone(const struct ast_variable *old)
 
 	return new;
 }
- 
+
 static void move_variables(struct ast_category *old, struct ast_category *new)
 {
 	struct ast_variable *var = old->root;
@@ -630,7 +630,7 @@ static void move_variables(struct ast_category *old, struct ast_category *new)
 	ast_variable_append(new, var);
 }
 
-struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno) 
+struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno)
 {
 	struct ast_category *category;
 
@@ -697,7 +697,7 @@ void ast_category_insert(struct ast_config *config, struct ast_category *cat, co
 		cat->next = config->root;
 		config->root = cat;
 		return;
-	} 
+	}
 	for (cur_category = config->root; cur_category; cur_category = cur_category->next) {
 		if (!strcasecmp(cur_category->next->name, match)) {
 			cat->next = cur_category->next;
@@ -731,7 +731,7 @@ void ast_category_destroy(struct ast_category *cat)
 static void ast_includes_destroy(struct ast_config_include *incls)
 {
 	struct ast_config_include *incl,*inclnext;
-	
+
 	for (incl=incls; incl; incl = inclnext) {
 		inclnext = incl->next;
 		ast_free(incl->include_location_file);
@@ -764,7 +764,7 @@ struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
 }
 
 char *ast_category_browse(struct ast_config *config, const char *prev)
-{	
+{
 	struct ast_category *cat;
 
 	if (!prev) {
@@ -801,7 +801,7 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 			}
 		}
 	}
-	
+
 	if (cat)
 		cat = next_available_category(cat);
 
@@ -841,7 +841,7 @@ static void inherit_category(struct ast_category *new, const struct ast_category
 		ast_variable_append(new, variable_clone(var));
 }
 
-struct ast_config *ast_config_new(void) 
+struct ast_config *ast_config_new(void)
 {
 	struct ast_config *config;
 
@@ -895,7 +895,7 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 	return res;
 }
 
-int ast_variable_update(struct ast_category *category, const char *variable, 
+int ast_variable_update(struct ast_category *category, const char *variable,
 						const char *value, const char *match, unsigned int object)
 {
 	struct ast_variable *cur, *prev=NULL, *newer=NULL;
@@ -1141,8 +1141,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 		*c++ = '\0';
 		cur++;
- 		if (*c++ != '(')
- 			c = NULL;
+		if (*c++ != '(')
+			c = NULL;
 		catname = cur;
 		if (!(*cat = newcat = ast_category_new(catname,
 				S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile),
@@ -1152,7 +1152,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		(*cat)->lineno = lineno;
 		*last_var = 0;
 		*last_cat = newcat;
-		
+
 		/* add comments */
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 			newcat->precomments = ALLOC_COMMENT(comment_buffer);
@@ -1160,15 +1160,15 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 			newcat->sameline = ALLOC_COMMENT(lline_buffer);
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 			CB_RESET(comment_buffer, lline_buffer);
-		
- 		/* If there are options or categories to inherit from, process them now */
- 		if (c) {
- 			if (!(cur = strchr(c, ')'))) {
- 				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
- 				return -1;
- 			}
- 			*cur = '\0';
- 			while ((cur = strsep(&c, ","))) {
+
+		/* If there are options or categories to inherit from, process them now */
+		if (c) {
+			if (!(cur = strchr(c, ')'))) {
+				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
+				return -1;
+			}
+			*cur = '\0';
+			while ((cur = strsep(&c, ","))) {
 				if (!strcasecmp(cur, "!")) {
 					(*cat)->ignored = 1;
 				} else if (!strcasecmp(cur, "+")) {
@@ -1186,7 +1186,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 					}
 				} else {
 					struct ast_category *base;
- 				
+
 					base = category_get(cfg, cur, 1);
 					if (!base) {
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
@@ -1194,8 +1194,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 					}
 					inherit_category(*cat, base);
 				}
- 			}
- 		}
+			}
+		}
 		if (newcat)
 			ast_category_append(cfg, *cat);
 	} else if (cur[0] == '#') { /* A directive - #include or #exec */
@@ -1350,7 +1350,7 @@ set_new_variable:
 					v->sameline = ALLOC_COMMENT(lline_buffer);
 				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 					CB_RESET(comment_buffer, lline_buffer);
-				
+
 			} else {
 				return -1;
 			}
@@ -1520,19 +1520,19 @@ static struct ast_config *config_text_file_load(const char *database, const char
 					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
 					ast_str_reset(lline_buffer);        /* erase the lline buffer */
 				}
-				
+
 				new_buf = buf;
-				if (comment) 
+				if (comment)
 					process_buf = NULL;
 				else
 					process_buf = buf;
-				
+
 				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer) && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
 					/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
 					CB_ADD(&comment_buffer, "\n");       /* add a newline to the comment buffer */
 					continue; /* go get a new line, then */
 				}
-				
+
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
 					if ((comment_p > new_buf) && (*(comment_p - 1) == '\\')) {
 						/* Escaped semicolons aren't comments. */
@@ -1565,7 +1565,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 									CB_ADD(&comment_buffer, ";");
 									CB_ADD_LEN(&comment_buffer, oldptr+1, new_buf-oldptr-1);
 								}
-								
+
 								memmove(oldptr, new_buf, strlen(new_buf) + 1);
 								new_buf = oldptr;
 							} else
@@ -1573,12 +1573,12 @@ static struct ast_config *config_text_file_load(const char *database, const char
 						}
 					} else {
 						if (!comment) {
-							/* If ; is found, and we are not nested in a comment, 
+							/* If ; is found, and we are not nested in a comment,
 							   we immediately stop all comment processing */
 							if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
 								CB_ADD(&lline_buffer, comment_p);
 							}
-							*comment_p = '\0'; 
+							*comment_p = '\0';
 							new_buf = comment_p;
 						} else
 							new_buf = comment_p + 1;
@@ -1587,7 +1587,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment && !process_buf ) {
 					CB_ADD(&comment_buffer, buf);  /* the whole line is a comment, store it */
 				}
-				
+
 				if (process_buf) {
 					char *buffer = ast_strip(process_buf);
 					if (!ast_strlen_zero(buffer)) {
@@ -1645,7 +1645,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		comment_buffer = NULL;
 		lline_buffer = NULL;
 	}
-	
+
 	if (count == 0)
 		return NULL;
 
@@ -1656,11 +1656,11 @@ static struct ast_config *config_text_file_load(const char *database, const char
 /* NOTE: categories and variables each have a file and lineno attribute. On a save operation, these are used to determine
    which file and line number to write out to. Thus, an entire hierarchy of config files (via #include statements) can be
    recreated. BUT, care must be taken to make sure that every cat and var has the proper file name stored, or you may
-   be shocked and mystified as to why things are not showing up in the files! 
+   be shocked and mystified as to why things are not showing up in the files!
 
    Also, All #include/#exec statements are recorded in the "includes" LL in the ast_config structure. The file name
    and line number are stored for each include, plus the name of the file included, so that these statements may be
-   included in the output files on a file_save operation. 
+   included in the output files on a file_save operation.
 
    The lineno's are really just for relative placement in the file. There is no attempt to make sure that blank lines
    are included to keep the lineno's the same between input and output. The lineno fields are used mainly to determine
@@ -1784,19 +1784,19 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 	} else if (lineno == 0) {
 		/* Line replacements also mess things up */
 		return;
- 	} else if (lineno - precomment_lines - fi->lineno < 5) {
- 		/* Only insert less than 5 blank lines; if anything more occurs,
- 		 * it's probably due to context deletion. */
- 		for (i = fi->lineno; i < lineno - precomment_lines; i++) {
- 			fprintf(fp, "\n");
- 		}
- 	} else {
- 		/* Deletion occurred - insert a single blank line, for separation of
- 		 * contexts. */
- 		fprintf(fp, "\n");
- 	}
- 
- 	fi->lineno = lineno + 1; /* Advance the file lineno */
+	} else if (lineno - precomment_lines - fi->lineno < 5) {
+		/* Only insert less than 5 blank lines; if anything more occurs,
+		 * it's probably due to context deletion. */
+		for (i = fi->lineno; i < lineno - precomment_lines; i++) {
+			fprintf(fp, "\n");
+		}
+	} else {
+		/* Deletion occurred - insert a single blank line, for separation of
+		 * contexts. */
+		fprintf(fp, "\n");
+	}
+
+	fi->lineno = lineno + 1; /* Advance the file lineno */
 }
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
@@ -2060,7 +2060,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 	return 0;
 }
 
-static void clear_config_maps(void) 
+static void clear_config_maps(void)
 {
 	struct ast_config_map *map;
 
@@ -2071,7 +2071,7 @@ static void clear_config_maps(void)
 		config_maps = config_maps->next;
 		ast_free(map);
 	}
-		
+
 	ast_mutex_unlock(&config_lock);
 }
 
@@ -2110,7 +2110,7 @@ static int append_mapping(const char *name, const char *driver, const char *data
 	return 0;
 }
 
-int read_config_maps(void) 
+int read_config_maps(void)
 {
 	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
@@ -2179,15 +2179,15 @@ int read_config_maps(void)
 			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
 			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends", pri);
 			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends", pri);
-		} else 
+		} else
 			append_mapping(v->name, driver, database, table, pri);
 	}
-		
+
 	ast_config_destroy(config);
 	return 0;
 }
 
-int ast_config_engine_register(struct ast_config_engine *new) 
+int ast_config_engine_register(struct ast_config_engine *new)
 {
 	struct ast_config_engine *ptr;
 
@@ -2206,7 +2206,7 @@ int ast_config_engine_register(struct ast_config_engine *new)
 	return 1;
 }
 
-int ast_config_engine_deregister(struct ast_config_engine *del) 
+int ast_config_engine_deregister(struct ast_config_engine *del)
 {
 	struct ast_config_engine *ptr, *last=NULL;
 
@@ -2229,7 +2229,7 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 }
 
 /*! \brief Find realtime engine for realtime family */
-static struct ast_config_engine *find_engine(const char *family, int priority, char *database, int dbsiz, char *table, int tabsiz) 
+static struct ast_config_engine *find_engine(const char *family, int priority, char *database, int dbsiz, char *table, int tabsiz)
 {
 	struct ast_config_engine *eng, *ret = NULL;
 	struct ast_config_map *map;
@@ -2255,7 +2255,7 @@ static struct ast_config_engine *find_engine(const char *family, int priority, c
 	}
 
 	ast_mutex_unlock(&config_lock);
-	
+
 	/* if we found a mapping, but the engine is not available, then issue a warning */
 	if (map && !ret)
 		ast_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
@@ -2273,7 +2273,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	char db[256];
 	char table[256];
 	struct ast_config_engine *loader = &text_file_engine;
-	struct ast_config *result; 
+	struct ast_config *result;
 
 	/* The config file itself bumps include_level by 1 */
 	if (cfg->max_include_level > 0 && cfg->include_level == cfg->max_include_level + 1) {
@@ -2761,7 +2761,7 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 			"extract inaddr from [%s] gives [%s:%d](%d)\n",
 			arg, ast_inet_ntoa(sa->sin_addr),
 			ntohs(sa->sin_port), error);
-	    	break;
+		break;
 	    }
 	}
 	va_end(ap);
@@ -2783,7 +2783,7 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 	case CLI_GENERATE:
 		return NULL;
 	}
-	
+
 	ast_mutex_lock(&config_lock);
 
 	if (!config_engine_list) {
@@ -2799,7 +2799,7 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 			}
 		}
 	}
-	
+
 	ast_mutex_unlock(&config_lock);
 
 	return CLI_SUCCESS;

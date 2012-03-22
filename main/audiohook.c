@@ -226,7 +226,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	/* Ensure the factory is able to give us the samples we want */
 	if (samples > ast_slinfactory_available(factory))
 		return NULL;
-	
+
 	/* Read data in from factory */
 	if (!ast_slinfactory_read(factory, buf, samples))
 		return NULL;
@@ -356,10 +356,10 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 		samples_converted = samples * (ast_format_rate(format) / (float) audiohook->hook_internal_samp_rate);
 	}
 
-	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ? 
-		audiohook_read_frame_both(audiohook, samples_converted, read_reference, write_reference) : 
-		audiohook_read_frame_single(audiohook, samples_converted, direction)))) { 
-		return NULL; 
+	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
+		audiohook_read_frame_both(audiohook, samples_converted, read_reference, write_reference) :
+		audiohook_read_frame_single(audiohook, samples_converted, direction)))) {
+		return NULL;
 	}
 
 	/* If they don't want signed linear back out, we'll have to send it through the translation path */
@@ -536,7 +536,7 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 		if (audiohook_list->out_translate[i].trans_pvt)
 			ast_translator_free_path(audiohook_list->out_translate[i].trans_pvt);
 	}
-	
+
 	/* Free ourselves */
 	ast_free(audiohook_list);
 
@@ -770,7 +770,7 @@ static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook
  *         because no translation to SLINEAR audio was required.
  * Part_3: Translate end_frame's audio back into the format of start frame if necessary.  This
  *         is only necessary if manipulation of middle_frame occurred.
- *         
+ *
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks
  * \param direction Direction frame is coming in from
@@ -929,9 +929,9 @@ void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook)
 	wait = ast_tvadd(ast_tvnow(), ast_samp2tv(50000, 1000));
 	ts.tv_sec = wait.tv_sec;
 	ts.tv_nsec = wait.tv_usec * 1000;
-	
+
 	ast_cond_timedwait(&audiohook->trigger, &audiohook->lock, &ts);
-	
+
 	return;
 }
 

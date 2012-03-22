@@ -20,7 +20,7 @@
  *
  * \brief Translate via the use of pseudo channels
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -141,7 +141,7 @@ static int add_format2index(enum ast_format_id id)
 	return 0;
 }
 
-/*! 
+/*!
  * \internal
  * \brief converts index value back to format id
  */

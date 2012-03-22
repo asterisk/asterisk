@@ -68,7 +68,7 @@ static int timing_holder_cmp(void *_h1, void *_h2)
 	}
 }
 
-void *_ast_register_timing_interface(struct ast_timing_interface *funcs, 
+void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
 				     struct ast_module *mod)
 {
 	struct timing_holder *h;
@@ -237,7 +237,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		if (sscanf(a->argv[2], "%30u", &rate) == 1) {
 			test_rate = rate;
 		} else {
-			ast_cli(a->fd, "Invalid rate '%s', using default of %u\n", a->argv[2], test_rate);	
+			ast_cli(a->fd, "Invalid rate '%s', using default of %u\n", a->argv[2], test_rate);
 		}
 	}
 
@@ -275,7 +275,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	ast_timer_close(timer);
 
-	ast_cli(a->fd, "It has been %" PRIi64 " milliseconds, and we got %d timer ticks\n", 
+	ast_cli(a->fd, "It has been %" PRIi64 " milliseconds, and we got %d timer ticks\n",
 		ast_tvdiff_ms(end, start), count);
 
 	return CLI_SUCCESS;

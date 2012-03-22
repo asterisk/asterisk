@@ -342,7 +342,7 @@ void term_filter_escapes(char *line)
 		if ((i < (len - 2)) &&
 		    (line[i + 1] == 0x5B)) {
 			switch (line[i + 2]) {
-		 	case 0x30:
+			case 0x30:
 			case 0x31:
 			case 0x33:
 				continue;

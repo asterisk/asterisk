@@ -91,7 +91,7 @@ static void *answer_exec_enable(void *data)
 	/* Create new data structure */
 	if (!(answer_exec = ast_calloc(1, sizeof(*answer_exec))))
 		return NULL;
-	
+
 	/* Parse out application and arguments */
 	if ((args = strchr(app, ','))) {
 		*args++ = '\0';
@@ -568,7 +568,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		set_state(dial, AST_DIAL_RESULT_RINGING);
 		if (chan)
 			ast_indicate(chan, AST_CONTROL_RINGING);
-	} else if (chan && dial->options[AST_DIAL_OPTION_MUSIC] && 
+	} else if (chan && dial->options[AST_DIAL_OPTION_MUSIC] &&
 		!ast_strlen_zero(dial->options[AST_DIAL_OPTION_MUSIC])) {
 		char *original_moh = ast_strdupa(ast_channel_musicclass(chan));
 		ast_indicate(chan, -1);
@@ -680,7 +680,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			channel->is_running_app = 0;
 		}
 
-		if (chan && dial->options[AST_DIAL_OPTION_MUSIC] && 
+		if (chan && dial->options[AST_DIAL_OPTION_MUSIC] &&
 			!ast_strlen_zero(dial->options[AST_DIAL_OPTION_MUSIC])) {
 			ast_moh_stop(chan);
 		}
@@ -850,7 +850,7 @@ void ast_dial_hangup(struct ast_dial *dial)
 
 	if (!dial)
 		return;
-	
+
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 		if (channel->owner) {
@@ -875,7 +875,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 
 	if (!dial)
 		return -1;
-	
+
 	/* Hangup and deallocate all the dialed channels */
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dial->channels, channel, list) {
@@ -900,7 +900,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&dial->channels);
- 
+
 	/* Disable any enabled options globally */
 	for (i = 0; i < AST_DIAL_OPTION_MAX; i++) {
 		if (!dial->options[i])
@@ -957,7 +957,7 @@ static struct ast_dial_channel *find_dial_channel(struct ast_dial *dial, int num
 			break;
 	}
 	AST_LIST_UNLOCK(&dial->channels);
-	
+
 	return channel;
 }
 

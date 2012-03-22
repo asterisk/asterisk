@@ -20,7 +20,7 @@
  *
  * \brief Channel Variables
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -36,7 +36,7 @@ struct ast_var_t *_ast_var_assign(const char *name, const char *value, const cha
 #else
 struct ast_var_t *ast_var_assign(const char *name, const char *value)
 #endif
-{	
+{
 	struct ast_var_t *var;
 	int name_len = strlen(name) + 1;
 	int value_len = strlen(value) + 1;
@@ -52,10 +52,10 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 	ast_copy_string(var->name, name, name_len);
 	var->value = var->name + name_len;
 	ast_copy_string(var->value, value, value_len);
-	
+
 	return var;
-}	
-	
+}
+
 void ast_var_delete(struct ast_var_t *var)
 {
 	if (var)

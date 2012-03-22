@@ -23,7 +23,7 @@
  * \brief DNS SRV Record Lookup Support for Asterisk
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \arg See also \ref AstENUM
  *
  * \note Funding provided by nic.at
@@ -99,14 +99,14 @@ static int parse_srv(unsigned char *answer, int len, unsigned char *msg, struct 
 
 	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(repl))))
 		return -1;
-	
+
 	entry->priority = ntohs(srv->priority);
 	entry->weight = ntohs(srv->weight);
 	entry->port = ntohs(srv->port);
 	strcpy(entry->host, repl);
 
 	*result = entry;
-	
+
 	return 0;
 }
 

@@ -1,7 +1,7 @@
 /*! \file
  *
  * \brief Based on the RFC 6234
- * 
+ *
  * Copyright (c) 2011 IETF Trust and the persons identified as
  * authors of the code.  All rights reserved.
  *

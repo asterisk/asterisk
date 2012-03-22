@@ -832,17 +832,17 @@ static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_c
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "logger rotate";
-		e->usage = 
+		e->usage =
 			"Usage: logger rotate\n"
 			"       Rotates and Reopens the log files.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return NULL;	
+		return NULL;
 	}
 	if (reload_logger(1, NULL)) {
 		ast_cli(a->fd, "Failed to reload the logger and rotate log files\n");
 		return CLI_FAILURE;
-	} 
+	}
 	return CLI_SUCCESS;
 }
 
@@ -855,7 +855,7 @@ static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct as
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "logger set level {DEBUG|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}";
-		e->usage = 
+		e->usage =
 			"Usage: logger set level {DEBUG|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}\n"
 			"       Set a specific log level to enabled/disabled for this console.\n";
 		return NULL;
@@ -896,12 +896,12 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "logger show channels";
-		e->usage = 
+		e->usage =
 			"Usage: logger show channels\n"
 			"       List configured logger channels.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return NULL;	
+		return NULL;
 	}
 	ast_cli(a->fd, FORMATL, "Channel", "Type", "Status");
 	ast_cli(a->fd, "Configuration\n");
@@ -1291,7 +1291,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 #ifdef HAVE_BKTR
 
-struct ast_bt *ast_bt_create(void) 
+struct ast_bt *ast_bt_create(void)
 {
 	struct ast_bt *bt = ast_calloc(1, sizeof(*bt));
 	if (!bt) {
@@ -1574,7 +1574,7 @@ void ast_verbose(const char *fmt, ...)
 	va_end(ap);
 }
 
-int ast_register_verbose(void (*v)(const char *string)) 
+int ast_register_verbose(void (*v)(const char *string))
 {
 	struct verb *verb;
 
@@ -1586,7 +1586,7 @@ int ast_register_verbose(void (*v)(const char *string))
 	AST_RWLIST_WRLOCK(&verbosers);
 	AST_RWLIST_INSERT_HEAD(&verbosers, verb, list);
 	AST_RWLIST_UNLOCK(&verbosers);
-	
+
 	return 0;
 }
 
@@ -1604,7 +1604,7 @@ int ast_unregister_verbose(void (*v)(const char *string))
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&verbosers);
-	
+
 	return cur ? 0 : -1;
 }
 

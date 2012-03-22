@@ -1996,7 +1996,7 @@ int ast_xmldoc_load_documentation(void)
 			}
 		}
 		if (duplicate || strchr(globbuf.gl_pathv[i], '*')) {
-		/* skip duplicates as well as pathnames not found 
+		/* skip duplicates as well as pathnames not found
 		 * (due to use of GLOB_NOCHECK in xml_pathmatch) */
 			continue;
 		}

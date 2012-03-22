@@ -154,7 +154,7 @@ int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *fu
 }
 
 int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
-                                           const char* mutex_name, ast_mutex_t *t)
+				const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
 
@@ -286,7 +286,7 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 }
 
 int __ast_pthread_mutex_trylock(const char *filename, int lineno, const char *func,
-                                              const char* mutex_name, ast_mutex_t *t)
+				const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
 

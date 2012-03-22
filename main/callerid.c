@@ -18,9 +18,9 @@
 
 /*! \file
  *
- * \brief CallerID Generation support 
+ * \brief CallerID Generation support
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -53,7 +53,7 @@ struct callerid_state {
 	int sawflag;
 	int len;
 
-	int skipflag; 
+	int skipflag;
 	unsigned short crc;
 };
 
@@ -81,14 +81,14 @@ static inline void gen_tones(unsigned char *buf, int len, struct ast_format *cod
 		*cr1 = t;
 		t = 2.0 - (*cr1 * *cr1 + *ci1 * *ci1);
 		*cr1 *= t;
-		*ci1 *= t; 	
+		*ci1 *= t;
 
 		t = *cr2 * ddr2 - *ci2 * ddi2;
 		*ci2 = *cr2 * ddi2 + *ci2 * ddr2;
 		*cr2 = t;
 		t = 2.0 - (*cr2 * *cr2 + *ci2 * *ci2);
 		*cr2 *= t;
-		*ci2 *= t; 	
+		*ci2 *= t;
 		buf[x] = AST_LIN2X((*cr1 + *cr2) * 2048.0);
 	}
 }
@@ -103,7 +103,7 @@ static inline void gen_tone(unsigned char *buf, int len, struct ast_format *code
 		*cr1 = t;
 		t = 2.0 - (*cr1 * *cr1 + *ci1 * *ci1);
 		*cr1 *= t;
-		*ci1 *= t; 	
+		*ci1 *= t;
 		buf[x] = AST_LIN2X(*cr1 * 8192.0);
 	}
 }
@@ -129,12 +129,12 @@ struct callerid_state *callerid_new(int cid_signalling)
 
 	if ((cid = ast_calloc(1, sizeof(*cid)))) {
 #ifdef INTEGER_CALLERID
-		cid->fskd.ispb = 7;          	/* 1200 baud */	
+		cid->fskd.ispb = 7;          	/* 1200 baud */
 		/* Set up for 1200 / 8000 freq *32 to allow ints */
 		cid->fskd.pllispb  = (int)(8000 * 32  / 1200);
 		cid->fskd.pllids   = cid->fskd.pllispb/32;
 		cid->fskd.pllispb2 = cid->fskd.pllispb/2;
-		
+
 		cid->fskd.icont = 0;           /* PLL REset */
 		/* cid->fskd.hdlc = 0; */     	/* Async */
 		cid->fskd.nbit = 8;           	/* 8 bits */
@@ -208,14 +208,14 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		*flags = CID_UNKNOWN_NUMBER;
 		return;
 	}
-	
+
 	/* Detect protocol and special types */
 	if (cidstring[0] == 'B') {
 		/* Handle special codes */
 		code = atoi(&cidstring[1]);
 		if (code == 0)
 			*flags = CID_UNKNOWN_NUMBER;
-		else if (code == 10) 
+		else if (code == 10)
 			*flags = CID_PRIVATE_NUMBER;
 		else
 			ast_debug(1, "Unknown DTMF code %d\n", code);
@@ -286,7 +286,7 @@ static unsigned short calc_crc(unsigned short crc, unsigned char data)
 	for (i = 0; i < CHAR_BIT; i++) {
 		org <<= 1;
 		dst >>= 1;
-		if (org & 0x100) 
+		if (org & 0x100)
 			dst |= 0x80;
 	}
 	data = (unsigned char) dst;
@@ -297,7 +297,7 @@ static unsigned short calc_crc(unsigned short crc, unsigned char data)
 		else
 			crc <<= 1 ;
 	}
-   	return crc;
+	return crc;
 }
 
 int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, struct ast_format *codec)
@@ -315,7 +315,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen / 2;
 
-	for (x = 0; x < len; x++) 
+	for (x = 0; x < len; x++)
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 
 	while (mylen >= 160) {
@@ -367,24 +367,24 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 				}
 				break;
 			case 1: /* SOH */
-				if (b == 0x01) 
+				if (b == 0x01)
 					cid->sawflag = 2;
 				break ;
 			case 2: /* HEADER */
-				if (b == 0x07) 
+				if (b == 0x07)
 					cid->sawflag = 3;
 				break;
 			case 3: /* STX */
-				if (b == 0x02) 
+				if (b == 0x02)
 					cid->sawflag = 4;
 				break;
 			case 4: /* SERVICE TYPE */
-				if (b == 0x40) 
+				if (b == 0x40)
 					cid->sawflag = 5;
 				break;
 			case 5: /* Frame Length */
 				cid->sawflag = 6;
-				break;	
+				break;
 			case 6: /* NUMBER TYPE */
 				cid->sawflag = 7;
 				cid->pos = 0;
@@ -418,7 +418,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 				if (cid->crc != 0) {
 					ast_log(LOG_WARNING, "crc checksum error\n") ;
 					return -1;
-				} 
+				}
 				/* extract caller id data */
 				for (x = 0; x < cid->pos;) {
 					switch (cid->rawdata[x++]) {
@@ -432,9 +432,9 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						break;
 					case 0x21: /* additional information */
 						/* length */
-						x++; 
+						x++;
 						/* number type */
-						switch (cid->rawdata[x]) { 
+						switch (cid->rawdata[x]) {
 						case 0x00: /* unknown */
 						case 0x01: /* international number */
 						case 0x02: /* domestic number */
@@ -446,11 +446,11 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 							ast_debug(2, "cid info:#1=%X\n", cid->rawdata[x]);
 							break ;
 						}
-						x++; 
+						x++;
 						/* numbering plan octed 4 */
-						x++; 
+						x++;
 						/* numbering plan octed 5 */
-						switch (cid->rawdata[x]) { 
+						switch (cid->rawdata[x]) {
 						case 0x00: /* unknown */
 						case 0x01: /* recommendation E.164 ISDN */
 						case 0x03: /* recommendation X.121 */
@@ -462,11 +462,11 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 							ast_debug(2, "cid info:#2=%X\n", cid->rawdata[x]);
 							break ;
 						}
-						x++; 
+						x++;
 						break ;
 					case 0x04: /* no callerid reason */
 						/* length */
-						x++; 
+						x++;
 						/* no callerid reason code */
 						switch (cid->rawdata[x]) {
 						case 'P': /* caller id denied by user */
@@ -477,7 +477,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 							ast_debug(2, "no cid reason:%c\n", cid->rawdata[x]);
 							break ;
 						}
-						x++; 
+						x++;
 						break ;
 					case 0x09: /* dialed number */
 						/* length */
@@ -534,7 +534,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 		cid->oldlen = mylen * 2;
 	} else
 		cid->oldlen = 0;
-	
+
 	return 0;
 }
 
@@ -553,7 +553,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 
-	for (x = 0; x < len; x++) 
+	for (x = 0; x < len; x++)
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 	while (mylen >= 160) {
 		olen = mylen;
@@ -623,7 +623,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 					cid->sawflag = 0;
 					break;
 				}
-		
+
 				cid->number[0] = '\0';
 				cid->name[0] = '\0';
 				/* Update flags */
@@ -643,7 +643,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 							res = cid->rawdata[x];
 							if (res > 32) {
 								ast_log(LOG_NOTICE, "Truncating long caller ID number from %d bytes to 32\n", cid->rawdata[x]);
-								res = 32; 
+								res = 32;
 							}
 							if (ast_strlen_zero(cid->number)) {
 								memcpy(cid->number, cid->rawdata + x + 1, res);
@@ -658,7 +658,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 							res = cid->rawdata[x];
 							if (res > 32) {
 								ast_log(LOG_NOTICE, "Truncating long caller ID name from %d bytes to 32\n", cid->rawdata[x]);
-								res = 32; 
+								res = 32;
 							}
 							memcpy(cid->name, cid->rawdata + x + 1, res);
 							cid->name[res] = '\0';
@@ -682,7 +682,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 							ast_log(LOG_NOTICE, "IE %d has bad field length of %d at offset %d\n", cid->rawdata[x-1], cid->rawdata[x], x);
 							/* Try again */
 							cid->sawflag = 0;
-							break; 	/* Exit the loop */
+							break;	/* Exit the loop */
 						}
 						x += cid->rawdata[x];
 						x++;
@@ -743,9 +743,9 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 
 	/* Get the time */
 	ast_localtime(&now, &tm, NULL);
-	
+
 	ptr = msg;
-	
+
 	/* Format time and message header */
 	res = snprintf(ptr, size, "\001\010%02d%02d%02d%02d", tm.tm_mon + 1,
 				tm.tm_mday, tm.tm_hour, tm.tm_min);
@@ -801,7 +801,7 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 		size -= i;
 	}
 	return (ptr - msg);
-	
+
 }
 
 int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct ast_format *codec,
@@ -815,20 +815,20 @@ int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct 
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
-	
+
 	if (type == CID_MWI_TYPE_MDMF_FULL) {
 		/* MDMF Message waiting with date, number, name and MWI parameter */
 		msg[0] = 0x82;
 
 		/* put date, number info at the right place */
-		len = callerid_genmsg(msg+2, sizeof(msg)-2, number, name, flags); 
-		
+		len = callerid_genmsg(msg+2, sizeof(msg)-2, number, name, flags);
+
 		/* length of MDMF CLI plus Message Waiting Structure */
 		msg[1] = len+3;
-		
+
 		/* Go to the position to write to */
 		len = len+2;
-		
+
 		/* "Message Waiting Parameter" */
 		msg[len++] = 0x0b;
 		/* Length of IE is one */
@@ -838,7 +838,7 @@ int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct 
 			msg[len++] = 0xff;
 		else
 			msg[len++] = 0x00;
-		
+
 	} else if (type == CID_MWI_TYPE_MDMF) {
 		/* MDMF Message waiting only */
 		/* same as above except that the we only put MWI parameter */
@@ -931,7 +931,7 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 	/* Send 50 more ms of marks */
 	for (x = 0; x < 50; x++)
 		PUT_CLID_MARKMS;
-	
+
 	return bytes;
 }
 
@@ -1076,7 +1076,7 @@ char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *nu
 		unknown = "<unknown>";
 	if (name && num)
 		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
-	else if (name) 
+	else if (name)
 		ast_copy_string(buf, name, bufsiz);
 	else if (num)
 		ast_copy_string(buf, num, bufsiz);

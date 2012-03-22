@@ -20,7 +20,7 @@
  *
  * \brief Generic File Format Support.
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -89,7 +89,7 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 		int align = (char *)&p.b - (char *)&p.a;
 		tmp->buf_size = ((f->buf_size + align - 1) / align) * align;
 	}
-	
+
 	memset(&tmp->list, 0, sizeof(tmp->list));
 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
@@ -159,7 +159,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			if (fs->vfs)
 				return ast_writestream(fs->vfs, f);
 			/* else ignore */
-			return 0;				
+			return 0;
 		}
 	} else if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
@@ -167,7 +167,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	}
 	if (ast_format_cmp(&f->subclass.format, &fs->fmt->format) != AST_FORMAT_CMP_NOT_EQUAL) {
 		res =  fs->fmt->write(fs, f);
-		if (res < 0) 
+		if (res < 0)
 			ast_log(LOG_WARNING, "Natural write failed\n");
 		else if (res > 0)
 			ast_log(LOG_WARNING, "Huh??\n");
@@ -178,7 +178,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			ast_translator_free_path(fs->trans);
 			fs->trans = NULL;
 		}
-		if (!fs->trans) 
+		if (!fs->trans)
 			fs->trans = ast_translator_build_path(&fs->fmt->format, &f->subclass.format);
 		if (!fs->trans)
 			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %s\n",
@@ -426,7 +426,7 @@ enum file_action {
  *	unused for DELETE
  *  optional ast_format_cap holding all the formats found for a file, for EXISTS.
  *	destination file name (const char *) for COPY and RENAME
- * 	struct ast_channel * for OPEN
+ *	struct ast_channel * for OPEN
  * if fmt is NULL, OPEN will return the first matching entry,
  * whereas other functions will run on all matching entries.
  */
@@ -593,7 +593,7 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 /*!
  * \brief helper routine to locate a file with a given format
  * and language preference.
- * 
+ *
  * \note Try preflang, preflang with stripped '_' suffices, or NULL.
  *
  * \note The last parameter(s) point to a buffer of sufficient size,
@@ -666,7 +666,7 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, const char *file
 
 struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char *filename, const char *preflang, int asis)
 {
-	/* 
+	/*
 	 * Use fileexists_core() to find a file in a compatible
 	 * language and format, set up a suitable translator,
 	 * and open the stream.
@@ -830,7 +830,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 				ast_frfree(fr);
 			}
 			goto return_failure;
-		} 
+		}
 
 		if (fr) {
 			ast_frfree(fr);
@@ -868,7 +868,7 @@ static int ast_fsread_audio(const void *data)
 
 	if (res == FSREAD_SUCCESS_SCHED)
 		return 1;
-	
+
 	return 0;
 }
 
@@ -913,7 +913,7 @@ static int ast_fsread_video(const void *data)
 
 	if (res == FSREAD_SUCCESS_SCHED)
 		return 1;
-	
+
 	return 0;
 }
 
@@ -1060,7 +1060,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	struct ast_format_def *f;
 	struct ast_filestream *fs = NULL;
 	char *fn;
-	int format_found = 0;	
+	int format_found = 0;
 
 	AST_RWLIST_RDLOCK(&formats);
 
@@ -1068,7 +1068,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		fs = NULL;
 		if (!exts_compare(f->exts, type))
 			continue;
-		else 
+		else
 			format_found = 1;
 
 		fn = build_filename(filename, type);
@@ -1083,7 +1083,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 			fs = NULL;
 			bfile = NULL;
 			ast_free(fn);
-			break;				
+			break;
 		}
 		/* found it */
 		fs->trans = NULL;
@@ -1117,12 +1117,12 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
 	/* We really can't use O_APPEND as it will break WAV header updates */
-	if (flags & O_APPEND) { 
+	if (flags & O_APPEND) {
 		flags &= ~O_APPEND;
 	} else {
 		myflags = O_TRUNC;
 	}
-	
+
 	myflags |= O_WRONLY | O_CREAT;
 
 	/* XXX need to fix this - we should just do the fopen,
@@ -1149,7 +1149,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 				fd = -1;
 			}
 		}
-		
+
 		if (ast_opt_cache_record_files && (fd > -1)) {
 			char *c;
 
@@ -1334,7 +1334,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						ast_frfree(fr);
 						ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 						return res;
-					}					
+					}
 				}
 				break;
 			case AST_FRAME_CONTROL:
@@ -1428,7 +1428,7 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 		}
 	}
 	return res;
-} 
+}
 
 char *ast_format_str_reduce(char *fmts)
 {

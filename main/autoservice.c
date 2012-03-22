@@ -21,7 +21,7 @@
  *
  * \brief Automatic channel service routines
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  * \author Russell Bryant <russell@digium.com>
  */
 
@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct asent {
 	struct ast_channel *chan;
 	/*! This gets incremented each time autoservice gets started on the same
-	 *  channel.  It will ensure that it doesn't actually get stopped until 
+	 *  channel.  It will ensure that it doesn't actually get stopped until
 	 *  it gets stopped for the last time. */
 	unsigned int use_count;
 	unsigned int orig_end_dtmf_flag:1;
@@ -141,11 +141,11 @@ static void *autoservice_run(void *ign)
 		if (defer_frame) {
 			for (i = 0; i < x; i++) {
 				struct ast_frame *dup_f;
-				
+
 				if (mons[i] != chan) {
 					continue;
 				}
-				
+
 				if (defer_frame != f) {
 					if ((dup_f = ast_frdup(defer_frame))) {
 						AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
@@ -158,7 +158,7 @@ static void *autoservice_run(void *ign)
 						AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
 					}
 				}
-				
+
 				break;
 			}
 		} else if (f) {
@@ -192,7 +192,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 
 	if (!(as = ast_calloc(1, sizeof(*as))))
 		return -1;
-	
+
 	/* New entry created */
 	as->chan = chan;
 	as->use_count = 1;
@@ -247,7 +247,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 
 	/* Find the entry, but do not free it because it still can be in the
 	   autoservice thread array */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {
 		if (as->chan == chan) {
 			as->use_count--;
 			if (as->use_count < 1) {

@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef DEBUG_IO
 #define DEBUG DEBUG_M
 #else
-#define DEBUG(a) 
+#define DEBUG(a)
 #endif
 
 /*! \brief
@@ -44,8 +44,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 struct io_rec {
 	ast_io_cb callback;		/*!< What is to be called */
-	void *data; 			/*!< Data to be passed */
-	int *id; 			/*!< ID number */
+	void *data;			/*!< Data to be passed */
+	int *id;			/*!< ID number */
 };
 
 /* These two arrays are keyed with
@@ -75,12 +75,12 @@ struct io_context *io_context_create(void)
 
 	if (!(tmp = ast_malloc(sizeof(*tmp))))
 		return NULL;
-	
+
 	tmp->needshrink = 0;
 	tmp->fdcnt = 0;
 	tmp->maxfdcnt = GROW_SHRINK_SIZE/2;
 	tmp->current_ioc = -1;
-	
+
 	if (!(tmp->fds = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->fds)))) {
 		ast_free(tmp);
 		tmp = NULL;
@@ -107,7 +107,7 @@ void io_context_destroy(struct io_context *ioc)
 }
 
 /*! \brief
- * Grow the size of our arrays.  
+ * Grow the size of our arrays.
  * \return 0 on success or -1 on failure
  */
 static int io_grow(struct io_context *ioc)
@@ -134,7 +134,7 @@ static int io_grow(struct io_context *ioc)
 		}
 	} else {
 		/*
-		 * Memory allocation failure.  We return to the old size, and 
+		 * Memory allocation failure.  We return to the old size, and
 		 * return a failure
 		 */
 		ioc->maxfdcnt -= GROW_SHRINK_SIZE;
@@ -147,7 +147,7 @@ static int io_grow(struct io_context *ioc)
 /*! \brief
  * Add a new I/O entry for this file descriptor
  * with the given event mask, to call callback with
- * data as an argument.  
+ * data as an argument.
  * \return Returns NULL on failure.
  */
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data)
@@ -157,7 +157,7 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	DEBUG(ast_debug(1, "ast_io_add()\n"));
 
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
-		/* 
+		/*
 		 * We don't have enough space for this entry.  We need to
 		 * reallocate maxfdcnt poll fd's and io_rec's, or back out now.
 		 */
@@ -210,9 +210,9 @@ static int io_shrink(struct io_context *ioc)
 {
 	int getfrom, putto = 0;
 
-	/* 
+	/*
 	 * Bring the fields from the very last entry to cover over
-	 * the entry we are removing, then decrease the size of the 
+	 * the entry we are removing, then decrease the size of the
 	 * arrays by one.
 	 */
 	for (getfrom = 0; getfrom < ioc->fdcnt; getfrom++) {
@@ -255,7 +255,7 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 			return 0;
 		}
 	}
-	
+
 	ast_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
 
 	return -1;
@@ -313,7 +313,7 @@ void ast_io_dump(struct io_context *ioc)
 	ast_debug(1, "| ID    FD     Callback    Data        Events  |\n");
 	ast_debug(1, "+------+------+-----------+-----------+--------+\n");
 	for (x = 0; x < ioc->fdcnt; x++) {
-		ast_debug(1, "| %.4d | %.4d | %p | %p | %.6x |\n", 
+		ast_debug(1, "| %.4d | %.4d | %p | %p | %.6x |\n",
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,

@@ -1508,9 +1508,9 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 		ast_rtp_codecs_payloads_copy(&tinstance0->codecs, &tinstance1->codecs, tinstance1);
 	}
 
-        if (glue0->update_peer(c0, instance1, vinstance1, tinstance1, cap1, 0)) {
-                ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
-        }
+	if (glue0->update_peer(c0, instance1, vinstance1, tinstance1, cap1, 0)) {
+		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
+	}
 
 	res = 0;
 

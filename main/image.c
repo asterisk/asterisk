@@ -20,7 +20,7 @@
  *
  * \brief Image Management
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -106,7 +106,7 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
 	int fd;
 	int len=0;
 	struct ast_frame *f = NULL;
-	
+
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
 		/* if NULL image format, just pick the first one, otherwise match it. */
@@ -130,7 +130,7 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
 			}
 		}
 		if (found)
-			break;	
+			break;
 	}
 
 	if (found) {
@@ -139,7 +139,7 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
 			if (!found->identify || found->identify(fd)) {
 				/* Reset file pointer */
 				lseek(fd, 0, SEEK_SET);
-				f = found->read_image(fd, len); 
+				f = found->read_image(fd, len);
 			} else
 				ast_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, found->name);
 			close(fd);
@@ -147,9 +147,9 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
 			ast_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
 	} else
 		ast_log(LOG_WARNING, "Image file '%s' not found\n", filename);
-	
+
 	AST_RWLIST_UNLOCK(&imagers);
-	
+
 	return f;
 }
 

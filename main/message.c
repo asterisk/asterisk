@@ -167,7 +167,7 @@ struct ast_msg {
 
 struct ast_msg_tech_holder {
 	const struct ast_msg_tech *tech;
-	/*! 
+	/*!
 	 * \brief A rwlock for this object
 	 *
 	 * a read/write lock must be used to protect the wrapper instead
@@ -757,7 +757,7 @@ int ast_msg_queue(struct ast_msg *msg)
 /*!
  * \internal
  * \brief Find or create a message datastore on a channel
- * 
+ *
  * \pre chan is locked
  *
  * \param chan the relevant channel

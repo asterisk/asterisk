@@ -84,12 +84,12 @@ AST_MUTEX_DEFINE_STATIC(__mutex);
 
 /*! \brief Reentrant replacement for gethostbyname for BSD-based systems.
 \note This
-routine is derived from code originally written and placed in the public 
+routine is derived from code originally written and placed in the public
 domain by Enzo Michelangeli <em@em.no-ip.com> */
 
 static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
-				size_t buflen, struct hostent **result, 
-				int *h_errnop) 
+				size_t buflen, struct hostent **result,
+				int *h_errnop)
 {
 	int hsave;
 	struct hostent *ph;
@@ -184,7 +184,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 #endif
 
-/*! \brief Re-entrant (thread safe) version of gethostbyname that replaces the 
+/*! \brief Re-entrant (thread safe) version of gethostbyname that replaces the
    standard gethostbyname (which is not thread safe)
 */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
@@ -220,7 +220,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
 			return &hp->hp;
 		return NULL;
-		
+
 	}
 #ifdef HAVE_GETHOSTBYNAME_R_5
 	result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
@@ -261,7 +261,7 @@ void ast_sha1_hash(char *output, const char *input)
 	uint8_t Message_Digest[20];
 
 	SHA1Reset(&sha);
-	
+
 	SHA1Input(&sha, (const unsigned char *) input, strlen(input));
 
 	SHA1Result(&sha, Message_Digest);
@@ -284,7 +284,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 		bits += 6;
 		src++;
 		incnt++;
-		/* If we have at least 8 bits left over, take that character 
+		/* If we have at least 8 bits left over, take that character
 		   off the top */
 		if (bits >= 8)  {
 			bits -= 8;
@@ -329,7 +329,7 @@ int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int m
 		}
 	}
 	if (bits && (cnt + 4 <= max)) {
-		/* Add one last character for the remaining bits, 
+		/* Add one last character for the remaining bits,
 		   padding the rest with 0 */
 		byte <<= 24 - bits;
 		*dst++ = base64[(byte >> 18) & 0x3f];
@@ -502,8 +502,8 @@ static int dev_urandom_fd;
 #undef pthread_mutex_init
 #undef pthread_mutex_destroy
 
-/*! 
- * \brief Keep track of which locks a thread holds 
+/*!
+ * \brief Keep track of which locks a thread holds
  *
  * There is an instance of this struct for every active thread
  */
@@ -531,18 +531,18 @@ struct thr_lock_info {
 	 *  The index (num_locks - 1) has the info on the last one in the
 	 *  locks member */
 	unsigned int num_locks;
-	/*! Protects the contents of the locks member 
+	/*! Protects the contents of the locks member
 	 * Intentionally not ast_mutex_t */
 	pthread_mutex_t lock;
 	AST_LIST_ENTRY(thr_lock_info) entry;
 };
 
-/*! 
- * \brief Locked when accessing the lock_infos list 
+/*!
+ * \brief Locked when accessing the lock_infos list
  */
 AST_MUTEX_DEFINE_STATIC(lock_infos_lock);
 /*!
- * \brief A list of each thread's lock info 
+ * \brief A list of each thread's lock info
  */
 static AST_LIST_HEAD_NOLOCK_STATIC(lock_infos, thr_lock_info);
 
@@ -568,8 +568,8 @@ static void lock_info_destroy(void *data)
 			break;
 		}
 
-		ast_log(LOG_ERROR, 
-			"Thread '%s' still has a lock! - '%s' (%p) from '%s' in %s:%d!\n", 
+		ast_log(LOG_ERROR,
+			"Thread '%s' still has a lock! - '%s' (%p) from '%s' in %s:%d!\n",
 			lock_info->thread_name,
 			lock_info->locks[i].lock_name,
 			lock_info->locks[i].lock_addr,
@@ -745,7 +745,7 @@ void ast_remove_lock_info(void *lock_addr)
 
 	if (i < lock_info->num_locks - 1) {
 		/* Not the last one ... *should* be rare! */
-		memmove(&lock_info->locks[i], &lock_info->locks[i + 1], 
+		memmove(&lock_info->locks[i], &lock_info->locks[i + 1],
 			(lock_info->num_locks - (i + 1)) * sizeof(lock_info->locks[0]));
 	}
 
@@ -780,7 +780,7 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 
 	if ((symbols = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
 		int frame_iterator;
-		
+
 		for (frame_iterator = 0; frame_iterator < bt->num_frames; ++frame_iterator) {
 			ast_str_append(str, 0, "\t%s\n", symbols[frame_iterator]);
 		}
@@ -797,27 +797,27 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 	int j;
 	ast_mutex_t *lock;
 	struct ast_lock_track *lt;
-	
-	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-				   lock_info->locks[i].pending > 0 ? "Waiting for " : 
+
+	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n",
+				   lock_info->locks[i].pending > 0 ? "Waiting for " :
 				   lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
-				   lock_info->locks[i].file, 
+				   lock_info->locks[i].file,
 				   locktype2str(lock_info->locks[i].type),
 				   lock_info->locks[i].line_num,
 				   lock_info->locks[i].func, lock_info->locks[i].lock_name,
-				   lock_info->locks[i].lock_addr, 
+				   lock_info->locks[i].lock_addr,
 				   lock_info->locks[i].times_locked);
 #ifdef HAVE_BKTR
 	append_backtrace_information(str, lock_info->locks[i].backtrace);
 #endif
-	
+
 	if (!lock_info->locks[i].pending || lock_info->locks[i].pending == -1)
 		return;
-	
+
 	/* We only have further details for mutexes right now */
 	if (lock_info->locks[i].type != AST_MUTEX)
 		return;
-	
+
 	lock = lock_info->locks[i].lock_addr;
 	lt = lock->track;
 	ast_reentrancy_lock(lt);
@@ -825,14 +825,14 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 		ast_str_append(str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
 					   lt->file[j], lt->lineno[j], lt->func[j]);
 	}
-	ast_reentrancy_unlock(lt);	
+	ast_reentrancy_unlock(lt);
 }
 
 
-/*! This function can help you find highly temporal locks; locks that happen for a 
+/*! This function can help you find highly temporal locks; locks that happen for a
     short time, but at unexpected times, usually at times that create a deadlock,
 	Why is this thing locked right then? Who is locking it? Who am I fighting
-    with for this lock? 
+    with for this lock?
 
 	To answer such questions, just call this routine before you would normally try
 	to aquire a lock. It doesn't do anything if the lock is not acquired. If the
@@ -857,7 +857,7 @@ void log_show_lock(void *this_lock_addr)
 		ast_log(LOG_NOTICE,"Could not create str\n");
 		return;
 	}
-	
+
 
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
@@ -900,7 +900,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;
 	}
 
-	ast_str_append(&str, 0, "\n" 
+	ast_str_append(&str, 0, "\n"
 	               "=======================================================================\n"
 	               "=== Currently Held Locks ==============================================\n"
 	               "=======================================================================\n"
@@ -1081,7 +1081,7 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 	if ((errno = pthread_attr_setdetachstate(attr, PTHREAD_CREATE_DETACHED)))
 		ast_log(LOG_WARNING, "pthread_attr_setdetachstate: %s\n", strerror(errno));
 
-	res = ast_pthread_create_stack(thread, attr, start_routine, data, 
+	res = ast_pthread_create_stack(thread, attr, start_routine, data,
 	                               stacksize, file, caller, line, start_fn);
 
 	if (attr_destroy)
@@ -1152,7 +1152,7 @@ static int ast_wait_for_output(int fd, int timeoutms)
  * If the descriptor is blocking, all assumptions on the guaranteed
  * detail do not apply anymore.
  */
-int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
+int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
 	struct timeval start = ast_tvnow();
 	int res = 0;
@@ -1183,7 +1183,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 
 		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
 		if (elapsed >= timeoutms) {
-			/* We've taken too long to write 
+			/* We've taken too long to write
 			 * This is only an error condition if we haven't finished writing. */
 			res = len ? -1 : 0;
 			break;
@@ -1226,7 +1226,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 
 		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
 		if (elapsed >= timeoutms) {
-			/* We've taken too long to write 
+			/* We've taken too long to write
 			 * This is only an error condition if we haven't finished writing. */
 			n = len ? -1 : 0;
 			break;
@@ -1466,7 +1466,7 @@ long int ast_random(void)
 
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 {
- 	char *dataPut = start;
+	char *dataPut = start;
 	int inEscape = 0;
 	int inQuotes = 0;
 
@@ -1818,7 +1818,7 @@ void *__ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_siz
 	void *allocation;
 	unsigned int x;
 
-#if defined(__AST_DEBUG_MALLOC)	
+#if defined(__AST_DEBUG_MALLOC)
 	if (!(allocation = __ast_calloc(num_structs, size_to_alloc, file, lineno, func))) {
 		return NULL;
 	}
@@ -1925,7 +1925,7 @@ void ast_enable_packet_fragmentation(int sock)
 {
 #if defined(HAVE_IP_MTU_DISCOVER)
 	int val = IP_PMTUDISC_DONT;
-	
+
 	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
 		ast_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
 #endif /* HAVE_IP_MTU_DISCOVER */

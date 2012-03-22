@@ -142,7 +142,7 @@ static inline size_t __ast_sizeof_region(void *ptr)
 	int hash = HASH(ptr);
 	struct ast_region *reg;
 	size_t len = 0;
-	
+
 	ast_mutex_lock(&reglock);
 	for (reg = regions[hash]; reg; reg = reg->next) {
 		if (reg->data == ptr) {
@@ -191,42 +191,42 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 		}
 		free(reg);
 	} else {
-		astmm_log("WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",	
+		astmm_log("WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",
 			ptr, func, file, lineno);
 	}
 }
 
-void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
+void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
-	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 0))) 
+	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 0)))
 		memset(ptr, 0, size * nmemb);
 
 	return ptr;
 }
 
-void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
+void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
-	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 1))) 
+	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 1)))
 		memset(ptr, 0, size * nmemb);
 
 	return ptr;
 }
 
-void *__ast_malloc(size_t size, const char *file, int lineno, const char *func) 
+void *__ast_malloc(size_t size, const char *file, int lineno, const char *func)
 {
 	return __ast_alloc_region(size, FUNC_MALLOC, file, lineno, func, 0);
 }
 
-void __ast_free(void *ptr, const char *file, int lineno, const char *func) 
+void __ast_free(void *ptr, const char *file, int lineno, const char *func)
 {
 	__ast_free_region(ptr, file, lineno, func);
 }
 
-void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func) 
+void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
 {
 	void *tmp;
 	size_t len = 0;
@@ -246,11 +246,11 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 		memcpy(tmp, ptr, len);
 		__ast_free_region(ptr, file, lineno, func);
 	}
-	
+
 	return tmp;
 }
 
-char *__ast_strdup(const char *s, const char *file, int lineno, const char *func) 
+char *__ast_strdup(const char *s, const char *file, int lineno, const char *func)
 {
 	size_t len;
 	void *ptr;
@@ -265,7 +265,7 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 	return ptr;
 }
 
-char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func) 
+char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
 {
 	size_t len;
 	void *ptr;
@@ -303,7 +303,7 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	return size;
 }
 
-int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
+int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func)
 {
 	int size;
 	va_list ap2;
@@ -355,7 +355,7 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 				fence = (unsigned int *)(reg->data + reg->len);
 				if (reg->fence != FENCE_MAGIC) {
 					astmm_log("WARNING: Low fence violation at %p, "
-						"in %s of %s, line %d\n", reg->data, 
+						"in %s of %s, line %d\n", reg->data,
 						reg->func, reg->file, reg->lineno);
 				}
 				if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
@@ -364,8 +364,8 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 				}
 			}
 			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(a->fd, "%10d bytes allocated%s in %20s at line %5d of %s\n", 
-					(int) reg->len, reg->cache ? " (cache)" : "", 
+				ast_cli(a->fd, "%10d bytes allocated%s in %20s at line %5d of %s\n",
+					(int) reg->len, reg->cache ? " (cache)" : "",
 					reg->func, reg->lineno, reg->file);
 				len += reg->len;
 				if (reg->cache)
@@ -375,12 +375,12 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 		}
 	}
 	ast_mutex_unlock(&reglock);
-	
+
 	if (cache_len)
 		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
 	else
 		ast_cli(a->fd, "%d bytes allocated in %d allocations\n", len, count);
-	
+
 	return CLI_SUCCESS;
 }
 
@@ -399,7 +399,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		int count;
 		struct file_summary *next;
 	} *list = NULL, *cur;
-	
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "memory show summary";
@@ -412,7 +412,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		return NULL;
 	}
 
-	if (a->argc > 3) 
+	if (a->argc > 3)
 		fn = a->argv[3];
 
 	ast_mutex_lock(&reglock);
@@ -440,7 +440,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		}
 	}
 	ast_mutex_unlock(&reglock);
-	
+
 	/* Dump the whole list */
 	for (cur = list; cur; cur = cur->next) {
 		len += cur->len;
@@ -448,18 +448,18 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		count += cur->count;
 		if (cur->cache_len) {
 			if (fn) {
-				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n",
 					cur->len, cur->cache_len, cur->count, cur->fn, fn);
 			} else {
-				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n",
 					cur->len, cur->cache_len, cur->count, cur->fn);
 			}
 		} else {
 			if (fn) {
-				ast_cli(a->fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+				ast_cli(a->fd, "%10d bytes in %d allocations in function '%s' of '%s'\n",
 					cur->len, cur->count, cur->fn, fn);
 			} else {
-				ast_cli(a->fd, "%10d bytes in %d allocations in file '%s'\n", 
+				ast_cli(a->fd, "%10d bytes in %d allocations in file '%s'\n",
 					cur->len, cur->count, cur->fn);
 			}
 		}
@@ -488,11 +488,11 @@ void __ast_mm_init(void)
 	}
 
 	ast_cli_register_multiple(cli_memory, ARRAY_LEN(cli_memory));
-	
+
 	snprintf(filename, sizeof(filename), "%s/mmlog", ast_config_AST_LOG_DIR);
-	
+
 	ast_verb(1, "Asterisk Malloc Debugger Started (see %s))\n", filename);
-	
+
 	if ((mmlog = fopen(filename, "a+"))) {
 		fprintf(mmlog, "%ld - New session\n", (long)time(NULL));
 		fflush(mmlog);

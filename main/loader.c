@@ -829,7 +829,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the ast_heap is provided (not NULL) the module is found and added to the
  *  heap without running the module's load() function.  By doing this, modules
- *  added to the resource_heap can be initialized later in order by priority. 
+ *  added to the resource_heap can be initialized later in order by priority.
  *
  *  If the ast_heap is not provided, the module's load function will be executed
  *  immediately */
@@ -917,7 +917,7 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 
 	AST_LIST_TRAVERSE(load_order, order, entry) {
 		if (!resource_name_match(order->resource, resource)) {
-			/* Make sure we have the proper setting for the required field 
+			/* Make sure we have the proper setting for the required field
 			   (we might have both load= and required= lines in modules.conf) */
 			order->required |= required;
 			return NULL;
@@ -950,7 +950,7 @@ static int mod_load_cmp(void *a, void *b)
 	return res;
 }
 
-/*! loads modules in order by load_pri, updates mod_count 
+/*! loads modules in order by load_pri, updates mod_count
 	\return -1 on failure to load module, -2 on failure to load required module, otherwise 0
 */
 static int load_resource_list(struct load_order *load_order, unsigned int global_symbols, int *mod_count)
@@ -1154,12 +1154,12 @@ done:
 	}
 
 	AST_LIST_UNLOCK(&module_list);
-	
+
 	/* Tell manager clients that are aggressive at logging in that we're done
 	   loading modules. If there's a DNS problem in chan_sip, we might not
 	   even reach this */
 	manager_event(EVENT_FLAG_SYSTEM, "ModuleLoadReport", "ModuleLoadStatus: Done\r\nModuleSelection: %s\r\nModuleCount: %d\r\n", preload_only ? "Preload" : "All", modulecount);
-	
+
 	return res;
 }
 
@@ -1184,7 +1184,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 
 	if (AST_LIST_TRYLOCK(&module_list))
 		unlock = 0;
- 
+
 	AST_LIST_TRAVERSE(&module_list, cur, entry) {
 		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount, like);
 	}

@@ -1,4 +1,4 @@
-/*! \file 
+/*! \file
   \brief Testing localtime functionality */
 
 #include "localtime.c"

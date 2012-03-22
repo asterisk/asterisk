@@ -49,8 +49,8 @@ static unsigned char cel_enabled;
 /*! \brief CEL is off by default */
 #define CEL_ENABLED_DEFAULT		0
 
-/*! 
- * \brief which events we want to track 
+/*!
+ * \brief which events we want to track
  *
  * \note bit field, up to 64 events
  */
@@ -62,7 +62,7 @@ static int64_t eventset;
  */
 #define CEL_MAX_EVENT_IDS 64
 
-/*! 
+/*!
  * \brief Track no events by default.
  */
 #define CEL_DEFAULT_EVENTS	0

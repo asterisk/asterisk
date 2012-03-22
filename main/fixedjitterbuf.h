@@ -17,10 +17,10 @@
  * at the top of the source tree.
  */
 
-/*! \file 
- * 
+/*! \file
+ *
  * \brief Jitterbuffering algorithm.
- * 
+ *
  */
 
 #ifndef _FIXEDJITTERBUF_H_
@@ -49,7 +49,7 @@ enum {
 struct fixed_jb_conf
 {
 	long jbsize;
- 	long resync_threshold;
+	long resync_threshold;
 };
 
 

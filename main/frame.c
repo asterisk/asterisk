@@ -20,7 +20,7 @@
  *
  * \brief Frame and codec manipulation routines
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -46,15 +46,15 @@ static void frame_cache_cleanup(void *data);
 /*! \brief A per-thread cache of frame headers */
 AST_THREADSTORAGE_CUSTOM(frame_cache, NULL, frame_cache_cleanup);
 
-/*! 
+/*!
  * \brief Maximum ast_frame cache size
  *
  * In most cases where the frame header cache will be useful, the size
  * of the cache will stay very small.  However, it is not always the case that
  * the same thread that allocates the frame will be the one freeing them, so
  * sometimes a thread will never have any frames in its cache, or the cache
- * will never be pulled from.  For the latter case, we limit the maximum size. 
- */ 
+ * will never be pulled from.  For the latter case, we limit the maximum size.
+ */
 #define FRAME_CACHE_MAX_SIZE	10
 
 /*! \brief This is just so ast_frames, a list head struct for holding a list of
@@ -285,7 +285,7 @@ static struct ast_frame *ast_frame_header_new(void)
 #endif
 
 	f->mallocd_hdr_len = sizeof(*f);
-	
+
 	return f;
 }
 
@@ -297,7 +297,7 @@ static void frame_cache_cleanup(void *data)
 
 	while ((f = AST_LIST_REMOVE_HEAD(&frames->list, frame_list)))
 		ast_free(f);
-	
+
 	ast_free(frames);
 }
 #endif
@@ -309,7 +309,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 
 #if !defined(LOW_MEMORY)
 	if (cache && fr->mallocd == AST_MALLOCD_HDR) {
-		/* Cool, only the header is malloc'd, let's just cache those for now 
+		/* Cool, only the header is malloc'd, let's just cache those for now
 		 * to keep things simple... */
 		struct ast_frame_cache *frames;
 
@@ -321,9 +321,9 @@ static void __frame_free(struct ast_frame *fr, int cache)
 		}
 	}
 #endif
-	
+
 	if (fr->mallocd & AST_MALLOCD_DATA) {
-		if (fr->data.ptr) 
+		if (fr->data.ptr)
 			ast_free(fr->data.ptr - fr->offset);
 	}
 	if (fr->mallocd & AST_MALLOCD_SRC) {
@@ -390,7 +390,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	} else {
 		out = fr;
 	}
-	
+
 	if (!(fr->mallocd & AST_MALLOCD_SRC) && fr->src) {
 		if (!(out->src = ast_strdup(fr->src))) {
 			if (out != fr) {
@@ -403,7 +403,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		fr->src = NULL;
 		fr->mallocd &= ~AST_MALLOCD_SRC;
 	}
-	
+
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		if (!fr->datalen) {
 			out->data.uint32 = fr->data.uint32;
@@ -431,7 +431,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	}
 
 	out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA;
-	
+
 	return out;
 }
 
@@ -456,7 +456,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	
+
 #if !defined(LOW_MEMORY)
 	if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames)))) {
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&frames->list, out, frame_list) {
@@ -493,7 +493,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	out->offset = AST_FRIENDLY_OFFSET;
 	if (out->datalen) {
 		out->data.ptr = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
-		memcpy(out->data.ptr, f->data.ptr, out->datalen);	
+		memcpy(out->data.ptr, f->data.ptr, out->datalen);
 	} else {
 		out->data.uint32 = f->data.uint32;
 	}
@@ -541,9 +541,9 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 
 
 	if (!f) {
-		ast_verbose("%s [ %s (NULL) ] [%s]\n", 
+		ast_verbose("%s [ %s (NULL) ] [%s]\n",
 			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)), 
+			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 		return;
 	}
@@ -710,25 +710,25 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
 	}
 	if (!ast_strlen_zero(moreinfo))
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
+		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-			    f->frametype, 
+			    f->frametype,
 			    term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-			    f->subclass.integer, 
+			    f->subclass.integer,
 			    term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 	else
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",  
+		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-			    f->frametype, 
+			    f->frametype,
 			    term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-			    f->subclass.integer, 
+			    f->subclass.integer,
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 }
 
-int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing) 
+int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing)
 {
 	int errors = 0, framems = 0, all = 0, iter_allowing;
 	char *parse = NULL, *this = NULL, *psize = NULL;
@@ -835,7 +835,7 @@ static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
 	int byte = bit / 8;       /* byte containing first bit */
 	int rem = 8 - (bit % 8);  /* remaining bits in first byte */
 	unsigned char ret = 0;
-	
+
 	if (n <= 0 || n > 8)
 		return 0;
 
@@ -858,17 +858,17 @@ static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
 	unsigned char c;
 
 	/* skip up to two wideband frames */
-	if (((len * 8 - off) >= 5) && 
+	if (((len * 8 - off) >= 5) &&
 		get_n_bits_at(data, 1, off)) {
 		c = get_n_bits_at(data, 3, off + 1);
 		off += SpeexWBSubModeSz[c];
 
-		if (((len * 8 - off) >= 5) && 
+		if (((len * 8 - off) >= 5) &&
 			get_n_bits_at(data, 1, off)) {
 			c = get_n_bits_at(data, 3, off + 1);
 			off += SpeexWBSubModeSz[c];
 
-			if (((len * 8 - off) >= 5) && 
+			if (((len * 8 - off) >= 5) &&
 				get_n_bits_at(data, 1, off)) {
 				ast_log(LOG_WARNING, "Encountered corrupt speex frame; too many wideband frames in a row.\n");
 				return -1;
@@ -883,10 +883,10 @@ static int speex_samples(unsigned char *data, int len)
 {
 	static const int SpeexSubModeSz[] = {
 		5, 43, 119, 160,
-		220, 300, 364, 492, 
+		220, 300, 364, 492,
 		79, 0, 0, 0,
 		0, 0, 0, 0 };
-	static const int SpeexInBandSz[] = { 
+	static const int SpeexInBandSz[] = {
 		1, 1, 4, 4,
 		4, 4, 4, 4,
 		8, 8, 16, 16,
@@ -912,9 +912,9 @@ static int speex_samples(unsigned char *data, int len)
 		c = get_n_bits_at(data, 5, bit);
 		bit += 5;
 
-		if (c == 15) { 
+		if (c == 15) {
 			/* terminator */
-			break; 
+			break;
 		} else if (c == 14) {
 			/* in-band signal; next 4 bits contain signal id */
 			c = get_n_bits_at(data, 4, bit);
@@ -1030,7 +1030,7 @@ int ast_codec_get_len(struct ast_format *format, int samples)
 {
 	int len = 0;
 
-	/* XXX Still need speex, and lpc10 XXX */	
+	/* XXX Still need speex, and lpc10 XXX */
 	switch(format->id) {
 	case AST_FORMAT_G723_1:
 		len = (samples / 240) * 20;

@@ -16,7 +16,7 @@
 
 /*! \file
  *
- * \brief Compatibility functions for strsep and strtoq missing on Solaris 
+ * \brief Compatibility functions for strsep and strtoq missing on Solaris
  */
 
 #include "asterisk.h"
@@ -203,7 +203,7 @@ void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tv
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC) 
+#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC)
 int asprintf(char **str, const char *fmt, ...)
 {
 	va_list ap;

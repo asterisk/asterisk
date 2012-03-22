@@ -168,7 +168,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
  * \param prompt The file to stream to the channel
  * \param s The string to read in to.  Must be at least the size of your length
  * \param maxlen How many digits to read (maximum)
- * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
+ * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for
  *      "ludicrous time" (essentially never times out) */
 enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
@@ -1605,7 +1605,7 @@ int ast_unlock_path(const char *path)
 	return r;
 }
 
-int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
+int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path)
 {
 	int silencethreshold;
 	int maxsilence = 0;

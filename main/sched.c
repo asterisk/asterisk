@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		DEBUG_M(a) \
 	} while (0)
 #else
-#define DEBUG(a) 
+#define DEBUG(a)
 #endif
 
 #include <sys/time.h>
@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/heap.h"
 #include "asterisk/threadstorage.h"
 
-/*! 
+/*!
  * \brief Max num of schedule structs
  *
  * \note The max number of schedule structs to keep around
@@ -282,7 +282,7 @@ static void sched_release(struct ast_sched_context *con, struct sched *tmp)
 	 * already have too many cache entries
 	 */
 
-#ifdef SCHED_MAX_CACHE	 
+#ifdef SCHED_MAX_CACHE
 	if (con->schedccnt < SCHED_MAX_CACHE) {
 		AST_LIST_INSERT_HEAD(&con->schedc, tmp, list);
 		con->schedccnt++;
@@ -292,7 +292,7 @@ static void sched_release(struct ast_sched_context *con, struct sched *tmp)
 }
 
 /*! \brief
- * Return the number of milliseconds 
+ * Return the number of milliseconds
  * until the next scheduled event
  */
 int ast_sched_wait(struct ast_sched_context *con)
@@ -320,7 +320,7 @@ int ast_sched_wait(struct ast_sched_context *con)
 /*! \brief
  * Take a sched structure and put it in the
  * queue, such that the soonest event is
- * first in the list. 
+ * first in the list.
  */
 static void schedule(struct ast_sched_context *con, struct sched *s)
 {
@@ -500,7 +500,7 @@ void ast_sched_report(struct ast_sched_context *con, struct ast_str **buf, struc
 	struct sched *cur;
 	int countlist[cbnames->numassocs + 1];
 	size_t heap_size;
-	
+
 	memset(countlist, 0, sizeof(countlist));
 	ast_str_set(buf, 0, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
 
@@ -530,7 +530,7 @@ void ast_sched_report(struct ast_sched_context *con, struct ast_str **buf, struc
 
 	ast_str_append(buf, 0, "   <unknown> : %d\n", countlist[cbnames->numassocs]);
 }
-	
+
 /*! \brief Dump the contents of the scheduler to LOG_DEBUG */
 void ast_sched_dump(struct ast_sched_context *con)
 {
@@ -553,7 +553,7 @@ void ast_sched_dump(struct ast_sched_context *con)
 		struct timeval delta;
 		q = ast_heap_peek(con->sched_heap, x);
 		delta = ast_tvsub(q->when, when);
-		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
+		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n",
 			q->id,
 			q->callback,
 			q->data,
@@ -602,7 +602,7 @@ int ast_sched_runq(struct ast_sched_context *con)
 		 * have removed the first event and the rest is still there,
 		 * so it's permissible for the callback to add new events, but
 		 * trying to delete itself won't work because it isn't in
-		 * the schedule queue.  If that's what it wants to do, it 
+		 * the schedule queue.  If that's what it wants to do, it
 		 * should return 0.
 		 */
 

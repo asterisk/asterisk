@@ -21,7 +21,7 @@
  *
  * \brief Device state management
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  * \author Russell Bryant <russell@digium.com>
  *
  *	\arg \ref AstExtState
@@ -42,12 +42,12 @@
  *	The device state is basically based on the current calls.
  *	If the devicestate engine can find a call from or to the
  *	device, it's in use.
- *	
- *	Some channel drivers implement a callback function for 
+ *
+ *	Some channel drivers implement a callback function for
  *	a better level of reporting device states. The SIP channel
- *	has a complicated system for this, which is improved 
+ *	has a complicated system for this, which is improved
  *	by adding call limits to the configuration.
- * 
+ *
  *	Functions that want to check the status of an extension
  *	register themself as a \b watcher.
  *	Watchers in this system can subscribe either to all extensions
@@ -60,11 +60,11 @@
  *	for app_meetme.c - the conference bridge - and call
  *	parking (metermaids).
  *
- *	There are manly three subscribers to extension states 
+ *	There are manly three subscribers to extension states
  *	within Asterisk:
  *	- AMI, the manager interface
  *	- app_queue.c - the Queue dialplan application
- *	- SIP subscriptions, a.k.a. "blinking lamps" or 
+ *	- SIP subscriptions, a.k.a. "blinking lamps" or
  *	  "buddy lists"
  *
  *	The CLI command "show hints" show last known state
@@ -75,24 +75,24 @@
  *
  *	\section AstDevStateArch Architecture for devicestates
  *
- *	When a channel driver or asterisk app changes state for 
+ *	When a channel driver or asterisk app changes state for
  *	a watched object, it alerts the core. The core queues
  *	a change. When the change is processed, there's a query
  *	sent to the channel driver/provider if there's a function
  *	to handle that, otherwise a channel walk is issued to find
  *	a channel that involves the object.
- *	
+ *
  *	The changes are queued and processed by a separate thread.
- *	This thread calls the watchers subscribing to status 
- *	changes for the object. For manager, this results 
+ *	This thread calls the watchers subscribing to status
+ *	changes for the object. For manager, this results
  *	in events. For SIP, NOTIFY requests.
  *
  *	- Device states
- *		\arg \ref devicestate.c 
- *		\arg \ref devicestate.h 
+ *		\arg \ref devicestate.c
+ *		\arg \ref devicestate.h
  *
  *	\section AstExtStateArch Architecture for extension states
- *	
+ *
  *	Hints are connected to extension. If an extension changes state
  *	it checks the hint devices. If there is a hint, the callbacks into
  *	device states are checked. The aggregated state is set for the hint
@@ -100,17 +100,17 @@
  *
  *	- Extension states
  *		\arg \ref AstENUM ast_extension_states
- *		\arg \ref pbx.c 
- *		\arg \ref pbx.h 
+ *		\arg \ref pbx.c
+ *		\arg \ref pbx.h
  *	- Structures
  *		- \ref ast_state_cb struct.  Callbacks for watchers
  *		- Callback ast_state_cb_type
  *		- \ref ast_hint struct.
- * 	- Functions
+ *	- Functions
  *		- ast_extension_state_add()
  *		- ast_extension_state_del()
  *		- ast_get_hint()
- *	
+ *
  */
 
 #include "asterisk.h"
@@ -206,13 +206,13 @@ static struct {
 static int getproviderstate(const char *provider, const char *address);
 
 /*! \brief Find devicestate as text message for output */
-const char *ast_devstate2str(enum ast_device_state devstate) 
+const char *ast_devstate2str(enum ast_device_state devstate)
 {
 	return devstatestring[devstate][0];
 }
 
 /* Deprecated interface (not prefixed with ast_) */
-const char *devstate2str(enum ast_device_state devstate) 
+const char *devstate2str(enum ast_device_state devstate)
 {
 	return devstatestring[devstate][0];
 }
@@ -257,9 +257,9 @@ enum ast_device_state ast_devstate_val(const char *val)
 	return AST_DEVICE_UNKNOWN;
 }
 
-/*! \brief Find out if device is active in a call or not 
+/*! \brief Find out if device is active in a call or not
 	\note find channels with the device's name in it
-	This function is only used for channels that does not implement 
+	This function is only used for channels that does not implement
 	devicestate natively
 */
 enum ast_device_state ast_parse_device_state(const char *device)
@@ -275,7 +275,7 @@ enum ast_device_state ast_parse_device_state(const char *device)
 	}
 
 	res = (ast_channel_state(chan) == AST_STATE_RINGING) ? AST_DEVICE_RINGING : AST_DEVICE_INUSE;
-	
+
 	chan = ast_channel_unref(chan);
 
 	return res;
@@ -464,9 +464,9 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
 {
 	struct state_change *change;
 
-	/* 
+	/*
 	 * If we know the state change (how nice of the caller of this function!)
-	 * then we can just generate a device state event. 
+	 * then we can just generate a device state event.
 	 *
 	 * Otherwise, we do the following:
 	 *   - Queue an event up to another thread that the state has changed
@@ -503,7 +503,7 @@ int ast_device_state_changed_literal(const char *dev)
 	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, dev);
 }
 
-int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...) 
+int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 {
 	char buf[AST_MAX_EXTENSION];
 	va_list ap;
@@ -515,7 +515,7 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 	return ast_devstate_changed_literal(state, buf);
 }
 
-int ast_device_state_changed(const char *fmt, ...) 
+int ast_device_state_changed(const char *fmt, ...)
 {
 	char buf[AST_MAX_EXTENSION];
 	va_list ap;
@@ -598,7 +598,7 @@ static void process_collection(const char *device, struct change_collection *col
 	ast_devstate_aggregate_init(&agg);
 
 	for (i = 0; i < collection->num_states; i++) {
-		ast_debug(1, "Adding per-server state of '%s' for '%s'\n", 
+		ast_debug(1, "Adding per-server state of '%s' for '%s'\n",
 			ast_devstate2str(collection->states[i].state), device);
 		ast_devstate_aggregate_add(&agg, collection->states[i].state);
 	}
@@ -611,12 +611,12 @@ static void process_collection(const char *device, struct change_collection *col
 	event = ast_event_get_cached(AST_EVENT_DEVICE_STATE,
 		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
 		AST_EVENT_IE_END);
-	
+
 	if (event) {
 		enum ast_device_state old_state;
 
 		old_state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
-		
+
 		ast_event_destroy(event);
 
 		if (state == old_state) {

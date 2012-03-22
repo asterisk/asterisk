@@ -1319,7 +1319,7 @@ static int strings_to_mask(const char *string)
 static struct mansession_session *unref_mansession(struct mansession_session *s)
 {
 	int refcount = ao2_ref(s, -1);
-        if (manager_debug) {
+	if (manager_debug) {
 		ast_debug(1, "Mansession: %p refcount now %d\n", s, refcount - 1);
 	}
 	return s;
@@ -2015,7 +2015,7 @@ static int send_string(struct mansession *s, char *string)
 		s->hook->helper(EVENT_FLAG_HOOKRESPONSE, "HookResponse", string);
 		return 0;
 	}
-       
+
 	if ((res = ast_careful_fwrite(f, fd, string, strlen(string), s->session->writetimeout))) {
 		s->write_error = 1;
 	}
@@ -3185,7 +3185,7 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	const char *varname = astman_get_header(m, "Variable");
 	const char *varval = astman_get_header(m, "Value");
 	int res = 0;
-	
+
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
@@ -3204,7 +3204,7 @@ static int action_setvar(struct mansession *s, const struct message *m)
 		c = ast_channel_unref(c);
 	}
 	if (res == 0) {
-		astman_send_ack(s, m, "Variable Set");	
+		astman_send_ack(s, m, "Variable Set");
 	} else {
 		astman_send_error(s, m, "Variable not set");
 	}
@@ -4310,10 +4310,10 @@ static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
 static int action_filter(struct mansession *s, const struct message *m)
 {
 	const char *filter = astman_get_header(m, "Filter");
-        const char *operation = astman_get_header(m, "Operation");
-        int res;
+	const char *operation = astman_get_header(m, "Operation");
+	int res;
 
-        if (!strcasecmp(operation, "Add")) {
+	if (!strcasecmp(operation, "Add")) {
 		res = manager_add_filter(filter, s->session->whitefilters, s->session->blackfilters);
 
 	        if (res != FILTER_SUCCESS) {
@@ -4330,8 +4330,8 @@ static int action_filter(struct mansession *s, const struct message *m)
 		}
 
 		astman_send_ack(s, m, "Success");
-                return 0;
-        }
+		return 0;
+	}
 
 	astman_send_error(s, m, "Unknown operation");
 	return 0;
@@ -4382,7 +4382,7 @@ static enum add_filter_result manager_add_filter(const char *filter_pattern, str
 		ao2_t_link(whitefilters, new_filter, "link new filter into white user container");
 	}
 
-        return FILTER_SUCCESS;
+	return FILTER_SUCCESS;
 }
 
 static int match_filter(struct mansession *s, char *eventdata)
@@ -4394,16 +4394,16 @@ static int match_filter(struct mansession *s, char *eventdata)
 		return 1; /* no filtering means match all */
 	} else if (ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
 		/* white filters only: implied black all filter processed first, then white filters */
-		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container");
 	} else if (!ao2_container_count(s->session->whitefilters) && ao2_container_count(s->session->blackfilters)) {
 		/* black filters only: implied white all filter processed first, then black filters */
-		ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+		ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container");
 	} else {
 		/* white and black filters: implied black all filter processed first, then white filters, and lastly black filters */
-		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container");
 		if (result) {
 			result = 0;
-			ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+			ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container");
 		}
 	}
 
@@ -4453,7 +4453,7 @@ static int action_userevent(struct mansession *s, const struct message *m)
 		}
 	}
 
-	astman_send_ack(s, m, "Event Sent");	
+	astman_send_ack(s, m, "Event Sent");
 	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, ast_str_buffer(body));
 	return 0;
 }
@@ -5227,7 +5227,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	if (!(sessions && ao2_container_count(sessions)) && AST_RWLIST_EMPTY(&manager_hooks)) {
 		return 0;
 	}
-	
+
 	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE))) {
 		return -1;
 	}
@@ -6983,7 +6983,7 @@ static int __init_manager(int reload)
 				}
 			} else if (!strcasecmp(var->name, "eventfilter")) {
 				const char *value = var->value;
-                                manager_add_filter(value, user->whitefilters, user->blackfilters);
+				manager_add_filter(value, user->whitefilters, user->blackfilters);
 			} else {
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}

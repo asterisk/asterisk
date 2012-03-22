@@ -150,7 +150,7 @@ static int ast_event_hash_devstate_change(const void *obj, const int flags);
  * \brief Event types that are kept in the cache.
  */
 static struct {
-	/*! 
+	/*!
 	 * \brief Container of cached events
 	 *
 	 * \details This gets allocated in ast_event_init() when Asterisk starts

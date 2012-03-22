@@ -32,7 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/slinfactory.h"
 #include "asterisk/translate.h"
 
-void ast_slinfactory_init(struct ast_slinfactory *sf) 
+void ast_slinfactory_init(struct ast_slinfactory *sf)
 {
 	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
@@ -51,7 +51,7 @@ int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, const struct as
 	return 0;
 }
 
-void ast_slinfactory_destroy(struct ast_slinfactory *sf) 
+void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 {
 	struct ast_frame *f;
 
@@ -100,7 +100,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		if (!(begin_frame = ast_translate(sf->trans, f, 0))) {
 			return 0;
 		}
-		
+
 		if (!(duped_frame = ast_frisolate(begin_frame))) {
 			return 0;
 		}
@@ -132,7 +132,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	return x;
 }
 
-int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples) 
+int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 {
 	struct ast_frame *frame_ptr;
 	unsigned int sofar = 0, ineed, remain;
@@ -157,10 +157,10 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 			}
 			continue;
 		}
-		
+
 		if ((frame_ptr = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list))) {
 			frame_data = frame_ptr->data.ptr;
-			
+
 			if (frame_ptr->samples <= ineed) {
 				memcpy(offset, frame_data, frame_ptr->samples * sizeof(*offset));
 				sofar += frame_ptr->samples;
