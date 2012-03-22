@@ -429,6 +429,12 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 /* End of thread management support */
 
 /*!
+	\brief Replace '^' in a string with ','
+	\param s String within which to replace characters
+*/
+void ast_replace_subargument_delimiter(char *s);
+
+/*!
 	\brief Process a string to find and replace characters
 	\param start The string to analyze
 	\param find The character to find

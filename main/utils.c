@@ -1464,6 +1464,15 @@ long int ast_random(void)
 	return res;
 }
 
+void ast_replace_subargument_delimiter(char *s)
+{
+	for (; *s; s++) {
+		if (*s == '^') {
+			*s = ',';
+		}
+	}
+}
+
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 {
 	char *dataPut = start;

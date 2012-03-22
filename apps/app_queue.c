@@ -1305,21 +1305,6 @@ static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 	}
 }
 
-/*!
- * \internal
- * \brief Converts delimited '^' characters in a target priority/extension/context string
- *  to commas so that they can be used with ast_parseable_goto.
- * \param s string that '^' characters are being replaced in.
- */
-static void replace_macro_delimiter(char *s)
-{
-	for (; *s; s++) {
-		if (*s == '^') {
-			*s = ',';
-		}
-	}
-}
-
 static const char *int2strat(int strategy)
 {
 	int x;
@@ -5326,7 +5311,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 
 		if (!ast_check_hangup(peer) && ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
 			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
 
 				if (ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]) == AST_PBX_SUCCESS) {
 					ast_pbx_start(peer);

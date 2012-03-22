@@ -127,6 +127,36 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="p">
 						<para>Play a courtesy tone to <replaceable>channel</replaceable>.</para>
 					</option>
+					<option name="F" argsep="^">
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" />
+						<para>When the bridger hangs up, transfer the <emphasis>bridged</emphasis> party
+						to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
+						<note>
+							<para>Any channel variables you want the called channel to inherit from the caller channel must be
+							prefixed with one or two underbars ('_').</para>
+						</note>
+						<note>
+							<para>This option will override the 'x' option</para>
+						</note>
+					</option>
+					<option name="F">
+						<para>When the bridger hangs up, transfer the <emphasis>bridged</emphasis> party
+						to the next priority of	the current extension and <emphasis>start</emphasis> execution
+						at that location.</para>
+						<note>
+							<para>Any channel variables you want the called channel to inherit from the caller channel must be
+							prefixed with one or two underbars ('_').</para>
+						</note>
+						<note>
+							<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
+						</note>
+						<note>
+							<para>This option will override the 'x' option</para>
+						</note>
+					</option>
+
 					<option name="h">
 						<para>Allow the called party to hang up by sending the
 						<replaceable>*</replaceable> DTMF digit.</para>
@@ -7397,17 +7427,20 @@ enum {
 	OPT_CALLEE_PARK = (1 << 9),
 	OPT_CALLER_PARK = (1 << 10),
 	OPT_CALLEE_KILL = (1 << 11),
+	OPT_CALLEE_GO_ON = (1 << 12),
 };
 
 enum {
 	OPT_ARG_DURATION_LIMIT = 0,
 	OPT_ARG_DURATION_STOP,
+	OPT_ARG_CALLEE_GO_ON,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
 
 AST_APP_OPTIONS(bridge_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('p', BRIDGE_OPT_PLAYTONE),
+	AST_APP_OPTION_ARG('F', OPT_CALLEE_GO_ON, OPT_ARG_CALLEE_GO_ON),
 	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
 	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
 	AST_APP_OPTION('k', OPT_CALLEE_PARK),
@@ -7668,18 +7701,43 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	/* the bridge has ended, set BRIDGERESULT to SUCCESS. If the other channel has not been hung up, return it to the PBX */
 	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
-	if (!ast_check_hangup(final_dest_chan) && !ast_test_flag(&opts, OPT_CALLEE_KILL)) {
-		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n",
-			ast_channel_context(final_dest_chan), ast_channel_exten(final_dest_chan),
-			ast_channel_priority(final_dest_chan), ast_channel_name(final_dest_chan));
+	if (!ast_check_hangup(final_dest_chan)) {
+		if (ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
+			char *caller_context = ast_strdupa(ast_channel_context(chan));
+			char *caller_extension = ast_strdupa(ast_channel_exten(chan));
+			int caller_priority = ast_channel_priority(chan);
 
-		if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {
-			ast_log(LOG_WARNING, "FAILED continuing PBX on dest chan %s\n", ast_channel_name(final_dest_chan));
-			ast_hangup(final_dest_chan);
-		} else
-			ast_debug(1, "SUCCESS continuing PBX on chan %s\n", ast_channel_name(final_dest_chan));
+			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
+				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				/* Set current dialplan position to bridger dialplan position */
+				ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority);
+				/* Then perform the goto */
+				if (ast_parseable_goto(final_dest_chan, opt_args[OPT_ARG_CALLEE_GO_ON]) == AST_PBX_SUCCESS) {
+					ast_pbx_start(final_dest_chan);
+				} else {
+					ast_hangup(final_dest_chan);
+				}
+			} else { /* F() */
+				if (ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority + 1) == AST_PBX_GOTO_FAILED) {
+					ast_hangup(final_dest_chan);
+				} else {
+					ast_pbx_start(final_dest_chan);
+				}
+			}
+		} else if (!ast_test_flag(&opts, OPT_CALLEE_KILL)) {
+			ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n",
+				ast_channel_context(final_dest_chan), ast_channel_exten(final_dest_chan),
+				ast_channel_priority(final_dest_chan), ast_channel_name(final_dest_chan));
+
+			if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {
+				ast_log(LOG_WARNING, "FAILED continuing PBX on dest chan %s\n", ast_channel_name(final_dest_chan));
+				ast_hangup(final_dest_chan);
+			} else {
+				ast_debug(1, "SUCCESS continuing PBX on chan %s\n", ast_channel_name(final_dest_chan));
+			}
+		}
 	} else {
-		ast_debug(1, "hangup chan %s since the other endpoint has hung up or the x flag was passed\n", ast_channel_name(final_dest_chan));
+			ast_debug(1, "hangup chan %s since the other endpoint has hung up or the x flag was passed\n", ast_channel_name(final_dest_chan));
 		ast_hangup(final_dest_chan);
 	}
 done:

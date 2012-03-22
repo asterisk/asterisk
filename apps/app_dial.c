@@ -1615,13 +1615,6 @@ static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str
 	return 0;
 }
 
-static void replace_macro_delimiter(char *s)
-{
-	for (; *s; s++)
-		if (*s == '^')
-			*s = ',';
-}
-
 /* returns true if there is a valid privacy reply */
 static int valid_priv_reply(struct ast_flags64 *opts, int res)
 {
@@ -2628,7 +2621,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_clear_flag(ast_channel_cdr(chan), AST_CDR_FLAG_DIALED);
 			ast_clear_flag(ast_channel_cdr(peer), AST_CDR_FLAG_DIALED);
 
-			replace_macro_delimiter(opt_args[OPT_ARG_GOTO]);
+			ast_replace_subargument_delimiter(opt_args[OPT_ARG_GOTO]);
 			ast_parseable_goto(chan, opt_args[OPT_ARG_GOTO]);
 			/* peer goes to the same context and extension as chan, so just copy info from chan*/
 			ast_channel_context_set(peer, ast_channel_context(chan));
@@ -2659,7 +2652,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_channel_context_set(peer, ast_channel_context(chan));
 				ast_channel_exten_set(peer, ast_channel_exten(chan));
 
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
+				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
 				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
 				ast_debug(1, "Macro exited with status %d\n", res);
 				res = 0;
@@ -2699,7 +2692,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
-						replace_macro_delimiter(macro_transfer_dest);
+						ast_replace_subargument_delimiter(macro_transfer_dest);
 						if (!ast_parseable_goto(chan, macro_transfer_dest))
 							ast_set_flag64(peerflags, OPT_GO_ON);
 					}
@@ -2724,7 +2717,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			theapp = pbx_findapp("Gosub");
 
 			if (theapp && !res9) {
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
+				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
 
 				/* Set where we came from */
 				ast_channel_context_set(peer, "app_dial_gosub_virtual_context");
@@ -2814,7 +2807,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
-						replace_macro_delimiter(gosub_transfer_dest);
+						ast_replace_subargument_delimiter(gosub_transfer_dest);
 						if (!ast_parseable_goto(chan, gosub_transfer_dest))
 							ast_set_flag64(peerflags, OPT_GO_ON);
 					}
@@ -2928,7 +2921,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
 			if(!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
 				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
 			} else { /* F() */
 				int goto_res;

@@ -130,6 +130,10 @@ Applications
    when using multiple options (so that j option could be used without having to
    manually specify timezone and format) There are other beneftis eg. format can
    now be used without specifying time zone as well.
+ * Added 'F()' option to Queue and Bridge. Similar to the dial option, these can
+   be supplied with arguments indicating where the callee should go after the caller
+   is hung up, or without options specified, the priority after the Queue/Bridge
+   will be used.
 
 Parking
 ------------
