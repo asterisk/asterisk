@@ -532,6 +532,9 @@ make_str (const char *s)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
+		if (vp) {
+			free(vp);
+		}
 		ast_log(LOG_WARNING,"malloc() failed\n");
 		return(NULL);
 	}
