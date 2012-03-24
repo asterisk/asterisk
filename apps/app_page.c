@@ -329,6 +329,8 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		ast_dial_destroy(dial);
 	}
 
+	ast_free(dial_list);
+
 	return -1;
 }
 
