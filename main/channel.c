@@ -2166,6 +2166,9 @@ int ast_party_id_presentation(const struct ast_party_id *id)
 	if (name_priority < number_priority) {
 		number_value = name_value;
 	}
+	if (number_value == AST_PRES_UNAVAILABLE) {
+		return AST_PRES_NUMBER_NOT_AVAILABLE;
+	}
 
 	return number_value | number_screening;
 }
