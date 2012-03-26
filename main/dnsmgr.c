@@ -128,7 +128,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	AST_RWLIST_WRLOCK(&entry_list);
 	AST_RWLIST_REMOVE(&entry_list, entry, list);
 	AST_RWLIST_UNLOCK(&entry_list);
-	ast_verb(4, "removing dns manager for '%s'\n", entry->name);
+	ast_debug(6, "removing dns manager for '%s'\n", entry->name);
 
 	ast_mutex_destroy(&entry->lock);
 	ast_free(entry);
@@ -157,7 +157,7 @@ static int internal_dnsmgr_lookup(const char *name, struct ast_sockaddr *result,
 		return 0;
 	}
 
-	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
+	ast_debug(6, "doing dnsmgr_lookup for '%s'\n", name);
 
 	/* do a lookup now but add a manager so it will automagically get updated in the background */
 	ast_get_ip_or_srv(result, name, service);
@@ -167,7 +167,7 @@ static int internal_dnsmgr_lookup(const char *name, struct ast_sockaddr *result,
 		return 0;
 	}
 
-	ast_verb(3, "adding dns manager for '%s'\n", name);
+	ast_debug(6, "adding dns manager for '%s'\n", name);
 	*dnsmgr = ast_dnsmgr_get_family(name, result, service, family);
 	(*dnsmgr)->update_func = func;
 	(*dnsmgr)->data = data;
@@ -194,9 +194,7 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 
 	ast_mutex_lock(&entry->lock);
 
-	if (verbose) {
-		ast_verb(3, "refreshing '%s'\n", entry->name);
-	}
+	ast_debug(6, "refreshing '%s'\n", entry->name);
 
 	tmp.ss.ss_family = entry->family;
 	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service)) {
@@ -270,7 +268,7 @@ static int refresh_list(const void *data)
 		return -1;
 	}
 
-	ast_verb(3, "Refreshing DNS lookups.\n");
+	ast_debug(6, "Refreshing DNS lookups.\n");
 	AST_RWLIST_RDLOCK(info->entries);
 	AST_RWLIST_TRAVERSE(info->entries, entry, list) {
 		if (info->regex_present && regexec(&info->filter, entry->name, 0, NULL, 0)) {
