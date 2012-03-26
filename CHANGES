@@ -18,6 +18,12 @@ Gosub changes
    available in AEL in 1.4 that disappeared in 10.  STACK_PEEK permits the
    user to see the location of the calling Gosub from within the subroutine.
 
+Background DNS Update Manager
+-----------------------------
+ * The default verbosity for ast_verb() messages has been increased to 6. This
+   should help reduce the 'doing dnsmgr_lookup for' message from spamming the
+   CLI.
+
 ------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 10.1.0 ------------------------------
 ------------------------------------------------------------------------------
