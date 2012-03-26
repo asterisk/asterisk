@@ -160,6 +160,8 @@ struct manager_action {
 	 * function and unregestring the AMI action object.
 	 */
 	unsigned int registered:1;
+	/*! Number of active func() calls in progress. */
+	unsigned int active_count;
 };
 
 /*! \brief External routines may register/unregister manager callbacks this way 

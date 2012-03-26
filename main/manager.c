@@ -1935,7 +1935,11 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 
 			ao2_lock(act_found);
 			if (act_found->registered && act_found->func) {
+				++act_found->active_count;
+				ao2_unlock(act_found);
 				ret = act_found->func(&s, &m);
+				ao2_lock(act_found);
+				--act_found->active_count;
 			} else {
 				ret = -1;
 			}
@@ -4635,8 +4639,12 @@ static int process_message(struct mansession *s, const struct message *m)
 			ao2_lock(act_found);
 			if (act_found->registered && act_found->func) {
 				ast_debug(1, "Running action '%s'\n", act_found->action);
+				++act_found->active_count;
+				ao2_unlock(act_found);
 				ret = act_found->func(s, m);
 				acted = 1;
+				ao2_lock(act_found);
+				--act_found->active_count;
 			}
 			ao2_unlock(act_found);
 		}
@@ -5144,6 +5152,8 @@ int ast_manager_unregister(char *action)
 	AST_RWLIST_UNLOCK(&actions);
 
 	if (cur) {
+		time_t now;
+
 		/*
 		 * We have removed the action object from the container so we
 		 * are no longer in a hurry.
@@ -5151,6 +5161,23 @@ int ast_manager_unregister(char *action)
 		ao2_lock(cur);
 		cur->registered = 0;
 		ao2_unlock(cur);
+
+		/*
+		 * Wait up to 5 seconds for any active invocations to complete
+		 * before returning.  We have to wait instead of blocking
+		 * because we may be waiting for ourself to complete.
+		 */
+		now = time(NULL);
+		while (cur->active_count) {
+			if (5 <= time(NULL) - now) {
+				ast_debug(1,
+					"Unregister manager action %s timed out waiting for %d active instances to complete\n",
+					action, cur->active_count);
+				break;
+			}
+
+			sched_yield();
+		}
 
 		ao2_t_ref(cur, -1, "action object removed from list");
 		ast_verb(2, "Manager unregistered action %s\n", action);
