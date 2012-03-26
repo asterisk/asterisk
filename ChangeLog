@@ -1,3 +1,39 @@
+2012-03-26  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.3.0-rc3 Released.
+
+	* AST-2012-003
+
+	* AST-2012-002
+
+	* /main/manager.c, include/asterisk/manager.h: Fix AMI deadlock
+	  regression by allowing AMI action callback to be reentrant
+
+	  Fix AMI module reload deadlock from ASTERISK-18479 when it tired to
+	  fix the race between calling an AMI action callback and
+	  unregistering that action.  Refixes ASTERISK-13874 broken by
+	  ASTERISK-17785 change.
+
+	  Locking the ao2 object guaranteed that there were no active
+	  callbacks that mattered when ast_manager_unregister() was called.
+	  Unfortunately, this causes the deadlock situation.  The path stops
+	  locking the ao2 object to allow multiple threads to invoke the
+	  callback re-entrantly.  There is no way to guarantee a module unload
+	  will not crash because of an active callback.  The code attempts to
+	  minimize the chance with the registered flag and the maximum 5
+	  second delay before ast_manager_unregister() returns.
+
+	  The trunk version of the patch changes the API to fix the race
+	  condition correctly to prevent the module code from unloading from
+	  memory while an action callback is active.
+
+	  * Don't hold the lock while calling the AMI action callback.
+
+	  (closes issue ASTERISK-19487)
+	  Reported by: Philippe Lindheimer
+
+	  Review: https://reviewboard.asterisk.org/r/1818/
+
 2012-03-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.3.0-rc2 Released.
