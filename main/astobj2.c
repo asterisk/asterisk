@@ -639,6 +639,79 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 }
 
 
+void __ao2_global_obj_release(struct ao2_global_obj *array, const char *tag, const char *file, int line, const char *func, const char *name)
+{
+	unsigned int idx;
+
+	if (!array) {
+		/* For sanity */
+		return;
+	}
+	if (__ast_rwlock_wrlock(file, line, func, &array->lock, name)) {
+		/* Could not get the write lock. */
+		return;
+	}
+
+	/* Release all contained ao2 objects. */
+	idx = array->num_elements;
+	while (idx--) {
+		if (array->obj[idx]) {
+			__ao2_ref_debug(array->obj[idx], -1, tag, file, line, func);
+			array->obj[idx] = NULL;
+		}
+	}
+
+	__ast_rwlock_unlock(file, line, func, &array->lock, name);
+}
+
+void *__ao2_global_obj_replace(struct ao2_global_obj *array, unsigned int idx, void *obj, const char *tag, const char *file, int line, const char *func, const char *name)
+{
+	void *obj_old;
+
+	if (!array || array->num_elements <= idx) {
+		/* For sanity */
+		return NULL;
+	}
+	if (__ast_rwlock_wrlock(file, line, func, &array->lock, name)) {
+		/* Could not get the write lock. */
+		return NULL;
+	}
+
+	if (obj) {
+		__ao2_ref_debug(obj, +1, tag, file, line, func);
+	}
+	obj_old = array->obj[idx];
+	array->obj[idx] = obj;
+
+	__ast_rwlock_unlock(file, line, func, &array->lock, name);
+
+	return obj_old;
+}
+
+void *__ao2_global_obj_ref(struct ao2_global_obj *array, unsigned int idx, const char *tag, const char *file, int line, const char *func, const char *name)
+{
+	void *obj;
+
+	if (!array || array->num_elements <= idx) {
+		/* For sanity */
+		return NULL;
+	}
+	if (__ast_rwlock_rdlock(file, line, func, &array->lock, name)) {
+		/* Could not get the read lock. */
+		return NULL;
+	}
+
+	obj = array->obj[idx];
+	if (obj) {
+		__ao2_ref_debug(obj, +1, tag, file, line, func);
+	}
+
+	__ast_rwlock_unlock(file, line, func, &array->lock, name);
+
+	return obj;
+}
+
+
 /* internal callback to destroy a container. */
 static void container_destruct(void *c);
 

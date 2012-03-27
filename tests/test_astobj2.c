@@ -335,7 +335,7 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 		ao2_iterator_destroy(mult_it);
 	}
 
-	/* Is the container count what we expect after all the finds and unlinks?*/
+	/* Is the container count what we expect after all the finds and unlinks? */
 	if (ao2_container_count(c1) != lim) {
 		ast_test_status_update(test, "container count does not match what is expected after ao2_find tests.\n");
 		res = AST_TEST_FAIL;
@@ -567,10 +567,144 @@ cleanup:
 	return res;
 }
 
+static AO2_GLOBAL_OBJ_STATIC(astobj2_array, 2);
+
+AST_TEST_DEFINE(astobj2_test_3)
+{
+	int res = AST_TEST_PASS;
+	int destructor_count = 0;
+	int num_objects = 0;
+	struct test_obj *obj = NULL;
+	struct test_obj *obj2 = NULL;
+	struct test_obj *obj3 = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "astobj2_test3";
+		info->category = "/main/astobj2/";
+		info->summary = "Test global ao2 array container";
+		info->description =
+			"This test is to see if the global ao2 array container works as intended.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Put an object in index 0 */
+	obj = ao2_alloc(sizeof(struct test_obj), test_obj_destructor);
+	if (!obj) {
+		ast_test_status_update(test, "ao2_alloc failed.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	obj->destructor_count = &destructor_count;
+	obj->i = ++num_objects;
+	obj2 = ao2_t_global_obj_replace(astobj2_array, 0, obj, "Save object in index 0");
+	if (obj2) {
+		ast_test_status_update(test, "Returned object not expected.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	/* Save object for next check. */
+	obj3 = obj;
+
+	/* Replace an object in index 0 */
+	obj = ao2_alloc(sizeof(struct test_obj), test_obj_destructor);
+	if (!obj) {
+		ast_test_status_update(test, "ao2_alloc failed.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	obj->destructor_count = &destructor_count;
+	obj->i = ++num_objects;
+	obj2 = ao2_t_global_obj_replace(astobj2_array, 0, obj, "Replace object in index 0");
+	if (!obj2) {
+		ast_test_status_update(test, "Expected an object.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	if (obj2 != obj3) {
+		ast_test_status_update(test, "Replaced object not expected object.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ao2_ref(obj3, -1);
+	obj3 = NULL;
+	ao2_ref(obj2, -1);
+	obj2 = NULL;
+	ao2_ref(obj, -1);
+
+	/* Put an object in index 1 */
+	obj = ao2_alloc(sizeof(struct test_obj), test_obj_destructor);
+	if (!obj) {
+		ast_test_status_update(test, "ao2_alloc failed.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	obj->destructor_count = &destructor_count;
+	obj->i = ++num_objects;
+	obj2 = ao2_t_global_obj_replace(astobj2_array, 1, obj, "Save object in index 1");
+	if (obj2) {
+		ao2_ref(obj2, -1);
+		ast_test_status_update(test, "Returned object not expected.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	/* Save object for next check. */
+	obj3 = obj;
+
+	/* Get a reference to the object in index 1. */
+	obj = ao2_t_global_obj_ref(astobj2_array, 1, "Get reference of index 1 object");
+	if (!obj) {
+		ast_test_status_update(test, "Expected an object.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	if (obj != obj3) {
+		ast_test_status_update(test, "Returned object not expected.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+	ao2_ref(obj3, -1);
+	obj3 = NULL;
+	ao2_ref(obj, -1);
+	obj = NULL;
+
+	/* Release all objects in the global array. */
+	ao2_t_global_obj_release(astobj2_array, "Check release all objects");
+	destructor_count += num_objects;
+	if (0 < destructor_count) {
+		ast_test_status_update(test,
+			"all destructors were not called, destructor count is %d\n",
+			destructor_count);
+		res = AST_TEST_FAIL;
+	} else if (destructor_count < 0) {
+		ast_test_status_update(test,
+			"Destructor was called too many times, destructor count is %d\n",
+			destructor_count);
+		res = AST_TEST_FAIL;
+	}
+
+cleanup:
+	if (obj) {
+		ao2_t_ref(obj, -1, "Test cleanup external object 1");
+	}
+	if (obj2) {
+		ao2_t_ref(obj2, -1, "Test cleanup external object 2");
+	}
+	if (obj3) {
+		ao2_t_ref(obj3, -1, "Test cleanup external object 3");
+	}
+	ao2_t_global_obj_release(astobj2_array, "Test cleanup array");
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(astobj2_test_1);
 	AST_TEST_UNREGISTER(astobj2_test_2);
+	AST_TEST_UNREGISTER(astobj2_test_3);
 	return 0;
 }
 
@@ -578,6 +712,7 @@ static int load_module(void)
 {
 	AST_TEST_REGISTER(astobj2_test_1);
 	AST_TEST_REGISTER(astobj2_test_2);
+	AST_TEST_REGISTER(astobj2_test_3);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
