@@ -2648,6 +2648,7 @@ int reload_config(int reload)
          		pNewAlias = malloc(sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for h323id alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 	 		if (gAliasList == NULL) { /* first h323id - set as callerid if callerid is not set */
@@ -2662,6 +2663,7 @@ int reload_config(int reload)
          		pNewAlias = malloc(sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for e164 alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 			pNewAlias->type =  T_H225AliasAddress_dialedDigits;
@@ -2673,6 +2675,7 @@ int reload_config(int reload)
          		pNewAlias = malloc(sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for email alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 			pNewAlias->type =  T_H225AliasAddress_email_ID;
