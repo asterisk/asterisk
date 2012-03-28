@@ -1311,6 +1311,7 @@ int conf_load_config(int reload)
 	}
 
 	remove_all_delme();
+	ast_config_destroy(cfg);
 
 	return 0;
 }

@@ -462,6 +462,7 @@ static int my_load_module(int reload)
 		if (reload) {
 			AST_RWLIST_UNLOCK(&columns);
 		}
+		ast_config_destroy(cfg);
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 
@@ -502,6 +503,7 @@ static int my_load_module(int reload)
 		if (reload) {
 			AST_RWLIST_UNLOCK(&columns);
 		}
+		ast_config_destroy(cfg);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

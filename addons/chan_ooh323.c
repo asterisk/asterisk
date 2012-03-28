@@ -2720,6 +2720,7 @@ int reload_config(int reload)
 			ast_copy_string(gIP, v->value, sizeof(gIP));
 			if (ast_parse_arg(v->value, PARSE_ADDR, &bindaddr)) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
+				ast_config_destroy(cfg);
 				return 1;
 			}
 			if (ast_sockaddr_is_ipv6(&bindaddr)) {
@@ -2773,6 +2774,7 @@ int reload_config(int reload)
          		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for h323id alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 	 		if (gAliasList == NULL) { /* first h323id - set as callerid if callerid is not set */
@@ -2787,6 +2789,7 @@ int reload_config(int reload)
          		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for e164 alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 			pNewAlias->type =  T_H225AliasAddress_dialedDigits;
@@ -2798,6 +2801,7 @@ int reload_config(int reload)
          		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for email alias\n");
+				ast_config_destroy(cfg);
 				return 1;
 			}
 			pNewAlias->type =  T_H225AliasAddress_email_ID;
