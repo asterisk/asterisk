@@ -844,6 +844,7 @@ struct ast_bridge_thread_obj
 	struct ast_bridge_config bconfig;
 	struct ast_channel *chan;
 	struct ast_channel *peer;
+	struct ast_callid *callid;                             /*<! callid pointer (Only used to bind thread) */
 	unsigned int return_to_pbx:1;
 };
 
@@ -949,6 +950,12 @@ static void *bridge_call_thread(void *data)
 	struct ast_bridge_thread_obj *tobj = data;
 	int res;
 
+	if (tobj->callid) {
+		ast_callid_threadassoc_add(tobj->callid);
+		/* Need to deref and set to null since ast_bridge_thread_obj has no common destructor */
+		tobj->callid = ast_callid_unref(tobj->callid);
+	}
+
 	ast_channel_appl_set(tobj->chan, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
 	ast_channel_data_set(tobj->chan, ast_channel_name(tobj->peer));
 	ast_channel_appl_set(tobj->peer, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
@@ -987,15 +994,23 @@ static void *bridge_call_thread(void *data)
  *
  * Create thread and attributes, call bridge_call_thread
  */
-static void bridge_call_thread_launch(void *data)
+static void bridge_call_thread_launch(struct ast_bridge_thread_obj *data)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
 	struct sched_param sched;
 
+	/* This needs to be unreffed once it has been associated with the new thread. */
+	data->callid = ast_read_threadstorage_callid();
+
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&thread, &attr, bridge_call_thread, data);
+	if (ast_pthread_create(&thread, &attr, bridge_call_thread, data)) {
+		/* Failed to create thread. Ditch the reference to callid. */
+		ast_callid_unref(data->callid);
+		ast_log(LOG_ERROR, "Failed to create bridge_call_thread.\n");
+		return;
+	}
 	pthread_attr_destroy(&attr);
 	memset(&sched, 0, sizeof(sched));
 	pthread_setschedparam(thread, SCHED_RR, &sched);
@@ -8263,3 +8278,4 @@ int ast_features_init(void)
 
 	return res;
 }
+

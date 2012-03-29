@@ -50,6 +50,7 @@ struct ast_dial {
 	void *user_data;                                   /*!< Attached user data */
 	AST_LIST_HEAD(, ast_dial_channel) channels; /*!< Channels being dialed */
 	pthread_t thread;                                  /*!< Thread (if running in async) */
+	struct ast_callid *callid;                         /*!< callid pointer (if running in async) */
 	ast_mutex_t lock;                                  /*! Lock to protect the thread information above */
 };
 
@@ -705,6 +706,9 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 static void *async_dial(void *data)
 {
 	struct ast_dial *dial = data;
+	if (dial->callid) {
+		ast_callid_threadassoc_add(dial->callid);
+	}
 
 	/* This is really really simple... we basically pass monitor_dial a NULL owner and it changes it's behavior */
 	monitor_dial(dial, NULL);
@@ -738,6 +742,8 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 
 	/* If we are running async spawn a thread and send it away... otherwise block here */
 	if (async) {
+		/* reference be released at dial destruction if it isn't NULL */
+		dial->callid = ast_read_threadstorage_callid();
 		dial->state = AST_DIAL_RESULT_TRYING;
 		/* Try to create a thread */
 		if (ast_pthread_create(&dial->thread, NULL, async_dial, dial)) {
@@ -912,6 +918,11 @@ int ast_dial_destroy(struct ast_dial *dial)
 
 	/* Lock be gone! */
 	ast_mutex_destroy(&dial->lock);
+
+	/* Get rid of the reference to the ast_callid */
+	if (dial->callid) {
+		ast_callid_unref(dial->callid);
+	}
 
 	/* Free structure */
 	ast_free(dial);

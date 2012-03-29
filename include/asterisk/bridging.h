@@ -165,6 +165,8 @@ struct ast_bridge_channel {
 	struct ast_bridge_tech_optimizations tech_args;
 	/*! Queue of DTMF digits used for DTMF streaming */
 	char dtmf_stream_q[8];
+	/*! Call ID associated with bridge channel */
+	struct ast_callid *callid;
 	/*! Linked list information */
 	AST_LIST_ENTRY(ast_bridge_channel) entry;
 };
@@ -243,9 +245,11 @@ struct ast_bridge {
 	size_t array_num;
 	/*! Number of channels the array can handle */
 	size_t array_size;
+	/*! Call ID associated with the bridge */
+	struct ast_callid *callid;
 	/*! Linked list of channels participating in the bridge */
 	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
-};
+	};
 
 /*! \brief Create a new bridge
  *

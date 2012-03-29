@@ -60,6 +60,24 @@ extern "C" {
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
 
+/* XXX needs documentation */
+struct ast_callid;
+
+/*! \brief Used for sending a log message with a known call_id
+	This is a modified logger function which is functionally identical to the above logger function,
+	it just include a call_id argument as well. If NULL is specified here, no attempt will be made to
+	join the log message with a call_id.
+
+	\param level	Type of log event
+	\param file	Will be provided by the AST_LOG_* macro
+	\param line	Will be provided by the AST_LOG_* macro
+	\param function	Will be provided by the AST_LOG_* macro
+	\param callid	This is the ast_callid that is associated with the log message. May be NULL.
+	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
+*/
+void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
+	__attribute__((format(printf, 6, 7)));
+
 void ast_backtrace(void);
 
 /*! \brief Reload logger without rotating log files */
@@ -214,6 +232,56 @@ int ast_logger_register_level(const char *name);
  * \since 1.8
  */
 void ast_logger_unregister_level(const char *name);
+
+/*!
+ * \brief factory function to create a new uniquely identifying callid.
+ *
+ * \retval ast_callid struct pointer containing the call id
+ *
+ * \note The newly created callid will be referenced upon creation and this function should be
+ * paired with a call to ast_callid_unref()
+ */
+struct ast_callid *ast_create_callid(void);
+
+/*!
+ * \brief extracts the callerid from the thread
+ *
+ * \retval ast_callid reference to call_id related to the thread
+ * \retval NULL if no call_id is present in the thread
+ *
+ * This reference must be unreffed before it loses scope to prevent memory leaks.
+ */
+struct ast_callid *ast_read_threadstorage_callid(void);
+
+/*!
+ * \brief Increase callid reference count
+ *
+ * \param c the ast_callid
+ *
+ * \retval c always
+ */
+#define ast_callid_ref(c) ({ ao2_ref(c, +1); (c); })
+
+/*!
+ * \brief Decrease callid reference count
+ *
+ * \param c the ast_callid
+ *
+ * \retval NULL always
+ */
+#define ast_callid_unref(c) ({ ao2_ref(c, -1); (NULL); })
+
+/*!
+ * \brief Adds a known callid to thread storage of the calling thread
+ *
+ * \retval 0 - success
+ * \retval non-zero - failure
+ */
+int ast_callid_threadassoc_add(struct ast_callid *callid);
+
+/*
+ * May need a function to clean the threadstorage if we want to repurpose a thread.
+ */
 
 /*!
  * \brief Send a log message to a dynamically registered log level
