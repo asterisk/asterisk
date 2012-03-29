@@ -5486,6 +5486,11 @@ static void *pbx_thread(void *data)
 	 */
 	struct ast_channel *c = data;
 
+	/* Associate new PBX thread with a call-id */
+	struct ast_callid *callid = ast_create_callid();
+	ast_callid_threadassoc_add(callid);
+	callid = ast_callid_unref(callid);
+
 	__ast_pbx_run(c, NULL);
 	decrease_call_count();
 

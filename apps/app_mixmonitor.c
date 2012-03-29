@@ -240,6 +240,7 @@ static const char * const mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
 	struct ast_audiohook audiohook;
+	struct ast_callid *callid;
 	char *filename;
 	char *filename_read;
 	char *filename_write;
@@ -395,6 +396,10 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 			ast_free(mixmonitor->name);
 			ast_free(mixmonitor->post_process);
 		}
+
+		if (mixmonitor->callid) {
+			ast_callid_unref(mixmonitor->callid);
+		}
 		ast_free(mixmonitor);
 	}
 }
@@ -439,6 +444,11 @@ static void *mixmonitor_thread(void *obj)
 	unsigned int oflags;
 	int errflag = 0;
 	struct ast_format format_slin;
+
+	/* Keep callid association before any log messages */
+	if (mixmonitor->callid) {
+		ast_callid_threadassoc_add(mixmonitor->callid);
+	}
 
 	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
@@ -673,6 +683,9 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		mixmonitor_free(mixmonitor);
 		return;
 	}
+
+	/* reference be released at mixmonitor destruction */
+	mixmonitor->callid = ast_read_threadstorage_callid();
 
 	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 }

@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
 #include "asterisk/pbx.h"
@@ -73,6 +74,15 @@ static int filesize_reload_needed;
 static unsigned int global_logmask = 0xFFFF;
 static int queuelog_init;
 static int logger_initialized;
+static volatile int next_unique_callid; /* Used to assign unique call_ids to calls */
+static int display_callids;
+static void unique_callid_cleanup(void *data);
+
+struct ast_callid {
+    int call_identifier; /* Numerical value of the call displayed in the logs */
+};
+
+AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, unique_callid_cleanup);
 
 static enum rotatestrategy {
 	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
@@ -129,6 +139,7 @@ struct logmsg {
 	int level;
 	int line;
 	int lwp;
+	struct ast_callid *callid;
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(date);
 		AST_STRING_FIELD(file);
@@ -138,6 +149,14 @@ struct logmsg {
 	);
 	AST_LIST_ENTRY(logmsg) list;
 };
+
+static void logmsg_free(struct logmsg *msg)
+{
+	if (msg->callid) {
+		ast_callid_unref(msg->callid);
+	}
+	ast_free(msg);
+}
 
 static AST_LIST_HEAD_STATIC(logmsgs, logmsg);
 static pthread_t logthread = AST_PTHREADT_NULL;
@@ -320,6 +339,8 @@ static void init_logger_chain(int locked, const char *altconf)
 	const char *s;
 	struct ast_flags config_flags = { 0 };
 
+	display_callids = 1;
+
 	if (!(cfg = ast_config_load2(S_OR(altconf, "logger.conf"), "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		return;
 	}
@@ -373,6 +394,9 @@ static void init_logger_chain(int locked, const char *altconf)
 			hostname[0] = '\0';
 	} else
 		hostname[0] = '\0';
+	if ((s = ast_variable_retrieve(cfg, "general", "display_callids"))) {
+		display_callids = ast_true(s);
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "dateformat")))
 		ast_copy_string(dateformat, s, sizeof(dateformat));
 	else
@@ -999,6 +1023,14 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 	if (!AST_RWLIST_EMPTY(&logchannels)) {
 		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+			/* XXX May need to grow larger later in order to accomodate call counts higher than 999999. */
+			char call_identifier_str[13] = "";
+
+			if (logmsg->callid) {
+				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", logmsg->callid->call_identifier);
+			}
+
+
 			/* If the channel is disabled, then move on to the next one */
 			if (chan->disabled) {
 				continue;
@@ -1022,10 +1054,11 @@ static void logger_print_normal(struct logmsg *logmsg)
 				/* Turn the numerical line number into a string */
 				snprintf(linestr, sizeof(linestr), "%d", logmsg->line);
 				/* Build string to print out */
-				snprintf(buf, sizeof(buf), "[%s] %s[%d]: %s:%s %s: %s",
+				snprintf(buf, sizeof(buf), "[%s] %s[%d]%s: %s:%s %s: %s",
 					 logmsg->date,
 					 term_color(tmp1, logmsg->level_name, colors[logmsg->level], 0, sizeof(tmp1)),
 					 logmsg->lwp,
+					 call_identifier_str,
 					 term_color(tmp2, logmsg->file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 					 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
@@ -1042,8 +1075,9 @@ static void logger_print_normal(struct logmsg *logmsg)
 				}
 
 				/* Print out to the file */
-				res = fprintf(chan->fileptr, "[%s] %s[%d] %s: %s",
-					      logmsg->date, logmsg->level_name, logmsg->lwp, logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
+				res = fprintf(chan->fileptr, "[%s] %s[%d]%s %s: %s",
+					      logmsg->date, logmsg->level_name, logmsg->lwp, call_identifier_str,
+					      logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
 				if (res <= 0 && !ast_strlen_zero(logmsg->message)) {
 					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC)
@@ -1100,7 +1134,7 @@ static void *logger_thread(void *data)
 			logger_print_normal(msg);
 
 			/* Free the data since we are done */
-			ast_free(msg);
+			logmsg_free(msg);
 		}
 
 		/* If we should stop, then stop */
@@ -1203,17 +1237,83 @@ void close_logger(void)
 	return;
 }
 
+struct ast_callid *ast_create_callid(void)
+{
+	struct ast_callid *call;
+	int using;
+
+	if (!(call = ao2_alloc(sizeof(struct ast_callid), NULL))) {
+		ast_log(LOG_ERROR, "Could not allocate callid struct.\n");
+		return NULL;
+	}
+
+	using = ast_atomic_fetchadd_int(&next_unique_callid, +1);
+
+	call->call_identifier = using;
+	ast_log(LOG_DEBUG, "CALL_ID [C-%08x] created by thread.\n", call->call_identifier);
+	return call;
+}
+
+struct ast_callid *ast_read_threadstorage_callid(void)
+{
+	struct ast_callid **callid;
+	callid = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+	if (callid && *callid) {
+		ast_callid_ref(*callid);
+		return *callid;
+	}
+
+	return NULL;
+
+}
+
+int ast_callid_threadassoc_add(struct ast_callid *callid)
+{
+	struct ast_callid **pointing;
+	pointing = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+	if (!(pointing)) {
+		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
+		return -1;
+	}
+
+	if (!(*pointing)) {
+		/* callid will be unreffed at thread destruction */
+		ast_callid_ref(callid);
+		*pointing = callid;
+		ast_log(LOG_DEBUG, "CALL_ID [C-%08x] bound to thread.\n", callid->call_identifier);
+	} else {
+		ast_log(LOG_WARNING, "Attempted to ast_callid_threadassoc_add on thread already associated with a callid.\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief thread storage cleanup function for unique_callid
+ */
+static void unique_callid_cleanup(void *data)
+{
+	struct ast_callid **callid = data;
+
+	if (*callid) {
+		ast_callid_unref(*callid);
+	}
+
+	ast_free(data);
+}
+
 /*!
  * \brief send log messages to syslog and/or the console
  */
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, va_list ap)
 {
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
 	struct ast_tm tm;
 	struct timeval now = ast_tvnow();
 	int res = 0;
-	va_list ap;
 	char datestring[256];
 
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
@@ -1225,9 +1325,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		 * so just log to stdout
 		 */
 		int result;
-		va_start(ap, fmt);
 		result = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
-		va_end(ap);
 		if (result != AST_DYNSTR_BUILD_FAILED) {
 			term_filter_escapes(ast_str_buffer(buf));
 			fputs(ast_str_buffer(buf), stdout);
@@ -1240,9 +1338,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		return;
 
 	/* Build string */
-	va_start(ap, fmt);
 	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
-	va_end(ap);
 
 	/* If the build failed, then abort and free this structure */
 	if (res == AST_DYNSTR_BUILD_FAILED)
@@ -1260,6 +1356,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		logmsg->type = LOGMSG_VERBOSE;
 	} else {
 		logmsg->type = LOGMSG_NORMAL;
+	}
+
+	if (display_callids && callid) {
+		logmsg->callid = ast_callid_ref(callid);
+		/* callid will be unreffed at logmsg destruction */
 	}
 
 	/* Create our date/time */
@@ -1283,10 +1384,34 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		AST_LIST_UNLOCK(&logmsgs);
 	} else {
 		logger_print_normal(logmsg);
-		ast_free(logmsg);
+		logmsg_free(logmsg);
 	}
 
 	return;
+}
+
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	struct ast_callid *callid;
+	va_list ap;
+
+	callid = ast_read_threadstorage_callid();
+
+	va_start(ap, fmt);
+	ast_log_full(level, file, line, function, callid, fmt, ap);
+	va_end(ap);
+
+	if (callid) {
+		ast_callid_unref(callid);
+	}
+}
+
+void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	ast_log_full(level, file, line, function, callid, fmt, ap);
+	va_end(ap);
 }
 
 #ifdef HAVE_BKTR
