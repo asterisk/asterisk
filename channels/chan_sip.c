@@ -12541,7 +12541,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 		/* If init=1, we should not generate a new branch. If it's 0, we need a new branch. */
 		reqprep(&req, p, sipmethod, 0, init ? 0 : 1);
 	}
-
+		
 	if (p->options && p->options->auth) {
 		add_header(&req, p->options->authheader, p->options->auth);
 	}
@@ -13340,7 +13340,7 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 	if (p->owner->_state == AST_STATE_UP || ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		struct sip_request req;
 
-		if (!p->pendinginvite && (p->invitestate == INV_CONFIRMED || p->invitestate == INV_TERMINATED)) {
+		if (p->invitestate == INV_CONFIRMED || p->invitestate == INV_TERMINATED) {
 			reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ? SIP_UPDATE : SIP_INVITE, 0, 1);
 
 			add_header(&req, "Allow", ALLOWED_METHODS);
@@ -20358,10 +20358,6 @@ static void check_pendings(struct sip_pvt *p)
 		if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
 			p->invitestate = INV_CANCELLED;
 			transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
-			/* If the cancel occurred on an initial invite, cancel the pending BYE */
-			if (!ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
-				ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);
-			}
 			/* Actually don't destroy us yet, wait for the 487 on our original
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		} else {
@@ -20375,8 +20371,8 @@ static void check_pendings(struct sip_pvt *p)
 			}
 			/* Perhaps there is an SD change INVITE outstanding */
 			transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
-			ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);
 		}
+		ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		/* if we can't REINVITE, hold it for later */
@@ -20538,7 +20534,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	int outgoing = ast_test_flag(&p->flags[0], SIP_OUTGOING);
 	int res = 0;
 	int xmitres = 0;
-	int reinvite = ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
 	char *p_hdrval;
 	int rtn;
 	struct ast_party_connected_line connected;
@@ -20733,11 +20729,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		p->authtries = 0;
 		if (find_sdp(req)) {
 			if ((res = process_sdp(p, req, SDP_T38_ACCEPT)) && !req->ignore)
-				if (!reinvite) {
+				if (!reinvite)
 					/* This 200 OK's SDP is not acceptable, so we need to ack, then hangup */
 					/* For re-invites, we try to recover */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
-				}
 			ast_rtp_instance_activate(p->rtp);
 		}
 
@@ -20781,9 +20776,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			update_call_counter(p, DEC_CALL_RINGING);
 			parse_ok_contact(p, req);
 			/* Save Record-Route for any later requests we make on this dialogue */
-			if (!reinvite) {
+			if (!reinvite)
 				build_route(p, req, 1, resp);
-			}
+
 			if(set_address_from_contact(p)) {
 				/* Bad contact - we don't know how to reach this device */
 				/* We need to ACK, but then send a bye */
@@ -20931,7 +20926,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			update_call_counter(p, DEC_CALL_LIMIT);
 			append_history(p, "Hangup", "Got 487 on CANCEL request from us on call without owner. Killing this dialog.");
 		}
-		check_pendings(p);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
 	case 415: /* Unsupported media type */
@@ -21625,9 +21619,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	}
 
 	/* If this is a NOTIFY for a subscription clear the flag that indicates that we have a NOTIFY pending */
-	if (!p->owner && sipmethod == SIP_NOTIFY && p->pendinginvite) {
+	if (!p->owner && sipmethod == SIP_NOTIFY && p->pendinginvite)
 		p->pendinginvite = 0;
-	}
 
 	/* Get their tag if we haven't already */
 	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
@@ -21848,7 +21841,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 						struct ast_set_party_redirecting update_redirecting;
 
 						ast_party_redirecting_init(&redirecting);
-						memset(&update_redirecting, 0, sizeof(update_redirecting));
 						change_redirecting_information(p, req, &redirecting,
 							&update_redirecting, TRUE);
 						ast_channel_set_redirecting(p->owner, &redirecting,
@@ -22982,9 +22974,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 			}
 			transmit_response_reliable(p, "491 Request Pending", req);
-			p->pendinginvite = seqno;
-			check_via(p, req);
-			copy_request(&p->initreq, req);
 			ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 			/* Don't destroy dialog here */
 			res = INV_REQ_FAILED;
@@ -23004,9 +22993,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->owner) {
 			ast_debug(3, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
 			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
-			p->pendinginvite = seqno;
-			check_via(p, req);
-			copy_request(&p->initreq, req);
 			/* Do not destroy existing call */
 			res = INV_REQ_ERROR;
 			goto request_invite_cleanup;
@@ -23024,9 +23010,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			p->invitestate = INV_COMPLETED;
 			res = INV_REQ_ERROR;
-			p->pendinginvite = seqno;
-			check_via(p, req);
-			copy_request(&p->initreq, req);
 			goto request_invite_cleanup;
 		}
 
@@ -23128,9 +23111,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			refer_locked = 0;
 			p->invitestate = INV_COMPLETED;
 			res = INV_REQ_ERROR;
-			p->pendinginvite = seqno;
-			check_via(p, req);
-			copy_request(&p->initreq, req);
 			goto request_invite_cleanup;
 		}
 	}
@@ -25672,15 +25652,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 
 		if (sipdebug) {
-			const char *action = p->expiry > 0 ? "Adding" : "Removing";
 			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer) {
-				ast_debug(2, "%s subscription for mailbox notification - peer %s\n",
-						action, p->relatedpeer->name);
+				ast_debug(2, "Adding subscription for mailbox notification - peer %s\n", p->relatedpeer->name);
 			} else if (p->subscribed == CALL_COMPLETION) {
-				ast_debug(2, "%s CC subscription for peer %s\n", action, p->username);
+				ast_debug(2, "Adding CC subscription for peer %s\n", p->username);
 			} else {
-				ast_debug(2, "%s subscription for extension %s context %s for peer %s\n",
-						action, p->exten, p->context, p->username);
+				ast_debug(2, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 			}
 		}
 		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
@@ -27281,6 +27258,8 @@ static int sip_devicestate(void *data)
 			res = AST_DEVICE_UNAVAILABLE;
 		}
 		sip_unref_peer(p, "sip_unref_peer, from sip_devicestate, release ref from sip_find_peer");
+	} else {
+		res = AST_DEVICE_UNKNOWN;
 	}
 
 	return res;
@@ -28175,11 +28154,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (handle_t38_options(&peerflags[0], &mask[0], v, &peer->t38_maxdatagram)) {
 				continue;
 			}
-			if (!strcasecmp(v->name, "transport")) {
+			if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
 				char *val = ast_strdupa(v->value);
 				char *trans;
 
-				peer->transports = peer->default_outbound_transport = 0;
 				while ((trans = strsep(&val, ","))) {
 					trans = ast_skip_blanks(trans);
 
@@ -28190,7 +28168,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					} else if (default_tls_cfg.enabled && !strncasecmp(trans, "tls", 3)) {
 						peer->transports |= SIP_TRANSPORT_TLS;
 					} else if (!strncasecmp(trans, "tcp", 3) || !strncasecmp(trans, "tls", 3)) {
-						ast_log(LOG_WARNING, "'%.3s' is not a valid transport type when %.3senable=no. If no other is specified, the defaults from general will be used.\n", trans, trans);
+						ast_log(LOG_WARNING, "'%.3s' is not a valid transport type when %.3senabled=no. If no other is specified, the defaults from general will be used.\n", trans, trans);
 					} else {
 						ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, the defaults from general will be used.\n", trans);
 					}
@@ -28933,8 +28911,8 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
 	sip_cfg.outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
-	default_transports = SIP_TRANSPORT_UDP;
-	default_primary_transport = SIP_TRANSPORT_UDP;
+	default_transports = 0;				/*!< Reset default transport to zero here, default value later on */
+	default_primary_transport = 0;			/*!< Reset default primary transport to zero here, default value later on */
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
 	externtcpport = STANDARD_SIP_PORT;
@@ -29124,11 +29102,10 @@ static int reload_config(enum channelreloadreason reason)
 			timerb_set = 1;
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
-		} else if (!strcasecmp(v->name, "transport")) {
+		} else if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
 			char *val = ast_strdupa(v->value);
 			char *trans;
 
-			default_transports = default_primary_transport = 0;
 			while ((trans = strsep(&val, ","))) {
 				trans = ast_skip_blanks(trans);
 
@@ -30327,9 +30304,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char *extension, *domain;
 
 	cdest = ast_strdupa(dest);
-
+	
 	extension = strsep(&cdest, "@");
-	domain = cdest;
+	domain = strsep(&cdest, ":");
 	if (ast_strlen_zero(extension)) {
 		ast_log(LOG_ERROR, "Missing mandatory argument: extension\n");
 		return 0;

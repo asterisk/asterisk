@@ -3163,7 +3163,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 					res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				}
 				if (feature) {
-					memcpy(feature, &builtin_features[x], sizeof(*feature));
+					memcpy(feature, &builtin_features[x], sizeof(feature));
 				}
 				feature_detected = 1;
 				break;
@@ -3193,7 +3193,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 					if (operation) {
 						res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
 					}
-					memcpy(feature, fge->feature, sizeof(*feature));
+					memcpy(feature, fge->feature, sizeof(feature));
 					if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 						AST_RWLIST_UNLOCK(&feature_groups);
 						break;
@@ -3226,7 +3226,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 				res = tmpfeature->operation(chan, peer, config, code, sense, tmpfeature);
 			}
 			if (feature) {
-				memcpy(feature, tmpfeature, sizeof(*feature));
+				memcpy(feature, tmpfeature, sizeof(feature));
 			}
 			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 				AST_RWLIST_UNLOCK(&feature_list);
@@ -4390,10 +4390,8 @@ before_you_go:
 	
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-	/* If the channel CDR has been modified during the call, record the changes in the bridge cdr,
-	 * BUT, if we've gone through the h extension block above, the CDR got swapped so don't overwrite
-	 * what was done in the h extension. What a mess. This is why you never touch CDR code. */
-	if (new_chan_cdr && bridge_cdr && !h_context) {
+	/* If the channel CDR has been modified during the call, record the changes in the bridge cdr */
+	if (new_chan_cdr && bridge_cdr) {
 		ast_cdr_copy_vars(bridge_cdr, new_chan_cdr);
 		ast_copy_string(bridge_cdr->userfield, new_chan_cdr->userfield, sizeof(bridge_cdr->userfield));
 		bridge_cdr->amaflags = new_chan_cdr->amaflags;

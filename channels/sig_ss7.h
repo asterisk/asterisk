@@ -150,7 +150,6 @@ struct sig_ss7_callback {
 	void (* const set_dnid)(void *pvt, const char *dnid);
 
 	void (* const queue_control)(void *pvt, int subclass);
-	void (* const open_media)(void *pvt);
 };
 
 struct sig_ss7_chan {

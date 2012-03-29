@@ -460,6 +460,7 @@ AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
 AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [unixodbc])
+AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([X11], [X11], [x11])
@@ -1128,11 +1129,6 @@ AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
 
 AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
-
-if test "${PBX_BFD}" = "0"; then
-  # Fedora/RedHat/CentOS require extra libraries
-  AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty])
-fi
 
 if test "x${OSARCH}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
@@ -2083,7 +2079,7 @@ fi
 AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
 if test "x${PBX_GMIME}" = "x0" -a "${PKGCONFIG}" != "No"; then
 	# Later versions of GMime use pkg-config
-	for ver in 2.0 2.2 2.4 2.6; do
+	for ver in 2.0 2.2 2.4; do
 		if ! ${PKGCONFIG} --exists gmime-$ver; then
 			continue
 		fi
@@ -2107,6 +2103,8 @@ if test "${tonezone_does_not_need_lm}" = "no" ; then
 fi
 
 AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [dahdi/tonezone.h], [${tonezone_extra} ${DAHDI_INCLUDE}])
+
+AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
 if test "${OSARCH}" = "OpenBSD";
 then

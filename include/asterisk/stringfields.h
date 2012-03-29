@@ -69,7 +69,8 @@
   and assignments are always by value (i.e. strings are copied):
   * ast_string_field_set() stores a simple value;
   * ast_string_field_build() builds the string using a printf-style format;
-  * ast_string_field_build_va() is the varargs version of the above;
+  * ast_string_field_build_va() is the varargs version of the above (for
+    portability reasons it uses two vararg arguments);
   * variants of these function allow passing a pointer to the field
     as an argument.
 
@@ -81,8 +82,8 @@
   ast_string_field_build(x, blah, "%d %s", zipcode, city);
   ast_string_field_ptr_build(x, &x->blah, "%d %s", zipcode, city);
 
-  ast_string_field_build_va(x, bar, fmt, args)
-  ast_string_field_ptr_build_va(x, &x->bar, fmt, args)
+  ast_string_field_build_va(x, bar, fmt, args1, args2)
+  ast_string_field_ptr_build_va(x, &x->bar, fmt, args1, args2)
   \endcode
 
   When the structure instance is no longer needed, the fields
@@ -205,6 +206,7 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
   \param ptr Pointer to a field within the structure
   \param format printf-style format string
   \param args va_list of the args for the format_string
+  \param args_again a copy of the first va_list for the sake of bsd not having a copy routine
   \return nothing
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
@@ -368,7 +370,8 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param x Pointer to a structure containing fields
   \param ptr Pointer to a field within the structure
   \param fmt printf-style format string
-  \param args Arguments for format string in va_list format
+  \param args1 Arguments for format string in va_list format
+  \param args2 a second copy of the va_list for the sake of bsd, with no va_list copy operation
   \return nothing
 */
 #define ast_string_field_ptr_build_va(x, ptr, fmt, args) \
@@ -379,7 +382,8 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
   \param fmt printf-style format string
-  \param args Arguments for format string in va_list format
+  \param args1 argument one
+  \param args2 argument two
   \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args) \

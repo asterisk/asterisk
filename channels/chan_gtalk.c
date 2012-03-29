@@ -1004,7 +1004,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	struct gtalk_pvt *tmp = NULL;
 	struct aji_resource *resources = NULL;
 	struct aji_buddy *buddy = NULL;
-	char idroster[200] = "";
+	char idroster[200];
 	char *data, *exten = NULL;
 	struct ast_sockaddr bindaddr_tmp;
 
@@ -2286,7 +2286,6 @@ static int gtalk_load_config(void)
 		cat = ast_category_browse(cfg, cat);
 	}
 
-	ast_config_destroy(cfg);
 	gtalk_update_externip();
 	gtalk_free_candidates(global_candidates);
 	return 1;

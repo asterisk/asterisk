@@ -4445,7 +4445,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -4557,7 +4557,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || memcmp(hp->h_addr, &sin->sin_addr, hp->h_length)) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -8398,8 +8398,9 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	int newcall = 0;
 	char newip[256];
 	struct iax_ie_data ied;
-	struct sockaddr_in new = { 0, };
-
+	struct sockaddr_in new;
+	
+	
 	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
 		memmove(&new, ies->apparent_addr, sizeof(new));
@@ -8861,7 +8862,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			ast_db_put("IAX/Registry", p->name, data);
 			ast_verb(3, "Registered IAX2 '%s' (%s) at %s:%d\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPost: %d\r\nPort: %d\r\n", p->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), ntohs(sin->sin_port));
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPost: %d\r\n", p->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			register_peer_exten(p, 1);
 			ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag64(p, IAX_TEMPONLY)) {
@@ -13118,7 +13119,7 @@ static void set_config_destroy(void)
 {
 	strcpy(accountcode, "");
 	strcpy(language, "");
-	strcpy(mohinterpret, "");
+	strcpy(mohinterpret, "default");
 	strcpy(mohsuggest, "");
 	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
