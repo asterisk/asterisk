@@ -437,41 +437,35 @@ static int pri_to_ast_presentation(int pri_presentation)
 	int ast_presentation;
 
 	switch (pri_presentation) {
-	case PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_UNSCREENED:
-		ast_presentation = AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_UNSCREENED;
+	case PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 		break;
-	case PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_PASSED_SCREEN:
-		ast_presentation = AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_PASSED_SCREEN;
+	case PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 		break;
-	case PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_FAILED_SCREEN:
-		ast_presentation = AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_FAILED_SCREEN;
+	case PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN;
 		break;
-	case PRI_PRES_ALLOWED | PRI_PRES_NETWORK_NUMBER:
-		ast_presentation = AST_PRES_ALLOWED | AST_PRES_NETWORK_NUMBER;
+	case PRES_ALLOWED_NETWORK_NUMBER:
+		ast_presentation = AST_PRES_ALLOWED_NETWORK_NUMBER;
 		break;
-
-	case PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_UNSCREENED:
-		ast_presentation = AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
+	case PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		break;
-	case PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_PASSED_SCREEN:
-		ast_presentation = AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_PASSED_SCREEN;
+	case PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN;
 		break;
-	case PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_FAILED_SCREEN:
-		ast_presentation = AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_FAILED_SCREEN;
+	case PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN;
 		break;
-	case PRI_PRES_RESTRICTED | PRI_PRES_NETWORK_NUMBER:
-		ast_presentation = AST_PRES_RESTRICTED | AST_PRES_NETWORK_NUMBER;
+	case PRES_PROHIB_NETWORK_NUMBER:
+		ast_presentation = AST_PRES_PROHIB_NETWORK_NUMBER;
 		break;
-
-	case PRI_PRES_UNAVAILABLE | PRI_PRES_USER_NUMBER_UNSCREENED:
-	case PRI_PRES_UNAVAILABLE | PRI_PRES_USER_NUMBER_PASSED_SCREEN:
-	case PRI_PRES_UNAVAILABLE | PRI_PRES_USER_NUMBER_FAILED_SCREEN:
-	case PRI_PRES_UNAVAILABLE | PRI_PRES_NETWORK_NUMBER:
+	case PRES_NUMBER_NOT_AVAILABLE:
 		ast_presentation = AST_PRES_NUMBER_NOT_AVAILABLE;
 		break;
-
 	default:
-		ast_presentation = AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		break;
 	}
 
@@ -492,41 +486,35 @@ static int ast_to_pri_presentation(int ast_presentation)
 	int pri_presentation;
 
 	switch (ast_presentation) {
-	case AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_UNSCREENED:
-		pri_presentation = PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_UNSCREENED;
+	case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 		break;
-	case AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_PASSED_SCREEN:
-		pri_presentation = PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_PASSED_SCREEN;
+	case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 		break;
-	case AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_FAILED_SCREEN:
-		pri_presentation = PRI_PRES_ALLOWED | PRI_PRES_USER_NUMBER_FAILED_SCREEN;
+	case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN;
 		break;
-	case AST_PRES_ALLOWED | AST_PRES_NETWORK_NUMBER:
-		pri_presentation = PRI_PRES_ALLOWED | PRI_PRES_NETWORK_NUMBER;
+	case AST_PRES_ALLOWED_NETWORK_NUMBER:
+		pri_presentation = PRES_ALLOWED_NETWORK_NUMBER;
 		break;
-
-	case AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED:
-		pri_presentation = PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_UNSCREENED;
+	case AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		break;
-	case AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_PASSED_SCREEN:
-		pri_presentation = PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_PASSED_SCREEN;
+	case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_PASSED_SCREEN;
 		break;
-	case AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_FAILED_SCREEN:
-		pri_presentation = PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_FAILED_SCREEN;
+	case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_FAILED_SCREEN;
 		break;
-	case AST_PRES_RESTRICTED | AST_PRES_NETWORK_NUMBER:
-		pri_presentation = PRI_PRES_RESTRICTED | PRI_PRES_NETWORK_NUMBER;
+	case AST_PRES_PROHIB_NETWORK_NUMBER:
+		pri_presentation = PRES_PROHIB_NETWORK_NUMBER;
 		break;
-
-	case AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_UNSCREENED:
-	case AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_PASSED_SCREEN:
-	case AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_FAILED_SCREEN:
-	case AST_PRES_UNAVAILABLE | AST_PRES_NETWORK_NUMBER:
+	case AST_PRES_NUMBER_NOT_AVAILABLE:
 		pri_presentation = PRES_NUMBER_NOT_AVAILABLE;
 		break;
-
 	default:
-		pri_presentation = PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_UNSCREENED;
+		pri_presentation = PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		break;
 	}
 
@@ -4447,6 +4435,7 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	int retval;
 	int chanpos_old;
 	int chanpos_new;
+	struct ast_channel *bridged;
 	struct ast_channel *owner;
 
 	chanpos_old = pri_find_principle_by_call(pri, ev->hold.call);
@@ -4467,11 +4456,9 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	if (!owner) {
 		goto done_with_private;
 	}
-	if (pri->pvts[chanpos_old]->call_level != SIG_PRI_CALL_LEVEL_CONNECT) {
-		/*
-		 * Make things simple.  Don't allow placing a call on hold that
-		 * is not connected.
-		 */
+	bridged = ast_bridged_channel(owner);
+	if (!bridged) {
+		/* Cannot hold a call that is not bridged. */
 		goto done_with_owner;
 	}
 	chanpos_new = pri_find_empty_nobch(pri);
@@ -5073,7 +5060,7 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 					{
 						/* We will not accept incoming call waiting calls. */
-						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_INCOMPATIBLE_DESTINATION);
 						break;
 					}
 #if defined(HAVE_PRI_CALL_WAITING)
