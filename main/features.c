@@ -7266,8 +7266,6 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_connected_line_copy_from_caller(&connected_caller, &chan->caller);
 	ast_channel_unlock(chan);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
-	ast_party_connected_line_free(&connected_caller);
 
 	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
 
@@ -7281,6 +7279,8 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 		goto pickup_failed;
 	}
 	
+	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
+
 	/* setting this flag to generate a reason header in the cancel message to the ringing channel */
 	ast_set_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE);
 
@@ -7305,6 +7305,7 @@ pickup_failed:
 	if (!ast_channel_datastore_remove(target, ds_pickup)) {
 		ast_datastore_free(ds_pickup);
 	}
+	ast_party_connected_line_free(&connected_caller);
 
 	return res;
 }
