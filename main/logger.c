@@ -1062,6 +1062,7 @@ static void *logger_thread(void *data)
 		AST_LIST_LOCK(&logmsgs);
 		if (AST_LIST_EMPTY(&logmsgs)) {
 			if (close_logger_thread) {
+				AST_LIST_UNLOCK(&logmsgs);
 				break;
 			} else {
 				ast_cond_wait(&logcond, &logmsgs.lock);
@@ -1179,8 +1180,6 @@ void close_logger(void)
 	closelog(); /* syslog */
 
 	AST_RWLIST_UNLOCK(&logchannels);
-
-	return;
 }
 
 /*!
@@ -1267,15 +1266,18 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {
 		AST_LIST_LOCK(&logmsgs);
-		AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
-		ast_cond_signal(&logcond);
+		if (close_logger_thread) {
+			/* Logger is either closing or closed.  We cannot log this message. */
+			ast_free(logmsg);
+		} else {
+			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+			ast_cond_signal(&logcond);
+		}
 		AST_LIST_UNLOCK(&logmsgs);
 	} else {
 		logger_print_normal(logmsg);
 		ast_free(logmsg);
 	}
-
-	return;
 }
 
 #ifdef HAVE_BKTR
