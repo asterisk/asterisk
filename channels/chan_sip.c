@@ -29222,16 +29222,48 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 
 	if (instance) {
 		changed |= ast_rtp_instance_get_and_cmp_remote_address(instance, &p->redirip);
+
+		if (p->rtp) {
+			/* Prevent audio RTCP reads */
+			ast_channel_set_fd(chan, 1, -1);
+			/* Silence RTCP while audio RTP is inactive */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 0);
+		}
 	} else if (!ast_sockaddr_isnull(&p->redirip)) {
 		memset(&p->redirip, 0, sizeof(p->redirip));
 		changed = 1;
+
+		if (p->rtp) {
+			/* Enable RTCP since it will be inactive if we're coming back
+			 * from a reinvite */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
+			/* Enable audio RTCP reads */
+			ast_channel_set_fd(chan, 1, ast_rtp_instance_fd(p->rtp, 1));
+		}
 	}
+
 	if (vinstance) {
 		changed |= ast_rtp_instance_get_and_cmp_remote_address(vinstance, &p->vredirip);
+
+		if (p->vrtp) {
+			/* Prevent video RTCP reads */
+			ast_channel_set_fd(chan, 3, -1);
+			/* Silence RTCP while video RTP is inactive */
+			ast_rtp_instance_set_prop(p->vrtp, AST_RTP_PROPERTY_RTCP, 0);
+		}
 	} else if (!ast_sockaddr_isnull(&p->vredirip)) {
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 		changed = 1;
+
+		if (p->vrtp) {
+			/* Enable RTCP since it will be inactive if we're coming back
+			 * from a reinvite */
+			ast_rtp_instance_set_prop(p->vrtp, AST_RTP_PROPERTY_RTCP, 1);
+			/* Enable video RTCP reads */
+			ast_channel_set_fd(chan, 3, ast_rtp_instance_fd(p->vrtp, 1));
+		}
 	}
+
 	if (tinstance) {
 		changed |= ast_rtp_instance_get_and_cmp_remote_address(tinstance, &p->tredirip);
 	} else if (!ast_sockaddr_isnull(&p->tredirip)) {
