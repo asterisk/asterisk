@@ -97,8 +97,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="m">
 						<argument name="mailbox" required="true" />
-						<para>Create a copy of the recording as a voicemail in the indicated <emphasis>mailbox</emphasis>(es)
+						<para>Create a copy of the recording as a voicemail in each indicated <emphasis>mailbox</emphasis>
 						separated by commas eg. m(1111@default,2222@default,...)</para>
+						<note><para>The recording will be deleted once all the copies are made.</para></note>
 					</option>
 				</optionlist>
 			</parameter>
@@ -390,6 +391,8 @@ static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext)
 {
 	struct vm_recipient *recipient = NULL;
 	struct ast_vm_recording_data recording_data;
+	char filename[PATH_MAX];
+
 	if (ast_string_field_init(&recording_data, 512)) {
 		ast_log(LOG_ERROR, "Failed to string_field_init, skipping copy_to_voicemail\n");
 		return;
@@ -413,6 +416,12 @@ static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext)
 		ast_verb(4, "MixMonitor attempting to send voicemail copy to %s@%s\n", recording_data.mailbox,
 			recording_data.context);
 		ast_app_copy_recording_to_vm(&recording_data);
+	}
+
+	/* Delete the source file */
+	snprintf(filename, sizeof(filename), "%s.%s", mixmonitor->filename, ext);
+	if (remove(filename)) {
+		ast_log(LOG_ERROR, "Failed to delete recording source file %s\n", filename);
 	}
 
 	/* Free the string fields for recording_data before exiting the function. */
