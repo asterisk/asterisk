@@ -174,7 +174,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Channel" required="true">
-				<para>The channel name to be hangup.</para>
+				<para>The exact channel name to be hungup, or to use a regular expression, set this parameter to: /regex/</para>
+				<para>Example exact channel: SIP/provider-0000012a</para>
+				<para>Example regular expression: /^SIP/provider-.*$/</para>
 			</parameter>
 			<parameter name="Cause">
 				<para>Numeric hangup cause.</para>
@@ -2034,7 +2036,7 @@ AST_THREADSTORAGE(astman_append_buf);
 
 AST_THREADSTORAGE(userevent_buf);
 
-/*! \brief initial allocated size for the astman_append_buf */
+/*! \brief initial allocated size for the astman_append_buf and astman_send_*_va */
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
 /*!
@@ -2107,6 +2109,23 @@ void astman_send_response(struct mansession *s, const struct message *m, char *r
 void astman_send_error(struct mansession *s, const struct message *m, char *error)
 {
 	astman_send_response_full(s, m, "Error", error, NULL);
+}
+
+void astman_send_error_va(struct mansession *s, const struct message *m, const char *fmt, ...)
+{
+	va_list ap;
+	struct ast_str *buf;
+
+	if (!(buf = ast_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE))) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	ast_str_set_va(&buf, 0, fmt, ap);
+	va_end(ap);
+
+	astman_send_response_full(s, m, "Error", ast_str_buffer(buf), NULL);
+	ast_free(buf);
 }
 
 void astman_send_ack(struct mansession *s, const struct message *m, char *msg)
@@ -3139,12 +3158,22 @@ static int action_hangup(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
 	int causecode = 0; /* all values <= 0 mean 'do not set hangupcause in channel' */
-	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+	const char *name_or_regex = astman_get_header(m, "Channel");
 	const char *cause = astman_get_header(m, "Cause");
+	char idText[256] = "";
+	regex_t regexbuf;
+	struct ast_channel_iterator *iter = NULL;
+	struct ast_str *regex_string;
+	int channels_matched = 0;
 
-	if (ast_strlen_zero(name)) {
+	if (ast_strlen_zero(name_or_regex)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
+	}
+
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
 
 	if (!ast_strlen_zero(cause)) {
@@ -3157,23 +3186,84 @@ static int action_hangup(struct mansession *s, const struct message *m)
 		}
 	}
 
-	if (!(c = ast_channel_get_by_name(name))) {
-		astman_send_error(s, m, "No such channel");
+	/************************************************/
+	/* Regular explicit match channel byname hangup */
+
+	if (name_or_regex[0] != '/') {
+		if (!(c = ast_channel_get_by_name(name_or_regex))) {
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
+
+		ast_verb(3, "%sManager '%s' from %s, hanging up channel: %s\n",
+			(s->session->managerid ? "HTTP " : ""),
+			s->session->username,
+			ast_inet_ntoa(s->session->sin.sin_addr),
+			ast_channel_name(c));
+
+		ast_channel_softhangup_withcause_locked(c, causecode);
+		c = ast_channel_unref(c);
+
+		astman_send_ack(s, m, "Channel Hungup");
+
 		return 0;
 	}
 
-	ast_channel_lock(c);
-	if (causecode > 0) {
-		ast_debug(1, "Setting hangupcause of channel %s to %d (is %d now)\n",
-				ast_channel_name(c), causecode, ast_channel_hangupcause(c));
-		ast_channel_hangupcause_set(c, causecode);
+	/***********************************************/
+	/* find and hangup any channels matching regex */
+
+	regex_string = ast_str_create(strlen(name_or_regex));
+
+	/* Make "/regex/" into "regex" */
+	if (ast_regex_string_to_regex_pattern(name_or_regex, regex_string) != 0) {
+		astman_send_error(s, m, "Regex format invalid, Channel param should be /regex/");
+		ast_free(regex_string);
+		return 0;
 	}
-	ast_softhangup_nolock(c, AST_SOFTHANGUP_EXPLICIT);
-	ast_channel_unlock(c);
 
-	c = ast_channel_unref(c);
+	/* if regex compilation fails, hangup fails */
+	if (regcomp(&regexbuf, ast_str_buffer(regex_string), REG_EXTENDED | REG_NOSUB)) {
+		astman_send_error_va(s, m, "Regex compile failed on: %s\n", name_or_regex);
+		ast_free(regex_string);
+		return 0;
+	}
 
-	astman_send_ack(s, m, "Channel Hungup");
+	astman_send_listack(s, m, "Channels hung up will follow", "start");
+
+	for (iter = ast_channel_iterator_all_new(); iter && (c = ast_channel_iterator_next(iter)); ) {
+		if (regexec(&regexbuf, ast_channel_name(c), 0, NULL, 0)) {
+			ast_channel_unref(c);
+			continue;
+		}
+
+		ast_verb(3, "%sManager '%s' from %s, hanging up channel: %s\n",
+			(s->session->managerid ? "HTTP " : ""),
+			s->session->username,
+			ast_inet_ntoa(s->session->sin.sin_addr),
+			ast_channel_name(c));
+
+		ast_channel_softhangup_withcause_locked(c, causecode);
+		channels_matched++;
+
+		astman_append(s,
+			"Event: ChannelHungup\r\n"
+			"Channel: %s\r\n"
+			"%s"
+			"\r\n", ast_channel_name(c), idText);
+
+		ast_channel_unref(c);
+	}
+
+	ast_channel_iterator_destroy(iter);
+	regfree(&regexbuf);
+	ast_free(regex_string);
+
+	astman_append(s,
+		"Event: ChannelsHungupListComplete\r\n"
+		"EventList: Complete\r\n"
+		"ListItems: %d\r\n"
+		"%s"
+		"\r\n", channels_matched, idText);
 
 	return 0;
 }

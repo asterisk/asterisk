@@ -1350,6 +1350,26 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 	return result;
 }
 
+int ast_regex_string_to_regex_pattern(const char *regex_string, struct ast_str *regex_pattern)
+{
+	int regex_len = strlen(regex_string);
+	int ret = 3;
+
+	/* Chop off the leading / if there is one */
+	if ((regex_len >= 1) && (regex_string[0] == '/')) {
+		ast_str_set(&regex_pattern, 0, "%s", regex_string + 1);
+		ret -= 2;
+	}
+
+	/* Chop off the ending / if there is one */
+	if ((regex_len > 1) && (regex_string[regex_len - 1] == '/')) {
+		ast_str_truncate(regex_pattern, -1);
+		ret -= 1;
+	}
+
+	return ret;
+}
+
 int ast_true(const char *s)
 {
 	if (ast_strlen_zero(s))

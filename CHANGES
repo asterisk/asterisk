@@ -171,6 +171,11 @@ AMI (Asterisk Manager Interface) changes
    set and nat is not detected. "Y" and "N" are still returned if auto_force_rport
    is not enabled.
 
+ * Hangup now can take a regular expression as the Channel option.  If you want
+   to hangup multiple channels, use /regex/ as the Channel option.  Existing 
+   behavior to hanging up a single channel is unchanged, but if you pass a regex,
+   the manager will send you a list of channels back that were hung up.
+
 FAX changes
 -----------
  * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan

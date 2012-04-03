@@ -604,6 +604,26 @@ int ast_check_hangup_locked(struct ast_channel *chan)
 	return res;
 }
 
+int ast_channel_softhangup_withcause_locked(void *obj, int causecode)
+{
+	struct ast_channel *chan = obj;
+
+	ast_channel_lock(chan);
+
+	if (causecode > 0) {
+		ast_debug(1, "Setting hangupcause of channel %s to %d (is %d now)\n",
+			ast_channel_name(chan), causecode, ast_channel_hangupcause(chan));
+
+		ast_channel_hangupcause_set(chan, causecode);
+	}
+
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_EXPLICIT);
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 static int ast_channel_softhangup_cb(void *obj, void *arg, int flags)
 {
 	struct ast_channel *chan = obj;

@@ -1383,6 +1383,14 @@ int ast_check_hangup(struct ast_channel *chan);
 int ast_check_hangup_locked(struct ast_channel *chan);
 
 /*!
+ * \brief Lock the given channel, then request softhangup on the channel with the given causecode
+ * \param obj channel on which to hang up
+ * \param causecode cause code to use
+ * \return 0
+ */
+int ast_channel_softhangup_withcause_locked(void *obj, int causecode);
+
+/*!
  * \brief Compare a offset with the settings of when to hang a channel up
  * \param chan channel on which to check for hang up
  * \param offset offset in seconds from current time

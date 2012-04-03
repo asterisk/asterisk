@@ -261,6 +261,9 @@ struct ast_variable *astman_get_variables(const struct message *m);
 /*! \brief Send error in manager transaction */
 void astman_send_error(struct mansession *s, const struct message *m, char *error);
 
+/*! \brief Send error in manager transaction (with va_args support) */
+void astman_send_error_va(struct mansession *s, const struct message *m, const char *fmt, ...);
+
 /*! \brief Send response in manager transaction */
 void astman_send_response(struct mansession *s, const struct message *m, char *resp, char *msg);
 
