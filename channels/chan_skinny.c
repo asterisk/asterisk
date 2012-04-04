@@ -5004,10 +5004,13 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 					AST_LIST_TRAVERSE(&tmpline->sublines, tmpsubline, list) {
 						if (!(subline == tmpsubline)) {
 							if (!strcasecmp(subline->lnname, tmpsubline->lnname)) {
+								struct ast_state_cb_info info = {
+									.exten_state = tmpsubline->extenstate,
+								};
 								tmpsubline->callid = callnums++;
 								transmit_callstate(tmpsubline->line->device, tmpsubline->line->instance, tmpsubline->callid, SKINNY_OFFHOOK);
 								push_callinfo(tmpsubline, sub);
-								skinny_extensionstate_cb(NULL, NULL, tmpsubline->extenstate, tmpsubline->container);
+								skinny_extensionstate_cb(NULL, NULL, &info, tmpsubline->container);
 							}
 						}
 					}

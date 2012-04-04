@@ -25474,7 +25474,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 {
 	int gotdest = 0;
 	int res = 0;
-	int firststate;
 	struct sip_peer *authpeer = NULL;
 	const char *eventheader = sip_get_header(req, "Event");	/* Get Event package name */
 	int resubscribe = (p->subscribed != NONE) && !req->ignore;

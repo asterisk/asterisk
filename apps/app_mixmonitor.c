@@ -469,11 +469,11 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
  * \param mixmonitor The mixmonitor that needs to forward its file to recipients
  * \param ext Format of the file that was saved
  */
-static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext)
+static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext, const char *filename)
 {
 	struct vm_recipient *recipient = NULL;
 	struct ast_vm_recording_data recording_data;
-	char filename[PATH_MAX];
+	char full_filename[PATH_MAX];
 
 	if (ast_string_field_init(&recording_data, 512)) {
 		ast_log(LOG_ERROR, "Failed to string_field_init, skipping copy_to_voicemail\n");
@@ -501,9 +501,9 @@ static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext)
 	}
 
 	/* Delete the source file */
-	snprintf(filename, sizeof(filename), "%s.%s", mixmonitor->filename, ext);
-	if (remove(filename)) {
-		ast_log(LOG_ERROR, "Failed to delete recording source file %s\n", filename);
+	snprintf(full_filename, sizeof(full_filename), "%s.%s", filename, ext);
+	if (remove(full_filename)) {
+		ast_log(LOG_ERROR, "Failed to delete recording source file %s\n", full_filename);
 	}
 
 	/* Free the string fields for recording_data before exiting the function. */

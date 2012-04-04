@@ -1267,7 +1267,7 @@ static int waitstream_core(struct ast_channel *c,
 		orig_chan_name = ast_strdupa(c->name);
 
 	if (c->stream && cb) {
-		long ms_len = ast_tellstream(c->stream) / (ast_format_rate(c->stream->fmt->format) / 1000);
+		long ms_len = ast_tellstream(c->stream) / (ast_format_rate(&c->stream->fmt->format) / 1000);
 		cb(c, ms_len, AST_WAITSTREAM_CB_START);
 	}
 
@@ -1353,7 +1353,7 @@ static int waitstream_core(struct ast_channel *c,
 						return res;
 					}
 					if (cb_val && cb) {
-						long ms_len = ast_tellstream(c->stream) / (ast_format_rate(c->stream->fmt->format) / 1000);
+						long ms_len = ast_tellstream(c->stream) / (ast_format_rate(&c->stream->fmt->format) / 1000);
 						cb(c, ms_len, cb_val);
 					}
 				}

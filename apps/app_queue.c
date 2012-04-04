@@ -1572,7 +1572,7 @@ static int extensionstate2devicestate(int state)
 	return state;
 }
 
-static int extension_state_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
+static int extension_state_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct ao2_iterator miter, qiter;
 	struct member *m;

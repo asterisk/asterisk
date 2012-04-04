@@ -844,27 +844,6 @@ static int msg_func_read(struct ast_channel *chan, const char *function,
 		ast_copy_string(buf, ast_str_buffer(msg->from), len);
 	} else if (!strcasecmp(data, "body")) {
 		ast_copy_string(buf, ast_msg_get_body(msg), len);
-	} else if (!strcasecmp(data, "custom_data")) {
-		int outbound = -1;
-		if (!strcasecmp(value, "mark_all_outbound")) {
-			outbound = 1;
-		} else if (!strcasecmp(value, "clear_all_outbound")) {
-			outbound = 0;
-		} else {
-			ast_log(LOG_WARNING, "'%s' is not a valid value for custom_data\n", value);
-		}
-
-		if (outbound != -1) {
-			struct msg_data *data;
-			struct ao2_iterator iter = ao2_iterator_init(msg->vars, 0);
-
-			while ((data= ao2_iterator_next(&iter))) {
-				data->send = outbound;
-				ao2_ref(data, -1);
-			}
-			ao2_iterator_destroy(&iter);
-		}
-
 	} else {
 		ast_log(LOG_WARNING, "Invalid argument to MESSAGE(): '%s'\n", data);
 	}
@@ -900,6 +879,26 @@ static int msg_func_write(struct ast_channel *chan, const char *function,
 		ast_msg_set_from(msg, "%s", value);
 	} else if (!strcasecmp(data, "body")) {
 		ast_msg_set_body(msg, "%s", value);
+	} else if (!strcasecmp(data, "custom_data")) {
+		int outbound = -1;
+		if (!strcasecmp(value, "mark_all_outbound")) {
+			outbound = 1;
+		} else if (!strcasecmp(value, "clear_all_outbound")) {
+			outbound = 0;
+		} else {
+			ast_log(LOG_WARNING, "'%s' is not a valid value for custom_data\n", value);
+		}
+
+		if (outbound != -1) {
+			struct msg_data *data;
+			struct ao2_iterator iter = ao2_iterator_init(msg->vars, 0);
+
+			while ((data= ao2_iterator_next(&iter))) {
+				data->send = outbound;
+				ao2_ref(data, -1);
+			}
+			ao2_iterator_destroy(&iter);
+		}
 	} else {
 		ast_log(LOG_WARNING, "'%s' is not a valid write argument.\n", data);
 	}
