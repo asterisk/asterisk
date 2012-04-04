@@ -114,6 +114,11 @@ struct ast_msg *ast_msg_alloc(void);
 struct ast_msg *ast_msg_destroy(struct ast_msg *msg);
 
 /*!
+ * \brief Bump a msg's ref count
+ */
+struct ast_msg *ast_msg_ref(struct ast_msg *msg);
+
+/*!
  * \brief Set the 'to' URI of a message
  *
  * \retval 0 success
@@ -171,6 +176,18 @@ int __attribute__((format(printf, 2, 3)))
 int ast_msg_set_var(struct ast_msg *msg, const char *name, const char *value);
 
 /*!
+ * \brief Set a variable on the message being sent to a message tech directly.
+ * \note Setting a variable that already exists overwrites the existing variable value
+ *
+ * \param name Name of variable to set
+ * \param value Value of variable to set
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_msg_set_var_outbound(struct ast_msg *msg, const char *name, const char *value);
+
+/*!
  * \brief Get the specified variable on the message
  * \note The return value is valid only as long as the ast_message is valid. Hold a reference
  *       to the message if you plan on storing the return value. Do re-set the same
@@ -199,6 +216,17 @@ const char *ast_msg_get_body(const struct ast_msg *msg);
  * \retval non-zero failure, message not sent to dialplan
  */
 int ast_msg_queue(struct ast_msg *msg);
+
+/*!
+ * \brief Send a msg directly to an endpoint.
+ *
+ * Regardless of the return value of this function, this funciton will take
+ * care of ensuring that the message object is properly destroyed when needed.
+ *
+ * \retval 0 message successfully queued to be sent out
+ * \retval non-zero failure, message not get sent out.
+ */
+int ast_msg_send(struct ast_msg *msg, const char *to, const char *from);
 
 /*!
  * \brief Opaque iterator for msg variables
