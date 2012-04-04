@@ -152,7 +152,6 @@ int ooh323c_start_call_thread(ooCallData *call) {
 	}
 
 	ast_module_ref(myself);
-	memset(cur, 0, sizeof(cur));
 	if ((socketpair(PF_LOCAL, SOCK_STREAM, 0, cur->thePipe)) == -1) {
 		ast_log(LOG_ERROR, "Can't create thread pipe for call %s\n", call->callToken);
 		free(cur);
