@@ -759,9 +759,9 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 	int i;
 	struct ast_channel *peer;
 	static struct ast_generator t30_gen = {
-		alloc: spandsp_fax_gw_gen_alloc,
-		release: spandsp_fax_gw_gen_release,
-		generate: spandsp_fax_gw_t30_gen,
+		.alloc = spandsp_fax_gw_gen_alloc,
+		.release = spandsp_fax_gw_gen_release,
+		.generate = spandsp_fax_gw_t30_gen,
 	};
 
 #if SPANDSP_RELEASE_DATE >= 20081012

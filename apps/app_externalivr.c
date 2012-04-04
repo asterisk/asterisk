@@ -293,9 +293,9 @@ static int gen_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 static struct ast_generator gen =
 {
-	alloc: gen_alloc,
-	release: gen_release,
-	generate: gen_generate,
+	.alloc = gen_alloc,
+	.release = gen_release,
+	.generate = gen_generate,
 };
 
 static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *outbuf, int outbuflen)
