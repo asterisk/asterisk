@@ -7706,9 +7706,9 @@ static int tonepair_generator(struct ast_channel *chan, void *data, int len, int
 }
 
 static struct ast_generator tonepair = {
-	alloc: tonepair_alloc,
-	release: tonepair_release,
-	generate: tonepair_generator,
+	.alloc = tonepair_alloc,
+	.release = tonepair_release,
+	.generate = tonepair_generator,
 };
 
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol)

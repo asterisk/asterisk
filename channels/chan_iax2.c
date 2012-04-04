@@ -14023,12 +14023,12 @@ static int iax2_devicestate(void *data)
 
 static struct ast_switch iax2_switch = 
 {
-	name:        "IAX2",
-	description: "IAX Remote Dialplan Switch",
-	exists:      iax2_exists,
-	canmatch:    iax2_canmatch,
-	exec:        iax2_exec,
-	matchmore:   iax2_matchmore,
+	.name        = "IAX2",
+	.description = "IAX Remote Dialplan Switch",
+	.exists      = iax2_exists,
+	.canmatch    = iax2_canmatch,
+	.exec        = iax2_exec,
+	.matchmore   = iax2_matchmore,
 };
 
 /*

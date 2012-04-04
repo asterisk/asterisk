@@ -124,9 +124,9 @@ static struct ast_rtp_glue ooh323_rtp = {
 };
 
 static struct ast_udptl_protocol ooh323_udptl = {
-	type: "H323",
-	get_udptl_info: ooh323_get_udptl_peer,
-	set_udptl_peer: ooh323_set_udptl_peer,
+	.type = "H323",
+	.get_udptl_info = ooh323_get_udptl_peer,
+	.set_udptl_peer = ooh323_set_udptl_peer,
 };
 
 

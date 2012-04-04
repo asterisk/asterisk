@@ -117,9 +117,9 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 }
 
 static struct ast_generator milliwattgen = {
-	alloc: milliwatt_alloc,
-	release: milliwatt_release,
-	generate: milliwatt_generate,
+	.alloc = milliwatt_alloc,
+	.release = milliwatt_release,
+	.generate = milliwatt_generate,
 };
 
 static int old_milliwatt_exec(struct ast_channel *chan)
