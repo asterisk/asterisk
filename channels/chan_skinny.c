@@ -1481,7 +1481,7 @@ static struct ast_channel_tech skinny_tech = {
 	.bridge = ast_rtp_instance_bridge, 
 };
 
-static int skinny_extensionstate_cb(const char *context, const char *exten, enum ast_extension_states state, void *data);
+static int skinny_extensionstate_cb(char *context, char* id, struct ast_state_cb_info *info, void *data);
 static int skinny_transfer(struct skinny_subchannel *sub);
 
 static struct skinny_line *skinny_line_alloc(void)
@@ -2990,11 +2990,17 @@ static void transmit_capabilitiesreq(struct skinny_device *d)
 	transmit_response(d, req);
 }
 
-static int skinny_extensionstate_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
+static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct skinny_container *container = data;
 	struct skinny_device *d = NULL;
 	char hint[AST_MAX_EXTENSION];
+	int state = info->exten_state;
+ 
+	/* only interested in device state here */
+	if (info->reason != AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
 
 	if (container->type == SKINNY_SDCONTAINER) {
 		struct skinny_speeddial *sd = container->data;
