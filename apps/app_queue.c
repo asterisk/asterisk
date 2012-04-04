@@ -1577,7 +1577,13 @@ static int extension_state_cb(const char *context, const char *exten, enum ast_e
 	struct ao2_iterator miter, qiter;
 	struct member *m;
 	struct call_queue *q;
+	int state = info->exten_state;
 	int found = 0, device_state = extensionstate2devicestate(state);
+
+	/* only interested in extension state updates involving device states */
+	if (info->reason != AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
 
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate through queues"))) {
