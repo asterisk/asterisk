@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/say.h"
 #include "asterisk/features.h"
+#include "asterisk/custom_control_frame.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
@@ -376,6 +377,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Bridge together two channels already in the PBX.</para>
+		</description>
+	</manager>
+	<manager name="Parkinglots" language="en_US">
+		<synopsis>
+			Get a list of parking lots
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>List all parking lots as a series of AMI events</para>
 		</description>
 	</manager>
  ***/
@@ -7003,6 +7015,41 @@ static struct ast_cli_entry cli_features[] = {
 	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls"),
 };
 
+static int manager_parkinglot_list(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	char idText[256] = "";
+	struct ao2_iterator iter;
+	struct ast_parkinglot *curlot;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	astman_send_ack(s, m, "Parking lots will follow");
+
+	iter = ao2_iterator_init(parkinglots, 0);
+	while ((curlot = ao2_iterator_next(&iter))) {
+		astman_append(s, "Event: Parkinglot\r\n"
+			"Name: %s\r\n"
+			"StartExten: %d\r\n"
+			"StopExten: %d\r\n"
+			"Timeout: %d\r\n"
+			"\r\n",
+			curlot->name,
+			curlot->cfg.parking_start,
+			curlot->cfg.parking_stop,
+			curlot->cfg.parkingtime ? curlot->cfg.parkingtime / 1000 : curlot->cfg.parkingtime);
+		ao2_ref(curlot, -1);
+	}
+
+	astman_append(s,
+		"Event: ParkinglotsComplete\r\n"
+		"%s"
+		"\r\n",idText);
+
+	return RESULT_SUCCESS;
+}
+
 /*! 
  * \brief Dump parking lot status
  * \param s
@@ -8137,6 +8184,7 @@ int ast_features_init(void)
 		res = ast_register_application2(parkcall, park_call_exec, NULL, NULL, NULL);
 	if (!res) {
 		ast_manager_register_xml("ParkedCalls", 0, manager_parking_status);
+		ast_manager_register_xml("Parkinglots", 0, manager_parkinglot_list);
 		ast_manager_register_xml("Park", EVENT_FLAG_CALL, manager_park);
 		ast_manager_register_xml("Bridge", EVENT_FLAG_CALL, action_bridge);
 	}
