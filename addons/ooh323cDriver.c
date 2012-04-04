@@ -145,14 +145,13 @@ int ooh323c_start_call_thread(ooCallData *call) {
 
 /* make new thread */
  if (cur == NULL) {
-	if (!(cur = ast_malloc(sizeof(struct callthread)))) {
+	if (!(cur = ast_calloc(1, sizeof(struct callthread)))) {
 		ast_log(LOG_ERROR, "Unable to allocate thread structure for call %s\n",
 							call->callToken);
 		return -1;
 	}
 
 	ast_module_ref(myself);
-	memset(cur, 0, sizeof(cur));
 	if ((socketpair(PF_LOCAL, SOCK_STREAM, 0, cur->thePipe)) == -1) {
 		ast_log(LOG_ERROR, "Can't create thread pipe for call %s\n", call->callToken);
 		free(cur);
