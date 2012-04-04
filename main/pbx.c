@@ -1069,7 +1069,7 @@ static int add_hintdevice(struct ast_hint *hint, const char *devicelist)
 		return -1;
 	}
 	ast_str_set(&str, 0, "%s", devicelist);
-	parse = ast_str_buffer(str);
+	parse = parse_hint_device(str);
 
 	while ((cur = strsep(&parse, "&"))) {
 		devicelength = strlen(cur);
