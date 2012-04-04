@@ -140,7 +140,8 @@ bindaddr = 0.0.0.0
 ; test      - Ability to read TestEvent notifications sent to the Asterisk Test
 ;             Suite.  Note that this is only enabled when the TEST_FRAMEWORK
 ;             compiler flag is defined.
+; message   - Permissions to send out of call messages. Write-only
 ;
 ;read = system,call,log,verbose,agent,user,config,dtmf,reporting,cdr,dialplan
-;write = system,call,agent,user,config,command,reporting,originate
+;write = system,call,agent,user,config,command,reporting,originate,message
 
