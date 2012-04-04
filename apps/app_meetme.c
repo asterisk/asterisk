@@ -4601,7 +4601,7 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 		user->adminflags |= ADMINFLAG_MUTED;
 		break;
 	case 78: /* N: Mute all (non-admin) users */
-		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_set_muted_cb, NULL);
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_set_muted_cb, &cnf);
 		break;					
 	case 109: /* m: Unmute */ 
 		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
