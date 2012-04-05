@@ -35,6 +35,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/astdb.h"
 #include "asterisk/app.h"
+#ifdef TEST_FRAMEWORK
+#include "asterisk/test.h"
+#include "asterisk/event.h"
+#include <semaphore.h>
+#endif
 
 /*** DOCUMENTATION
 	<function name="PRESENCE_STATE" language="en_US">
@@ -267,12 +272,304 @@ static struct ast_custom_function presence_function = {
 	.write = presence_write,
 };
 
+#ifdef TEST_FRAMEWORK
+
+struct test_string {
+	char *parse_string;
+	struct {
+		int value;
+		const char *subtype;
+		const char *message;
+		const char *options; 
+	} outputs;
+};
+
+AST_TEST_DEFINE(test_valid_parse_data)
+{
+	int i;
+	int state;
+	char *subtype;
+	char *message;
+	char *options;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	
+	struct test_string tests [] = {
+		{ "away",
+			{ AST_PRESENCE_AWAY,
+				"",
+				"",
+				""
+			}
+		},
+		{ "not_set",
+			{ AST_PRESENCE_NOT_SET,
+				"",
+				"",
+				""
+			}
+		},
+		{ "unavailable",
+			{ AST_PRESENCE_UNAVAILABLE,
+				"",
+				"",
+				""
+			}
+		},
+		{ "available",
+			{ AST_PRESENCE_AVAILABLE,
+				"",
+				"",
+				""
+			}
+		},
+		{ "xa",
+			{ AST_PRESENCE_XA,
+				"",
+				"",
+				""
+			}
+		},
+		{ "chat",
+			{ AST_PRESENCE_CHAT,
+				"",
+				"",
+				""
+			}
+		},
+		{ "dnd",
+			{ AST_PRESENCE_DND,
+				"",
+				"",
+				""
+			}
+		},
+		{ "away,down the hall",
+			{ AST_PRESENCE_AWAY,
+				"down the hall",
+				"",
+				""
+			}
+		},
+		{ "away,down the hall,Quarterly financial meeting",
+			{ AST_PRESENCE_AWAY,
+				"down the hall",
+				"Quarterly financial meeting",
+				""
+			}
+		},
+		{ "away,,Quarterly financial meeting",
+			{ AST_PRESENCE_AWAY,
+				"",
+				"Quarterly financial meeting",
+				""
+			}
+		},
+		{ "away,,,e",
+			{ AST_PRESENCE_AWAY,
+				"",
+				"",
+				"e",
+			}
+		},
+		{ "away,down the hall,,e",
+			{ AST_PRESENCE_AWAY,
+				"down the hall",
+				"",
+				"e"
+			}
+		},
+		{ "away,down the hall,Quarterly financial meeting,e",
+			{ AST_PRESENCE_AWAY,
+				"down the hall",
+				"Quarterly financial meeting",
+				"e"
+			}
+		},
+		{ "away,,Quarterly financial meeting,e",
+			{ AST_PRESENCE_AWAY,
+				"",
+				"Quarterly financial meeting",
+				"e"
+			}
+		}
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "parse_valid_presence_data";
+		info->category = "/funcs/func_presence";
+		info->summary = "PRESENCESTATE parsing test";
+		info->description =
+			"Ensure that parsing function accepts proper values, and gives proper outputs";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(tests); ++i) {
+		int parse_result;
+		char *parse_string = ast_strdup(tests[i].parse_string);
+		if (!parse_string) {
+			res = AST_TEST_FAIL;
+			break;
+		}
+		parse_result = parse_data(parse_string, &state, &subtype, &message, &options);
+		if (parse_result == -1) {
+			res = AST_TEST_FAIL;
+			ast_free(parse_string);
+			break;
+		}
+		if (tests[i].outputs.value != state ||
+				strcmp(tests[i].outputs.subtype, subtype) ||
+				strcmp(tests[i].outputs.message, message) ||
+				strcmp(tests[i].outputs.options, options)) {
+			res = AST_TEST_FAIL;
+			ast_free(parse_string);
+			break;
+		}
+		ast_free(parse_string);
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(test_invalid_parse_data)
+{
+	int i;
+	int state;
+	char *subtype;
+	char *message;
+	char *options;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	char *tests[] = {
+		"",
+		"bored",
+		"away,,,i",
+		/* XXX The following actually is parsed correctly. Should that
+		 * be changed?
+		 * "away,,,,e",
+		 */
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "parse_invalid_presence_data";
+		info->category = "/funcs/func_presence";
+		info->summary = "PRESENCESTATE parsing test";
+		info->description =
+			"Ensure that parsing function rejects improper values";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(tests); ++i) {
+		int parse_result;
+		char *parse_string = ast_strdup(tests[i]);
+		if (!parse_string) {
+			res = AST_TEST_FAIL;
+			break;
+		}
+		printf("parse string is %s\n", parse_string);
+		parse_result = parse_data(parse_string, &state, &subtype, &message, &options);
+		if (parse_result == 0) {
+			res = AST_TEST_FAIL;
+			ast_free(parse_string);
+			break;
+		}
+		ast_free(parse_string);
+	}
+
+	return res;
+}
+
+struct test_cb_data {
+	enum ast_presence_state presence;
+	const char *provider;
+	const char *subtype;
+	const char *message;
+	/* That's right. I'm using a semaphore */
+	sem_t sem;
+};
+
+static void test_cb(const struct ast_event *event, void *userdata)
+{
+	struct test_cb_data *cb_data = userdata;
+	cb_data->presence = ast_event_get_ie_uint(event, AST_EVENT_IE_PRESENCE_STATE);
+	cb_data->provider = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_PROVIDER));
+	cb_data->subtype = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_SUBTYPE));
+	cb_data->message = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_MESSAGE));
+	sem_post(&cb_data->sem);
+	ast_log(LOG_NOTICE, "Callback called\n");
+}
+
+/* XXX This test could probably stand to be moved since
+ * it does not test func_presencestate but rather code in
+ * presencestate.h and presencestate.c. However, the convenience
+ * of presence_write() makes this a nice location for this test.
+ */
+AST_TEST_DEFINE(test_presence_state_change)
+{
+	struct ast_event_sub *test_sub;
+	struct test_cb_data *cb_data;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "test_presence_state_change";
+		info->category = "/funcs/func_presence";
+		info->summary = "presence state change subscription";
+		info->description =
+			"Ensure that presence state changes are communicated to subscribers";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cb_data = ast_calloc(1, sizeof(*cb_data));
+	if (!cb_data) {
+		return AST_TEST_FAIL;
+	}
+
+	if (!(test_sub = ast_event_subscribe(AST_EVENT_PRESENCE_STATE,
+			test_cb, "Test presence state callbacks", cb_data, AST_EVENT_IE_END))) {
+		return AST_TEST_FAIL;
+	}
+
+	if (sem_init(&cb_data->sem, 0, 0)) {
+		return AST_TEST_FAIL;
+	}
+
+	presence_write(NULL, "PRESENCESTATE", "CustomPresence:Bob", "away,down the hall,Quarterly financial meeting");
+	sem_wait(&cb_data->sem);
+	if (cb_data->presence != AST_PRESENCE_AWAY ||
+			strcmp(cb_data->provider, "CustomPresence:Bob") ||
+			strcmp(cb_data->subtype, "down the hall") ||
+			strcmp(cb_data->message, "Quarterly financial meeting")) {
+		return AST_TEST_FAIL;
+	}
+
+	ast_free((char *)cb_data->provider);
+	ast_free((char *)cb_data->subtype);
+	ast_free((char *)cb_data->message);
+	ast_free((char *)cb_data);
+
+	return AST_TEST_PASS;
+}
+
+#endif
+
 static int unload_module(void)
 {
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&presence_function);
 	res |= ast_presence_state_prov_del("CustomPresence");
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(test_valid_parse_data);
+	AST_TEST_UNREGISTER(test_invalid_parse_data);
+	AST_TEST_UNREGISTER(test_presence_state_change);
+#endif
 	return res;
 }
 
@@ -282,6 +579,11 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&presence_function);
 	res |= ast_presence_state_prov_add("CustomPresence", custom_presence_callback);
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(test_valid_parse_data);
+	AST_TEST_REGISTER(test_invalid_parse_data);
+	AST_TEST_REGISTER(test_presence_state_change);
+#endif
 
 	return res;
 }
