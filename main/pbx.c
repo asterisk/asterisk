@@ -1051,6 +1051,8 @@ static void hintdevice_destroy(void *obj)
 	}
 }
 
+static char *parse_hint_device(struct ast_str *hint_args);
+
 /*! \brief add hintdevice structure and link it into the container.
  */
 static int add_hintdevice(struct ast_hint *hint, const char *devicelist)
