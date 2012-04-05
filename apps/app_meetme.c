@@ -3761,7 +3761,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								}
 								if (musiconhold && mohtempstopped && confsilence > MEETME_DELAYDETECTENDTALK) {
 									mohtempstopped = 0;
-									ast_moh_start(chan, NULL, NULL);
+									conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 								}
 							}
 						} else {
@@ -3783,7 +3783,7 @@ bailoutandtrynormal:
 						}
 						if (musiconhold && mohtempstopped && confsilence > MEETME_DELAYDETECTENDTALK) {
 							mohtempstopped = 0;
-							ast_moh_start(chan, NULL, NULL);
+							conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 						}
 					}
 				} else {
