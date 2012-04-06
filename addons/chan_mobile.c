@@ -1718,7 +1718,7 @@ static int rfcomm_read_result(int rsock, char **buf, size_t count, size_t *in_co
 	return 1;
 
 e_return:
-	ast_log(LOG_ERROR, "error parsing AT result on rfcomm socket");
+	ast_log(LOG_ERROR, "error parsing AT result on rfcomm socket\n");
 	return res;
 }
 

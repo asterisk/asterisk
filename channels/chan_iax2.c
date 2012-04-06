@@ -5426,7 +5426,7 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, i
 	unsigned int transferid = (unsigned int)ast_random();
 
 	if (IAX_CALLENCRYPTED(iaxs[callno0]) || IAX_CALLENCRYPTED(iaxs[callno1])) {
-		ast_debug(1, "transfers are not supported for encrypted calls at this time");
+		ast_debug(1, "transfers are not supported for encrypted calls at this time\n");
 		ast_set_flag64(iaxs[callno0], IAX_NOTRANSFER);
 		ast_set_flag64(iaxs[callno1], IAX_NOTRANSFER);
 		return 0;
@@ -7885,7 +7885,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		user = user_unref(user);
 	}
 	if (ast_test_flag64(p, IAX_FORCE_ENCRYPT) && !p->encmethods) { 
-		ast_log(LOG_NOTICE, "Call Terminated, Incoming call is unencrypted while force encrypt is enabled.");
+		ast_log(LOG_NOTICE, "Call Terminated, Incoming call is unencrypted while force encrypt is enabled.\n");
 		return res;
 	}
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
@@ -8233,7 +8233,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	if (ies->encmethods) {
 		ast_set_flag64(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
 	} else if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
-		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set");
+		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set\n");
 		return -1;             /* if force encryption is yes, and no encryption methods, then return -1 to hangup */
 	}
 	if (!res) {

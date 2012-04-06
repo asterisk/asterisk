@@ -475,7 +475,7 @@ static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *po
 	/* For existing streams, replace if its an SSRC stream, or bail if its a wildcard */
 	if ((match = find_policy(srtp, &policy->sp, OBJ_POINTER))) {
 		if (policy->sp.ssrc.type != ssrc_specific) {
-			ast_log(AST_LOG_WARNING, "Cannot replace an existing wildcard policy");
+			ast_log(AST_LOG_WARNING, "Cannot replace an existing wildcard policy\n");
 			ao2_t_ref(match, -1, "Unreffing already existing policy");
 			return -1;
 		} else {

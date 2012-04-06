@@ -2168,7 +2168,7 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 
 	snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, USTM_LOG_DIR);
 	if (ast_mkdir(tmp, 0770)) {
-		ast_log(LOG_WARNING, "Unable to create directory for history");
+		ast_log(LOG_WARNING, "Unable to create directory for history\n");
                 return -1;
 	}
 
@@ -6318,7 +6318,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		} else if (!strcasecmp(v->name, "contrast")) {
 			d->contrast = atoi(v->value);
 			if ((d->contrast < 0) || (d->contrast > 15)) {
-				ast_log(LOG_WARNING, "constrast must be beetween 0 and 15");
+				ast_log(LOG_WARNING, "contrast must be beetween 0 and 15\n");
 				d->contrast = 8;
 			}
 		} else if (!strcasecmp(v->name, "nat")) {
@@ -6510,7 +6510,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		struct timeval cur_time = ast_tvnow();
 
 		if ((ast_localtime(&cur_time, &tm, 0)) == 0 || ast_strlen_zero(tm.tm_zone)) {
-			ast_log(LOG_WARNING, "Error in ast_localtime()");
+			ast_log(LOG_WARNING, "Error in ast_localtime()\n");
 			ast_copy_string(d->titledefault, "UNISTIM for*", 12);
 		} else {
 			if (strlen(tm.tm_zone) < 4) {

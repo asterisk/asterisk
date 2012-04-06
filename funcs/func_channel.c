@@ -466,7 +466,7 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			ret = ast_channel_trace_disable(chan);
 		else {
 			ret = -1;
-			ast_log(LOG_WARNING, "Invalid value for CHANNEL(trace).");
+			ast_log(LOG_WARNING, "Invalid value for CHANNEL(trace).\n");
 		}
 		ast_channel_unlock(chan);
 	}

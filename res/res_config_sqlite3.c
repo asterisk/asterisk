@@ -598,7 +598,7 @@ static int static_realtime_cb(void *arg, int num_columns, char **values, char **
 	}
 
 	if (!(var = ast_variable_new(values[COL_VAR_NAME], values[COL_VAR_VAL], ""))) {
-		ast_log(LOG_WARNING, "Unable to allocate variable");
+		ast_log(LOG_WARNING, "Unable to allocate variable\n");
 		return SQLITE_ABORT;
 	}
 

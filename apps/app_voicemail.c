@@ -12748,7 +12748,7 @@ static int vmsayname_exec(struct ast_channel *chan, const char *data)
 	int res;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "VMSayName requires argument mailbox@context");
+		ast_log(LOG_WARNING, "VMSayName requires argument mailbox@context\n");
 		return -1;
 	}
 
