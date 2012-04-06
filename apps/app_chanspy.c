@@ -1081,7 +1081,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 			if (strchr("0123456789*#", tmp) && tmp != '\0') {
 				user_options.exit = tmp;
 			} else {
-				ast_log(LOG_NOTICE, "Argument for option 'x' must be a valid DTMF digit.");
+				ast_log(LOG_NOTICE, "Argument for option 'x' must be a valid DTMF digit.\n");
 			}
 		}
 
@@ -1090,7 +1090,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 			if (strchr("0123456789*#", tmp) && tmp != '\0') {
 				user_options.cycle = tmp;
 			} else {
-				ast_log(LOG_NOTICE, "Argument for option 'c' must be a valid DTMF digit.");
+				ast_log(LOG_NOTICE, "Argument for option 'c' must be a valid DTMF digit.\n");
 			}
 		}
 
@@ -1207,7 +1207,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 			if (strchr("0123456789*#", tmp) && tmp != '\0') {
 				user_options.exit = tmp;
 			} else {
-				ast_log(LOG_NOTICE, "Argument for option 'x' must be a valid DTMF digit.");
+				ast_log(LOG_NOTICE, "Argument for option 'x' must be a valid DTMF digit.\n");
 			}
 		}
 
@@ -1216,7 +1216,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 			if (strchr("0123456789*#", tmp) && tmp != '\0') {
 				user_options.cycle = tmp;
 			} else {
-				ast_log(LOG_NOTICE, "Argument for option 'c' must be a valid DTMF digit.");
+				ast_log(LOG_NOTICE, "Argument for option 'c' must be a valid DTMF digit.\n");
 			}
 		}
 

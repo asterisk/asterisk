@@ -304,7 +304,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 		if(!payload_eg711u || !payload_pcmu) {
 			iks_delete(payload_pcmu);
 			iks_delete(payload_eg711u);
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_pcmu, "id", "0");
@@ -326,7 +326,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 		if(!payload_eg711a || !payload_pcma) {
 			iks_delete(payload_eg711a);
 			iks_delete(payload_pcma);
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_pcma, "id", "8");
@@ -345,7 +345,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 	if (!strcasecmp("ilbc", format)) {
 		iks *payload_ilbc = iks_new("payload-type");
 		if(!payload_ilbc) {
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_ilbc, "id", "97");
@@ -358,7 +358,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 	if (!strcasecmp("g723", format)) {
 		iks *payload_g723 = iks_new("payload-type");
 		if(!payload_g723) {
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_g723, "id", "4");
@@ -371,7 +371,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 	if (!strcasecmp("speex", format)) {
 		iks *payload_speex = iks_new("payload-type");
 		if(!payload_speex) {
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_speex, "id", "110");
@@ -384,7 +384,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *cod
 	if (!strcasecmp("gsm", format)) {
 		iks *payload_gsm = iks_new("payload-type");
 		if(!payload_gsm) {
-			ast_log(LOG_WARNING,"Failed to allocate iks node");
+			ast_log(LOG_WARNING,"Failed to allocate iks node\n");
 			return -1;
 		}
 		iks_insert_attrib(payload_gsm, "id", "103");
@@ -908,7 +908,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	gtalk_get_local_ip(&us);
 
 	if (!strcmp(ast_sockaddr_stringify_addr(&us), "127.0.0.1")) {
-		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.");
+		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.\n");
 	}
 
 	/* Setup our gtalk candidates */

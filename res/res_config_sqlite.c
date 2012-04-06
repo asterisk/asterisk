@@ -903,7 +903,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 	var = ast_variable_new(argv[RES_CONFIG_SQLITE_CONFIG_VAR_NAME], argv[RES_CONFIG_SQLITE_CONFIG_VAR_VAL], "");
 
 	if (!var) {
-		ast_log(LOG_WARNING, "Unable to allocate variable");
+		ast_log(LOG_WARNING, "Unable to allocate variable\n");
 		return 1;
 	}
 

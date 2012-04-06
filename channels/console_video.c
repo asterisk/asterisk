@@ -657,7 +657,7 @@ static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 			eff_w, eff_h, out->pix_fmt,
 			SWS_BICUBIC, NULL, NULL, NULL);
 		if (convert_ctx == NULL) {
-			ast_log(LOG_ERROR, "FFMPEG::convert_cmodel : swscale context initialization failed");
+			ast_log(LOG_ERROR, "FFMPEG::convert_cmodel : swscale context initialization failed\n");
 			return;
 		}
 		if (0)
