@@ -4586,6 +4586,12 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 	case 101: /* e: Eject last user*/
 	{
 		int max_no = 0;
+
+		/* If they passed in a user, disregard it */
+		if (user) {
+			ao2_ref(user, -1);
+		}
+
 		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
 		user = ao2_find(cnf->usercontainer, &max_no, 0);
 		if (!ast_test_flag64(&user->userflags, CONFFLAG_ADMIN))
