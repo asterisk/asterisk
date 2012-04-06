@@ -494,6 +494,9 @@ static int msg_set_var_full(struct ast_msg *msg, const char *name, const char *v
 	struct msg_data *data;
 
 	if (!(data = msg_data_find(msg->vars, name))) {
+		if (ast_strlen_zero(value)) {
+			return 0;
+		}
 		if (!(data = msg_data_alloc())) {
 			return -1;
 		};
