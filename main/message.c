@@ -57,6 +57,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Read-only.  The source of the message.  When processing an
 					incoming message, this will be set to the source of the message.</para>
 				</enum>
+				<enum name="custom_data">
+					<para>Write-only.  Mark or unmark all message headers for an outgoing
+					message.  The following values can be set:</para>
+					<enumlist>
+						<enum name="mark_all_outbound">
+							<para>Mark all headers for an outgoing message.</para>
+						</enum>
+						<enum name="clear_all_outbound">
+							<para>Unmark all headers for an outgoing message.</para>
+						</enum>
+					</enumlist>
+				</enum>
 				<enum name="body">
 					<para>Read/Write.  The message body.  When processing an incoming
 					message, this includes the body of the message that Asterisk
@@ -150,7 +162,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>The URI the message is to be sent to.</para>
 			</parameter>
 			<parameter name="From">
-				<para>The URI the message is from. Not required.</para>
+				<para>A From URI for the message if needed for the
+				message technology being used to send this message.</para>
+				<note>
+					<para>For SIP the from parameter can be a configured peer name
+					or in the form of "display-name" &lt;URI&gt;.</para>
+				</note>
 			</parameter>
 			<parameter name="Body">
 				<para>The message body text.  This must not contain any newlines as that
@@ -158,10 +175,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="Base64Body">
 				<para>Text bodies requiring the use of newlines have to be base64 encoded
-				in this field.  The Base64Body will be decoded before being sent out.</para>
+				in this field.  Base64Body will be decoded before being sent out.
+				Base64Body takes precedence over Body.</para>
 			</parameter>
 			<parameter name="Variable">
-				<para>Message variable to set, multiple Variable: headers are allowed.</para>
+				<para>Message variable to set, multiple Variable: headers are
+				allowed.  The header value is a comma separated list of
+				name=value pairs.</para>
 			</parameter>
 		</syntax>
 	</manager>
@@ -890,12 +910,12 @@ static int msg_func_write(struct ast_channel *chan, const char *function,
 		}
 
 		if (outbound != -1) {
-			struct msg_data *data;
+			struct msg_data *hdr_data;
 			struct ao2_iterator iter = ao2_iterator_init(msg->vars, 0);
 
-			while ((data= ao2_iterator_next(&iter))) {
-				data->send = outbound;
-				ao2_ref(data, -1);
+			while ((hdr_data = ao2_iterator_next(&iter))) {
+				hdr_data->send = outbound;
+				ao2_ref(hdr_data, -1);
 			}
 			ao2_iterator_destroy(&iter);
 		}
