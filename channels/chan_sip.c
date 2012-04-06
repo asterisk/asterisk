@@ -9175,7 +9175,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 		    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'audio' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'audio' media offer because port number is zero\n");
 				continue;
 			}
 			if (!strcmp(protocol, "SAVP")) {
@@ -9211,7 +9211,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			   (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'video' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'video' media offer because port number is zero\n");
 				continue;
 			}
 			if (!strcmp(protocol, "SAVP")) {
@@ -9247,7 +9247,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 			   (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'text' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'text' media offer because port number is zero\n");
 				continue;
 			}
 			if (p->offered_media[SDP_TEXT].order_offered) {
@@ -9277,7 +9277,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
 			    (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'image' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'image' media offer because port number is zero\n");
 				continue;
 			}
 			if (initialize_udptl(p)) {
