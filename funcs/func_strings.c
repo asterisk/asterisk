@@ -1122,7 +1122,7 @@ static int quote(struct ast_channel *chan, const char *cmd, char *data, char *bu
 	char *bufptr = buf, *dataptr = data;
 
 	if (len < 3){ /* at least two for quotes and one for binary zero */
-		ast_log(LOG_ERROR, "Not enough buffer");
+		ast_log(LOG_ERROR, "Not enough buffer\n");
 		return -1;
 	}
 
@@ -1161,7 +1161,7 @@ static int csv_quote(struct ast_channel *chan, const char *cmd, char *data, char
 	char *bufptr = buf, *dataptr = data;
 
 	if (len < 3) { /* at least two for quotes and one for binary zero */
-		ast_log(LOG_ERROR, "Not enough buffer");
+		ast_log(LOG_ERROR, "Not enough buffer\n");
 		return -1;
 	}
 

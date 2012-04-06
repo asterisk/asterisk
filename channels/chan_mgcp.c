@@ -1307,7 +1307,7 @@ static int mgcp_senddigit_begin(struct ast_channel *ast, char digit)
 		ast_debug(1, "Sending DTMF using inband/hybrid\n");
 		res = -1; /* Let asterisk play inband indications */
 	} else if (p->dtmfmode & MGCP_DTMF_RFC2833) {
-		ast_debug(1, "Sending DTMF using RFC2833");
+		ast_debug(1, "Sending DTMF using RFC2833\n");
 		ast_rtp_instance_dtmf_begin(sub->rtp, digit);
 	} else {
 		ast_log(LOG_ERROR, "Don't know about DTMF_MODE %d\n", p->dtmfmode);

@@ -2783,7 +2783,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			}
 
 			if (eval && !(tmpdata = ast_str_thread_get(&switch_data, 512))) {
-				ast_log(LOG_WARNING, "Can't evaluate overrideswitch?!");
+				ast_log(LOG_WARNING, "Can't evaluate overrideswitch?!\n");
 				break;
 			} else if (eval) {
 				/* Substitute variables now */
@@ -2940,7 +2940,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		/* Substitute variables now */
 		if (sw->eval) {
 			if (!(tmpdata = ast_str_thread_get(&switch_data, 512))) {
-				ast_log(LOG_WARNING, "Can't evaluate switch?!");
+				ast_log(LOG_WARNING, "Can't evaluate switch?!\n");
 				continue;
 			}
 			pbx_substitute_variables_helper(chan, sw->data, ast_str_buffer(tmpdata), ast_str_size(tmpdata));

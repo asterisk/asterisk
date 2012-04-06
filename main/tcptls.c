@@ -175,7 +175,7 @@ static void *handle_tcptls_connection(void *data)
 			tcptls_session->f = fopencookie(tcptls_session->ssl, "w+", cookie_funcs);
 #else
 			/* could add other methods here */
-			ast_debug(2, "no tcptls_session->f methods attempted!");
+			ast_debug(2, "no tcptls_session->f methods attempted!\n");
 #endif
 			if ((tcptls_session->client && !ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_DONT_VERIFY_SERVER))
 				|| (!tcptls_session->client && ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_VERIFY_CLIENT))) {
