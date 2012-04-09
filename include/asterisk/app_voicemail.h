@@ -190,4 +190,25 @@ int ast_vm_msg_play(struct ast_channel *chan,
  * \retval other The name of the mailbox
  */
 const char *ast_vm_index_to_foldername(unsigned int index);
+
+#ifdef TEST_FRAMEWORK
+/*!
+ * \brief Add a user to the voicemail system for test purposes
+ * \param context The context of the mailbox
+ * \param mailbox The mailbox for the user
+ * \retval 0 success
+ * \retval other failure
+ */
+int ast_vm_test_create_user(const char *context, const char *mailbox);
+
+/*!
+ * \brief Dispose of a user.  This should be used to destroy a user that was
+ * previously created using ast_vm_test_create_user
+ * \param context The context of the mailbox
+ * \param mailbox The mailbox for the user to destroy
+ */
+int ast_vm_test_destroy_user(const char *context, const char *mailbox);
+
+#endif
+
 #endif

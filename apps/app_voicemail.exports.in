@@ -22,6 +22,8 @@
 		LINKER_SYMBOL_PREFIXast_vm_msg_forward;
 		LINKER_SYMBOL_PREFIXast_vm_index_to_foldername;
 		LINKER_SYMBOL_PREFIXast_vm_msg_play;
+		LINKER_SYMBOL_PREFIXast_vm_test_create_user;
+		LINKER_SYMBOL_PREFIXast_vm_test_destroy_user;
 	local:
 		*;
 };

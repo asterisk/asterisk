@@ -2511,7 +2511,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
  *
  * \return zero on success, -1 on error.
  */
-static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, char *flag)
+static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, char *flag, const char *dest_folder)
 {
 	struct vm_state *sendvms = NULL, *destvms = NULL;
 	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
@@ -2529,7 +2529,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	}
 	snprintf(messagestring, sizeof(messagestring), "%ld", sendvms->msgArray[msgnum]);
 	ast_mutex_lock(&sendvms->lock);
-	if ((mail_copy(sendvms->mailstream, messagestring, (char *) mbox(vmu, imbox)) == T)) {
+	if ((mail_copy(sendvms->mailstream, messagestring, (char *) mbox(vmu, dest_folder)) == T)) {
 		ast_mutex_unlock(&sendvms->lock);
 		return 0;
 	}
@@ -5343,7 +5343,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
  *
  * \return zero on success, -1 on error.
  */
-static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, const char *flag)
+static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, const char *flag, const char *dest_folder)
 {
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	const char *frombox = mbox(vmu, imbox);
@@ -5355,6 +5355,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) { /* If urgent, copy to Urgent folder */
 		userfolder = "Urgent";
+	} else if (!ast_strlen_zero(dest_folder)) {
+		userfolder = dest_folder;
 	} else {
 		userfolder = "INBOX";
 	}
@@ -6394,7 +6396,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							cntx++;
 						}
 						if ((recip = find_user(&recipu, cntx, exten))) {
-							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir, flag);
+							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir, flag, NULL);
 							free_user(recip);
 						}
 					}
@@ -7715,7 +7717,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					vmstmp.fn, vmstmp.introfn, fmt, duration, attach_user_voicemail, chan,
 					NULL, urgent_str);
 #else
-				copy_msg_result = copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir, urgent_str);
+				copy_msg_result = copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir, urgent_str, NULL);
 #endif
 				saved_messages++;
 				AST_LIST_REMOVE_CURRENT(list);
@@ -14126,6 +14128,39 @@ static struct ast_vm_msg_snapshot *vm_msg_snapshot_destroy(struct ast_vm_msg_sna
 	return NULL;
 }
 
+#ifdef TEST_FRAMEWORK
+
+int ast_vm_test_destroy_user(const char *context, const char *mailbox)
+{
+	struct ast_vm_user *vmu;
+
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, vmu, list) {
+		if (!strncmp(context, vmu->context, sizeof(context))
+			&& !strncmp(mailbox, vmu->mailbox, sizeof(mailbox))) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(vmu);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&users);
+	return 0;
+}
+
+int ast_vm_test_create_user(const char *context, const char *mailbox)
+{
+	struct ast_vm_user *vmu;
+
+	if (!(vmu = find_or_create(context, mailbox))) {
+		return -1;
+	}
+	populate_defaults(vmu);
+	return 0;
+}
+
+#endif
+
 /*!
  * \brief Create and store off all the msgs in an open mailbox
  *
@@ -14260,6 +14295,11 @@ struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailb
 	int inbox_index = 0;
 	int old_index = 1;
 
+	if (ast_strlen_zero(mailbox)) {
+		ast_log(LOG_WARNING, "Cannot create a mailbox snapshot since no mailbox was specified\n");
+		return NULL;
+	}
+
 	memset(&vmus, 0, sizeof(vmus));
 
 	if (!(ast_strlen_zero(folder))) {
@@ -14391,6 +14431,51 @@ struct ast_str *vm_mailbox_snapshot_str(const char *mailbox, const char *context
 	return str;
 }
 
+/*!
+ * \brief common bounds checking and existence check for Voicemail API functions.
+ *
+ * \details
+ * This is called by ast_vm_msg_move, ast_vm_msg_remove, and ast_vm_msg_forward to
+ * ensure that data passed in are valid. This tests the following:
+ *
+ * 1. No negative indexes are given.
+ * 2. No index greater than the highest message index for the folder is given.
+ * 3. All message indexes given point to messages that exist.
+ *
+ * \param vms The voicemail state corresponding to an open mailbox
+ * \param msg_ids An array of message identifiers
+ * \param num_msgs The number of identifiers in msg_ids
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+static int message_range_and_existence_check(struct vm_state *vms, int *msg_ids, size_t num_msgs)
+{
+	int i;
+	int res = 0;
+	for (i = 0; i < num_msgs; ++i) {
+		int cur_msg = msg_ids[i];
+		if (cur_msg < 0) {
+			ast_log(LOG_WARNING, "Message has negative index\n");
+			res = -1;
+			break;
+		}
+		if (vms->lastmsg < cur_msg) {
+			ast_log(LOG_WARNING, "Message %d is out of range. Last message is %d\n", cur_msg, vms->lastmsg);
+			res = -1;
+			break;
+		}
+		make_file(vms->fn, sizeof(vms->fn), vms->curdir, cur_msg);
+		if (!EXISTS(vms->curdir, cur_msg, vms->fn, NULL)) {
+			ast_log(LOG_WARNING, "Message %d does not exist.\n", cur_msg);
+			res = -1;
+			break;
+		}
+	}
+
+	return res;
+}
+
 static void notify_new_state(struct ast_vm_user *vmu)
 {
 	int new = 0, old = 0, urgent = 0;
@@ -14418,17 +14503,36 @@ int ast_vm_msg_forward(const char *from_mailbox,
 	struct ast_config *msg_cfg;
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 	char filename[PATH_MAX];
-	int from_folder_index = get_folder_by_name(from_folder);
-	int to_folder_index = get_folder_by_name(to_folder);
+	int from_folder_index;
 	int open = 0;
 	int res = 0;
 	int i;
+
+	if (ast_strlen_zero(from_mailbox) || ast_strlen_zero(to_mailbox)) {
+		ast_log(LOG_WARNING, "Cannot forward message because either the from or to mailbox was not specified\n");
+		return -1;
+	}
+
+	if (!num_msgs) {
+		ast_log(LOG_WARNING, "Invalid number of messages specified to forward: %zu\n", num_msgs);
+		return -1;
+	}
+
+	if (ast_strlen_zero(from_folder) || ast_strlen_zero(to_folder)) {
+		ast_log(LOG_WARNING, "Cannot forward message because the from_folder or to_folder was not specified\n");
+		return -1;
+	}
 
 	memset(&vmus, 0, sizeof(vmus));
 	memset(&to_vmus, 0, sizeof(to_vmus));
 	memset(&from_vms, 0, sizeof(from_vms));
 
-	if (to_folder_index == -1 || from_folder_index == -1) {
+	from_folder_index = get_folder_by_name(from_folder);
+	if (from_folder_index == -1) {
+		return -1;
+	}
+
+	if (get_folder_by_name(to_folder) == -1) {
 		return -1;
 	}
 
@@ -14455,20 +14559,30 @@ int ast_vm_msg_forward(const char *from_mailbox,
 
 	open = 1;
 
+	if ((from_vms.lastmsg + 1) < num_msgs) {
+		ast_log(LOG_WARNING, "Folder %s has less than %zu messages\n", from_folder, num_msgs);
+		res = -1;
+		goto vm_forward_cleanup;
+	}
+
+	if ((res = message_range_and_existence_check(&from_vms, msg_ids, num_msgs) < 0)) {
+		goto vm_forward_cleanup;
+	}
+
+	/* Now we actually forward the messages */
 	for (i = 0; i < num_msgs; i++) {
 		int cur_msg = msg_ids[i];
 		int duration = 0;
 		const char *value;
 
-		if (cur_msg >= 0 && from_vms.lastmsg < cur_msg) {
-			/* msg does not exist */
-			ast_log(LOG_WARNING, "msg %d does not exist to forward. Last msg is %d\n", cur_msg, from_vms.lastmsg);
-			continue;
-		}
 		make_file(from_vms.fn, sizeof(from_vms.fn), from_vms.curdir, cur_msg);
 		snprintf(filename, sizeof(filename), "%s.txt", from_vms.fn);
 		RETRIEVE(from_vms.curdir, cur_msg, vmu->mailbox, vmu->context);
 		msg_cfg = ast_config_load(filename, config_flags);
+		/* XXX This likely will not fail since we previously ensured that the
+		 * message we are looking for exists. However, there still could be some
+		 * circumstance where this fails, so atomicity is not guaranteed.
+		 */
 		if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
 			DISPOSE(from_vms.curdir, cur_msg);
 			continue;
@@ -14477,7 +14591,7 @@ int ast_vm_msg_forward(const char *from_mailbox,
 			duration = atoi(value);
 		}
 
-		copy_message(NULL, vmu, from_folder_index, cur_msg, duration, to_vmu, vmfmts, from_vms.curdir, "");
+		copy_message(NULL, vmu, from_folder_index, cur_msg, duration, to_vmu, vmfmts, from_vms.curdir, "", to_folder);
 
 		if (delete_old) {
 			from_vms.deleted[cur_msg] = 1;
@@ -14520,11 +14634,29 @@ int ast_vm_msg_move(const char *mailbox,
 {
 	struct vm_state vms;
 	struct ast_vm_user *vmu = NULL, vmus;
-	int old_folder_index = get_folder_by_name(oldfolder);
-	int new_folder_index = get_folder_by_name(newfolder);
+	int old_folder_index;
+	int new_folder_index;
 	int open = 0;
 	int res = 0;
 	int i;
+
+	if (ast_strlen_zero(mailbox)) {
+		ast_log(LOG_WARNING, "Cannot move message because no mailbox was specified\n");
+		return -1;
+	}
+
+	if (!num_msgs) {
+		ast_log(LOG_WARNING, "Invalid number of messages specified to move: %zu\n", num_msgs);
+		return -1;
+	}
+
+	if (ast_strlen_zero(oldfolder) || ast_strlen_zero(newfolder)) {
+		ast_log(LOG_WARNING, "Cannot move message because either oldfolder or newfolder was not specified\n");
+		return -1;
+	}
+
+	old_folder_index = get_folder_by_name(oldfolder);
+	new_folder_index = get_folder_by_name(newfolder);
 
 	memset(&vmus, 0, sizeof(vmus));
 	memset(&vms, 0, sizeof(vms));
@@ -14550,13 +14682,13 @@ int ast_vm_msg_move(const char *mailbox,
 
 	open = 1;
 
-	for (i = 0; i < num_msgs; i++) {
-		if (vms.lastmsg < old_msg_nums[i]) {
-			/* msg does not exist */
-			res = -1;
-			goto vm_move_cleanup;
-		}
-		if (save_to_folder(vmu, &vms, old_msg_nums[i], new_folder_index, (new_msg_nums + i))) {
+	if ((res = message_range_and_existence_check(&vms, old_msg_nums, num_msgs)) < 0) {
+		goto vm_move_cleanup;
+	}
+
+	/* Now actually move the message */
+	for (i = 0; i < num_msgs; ++i) {
+		if (save_to_folder(vmu, &vms, old_msg_nums[i], new_folder_index, new_msg_nums ? (new_msg_nums + i) : NULL)) {
 			res = -1;
 			goto vm_move_cleanup;
 		}
@@ -14595,14 +14727,30 @@ int ast_vm_msg_remove(const char *mailbox,
 {
 	struct vm_state vms;
 	struct ast_vm_user *vmu = NULL, vmus;
-	int folder_index = get_folder_by_name(folder);
+	int folder_index;
 	int open = 0;
 	int res = 0;
 	int i;
 
+	if (ast_strlen_zero(mailbox)) {
+		ast_log(LOG_WARNING, "Cannot remove message because no mailbox was specified\n");
+		return -1;
+	}
+
+	if (!num_msgs) {
+		ast_log(LOG_WARNING, "Invalid number of messages specified to remove: %zu\n", num_msgs);
+		return -1;
+	}
+
+	if (ast_strlen_zero(folder)) {
+		ast_log(LOG_WARNING, "Cannot remove message because no folder was specified\n");
+		return -1;
+	}
+
 	memset(&vmus, 0, sizeof(vmus));
 	memset(&vms, 0, sizeof(vms));
 
+	folder_index = get_folder_by_name(folder);
 	if (folder_index == -1) {
 		ast_log(LOG_WARNING, "Could not remove msgs from unknown folder %s\n", folder);
 		return -1;
@@ -14626,13 +14774,17 @@ int ast_vm_msg_remove(const char *mailbox,
 
 	open = 1;
 
+	if ((vms.lastmsg + 1) < num_msgs) {
+		ast_log(LOG_WARNING, "Folder %s has less than %zu messages\n", folder, num_msgs);
+		res = -1;
+		goto vm_remove_cleanup;
+	}
+
+	if ((res = message_range_and_existence_check(&vms, msgs, num_msgs)) < 0) {
+		goto vm_remove_cleanup;
+	}
+
 	for (i = 0; i < num_msgs; i++) {
-		if (vms.lastmsg < msgs[i]) {
-			/* msg does not exist */
-			ast_log(AST_LOG_ERROR, "Could not remove msg %d from folder %s because it does not exist.\n", msgs[i], folder);
-			res = -1;
-			goto vm_remove_cleanup;
-		}
 		vms.deleted[msgs[i]] = 1;
 	}
 
@@ -14681,6 +14833,26 @@ int ast_vm_msg_play(struct ast_channel *chan,
 	int res = 0;
 	int open = 0;
 	int i;
+	char filename[PATH_MAX];
+	struct ast_config *msg_cfg;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+	int duration = 0;
+	const char *value;
+
+	if (ast_strlen_zero(mailbox)) {
+		ast_log(LOG_WARNING, "Cannot play message because no mailbox was specified\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(folder)) {
+		ast_log(LOG_WARNING, "Cannot play message because no folder was specified\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(msg_num)) {
+		ast_log(LOG_WARNING, "Cannot play message because no message number was specified\n");
+		return -1;
+	}
 
 	memset(&vmus, 0, sizeof(vmus));
 	memset(&vms, 0, sizeof(vms));
@@ -14690,69 +14862,60 @@ int ast_vm_msg_play(struct ast_channel *chan,
 	}
 
 	if (!(vmu = find_user(&vmus, context, mailbox))) {
+		return -1;
+	}
+
+	i = get_folder_by_name(folder);
+	ast_copy_string(vms.username, mailbox, sizeof(vms.username));
+	vms.lastmsg = -1;
+	if ((res = open_mailbox(&vms, vmu, i)) < 0) {
+		ast_log(LOG_WARNING, "Could not open mailbox %s\n", mailbox);
+		goto play2_msg_cleanup;
+	}
+	open = 1;
+
+	vms.curmsg = atoi(msg_num);
+	if (vms.curmsg > vms.lastmsg || vms.curmsg < 0) {
+		res = -1;
 		goto play2_msg_cleanup;
 	}
 
-	if (!ast_strlen_zero(msg_num) && !ast_strlen_zero(folder)) {
-		char filename[PATH_MAX];
-		struct ast_config *msg_cfg;
-		struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
-		int duration = 0;
-		const char *value;
+	/* Find the msg */
+	make_file(vms.fn, sizeof(vms.fn), vms.curdir, vms.curmsg);
+	snprintf(filename, sizeof(filename), "%s.txt", vms.fn);
+	RETRIEVE(vms.curdir, vms.curmsg, vmu->mailbox, vmu->context);
 
-		i = get_folder_by_name(folder);
-		ast_copy_string(vms.username, mailbox, sizeof(vms.username));
-		vms.lastmsg = -1;
-		if ((res = open_mailbox(&vms, vmu, i)) < 0) {
-			ast_log(LOG_WARNING, "Could not open mailbox %s\n", mailbox);
-			res = -1;
-			goto play2_msg_cleanup;
-		}
-		open = 1;
-
-		vms.curmsg = atoi(msg_num);
-		if (vms.curmsg > vms.lastmsg) {
-			res = -1;
-			goto play2_msg_cleanup;
-		}
-
-		/* Find the msg */
-		make_file(vms.fn, sizeof(vms.fn), vms.curdir, vms.curmsg);
-		snprintf(filename, sizeof(filename), "%s.txt", vms.fn);
-		RETRIEVE(vms.curdir, vms.curmsg, vmu->mailbox, vmu->context);
-
-		msg_cfg = ast_config_load(filename, config_flags);
-		if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
-			DISPOSE(vms.curdir, vms.curmsg);
-			res = -1;
-			goto play2_msg_cleanup;
-		}
-		if ((value = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
-			duration = atoi(value);
-		}
-		ast_config_destroy(msg_cfg);
-
-		vms.heard[vms.curmsg] = 1;
+	msg_cfg = ast_config_load(filename, config_flags);
+	if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
+		DISPOSE(vms.curdir, vms.curmsg);
+		res = -1;
+		goto play2_msg_cleanup;
+	}
+	if ((value = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
+		duration = atoi(value);
+	}
+	ast_config_destroy(msg_cfg);
 
 #ifdef IMAP_STORAGE
-		/*IMAP storage stores any prepended message from a forward
-		 * as a separate file from the rest of the message
-		 */
-		if (!ast_strlen_zero(vms.introfn) && ast_fileexists(vms.introfn, NULL, NULL) > 0) {
-			wait_file(chan, &vms, vms.introfn);
-		}
-#endif
-		if (cb) {
-			cb(chan, vms.fn, duration);
-		} else if ((wait_file(chan, &vms, vms.fn)) < 0) {
-			ast_log(AST_LOG_WARNING, "Playback of message %s failed\n", vms.fn);
-		} else {
-			res = 0;
-		}
-
-		/* cleanup configs and msg */
-		DISPOSE(vms.curdir, vms.curmsg);
+	/*IMAP storage stores any prepended message from a forward
+	 * as a separate file from the rest of the message
+	 */
+	if (!ast_strlen_zero(vms.introfn) && ast_fileexists(vms.introfn, NULL, NULL) > 0) {
+		wait_file(chan, &vms, vms.introfn);
 	}
+#endif
+	if (cb) {
+		cb(chan, vms.fn, duration);
+	} else if ((wait_file(chan, &vms, vms.fn)) < 0) {
+		ast_log(AST_LOG_WARNING, "Playback of message %s failed\n", vms.fn);
+	} else {
+		res = 0;
+	}
+
+	vms.heard[vms.curmsg] = 1;
+
+	/* cleanup configs and msg */
+	DISPOSE(vms.curdir, vms.curmsg);
 
 play2_msg_cleanup:
 	if (vmu && open) {
