@@ -2404,6 +2404,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	struct ast_sockaddr addr;
 
 	if (ast_strlen_zero(username)) {	/* missing username */
+		ast_log(LOG_NOTICE, "Missing username?\n");
 		return -1;
 	}
 
@@ -2444,8 +2445,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 		}
 	} else if (user->secret) {
 		if (!strcmp(password, user->secret)) {
+			ast_log(LOG_NOTICE, "Seems to have passed...\n");
 			error = 0;
 		} else {
+			ast_log(LOG_NOTICE, "They didn't equal? %s != %s ?\n", password, user->secret);
 			report_inval_password(s, username);
 		}
 	}
