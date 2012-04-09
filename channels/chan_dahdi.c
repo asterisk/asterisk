@@ -11166,13 +11166,14 @@ static void *mwi_thread(void *data)
 				break; /* What to do on channel alarm ???? -- fall thru intentionally?? */
 			default:
 				ast_log(LOG_NOTICE, "Got event %d (%s)...  Passing along to analog_ss_thread\n", res, event2str(res));
-				callerid_free(cs);
 
 				restore_gains(mtd->pvt);
 				mtd->pvt->ringt = mtd->pvt->ringt_base;
 
 				if ((chan = dahdi_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, NULL))) {
 					int result;
+
+					callerid_free(cs);
 					if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
 						result = analog_ss_thread_start(mtd->pvt->sig_pvt, chan);
 					} else {
@@ -11189,6 +11190,8 @@ static void *mwi_thread(void *data)
 					goto quit_no_clean;
 
 				} else {
+					/* Bump the gains back */
+					bump_gains(mtd->pvt);
 					ast_log(LOG_WARNING, "Could not create channel to handle call\n");
 				}
 			}
