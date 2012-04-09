@@ -243,14 +243,15 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 	varshead = varstore->data;
 
 	/* Protected by the channel lock */
-	AST_LIST_TRAVERSE(varshead, var, entries) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(varshead, var, entries) {
 		/* If there's a previous value, remove it */
 		if (!strcmp(args.var, ast_var_name(var))) {
-			AST_LIST_REMOVE(varshead, var, entries);
+			AST_LIST_REMOVE_CURRENT(entries);
 			ast_var_delete(var);
 			break;
 		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	var = ast_var_assign(args.var, S_OR(value, ""));
 	AST_LIST_INSERT_HEAD(varshead, var, entries);
