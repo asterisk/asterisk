@@ -11115,9 +11115,7 @@ static void *mwi_thread(void *data)
 	struct ast_format tmpfmt;
 
 	if (!(cs = callerid_new(mtd->pvt->cid_signalling))) {
-		mtd->pvt->mwimonitoractive = 0;
-
-		return NULL;
+		goto quit_no_clean;
 	}
 
 	callerid_feed(cs, mtd->buf, mtd->len, ast_format_set(&tmpfmt, AST_LAW(mtd->pvt), 0));
@@ -11166,6 +11164,7 @@ static void *mwi_thread(void *data)
 				break; /* What to do on channel alarm ???? -- fall thru intentionally?? */
 			default:
 				ast_log(LOG_NOTICE, "Got event %d (%s)...  Passing along to analog_ss_thread\n", res, event2str(res));
+				callerid_free(cs);
 
 				restore_gains(mtd->pvt);
 				mtd->pvt->ringt = mtd->pvt->ringt_base;
@@ -11173,7 +11172,6 @@ static void *mwi_thread(void *data)
 				if ((chan = dahdi_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, NULL))) {
 					int result;
 
-					callerid_free(cs);
 					if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
 						result = analog_ss_thread_start(mtd->pvt->sig_pvt, chan);
 					} else {
@@ -11185,15 +11183,11 @@ static void *mwi_thread(void *data)
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", mtd->pvt->channel);
 						ast_hangup(chan);
-						goto quit;
 					}
-					goto quit_no_clean;
-
 				} else {
-					/* Bump the gains back */
-					bump_gains(mtd->pvt);
 					ast_log(LOG_WARNING, "Could not create channel to handle call\n");
 				}
+				goto quit_no_clean;
 			}
 		} else if (i & DAHDI_IOMUX_READ) {
 			if ((res = read(mtd->pvt->subs[SUB_REAL].dfd, mtd->buf, sizeof(mtd->buf))) < 0) {
@@ -11248,7 +11242,6 @@ quit:
 
 quit_no_clean:
 	mtd->pvt->mwimonitoractive = 0;
-
 	ast_free(mtd);
 
 	return NULL;
@@ -11911,11 +11904,12 @@ static void *do_monitor(void *data)
 									mtd->pvt = i;
 									memcpy(mtd->buf, buf, res);
 									mtd->len = res;
+									i->mwimonitoractive = 1;
 									if (ast_pthread_create_background(&threadid, &attr, mwi_thread, mtd)) {
 										ast_log(LOG_WARNING, "Unable to start mwi thread on channel %d\n", i->channel);
+										i->mwimonitoractive = 0;
 										ast_free(mtd);
 									}
-									i->mwimonitoractive = 1;
 								}
 							}
 						/* If configured to check for a DTMF CID spill that comes without alert (e.g no polarity reversal) */
