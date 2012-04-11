@@ -74,7 +74,7 @@ monitor-type = MixMonitor
 ; app_queue allows calls to members in a "Unknown" state to be treated as available
 ; setting check_state_unknown = yes will cause app_queue to query the channel driver
 ; to better determine the state this only applies to queues with ringinuse or ignorebusy
-; set appropriately. 
+; set appropriately.
 ;
 ;check_state_unknown = no
 ;
@@ -497,11 +497,10 @@ monitor-type = MixMonitor
 ;
 ; If you want the queue to avoid sending calls to members whose devices are
 ; known to be 'in use' (via the channel driver supporting that device state)
-; uncomment this option. (Note: only the SIP channel driver currently is able
-; to report 'in use'.)
-;
-; A member can have the ignorebusy flag set or unset when ringinuse is set to
-; allow a per member control.
+; uncomment this option. This can be controlled on a per member basis by
+; setting 'ignorebusy' in the QUEUE_MEMBER function. (Note: only the SIP
+; channel driver currently is able to report 'in use'.) (Note: if this option
+; is set to 'no' it will override the per-member 'ignorebusy' setting.
 ;
 ; ringinuse = no
 ;

@@ -1716,6 +1716,7 @@ static struct member *create_queue_member(const char *interface, const char *mem
 	struct member *cur;
 
 	if ((cur = ao2_alloc(sizeof(*cur), NULL))) {
+		cur->ignorebusy = 1;
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
