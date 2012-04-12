@@ -45,35 +45,6 @@ ifeq ($(shell $(CC) -v 2>&1 | awk '/^gcc version/ { split($$3, v, "."); printf "
 OPTIMIZE=-O2
 endif
 
-# If the compiler's '-march' flag has been specified already, then assume it's a value
-# that is what the user wants (or has been determined by the configure script). If not,
-# do some simple logic to set a decent value
-ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
-  ifeq (,$(findstring $(shell uname -s),Darwin SunOS))
-    ifeq (,$(strip $(findstring $(PROC) ,"x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips ")))
-      ifeq (,$(strip $(findstring $(shell uname -m) ,"ppc ppc64 alpha armv4l s390 ")))
-        OPTIMIZE+=-march=$(PROC)
-      endif
-    endif
-  else
-    ifneq (,$(findstring $(OSARCH),Darwin))
-      ifeq ($(shell if test `/usr/bin/sw_vers -productVersion | cut -c4` -gt 5; then echo 6; else echo 0; fi),6)
-        # Snow Leopard/Lion reports i386, even though it's really x86_64
-        OPTIMIZE+=-mtune=native
-      endif
-    endif
-  endif
-
-  #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-  #This works for even old (2.96) versions of gcc and provides a small boost either way.
-  #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-  #So we go lowest common available by gcc and go a step down, still a step up from
-  #the default as we now have a better instruction set to work with. - Belgarath
-  ifeq ($(PROC),ultrasparc)
-  OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
-  endif
-endif
-
 PG =
 #PG = -g -pg
 ######### Profiling flags.  If you don't know what that means, leave it blank.
@@ -224,17 +195,6 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
 
-# add k6-specific code only if not on a non-k6 hardware or proc.
-# XXX Keep a space after each findstring argument
-# XXX should merge with GSM_OBJECTS
-ifeq ($(OSARCH),linux-gnu)
-ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc s390 ))
-ifeq (,$(findstring $(PROC) , arm armv5b armeb powerpc ia64 s390 bfin mipsel mips ))
-GSM_SOURCES+= $(SRC)/k6opt.s
-endif
-endif
-endif
-
 TOAST_SOURCES = $(SRC)/toast.c 		\
 		$(SRC)/toast_lin.c	\
 		$(SRC)/toast_ulaw.c	\
@@ -278,14 +238,6 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/gsm_option.o	\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
-
-ifeq ($(OSARCH),linux-gnu)
-ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
-ifeq (,$(findstring $(PROC) , arm armv5b armeb powerpc ia64 bfin mipsel mips ))
-GSM_OBJECTS+= $(SRC)/k6opt.o
-endif
-endif
-endif
 
 TOAST_OBJECTS =	$(SRC)/toast.o 		\
 		$(SRC)/toast_lin.o	\

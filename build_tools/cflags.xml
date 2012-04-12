@@ -80,4 +80,9 @@
 		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
 			<support_level>extended</support_level>
 		</member>
+		<member name="BUILD_NATIVE" displayname="Allow compiler to generate code optimized for the CPU on which the build is performed.">
+			<support_level>core</support_level>
+			<defaultenabled>yes</defaultenabled>
+			<depend>native_arch</depend>
+		</member>
 	</category>
