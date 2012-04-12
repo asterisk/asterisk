@@ -1009,15 +1009,20 @@ else
 fi
 AC_SUBST(AST_SHADOW_WARNINGS)
 
-AC_MSG_CHECKING(for -march=native)
+AC_MSG_CHECKING(for -march=native support)
 if $(${CC} -march=native -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
-	AC_MSG_RESULT(yes)
-	AST_MARCH_NATIVE="-march=native"
+	if test "${CONFIG_CFLAGS}" = ""; then
+		AC_MSG_RESULT(yes)
+		AST_NATIVE_ARCH=1
+	else
+		AC_MSG_RESULT(user CFLAGS present)
+		AST_NATIVE_ARCH=
+	fi
 else
 	AC_MSG_RESULT(no)
-	AST_MARCH_NATIVE=
+	AST_NATIVE_ARCH=
 fi
-AC_SUBST(AST_MARCH_NATIVE)
+AC_SUBST(AST_NATIVE_ARCH)
 
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
