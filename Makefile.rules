@@ -84,6 +84,10 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),DONT_OPTIMI
 COMPILE_DOUBLE=yes
 endif
 
+ifeq ($(findstring BUILD_NATIVE,$(MENUSELECT_CFLAGS)),BUILD_NATIVE)
+    _ASTCFLAGS+=-march=native
+endif
+
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)

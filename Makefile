@@ -62,7 +62,6 @@ export ASTCONFPATH
 export ASTKEYDIR
 
 export OSARCH			# Operating system
-export PROC			# Processor type
 
 export NOISY_BUILD		# Used in Makefile.rules
 export MENUSELECT_CFLAGS	# Options selected in menuselect.
@@ -161,39 +160,6 @@ OTHER_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
 # Create OPTIONS variable, but probably we can assign directly to ASTCFLAGS
 OPTIONS=
 
-ifeq ($(OSARCH),linux-gnu)
-  ifeq ($(PROC),x86_64)
-    # You must have GCC 3.4 to use k8, otherwise use athlon
-    PROC=k8
-    #PROC=athlon
-  endif
-
-  ifeq ($(PROC),sparc64)
-    #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-    #This works for even old (2.96) versions of gcc and provides a small boost either way.
-    #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-    #So we go lowest common available by gcc and go a step down, still a step up from
-    #the default as we now have a better instruction set to work with. - Belgarath
-    PROC=ultrasparc
-    OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
-    OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
-    OPTIONS+=-fomit-frame-pointer
-  endif
-
-  ifeq ($(PROC),arm)
-    # The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
-    ifeq ($(SUB_PROC),maverick)
-      OPTIONS+=-fsigned-char -mcpu=ep9312
-    else
-      ifeq ($(SUB_PROC),xscale)
-        OPTIONS+=-fsigned-char -mcpu=xscale
-      else
-        OPTIONS+=-fsigned-char 
-      endif
-    endif
-  endif
-endif
-
 ifeq ($(findstring -save-temps,$(_ASTCFLAGS) $(ASTCFLAGS)),)
   ifeq ($(findstring -pipe,$(_ASTCFLAGS) $(ASTCFLAGS)),)
     _ASTCFLAGS+=-pipe
@@ -220,20 +186,7 @@ ifneq ($(findstring BSD,$(OSARCH)),)
   _ASTCFLAGS+=-isystem /usr/local/include
 endif
 
-ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
-  ifneq ($(PROC),ultrasparc)
-    _ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
-  endif
-endif
-
-ifeq ($(PROC),ppc)
-  _ASTCFLAGS+=-fsigned-char
-endif
-
 ifeq ($(OSARCH),FreeBSD)
-  ifeq ($(PROC),i386)
-    _ASTCFLAGS+=-march=i686
-  endif
   # -V is understood by BSD Make, not by GNU make.
   BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
   _ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
