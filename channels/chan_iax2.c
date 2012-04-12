@@ -13258,6 +13258,9 @@ static int set_config(const char *config_file, int reload)
 				ast_log(LOG_NOTICE, "trunkfreq must be between 10ms and 1000ms, using 1000ms instead.\n");
 				trunkfreq = 1000;
 			}
+			if (timer) {
+				ast_timer_set_rate(timer, 1000 / trunkfreq);
+			}
 		} else if (!strcasecmp(v->name, "trunkmtu")) {
 			mtuv = atoi(v->value);
 			if (mtuv  == 0 )
