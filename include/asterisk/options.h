@@ -58,6 +58,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_FULLY_BOOTED = (1 << 9),
 	/*! Trascode via signed linear */
 	AST_OPT_FLAG_TRANSCODE_VIA_SLIN = (1 << 10),
+	/*! Invoke the stdexten using the legacy macro method. */
+	AST_OPT_FLAG_STDEXTEN_MACRO = (1 << 11),
 	/*! Dump core on a seg fault */
 	AST_OPT_FLAG_DUMP_CORE = (1 << 12),
 	/*! Cache sound files */
@@ -116,6 +118,8 @@ enum ast_option_flags {
 #define ast_opt_no_color		ast_test_flag(&ast_options, AST_OPT_FLAG_NO_COLOR)
 #define ast_fully_booted		ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)
 #define ast_opt_transcode_via_slin	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN)
+/*! Invoke the stdexten using the legacy macro method. */
+#define ast_opt_stdexten_macro		ast_test_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO)
 #define ast_opt_dump_core		ast_test_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE)
 #define ast_opt_cache_record_files	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES)
 #define ast_opt_timestamp		ast_test_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP)

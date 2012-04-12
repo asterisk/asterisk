@@ -3230,6 +3230,18 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
 		} else if (!strcasecmp(v->name, "lockconfdir")) {
 			ast_set2_flag(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
+		} else if (!strcasecmp(v->name, "stdexten")) {
+			/* Choose how to invoke the extensions.conf stdexten */
+			if (!strcasecmp(v->value, "gosub")) {
+				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+			} else if (!strcasecmp(v->value, "macro")) {
+				ast_set_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+			} else {
+				ast_log(LOG_WARNING,
+					"'%s' is not a valid setting for the stdexten option, defaulting to 'gosub'\n",
+					v->value);
+				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
+			}
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {

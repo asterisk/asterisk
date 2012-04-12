@@ -92,7 +92,8 @@ chan_unistim
 users.conf:
  - A defined user with hasvoicemail=yes now finally uses a Gosub to stdexten
    as documented in extensions.conf.sample since v1.6.0 instead of a Macro as
-   documented in v1.4.
+   documented in v1.4.  Set the asterisk.conf stdexten=macro parameter to
+   invoke the stdexten the old way.
 
 From 1.8 to 10:
 

@@ -74,6 +74,12 @@ documentation_language = en_US	; Set the language you want documentation
 ;lockconfdir = no		; Protect the directory containing the
 				; configuration files (/etc/asterisk) with a
 				; lock.
+;stdexten = gosub		; How to invoke the extensions.conf stdexten.
+				; macro - Invoke the stdexten using a macro as
+				;         done by legacy Asterisk versions.
+				; gosub - Invoke the stdexten using a gosub as
+				;         documented in extensions.conf.sample.
+				; Default gosub.
 
 ; Changing the following lines may compromise your security.
 ;[files]
