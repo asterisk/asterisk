@@ -5058,6 +5058,31 @@ static int action_meetmelistrooms(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/*! \internal
+ * \brief creates directory structure and assigns absolute path from relative paths for filenames
+ *
+ * \param filename contains the absolute or relative path to the desired file
+ * \param buffer stores completed filename, absolutely must be a buffer of PATH_MAX length
+ */
+static void filename_parse(char *filename, char *buffer)
+{
+	char *slash;
+	if (ast_strlen_zero(filename)) {
+		ast_log(LOG_WARNING, "No file name was provided for a file save option.\n");
+	} else if (filename[0] != '/') {
+		snprintf(buffer, PATH_MAX, "%s/meetme/%s", ast_config_AST_SPOOL_DIR, filename);
+	} else {
+		ast_copy_string(buffer, filename, PATH_MAX);
+	}
+
+	slash = buffer;
+	if ((slash = strrchr(slash, '/'))) {
+		*slash = '\0';
+		ast_mkdir(buffer, 0777);
+		*slash = '/';
+	}
+}
+
 static void *recordthread(void *args)
 {
 	struct ast_conference *cnf = args;
@@ -5067,10 +5092,14 @@ static void *recordthread(void *args)
 	int res = 0;
 	int x;
 	const char *oldrecordingfilename = NULL;
+	char filename_buffer[PATH_MAX];
 
 	if (!cnf || !cnf->lchan) {
 		pthread_exit(0);
 	}
+
+	filename_buffer[0] = '\0';
+	filename_parse(cnf->recordingfilename, filename_buffer);
 
 	ast_stopstream(cnf->lchan);
 	flags = O_CREAT | O_TRUNC | O_WRONLY;
@@ -5083,9 +5112,9 @@ static void *recordthread(void *args)
 			AST_LIST_UNLOCK(&confs);
 			break;
 		}
-		if (!s && cnf->recordingfilename && (cnf->recordingfilename != oldrecordingfilename)) {
-			s = ast_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, AST_FILE_MODE);
-			oldrecordingfilename = cnf->recordingfilename;
+		if (!s && !(ast_strlen_zero(filename_buffer)) && (filename_buffer != oldrecordingfilename)) {
+			s = ast_writefile(filename_buffer, cnf->recordingformat, NULL, flags, 0, AST_FILE_MODE);
+			oldrecordingfilename = filename_buffer;
 		}
 		
 		f = ast_read(cnf->lchan);
