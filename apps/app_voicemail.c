@@ -3791,7 +3791,7 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 	int res = 0;
 	int fd = -1;
 	void *fdm = MAP_FAILED;
-	size_t fdlen = -1;
+	off_t fdlen = -1;
 	SQLHSTMT stmt;
 	char sql[PATH_MAX];
 	char msgnums[20];
@@ -3856,11 +3856,14 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 			}
 		}
 		fdlen = lseek(fd, 0, SEEK_END);
-		lseek(fd, 0, SEEK_SET);
-		printf("Length is %zd\n", fdlen);
+		if (fdlen < 0 || lseek(fd, 0, SEEK_SET) < 0) {
+			ast_log(AST_LOG_WARNING, "Failed to process sound file '%s': %s\n", full_fn, strerror(errno));
+			res = -1;
+			break;
+		}
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 		if (fdm == MAP_FAILED) {
-			ast_log(AST_LOG_WARNING, "Memory map failed!\n");
+			ast_log(AST_LOG_WARNING, "Memory map failed for sound file '%s'!\n", full_fn);
 			res = -1;
 			break;
 		} 
@@ -4102,8 +4105,7 @@ static int copy(char *infile, char *outfile)
 				close(ifd);
 				close(ofd);
 				unlink(outfile);
-			}
-			if (len) {
+			} else if (len) {
 				res = write(ofd, buf, len);
 				if (errno == ENOMEM || errno == ENOSPC || res != len) {
 					ast_log(AST_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
