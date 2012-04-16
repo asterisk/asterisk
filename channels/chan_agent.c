@@ -780,7 +780,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 		while (ast_channel_trylock(p->chan)) {
 			int res;
 			if ((res = ast_channel_unlock(ast))) {
-				ast_log(LOG_ERROR, "chan_agent bug! Channel was not locked upon entry to agent_indicate: %s\n", strerror(res));
+				ast_log(LOG_ERROR, "chan_agent bug! Channel was not locked upon entry to agent_indicate: %s\n", res > 0 ? strerror(res) : "Bad ao2obj data");
 				ast_mutex_unlock(&p->lock);
 				return -1;
 			}

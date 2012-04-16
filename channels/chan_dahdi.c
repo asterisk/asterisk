@@ -8728,7 +8728,9 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 	int usedindex = -1;
 	struct dahdi_pvt *p = ast->tech_pvt;
 
-	idx = dahdi_get_index(ast, p, 1);
+	if ((idx = dahdi_get_index(ast, p, 0)) < 0) {
+		idx = SUB_REAL;
+	}
 
 	p->subs[idx].f.frametype = AST_FRAME_NULL;
 	p->subs[idx].f.datalen = 0;
