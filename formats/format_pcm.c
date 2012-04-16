@@ -105,9 +105,20 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	off_t cur, max, offset = 0;
  	int ret = -1;	/* assume error */
 
-	cur = ftello(fs->f);
-	fseeko(fs->f, 0, SEEK_END);
-	max = ftello(fs->f);
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in pcm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of pcm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in pcm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
 
 	switch (whence) {
 	case SEEK_SET:
@@ -151,7 +162,18 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 static int pcm_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftello(fs->f));
+	int cur, fd;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for pcm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in pcm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);
 }
 
 static off_t pcm_tell(struct ast_filestream *fs)
@@ -374,7 +396,7 @@ static int au_rewrite(struct ast_filestream *s, const char *comment)
 /* XXX check this, probably incorrect */
 static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t min, max, cur;
+	off_t min = AU_HEADER_SIZE, max, cur;
 	long offset = 0, bytes;
 
 	if (fs->fmt->format.id == AST_FORMAT_G722)
@@ -382,10 +404,20 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	else
 		bytes = sample_offset;
 
-	min = AU_HEADER_SIZE;
-	cur = ftello(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftello(fs->f);
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in au filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of au filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in au filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
 
 	if (whence == SEEK_SET)
 		offset = bytes + min;
@@ -406,8 +438,21 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 static int au_trunc(struct ast_filestream *fs)
 {
-	if (ftruncate(fileno(fs->f), ftell(fs->f)))
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for au filestream %p: %s\n", fs, strerror(errno));
 		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in au filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	if (ftruncate(fd, cur)) {
+		return -1;
+	}
 	return update_header(fs->f);
 }
 
