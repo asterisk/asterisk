@@ -146,10 +146,19 @@ static int h263_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 static int h263_trunc(struct ast_filestream *fs)
 {
-	/* Truncate file to current length */
-	if (ftruncate(fileno(fs->f), ftello(fs->f)) < 0)
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for h263 filestream %p: %s\n", fs, strerror(errno));
 		return -1;
-	return 0;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in h263 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);
 }
 
 static off_t h263_tell(struct ast_filestream *fs)
