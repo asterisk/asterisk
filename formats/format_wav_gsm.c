@@ -475,13 +475,25 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 
 static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t offset=0, distance, max;
+	off_t offset = 0, min = MSGSM_DATA_OFFSET, distance, max, cur;
 	struct wavg_desc *s = (struct wavg_desc *)fs->_private;
 
-	off_t min = MSGSM_DATA_OFFSET;
-	off_t cur = ftello(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftello(fs->f);	/* XXX ideally, should round correctly */
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in WAV filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of WAV filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	/* XXX ideally, should round correctly */
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in WAV filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
 	/* Compute the distance in bytes, rounded to the block size */
 	distance = (sample_offset/MSGSM_SAMPLES) * MSGSM_FRAME_SIZE;
 	if (whence == SEEK_SET)
@@ -511,8 +523,21 @@ static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 static int wav_trunc(struct ast_filestream *fs)
 {
-	if (ftruncate(fileno(fs->f), ftello(fs->f)))
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for WAV filestream %p: %s\n", fs, strerror(errno));
 		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in WAV filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	if (ftruncate(fd, cur)) {
+		return -1;
+	}
 	return update_header(fs->f);
 }
 

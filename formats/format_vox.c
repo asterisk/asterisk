@@ -78,32 +78,54 @@ static int vox_write(struct ast_filestream *s, struct ast_frame *f)
 
 static int vox_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-     off_t offset=0,min,cur,max,distance;
-	
-     min = 0;
-     cur = ftello(fs->f);
-     fseeko(fs->f, 0, SEEK_END);
-	 max = ftello(fs->f);
-	 
-     /* have to fudge to frame here, so not fully to sample */
-     distance = sample_offset/2;
-     if(whence == SEEK_SET)
-	  offset = distance;
-     else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
-	  offset = distance + cur;
-     else if(whence == SEEK_END)
-	  offset = max - distance;
-     if (whence != SEEK_FORCECUR) {
-	  offset = (offset > max)?max:offset;
-	  offset = (offset < min)?min:offset;
-     }
-     return fseeko(fs->f, offset, SEEK_SET);
+	off_t offset = 0, min = 0, cur, max, distance;
+
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	/* have to fudge to frame here, so not fully to sample */
+	distance = sample_offset/2;
+	if (whence == SEEK_SET) {
+		offset = distance;
+	} else if (whence == SEEK_CUR || whence == SEEK_FORCECUR) {
+		offset = distance + cur;
+	} else if (whence == SEEK_END) {
+		offset = max - distance;
+	}
+	if (whence != SEEK_FORCECUR) {
+		offset = (offset > max)?max:offset;
+		offset = (offset < min)?min:offset;
+	}
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int vox_trunc(struct ast_filestream *fs)
 {
-     return ftruncate(fileno(fs->f), ftello(fs->f));
-}
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for vox filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in vox filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);}
 
 static off_t vox_tell(struct ast_filestream *fs)
 {

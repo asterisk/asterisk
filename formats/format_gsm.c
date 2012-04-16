@@ -108,20 +108,33 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t offset=0,min,cur,max,distance;
-	
-	min = 0;
-	cur = ftello(fs->f);
-	fseeko(fs->f, 0, SEEK_END);
-	max = ftello(fs->f);
+	off_t offset = 0, min = 0, cur, max, distance;
+
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in g719 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
 	/* have to fudge to frame here, so not fully to sample */
-	distance = (sample_offset/GSM_SAMPLES) * GSM_FRAME_SIZE;
-	if(whence == SEEK_SET)
+	distance = (sample_offset / GSM_SAMPLES) * GSM_FRAME_SIZE;
+	if (whence == SEEK_SET) {
 		offset = distance;
-	else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
+	} else if (whence == SEEK_CUR || whence == SEEK_FORCECUR) {
 		offset = distance + cur;
-	else if(whence == SEEK_END)
+	} else if (whence == SEEK_END) {
 		offset = max - distance;
+	}
+
 	/* Always protect against seeking past the begining. */
 	offset = (offset < min)?min:offset;
 	if (whence != SEEK_FORCECUR) {
@@ -140,13 +153,31 @@ static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 static int gsm_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftello(fs->f));
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for gsm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in gsm filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);
 }
 
 static off_t gsm_tell(struct ast_filestream *fs)
 {
 	off_t offset = ftello(fs->f);
-	return (offset/GSM_FRAME_SIZE)*GSM_SAMPLES;
+
+	if (offset < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine offset for gsm filestream %p: %s\n", fs, strerror(errno));
+		return 0;
+	}
+
+	return (offset / GSM_FRAME_SIZE) * GSM_SAMPLES;
 }
 
 static const struct ast_format gsm_f = {

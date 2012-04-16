@@ -76,13 +76,25 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 
 static int slinear_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t offset=0,min,cur,max;
+	off_t offset=0, min = 0, cur, max;
 
-	min = 0;
 	sample_offset <<= 1;
-	cur = ftello(fs->f);
-	fseeko(fs->f, 0, SEEK_END);
-	max = ftello(fs->f);
+
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in sln filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of sln filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in sln filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -99,7 +111,19 @@ static int slinear_seek(struct ast_filestream *fs, off_t sample_offset, int when
 
 static int slinear_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftello(fs->f));
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for sln filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in sln filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);
 }
 
 static off_t slinear_tell(struct ast_filestream *fs)

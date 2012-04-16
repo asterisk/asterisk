@@ -82,11 +82,20 @@ static int siren14seek(struct ast_filestream *fs, off_t sample_offset, int whenc
 
 	sample_offset = SAMPLES_TO_BYTES(sample_offset);
 
-	cur = ftello(fs->f);
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in siren14 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
 
-	fseeko(fs->f, 0, SEEK_END);
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of siren14 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
 
-	max = ftello(fs->f);
+	if ((max = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in siren14 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
 
 	if (whence == SEEK_SET)
 		offset = sample_offset;
@@ -106,7 +115,19 @@ static int siren14seek(struct ast_filestream *fs, off_t sample_offset, int whenc
 
 static int siren14trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftello(fs->f));
+	int fd;
+	off_t cur;
+
+	if ((fd = fileno(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for siren14 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	if ((cur = ftello(fs->f) < 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in siren14 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+	/* Truncate file to current length */
+	return ftruncate(fd, cur);
 }
 
 static off_t siren14tell(struct ast_filestream *fs)
