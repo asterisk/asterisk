@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2011, Digium, Inc.
+ * Copyright (C) 2012, Digium, Inc.
  *
  * Michael L. Young <elgueromexicano@gmail.com>
  *
@@ -49,25 +49,9 @@ static enum ast_security_event_transport_type security_event_get_transport(const
 	return res;
 }
 
-static struct sockaddr_in *security_event_encode_sin_local(const struct sip_pvt *p, struct sockaddr_in *sin_local)
-{
-	ast_sockaddr_to_sin(&p->ourip, sin_local);
-
-	return sin_local;
-}
-
-static struct sockaddr_in *security_event_encode_sin_remote(const struct sip_pvt *p, struct sockaddr_in *sin_remote)
-{
-        ast_sockaddr_to_sin(&p->sa, sin_remote);
-
-        return sin_remote;
-}
-
 void sip_report_invalid_peer(const struct sip_pvt *p)
 {
 	char session_id[32];
-	struct sockaddr_in sin_local;
-	struct sockaddr_in sin_remote;
 
 	struct ast_security_event_inval_acct_id inval_acct_id = {
 		.common.event_type = AST_SECURITY_EVENT_INVAL_ACCT_ID,
@@ -75,11 +59,11 @@ void sip_report_invalid_peer(const struct sip_pvt *p)
 		.common.service    = "SIP",
 		.common.account_id = p->exten,
 		.common.local_addr = {
-			.sin       = security_event_encode_sin_local(p, &sin_local),
+			.addr      = &p->ourip,
 			.transport = security_event_get_transport(p)
 		},
 		.common.remote_addr = {
-			.sin       = security_event_encode_sin_remote(p, &sin_remote),
+			.addr       = &p->sa,
 			.transport = security_event_get_transport(p)
 		},
 		.common.session_id = session_id,
@@ -93,8 +77,6 @@ void sip_report_invalid_peer(const struct sip_pvt *p)
 void sip_report_failed_acl(const struct sip_pvt *p, const char *aclname)
 {
         char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
 
         struct ast_security_event_failed_acl failed_acl_event = {
                 .common.event_type  = AST_SECURITY_EVENT_FAILED_ACL,
@@ -102,11 +84,11 @@ void sip_report_failed_acl(const struct sip_pvt *p, const char *aclname)
                 .common.service     = "SIP",
                 .common.account_id  = p->exten,
                 .common.local_addr  = {
-                        .sin        = security_event_encode_sin_local(p, &sin_local),
+                        .addr       = &p->ourip,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin        = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr       = &p->sa,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.session_id  = session_id,
@@ -121,8 +103,6 @@ void sip_report_failed_acl(const struct sip_pvt *p, const char *aclname)
 void sip_report_inval_password(const struct sip_pvt *p, const char *response_challenge, const char *response_hash)
 {
         char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
 
         struct ast_security_event_inval_password inval_password = {
                 .common.event_type  = AST_SECURITY_EVENT_INVAL_PASSWORD,
@@ -130,11 +110,11 @@ void sip_report_inval_password(const struct sip_pvt *p, const char *response_cha
                 .common.service     = "SIP",
                 .common.account_id  = p->exten,
                 .common.local_addr  = {
-                        .sin        = security_event_encode_sin_local(p, &sin_local),
+                        .addr       = &p->ourip,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin        = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr       = &p->sa,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.session_id  = session_id,
@@ -152,8 +132,6 @@ void sip_report_inval_password(const struct sip_pvt *p, const char *response_cha
 void sip_report_auth_success(const struct sip_pvt *p, uint32_t *using_password)
 {
         char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
 
         struct ast_security_event_successful_auth successful_auth = {
                 .common.event_type  = AST_SECURITY_EVENT_SUCCESSFUL_AUTH,
@@ -161,11 +139,11 @@ void sip_report_auth_success(const struct sip_pvt *p, uint32_t *using_password)
                 .common.service     = "SIP",
                 .common.account_id  = p->exten,
                 .common.local_addr  = {
-                        .sin        = security_event_encode_sin_local(p, &sin_local),
+                        .addr       = &p->ourip,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin        = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr       = &p->sa,
                         .transport  = security_event_get_transport(p)
                 },
                 .common.session_id  = session_id,
@@ -180,8 +158,6 @@ void sip_report_auth_success(const struct sip_pvt *p, uint32_t *using_password)
 void sip_report_session_limit(const struct sip_pvt *p)
 {
         char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
 
         struct ast_security_event_session_limit session_limit = {
                 .common.event_type = AST_SECURITY_EVENT_SESSION_LIMIT,
@@ -189,11 +165,11 @@ void sip_report_session_limit(const struct sip_pvt *p)
                 .common.service    = "SIP",
                 .common.account_id = p->exten,
                 .common.local_addr = {
-                        .sin       = security_event_encode_sin_local(p, &sin_local),
+                        .addr      = &p->ourip,
                         .transport = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin       = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr      = &p->sa,
                         .transport = security_event_get_transport(p)
                 },
                 .common.session_id = session_id,
@@ -206,9 +182,7 @@ void sip_report_session_limit(const struct sip_pvt *p)
 
 void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *response, const char *expected_response)
 {
-        char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
+	char session_id[32];
 	char account_id[256];
 
 	struct ast_security_event_chal_resp_failed chal_resp_failed = {
@@ -217,11 +191,11 @@ void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *r
                 .common.service    = "SIP",
                 .common.account_id = account_id,
                 .common.local_addr = {
-                        .sin       = security_event_encode_sin_local(p, &sin_local),
+                        .addr      = &p->ourip,
                         .transport = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin       = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr      = &p->sa,
                         .transport = security_event_get_transport(p)
                 },
                 .common.session_id = session_id,
@@ -244,22 +218,20 @@ void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *r
 
 void sip_report_chal_sent(const struct sip_pvt *p)
 {
-        char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
+	char session_id[32];
 	char account_id[256];
 
-        struct ast_security_event_chal_sent chal_sent = {
+	struct ast_security_event_chal_sent chal_sent = {
                 .common.event_type = AST_SECURITY_EVENT_CHAL_SENT,
                 .common.version    = AST_SECURITY_EVENT_CHAL_SENT_VERSION,
                 .common.service    = "SIP",
                 .common.account_id = account_id,
                 .common.local_addr = {
-                        .sin       = security_event_encode_sin_local(p, &sin_local),
+                        .addr      = &p->ourip,
                         .transport = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin       = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr      = &p->sa,
                         .transport = security_event_get_transport(p)
                 },
                 .common.session_id = session_id,
@@ -281,8 +253,6 @@ void sip_report_chal_sent(const struct sip_pvt *p)
 void sip_report_inval_transport(const struct sip_pvt *p, const char *transport)
 {
         char session_id[32];
-        struct sockaddr_in sin_local;
-        struct sockaddr_in sin_remote;
 
         struct ast_security_event_inval_transport inval_transport = {
                 .common.event_type = AST_SECURITY_EVENT_INVAL_TRANSPORT,
@@ -290,11 +260,11 @@ void sip_report_inval_transport(const struct sip_pvt *p, const char *transport)
                 .common.service    = "SIP",
                 .common.account_id = p->exten,
                 .common.local_addr = {
-                        .sin       = security_event_encode_sin_local(p, &sin_local),
+                        .addr      = &p->ourip,
                         .transport = security_event_get_transport(p)
                 },
                 .common.remote_addr = {
-                        .sin       = security_event_encode_sin_remote(p, &sin_remote),
+                        .addr      = &p->sa,
                         .transport = security_event_get_transport(p)
                 },
                 .common.session_id = session_id,

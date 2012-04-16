@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Digium, Inc.
+ * Copyright (C) 2012, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
  *
@@ -151,8 +151,8 @@ enum ast_security_event_transport_type {
 
 #define AST_SEC_EVT(e) ((struct ast_security_event_common *) e)
 
-struct ast_security_event_ipv4_addr {
-	const struct sockaddr_in *sin;
+struct ast_security_event_ip_addr {
+	const struct ast_sockaddr *addr;
 	enum ast_security_event_transport_type transport;
 };
 
@@ -202,12 +202,12 @@ struct ast_security_event_common {
 	 * \brief Local address the request came in on
 	 * \note Always required
 	 */
-	struct ast_security_event_ipv4_addr local_addr;
+	struct ast_security_event_ip_addr local_addr;
 	/*!
 	 * \brief Remote address the request came from
 	 * \note Always required
 	 */
-	struct ast_security_event_ipv4_addr remote_addr;
+	struct ast_security_event_ip_addr remote_addr;
 };
 
 /*!
@@ -418,7 +418,7 @@ struct ast_security_event_unexpected_addr {
 	 * \brief Event descriptor version
 	 * \note This _must_ be changed if this event descriptor is changed.
 	 */
-	#define AST_SECURITY_EVENT_UNEXPECTED_ADDR_VERSION 1
+	#define AST_SECURITY_EVENT_UNEXPECTED_ADDR_VERSION 2
 	/*!
 	 * \brief Common security event descriptor elements
 	 * \note Account ID required
@@ -428,7 +428,7 @@ struct ast_security_event_unexpected_addr {
 	 * \brief Expected remote address
 	 * \note required
 	 */
-	struct ast_security_event_ipv4_addr expected_addr;
+	struct ast_security_event_ip_addr expected_addr;
 };
 
 /*!

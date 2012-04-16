@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Digium, Inc.
+ * Copyright (C) 2012, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
  *
@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/network.h"
 #include "asterisk/security_events.h"
+#include "asterisk/netsock2.h"
 
 static const size_t TIMESTAMP_STR_LEN = 32;
 
@@ -502,12 +503,12 @@ static int add_timeval_ie(struct ast_event **event, enum ast_event_ie_type ie_ty
 	return ast_event_append_ie_str(event, ie_type, ast_str_buffer(str));
 }
 
-static int add_ipv4_ie(struct ast_event **event, enum ast_event_ie_type ie_type,
-		const struct ast_security_event_ipv4_addr *addr)
+static int add_ip_ie(struct ast_event **event, enum ast_event_ie_type ie_type,
+		const struct ast_security_event_ip_addr *addr)
 {
 	struct ast_str *str = ast_str_alloca(64);
 
-	ast_str_set(&str, 0, "IPV4/");
+	ast_str_set(&str, 0, (ast_sockaddr_is_ipv4(addr->addr) || ast_sockaddr_is_ipv4_mapped(addr->addr)) ? "IPV4/" : "IPV6/");
 
 	switch (addr->transport) {
 	case AST_SECURITY_EVENT_TRANSPORT_UDP:
@@ -521,9 +522,8 @@ static int add_ipv4_ie(struct ast_event **event, enum ast_event_ie_type ie_type,
 		break;
 	}
 
-	ast_str_append(&str, 0, "%s/%hu",
-			ast_inet_ntoa(addr->sin->sin_addr),
-			ntohs(addr->sin->sin_port));
+	ast_str_append(&str, 0, "%s", ast_sockaddr_stringify_addr(addr->addr));
+	ast_str_append(&str, 0, "/%s", ast_sockaddr_stringify_port(addr->addr));
 
 	return ast_event_append_ie_str(event, ie_type, ast_str_buffer(str));
 }
@@ -583,19 +583,19 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 	case AST_EVENT_IE_REMOTE_ADDR:
 	case AST_EVENT_IE_EXPECTED_ADDR:
 	{
-		const struct ast_security_event_ipv4_addr *addr;
+		const struct ast_security_event_ip_addr *addr;
 
-		addr = (const struct ast_security_event_ipv4_addr *)(((const char *) sec) + ie_type->offset);
+		addr = (const struct ast_security_event_ip_addr *)(((const char *) sec) + ie_type->offset);
 
-		if (req && !addr->sin) {
+		if (req && !addr->addr) {
 			ast_log(LOG_WARNING, "Required IE '%d' for security event "
 					"type '%d' not present\n", ie_type->ie_type,
 					sec->event_type);
 			res = -1;
 		}
 
-		if (addr->sin) {
-			res = add_ipv4_ie(event, ie_type->ie_type, addr);
+		if (addr->addr) {
+			res = add_ip_ie(event, ie_type->ie_type, addr);
 		}
 		break;
 	}

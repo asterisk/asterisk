@@ -2178,18 +2178,9 @@ static enum ast_security_event_transport_type mansession_get_transport(const str
 			AST_SECURITY_EVENT_TRANSPORT_TCP;
 }
 
-static struct sockaddr_in *mansession_encode_sin_local(const struct mansession *s,
-		struct sockaddr_in *sin_local)
-{
-	ast_sockaddr_to_sin(&s->tcptls_session->parent->local_address,
-			    sin_local);
-
-	return sin_local;
-}
-
 static void report_invalid_user(const struct mansession *s, const char *username)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_inval_acct_id inval_acct_id = {
 		.common.event_type = AST_SECURITY_EVENT_INVAL_ACCT_ID,
@@ -2198,15 +2189,17 @@ static void report_invalid_user(const struct mansession *s, const char *username
 		.common.account_id = username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s);
 
@@ -2215,7 +2208,7 @@ static void report_invalid_user(const struct mansession *s, const char *username
 
 static void report_failed_acl(const struct mansession *s, const char *username)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_failed_acl failed_acl_event = {
 		.common.event_type = AST_SECURITY_EVENT_FAILED_ACL,
@@ -2224,15 +2217,17 @@ static void report_failed_acl(const struct mansession *s, const char *username)
 		.common.account_id = username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 
@@ -2241,7 +2236,7 @@ static void report_failed_acl(const struct mansession *s, const char *username)
 
 static void report_inval_password(const struct mansession *s, const char *username)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_inval_password inval_password = {
 		.common.event_type = AST_SECURITY_EVENT_INVAL_PASSWORD,
@@ -2250,15 +2245,17 @@ static void report_inval_password(const struct mansession *s, const char *userna
 		.common.account_id = username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 
@@ -2267,7 +2264,7 @@ static void report_inval_password(const struct mansession *s, const char *userna
 
 static void report_auth_success(const struct mansession *s)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_successful_auth successful_auth = {
 		.common.event_type = AST_SECURITY_EVENT_SUCCESSFUL_AUTH,
@@ -2276,15 +2273,17 @@ static void report_auth_success(const struct mansession *s)
 		.common.account_id = s->session->username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 
@@ -2293,7 +2292,7 @@ static void report_auth_success(const struct mansession *s)
 
 static void report_req_not_allowed(const struct mansession *s, const char *action)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	char request_type[64];
 	struct ast_security_event_req_not_allowed req_not_allowed = {
@@ -2303,17 +2302,19 @@ static void report_req_not_allowed(const struct mansession *s, const char *actio
 		.common.account_id = s->session->username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 
 		.request_type      = request_type,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 	snprintf(request_type, sizeof(request_type), "Action: %s", action);
@@ -2323,7 +2324,7 @@ static void report_req_not_allowed(const struct mansession *s, const char *actio
 
 static void report_req_bad_format(const struct mansession *s, const char *action)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	char request_type[64];
 	struct ast_security_event_req_bad_format req_bad_format = {
@@ -2333,17 +2334,19 @@ static void report_req_bad_format(const struct mansession *s, const char *action
 		.common.account_id = s->session->username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 
 		.request_type      = request_type,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 	snprintf(request_type, sizeof(request_type), "Action: %s", action);
@@ -2354,7 +2357,7 @@ static void report_req_bad_format(const struct mansession *s, const char *action
 static void report_failed_challenge_response(const struct mansession *s,
 		const char *response, const char *expected_response)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_chal_resp_failed chal_resp_failed = {
 		.common.event_type = AST_SECURITY_EVENT_CHAL_RESP_FAILED,
@@ -2363,11 +2366,11 @@ static void report_failed_challenge_response(const struct mansession *s,
 		.common.account_id = s->session->username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
@@ -2377,6 +2380,8 @@ static void report_failed_challenge_response(const struct mansession *s,
 		.expected_response = expected_response,
 	};
 
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
+
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 
 	ast_security_event_report(AST_SEC_EVT(&chal_resp_failed));
@@ -2384,7 +2389,7 @@ static void report_failed_challenge_response(const struct mansession *s,
 
 static void report_session_limit(const struct mansession *s)
 {
-	struct sockaddr_in sin_local;
+	struct ast_sockaddr addr_remote;
 	char session_id[32];
 	struct ast_security_event_session_limit session_limit = {
 		.common.event_type = AST_SECURITY_EVENT_SESSION_LIMIT,
@@ -2393,15 +2398,17 @@ static void report_session_limit(const struct mansession *s)
 		.common.account_id = s->session->username,
 		.common.session_tv = &s->session->sessionstart_tv,
 		.common.local_addr = {
-			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.addr      = &s->tcptls_session->parent->local_address,
 			.transport = mansession_get_transport(s),
 		},
 		.common.remote_addr = {
-			.sin       = &s->session->sin,
+			.addr      = &addr_remote,
 			.transport = mansession_get_transport(s),
 		},
 		.common.session_id = session_id,
 	};
+
+	ast_sockaddr_from_sin(&addr_remote, &s->session->sin);
 
 	snprintf(session_id, sizeof(session_id), "%p", s->session);
 

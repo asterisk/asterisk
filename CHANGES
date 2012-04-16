@@ -1004,6 +1004,8 @@ Security Events Framework
    Asterisk component that reports security events.  However, SIP support will be
    coming soon.  For more information on the security events framework, see the
    "Security Events" chapter of the included documentation - doc/tex/asterisk.pdf.
+ * SIP support was added in Asterisk 10
+ * This API now supports IPv6 addresses
 
 Fax
 ---
