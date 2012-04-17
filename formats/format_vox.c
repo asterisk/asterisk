@@ -90,7 +90,7 @@ static int vox_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		return -1;
 	}
 
-	if ((max = ftello(fs->f) < 0)) {
+	if ((max = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine max position in g719 filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}

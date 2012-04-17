@@ -92,7 +92,7 @@ static int slinear_seek(struct ast_filestream *fs, off_t sample_offset, int when
 		return -1;
 	}
 
-	if ((max = ftello(fs->f) < 0)) {
+	if ((max = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine max position in sln16 filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
