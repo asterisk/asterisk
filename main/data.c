@@ -696,7 +696,7 @@ static struct ast_data_search *data_search_alloc(const char *name)
 	res->children = ao2_container_alloc(NUM_DATA_SEARCH_BUCKETS, data_search_hash,
 		data_search_cmp);
 
-	if (!res) {
+	if (!res->children) {
 		ao2_ref(res, -1);
 		return NULL;
 	}
@@ -1653,7 +1653,7 @@ static struct data_filter *data_filter_alloc(const char *name)
 	res->children = ao2_container_alloc(NUM_DATA_FILTER_BUCKETS, data_filter_hash,
 		data_filter_cmp);
 
-	if (!res) {
+	if (!res->children) {
 		ao2_ref(res, -1);
 		return NULL;
 	}

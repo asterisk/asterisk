@@ -714,9 +714,9 @@ end_acf_read:
 		pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 		pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(colnames));
 		if (resultset) {
-			int uid;
 			struct ast_datastore *odbc_store;
 			if (multirow) {
+				int uid;
 				uid = ast_atomic_fetchadd_int(&resultcount, +1) + 1;
 				snprintf(buf, len, "%d", uid);
 			} else {

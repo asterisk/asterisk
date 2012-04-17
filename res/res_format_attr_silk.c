@@ -80,8 +80,8 @@ static int silk_get_val(const struct ast_format_attr *fattr, int key, void *resu
 		*val = attr->packetloss_percentage;
 		break;
 	default:
-		return -1;
 		ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+		return -1;
 	}
 	return 0;
 }
@@ -122,8 +122,8 @@ static int silk_isset(const struct ast_format_attr *fattr, va_list ap)
 			}
 			break;
 		default:
-			return -1;
 			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			return -1;
 		}
 	}
 	return 0;

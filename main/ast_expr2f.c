@@ -2448,7 +2448,6 @@ int ast_str_expr(struct ast_str **str, ssize_t maxlen, struct ast_channel *chan,
 		ast_str_set(str, maxlen, "0");
 	} else {
 		if (io.val->type == AST_EXPR_number) {
-			int res_length;
 			ast_str_set(str, maxlen, FP___PRINTF, io.val->u.i);
 		} else if (io.val->u.s) {
 			ast_str_set(str, maxlen, "%s", io.val->u.s);

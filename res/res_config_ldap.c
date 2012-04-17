@@ -1092,11 +1092,6 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 		struct ast_variable *var_metric = variable_named(*p, "var_metric");
 		struct ast_variable *dn = variable_named(*p, "dn");
 
-		ast_debug(3, "category: %s\n", category->value);
-		ast_debug(3, "var_name: %s\n", var_name->value);
-		ast_debug(3, "var_val: %s\n", var_val->value);
-		ast_debug(3, "cat_metric: %s\n", cat_metric->value);
-
 		if (!category) {
 			ast_log(LOG_ERROR, "No category name in entry '%s'  for file '%s'.\n",
 					(dn ? dn->value : "?"), file);
@@ -1122,6 +1117,12 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 			categories[vars_count].var_metric = atoi(var_metric->value);
 			vars_count++;
 		}
+
+		ast_debug(3, "category: %s\n", category->value);
+		ast_debug(3, "var_name: %s\n", var_name->value);
+		ast_debug(3, "var_val: %s\n", var_val->value);
+		ast_debug(3, "cat_metric: %s\n", cat_metric->value);
+
 	}
 
 	qsort(categories, vars_count, sizeof(*categories), compare_categories);

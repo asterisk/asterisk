@@ -156,7 +156,6 @@ static int load_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_variable *mappingvar;
 	const char *tmp;
 
 	if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -170,7 +169,7 @@ static int load_config(int reload)
 		free_config(1);
 	}
 
-	if (!(mappingvar = ast_variable_browse(cfg, "master"))) {
+	if (!ast_variable_browse(cfg, "master")) {
 		/* Nothing configured */
 		ast_config_destroy(cfg);
 		return -1;

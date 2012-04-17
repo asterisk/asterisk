@@ -440,7 +440,6 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	static int left = FRAME_SIZE;
 	snd_pcm_state_t state;
 	int r = 0;
-	int off = 0;
 
 	ast_mutex_lock(&alsalock);
 	f.frametype = AST_FRAME_NULL;
@@ -478,8 +477,6 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		snd_pcm_prepare(alsa.icard);
 	} else if (r < 0) {
 		ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
-	} else if (r >= 0) {
-		off -= r;
 	}
 	/* Update positions */
 	readpos += r;

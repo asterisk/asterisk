@@ -165,7 +165,7 @@ static int quan(int val, int *table, int size)
 
 	for (i = 0; i < size && val >= *table; ++i, ++table)
 		;
-	return (i);
+	return i;
 }
 
 #ifdef NOT_BLI /* faster non-identical version */
@@ -248,22 +248,22 @@ static int predictor_pole(struct g726_state *state_ptr)
  */
 static int step_size(struct g726_state *state_ptr)
 {
-	int		y;
-	int		dif;
-	int		al;
+	int y, dif, al;
 
-	if (state_ptr->ap >= 256)
-		return (state_ptr->yu);
-	else {
-		y = state_ptr->yl >> 6;
-		dif = state_ptr->yu - y;
-		al = state_ptr->ap >> 2;
-		if (dif > 0)
-			y += (dif * al) >> 6;
-		else if (dif < 0)
-			y += (dif * al + 0x3F) >> 6;
-		return (y);
+	if (state_ptr->ap >= 256) {
+		return state_ptr->yu;
 	}
+
+	y = state_ptr->yl >> 6;
+	dif = state_ptr->yu - y;
+	al = state_ptr->ap >> 2;
+
+	if (dif > 0) {
+		y += (dif * al) >> 6;
+	} else if (dif < 0) {
+		y += (dif * al + 0x3F) >> 6;
+	}
+	return y;
 }
 
 /*
@@ -295,8 +295,9 @@ static int quantize(
 	 */
 	dqm = abs(d);
 	exp = ilog2(dqm);
-	if (exp < 0)
+	if (exp < 0) {
 		exp = 0;
+	}
 	mant = ((dqm << 7) >> exp) & 0x7F;	/* Fractional portion. */
 	dl = (exp << 7) | mant;
 
@@ -313,12 +314,13 @@ static int quantize(
 	 * Obtain codword i for 'd'.
 	 */
 	i = quan(dln, table, size);
-	if (d < 0)			/* take 1's complement of i */
+	if (d < 0) {			/* take 1's complement of i */
 		return ((size << 1) + 1 - i);
-	else if (i == 0)		/* take 1's complement of 0 */
+	} else if (i == 0) {		/* take 1's complement of 0 */
 		return ((size << 1) + 1); /* new in 1988 */
-	else
-		return (i);
+	} else {
+		return i;
+	}
 }
 
 /*
@@ -401,13 +403,13 @@ static void update(
 	thr1 = (32 + ylfrac) << ylint;		/* threshold */
 	thr2 = (ylint > 9) ? 31 << 10 : thr1;	/* limit thr2 to 31 << 10 */
 	dqthr = (thr2 + (thr2 >> 1)) >> 1;	/* dqthr = 0.75 * thr2 */
-	if (state_ptr->td == 0)		/* signal supposed voice */
+	if (state_ptr->td == 0) {		/* signal supposed voice */
 		tr = 0;
-	else if (mag <= dqthr)		/* supposed data, but small mag */
+	} else if (mag <= dqthr) {		/* supposed data, but small mag */
 		tr = 0;			/* treated as voice */
-	else				/* signal is data (modem) */
+	} else {				/* signal is data (modem) */
 		tr = 1;
-
+	}
 	/*
 	 * Quantizer scale factor adaptation.
 	 */
@@ -417,10 +419,11 @@ static void update(
 	state_ptr->yu = y + ((wi - y) >> 5);
 
 	/* LIMB */
-	if (state_ptr->yu < 544)	/* 544 <= yu <= 5120 */
+	if (state_ptr->yu < 544) {	/* 544 <= yu <= 5120 */
 		state_ptr->yu = 544;
-	else if (state_ptr->yu > 5120)
+	} else if (state_ptr->yu > 5120) {
 		state_ptr->yu = 5120;
+	}
 
 	/* FILTE & DELAY */
 	/* update steady state step size multiplier */
@@ -445,27 +448,30 @@ static void update(
 		a2p = state_ptr->a[1] - (state_ptr->a[1] >> 7);
 		if (dqsez != 0) {
 			fa1 = (pks1) ? state_ptr->a[0] : -state_ptr->a[0];
-			if (fa1 < -8191)	/* a2p = function of fa1 */
+			if (fa1 < -8191) {	/* a2p = function of fa1 */
 				a2p -= 0x100;
-			else if (fa1 > 8191)
+			} else if (fa1 > 8191) {
 				a2p += 0xFF;
-			else
+			} else {
 				a2p += fa1 >> 5;
+			}
 
-			if (pk0 ^ state_ptr->pk[1])
+			if (pk0 ^ state_ptr->pk[1]) {
 				/* LIMC */
-				if (a2p <= -12160)
+				if (a2p <= -12160) {
 					a2p = -12288;
-				else if (a2p >= 12416)
+				} else if (a2p >= 12416) {
 					a2p = 12288;
-				else
+				} else {
 					a2p -= 0x80;
-			else if (a2p <= -12416)
+				}
+			} else if (a2p <= -12416) {
 				a2p = -12288;
-			else if (a2p >= 12160)
+			} else if (a2p >= 12160) {
 				a2p = 12288;
-			else
+			} else {
 				a2p += 0x80;
+			}
 		}
 
 		/* TRIGB & DELAY */
@@ -482,23 +488,25 @@ static void update(
 		}
 		/* LIMD */
 		a1ul = 15360 - a2p;
-		if (state_ptr->a[0] < -a1ul)
+		if (state_ptr->a[0] < -a1ul) {
 			state_ptr->a[0] = -a1ul;
-		else if (state_ptr->a[0] > a1ul)
+		} else if (state_ptr->a[0] > a1ul) {
 			state_ptr->a[0] = a1ul;
+		}
 
 		/* UPB : update predictor zeros b[6] */
 		for (cnt = 0; cnt < 6; cnt++) {
-			if (code_size == 5)		/* for 40Kbps G.723 */
+			if (code_size == 5) {		/* for 40Kbps G.723 */
 				state_ptr->b[cnt] -= state_ptr->b[cnt] >> 9;
-			else			/* for G.721 and 24Kbps G.723 */
+			} else {			/* for G.721 and 24Kbps G.723 */
 				state_ptr->b[cnt] -= state_ptr->b[cnt] >> 8;
-			if (mag)
-			{	/* XOR */
-				if ((dq ^ state_ptr->dq[cnt]) >= 0)
+			}
+			if (mag) {	/* XOR */
+				if ((dq ^ state_ptr->dq[cnt]) >= 0) {
 					state_ptr->b[cnt] += 128;
-				else
+				} else {
 					state_ptr->b[cnt] -= 128;
+				}
 			}
 		}
 	}
@@ -542,12 +550,13 @@ static void update(
 	state_ptr->pk[0] = pk0;
 
 	/* TONE */
-	if (tr == 1)		/* this sample has been treated as data */
+	if (tr == 1) {		/* this sample has been treated as data */
 		state_ptr->td = 0;	/* next one will be treated as voice */
-	else if (a2p < -11776)	/* small sample-to-sample correlation */
+	} else if (a2p < -11776) {	/* small sample-to-sample correlation */
 		state_ptr->td = 1;	/* signal may be data */
-	else				/* signal is voice */
+	} else {				/* signal is voice */
 		state_ptr->td = 0;
+	}
 
 	/*
 	 * Adaptation speed control.
@@ -555,17 +564,18 @@ static void update(
 	state_ptr->dms += (fi - state_ptr->dms) >> 5;		/* FILTA */
 	state_ptr->dml += (((fi << 2) - state_ptr->dml) >> 7);	/* FILTB */
 
-	if (tr == 1)
+	if (tr == 1) {
 		state_ptr->ap = 256;
-	else if (y < 1536)					/* SUBTC */
+	} else if (y < 1536) {					/* SUBTC */
 		state_ptr->ap += (0x200 - state_ptr->ap) >> 4;
-	else if (state_ptr->td == 1)
+	} else if (state_ptr->td == 1) {
 		state_ptr->ap += (0x200 - state_ptr->ap) >> 4;
-	else if (abs((state_ptr->dms << 2) - state_ptr->dml) >=
-	    (state_ptr->dml >> 3))
+	} else if (abs((state_ptr->dms << 2) - state_ptr->dml) >=
+	    (state_ptr->dml >> 3)) {
 		state_ptr->ap += (0x200 - state_ptr->ap) >> 4;
-	else
+	} else {
 		state_ptr->ap += (-state_ptr->ap) >> 4;
+	}
 }
 
 /*
@@ -667,7 +677,7 @@ static int g726_encode(int sl, struct g726_state *state_ptr)
 
 	update(4, y, _witab[i] << 5, _fitab[i], dq, sr, dqsez, state_ptr);
 
-	return (i);
+	return i;
 }
 
 /*

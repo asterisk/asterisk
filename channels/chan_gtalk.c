@@ -839,7 +839,6 @@ static int gtalk_get_local_ip(struct ast_sockaddr *ourip)
 	struct ast_sockaddr root;
 	struct ast_sockaddr bindaddr_tmp;
 	struct ast_sockaddr *addrs;
-	int addrs_cnt;
 
 	/* If bind address is not 0.0.0.0, then bindaddr is our local ip. */
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
@@ -850,7 +849,7 @@ static int gtalk_get_local_ip(struct ast_sockaddr *ourip)
 
 	/* If no bind address was provided, lets see what ip we would use to connect to google.com and use that.
 	 * If you can't resolve google.com from your network, then this module is useless for you anyway. */
-	if ((addrs_cnt = ast_sockaddr_resolve(&addrs, "google.com", PARSE_PORT_FORBID, AF_INET)) > 0) {
+	if (ast_sockaddr_resolve(&addrs, "google.com", PARSE_PORT_FORBID, AF_INET) > 0) {
 		ast_sockaddr_copy(&root, &addrs[0]);
 		ast_free(addrs);
 		if (!ast_ouraddrfor(&root, ourip)) {

@@ -15282,7 +15282,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 {
 #define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
-	unsigned int targetnum = 0;
+	int targetnum = 0;
 	int filtertype = 0;
 	struct dahdi_pvt *tmp = NULL;
 	char tmps[20] = "";

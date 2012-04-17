@@ -592,7 +592,7 @@ static int find_transcoders(void)
 {
 	struct dahdi_transcoder_info info = { 0, };
 	struct format_map map = { { { 0 } } };
-	int fd, res;
+	int fd;
 	unsigned int x, y;
 
 	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
@@ -600,7 +600,7 @@ static int find_transcoders(void)
 		return 0;
 	}
 
-	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TC_GETINFO, &info)); info.tcnum++) {
+	for (info.tcnum = 0; !ioctl(fd, DAHDI_TC_GETINFO, &info); info.tcnum++) {
 		ast_verb(2, "Found transcoder '%s'.\n", info.name);
 
 		/* Complex codecs need to support signed linear.  If the

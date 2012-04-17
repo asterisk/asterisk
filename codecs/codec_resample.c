@@ -138,6 +138,12 @@ static int load_module(void)
 		}
 
 	}
+	/* in case ast_register_translator() failed, we call unload_module() and
+	ast_unregister_translator won't fail.*/
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

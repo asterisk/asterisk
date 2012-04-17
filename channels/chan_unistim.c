@@ -891,8 +891,6 @@ static void send_raw_client(int size, const unsigned char *data, struct sockaddr
 #ifdef DUMP_PACKET
 	if (unistimdebug) {
 		int tmp;
-		char iabuf[INET_ADDRSTRLEN];
-		char iabuf2[INET_ADDRSTRLEN];
 		ast_verb(0, "\n**> From %s sending %d bytes to %s ***\n",
 					ast_inet_ntoa(addr_ourip->sin_addr), (int) size,
 					ast_inet_ntoa(addr_to->sin_addr));
@@ -3952,12 +3950,14 @@ static char open_history(struct unistimsession *pte, char way, FILE ** f)
 	if (fread(&count, 1, 1, *f) != 1) {
 		display_last_error("Unable to read history header - display.");
 		fclose(*f);
+		*f = NULL;
 		return 0;
 	}
 	if (count > MAX_ENTRY_LOG) {
 		ast_log(LOG_WARNING, "Invalid count in history header of %s (%d max %d)\n", tmp,
 				count, MAX_ENTRY_LOG);
 		fclose(*f);
+		*f = NULL;
 		return 0;
 	}
 	return count;
@@ -4922,7 +4922,6 @@ static int unistimsock_read(int *id, int fd, short events, void *ignore)
 	unsigned int size_addr_from;
 #ifdef DUMP_PACKET
 	int dw_num_bytes_rcvdd;
-	char iabuf[INET_ADDRSTRLEN];
 #endif
 
 	size_addr_from = sizeof(addr_from);
@@ -5369,7 +5368,11 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 	}
 	if (!text) {
 		ast_log(LOG_WARNING, "unistim_sendtext called with a null text\n");
-		return 1;
+		return -1;
+	}
+
+	if (!pte) {
+		return -1;
 	}
 
 	size = strlen(text);

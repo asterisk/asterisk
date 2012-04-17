@@ -1436,8 +1436,9 @@ static struct oh323_user *build_user(const char *name, struct ast_variable *v, s
 	user->options.holdHandling = 0;
 	/* Set default context */
 	ast_copy_string(user->context, default_context, sizeof(user->context));
-	if (user && !found)
+	if (!found) {
 		ast_copy_string(user->name, name, sizeof(user->name));
+	}
 
 #if 0 /* XXX Port channel variables functionality from chan_sip XXX */
 	if (user->chanvars) {

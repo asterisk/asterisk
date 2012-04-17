@@ -448,7 +448,6 @@ static int unload_module(void)
 
 static int config_module(int reload)
 {
-	struct ast_variable *var;
 	char *pgerror;
 	struct columns *cur;
 	PGresult *result;
@@ -465,7 +464,7 @@ static int config_module(int reload)
 
 	ast_mutex_lock(&pgsql_lock);
 
-	if (!(var = ast_variable_browse(cfg, "global"))) {
+	if (!ast_variable_browse(cfg, "global")) {
 		ast_config_destroy(cfg);
 		ast_mutex_unlock(&pgsql_lock);
 		ast_log(LOG_NOTICE, "cdr_pgsql configuration contains no global section, skipping module %s.\n",

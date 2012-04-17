@@ -620,7 +620,7 @@ struct osp_metrics {
 /* OSP Module Global Variables */
 AST_MUTEX_DEFINE_STATIC(osp_lock);							/* Lock of OSP provider list */
 static int osp_initialized = 0;								/* Init flag */
-static int osp_hardware = 0;								/* Hardware accelleration flag */
+static int osp_hardware = 0;								/* Hardware acceleration flag */
 static int osp_security = 0;								/* Using security features flag */
 static struct osp_provider* osp_providers = NULL;			/* OSP provider list */
 static unsigned int osp_tokenformat = TOKEN_ALGO_SIGNED;	/* Token format supported */
@@ -2336,7 +2336,7 @@ static int osplookup_exec(
 	struct ast_channel* chan,
 	const char * data)
 {
-	int res, cres;
+	int res;
 	const char* provider = OSP_DEF_PROVIDER;
 	unsigned int callidtypes = OSP_CALLID_UNDEF;
 	struct varshead* headp;
@@ -2504,7 +2504,7 @@ static int osplookup_exec(
 		}
 	}
 
-	if ((cres = ast_autoservice_start(chan)) < 0) {
+	if (ast_autoservice_start(chan) < 0) {
 		return OSP_AST_ERROR;
 	}
 
@@ -2608,7 +2608,7 @@ static int osplookup_exec(
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 	}
 
-	if ((cres = ast_autoservice_stop(chan)) < 0) {
+	if (ast_autoservice_stop(chan) < 0) {
 		return OSP_AST_ERROR;
 	}
 
@@ -2982,7 +2982,7 @@ static int osp_load(int reload)
 
 		if ((cvar = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "accelerate")) && ast_true(cvar)) {
 			if ((error = OSPPInit(1)) != OSPC_ERR_NO_ERROR) {
-				ast_log(LOG_WARNING, "OSP: Unable to enable hardware accelleration\n");
+				ast_log(LOG_WARNING, "OSP: Unable to enable hardware acceleration, error='%d'\n", error);
 				OSPPInit(0);
 			} else {
 				osp_hardware = 1;

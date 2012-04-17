@@ -1282,7 +1282,6 @@ static int aji_start_tls(struct aji_client *client)
  */
 static int aji_tls_handshake(struct aji_client *client)
 {
-	int ret;
 	int sock;
 
 	ast_debug(1, "Starting TLS handshake\n");
@@ -1300,12 +1299,12 @@ static int aji_tls_handshake(struct aji_client *client)
 
 	/* Enforce TLS on our XMPP connection */
 	sock = iks_fd(client->p);
-	if (!(ret = SSL_set_fd(client->ssl_session, sock))) {
+	if (!SSL_set_fd(client->ssl_session, sock)) {
 		return IKS_NET_TLSFAIL;
 	}
 
 	/* Perform SSL handshake */
-	if (!(ret = SSL_connect(client->ssl_session))) {
+	if (!SSL_connect(client->ssl_session)) {
 		return IKS_NET_TLSFAIL;
 	}
 
@@ -1313,7 +1312,7 @@ static int aji_tls_handshake(struct aji_client *client)
 	client->stream_flags |= SECURE;
 
 	/* Sent over the established TLS connection */
-	if ((ret = aji_send_header(client, client->jid->server)) != IKS_OK) {
+	if (aji_send_header(client, client->jid->server) != IKS_OK) {
 		return IKS_NET_TLSFAIL;
 	}
 
@@ -1661,8 +1660,8 @@ static int aji_act_hook(void *data, int type, iks *node)
 					ASTOBJ_UNREF(client, ast_aji_client_destroy);
 					return IKS_HOOK;
 				}
-#endif
 				break;
+#endif
 			}
 			if (!client->usesasl) {
 				iks_filter_add_rule(client->f, aji_client_connect, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, client->mid, IKS_RULE_DONE);
@@ -1877,7 +1876,6 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	struct aji_buddy *buddy = NULL;
-	char *node = NULL;
 	iks *iq = NULL, *query = NULL;
 
 	client = (struct aji_client *) data;
@@ -1910,7 +1908,7 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 
 		iks_delete(error);
 		iks_delete(notacceptable);
-	} else if (!(node = iks_find_attrib(pak->query, "node"))) {
+	} else if (!iks_find_attrib(pak->query, "node")) {
 		iks *instructions = NULL;
 		char *explain = "Welcome to Asterisk - the Open Source PBX.\n";
 		iq = iks_new("iq");

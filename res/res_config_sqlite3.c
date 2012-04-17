@@ -961,7 +961,7 @@ static int handle_missing_column(struct realtime_sqlite3_db *db, const char *tab
 		return -1;
 	}
 
-	if (!(res = realtime_sqlite3_execute_handle(db, sql, NULL, NULL, 1) < 0 ? -1 : 0)) {
+	if (!(res = (realtime_sqlite3_execute_handle(db, sql, NULL, NULL, 1) < 0 ? -1 : 0))) {
 		ast_log(LOG_NOTICE, "Creating column '%s' type %s for table %s\n", column, sqltype, table);
 	}
 

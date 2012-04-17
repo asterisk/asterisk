@@ -319,7 +319,6 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 	int content_len = 0;
 	struct ast_str *post_dir;
 	GMimeMessage *message;
-	int message_count = 0;
 	char * boundary_marker = NULL;
 
 	if (method != AST_HTTP_POST) {
@@ -409,7 +408,7 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 		return -1;
 	}
 
-	if (!(message_count = process_message(message, ast_str_buffer(post_dir)))) {
+	if (!process_message(message, ast_str_buffer(post_dir))) {
 		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
 		g_object_unref(message);
 		ast_http_error(ser, 400, "Bad Request", "The was an error parsing the request.");

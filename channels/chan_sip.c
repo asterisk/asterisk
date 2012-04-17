@@ -4509,7 +4509,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 	}
 	if(!is_method_allowed(&dialog->allowed_methods, SIP_MESSAGE)) {
 		ast_debug(2, "Trying to send MESSAGE to device that does not support it.\n");
-		return(0);
+		return 0;
 	}
 
 	debug = sip_debug_test_pvt(dialog);

@@ -497,12 +497,12 @@ static void cleanup_module(void)
 		dispatch_thread.alert_pipe[1] = -1;
 	}
 
-	if (cpg_handle && (cs_err = cpg_finalize(cpg_handle) != CS_OK)) {
+	if (cpg_handle && (cs_err = cpg_finalize(cpg_handle)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to finalize cpg (%d)\n", (int) cs_err);
 	}
 	cpg_handle = 0;
 
-	if (cfg_handle && (cs_err = corosync_cfg_finalize(cfg_handle) != CS_OK)) {
+	if (cfg_handle && (cs_err = corosync_cfg_finalize(cfg_handle)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to finalize cfg (%d)\n", (int) cs_err);
 	}
 	cfg_handle = 0;
@@ -514,12 +514,12 @@ static int load_module(void)
 	enum ast_module_load_result res = AST_MODULE_LOAD_FAILURE;
 	struct cpg_name name;
 
-	if ((cs_err = corosync_cfg_initialize(&cfg_handle, &cfg_callbacks) != CS_OK)) {
+	if ((cs_err = corosync_cfg_initialize(&cfg_handle, &cfg_callbacks)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to initialize cfg (%d)\n", (int) cs_err);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if ((cs_err = cpg_initialize(&cpg_handle, &cpg_callbacks) != CS_OK)) {
+	if ((cs_err = cpg_initialize(&cpg_handle, &cpg_callbacks)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to initialize cpg (%d)\n", (int) cs_err);
 		goto failed;
 	}

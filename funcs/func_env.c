@@ -600,7 +600,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 				ast_log(LOG_ERROR, "Cannot seek to offset %" PRId64 ": %s\n", i, strerror(errno));
 			}
 			end = fread(fbuf, 1, sizeof(fbuf), ff);
-			for (pos = end < sizeof(fbuf) ? fbuf + end - 1 : fbuf + sizeof(fbuf) - 1; pos > fbuf - 1; pos--) {
+			for (pos = (end < sizeof(fbuf) ? fbuf + end - 1 : fbuf + sizeof(fbuf) - 1); pos > fbuf - 1; pos--) {
 				LINE_COUNTER(pos, format, count);
 
 				if (length < 0 && count * -1 == length) {

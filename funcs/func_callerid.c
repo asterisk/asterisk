@@ -869,7 +869,6 @@ static int callerpres_write(struct ast_channel *chan, const char *cmd, char *dat
  */
 static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	enum ID_FIELD_STATUS status;
 	char *parms;
 	struct ast_party_members member;
 	AST_DECLARE_APP_ARGS(args,
@@ -914,6 +913,7 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, 
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
 	} else {
+		enum ID_FIELD_STATUS status;
 		ast_channel_lock(chan);
 
 		if (member.argc == 1 && !strcasecmp("rdnis", member.argv[0])) {
@@ -1181,7 +1181,6 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 {
 	struct ast_party_members member;
 	char *read_what;
-	enum ID_FIELD_STATUS status;
 
 	/* Ensure that the buffer is empty */
 	*buf = 0;
@@ -1202,6 +1201,7 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 	if (member.argc == 1 && !strcasecmp("source", member.argv[0])) {
 		ast_copy_string(buf, ast_connected_line_source_name(ast_channel_connected(chan)->source), len);
 	} else {
+		enum ID_FIELD_STATUS status;
 		status = party_id_read(buf, len, member.argc, member.argv, &ast_channel_connected(chan)->id);
 		switch (status) {
 		case ID_FIELD_VALID:
@@ -1233,7 +1233,6 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 static int connectedline_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	struct ast_party_connected_line connected;
-	enum ID_FIELD_STATUS status;
 	char *val;
 	char *parms;
 	void (*set_it)(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update);
@@ -1296,6 +1295,7 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 			set_it(chan, &connected, NULL);
 		}
 	} else {
+		enum ID_FIELD_STATUS status;
 		status = party_id_write(&connected.id, member.argc, member.argv, value);
 		switch (status) {
 		case ID_FIELD_VALID:

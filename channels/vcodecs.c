@@ -1131,8 +1131,9 @@ static enum CodecID map_video_format(uint32_t ast_format, int rw)
 	struct _cm *i;
 
 	for (i = video_formats; i->ast_format != 0; i++)
-		if (ast_format & i->ast_format && rw & i->rw && rw & i->rw)
+		if (ast_format & i->ast_format && rw & i->rw) {
 			return i->codec;
+		}
 	return CODEC_ID_NONE;
 }
 

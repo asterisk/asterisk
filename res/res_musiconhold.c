@@ -1099,16 +1099,19 @@ static int moh_scan_files(struct mohclass *class) {
 		return -1;
 	}
 
-	for (i = 0; i < class->total_files; i++)
+	for (i = 0; i < class->total_files; i++) {
 		ast_free(class->filearray[i]);
-
+	}
 	class->total_files = 0;
+
 	if (!getcwd(path, sizeof(path))) {
 		ast_log(LOG_WARNING, "getcwd() failed: %s\n", strerror(errno));
+		closedir(files_DIR);
 		return -1;
 	}
 	if (chdir(dir_path) < 0) {
 		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
+		closedir(files_DIR);
 		return -1;
 	}
 	while ((files_dirent = readdir(files_DIR))) {

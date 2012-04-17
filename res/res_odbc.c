@@ -1492,7 +1492,7 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 		}
 	}
 
-	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con) == SQL_SUCCESS)) {
+	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con)) == SQL_SUCCESS) {
 		ast_debug(1, "Database handle %p deallocated\n", con);
 	} else {
 		SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
@@ -1546,7 +1546,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 		SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
 		obj->parent->last_negative_connect = ast_tvnow();
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
-		if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con) != SQL_SUCCESS)) {
+		if ((res = SQLFreeHandle(SQL_HANDLE_DBC, con)) != SQL_SUCCESS) {
 			SQLGetDiagRec(SQL_HANDLE_DBC, con, 1, state, &err, msg, 100, &mlen);
 			ast_log(LOG_WARNING, "Unable to deallocate database handle %p? %d errno=%d %s\n", con, res, (int)err, msg);
 		}

@@ -3397,7 +3397,6 @@ static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, 
 {
 	char *username, *domain, *countername, *operand;
 	char userpath[BUFSIZ];
-	struct minivm_account *vmu;
 	int change = 0;
 	int operation = 0;
 
@@ -3442,7 +3441,7 @@ static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, 
 	}
 
 	/* If we can't find account or if the account is temporary, return. */
-	if (!ast_strlen_zero(username) && !(vmu = find_account(domain, username, FALSE))) {
+	if (!ast_strlen_zero(username) && !find_account(domain, username, FALSE)) {
 		ast_log(LOG_ERROR, "Minivm account does not exist: %s@%s\n", username, domain);
 		return 0;
 	}

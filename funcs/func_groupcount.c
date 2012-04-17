@@ -146,7 +146,6 @@ static int group_match_count_function_read(struct ast_channel *chan,
 					   const char *cmd, char *data, char *buf,
 					   size_t len)
 {
-	int count;
 	char group[80] = "";
 	char category[80] = "";
 
@@ -154,6 +153,7 @@ static int group_match_count_function_read(struct ast_channel *chan,
 				  sizeof(category));
 
 	if (!ast_strlen_zero(group)) {
+		int count;
 		count = ast_app_group_match_get_count(group, category);
 		snprintf(buf, len, "%d", count);
 		return 0;
