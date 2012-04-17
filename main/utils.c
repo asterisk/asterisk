@@ -1755,8 +1755,6 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 
 	needed = vsnprintf(target, available, format, ap1) + 1;
 
-	va_end(ap1);
-
 	if (needed > available) {
 		/* the allocation could not be satisfied using the field's current allocation
 		   (if it has one), or the space available in the pool (if it does not). allocate

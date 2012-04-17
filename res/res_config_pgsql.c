@@ -348,7 +348,6 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	ESCAPE_STRING(escapebuf, newval);
 	if (pgresult) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-		va_end(ap);
 		return NULL;
 	}
 
@@ -363,13 +362,11 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		ESCAPE_STRING(escapebuf, newval);
 		if (pgresult) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-			va_end(ap);
 			return NULL;
 		}
 
 		ast_str_append(&sql, 0, " AND %s%s '%s'", newparam, op, ast_str_buffer(escapebuf));
 	}
-	va_end(ap);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
@@ -506,7 +503,6 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	ESCAPE_STRING(escapebuf, newval);
 	if (pgresult) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-		va_end(ap);
 		ast_config_destroy(cfg);
 		return NULL;
 	}
@@ -522,7 +518,6 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ESCAPE_STRING(escapebuf, newval);
 		if (pgresult) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-			va_end(ap);
 			ast_config_destroy(cfg);
 			return NULL;
 		}
@@ -534,7 +529,6 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_str_append(&sql, 0, " ORDER BY %s", initfield);
 	}
 
-	va_end(ap);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
@@ -678,7 +672,6 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 	ESCAPE_STRING(escapebuf, newval);
 	if (pgresult) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-		va_end(ap);
 		release_table(table);
 		return -1;
 	}
@@ -695,20 +688,17 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		ESCAPE_STRING(escapebuf, newval);
 		if (pgresult) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
-			va_end(ap);
 			release_table(table);
 			return -1;
 		}
 
 		ast_str_append(&sql, 0, ", %s = '%s'", newparam, ast_str_buffer(escapebuf));
 	}
-	va_end(ap);
 	release_table(table);
 
 	ESCAPE_STRING(escapebuf, lookup);
 	if (pgresult) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", lookup);
-		va_end(ap);
 		return -1;
 	}
 
@@ -955,7 +945,6 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 	}
-	va_end(ap);
 	ast_str_append(&sql1, 0, "%s)", ast_str_buffer(sql2));
 
 	ast_debug(1, "PostgreSQL RealTime: Insert SQL: %s\n", ast_str_buffer(sql1));
@@ -1054,7 +1043,6 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 		ESCAPE_STRING(buf2, newval);
 		ast_str_append(&sql, 0, " AND %s = '%s'", ast_str_buffer(buf1), ast_str_buffer(buf2));
 	}
-	va_end(ap);
 
 	ast_debug(1, "PostgreSQL RealTime: Delete SQL: %s\n", ast_str_buffer(sql));
 
