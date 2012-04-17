@@ -115,7 +115,7 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		return -1;
 	}
 
-	if ((max = ftello(fs->f) < 0)) {
+	if ((max = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine max position in pcm filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
@@ -414,7 +414,7 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		return -1;
 	}
 
-	if ((max = ftello(fs->f) < 0)) {
+	if ((max = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine max position in au filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
