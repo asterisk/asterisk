@@ -1301,9 +1301,9 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	setup_env(chan, "async", fds[1], 0, 0, NULL);
 	/* read the environment */
 	res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
-	if (!res) {
-		ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s\n",
-			ast_channel_name(chan));
+	if (res <= 0) {
+		ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s: %s\n",
+				ast_channel_name(chan), res < 0 ? strerror(errno) : "EOF");
 		returnstatus = AGI_RESULT_FAILURE;
 		goto async_agi_abort;
 	}
@@ -1331,9 +1331,9 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			 * fd (the pipe), let's read the response.
 			 */
 			res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
-			if (!res) {
-				ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s\n",
-					ast_channel_name(chan));
+			if (res <= 0) {
+				ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s: %s\n",
+					ast_channel_name(chan), res < 0 ? strerror(errno) : "EOF");
 				free_agi_cmd(cmd);
 				returnstatus = AGI_RESULT_FAILURE;
 				goto async_agi_done;
