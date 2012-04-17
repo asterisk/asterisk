@@ -88,7 +88,6 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
@@ -168,7 +167,6 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 
@@ -258,7 +256,6 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
@@ -317,7 +314,6 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
 		ast_str_append(&query, 0, "%s%s=%s", first ? "" : "&", buf1, buf2);
 		first = 0;
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	/* Proxies work, by setting CURLOPT options in the [globals] section of
@@ -382,7 +378,6 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
@@ -446,7 +441,6 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
 		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
@@ -507,7 +501,6 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 			type == RQ_FLOAT ? "float" :
 			"unknown", size);
 	}
-	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
