@@ -1195,6 +1195,11 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, forma
 		}
 	}
 
+	if (idx < 0) {
+		ast_log(AST_LOG_WARNING, "Format %s unknown; unable to get preferred codec packet size\n", ast_getformatname(format));
+		return fmt;
+	}
+
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
 		if (pref->order[x] == (idx + 1)) {
 			framems = pref->framing[x];
