@@ -642,7 +642,7 @@ static void *monmp3thread(void *data)
 				ast_log(LOG_WARNING, "Unable to spawn mp3player\n");
 				/* Try again later */
 				sleep(500);
-				pthread_testcancel();
+				continue;
 			}
 		}
 		if (class->timer) {
