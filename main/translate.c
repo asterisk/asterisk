@@ -718,6 +718,11 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 			if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK) || (format_list[i].bits == input_src)) {
 				continue;
 			}
+			/* Note that dst can never be -1, as an element of format_list will have
+			 * at least one bit set.  src cannot be -1 as well, as it is previously
+			 * sanitized - hence it is safe to directly index tr_matrix with the results
+			 * of powerof.
+			 */
 			dst = powerof(format_list[i].bits);
 			src = powerof(input_src);
 			ast_str_reset(str);
@@ -1068,6 +1073,7 @@ format_t ast_translate_available_formats(format_t dest, format_t src)
 	format_t x;
 	format_t src_audio = src & AST_FORMAT_AUDIO_MASK;
 	format_t src_video = src & AST_FORMAT_VIDEO_MASK;
+	format_t x_bits;
 
 	/* if we don't have a source format, we just have to try all
 	   possible destination formats */
@@ -1075,12 +1081,19 @@ format_t ast_translate_available_formats(format_t dest, format_t src)
 		return dest;
 
 	/* If we have a source audio format, get its format index */
-	if (src_audio)
+	if (src_audio) {
 		src_audio = powerof(src_audio);
+	}
 
 	/* If we have a source video format, get its format index */
-	if (src_video)
+	if (src_video) {
 		src_video = powerof(src_video);
+	}
+
+	/* Note that src_audio and src_video are guaranteed to not be
+	 * negative at this point, as we ensured they were non-zero.  It is
+	 * safe to use the return value of powerof as an index into tr_matrix.
+	 */
 
 	AST_RWLIST_RDLOCK(&translators);
 
@@ -1103,14 +1116,16 @@ format_t ast_translate_available_formats(format_t dest, format_t src)
 			continue;
 
 		/* if we don't have a translation path from the src
-		   to this format, remove it from the result */
-		if (!tr_matrix[src_audio][powerof(x)].step) {
+		   to this format, remove it from the result.  Note that x_bits
+		   cannot be less than 0 as x will always have one bit set to 1 */
+		x_bits = powerof(x);
+		if (!tr_matrix[src_audio][x_bits].step) {
 			res &= ~x;
 			continue;
 		}
 
 		/* now check the opposite direction */
-		if (!tr_matrix[powerof(x)][src_audio].step)
+		if (!tr_matrix[x_bits][src_audio].step)
 			res &= ~x;
 	}
 
@@ -1133,14 +1148,16 @@ format_t ast_translate_available_formats(format_t dest, format_t src)
 			continue;
 
 		/* if we don't have a translation path from the src
-		   to this format, remove it from the result */
-		if (!tr_matrix[src_video][powerof(x)].step) {
+		   to this format, remove it from the result.  Note that x_bits
+		   cannot be less than 0 as x will always have one bit set to 1 */
+		x_bits = powerof(x);
+		if (!tr_matrix[src_video][x_bits].step) {
 			res &= ~x;
 			continue;
 		}
 
 		/* now check the opposite direction */
-		if (!tr_matrix[powerof(x)][src_video].step)
+		if (!tr_matrix[x_bits][src_video].step)
 			res &= ~x;
 	}
 

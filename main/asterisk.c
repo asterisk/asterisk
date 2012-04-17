@@ -2256,6 +2256,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 						quit_handler(0, SHUTDOWN_FAST, 0);
 					}
 				}
+				continue;
 			}
 
 			buf[res] = '\0';
@@ -2548,7 +2549,9 @@ static char *cli_complete(EditLine *editline, int ch)
 	if (ast_opt_remote) {
 		snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
 		fdsend(ast_consock, buf);
-		res = read(ast_consock, buf, sizeof(buf) - 1);
+		if ((res = read(ast_consock, buf, sizeof(buf) - 1)) < 0) {
+			return (char*)(CC_ERROR);
+		}
 		buf[res] = '\0';
 		nummatches = atoi(buf);
 
