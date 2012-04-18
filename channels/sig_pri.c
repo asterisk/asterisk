@@ -190,6 +190,11 @@ static void sig_pri_set_outgoing(struct sig_pri_chan *p, int is_outgoing)
 
 void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
 {
+	if (sig_pri_is_alarm_ignored(p->pri)) {
+		/* Always set not in alarm */
+		in_alarm = 0;
+	}
+
 	/*
 	 * Clear the channel restart flag when the channel alarm changes
 	 * to prevent the flag from getting stuck when the link goes
@@ -7789,6 +7794,18 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 	}
 	sig_pri_span_devstate_changed(p->pri);
 	pri_rel(p->pri);
+}
+
+/*!
+ * \brief Determine if layer 1 alarms are ignored.
+ *
+ * \param p Channel private pointer.
+ *
+ * \return TRUE if the alarm is ignored.
+ */
+int sig_pri_is_alarm_ignored(struct sig_pri_span *pri)
+{
+	return pri->layer1_ignored;
 }
 
 struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup)
