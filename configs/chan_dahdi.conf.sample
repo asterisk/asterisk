@@ -268,6 +268,18 @@ context=public
 ; The default is no.
 ;hold_disconnect_transfer=yes
 
+; BRI PTMP layer 1 presence.
+; You should normally not need to set this option.
+; You may need to set this option if your telco brings layer 1 down when
+; the line is idle.
+; required:      Layer 1 presence required for outgoing calls. (default)
+; ignore:        Ignore alarms from DAHDI about this span.
+;                (Layer 1 and 2 will be brought back up for an outgoing call.)
+;                NOTE:  You will not be able to detect physical line problems
+;                until an outgoing call is attempted and fails.
+;
+;layer1_presence=ignore
+
 ; BRI PTMP layer 2 persistence.
 ; You should normally not need to set this option.
 ; You may need to set this option if your telco brings layer 1 down when

@@ -439,6 +439,8 @@ struct sig_pri_span {
 	/*! \brief TRUE if we will allow incoming ISDN call waiting calls. */
 	unsigned int allow_call_waiting_calls:1;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+	/*! TRUE if layer 1 alarm status is ignored */
+	unsigned int layer1_ignored:1;
 	/*!
 	 * TRUE if a new call's sig_pri_chan.user_tag[] has the MSN
 	 * appended to the initial_user_tag[].
@@ -618,8 +620,8 @@ int sig_pri_start_pri(struct sig_pri_span *pri);
 void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm);
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm);
 
+int sig_pri_is_alarm_ignored(struct sig_pri_span *pri);
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri);
-
 void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri);
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);

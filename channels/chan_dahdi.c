@@ -3140,8 +3140,19 @@ static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 	int x;
 
 	ioctl(pri->fds[index], DAHDI_GETEVENT, &x);
-	if (x) {
-		ast_log(LOG_NOTICE, "PRI got event: %s (%d) on D-channel of span %d\n", event2str(x), x, pri->span);
+	switch (x) {
+	case DAHDI_EVENT_NONE:
+		break;
+	case DAHDI_EVENT_ALARM:
+	case DAHDI_EVENT_NOALARM:
+		if (sig_pri_is_alarm_ignored(pri)) {
+			break;
+		}
+		/* Fall through */
+	default:
+		ast_log(LOG_NOTICE, "PRI got event: %s (%d) on D-channel of span %d\n",
+			event2str(x), x, pri->span);
+		break;
 	}
 	/* Keep track of alarm state */
 	switch (x) {
@@ -3831,6 +3842,12 @@ static void dahdi_queue_frame(struct dahdi_pvt *p, struct ast_frame *f)
 
 static void handle_clear_alarms(struct dahdi_pvt *p)
 {
+#if defined(HAVE_PRI)
+	if (dahdi_sig_pri_lib_handles(p->sig) && sig_pri_is_alarm_ignored(p->pri)) {
+		return;
+	}
+#endif	/* defined(HAVE_PRI) */
+
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
 		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
@@ -7901,8 +7918,15 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 
 static void handle_alarms(struct dahdi_pvt *p, int alms)
 {
-	const char *alarm_str = alarm2str(alms);
+	const char *alarm_str;
 
+#if defined(HAVE_PRI)
+	if (dahdi_sig_pri_lib_handles(p->sig) && sig_pri_is_alarm_ignored(p->pri)) {
+		return;
+	}
+#endif	/* defined(HAVE_PRI) */
+
+	alarm_str = alarm2str(alms);
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
 		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
 		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
@@ -12696,6 +12720,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.aoc_passthrough_flag = conf->pri.pri.aoc_passthrough_flag;
 						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+						if (chan_sig == SIG_BRI_PTMP) {
+							pris[span].pri.layer1_ignored = conf->pri.pri.layer1_ignored;
+						} else {
+							/* Option does not apply to this line type. */
+							pris[span].pri.layer1_ignored = 0;
+						}
 						pris[span].pri.append_msn_to_user_tag = conf->pri.pri.append_msn_to_user_tag;
 						ast_copy_string(pris[span].pri.initial_user_tag, conf->chan.cid_tag, sizeof(pris[span].pri.initial_user_tag));
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
@@ -17966,6 +17996,15 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "datetime_send")) {
 				confp->pri.pri.datetime_send = dahdi_datetime_send_option(v->value);
 #endif	/* defined(HAVE_PRI_DATETIME_SEND) */
+			} else if (!strcasecmp(v->name, "layer1_presence")) {
+				if (!strcasecmp(v->value, "required")) {
+					confp->pri.pri.layer1_ignored = 0;
+				} else if (!strcasecmp(v->value, "ignore")) {
+					confp->pri.pri.layer1_ignored = 1;
+				} else {
+					/* Default */
+					confp->pri.pri.layer1_ignored = 0;
+				}
 #if defined(HAVE_PRI_L2_PERSISTENCE)
 			} else if (!strcasecmp(v->name, "layer2_persistence")) {
 				if (!strcasecmp(v->value, "keep_up")) {
