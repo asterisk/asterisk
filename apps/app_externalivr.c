@@ -683,13 +683,14 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			if (f->frametype == AST_FRAME_DTMF) {
  				send_eivr_event(eivr_events, f->subclass.integer, NULL, chan);
  				if (u->option_autoclear) {
+  					AST_LIST_LOCK(&u->playlist);
   					if (!u->abort_current_sound && !u->playing_silence) {
 						/* send interrupted file as T data */
- 						entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
- 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
-						ast_free(entry);
+ 						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+	 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+							ast_free(entry);
+						}
 					}
-  					AST_LIST_LOCK(&u->playlist);
   					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
  						send_eivr_event(eivr_events, 'D', entry->filename, chan);
   						ast_free(entry);
@@ -768,9 +769,10 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  					AST_LIST_LOCK(&u->playlist);
 	 				if (!u->abort_current_sound && !u->playing_silence) {
 						/* send interrupted file as T data */
- 						entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
- 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
-						ast_free(entry);
+ 						if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+	 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+							ast_free(entry);
+						}
 					}
  					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
  						send_eivr_event(eivr_events, 'D', entry->filename, chan);
