@@ -264,12 +264,18 @@ monitor-type = MixMonitor
 ; QUEUESRVLEVELPERF current service level performance
 ;
 ;setqueuevar=no
-;
+
 ; if set, run this macro when connected to the queue member
 ; you can override this macro by setting the macro option on
 ; the queue application
 ;
-; membermacro=somemacro
+;membermacro=macro_name[,arg1[,...][,argN]]
+
+; if set, run this gosub when connected to the queue member
+; you can override this gosub by setting the gosub option on
+; the queue application
+;
+;membergosub=gosub_context_name[,arg1[,...][,argN]]
 
 ; How often to announce queue position and/or estimated
 ; holdtime to caller (0=off)
