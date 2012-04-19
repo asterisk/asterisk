@@ -269,54 +269,47 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANNAME:
 		if (!ast_strlen_zero(ast_channel_name(chan))) {
-			strncpy(string_ret, ast_channel_name(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_name(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANLANGUAGE:
 		if (!ast_strlen_zero(ast_channel_language(chan))) {
-			strncpy(string_ret, ast_channel_language(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_language(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANTYPE:
-		strncpy(string_ret, ast_channel_tech(chan)->type, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_tech(chan)->type, sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMUSICCLASS:
 		if (!ast_strlen_zero(ast_channel_musicclass(chan))) {
-			strncpy(string_ret, ast_channel_musicclass(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_musicclass(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANBRIDGE:
 		if ((bridge = ast_bridged_channel(chan)) != NULL) {
-			strncpy(string_ret, ast_channel_name(bridge), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_name(bridge), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANMASQ:
 		if (ast_channel_masq(chan) && !ast_strlen_zero(ast_channel_name(ast_channel_masq(chan)))) {
-			strncpy(string_ret, ast_channel_name(ast_channel_masq(chan)), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_name(ast_channel_masq(chan)), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANMASQR:
 		if (ast_channel_masqr(chan) && !ast_strlen_zero(ast_channel_name(ast_channel_masqr(chan)))) {
-			strncpy(string_ret, ast_channel_name(ast_channel_masqr(chan)), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_name(ast_channel_masqr(chan)), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
@@ -330,35 +323,30 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANAPP:
 		if (ast_channel_appl(chan)) {
-			strncpy(string_ret, ast_channel_appl(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_appl(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANDATA:
 		if (ast_channel_data(chan)) {
-			strncpy(string_ret, ast_channel_data(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_data(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCONTEXT:
-		strncpy(string_ret, ast_channel_context(chan), sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_context(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMACROCONTEXT:
-		strncpy(string_ret, ast_channel_macrocontext(chan), sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_macrocontext(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMACROEXTEN:
-		strncpy(string_ret, ast_channel_macroexten(chan), sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_macroexten(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
@@ -367,8 +355,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANEXTEN:
-		strncpy(string_ret, ast_channel_exten(chan), sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_exten(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
@@ -378,23 +365,20 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANACCOUNTCODE:
 		if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
-			strncpy(string_ret, ast_channel_accountcode(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_accountcode(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANFORWARDTO:
 		if (!ast_strlen_zero(ast_channel_call_forward(chan))) {
-			strncpy(string_ret, ast_channel_call_forward(chan), sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_call_forward(chan), sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANUNIQUEID:
-		strncpy(string_ret, ast_channel_uniqueid(chan), sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
+		ast_copy_string(string_ret, ast_channel_uniqueid(chan), sizeof(string_ret));
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
@@ -420,40 +404,35 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANCIDDNID:
 		if (ast_channel_dialed(chan)->number.str) {
-			strncpy(string_ret, ast_channel_dialed(chan)->number.str, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_dialed(chan)->number.str, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNUM:
 		if (ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str) {
-			strncpy(string_ret, ast_channel_caller(chan)->id.number.str, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_caller(chan)->id.number.str, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNAME:
 		if (ast_channel_caller(chan)->id.name.valid && ast_channel_caller(chan)->id.name.str) {
-			strncpy(string_ret, ast_channel_caller(chan)->id.name.str, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_caller(chan)->id.name.str, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDANI:
 		if (ast_channel_caller(chan)->ani.number.valid && ast_channel_caller(chan)->ani.number.str) {
-			strncpy(string_ret, ast_channel_caller(chan)->ani.number.str, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_caller(chan)->ani.number.str, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDRDNIS:
 		if (ast_channel_redirecting(chan)->from.number.valid && ast_channel_redirecting(chan)->from.number.str) {
-			strncpy(string_ret, ast_channel_redirecting(chan)->from.number.str, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_redirecting(chan)->from.number.str, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
@@ -484,8 +463,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANTONEZONE:
 		if (ast_channel_zone(chan)) {
-			strncpy(string_ret, ast_channel_zone(chan)->country, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
+			ast_copy_string(string_ret, ast_channel_zone(chan)->country, sizeof(string_ret));
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}

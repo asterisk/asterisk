@@ -663,7 +663,6 @@ static int load_config(void)
 		p = ast_variable_retrieve(cfg, "general", "eventcmd");
 		if (p) {
 			ast_copy_string(event_app, p, sizeof(event_app));
-			event_app[sizeof(event_app) - 1] = '\0';
 		}
 		p = ast_variable_retrieve(cfg, "general", "loudness");
 		if (p) {
@@ -698,19 +697,16 @@ static int load_config(void)
 		p = ast_variable_retrieve(cfg, "general", "eventspooldir");
 		if (p) {
 			ast_copy_string(event_spool_dir, p, sizeof(event_spool_dir));
-			event_spool_dir[sizeof(event_spool_dir) - 1] = '\0';
 		}
 
 		p = ast_variable_retrieve(cfg, "general", "timestampformat");
 		if (p) {
 			ast_copy_string(time_stamp_format, p, sizeof(time_stamp_format));
-			time_stamp_format[sizeof(time_stamp_format) - 1] = '\0';
 		}
 
 		p = ast_variable_retrieve(cfg, "general", "db-family");
 		if (p) {
 			ast_copy_string(db_family, p, sizeof(db_family));
-			db_family[sizeof(db_family) - 1] = '\0';
 		}
 		ast_config_destroy(cfg);
 	}

@@ -1800,7 +1800,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 
 	number[0] = '\0';
    	if(ooCallGetCalledPartyNumber(call, number, OO_MAX_NUMBER_LENGTH)== OO_OK) {
-      		strncpy(p->exten, number, sizeof(p->exten)-1);
+      		ast_copy_string(p->exten, number, sizeof(p->exten));
    	} else {
 		update_our_aliases(call, p);
 		if (!ast_strlen_zero(p->callee_dialedDigits)) {
@@ -2296,8 +2296,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				if (user->incominglimit < 0)
 					user->incominglimit = 0;
 			} else if (!strcasecmp(v->name, "accountcode")) {
-            			strncpy(user->accountcode, v->value, 
-						sizeof(user->accountcode)-1);
+            			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
 			} else if (!strcasecmp(v->name, "roundtrip")) {
 				sscanf(v->value, "%d,%d", &user->rtdrcount, &user->rtdrinterval);
 			} else if (!strcasecmp(v->name, "faststart")) {
@@ -2832,12 +2831,12 @@ int reload_config(int reload)
 				gRasGkMode = RasDiscoverGatekeeper;
 			} else {
 				gRasGkMode = RasUseSpecificGatekeeper;
-            			strncpy(gGatekeeper, v->value, sizeof(gGatekeeper)-1);
+            			ast_copy_string(gGatekeeper, v->value, sizeof(gGatekeeper));
 			}
 		} else if (!strcasecmp(v->name, "logfile")) {
-         		strncpy(gLogFile, v->value, sizeof(gLogFile)-1);
+         		ast_copy_string(gLogFile, v->value, sizeof(gLogFile));
 		} else if (!strcasecmp(v->name, "context")) {
-         		strncpy(gContext, v->value, sizeof(gContext)-1);
+         		ast_copy_string(gContext, v->value, sizeof(gContext));
          		ast_verb(3, "  == Setting default context to %s\n", gContext);
 		} else if (!strcasecmp(v->name, "nat")) {
 			gNat = ast_true(v->value);
@@ -4307,7 +4306,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 		}
 		/* figure out our local RTP port and tell the H.323 stack about it*/
 		ast_rtp_instance_get_local_address(p->rtp, &tmp);
-		strncpy(lhost, ast_sockaddr_stringify_addr(&tmp), sizeof(lhost));
+		ast_copy_string(lhost, ast_sockaddr_stringify_addr(&tmp), sizeof(lhost));
 		lport = ast_sockaddr_stringify_port(&tmp);
 
 		if (p->rtptimeout) {
@@ -4351,7 +4350,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 
 	if (p->udptl) {
 		ast_udptl_get_us(p->udptl, &tmp);
-		strncpy(lhost, ast_sockaddr_stringify_addr(&tmp), sizeof(lhost));
+		ast_copy_string(lhost, ast_sockaddr_stringify_addr(&tmp), sizeof(lhost));
 		lport = ast_sockaddr_stringify_port(&tmp);
 		ast_copy_string(mediaInfo.lMediaIP, lhost, sizeof(mediaInfo.lMediaIP));
 		mediaInfo.lMediaPort = atoi(lport);
