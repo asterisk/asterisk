@@ -1104,6 +1104,11 @@ int ast_safe_system(const char *s)
 void ast_console_toggle_loglevel(int fd, int level, int state)
 {
 	int x;
+
+	if (level >= NUMLOGLEVELS) {
+		level = NUMLOGLEVELS - 1;
+	}
+
 	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (fd == consoles[x].fd) {
 			/*
