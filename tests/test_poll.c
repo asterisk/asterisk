@@ -85,7 +85,7 @@ AST_TEST_DEFINE(poll_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "poll_test";
-		info->category = "main/poll/";
+		info->category = "/main/poll/";
 		info->summary = "unit test for the ast_poll() API";
 		info->description =
 			"Verifies behavior for the ast_poll() API call\n";

@@ -137,7 +137,7 @@ AST_TEST_DEFINE(single_ll_tests)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "ll_tests";
-		info->category = "/main/linkedlists";
+		info->category = "/main/linkedlists/";
 		info->summary = "single linked list unit test";
 		info->description =
 			"Test the single linked list API";
@@ -348,7 +348,7 @@ AST_TEST_DEFINE(double_ll_tests)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "double_ll_tests";
-		info->category = "/main/linkedlists";
+		info->category = "/main/linkedlists/";
 		info->summary = "double linked list unit test";
 		info->description =
 			"Test the double linked list API";
