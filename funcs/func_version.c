@@ -48,7 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>The possible values are:</para>
 				<enumlist>
 					<enum name="ASTERISK_VERSION_NUM">
-						<para>A string of digits is returned (right now fixed at 999999).</para>
+						<para>A string of digits is returned, e.g. 10602 for 1.6.2 or 100300 for 10.3.0,
+						or 999999 when using an SVN build.</para>
 					</enum>
 					<enum name="BUILD_USER">
 						<para>The string representing the user's name whose account
