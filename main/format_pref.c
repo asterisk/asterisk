@@ -195,6 +195,11 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, struct ast_format *form
 			break;
 	}
 
+	/* If we failed to find any occurrence, set to the end */
+	if (x == AST_CODEC_PREF_SIZE) {
+		--x;
+	}
+
 	if (only_if_existing && !pref->order[x]) {
 		ast_format_list_destroy(f_list);
 		return;

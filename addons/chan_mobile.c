@@ -2119,7 +2119,7 @@ static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value)
 		return HFP_CIND_NONE;
 	}
 
-	if (i >= sizeof(hfp->cind_state)) {
+	if (i >= ARRAY_LEN(hfp->cind_state)) {
 		ast_debug(2, "[%s] CIEV event index too high (%s)\n", hfp->owner->id, buf);
 		return HFP_CIND_NONE;
 	}
@@ -2601,7 +2601,7 @@ static int hfp_parse_cind_indicator(struct hfp_pvt *hfp, int group, char *indica
 	int value;
 
 	/* store the current indicator */
-	if (group >= sizeof(hfp->cind_state)) {
+	if (group >= ARRAY_LEN(hfp->cind_state)) {
 		ast_debug(1, "ignoring CIND state '%s' for group %d, we only support up to %d indicators\n", indicator, group, (int) sizeof(hfp->cind_state));
 		return -1;
 	}

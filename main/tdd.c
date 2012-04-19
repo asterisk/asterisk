@@ -69,19 +69,21 @@ static int tdd_decode_baudot(struct tdd_state *tdd,unsigned char data)	/* covert
 	                         '5','\"',')','2','=','6','0','1',
 	                         '9','?','+','^','.','/',';','^' };
 	int d = 0;  /* return 0 if not decodeable */
-	switch (data) {
-	case 0x1f:
-		tdd->modo = 0;
-		break;
-	case 0x1b:
-		tdd->modo = 1;
-		break;
-	default:
-		if (tdd->modo == 0)
-			d = ltrs[data];
-		else
-			d = figs[data];
-		break;
+	if (data < 32) {
+		switch (data) {
+		case 0x1f:
+			tdd->modo = 0;
+			break;
+		case 0x1b:
+			tdd->modo = 1;
+			break;
+		default:
+			if (tdd->modo == 0)
+				d = ltrs[data];
+			else
+				d = figs[data];
+			break;
+		}
 	}
 	return d;
 }
