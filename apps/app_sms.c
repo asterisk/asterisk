@@ -1269,8 +1269,8 @@ static int sms_handleincoming_proto2(sms_t *h)
 		switch (msg) {
 		case 0x13:                          /* Body */
 			ast_verb(3, "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
-			if (msgsz >= sizeof(h->imsg)) {
-				msgsz = sizeof(h->imsg) - 1;
+			if (msgsz >= sizeof(h->ud)) {
+				msgsz = sizeof(h->ud) - 1;
 			}
 			for (i = 0; i < msgsz; i++) {
 				h->ud[i] = h->imsg[f + i];

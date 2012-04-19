@@ -3216,7 +3216,7 @@ static void key_main_page(struct unistimsession *pte, char keycode)
 		if (!ast_strlen_zero(pte->device->call_forward)) {
 			/* Cancel call forwarding */
 			memmove(pte->device->call_forward + 1, pte->device->call_forward,
-					sizeof(pte->device->call_forward));
+					sizeof(pte->device->call_forward) - 1);
 			pte->device->call_forward[0] = '\0';
 			Sendicon(TEXT_LINE0, FAV_ICON_NONE, pte);
 			pte->device->output = OUTPUT_HANDSET;   /* Seems to be reseted somewhere */
@@ -5005,7 +5005,7 @@ static int ParseBookmark(const char *text, struct unistim_device *d)
 			ast_log(LOG_WARNING, "Invalid position %d for bookmark : already used\n:", p);
 			return 0;
 		}
-		memmove(line, line + 2, sizeof(line));
+		memmove(line, line + 2, sizeof(line) - 2);
 	} else {
 		/* No position specified, looking for a free slot */
 		for (p = 0; p <= 5; p++) {

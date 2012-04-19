@@ -1128,6 +1128,11 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, format_t format, int on
 			break;
 	}
 
+	/* If we failed to find any occurrence, set to the end */
+	if (x == sizeof(format_t) * 8) {
+		--x;
+	}
+
 	if (only_if_existing && !pref->order[x])
 		return;
 
