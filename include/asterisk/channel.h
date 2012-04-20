@@ -449,6 +449,9 @@ struct ast_set_party_connected_line {
  * \note NULL and "" must be considered equivalent.
  */
 struct ast_party_redirecting {
+	/*! \brief Who originally redirected the call (Sent to the party the call is redirected toward) */
+	struct ast_party_id orig;
+
 	/*! \brief Who is redirecting the call (Sent to the party the call is redirected toward) */
 	struct ast_party_id from;
 
@@ -460,6 +463,9 @@ struct ast_party_redirecting {
 
 	/*! \brief enum AST_REDIRECTING_REASON value for redirection */
 	int reason;
+
+	/*! \brief enum AST_REDIRECTING_REASON value for redirection by original party */
+	int orig_reason;
 };
 
 /*!
@@ -467,6 +473,8 @@ struct ast_party_redirecting {
  * \brief Indicate what information in ast_party_redirecting should be set.
  */
 struct ast_set_party_redirecting {
+	/*! What redirecting-orig id information to set. */
+	struct ast_set_party_id orig;
 	/*! What redirecting-from id information to set. */
 	struct ast_set_party_id from;
 	/*! What redirecting-to id information to set. */

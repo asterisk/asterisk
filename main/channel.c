@@ -2118,10 +2118,12 @@ void ast_party_connected_line_free(struct ast_party_connected_line *doomed)
 
 void ast_party_redirecting_init(struct ast_party_redirecting *init)
 {
+	ast_party_id_init(&init->orig);
 	ast_party_id_init(&init->from);
 	ast_party_id_init(&init->to);
 	init->count = 0;
 	init->reason = AST_REDIRECTING_REASON_UNKNOWN;
+	init->orig_reason = AST_REDIRECTING_REASON_UNKNOWN;
 }
 
 void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src)
@@ -2131,30 +2133,37 @@ void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct
 		return;
 	}
 
+	ast_party_id_copy(&dest->orig, &src->orig);
 	ast_party_id_copy(&dest->from, &src->from);
 	ast_party_id_copy(&dest->to, &src->to);
 	dest->count = src->count;
 	dest->reason = src->reason;
+	dest->orig_reason = src->orig_reason;
 }
 
 void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const struct ast_party_redirecting *guide)
 {
+	ast_party_id_set_init(&init->orig, &guide->orig);
 	ast_party_id_set_init(&init->from, &guide->from);
 	ast_party_id_set_init(&init->to, &guide->to);
 	init->count = guide->count;
 	init->reason = guide->reason;
+	init->orig_reason = guide->orig_reason;
 }
 
 void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src, const struct ast_set_party_redirecting *update)
 {
+	ast_party_id_set(&dest->orig, &src->orig, update ? &update->orig : NULL);
 	ast_party_id_set(&dest->from, &src->from, update ? &update->from : NULL);
 	ast_party_id_set(&dest->to, &src->to, update ? &update->to : NULL);
-	dest->reason = src->reason;
 	dest->count = src->count;
+	dest->reason = src->reason;
+	dest->orig_reason = src->orig_reason;
 }
 
 void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 {
+	ast_party_id_free(&doomed->orig);
 	ast_party_id_free(&doomed->from);
 	ast_party_id_free(&doomed->to);
 }
@@ -8436,7 +8445,10 @@ struct ast_party_id_ies {
 	struct ast_party_subaddress_ies subaddress;
 	/*! \brief User party id tag ie. */
 	int tag;
-	/*! \brief Combined name and number presentation ie. */
+	/*!
+	 * \brief Combined name and number presentation ie.
+	 * \note Not sent if value is zero.
+	 */
 	int combined_presentation;
 };
 
@@ -8509,7 +8521,7 @@ static int party_id_build_data(unsigned char *data, size_t datalen,
 	}
 
 	/* *************** Party id combined presentation *************** */
-	if (!update || update->number) {
+	if (ies->combined_presentation && (!update || update->number)) {
 		int presentation;
 
 		if (!update || update->name) {
@@ -8551,6 +8563,10 @@ enum {
 	AST_CONNECTED_LINE_SUBADDRESS_VALID,
 	AST_CONNECTED_LINE_TAG,
 	AST_CONNECTED_LINE_VERSION,
+	/*
+	 * No more party id combined number and name presentation values
+	 * need to be created.
+	 */
 	AST_CONNECTED_LINE_NAME_VALID,
 	AST_CONNECTED_LINE_NAME_CHAR_SET,
 	AST_CONNECTED_LINE_NAME_PRESENTATION,
@@ -8864,11 +8880,11 @@ enum {
 	AST_REDIRECTING_FROM_NUMBER,
 	AST_REDIRECTING_FROM_NAME,
 	AST_REDIRECTING_FROM_NUMBER_PLAN,
-	AST_REDIRECTING_FROM_ID_PRESENTATION,
+	AST_REDIRECTING_FROM_ID_PRESENTATION,/* Combined number and name presentation. */
 	AST_REDIRECTING_TO_NUMBER,
 	AST_REDIRECTING_TO_NAME,
 	AST_REDIRECTING_TO_NUMBER_PLAN,
-	AST_REDIRECTING_TO_ID_PRESENTATION,
+	AST_REDIRECTING_TO_ID_PRESENTATION,/* Combined number and name presentation. */
 	AST_REDIRECTING_REASON,
 	AST_REDIRECTING_COUNT,
 	AST_REDIRECTING_FROM_SUBADDRESS,
@@ -8882,6 +8898,10 @@ enum {
 	AST_REDIRECTING_FROM_TAG,
 	AST_REDIRECTING_TO_TAG,
 	AST_REDIRECTING_VERSION,
+	/*
+	 * No more party id combined number and name presentation values
+	 * need to be created.
+	 */
 	AST_REDIRECTING_FROM_NAME_VALID,
 	AST_REDIRECTING_FROM_NAME_CHAR_SET,
 	AST_REDIRECTING_FROM_NAME_PRESENTATION,
@@ -8892,6 +8912,20 @@ enum {
 	AST_REDIRECTING_TO_NAME_PRESENTATION,
 	AST_REDIRECTING_TO_NUMBER_VALID,
 	AST_REDIRECTING_TO_NUMBER_PRESENTATION,
+	AST_REDIRECTING_ORIG_NUMBER,
+	AST_REDIRECTING_ORIG_NUMBER_VALID,
+	AST_REDIRECTING_ORIG_NUMBER_PLAN,
+	AST_REDIRECTING_ORIG_NUMBER_PRESENTATION,
+	AST_REDIRECTING_ORIG_NAME,
+	AST_REDIRECTING_ORIG_NAME_VALID,
+	AST_REDIRECTING_ORIG_NAME_CHAR_SET,
+	AST_REDIRECTING_ORIG_NAME_PRESENTATION,
+	AST_REDIRECTING_ORIG_SUBADDRESS,
+	AST_REDIRECTING_ORIG_SUBADDRESS_TYPE,
+	AST_REDIRECTING_ORIG_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_ORIG_SUBADDRESS_VALID,
+	AST_REDIRECTING_ORIG_TAG,
+	AST_REDIRECTING_ORIG_REASON,
 };
 
 int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
@@ -8900,6 +8934,25 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	size_t pos = 0;
 	int res;
 
+	static const struct ast_party_id_ies orig_ies = {
+		.name.str = AST_REDIRECTING_ORIG_NAME,
+		.name.char_set = AST_REDIRECTING_ORIG_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_ORIG_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_ORIG_NAME_VALID,
+
+		.number.str = AST_REDIRECTING_ORIG_NUMBER,
+		.number.plan = AST_REDIRECTING_ORIG_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_ORIG_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_ORIG_NUMBER_VALID,
+
+		.subaddress.str = AST_REDIRECTING_ORIG_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_ORIG_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_ORIG_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_ORIG_SUBADDRESS_VALID,
+
+		.tag = AST_REDIRECTING_ORIG_TAG,
+		.combined_presentation = 0,/* Not sent. */
+	};
 	static const struct ast_party_id_ies from_ies = {
 		.name.str = AST_REDIRECTING_FROM_NAME,
 		.name.char_set = AST_REDIRECTING_FROM_NAME_CHAR_SET,
@@ -8948,6 +9001,13 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	data[pos++] = 1;
 	data[pos++] = 2;/* Version 1 did not have a version ie */
 
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->orig,
+		"redirecting-orig", &orig_ies, update ? &update->orig : NULL);
+	if (res < 0) {
+		return -1;
+	}
+	pos += res;
+
 	res = party_id_build_data(data + pos, datalen - pos, &redirecting->from,
 		"redirecting-from", &from_ies, update ? &update->from : NULL);
 	if (res < 0) {
@@ -8970,6 +9030,17 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	data[pos++] = AST_REDIRECTING_REASON;
 	data[pos++] = sizeof(value);
 	value = htonl(redirecting->reason);
+	memcpy(data + pos, &value, sizeof(value));
+	pos += sizeof(value);
+
+	/* Redirecting original reason */
+	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
+		ast_log(LOG_WARNING, "No space left for redirecting original reason\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_ORIG_REASON;
+	data[pos++] = sizeof(value);
+	value = htonl(redirecting->orig_reason);
 	memcpy(data + pos, &value, sizeof(value));
 	pos += sizeof(value);
 
@@ -9020,6 +9091,115 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 				break;
 			}
 			frame_version = data[pos];
+			break;
+/* Redirecting-orig party id name */
+		case AST_REDIRECTING_ORIG_NAME:
+			ast_free(redirecting->orig.name.str);
+			redirecting->orig.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->orig.name.str) {
+				memcpy(redirecting->orig.name.str, data + pos, ie_len);
+				redirecting->orig.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_ORIG_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.name.valid = data[pos];
+			break;
+/* Redirecting-orig party id number */
+		case AST_REDIRECTING_ORIG_NUMBER:
+			ast_free(redirecting->orig.number.str);
+			redirecting->orig.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->orig.number.str) {
+				memcpy(redirecting->orig.number.str, data + pos, ie_len);
+				redirecting->orig.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_ORIG_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.number.plan = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_NUMBER_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig number presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.number.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.number.valid = data[pos];
+			break;
+/* Redirecting-orig party id subaddress */
+		case AST_REDIRECTING_ORIG_SUBADDRESS:
+			ast_free(redirecting->orig.subaddress.str);
+			redirecting->orig.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->orig.subaddress.str) {
+				memcpy(redirecting->orig.subaddress.str, data + pos, ie_len);
+				redirecting->orig.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_ORIG_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid redirecting-orig subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_ORIG_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-orig subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->orig.subaddress.valid = data[pos];
+			break;
+/* Redirecting-orig party id tag */
+		case AST_REDIRECTING_ORIG_TAG:
+			ast_free(redirecting->orig.tag);
+			redirecting->orig.tag = ast_malloc(ie_len + 1);
+			if (redirecting->orig.tag) {
+				memcpy(redirecting->orig.tag, data + pos, ie_len);
+				redirecting->orig.tag[ie_len] = 0;
+			}
 			break;
 /* Redirecting-from party id name */
 		case AST_REDIRECTING_FROM_NAME:
@@ -9269,6 +9449,16 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			memcpy(&value, data + pos, sizeof(value));
 			redirecting->reason = ntohl(value);
 			break;
+/* Redirecting orig-reason */
+		case AST_REDIRECTING_ORIG_REASON:
+			if (ie_len != sizeof(value)) {
+				ast_log(LOG_WARNING, "Invalid redirecting original reason (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			memcpy(&value, data + pos, sizeof(value));
+			redirecting->orig_reason = ntohl(value);
+			break;
 /* Redirecting count */
 		case AST_REDIRECTING_COUNT:
 			if (ie_len != sizeof(value)) {
@@ -9292,6 +9482,9 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 		/*
 		 * The other end is an earlier version that we need to adjust
 		 * for compatibility.
+		 *
+		 * The earlier version did not have the orig party id or
+		 * orig_reason value.
 		 */
 		redirecting->from.name.valid = 1;
 		redirecting->from.name.char_set = AST_PARTY_CHAR_SET_ISO8859_1;

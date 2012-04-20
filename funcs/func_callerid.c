@@ -69,13 +69,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * they are active at the same time.  The plain pres option will simply
  * live on as a historical relic.
  *
- * Do not document the REDIRECTING(from-pres) or REDIRECTING(to-pres) datatypes.
- * The name and number now have their own presentation value.  The from-pres
- * and to-pres options will simply live on as a historical relic with as best
- * as can be managed backward compatible meaning.
+ * Do not document the REDIRECTING(orig-pres), REDIRECTING(from-pres),
+ * or REDIRECTING(to-pres) datatypes.
+ * The name and number now have their own presentation value.  The orig-pres,
+ * from-pres, and to-pres options will simply live on as a historical relic
+ * with as best as can be managed backward compatible meaning.
  *
- * Do not document the REDIRECTING(from-ton) or REDIRECTING(to-ton) datatypes.
- * They are aliases for from-num-plan and to-num-plan respectively.
+ * Do not document the REDIRECTING(orig-ton), REDIRECTING(from-ton),
+ * or REDIRECTING(to-ton) datatypes.
+ * They are aliases for orig-num-plan, from-num-plan, and to-num-plan
+ * respectively.
  */
 /*** DOCUMENTATION
 	<function name="CALLERID" language="en_US">
@@ -239,6 +242,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="datatype" required="true">
 				<para>The allowable datatypes are:</para>
 				<enumlist>
+					<enum name = "orig-all" />
+					<enum name = "orig-name" />
+					<enum name = "orig-name-valid" />
+					<enum name = "orig-name-charset" />
+					<enum name = "orig-name-pres" />
+					<enum name = "orig-num" />
+					<enum name = "orig-num-valid" />
+					<enum name = "orig-num-plan" />
+					<enum name = "orig-num-pres" />
+					<enum name = "orig-subaddr" />
+					<enum name = "orig-subaddr-valid" />
+					<enum name = "orig-subaddr-type" />
+					<enum name = "orig-subaddr-odd" />
+					<enum name = "orig-tag" />
+					<enum name = "orig-reason" />
 					<enum name = "from-all" />
 					<enum name = "from-name" />
 					<enum name = "from-name-valid" />
@@ -279,7 +297,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Gets or sets Redirecting data on the channel.</para>
 			<para>The allowable values for the <replaceable>reason</replaceable>
-			field are the following:</para>
+			and <replaceable>orig-reason</replaceable> fields are the following:</para>
 			<enumlist>
 				<enum name = "unknown"><para>Unknown</para></enum>
 				<enum name = "cfb"><para>Call Forwarding Busy</para></enum>
@@ -1330,6 +1348,7 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 {
 	struct ast_party_members member;
 	char *read_what;
+	const struct ast_party_redirecting *ast_redirecting;
 	enum ID_FIELD_STATUS status;
 
 	/* Ensure that the buffer is empty */
@@ -1348,9 +1367,26 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 
 	ast_channel_lock(chan);
 
-	if (!strcasecmp("from", member.argv[0])) {
+	ast_redirecting = ast_channel_redirecting(chan);
+	if (!strcasecmp("orig", member.argv[0])) {
+		if (member.argc == 2 && !strcasecmp("reason", member.argv[1])) {
+			ast_copy_string(buf,
+				ast_redirecting_reason_name(ast_redirecting->orig_reason), len);
+		} else {
+			status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+				&ast_redirecting->orig);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+		}
+	} else if (!strcasecmp("from", member.argv[0])) {
 		status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
-			&ast_channel_redirecting(chan)->from);
+			&ast_redirecting->from);
 		switch (status) {
 		case ID_FIELD_VALID:
 		case ID_FIELD_INVALID:
@@ -1361,7 +1397,7 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 		}
 	} else if (!strcasecmp("to", member.argv[0])) {
 		status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
-			&ast_channel_redirecting(chan)->to);
+			&ast_redirecting->to);
 		switch (status) {
 		case ID_FIELD_VALID:
 		case ID_FIELD_INVALID:
@@ -1377,11 +1413,11 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 		 */
 		ast_copy_string(buf,
 			ast_named_caller_presentation(
-				ast_party_id_presentation(&ast_channel_redirecting(chan)->from)), len);
+				ast_party_id_presentation(&ast_redirecting->from)), len);
 	} else if (member.argc == 1 && !strcasecmp("reason", member.argv[0])) {
-		ast_copy_string(buf, ast_redirecting_reason_name(ast_channel_redirecting(chan)->reason), len);
+		ast_copy_string(buf, ast_redirecting_reason_name(ast_redirecting->reason), len);
 	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {
-		snprintf(buf, len, "%d", ast_channel_redirecting(chan)->count);
+		snprintf(buf, len, "%d", ast_redirecting->count);
 	} else {
 		ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
 	}
@@ -1450,7 +1486,42 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 
 	value = ast_skip_blanks(value);
 
-	if (!strcasecmp("from", member.argv[0])) {
+	if (!strcasecmp("orig", member.argv[0])) {
+		if (member.argc == 2 && !strcasecmp("reason", member.argv[1])) {
+			int reason;
+
+			val = ast_strdupa(value);
+			ast_trim_blanks(val);
+
+			if (('0' <= val[0]) && (val[0] <= '9')) {
+				reason = atoi(val);
+			} else {
+				reason = ast_redirecting_reason_parse(val);
+			}
+
+			if (reason < 0) {
+				ast_log(LOG_ERROR,
+					"Unknown redirecting orig reason '%s', value unchanged\n", val);
+			} else {
+				redirecting.orig_reason = reason;
+				set_it(chan, &redirecting, NULL);
+			}
+		} else {
+			status = party_id_write(&redirecting.orig, member.argc - 1, member.argv + 1,
+				value);
+			switch (status) {
+			case ID_FIELD_VALID:
+				set_it(chan, &redirecting, NULL);
+				break;
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+			ast_party_redirecting_free(&redirecting);
+		}
+	} else if (!strcasecmp("from", member.argv[0])) {
 		status = party_id_write(&redirecting.from, member.argc - 1, member.argv + 1,
 			value);
 		switch (status) {

@@ -202,6 +202,8 @@ Dialplan functions
    user information, such as the email address and full name.
    The MAILBOX_EXISTS dialplan function has been deprecated in favour of
    VM_INFO.
+ * The REDIRECTING function now supports the redirecting original party id
+   and reason.
 
 Followme changes
 -------------

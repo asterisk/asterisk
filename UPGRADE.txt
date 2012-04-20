@@ -39,6 +39,8 @@ Dialplan Functions:
    line purposes use the following variables instead of their macro equivalents:
    REDIRECTING_SEND_SUB, REDIRECTING_SEND_SUB_ARGS,
    CONNECTED_LINE_SEND_SUB, CONNECTED_LINE_SEND_SUB_ARGS.
+ - The REDIRECTING function now supports the redirecting original party id
+   and reason.
 
 
 func_enum:

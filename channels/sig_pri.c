@@ -902,14 +902,16 @@ static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct 
 static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_channel *ast)
 {
 	struct pri_party_redirecting pri_redirecting;
-
-/*! \todo XXX Original called data can be put in a channel data store that is inherited. */
+	const struct ast_party_redirecting *ast_redirecting;
 
 	memset(&pri_redirecting, 0, sizeof(pri_redirecting));
-	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast_channel_redirecting(ast)->from);
-	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast_channel_redirecting(ast)->to);
-	pri_redirecting.count = ast_channel_redirecting(ast)->count;
-	pri_redirecting.reason = ast_to_pri_reason(ast_channel_redirecting(ast)->reason);
+	ast_redirecting = ast_channel_redirecting(ast);
+	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast_redirecting->from);
+	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast_redirecting->to);
+	sig_pri_party_id_from_ast(&pri_redirecting.orig_called, &ast_redirecting->orig);
+	pri_redirecting.count = ast_redirecting->count;
+	pri_redirecting.orig_reason = ast_to_pri_reason(ast_redirecting->orig_reason);
+	pri_redirecting.reason = ast_to_pri_reason(ast_redirecting->reason);
 
 	pri_redirecting_update(pvt->pri->pri, pvt->call, &pri_redirecting);
 }
@@ -2115,10 +2117,12 @@ static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redire
 {
 	ast_party_redirecting_set_init(ast_redirecting, ast_guide);
 
+	sig_pri_party_id_convert(&ast_redirecting->orig, &pri_redirecting->orig_called, pri);
 	sig_pri_party_id_convert(&ast_redirecting->from, &pri_redirecting->from, pri);
 	sig_pri_party_id_convert(&ast_redirecting->to, &pri_redirecting->to, pri);
 	ast_redirecting->count = pri_redirecting->count;
 	ast_redirecting->reason = pri_to_ast_reason(pri_redirecting->reason);
+	ast_redirecting->orig_reason = pri_to_ast_reason(pri_redirecting->orig_reason);
 }
 
 /*!
@@ -4185,11 +4189,9 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			if (owner) {
 				sig_pri_redirecting_convert(&ast_redirecting, &subcmd->u.redirecting,
 					ast_channel_redirecting(owner), pri);
+				ast_redirecting.orig.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
-
-/*! \todo XXX Original called data can be put in a channel data store that is inherited. */
-
 				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
 				if (event_id != PRI_EVENT_RING) {
 					/* This redirection was not from a SETUP message. */
@@ -4257,6 +4259,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				}
 				sig_pri_redirecting_convert(&ast_redirecting, &pri_deflection,
 					ast_channel_redirecting(owner), pri);
+				ast_redirecting.orig.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
