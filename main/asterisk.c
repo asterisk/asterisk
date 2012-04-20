@@ -1320,7 +1320,7 @@ static void *netconsole(void *vconsole)
 			/* If we get this far, we have left over characters that have not been processed.
 			 * Advance to the character after the last command read by ast_cli_command_multiple_full.
 			 * We are guaranteed to have at least cmds_read NULLs */
-			while (cmds_read-- && (start_read = rawmemchr(start_read, '\0'))) {
+			while (cmds_read-- && (start_read = strchr(start_read, '\0'))) {
 				start_read++;
 			}
 			memmove(inbuf, start_read, end_buf - start_read);
