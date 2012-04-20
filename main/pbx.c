@@ -5271,15 +5271,16 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			 */
 			if (ast_exists_extension(c, ast_channel_context(c), "i", 1,
 				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
-				ast_verb(3, "Sent into invalid extension '%s' in context '%s' on %s\n", ast_channel_exten(c), ast_channel_context(c), ast_channel_name(c));
+				ast_verb(3, "Channel '%s' sent to invalid extension: context,exten,priority=%s,%s,%d\n",
+					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c));
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", ast_channel_exten(c));
 				set_ext_pri(c, "i", 1);
 			} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
 				raise_exception(c, "INVALID", 1);
 			} else {
-				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
-					ast_channel_name(c), ast_channel_exten(c), ast_channel_context(c));
+				ast_log(LOG_WARNING, "Channel '%s' sent to invalid extension but no invalid handler: context,exten,priority=%s,%s,%d\n",
+					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c));
 				error = 1; /* we know what to do with it */
 				break;
 			}
@@ -8305,11 +8306,11 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 	if (!ast_strlen_zero(exten))
 		ast_channel_exten_set(chan, exten);
 	if (priority > -1) {
-		ast_channel_priority_set(chan, priority);
 		/* see flag description in channel.h for explanation */
 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
-			ast_channel_priority_set(chan, ast_channel_priority(chan) - 1);
+			--priority;
 		}
+		ast_channel_priority_set(chan, priority);
 	}
 
 	ast_channel_unlock(chan);
