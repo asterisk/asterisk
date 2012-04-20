@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			<para>This application creates information to be used by all the other applications.
 			It must be called before doing any speech recognition activities such as activating a grammar.
 			It takes the engine name to use as the argument, if not specified the default engine will be used.</para>
+			<para>Sets the ERROR channel variable to 1 if the engine cannot be used.</para>
 		</description>
 	</application>
 	<application name="SpeechActivateGrammar" language="en_US">
@@ -66,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			<para>This activates the specified grammar to be recognized by the engine.
 			A grammar tells the speech recognition engine what to recognize, and how to portray it back to you
 			in the dialplan. The grammar name is the only argument to this application.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechStart" language="en_US">
@@ -76,6 +78,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		<description>
 			<para>Tell the speech recognition engine that it should start trying to get results from audio being
 			fed to it.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechBackground" language="en_US">
@@ -104,6 +107,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			<para>The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}
 			and ${SPEECH_SCORE(1)}.</para>
 			<para>The first argument is the sound file and the second is the timeout integer in seconds.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 			
 		</description>
 	</application>
@@ -118,6 +122,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		</syntax>
 		<description>
 			<para>This deactivates the specified grammar so that it is no longer recognized.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechProcessingSound" language="en_US">
@@ -130,6 +135,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		<description>
 			<para>This changes the processing sound that SpeechBackground plays back when the speech recognition engine is
 			processing and working to get results.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechDestroy" language="en_US">
@@ -141,6 +147,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			<para>This destroys the information used by all the other speech recognition applications.
 			If you call this application but end up wanting to recognize more speech, you must call SpeechCreate()
 			again before calling any other application.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechLoadGrammar" language="en_US">
@@ -153,6 +160,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		</syntax>
 		<description>
 			<para>Load a grammar only on the channel, not globally.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<application name="SpeechUnloadGrammar" language="en_US">
@@ -164,6 +172,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		</syntax>
 		<description>
 			<para>Unload a grammar.</para>
+			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
 		</description>
 	</application>
 	<function name="SPEECH_SCORE" language="en_US">
