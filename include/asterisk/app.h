@@ -115,44 +115,96 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 /*!
- * \since 1.8
- * \brief Run a macro on a channel, placing a second channel into autoservice.
+ * \brief Run a macro on a channel, placing an optional second channel into autoservice.
+ * \since 11.0
  *
- * This is a shorthand method that makes it very easy to run a macro on any given 
- * channel. It is perfectly reasonable to supply a NULL autoservice_chan here in case
- * there is no channel to place into autoservice. It is very important that the 
- * autoservice_chan parameter is not locked prior to calling ast_app_run_macro. A 
- * deadlock could result, otherwise.
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * macro on any given channel.  It is perfectly reasonable to
+ * supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note It is very important that the autoservice_chan is not
+ * locked prior to calling.  Otherwise, a deadlock could result.
  *
  * \param autoservice_chan A channel to place into autoservice while the macro is run
- * \param macro_chan The channel to run the macro on
- * \param macro_name The name of the macro to run
- * \param macro_args The arguments to pass to the macro
+ * \param macro_chan Channel to execute macro on.
+ * \param macro_args Macro application argument string.
+ *
  * \retval 0 success
- * \retval -1 failure
+ * \retval -1 on error
+ */
+int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_args);
+
+/*!
+ * \since 1.8
+ * \brief Run a macro on a channel, placing an optional second channel into autoservice.
+ *
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * macro on any given channel.  It is perfectly reasonable to
+ * supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note It is very important that the autoservice_chan is not
+ * locked prior to calling.  Otherwise, a deadlock could result.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the macro is run
+ * \param macro_chan Channel to execute macro on.
+ * \param macro_name The name of the macro to run.
+ * \param macro_args The arguments to pass to the macro.
+ *
+ * \retval 0 success
+ * \retval -1 on error
  */
 int ast_app_run_macro(struct ast_channel *autoservice_chan,
 	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
 
 /*!
  * \since 11
- * \brief Run a subroutine on a channel, placing a second channel into autoservice.
+ * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
  *
- * This is a shorthand method that makes it very easy to run a subroutine on any given
- * channel. It is perfectly reasonable to supply a NULL autoservice_chan here in case
- * there is no channel to place into autoservice. It is very important that the
- * autoservice_chan parameter is not locked prior to calling ast_app_run_sub. A
- * deadlock could result, otherwise.
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * subroutine on any given channel.  It is perfectly reasonable
+ * to supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note It is very important that the autoservice_chan is not
+ * locked prior to calling.  Otherwise, a deadlock could result.
  *
  * \param autoservice_chan A channel to place into autoservice while the subroutine is run
- * \param sub_chan The channel to run the subroutine on
- * \param name The name of the subroutine to run
- * \param args The arguments to pass to the subroutien
+ * \param sub_chan Channel to execute subroutine on.
+ * \param sub_args Gosub application argument string.
+ *
  * \retval 0 success
- * \retval -1 failure
+ * \retval -1 on error
+ */
+int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_args);
+
+/*!
+ * \since 11
+ * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
+ *
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * subroutine on any given channel.  It is perfectly reasonable
+ * to supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note It is very important that the autoservice_chan is not
+ * locked prior to calling.  Otherwise, a deadlock could result.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the subroutine is run
+ * \param sub_chan Channel to execute subroutine on.
+ * \param sub_location The location of the subroutine to run.
+ * \param sub_args The arguments to pass to the subroutine.
+ *
+ * \retval 0 success
+ * \retval -1 on error
  */
 int ast_app_run_sub(struct ast_channel *autoservice_chan,
-	struct ast_channel *sub_chan, const char *name, const char *args);
+	struct ast_channel *sub_chan, const char *sub_location, const char *sub_args);
 
 /*!
  * \brief Set voicemail function callbacks

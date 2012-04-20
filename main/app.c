@@ -247,79 +247,175 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
 	return res;
 }
 
-static int app_exec_dialplan(struct ast_channel *autoservice_chan, struct ast_channel *exec_chan, const char * const args, int use_gosub)
+int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_args)
 {
-
-	struct ast_app *app;
+	struct ast_app *macro_app;
 	int res;
-	char * app_type = use_gosub ? "GoSub" : "Macro";
 
-	app = pbx_findapp(app_type);
-	if (!app) {
-		ast_log(LOG_WARNING, "Cannot run '%s' because the '%s' application is not available\n", args, app_type);
+	macro_app = pbx_findapp("Macro");
+	if (!macro_app) {
+		ast_log(LOG_WARNING,
+			"Cannot run 'Macro(%s)'.  The application is not available.\n", macro_args);
 		return -1;
 	}
 	if (autoservice_chan) {
 		ast_autoservice_start(autoservice_chan);
 	}
-	res = pbx_exec(exec_chan, app, args);
-	if (use_gosub && !res) {
-		struct ast_pbx_args gosub_args = {{0}};
-		struct ast_pbx *pbx = ast_channel_pbx(exec_chan);
-		/* supress warning about a pbx already being on the channel */
-		ast_channel_pbx_set(exec_chan, NULL);
-		gosub_args.no_hangup_chan = 1;
-		ast_pbx_run_args(exec_chan, &gosub_args);
-		if (ast_channel_pbx(exec_chan)) {
-			ast_free(ast_channel_pbx(exec_chan));
-		}
-		ast_channel_pbx_set(exec_chan, pbx);
+
+	ast_debug(4, "%s Original location: %s,%s,%d\n", ast_channel_name(macro_chan),
+		ast_channel_context(macro_chan), ast_channel_exten(macro_chan),
+		ast_channel_priority(macro_chan));
+
+	res = pbx_exec(macro_chan, macro_app, macro_args);
+	ast_debug(4, "Macro exited with status %d\n", res);
+
+	/*
+	 * Assume anything negative from Macro is an error.
+	 * Anything else is success.
+	 */
+	if (res < 0) {
+		res = -1;
+	} else {
+		res = 0;
 	}
+
+	ast_debug(4, "%s Ending location: %s,%s,%d\n", ast_channel_name(macro_chan),
+		ast_channel_context(macro_chan), ast_channel_exten(macro_chan),
+		ast_channel_priority(macro_chan));
+
 	if (autoservice_chan) {
 		ast_autoservice_stop(autoservice_chan);
 	}
 	return res;
 }
 
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *name, const char *args)
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_name, const char *macro_args)
 {
-	char buf[1024];
-	snprintf(buf, sizeof(buf), "%s%s%s", name, ast_strlen_zero(args) ? "" : ",", S_OR(args, ""));
-	return app_exec_dialplan(autoservice_chan, macro_chan, buf, 0);
+	int res;
+	char *args_str;
+	size_t args_len;
+
+	if (ast_strlen_zero(macro_args)) {
+		return ast_app_exec_macro(autoservice_chan, macro_chan, macro_name);
+	}
+
+	/* Create the Macro application argument string. */
+	args_len = strlen(macro_name) + strlen(macro_args) + 2;
+	args_str = ast_malloc(args_len);
+	if (!args_str) {
+		return -1;
+	}
+	snprintf(args_str, args_len, "%s,%s", macro_name, macro_args);
+
+	res = ast_app_exec_macro(autoservice_chan, macro_chan, args_str);
+	ast_free(args_str);
+	return res;
 }
 
-int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *location, const char *args)
+int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_args)
 {
-	char buf[1024];
-	size_t offset = snprintf(buf, sizeof(buf), "%s", location);
+	struct ast_app *sub_app;
+	const char *saved_context;
+	const char *saved_exten;
+	int saved_priority;
+	int saved_autoloopflag;
+	int res;
 
-	/* need to bump the priority by one if we already have a pbx */
-	if (ast_channel_pbx(sub_chan)) {
-		int iprio;
-		const char *priority = location;
-		const char *next = strchr(priority,',');
+	sub_app = pbx_findapp("Gosub");
+	if (!sub_app) {
+		ast_log(LOG_WARNING,
+			"Cannot run 'Gosub(%s)'.  The application is not available.\n", sub_args);
+		return -1;
+	}
+	if (autoservice_chan) {
+		ast_autoservice_start(autoservice_chan);
+	}
 
-		/* jump to the priority portion of the location */
-		if (next) {
-			priority = next + 1;
-		}
-		next = strchr(priority,',');
-		if (next) {
-			priority = next + 1;
-		}
-		/* if the priority isn't numeric, it's as if we never took this branch... */
-		if (sscanf(priority, "%d", &iprio)) {
-			offset = priority - location;
-			iprio++;
-			if (offset < sizeof(buf)) {
-				offset += snprintf(buf + offset, sizeof(buf) - offset, "%d", iprio);
-			}
-		}
+	ast_channel_lock(sub_chan);
+
+	/* Save current dialplan location */
+	saved_context = ast_strdupa(ast_channel_context(sub_chan));
+	saved_exten = ast_strdupa(ast_channel_exten(sub_chan));
+	saved_priority = ast_channel_priority(sub_chan);
+
+	/*
+	 * Save flag to restore at the end so we don't have to play with
+	 * the priority in the gosub location string.
+	 */
+	saved_autoloopflag = ast_test_flag(ast_channel_flags(sub_chan), AST_FLAG_IN_AUTOLOOP);
+	ast_clear_flag(ast_channel_flags(sub_chan), AST_FLAG_IN_AUTOLOOP);
+
+	/* Set known location for Gosub to return - 1 */
+	ast_channel_context_set(sub_chan, "gosub_virtual_context");
+	ast_channel_exten_set(sub_chan, "s");
+	ast_channel_priority_set(sub_chan, 1 - 1);
+
+	ast_debug(4, "%s Original location: %s,%s,%d\n", ast_channel_name(sub_chan),
+		saved_context, saved_exten, saved_priority);
+
+	ast_channel_unlock(sub_chan);
+	res = pbx_exec(sub_chan, sub_app, sub_args);
+	ast_debug(4, "Gosub exited with status %d\n", res);
+	ast_channel_lock(sub_chan);
+	if (!res) {
+		struct ast_pbx_args gosub_args = {{0}};
+		struct ast_pbx *saved_pbx;
+
+		/* supress warning about a pbx already being on the channel */
+		saved_pbx = ast_channel_pbx(sub_chan);
+		ast_channel_pbx_set(sub_chan, NULL);
+
+		ast_channel_unlock(sub_chan);
+		gosub_args.no_hangup_chan = 1;
+		ast_pbx_run_args(sub_chan, &gosub_args);
+		ast_channel_lock(sub_chan);
+
+		/* Restore pbx. */
+		ast_free(ast_channel_pbx(sub_chan));
+		ast_channel_pbx_set(sub_chan, saved_pbx);
 	}
-	if (!ast_strlen_zero(args) && offset < sizeof(buf)) {
-		snprintf(buf + offset, sizeof(buf) - offset, "(%s)", args);
+
+	ast_debug(4, "%s Ending location: %s,%s,%d\n", ast_channel_name(sub_chan),
+		ast_channel_context(sub_chan), ast_channel_exten(sub_chan),
+		ast_channel_priority(sub_chan));
+
+	/* Restore flag */
+	ast_set2_flag(ast_channel_flags(sub_chan), saved_autoloopflag, AST_FLAG_IN_AUTOLOOP);
+
+	/* Restore dialplan location */
+	ast_channel_context_set(sub_chan, saved_context);
+	ast_channel_exten_set(sub_chan, saved_exten);
+	ast_channel_priority_set(sub_chan, saved_priority);
+
+	ast_channel_unlock(sub_chan);
+
+	if (autoservice_chan) {
+		ast_autoservice_stop(autoservice_chan);
 	}
-	return app_exec_dialplan(autoservice_chan, sub_chan, buf, 1);
+	return res;
+}
+
+int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_location, const char *sub_args)
+{
+	int res;
+	char *args_str;
+	size_t args_len;
+
+	if (ast_strlen_zero(sub_args)) {
+		return ast_app_exec_sub(autoservice_chan, sub_chan, sub_location);
+	}
+
+	/* Create the Gosub application argument string. */
+	args_len = strlen(sub_location) + strlen(sub_args) + 3;
+	args_str = ast_malloc(args_len);
+	if (!args_str) {
+		return -1;
+	}
+	snprintf(args_str, args_len, "%s(%s)", sub_location, sub_args);
+
+	res = ast_app_exec_sub(autoservice_chan, sub_chan, args_str);
+	ast_free(args_str);
+	return res;
 }
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;

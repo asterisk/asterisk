@@ -801,6 +801,8 @@ static struct agi_command gosub_agi_command =
 
 static int unload_module(void)
 {
+	struct ast_context *con;
+
 	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 
 	ast_unregister_application(app_return);
@@ -811,11 +813,30 @@ static int unload_module(void)
 	ast_custom_function_unregister(&peek_function);
 	ast_custom_function_unregister(&stackpeek_function);
 
+	con = ast_context_find("gosub_virtual_context");
+	if (con) {
+		/* leave nothing behind */
+		ast_context_remove_extension2(con, "s", 1, NULL, 0);
+		ast_context_destroy(con, "app_stack");
+	}
+
 	return 0;
 }
 
 static int load_module(void)
 {
+	struct ast_context *con;
+
+	/* Create internal gosub return target to indicate successful completion. */
+	con = ast_context_find_or_create(NULL, NULL, "gosub_virtual_context", "app_stack");
+	if (!con) {
+		ast_log(LOG_ERROR, "'gosub_virtual_context' does not exist and unable to create\n");
+	} else {
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp",
+			ast_strdup("Internal Gosub call complete GOSUB_RETVAL=${GOSUB_RETVAL}"),
+			ast_free_ptr, "app_stack");
+	}
+
 	ast_agi_register(ast_module_info->self, &gosub_agi_command);
 
 	ast_register_application_xml(app_pop, pop_exec);
