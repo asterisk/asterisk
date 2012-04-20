@@ -1449,7 +1449,6 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	struct ast_format_cap *cap0 = ast_format_cap_alloc_nolock();
 	struct ast_format_cap *cap1 = ast_format_cap_alloc_nolock();
-	int res = 0;
 
 	/* Lock both channels so we can look for the glue that binds them together */
 	ast_channel_lock_both(c0, c1);
@@ -1504,10 +1503,12 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	}
 
 	if (glue0->update_peer(c0, instance1, vinstance1, tinstance1, cap1, 0)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
+		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n",
+			ast_channel_name(c0), ast_channel_name(c1));
+	} else {
+		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n",
+			ast_channel_name(c0), ast_channel_name(c1));
 	}
-
-	res = 0;
 
 done:
 	ast_channel_unlock(c0);
@@ -1522,10 +1523,6 @@ done:
 	unref_instance_cond(&vinstance1);
 	unref_instance_cond(&tinstance0);
 	unref_instance_cond(&tinstance1);
-
-	if (!res) {
-		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
-	}
 }
 
 int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
