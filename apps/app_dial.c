@@ -902,15 +902,13 @@ static void do_forward(struct chanlist *o,
 	} else {
 		struct ast_party_redirecting redirecting;
 
+		ast_channel_lock_both(c, in);
+
 		if (single_caller_bored && CAN_EARLY_BRIDGE(peerflags, c, in)) {
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
 		ast_channel_set_redirecting(c, ast_channel_redirecting(original), NULL);
-		ast_channel_lock(c);
-		while (ast_channel_trylock(in)) {
-			CHANNEL_DEADLOCK_AVOIDANCE(c);
-		}
 		if (!ast_channel_redirecting(c)->from.number.valid
 			|| ast_strlen_zero(ast_channel_redirecting(c)->from.number.str)) {
 			/*
@@ -986,10 +984,7 @@ static void do_forward(struct chanlist *o,
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
-			ast_channel_lock(c);
-			while (ast_channel_trylock(in)) {
-				CHANNEL_DEADLOCK_AVOIDANCE(c);
-			}
+			ast_channel_lock_both(c, in);
 			senddialevent(in, c, stuff);
 			ast_channel_unlock(in);
 			ast_channel_unlock(c);
@@ -2295,10 +2290,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
 
-		ast_channel_lock(tc);
-		while (ast_channel_trylock(chan)) {
-			CHANNEL_DEADLOCK_AVOIDANCE(tc);
-		}
+		ast_channel_lock_both(tc, chan);
+
 		/* Setup outgoing SDP to match incoming one */
 		if (!outgoing && !rest && CAN_EARLY_BRIDGE(peerflags, chan, tc)) {
 			ast_rtp_instance_early_bridge_make_compatible(tc, chan);

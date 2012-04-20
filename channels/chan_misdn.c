@@ -8560,10 +8560,7 @@ static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list 
 		return -1;
 	}
 
-	ast_channel_lock(held_ch->ast);
-	while (ast_channel_trylock(active_ch->ast)) {
-		CHANNEL_DEADLOCK_AVOIDANCE(held_ch->ast);
-	}
+	ast_channel_lock_both(held_ch->ast, active_ch->ast);
 
 	transferee = ast_bridged_channel(held_ch->ast);
 	if (!transferee) {

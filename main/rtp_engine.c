@@ -1452,12 +1452,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	int res = 0;
 
 	/* Lock both channels so we can look for the glue that binds them together */
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
-		usleep(1);
-		ast_channel_lock(c0);
-	}
+	ast_channel_lock_both(c0, c1);
 
 	if (!cap1 || !cap0) {
 		goto done;

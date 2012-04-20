@@ -194,10 +194,7 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 			ao2_lock(p);
 		} else {
 			/* lock both channels first, then get the pvt lock */
-			ast_channel_lock(chan);
-			while (ast_channel_trylock(owner)) {
-				CHANNEL_DEADLOCK_AVOIDANCE(chan);
-			}
+			ast_channel_lock_both(chan, owner);
 			ao2_lock(p);
 		}
 

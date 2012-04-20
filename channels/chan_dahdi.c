@@ -7302,10 +7302,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return AST_BRIDGE_FAILED_NOWARN;
 
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		CHANNEL_DEADLOCK_AVOIDANCE(c0);
-	}
+	ast_channel_lock_both(c0, c1);
 
 	p0 = ast_channel_tech_pvt(c0);
 	p1 = ast_channel_tech_pvt(c1);
@@ -7513,10 +7510,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		/* Here's our main loop...  Start by locking things, looking for private parts,
 		   and then balking if anything is wrong */
 
-		ast_channel_lock(c0);
-		while (ast_channel_trylock(c1)) {
-			CHANNEL_DEADLOCK_AVOIDANCE(c0);
-		}
+		ast_channel_lock_both(c0, c1);
 
 		p0 = ast_channel_tech_pvt(c0);
 		p1 = ast_channel_tech_pvt(c1);
