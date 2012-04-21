@@ -247,9 +247,8 @@ static void ast_event_cb(const struct ast_event *event, void *data)
 static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	cs_error_t cs_err;
-	struct cpg_name name;
-	struct cpg_address member_list[CPG_MEMBERS_MAX] =  { { 0, }, };
-	int num_members = CPG_MEMBERS_MAX;
+	cpg_iteration_handle_t cpg_iter;
+	struct cpg_iteration_description_t cpg_desc;
 	unsigned int i;
 
 	switch (cmd) {
@@ -268,13 +267,10 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_copy_string(name.value, "asterisk", sizeof(name.value));
-	name.length = strlen(name.value);
-
-	cs_err = cpg_membership_get(cpg_handle, &name, member_list, &num_members);
+	cs_err = cpg_iteration_initialize(cpg_handle, CPG_ITERATION_ALL, NULL, &cpg_iter);
 
 	if (cs_err != CS_OK) {
-		ast_cli(a->fd, "Failed to get membership list\n");
+		ast_cli(a->fd, "Failed to initialize CPG iterator.\n");
 		return CLI_FAILURE;
 	}
 
@@ -282,23 +278,24 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 	            "=============================================================\n"
 	            "=== Cluster members =========================================\n"
 	            "=============================================================\n"
-	            "===\n"
-		    "=== Number of members: %d\n"
-		    "===\n", num_members);
+	            "===\n");
 
-	for (i = 0; i < num_members; i++) {
+	for (i = 1, cs_err = cpg_iteration_next(cpg_iter, &cpg_desc);
+			cs_err == CS_OK;
+			cs_err = cpg_iteration_next(cpg_iter, &cpg_desc), i++) {
 		corosync_cfg_node_address_t addrs[8];
 		int num_addrs = 0;
 		unsigned int j;
 
-		cs_err = corosync_cfg_get_node_addrs(cfg_handle, member_list[i].nodeid,
+		cs_err = corosync_cfg_get_node_addrs(cfg_handle, cpg_desc.nodeid,
 				ARRAY_LEN(addrs), &num_addrs, addrs);
 		if (cs_err != CS_OK) {
 			ast_log(LOG_WARNING, "Failed to get node addresses\n");
 			continue;
 		}
 
-		ast_cli(a->fd, "=== Node %d\n", i + 1);
+		ast_cli(a->fd, "=== Node %d\n", i);
+		ast_cli(a->fd, "=== --> Group: %s\n", cpg_desc.group.value);
 
 		for (j = 0; j < num_addrs; j++) {
 			struct sockaddr *sa = (struct sockaddr *) addrs[j].address;
@@ -309,11 +306,14 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 
 			ast_cli(a->fd, "=== --> Address %d: %s\n", j + 1, buf);
 		}
+
 	}
 
 	ast_cli(a->fd, "===\n"
 	               "=============================================================\n"
 	               "\n");
+
+	cpg_iteration_finalize(cpg_iter);
 
 	return CLI_SUCCESS;
 }
