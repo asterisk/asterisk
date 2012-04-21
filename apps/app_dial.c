@@ -288,15 +288,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 							<value name="CONTINUE">
 								Hangup the called party and allow the calling party to continue dialplan execution at the next priority
 							</value>
-							<!-- TODO: Fix this syntax up, once we've figured out how to specify the GOTO syntax -->
-							<value name="GOTO:&lt;context&gt;^&lt;exten&gt;^&lt;priority&gt;">
+							<value name="GOTO:[[&lt;context&gt;^]&lt;exten&gt;^]&lt;priority&gt;">
 								Transfer the call to the specified destination.
 							</value>
 						</variable>
 					</variablelist>
 					<note>
 						<para>You cannot use any additional action post answer options in conjunction
-						with this option. Also, pbx services are not run on the peer (called) channel,
+						with this option. Also, pbx services are run on the peer (called) channel,
 						so you will not be able to set timeouts via the TIMEOUT() function in this macro.</para>
 					</note>
 					<warning><para>Be aware of the limitations that macros have, specifically with regards to use of
@@ -405,16 +404,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 								Hangup the called party and allow the calling party
 								to continue dialplan execution at the next priority.
 							</value>
-							<!-- TODO: Fix this syntax up, once we've figured out how to specify the GOTO syntax -->
-							<value name="GOTO:&lt;context&gt;^&lt;exten&gt;^&lt;priority&gt;">
-								Transfer the call to the specified priority. Optionally, an extension, or
-								extension and priority can be specified.
+							<value name="GOTO:[[&lt;context&gt;^]&lt;exten&gt;^]&lt;priority&gt;">
+								Transfer the call to the specified destination.
 							</value>
 						</variable>
 					</variablelist>
 					<note>
 						<para>You cannot use any additional action post answer options in conjunction
-						with this option. Also, pbx services are not run on the peer (called) channel,
+						with this option. Also, pbx services are run on the peer (called) channel,
 						so you will not be able to set timeouts via the TIMEOUT() function in this routine.</para>
 					</note>
 				</option>
