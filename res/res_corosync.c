@@ -196,6 +196,8 @@ static void *dispatch_thread_handler(void *data)
 	while (!dispatch_thread.stop) {
 		int res;
 
+		cs_err = CS_OK;
+
 		pfd[0].revents = 0;
 		pfd[1].revents = 0;
 		pfd[2].revents = 0;
@@ -216,6 +218,48 @@ static void *dispatch_thread_handler(void *data)
 			if ((cs_err = corosync_cfg_dispatch(cfg_handle, CS_DISPATCH_ALL)) != CS_OK) {
 				ast_log(LOG_WARNING, "Failed CFG dispatch: %d\n", cs_err);
 			}
+		}
+
+		if (cs_err == CS_ERR_LIBRARY || cs_err == CS_ERR_BAD_HANDLE) {
+			struct cpg_name name;
+
+			/* If corosync gets restarted out from under Asterisk, try to recover. */
+
+			ast_log(LOG_NOTICE, "Attempting to recover from corosync failure.\n");
+
+			if ((cs_err = corosync_cfg_initialize(&cfg_handle, &cfg_callbacks)) != CS_OK) {
+				ast_log(LOG_ERROR, "Failed to initialize cfg (%d)\n", (int) cs_err);
+				sleep(5);
+				continue;
+			}
+
+			if ((cs_err = cpg_initialize(&cpg_handle, &cpg_callbacks) != CS_OK)) {
+				ast_log(LOG_ERROR, "Failed to initialize cpg (%d)\n", (int) cs_err);
+				sleep(5);
+				continue;
+			}
+
+			if ((cs_err = cpg_fd_get(cpg_handle, &pfd[0].fd)) != CS_OK) {
+				ast_log(LOG_ERROR, "Failed to get CPG fd.\n");
+				sleep(5);
+				continue;
+			}
+
+			if ((cs_err = corosync_cfg_fd_get(cfg_handle, &pfd[1].fd)) != CS_OK) {
+				ast_log(LOG_ERROR, "Failed to get CFG fd.\n");
+				sleep(5);
+				continue;
+			}
+
+			ast_copy_string(name.value, "asterisk", sizeof(name.value));
+			name.length = strlen(name.value);
+			if ((cs_err = cpg_join(cpg_handle, &name)) != CS_OK) {
+				ast_log(LOG_ERROR, "Failed to join cpg (%d)\n", (int) cs_err);
+				sleep(5);
+				continue;
+			}
+
+			ast_log(LOG_NOTICE, "Corosync recovery complete.\n");
 		}
 	}
 
