@@ -5097,28 +5097,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 
 		if (!ast_strlen_zero(macroexec)) {
 			ast_debug(1, "app_queue: macro=%s.\n", macroexec);
-			
-			res = ast_autoservice_start(qe->chan);
-			if (res) {
-				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
-				res = -1;
-			}
-			
-			application = pbx_findapp("Macro");
-
-			if (application) {
-				res = pbx_exec(peer, application, macroexec);
-				ast_debug(1, "Macro exited with status %d\n", res);
-				res = 0;
-			} else {
-				ast_log(LOG_ERROR, "Could not find application Macro\n");
-				res = -1;
-			}
-
-			if (ast_autoservice_stop(qe->chan) < 0) {
-				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
-				res = -1;
-			}
+			ast_app_exec_macro(qe->chan, peer, macroexec);
 		}
 
 		/* run a gosub for this connection if defined. The gosub simply returns, no action is taken on the result */
@@ -5131,69 +5110,40 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		}
 
 		if (!ast_strlen_zero(gosubexec)) {
+			char *gosub_args = NULL;
+			char *gosub_argstart;
+
 			ast_debug(1, "app_queue: gosub=%s.\n", gosubexec);
-			
-			res = ast_autoservice_start(qe->chan);
-			if (res) {
-				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
-				res = -1;
-			}
-			
-			application = pbx_findapp("Gosub");
-			
-			if (application) {
-				char *gosub_args, *gosub_argstart;
 
-				/* Set where we came from */
-				ast_channel_context_set(peer, "app_queue_gosub_virtual_context");
-				ast_channel_exten_set(peer, "s");
-				ast_channel_priority_set(peer, 0);
-
-				gosub_argstart = strchr(gosubexec, ',');
-				if (gosub_argstart) {
-					const char *what_is_s = "s";
-					*gosub_argstart = 0;
-					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
-						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-						what_is_s = "~~s~~";
-					}
-					if (asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
-						gosub_args = NULL;
-					}
-					*gosub_argstart = ',';
-				} else {
-					const char *what_is_s = "s";
-					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
-						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-						what_is_s = "~~s~~";
-					}
-					if (asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
-						gosub_args = NULL;
-					}
+			gosub_argstart = strchr(gosubexec, ',');
+			if (gosub_argstart) {
+				const char *what_is_s = "s";
+				*gosub_argstart = 0;
+				if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+					 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
+					what_is_s = "~~s~~";
 				}
-				if (gosub_args) {
-					res = pbx_exec(peer, application, gosub_args);
-					if (!res) {
-						struct ast_pbx_args args;
-						memset(&args, 0, sizeof(args));
-						args.no_hangup_chan = 1;
-						ast_pbx_run_args(peer, &args);
-					}
-					ast_free(gosub_args);
-					ast_debug(1, "Gosub exited with status %d\n", res);
-				} else {
-					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				if (asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
+					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					gosub_args = NULL;
 				}
+				*gosub_argstart = ',';
 			} else {
-				ast_log(LOG_ERROR, "Could not find application Gosub\n");
-				res = -1;
+				const char *what_is_s = "s";
+				if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+					 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
+					what_is_s = "~~s~~";
+				}
+				if (asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
+					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					gosub_args = NULL;
+				}
 			}
-		
-			if (ast_autoservice_stop(qe->chan) < 0) {
-				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
-				res = -1;
+			if (gosub_args) {
+				ast_app_exec_sub(qe->chan, peer, gosub_args);
+				ast_free(gosub_args);
+			} else {
+				ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
 			}
 		}
 
@@ -8763,7 +8713,6 @@ static const struct ast_data_entry queue_data_providers[] = {
 static int unload_module(void)
 {
 	int res;
-	struct ast_context *con;
 	struct ao2_iterator q_iter;
 	struct call_queue *q = NULL;
 
@@ -8798,11 +8747,6 @@ static int unload_module(void)
 
 	ast_extension_state_del(0, extension_state_cb);
 
-	if ((con = ast_context_find("app_queue_gosub_virtual_context"))) {
-		ast_context_remove_extension2(con, "s", 1, NULL, 0);
-		ast_context_destroy(con, "app_queue"); /* leave no trace */
-	}
-
 	q_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&q_iter, "Iterate through queues"))) {
 		queues_t_unlink(queues, q, "Remove queue from container due to unload");
@@ -8818,7 +8762,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
-	struct ast_context *con;
 	struct ast_flags mask = {AST_FLAGS_ALL, };
 
 	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
@@ -8827,12 +8770,6 @@ static int load_module(void)
 
 	if (reload_handler(0, &mask, NULL))
 		return AST_MODULE_LOAD_DECLINE;
-
-	con = ast_context_find_or_create(NULL, NULL, "app_queue_gosub_virtual_context", "app_queue");
-	if (!con)
-		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
-	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "app_queue");
 
 	if (queue_persistent_members)
 		reload_queue_members();

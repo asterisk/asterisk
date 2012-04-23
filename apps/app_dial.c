@@ -2626,39 +2626,25 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 
 		if (ast_test_flag64(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
-			struct ast_app *theapp;
-			const char *macro_result;
+			const char *macro_result_peer;
 
-			res = ast_autoservice_start(chan);
-			if (res) {
-				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
-				res = -1;
-			}
+			/* Set peer->exten and peer->context so that MACRO_EXTEN and MACRO_CONTEXT get set */
+			ast_channel_lock_both(chan, peer);
+			ast_channel_context_set(peer, ast_channel_context(chan));
+			ast_channel_exten_set(peer, ast_channel_exten(chan));
+			ast_channel_unlock(peer);
+			ast_channel_unlock(chan);
 
-			theapp = pbx_findapp("Macro");
-
-			if (theapp && !res) { /* XXX why check res here ? */
-				/* Set peer->exten and peer->context so that MACRO_EXTEN and MACRO_CONTEXT get set */
-				ast_channel_context_set(peer, ast_channel_context(chan));
-				ast_channel_exten_set(peer, ast_channel_exten(chan));
-
-				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
-				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
-				ast_debug(1, "Macro exited with status %d\n", res);
-				res = 0;
-			} else {
-				ast_log(LOG_ERROR, "Could not find application Macro\n");
-				res = -1;
-			}
-
-			if (ast_autoservice_stop(chan) < 0) {
-				res = -1;
-			}
+			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
+			res = ast_app_exec_macro(chan, peer, opt_args[OPT_ARG_CALLEE_MACRO]);
 
 			ast_channel_lock(peer);
 
-			if (!res && (macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+			if (!res && (macro_result_peer = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+				char *macro_result = ast_strdupa(macro_result_peer);
 				char *macro_transfer_dest;
+
+				ast_channel_unlock(peer);
 
 				if (!strcasecmp(macro_result, "BUSY")) {
 					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
@@ -2678,7 +2664,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				} else if (!strcasecmp(macro_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
 					res = -1;
-				} else if (!strncasecmp(macro_result, "GOTO:", 5) && (macro_transfer_dest = ast_strdupa(macro_result + 5))) {
+				} else if (!strncasecmp(macro_result, "GOTO:", 5)) {
+					macro_transfer_dest = macro_result + 5;
 					res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
@@ -2687,92 +2674,63 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 							ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
+			} else {
+				ast_channel_unlock(peer);
 			}
-
-			ast_channel_unlock(peer);
 		}
 
 		if (ast_test_flag64(&opts, OPT_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GOSUB])) {
-			struct ast_app *theapp;
-			const char *gosub_result;
-			char *gosub_args, *gosub_argstart;
+			const char *gosub_result_peer;
+			char *gosub_argstart;
+			char *gosub_args = NULL;
 			int res9 = -1;
 
-			res9 = ast_autoservice_start(chan);
-			if (res9) {
-				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
-				res9 = -1;
-			}
-
-			theapp = pbx_findapp("Gosub");
-
-			if (theapp && !res9) {
-				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
-
-				/* Set where we came from */
-				ast_channel_context_set(peer, "app_dial_gosub_virtual_context");
-				ast_channel_exten_set(peer, "s");
-				ast_channel_priority_set(peer, 0);
-
-				gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], ',');
-				if (gosub_argstart) {
-					const char *what_is_s = "s";
-					*gosub_argstart = 0;
-					if (!ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
-						 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-						what_is_s = "~~s~~";
-					}
-					if (asprintf(&gosub_args, "%s,%s,1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s, gosub_argstart + 1) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
-						gosub_args = NULL;
-					}
-					*gosub_argstart = ',';
-				} else {
-					const char *what_is_s = "s";
-					if (!ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
-						 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-						what_is_s = "~~s~~";
-					}
-					if (asprintf(&gosub_args, "%s,%s,1", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
-						gosub_args = NULL;
-					}
+			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
+			gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], ',');
+			if (gosub_argstart) {
+				const char *what_is_s = "s";
+				*gosub_argstart = 0;
+				if (!ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+					 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
+					what_is_s = "~~s~~";
 				}
-
-				if (gosub_args) {
-					res9 = pbx_exec(peer, theapp, gosub_args);
-					if (!res9) {
-						struct ast_pbx_args pbx_args;
-						/* A struct initializer fails to compile for this case ... */
-						memset(&pbx_args, 0, sizeof(pbx_args));
-						pbx_args.no_hangup_chan = 1;
-						ast_pbx_run_args(peer, &pbx_args);
-					}
-					ast_free(gosub_args);
-					ast_debug(1, "Gosub exited with status %d\n", res9);
-				} else {
-					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				if (asprintf(&gosub_args, "%s,%s,1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s, gosub_argstart + 1) < 0) {
+					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					gosub_args = NULL;
 				}
-
-			} else if (!res9) {
-				ast_log(LOG_ERROR, "Could not find application Gosub\n");
-				res9 = -1;
+				*gosub_argstart = ',';
+			} else {
+				const char *what_is_s = "s";
+				if (!ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "s", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL)) &&
+					 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
+					what_is_s = "~~s~~";
+				}
+				if (asprintf(&gosub_args, "%s,%s,1", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s) < 0) {
+					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					gosub_args = NULL;
+				}
+			}
+			if (gosub_args) {
+				res9 = ast_app_exec_sub(chan, peer, gosub_args);
+				ast_free(gosub_args);
+			} else {
+				ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
 			}
 
-			if (ast_autoservice_stop(chan) < 0) {
-				res9 = -1;
-			}
-			
-			ast_channel_lock(peer);
+			ast_channel_lock_both(chan, peer);
 
-			if (!res9 && (gosub_result = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
+			if (!res9 && (gosub_result_peer = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
 				char *gosub_transfer_dest;
+				char *gosub_result = ast_strdupa(gosub_result_peer);
 				const char *gosub_retval = pbx_builtin_getvar_helper(peer, "GOSUB_RETVAL");
 
 				/* Inherit return value from the peer, so it can be used in the master */
 				if (gosub_retval) {
 					pbx_builtin_setvar_helper(chan, "GOSUB_RETVAL", gosub_retval);
 				}
+
+				ast_channel_unlock(peer);
+				ast_channel_unlock(chan);
 
 				if (!strcasecmp(gosub_result, "BUSY")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
@@ -2783,16 +2741,14 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					ast_set_flag64(peerflags, OPT_GO_ON);
 					res = -1;
 				} else if (!strcasecmp(gosub_result, "CONTINUE")) {
-					/* hangup peer and keep chan alive assuming the macro has changed
-					   the context / exten / priority or perhaps
-					   the next priority in the current exten is desired.
-					*/
+					/* Hangup peer and continue with the next extension priority. */
 					ast_set_flag64(peerflags, OPT_GO_ON);
 					res = -1;
 				} else if (!strcasecmp(gosub_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
 					res = -1;
-				} else if (!strncasecmp(gosub_result, "GOTO:", 5) && (gosub_transfer_dest = ast_strdupa(gosub_result + 5))) {
+				} else if (!strncasecmp(gosub_result, "GOTO:", 5)) {
+					gosub_transfer_dest = gosub_result + 5;
 					res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
@@ -2801,9 +2757,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 							ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
+			} else {
+				ast_channel_unlock(peer);
+				ast_channel_unlock(chan);
 			}
-
-			ast_channel_unlock(peer);	
 		}
 
 		if (!res) {
@@ -3091,15 +3048,9 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 static int unload_module(void)
 {
 	int res;
-	struct ast_context *con;
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
-
-	if ((con = ast_context_find("app_dial_gosub_virtual_context"))) {
-		ast_context_remove_extension2(con, "s", 1, NULL, 0);
-		ast_context_destroy(con, "app_dial"); /* leave nothing behind */
-	}
 
 	return res;
 }
@@ -3107,13 +3058,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
-	struct ast_context *con;
-
-	con = ast_context_find_or_create(NULL, NULL, "app_dial_gosub_virtual_context", "app_dial");
-	if (!con)
-		ast_log(LOG_ERROR, "Dial virtual context 'app_dial_gosub_virtual_context' does not exist and unable to create\n");
-	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "app_dial");
 
 	res = ast_register_application_xml(app, dial_exec);
 	res |= ast_register_application_xml(rapp, retrydial_exec);
