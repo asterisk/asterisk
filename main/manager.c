@@ -1222,6 +1222,19 @@ static const struct permalias {
 	{ 0, "none" },
 };
 
+/*! \brief Checks to see if a string which can be used to evaluate functions should be rejected */
+static int function_capable_string_allowed_with_auths(const char *evaluating, int writepermlist)
+{
+	if (!(writepermlist & EVENT_FLAG_SYSTEM)
+		&& (
+			strstr(evaluating, "SHELL") ||       /* NoOp(${SHELL(rm -rf /)})  */
+			strstr(evaluating, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
+		)) {
+		return 0;
+	}
+	return 1;
+}
+
 /*! \brief Convert authority code to a list of options */
 static const char *authority_to_str(int authority, struct ast_str **res)
 {
@@ -3321,6 +3334,12 @@ static int action_getvar(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	/* We don't want users with insufficient permissions using certain functions. */
+	if (!(function_capable_string_allowed_with_auths(varname, s->session->writeperm))) {
+		astman_send_error(s, m, "GetVar Access Forbidden: Variable");
+		return 0;
+	}
+
 	if (!ast_strlen_zero(name)) {
 		if (!(c = ast_channel_get_by_name(name))) {
 			astman_send_error(s, m, "No such channel");
@@ -3379,6 +3398,11 @@ static int action_status(struct mansession *s, const struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	} else {
 		idText[0] = '\0';
+	}
+
+	if (!(function_capable_string_allowed_with_auths(variables, s->session->writeperm))) {
+		astman_send_error(s, m, "Status Access Forbidden: Variables");
+		return 0;
 	}
 
 	if (all) {
@@ -4203,6 +4227,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(app)) {
+		int bad_appdata = 0;
 		/* To run the System application (or anything else that goes to
 		 * shell), you must have the additional System privilege */
 		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
@@ -4213,10 +4238,13 @@ static int action_originate(struct mansession *s, const struct message *m)
 				                                     TryExec(System(rm -rf /)) */
 				strcasestr(app, "agi") ||         /* AGI(/bin/rm,-rf /)
 				                                     EAGI(/bin/rm,-rf /)       */
-				strstr(appdata, "SHELL") ||       /* NoOp(${SHELL(rm -rf /)})  */
-				strstr(appdata, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
+				strcasestr(app, "mixmonitor") ||  /* MixMonitor(blah,,rm -rf)  */
+				(strstr(appdata, "SHELL") && (bad_appdata = 1)) ||       /* NoOp(${SHELL(rm -rf /)})  */
+				(strstr(appdata, "EVAL") && (bad_appdata = 1))           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
 				)) {
-			astman_send_error(s, m, "Originate with certain 'Application' arguments requires the additional System privilege, which you do not have.");
+			char error_buf[64];
+			snprintf(error_buf, sizeof(error_buf), "Originate Access Forbidden: %s", bad_appdata ? "Data" : "Application");
+			astman_send_error(s, m, error_buf);
 			res = 0;
 			goto fast_orig_cleanup;
 		}
