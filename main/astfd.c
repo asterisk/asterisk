@@ -95,7 +95,11 @@ int __ast_fdleak_open(const char *file, int line, const char *func, const char *
 				flags & O_NONBLOCK ? "|O_NONBLOCK" : "",
 				flags & O_TRUNC ? "|O_TRUNC" : "",
 				flags & O_RDWR ? "|O_RDWR" : "",
+#if O_RDONLY == 0
+				!(flags & (O_WRONLY | O_RDWR)) ? "|O_RDONLY" : "",
+#else
 				flags & O_RDONLY ? "|O_RDONLY" : "",
+#endif
 				flags & O_WRONLY ? "|O_WRONLY" : "",
 				"");
 			flags &= ~(O_CREAT | O_APPEND | O_EXCL | O_NONBLOCK | O_TRUNC | O_RDWR | O_RDONLY | O_WRONLY);
