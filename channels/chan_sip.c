@@ -23032,6 +23032,10 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 		transmit_response(p, "501 Method Not Implemented", req);
 		return 0;
 	}
+	if (!p->owner) {
+		transmit_response(p, "481 Call/Transaction Does Not Exist", req);
+		return 0;
+	}
 	if (get_rpid(p, req)) {
 		struct ast_party_connected_line connected;
 		struct ast_set_party_connected_line update_connected;
