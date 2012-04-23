@@ -415,6 +415,19 @@ static struct permalias {
 	{ 0, "none" },
 };
 
+/*! \brief Checks to see if a string which can be used to evaluate functions should be rejected */
+static int check_user_can_execute_function(const char *evaluating, int writepermlist)
+{
+	if (!(writepermlist & EVENT_FLAG_SYSTEM)
+		&& (
+			strstr(evaluating, "SHELL") ||       /* NoOp(${SHELL(rm -rf /)})  */
+			strstr(evaluating, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
+		)) {
+		return 0;
+	}
+	return 1;
+}
+
 /*! \brief Convert authority code to a list of options */
 static char *authority_to_str(int authority, struct ast_str **res)
 {
@@ -1918,6 +1931,12 @@ static int action_getvar(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	/* We don't want users with insufficient permissions using certain functions. */
+	if (!(check_user_can_execute_function(varname, s->session->writeperm))) {
+		astman_send_error(s, m, "GetVar Access Forbidden: Variable");
+		return 0;
+	}
+
 	if (!ast_strlen_zero(name)) {
 		c = ast_get_channel_by_name_locked(name);
 		if (!c) {
@@ -1984,6 +2003,11 @@ static int action_status(struct mansession *s, const struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	else
 		idText[0] = '\0';
+
+	if (!(check_user_can_execute_function(variables, s->session->writeperm))) {
+		astman_send_error(s, m, "Status Access Forbidden: Variables");
+		return 0;
+	}
 
 	if (all)
 		c = ast_channel_walk_locked(NULL);
@@ -2567,6 +2591,24 @@ static int action_originate(struct mansession *s, const struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
+		int bad_appdata = 0;
+		/* To run the System application (or anything else that goes to shell), you must have the additional System privilege */
+		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
+			&& (
+				strcasestr(app, "system") ||      /* System(rm -rf /)
+				                                     TrySystem(rm -rf /)       */
+				strcasestr(app, "exec") ||        /* Exec(System(rm -rf /))
+				                                     TryExec(System(rm -rf /)) */
+				strcasestr(app, "agi") ||         /* AGI(/bin/rm,-rf /)
+				                                     EAGI(/bin/rm,-rf /)       */
+				(strstr(appdata, "SHELL") && (bad_appdata = 1)) ||       /* NoOp(${SHELL(rm -rf /)})  */
+				(strstr(appdata, "EVAL") && (bad_appdata = 1))           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
+				)) {
+			char error_buf[64];
+			snprintf(error_buf, sizeof(error_buf), "Originate Access Forbidden: %s", bad_appdata ? "Data" : "Application");
+			astman_send_error(s, m, error_buf);
+			return 0;
+		}
 		res = ast_pbx_outgoing_app(tech, format, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
 	} else {
 		if (exten && context && pi)

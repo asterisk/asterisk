@@ -6072,6 +6072,7 @@ static int handle_register_available_lines_message(struct skinny_req *req, struc
 static int handle_message(struct skinny_req *req, struct skinnysession *s)
 {
 	int res = 0;
+	size_t len;
 
 	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
@@ -6137,8 +6138,13 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 				ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 			}
 
-			d->exten[strlen(d->exten)] = dgt;
-			d->exten[strlen(d->exten)+1] = '\0';
+			len = strlen(d->exten);
+			if (len < sizeof(d->exten) - 1) {
+				d->exten[len] = dgt;
+				d->exten[len + 1] = '\0';
+			} else {
+				ast_log(AST_LOG_WARNING, "Dropping digit with value %d because digit queue is full\n", dgt);
+			}
 		} else
 			res = handle_keypad_button_message(req, s);
 		}
