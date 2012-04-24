@@ -34,6 +34,7 @@
 	<depend>iksemel</depend>
 	<use>openssl</use>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

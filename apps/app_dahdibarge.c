@@ -34,6 +34,7 @@
 /*** MODULEINFO
 	<depend>dahdi</depend>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
 	<replacement>app_chanspy</replacement>
  ***/
 
