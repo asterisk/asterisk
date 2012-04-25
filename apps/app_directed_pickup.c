@@ -55,25 +55,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Directed extension call pickup.
 		</synopsis>
-		<syntax argsep="&amp;">
-			<parameter name="ext" argsep="@" required="true">
-				<argument name="extension" required="true"/>
-				<argument name="context" />
-			</parameter>
-			<parameter name="ext2" argsep="@" multiple="true">
-				<argument name="extension2" required="true"/>
-				<argument name="context2"/>
+		<syntax>
+			<parameter name="targets" argsep="&amp;">
+				<argument name="exten" argsep="@" required="true">
+					<argument name="extension" required="true"/>
+					<argument name="context" />
+				</argument>
+				<argument name="exten2" argsep="@" multiple="true">
+					<argument name="extension2" required="true"/>
+					<argument name="context2"/>
+				</argument>
 			</parameter>
 		</syntax>
 		<description>
 			<para>This application can pickup any ringing channel that is calling
-			the specified <replaceable>extension</replaceable>. If no <replaceable>context</replaceable>
-			is specified, the current context will be used. If you use the special string <literal>PICKUPMARK</literal>
-			for the context parameter, for example 10@PICKUPMARK, this application
-			tries to find a channel which has defined a <variable>PICKUPMARK</variable>
-			channel variable with the same value as <replaceable>extension</replaceable>
-			(in this example, <literal>10</literal>). When no parameter is specified, the application
-			will pickup a channel matching the pickup group of the active channel.</para>
+			the specified dialplan <replaceable>extension</replaceable>.  If no dialplan
+			<replaceable>context</replaceable> is specified, the current context will be
+			used.  If you use the special string <literal>PICKUPMARK</literal>
+			for the context, for example 10@PICKUPMARK, this application tries to find a
+			channel which has defined a channel variable <variable>PICKUPMARK</variable>
+			with the same value as <replaceable>extension</replaceable> (in this example,
+			<literal>10</literal>).  When no parameter is specified, the application will
+			pickup a channel matching the pickup group of the active channel.</para>
 		</description>
 	</application>
 	<application name="PickupChan" language="en_US">
