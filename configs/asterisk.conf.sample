@@ -34,6 +34,9 @@ astsbindir => /usr/sbin
 ;autosystemname = yes		; Automatically set systemname to hostname,
 				; uses 'localhost' on failure, or systemname if
 				; set.
+;mindtmfduration = 80		; Set minimum DTMF duration in ms (default 80 ms)
+				; If we get shorter DTMF messages, these will be
+				; changed to the minimum duration
 ;maxcalls = 10			; Maximum amount of calls allowed.
 ;maxload = 0.9			; Asterisk stops accepting new calls if the
 				; load average exceed this limit.

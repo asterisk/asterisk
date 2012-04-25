@@ -157,6 +157,7 @@ extern int option_verbose;
 extern int option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
 extern int option_debug;		/*!< Debugging */
 extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
+extern unsigned int option_dtmfminduration;	/*!< Minimum duration of DTMF (channel.c) in ms */
 extern double option_maxload;
 #if defined(HAVE_SYSINFO)
 extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */

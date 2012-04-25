@@ -157,6 +157,10 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
+/*! Default minimum DTMF digit length - 80ms */
+#define AST_MIN_DTMF_DURATION 80
+
+
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
     ast_verbose("Asterisk %s, Copyright (C) 1999 - 2012 Digium, Inc. and others.\n" \
@@ -182,6 +186,7 @@ int option_debug;				/*!< Debug level */
 double option_maxload;				/*!< Max load avg on system */
 int option_maxcalls;				/*!< Max number of active calls */
 int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
+unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
@@ -487,6 +492,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Internal timing:             %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
@@ -3057,6 +3063,9 @@ static void ast_readconfig(void)
 		unsigned int keydir:1;
 	} found = { 0, 0 };
 
+	/* Set default value */
+	option_dtmfminduration = AST_MIN_DTMF_DURATION;
+
 	if (ast_opt_override_config) {
 		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
 		if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
@@ -3193,6 +3202,10 @@ static void ast_readconfig(void)
 		/* Enable internal timing */
 		} else if (!strcasecmp(v->name, "internal_timing")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INTERNAL_TIMING);
+		} else if (!strcasecmp(v->name, "mindtmfduration")) {
+			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
+				option_dtmfminduration = AST_MIN_DTMF_DURATION;
+			}
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%30d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;

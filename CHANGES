@@ -27,6 +27,9 @@ Core
    added to any log messages produced by those threads. Log messages can now be
    easily identified as involved with a certain call by looking at their call id.
    This feature can be disabled in logger.conf with the display_callids option.
+ * The minimum DTMF duration can now be configured in asterisk.conf
+   as "mindtmfduration". The default value is (as before) set to 80 ms.
+   (previously it was only available in source code)
 
 CLI Changes
 -------------------
