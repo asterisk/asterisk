@@ -5985,7 +5985,7 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, cons
 	/* Data will be our digit string */
 	struct dahdi_pvt *pvt;
 	char *parse;
-	int res = -1;
+	int res;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(destination);
 		AST_APP_ARG(original);
@@ -6032,10 +6032,17 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, cons
 		args.reason = NULL;
 	}
 
-	pri_send_callrerouting_facility_exec(pvt->sig_pvt, ast_channel_state(chan), args.destination,
-		args.original, args.reason);
+	res = pri_send_callrerouting_facility_exec(pvt->sig_pvt, ast_channel_state(chan),
+		args.destination, args.original, args.reason);
+	if (!res) {
+		/*
+		 * Wait up to 5 seconds for a reply before hanging up this call
+		 * leg if the peer does not disconnect first.
+		 */
+		ast_safe_sleep(chan, 5000);
+	}
 
-	return res;
+	return -1;
 }
 #endif	/* defined(HAVE_PRI_PROG_W_CAUSE) */
 #endif	/* defined(HAVE_PRI) */
