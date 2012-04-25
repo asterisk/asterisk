@@ -1078,7 +1078,7 @@ struct callattempt {
 	struct callattempt *q_next;
 	struct callattempt *call_next;
 	struct ast_channel *chan;
-	char interface[256];
+	char interface[256];			/*!< An Asterisk dial string (not a channel name) */
 	int stillgoing;
 	int metric;
 	time_t lastcall;
