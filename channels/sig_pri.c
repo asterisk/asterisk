@@ -196,11 +196,11 @@ void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
 	}
 
 	/*
-	 * Clear the channel restart flag when the channel alarm changes
-	 * to prevent the flag from getting stuck when the link goes
-	 * down.
+	 * Clear the channel restart state when the channel alarm
+	 * changes to prevent the state from getting stuck when the link
+	 * goes down.
 	 */
-	p->resetting = 0;
+	p->resetting = SIG_PRI_RESET_IDLE;
 
 	p->inalarm = in_alarm;
 	if (p->calls->set_alarm) {
@@ -1159,7 +1159,8 @@ static void pri_find_dchan(struct sig_pri_span *pri)
  */
 static int sig_pri_is_chan_in_use(struct sig_pri_chan *pvt)
 {
-	return pvt->owner || pvt->call || pvt->allocated || pvt->resetting || pvt->inalarm;
+	return pvt->owner || pvt->call || pvt->allocated || pvt->inalarm
+		|| pvt->resetting != SIG_PRI_RESET_IDLE;
 }
 
 /*!
@@ -1714,7 +1715,7 @@ static void pri_check_restart(struct sig_pri_span *pri)
 	}
 	if (pri->resetpos < pri->numchans) {
 		/* Mark the channel as resetting and restart it */
-		pri->pvts[pri->resetpos]->resetting = 1;
+		pri->pvts[pri->resetpos]->resetting = SIG_PRI_RESET_ACTIVE;
 		pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[pri->resetpos]));
 	} else {
 		pri->resetting = 0;
@@ -5951,13 +5952,40 @@ static void *pri_dchannel(void *vpri)
 							"Span %d: SETUP on unconfigured channel %d/%d\n",
 							pri->span, PRI_SPAN(e->ring.channel),
 							PRI_CHANNEL(e->ring.channel));
-					} else if (!sig_pri_is_chan_available(pri->pvts[chanpos])) {
-						/* This is where we handle initial glare */
-						ast_debug(1,
-							"Span %d: SETUP requested unavailable channel %d/%d.  Attempting to renegotiate.\n",
-							pri->span, PRI_SPAN(e->ring.channel),
-							PRI_CHANNEL(e->ring.channel));
-						chanpos = -1;
+					} else {
+						switch (pri->pvts[chanpos]->resetting) {
+						case SIG_PRI_RESET_IDLE:
+							break;
+						case SIG_PRI_RESET_ACTIVE:
+							/*
+							 * The peer may have lost the expected ack or not received the
+							 * RESTART yet.
+							 */
+							pri->pvts[chanpos]->resetting = SIG_PRI_RESET_NO_ACK;
+							break;
+						case SIG_PRI_RESET_NO_ACK:
+							/* The peer likely is not going to ack the RESTART. */
+							ast_debug(1,
+								"Span %d: Second SETUP while waiting for RESTART ACKNOWLEDGE on channel %d/%d\n",
+								pri->span, PRI_SPAN(e->ring.channel),
+								PRI_CHANNEL(e->ring.channel));
+
+							/* Assume we got the ack. */
+							pri->pvts[chanpos]->resetting = SIG_PRI_RESET_IDLE;
+							if (pri->resetting) {
+								/* Go on to the next idle channel to RESTART. */
+								pri_check_restart(pri);
+							}
+							break;
+						}
+						if (!sig_pri_is_chan_available(pri->pvts[chanpos])) {
+							/* This is where we handle initial glare */
+							ast_debug(1,
+								"Span %d: SETUP requested unavailable channel %d/%d.  Attempting to renegotiate.\n",
+								pri->span, PRI_SPAN(e->ring.channel),
+								PRI_CHANNEL(e->ring.channel));
+							chanpos = -1;
+						}
 					}
 #if defined(ALWAYS_PICK_CHANNEL)
 					if (e->ring.flexible) {
@@ -6778,12 +6806,12 @@ static void *pri_dchannel(void *vpri)
 #if defined(FORCE_RESTART_UNAVAIL_CHANS)
 				if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL
 					&& pri->sig != SIG_BRI_PTMP && !pri->resetting
-					&& !pri->pvts[chanpos]->resetting) {
+					&& pri->pvts[chanpos]->resetting == SIG_PRI_RESET_IDLE) {
 					ast_verb(3,
 						"Span %d: Forcing restart of channel %d/%d since channel reported in use\n",
 						pri->span, pri->pvts[chanpos]->logicalspan,
 						pri->pvts[chanpos]->prioffset);
-					pri->pvts[chanpos]->resetting = 1;
+					pri->pvts[chanpos]->resetting = SIG_PRI_RESET_ACTIVE;
 					pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 				}
 #endif	/* defined(FORCE_RESTART_UNAVAIL_CHANS) */
@@ -6926,12 +6954,12 @@ static void *pri_dchannel(void *vpri)
 #if defined(FORCE_RESTART_UNAVAIL_CHANS)
 				if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL
 					&& pri->sig != SIG_BRI_PTMP && !pri->resetting
-					&& !pri->pvts[chanpos]->resetting) {
+					&& pri->pvts[chanpos]->resetting == SIG_PRI_RESET_IDLE) {
 					ast_verb(3,
 						"Span %d: Forcing restart of channel %d/%d since channel reported in use\n",
 						pri->span, pri->pvts[chanpos]->logicalspan,
 						pri->pvts[chanpos]->prioffset);
-					pri->pvts[chanpos]->resetting = 1;
+					pri->pvts[chanpos]->resetting = SIG_PRI_RESET_ACTIVE;
 					pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 				}
 #endif	/* defined(FORCE_RESTART_UNAVAIL_CHANS) */
@@ -6995,7 +7023,8 @@ static void *pri_dchannel(void *vpri)
 					   channel number, so we have to figure it out...  This must be why
 					   everybody resets exactly a channel at a time. */
 					for (x = 0; x < pri->numchans; x++) {
-						if (pri->pvts[x] && pri->pvts[x]->resetting) {
+						if (pri->pvts[x]
+							&& pri->pvts[x]->resetting != SIG_PRI_RESET_IDLE) {
 							chanpos = x;
 							sig_pri_lock_private(pri->pvts[chanpos]);
 							ast_debug(1,
@@ -7009,7 +7038,7 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->prioffset);
 								ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 							}
-							pri->pvts[chanpos]->resetting = 0;
+							pri->pvts[chanpos]->resetting = SIG_PRI_RESET_IDLE;
 							ast_verb(3,
 								"Span %d: Channel %d/%d successfully restarted\n",
 								pri->span, pri->pvts[chanpos]->logicalspan,
@@ -7028,6 +7057,15 @@ static void *pri_dchannel(void *vpri)
 					}
 				} else {
 					sig_pri_lock_private(pri->pvts[chanpos]);
+					if (pri->pvts[chanpos]->resetting == SIG_PRI_RESET_IDLE) {
+						/* The channel is not in the resetting state. */
+						ast_debug(1,
+							"Span %d: Unexpected or late restart ack on channel %d/%d (Ignoring)\n",
+							pri->span, pri->pvts[chanpos]->logicalspan,
+							pri->pvts[chanpos]->prioffset);
+						sig_pri_unlock_private(pri->pvts[chanpos]);
+						break;
+					}
 					if (pri->pvts[chanpos]->owner) {
 						ast_log(LOG_WARNING,
 							"Span %d: Got restart ack on channel %d/%d with owner\n",
@@ -7035,7 +7073,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvts[chanpos]->prioffset);
 						ast_channel_softhangup_internal_flag_add(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
 					}
-					pri->pvts[chanpos]->resetting = 0;
+					pri->pvts[chanpos]->resetting = SIG_PRI_RESET_IDLE;
 					ast_verb(3,
 						"Span %d: Channel %d/%d successfully restarted\n",
 						pri->span, pri->pvts[chanpos]->logicalspan,
