@@ -2862,8 +2862,9 @@ void ast_deactivate_generator(struct ast_channel *chan)
 {
 	ast_channel_lock(chan);
 	if (ast_channel_generatordata(chan)) {
-		if (ast_channel_generator(chan) && ast_channel_generator(chan)->release)
+		if (ast_channel_generator(chan) && ast_channel_generator(chan)->release) {
 			ast_channel_generator(chan)->release(chan, ast_channel_generatordata(chan));
+		}
 		ast_channel_generatordata_set(chan, NULL);
 		ast_channel_generator_set(chan, NULL);
 		ast_channel_set_fd(chan, AST_GENERATOR_FD, -1);
@@ -2974,10 +2975,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		fdmap = alloca(sizeof(*fdmap) * sz);
 	}
 
-	if (outfd)
+	if (outfd) {
 		*outfd = -99999;
-	if (exception)
+	}
+	if (exception) {
 		*exception = 0;
+	}
 
 	/* Perform any pending masquerades */
 	for (x = 0; x < n; x++) {
@@ -3035,26 +3038,31 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		max += ast_add_fd(&pfds[max], fds[x]);
 	}
 
-	if (*ms > 0)
+	if (*ms > 0) {
 		start = ast_tvnow();
+	}
 
 	if (sizeof(int) == 4) {	/* XXX fix timeout > 600000 on linux x86-32 */
 		do {
 			int kbrms = rms;
-			if (kbrms > 600000)
+			if (kbrms > 600000) {
 				kbrms = 600000;
+			}
 			res = ast_poll(pfds, max, kbrms);
-			if (!res)
+			if (!res) {
 				rms -= kbrms;
+			}
 		} while (!res && (rms > 0));
 	} else {
 		res = ast_poll(pfds, max, rms);
 	}
-	for (x = 0; x < n; x++)
+	for (x = 0; x < n; x++) {
 		ast_clear_flag(ast_channel_flags(c[x]), AST_FLAG_BLOCKING);
+	}
 	if (res < 0) { /* Simulate a timeout if we were interrupted */
-		if (errno != EINTR)
+		if (errno != EINTR) {
 			*ms = -1;
+		}
 		return NULL;
 	}
 	if (!ast_tvzero(whentohangup)) {   /* if we have a timeout, check who expired */
@@ -3062,8 +3070,9 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		for (x = 0; x < n; x++) {
 			if (!ast_tvzero(*ast_channel_whentohangup(c[x])) && ast_tvcmp(*ast_channel_whentohangup(c[x]), now) <= 0) {
 				ast_channel_softhangup_internal_flag_add(c[x], AST_SOFTHANGUP_TIMEOUT);
-				if (winner == NULL)
+				if (winner == NULL) {
 					winner = c[x];
+				}
 			}
 		}
 	}
@@ -3078,27 +3087,32 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	 */
 	for (x = 0; x < max; x++) {
 		res = pfds[x].revents;
-		if (res == 0)
+		if (res == 0) {
 			continue;
+		}
 		if (fdmap[x].chan >= 0) {	/* this is a channel */
 			winner = c[fdmap[x].chan];	/* override previous winners */
-			if (res & POLLPRI)
+			if (res & POLLPRI) {
 				ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
-			else
+			} else {
 				ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
+			}
 			ast_channel_fdno_set(winner, fdmap[x].fdno);
 		} else {			/* this is an fd */
-			if (outfd)
+			if (outfd) {
 				*outfd = pfds[x].fd;
-			if (exception)
+			}
+			if (exception) {
 				*exception = (res & POLLPRI) ? -1 : 0;
+			}
 			winner = NULL;
 		}
 	}
 	if (*ms > 0) {
 		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
-		if (*ms < 0)
+		if (*ms < 0) {
 			*ms = 0;
+		}
 	}
 	return winner;
 }
@@ -3131,8 +3145,9 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 			return NULL;
 		}
 		/* If this value is smaller then the current one... make it priority */
-		if (rms > diff)
+		if (rms > diff) {
 			rms = diff;
+		}
 	}
 
 	ast_channel_unlock(chan);
@@ -3140,8 +3155,9 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	/* Time to make this channel block... */
 	CHECK_BLOCKING(chan);
 
-	if (*ms > 0)
+	if (*ms > 0) {
 		start = ast_tvnow();
+	}
 
 	/* We don't have to add any file descriptors... they are already added, we just have to wait! */
 	res = epoll_wait(ast_channel_epfd(chan), ev, 1, rms);
@@ -3151,8 +3167,9 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 
 	/* Simulate a timeout if we were interrupted */
 	if (res < 0) {
-		if (errno != EINTR)
+		if (errno != EINTR) {
 			*ms = -1;
+		}
 		return NULL;
 	}
 
@@ -3173,15 +3190,17 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	/* See what events are pending */
 	aed = ev[0].data.ptr;
 	ast_channel_fdno_set(chan, aed->which);
-	if (ev[0].events & EPOLLPRI)
+	if (ev[0].events & EPOLLPRI) {
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-	else
+	} else {
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
+	}
 
 	if (*ms > 0) {
 		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
-		if (*ms < 0)
+		if (*ms < 0) {
 			*ms = 0;
+		}
 	}
 
 	return chan;
@@ -3205,15 +3224,17 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 
 		ast_channel_lock(c[i]);
 		if (!ast_tvzero(*ast_channel_whentohangup(c[i]))) {
-			if (whentohangup == 0)
+			if (whentohangup == 0) {
 				now = ast_tvnow();
+			}
 			if ((diff = ast_tvdiff_ms(*ast_channel_whentohangup(c[i]), now)) < 0) {
 				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
 				ast_channel_unlock(c[i]);
 				return c[i];
 			}
-			if (!whentohangup || whentohangup > diff)
+			if (!whentohangup || whentohangup > diff) {
 				whentohangup = diff;
+			}
 		}
 		ast_channel_unlock(c[i]);
 		CHECK_BLOCKING(c[i]);
@@ -3222,21 +3243,25 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	rms = *ms;
 	if (whentohangup) {
 		rms = whentohangup;
-		if (*ms >= 0 && *ms < rms)
+		if (*ms >= 0 && *ms < rms) {
 			rms = *ms;
+		}
 	}
 
-	if (*ms > 0)
+	if (*ms > 0) {
 		start = ast_tvnow();
+	}
 
 	res = epoll_wait(ast_channel_epfd(c[0]), ev, 25, rms);
 
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++) {
 		ast_clear_flag(ast_channel_flags(c[i]), AST_FLAG_BLOCKING);
+	}
 
 	if (res < 0) {
-		if (errno != EINTR)
+		if (errno != EINTR) {
 			*ms = -1;
+		}
 		return NULL;
 	}
 
@@ -3245,8 +3270,9 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 		for (i = 0; i < n; i++) {
 			if (!ast_tvzero(*ast_channel_whentohangup(c[i])) && ast_tvdiff_ms(now, *ast_channel_whentohangup(c[i])) >= 0) {
 				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
-				if (!winner)
+				if (!winner) {
 					winner = c[i];
+				}
 			}
 		}
 	}
@@ -3259,21 +3285,24 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	for (i = 0; i < res; i++) {
 		struct ast_epoll_data *aed = ev[i].data.ptr;
 
-		if (!ev[i].events || !aed)
+		if (!ev[i].events || !aed) {
 			continue;
+		}
 
 		winner = aed->chan;
-		if (ev[i].events & EPOLLPRI)
+		if (ev[i].events & EPOLLPRI) {
 			ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
-		else
+		} else {
 			ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
+		}
 		ast_channel_fdno_set(winner, aed->which);
 	}
 
 	if (*ms > 0) {
 		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
-		if (*ms < 0)
+		if (*ms < 0) {
 			*ms = 0;
+		}
 	}
 
 	return winner;
@@ -3283,18 +3312,21 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 					int *exception, int *outfd, int *ms)
 {
 	/* Clear all provided values in one place. */
-	if (outfd)
+	if (outfd) {
 		*outfd = -99999;
-	if (exception)
+	}
+	if (exception) {
 		*exception = 0;
+	}
 
 	/* If no epoll file descriptor is available resort to classic nandfds */
-	if (!n || nfds || ast_channel_epfd(c[0]) == -1)
+	if (!n || nfds || ast_channel_epfd(c[0]) == -1) {
 		return ast_waitfor_nandfds_classic(c, n, fds, nfds, exception, outfd, ms);
-	else if (!nfds && n == 1)
+	} else if (!nfds && n == 1) {
 		return ast_waitfor_nandfds_simple(c[0], ms);
-	else
+	} else {
 		return ast_waitfor_nandfds_complex(c, n, ms);
+	}
 }
 #endif
 
@@ -3308,8 +3340,9 @@ int ast_waitfor(struct ast_channel *c, int ms)
 	int oldms = ms;	/* -1 if no timeout */
 
 	ast_waitfor_nandfds(&c, 1, NULL, 0, NULL, NULL, &ms);
-	if ((ms < 0) && (oldms < 0))
+	if ((ms < 0) && (oldms < 0)) {
 		ms = 0;
+	}
 	return ms;
 }
 
