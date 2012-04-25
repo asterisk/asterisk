@@ -15394,8 +15394,9 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				struct sig_pri_chan *chan = tmp->sig_pvt;
 
 				ast_cli(a->fd, "PRI Flags: ");
-				if (chan->resetting)
-					ast_cli(a->fd, "Resetting ");
+				if (chan->resetting != SIG_PRI_RESET_IDLE) {
+					ast_cli(a->fd, "Resetting=%d ", chan->resetting);
+				}
 				if (chan->call)
 					ast_cli(a->fd, "Call ");
 				if (chan->allocated) {
