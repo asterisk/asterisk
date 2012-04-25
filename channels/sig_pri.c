@@ -8010,7 +8010,7 @@ int pri_send_keypad_facility_exec(struct sig_pri_chan *p, const char *digits)
 
 int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channel_state chanstate, const char *destination, const char *original, const char *reason)
 {
-	int res = -1;
+	int res;
 
 	sig_pri_lock_private(p);
 
