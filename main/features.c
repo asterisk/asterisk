@@ -681,9 +681,10 @@ static int stopmixmonitor_ok = 1;
 
 static pthread_t parking_thread;
 struct ast_dial_features {
-	struct ast_flags features_caller;
-	struct ast_flags features_callee;
-	int is_caller;
+	/*! Channel's feature flags. */
+	struct ast_flags my_features;
+	/*! Bridge peer's feature flags. */
+	struct ast_flags peer_features;
 };
 
 #if defined(ATXFER_NULL_TECH)
@@ -787,6 +788,51 @@ static const struct ast_datastore_info dial_features_info = {
 	.destroy = dial_features_destroy,
 	.duplicate = dial_features_duplicate,
 };
+
+/*!
+ * \internal
+ * \brief Set the features datastore if it doesn't exist.
+ *
+ * \param chan Channel to add features datastore
+ * \param my_features The channel's feature flags
+ * \param peer_features The channel's bridge peer feature flags
+ *
+ * \retval TRUE if features datastore already existed.
+ */
+static int add_features_datastore(struct ast_channel *chan, const struct ast_flags *my_features, const struct ast_flags *peer_features)
+{
+	struct ast_datastore *datastore;
+	struct ast_dial_features *dialfeatures;
+
+	ast_channel_lock(chan);
+	datastore = ast_channel_datastore_find(chan, &dial_features_info, NULL);
+	ast_channel_unlock(chan);
+	if (datastore) {
+		/* Already exists. */
+		return 1;
+	}
+
+	/* Create a new datastore with specified feature flags. */
+	datastore = ast_datastore_alloc(&dial_features_info, NULL);
+	if (!datastore) {
+		ast_log(LOG_WARNING, "Unable to create channel features datastore.\n");
+		return 0;
+	}
+	dialfeatures = ast_calloc(1, sizeof(*dialfeatures));
+	if (!dialfeatures) {
+		ast_log(LOG_WARNING, "Unable to allocate memory for feature flags.\n");
+		ast_datastore_free(datastore);
+		return 0;
+	}
+	ast_copy_flags(&dialfeatures->my_features, my_features, AST_FLAGS_ALL);
+	ast_copy_flags(&dialfeatures->peer_features, peer_features, AST_FLAGS_ALL);
+	datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+	datastore->data = dialfeatures;
+	ast_channel_lock(chan);
+	ast_channel_datastore_add(chan, datastore);
+	ast_channel_unlock(chan);
+	return 0;
+}
 
 /* Forward declarations */
 static struct ast_parkinglot *parkinglot_addref(struct ast_parkinglot *parkinglot);
@@ -2497,7 +2543,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	int l;
 	struct ast_party_connected_line connected_line;
 	struct ast_datastore *features_datastore;
-	struct ast_dial_features *dialfeatures = NULL;
+	struct ast_dial_features *dialfeatures;
 	char *transferer_tech;
 	char *transferer_name;
 	char *transferer_name_orig;
@@ -2547,7 +2593,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return xfer_park_call_helper(transferee, transferer, park_exten);
 	}
 
-	/* Append context to dialed transfer number. */
+	/*
+	 * Append context to dialed transfer number.
+	 *
+	 * NOTE: The local channel needs the /n flag so party C will use
+	 * the feature flags set by the dialplan when calling that
+	 * party.
+	 */
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);
 
 	/* If we are performing an attended transfer and we have two channels involved then
@@ -2700,7 +2752,31 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 				ast_debug(2, "Dial party B result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
-				if (newchan || ast_check_hangup(transferee)) {
+				if (newchan) {
+					/*
+					 * We have recalled party B (newchan).  We need to give this
+					 * call leg the same feature flags as the original party B call
+					 * leg.
+					 */
+					ast_channel_lock(transferer);
+					features_datastore = ast_channel_datastore_find(transferer,
+						&dial_features_info, NULL);
+					if (features_datastore && (dialfeatures = features_datastore->data)) {
+						struct ast_flags my_features = { 0 };
+						struct ast_flags peer_features = { 0 };
+
+						ast_copy_flags(&my_features, &dialfeatures->my_features,
+							AST_FLAGS_ALL);
+						ast_copy_flags(&peer_features, &dialfeatures->peer_features,
+							AST_FLAGS_ALL);
+						ast_channel_unlock(transferer);
+						add_features_datastore(newchan, &my_features, &peer_features);
+					} else {
+						ast_channel_unlock(transferer);
+					}
+					break;
+				}
+				if (ast_check_hangup(transferee)) {
 					break;
 				}
 
@@ -2799,32 +2875,25 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return -1;
 	}
 
-	ast_channel_lock(newchan);
-	if ((features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL))) {
-		dialfeatures = features_datastore->data;
-	}
-	ast_channel_unlock(newchan);
-
-	if (dialfeatures) {
-		/* newchan should always be the callee and shows up as callee in dialfeatures, but for some reason
-		   I don't currently understand, the abilities of newchan seem to be stored on the caller side */
-		ast_copy_flags(&(config->features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
-		dialfeatures = NULL;
-	}
-
-	ast_channel_lock(xferchan);
-	if ((features_datastore = ast_channel_datastore_find(xferchan, &dial_features_info, NULL))) {
-		dialfeatures = features_datastore->data;
-	}
-	ast_channel_unlock(xferchan);
-
-	if (dialfeatures) {
-		ast_copy_flags(&(config->features_caller), &(dialfeatures->features_caller), AST_FLAGS_ALL);
-	}
-
 	tobj->chan = newchan;
 	tobj->peer = xferchan;
 	tobj->bconfig = *config;
+
+	ast_channel_lock(newchan);
+	features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL);
+	if (features_datastore && (dialfeatures = features_datastore->data)) {
+		ast_copy_flags(&tobj->bconfig.features_callee, &dialfeatures->my_features,
+			AST_FLAGS_ALL);
+	}
+	ast_channel_unlock(newchan);
+
+	ast_channel_lock(xferchan);
+	features_datastore = ast_channel_datastore_find(xferchan, &dial_features_info, NULL);
+	if (features_datastore && (dialfeatures = features_datastore->data)) {
+		ast_copy_flags(&tobj->bconfig.features_caller, &dialfeatures->my_features,
+			AST_FLAGS_ALL);
+	}
+	ast_channel_unlock(xferchan);
 
 	if (tobj->bconfig.end_bridge_callback_data_fixup) {
 		tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
@@ -3825,60 +3894,16 @@ static void set_bridge_features_on_config(struct ast_bridge_config *config, cons
 
 static void add_features_datastores(struct ast_channel *caller, struct ast_channel *callee, struct ast_bridge_config *config)
 {
-	struct ast_datastore *ds_callee_features = NULL, *ds_caller_features = NULL;
-	struct ast_dial_features *callee_features = NULL, *caller_features = NULL;
-
-	ast_channel_lock(caller);
-	ds_caller_features = ast_channel_datastore_find(caller, &dial_features_info, NULL);
-	ast_channel_unlock(caller);
-	if (!ds_caller_features) {
-		if (!(ds_caller_features = ast_datastore_alloc(&dial_features_info, NULL))) {
-			ast_log(LOG_WARNING, "Unable to create channel datastore for caller features. Aborting!\n");
-			return;
-		}
-		if (!(caller_features = ast_calloc(1, sizeof(*caller_features)))) {
-			ast_log(LOG_WARNING, "Unable to allocate memory for callee feature flags. Aborting!\n");
-			ast_datastore_free(ds_caller_features);
-			return;
-		}
-		ds_caller_features->inheritance = DATASTORE_INHERIT_FOREVER;
-		caller_features->is_caller = 1;
-		ast_copy_flags(&(caller_features->features_callee), &(config->features_callee), AST_FLAGS_ALL);
-		ast_copy_flags(&(caller_features->features_caller), &(config->features_caller), AST_FLAGS_ALL);
-		ds_caller_features->data = caller_features;
-		ast_channel_lock(caller);
-		ast_channel_datastore_add(caller, ds_caller_features);
-		ast_channel_unlock(caller);
-	} else {
-		/* If we don't return here, then when we do a builtin_atxfer we will copy the disconnect
-		 * flags over from the atxfer to the caller */
+	if (add_features_datastore(caller, &config->features_caller, &config->features_callee)) {
+		/*
+		 * If we don't return here, then when we do a builtin_atxfer we
+		 * will copy the disconnect flags over from the atxfer to the
+		 * callee (Party C).
+		 */
 		return;
 	}
 
-	ast_channel_lock(callee);
-	ds_callee_features = ast_channel_datastore_find(callee, &dial_features_info, NULL);
-	ast_channel_unlock(callee);
-	if (!ds_callee_features) {
-		if (!(ds_callee_features = ast_datastore_alloc(&dial_features_info, NULL))) {
-			ast_log(LOG_WARNING, "Unable to create channel datastore for callee features. Aborting!\n");
-			return;
-		}
-		if (!(callee_features = ast_calloc(1, sizeof(*callee_features)))) {
-			ast_log(LOG_WARNING, "Unable to allocate memory for callee feature flags. Aborting!\n");
-			ast_datastore_free(ds_callee_features);
-			return;
-		}
-		ds_callee_features->inheritance = DATASTORE_INHERIT_FOREVER;
-		callee_features->is_caller = 0;
-		ast_copy_flags(&(callee_features->features_callee), &(config->features_caller), AST_FLAGS_ALL);
-		ast_copy_flags(&(callee_features->features_caller), &(config->features_callee), AST_FLAGS_ALL);
-		ds_callee_features->data = callee_features;
-		ast_channel_lock(callee);
-		ast_channel_datastore_add(callee, ds_callee_features);
-		ast_channel_unlock(callee);
-	}
-
-	return;
+	add_features_datastore(callee, &config->features_callee, &config->features_caller);
 }
 
 static void clear_dialed_interfaces(struct ast_channel *chan)
@@ -4710,8 +4735,8 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 
 					snprintf(returnexten, sizeof(returnexten), "%s,%u,%s", peername,
 						pu->parkinglot->cfg.comebackdialtime,
-						callback_dialoptions(&(dialfeatures->features_callee),
-							&(dialfeatures->features_caller), buf, sizeof(buf)));
+						callback_dialoptions(&dialfeatures->peer_features,
+							&dialfeatures->my_features, buf, sizeof(buf)));
 				} else { /* Existing default */
 					ast_log(LOG_NOTICE, "Dial features not found on %s, using default!\n",
 						ast_channel_name(chan));
@@ -5261,7 +5286,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 
 	if (peer) {
 		struct ast_datastore *features_datastore;
-		struct ast_dial_features *dialfeatures = NULL;
+		struct ast_dial_features *dialfeatures;
 
 		/* Play a courtesy to the source(s) configured to prefix the bridge connecting */
 		if (!ast_strlen_zero(courtesytone)) {
@@ -5305,20 +5330,10 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 
 		/* Get datastore for peer and apply it's features to the callee side of the bridge config */
 		ast_channel_lock(peer);
-		if ((features_datastore = ast_channel_datastore_find(peer, &dial_features_info, NULL))) {
-			dialfeatures = features_datastore->data;
-		}
-
-		/*
-		 * When the datastores for both caller and callee are created,
-		 * both the callee and caller channels use the features_caller
-		 * flag variable to represent themselves.  With that said, the
-		 * config.features_callee flags should be copied from the
-		 * datastore's caller feature flags regardless if peer was a
-		 * callee or caller.
-		 */
-		if (dialfeatures) {
-			ast_copy_flags(&(config.features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
+		features_datastore = ast_channel_datastore_find(peer, &dial_features_info, NULL);
+		if (features_datastore && (dialfeatures = features_datastore->data)) {
+			ast_copy_flags(&config.features_callee, &dialfeatures->my_features,
+				AST_FLAGS_ALL);
 		}
 		ast_channel_unlock(peer);
 
