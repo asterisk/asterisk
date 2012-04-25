@@ -130,7 +130,7 @@ struct number {
 struct call_followme {
 	ast_mutex_t lock;
 	char name[AST_MAX_EXTENSION];	/*!< Name - FollowMeID */
-	char moh[AST_MAX_CONTEXT];	/*!< Music On Hold Class to be used */
+	char moh[MAX_MUSICCLASS];	/*!< Music On Hold Class to be used */
 	char context[AST_MAX_CONTEXT];  /*!< Context to dial from */
 	unsigned int active;		/*!< Profile is active (1), or disabled (0). */
 	int realtime;           /*!< Cached from realtime */
