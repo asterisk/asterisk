@@ -922,17 +922,23 @@ static void *bridge_call_thread(void *data)
 		if (!ast_check_hangup(tobj->peer)) {
 			ast_log(LOG_VERBOSE, "putting peer %s into PBX again\n", tobj->peer->name);
 			res = ast_pbx_start(tobj->peer);
-			if (res != AST_PBX_SUCCESS)
+			if (res != AST_PBX_SUCCESS) {
 				ast_log(LOG_WARNING, "FAILED continuing PBX on peer %s\n", tobj->peer->name);
-		} else
+				ast_hangup(tobj->peer);
+			}
+		} else {
 			ast_hangup(tobj->peer);
+		}
 		if (!ast_check_hangup(tobj->chan)) {
 			ast_log(LOG_VERBOSE, "putting chan %s into PBX again\n", tobj->chan->name);
 			res = ast_pbx_start(tobj->chan);
-			if (res != AST_PBX_SUCCESS)
+			if (res != AST_PBX_SUCCESS) {
 				ast_log(LOG_WARNING, "FAILED continuing PBX on chan %s\n", tobj->chan->name);
-		} else
+				ast_hangup(tobj->chan);
+			}
+		} else {
 			ast_hangup(tobj->chan);
+		}
 	} else {
 		ast_hangup(tobj->chan);
 		ast_hangup(tobj->peer);
