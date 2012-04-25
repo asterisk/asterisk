@@ -1125,10 +1125,10 @@ struct queue_ent {
 };
 
 struct member {
-	char interface[80];                  /*!< Technology/Location to dial to reach this member*/
+	char interface[AST_CHANNEL_NAME];    /*!< Technology/Location to dial to reach this member*/
 	char state_exten[AST_MAX_EXTENSION]; /*!< Extension to get state from (if using hint) */
 	char state_context[AST_MAX_CONTEXT]; /*!< Context to use when getting state (if using hint) */
-	char state_interface[80];            /*!< Technology/Location from which to read devicestate changes */
+	char state_interface[AST_CHANNEL_NAME]; /*!< Technology/Location from which to read devicestate changes */
 	char membername[80];                 /*!< Member name to use in queue logs */
 	int penalty;                         /*!< Are we a last resort? */
 	int calls;                           /*!< Number of calls serviced by this member */
@@ -1600,10 +1600,11 @@ static int handle_statechange(void *datap)
 	}
 	ao2_iterator_destroy(&qiter);
 
-	if (found)
+	if (found) {
 		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, ast_devstate2str(sc->state));
-	else
+	} else {
 		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, ast_devstate2str(sc->state));
+	}
 
 	ast_free(sc);
 	return 0;
@@ -1749,12 +1750,12 @@ static struct member *create_queue_member(const char *interface, const char *mem
 
 static int compress_char(const char c)
 {
-	if (c < 32)
+	if (c < 32) {
 		return 0;
-	else if (c > 96)
+	} else if (c > 96) {
 		return c - 64;
-	else
-		return c - 32;
+	} 
+	return c - 32;
 }
 
 static int member_hash_fn(const void *obj, const int flags)
@@ -1826,11 +1827,12 @@ static void init_queue(struct call_queue *q)
 	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	q->autopausedelay = 0;
 	if (!q->members) {
-		if (q->strategy == QUEUE_STRATEGY_LINEAR || q->strategy == QUEUE_STRATEGY_RRORDERED)
+		if (q->strategy == QUEUE_STRATEGY_LINEAR || q->strategy == QUEUE_STRATEGY_RRORDERED) {
 			/* linear strategy depends on order, so we have to place all members in a single bucket */
 			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
-		else
+		} else {
 			q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+		}
 	}
 	q->found = 1;
 
@@ -1855,12 +1857,14 @@ static void init_queue(struct call_queue *q)
 	}
 
 	for (i = 1; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
-		if (q->sound_periodicannounce[i])
+		if (q->sound_periodicannounce[i]) {
 			ast_str_set(&q->sound_periodicannounce[i], 0, "%s", "");
+		}
 	}
 
-	while ((pr_iter = AST_LIST_REMOVE_HEAD(&q->rules,list)))
+	while ((pr_iter = AST_LIST_REMOVE_HEAD(&q->rules,list))) {
 		ast_free(pr_iter);
+	}
 }
 
 static void clear_queue(struct call_queue *q)
@@ -1922,8 +1926,9 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 
 	rule->time = penaltychangetime;
 
-	if ((minstr = strchr(maxstr,',')))
+	if ((minstr = strchr(maxstr,','))) {
 		*minstr++ = '\0';
+	}
 	
 	/* The last check will evaluate true if either no penalty change is indicated for a given rule
 	 * OR if a min penalty change is indicated but no max penalty change is */
@@ -1934,16 +1939,19 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 	rule->max_value = atoi(maxstr);
 
 	if (!ast_strlen_zero(minstr)) {
-		if (*minstr == '+' || *minstr == '-')
+		if (*minstr == '+' || *minstr == '-') {
 			rule->min_relative = 1;
+		}
 		rule->min_value = atoi(minstr);
-	} else /*there was no minimum specified, so assume this means no change*/
+	} else { /*there was no minimum specified, so assume this means no change*/
 		rule->min_relative = 1;
+	}
 
 	/*We have the rule made, now we need to insert it where it belongs*/
 	AST_LIST_TRAVERSE(&rule_lists, rl_iter, list){
-		if (strcasecmp(rl_iter->name, list_name))
+		if (strcasecmp(rl_iter->name, list_name)) {
 			continue;
+		}
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&rl_iter->rules, rule_iter, list) {
 			if (rule->time < rule_iter->time) {
@@ -2016,8 +2024,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_string_field_set(q, context, val);
 	} else if (!strcasecmp(param, "timeout")) {
 		q->timeout = atoi(val);
-		if (q->timeout < 0)
+		if (q->timeout < 0) {
 			q->timeout = DEFAULT_TIMEOUT;
+		}
 	} else if (!strcasecmp(param, "ringinuse")) {
 		q->ringinuse = ast_true(val);
 	} else if (!strcasecmp(param, "setinterfacevar")) {
@@ -2077,21 +2086,23 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			q->roundingseconds=0;
 		}
 	} else if (!strcasecmp(param, "announce-holdtime")) {
-		if (!strcasecmp(val, "once"))
+		if (!strcasecmp(val, "once")) {
 			q->announceholdtime = ANNOUNCEHOLDTIME_ONCE;
-		else if (ast_true(val))
+		} else if (ast_true(val)) {
 			q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
-		else
+		} else {
 			q->announceholdtime = 0;
+		}
 	} else if (!strcasecmp(param, "announce-position")) {
-		if (!strcasecmp(val, "limit"))
+		if (!strcasecmp(val, "limit")) {
 			q->announceposition = ANNOUNCEPOSITION_LIMIT;
-		else if (!strcasecmp(val, "more"))
+		} else if (!strcasecmp(val, "more")) {
 			q->announceposition = ANNOUNCEPOSITION_MORE_THAN;
-		else if (ast_true(val))
+		} else if (ast_true(val)) {
 			q->announceposition = ANNOUNCEPOSITION_YES;
-		else
+		} else {
 			q->announceposition = ANNOUNCEPOSITION_NO;
+		}
 	} else if (!strcasecmp(param, "announce-position-limit")) {
 		q->announcepositionlimit = atoi(val);
 	} else if (!strcasecmp(param, "periodic-announce")) {
@@ -2100,12 +2111,14 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			unsigned int i = 0;
 
 			while ((s = strsep(&buf, ",|"))) {
-				if (!q->sound_periodicannounce[i])
+				if (!q->sound_periodicannounce[i]) {
 					q->sound_periodicannounce[i] = ast_str_create(16);
+				}
 				ast_str_set(&q->sound_periodicannounce[i], 0, "%s", s);
 				i++;
-				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
+				if (i == MAX_PERIODIC_ANNOUNCEMENTS) {
 					break;
+				}
 			}
 			q->numperiodicannounce = i;
 		} else {
@@ -2120,8 +2133,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->randomperiodicannounce = ast_true(val);
 	} else if (!strcasecmp(param, "retry")) {
 		q->retry = atoi(val);
-		if (q->retry <= 0)
+		if (q->retry <= 0) {
 			q->retry = DEFAULT_RETRY;
+		}
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
 	} else if (!strcasecmp(param, "penaltymemberslimit")) {
@@ -2131,8 +2145,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "autofill")) {
 		q->autofill = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-type")) {
-		if (!strcasecmp(val, "mixmonitor"))
+		if (!strcasecmp(val, "mixmonitor")) {
 			q->montype = 1;
+		}
 	} else if (!strcasecmp(param, "autopause")) {
 		q->autopause = autopause2int(val);
 	} else if (!strcasecmp(param, "autopausedelay")) {
@@ -2143,8 +2158,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->autopauseunavail = ast_true(val);
 	} else if (!strcasecmp(param, "maxlen")) {
 		q->maxlen = atoi(val);
-		if (q->maxlen < 0)
+		if (q->maxlen < 0) {
 			q->maxlen = 0;
+		}
 	} else if (!strcasecmp(param, "servicelevel")) {
 		q->servicelevel= atoi(val);
 	} else if (!strcasecmp(param, "strategy")) {
@@ -2321,8 +2337,9 @@ static void destroy_queue(void *obj)
 	free_members(q, 1);
 	ast_string_field_free_memory(q);
 	for (i = 0; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
-		if (q->sound_periodicannounce[i])
+		if (q->sound_periodicannounce[i]) {
 			free(q->sound_periodicannounce[i]);
+		}
 	}
 	ao2_ref(q->members, -1);
 }
@@ -2372,11 +2389,10 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				ao2_unlock(q);
 				queue_t_unref(q, "Queue is dead; can't return it");
 				return NULL;
-			} else {
-				ast_log(LOG_WARNING, "Static queue '%s' already exists. Not loading from realtime\n", q->name);
-				ao2_unlock(q);
-				return q;
-			}
+			} 
+			ast_log(LOG_WARNING, "Static queue '%s' already exists. Not loading from realtime\n", q->name);
+			ao2_unlock(q);
+			return q;
 		}
 	} else if (!member_config) {
 		/* Not found in the list, and it's not realtime ... */
@@ -2438,10 +2454,12 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			ast_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
 			tmp_name = tmpbuf;
 			tmp = tmpbuf;
-			while ((tmp = strchr(tmp, '_')))
+			while ((tmp = strchr(tmp, '_'))) {
 				*tmp++ = '-';
-		} else
+			}
+		} else {
 			tmp_name = v->name;
+		}
 
 		/* NULL values don't get returned from realtime; blank values should
 		 * still get set.  If someone doesn't want a value to be set, they
@@ -2553,11 +2571,13 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
 {
 	int ret = -1;
 
-	if (ast_strlen_zero(mem->rt_uniqueid))
+	if (ast_strlen_zero(mem->rt_uniqueid)) {
  		return ret;
+	}
 
-	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, SENTINEL)) > 0)
+	if ((ast_update_realtime("queue_members", "uniqueid", mem->rt_uniqueid, field, value, SENTINEL)) > 0) {
 		ret = 0;
+	}
 
 	return ret;
 }
@@ -2581,8 +2601,9 @@ static void update_realtime_members(struct call_queue *q)
 	/* Temporarily set realtime  members dead so we can detect deleted ones.*/
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((m = ao2_iterator_next(&mem_iter))) {
-		if (m->realtime)
+		if (m->realtime) {
 			m->dead = 1;
+		}
 		ao2_ref(m, -1);
 	}
 	ao2_iterator_destroy(&mem_iter);
@@ -2632,9 +2653,9 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			return res;
 		}
 	}
-	if (*reason == QUEUE_UNKNOWN && q->maxlen && (q->count >= q->maxlen))
+	if (*reason == QUEUE_UNKNOWN && q->maxlen && (q->count >= q->maxlen)) {
 		*reason = QUEUE_FULL;
-	else if (*reason == QUEUE_UNKNOWN) {
+	} else if (*reason == QUEUE_UNKNOWN) {
 		/* There's space for us, put us at the right position inside
 		 * the queue.
 		 * Take into account the priority of the calling user */
@@ -2665,8 +2686,9 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			cur = cur->next;
 		}
 		/* No luck, join at the end of the queue */
-		if (!inserted)
+		if (!inserted) {
 			insert_entry(q, prev, qe, &pos);
+		}
 		ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
 		ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
 		ast_copy_string(qe->context, q->context, sizeof(qe->context));
@@ -2711,8 +2733,9 @@ static int play_file(struct ast_channel *chan, const char *filename)
 	ast_stopstream(chan);
 
 	res = ast_streamfile(chan, filename, ast_channel_language(chan));
-	if (!res)
+	if (!res) {
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
+	}
 
 	ast_stopstream(chan);
 
@@ -2738,8 +2761,9 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	}
 
 	/* If there's no context to goto, short-circuit */
-	if (ast_strlen_zero(qe->context))
+	if (ast_strlen_zero(qe->context)) {
 		return 0;
+	}
 
 	/* If the extension is bad, then reset the digits to blank */
 	if (!ast_canmatch_extension(qe->chan, qe->context, qe->digits, 1,
@@ -2766,12 +2790,14 @@ static int say_position(struct queue_ent *qe, int ringing)
 
 	/* Let minannouncefrequency seconds pass between the start of each position announcement */
 	time(&now);
-	if ((now - qe->last_pos) < qe->parent->minannouncefrequency)
+	if ((now - qe->last_pos) < qe->parent->minannouncefrequency) {
 		return 0;
+	}
 
 	/* If either our position has changed, or we are over the freq timer, say position */
-	if ((qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency))
+	if ((qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency)) {
 		return 0;
+	}
 
 	if (ringing) {
 		ast_indicate(qe->chan,-1);
@@ -2782,45 +2808,52 @@ static int say_position(struct queue_ent *qe, int ringing)
 	if (qe->parent->announceposition == ANNOUNCEPOSITION_YES ||
 		qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN ||
 		(qe->parent->announceposition == ANNOUNCEPOSITION_LIMIT &&
-		qe->pos <= qe->parent->announcepositionlimit))
+		qe->pos <= qe->parent->announcepositionlimit)) {
 			announceposition = 1;
+	}
 
 
 	if (announceposition == 1) {
 		/* Say we're next, if we are */
 		if (qe->pos == 1) {
 			res = play_file(qe->chan, qe->parent->sound_next);
-			if (res)
+			if (res) {
 				goto playout;
-			else
-				goto posout;
+			}
+			goto posout;
 		} else {
 			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
 				/* More than Case*/
 				res = play_file(qe->chan, qe->parent->queue_quantity1);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 				res = ast_say_number(qe->chan, qe->parent->announcepositionlimit, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL); /* Needs gender */
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			} else {
 				/* Normal Case */
 				res = play_file(qe->chan, qe->parent->sound_thereare);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 				res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL); /* Needs gender */
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			}
 			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
 				/* More than Case*/
 				res = play_file(qe->chan, qe->parent->queue_quantity2);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			} else {
 				res = play_file(qe->chan, qe->parent->sound_calls);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			}
 		}
 	}
@@ -2843,32 +2876,38 @@ static int say_position(struct queue_ent *qe, int ringing)
         ((qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE && !qe->last_pos) ||
         !(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE))) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
-		if (res)
+		if (res) {
 			goto playout;
+		}
 
 		if (avgholdmins >= 1) {
 			res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL);
-			if (res)
+			if (res) {
 				goto playout;
+			}
 
 			if (avgholdmins == 1) {
 				res = play_file(qe->chan, qe->parent->sound_minute);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			} else {
 				res = play_file(qe->chan, qe->parent->sound_minutes);
-				if (res)
+				if (res) {
 					goto playout;
+				}
 			}
 		}
 		if (avgholdsecs >= 1) {
 			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL);
-			if (res)
+			if (res) {
 				goto playout;
+			}
 
 			res = play_file(qe->chan, qe->parent->sound_seconds);
-			if (res)
+			if (res) {
 				goto playout;
+			}
 		}
 	} else if (qe->parent->announceholdtime && !qe->parent->announceposition) {
 		say_thanks = 0;
@@ -2884,8 +2923,9 @@ posout:
 	}
 playout:
 
-	if ((res > 0 && !valid_exit(qe, res)))
+	if ((res > 0 && !valid_exit(qe, res))) {
 		res = 0;
+	}
 
 	/* Set our last_pos indicators */
 	qe->last_pos = now;
@@ -2946,13 +2986,15 @@ static void leave_queue(struct queue_ent *qe)
 				ast_channel_name(qe->chan), q->name,  q->count, qe->pos, ast_channel_uniqueid(qe->chan));
 			ast_debug(1, "Queue '%s' Leave, Channel '%s'\n", q->name, ast_channel_name(qe->chan));
 			/* Take us out of the queue */
-			if (prev)
+			if (prev) {
 				prev->next = current->next;
-			else
+			} else {
 				q->head = current->next;
+			}
 			/* Free penalty rules */
-			while ((pr_iter = AST_LIST_REMOVE_HEAD(&qe->qe_rules, list)))
+			while ((pr_iter = AST_LIST_REMOVE_HEAD(&qe->qe_rules, list))) {
 				ast_free(pr_iter);
+			}
 			snprintf(posstr, sizeof(posstr), "%d", qe->pos);
 			pbx_builtin_setvar_helper(qe->chan, "QUEUEPOSITION", posstr);
 		} else {
@@ -3008,8 +3050,9 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 		/* If someone else answered the call we should indicate this in the CANCEL */
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception)) {
-			if (exception || cancel_answered_elsewhere)
+			if (exception || cancel_answered_elsewhere) {
 				ast_set_flag(ast_channel_flags(outgoing->chan), AST_FLAG_ANSWERED_ELSEWHERE);
+			}
 			ast_hangup(outgoing->chan);
 		}
 		oo = outgoing;
@@ -3136,8 +3179,9 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 		for (i = 0, j = 10; (i < len - 1) && (j < len - 1); i++, j++) {
 			vars[j] = tmp[i];
 
-			if (tmp[i + 1] == '\0')
+			if (tmp[i + 1] == '\0') {
 				break;
+			}
 			if (tmp[i] == '\n') {
 				vars[j++] = '\r';
 				vars[j++] = '\n';
@@ -3146,8 +3190,9 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 				j += 9;
 			}
 		}
-		if (j > len - 3)
+		if (j > len - 3) {
 			j = len - 3;
+		}
 		vars[j++] = '\r';
 		vars[j++] = '\n';
 		vars[j] = '\0';
@@ -3233,10 +3278,11 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	}
 
 	ast_copy_string(tech, tmp->interface, sizeof(tech));
-	if ((location = strchr(tech, '/')))
+	if ((location = strchr(tech, '/'))) {
 		*location++ = '\0';
-	else
+	} else {
 		location = "";
+	}
 
 	/* Request the peer */
 	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), qe->chan, location, &status);
@@ -3489,14 +3535,16 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	time(&now);
 
 	/* Check to see if it is time to announce */
-	if ((now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency)
+	if ((now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency) {
 		return 0;
+	}
 
 	/* Stop the music on hold so we can play our own file */
-	if (ringing)
+	if (ringing) {
 		ast_indicate(qe->chan,-1);
-	else
+	} else {
 		ast_moh_stop(qe->chan);
+	}
 
 	ast_verb(3, "Playing periodic announcement\n");
 	
@@ -3510,22 +3558,25 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	/* play the announcement */
 	res = play_file(qe->chan, ast_str_buffer(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]));
 
-	if (res > 0 && !valid_exit(qe, res))
+	if (res > 0 && !valid_exit(qe, res)) {
 		res = 0;
+	}
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
 	if (!res) {
-		if (ringing)
+		if (ringing) {
 			ast_indicate(qe->chan, AST_CONTROL_RINGING);
-		else
+		} else {
 			ast_moh_start(qe->chan, qe->moh, NULL);
+		}
 	}
 
 	/* update last_periodic_announce_time */
-	if (qe->parent->relativeperiodicannounce)
+	if (qe->parent->relativeperiodicannounce) {
 		time(&qe->last_periodic_announce_time);
-	else
+	} else {
 		qe->last_periodic_announce_time = now;
+	}
 
 	/* Update the current periodic announcement to the next announcement */
 	if (!qe->parent->randomperiodicannounce) {
@@ -3667,8 +3718,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	starttime = (long) time(NULL);
 #ifdef HAVE_EPOLL
 	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if (epollo->chan)
+		if (epollo->chan) {
 			ast_poll_channel_add(in, epollo->chan);
+		}
 	}
 #endif
 	
@@ -3687,10 +3739,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						if (pos < AST_MAX_WATCHERS) {
 							watchers[pos++] = o->chan;
 						}
-						if (!start)
+						if (!start) {
 							start = o;
-						else
+						} else {
 							prev->call_next = o;
+						}
 						prev = o;
 					}
 				}
@@ -3895,15 +3948,17 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_BUSY:
 							ast_verb(3, "%s is busy\n", ochan_name);
-							if (ast_channel_cdr(in))
+							if (ast_channel_cdr(in)) {
 								ast_cdr_busy(ast_channel_cdr(in));
+							}
 							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime * 1000, qe, on, membername, qe->parent->autopausebusy);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
-								if (qe->parent->timeoutrestart)
+								if (qe->parent->timeoutrestart) {
 									*to = orig;
+								}
 								/* Have enough time for a queue member to answer? */
 								if (*to > 500) {
 									ring_one(qe, outgoing, &numbusies);
@@ -3914,15 +3969,17 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_CONGESTION:
 							ast_verb(3, "%s is circuit-busy\n", ochan_name);
-							if (ast_channel_cdr(in))
+							if (ast_channel_cdr(in)) {
 								ast_cdr_busy(ast_channel_cdr(in));
+							}
 							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime * 1000, qe, on, membername, qe->parent->autopauseunavail);
 							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
-								if (qe->parent->timeoutrestart)
+								if (qe->parent->timeoutrestart) {
 									*to = orig;
+								}
 								if (*to > 500) {
 									ring_one(qe, outgoing, &numbusies);
 									starttime = (long) time(NULL);
@@ -3993,8 +4050,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					rna(endtime * 1000, qe, on, membername, 1);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
-						if (qe->parent->timeoutrestart)
+						if (qe->parent->timeoutrestart) {
 							*to = orig;
+						}
 						if (*to > 500) {
 							ring_one(qe, outgoing, &numbusies);
 							starttime = (long) time(NULL);
@@ -4034,15 +4092,17 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			ast_frfree(f);
 		}
 		if (!*to) {
-			for (o = start; o; o = o->call_next)
+			for (o = start; o; o = o->call_next) {
 				rna(orig, qe, o->interface, o->member->membername, 1);
+			}
 		}
 	}
 
 #ifdef HAVE_EPOLL
 	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if (epollo->chan)
+		if (epollo->chan) {
 			ast_poll_channel_del(in, epollo->chan);
+		}
 	}
 #endif
 
@@ -4076,8 +4136,9 @@ static int is_our_turn(struct queue_ent *qe)
 	ast_debug(1, "There %s %d available %s.\n", avl != 1 ? "are" : "is", avl, avl != 1 ? "members" : "member");
 
 	while ((idx < avl) && (ch) && (ch != qe)) {
-		if (!ch->pending)
+		if (!ch->pending) {
 			idx++;
+		}
 		ch = ch->next;			
 	}
 
@@ -4109,12 +4170,15 @@ static void update_qe_rule(struct queue_ent *qe)
 	int min_penalty = qe->pr->min_relative ? qe->min_penalty + qe->pr->min_value : qe->pr->min_value;
 	char max_penalty_str[20], min_penalty_str[20]; 
 	/* a relative change to the penalty could put it below 0 */
-	if (max_penalty < 0)
+	if (max_penalty < 0) {
 		max_penalty = 0;
-	if (min_penalty < 0)
+	}
+	if (min_penalty < 0) {
 		min_penalty = 0;
-	if (min_penalty > max_penalty)
+	}
+	if (min_penalty > max_penalty) {
 		min_penalty = max_penalty;
+	}
 	snprintf(max_penalty_str, sizeof(max_penalty_str), "%d", max_penalty);
 	snprintf(min_penalty_str, sizeof(min_penalty_str), "%d", min_penalty);
 	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MAX_PENALTY", max_penalty_str);
@@ -4142,8 +4206,9 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
 
-		if (is_our_turn(qe))
+		if (is_our_turn(qe)) {
 			break;
+		}
 
 		/* If we have timed out, break out */
 		if (qe->expire && (time(NULL) >= qe->expire)) {
@@ -4191,10 +4256,11 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		
 		/* Wait a second before checking again */
 		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000))) {
-			if (res > 0 && !valid_exit(qe, res))
+			if (res > 0 && !valid_exit(qe, res)) {
 				res = 0;
-			else
+			} else {
 				break;
+			}
 		}
 		
 		/* If we have timed out, break out */
@@ -4242,8 +4308,9 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	}	
 	ao2_lock(q);
 	q->callscompleted++;
-	if (callcompletedinsl)
+	if (callcompletedinsl) {
 		q->callscompletedinsl++;
+	}
 	/* Calculate talktime using the same exponential average as holdtime code*/
 	oldtalktime = q->talktime;
 	q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
@@ -4284,9 +4351,10 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		if (pos < qe->linpos) {
 			tmp->metric = 1000 + pos;
 		} else {
-			if (pos > qe->linpos)
+			if (pos > qe->linpos) {
 				/* Indicate there is another priority */
 				qe->linwrapped = 1;
+			}
 			tmp->metric = pos;
 		}
 		tmp->metric += mem->penalty * 1000000 * usepenalty;
@@ -4296,9 +4364,10 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
 		} else {
-			if (pos > q->rrpos)
+			if (pos > q->rrpos) {
 				/* Indicate there is another priority */
 				q->wrapped = 1;
+			}
 			tmp->metric = pos;
 		}
 		tmp->metric += mem->penalty * 1000000 * usepenalty;
@@ -4315,10 +4384,11 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LEASTRECENT:
-		if (!mem->lastcall)
+		if (!mem->lastcall) {
 			tmp->metric = 0;
-		else
+		} else {
 			tmp->metric = 1000000 - (time(NULL) - mem->lastcall);
+		}
 		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	default:
@@ -4341,8 +4411,9 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 {
 	const char *reason = NULL;	/* silence dumb compilers */
 
-	if (!qe->parent->eventwhencalled)
+	if (!qe->parent->eventwhencalled) {
 		return;
+	}
 
 	switch (rsn) {
 	case CALLER:
