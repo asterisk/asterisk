@@ -1259,7 +1259,7 @@ static void *netconsole(void *vconsole)
 	char hostname[MAXHOSTNAMELEN] = "";
 	char inbuf[512];
 	char outbuf[512];
-	const char *end_buf = inbuf + sizeof(inbuf);
+	const char * const end_buf = inbuf + sizeof(inbuf);
 	char *start_read = inbuf;
 	int res;
 	struct pollfd fds[2];
