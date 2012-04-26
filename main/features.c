@@ -2631,16 +2631,30 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
 
-		/* ast_bridge_call clears AST_FLAG_BRIDGE_HANGUP_DONT, but we don't
-		   want that to happen here because we're also in another bridge already
+		/*
+		 * ast_bridge_call clears AST_FLAG_BRIDGE_HANGUP_DONT, but we
+		 * don't want that to happen here because the transferer is in
+		 * another bridge already.
 		 */
-		if (ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT)) {
+		if (ast_test_flag(transferer, AST_FLAG_BRIDGE_HANGUP_DONT)) {
 			hangup_dont = 1;
 		}
-		/* Let party B and party C talk as long as they want. */
+
+		/*
+		 * Don't let the after-bridge code run the h-exten.  It is the
+		 * wrong bridge to run the h-exten after.
+		 */
+		ast_set_flag(transferer, AST_FLAG_BRIDGE_HANGUP_DONT);
+
+		/*
+		 * Let party B and C talk as long as they want while party A
+		 * languishes in autoservice listening to MOH.
+		 */
 		ast_bridge_call(transferer, newchan, &bconfig);
+
 		if (hangup_dont) {
-			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+			/* Restore the AST_FLAG_BRIDGE_HANGUP_DONT flag */
+			ast_set_flag(transferer, AST_FLAG_BRIDGE_HANGUP_DONT);
 		}
 
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
