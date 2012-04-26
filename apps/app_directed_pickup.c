@@ -78,14 +78,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>2) If the <replaceable>extension</replaceable> is specified with a
 			<replaceable>context</replaceable> of the special string
 			<literal>PICKUPMARK</literal> (for example 10@PICKUPMARK), the application
-			will pickup a channel which has defined a channel variable
+			will pickup a channel which has defined the channel variable
 			<variable>PICKUPMARK</variable> with the same value as
 			<replaceable>extension</replaceable> (in this example,
 			<literal>10</literal>).</para>
 			<para>3) If the <replaceable>extension</replaceable> is specified
-			with a <replaceable>context</replaceable>, the channel executing at that
-			dialplan location will be picked up.  If no <replaceable>context</replaceable>
-			is specified, the current context will be used.</para>
+			with or without a <replaceable>context</replaceable>, the channel with a
+			matching <replaceable>extension</replaceable> and <replaceable>context</replaceable>
+			will be picked up.  If no <replaceable>context</replaceable> is specified,
+			the current context will be used.</para>
+			<note><para>The <replaceable>extension</replaceable> is typically set on
+			matching channels by the dial application that created the channel.  The
+			<replaceable>context</replaceable> is set on matching channels by the
+			channel driver for the device.</para></note>
 		</description>
 	</application>
 	<application name="PickupChan" language="en_US">
