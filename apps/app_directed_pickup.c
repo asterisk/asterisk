@@ -57,26 +57,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="targets" argsep="&amp;">
-				<argument name="exten" argsep="@" required="true">
+				<argument name="extension" argsep="@" required="true">
+					<para>Specification of the pickup target.</para>
 					<argument name="extension" required="true"/>
 					<argument name="context" />
 				</argument>
-				<argument name="exten2" argsep="@" multiple="true">
+				<argument name="extension2" argsep="@" multiple="true">
+					<para>Additional specifications of pickup targets.</para>
 					<argument name="extension2" required="true"/>
 					<argument name="context2"/>
 				</argument>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This application can pickup any ringing channel that is calling
-			the specified dialplan <replaceable>extension</replaceable>.  If no dialplan
-			<replaceable>context</replaceable> is specified, the current context will be
-			used.  If you use the special string <literal>PICKUPMARK</literal>
-			for the context, for example 10@PICKUPMARK, this application tries to find a
-			channel which has defined a channel variable <variable>PICKUPMARK</variable>
-			with the same value as <replaceable>extension</replaceable> (in this example,
-			<literal>10</literal>).  When no parameter is specified, the application will
-			pickup a channel matching the pickup group of the active channel.</para>
+			<para>This application can pickup a specified ringing channel.  The channel
+			to pickup can be specified in the following ways.</para>
+			<para>1) If no <replaceable>extension</replaceable> targets are specified,
+			the application will pickup a channel matching the pickup group of the
+			requesting channel.</para>
+			<para>2) If the <replaceable>extension</replaceable> is specified with a
+			<replaceable>context</replaceable> of the special string
+			<literal>PICKUPMARK</literal> (for example 10@PICKUPMARK), the application
+			will pickup a channel which has defined a channel variable
+			<variable>PICKUPMARK</variable> with the same value as
+			<replaceable>extension</replaceable> (in this example,
+			<literal>10</literal>).</para>
+			<para>3) If the <replaceable>extension</replaceable> is specified
+			with a <replaceable>context</replaceable>, the channel executing at that
+			dialplan location will be picked up.  If no <replaceable>context</replaceable>
+			is specified, the current context will be used.</para>
 		</description>
 	</application>
 	<application name="PickupChan" language="en_US">
