@@ -274,14 +274,16 @@ static int pickup_by_group(struct ast_channel *chan)
 /* application entry point for Pickup() */
 static int pickup_exec(struct ast_channel *chan, const char *data)
 {
-	char *tmp = ast_strdupa(data);
-	char *exten = NULL, *context = NULL;
+	char *tmp;
+	char *exten;
+	char *context;
 
 	if (ast_strlen_zero(data)) {
 		return pickup_by_group(chan) ? 0 : -1;
 	}
 
 	/* Parse extension (and context if there) */
+	tmp = ast_strdupa(data);
 	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
 		if ((context = strchr(exten, '@')))
 			*context++ = '\0';
@@ -291,12 +293,15 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 				return -1;
 			}
 		} else {
-			if (!pickup_by_exten(chan, exten, !ast_strlen_zero(context) ? context : ast_channel_context(chan))) {
+			if (ast_strlen_zero(context)) {
+				context = (char *) ast_channel_context(chan);
+			}
+			if (!pickup_by_exten(chan, exten, context)) {
 				/* Pickup successful.  Stop the dialplan this channel is a zombie. */
 				return -1;
 			}
 		}
-		ast_log(LOG_NOTICE, "No target channel found for %s.\n", exten);
+		ast_log(LOG_NOTICE, "No target channel found for %s@%s.\n", exten, context);
 	}
 
 	/* Pickup failed.  Keep going in the dialplan. */
