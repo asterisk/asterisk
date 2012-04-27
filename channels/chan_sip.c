@@ -28926,7 +28926,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		ast_string_field_set(peer, tohost, srvlookup);
 
-		if (global_dynamic_exclude_static) {
+		if (global_dynamic_exclude_static && !ast_sockaddr_isnull(&peer->addr)) {
 			int ha_error = 0;
 			sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify_addr(&peer->addr), 
 							sip_cfg.contact_ha, &ha_error);
