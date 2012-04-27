@@ -83,8 +83,9 @@ int64_t ast_tvdiff_ms(struct timeval end, struct timeval start),
 	   is handled for positive and negative numbers, by ensuring
 	   that the divisor is always positive
 	*/
-	return  ((end.tv_sec - start.tv_sec) * 1000) +
-		(((1000000 + end.tv_usec - start.tv_usec) / 1000) - 1000);
+	int64_t sec_dif = (int64_t)(end.tv_sec - start.tv_sec) * 1000;
+	int64_t usec_dif = (1000000 + end.tv_usec - start.tv_usec) / 1000 - 1000;
+	return  sec_dif + usec_dif;
 }
 )
 
