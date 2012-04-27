@@ -456,7 +456,7 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 		/* XXX Technically you can check RELATED to see if the event fires from the END of the event
 		 * But, I'm not sure I've ever seen anyone implement it in calendaring software, so I'm ignoring for now */
 		tmp = icaltime_add(start, trigger.duration);
-		event->alarm = icaltime_as_timet_with_zone(tmp, utc);
+		event->alarm = icaltime_as_timet_with_zone(tmp, icaltime_get_timezone(start));
 	}
 
 	ao2_link(pvt->events, event);
