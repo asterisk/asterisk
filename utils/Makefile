@@ -75,12 +75,12 @@ all: $(UTILS)
 install:
 	for x in $(UTILS); do \
 		if [ "$$x" != "none" ]; then \
-			$(INSTALL) -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/$$x; \
+			$(INSTALL) -m 755 $$x "$(DESTDIR)$(ASTSBINDIR)/$$x"; \
 		fi; \
 	done 
 
 uninstall:
-	for x in $(ALL_UTILS); do rm -f $(DESTDIR)$(ASTSBINDIR)/$$x; done
+	for x in $(ALL_UTILS); do rm -f "$(DESTDIR)$(ASTSBINDIR)/$$x"; done
 
 clean:
 	rm -f *.o $(ALL_UTILS) check_expr

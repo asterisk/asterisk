@@ -85,7 +85,7 @@ char *ast_sockaddr_stringify_fmt(const struct ast_sockaddr *sa, int format)
 		sa_tmp = sa;
 	}
 
-	if ((e = getnameinfo((struct sockaddr *)&sa_tmp->ss, sa->len,
+	if ((e = getnameinfo((struct sockaddr *)&sa_tmp->ss, sa_tmp->len,
 			     format & AST_SOCKADDR_STR_ADDR ? host : NULL,
 			     format & AST_SOCKADDR_STR_ADDR ? sizeof(host) : 0,
 			     format & AST_SOCKADDR_STR_PORT ? port : 0,

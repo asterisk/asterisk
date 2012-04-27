@@ -43,7 +43,9 @@ SIP Changes
    and enables symmetric RTP support.
  * Slave SIP channels now set HASH(SIP_CAUSE,<slave-channel-name>) on each
    response.  This permits the master channel to know how each channel dialled
-   in a multi-channel setup resolved in an individual way.
+   in a multi-channel setup resolved in an individual way. This carries a
+   performance penalty and must be enabled in sip.conf using the
+   'storesipcause' option.
  * Added 'externtcpport' and 'externtlsport' options to allow custom port
    configuration for the externip and externhost options when tcp or tls is used.
  * Added support for message body (stored in content variable) to SIP NOTIFY message
@@ -181,6 +183,7 @@ Applications
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
  * Added 'D' command to ExternalIVR full details in http://wiki.asterisk.org
+ * ParkedCall and Park can now specify the parking lot to use.
 
 Dialplan Functions
 ------------------
@@ -261,6 +264,8 @@ Dialplan Variables
  * Added PARKINGDYNAMIC which represents the template parkinglot defined in
    features.conf that should be the base for dynamic parkinglots.
  * Added PARKINGDYNCONTEXT which tells what context a newly created dynamic
+   parkinglot should have.
+ * Added PARKINGDYNEXTEN which tells what parking exten a newly created dynamic
    parkinglot should have.
  * Added PARKINGDYNPOS which holds what parking positions a dynamic parkinglot
    should have.

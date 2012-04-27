@@ -3,17 +3,23 @@
 ;
 
 [general]
-parkext => 700			; What extension to dial to park
-parkpos => 701-720		; What extensions to park calls on. (defafult parking lot)
-				; These needs to be numeric, as Asterisk starts from the start position
-				; and increments with one for the next parked call.
-context => parkedcalls		; Which context parked calls are in (default parking lot)
-;parkinghints = no		; Add hints priorities automatically for parking slots (default is no).
-;parkingtime => 45		; Number of seconds a call can be parked for
-				; (default is 45 seconds)
+parkext => 700                  ; What extension to dial to park.  Set per parking lot.
+;parkext_exclusive=yes          ; Specify that the parkext created for this parking lot
+                                ; will only access this parking lot. (default is no)
+parkpos => 701-720              ; What extensions to park calls on. (defafult parking lot)
+                                ; These need to be numeric, as Asterisk starts from the start position
+                                ; and increments with one for the next parked call.
+                                ; Set per parking lot.
+context => parkedcalls          ; Which context parked calls are in (default parking lot)
+                                ; Set per parking lot.
+;parkinghints = no              ; Add hints priorities automatically for parking slots (default is no).
+                                ; Set per parking lot.
+;parkingtime => 45              ; Number of seconds a call can be parked before returning.
+                                ; Set per parking lot. (default is 45 seconds)
 
 ;comebacktoorigin = yes         ; Setting this option configures the behavior of call parking when the
                                 ; parked call times out (See the parkingtime option).  The default value is 'yes'.
+                                ; Operates on all parking lots.
                                 ;
                                 ; 'yes' - When the parked call times out, attempt to send the call back to the peer
                                 ;         that parked this call.  This is done by saving off the name of the channel
@@ -38,48 +44,57 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
                                 ;         Dial() to 'SIP/0004F2040001'.
                                 ;
 
-;courtesytone = beep		; Sound file to play to the parked caller
-				; when someone dials a parked call
-				; or the Touch Monitor is activated/deactivated.
-;parkedplay = caller		; Who to play the courtesy tone to when picking up a parked call
-				; one of: parked, caller, both  (default is caller)
+;courtesytone = beep            ; Sound file to play to when someone picks up a parked call
+                                ; and also when the Touch Monitor is activated/deactivated.
+                                ; Default is no tone.
+;parkedplay = caller            ; Who to play courtesytone to when picking up a parked call.
+                                ; One of: parked, caller, both  (default is caller)
+                                ; Operates on all parking lots.
 ;parkedcalltransfers = caller   ; Enables or disables DTMF based transfers when picking up a parked call.
                                 ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
 ;parkedcallreparking = caller   ; Enables or disables DTMF based parking when picking up a parked call.
                                 ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
 ;parkedcallhangup = caller      ; Enables or disables DTMF based hangups when picking up a parked call.
                                 ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
 ;parkedcallrecording = caller   ; Enables or disables DTMF based one-touch recording when picking up a parked call.
                                 ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
 ;parkeddynamic = yes            ; Enables dynamically created parkinglots. (default is no)
-;adsipark = yes			; if you want ADSI parking announcements
-;findslot => next		; Continue to the 'next' free parking space.
-				; Defaults to 'first' available
-;parkedmusicclass=default	; This is the MOH class to use for the parked channel
-				; as long as the class is not set on the channel directly
-				; using Set(CHANNEL(musicclass)=whatever) in the dialplan
+                                ; Operates on all parking lots.
+;adsipark = yes                 ; if you want ADSI parking announcements
+                                ; Operates on all parking lots.
+;findslot => next               ; Continue to the 'next' free parking space.
+                                ; Defaults to 'first' available
+                                ; Set per parking lot.
+;parkedmusicclass=default       ; This is the MOH class to use for the parked channel
+                                ; as long as the class is not set on the channel directly
+                                ; using Set(CHANNEL(musicclass)=whatever) in the dialplan
+                                ; Set per parking lot.
 
-;transferdigittimeout => 3	; Number of seconds to wait between digits when transferring a call
-				; (default is 3 seconds)
-;xfersound = beep		; to indicate an attended transfer is complete
-;xferfailsound = beeperr	; to indicate a failed transfer
-;pickupexten = *8		; Configure the pickup extension. (default is *8)
-;pickupsound = beep		; to indicate a successful pickup (default: no sound)
-;pickupfailsound = beeperr	; to indicate that the pickup failed (default: no sound)
-;featuredigittimeout = 1000	; Max time (ms) between digits for
-                            ; feature activation  (default is 1000 ms)
-;atxfernoanswertimeout = 15 ; Timeout for answer on attended transfer default is 15 seconds.
-;atxferdropcall = no        ; If someone does an attended transfer, then hangs up before the transferred
-                            ; caller is connected, then by default, the system will try to call back the
-                            ; person that did the transfer.  If this is set to "yes", the callback will
-                            ; not be attempted and the transfer will just fail.
-                            ; For atxferdropcall=no to work properly, you also need to
-                            ; define ATXFER_NULL_TECH in main/features.c.  The reason the
-                            ; code is not enabled by default is spelled out in the comment
-                            ; block near the top of main/features.c describing ATXFER_NULL_TECH.
-;atxferloopdelay = 10       ; Number of seconds to sleep between retries (if atxferdropcall = no)
-;atxfercallbackretries = 2  ; Number of times to attempt to send the call back to the transferer.
-                            ; By default, this is 2.
+;transferdigittimeout => 3      ; Number of seconds to wait between digits when transferring a call
+                                ; (default is 3 seconds)
+;xfersound = beep               ; to indicate an attended transfer is complete
+;xferfailsound = beeperr        ; to indicate a failed transfer
+;pickupexten = *8               ; Configure the pickup extension. (default is *8)
+;pickupsound = beep             ; to indicate a successful pickup (default: no sound)
+;pickupfailsound = beeperr      ; to indicate that the pickup failed (default: no sound)
+;featuredigittimeout = 1000     ; Max time (ms) between digits for
+                                ; feature activation  (default is 1000 ms)
+;atxfernoanswertimeout = 15     ; Timeout for answer on attended transfer default is 15 seconds.
+;atxferdropcall = no            ; If someone does an attended transfer, then hangs up before the transferred
+                                ; caller is connected, then by default, the system will try to call back the
+                                ; person that did the transfer.  If this is set to "yes", the callback will
+                                ; not be attempted and the transfer will just fail.
+                                ; For atxferdropcall=no to work properly, you also need to
+                                ; define ATXFER_NULL_TECH in main/features.c.  The reason the
+                                ; code is not enabled by default is spelled out in the comment
+                                ; block near the top of main/features.c describing ATXFER_NULL_TECH.
+;atxferloopdelay = 10           ; Number of seconds to sleep between retries (if atxferdropcall = no)
+;atxfercallbackretries = 2      ; Number of times to attempt to send the call back to the transferer.
+                                ; By default, this is 2.
 
 ;
 ;*** Define another parking lot
@@ -102,12 +117,12 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 
 
 [featuremap]
-;blindxfer => #1		; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
-;disconnect => *0		; Disconnect  (default is *) -- Make sure to set the H and/or h option in the Dial() or Queue() app call!
-;automon => *1			; One Touch Record a.k.a. Touch Monitor -- Make sure to set the W and/or w option in the Dial() or Queue() app call!
-;atxfer => *2			; Attended transfer  -- Make sure to set the T and/or t option in the Dial() or Queue()  app call!
-;parkcall => #72        ; Park call (one step parking)  -- Make sure to set the K and/or k option in the Dial() app call!
-;automixmon => *3		; One Touch Record a.k.a. Touch MixMonitor -- Make sure to set the X and/or x option in the Dial() or Queue() app call!
+;blindxfer => #1                ; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
+;disconnect => *0               ; Disconnect  (default is *) -- Make sure to set the H and/or h option in the Dial() or Queue() app call!
+;automon => *1                  ; One Touch Record a.k.a. Touch Monitor -- Make sure to set the W and/or w option in the Dial() or Queue() app call!
+;atxfer => *2                   ; Attended transfer  -- Make sure to set the T and/or t option in the Dial() or Queue()  app call!
+;parkcall => #72                ; Park call (one step parking)  -- Make sure to set the K and/or k option in the Dial() app call!
+;automixmon => *3               ; One Touch Record a.k.a. Touch MixMonitor -- Make sure to set the X and/or x option in the Dial() or Queue() app call!
 
 [applicationmap]
 ; Note that the DYNAMIC_FEATURES channel variable must be set to use the features
@@ -127,7 +142,7 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>([<AppArguments>])[,MOH_Class]
 
 ;
-;  FeatureName   -> This is the name of the feature used in when setting the
+;  FeatureName   -> This is the name of the feature used when setting the
 ;                   DYNAMIC_FEATURES variable to enable usage of this feature.
 ;  DTMF_sequence -> This is the key sequence used to activate this feature.
 ;  ActivateOn    -> This is the channel of the call that the application will be executed
@@ -179,7 +194,7 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;   feature group, add the group name to the value of the DYNAMIC_FEATURES variable.
 ;
 ; example:
-; [myGroupName]        ; defines the group named myGroupName
-; testfeature => #9    ; associates testfeature with the group and the keycode '#9'.
-; pauseMonitor =>      ; associates pauseMonitor with the group and uses the keycode specified
-;                      ; in the [applicationmap].
+; [myGroupName]         ; defines the group named myGroupName
+; testfeature => #9     ; associates testfeature with the group and the keycode '#9'.
+; pauseMonitor =>       ; associates pauseMonitor with the group and uses the keycode specified
+;                       ; in the [applicationmap].
