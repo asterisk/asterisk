@@ -2623,84 +2623,126 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 	va_start(ap, p_result);
 	switch (flags & PARSE_TYPE) {
 	case PARSE_INT32:
-	    {
+	{
+		long int x = 0;
 		int32_t *result = p_result;
-		int32_t x, def = result ? *result : 0,
-			high = (int32_t)0x7fffffff,
-			low  = (int32_t)0x80000000;
-		/* optional argument: first default value, then range */
-		if (flags & PARSE_DEFAULT)
+		int32_t def = result ? *result : 0, high = INT32_MAX, low = INT32_MIN;
+		char *endptr = NULL;
+
+		/* optional arguments: default value and/or (low, high) */
+		if (flags & PARSE_DEFAULT) {
 			def = va_arg(ap, int32_t);
-		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
-			/* range requested, update bounds */
+		}
+		if (flags & (PARSE_IN_RANGE | PARSE_OUT_RANGE)) {
 			low = va_arg(ap, int32_t);
 			high = va_arg(ap, int32_t);
 		}
-		x = strtol(arg, NULL, 0);
+		if (ast_strlen_zero(arg)) {
+			error = 1;
+			goto int32_done;
+		}
+		x = strtol(arg, &endptr, 0);
+		if (*endptr || x < INT32_MIN || x > INT32_MAX) {
+			/* Parse error, or type out of int32_t bounds */
+			error = 1;
+			goto int32_done;
+		}
 		error = (x < low) || (x > high);
-		if (flags & PARSE_OUT_RANGE)
+		if (flags & PARSE_OUT_RANGE) {
 			error = !error;
-		if (result)
+		}
+int32_done:
+		if (result) {
 			*result  = error ? def : x;
-		ast_debug(3,
-			"extract int from [%s] in [%d, %d] gives [%d](%d)\n",
-			arg, low, high,
-			result ? *result : x, error);
+		}
+
+		ast_debug(3, "extract int from [%s] in [%d, %d] gives [%ld](%d)\n",
+				arg, low, high, result ? *result : x, error);
 		break;
-	    }
+	}
 
 	case PARSE_UINT32:
-	    {
+	{
+		unsigned long int x = 0;
 		uint32_t *result = p_result;
-		uint32_t x, def = result ? *result : 0,
-			low = 0, high = (uint32_t)~0;
+		uint32_t def = result ? *result : 0, low = 0, high = UINT32_MAX;
+		char *endptr = NULL;
+
 		/* optional argument: first default value, then range */
-		if (flags & PARSE_DEFAULT)
+		if (flags & PARSE_DEFAULT) {
 			def = va_arg(ap, uint32_t);
+		}
 		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
 			/* range requested, update bounds */
 			low = va_arg(ap, uint32_t);
 			high = va_arg(ap, uint32_t);
 		}
-		x = strtoul(arg, NULL, 0);
+
+		if (ast_strlen_zero(arg)) {
+			error = 1;
+			goto uint32_done;
+		}
+		/* strtoul will happilly and silently negate negative numbers */
+		arg = ast_skip_blanks(arg);
+		if (*arg == '-') {
+			error = 1;
+			goto uint32_done;
+		}
+		x = strtoul(arg, &endptr, 0);
+		if (*endptr || x > UINT32_MAX) {
+			error = 1;
+			goto uint32_done;
+		}
 		error = (x < low) || (x > high);
-		if (flags & PARSE_OUT_RANGE)
+		if (flags & PARSE_OUT_RANGE) {
 			error = !error;
-		if (result)
+		}
+uint32_done:
+		if (result) {
 			*result  = error ? def : x;
-		ast_debug(3,
-			"extract uint from [%s] in [%u, %u] gives [%u](%d)\n",
-			arg, low, high,
-			result ? *result : x, error);
+		}
+		ast_debug(3, "extract uint from [%s] in [%u, %u] gives [%lu](%d)\n",
+				arg, low, high, result ? *result : x, error);
 		break;
-	    }
+	}
 
 	case PARSE_DOUBLE:
-	    {
+	{
 		double *result = p_result;
-		double x, def = result ? *result : 0,
-			low = -HUGE_VAL, high = HUGE_VAL;
+		double x = 0, def = result ? *result : 0, low = -HUGE_VAL, high = HUGE_VAL;
+		char *endptr = NULL;
 
 		/* optional argument: first default value, then range */
-		if (flags & PARSE_DEFAULT)
+		if (flags & PARSE_DEFAULT) {
 			def = va_arg(ap, double);
-		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
+		}
+		if (flags & (PARSE_IN_RANGE | PARSE_OUT_RANGE)) {
 			/* range requested, update bounds */
 			low = va_arg(ap, double);
 			high = va_arg(ap, double);
 		}
-		x = strtod(arg, NULL);
+		if (ast_strlen_zero(arg)) {
+			error = 1;
+			goto double_done;
+		}
+		errno = 0;
+		x = strtod(arg, &endptr);
+		if (*endptr || errno == ERANGE) {
+			error = 1;
+			goto double_done;
+		}
 		error = (x < low) || (x > high);
-		if (flags & PARSE_OUT_RANGE)
+		if (flags & PARSE_OUT_RANGE) {
 			error = !error;
-		if (result)
-			*result  = error ? def : x;
-		ast_debug(3,
-			"extract double from [%s] in [%f, %f] gives [%f](%d)\n",
-			arg, low, high,
-			result ? *result : x, error);
+		}
+double_done:
+		if (result) {
+			*result = error ? def : x;
+		}
+		ast_debug(3, "extract double from [%s] in [%f, %f] gives [%f](%d)\n",
+				arg, low, high, result ? *result : x, error);
 		break;
-	    }
+	}
 	case PARSE_ADDR:
 	    {
 		struct ast_sockaddr *addr = (struct ast_sockaddr *)p_result;
