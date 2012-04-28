@@ -209,6 +209,11 @@ Dialplan functions
    VM_INFO.
  * The REDIRECTING function now supports the redirecting original party id
    and reason.
+ * Two new functions have been added: FEATURE() and FEATUREMAP().  FEATURE()
+   lets you set some of the configuration options from the [general] section
+   of features.conf on a per-channel basis.  FEATUREMAP() lets you customize
+   the key sequence used to activate built-in features, such as blindxfer,
+   and automon.  See the built-in documentation for details.
 
 Followme changes
 -------------

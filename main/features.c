@@ -1,7 +1,8 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2008, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
+ * Copyright (C) 2012, Russell Bryant
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -408,6 +409,57 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Bridge together two channels already in the PBX.</para>
 		</description>
 	</manager>
+	<function name="FEATURE" language="en_US">
+		<synopsis>
+			Get or set a feature option on a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="option_name" required="true">
+				<para>The allowed values are:</para>
+				<enumlist>
+					<enum name="parkingtime"><para>Specified in seconds.</para></enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When this function is used as a read, it will get the current
+			value of the specified feature option for this channel.  It will be
+			the value of this option configured in features.conf if a channel specific
+			value has not been set.  This function can also be used to set a channel
+			specific value for the supported feature options.</para>
+		</description>
+		<see-also>
+			<ref type="function">FEATUREMAP</ref>
+		</see-also>
+	</function>
+	<function name="FEATUREMAP" language="en_US">
+		<synopsis>
+			Get or set a feature map to a given value on a specific channel.
+		</synopsis>
+		<syntax>
+			<parameter name="feature_name" required="true">
+				<para>The allowed values are:</para>
+				<enumlist>
+					<enum name="atxfer"><para>Attended Transfer</para></enum>
+					<enum name="blindxfer"><para>Blind Transfer</para></enum>
+					<enum name="automon"><para>Auto Monitor</para></enum>
+					<enum name="disconnect"><para>Call Disconnect</para></enum>
+					<enum name="parkcall"><para>Park Call</para></enum>
+					<enum name="automixmon"><para>Auto MixMonitor</para></enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>When this function is used as a read, it will get the current
+			digit sequence mapped to the specified feature for this channel.  This
+			value will be the one configured in features.conf if a channel specific
+			value has not been set.  This function can also be used to set a channel
+			specific value for a feature mapping.</para>
+		</description>
+		<see-also>
+			<ref type="function">FEATURE</ref>
+		</see-also>
+	</function>
  ***/
 
 #define DEFAULT_PARK_TIME							45000	/*!< ms */
@@ -508,7 +560,7 @@ struct parkeduser {
 	char context[AST_MAX_CONTEXT];              /*!< Where to go if our parking time expires */
 	char exten[AST_MAX_EXTENSION];
 	int priority;
-	int parkingtime;                            /*!< Maximum length in parking lot before return */
+	unsigned int parkingtime;                   /*!< Maximum length in parking lot before return */
 	/*! Method to entertain the caller when parked: AST_CONTROL_RINGING, AST_CONTROL_HOLD, or 0(none) */
 	enum ast_control_frame_type hold_method;
 	unsigned int notquiteyet:1;
@@ -535,7 +587,7 @@ struct parkinglot_cfg {
 	/*! Last available extension for parking */
 	int parking_stop;
 	/*! Default parking time in ms. */
-	int parkingtime;
+	unsigned int parkingtime;
 	/*!
 	 * \brief Enable DTMF based transfers on bridge when picking up parked calls.
 	 *
@@ -1482,6 +1534,8 @@ static struct parkeduser *park_space_reserve(struct ast_channel *park_me, struct
 	return pu;
 }
 
+static unsigned int get_parkingtime(struct ast_channel *chan, struct ast_parkinglot *parkinglot);
+
 /* Park a call */
 static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
@@ -1515,7 +1569,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	pu->start = ast_tvnow();
-	pu->parkingtime = (args->timeout > 0) ? args->timeout : pu->parkinglot->cfg.parkingtime;
+	pu->parkingtime = (args->timeout > 0) ? args->timeout : get_parkingtime(chan, pu->parkinglot);
 	if (args->extout)
 		*(args->extout) = pu->parkingnum;
 
@@ -1588,7 +1642,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
-	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %d seconds\n",
+	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %u seconds\n",
 		ast_channel_name(chan), pu->parkingnum, pu->parkinglot->name,
 		pu->context, pu->exten, pu->priority, (pu->parkingtime / 1000));
 
@@ -3158,6 +3212,10 @@ void ast_unlock_call_features(void)
 	ast_rwlock_unlock(&features_lock);
 }
 
+/*!
+ * \internal
+ * \pre Expects feature_lock to be readlocked
+ */
 struct ast_call_feature *ast_find_call_feature(const char *name)
 {
 	int x;
@@ -3167,6 +3225,143 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
 	}
 
 	return find_dynamic_feature(name);
+}
+
+struct feature_exten {
+	char sname[FEATURE_SNAME_LEN];
+	char exten[FEATURE_MAX_LEN];
+};
+
+struct feature_ds {
+	struct ao2_container *feature_map;
+
+	/*!
+	 * \brief specified in seconds, stored in milliseconds
+	 *
+	 * \todo XXX This isn't pretty.  At some point it would be nice to have all
+	 * of the global / [general] options in a config object that we store here
+	 * instead of handling each one manually.
+	 * */
+	unsigned int parkingtime;
+	unsigned int parkingtime_is_set:1;
+};
+
+static void feature_ds_destroy(void *data)
+{
+	struct feature_ds *feature_ds = data;
+
+	if (feature_ds->feature_map) {
+		ao2_ref(feature_ds->feature_map, -1);
+		feature_ds->feature_map = NULL;
+	}
+
+	ast_free(feature_ds);
+}
+
+static const struct ast_datastore_info feature_ds_info = {
+	.type = "FEATURE",
+	.destroy = feature_ds_destroy,
+};
+
+static int feature_exten_hash(const void *obj, int flags)
+{
+	const struct feature_exten *fe = obj;
+	const char *sname = obj;
+
+	return ast_str_hash(flags & OBJ_KEY ? sname : fe->sname);
+}
+
+static int feature_exten_cmp(void *obj, void *arg, int flags)
+{
+	const struct feature_exten *fe = obj, *fe2 = arg;
+	const char *sname = arg;
+
+	return !strcmp(fe->sname, flags & OBJ_KEY ? sname : fe2->sname) ?
+			CMP_MATCH | CMP_STOP : 0;
+}
+
+/*!
+ * \internal
+ * \brief Find or create feature datastore on a channel
+ *
+ * \pre chan is locked
+ *
+ * \return the data on the FEATURE datastore, or NULL on error
+ */
+static struct feature_ds *get_feature_ds(struct ast_channel *chan)
+{
+	struct feature_ds *feature_ds;
+	struct ast_datastore *ds;
+
+	if ((ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
+		feature_ds = ds->data;
+		return feature_ds;
+	}
+
+	if (!(feature_ds = ast_calloc(1, sizeof(*feature_ds)))) {
+		return NULL;
+	}
+
+	if (!(feature_ds->feature_map = ao2_container_alloc(7, feature_exten_hash, feature_exten_cmp))) {
+		feature_ds_destroy(feature_ds);
+		return NULL;
+	}
+
+	if (!(ds = ast_datastore_alloc(&feature_ds_info, NULL))) {
+		feature_ds_destroy(feature_ds);
+		return NULL;
+	}
+
+	ds->data = feature_ds;
+
+	ast_channel_datastore_add(chan, ds);
+
+	return feature_ds;
+}
+
+/*!
+ * \internal
+ * \brief Get the extension for a given builtin feature
+ *
+ * \pre expects feature_lock to be readlocked
+ *
+ * \retval 0 success
+ * \retval non-zero failiure
+ */
+static int builtin_feature_get_exten(struct ast_channel *chan, const char *feature_name,
+		char *buf, size_t len)
+{
+	struct ast_call_feature *feature;
+	struct feature_ds *feature_ds;
+	struct feature_exten *fe = NULL;
+
+	*buf = '\0';
+
+	if (!(feature = ast_find_call_feature(feature_name))) {
+		return -1;
+	}
+
+	ast_copy_string(buf, feature->exten, len);
+
+	ast_unlock_call_features();
+
+	ast_channel_lock(chan);
+	if ((feature_ds = get_feature_ds(chan))) {
+		fe = ao2_find(feature_ds->feature_map, feature_name, OBJ_KEY);
+	}
+	ast_channel_unlock(chan);
+
+	ast_rdlock_call_features();
+
+	if (fe) {
+		ao2_lock(fe);
+		ast_copy_string(buf, fe->exten, len);
+		ao2_unlock(fe);
+		ao2_ref(fe, -1);
+		fe = NULL;
+	}
+
+	return 0;
 }
 
 /*!
@@ -3299,25 +3494,33 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
-		if ((ast_test_flag(features, builtin_features[x].feature_mask)) &&
-		    !ast_strlen_zero(builtin_features[x].exten)) {
-			/* Feature is up for consideration */
-			if (!strcmp(builtin_features[x].exten, code)) {
-				ast_debug(3, "Feature detected: fname=%s sname=%s exten=%s\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
-				if (operation == FEATURE_INTERPRET_CHECK) {
-					res = AST_FEATURE_RETURN_SUCCESS; /* We found something */
-				} else if (operation == FEATURE_INTERPRET_DO) {
-					res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
-				}
-				if (feature) {
-					memcpy(feature, &builtin_features[x], sizeof(*feature));
-				}
-				feature_detected = 1;
-				break;
-			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
-				if (res == AST_FEATURE_RETURN_PASSDIGITS) {
-					res = AST_FEATURE_RETURN_STOREDIGITS;
-				}
+		char feature_exten[FEATURE_MAX_LEN] = "";
+
+		if (!ast_test_flag(features, builtin_features[x].feature_mask)) {
+			continue;
+		}
+
+		if (builtin_feature_get_exten(chan, builtin_features[x].sname, feature_exten, sizeof(feature_exten))) {
+			continue;
+		}
+
+		/* Feature is up for consideration */
+
+		if (!strcmp(feature_exten, code)) {
+			ast_debug(3, "Feature detected: fname=%s sname=%s exten=%s\n", builtin_features[x].fname, builtin_features[x].sname, feature_exten);
+			if (operation == FEATURE_INTERPRET_CHECK) {
+				res = AST_FEATURE_RETURN_SUCCESS; /* We found something */
+			} else if (operation == FEATURE_INTERPRET_DO) {
+				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
+			}
+			if (feature) {
+				memcpy(feature, &builtin_features[x], sizeof(*feature));
+			}
+			feature_detected = 1;
+			break;
+		} else if (!strncmp(feature_exten, code, strlen(code))) {
+			if (res == AST_FEATURE_RETURN_PASSDIGITS) {
+				res = AST_FEATURE_RETURN_STOREDIGITS;
 			}
 		}
 	}
@@ -5539,9 +5742,9 @@ static int parkinglot_config_read(const char *pl_name, struct parkinglot_cfg *cf
 		} else if (!strcasecmp(var->name, "parkedmusicclass")) {
 			ast_copy_string(cfg->mohclass, var->value, sizeof(cfg->mohclass));
 		} else if (!strcasecmp(var->name, "parkingtime")) {
-			int parkingtime = 0;
+			unsigned int parkingtime = 0;
 
-			if ((sscanf(var->value, "%30d", &parkingtime) != 1) || parkingtime < 1) {
+			if ((sscanf(var->value, "%30u", &parkingtime) != 1) || parkingtime < 1) {
 				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
 				error = -1;
 			} else {
@@ -6851,7 +7054,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd,"%-22s:      %s\n", "Parking context", curlot->cfg.parking_con);
 		ast_cli(a->fd,"%-22s:      %d-%d\n", "Parked call extensions",
 			curlot->cfg.parking_start, curlot->cfg.parking_stop);
-		ast_cli(a->fd,"%-22s:      %d ms\n", "Parkingtime", curlot->cfg.parkingtime);
+		ast_cli(a->fd,"%-22s:      %u ms\n", "Parkingtime", curlot->cfg.parkingtime);
 		ast_cli(a->fd,"%-22s:      %s\n", "Comeback to origin",
 				(curlot->cfg.comebacktoorigin ? "yes" : "no"));
 		ast_cli(a->fd,"%-22s:      %s%s\n", "Comeback context",
@@ -8282,6 +8485,163 @@ exit_features_test:
 }
 #endif	/* defined(TEST_FRAMEWORK) */
 
+/*!
+ * \internal
+ * \brief Get parkingtime for a channel
+ */
+static unsigned int get_parkingtime(struct ast_channel *chan, struct ast_parkinglot *parkinglot)
+{
+	const char *parkinglot_name;
+	struct feature_ds *feature_ds;
+	unsigned int parkingtime;
+
+	ast_channel_lock(chan);
+
+	feature_ds = get_feature_ds(chan);
+	if (feature_ds && feature_ds->parkingtime_is_set) {
+		parkingtime = feature_ds->parkingtime;
+		ast_channel_unlock(chan);
+		return parkingtime;
+	}
+
+	parkinglot_name = ast_strdupa(S_OR(ast_channel_parkinglot(chan), ""));
+
+	ast_channel_unlock(chan);
+
+	if (!parkinglot) {
+		if (!ast_strlen_zero(parkinglot_name)) {
+			parkinglot = find_parkinglot(parkinglot_name);
+		}
+
+		if (!parkinglot) {
+			parkinglot = parkinglot_addref(default_parkinglot);
+		}
+	} else {
+		/* Just to balance the unref below */
+		parkinglot_addref(parkinglot);
+	}
+
+	parkingtime = parkinglot->cfg.parkingtime;
+
+	parkinglot_unref(parkinglot);
+
+	return parkingtime;
+}
+
+static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
+	       char *buf, size_t len)
+{
+	int res = 0;
+
+	if (!strcasecmp(data, "parkingtime")) {
+		snprintf(buf, len, "%u", get_parkingtime(chan, NULL) / 1000);
+	} else {
+		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);
+		res = -1;
+	}
+
+	return res;
+}
+
+static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
+		const char *value)
+{
+	int res = 0;
+	struct feature_ds *feature_ds;
+
+	ast_channel_lock(chan);
+
+	if (!(feature_ds = get_feature_ds(chan))) {
+		res = -1;
+		goto return_cleanup;
+	}
+
+	if (!strcasecmp(data, "parkingtime")) {
+		feature_ds->parkingtime_is_set = 1;
+		if (sscanf(value, "%30u", &feature_ds->parkingtime) == 1) {
+			feature_ds->parkingtime *= 1000; /* stored in ms */
+		} else {
+			ast_log(LOG_WARNING, "'%s' is not a valid parkingtime\n", value);
+			feature_ds->parkingtime_is_set = 0;
+			res = -1;
+		}
+	} else {
+		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);
+		res = -1;
+	}
+
+return_cleanup:
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
+static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data,
+	       char *buf, size_t len)
+{
+	int res;
+
+	ast_rdlock_call_features();
+
+	if ((res = builtin_feature_get_exten(chan, data, buf, len))) {
+		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATUREMAP()\n", data);
+	}
+
+	ast_unlock_call_features();
+
+	return res;
+}
+
+static int featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
+		const char *value)
+{
+	struct feature_ds *feature_ds;
+	struct feature_exten *fe;
+
+	if (!ast_find_call_feature(data)) {
+		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATUREMAP()\n", data);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	if (!(feature_ds = get_feature_ds(chan))) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (!(fe = ao2_find(feature_ds->feature_map, data, OBJ_KEY))) {
+		if (!(fe = ao2_alloc(sizeof(*fe), NULL))) {
+			ast_channel_unlock(chan);
+			return -1;
+		}
+		ast_copy_string(fe->sname, data, sizeof(fe->sname));
+		ao2_link(feature_ds->feature_map, fe);
+	}
+
+	ast_channel_unlock(chan);
+
+	ao2_lock(fe);
+	ast_copy_string(fe->exten, value, sizeof(fe->exten));
+	ao2_unlock(fe);
+	ao2_ref(fe, -1);
+	fe = NULL;
+
+	return 0;
+}
+
+static struct ast_custom_function feature_function = {
+	.name = "FEATURE",
+	.read = feature_read,
+	.write = feature_write
+};
+
+static struct ast_custom_function featuremap_function = {
+	.name = "FEATUREMAP",
+	.read = featuremap_read,
+	.write = featuremap_write
+};
+
 int ast_features_init(void)
 {
 	int res;
@@ -8306,6 +8666,8 @@ int ast_features_init(void)
 		ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
 		ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 	}
+	res |= __ast_custom_function_register(&feature_function, NULL);
+	res |= __ast_custom_function_register(&featuremap_function, NULL);
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
 #if defined(TEST_FRAMEWORK)
