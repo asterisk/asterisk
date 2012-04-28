@@ -76,6 +76,9 @@ SIP Changes
    the remote endpoint.
  * Adds an option send_diversion which can be disabled to prevent
    diversion headers from automatically being added to invites.
+ * Add support for lightweight NAT keepalive. If enabled a blank packet will
+   be sent to the remote host at a given interval to keep the NAT mapping open.
+   This can be enabled using the keepalive configuration option.
 
 Chan_local changes
 ------------------

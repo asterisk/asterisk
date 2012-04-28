@@ -273,6 +273,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 				; Default: 100
 ;qualifypeers=1			; Number of peers in a group to be qualified at the same time
 				; Default: 1
+;keepalive=60                   ; Interval at which keepalive packets should be sent to a peer
+				; Valid options are yes (60 seconds), no, or the number of seconds.
+                                ; Default: 0
 ;notifymimetype=text/plain      ; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no                    ; Cisco SIP firmware doesn't support the MWI RFC
                                 ; fully. Enable this option to not get error messages
@@ -1194,6 +1197,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; host
 ; port
 ; qualify
+; keepalive
 ; defaultip
 ; defaultuser
 ; rtptimeout

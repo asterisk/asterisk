@@ -212,6 +212,8 @@
 #define DEFAULT_AUTOCREATEPEER AUTOPEERS_DISABLED    /*!< Don't create peers automagically */
 #define	DEFAULT_MATCHEXTERNADDRLOCALLY FALSE /*!< Match extern IP locally default setting */
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
+#define DEFAULT_KEEPALIVE      0        /*!< Don't send keep alive packets */
+#define DEFAULT_KEEPALIVE_INTERVAL 60   /*!< Send keep alive packets at 60 second intervals */
 #define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
 #define DEFAULT_ALWAYSAUTHREJECT  TRUE  /*!< Don't reject authentication requests always */
 #define DEFAULT_AUTH_OPTIONS  FALSE
@@ -1319,6 +1321,8 @@ struct sip_peer {
 	int maxms;                      /*!<  Qualification: Max ms we will accept for the host to be up, 0 to not monitor */
 	int qualifyfreq;                /*!<  Qualification: Qualification: How often to check for the host to be up */
 	struct timeval ps;              /*!<  Qualification: Time for sending SIP OPTION in sip_pke_peer() */
+	int keepalive;                  /*!<  Keepalive: How often to send keep alive packet */
+	int keepalivesend;              /*!<  Keepalive: Scheduled item for sending keep alive packet */
 	struct ast_sockaddr defaddr;     /*!<  Default IP address, used until registration */
 	struct ast_ha *ha;              /*!<  Access control list */
 	struct ast_ha *contactha;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */

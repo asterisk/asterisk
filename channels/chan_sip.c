@@ -688,6 +688,7 @@ static int default_fromdomainport;                 /*!< Default domain port on o
 static char default_notifymime[AST_MAX_EXTENSION]; /*!< Default MIME media type for MWI notify messages */
 static char default_vmexten[AST_MAX_EXTENSION];    /*!< Default From Username on MWI updates */
 static int default_qualify;                        /*!< Default Qualify= setting */
+static int default_keepalive;                      /*!< Default keepalive= setting */
 static char default_mohinterpret[MAX_MUSICCLASS];  /*!< Global setting for moh class to use when put on hold */
 static char default_mohsuggest[MAX_MUSICCLASS];    /*!< Global setting for moh class to suggest when putting
                                                     *   a bridged channel on hold */
@@ -1379,6 +1380,7 @@ static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
 static void mwi_event_cb(const struct ast_event *, void *);
 static void network_change_event_cb(const struct ast_event *, void *);
+static void sip_keepalive_all_peers(void);
 
 /*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
@@ -2880,6 +2882,10 @@ static void peer_sched_cleanup(struct sip_peer *peer)
 	if (peer->expire != -1) {
 		AST_SCHED_DEL_UNREF(sched, peer->expire,
 				sip_unref_peer(peer, "remove register expire ref"));
+	}
+	if (peer->keepalivesend != -1) {
+		AST_SCHED_DEL_UNREF(sched, peer->keepalivesend,
+				    sip_unref_peer(peer, "remove keepalive peer ref"));
 	}
 }
 
@@ -18301,6 +18307,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
 		ast_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
 		ast_cli(fd, "  Qualify Freq : %d ms\n", peer->qualifyfreq);
+		ast_cli(fd, "  Keepalive    : %d ms\n", peer->keepalive * 1000);
 		if (peer->chanvars) {
 			ast_cli(fd, "  Variables    :\n");
 			for (v = peer->chanvars ; v ; v = v->next)
@@ -18974,6 +18981,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Force rport:            %s\n", force_rport_string(global_flags));
 	ast_cli(a->fd, "  DTMF:                   %s\n", dtmfmode2str(ast_test_flag(&global_flags[0], SIP_DTMF)));
 	ast_cli(a->fd, "  Qualify:                %d\n", default_qualify);
+	ast_cli(a->fd, "  Keepalive:              %d\n", default_keepalive);
 	ast_cli(a->fd, "  Use ClientCode:         %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_USECLIENTCODE)));
 	ast_cli(a->fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_NO)));
 	ast_cli(a->fd, "  Language:               %s\n", default_language);
@@ -27312,6 +27320,56 @@ enum st_mode st_get_mode(struct sip_pvt *p, int no_cached)
 	return global_st_mode;
 }
 
+/*! \brief Send keep alive packet to peer */
+static int sip_send_keepalive(const void *data)
+{
+	struct sip_peer *peer = (struct sip_peer*) data;
+	int res = 0;
+	const char keepalive[] = "\r\n";
+
+	peer->keepalivesend = -1;
+
+	if (!peer->keepalive || ast_sockaddr_isnull(&peer->addr)) {
+		sip_unref_peer(peer, "release keepalive peer ref");
+		return 0;
+	}
+
+	/* Send the packet out using the proper method for this peer */
+	if ((peer->socket.fd != -1) && (peer->socket.type == SIP_TRANSPORT_UDP)) {
+		res = ast_sendto(peer->socket.fd, keepalive, sizeof(keepalive), 0, &peer->addr);
+	} else if ((peer->socket.type & (SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS)) &&
+		   (peer->socket.tcptls_session) &&
+		   (peer->socket.tcptls_session->fd != -1)) {
+		res = sip_tcptls_write(peer->socket.tcptls_session, keepalive, sizeof(keepalive));
+	} else if (peer->socket.type == SIP_TRANSPORT_UDP) {
+		res = ast_sendto(sipsock, keepalive, sizeof(keepalive), 0, &peer->addr);
+	}
+
+	if (res == -1) {
+		switch (errno) {
+		case EBADF:             /* Bad file descriptor - seems like this is generated when the host exist, but doesn't accept the UDP packet */
+		case EHOSTUNREACH:      /* Host can't be reached */
+		case ENETDOWN:          /* Interface down */
+		case ENETUNREACH:       /* Network failure */
+		case ECONNREFUSED:      /* ICMP port unreachable */
+			res = XMIT_ERROR;       /* Don't bother with trying to transmit again */
+		}
+	}
+
+	if (res != sizeof(keepalive)) {
+		ast_log(LOG_WARNING, "sip_send_keepalive to %s returned %d: %s\n", ast_sockaddr_stringify(&peer->addr), res, strerror(errno));
+	}
+
+	AST_SCHED_REPLACE_UNREF(peer->keepalivesend, sched,
+				peer->keepalive * 1000, sip_send_keepalive, peer,
+				sip_unref_peer(_data, "removing keepalive peer ref"),
+				sip_unref_peer(peer, "removing keepalive peer ref"),
+				sip_ref_peer(peer, "adding keepalive peer ref"));
+
+	sip_unref_peer(peer, "release keepalive peer ref");
+
+	return 0;
+}
 
 /*! \brief React to lack of answer to Qualify poke */
 static int sip_poke_noanswer(const void *data)
@@ -28175,6 +28233,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		*/
 		peer->expire = -1;
 		peer->pokeexpire = -1;
+		peer->keepalivesend = -1;
 		set_socket_transport(&peer->socket, SIP_TRANSPORT_UDP);
 	}
 	peer->type = SIP_TYPE_PEER;
@@ -28217,6 +28276,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->callgroup = 0;
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
+	peer->keepalive = default_keepalive;
 	peer->prefs = default_prefs;
 	ast_string_field_set(peer, zone, default_zone);
 	peer->stimer.st_mode_oper = global_st_mode;	/* Session-Timers */
@@ -28816,6 +28876,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "Qualify is incompatible with dynamic uncached realtime.  Please either turn rtcachefriends on or turn qualify off on peer '%s'\n", peer->name);
 				peer->maxms = 0;
 			}
+		} else if (!strcasecmp(v->name, "keepalive")) {
+			if (!strcasecmp(v->value, "no")) {
+				peer->keepalive = 0;
+			} else if (!strcasecmp(v->value, "yes")) {
+				peer->keepalive = DEFAULT_KEEPALIVE_INTERVAL;
+			} else if (sscanf(v->value, "%30d", &peer->keepalive) != 1) {
+				ast_log(LOG_WARNING, "Keep alive of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
+				peer->keepalive = 0;
+			}
 		} else if (!strcasecmp(v->name, "callcounter")) {
 			peer->call_limit = ast_true(v->value) ? INT_MAX : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
@@ -29280,6 +29349,7 @@ static int reload_config(enum channelreloadreason reason)
 	default_fromdomain[0] = '\0';
 	default_fromdomainport = 0;
 	default_qualify = DEFAULT_QUALIFY;
+	default_keepalive = DEFAULT_KEEPALIVE;
 	default_zone[0] = '\0';
 	default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 	ast_copy_string(default_mohinterpret, DEFAULT_MOHINTERPRET, sizeof(default_mohinterpret));
@@ -29755,6 +29825,15 @@ static int reload_config(enum channelreloadreason reason)
 			} else if (sscanf(v->value, "%30d", &default_qualify) != 1) {
 				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
 				default_qualify = 0;
+			}
+		} else if (!strcasecmp(v->name, "keepalive")) {
+			if (!strcasecmp(v->value, "no")) {
+				default_keepalive = 0;
+			} else if (!strcasecmp(v->value, "yes")) {
+				default_keepalive = DEFAULT_KEEPALIVE_INTERVAL;
+			} else if (sscanf(v->value, "%30d", &default_keepalive) != 1) {
+				ast_log(LOG_WARNING, "Keep alive default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
+				default_keepalive = 0;
 			}
 		} else if (!strcasecmp(v->name, "qualifyfreq")) {
 			int i;
@@ -30737,6 +30816,29 @@ static void sip_poke_all_peers(void)
 	ao2_iterator_destroy(&i);
 }
 
+/*! \brief Send a keepalive to all known peers */
+static void sip_keepalive_all_peers(void)
+{
+	struct ao2_iterator i;
+	struct sip_peer *peer;
+
+	if (!speerobjs) {       /* No peers, just give up */
+		return;
+	}
+
+	i = ao2_iterator_init(peers, 0);
+	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
+		ao2_lock(peer);
+		AST_SCHED_REPLACE_UNREF(peer->keepalivesend, sched, 0, sip_send_keepalive, peer,
+					sip_unref_peer(_data, "removing poke peer ref"),
+					sip_unref_peer(peer, "removing poke peer ref"),
+					sip_ref_peer(peer, "adding poke peer ref"));
+		ao2_unlock(peer);
+		sip_unref_peer(peer, "toss iterator peer ptr");
+	}
+	ao2_iterator_destroy(&i);
+}
+
 /*! \brief Send all known registrations */
 static void sip_send_all_registers(void)
 {
@@ -30841,6 +30943,9 @@ static int sip_do_reload(enum channelreloadreason reason)
 
 	/* Send qualify (OPTIONS) to all peers */
 	sip_poke_all_peers();
+
+	/* Send keepalive to all peers */
+	sip_keepalive_all_peers();
 
 	/* Register with all services */
 	sip_send_all_registers();
@@ -31604,7 +31709,8 @@ static int load_module(void)
 	ast_manager_register_xml("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer);
 	ast_manager_register_xml("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry);
 	ast_manager_register_xml("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify);
-	sip_poke_all_peers();	
+	sip_poke_all_peers();
+	sip_keepalive_all_peers();
 	sip_send_all_registers();
 	sip_send_all_mwi_subscriptions();
 	initialize_escs();
