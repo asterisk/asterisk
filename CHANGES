@@ -141,6 +141,8 @@ Applications
    be supplied with arguments indicating where the callee should go after the caller
    is hung up, or without options specified, the priority after the Queue/Bridge
    will be used.
+ * Added 'b' and 'B' options to Dial that execute a Gosub on callee and caller
+   channels respectively before the callee channels are called.
 
 Parking
 ------------
