@@ -2085,7 +2085,7 @@ static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 	char *domain;
 	char *tmpptr;
 	struct minivm_account *vmu;
-	char *username = argv[0];
+	char *username;
 	const char *template = "";
 	const char *filename;
 	const char *format;
@@ -2457,7 +2457,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	char *domain;
 	char *tmpptr = NULL;
 	struct minivm_account *vmu;
-	char *username = argv[0];
+	char *username;
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	int error = FALSE;
