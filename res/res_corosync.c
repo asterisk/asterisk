@@ -68,15 +68,19 @@ static struct {
 static cpg_handle_t cpg_handle;
 static corosync_cfg_handle_t cfg_handle;
 
+#ifdef HAVE_COROSYNC_CFG_STATE_TRACK
 static void cfg_state_track_cb(
 		corosync_cfg_state_notification_buffer_t *notification_buffer,
 		cs_error_t error);
+#endif /* HAVE_COROSYNC_CFG_STATE_TRACK */
 
 static void cfg_shutdown_cb(corosync_cfg_handle_t cfg_handle,
 		corosync_cfg_shutdown_flags_t flags);
 
 static corosync_cfg_callbacks_t cfg_callbacks = {
+#ifdef HAVE_COROSYNC_CFG_STATE_TRACK
 	.corosync_cfg_state_track_callback = cfg_state_track_cb,
+#endif /* HAVE_COROSYNC_CFG_STATE_TRACK */
 	.corosync_cfg_shutdown_callback = cfg_shutdown_cb,
 };
 
@@ -95,11 +99,13 @@ static cpg_callbacks_t cpg_callbacks = {
 
 static void ast_event_cb(const struct ast_event *event, void *data);
 
+#ifdef HAVE_COROSYNC_CFG_STATE_TRACK
 static void cfg_state_track_cb(
 		corosync_cfg_state_notification_buffer_t *notification_buffer,
 		cs_error_t error)
 {
 }
+#endif /* HAVE_COROSYNC_CFG_STATE_TRACK */
 
 static void cfg_shutdown_cb(corosync_cfg_handle_t cfg_handle,
 		corosync_cfg_shutdown_flags_t flags)

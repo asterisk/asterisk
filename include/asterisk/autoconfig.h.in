@@ -140,6 +140,9 @@
 /* Define to 1 if you have the Corosync library. */
 #undef HAVE_COROSYNC
 
+/* Define to 1 if COROSYNC has the A callback only in corosync 1.x feature. */
+#undef HAVE_COROSYNC_CFG_STATE_TRACK
+
 /* Define to 1 if you have the `cos' function. */
 #undef HAVE_COS
 
