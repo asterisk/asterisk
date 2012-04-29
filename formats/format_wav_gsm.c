@@ -530,7 +530,7 @@ static int wav_trunc(struct ast_filestream *fs)
 		ast_log(AST_LOG_WARNING, "Unable to determine file descriptor for WAV filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
-	if ((cur = ftello(fs->f) < 0)) {
+	if ((cur = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine current position in WAV filestream %p: %s\n", fs, strerror(errno));
 		return -1;
 	}
