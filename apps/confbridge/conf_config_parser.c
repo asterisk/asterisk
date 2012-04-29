@@ -241,6 +241,8 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 		ast_string_field_set(sounds, placeintoconf, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_wait_for_leader")) {
 		ast_string_field_set(sounds, waitforleader, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_leader_has_left")) {
+		ast_string_field_set(sounds, leaderhasleft, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_get_pin")) {
 		ast_string_field_set(sounds, getpin, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_invalid_pin")) {
@@ -334,6 +336,7 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		ast_string_field_set(sounds, otherinparty, tmp->sounds->otherinparty);
 		ast_string_field_set(sounds, placeintoconf, tmp->sounds->placeintoconf);
 		ast_string_field_set(sounds, waitforleader, tmp->sounds->waitforleader);
+		ast_string_field_set(sounds, leaderhasleft, tmp->sounds->leaderhasleft);
 		ast_string_field_set(sounds, getpin, tmp->sounds->getpin);
 		ast_string_field_set(sounds, invalidpin, tmp->sounds->invalidpin);
 		ast_string_field_set(sounds, locked, tmp->sounds->locked);
@@ -1038,6 +1041,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_other_in_party: %s\n", conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, b_profile.sounds));
 	ast_cli(a->fd,"sound_place_into_conference: %s\n", conf_get_sound(CONF_SOUND_PLACE_IN_CONF, b_profile.sounds));
 	ast_cli(a->fd,"sound_wait_for_leader:       %s\n", conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, b_profile.sounds));
+	ast_cli(a->fd,"sound_leader_has_left:       %s\n", conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, b_profile.sounds));
 	ast_cli(a->fd,"sound_get_pin:        %s\n", conf_get_sound(CONF_SOUND_GET_PIN, b_profile.sounds));
 	ast_cli(a->fd,"sound_invalid_pin:    %s\n", conf_get_sound(CONF_SOUND_INVALID_PIN, b_profile.sounds));
 	ast_cli(a->fd,"sound_locked:         %s\n", conf_get_sound(CONF_SOUND_LOCKED, b_profile.sounds));
