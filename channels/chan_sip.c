@@ -12628,8 +12628,6 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
 			const char *local_display = exten;
 			char *local_target = ast_strdupa(mto);
-			const char *remote_display = exten;
-			char *remote_target = ast_strdupa(mfrom);
 
 			/* There are some limitations to how this works.  The primary one is that the
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
@@ -12639,28 +12637,16 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 
 				if ((caller = ast_channel_callback(find_calling_channel, NULL, p, 0))) {
 					char *cid_num;
-					char *connected_num;
 					int need;
 
 					ast_channel_lock(caller);
 					cid_num = S_COR(caller->caller.id.number.valid,
 						caller->caller.id.number.str, "");
 					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					remote_target = alloca(need);
-					snprintf(remote_target, need, "sip:%s@%s", cid_num, p->fromdomain);
-
-					remote_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
-						caller->caller.id.name.str, ""));
-
-					connected_num = S_COR(caller->connected.id.number.valid,
-						caller->connected.id.number.str, "");
-					need = strlen(connected_num) + strlen(p->fromdomain) + sizeof("sip:@");
 					local_target = alloca(need);
-					snprintf(local_target, need, "sip:%s@%s", connected_num, p->fromdomain);
-
-					local_display = ast_strdupa(S_COR(caller->connected.id.name.valid,
-						caller->connected.id.name.str, ""));
-
+					snprintf(local_target, need, "sip:%s@%s", cid_num, p->fromdomain);
+					local_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
+						caller->caller.id.name.str, ""));
 					ast_channel_unlock(caller);
 					caller = ast_channel_unref(caller);
 				}
@@ -12682,10 +12668,10 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 						"<target uri=\"%s\"/>\n"
 						"</remote>\n"
 						"<local>\n"
-						"<identity display=\"%s\">%s</identity>\n"
+						"<identity>%s</identity>\n"
 						"<target uri=\"%s\"/>\n"
 						"</local>\n",
-						remote_display, remote_target, remote_target, local_display, local_target, local_target);
+						local_display, local_target, local_target, mto, mto);
 			} else {
 				ast_str_append(tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", exten);
 			}
