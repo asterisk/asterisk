@@ -1519,6 +1519,9 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 					continue;
 				}
 
+				/* file can possibly be null even with a success result from bfd_find_nearest_line */
+				file = file ? file : "";
+
 				/* Stack trace output */
 				found++;
 				if ((lastslash = strrchr(file, '/'))) {
