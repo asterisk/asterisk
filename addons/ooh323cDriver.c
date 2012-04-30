@@ -124,7 +124,7 @@ void* ooh323c_call_thread(void* dummy)
  free(mycthread);
  ast_module_unref(myself);
  ast_update_use_count();
- return dummy;
+ return NULL;
 }
 
 int ooh323c_start_call_thread(ooCallData *call) {
