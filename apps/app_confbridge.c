@@ -280,11 +280,12 @@ static int post_join_marked(struct conference_bridge *conference_bridge, struct 
 
 		/* Next play the audio file stating they are going to be placed into the conference */
 		if (!ast_test_flag(&conference_bridge_user->flags, OPTION_QUIET)) {
-			ao2_unlock(conference_bridge);
-			ast_autoservice_start(conference_bridge_user->chan);
-			play_sound_file(conference_bridge, "conf-placeintoconf");
-			ast_autoservice_stop(conference_bridge_user->chan);
-			ao2_lock(conference_bridge);
+			if (play_prompt_to_channel(conference_bridge,
+				conference_bridge_user->chan,
+				"conf-placeintoconf")) {
+				/* user hungup while the sound was playing */
+				return -1;
+			}
 		}
 
 		/* Finally iterate through and unmute them all */
