@@ -514,7 +514,7 @@ int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *fil
 		FILE *refo = fopen(REF_FILE, "a");
 		if (refo) {
 			fprintf(refo, "%p %s%d   %s:%d:%s (%s) [@%d]\n", user_data, (delta < 0 ? "" : "+"),
-				delta, file, line, func, tag, obj ? obj->priv_data.ref_counter : -1);
+				delta, file, line, func, tag, obj->priv_data.ref_counter);
 			fclose(refo);
 		}
 	}
@@ -530,11 +530,6 @@ int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *fil
 
 int __ao2_ref(void *user_data, int delta)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
-
-	if (obj == NULL)
-		return -1;
-
 	return internal_ao2_ref(user_data, delta, __FILE__, __LINE__, __FUNCTION__);
 }
 
