@@ -16311,45 +16311,6 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief check received= and rport= in a SIP response.
- * If we get a response with received= and/or rport= in the Via:
- * line, use them as 'p->ourip' (see RFC 3581 for rport,
- * and RFC 3261 for received).
- * Using these two fields SIP can produce the correct
- * address and port in the SIP headers without the need for STUN.
- * The address part is also reused for the media sessions.
- * Note that ast_sip_ouraddrfor() still rewrites p->ourip
- * if you specify externaddr/seternaddr/.
- */
-static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_request *req)
-{
-	char via[256];
-	char *cur, *opts;
-
-	ast_copy_string(via, sip_get_header(req, "Via"), sizeof(via));
-
-	/* Work on the leftmost value of the topmost Via header */
-	opts = strchr(via, ',');
-	if (opts)
-		*opts = '\0';
-
-	/* parse all relevant options */
-	opts = strchr(via, ';');
-	if (!opts)
-		return;	/* no options to parse */
-	*opts++ = '\0';
-	while ( (cur = strsep(&opts, ";")) ) {
-		if (!strncmp(cur, "rport=", 6)) {
-			int port = strtol(cur+6, NULL, 10);
-			/* XXX add error checking */
-			ast_sockaddr_set_port(&p->ourip, port);
-		} else if (!strncmp(cur, "received=", 9)) {
-			if (ast_parse_arg(cur + 9, PARSE_ADDR, &p->ourip))
-				;	/* XXX add error checking */
-		}
-	}
-}
-
 /*! \brief check Via: header for hostname, port and rport request/answer */
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
