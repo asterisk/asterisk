@@ -342,7 +342,7 @@ int ast_app_inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int 
 	if (urgentmsgs) {
 		*urgentmsgs = 0;
 	}
-	if (ast_inboxcount_func) {
+	if (ast_inboxcount2_func) {
 		return ast_inboxcount2_func(mailbox, urgentmsgs, newmsgs, oldmsgs);
 	}
 
