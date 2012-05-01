@@ -4070,7 +4070,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		format = 0;
 		ast_parse_allow_disallow(NULL, &format, codecs, 1);
 	}
-	if (!ast_strlen_zero(app)) {
+	if (!ast_strlen_zero(app) && s->session) {
 		int bad_appdata = 0;
 		/* To run the System application (or anything else that goes to
 		 * shell), you must have the additional System privilege */
