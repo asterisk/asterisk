@@ -4086,7 +4086,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		ast_parse_allow_disallow(NULL, cap, codecs, 1);
 	}
 
-	if (!ast_strlen_zero(app)) {
+	if (!ast_strlen_zero(app) && s->session) {
 		/* To run the System application (or anything else that goes to
 		 * shell), you must have the additional System privilege */
 		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
