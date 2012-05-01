@@ -229,11 +229,6 @@ int __ao2_ref_debug(void *user_data, const int delta, char *tag, char *file, int
 
 int __ao2_ref(void *user_data, const int delta)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
-
-	if (obj == NULL)
-		return -1;
-
 	return internal_ao2_ref(user_data, delta);
 }
 
