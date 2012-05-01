@@ -14222,9 +14222,6 @@ static int vm_msg_snapshot_create(struct ast_vm_user *vmu,
 		if ((value = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 			ast_string_field_set(msg_snapshot, duration, value);
 		}
-		if ((value = ast_variable_retrieve(msg_cfg, "message", "folder_dir"))) {
-			ast_string_field_set(msg_snapshot, folder_dir, value);
-		}
 		if ((value = ast_variable_retrieve(msg_cfg, "message", "flag"))) {
 			ast_string_field_set(msg_snapshot, flag, value);
 		}
@@ -14416,8 +14413,7 @@ struct ast_str *vm_mailbox_snapshot_str(const char *mailbox, const char *context
 			ast_str_append(&str, 0, "TIME:         %s\n", msg_snapshot->origtime);
 			ast_str_append(&str, 0, "DURATION:     %s\n", msg_snapshot->duration);
 			ast_str_append(&str, 0, "FOLDER NAME:  %s\n", msg_snapshot->folder_name);
-			ast_str_append(&str, 0, "FOLDER DIR:   %s\n", msg_snapshot->folder_dir);
-			ast_str_append(&str, 0, "FLAG:         %s\n", msg_snapshot->folder_dir);
+			ast_str_append(&str, 0, "FLAG:         %s\n", msg_snapshot->flag);
 			ast_str_append(&str, 0, "\n");
 		}
 	}
