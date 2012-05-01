@@ -44,7 +44,6 @@ struct ast_vm_msg_snapshot {
 		AST_STRING_FIELD(origtime);
 		AST_STRING_FIELD(duration);
 		AST_STRING_FIELD(folder_name);
-		AST_STRING_FIELD(folder_dir);
 		AST_STRING_FIELD(flag);
 	);
 	unsigned int msg_number;
