@@ -1,3 +1,20 @@
+2012-05-01  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.4.0-rc3 Released.
+
+	* channels/chan_sip.c: Revert revision 360862
+
+	Revision 360862 was intended to improve identities sent in dialog-info
+	NOTIFY requests. Some users reported that hint became broken once this
+	was done. It's not clear exactly what part of the patch has caused
+	this regression, but broken hints are bad.
+
+	For now, this revision is being reverted so that the next releases of
+	Asterisk do not have bad behavior in them. The original reported issue
+	will have to be fixed differently in the next version of Asterisk.
+
+	(issue ASTERISK-16735)
+
 2012-04-24  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.4.0-rc2 Released.
