@@ -1128,8 +1128,11 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 		ama = ast_channel_amaflags(p->owner);
 	else
 		ama = 0;
-	if (!(tmp = ast_channel_alloc(1, state, 0, 0, t, p->exten, p->context, linkedid, ama, "Local/%s@%s-%04x;1", p->exten, p->context, randnum))
-		|| !(tmp2 = ast_channel_alloc(1, AST_STATE_RING, 0, 0, t, p->exten, p->context, linkedid, ama, "Local/%s@%s-%04x;2", p->exten, p->context, randnum))) {
+
+	/* Make sure that the ;2 channel gets the same linkedid as ;1. You can't pass linkedid to both
+	 * allocations since if linkedid isn't set, then each channel will generate its own linkedid. */
+	if (!(tmp = ast_channel_alloc(1, state, 0, 0, t, p->exten, p->context, linkedid, ama, "Local/%s@%s-%04x;1", p->exten, p->context, randnum)) 
+		|| !(tmp2 = ast_channel_alloc(1, AST_STATE_RING, 0, 0, t, p->exten, p->context, ast_channel_linkedid(tmp), ama, "Local/%s@%s-%04x;2", p->exten, p->context, randnum))) {
 		if (tmp) {
 			tmp = ast_channel_release(tmp);
 		}

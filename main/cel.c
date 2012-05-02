@@ -80,6 +80,7 @@ static int64_t eventset;
  * for when they start and end on a channel.
  */
 static struct ao2_container *appset;
+static struct ao2_container *linkedids;
 
 /*!
  * \brief Configured date format for event timestamps
@@ -360,42 +361,29 @@ const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
 
 /* called whenever a channel is destroyed or a linkedid is changed to
  * potentially emit a CEL_LINKEDID_END event */
-
-struct channel_find_data {
-	const struct ast_channel *chan;
-	const char *linkedid;
-};
-
-static int linkedid_match(void *obj, void *arg, void *data, int flags)
-{
-	struct ast_channel *c = obj;
-	struct channel_find_data *find_dat = data;
-	int res;
-
-	ast_channel_lock(c);
-	res = (c != find_dat->chan && ast_channel_linkedid(c) && !strcmp(find_dat->linkedid, ast_channel_linkedid(c)));
-	ast_channel_unlock(c);
-
-	return res ? CMP_MATCH | CMP_STOP : 0;
-}
-
 void ast_cel_check_retire_linkedid(struct ast_channel *chan)
 {
 	const char *linkedid = ast_channel_linkedid(chan);
-	struct channel_find_data find_dat;
+	char *lid;
 
 	/* make sure we need to do all this work */
 
-	if (!ast_strlen_zero(linkedid) && ast_cel_track_event(AST_CEL_LINKEDID_END)) {
-		struct ast_channel *tmp = NULL;
-		find_dat.chan = chan;
-		find_dat.linkedid = linkedid;
-		if ((tmp = ast_channel_callback(linkedid_match, NULL, &find_dat, 0))) {
-			tmp = ast_channel_unref(tmp);
-		} else {
-			ast_cel_report_event(chan, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
-		}
+	if (ast_strlen_zero(linkedid) || !ast_cel_track_event(AST_CEL_LINKEDID_END)) {
+		return;
 	}
+
+	if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
+		ast_log(LOG_ERROR, "Something weird happened, couldn't find linkedid %s\n", linkedid);
+		return;
+	}
+
+	/* We have a ref for each channel with this linkedid, the link and the above find, so if
+	 * before unreffing the channel we have a refcount of 3, we're done. Unlink and report. */
+	if (ao2_ref(lid, -1) == 3) {
+		ao2_unlink(linkedids, lid);
+		ast_cel_report_event(chan, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
+	}
+	ao2_ref(lid, -1);
 }
 
 struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event *event)
@@ -489,24 +477,36 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 	struct ast_event *ev;
 	const char *peername = "";
 	struct ast_channel *peer;
-
-	ast_channel_lock(chan);
-	peer = ast_bridged_channel(chan);
-	if (peer) {
-		ast_channel_ref(peer);
-	}
-	ast_channel_unlock(chan);
+	char *linkedid = ast_strdupa(ast_channel_linkedid(chan));
 
 	/* Make sure a reload is not occurring while we're checking to see if this
 	 * is an event that we care about.  We could lose an important event in this
 	 * process otherwise. */
 	ast_mutex_lock(&reload_lock);
 
+	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
+	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
+	if (cel_enabled && ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
+		char *lid;
+		if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
+			if (!(lid = ao2_alloc(strlen(linkedid) + 1, NULL))) {
+				ast_mutex_unlock(&reload_lock);
+				return -1;
+			}
+			strcpy(lid, linkedid);
+			if (!ao2_link(linkedids, lid)) {
+				ao2_ref(lid, -1);
+				ast_mutex_unlock(&reload_lock);
+				return -1;
+			}
+			/* Leave both the link and the alloc refs to show a count of 1 + the link */
+		}
+		/* If we've found, go ahead and keep the ref to increment count of how many channels
+		 * have this linkedid. We'll clean it up in check_retire */
+	}
+
 	if (!cel_enabled || !ast_cel_track_event(event_type)) {
 		ast_mutex_unlock(&reload_lock);
-		if (peer) {
-			ast_channel_unref(peer);
-		}
 		return 0;
 	}
 
@@ -514,15 +514,19 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		char *app;
 		if (!(app = ao2_find(appset, (char *) ast_channel_appl(chan), OBJ_POINTER))) {
 			ast_mutex_unlock(&reload_lock);
-			if (peer) {
-				ast_channel_unref(peer);
-			}
 			return 0;
 		}
 		ao2_ref(app, -1);
 	}
 
 	ast_mutex_unlock(&reload_lock);
+
+	ast_channel_lock(chan);
+	peer = ast_bridged_channel(chan);
+	if (peer) {
+		ast_channel_ref(peer);
+	}
+	ast_channel_unlock(chan);
 
 	if (peer) {
 		ast_channel_lock(peer);
@@ -645,6 +649,9 @@ static int app_cmp(void *obj, void *arg, int flags)
 	return !strcasecmp(app1, app2) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+#define lid_hash app_hash
+#define lid_cmp app_cmp
+
 static void ast_cel_engine_term(void)
 {
 	if (appset) {
@@ -658,16 +665,16 @@ int ast_cel_engine_init(void)
 	if (!(appset = ao2_container_alloc(NUM_APP_BUCKETS, app_hash, app_cmp))) {
 		return -1;
 	}
-
-	if (do_reload()) {
+	if (!(linkedids = ao2_container_alloc(NUM_APP_BUCKETS, lid_hash, lid_cmp))) {
 		ao2_ref(appset, -1);
-		appset = NULL;
 		return -1;
 	}
 
-	if (ast_cli_register(&cli_status)) {
+	if (do_reload() || ast_cli_register(&cli_status)) {
 		ao2_ref(appset, -1);
 		appset = NULL;
+		ao2_ref(linkedids, -1);
+		linkedids = NULL;
 		return -1;
 	}
 
