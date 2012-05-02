@@ -16977,6 +16977,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	res |= ast_msg_set_body(msg, "%s", ast_str_buffer(buf));
 	res |= ast_msg_set_context(msg, "%s", p->context);
 
+	res |= ast_msg_set_var(msg, "SIP_RECVADDR", ast_sockaddr_stringify(&p->recv));
 	if (!ast_strlen_zero(p->peername)) {
 		res |= ast_msg_set_var(msg, "SIP_PEERNAME", p->peername);
 	}
