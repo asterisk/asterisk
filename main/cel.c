@@ -377,10 +377,9 @@ void ast_cel_check_retire_linkedid(struct ast_channel *chan)
 		return;
 	}
 
-	/* We have a ref for each channel with this linkedid, the link and the above find, so if after
-	 * unreffing for the channel we have a ref of 2, we're done. Unlink and report. */
-	ao2_ref(lid, -1);
-	if (ao2_ref(lid, 0) == 2) {
+	/* We have a ref for each channel with this linkedid, the link and the above find, so if
+	 * before unreffing the channel we have a refcount of 3, we're done. Unlink and report. */
+	if (ao2_ref(lid, -1) == 3) {
 		ao2_unlink(linkedids, lid);
 		ast_cel_report_event(chan, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
 	}
@@ -488,7 +487,11 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 				return -1;
 			}
 			strcpy(lid, chan->linkedid);
-			ao2_link(linkedids, lid);
+			if (!ao2_link(linkedids, lid)) {
+				ao2_ref(lid, -1);
+				ast_mutex_unlock(&reload_lock);
+				return -1;
+			}
 			/* Leave both the link and the alloc refs to show a count of 1 + the link */
 		}
 		/* If we've found, go ahead and keep the ref to increment count of how many channels
