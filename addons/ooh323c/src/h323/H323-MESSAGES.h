@@ -169,7 +169,7 @@ EXTERN int asn1PD_H225EndpointIdentifier (OOCTXT* pctxt, H225EndpointIdentifier*
 
 typedef ASN1OBJID H225ProtocolIdentifier;
 
-EXTERN int asn1PE_H225ProtocolIdentifier (OOCTXT* pctxt, H225ProtocolIdentifier value);
+EXTERN int asn1PE_H225ProtocolIdentifier (OOCTXT* pctxt, H225ProtocolIdentifier* value);
 
 EXTERN int asn1PD_H225ProtocolIdentifier (OOCTXT* pctxt, H225ProtocolIdentifier* pvalue);
 

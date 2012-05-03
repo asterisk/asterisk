@@ -223,11 +223,11 @@ EXTERN int asn1PE_H225EndpointIdentifier (OOCTXT* pctxt, H225EndpointIdentifier 
 /*                                                            */
 /**************************************************************/
 
-EXTERN int asn1PE_H225ProtocolIdentifier (OOCTXT* pctxt, H225ProtocolIdentifier value)
+EXTERN int asn1PE_H225ProtocolIdentifier (OOCTXT* pctxt, H225ProtocolIdentifier* value)
 {
    int stat = ASN_OK;
 
-   stat = encodeObjectIdentifier (pctxt, &value);
+   stat = encodeObjectIdentifier (pctxt, value);
    if (stat != ASN_OK) return stat;
 
    return (stat);
@@ -6371,7 +6371,7 @@ EXTERN int asn1PE_H225Setup_UUIE (OOCTXT* pctxt, H225Setup_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode h245Address */
@@ -7112,7 +7112,7 @@ EXTERN int asn1PE_H225CallProceeding_UUIE (OOCTXT* pctxt, H225CallProceeding_UUI
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode destinationInfo */
@@ -7414,7 +7414,7 @@ EXTERN int asn1PE_H225Connect_UUIE (OOCTXT* pctxt, H225Connect_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode h245Address */
@@ -7811,7 +7811,7 @@ EXTERN int asn1PE_H225Alerting_UUIE (OOCTXT* pctxt, H225Alerting_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode destinationInfo */
@@ -8173,7 +8173,7 @@ EXTERN int asn1PE_H225Information_UUIE (OOCTXT* pctxt, H225Information_UUIE* pva
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    if (extbit) {
@@ -8672,7 +8672,7 @@ EXTERN int asn1PE_H225ReleaseComplete_UUIE (OOCTXT* pctxt, H225ReleaseComplete_U
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode reason */
@@ -9157,7 +9157,7 @@ EXTERN int asn1PE_H225Facility_UUIE (OOCTXT* pctxt, H225Facility_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode alternativeAddress */
@@ -9580,7 +9580,7 @@ EXTERN int asn1PE_H225Progress_UUIE (OOCTXT* pctxt, H225Progress_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode destinationInfo */
@@ -9726,7 +9726,7 @@ EXTERN int asn1PE_H225Status_UUIE (OOCTXT* pctxt, H225Status_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode callIdentifier */
@@ -9774,7 +9774,7 @@ EXTERN int asn1PE_H225StatusInquiry_UUIE (OOCTXT* pctxt, H225StatusInquiry_UUIE*
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode callIdentifier */
@@ -9822,7 +9822,7 @@ EXTERN int asn1PE_H225SetupAcknowledge_UUIE (OOCTXT* pctxt, H225SetupAcknowledge
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode callIdentifier */
@@ -9870,7 +9870,7 @@ EXTERN int asn1PE_H225Notify_UUIE (OOCTXT* pctxt, H225Notify_UUIE* pvalue)
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode callIdentifier */
@@ -12236,7 +12236,7 @@ EXTERN int asn1PE_H225GatekeeperRequest (OOCTXT* pctxt, H225GatekeeperRequest* p
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -12530,7 +12530,7 @@ EXTERN int asn1PE_H225GatekeeperConfirm (OOCTXT* pctxt, H225GatekeeperConfirm* p
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -12892,7 +12892,7 @@ EXTERN int asn1PE_H225GatekeeperReject (OOCTXT* pctxt, H225GatekeeperReject* pva
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -13168,7 +13168,7 @@ EXTERN int asn1PE_H225RegistrationRequest (OOCTXT* pctxt, H225RegistrationReques
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -13913,7 +13913,7 @@ EXTERN int asn1PE_H225RegistrationConfirm (OOCTXT* pctxt, H225RegistrationConfir
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -14551,7 +14551,7 @@ EXTERN int asn1PE_H225RegistrationReject (OOCTXT* pctxt, H225RegistrationReject*
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -21566,7 +21566,7 @@ EXTERN int asn1PE_H225ResourcesAvailableIndicate (OOCTXT* pctxt, H225ResourcesAv
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
@@ -21702,7 +21702,7 @@ EXTERN int asn1PE_H225ResourcesAvailableConfirm (OOCTXT* pctxt, H225ResourcesAva
 
    /* encode protocolIdentifier */
 
-   stat = asn1PE_H225ProtocolIdentifier (pctxt, pvalue->protocolIdentifier);
+   stat = asn1PE_H225ProtocolIdentifier (pctxt, &pvalue->protocolIdentifier);
    if (stat != ASN_OK) return stat;
 
    /* encode nonStandardData */
