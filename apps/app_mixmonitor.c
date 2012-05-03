@@ -434,10 +434,9 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 	}
 }
 
-static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, struct ast_filestream **fs, unsigned int *oflags, int *errflag)
+static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, struct ast_filestream **fs, unsigned int *oflags, int *errflag, char **ext)
 {
 	/* Initialize the file if not already done so */
-	char *ext = NULL;
 	char *last_slash = NULL;
 	if (!ast_strlen_zero(filename)) {
 		if (!*fs && !*errflag && !mixmonitor->mixmonitor_ds->fs_quit) {
@@ -446,14 +445,14 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 
 			last_slash = strrchr(filename, '/');
 
-			if ((ext = strrchr(filename, '.')) && (ext > last_slash)) {
-				*(ext++) = '\0';
+			if ((*ext = strrchr(filename, '.')) && (*ext > last_slash)) {
+				**(ext++) = '\0';
 			} else {
-				ext = "raw";
+				*ext = "raw";
 			}
 
-			if (!(*fs = ast_writefile(filename, ext, NULL, *oflags, 0, 0666))) {
-				ast_log(LOG_ERROR, "Cannot open %s.%s\n", filename, ext);
+			if (!(*fs = ast_writefile(filename, *ext, NULL, *oflags, 0, 0666))) {
+				ast_log(LOG_ERROR, "Cannot open %s.%s\n", filename, *ext);
 				*errflag = 1;
 			} else {
 				struct ast_filestream *tmp = *fs;
@@ -532,9 +531,9 @@ static void *mixmonitor_thread(void *obj)
 	fs_write = &mixmonitor->mixmonitor_ds->fs_write;
 
 	ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-	mixmonitor_save_prep(mixmonitor, mixmonitor->filename, fs, &oflags, &errflag);
-	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag);
-	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename, fs, &oflags, &errflag, &fs_ext);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag, &fs_read_ext);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag, &fs_write_ext);
 
 	ast_format_set(&format_slin, ast_format_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate), 0);
 
