@@ -40,7 +40,7 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg);
 int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg);
 int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg);
 int ooHandleDisplayIE(OOH323CallData *call, Q931Message *q931Msg);
-int ooHandleH2250ID (OOH323CallData *call, H225ProtocolIdentifier protocolIdentifier);
+int ooHandleH2250ID (OOH323CallData *call, H225ProtocolIdentifier* protocolIdentifier);
 
 int ooHandleDisplayIE(OOH323CallData *call, Q931Message *q931Msg) {
    Q931InformationElement* pDisplayIE;
@@ -58,10 +58,10 @@ int ooHandleDisplayIE(OOH323CallData *call, Q931Message *q931Msg) {
    return OO_OK;
 }
 
-int ooHandleH2250ID (OOH323CallData *call, H225ProtocolIdentifier protocolIdentifier) {
-   if (!call->h225version && (protocolIdentifier.numids >= 6) &&
-	(protocolIdentifier.subid[3] == 2250)) {
-	call->h225version = protocolIdentifier.subid[5];
+int ooHandleH2250ID (OOH323CallData *call, H225ProtocolIdentifier* protocolIdentifier) {
+   if (!call->h225version && (protocolIdentifier->numids >= 6) &&
+	(protocolIdentifier->subid[3] == 2250)) {
+	call->h225version = protocolIdentifier->subid[5];
 	OOTRACEDBGC4("Extract H.225 remote version, it's %d, (%s, %s)\n", call->h225version, 
 						call->callType, call->callToken);
 
@@ -388,7 +388,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
                   "%s\n", call->callType, call->callToken);
       return OO_FAILED;
    }
-   ooHandleH2250ID(call, setup->protocolIdentifier);
+   ooHandleH2250ID(call, &setup->protocolIdentifier);
    memcpy(call->callIdentifier.guid.data, setup->callIdentifier.guid.data, 
           setup->callIdentifier.guid.numocts);
    call->callIdentifier.guid.numocts = setup->callIdentifier.guid.numocts;
@@ -644,7 +644,7 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
       return OO_FAILED;
    }
 
-   ooHandleH2250ID(call, callProceeding->protocolIdentifier);
+   ooHandleH2250ID(call, &callProceeding->protocolIdentifier);
    /* Handle fast-start */
    if(OO_TESTFLAG (call->flags, OO_M_FASTSTART))
    {
@@ -873,7 +873,7 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
       }
       return OO_FAILED;
    }
-   ooHandleH2250ID(call, alerting->protocolIdentifier);
+   ooHandleH2250ID(call, &alerting->protocolIdentifier);
    /*Handle fast-start */
    if(OO_TESTFLAG (call->flags, OO_M_FASTSTART) &&
       !OO_TESTFLAG(call->flags, OO_M_FASTSTARTANSWERED))
@@ -1110,7 +1110,7 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
       }
       return OO_FAILED;
    }
-   ooHandleH2250ID(call, progress->protocolIdentifier);
+   ooHandleH2250ID(call, &progress->protocolIdentifier);
    /*Handle fast-start */
    if(OO_TESTFLAG (call->flags, OO_M_FASTSTART) &&
       !OO_TESTFLAG(call->flags, OO_M_FASTSTARTANSWERED))
@@ -1354,7 +1354,7 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
       }
       return OO_FAILED;
    }
-   ooHandleH2250ID(call, connect->protocolIdentifier);
+   ooHandleH2250ID(call, &connect->protocolIdentifier);
    /*Handle fast-start */
    if(OO_TESTFLAG (call->flags, OO_M_FASTSTART) && 
       !OO_TESTFLAG (call->flags, OO_M_FASTSTARTANSWERED))
@@ -1853,7 +1853,7 @@ int ooOnReceivedFacility(OOH323CallData *call, Q931Message * pQ931Msg)
    facility = pH323UUPdu->h323_message_body.u.facility;
    if(facility)
    {
-      ooHandleH2250ID(call, facility->protocolIdentifier);
+      ooHandleH2250ID(call, &facility->protocolIdentifier);
       /* Depending on the reason of facility message handle the message */
       if(facility->reason.t == T_H225FacilityReason_transportedInformation)
       {
