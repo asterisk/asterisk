@@ -699,6 +699,7 @@ Applications
  * Voicemail now runs the externnotify script when pollmailboxes is activated and
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
+ * ExternalIVR now supports IPv6 addresses.
  * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
  * ParkedCall and Park can now specify the parking lot to use.
 

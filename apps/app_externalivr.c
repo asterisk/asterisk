@@ -113,6 +113,8 @@ static const char app[] = "ExternalIVR";
 #define EIVR_CMD_SVAR 'V' /* set channel varable(s) */
 #define EIVR_CMD_XIT  'X' /* exit **depricated** */
 
+#define EXTERNALIVR_PORT 2949
+
 enum options_flags {
 	noanswer = (1 << 0),
 	ignore_hangup = (1 << 1),
@@ -397,9 +399,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	int res = -1;
 	int pid;
 
-	char hostname[1024];
-	char *port_str = NULL;
-	int port = 0;
 	struct ast_tcptls_session_instance *ser = NULL;
 
 	struct ivr_localuser foo = {
@@ -492,34 +491,40 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!strncmp(app_args[0], "ivr://", 6)) {
+	if (!strncmp(app_args[0], "ivr://", sizeof("ivr://") - 1)) {
 		struct ast_tcptls_session_args ivr_desc = {
 			.accept_fd = -1,
 			.name = "IVR",
 		};
-		struct ast_hostent hp;
-		struct sockaddr_in remote_address_tmp;
+		struct ast_sockaddr *addrs;
+		int num_addrs = 0, i = 0;
+		char *host = app_args[0] + sizeof("ivr://") - 1;
 
-		/*communicate through socket to server*/
-		ast_debug(1, "Parsing hostname:port for socket connect from \"%s\"\n", app_args[0]);
-		ast_copy_string(hostname, app_args[0] + 6, sizeof(hostname));
-		if ((port_str = strchr(hostname, ':')) != NULL) {
-			port_str[0] = 0;
-			port_str += 1;
-			port = atoi(port_str);
-		}
-		if (!port) {
-			port = 2949;  /* default port, if one is not provided */
-		}
+		/* Communicate through socket to server */
+		ast_debug(1, "Parsing hostname/port for socket connect from \"%s\"\n", host);
 
-		ast_gethostbyname(hostname, &hp);
-		remote_address_tmp.sin_family = AF_INET;
-		remote_address_tmp.sin_port = htons(port);
-		memcpy(&remote_address_tmp.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
-		ast_sockaddr_from_sin(&ivr_desc.remote_address, &remote_address_tmp);
-		if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
+		if (!(num_addrs = ast_sockaddr_resolve(&addrs, host, 0, AST_AF_UNSPEC))) {
+			ast_chan_log(LOG_ERROR, chan, "Unable to locate host '%s'\n", host);
 			goto exit;
 		}
+
+		for (i = 0; i < num_addrs; i++) {
+			if (!ast_sockaddr_port(&addrs[i])) {
+				/* Default port if not specified */
+				ast_sockaddr_set_port(&addrs[i], EXTERNALIVR_PORT);
+			}
+			ast_sockaddr_copy(&ivr_desc.remote_address, &addrs[i]);
+			if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
+				continue;
+			}
+			break;
+		}
+
+		if (i == num_addrs) {
+			ast_chan_log(LOG_ERROR, chan, "Could not connect to any host.  ExternalIVR failed.\n");
+			goto exit;
+		}
+
 		res = eivr_comm(chan, u, &ser->fd, &ser->fd, NULL, comma_delim_args, flags);
 
 	} else {
