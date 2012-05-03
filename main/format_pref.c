@@ -195,6 +195,11 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, struct ast_format *form
 			break;
 	}
 
+	/* If we failed to find any occurrence, set to the end */
+	if (x == AST_CODEC_PREF_SIZE) {
+		--x;
+	}
+
 	if (only_if_existing && !pref->order[x]) {
 		ast_format_list_destroy(f_list);
 		return;
@@ -272,6 +277,11 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, struc
 			idx = x;
 			break;
 		}
+	}
+
+	if (idx < 0) {
+		ast_log(AST_LOG_WARNING, "Format %s unknown; unable to get preferred codec packet size\n", ast_getformatname(format));
+		return fmt;
 	}
 
 	for (x = 0; x < f_len; x++) {

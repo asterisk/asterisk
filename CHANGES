@@ -24,6 +24,14 @@ Background DNS Update Manager
    should help reduce the 'doing dnsmgr_lookup for' message from spamming the
    CLI.
 
+Queue changes
+-------------
+ * Default value for 'ignorebusy' flag on queue members is now 1 instead of 0
+   to get the default behavior in line with 1.8. The only way to change this
+   flag in 10 is to use the QUEUE_MEMBER function to change ignorebusy unless
+   using realtime queue members (in which case it can be manipualted on the
+   database normally).
+
 ------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 10.1.0 ------------------------------
 ------------------------------------------------------------------------------

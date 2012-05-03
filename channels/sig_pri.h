@@ -162,6 +162,27 @@ enum sig_pri_call_level {
 	SIG_PRI_CALL_LEVEL_CONNECT,
 };
 
+enum sig_pri_reset_state {
+	/*! \brief The channel is not being RESTARTed. */
+	SIG_PRI_RESET_IDLE,
+	/*!
+	 * \brief The channel is being RESTARTed.
+	 * \note Waiting for a RESTART ACKNOWLEDGE from the peer.
+	 */
+	SIG_PRI_RESET_ACTIVE,
+	/*!
+	 * \brief Peer may not be sending the expected RESTART ACKNOWLEDGE.
+	 *
+	 * \details We have already received a SETUP on this channel.
+	 * If another SETUP comes in on this channel then the peer
+	 * considers this channel useable.  Assume that the peer is
+	 * never going to give us a RESTART ACKNOWLEDGE and assume that
+	 * we have received one.  This is not according to Q.931, but
+	 * some peers occasionally fail to send a RESTART ACKNOWLEDGE.
+	 */
+	SIG_PRI_RESET_NO_ACK,
+};
+
 struct sig_pri_span;
 
 struct sig_pri_callback {
@@ -311,7 +332,6 @@ struct sig_pri_chan {
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
 	unsigned int isidlecall:1;		/*!< TRUE if this is an idle call */
 	unsigned int progress:1;		/*!< TRUE if the call has seen inband-information progress through the network */
-	unsigned int resetting:1;		/*!< TRUE if this channel is being reset/restarted */
 
 	/*!
 	 * \brief TRUE when this channel is allocated.
@@ -340,6 +360,8 @@ struct sig_pri_chan {
 
 	/*! Call establishment life cycle level for simple comparisons. */
 	enum sig_pri_call_level call_level;
+	/*! \brief Channel reset/restart state. */
+	enum sig_pri_reset_state resetting;
 	int prioffset;					/*!< channel number in span */
 	int logicalspan;				/*!< logical span number within trunk group */
 	int mastertrunkgroup;			/*!< what trunk group is our master */
@@ -442,6 +464,8 @@ struct sig_pri_span {
 	/*! \brief TRUE if we will allow incoming ISDN call waiting calls. */
 	unsigned int allow_call_waiting_calls:1;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+	/*! TRUE if layer 1 alarm status is ignored */
+	unsigned int layer1_ignored:1;
 	/*!
 	 * TRUE if a new call's sig_pri_chan.user_tag[] has the MSN
 	 * appended to the initial_user_tag[].
@@ -619,8 +643,8 @@ int sig_pri_start_pri(struct sig_pri_span *pri);
 void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm);
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm);
 
+int sig_pri_is_alarm_ignored(struct sig_pri_span *pri);
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri);
-
 void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri);
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);

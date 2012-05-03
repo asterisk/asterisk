@@ -1558,14 +1558,13 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 	int tmp, i = 0;
 	char addrmac[19];
 	int res = 0;
-	if (unistimdebug)
-		ast_verb(0, "Mac Address received : ");
 	for (tmp = 15; tmp < 15 + SIZE_HEADER; tmp++) {
 		sprintf(&addrmac[i], "%.2x", (unsigned char) buf[tmp]);
 		i += 2;
 	}
-	if (unistimdebug)
-		ast_verb(0, "%s\n", addrmac);
+	if (unistimdebug) {
+		ast_verb(0, "Mac Address received : %s\n", addrmac);
+	}
 	strcpy(pte->macaddr, addrmac);
 	res = unistim_register(pte);
 	if (!res) {
@@ -3249,7 +3248,7 @@ static void key_main_page(struct unistimsession *pte, char keycode)
 		if (!ast_strlen_zero(pte->device->call_forward)) {
 			/* Cancel call forwarding */
 			memmove(pte->device->call_forward + 1, pte->device->call_forward,
-					sizeof(pte->device->call_forward));
+					sizeof(pte->device->call_forward) - 1);
 			pte->device->call_forward[0] = '\0';
 			Sendicon(TEXT_LINE0, FAV_ICON_NONE, pte);
 			pte->device->output = OUTPUT_HANDSET;   /* Seems to be reseted somewhere */
@@ -5033,7 +5032,7 @@ static int ParseBookmark(const char *text, struct unistim_device *d)
 			ast_log(LOG_WARNING, "Invalid position %d for bookmark : already used\n:", p);
 			return 0;
 		}
-		memmove(line, line + 2, sizeof(line));
+		memmove(line, line + 2, sizeof(line) - 2);
 	} else {
 		/* No position specified, looking for a free slot */
 		for (p = 0; p <= 5; p++) {
@@ -5201,7 +5200,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		else if (!strcasecmp(v->name, "contrast")) {
 			d->contrast = atoi(v->value);
 			if ((d->contrast < 0) || (d->contrast > 15)) {
-				ast_log(LOG_WARNING, "constrast must be beetween 0 and 15");
+				ast_log(LOG_WARNING, "contrast must be beetween 0 and 15\n");
 				d->contrast = 8;
 			}
 		} else if (!strcasecmp(v->name, "nat"))

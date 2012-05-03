@@ -2910,7 +2910,7 @@ struct ast_timing {
 	unsigned int monthmask;			/*!< Mask for month */
 	unsigned int daymask;			/*!< Mask for date */
 	unsigned int dowmask;			/*!< Mask for day of week (mon-sun) */
-	unsigned int minmask[24];		/*!< Mask for minute */
+	unsigned int minmask[48];		/*!< Mask for minute */
 	char *timezone;                 /*!< NULL, or zoneinfo style timezone */
 };
 /* end of pbx.h */

@@ -1269,8 +1269,8 @@ static int sms_handleincoming_proto2(sms_t *h)
 		switch (msg) {
 		case 0x13:                          /* Body */
 			ast_verb(3, "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
-			if (msgsz >= sizeof(h->imsg)) {
-				msgsz = sizeof(h->imsg) - 1;
+			if (msgsz >= sizeof(h->ud)) {
+				msgsz = sizeof(h->ud) - 1;
 			}
 			for (i = 0; i < msgsz; i++) {
 				h->ud[i] = h->imsg[f + i];
@@ -1373,7 +1373,7 @@ static void sms_messagerx2(sms_t * h)
 			h->hangup = 1;                  /* hangup */
 		} else {
 			/* XXX depending on what we are.. */
-			ast_log(LOG_NOTICE, "SMS_SUBMIT or SMS_DELIVERY");
+			ast_log(LOG_NOTICE, "SMS_SUBMIT or SMS_DELIVERY\n");
 			sms_nextoutgoing (h);
 		}
 		break;
@@ -1801,7 +1801,7 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 				h->iphasep -= 80;
 				if (h->ibitn++ == 9) {      /* end of byte */
 					if (!bit) {             /* bad stop bit */
-						ast_log(LOG_NOTICE, "bad stop bit");
+						ast_log(LOG_NOTICE, "bad stop bit\n");
 						h->ierr = 0xFF;     /* unknown error */
 					} else {
 						if (h->ibytep < sizeof(h->imsg)) {
@@ -1809,14 +1809,14 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 							h->ibytec += h->ibytev;
 							h->ibytep++;
 						} else if (h->ibytep == sizeof(h->imsg)) {
-							ast_log(LOG_NOTICE, "msg too large");
+							ast_log(LOG_NOTICE, "msg too large\n");
 							h->ierr = 2;    /* bad message length */
 						}
 						if (h->ibytep > 1 && h->ibytep == 3 + h->imsg[1] && !h->ierr) {
 							if (!h->ibytec) {
 								sms_messagerx(h);
 							} else {
-								ast_log(LOG_NOTICE, "bad checksum");
+								ast_log(LOG_NOTICE, "bad checksum\n");
 								h->ierr = 1; /* bad checksum */
 							}
 						}

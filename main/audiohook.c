@@ -288,8 +288,9 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				}
 			}
 		}
+	} else {
+		ast_debug(1, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
 	}
-	ast_debug(1, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
 
 	/* Move on to the write factory... if there are enough samples, read them in */
 	if (usable_write) {
@@ -307,8 +308,9 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				}
 			}
 		}
+	} else {
+		ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 	}
-	ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (read_buf && read_reference) {

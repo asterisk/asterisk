@@ -50,6 +50,8 @@ static void evt_gen_successful_auth(void);
 static void evt_gen_unexpected_addr(void);
 static void evt_gen_chal_resp_failed(void);
 static void evt_gen_inval_password(void);
+static void evt_gen_chal_sent(void);
+static void evt_gen_inval_transport(void);
 
 typedef void (*evt_generator)(void);
 static const evt_generator evt_generators[AST_SECURITY_EVENT_NUM_TYPES] = {
@@ -66,6 +68,8 @@ static const evt_generator evt_generators[AST_SECURITY_EVENT_NUM_TYPES] = {
 	[AST_SECURITY_EVENT_UNEXPECTED_ADDR]         = evt_gen_unexpected_addr,
 	[AST_SECURITY_EVENT_CHAL_RESP_FAILED]        = evt_gen_chal_resp_failed,
 	[AST_SECURITY_EVENT_INVAL_PASSWORD]          = evt_gen_inval_password,
+	[AST_SECURITY_EVENT_CHAL_SENT]               = evt_gen_chal_sent,
+	[AST_SECURITY_EVENT_INVAL_TRANSPORT]         = evt_gen_inval_transport,
 };
 
 static void evt_gen_failed_acl(void)
@@ -552,6 +556,9 @@ static void evt_gen_inval_password(void)
 			.sin = &sin_remote,
 			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
 		},
+		.challenge          = "GoOdChAlLeNgE",
+		.received_challenge = "BaDcHaLlEnGe",
+		.received_hash      = "3ad9023adf309",
 	};
 
 	inet_aton("10.200.100.30", &sin_local.sin_addr);
@@ -561,6 +568,82 @@ static void evt_gen_inval_password(void)
 	sin_remote.sin_port = htons(1234);
 
 	ast_security_event_report(AST_SEC_EVT(&inval_password));
+}
+
+static void evt_gen_chal_sent(void)
+{
+	struct sockaddr_in sin_local = {
+		.sin_family = AF_INET
+	};
+	struct sockaddr_in sin_remote = {
+		.sin_family = AF_INET
+	};
+
+	struct timeval session_tv = ast_tvnow();
+	struct ast_security_event_chal_sent chal_sent = {
+		.common.event_type = AST_SECURITY_EVENT_CHAL_SENT,
+		.common.version    = AST_SECURITY_EVENT_CHAL_SENT_VERSION,
+		.common.service    = "TEST",
+		.common.module     = AST_MODULE,
+		.common.account_id = "AccountIDGoesHere",
+		.common.session_id = "SessionIDGoesHere",
+		.common.session_tv = &session_tv,
+		.common.local_addr = {
+			.sin  = &sin_local,
+			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+		},
+		.common.remote_addr = {
+			.sin = &sin_remote,
+			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+		},
+		.challenge         = "IcHaLlEnGeYoU",
+	};
+
+	inet_aton("10.200.10.30", &sin_local.sin_addr);
+	sin_local.sin_port = htons(5392);
+
+	inet_aton("10.200.10.31", &sin_remote.sin_addr);
+	sin_remote.sin_port = htons(1443);
+
+	ast_security_event_report(AST_SEC_EVT(&chal_sent));
+}
+
+static void evt_gen_inval_transport(void)
+{
+	struct sockaddr_in sin_local = {
+		.sin_family = AF_INET
+	};
+	struct sockaddr_in sin_remote = {
+		.sin_family = AF_INET
+	};
+
+	struct timeval session_tv = ast_tvnow();
+	struct ast_security_event_inval_transport inval_transport = {
+		.common.event_type = AST_SECURITY_EVENT_INVAL_TRANSPORT,
+		.common.version    = AST_SECURITY_EVENT_INVAL_TRANSPORT_VERSION,
+		.common.service    = "TEST",
+		.common.module     = AST_MODULE,
+		.common.account_id = "AccountIDGoesHere",
+		.common.session_id = "SessionIDGoesHere",
+		.common.session_tv = &session_tv,
+		.common.local_addr = {
+			.sin  = &sin_local,
+			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+		},
+		.common.remote_addr = {
+			.sin = &sin_remote,
+			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+		},
+		.transport          = "UDP",
+	};
+
+	inet_aton("10.200.103.45", &sin_local.sin_addr);
+	sin_local.sin_port = htons(8223);
+
+	inet_aton("10.200.103.44", &sin_remote.sin_addr);
+	sin_remote.sin_port = htons(1039);
+
+	ast_security_event_report(AST_SEC_EVT(&inval_transport));
 }
 
 static void gen_events(struct ast_cli_args *a)

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -2806,7 +2806,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			case TCPTLS_ALERT_DATA:
 				ao2_lock(me);
 				if (!(packet = AST_LIST_REMOVE_HEAD(&me->packet_q, entry))) {
-					ast_log(LOG_WARNING, "TCPTLS thread alert_pipe indicated packet should be sent, but frame_q is empty");
+					ast_log(LOG_WARNING, "TCPTLS thread alert_pipe indicated packet should be sent, but frame_q is empty\n");
 				}
 				ao2_unlock(me);
 
@@ -3462,7 +3462,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 	ast_sockaddr_copy(&theirs, them);
 
 	if (ast_sockaddr_is_ipv6(&theirs)) {
-		if (localaddr && !ast_sockaddr_isnull(&externaddr)) {
+		if (localaddr && !ast_sockaddr_isnull(&externaddr) && !ast_sockaddr_is_any(&bindaddr)) {
 			ast_log(LOG_WARNING, "Address remapping activated in sip.conf "
 				"but we're using IPv6, which doesn't need it. Please "
 				"remove \"localnet\" and/or \"externaddr\" settings.\n");
@@ -5640,7 +5640,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			p->options->replaces = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "SIP_MAX_FORWARDS")) {
 			if (sscanf(ast_var_value(current), "%30d", &(p->maxforwards)) != 1) {
-				ast_log(LOG_WARNING, "The SIP_MAX_FORWARDS channel variable is not a valid integer.");
+				ast_log(LOG_WARNING, "The SIP_MAX_FORWARDS channel variable is not a valid integer.\n");
 			}
 		}
 	}
@@ -5867,8 +5867,12 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	}
 	if (p->udptl)
 		ast_udptl_destroy(p->udptl);
-	if (p->refer)
+	if (p->refer) {
+		if (p->refer->refer_call) {
+			p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
+		}
 		ast_free(p->refer);
+	}
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
@@ -6303,7 +6307,7 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE) || ast->hangupcause == AST_CAUSE_ANSWERED_ELSEWHERE) {
-		ast_debug(1, "This call was answered elsewhere");
+		ast_debug(1, "This call was answered elsewhere\n");
 		if (ast->hangupcause == AST_CAUSE_ANSWERED_ELSEWHERE) {
 			ast_debug(1, "####### It's the cause code, buddy. The cause code!!!\n");
 		}
@@ -9168,6 +9172,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int video = FALSE;
 		int image = FALSE;
 		int text = FALSE;
+		int processed_crypto = FALSE;
 		char protocol[5] = {0,};
 		int x;
 
@@ -9182,7 +9187,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 		    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'audio' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'audio' media offer because port number is zero\n");
 				continue;
 			}
 			if (!strcmp(protocol, "SAVP")) {
@@ -9218,7 +9223,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			   (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'video' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'video' media offer because port number is zero\n");
 				continue;
 			}
 			if (!strcmp(protocol, "SAVP")) {
@@ -9254,7 +9259,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 			   (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'text' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'text' media offer because port number is zero\n");
 				continue;
 			}
 			if (p->offered_media[SDP_TEXT].order_offered) {
@@ -9284,7 +9289,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
 			    (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
 			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'image' media offer because port number is zero");
+				ast_log(LOG_WARNING, "ignoring 'image' media offer because port number is zero\n");
 				continue;
 			}
 			if (initialize_udptl(p)) {
@@ -9349,28 +9354,34 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			case 'a':
 				/* Audio specific scanning */
 				if (audio) {
-					if (process_sdp_a_sendonly(value, &sendonly))
+					if (process_sdp_a_sendonly(value, &sendonly)) {
 						processed = TRUE;
-					else if (process_crypto(p, p->rtp, &p->srtp, value))
+					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
+						processed_crypto = TRUE;
 						processed = TRUE;
-					else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec))
+					} else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec)) {
 						processed = TRUE;
+					}
 				}
 				/* Video specific scanning */
 				else if (video) {
-					if (process_sdp_a_sendonly(value, &vsendonly))
+					if (process_sdp_a_sendonly(value, &vsendonly)) {
 						processed = TRUE;
-					else if (process_crypto(p, p->vrtp, &p->vsrtp, value))
+					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
+						processed_crypto = TRUE;
 						processed = TRUE;
-					else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec))
+					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
 						processed = TRUE;
+					}
 				}
 				/* Text (T.140) specific scanning */
 				else if (text) {
-					if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec))
+					if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
-					else if (process_crypto(p, p->trtp, &p->tsrtp, value))
+					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value)) {
+						processed_crypto = TRUE;
 						processed = TRUE;
+					}
 				}
 				/* Image (T.38 FAX) specific scanning */
 				else if (image) {
@@ -13392,7 +13403,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 				ast_str_append(&p->notify->content, 0, "\r\n");
 			ast_str_append(&p->notify->content, 0, "%s", var->value);
 		} else if (!strcasecmp(var->name, "Content-Length")) {
-			ast_log(LOG_WARNING, "it is not necessary to specify Content-Length, ignoring");
+			ast_log(LOG_WARNING, "it is not necessary to specify Content-Length, ignoring\n");
 		} else {
 			header->next = ast_variable_new(var->name, var->value, "");
 			header = header->next;
@@ -16304,7 +16315,6 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		ast_copy_string(referdata->refer_to, c, sizeof(referdata->refer_to));
 		ast_copy_string(referdata->referred_by, "", sizeof(referdata->referred_by));
 		ast_copy_string(referdata->refer_contact, "", sizeof(referdata->refer_contact));
-		referdata->refer_call = dialog_unref(referdata->refer_call, "unreffing referdata->refer_call");
 		/* Set new context */
 		ast_string_field_set(p, context, transfer_context);
 		return 0;
@@ -19764,7 +19774,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 					ast_str_append(&p->notify->content, 0, "\r\n");
 				ast_str_append(&p->notify->content, 0, "%s", buf);
 			} else if (!strcasecmp(var->name, "Content-Length")) {
-				ast_log(LOG_WARNING, "it is not necessary to specify Content-Length in sip_notify.conf, ignoring");
+				ast_log(LOG_WARNING, "it is not necessary to specify Content-Length in sip_notify.conf, ignoring\n");
 			} else {
 				header->next = ast_variable_new(var->name, buf, "");
 				header = header->next;
@@ -23211,6 +23221,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (subscription->owner) {
 					ast_channel_unlock(subscription->owner);
 				}
+				subscription = dialog_unref(subscription, "unref dialog subscription");
 			}
 		}
 
@@ -23229,7 +23240,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		if (p->refer->refer_call == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
-			p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
 			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			error = 1;
 		}
@@ -23257,6 +23267,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (p->refer->refer_call->owner) {
 					ast_channel_unlock(p->refer->refer_call->owner);
 				}
+				p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
 			}
 			refer_locked = 0;
 			p->invitestate = INV_COMPLETED;
@@ -23837,6 +23848,7 @@ request_invite_cleanup:
 		if (p->refer->refer_call->owner) {
 			ast_channel_unlock(p->refer->refer_call->owner);
 		}
+		p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
 	}
 	if (authpeer) {
 		authpeer = sip_unref_peer(authpeer, "sip_unref_peer, from handle_request_invite authpeer");
@@ -28805,7 +28817,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		ast_string_field_set(peer, tohost, srvlookup);
 
-		if (global_dynamic_exclude_static) {
+		if (global_dynamic_exclude_static && !ast_sockaddr_isnull(&peer->addr)) {
 			int ha_error = 0;
 			sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify_addr(&peer->addr), 
 							sip_cfg.contact_ha, &ha_error);
@@ -29691,7 +29703,8 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "use_q850_reason")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
 		} else if (!strcasecmp(v->name, "maxforwards")) {
-			if ((sscanf(v->value, "%30d", &sip_cfg.default_max_forwards) != 1) || (sip_cfg.default_max_forwards < 1)) {
+			if (sscanf(v->value, "%30d", &sip_cfg.default_max_forwards) != 1
+				|| sip_cfg.default_max_forwards < 1 || 255 < sip_cfg.default_max_forwards) {
 				ast_log(LOG_WARNING, "'%s' is not a valid maxforwards value at line %d.  Using default.\n", v->value, v->lineno);
 				sip_cfg.default_max_forwards = DEFAULT_MAX_FORWARDS;
 			}
@@ -30689,12 +30702,6 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 		if (setup_srtp(srtp) < 0) {
 			return FALSE;
 		}
-	}
-
-	/* For now, when we receive an INVITE just take the first successful crypto line */
-	if ((*srtp)->crypto && !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-		ast_debug(3, "We've already processed a crypto attribute, skipping '%s'\n", a);
-		return FALSE;
 	}
 
 	if (!(*srtp)->crypto && !((*srtp)->crypto = sdp_crypto_setup())) {

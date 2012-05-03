@@ -181,7 +181,6 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	} else if (!strcasecmp("extension", a->argv[3])) {
 		res = orig_exten(a->fd, a->argv[2], a->argv[4]);
 	} else {
-		ast_log(LOG_WARNING, "else");
 		res = CLI_SHOWUSAGE;
 	}
 
