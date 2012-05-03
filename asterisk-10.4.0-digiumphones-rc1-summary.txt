@@ -1,0 +1,373 @@
+                                Release Summary
+
+                        asterisk-10.4.0-digiumphones-rc1
+
+                                Date: 2012-05-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.3.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   15 mmichelson            4 Matt Jordan            1 davidw                 
+   4 jrose                                           1 makoto                 
+   4 Makoto                                          1 mjordan                
+   4 Matt                                            1 tomaso                 
+   4 qwell                  
+   1 mjordan                
+   1 rmudgett               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/chan_ooh323
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Applications/app_externalivr
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Applications/app_milliwatt
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Channels/chan_sip/Messaging
+
+   ASTERISK-19770: Security Vulnerability: Segmentation fault when receiving
+   an out-of-dialogue SIP UPDATE including a rpid info
+   Revision: 365214
+   Reporter: tomaso
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Channels/chan_skinny
+
+   ASTERISK-19592: Security Vulnerability: heap overflow exists in
+   chan_skinny's handling of KEYPAD_BUTTON_MESSAGE
+   Revision: 365214
+   Reporter: mjordan
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Core/General
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-17465: Security Vulnerability: AMI access to SHELL function only
+   seems to need CALL Privilege, should be SYSTEM
+   Revision: 365214
+   Reporter: davidw
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: PBX/pbx_loopback
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: PBX/pbx_realtime
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+  Category: Resources/res_fax_spandsp
+
+   ASTERISK-19540: Use of GNU old-style field designator extension
+   Revision: 365214
+   Reporter: makoto
+   Testers: Matt Jordan
+   Coders: Makoto, Matt, jrose
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 361140   | mmichelson | Create a Digium phones branch of  |            |
+   |          |            | Asterisk 10.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361178   | mmichelson | Update sample config files.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update everything in the main     |            |
+   | 361199   | mmichelson | directory for Digium phone        |            |
+   |          |            | additions.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361200   | mmichelson | Add phone changes for message.c   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361206   | mmichelson | Add Digium phone changes for the  |            |
+   |          |            | include/asterisk directory        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361207   | mmichelson | Add Digium phone changes for the  |            |
+   |          |            | funcs directory.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361216   | mmichelson | apps changes necessary for Digium |            |
+   |          |            | phone support.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361228   | mmichelson | Add tests for Digium phone        |            |
+   |          |            | support.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361261   | mmichelson | Changes to the channels directory |            |
+   |          |            | for Digium phone support.         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361262   | mmichelson | Fix compiler errors.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361263   | mmichelson | Only add the device portion of a  |            |
+   |          |            | hint when adding a hintdevice.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361292   | mmichelson | Fix a compiler error in pbx.c     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add unit tests for                |            |
+   | 361293   | mmichelson | func_presencestate and config     |            |
+   |          |            | hooks.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361503   | rmudgett   | Update Func MESSAGE() and AMI     |            |
+   |          |            | MessageSend documentation.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 361748   | mmichelson | Fix bugs in voicemail APIs and    |            |
+   |          |            | add unit tests.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 362133   | mjordan    | Add branch-10-merged property     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 362134   | qwell      | init merge prop                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | The 10-digiumphones version of    |            |
+   | 362674   | mmichelson | revision 362673 to                |            |
+   |          |            | 1.8-digiumphones                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 364766   | qwell      | Remove folder_dir from voicemail  |            |
+   |          |            | snapshots API.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 364843   | qwell      | Prevent a potential crash when    |            |
+   |          |            | using manager hooks.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Save the address on which a       |            |
+   | 365009   | qwell      | MESSAGE was received, so it can   |            |
+   |          |            | be used in MESSAGE()              |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                 |   16
+ Makefile.rules                          |    6
+ UPGRADE-1.8.txt                         |    5
+ UPGRADE.txt                             |   15
+ addons/cdr_mysql.c                      |    2
+ addons/chan_ooh323.c                    |   10
+ apps/app_chanisavail.c                  |    4
+ apps/app_chanspy.c                      |    5
+ apps/app_dial.c                         |  145
+ apps/app_echo.c                         |   12
+ apps/app_externalivr.c                  |    8
+ apps/app_jack.c                         |    8
+ apps/app_meetme.c                       |    2
+ apps/app_milliwatt.c                    |    8
+ apps/app_mixmonitor.c                   |  217
+ apps/app_page.c                         |    3
+ apps/app_queue.c                        |   16
+ apps/app_rpt.c                          |15229 --------------------------------
+ apps/app_stack.c                        |  155
+ apps/app_transfer.c                     |    4
+ apps/app_voicemail.c                    | 1421 ++
+ apps/app_voicemail.exports.in           |    9
+ build_tools/menuselect-deps.in          |    1
+ cdr/cdr_adaptive_odbc.c                 |    6
+ cel/cel_odbc.c                          |    5
+ channels/chan_agent.c                   |    4
+ channels/chan_dahdi.c                   |   26
+ channels/chan_gtalk.c                   |    3
+ channels/chan_iax2.c                    |   25
+ channels/chan_jingle.c                  |    1
+ channels/chan_misdn.c                   |    3
+ channels/chan_sip.c                     |  339
+ channels/chan_skinny.c                  |   27
+ channels/chan_usbradio.c                | 4039 --------
+ channels/misdn/isdn_lib.c               |   15
+ channels/misdn/isdn_msg_parser.c        |   60
+ channels/sig_pri.c                      |   95
+ channels/sig_ss7.c                      |   61
+ channels/sig_ss7.h                      |    1
+ channels/sip/include/sip.h              |    5
+ channels/sip/security_events.c          |    1
+ codecs/codec_dahdi.c                    |    2
+ configs/cdr_adaptive_odbc.conf.sample   |   31
+ configs/manager.conf.sample             |    3
+ configs/sip.conf.sample                 |    3
+ configure.ac                            |   10
+ contrib/scripts/install_prereq          |    7
+ funcs/func_curl.c                       |    1
+ funcs/func_dialplan.c                   |    6
+ funcs/func_frame_trace.c                |    3
+ funcs/func_presencestate.c              |  596 +
+ include/asterisk/app.h                  |   59
+ include/asterisk/app_voicemail.h        |  213
+ include/asterisk/autoconfig.h.in        |   16
+ include/asterisk/channel.h              |    2
+ include/asterisk/config.h               |   59
+ include/asterisk/custom_control_frame.h |   80
+ include/asterisk/devicestate.h          |   11
+ include/asterisk/event_defs.h           |    8
+ include/asterisk/file.h                 |   38
+ include/asterisk/frame.h                |    1
+ include/asterisk/logger.h               |    2
+ include/asterisk/manager.h              |    3
+ include/asterisk/message.h              |   28
+ include/asterisk/pbx.h                  |   34
+ include/asterisk/presencestate.h        |   96
+ include/asterisk/stringfields.h         |   14
+ include/asterisk/strings.h              |   20
+ main/acl.c                              |    9
+ main/app.c                              |   76
+ main/ast_expr2.c                        |  705 -
+ main/ast_expr2.h                        |   14
+ main/ast_expr2.y                        |    3
+ main/ast_expr2f.c                       |   32
+ main/asterisk.c                         |    6
+ main/ccss.c                             |   10
+ main/channel.c                          |  100
+ main/config.c                           |  126
+ main/custom_control_frame.c             |  191
+ main/devicestate.c                      |  100
+ main/dnsmgr.c                           |   14
+ main/event.c                            |   63
+ main/features.c                         |   65
+ main/file.c                             |   45
+ main/jitterbuf.c                        |   89
+ main/logger.c                           |   18
+ main/manager.c                          |   94
+ main/md5.c                              |    2
+ main/message.c                          |  191
+ main/pbx.c                              |  386
+ main/presencestate.c                    |  285
+ main/sched.c                            |    2
+ main/udptl.c                            |    2
+ main/utils.c                            |  130
+ makeopts.in                             |    3
+ pbx/pbx_loopback.c                      |   12
+ pbx/pbx_realtime.c                      |   12
+ res/ael/ael.tab.c                       | 1286 +-
+ res/ael/ael.tab.h                       |   14
+ res/ael/ael_lex.c                       |   32
+ res/ael/pval.c                          |   79
+ res/ais/ais.h                           |    9
+ res/ais/clm.c                           |   24
+ res/ais/evt.c                           |   27
+ res/res_adsi.c                          |    2
+ res/res_ais.c                           |   62
+ res/res_crypto.c                        |    1
+ res/res_fax_spandsp.c                   |    6
+ tests/test_config.c                     |  392
+ tests/test_custom_control.c             |  236
+ tests/test_devicestate.c                |    4
+ tests/test_event.c                      |   19
+ tests/test_gosub.c                      |   12
+ tests/test_voicemail_api.c              | 1401 ++
+ utils/ael_main.c                        |   30
+ utils/astman.c                          |    2
+ utils/conf2ael.c                        |   30
+ 117 files changed, 8808 insertions(+), 21008 deletions(-)
+
+     ----------------------------------------------------------------------
