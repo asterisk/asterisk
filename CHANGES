@@ -700,7 +700,8 @@ Applications
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
  * ExternalIVR now supports IPv6 addresses.
- * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
+ * Added 'D' command to ExternalIVR. Details are available on the Asterisk wiki
+   at https://wiki.asterisk.org/wiki/x/oQBB
  * ParkedCall and Park can now specify the parking lot to use.
 
 Dialplan Functions
@@ -1001,7 +1002,7 @@ Call Completion Supplementary Services for Asterisk
  * Call completion support has been added for SIP, DAHDI/ISDN, and DAHDI/analog.
    DAHDI/ISDN supports call completion for the following switch types:
    EuroIsdn(ETSI) for PTP and PTMP modes, and Qsig.
-   See doc/CCSS_architecture.pdf and doc/tex/ccss.tex(asterisk.pdf) for details.
+   See https://wiki.asterisk.org/wiki/x/2ABQ for details.
 
 Multicast RTP Support
 ---------------------
@@ -1019,7 +1020,8 @@ Security Events Framework
    sends these events to the "security" logger level.  Currently, AMI is the only
    Asterisk component that reports security events.  However, SIP support will be
    coming soon.  For more information on the security events framework, see the
-   "Security Events" chapter of the included documentation - doc/tex/asterisk.pdf.
+   "Asterisk Security Framework" section of the Asterisk wiki at
+   https://wiki.asterisk.org/wiki/x/wgBQ
  * SIP support was added in Asterisk 10
  * This API now supports IPv6 addresses
 
@@ -1072,7 +1074,8 @@ Miscellaneous
  * The Realtime dialplan switch now caches entries for 1 second.  This provides a
    significant increase in performance (about 3X) for installations using this switchtype.
  * Distributed devicestate now supports the use of the XMPP protocol, in addition to
-   AIS.  For more information, please see doc/distributed_devstate-XMPP.txt
+   AIS.  For more information, please see the Distributed Device State section of the
+   Asterisk wiki at https://wiki.asterisk.org/wiki/x/jw4iAQ
  * The addition of G.719 pass-through support.
  * Added support for 16khz Speex audio.  This can be enabled by using 'allow=speex16'
    during device configuration.
@@ -1300,13 +1303,14 @@ LDAP Schema File Additions
 Device State Handling
 ---------------------
  * The event infrastructure in Asterisk got another big update to help support
-    distributed events.  It currently supports distributed device state and
-    distributed Voicemail MWI (Message Waiting Indication).  A new module has
-    been merged, res_ais, which facilitates communicating events between servers.
-    It uses the SAForum AIS (Service Availability Forum Application Interface
-    Specification) CLM (Cluster Management) and EVT (Event) services to maintain
-    a cluster of Asterisk servers, and to share events between them.  For more
-    information on setting this up, see doc/distributed_devstate.txt.
+   distributed events.  It currently supports distributed device state and
+   distributed Voicemail MWI (Message Waiting Indication).  A new module has
+   been merged, res_ais, which facilitates communicating events between servers.
+   It uses the SAForum AIS (Service Availability Forum Application Interface
+   Specification) CLM (Cluster Management) and EVT (Event) services to maintain
+   a cluster of Asterisk servers, and to share events between them.  For more
+   information on setting this up, refer to the Distributed Device State section
+   of the Asterisk wiki at https://wiki.asterisk.org/wiki/x/jw4iAQ
 
 Dialplan Functions
 ------------------
@@ -1381,8 +1385,8 @@ Application Changes
    the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
    change to whisper mode, and pressing 6 will change to barge mode.
  * ExternalIVR now takes several options that affect the way it performs, as
-   well as having several new commands.  Please see doc/externalivr.txt for the
-   complete documentation.
+   well as having several new commands.  Please see the External IVR page on the Asterisk
+   wiki for complete documentation: https://wiki.asterisk.org/wiki/x/oQBB
  * Added ability to communicate over a TCP socket instead of forking a child process for the 
    ExternalIVR application.
  * ChanIsAvail has a new option, 'a', which will return all available channels instead
@@ -1501,8 +1505,9 @@ Miscellaneous
     the 'setvar' option to cause a given audio file to be played upon completion
     of an attended transfer.  Currently it works for DAHDI, IAX2, SIP, and
     Skinny channels only.
-  * You can now compile Asterisk against the Hoard Memory Allocator, see doc/hoard.txt
-    for more information.
+  * You can now compile Asterisk against the Hoard Memory Allocator, see the
+    Hoard page on the Asterisk wiki for more information:
+    https://wiki.asterisk.org/wiki/x/pQBB
   * Config file variables may now be appended to, by using the '+=' append
     operator.  This is most helpful when working with long SQL queries in
     func_odbc.conf, as the queries no longer need to be specified on a single
@@ -1520,7 +1525,7 @@ Miscellaneous
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
   * Manager has undergone a lot of changes, all of them documented
-    in doc/manager_1_1.txt
+    on the Asterisk wiki at https://wiki.asterisk.org/wiki/x/tQBB
   * Manager version has changed to 1.1
   * Added a new action 'CoreShowChannels' to list currently defined channels
      and some information about them. 
@@ -1567,10 +1572,10 @@ AMI - The manager (TCP/TLS/HTTP)
     to a subshell, it requires the System privilege, as well.  This was done to
     enhance manager security.
   * Originate now accepts codec settings with "Codecs: alaw, ulaw, h264" 
-  * New command: Atxfer. See doc/manager_1_1.txt for more details or 
-    manager show command Atxfer from the CLI
-  * New command: IAXregistry. See doc/manager_1_1.txt for more details or
-    manager show command IAXregistry from the CLI
+  * New command: Atxfer. See https://wiki.asterisk.org/wiki/x/uABB for more details
+    or manager show command Atxfer from the CLI
+  * New command: IAXregistry. See https://wiki.asterisk.org/wiki/x/uABB for more
+    details or manager show command IAXregistry from the CLI
 
 Dialplan functions
 ------------------
@@ -1682,8 +1687,8 @@ SIP changes
   * Added SIP Session Timers support (RFC 4028).  This prevents stuck SIP sessions that
      were not properly torn down due to network or endpoint failures during an established
      SIP session.
-  * Added experimental TCP and TLS support for SIP.  See doc/siptls.txt and 
-     configs/sip.conf.sample for more information on how it is used.
+  * Added experimental TCP and TLS support for SIP.  See https://wiki.asterisk.org/wiki/x/ygBB
+     and configs/sip.conf.sample for more information on how it is used.
   * Added a new configuration option "authfailureevents" that enables manager events when
     a peer can't authenticate properly. 
   * Added DNS manager support to registrations for peers not referencing a peer entry.
@@ -1773,9 +1778,10 @@ DAHDI channel driver (chan_dahdi) Changes
 
 New Channel Drivers
 -------------------
-  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
-     configs/unistim.conf.sample for details.  This new channel driver allows
-     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+  * Added a new channel driver, chan_unistim.  See the Asterisk wiki at
+     https://wiki.asterisk.org/wiki/x/vgsiAQ and configs/unistim.conf.sample
+     for details.  This new channel driver allows you to use Nortel i2002,
+     i2004, and i2050 phones with Asterisk.
   * Added a new channel driver, chan_console, which uses portaudio as a cross
      platform audio interface.  It was written as a channel driver that would
      work with Mac CoreAudio, but portaudio supports a number of other audio
@@ -2147,8 +2153,8 @@ Miscellaneous
   * Added the jittertargetextra configuration option.
   * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
      configuration files for the IP channel drivers.  The new option is "cos".
-     This information is also documented in doc/qos.tex, or the IP Quality of Service
-     section of asterisk.pdf.
+     This information is also documented on the Asterisk wiki at
+     https://wiki.asterisk.org/wiki/x/EYBG
   * When originating a call using AMI or pbx_spool that fails the reason for failure
      will now be available in the failed extension using the REASON dialplan variable.
   * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
