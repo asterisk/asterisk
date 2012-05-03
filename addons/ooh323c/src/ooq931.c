@@ -140,7 +140,7 @@ EXTERN int ooQ931Decode
       }
       else {
          ie = (Q931InformationElement*) memAlloc (pctxt, 
-                                        sizeof(*ie) - sizeof(ie->data));
+                                        sizeof(*ie));
          if(!ie)
          {
             OOTRACEERR3("Error:Memory - ooQ931Decode - ie(%s, %s)\n", 
