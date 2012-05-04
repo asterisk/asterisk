@@ -98,7 +98,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="m">
 						<argument name="mailbox" required="true" />
 						<para>Create a copy of the recording as a voicemail in each indicated <emphasis>mailbox</emphasis>
-						separated by commas eg. m(1111@default,2222@default,...)</para>
+						separated by commas eg. m(1111@default,2222@default,...).  Folders can be optionally specified using
+						the syntax: mailbox@context/folder</para>
 						<note><para>The recording will be deleted once all the copies are made.</para></note>
 					</option>
 				</optionlist>
@@ -159,6 +160,54 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This action may be used to mute a MixMonitor recording.</para>
 		</description>
 	</manager>
+	<manager name="MixMonitor" language="en_US">
+		<synopsis>
+			Record a call and mix the audio during the recording.  Use of StopMixMonitor is required
+			to guarantee the audio file is available for processing during dialplan execution.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+			<parameter name="File">
+				<para>Is the name of the file created in the monitor spool directory.
+				Defaults to the same name as the channel (with slashes replaced with dashes).
+				This argument is optional if you specify to record unidirectional audio with
+				either the r(filename) or t(filename) options in the options field. If
+				neither MIXMONITOR_FILENAME or this parameter is set, the mixed stream won't
+				be recorded.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Options that apply to the MixMonitor in the same way as they
+				would apply if invoked from the MixMonitor application. For a list of
+				available options, see the documentation for the mixmonitor application. </para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action records the audio on the current channel to the specified file.</para>
+			<variablelist>
+				<variable name="MIXMONITOR_FILENAME">
+					<para>Will contain the filename used to record the mixed stream.</para>
+				</variable>
+			</variablelist>
+		</description>
+	</manager>
+	<manager name="StopMixMonitor" language="en_US">
+		<synopsis>
+			Stop recording a call through MixMonitor, and free the recording's file handle.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The name of the channel monitored.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action stops the audio recording that was started with the <literal>MixMonitor</literal>
+			action on the current channel.</para>
+		</description>
+	</manager>
 
  ***/
 
@@ -177,6 +226,7 @@ static const char * const mixmonitor_spy_type = "MixMonitor";
 struct vm_recipient {
 	char mailbox[AST_MAX_CONTEXT];
 	char context[AST_MAX_EXTENSION];
+	char folder[80];
 	AST_LIST_ENTRY(vm_recipient) list;
 };
 
@@ -310,9 +360,10 @@ static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
  */
 static void add_vm_recipients_from_string(struct mixmonitor *mixmonitor, const char *vm_recipients)
 {
-	/* recipients are in a single string with a format format resembling "mailbox@context,mailbox2@context2, mailbox3@context3" */
+	/* recipients are in a single string with a format format resembling "mailbox@context/INBOX,mailbox2@context2,mailbox3@context3/Work" */
 	char *cur_mailbox = ast_strdupa(vm_recipients);
 	char *cur_context;
+	char *cur_folder;
 	char *next;
 	int elements_processed = 0;
 
@@ -322,6 +373,12 @@ static void add_vm_recipients_from_string(struct mixmonitor *mixmonitor, const c
 			*(next++) = '\0';
 		}
 
+		if ((cur_folder = strchr(cur_mailbox, '/'))) {
+			*(cur_folder++) = '\0';
+		} else {
+			cur_folder = "INBOX";
+		}
+
 		if ((cur_context = strchr(cur_mailbox, '@'))) {
 			*(cur_context++) = '\0';
 		} else {
@@ -329,7 +386,6 @@ static void add_vm_recipients_from_string(struct mixmonitor *mixmonitor, const c
 		}
 
 		if (!ast_strlen_zero(cur_mailbox) && !ast_strlen_zero(cur_context)) {
-
 			struct vm_recipient *recipient;
 			if (!(recipient = ast_malloc(sizeof(*recipient)))) {
 				ast_log(LOG_ERROR, "Failed to allocate recipient. Aborting function.\n");
@@ -337,11 +393,11 @@ static void add_vm_recipients_from_string(struct mixmonitor *mixmonitor, const c
 			}
 			ast_copy_string(recipient->context, cur_context, sizeof(recipient->context));
 			ast_copy_string(recipient->mailbox, cur_mailbox, sizeof(recipient->mailbox));
+			ast_copy_string(recipient->folder, cur_folder, sizeof(recipient->folder));
 
 			/* Add to list */
 			ast_verb(5, "Adding %s@%s to recipient list\n", recipient->mailbox, recipient->context);
 			AST_LIST_INSERT_HEAD(&mixmonitor->recipient_list, recipient, list);
-
 		} else {
 			ast_log(LOG_ERROR, "Failed to properly parse extension and/or context from element %d of recipient string: %s\n", elements_processed, vm_recipients);
 		}
@@ -410,9 +466,11 @@ static void copy_to_voicemail(struct mixmonitor *mixmonitor, char *ext)
 	recording_data.call_priority = mixmonitor->call_priority;
 
 	AST_LIST_TRAVERSE(&mixmonitor->recipient_list, recipient, list) {
-		/* context and mailbox need to be set per recipient */
+		/* context, mailbox, and folder need to be set per recipient */
 		ast_string_field_set(&recording_data, context, recipient->context);
 		ast_string_field_set(&recording_data, mailbox, recipient->mailbox);
+		ast_string_field_set(&recording_data, folder, recipient->folder);
+
 		ast_verb(4, "MixMonitor attempting to send voicemail copy to %s@%s\n", recording_data.mailbox,
 			recording_data.context);
 		ast_app_copy_recording_to_vm(&recording_data);
@@ -904,6 +962,95 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	return AMI_SUCCESS;
 }
 
+static int manager_mixmonitor(struct mansession *s, const struct message *m)
+{
+	struct ast_channel *c = NULL;
+
+	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+	const char *file = astman_get_header(m, "File");
+	const char *options = astman_get_header(m, "Options");
+
+	int res;
+	char args[PATH_MAX] = "";
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return AMI_SUCCESS;
+	}
+
+	c = ast_channel_get_by_name(name);
+
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return AMI_SUCCESS;
+	}
+
+	strcpy(args, file);
+	strcat(args, ",");
+	strcat(args, options);
+
+	ast_channel_lock(c);
+	res = mixmonitor_exec(c, args);
+	ast_channel_unlock(c);
+
+	if (res) {
+		astman_send_error(s, m, "Could not start monitoring channel");
+		return AMI_SUCCESS;
+	}
+
+	astman_append(s, "Response: Success\r\n");
+
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+
+	astman_append(s, "\r\n");
+
+	c = ast_channel_unref(c);
+
+	return AMI_SUCCESS;
+}
+
+static int manager_stop_mixmonitor(struct mansession *s, const struct message *m)
+{
+	struct ast_channel *c = NULL;
+
+	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+
+	int res;
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return AMI_SUCCESS;
+	}
+
+	c = ast_channel_get_by_name(name);
+
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return AMI_SUCCESS;
+	}
+
+	res = stop_mixmonitor_exec(c, NULL);
+
+	if (res) {
+		astman_send_error(s, m, "Could not stop monitoring channel");
+		return AMI_SUCCESS;
+	}
+
+	astman_append(s, "Response: Success\r\n");
+
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+
+	astman_append(s, "\r\n");
+
+	c = ast_channel_unref(c);
+
+	return AMI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_mixmonitor[] = {
 	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
@@ -916,6 +1063,8 @@ static int unload_module(void)
 	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	res |= ast_manager_unregister("MixMonitorMute");
+	res |= ast_manager_unregister("MixMonitor");
+	res |= ast_manager_unregister("StopMixMonitor");
 	
 	return res;
 }
@@ -928,6 +1077,8 @@ static int load_module(void)
 	res = ast_register_application_xml(app, mixmonitor_exec);
 	res |= ast_register_application_xml(stop_app, stop_mixmonitor_exec);
 	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
+	res |= ast_manager_register_xml("MixMonitor", 0, manager_mixmonitor);
+	res |= ast_manager_register_xml("StopMixMonitor", 0, manager_stop_mixmonitor);
 
 	return res;
 }
