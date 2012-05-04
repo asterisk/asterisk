@@ -13060,6 +13060,11 @@ static int set_config(const char *config_file, int reload)
 			ast_config_destroy(ucfg);
 			return 0;
 		}
+		if (!cfg) {
+			/* should have been able to load the config here */
+			ast_log(LOG_ERROR, "Unable to load config %s again\n", config_file);
+			return -1;
+		}
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config_file);
 		return 0;
@@ -13937,7 +13942,9 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum, *ptr;
 		struct ast_format tmpfmt;
-		codecnum = strchr(colname, '[');
+
+		/* skip over "codec" to the '[' */
+		codecnum = colname + 5;
 		*codecnum = '\0';
 		codecnum++;
 		if ((ptr = strchr(codecnum, ']'))) {

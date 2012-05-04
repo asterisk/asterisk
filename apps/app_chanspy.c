@@ -763,12 +763,10 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	const char *context, const char *mailbox, const char *name_context)
 {
 	char nameprefix[AST_NAME_STRLEN];
-	char peer_name[AST_NAME_STRLEN + 5];
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	signed char zero_volume = 0;
 	int waitms;
 	int res;
-	char *ptr;
 	int num_spyed_upon = 1;
 	struct ast_channel_iterator *iter = NULL;
 
@@ -858,7 +856,6 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				next_channel(iter, autochan, chan), next_autochan = NULL) {
 			int igrp = !mygroup;
 			int ienf = !myenforced;
-			char *s;
 
 			if (autochan->chan == prev) {
 				ast_autochan_destroy(autochan);
@@ -943,20 +940,30 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				continue;
 			}
 
-			strcpy(peer_name, "spy-");
-			strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
-			ptr = strchr(peer_name, '/');
-			*ptr++ = '\0';
-			ptr = strsep(&ptr, "-");
-
-			for (s = peer_name; s < ptr; s++)
-				*s = tolower(*s);
-
 			if (!ast_test_flag(flags, OPTION_QUIET)) {
+				char peer_name[AST_NAME_STRLEN + 5];
+				char *ptr, *s;
+
+				strcpy(peer_name, "spy-");
+				strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
+				if ((ptr = strchr(peer_name, '/'))) {
+					*ptr++ = '\0';
+					for (s = peer_name; s < ptr; s++) {
+						*s = tolower(*s);
+					}
+					if ((s = strchr(ptr, '-'))) {
+						*s = '\0';
+					}
+				}
+
 				if (ast_test_flag(flags, OPTION_NAME)) {
 					const char *local_context = S_OR(name_context, "default");
 					const char *local_mailbox = S_OR(mailbox, ptr);
-					res = ast_app_sayname(chan, local_mailbox, local_context);
+					if (local_mailbox) {
+						res = ast_app_sayname(chan, local_mailbox, local_context);
+					} else {
+						res = -1;
+					}
 				}
 				if (!ast_test_flag(flags, OPTION_NAME) || res < 0) {
 					int num;
@@ -974,7 +981,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan));
 						}
 					}
-					if ((num = atoi(ptr))) {
+					if (ptr && (num = atoi(ptr))) {
 						ast_say_digits(chan, num, "", ast_channel_language(chan));
 					}
 				}

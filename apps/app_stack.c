@@ -764,8 +764,15 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 			struct ast_pbx *pbx = ast_channel_pbx(chan);
 			struct ast_pbx_args args;
 			struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
-			AST_LIST_HEAD(,gosub_stack_frame) *oldlist = stack_store->data;
-			struct gosub_stack_frame *cur = AST_LIST_FIRST(oldlist);
+			AST_LIST_HEAD(,gosub_stack_frame) *oldlist;
+			struct gosub_stack_frame *cur;
+			if (!stack_store) {
+				ast_log(LOG_WARNING, "No GoSub stack remaining after AGI GoSub execution.\n");
+				ast_free(gosub_args);
+				return RESULT_FAILURE;
+			}
+			oldlist = stack_store->data;
+			cur = AST_LIST_FIRST(oldlist);
 			cur->is_agi = 1;
 
 			memset(&args, 0, sizeof(args));
