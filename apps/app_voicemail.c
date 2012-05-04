@@ -5757,7 +5757,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	/* At this point, the actual creation of a voicemail message should be finished.
 	 * Now we just need to copy the files being recorded into the receiving folder. */
 
-	create_dirpath(dir, sizeof(dir), recipient->context, recipient->mailbox, "INBOX");
+	create_dirpath(dir, sizeof(dir), recipient->context, recipient->mailbox, recdata->folder);
 
 #ifdef IMAP_STORAGE
 	/* make recipient info into an inboxcount friendly string */
