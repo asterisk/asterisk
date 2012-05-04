@@ -638,6 +638,7 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 	char *port;
 
 	if (ast_strlen_zero(line)) {
+		*hostname = NULL;
 		return -1;
 	}
 	if ((*hostname = strstr(line, "://"))) {

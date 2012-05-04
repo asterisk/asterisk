@@ -904,6 +904,10 @@ static void findmeexec(struct fm_args *tpargs)
 	struct findme_user_listptr *findme_user_list;
 
 	findme_user_list = ast_calloc(1, sizeof(*findme_user_list));
+	if (!findme_user_list) {
+		ast_log(LOG_WARNING, "Failed to allocate memory for findme_user_list\n");
+		return;
+	}
 	AST_LIST_HEAD_INIT_NOLOCK(findme_user_list);
 
 	/* We're going to figure out what the longest possible string of digits to collect is */
