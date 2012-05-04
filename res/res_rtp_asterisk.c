@@ -1935,7 +1935,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 				ast_verbose("  Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
 				ast_verbose("  Packets lost so far: %d\n", rtp->rtcp->reported_lost);
 				ast_verbose("  Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
-				ast_verbose("  Sequence number cycles: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16);
+				ast_verbose("  Sequence number cycles: %ld\n", (long) (ntohl(rtcpheader[i + 2])) >> 16);
 				ast_verbose("  Interarrival jitter: %u\n", rtp->rtcp->reported_jitter);
 				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
 				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
@@ -1962,7 +1962,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					      (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
 					      rtp->rtcp->reported_lost,
 					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
-					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16,
+					      (long) (ntohl(rtcpheader[i + 2])) >> 16,
 					      rtp->rtcp->reported_jitter,
 					      (unsigned long) ntohl(rtcpheader[i + 4]) >> 16, ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
 					      ntohl(rtcpheader[i + 5])/65536.0,
@@ -1986,7 +1986,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					      (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
 					      rtp->rtcp->reported_lost,
 					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
-					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16,
+					      (long) (ntohl(rtcpheader[i + 2])) >> 16,
 					      rtp->rtcp->reported_jitter,
 					      (unsigned long) ntohl(rtcpheader[i + 4]) >> 16,
 					      ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
