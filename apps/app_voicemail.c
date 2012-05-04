@@ -11523,6 +11523,10 @@ static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
 	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
 		return;
 
+	if (!uniqueid) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for uniqueid\n");
+		return;
+	}
 	u = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
 	*uniqueid = u;
 	if (ast_taskprocessor_push(mwi_subscription_tps, handle_unsubscribe, uniqueid) < 0) {

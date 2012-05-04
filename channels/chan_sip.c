@@ -15265,7 +15265,9 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 		char *end_quote;
 		rname = tmp + 1;
 		end_quote = strchr(rname, '\"');
-		*end_quote = '\0';
+		if (end_quote) {
+			*end_quote = '\0';
+		}
 	}
 
 	if (number) {
@@ -24210,6 +24212,7 @@ static int cc_esc_publish_handler(struct sip_pvt *pvt, struct sip_request *req, 
 	 * document earlier. So there's no need to enclose this operation in an if statement.
 	 */
 	tuple_children = ast_xml_node_get_children(tuple_node);
+	/* coverity[null_returns: FALSE] */
 	status_node = ast_xml_find_element(tuple_children, "status", NULL, NULL);
 
 	if (!(status_children = ast_xml_node_get_children(status_node))) {
@@ -24541,7 +24544,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	struct sip_peer *authpeer = NULL;
 	const char *eventheader = get_header(req, "Event");	/* Get Event package name */
 	int resubscribe = (p->subscribed != NONE) && !req->ignore;
-	char *temp, *event;
+	char *event_end;
+	ptrdiff_t event_len = 0;
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -24603,13 +24607,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if ( (strchr(eventheader, ';'))) {
-		event = ast_strdupa(eventheader);	/* Since eventheader is a const, we can't change it */
-		temp = strchr(event, ';'); 		
-		*temp = '\0';				/* Remove any options for now */
-							/* We might need to use them later :-) */
-	} else
-		event = (char *) eventheader;		/* XXX is this legal ? */
+	event_end = strchr(eventheader, ';');
+	if (event_end) {
+		event_len = event_end - eventheader;
+	}
 
 	/* Handle authentication if we're new and not a retransmission. We can't just
 	 * use if !req->ignore, because then we'll end up sending
@@ -24648,7 +24649,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if (strcmp(event, "message-summary") && strcmp(event, "call-completion")) {
+	if (strncmp(eventheader, "message-summary", MAX(event_len, 15)) && strncmp(eventheader, "call-completion", MAX(event_len, 15))) {
 		/* Get destination right away */
 		gotdest = get_destination(p, NULL, NULL);
 	}
@@ -24674,7 +24675,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (ast_strlen_zero(p->tag))
 		make_our_tag(p->tag, sizeof(p->tag));
 
-	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+	if (!strncmp(eventheader, "presence", MAX(event_len, 8)) || !strncmp(eventheader, "dialog", MAX(event_len, 6))) { /* Presence, RFC 3842 */
 		unsigned int pidf_xml;
 		const char *accept;
 		int start = 0;
@@ -24752,7 +24753,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		} else {
 			p->subscribed = subscribed;
 		}
-	} else if (!strcmp(event, "message-summary")) {
+	} else if (!strncmp(eventheader, "message-summary", MAX(event_len, 15))) {
 		int start = 0;
 		int found_supported = 0;
 		const char *acceptheader;
@@ -24815,11 +24816,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
 		}
 		/* Do not release authpeer here */
-	} else if (!strcmp(event, "call-completion")) {
+	} else if (!strncmp(eventheader, "call-completion", MAX(event_len, 15))) {
 		handle_cc_subscribe(p, req);
 	} else { /* At this point, Asterisk does not understand the specified event */
 		transmit_response(p, "489 Bad Event", req);
-		ast_debug(2, "Received SIP subscribe for unknown event package: %s\n", event);
+		ast_debug(2, "Received SIP subscribe for unknown event package: %s\n", eventheader);
 		pvt_set_needdestroy(p, "unknown event package");
 		if (authpeer) {
 			unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 5)");
@@ -27389,32 +27390,42 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "fromuser")) {
 				ast_string_field_set(peer, fromuser, v->value);
 			} else if (!strcasecmp(v->name, "outboundproxy")) {
-				char *tok, *proxyname;
+				char *host, *proxyname, *sep;
 
 				if (ast_strlen_zero(v->value)) {
-					ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
+					ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf\n", v->lineno);
 					continue;
 				}
 
-				peer->outboundproxy =
-				    ao2_alloc(sizeof(*peer->outboundproxy), NULL);
+				if (!peer->outboundproxy) {
+					peer->outboundproxy = ao2_alloc(sizeof(*peer->outboundproxy), NULL);
+					if (!peer->outboundproxy) {
+						ast_log(LOG_WARNING, "Unable to allocate config storage for outboundproxy\n");
+						continue;
+					}
+				}
 
-				tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
+				host = ast_strdupa(v->value);
+				if (!host) {
+					ast_log(LOG_WARNING, "Unable to allocate stack space for parsing outboundproxy\n");
+					continue;
+				}
 
-				sip_parse_host(tok, v->lineno, &proxyname,
-					       &peer->outboundproxy->port,
-					       &peer->outboundproxy->transport);
-
-				tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
-
-				if ((tok = strtok(NULL, ","))) {
-					peer->outboundproxy->force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
+				host = ast_skip_blanks(host);
+				sep = strchr(host, ',');
+				if (sep) {
+					*sep++ = '\0';
+					peer->outboundproxy->force = !strncasecmp(ast_skip_blanks(sep), "force", 5);
 				} else {
 					peer->outboundproxy->force = FALSE;
 				}
 
+				sip_parse_host(host, v->lineno, &proxyname,
+					       &peer->outboundproxy->port,
+					       &peer->outboundproxy->transport);
+
 				if (ast_strlen_zero(proxyname)) {
-					ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
+					ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf\n", v->lineno);
 					sip_cfg.outboundproxy.name[0] = '\0';
 					continue;
 				}
@@ -27968,6 +27979,11 @@ static int reload_config(enum channelreloadreason reason)
 			ast_config_destroy(ucfg);
 			return 1;
 		}
+		if (!cfg) {
+			/* should have been able to reload here */
+			ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
+			return -1;
+		}
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n", config);
 		return 1;
@@ -28360,27 +28376,34 @@ static int reload_config(enum channelreloadreason reason)
 				default_fromdomainport = STANDARD_SIP_PORT;
 			}
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			char *tok, *proxyname;
+			char *host, *proxyname, *sep;
 
 			if (ast_strlen_zero(v->value)) {
-				ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
+				ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf\n", v->lineno);
 				continue;
 			}
 
-			tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
+			host = ast_strdupa(v->value);
+			if (!host) {
+				ast_log(LOG_WARNING, "Unable to allocate stack space for parsing outboundproxy\n");
+				continue;
+			}
 
-			sip_parse_host(tok, v->lineno, &proxyname,
-				       &sip_cfg.outboundproxy.port,
-				       &sip_cfg.outboundproxy.transport);
-
-			if ((tok = strtok(NULL, ","))) {
-				sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
+			host = ast_skip_blanks(host);
+			sep = strchr(host, ',');
+			if (sep) {
+				*sep++ = '\0';
+				sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(sep), "force", 5);
 			} else {
 				sip_cfg.outboundproxy.force = FALSE;
 			}
 
+			sip_parse_host(host, v->lineno, &proxyname,
+				       &sip_cfg.outboundproxy.port,
+				       &sip_cfg.outboundproxy.transport);
+
 			if (ast_strlen_zero(proxyname)) {
-				ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
+				ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf\n", v->lineno);
 				sip_cfg.outboundproxy.name[0] = '\0';
 				continue;
 			}

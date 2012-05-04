@@ -5645,7 +5645,7 @@ static struct ast_parkinglot *build_parkinglot(const char *pl_name, struct ast_v
 static void process_applicationmap_line(struct ast_variable *var)
 {
 	char *tmp_val = ast_strdupa(var->value);
-	char *activateon;
+	char *activateon, *new_syn;
 	struct ast_call_feature *feature;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(exten);
@@ -5656,10 +5656,10 @@ static void process_applicationmap_line(struct ast_variable *var)
 	);
 
 	AST_STANDARD_APP_ARGS(args, tmp_val);
-	if (strchr(args.app, '(')) {
+	if ((new_syn = strchr(args.app, '('))) {
 		/* New syntax */
 		args.moh_class = args.app_args;
-		args.app_args = strchr(args.app, '(');
+		args.app_args = new_syn;
 		*args.app_args++ = '\0';
 		if (args.app_args[strlen(args.app_args) - 1] == ')') {
 			args.app_args[strlen(args.app_args) - 1] = '\0';

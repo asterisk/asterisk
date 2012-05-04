@@ -733,6 +733,11 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	snprintf(filename, sizeof(filename), "%s%s%s", base, slash, config);
 
 	cfg = ast_config_load("extensions.conf", config_flags);
+	if (!cfg) {
+		ast_cli(a->fd, "Failed to load extensions.conf\n");
+		ast_mutex_unlock(&save_dialplan_lock);
+		return CLI_FAILURE;
+	}
 
 	/* try to lock contexts list */
 	if (ast_rdlock_contexts()) {
