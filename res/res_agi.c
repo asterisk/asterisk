@@ -3619,6 +3619,7 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 			"       When called with a topic as an argument, displays usage\n"
 			"       information on the given command.  If called without a\n"
 			"       topic, it provides a list of AGI commands.\n";
+		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}

@@ -71,6 +71,7 @@ int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type 
 	switch (type) {
 	case AST_AUDIOHOOK_TYPE_SPY:
 		ast_slinfactory_init(&audiohook->read_factory);
+		/* Fall through intentionally */
 	case AST_AUDIOHOOK_TYPE_WHISPER:
 		ast_slinfactory_init(&audiohook->write_factory);
 		break;
@@ -94,6 +95,7 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 	switch (audiohook->type) {
 	case AST_AUDIOHOOK_TYPE_SPY:
 		ast_slinfactory_destroy(&audiohook->read_factory);
+		/* Fall through intentionally */
 	case AST_AUDIOHOOK_TYPE_WHISPER:
 		ast_slinfactory_destroy(&audiohook->write_factory);
 		break;

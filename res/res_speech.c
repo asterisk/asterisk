@@ -250,14 +250,12 @@ int ast_speech_change_state(struct ast_speech *speech, int state)
 {
 	int res = 0;
 
-	switch (state) {
-	case AST_SPEECH_STATE_WAIT:
+	if (state == AST_SPEECH_STATE_WAIT) {
 		/* The engine heard audio, so they spoke */
 		ast_set_flag(speech, AST_SPEECH_SPOKE);
-	default:
-		speech->state = state;
-		break;
 	}
+
+	speech->state = state;
 
 	return res;
 }

@@ -2787,6 +2787,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	case ANALOG_EVENT_ALARM:
 		analog_set_alarm(p, 1);
 		analog_get_and_handle_alarms(p);
+		/* Intentionally fall through to analog_set_echocanceller() call */
 	case ANALOG_EVENT_ONHOOK:
 		switch (p->sig) {
 		case ANALOG_SIG_FXOLS:

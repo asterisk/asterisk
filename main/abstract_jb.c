@@ -406,6 +406,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 		case JB_IMPL_OK:
 			/* deliver the frame */
 			ast_write(chan, f);
+			/* Fall through intentionally */
 		case JB_IMPL_DROP:
 			jb_framelog("\tJB_GET {now=%ld}: %s frame with ts=%ld and len=%ld\n",
 				now, jb_get_actions[res], f->ts, f->len);
