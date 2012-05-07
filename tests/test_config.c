@@ -59,19 +59,22 @@ enum {
 		ret = AST_TEST_FAIL; \
 	} else { \
 		if (((flags) & PARSE_TYPE) == PARSE_INT32) { \
-			int32_t *r = (int32_t *) result, e = (int32_t) expected_result; \
+			int32_t *r = (int32_t *) (void *) result; \
+			int32_t e = (int32_t) expected_result; \
 			if (*r != e) { \
 				ast_test_status_update(test, "ast_parse_arg int32_t failed with %d != %d\n", *r, e); \
 				ret = AST_TEST_FAIL; \
 			} \
 		} else if (((flags) & PARSE_TYPE) == PARSE_UINT32) { \
-			uint32_t *r = (uint32_t *) result, e = (uint32_t) expected_result; \
+			uint32_t *r = (uint32_t *) (void *) result; \
+			uint32_t e = (uint32_t) expected_result; \
 			if (*r != e) { \
 				ast_test_status_update(test, "ast_parse_arg uint32_t failed with %u != %u\n", *r, e); \
 				ret = AST_TEST_FAIL; \
 			} \
 		} else if (((flags) & PARSE_TYPE) == PARSE_DOUBLE) { \
-			double *r = (double *) result, e = (double) expected_result; \
+			double *r = (double *) (void *) result; \
+			double e = (double) expected_result; \
 			if (fabs(*r - e) > EPSILON) { \
 				ast_test_status_update(test, "ast_parse_arg double failed with %f != %f\n", *r, e); \
 				ret = AST_TEST_FAIL; \
