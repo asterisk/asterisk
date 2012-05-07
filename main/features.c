@@ -1580,8 +1580,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		 * This is so ugly that it hurts, but implementing
 		 * get_base_channel() on local channels could have ugly side
 		 * effects.  We could have
-		 * transferer<->local,1<->local,2<->parking and we need the
-		 * callback name to be that of transferer.  Since local,1/2 have
+		 * transferer<->local;1<->local;2<->parking and we need the
+		 * callback name to be that of transferer.  Since local;1/2 have
 		 * the same name we can be tricky and just grab the bridged
 		 * channel from the other side of the local.
 		 */
