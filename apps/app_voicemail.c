@@ -5835,8 +5835,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			e[0] = *code;
 			if (strchr(ecodes, e[0]) == NULL
 				&& ast_canmatch_extension(chan,
-					(!ast_strlen_zero(options->exitcontext) ? options->exitcontext : chan->context),
-					e, 1, S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+					(!ast_strlen_zero(options->exitcontext) ? options->exitcontext : ast_channel_context(chan)),
+					e, 1, S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
 			}
 		}
