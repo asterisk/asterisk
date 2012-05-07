@@ -5740,8 +5740,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			char e[2] = "";
 			e[0] = *code;
 			if (strchr(ecodes, e[0]) == NULL
-				&& ast_canmatch_extension(chan, chan->context, e, 1,
-					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				&& ast_canmatch_extension(chan,
+					(!ast_strlen_zero(options->exitcontext) ? options->exitcontext : chan->context),
+					e, 1, S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
 			}
 		}
@@ -5836,11 +5837,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	/* Allow all other digits to exit Voicemail and return to the dialplan */
 	if (ast_test_flag(options, OPT_DTMFEXIT) && res > 0) {
-		if (!ast_strlen_zero(options->exitcontext))
+		if (!ast_strlen_zero(options->exitcontext)) {
 			ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
+		}
 		free_user(vmu);
-		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		ast_free(tmp);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		return res;
 	}
 

@@ -5100,8 +5100,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		 * and continue, or we can drop out entirely. */
 
 		if (invalid
-			|| !ast_exists_extension(c, c->context, c->exten, 1,
-				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+			|| (ast_strlen_zero(dst_exten) &&
+				!ast_exists_extension(c, c->context, c->exten, 1,
+				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL)))) {
 			/*!\note
 			 * If there is no match at priority 1, it is not a valid extension anymore.
 			 * Try to continue at "i" (for invalid) or "e" (for exception) or exit if
