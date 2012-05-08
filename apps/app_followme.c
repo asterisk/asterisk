@@ -566,7 +566,6 @@ static void destroy_calling_tree(struct findme_user_listptr *findme_user_list)
 		ast_party_connected_line_free(&fmuser->connected);
 		ast_free(fmuser);
 	}
-	ast_free(findme_user_list);
 }
 
 static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_user_list, struct number *nm, struct ast_channel *caller, char *namerecloc, struct fm_args *tpargs)
