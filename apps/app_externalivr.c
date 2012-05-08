@@ -105,6 +105,7 @@ static const char app[] = "ExternalIVR";
 #define EIVR_CMD_EXIT 'E' /* exit */
 #define EIVR_CMD_GET  'G' /* get channel varable(s) */
 #define EIVR_CMD_HGUP 'H' /* hangup */
+#define EIVR_CMD_IRPT 'I' /* interrupt */
 #define EIVR_CMD_LOG  'L' /* log message */
 #define EIVR_CMD_OPT  'O' /* option */
 #define EIVR_CMD_PARM 'P' /* return supplied params */
@@ -761,6 +762,28 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 						u->gen_active = 1;
 					}
 				}
+			} else if (input[0] == EIVR_CMD_IRPT) {
+				if (ast_channel_state(chan) != AST_STATE_UP || ast_check_hangup(chan)) {
+					ast_chan_log(LOG_WARNING, chan, "Queue 'I'nterrupt called on unanswered channel\n");
+					send_eivr_event(eivr_events, 'Z', NULL, chan);
+					continue;
+				}
+				AST_LIST_LOCK(&u->playlist);
+				if (!u->abort_current_sound && !u->playing_silence) {
+					/* send interrupted file as T data */
+					if ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+						ast_free(entry);
+					}
+				}
+				while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+					send_eivr_event(eivr_events, 'D', entry->filename, chan);
+					ast_free(entry);
+				}
+				if (!u->playing_silence) {
+					u->abort_current_sound = 1;
+				}
+				AST_LIST_UNLOCK(&u->playlist);
  			} else if (input[0] == EIVR_CMD_SQUE) {
 				if (ast_channel_state(chan) != AST_STATE_UP || ast_check_hangup(chan)) {
 					ast_chan_log(LOG_WARNING, chan, "Queue re'S'et called on unanswered channel\n");
