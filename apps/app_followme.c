@@ -1143,7 +1143,7 @@ static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, st
 
 static int app_exec(struct ast_channel *chan, const char *data)
 {
-	struct fm_args targs = { 0, };
+	struct fm_args *targs;
 	struct ast_bridge_config config;
 	struct call_followme *f;
 	struct number *nm, *newnm;
@@ -1170,6 +1170,11 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	targs = ast_calloc(1, sizeof(*targs));
+	if (!targs) {
+		return -1;
+	}
+
 	AST_RWLIST_RDLOCK(&followmes);
 	AST_RWLIST_TRAVERSE(&followmes, f, entry) {
 		if (!strcasecmp(f->name, args.followmeid) && (f->active))
@@ -1185,42 +1190,44 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	if (!f) {
 		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.\n", args.followmeid);
+		ast_free(targs);
 		return 0;
 	}
 
 	/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
-	if (args.options) 
-		ast_app_parse_options(followme_opts, &targs.followmeflags, NULL, args.options);
+	if (args.options) {
+		ast_app_parse_options(followme_opts, &targs->followmeflags, NULL, args.options);
+	}
 
 	/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
 	ast_mutex_lock(&f->lock);
-	targs.mohclass = ast_strdupa(f->moh);
-	ast_copy_string(targs.context, f->context, sizeof(targs.context));
-	ast_copy_string(targs.takecall, f->takecall, sizeof(targs.takecall));
-	ast_copy_string(targs.nextindp, f->nextindp, sizeof(targs.nextindp));
-	ast_copy_string(targs.callfromprompt, f->callfromprompt, sizeof(targs.callfromprompt));
-	ast_copy_string(targs.norecordingprompt, f->norecordingprompt, sizeof(targs.norecordingprompt));
-	ast_copy_string(targs.optionsprompt, f->optionsprompt, sizeof(targs.optionsprompt));
-	ast_copy_string(targs.plsholdprompt, f->plsholdprompt, sizeof(targs.plsholdprompt));
-	ast_copy_string(targs.statusprompt, f->statusprompt, sizeof(targs.statusprompt));
-	ast_copy_string(targs.sorryprompt, f->sorryprompt, sizeof(targs.sorryprompt));
+	targs->mohclass = ast_strdupa(f->moh);
+	ast_copy_string(targs->context, f->context, sizeof(targs->context));
+	ast_copy_string(targs->takecall, f->takecall, sizeof(targs->takecall));
+	ast_copy_string(targs->nextindp, f->nextindp, sizeof(targs->nextindp));
+	ast_copy_string(targs->callfromprompt, f->callfromprompt, sizeof(targs->callfromprompt));
+	ast_copy_string(targs->norecordingprompt, f->norecordingprompt, sizeof(targs->norecordingprompt));
+	ast_copy_string(targs->optionsprompt, f->optionsprompt, sizeof(targs->optionsprompt));
+	ast_copy_string(targs->plsholdprompt, f->plsholdprompt, sizeof(targs->plsholdprompt));
+	ast_copy_string(targs->statusprompt, f->statusprompt, sizeof(targs->statusprompt));
+	ast_copy_string(targs->sorryprompt, f->sorryprompt, sizeof(targs->sorryprompt));
 	/* Copy the numbers we're going to use into another list in case the master list should get modified 
 	   (and locked) while we're trying to do a follow-me */
-	AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
+	AST_LIST_HEAD_INIT_NOLOCK(&targs->cnumbers);
 	AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
 		newnm = create_followme_number(nm->number, nm->timeout, nm->order);
 		if (newnm) {
-			AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
+			AST_LIST_INSERT_TAIL(&targs->cnumbers, newnm, entry);
 		}
 	}
 	ast_mutex_unlock(&f->lock);
 
 	/* Forget the 'N' option if the call is already up. */
 	if (ast_channel_state(chan) == AST_STATE_UP) {
-		ast_clear_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER);
+		ast_clear_flag(&targs->followmeflags, FOLLOWMEFLAG_NOANSWER);
 	}
 
-	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
+	if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
 	} else {
 		/* Answer the call */
@@ -1228,39 +1235,41 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			ast_answer(chan);
 		}
 
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
-			ast_stream_and_wait(chan, targs.statusprompt, "");
+		if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_STATUSMSG)) {
+			ast_stream_and_wait(chan, targs->statusprompt, "");
+		}
 
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) {
+		if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_RECORDNAME)) {
 			int duration = 5;
 
-			snprintf(targs.namerecloc, sizeof(targs.namerecloc), "%s/followme.%s",
+			snprintf(targs->namerecloc, sizeof(targs->namerecloc), "%s/followme.%s",
 				ast_config_AST_SPOOL_DIR, ast_channel_uniqueid(chan));
-			if (ast_play_and_record(chan, "vm-rec-name", targs.namerecloc, 5, "sln", &duration,
+			if (ast_play_and_record(chan, "vm-rec-name", targs->namerecloc, 5, "sln", &duration,
 				NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0) {
 				goto outrun;
 			}
-			if (!ast_fileexists(targs.namerecloc, NULL, ast_channel_language(chan))) {
-				targs.namerecloc[0] = '\0';
+			if (!ast_fileexists(targs->namerecloc, NULL, ast_channel_language(chan))) {
+				targs->namerecloc[0] = '\0';
 			}
 		}
 
-		if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
-			if (ast_streamfile(chan, targs.plsholdprompt, ast_channel_language(chan)))
+		if (!ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
+			if (ast_streamfile(chan, targs->plsholdprompt, ast_channel_language(chan))) {
 				goto outrun;
+			}
 			if (ast_waitstream(chan, "") < 0)
 				goto outrun;
 		}
-		ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
+		ast_moh_start(chan, S_OR(targs->mohclass, NULL), NULL);
 	}
 
 	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&targs.connected_in, ast_channel_caller(chan));
+	ast_connected_line_copy_from_caller(&targs->connected_in, ast_channel_caller(chan));
 	ast_channel_unlock(chan);
 
-	outbound = findmeexec(&targs, chan);
+	outbound = findmeexec(targs, chan);
 	if (!outbound) {
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
+		if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 			if (ast_channel_state(chan) != AST_STATE_UP) {
 				ast_answer(chan);
 			}
@@ -1268,8 +1277,9 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			ast_moh_stop(chan);
 		}
 
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
-			ast_stream_and_wait(chan, targs.sorryprompt, "");
+		if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) {
+			ast_stream_and_wait(chan, targs->sorryprompt, "");
+		}
 		res = 0;
 	} else {
 		caller = chan;
@@ -1284,14 +1294,14 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
 
 		/* Update connected line to caller if available. */
-		if (targs.pending_out_connected_update) {
-			if (ast_channel_connected_line_sub(outbound, caller, &targs.connected_out, 0) &&
-				ast_channel_connected_line_macro(outbound, caller, &targs.connected_out, 1, 0)) {
-				ast_channel_update_connected_line(caller, &targs.connected_out, NULL);
+		if (targs->pending_out_connected_update) {
+			if (ast_channel_connected_line_sub(outbound, caller, &targs->connected_out, 0) &&
+				ast_channel_connected_line_macro(outbound, caller, &targs->connected_out, 1, 0)) {
+				ast_channel_update_connected_line(caller, &targs->connected_out, NULL);
 			}
 		}
 
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
+		if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 			if (ast_channel_state(caller) != AST_STATE_UP) {
 				ast_answer(caller);
 			}
@@ -1310,10 +1320,10 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 
 		/* Update connected line to winner if changed. */
-		if (targs.pending_in_connected_update) {
-			if (ast_channel_connected_line_sub(caller, outbound, &targs.connected_in, 0) &&
-				ast_channel_connected_line_macro(caller, outbound, &targs.connected_in, 0, 0)) {
-				ast_channel_update_connected_line(outbound, &targs.connected_in, NULL);
+		if (targs->pending_in_connected_update) {
+			if (ast_channel_connected_line_sub(caller, outbound, &targs->connected_in, 0) &&
+				ast_channel_connected_line_macro(caller, outbound, &targs->connected_in, 0, 0)) {
+				ast_channel_update_connected_line(outbound, &targs->connected_in, NULL);
 			}
 		}
 
@@ -1322,14 +1332,15 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 
 outrun:
-	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry))) {
+	while ((nm = AST_LIST_REMOVE_HEAD(&targs->cnumbers, entry))) {
 		ast_free(nm);
 	}
-	if (!ast_strlen_zero(targs.namerecloc)) {
-		unlink(targs.namerecloc);
+	if (!ast_strlen_zero(targs->namerecloc)) {
+		unlink(targs->namerecloc);
 	}
-	ast_party_connected_line_free(&targs.connected_in);
-	ast_party_connected_line_free(&targs.connected_out);
+	ast_party_connected_line_free(&targs->connected_in);
+	ast_party_connected_line_free(&targs->connected_out);
+	ast_free(targs);
 
 	if (f->realtime) {
 		/* Not in list */
