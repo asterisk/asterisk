@@ -117,7 +117,7 @@ struct number {
 struct call_followme {
 	ast_mutex_t lock;
 	char name[AST_MAX_EXTENSION];	/*!< Name - FollowMeID */
-	char moh[AST_MAX_CONTEXT];	/*!< Music On Hold Class to be used */
+	char moh[MAX_MUSICCLASS];	/*!< Music On Hold Class to be used */
 	char context[AST_MAX_CONTEXT];  /*!< Context to dial from */
 	unsigned int active;		/*!< Profile is active (1), or disabled (0). */
 	int realtime;           /*!< Cached from realtime */
@@ -153,7 +153,7 @@ struct fm_args {
 	unsigned int pending_out_connected_update:1;
 	int status;
 	char context[AST_MAX_CONTEXT];
-	char namerecloc[AST_MAX_CONTEXT];
+	char namerecloc[PATH_MAX];
 	char takecall[MAX_YN_STRING];	/*!< Digit mapping to take a call */
 	char nextindp[MAX_YN_STRING];	/*!< Digit mapping to decline a call */
 	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
@@ -1131,8 +1131,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	struct number *nm, *newnm;
 	int res = 0;
 	char *argstr;
-	char namerecloc[255];
-	int duration = 0;
 	struct ast_channel *caller;
 	struct ast_channel *outbound;
 	AST_DECLARE_APP_ARGS(args,
@@ -1207,15 +1205,22 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
 		ast_stream_and_wait(chan, targs.statusprompt, "");
 
-	snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
-	duration = 5;
+	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) {
+		int duration = 5;
 
-	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
-		if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0)
+		snprintf(targs.namerecloc, sizeof(targs.namerecloc), "%s/followme.%s",
+			ast_config_AST_SPOOL_DIR, chan->uniqueid);
+
+		if (ast_play_and_record(chan, "vm-rec-name", targs.namerecloc, 5, "sln", &duration,
+			NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0) {
 			goto outrun;
+		}
 
-	if (!ast_fileexists(namerecloc, NULL, chan->language))
-		ast_copy_string(namerecloc, "", sizeof(namerecloc));
+		if (!ast_fileexists(targs.namerecloc, NULL, chan->language)) {
+			targs.namerecloc[0] = '\0';
+		}
+	}
+
 	if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
 		if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
 			goto outrun;
@@ -1226,19 +1231,11 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	targs.status = 0;
 	targs.chan = chan;
-	ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
 	ast_channel_lock(chan);
 	ast_connected_line_copy_from_caller(&targs.connected_in, &chan->caller);
 	ast_channel_unlock(chan);
 
 	findmeexec(&targs);
-
-	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry)))
-		ast_free(nm);
-
-	if (!ast_strlen_zero(namerecloc))
-		unlink(namerecloc);
-
 	if (targs.status != 100) {
 		ast_moh_stop(chan);
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
@@ -1287,8 +1284,15 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 
 outrun:
+	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry))) {
+		ast_free(nm);
+	}
+	if (!ast_strlen_zero(targs.namerecloc)) {
+		unlink(targs.namerecloc);
+	}
 	ast_party_connected_line_free(&targs.connected_in);
 	ast_party_connected_line_free(&targs.connected_out);
+
 	if (f->realtime) {
 		/* Not in list */
 		free_numbers(f);
