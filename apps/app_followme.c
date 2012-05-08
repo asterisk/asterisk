@@ -153,12 +153,8 @@ struct call_followme {
 };
 
 struct fm_args {
-	/*! Inbound (caller) channel */
-	struct ast_channel *chan;
 	char *mohclass;
 	AST_LIST_HEAD_NOLOCK(cnumbers, number) cnumbers;
-	/*! Winning outbound (callee) channel */
-	struct ast_channel *outbound;
 	/*! Accumulated connected line information from inbound call. */
 	struct ast_party_connected_line connected_in;
 	/*! Accumulated connected line information from outbound call. */
@@ -167,7 +163,6 @@ struct fm_args {
 	unsigned int pending_in_connected_update:1;
 	/*! TRUE if connected line information from outbound call is available. */
 	unsigned int pending_out_connected_update:1;
-	int status;
 	char context[AST_MAX_CONTEXT];
 	char namerecloc[PATH_MAX];
 	char takecall[MAX_YN_STRING];	/*!< Digit mapping to take a call */
@@ -890,11 +885,20 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	return NULL;
 }
 
-static void findmeexec(struct fm_args *tpargs)
+/*!
+ * \internal
+ * \brief Find an extension willing to take the call.
+ *
+ * \param tpargs Active Followme config.
+ * \param caller Channel initiating the outgoing calls.
+ *
+ * \retval winner Winning outgoing call.
+ * \retval NULL if could not find someone to take the call.
+ */
+static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel *caller)
 {
 	struct number *nm;
 	struct ast_channel *outbound;
-	struct ast_channel *caller;
 	struct ast_channel *winner = NULL;
 	char dialarg[512];
 	char num[512];
@@ -907,11 +911,10 @@ static void findmeexec(struct fm_args *tpargs)
 	findme_user_list = ast_calloc(1, sizeof(*findme_user_list));
 	if (!findme_user_list) {
 		ast_log(LOG_WARNING, "Failed to allocate memory for findme_user_list\n");
-		return;
+		return NULL;
 	}
 	AST_LIST_HEAD_INIT_NOLOCK(findme_user_list);
 
-	caller = tpargs->chan;
 	for (idx = 1; !ast_check_hangup(caller); ++idx) {
 		/* Find next followme numbers to dial. */
 		AST_LIST_TRAVERSE(&tpargs->cnumbers, nm, entry) {
@@ -1028,12 +1031,7 @@ static void findmeexec(struct fm_args *tpargs)
 		break;
 	}
 	destroy_calling_tree(findme_user_list);
-	if (!winner) {
-		tpargs->status = 1;
-	} else {
-		tpargs->status = 100;
-		tpargs->outbound = winner;
-	}
+	return winner;
 }
 
 static struct call_followme *find_realtime(const char *name)
@@ -1256,14 +1254,12 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 	}
 
-	targs.status = 0;
-	targs.chan = chan;
 	ast_channel_lock(chan);
 	ast_connected_line_copy_from_caller(&targs.connected_in, ast_channel_caller(chan));
 	ast_channel_unlock(chan);
 
-	findmeexec(&targs);
-	if (targs.status != 100) {
+	outbound = findmeexec(&targs, chan);
+	if (!outbound) {
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 			if (ast_channel_state(chan) != AST_STATE_UP) {
 				ast_answer(chan);
@@ -1277,7 +1273,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		res = 0;
 	} else {
 		caller = chan;
-		outbound = targs.outbound;
 		/* Bridge the two channels. */
 
 		memset(&config, 0, sizeof(config));
