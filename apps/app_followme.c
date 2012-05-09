@@ -887,20 +887,31 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					}
 				} 
 				if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
+					int cmp_len;
+
 					if (ast_channel_stream(winner))
 						ast_stopstream(winner);
 					tmpuser->digts = 0;
 					ast_debug(1, "DTMF received: %c\n", (char) f->subclass.integer);
 					if (tmpuser->ynidx < ARRAY_LEN(tmpuser->yn) - 1) {
-						tmpuser->yn[tmpuser->ynidx++] = (char) f->subclass.integer;
+						tmpuser->yn[tmpuser->ynidx++] = f->subclass.integer;
+					} else {
+						/* Discard oldest digit. */
+						memmove(tmpuser->yn, tmpuser->yn + 1,
+							sizeof(tmpuser->yn) - 2 * sizeof(tmpuser->yn[0]));
+						tmpuser->yn[ARRAY_LEN(tmpuser->yn) - 2] = f->subclass.integer;
 					}
 					ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
-					if (!strcmp(tmpuser->yn, tpargs->takecall)) {
+					cmp_len = strlen(tpargs->takecall);
+					if (cmp_len <= tmpuser->ynidx
+						&& !strcmp(tmpuser->yn + (tmpuser->ynidx - cmp_len), tpargs->takecall)) {
 						ast_debug(1, "Match to take the call!\n");
 						ast_frfree(f);
 						return tmpuser->ochan;
 					}
-					if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
+					cmp_len = strlen(tpargs->nextindp);
+					if (cmp_len <= tmpuser->ynidx
+						&& !strcmp(tmpuser->yn + (tmpuser->ynidx - cmp_len), tpargs->nextindp)) {
 						ast_debug(1, "Declined to take the call.\n");
 						clear_caller(tmpuser);
 					}

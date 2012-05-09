@@ -8,10 +8,12 @@ featuredigittimeout=>5000
 takecall=>1
 ; The global default keypress for the callee to take taking the current call. This can be
 ; a single digit or multiple digits. Default is "1".
+; Note this string must not be a substring of declinecall.
 ;
 declinecall=>2
 ; The global default keypress for the callee to decline taking the current call. This can
 ; be a single digit or multiple digits. Default is "2".
+; Note this string must not be a substring of takecall.
 ;
 call_from_prompt=>followme/call-from
 ; The global default for the 'Incoming call from' message.
@@ -55,10 +57,12 @@ number=>01233456,25
 takecall=>1
 ; The keypress for the callee to take taking the current call. This can be
 ; a single digit or multiple digits. Default is the global default.
+; Note this string must not be a substring of declinecall.
 ;
 declinecall=>2
 ; The keypress for the callee to decline taking the current call. This can
 ; be a single digit or multiple digits. Default is the global default.
+; Note this string must not be a substring of takecall.
 ;
 call_from_prompt=>followme/call-from
 ; The 'Incoming call from' message prompt. Default is the global default.
