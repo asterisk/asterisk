@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define G723_SAMPLES 240
 #define G729_SAMPLES 160
+#define ULAW_SAMPLES 160
 
 #ifndef DAHDI_FORMAT_MAX_AUDIO
 #define DAHDI_FORMAT_G723_1    (1 << 0)
@@ -102,6 +103,7 @@ struct codec_dahdi_pvt {
 	unsigned int fake:2;
 	uint16_t required_samples;
 	uint16_t samples_in_buffer;
+	uint16_t samples_written_to_hardware;
 	uint8_t ulaw_buffer[1024];
 };
 
@@ -173,7 +175,6 @@ static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct
 static void dahdi_write_frame(struct codec_dahdi_pvt *dahdip, const uint8_t *buffer, const ssize_t count)
 {
 	int res;
-	struct pollfd p = {0};
 	if (!count) return;
 	res = write(dahdip->fd, buffer, count);
 	if (-1 == res) {
@@ -182,9 +183,6 @@ static void dahdi_write_frame(struct codec_dahdi_pvt *dahdip, const uint8_t *buf
 	if (count != res) {
 		ast_log(LOG_ERROR, "Requested write of %zd bytes, but only wrote %d bytes.\n", count, res);
 	}
-	p.fd = dahdip->fd;
-	p.events = POLLOUT;
-	res = poll(&p, 1, 50);
 }
 
 static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
@@ -217,8 +215,9 @@ static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		dahdip->samples_in_buffer += f->samples;
 	}
 
-	while (dahdip->samples_in_buffer > dahdip->required_samples) {
+	while (dahdip->samples_in_buffer >= dahdip->required_samples) {
 		dahdi_write_frame(dahdip, dahdip->ulaw_buffer, dahdip->required_samples);
+		dahdip->samples_written_to_hardware += dahdip->required_samples;
 		dahdip->samples_in_buffer -= dahdip->required_samples;
 		if (dahdip->samples_in_buffer) {
 			/* Shift any remaining bytes down. */
@@ -229,6 +228,14 @@ static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	pvt->samples += f->samples;
 	pvt->datalen = 0;
 	return -1;
+}
+
+static void dahdi_wait_for_packet(int fd)
+{
+	struct pollfd p = {0};
+	p.fd = fd;
+	p.events = POLLIN;
+	poll(&p, 1, 10);
 }
 
 static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
@@ -254,6 +261,10 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		return NULL;
 	}
 
+	if (dahdip->samples_written_to_hardware >= dahdip->required_samples) {
+		dahdi_wait_for_packet(dahdip->fd);
+	}
+
 	res = read(dahdip->fd, pvt->outbuf.c + pvt->datalen, pvt->t->buf_size - pvt->datalen);
 	if (-1 == res) {
 		if (EWOULDBLOCK == errno) {
@@ -272,6 +283,10 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.src = pvt->t->name;
 		pvt->f.data.ptr = pvt->outbuf.c;
 		pvt->f.samples = ast_codec_get_samples(&pvt->f);
+
+		dahdip->samples_written_to_hardware =
+		  (dahdip->samples_written_to_hardware >= pvt->f.samples) ?
+		     dahdip->samples_written_to_hardware - pvt->f.samples : 0;
 
 		pvt->samples = 0;
 		pvt->datalen = 0;
@@ -299,6 +314,7 @@ static int dahdi_decoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		}
 	}
 	dahdi_write_frame(dahdip, f->data.ptr, f->datalen);
+	dahdip->samples_written_to_hardware += f->samples;
 	pvt->samples += f->samples;
 	pvt->datalen = 0;
 	return -1;
@@ -324,6 +340,10 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->samples = 0;
 		dahdip->fake = 0;
 		return NULL;
+	}
+
+	if (dahdip->samples_written_to_hardware >= ULAW_SAMPLES) {
+		dahdi_wait_for_packet(dahdip->fd);
 	}
 
 	/* Let's check to see if there is a new frame for us.... */
@@ -357,6 +377,9 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.data.ptr = pvt->outbuf.c;
 		pvt->f.samples = res;
 		pvt->samples = 0;
+		dahdip->samples_written_to_hardware =
+			(dahdip->samples_written_to_hardware >= res) ?
+			        dahdip->samples_written_to_hardware - res : 0;
 
 		return ast_frisolate(&pvt->f);
 	}
