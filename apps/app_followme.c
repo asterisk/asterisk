@@ -163,6 +163,10 @@ struct fm_args {
 	unsigned int pending_in_connected_update:1;
 	/*! TRUE if connected line information from outbound call is available. */
 	unsigned int pending_out_connected_update:1;
+	/*! TRUE if caller has a pending hold request for the winning call. */
+	unsigned int pending_hold:1;
+	/*! Music On Hold Class suggested by caller hold for winning call. */
+	char suggested_moh[MAX_MUSICCLASS];
 	char context[AST_MAX_CONTEXT];
 	char namerecloc[PATH_MAX];
 	char takecall[MAX_YN_STRING];	/*!< Digit mapping to take a call */
@@ -792,9 +796,37 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						break;
 					case AST_CONTROL_HOLD:
 						ast_verb(3, "%s placed call on hold\n", ast_channel_name(winner));
+						if (!tmpuser) {
+							/* Caller placed outgoing calls on hold. */
+							tpargs->pending_hold = 1;
+							if (f->data.ptr) {
+								ast_copy_string(tpargs->suggested_moh, f->data.ptr,
+									sizeof(tpargs->suggested_moh));
+							} else {
+								tpargs->suggested_moh[0] = '\0';
+							}
+						} else {
+							/*
+							 * Outgoing call placed caller on hold.
+							 *
+							 * Ignore because the outgoing call should not be able to place
+							 * the caller on hold until after they are bridged.
+							 */
+						}
 						break;
 					case AST_CONTROL_UNHOLD:
 						ast_verb(3, "%s removed call from hold\n", ast_channel_name(winner));
+						if (!tmpuser) {
+							/* Caller removed outgoing calls from hold. */
+							tpargs->pending_hold = 0;
+						} else {
+							/*
+							 * Outgoing call removed caller from hold.
+							 *
+							 * Ignore because the outgoing call should not be able to place
+							 * the caller on hold until after they are bridged.
+							 */
+						}
 						break;
 					case AST_CONTROL_OFFHOOK:
 					case AST_CONTROL_FLASH:
@@ -948,12 +980,12 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 				snprintf(tmpuser->dialarg, sizeof(tmpuser->dialarg), "%s%s",
 					number,
 					ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_DISABLEOPTIMIZATION)
-						? "/n" : "");
+						? "/n" : "/m");
 			} else {
 				snprintf(tmpuser->dialarg, sizeof(tmpuser->dialarg), "%s@%s%s",
 					number, tpargs->context,
 					ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_DISABLEOPTIMIZATION)
-						? "/n" : "");
+						? "/n" : "/m");
 			}
 
 			outbound = ast_request("Local", ast_channel_nativeformats(caller), caller,
@@ -1320,6 +1352,16 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			if (ast_channel_connected_line_sub(caller, outbound, &targs->connected_in, 0) &&
 				ast_channel_connected_line_macro(caller, outbound, &targs->connected_in, 0, 0)) {
 				ast_channel_update_connected_line(outbound, &targs->connected_in, NULL);
+			}
+		}
+
+		/* Put winner on hold if caller requested. */
+		if (targs->pending_hold) {
+			if (ast_strlen_zero(targs->suggested_moh)) {
+				ast_indicate_data(outbound, AST_CONTROL_HOLD, NULL, 0);
+			} else {
+				ast_indicate_data(outbound, AST_CONTROL_HOLD,
+					targs->suggested_moh, strlen(targs->suggested_moh) + 1);
 			}
 		}
 
