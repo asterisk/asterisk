@@ -79,6 +79,11 @@ app_meetme:
   - The 'c' option (announce user count) will now work even if the 'q' (quiet)
     option is enabled.
 
+app_followme:
+ - Answered outgoing calls no longer get cut off when the next step is started.
+   You now have until the last step times out to decide if you want to accept
+   the call or not before being disconnected.
+
 SIP
 ===
  - A new option "tonezone" for setting default tonezone for the channel driver

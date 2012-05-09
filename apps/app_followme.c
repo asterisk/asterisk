@@ -190,6 +190,8 @@ struct findme_user {
 	char dialarg[256];
 	/*! Collected digits to accept/decline the call. */
 	char yn[MAX_YN_STRING];
+	/*! TRUE if the outgoing call is answered. */
+	unsigned int answered:1;
 	/*! TRUE if connected line information is available. */
 	unsigned int pending_connected_update:1;
 	AST_LIST_ENTRY(findme_user) entry;
@@ -550,12 +552,14 @@ static void clear_caller(struct findme_user *tmpuser)
 	tmpuser->ochan = NULL;
 }
 
-static void clear_calling_tree(struct findme_user_listptr *findme_user_list) 
+static void clear_unanswered_calls(struct findme_user_listptr *findme_user_list) 
 {
 	struct findme_user *tmpuser;
 
 	AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
-		clear_caller(tmpuser);
+		if (!tmpuser->answered) {
+			clear_caller(tmpuser);
+		}
 	}
 }
 
@@ -704,8 +708,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 		totalwait -= tmpto;
 		wtd = to;
 		if (totalwait <= 0) {
-			ast_verb(3, "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
-			clear_calling_tree(findme_user_list);
+			ast_verb(3, "We've hit our timeout for this step. Dropping unanswered calls and starting the next step.\n");
+			clear_unanswered_calls(findme_user_list);
 			return NULL;
 		}
 		if (winner) {
@@ -743,6 +747,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							break;
 						}
 						ast_verb(3, "%s answered %s\n", ast_channel_name(winner), ast_channel_name(caller));
+						tmpuser->answered = 1;
 						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
 						ast_channel_hangupcause_set(winner, AST_CAUSE_NORMAL_CLEARING);
 						ast_channel_hangupcause_set(caller, AST_CAUSE_NORMAL_CLEARING);
@@ -956,6 +961,19 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 
 		ast_debug(2, "Number(s) %s timeout %ld\n", nm->number, nm->timeout);
 
+		/*
+		 * Put all active outgoing channels into autoservice.
+		 *
+		 * This needs to be done because ast_exists_extension() may put
+		 * the caller into autoservice.
+		 */
+		AST_LIST_TRAVERSE(&findme_user_list, tmpuser, entry) {
+			if (tmpuser->ochan) {
+				ast_autoservice_start(tmpuser->ochan);
+			}
+		}
+
+		/* Create all new outgoing calls */
 		ast_copy_string(num, nm->number, sizeof(num));
 		for (number = num; number; number = rest) {
 			struct ast_channel *outbound;
@@ -1009,12 +1027,15 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 
 			tmpuser->ochan = outbound;
 			tmpuser->state = 0;
+			AST_LIST_INSERT_TAIL(&new_user_list, tmpuser, entry);
+		}
 
+		/* Start all new outgoing calls */
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&new_user_list, tmpuser, entry) {
 			ast_verb(3, "calling Local/%s\n", tmpuser->dialarg);
-			if (!ast_call(tmpuser->ochan, tmpuser->dialarg, 0)) {
-				AST_LIST_INSERT_TAIL(&new_user_list, tmpuser, entry);
-			} else {
+			if (ast_call(tmpuser->ochan, tmpuser->dialarg, 0)) {
 				ast_verb(3, "couldn't reach at this number.\n");
+				AST_LIST_REMOVE_CURRENT(entry);
 
 				/* Destroy this failed new outgoing call. */
 				ast_channel_lock(tmpuser->ochan);
@@ -1025,6 +1046,17 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 				destroy_calling_node(tmpuser);
 			}
 		}
+		AST_LIST_TRAVERSE_SAFE_END;
+
+		/* Take all active outgoing channels out of autoservice. */
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&findme_user_list, tmpuser, entry) {
+			if (tmpuser->ochan && ast_autoservice_stop(tmpuser->ochan)) {
+				/* Existing outgoing call hungup. */
+				AST_LIST_REMOVE_CURRENT(entry);
+				destroy_calling_node(tmpuser);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
 
 		if (AST_LIST_EMPTY(&new_user_list)) {
 			/* No new channels remain at this order level.  If there were any at all. */
@@ -1036,6 +1068,14 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 
 		winner = wait_for_winner(&findme_user_list, nm, caller, tpargs);
 		if (!winner) {
+			/* Remove all dead outgoing nodes. */
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&findme_user_list, tmpuser, entry) {
+				if (!tmpuser->ochan) {
+					AST_LIST_REMOVE_CURRENT(entry);
+					destroy_calling_node(tmpuser);
+				}
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
 			continue;
 		}
 

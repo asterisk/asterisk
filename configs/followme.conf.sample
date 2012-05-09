@@ -40,17 +40,18 @@ context=>default
 ; The context to dial the numbers from
 number=>01233456,25
 ; The a follow-me number to call. The format is:
-; number=> <number to call[&2nd #[&3rd #]]> [, <timeout value in seconds> [, <order in follow-me>] ]
+; number=> <number to call[&2nd #[&...]]>[,<timeout value in seconds>[,<order in follow-me>]]
 ; You can specify as many of these numbers as you like. They will be dialed in the
 ; order that you specify them in the config file OR as specified with the order field
 ; on the number prompt. As you can see from the example, forked dialing of multiple
 ; numbers in the same step is supported with this application if you'd like to dial
 ; multiple numbers in the same followme step.
-; It's also important to note that the timeout value is not the same
-; as the timeout value you would use in app_dial. This timeout value is the amount of
-; time allowed between the time the dialing step starts and the callee makes a choice
-; on whether to take the call or not. That being the case, you may want to account for
-; this time, and make this timeout longer than a timeout you might specify in app_dial.
+;
+; The timeout value is the amount of time allowed between the time the dialing step
+; starts and the callee answers.  The callee then has until the timeout of the last
+; step to make a choice on whether to take the call or not.  That being the case,
+; you may want to make the timeout on the last step longer to give enough time to
+; make the choice to accept or not.
 takecall=>1
 ; The keypress for the callee to take taking the current call. This can be
 ; a single digit or multiple digits. Default is the global default.
