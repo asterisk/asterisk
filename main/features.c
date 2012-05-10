@@ -2060,6 +2060,9 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	struct ast_channel *caller_chan, *callee_chan;
 	const char *automon_message_start = NULL;
 	const char *automon_message_stop = NULL;
+	const char *touch_format = NULL;
+	const char *touch_monitor = NULL;
+	const char *touch_monitor_prefix = NULL;
 
 	if (!monitor_ok) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
@@ -2073,10 +2076,13 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	set_peers(&caller_chan, &callee_chan, peer, chan, sense);
-	if (caller_chan) {	/* Find extra messages */
-		automon_message_start = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_START");
-		automon_message_stop = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_STOP");
+	if (!caller_chan || !callee_chan) {
+		ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
+		return -1;
 	}
+	/* Find extra messages */
+	automon_message_start = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_START");
+	automon_message_stop = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_STOP");
 
 	if (!ast_strlen_zero(courtesytone)) {	/* Play courtesy tone if configured */
 		if(play_message_in_bridged_call(caller_chan, callee_chan, courtesytone) == -1) {
@@ -2093,58 +2099,53 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		return AST_FEATURE_RETURN_SUCCESS;
 	}
 
-	if (caller_chan && callee_chan) {
-		const char *touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
-		const char *touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
-		const char *touch_monitor_prefix = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_PREFIX");
+	touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
+	touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
+	touch_monitor_prefix = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_PREFIX");
 
-		if (!touch_format)
-			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_FORMAT");
+	if (!touch_format)
+		touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_FORMAT");
 
-		if (!touch_monitor)
-			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
-	
-		if (!touch_monitor_prefix)
-			touch_monitor_prefix = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_PREFIX");
-	
-		if (touch_monitor) {
-			len = strlen(touch_monitor) + 50;
-			args = alloca(len);
-			touch_filename = alloca(len);
-			snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
-			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
-		} else {
-			caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
-				caller_chan->caller.id.number.str, caller_chan->name));
-			callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
-				callee_chan->caller.id.number.str, callee_chan->name));
-			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
-			args = alloca(len);
-			touch_filename = alloca(len);
-			snprintf(touch_filename, len, "%s-%ld-%s-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, callee_chan_id);
-			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
-		}
+	if (!touch_monitor)
+		touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
 
-		for(x = 0; x < strlen(args); x++) {
-			if (args[x] == '/')
-				args[x] = '-';
-		}
-		
-		ast_verb(4, "User hit '%s' to record call. filename: %s\n", code, args);
+	if (!touch_monitor_prefix)
+		touch_monitor_prefix = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_PREFIX");
 
-		pbx_exec(callee_chan, monitor_app, args);
-		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
-		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+	if (touch_monitor) {
+		len = strlen(touch_monitor) + 50;
+		args = alloca(len);
+		touch_filename = alloca(len);
+		snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
+		snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
+	} else {
+		caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
+			caller_chan->caller.id.number.str, caller_chan->name));
+		callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
+			callee_chan->caller.id.number.str, callee_chan->name));
+		len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
+		args = alloca(len);
+		touch_filename = alloca(len);
+		snprintf(touch_filename, len, "%s-%ld-%s-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, callee_chan_id);
+		snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
+	}
 
-		if (!ast_strlen_zero(automon_message_start)) {	/* Play start message for both channels */
-			play_message_in_bridged_call(caller_chan, callee_chan, automon_message_start);
-		}
-	
-		return AST_FEATURE_RETURN_SUCCESS;
+	for(x = 0; x < strlen(args); x++) {
+		if (args[x] == '/')
+			args[x] = '-';
 	}
 	
-	ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
-	return -1;
+	ast_verb(4, "User hit '%s' to record call. filename: %s\n", code, args);
+
+	pbx_exec(callee_chan, monitor_app, args);
+	pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+	pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+
+	if (!ast_strlen_zero(automon_message_start)) {	/* Play start message for both channels */
+		play_message_in_bridged_call(caller_chan, callee_chan, automon_message_start);
+	}
+
+	return AST_FEATURE_RETURN_SUCCESS;
 }
 
 static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
@@ -3164,12 +3165,10 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	ast_autoservice_start(idle);
 	ast_autoservice_ignore(idle, AST_FRAME_DTMF_END);
 	
-	if(work && idle) {
-		pbx_builtin_setvar_helper(work, "DYNAMIC_PEERNAME", idle->name);
-		pbx_builtin_setvar_helper(idle, "DYNAMIC_PEERNAME", work->name);
-		pbx_builtin_setvar_helper(work, "DYNAMIC_FEATURENAME", feature->sname);
-		pbx_builtin_setvar_helper(idle, "DYNAMIC_FEATURENAME", feature->sname);
-	}
+	pbx_builtin_setvar_helper(work, "DYNAMIC_PEERNAME", idle->name);
+	pbx_builtin_setvar_helper(idle, "DYNAMIC_PEERNAME", work->name);
+	pbx_builtin_setvar_helper(work, "DYNAMIC_FEATURENAME", feature->sname);
+	pbx_builtin_setvar_helper(idle, "DYNAMIC_FEATURENAME", feature->sname);
 
 	if (!ast_strlen_zero(feature->moh_class))
 		ast_moh_start(idle, feature->moh_class, NULL);
@@ -3284,7 +3283,9 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 					if (operation) {
 						res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
 					}
-					memcpy(feature, fge->feature, sizeof(*feature));
+					if (feature) {
+						memcpy(feature, fge->feature, sizeof(*feature));
+					}
 					if (res != AST_FEATURE_RETURN_KEEPTRYING) {
 						AST_RWLIST_UNLOCK(&feature_groups);
 						break;
@@ -4730,76 +4731,80 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 		/* And take them out of the parking lot */
 		parking_complete = 1;
 	} else {	/* still within parking time, process descriptors */
-		for (x = 0; x < AST_MAX_FDS; x++) {
-			struct ast_frame *f;
-			int y;
+		x = 0;
+		if (pfds) {
+			for (; x < AST_MAX_FDS; x++) {
+				struct ast_frame *f;
+				int y;
 
-			if (chan->fds[x] == -1) {
-				continue;	/* nothing on this descriptor */
-			}
+				if (chan->fds[x] == -1) {
+					continue;	/* nothing on this descriptor */
+				}
 
-			for (y = 0; y < nfds; y++) {
-				if (pfds[y].fd == chan->fds[x]) {
-					/* Found poll record! */
+				for (y = 0; y < nfds; y++) {
+					if (pfds[y].fd == chan->fds[x]) {
+						/* Found poll record! */
+						break;
+					}
+				}
+				if (y == nfds) {
+					/* Not found */
+					continue;
+				}
+
+				if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
+					/* Next x */
+					continue;
+				}
+
+				if (pfds[y].revents & POLLPRI) {
+					ast_set_flag(chan, AST_FLAG_EXCEPTION);
+				} else {
+					ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+				}
+				chan->fdno = x;
+
+				/* See if they need servicing */
+				f = ast_read(pu->chan);
+				/* Hangup? */
+				if (!f || (f->frametype == AST_FRAME_CONTROL
+					&& f->subclass.integer == AST_CONTROL_HANGUP)) {
+					if (f) {
+						ast_frfree(f);
+					}
+					post_manager_event("ParkedCallGiveUp", pu);
+					ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp",
+						NULL);
+
+					/* There's a problem, hang them up */
+					ast_verb(2, "%s got tired of being parked\n", chan->name);
+					ast_hangup(chan);
+
+					/* And take them out of the parking lot */
+					parking_complete = 1;
 					break;
-				}
-			}
-			if (y == nfds) {
-				/* Not found */
-				continue;
-			}
-
-			if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
-				/* Next x */
-				continue;
-			}
-
-			if (pfds[y].revents & POLLPRI) {
-				ast_set_flag(chan, AST_FLAG_EXCEPTION);
-			} else {
-				ast_clear_flag(chan, AST_FLAG_EXCEPTION);
-			}
-			chan->fdno = x;
-
-			/* See if they need servicing */
-			f = ast_read(pu->chan);
-			/* Hangup? */
-			if (!f || (f->frametype == AST_FRAME_CONTROL
-				&& f->subclass.integer == AST_CONTROL_HANGUP)) {
-				if (f) {
+				} else {
+					/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 					ast_frfree(f);
+					if (pu->hold_method == AST_CONTROL_HOLD
+						&& pu->moh_trys < 3
+						&& !chan->generatordata) {
+						ast_debug(1,
+							"MOH on parked call stopped by outside source.  Restarting on channel %s.\n",
+							chan->name);
+						ast_indicate_data(chan, AST_CONTROL_HOLD,
+							S_OR(pu->parkinglot->cfg.mohclass, NULL),
+							(!ast_strlen_zero(pu->parkinglot->cfg.mohclass)
+								? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0));
+						pu->moh_trys++;
+					}
+					goto std;	/* XXX Ick: jumping into an else statement??? XXX */
 				}
-				post_manager_event("ParkedCallGiveUp", pu);
-				ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp",
-					NULL);
-
-				/* There's a problem, hang them up */
-				ast_verb(2, "%s got tired of being parked\n", chan->name);
-				ast_hangup(chan);
-
-				/* And take them out of the parking lot */
-				parking_complete = 1;
-				break;
-			} else {
-				/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
-				ast_frfree(f);
-				if (pu->hold_method == AST_CONTROL_HOLD
-					&& pu->moh_trys < 3
-					&& !chan->generatordata) {
-					ast_debug(1,
-						"MOH on parked call stopped by outside source.  Restarting on channel %s.\n",
-						chan->name);
-					ast_indicate_data(chan, AST_CONTROL_HOLD,
-						S_OR(pu->parkinglot->cfg.mohclass, NULL),
-						(!ast_strlen_zero(pu->parkinglot->cfg.mohclass)
-							? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0));
-					pu->moh_trys++;
-				}
-				goto std;	/* XXX Ick: jumping into an else statement??? XXX */
-			}
-		} /* End for */
+			} /* End for */
+		}
 		if (x >= AST_MAX_FDS) {
-std:		for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
+std:
+			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 				if (chan->fds[x] > -1) {
 					void *tmp = ast_realloc(*new_pfds,
 						(*new_nfds + 1) * sizeof(struct pollfd));

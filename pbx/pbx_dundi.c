@@ -1014,7 +1014,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	totallen += (ies->eidcount - skipfirst) * sizeof(dundi_eid);
 	st = ast_calloc(1, totallen);
 	if (st) {
-		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
+		ast_copy_string(st->called_context, dr.dcontext, sizeof(st->called_context));
 		ast_copy_string(st->called_number, ies->called_number, sizeof(st->called_number));
 		st->trans = trans;
 		st->ttl = ies->ttl - 1;

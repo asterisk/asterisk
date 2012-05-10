@@ -512,8 +512,10 @@ int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned 
 	ied->buf[ied->pos++] = ie;
 	ied->buf[ied->pos++] = datalen;
 	ied->buf[ied->pos++] = cause;
-	memcpy(ied->buf + ied->pos, data, datalen-1);
-	ied->pos += datalen-1;
+	if (data) {
+		memcpy(ied->buf + ied->pos, data, datalen-1);
+		ied->pos += datalen-1;
+	}
 	return 0;
 }
 
@@ -531,8 +533,10 @@ int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned s
 	flags = htons(flags);
 	memcpy(ied->buf + ied->pos, &flags, sizeof(flags));
 	ied->pos += 2;
-	memcpy(ied->buf + ied->pos, data, datalen-1);
-	ied->pos += datalen-2;
+	if (data) {
+		memcpy(ied->buf + ied->pos, data, datalen-2);
+		ied->pos += datalen-2;
+	}
 	return 0;
 }
 

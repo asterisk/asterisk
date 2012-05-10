@@ -217,7 +217,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 }
 
 
-AST_TEST_DEFINE(sip_parse_uri_fully_test)
+AST_TEST_DEFINE(sip_parse_uri_full_test)
 {
 	int res = AST_TEST_PASS;
 	char uri[1024];
@@ -227,12 +227,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata {
 		char *desc;
 		char *uri;
-		char **userptr;
-		char **passptr;
-		char **hostportptr;
-		char **headersptr;
-		char **residueptr;
-		struct uriparams *paramsptr;
 		char *user;
 		char *pass;
 		char *hostport;
@@ -250,12 +244,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td1 = {
 		.desc = "no headers",
 		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=residue",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -269,12 +257,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td2 = {
 		.desc = "with headers",
 		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=discard2?header=blah&header2=blah2;param3=residue",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -288,12 +270,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td3 = {
 		.desc = "difficult user",
 		.uri = "sip:-_.!~*'()&=+$,;?/:secret@host:5060;transport=tcp",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "-_.!~*'()&=+$,;?/",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -307,12 +283,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td4 = {
 		.desc = "difficult pass",
 		.uri = "sip:user:-_.!~*'()&=+$,@host:5060;transport=tcp",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "-_.!~*'()&=+$,",
 		.hostport = "host:5060",
@@ -326,12 +296,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td5 = {
 		.desc = "difficult host",
 		.uri = "sip:user:secret@1-1.a-1.:5060;transport=tcp",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "1-1.a-1.:5060",
@@ -345,12 +309,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td6 = {
 		.desc = "difficult params near transport",
 		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$;transport=tcp",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -364,12 +322,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td7 = {
 		.desc = "difficult params near headers",
 		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$?header=blah&header2=blah2;-_.!~*'()[]/:&+$=residue",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -383,12 +335,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td8 = {
 		.desc = "lr parameter",
 		.uri = "sip:user:secret@host:5060;param=discard;lr?header=blah",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -402,12 +348,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td9 = {
 		.desc = "alternative lr parameter",
 		.uri = "sip:user:secret@host:5060;param=discard;lr=yes?header=blah",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -421,12 +361,6 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	struct testdata td10 = {
 		.desc = "no lr parameter",
 		.uri = "sip:user:secret@host:5060;paramlr=lr;lr=no;lr=off;lr=0;lr=;=lr;lrextra;lrparam2=lr?header=blah",
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
 		.hostport = "host:5060",
@@ -469,19 +403,19 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		params.lr = 0;
 
 		ast_copy_string(uri,testdataptr->uri,sizeof(uri));
-		if (parse_uri_full(uri, "sip:,sips:", testdataptr->userptr,
-				   testdataptr->passptr, testdataptr->hostportptr,
-				   testdataptr->paramsptr,
-				   testdataptr->headersptr,
-				   testdataptr->residueptr) ||
-			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
-			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
-			((testdataptr->hostportptr) && strcmp(testdataptr->hostport, hostport)) ||
-			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
-			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
-			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
-			((testdataptr->paramsptr) && (testdataptr->params.lr != params.lr)) ||
-			((testdataptr->paramsptr) && strcmp(testdataptr->params.user,params.user))
+		if (parse_uri_full(uri, "sip:,sips:", &user,
+				   &pass, &hostport,
+				   &params,
+				   &headers,
+				   &residue) ||
+			(user && strcmp(testdataptr->user, user)) ||
+			(pass && strcmp(testdataptr->pass, pass)) ||
+			(hostport && strcmp(testdataptr->hostport, hostport)) ||
+			(headers && strcmp(testdataptr->headers, headers)) ||
+			(residue && strcmp(testdataptr->residue, residue)) ||
+			(strcmp(testdataptr->params.transport,params.transport)) ||
+			(testdataptr->params.lr != params.lr) ||
+			(strcmp(testdataptr->params.user,params.user))
 		) {
 				ast_test_status_update(test, "Sub-Test: %s, failed.\n", testdataptr->desc);
 				res = AST_TEST_FAIL;
@@ -1220,13 +1154,6 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	struct testdata {
 		char *desc;
 		char *uri;
-		char **nameptr;
-		char **userptr;
-		char **passptr;
-		char **hostportptr;
-		char **headersptr;
-		char **residueptr;
-		struct uriparams *paramsptr;
 		char *name;
 		char *user;
 		char *pass;
@@ -1244,13 +1171,6 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	struct testdata td1 = {
 		.desc = "quotes and brackets",
 		.uri = "\"name :@ \" <sip:user:secret@host:5060;param=discard;transport=tcp>;tag=tag",
-		.nameptr = &name,
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.name =  "name :@ ",
 		.user = "user",
 		.pass = "secret",
@@ -1265,13 +1185,6 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	struct testdata td2 = {
 		.desc = "no quotes",
 		.uri = "givenname familyname <sip:user:secret@host:5060;param=discard;transport=tcp>;expires=3600",
-		.nameptr = &name,
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.name = "givenname familyname",
 		.user = "user",
 		.pass = "secret",
@@ -1286,13 +1199,6 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	struct testdata td3 = {
 		.desc = "no brackets",
 		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;q=1",
-		.nameptr = &name,
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.name = "",
 		.user = "user",
 		.pass = "secret",
@@ -1307,13 +1213,6 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	struct testdata td4 = {
 		.desc = "just host",
 		.uri = "sips:host",
-		.nameptr = &name,
-		.userptr = &user,
-		.passptr = &pass,
-		.hostportptr = &hostport,
-		.headersptr = &headers,
-		.residueptr = &residue,
-		.paramsptr = &params,
 		.name = "",
 		.user = "",
 		.pass = "",
@@ -1351,21 +1250,21 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		params.lr = 0;
 		ast_copy_string(uri,testdataptr->uri,sizeof(uri));
 		if (parse_name_andor_addr(uri, "sip:,sips:",
-					  testdataptr->nameptr,
-					  testdataptr->userptr,
-					  testdataptr->passptr,
-					  testdataptr->hostportptr,
-					  testdataptr->paramsptr,
-					  testdataptr->headersptr,
-					  testdataptr->residueptr) ||
-			((testdataptr->nameptr) && strcmp(testdataptr->name, name)) ||
-			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
-			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
-			((testdataptr->hostportptr) && strcmp(testdataptr->hostport, hostport)) ||
-			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
-			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
-			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
-			((testdataptr->paramsptr) && strcmp(testdataptr->params.user,params.user))
+					  &name,
+					  &user,
+					  &pass,
+					  &hostport,
+					  &params,
+					  &headers,
+					  &residue) ||
+			(name && strcmp(testdataptr->name, name)) ||
+			(user && strcmp(testdataptr->user, user)) ||
+			(pass && strcmp(testdataptr->pass, pass)) ||
+			(hostport && strcmp(testdataptr->hostport, hostport)) ||
+			(headers && strcmp(testdataptr->headers, headers)) ||
+			(residue && strcmp(testdataptr->residue, residue)) ||
+			(strcmp(testdataptr->params.transport,params.transport)) ||
+			(strcmp(testdataptr->params.user,params.user))
 			) {
 			ast_test_status_update(test, "Sub-Test: %s,failed.\n", testdataptr->desc);
 			res = AST_TEST_FAIL;
@@ -2579,7 +2478,7 @@ void sip_request_parser_register_tests(void)
 	AST_TEST_REGISTER(sip_parse_uri_test);
 	AST_TEST_REGISTER(get_in_brackets_test);
 	AST_TEST_REGISTER(get_name_and_number_test);
-	AST_TEST_REGISTER(sip_parse_uri_fully_test);
+	AST_TEST_REGISTER(sip_parse_uri_full_test);
 	AST_TEST_REGISTER(parse_name_andor_addr_test);
 	AST_TEST_REGISTER(parse_contact_header_test);
 	AST_TEST_REGISTER(sip_parse_options_test);
@@ -2592,7 +2491,7 @@ void sip_request_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(get_calleridname_test);
 	AST_TEST_UNREGISTER(get_in_brackets_test);
 	AST_TEST_UNREGISTER(get_name_and_number_test);
-	AST_TEST_UNREGISTER(sip_parse_uri_fully_test);
+	AST_TEST_UNREGISTER(sip_parse_uri_full_test);
 	AST_TEST_UNREGISTER(parse_name_andor_addr_test);
 	AST_TEST_UNREGISTER(parse_contact_header_test);
 	AST_TEST_UNREGISTER(sip_parse_options_test);

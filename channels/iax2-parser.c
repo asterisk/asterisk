@@ -1192,7 +1192,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 		AST_LIST_TRAVERSE_SAFE_END;
 	}
 	if (!fr) {
-		if (iax_frames->size >= FRAME_CACHE_MAX_SIZE && smallest) {
+		if (iax_frames && iax_frames->size >= FRAME_CACHE_MAX_SIZE && smallest) {
 			/* Make useless cache into something more useful */
 			AST_LIST_REMOVE(&iax_frames->list, smallest, list);
 			if (!(fr = ast_realloc(smallest, sizeof(*fr) + datalen))) {

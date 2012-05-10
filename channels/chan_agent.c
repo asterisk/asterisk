@@ -668,7 +668,9 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			break;
 		case AST_FRAME_DTMF_END:
 			if (!p->acknowledged && (f->subclass.integer == p->acceptdtmf)) {
-				ast_verb(3, "%s acknowledged\n", p->chan->name);
+				if (p->chan) {
+					ast_verb(3, "%s acknowledged\n", p->chan->name);
+				}
 				p->acknowledged = 1;
 				ast_frfree(f);
 				f = &answer_frame;

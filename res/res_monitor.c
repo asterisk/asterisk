@@ -378,7 +378,9 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 							O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
 				ast_log(LOG_WARNING, "Could not create file %s\n",
 							monitor->write_filename);
-				ast_closestream(monitor->read_stream);
+				if (monitor->read_stream) {
+					ast_closestream(monitor->read_stream);
+				}
 				ast_free(monitor);
 				UNLOCK_IF_NEEDED(chan, need_lock);
 				return -1;

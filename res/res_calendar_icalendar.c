@@ -133,6 +133,7 @@ static icalcomponent *fetch_icalendar(struct icalendar_pvt *pvt)
 
 	if (!pvt) {
 		ast_log(LOG_ERROR, "There is no private!\n");
+		return NULL;
 	}
 
 	if (!(response = ast_str_create(512))) {

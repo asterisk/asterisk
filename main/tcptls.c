@@ -412,8 +412,10 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 	return handle_tcptls_connection(tcptls_session);
 
 client_start_error:
-	close(desc->accept_fd);
-	desc->accept_fd = -1;
+	if (desc) {
+		close(desc->accept_fd);
+		desc->accept_fd = -1;
+	}
 	if (tcptls_session) {
 		ao2_ref(tcptls_session, -1);
 	}

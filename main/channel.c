@@ -3132,16 +3132,19 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		int fdno;
 	} *fdmap = NULL;
 
-	if ((sz = n * AST_MAX_FDS + nfds)) {
-		pfds = alloca(sizeof(*pfds) * sz);
-		fdmap = alloca(sizeof(*fdmap) * sz);
-	}
-
 	if (outfd)
 		*outfd = -99999;
 	if (exception)
 		*exception = 0;
 	
+	if ((sz = n * AST_MAX_FDS + nfds)) {
+		pfds = alloca(sizeof(*pfds) * sz);
+		fdmap = alloca(sizeof(*fdmap) * sz);
+	} else {
+		/* nothing to allocate and no FDs to check */
+		return NULL;
+	}
+
 	/* Perform any pending masquerades */
 	for (x = 0; x < n; x++) {
 		if (c[x]->masq && ast_do_masquerade(c[x])) {

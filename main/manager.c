@@ -4435,10 +4435,22 @@ static int action_reload(struct mansession *s, const struct message *m)
 	const char *module = astman_get_header(m, "Module");
 	int res = ast_module_reload(S_OR(module, NULL));
 
-	if (res == 2) {
+	switch (res) {
+	case -1:
+		astman_send_error(s, m, "A reload is in progress");
+		break;
+	case 0:
+		astman_send_error(s, m, "No such module");
+		break;
+	case 1:
+		astman_send_error(s, m, "Module does not support reload");
+		break;
+	case 2:
 		astman_send_ack(s, m, "Module Reloaded");
-	} else {
-		astman_send_error(s, m, s == 0 ? "No such module" : "Module does not support reload");
+		break;
+	default:
+		astman_send_error(s, m, "An unknown error occurred");
+		break;
 	}
 	return 0;
 }
@@ -6815,7 +6827,7 @@ static int __init_manager(int reload)
 				if (user_writetimeout) {
 					int value = atoi(user_writetimeout);
 					if (value < 100) {
-						ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at users.conf line %d\n", var->value, var->lineno);
+						ast_log(LOG_WARNING, "Invalid writetimeout value '%d' in users.conf\n", value);
 					} else {
 						user->writetimeout = value;
 					}
