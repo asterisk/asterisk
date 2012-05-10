@@ -676,6 +676,20 @@ struct ast_channel_tech {
 	 * parameters as a parameter.
 	 */
 	int (* cc_callback)(struct ast_channel *inbound, const char *dest, ast_cc_callback_fn callback);
+
+	/*!
+	 * \brief Execute a Gosub call on the channel in a technology specific way before a call is placed.
+	 * \since 11.0
+	 *
+	 * \param chan Channel to execute Gosub in a tech specific way.
+	 * \param sub_args Gosub application parameter string.
+	 *
+	 * \note The chan is locked before calling.
+	 *
+	 * \retval 0 on success.
+	 * \retval -1 on error.
+	 */
+	int (*pre_call)(struct ast_channel *chan, const char *sub_args);
 };
 
 /*! Kill the channel channel driver technology descriptor. */
@@ -1525,6 +1539,24 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer);
  * \retval non-zero on failure
  */
 int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
+
+/*!
+ * \brief Execute a Gosub call on the channel before a call is placed.
+ * \since 11.0
+ *
+ * \details
+ * This is called between ast_request() and ast_call() to
+ * execute a predial routine on the newly created channel.
+ *
+ * \param chan Channel to execute Gosub.
+ * \param sub_args Gosub application parameter string.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_pre_call(struct ast_channel *chan, const char *sub_args);
 
 /*!
  * \brief Make a call

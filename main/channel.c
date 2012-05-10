@@ -5671,6 +5671,23 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 	return NULL;
 }
 
+int ast_pre_call(struct ast_channel *chan, const char *sub_args)
+{
+	int (*pre_call)(struct ast_channel *chan, const char *sub_args);
+
+	ast_channel_lock(chan);
+	pre_call = ast_channel_tech(chan)->pre_call;
+	if (pre_call) {
+		int res;
+
+		res = pre_call(chan, sub_args);
+		ast_channel_unlock(chan);
+		return res;
+	}
+	ast_channel_unlock(chan);
+	return ast_app_exec_sub(NULL, chan, sub_args);
+}
+
 int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 {
 	/* Place an outgoing call, but don't wait any longer than timeout ms before returning.

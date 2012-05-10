@@ -2478,7 +2478,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		ast_autoservice_start(chan);
 		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLEE]);
 		AST_LIST_TRAVERSE(&out_chans, tmp, node) {
-			ast_app_exec_sub(NULL, tmp->chan, opt_args[OPT_ARG_PREDIAL_CALLEE]);
+			ast_pre_call(tmp->chan, opt_args[OPT_ARG_PREDIAL_CALLEE]);
 		}
 		ast_autoservice_stop(chan);
 	}
