@@ -6105,11 +6105,13 @@ static void __ast_change_name_nolink(struct ast_channel *chan, const char *newna
 void ast_change_name(struct ast_channel *chan, const char *newname)
 {
 	/* We must re-link, as the hash value will change here. */
-	ao2_unlink(channels, chan);
+	ao2_lock(channels);
 	ast_channel_lock(chan);
+	ao2_unlink(channels, chan);
 	__ast_change_name_nolink(chan, newname);
-	ast_channel_unlock(chan);
 	ao2_link(channels, chan);
+	ast_channel_unlock(chan);
+	ao2_unlock(channels);
 }
 
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
@@ -6166,8 +6168,7 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 	struct ast_var_t *current, *newvar;
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
-	if (AST_LIST_FIRST(&clonechan->varshead))
-		AST_LIST_APPEND_LIST(&original->varshead, &clonechan->varshead, entries);
+	AST_LIST_APPEND_LIST(&original->varshead, &clonechan->varshead, entries);
 
 	/* then, dup the varshead list into the clone */
 	
