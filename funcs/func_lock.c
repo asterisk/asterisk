@@ -486,9 +486,11 @@ static int unload_module(void)
 	ast_custom_function_unregister(&trylock_function);
 	ast_custom_function_unregister(&unlock_function);
 
-	pthread_cancel(broker_tid);
-	pthread_kill(broker_tid, SIGURG);
-	pthread_join(broker_tid, NULL);
+	if (broker_tid != AST_PTHREADT_NULL) {
+		pthread_cancel(broker_tid);
+		pthread_kill(broker_tid, SIGURG);
+		pthread_join(broker_tid, NULL);
+	}
 
 	AST_LIST_UNLOCK(&locklist);
 
@@ -500,7 +502,14 @@ static int load_module(void)
 	int res = ast_custom_function_register(&lock_function);
 	res |= ast_custom_function_register(&trylock_function);
 	res |= ast_custom_function_register(&unlock_function);
-	ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL);
+
+	if (ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL)) {
+		ast_log(LOG_ERROR, "Failed to start lock broker thread. Unloading func_lock module.\n");
+		broker_tid = AST_PTHREADT_NULL;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	return res;
 }
 
