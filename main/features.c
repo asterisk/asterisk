@@ -8658,7 +8658,9 @@ int ast_features_init(void)
 		return res;
 	}
 	ast_cli_register_multiple(cli_features, ARRAY_LEN(cli_features));
-	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	if (ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL)) {
+		return -1;
+	}
 	ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
 	res = ast_register_application2(parkedcall, parked_call_exec, NULL, NULL, NULL);
 	if (!res)

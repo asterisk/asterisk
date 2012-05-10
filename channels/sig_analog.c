@@ -2744,7 +2744,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				analog_train_echocanceller(p);
 				ast_copy_string(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr));
 				p->dop.op = ANALOG_DIAL_OP_REPLACE;
-				analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
+				if (analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop)) {
+					int dial_err = errno;
+					ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(dial_err));
+				}
 				p->echobreak = 0;
 			} else {
 				analog_set_dialing(p, 0);

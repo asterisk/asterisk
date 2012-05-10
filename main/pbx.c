@@ -6709,8 +6709,10 @@ static int show_debug_helper(int fd, const char *context, const char *exten, str
 
 		dpc->context_existence = 1;
 
-		if (!c->pattern_tree)
+		if (!c->pattern_tree) {
+			/* Ignore check_return warning from Coverity for ast_exists_extension below */
 			ast_exists_extension(NULL, c->name, "s", 1, ""); /* do this to force the trie to built, if it is not already */
+		}
 
 		ast_rdlock_context(c);
 

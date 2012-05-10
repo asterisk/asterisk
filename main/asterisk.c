@@ -1468,7 +1468,11 @@ static int ast_makesocket(void)
 		ast_log(LOG_WARNING, "Unable to register network verboser?\n");
 	}
 
-	ast_pthread_create_background(&lthread, NULL, listener, NULL);
+	if (ast_pthread_create_background(&lthread, NULL, listener, NULL)) {
+		ast_log(LOG_WARNING, "Unable to create listener thread.\n");
+		close(ast_socket);
+		return -1;
+	}
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
 		struct passwd *pw;
@@ -3345,9 +3349,8 @@ static void *canary_thread(void *unused)
 	sleep(120);
 
 	for (;;) {
-		stat(canary_filename, &canary_stat);
 		now = ast_tvnow();
-		if (now.tv_sec > canary_stat.st_mtime + 60) {
+		if (stat(canary_filename, &canary_stat) || now.tv_sec > canary_stat.st_mtime + 60) {
 			ast_log(LOG_WARNING,
 				"The canary is no more.  He has ceased to be!  "
 				"He's expired and gone to meet his maker!  "

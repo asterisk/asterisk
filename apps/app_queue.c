@@ -4946,7 +4946,9 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 					res2 |= ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
 				}
 				if (!res2 && announce) {
-					play_file(peer, announce);
+					if (play_file(peer, announce) < 0) {
+						ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", announce, ast_channel_name(peer));
+					}
 				}
 				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
@@ -4957,11 +4959,15 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 						holdtimesecs = abs((now - qe->start) % 60);
 						if (holdtime > 0) {
 							ast_say_number(peer, holdtime, AST_DIGIT_ANY, ast_channel_language(peer), NULL);
-							play_file(peer, qe->parent->sound_minutes);
+							if (play_file(peer, qe->parent->sound_minutes) < 0) {
+								ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", qe->parent->sound_minutes, ast_channel_name(peer));
+							}
 						}
 						if (holdtimesecs > 1) {
 							ast_say_number(peer, holdtimesecs, AST_DIGIT_ANY, ast_channel_language(peer), NULL);
-							play_file(peer, qe->parent->sound_seconds);
+							if (play_file(peer, qe->parent->sound_seconds) < 0) {
+								ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", qe->parent->sound_seconds, ast_channel_name(peer));
+							}
 						}
 					}
 				}

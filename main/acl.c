@@ -533,7 +533,11 @@ int ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr)
 			if (ast_sockaddr_is_ipv6(addr)) {
 				if (ast_sockaddr_is_ipv4_mapped(addr)) {
 					/* IPv4 ACLs apply to IPv4-mapped addresses */
-					ast_sockaddr_ipv4_mapped(addr, &mapped_addr);
+					if (!ast_sockaddr_ipv4_mapped(addr, &mapped_addr)) {
+						ast_log(LOG_ERROR, "%s provided to ast_sockaddr_ipv4_mapped could not be converted. That shouldn't be possible.\n",
+							ast_sockaddr_stringify(addr));
+						continue;
+					}
 					addr_to_use = &mapped_addr;
 				} else {
 					/* An IPv4 ACL does not apply to an IPv6 address */
