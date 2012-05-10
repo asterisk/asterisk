@@ -177,6 +177,11 @@ static int page_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_strlen_zero(args.options)) {
 		ast_app_parse_options(page_opts, &flags, opts, args.options);
+	} else {
+		/* opts must be initialized if there wasn't an options string. */
+		for (i = 0; i < OPT_ARG_ARRAY_SIZE; i++) {
+			opts[i] = NULL;
+		}
 	}
 
 	if (!ast_strlen_zero(args.timeout)) {

@@ -1250,6 +1250,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		}
 
 	} else {
+		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 		ast_clear_flag(&flags, AST_FLAGS_ALL);
 	}
 
@@ -1294,6 +1295,7 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 	int res;
 	char *mygroup = NULL;
 
+	/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 	ast_clear_flag(&flags, AST_FLAGS_ALL);
 
 	if (!ast_strlen_zero(data)) {
