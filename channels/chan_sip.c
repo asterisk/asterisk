@@ -26625,7 +26625,7 @@ create_tcptls_session_fail:
 		ao2_t_ref(ca, -1, "failed to create client, getting rid of client tcptls_session arguments");
 	}
 	if (s->tcptls_session) {
-		ast_tcptls_close_session_file(tcptls_session);
+		ast_tcptls_close_session_file(s->tcptls_session);
 		s->fd = -1;
 		ao2_ref(s->tcptls_session, -1);
 		s->tcptls_session = NULL;
