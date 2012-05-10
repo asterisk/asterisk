@@ -6892,7 +6892,10 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			strncat(vms->introfn, "intro", sizeof(vms->introfn));
 			ast_play_and_wait(chan, INTRO);
 			ast_play_and_wait(chan, "beep");
-			play_record_review(chan, NULL, vms->introfn, vmu->maxsecs, vm_fmts, 1, vmu, (int *) duration, NULL, NULL, record_gain, vms, flag);
+			cmd = play_record_review(chan, NULL, vms->introfn, vmu->maxsecs, vm_fmts, 1, vmu, (int *) duration, NULL, NULL, record_gain, vms, flag);
+			if (cmd == -1) {
+				break;
+			}
 			cmd = 't';
 #else
 
@@ -9457,7 +9460,10 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 			retries = 0;
 		RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
 		if (ast_fileexists(prefile, NULL, NULL) <= 0) {
-			play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, NULL, record_gain, vms, NULL);
+			cmd = play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, NULL, record_gain, vms, NULL);
+			if (cmd == -1) {
+				break;
+			}
 			cmd = 't';	
 		} else {
 			switch (cmd) {
@@ -11561,6 +11567,7 @@ static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
 
 static void start_poll_thread(void)
 {
+	int errcode;
 	mwi_sub_sub = ast_event_subscribe(AST_EVENT_SUB, mwi_sub_event_cb, "Voicemail MWI subscription", NULL,
 		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, AST_EVENT_MWI,
 		AST_EVENT_IE_END);
@@ -11574,7 +11581,9 @@ static void start_poll_thread(void)
 
 	poll_thread_run = 1;
 
-	ast_pthread_create(&poll_thread, NULL, mb_poll_thread, NULL);
+	if ((errcode = ast_pthread_create(&poll_thread, NULL, mb_poll_thread, NULL))) {
+		ast_log(LOG_ERROR, "Could not create thread: %s\n", strerror(errcode));
+	}
 }
 
 static void stop_poll_thread(void)

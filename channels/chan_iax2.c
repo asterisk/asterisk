@@ -4390,11 +4390,13 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				/* Whoops, we weren't supposed to exist! */
 				peer = peer_unref(peer);
 				break;
-			} 
+			}
 		} else if (!strcasecmp(tmp->name, "regseconds")) {
 			ast_get_time_t(tmp->value, &regseconds, 0, NULL);
 		} else if (!strcasecmp(tmp->name, "ipaddr")) {
-			ast_sockaddr_parse(&peer->addr, tmp->value, PARSE_PORT_IGNORE);
+			if (!ast_sockaddr_parse(&peer->addr, tmp->value, PARSE_PORT_IGNORE)) {
+				ast_log(LOG_WARNING, "Failed to parse sockaddr '%s' for ipaddr of realtime peer '%s'\n", tmp->value, tmp->name);
+			}
 		} else if (!strcasecmp(tmp->name, "port")) {
 			ast_sockaddr_set_port(&peer->addr, atoi(tmp->value));
 		} else if (!strcasecmp(tmp->name, "host")) {
@@ -11634,6 +11636,7 @@ static void iax2_process_thread_cleanup(void *data)
 	ast_mutex_destroy(&thread->init_lock);
 	ast_cond_destroy(&thread->init_cond);
 	ast_free(thread);
+	/* Ignore check_return warning from Coverity for ast_atomic_dec_and_test below */
 	ast_atomic_dec_and_test(&iaxactivethreadcount);
 }
 
@@ -12212,7 +12215,10 @@ static int start_network_thread(void)
 			AST_LIST_UNLOCK(&idle_list);
 		}
 	}
-	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
+	if (ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL)) {
+		ast_log(LOG_ERROR, "Failed to create new thread!\n");
+		return -1;
+	}
 	ast_verb(2, "%d helper threads started\n", threadcount);
 	return 0;
 }

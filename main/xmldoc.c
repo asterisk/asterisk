@@ -1715,7 +1715,11 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 				ast_xml_free_attr(paramname);
 				printed = 1;
 			}
-			xmldoc_parse_para(node, internaltabs, "\n", buffer);
+			if (xmldoc_parse_para(node, internaltabs, "\n", buffer)) {
+				/* If anything ever goes in below this condition before the continue below,
+				 * we should probably continue immediately. */
+				continue;
+			}
 			continue;
 		} else if ((xmldoc_parse_specialtags(node, internaltabs, "\n", buffer))) {
 			continue;

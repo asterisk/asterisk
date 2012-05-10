@@ -187,6 +187,7 @@ static enum ast_device_state custom_devstate_callback(const char *data)
 {
 	char buf[256] = "";
 
+	/* Ignore check_return warning from Coverity fow ast_db_get below */
 	ast_db_get(astdb_family, data, buf, sizeof(buf));
 
 	return ast_devstate_val(buf);
