@@ -3345,9 +3345,11 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 	struct ast_flags features;
 	struct ast_call_feature feature;
 	if (sense == FEATURE_SENSE_CHAN) {
+		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
 	}
 	else {
+		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
 	}
 
