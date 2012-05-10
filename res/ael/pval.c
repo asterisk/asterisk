@@ -1160,7 +1160,11 @@ static pval *get_goto_target(pval *item)
 	pval *curr_ext = get_extension_or_contxt(item); /* containing exten, or macro */
 	pval *curr_cont;
 	
-	if (item->u1.list && !item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
+	if (!item->u1.list) {
+		return NULL;
+	}
+
+	if (!item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
 		struct pval *x = find_label_in_current_extension((char*)((item->u1.list)->u1.str), curr_ext);
 			return x;
 	}
@@ -5882,7 +5886,7 @@ pval* pvalGlobalsWalkStatements( pval *p, pval **next_statement )
 {
 	if (!pvalCheckType(p, "pvalGlobalsWalkStatements", PV_GLOBALS))
 		return 0;
-	if (!next_statement) {
+	if (!*next_statement) {
 		*next_statement = p;
 		return p;
 	} else {
@@ -5903,7 +5907,7 @@ void pvalTopLevAddObject( pval *p, pval *contextOrObj )
 
 pval *pvalTopLevWalkObjects(pval *p, pval **next_obj )
 {
-	if (!next_obj) {
+	if (!*next_obj) {
 		*next_obj = p;
 		return p;
 	} else {

@@ -330,9 +330,7 @@ static enum ast_device_state _ast_device_state(const char *device, int check_cac
 		/* We have a provider */
 		number = tech;
 		tech = NULL;
-	}
 
-	if (provider)  {
 		ast_debug(3, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
 		return getproviderstate(provider, number);
 	}

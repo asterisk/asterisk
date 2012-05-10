@@ -8937,7 +8937,9 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		ast_debug(1, "Exception on %d, channel %d\n", ast_channel_fd(ast, 0), p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
-		ast_log(LOG_WARNING, "We're %s, not %s\n", ast_channel_name(ast), ast_channel_name(p->owner));
+		if (p->owner) {
+			ast_log(LOG_WARNING, "We're %s, not %s\n", ast_channel_name(ast), ast_channel_name(p->owner));
+		}
 		f = &p->subs[idx].f;
 		return f;
 	}
@@ -11778,14 +11780,13 @@ static void *do_monitor(void *data)
 		count = 0;
 		for (i = iflist; i; i = i->next) {
 			ast_mutex_lock(&i->lock);
-			if ((i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
+			if (pfds && (i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
 				if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 					struct analog_pvt *p = i->sig_pvt;
 
-					if (!p)
+					if (!p) {
 						ast_log(LOG_ERROR, "No sig_pvt?\n");
-
-					if (!p->owner && !p->subs[SUB_REAL].owner) {
+					} else if (!p->owner && !p->subs[SUB_REAL].owner) {
 						/* This needs to be watched, as it lacks an owner */
 						pfds[count].fd = i->subs[SUB_REAL].dfd;
 						pfds[count].events = POLLPRI;

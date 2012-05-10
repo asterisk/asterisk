@@ -2496,18 +2496,20 @@ struct ast_data_iterator *ast_data_iterator_init(struct ast_data *tree,
 	struct ast_data *internal = tree;
 	char *path, *ptr = NULL;
 
+	if (!elements) {
+		return NULL;
+	}
+
 	/* tree is the node we want to use to iterate? or we are going
 	 * to iterate thow an internal node? */
-	if (elements) {
-		path = ast_strdupa(elements);
+	path = ast_strdupa(elements);
 
-		ptr = strrchr(path, '/');
-		if (ptr) {
-			*ptr = '\0';
-			internal = data_result_get_node(tree, path);
-			if (!internal) {
-				return NULL;
-			}
+	ptr = strrchr(path, '/');
+	if (ptr) {
+		*ptr = '\0';
+		internal = data_result_get_node(tree, path);
+		if (!internal) {
+			return NULL;
 		}
 	}
 

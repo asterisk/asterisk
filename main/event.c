@@ -1286,8 +1286,9 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 			break;
 		}
 
+		/* realloc inside one of the append functions failed */
 		if (!event) {
-			break;
+			return NULL;
 		}
 	}
 

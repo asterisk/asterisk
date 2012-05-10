@@ -373,10 +373,15 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 
 static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
+	struct ast_datastore *lock_store;
 	struct channel_lock_frame *clframe;
 	AST_LIST_HEAD(, channel_lock_frame) *list;
 
+	if (!chan) {
+		return -1;
+	}
+
+	lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
 	if (!lock_store) {
 		ast_log(LOG_WARNING, "No datastore for dialplan locks.  Nothing was ever locked!\n");
 		ast_copy_string(buf, "0", len);
@@ -417,26 +422,24 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 
 static int lock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	if (chan)
-		ast_autoservice_start(chan);
-
+	if (!chan) {
+		return -1;
+	}
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 0) ? "0" : "1", len);
-
-	if (chan)
-		ast_autoservice_stop(chan);
+	ast_autoservice_stop(chan);
 
 	return 0;
 }
 
 static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	if (chan)
-		ast_autoservice_start(chan);
-
+	if (!chan) {
+		return -1;
+	}
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 1) ? "0" : "1", len);
-
-	if (chan)
-		ast_autoservice_stop(chan);
+	ast_autoservice_stop(chan);
 
 	return 0;
 }

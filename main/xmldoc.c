@@ -976,26 +976,28 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 			/* is this a recursive parameter. */
 			paramname = xmldoc_get_syntax_cmd(node, "", 0);
 			isenum = 1;
-		} else if (!xmldoc_has_inside(node, "enumlist")) {
-			/* this is a simple parameter. */
-			attrname = ast_xml_get_attribute(node, "name");
-			if (!attrname) {
-				/* ignore this bogus parameter and continue. */
-				continue;
-			}
-			paramname = ast_strdup(attrname);
-			ast_xml_free_attr(attrname);
-			isenum = 0;
 		} else {
-			/* parse enumlist (note that this is a special enumlist
-			that is used to describe a syntax like {<param1>|<param2>|...} */
 			for (tmpnode = ast_xml_node_get_children(node); tmpnode; tmpnode = ast_xml_node_get_next(tmpnode)) {
 				if (!strcasecmp(ast_xml_node_get_name(tmpnode), "enumlist")) {
 					break;
 				}
 			}
-			paramname = xmldoc_parse_cmd_enumlist(tmpnode);
-			isenum = 1;
+			if (tmpnode) {
+				/* parse enumlist (note that this is a special enumlist
+				that is used to describe a syntax like {<param1>|<param2>|...} */
+				paramname = xmldoc_parse_cmd_enumlist(tmpnode);
+				isenum = 1;
+			} else {
+				/* this is a simple parameter. */
+				attrname = ast_xml_get_attribute(node, "name");
+				if (!attrname) {
+					/* ignore this bogus parameter and continue. */
+					continue;
+				}
+				paramname = ast_strdup(attrname);
+				ast_xml_free_attr(attrname);
+				isenum = 0;
+			}
 		}
 
 		/* Is this parameter required? */

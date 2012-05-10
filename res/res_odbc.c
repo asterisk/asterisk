@@ -365,6 +365,10 @@ static int mark_transaction_active(struct ast_channel *chan, struct odbc_txn_fra
 		chan = tx->owner;
 	}
 
+	if (!chan) {
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 	if (!(txn_store = ast_channel_datastore_find(chan, &txn_info, NULL))) {
 		ast_channel_unlock(chan);

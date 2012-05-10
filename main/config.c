@@ -562,7 +562,11 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 {
 	struct ast_category *cat = NULL;
 
-	if (category && config->last_browse && (config->last_browse->name == category)) {
+	if (!category) {
+		return NULL;
+	}
+
+	if (config->last_browse && (config->last_browse->name == category)) {
 		cat = config->last_browse;
 	} else {
 		cat = ast_category_get(config, category);
@@ -1898,7 +1902,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 			/* Dump section with any appropriate comment */
 			for (cmt = cat->precomments; cmt; cmt=cmt->next) {
 				char *cmtp = cmt->cmt;
-				while (*cmtp == ';' && *(cmtp+1) == '!') {
+				while (cmtp && *cmtp == ';' && *(cmtp+1) == '!') {
 					char *cmtp2 = strchr(cmtp+1, '\n');
 					if (cmtp2)
 						cmtp = cmtp2+1;

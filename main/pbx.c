@@ -1733,8 +1733,9 @@ static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 
 	extenstr[0] = '\0';
 
-	if (node && node->exten)
+	if (node->exten) {
 		snprintf(extenstr, sizeof(extenstr), "(%p)", node->exten);
+	}
 
 	if (strlen(node->x) > 1) {
 		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N',
@@ -9705,6 +9706,11 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 	struct timeval tv = ast_tvnow();
 	long timesecs;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "GotoIfTime requires a channel on which to operate\n");
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?'labeliftrue':'labeliffalse'\n");
 		return -1;
@@ -9712,17 +9718,16 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 
 	ts = s = ast_strdupa(data);
 
-	if (chan) {
-		ast_channel_lock(chan);
-		if ((ctime = pbx_builtin_getvar_helper(chan, "TESTTIME")) && sscanf(ctime, "%ld", &timesecs) == 1) {
-			tv.tv_sec = timesecs;
-		} else if (ctime) {
-			ast_log(LOG_WARNING, "Using current time to evaluate\n");
-			/* Reset when unparseable */
-			pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
-		}
-		ast_channel_unlock(chan);
+	ast_channel_lock(chan);
+	if ((ctime = pbx_builtin_getvar_helper(chan, "TESTTIME")) && sscanf(ctime, "%ld", &timesecs) == 1) {
+		tv.tv_sec = timesecs;
+	} else if (ctime) {
+		ast_log(LOG_WARNING, "Using current time to evaluate\n");
+		/* Reset when unparseable */
+		pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
 	}
+	ast_channel_unlock(chan);
+
 	/* Separate the Goto path */
 	strsep(&ts, "?");
 	branch1 = strsep(&ts,":");

@@ -11371,13 +11371,15 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 		AST_LIST_UNLOCK(&users);
 		return CLI_FAILURE;
 	}
-	if (a->argc == 3)
+	if (!context) {
 		ast_cli(a->fd, HVSU_OUTPUT_FORMAT, "Context", "Mbox", "User", "Zone", "NewMsg");
-	else {
+	} else {
 		int count = 0;
 		AST_LIST_TRAVERSE(&users, vmu, list) {
-			if (!strcmp(context, vmu->context))
+			if (!strcmp(context, vmu->context)) {
 				count++;
+				break;
+			}
 		}
 		if (count) {
 			ast_cli(a->fd, HVSU_OUTPUT_FORMAT, "Context", "Mbox", "User", "Zone", "NewMsg");
@@ -11391,7 +11393,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 		int newmsgs = 0, oldmsgs = 0;
 		char count[12], tmp[256] = "";
 
-		if ((a->argc == 3) || ((a->argc == 5) && !strcmp(context, vmu->context))) {
+		if (!context || !strcmp(context, vmu->context)) {
 			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
 			inboxcount(tmp, &newmsgs, &oldmsgs);
 			snprintf(count, sizeof(count), "%d", newmsgs);
