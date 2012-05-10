@@ -92,7 +92,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>If not specified, this defaults to 136 years.</para>
 			</parameter>
 			<parameter name="options" required="false">
-			   <optionlist>
+				<optionlist>
 				<option name="A">
 					<argument name="x" required="true">
 						<para>The file to play to the called party</para>
@@ -109,8 +109,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					this option, the default behavior is adequate in most cases.</para>
 				</option>
 				<option name="b" argsep="^">
-					<para>Before initiating the actual call, Gosub to the specified
-					location using the newly created channel(s).  The Gosub will be
+					<para>Before initiating an outgoing call, Gosub to the specified
+					location using the newly created channel.  The Gosub will be
 					executed for each destination channel.</para>
 					<argument name="context" required="false" />
 					<argument name="exten" required="false" />
@@ -120,7 +120,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</argument>
 				</option>
 				<option name="B" argsep="^">
-					<para>Before initiating the actual call, Gosub to the specified
+					<para>Before initiating the outgoing call(s), Gosub to the specified
 					location using the current channel.</para>
 					<argument name="context" required="false" />
 					<argument name="exten" required="false" />
@@ -324,8 +324,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					Macro()</para></warning>
 				</option>
 				<option name="n">
-				        <argument name="delete">
-					        <para>With <replaceable>delete</replaceable> either not specified or set to <literal>0</literal>,
+					<argument name="delete">
+						<para>With <replaceable>delete</replaceable> either not specified or set to <literal>0</literal>,
 						the recorded introduction will not be deleted if the caller hangs up while the remote party has not
 						yet answered.</para>
 						<para>With <replaceable>delete</replaceable> set to <literal>1</literal>, the introduction will
