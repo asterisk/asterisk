@@ -1427,6 +1427,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						cc_frame_received = 1;
 					}
 					break;
+				case AST_CONTROL_PVT_CAUSE_CODE:
+					ast_indicate_data(in, AST_CONTROL_PVT_CAUSE_CODE, f->data.ptr, f->datalen);
+					break;
 				case -1:
 					if (single && !caller_entertained) {
 						ast_verb(3, "%s stopped sounds\n", ast_channel_name(c));

@@ -1356,6 +1356,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				case AST_CONTROL_REDIRECTING:
 				case AST_CONTROL_AOC:
 				case AST_CONTROL_UPDATE_RTP_PEER:
+				case AST_CONTROL_PVT_CAUSE_CODE:
 				case -1:
 					/* Unimportant */
 					break;

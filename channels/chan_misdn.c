@@ -7037,6 +7037,8 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		break;
 	default:
 		chan_misdn_log(1, p->bc->port, " --> * Unknown Indication:%d pid:%d\n", cond, p->bc->pid);
+		/* fallthrough */
+	case AST_CONTROL_PVT_CAUSE_CODE:
 		return -1;
 	}
 

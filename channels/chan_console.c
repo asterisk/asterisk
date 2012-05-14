@@ -603,6 +603,7 @@ static int console_indicate(struct ast_channel *chan, int cond, const void *data
 	case AST_CONTROL_CONGESTION:
 	case AST_CONTROL_RINGING:
 	case AST_CONTROL_INCOMPLETE:
+	case AST_CONTROL_PVT_CAUSE_CODE:
 	case -1:
 		res = -1;  /* Ask for inband indications */
 		break;

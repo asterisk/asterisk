@@ -758,6 +758,7 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 	case AST_CONTROL_BUSY:
 	case AST_CONTROL_CONGESTION:
 	case AST_CONTROL_RINGING:
+	case AST_CONTROL_PVT_CAUSE_CODE:
 	case -1:
 		res = -1;
 		break;

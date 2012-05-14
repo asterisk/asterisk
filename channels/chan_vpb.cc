@@ -1714,6 +1714,9 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_UNHOLD:
 		ast_moh_stop(ast);
 		break;
+	case AST_CONTROL_PVT_CAUSE_CODE:
+		res = -1;
+		break;
 	default:
 		res = 0;
 		break;

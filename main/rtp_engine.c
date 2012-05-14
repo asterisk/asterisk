@@ -928,6 +928,9 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 					ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
 				}
 				ast_frfree(fr);
+			} else if (fr->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
+				ast_frfree(fr);
 			} else {
 				*fo = fr;
 				*rc = who;
@@ -1218,6 +1221,9 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 					ast_channel_redirecting_macro(who, other, fr, other == c0, 1)) {
 					ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
 				}
+				ast_frfree(fr);
+			} else if (fr->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;

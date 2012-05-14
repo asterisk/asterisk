@@ -3444,6 +3444,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 					ast_frfree(f);
 					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 					return -1;
+				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_SRCUPDATE:
@@ -4171,6 +4172,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_MCID:
 	case AST_CONTROL_UPDATE_RTP_PEER:
+	case AST_CONTROL_PVT_CAUSE_CODE:
 		break;
 
 	case AST_CONTROL_INCOMPLETE:
@@ -4334,6 +4336,21 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_CONGESTION:
 		ts = ast_get_indication_tone(ast_channel_zone(chan), "congestion");
 		break;
+	case AST_CONTROL_PVT_CAUSE_CODE:
+	{
+		char causevar[256];
+		const struct ast_control_pvt_cause_code *cause_code = data;
+
+		snprintf(causevar, sizeof(causevar), "HASH(HANGUPCAUSE,%s)", cause_code->chan_name);
+		ast_func_write(chan, causevar, cause_code->code);
+		if (cause_code->emulate_sip_cause) {
+			snprintf(causevar, sizeof(causevar), "HASH(SIP_CAUSE,%s)", cause_code->chan_name);
+			ast_func_write(chan, causevar, cause_code->code);
+		}
+
+		res = 0;
+		break;
+	}
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
@@ -5481,6 +5498,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 					break;
 
 				/* Ignore these */
+				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_PROGRESS:
 				case AST_CONTROL_PROCEEDING:
 				case AST_CONTROL_HOLD:
@@ -7172,6 +7190,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			int bridge_exit = 0;
 
 			switch (f->subclass.integer) {
+			case AST_CONTROL_PVT_CAUSE_CODE:
 			case AST_CONTROL_AOC:
 			case AST_CONTROL_MCID:
 				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);

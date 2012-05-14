@@ -1332,6 +1332,8 @@ static int jingle_indicate(struct ast_channel *ast, int condition, const void *d
 		break;
 	default:
 		ast_log(LOG_NOTICE, "Don't know how to indicate condition '%d'\n", condition);
+		/* fallthrough */
+	case AST_CONTROL_PVT_CAUSE_CODE:
 		res = -1;
 	}
 

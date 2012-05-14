@@ -5669,6 +5669,9 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 		if (!ast_test_flag64(pvt, IAX_SENDCONNECTEDLINE))
 			goto done;
 		break;
+	case AST_CONTROL_PVT_CAUSE_CODE:
+		res = -1;
+		break;
 	}
 
 	res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);

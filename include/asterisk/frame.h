@@ -266,6 +266,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_INCOMPLETE = 30,	/*!< Indication that the extension dialed is incomplete */
 	AST_CONTROL_MCID = 31,			/*!< Indicate that the caller is being malicious. */
 	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
+	AST_CONTROL_PVT_CAUSE_CODE = 33, /*!< Contains an update to the protocol-specific cause-code stored for branching dials */
 };
 
 enum ast_frame_read_action {
@@ -322,6 +323,12 @@ struct ast_control_t38_parameters {
 enum ast_control_transfer {
 	AST_TRANSFER_SUCCESS = 0, /*!< Transfer request on the channel worked */
 	AST_TRANSFER_FAILED,      /*!< Transfer request on the channel failed */
+};
+
+struct ast_control_pvt_cause_code {
+	char chan_name[AST_CHANNEL_NAME];	/*!< Name of the channel that originated the cause information */
+	unsigned int emulate_sip_cause:1;		/*!< Indicates whether this should be used to emulate SIP_CAUSE support */
+	char code[1];				/*!< Tech-specific cause code information, beginning with the name of the tech */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)

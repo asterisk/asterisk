@@ -324,6 +324,9 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_UPDATE_RTP_PEER:
 			ast_verbose("SubClass: UPDATE_RTP_PEER\n");
 			break;
+		case AST_CONTROL_PVT_CAUSE_CODE:
+			ast_verbose("SubClass: PVT_CAUSE_CODE\n");
+			break;
 		}
 		
 		if (frame->subclass.integer == -1) {

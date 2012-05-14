@@ -91,6 +91,11 @@ SIP
  - A new manager event, "SessionTimeout" has been added and is triggered when
    a call is terminated due to RTP stream inactivity or SIP session timer
    expiration.
+ - SIP_CAUSE is now deprecated.  It has been modified to use the same
+   mechanism as HANGUPCAUSE.  Behavior should not change, but performance
+   should be vastly improved.  The HANGUPCAUSE hash should now be used instead
+   of SIP_CAUSE. Because of this, the storesipcause option in sip.conf is also
+   deprecated.
 
 chan_unistim
  - Due to massive update in chan_unistim phone keys functions and on-screen 

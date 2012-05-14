@@ -1483,6 +1483,8 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
+		/* fallthrough */
+	case AST_CONTROL_PVT_CAUSE_CODE:
 		res = -1;
 	}
 	ast_mutex_unlock(&sub->lock);

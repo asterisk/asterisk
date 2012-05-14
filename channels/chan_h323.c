@@ -941,6 +941,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		res = 0;
 		break;
 	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_PVT_CAUSE_CODE:
 	case -1:
 		break;
 	default:

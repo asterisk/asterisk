@@ -3943,6 +3943,10 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 					ast_frfree(f);
 					ready=1;
 					break;
+				} else if (f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+					ast_indicate_data(caller, AST_CONTROL_PVT_CAUSE_CODE, f->data.ptr, f->datalen);
+					ast_frfree(f);
+					break;
 				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 					if (caller_hungup) {
 						struct ast_party_connected_line connected;
@@ -4463,6 +4467,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				}
 				break;
+			case AST_CONTROL_PVT_CAUSE_CODE:
 			case AST_CONTROL_AOC:
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:

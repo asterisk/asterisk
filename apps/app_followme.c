@@ -877,6 +877,9 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						 * the caller.
 						 */
 						break;
+					case AST_CONTROL_PVT_CAUSE_CODE:
+						ast_indicate_data(caller, f->subclass.integer, f->data.ptr, f->datalen);
+						break;
 					case -1:
 						ast_verb(3, "%s stopped sounds\n", ast_channel_name(winner));
 						break;

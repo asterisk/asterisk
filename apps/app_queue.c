@@ -4050,6 +4050,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								}
 							}
 							break;
+						case AST_CONTROL_PVT_CAUSE_CODE:
+							ast_indicate_data(in, AST_CONTROL_PVT_CAUSE_CODE, f->data.ptr, f->datalen);
+							break;
 						default:
 							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
 							break;

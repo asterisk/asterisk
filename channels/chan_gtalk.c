@@ -1726,6 +1726,8 @@ static int gtalk_indicate(struct ast_channel *ast, int condition, const void *da
 		break;
 	default:
 		ast_debug(3, "Don't know how to indicate condition '%d'\n", condition);
+		/* fallthrough */
+	case AST_CONTROL_PVT_CAUSE_CODE:
 		res = -1;
 	}
 

@@ -467,6 +467,9 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 		case AST_CONTROL_OFFHOOK:
 		case AST_CONTROL_FLASH:
 			break;
+		case AST_CONTROL_PVT_CAUSE_CODE:
+			ast_indicate_data(chan, AST_CONTROL_PVT_CAUSE_CODE, fr->data.ptr, fr->datalen);
+			break;
 		case -1:
 			/* Prod the channel */
 			ast_indicate(chan, -1);

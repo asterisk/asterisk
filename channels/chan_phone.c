@@ -222,6 +222,8 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 	case AST_CONTROL_SRCUPDATE:
 		res = 0;
 		break;
+	case AST_CONTROL_PVT_CAUSE_CODE:
+		break;
 	default:
 		ast_log(LOG_WARNING, "Condition %d is not supported on channel %s\n", condition, ast_channel_name(chan));
 	}
