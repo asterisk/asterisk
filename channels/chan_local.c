@@ -861,8 +861,8 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	struct ast_channel *owner = NULL;
 	struct ast_channel *chan = NULL;
 	int res;
-	struct ast_var_t *varptr = NULL, *new;
-	size_t len, namelen;
+	struct ast_var_t *varptr;
+	struct ast_var_t *clone_var;
 	char *reduced_dest = ast_strdupa(dest);
 	char *slash;
 	const char *exten;
@@ -919,12 +919,9 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
 	AST_LIST_TRAVERSE(ast_channel_varshead(owner), varptr, entries) {
-		namelen = strlen(varptr->name);
-		len = sizeof(struct ast_var_t) + namelen + strlen(varptr->value) + 2;
-		if ((new = ast_calloc(1, len))) {
-			memcpy(new, varptr, len);
-			new->value = &(new->name[0]) + namelen + 1;
-			AST_LIST_INSERT_TAIL(ast_channel_varshead(chan), new, entries);
+		clone_var = ast_var_assign(varptr->name, varptr->value);
+		if (clone_var) {
+			AST_LIST_INSERT_TAIL(ast_channel_varshead(chan), clone_var, entries);
 		}
 	}
 	ast_channel_datastore_inherit(owner, chan);
