@@ -1142,7 +1142,7 @@ AC_LINK_IFELSE(
 LIBS=${old_LIBS}
 
 # PKGCONFIG is used in later tests
-AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
+PKG_PROG_PKG_CONFIG()
 
 
 # do the package library checks now
@@ -2079,21 +2079,13 @@ then
     CFLAGS="${saved_cflags}"
 fi
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
-if test "x${PBX_GMIME}" = "x0" -a "${PKGCONFIG}" != "No"; then
-	# Later versions of GMime use pkg-config
-	for ver in 2.0 2.2 2.4 2.6; do
-		if ! ${PKGCONFIG} --exists gmime-$ver; then
-			continue
-		fi
-		# If we got here, we have this version:
-		GMIME_INCLUDE=$(${PKGCONFIG} gmime-$ver --cflags 2>/dev/null)
-		GMIME_LIB=$(${PKGCONFIG} gmime-$ver --libs)
-		PBX_GMIME=1
-		AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
+
+for ver in 2.0 2.2 2.4 2.6; do
+	AST_PKG_CONFIG_CHECK([GMIME], gmime-$ver)
+	if test "$PBX_GMIME" = 1; then
 		break;
-	done
-fi
+	fi
+done
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
@@ -2214,16 +2206,7 @@ then
 fi
 AC_SUBST(PBX_LAUNCHD)
 
-PBX_GTK2=0
-if test "${PKGCONFIG}" != "No"; then
-   GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
-   GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)
-   PBX_GTK2=1
-   AC_DEFINE([HAVE_GTK2], 1, [Define if your system has the GTK2 libraries.])
-fi
-AC_SUBST(PBX_GTK2)
-AC_SUBST(GTK2_INCLUDE)
-AC_SUBST(GTK2_LIB)
+AST_PKG_CONFIG_CHECK([GTK2], [gtk+-2.0])
 
 # build a GENERIC_ODBC result based on the presence of either UnixODBC (preferred)
 # or iODBC
