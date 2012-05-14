@@ -454,15 +454,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	char subclass2[20];
 	char *subclass;
 	char tmp[256];
-	char retries[20];
-	if (ntohs(fhi->dtrans) & DUNDI_FLAG_RETRANS)
-		strcpy(retries, "Yes");
-	else
-		strcpy(retries, "No");
-	if ((ntohs(fhi->strans) & DUNDI_FLAG_RESERVED)) {
-		/* Ignore frames with high bit set to 1 */
-		return;
-	}
+	const char *retries = "Yes";
 	if ((fhi->cmdresp & 0x3f) > (int)sizeof(commands)/(int)sizeof(char *)) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fhi->cmdresp);
 		class = class2;
