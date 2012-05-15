@@ -95,7 +95,6 @@ static struct ast_jb_conf g_jb_conf = {
 static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int local_pre_call(struct ast_channel *ast, const char *sub_args);
 static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_answer(struct ast_channel *ast);
@@ -117,7 +116,6 @@ static struct ast_channel_tech local_tech = {
 	.requester = local_request,
 	.send_digit_begin = local_digit_begin,
 	.send_digit_end = local_digit_end,
-	.pre_call = local_pre_call,
 	.call = local_call,
 	.hangup = local_hangup,
 	.answer = local_answer,
@@ -1254,34 +1252,6 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 	ao2_ref(p, -1); /* kill the ref from the alloc */
 
 	return chan;
-}
-
-static int local_pre_call(struct ast_channel *ast, const char *sub_args)
-{
-	struct local_pvt *p = ast_channel_tech_pvt(ast);
-	struct ast_channel *chan;
-	int res;
-
-	ao2_lock(p);
-	chan = p->chan;
-	if (chan) {
-		ast_channel_ref(chan);
-	}
-	ao2_unlock(p);
-	if (!chan) {
-		return -1;
-	}
-
-	/*
-	 * Execute the predial routine on the ;2 channel so any channel
-	 * variables set by the predial will be available to the local
-	 * channel PBX.
-	 */
-	ast_channel_unlock(ast);
-	res = ast_app_exec_sub(NULL, chan, sub_args);
-	ast_channel_unref(chan);
-	ast_channel_lock(ast);
-	return res;
 }
 
 /*! \brief CLI command "local show channels" */
