@@ -29045,15 +29045,15 @@ static int reload_config(enum channelreloadreason reason)
 	return 0;
 }
 
-static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
+static int apply_directmedia_ha(struct sip_pvt *p1, struct sip_pvt *p2, const char *op)
 {
 	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
 	int res = AST_SENSE_ALLOW;
 
-	ast_rtp_instance_get_remote_address(p->rtp, &them);
-	ast_rtp_instance_get_local_address(p->rtp, &us);
+	ast_rtp_instance_get_remote_address(p1->rtp, &them);
+	ast_rtp_instance_get_local_address(p1->rtp, &us);
 
-	if ((res = ast_apply_ha(p->directmediaha, &them)) == AST_SENSE_DENY) {
+	if ((res = ast_apply_ha(p2->relatedpeer->directmediaha, &them)) == AST_SENSE_DENY) {
 		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
 		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
 
@@ -29067,16 +29067,24 @@ static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
+	struct ast_channel *opp_chan;
+	struct sip_pvt *opp;
 	struct ast_udptl *udptl = NULL;
-	
+
 	p = chan->tech_pvt;
 	if (!p) {
 		return NULL;
 	}
-	
+
+	if (!(opp_chan = ast_bridged_channel(chan))) {
+		return NULL;
+	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
+		return NULL;
+	}
+
 	sip_pvt_lock(p);
 	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
-		if (apply_directmedia_ha(p, "UDPTL T.38 data")) {
+		if (apply_directmedia_ha(p, opp, "UDPTL T.38 data")) {
 			udptl = p->udptl;
 		}
 	}
@@ -29130,9 +29138,17 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct sip_pvt *p = NULL;
+	struct ast_channel *opp_chan;
+	struct sip_pvt *opp = NULL;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
 	if (!(p = chan->tech_pvt)) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	if (!(opp_chan = ast_bridged_channel(chan))) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -29147,7 +29163,7 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "audio")) {
+		if (!apply_directmedia_ha(p, opp, "audio")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	} else if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
@@ -29168,9 +29184,17 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct sip_pvt *p = NULL;
+	struct ast_channel *opp_chan;
+	struct sip_pvt *opp = NULL;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_FORBID;
 
 	if (!(p = chan->tech_pvt)) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	if (!(opp_chan = ast_bridged_channel(chan))) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -29185,7 +29209,7 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "video")) {
+		if (!apply_directmedia_ha(p, opp, "video")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	}
@@ -29198,9 +29222,17 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct sip_pvt *p = NULL;
+	struct ast_channel *opp_chan;
+	struct sip_pvt *opp = NULL;
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_FORBID;
 
 	if (!(p = chan->tech_pvt)) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	if (!(opp_chan = ast_bridged_channel(chan))) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -29215,7 +29247,7 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "text")) {
+		if (!apply_directmedia_ha(p, opp, "text")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	}
