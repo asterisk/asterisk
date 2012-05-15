@@ -71,6 +71,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Record the caller's name so it can be announced to the
 						callee on each step.</para>
 					</option>
+					<option name="B" argsep="^">
+						<para>Before initiating the outgoing call(s), Gosub to the specified
+						location using the current channel.</para>
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" hasparams="optional" argsep="^">
+							<argument name="arg1" multiple="true" required="true" />
+							<argument name="argN" />
+						</argument>
+					</option>
+					<option name="b" argsep="^">
+						<para>Before initiating an outgoing call, Gosub to the specified
+						location using the newly created channel.  The Gosub will be
+						executed for each destination channel.</para>
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" hasparams="optional" argsep="^">
+							<argument name="arg1" multiple="true" required="true" />
+							<argument name="argN" />
+						</argument>
+					</option>
 					<option name="d">
 						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
 					</option>
@@ -155,6 +176,8 @@ struct call_followme {
 struct fm_args {
 	char *mohclass;
 	AST_LIST_HEAD_NOLOCK(cnumbers, number) cnumbers;
+	/*! Gosub app arguments for outgoing calls.  NULL if not supplied. */
+	const char *predial_callee;
 	/*! Accumulated connected line information from inbound call. */
 	struct ast_party_connected_line connected_in;
 	/*! Accumulated connected line information from outbound call. */
@@ -205,10 +228,22 @@ enum {
 	FOLLOWMEFLAG_NOANSWER = (1 << 4),
 	FOLLOWMEFLAG_DISABLEOPTIMIZATION = (1 << 5),
 	FOLLOWMEFLAG_IGNORE_CONNECTEDLINE = (1 << 6),
+	FOLLOWMEFLAG_PREDIAL_CALLER = (1 << 7),
+	FOLLOWMEFLAG_PREDIAL_CALLEE = (1 << 8),
+};
+
+enum {
+	FOLLOWMEFLAG_ARG_PREDIAL_CALLER,
+	FOLLOWMEFLAG_ARG_PREDIAL_CALLEE,
+
+	/* note: this entry _MUST_ be the last one in the enum */
+	FOLLOWMEFLAG_ARG_ARRAY_SIZE
 };
 
 AST_APP_OPTIONS(followme_opts, {
 	AST_APP_OPTION('a', FOLLOWMEFLAG_RECORDNAME),
+	AST_APP_OPTION_ARG('B', FOLLOWMEFLAG_PREDIAL_CALLER, FOLLOWMEFLAG_ARG_PREDIAL_CALLER),
+	AST_APP_OPTION_ARG('b', FOLLOWMEFLAG_PREDIAL_CALLEE, FOLLOWMEFLAG_ARG_PREDIAL_CALLEE),
 	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT),
 	AST_APP_OPTION('I', FOLLOWMEFLAG_IGNORE_CONNECTEDLINE),
 	AST_APP_OPTION('l', FOLLOWMEFLAG_DISABLEOPTIMIZATION),
@@ -1044,6 +1079,48 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 			AST_LIST_INSERT_TAIL(&new_user_list, tmpuser, entry);
 		}
 
+		/*
+		 * PREDIAL: Run gosub on all of the new callee channels
+		 *
+		 * We run the callee predial before ast_call() in case the user
+		 * wishes to do something on the newly created channels before
+		 * the channel does anything important.
+		 */
+		if (tpargs->predial_callee && !AST_LIST_EMPTY(&new_user_list)) {
+			/* Put caller into autoservice. */
+			ast_autoservice_start(caller);
+
+			/* Run predial on all new outgoing calls. */
+			AST_LIST_TRAVERSE(&new_user_list, tmpuser, entry) {
+				ast_pre_call(tmpuser->ochan, tpargs->predial_callee);
+			}
+
+			/* Take caller out of autoservice. */
+			if (ast_autoservice_stop(caller)) {
+				/*
+				 * Caller hungup.
+				 *
+				 * Destoy all new outgoing calls.
+				 */
+				while ((tmpuser = AST_LIST_REMOVE_HEAD(&new_user_list, entry))) {
+					ast_channel_lock(tmpuser->ochan);
+					if (ast_channel_cdr(tmpuser->ochan)) {
+						ast_cdr_init(ast_channel_cdr(tmpuser->ochan), tmpuser->ochan);
+					}
+					ast_channel_unlock(tmpuser->ochan);
+					destroy_calling_node(tmpuser);
+				}
+
+				/* Take all active outgoing channels out of autoservice. */
+				AST_LIST_TRAVERSE(&findme_user_list, tmpuser, entry) {
+					if (tmpuser->ochan) {
+						ast_autoservice_stop(tmpuser->ochan);
+					}
+				}
+				break;
+			}
+		}
+
 		/* Start all new outgoing calls */
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&new_user_list, tmpuser, entry) {
 			ast_verb(3, "calling Local/%s\n", tmpuser->dialarg);
@@ -1237,6 +1314,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(followmeid);
 		AST_APP_ARG(options);
 	);
+	char *opt_args[FOLLOWMEFLAG_ARG_ARRAY_SIZE];
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n", app);
@@ -1278,7 +1356,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
 	if (args.options) {
-		ast_app_parse_options(followme_opts, &targs->followmeflags, NULL, args.options);
+		ast_app_parse_options(followme_opts, &targs->followmeflags, opt_args, args.options);
 	}
 
 	/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
@@ -1303,6 +1381,20 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 	ast_mutex_unlock(&f->lock);
+
+	/* PREDIAL: Preprocess any callee gosub arguments. */
+	if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_PREDIAL_CALLEE)
+		&& !ast_strlen_zero(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE])) {
+		ast_replace_subargument_delimiter(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE]);
+		targs->predial_callee = opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE];
+	}
+
+	/* PREDIAL: Run gosub on the caller's channel */
+	if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_PREDIAL_CALLER)
+		&& !ast_strlen_zero(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER])) {
+		ast_replace_subargument_delimiter(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER]);
+		ast_app_exec_sub(NULL, chan, opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER]);
+	}
 
 	/* Forget the 'N' option if the call is already up. */
 	if (ast_channel_state(chan) == AST_STATE_UP) {

@@ -225,6 +225,8 @@ Followme changes
    connected line changes when they occur.  This is similar to app_dial
    and app_queue.
  * The 'N' option is now ignored if the call is already answered.
+ * Added 'b' and 'B' options to FollowMe that execute a Gosub on callee
+   and caller channels respectively before the callee channels are called.
 
 RTP changes
 -------------
