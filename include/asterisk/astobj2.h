@@ -565,130 +565,133 @@ int __ao2_trylock(void *a, enum ao2_lock_req lock_how, const char *file, const c
 void *ao2_object_get_lockaddr(void *obj);
 
 
-/*! Global ao2 array container base structure. */
+/*! Global ao2 object holder structure. */
 struct ao2_global_obj {
-	/*! Access lock to the global ao2 array container. */
+	/*! Access lock to the held ao2 object. */
 	ast_rwlock_t lock;
-	/*! Number of elements in the global ao2 array container. */
-	unsigned int num_elements;
-	/*! Global ao2 array container array. */
-	void *obj[0];
+	/*! Global ao2 object. */
+	void *obj;
 };
 
 /*!
- * \brief Define a structure to be used to hold a global array of ao2 objects, statically initialized.
+ * \brief Define a global object holder to be used to hold an ao2 object, statically initialized.
  * \since 11.0
  *
- * \param name This will be the name of the defined structure.
- * \param num_objects Number of ao2 objects to contain.
+ * \param name This will be the name of the object holder.
  *
  * \details
- * This macro creates a structure definition that can be used to
- * hold an array of ao2 objects accessible using an API.  The
- * structure is allocated and initialized to be empty.
+ * This macro creates a global object holder that can be used to
+ * hold an ao2 object accessible using an API.  The structure is
+ * allocated and initialized to be empty.
  *
  * Example usage:
  * \code
- * static AO2_GLOBAL_OBJ_STATIC(global_cfg, 10);
+ * static AO2_GLOBAL_OBJ_STATIC(global_cfg);
  * \endcode
  *
- * This would define \c struct \c global_cfg, intended to hold
- * an array of ao2 objects accessible using an API.
+ * This defines global_cfg, intended to hold an ao2 object
+ * accessible using an API.
  */
 #ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
-#define AO2_GLOBAL_OBJ_STATIC(name, num_objects)						\
-	struct name {														\
-		struct ao2_global_obj global;									\
-		void *objs[num_objects];										\
-	} name;																\
+#define AO2_GLOBAL_OBJ_STATIC(name)										\
+	struct ao2_global_obj name;											\
 	static void  __attribute__((constructor)) __init_##name(void)		\
 	{																	\
-		unsigned int idx = (num_objects);								\
-		ast_rwlock_init(&name.global.lock);								\
-		name.global.num_elements = idx;									\
-		while (idx--) {													\
-			name.global.obj[idx] = NULL;								\
-		}																\
+		ast_rwlock_init(&name.lock);									\
+		name.obj = NULL;												\
 	}																	\
 	static void  __attribute__((destructor)) __fini_##name(void)		\
 	{																	\
-		unsigned int idx = (num_objects);								\
-		while (idx--) {													\
-			if (name.global.obj[idx]) {									\
-				ao2_ref(name.global.obj[idx], -1);						\
-				name.global.obj[idx] = NULL;							\
-			}															\
+		if (name.obj) {													\
+			ao2_ref(name.obj, -1);										\
+			name.obj = NULL;											\
 		}																\
-		ast_rwlock_destroy(&name.global.lock);							\
+		ast_rwlock_destroy(&name.lock);									\
 	}																	\
 	struct __dummy_##name
 #else
-#define AO2_GLOBAL_OBJ_STATIC(name, num_objects)						\
-	struct name {														\
-		struct ao2_global_obj global;									\
-		void *objs[num_objects];										\
-	} name = {															\
-		.global.lock = AST_RWLOCK_INIT_VALUE,							\
-		.global.num_elements = (num_objects),							\
+#define AO2_GLOBAL_OBJ_STATIC(name)										\
+	struct ao2_global_obj name = {										\
+		.lock = AST_RWLOCK_INIT_VALUE,									\
 	}
 #endif
 
 /*!
- * \brief Release all global ao2 objects in the global array.
+ * \brief Release the ao2 object held in the global holder.
  * \since 11.0
  *
- * \param array Global ao2 object array container.
+ * \param holder Global ao2 object holder.
  * \param tag used for debugging
  *
  * \return Nothing
  */
-#define ao2_t_global_obj_release(array, tag)	\
-	__ao2_global_obj_release(&array.global, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
-#define ao2_global_obj_release(array)	\
-	__ao2_global_obj_release(&array.global, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
+#define ao2_t_global_obj_release(holder, tag)	\
+	__ao2_global_obj_release(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_release(holder)	\
+	__ao2_global_obj_release(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
-void __ao2_global_obj_release(struct ao2_global_obj *array, const char *tag, const char *file, int line, const char *func, const char *name);
+void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);
 
 /*!
- * \brief Replace a global ao2 object in the global array.
+ * \brief Replace an ao2 object in the global holder.
  * \since 11.0
  *
- * \param array Global ao2 object array container.
- * \param idx Index to replace in the array.
- * \param obj Object to put into the array.  Can be NULL.
+ * \param holder Global ao2 object holder.
+ * \param obj Object to put into the holder.  Can be NULL.
  * \param tag used for debugging
  *
  * \note This function automatically increases the reference
- * count to account for the reference that the global array now
+ * count to account for the reference that the global holder now
  * holds to the object.
  *
- * \retval Reference to previous global ao2 object stored at the index.
+ * \retval Reference to previous global ao2 object stored.
  * \retval NULL if no object available.
  */
-#define ao2_t_global_obj_replace(array, idx, obj, tag)	\
-	__ao2_global_obj_replace(&array.global, (idx), (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
-#define ao2_global_obj_replace(array, idx, obj)	\
-	__ao2_global_obj_replace(&array.global, (idx), (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
+#define ao2_t_global_obj_replace(holder, obj, tag)	\
+	__ao2_global_obj_replace(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_replace(holder, idx, obj)	\
+	__ao2_global_obj_replace(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
-void *__ao2_global_obj_replace(struct ao2_global_obj *array, unsigned int idx, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
+void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
 
 /*!
- * \brief Get a reference to the object stored in the ao2 global array.
+ * \brief Replace an ao2 object in the global holder, throwing away any old object.
  * \since 11.0
  *
- * \param array Global ao2 object array container.
- * \param idx Index to get an object reference in the array.
+ * \param holder Global ao2 object holder.
+ * \param obj Object to put into the holder.  Can be NULL.
  * \param tag used for debugging
  *
- * \retval Reference to current global ao2 object stored at the index.
+ * \note This function automatically increases the reference
+ * count to account for the reference that the global holder now
+ * holds to the object.  It also decreases the reference count
+ * of any object being replaced.
+ *
+ * \retval 0 The global object was previously empty
+ * \retval 1 The global object was not previously empty
+ */
+#define ao2_t_global_obj_replace_unref(holder, obj, tag)	\
+	__ao2_global_obj_replace_unref(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_replace_unref(holder, obj)	\
+	__ao2_global_obj_replace_unref(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
+
+/*!
+ * \brief Get a reference to the object stored in the global holder.
+ * \since 11.0
+ *
+ * \param holder Global ao2 object holder.
+ * \param tag used for debugging
+ *
+ * \retval Reference to current ao2 object stored in the holder.
  * \retval NULL if no object available.
  */
-#define ao2_t_global_obj_ref(array, idx, tag)	\
-	__ao2_global_obj_ref(&array.global, (idx), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
-#define ao2_global_obj_ref(array, idx)	\
-	__ao2_global_obj_ref(&array.global, (idx), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #array)
+#define ao2_t_global_obj_ref(holder, tag)	\
+	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_ref(holder, idx)	\
+	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
-void *__ao2_global_obj_ref(struct ao2_global_obj *array, unsigned int idx, const char *tag, const char *file, int line, const char *func, const char *name);
+void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);
 
 
 /*!
