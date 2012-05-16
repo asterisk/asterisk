@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_PREFIX 80
 #define DEFAULT_SESSION_LIMIT 100
 
-#define DEFAULT_HTTP_PORT 8080
+#define DEFAULT_HTTP_PORT 8088
 #define DEFAULT_HTTPS_PORT 8089
 
 /* See http.h for more information about the SSL implementation */
