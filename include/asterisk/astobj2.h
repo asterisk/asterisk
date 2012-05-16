@@ -649,7 +649,7 @@ void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, co
  */
 #define ao2_t_global_obj_replace(holder, obj, tag)	\
 	__ao2_global_obj_replace(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
-#define ao2_global_obj_replace(holder, idx, obj)	\
+#define ao2_global_obj_replace(holder, obj)	\
 	__ao2_global_obj_replace(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
@@ -688,7 +688,7 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
  */
 #define ao2_t_global_obj_ref(holder, tag)	\
 	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
-#define ao2_global_obj_ref(holder, idx)	\
+#define ao2_global_obj_ref(holder)	\
 	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);
