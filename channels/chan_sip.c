@@ -30003,11 +30003,19 @@ static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 	}
 
 	sip_pvt_lock(p);
+	while (sip_pvt_trylock(opp)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
 	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		if (apply_directmedia_ha(p, opp, "UDPTL T.38 data")) {
 			udptl = p->udptl;
 		}
 	}
+
+	sip_pvt_unlock(opp);
 	sip_pvt_unlock(p);
 	return udptl;
 }
@@ -30073,7 +30081,14 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 	}
 
 	sip_pvt_lock(p);
+	while (sip_pvt_trylock(opp)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
 	if (!(p->rtp)) {
+		sip_pvt_unlock(opp);
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -30091,6 +30106,8 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 	} else if (ast_test_flag(&global_jbconf, AST_JB_FORCED)) {
 		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
+
+	sip_pvt_unlock(opp);
 
 	if (p->srtp) {
 		res = AST_RTP_GLUE_RESULT_FORBID;
@@ -30119,7 +30136,14 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 	}
 
 	sip_pvt_lock(p);
+	while (sip_pvt_trylock(opp)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
 	if (!(p->vrtp)) {
+		sip_pvt_unlock(opp);
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -30134,6 +30158,7 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 		}
 	}
 
+	sip_pvt_unlock(opp);
 	sip_pvt_unlock(p);
 
 	return res;
@@ -30157,7 +30182,14 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 	}
 
 	sip_pvt_lock(p);
+	while (sip_pvt_trylock(opp)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
 	if (!(p->trtp)) {
+		sip_pvt_unlock(opp);
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -30172,6 +30204,7 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 		}
 	}
 
+	sip_pvt_unlock(opp);
 	sip_pvt_unlock(p);
 
 	return res;
