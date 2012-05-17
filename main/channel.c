@@ -4201,6 +4201,21 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	return 0;
 }
 
+/*! \brief Sets the HANGUPCAUSE hash and optionally the SIP_CAUSE hash 
+ * on the given channel */
+static void set_hangupcause_hash(struct ast_channel *chan, const void *data)
+{
+	char causevar[256];
+	const struct ast_control_pvt_cause_code *cause_code = data;
+
+	snprintf(causevar, sizeof(causevar), "HASH(HANGUPCAUSE,%s)", cause_code->chan_name);
+	ast_func_write(chan, causevar, cause_code->code);
+	if (cause_code->emulate_sip_cause) {
+		snprintf(causevar, sizeof(causevar), "HASH(SIP_CAUSE,%s)", cause_code->chan_name);
+		ast_func_write(chan, causevar, cause_code->code);
+	}
+}
+
 int ast_indicate_data(struct ast_channel *chan, int _condition,
 		const void *data, size_t datalen)
 {
@@ -4346,20 +4361,9 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		ts = ast_get_indication_tone(ast_channel_zone(chan), "congestion");
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
-	{
-		char causevar[256];
-		const struct ast_control_pvt_cause_code *cause_code = data;
-
-		snprintf(causevar, sizeof(causevar), "HASH(HANGUPCAUSE,%s)", cause_code->chan_name);
-		ast_func_write(chan, causevar, cause_code->code);
-		if (cause_code->emulate_sip_cause) {
-			snprintf(causevar, sizeof(causevar), "HASH(SIP_CAUSE,%s)", cause_code->chan_name);
-			ast_func_write(chan, causevar, cause_code->code);
-		}
-
+		set_hangupcause_hash(chan, data);
 		res = 0;
 		break;
-	}
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
@@ -5506,8 +5510,11 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 					timeout = 0;		/* trick to force exit from the while() */
 					break;
 
-				/* Ignore these */
 				case AST_CONTROL_PVT_CAUSE_CODE:
+					set_hangupcause_hash(chan, f->data.ptr);
+					break;
+
+				/* Ignore these */
 				case AST_CONTROL_PROGRESS:
 				case AST_CONTROL_PROCEEDING:
 				case AST_CONTROL_HOLD:
