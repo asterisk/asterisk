@@ -7956,6 +7956,9 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	struct ast_frame *f;
 
 	idx = dahdi_get_index(ast, p, 0);
+	if (idx < 0) {
+		return &ast_null_frame;
+	}
 	mysig = p->sig;
 	if (p->outsigmod > -1)
 		mysig = p->outsigmod;
@@ -7969,8 +7972,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	p->subs[idx].f.data.ptr = NULL;
 	f = &p->subs[idx].f;
 
-	if (idx < 0)
-		return &p->subs[idx].f;
 	if (p->fake_event) {
 		res = p->fake_event;
 		p->fake_event = 0;
