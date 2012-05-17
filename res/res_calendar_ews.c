@@ -233,7 +233,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 		/* Event UID */
 		if (ctx->op == XML_OP_FIND) {
 			struct calendar_id *id;
-			if (!(id = ast_calloc(1, sizeof(id)))) {
+			if (!(id = ast_calloc(1, sizeof(*id)))) {
 				return NE_XML_ABORT;
 			}
 			if (!(id->id = ast_str_create(256))) {
