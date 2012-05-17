@@ -279,9 +279,43 @@ struct ast_callid *ast_read_threadstorage_callid(void);
  */
 int ast_callid_threadassoc_add(struct ast_callid *callid);
 
-/*
- * May need a function to clean the threadstorage if we want to repurpose a thread.
+/*!
+ * \brief Removes callid from thread storage of the calling thread
+ *
+ * \retval 0 - success
+ * \retval non-zero - failure
  */
+int ast_callid_threadassoc_remove(void);
+
+/*!
+ * \brief Checks thread storage for a callid and stores a reference if it exists.
+ *        If not, then a new one will be created, bound to the thread, and a reference
+ *        to it will be stored.
+ *
+ * \param callid pointer to struct pointer used to store the referenced callid
+ * \retval 0 - callid was found
+ * \retval 1 - callid was created
+ * \retval -1 - the function failed somehow (presumably memory problems)
+ */
+int ast_callid_threadstorage_auto(struct ast_callid **callid);
+
+/*!
+ * \brief Use in conjunction with ast_callid_threadstorage_auto. Cleans up the
+ *        references and if the callid was created by threadstorage_auto, unbinds
+ *        the callid from the threadstorage
+ * \param callid The callid set by ast_callid_threadstorage_auto
+ * \param callid_created The integer returned through ast_callid_threadstorage_auto
+ */
+void ast_callid_threadstorage_auto_clean(struct ast_callid *callid, int callid_created);
+
+/*!
+ * \brief copy a string representation of the callid into a target string
+ *
+ * \param buffer destination of callid string (should be able to store 13 characters or more)
+ * \param buffer_size maximum writable length of the string (Less than 13 will result in truncation)
+ * \param callid Callid for which string is being requested
+ */
+void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *callid);
 
 /*!
  * \brief Send a log message to a dynamically registered log level

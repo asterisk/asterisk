@@ -1942,7 +1942,7 @@ static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *availa
 		return -1;
 	}
 
-	if (!(monitor_instance->subscription_pvt = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL))) {
+	if (!(monitor_instance->subscription_pvt = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL, NULL))) {
 		return -1;
 	}
 
@@ -5976,6 +5976,11 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	p->peercaps = ast_format_cap_destroy(p->peercaps);
 	p->redircaps = ast_format_cap_destroy(p->redircaps);
 	p->prefcaps = ast_format_cap_destroy(p->prefcaps);
+
+	/* Lastly, kill the callid associated with the pvt */
+	if (p->logger_callid) {
+		ast_callid_unref(p->logger_callid);
+	}
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP devices
@@ -7117,7 +7122,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
  *
  * \return New ast_channel locked.
  */
-static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const char *linkedid)
+static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const char *linkedid, struct ast_callid *callid)
 {
 	struct ast_channel *tmp;
 	struct ast_variable *v = NULL;
@@ -7146,6 +7151,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		sip_pvt_lock(i);
 		return NULL;
 	}
+
+	/* If we sent in a callid, bind it to the channel. */
+	if (callid) {
+		ast_channel_callid_set(tmp, callid);
+	}
+
 	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
@@ -7792,12 +7803,21 @@ static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
 	return p->stimer;
 }
 
+static void sip_pvt_callid_set(struct sip_pvt *pvt, struct ast_callid *callid)
+{
+	if (pvt->logger_callid) {
+		ast_callid_unref(pvt->logger_callid);
+	}
+	ast_callid_ref(callid);
+	pvt->logger_callid = callid;
+}
+
 /*! \brief Allocate sip_pvt structure, set defaults and link in the container.
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
  */
 struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
-				 int useglobal_nat, const int intended_method, struct sip_request *req)
+				 int useglobal_nat, const int intended_method, struct sip_request *req, struct ast_callid *logger_callid)
 {
 	struct sip_pvt *p;
 
@@ -7813,6 +7833,11 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		ao2_t_ref(p, -1, "Yuck, couldn't allocate cc_params struct. Get rid o' p");
 		return NULL;
 	}
+
+	if (logger_callid) {
+		sip_pvt_callid_set(p, logger_callid);
+	}
+
 	p->caps = ast_format_cap_alloc_nolock();
 	p->jointcaps = ast_format_cap_alloc_nolock();
 	p->peercaps = ast_format_cap_alloc_nolock();
@@ -8181,7 +8206,7 @@ static void forked_invite_init(struct sip_request *req, const char *new_theirtag
 {
 	struct sip_pvt *p;
 
-	if (!(p = sip_alloc(original->callid, addr, 1, SIP_INVITE, req)))  {
+	if (!(p = sip_alloc(original->callid, addr, 1, SIP_INVITE, req, original->logger_callid)))  {
 		return; /* alloc error */
 	}
 	p->invitestate = INV_TERMINATED;
@@ -8430,13 +8455,18 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 	/* See if the method is capable of creating a dialog */
 	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
 		struct sip_pvt *p = NULL;
+		struct ast_callid *logger_callid = NULL;
+
+		if (intended_method == SIP_INVITE) {
+			logger_callid = ast_create_callid();
+		}
 
 		if (intended_method == SIP_REFER) {
 			/* We do support REFER, but not outside of a dialog yet */
 			transmit_response_using_temp(callid, addr, 1, intended_method, req, "603 Declined (no dialog)");
-	
+
 		/* Ok, time to create a new SIP dialog object, a pvt */
-		} else if (!(p = sip_alloc(callid, addr, 1, intended_method, req)))  {
+		} else if (!(p = sip_alloc(callid, addr, 1, intended_method, req, logger_callid)))  {
 			/* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
 				getting a dialog from sip_alloc.
 
@@ -8447,6 +8477,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			*/
 			transmit_response_using_temp(callid, addr, 1, intended_method, req, "500 Server internal error");
 			ast_debug(4, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+		}
+		/* If we created an ast_callid for an invite, we need to free it now. */
+		if (logger_callid) {
+			ast_callid_unref(logger_callid);
 		}
 		return p; /* can be NULL */
 	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
@@ -12597,7 +12631,7 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 
 	epa_entry->publish_type = publish_type;
 
-	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_PUBLISH, NULL))) {
+	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_PUBLISH, NULL, NULL))) {
 		return -1;
 	}
 
@@ -12905,7 +12939,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	}
 	
 	/* Create a dialog that we will use for the subscription */
-	if (!(mwi->call = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL))) {
+	if (!(mwi->call = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL, NULL))) {
 		return -1;
 	}
 
@@ -13395,7 +13429,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		channame += 4;
 	}
 
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL, NULL))) {
 		astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
 		return 0;
 	}
@@ -13716,7 +13750,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP dialog for registration */
-		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER, NULL))) {
+		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER, NULL, NULL))) {
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
@@ -19816,7 +19850,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		char buf[512];
 		struct ast_variable *header, *var;
 
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL, NULL))) {
 			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify (memory/socket error)\n");
 			return CLI_FAILURE;
 		}
@@ -23568,7 +23602,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			res = INV_REQ_FAILED;
 			goto request_invite_cleanup;
 		} else {
-
 			/* If no extension was specified, use the s one */
 			/* Basically for calling to IP/Host name only */
 			if (ast_strlen_zero(p->exten))
@@ -23578,7 +23611,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation - create the channel.  Allocation
 			 * failures are handled below. */
-			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL);
+
+			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL, p->logger_callid);
+
 			if (cc_recall_core_id != -1) {
 				ast_setup_cc_recall_datastore(c, cc_recall_core_id);
 				ast_cc_agent_set_interfaces_chanvar(c);
@@ -24884,7 +24919,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	struct ast_msg_var_iterator *iter;
 	struct sip_peer *peer_ptr;
 
-	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_MESSAGE, NULL))) {
+	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_MESSAGE, NULL, NULL))) {
 		return -1;
 	}
 
@@ -26412,6 +26447,10 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 		return 1;
 	}
 
+	if (p->logger_callid) {
+		ast_callid_threadassoc_add(p->logger_callid);
+	}
+
 	/* Lock both the pvt and the owner if owner is present.  This will
 	 * not fail. */
 	owner_chan_ref = sip_pvt_lock_full(p);
@@ -26445,6 +26484,10 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	sip_pvt_unlock(p);
 	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
 	ast_mutex_unlock(&netlock);
+
+	if (p->logger_callid) {
+		ast_callid_threadassoc_remove();
+	}
 
 	return 1;
 }
@@ -26714,7 +26757,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	} else {
 		ao2_unlock(peer);
 		/* Build temporary dialog for this message */
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL, NULL))) {
 			return -1;
 		}
 
@@ -27420,7 +27463,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call); */
 	}
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS, NULL))) {
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS, NULL, NULL))) {
 		return -1;
 	}
 	peer->call = dialog_ref(p, "copy sip alloc from p to peer->call");
@@ -27607,6 +27650,7 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	char *remote_address;
 	enum sip_transport transport = 0;
 	struct ast_sockaddr remote_address_sa = { {0,} };
+	struct ast_callid *callid;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peerorhost);
 		AST_APP_ARG(exten);
@@ -27635,9 +27679,13 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		return NULL;
 	}
 
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE, NULL))) {
+	callid = ast_read_threadstorage_callid();
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE, NULL, callid))) {
 		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", dest);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
+		if (callid) {
+			ast_callid_unref(callid);
+		}
 		return NULL;
 	}
 
@@ -27652,6 +27700,9 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		/* sip_destroy(p); */
 		ast_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
+		if (callid) {
+			ast_callid_unref(callid);
+		}
 		return NULL;
 	}
 
@@ -27739,6 +27790,9 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		dialog_unlink_all(p);
 		dialog_unref(p, "unref dialog p UNREGISTERED");
 		/* sip_destroy(p); */
+		if (callid) {
+			ast_callid_unref(callid);
+		}
 		return NULL;
 	}
 	if (ast_strlen_zero(p->peername) && ext)
@@ -27774,7 +27828,12 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	ast_format_cap_joint_copy(cap, p->caps, p->jointcaps);
 
 	sip_pvt_lock(p);
-	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? ast_channel_linkedid(requestor) : NULL);	/* Place the call */
+
+	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? ast_channel_linkedid(requestor) : NULL, callid);	/* Place the call */
+	if (callid) {
+		callid = ast_callid_unref(callid);
+	}
+
 	if (sip_cfg.callevents)
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",

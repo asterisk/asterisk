@@ -2177,6 +2177,7 @@ static void ast_channel_destructor(void *obj)
 	struct varshead *headp;
 	struct ast_datastore *datastore;
 	char device_name[AST_CHANNEL_NAME];
+	struct ast_callid *callid;
 
 	if (ast_channel_internal_is_finalized(chan)) {
 		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
@@ -2188,6 +2189,11 @@ static void ast_channel_destructor(void *obj)
 	while ((datastore = AST_LIST_REMOVE_HEAD(ast_channel_datastores(chan), entry)))
 		/* Free the data store */
 		ast_datastore_free(datastore);
+
+	/* While the channel is locked, take the reference to its callid while we tear down the call. */
+	callid = ast_channel_callid(chan);
+	ast_channel_callid_cleanup(chan);
+
 	ast_channel_unlock(chan);
 
 	/* Lock and unlock the channel just to be sure nobody has it locked still
@@ -2196,7 +2202,7 @@ static void ast_channel_destructor(void *obj)
 	ast_channel_unlock(chan);
 
 	if (ast_channel_tech_pvt(chan)) {
-		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", ast_channel_name(chan));
+		ast_log_callid(LOG_WARNING, callid, "Channel '%s' may not have been hung up properly\n", ast_channel_name(chan));
 		ast_free(ast_channel_tech_pvt(chan));
 	}
 
@@ -2229,7 +2235,7 @@ static void ast_channel_destructor(void *obj)
 	if (ast_channel_writetrans(chan))
 		ast_translator_free_path(ast_channel_writetrans(chan));
 	if (ast_channel_pbx(chan))
-		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", ast_channel_name(chan));
+		ast_log_callid(LOG_WARNING, callid, "PBX may not have been terminated properly on '%s'\n", ast_channel_name(chan));
 
 	ast_party_dialed_free(ast_channel_dialed(chan));
 	ast_party_caller_free(ast_channel_caller(chan));
@@ -2286,6 +2292,9 @@ static void ast_channel_destructor(void *obj)
 	}
 
 	ast_channel_nativeformats_set(chan, ast_format_cap_destroy(ast_channel_nativeformats(chan)));
+	if (callid) {
+		ast_callid_unref(callid);
+	}
 }
 
 /*! \brief Free a dummy channel structure */
@@ -5669,6 +5678,16 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			ast_format_cap_destroy(joint_cap);
 			return NULL;
 		}
+
+		/* Set newly created channel callid to same as the requestor */
+		if (requestor) {
+			struct ast_callid *callid = ast_channel_callid(requestor);
+			if (callid) {
+				ast_channel_callid_set(c, callid);
+				callid = ast_callid_unref(callid);
+			}
+		}
+
 		joint_cap = ast_format_cap_destroy(joint_cap);
 
 		if (set_security_requirements(requestor, c)) {

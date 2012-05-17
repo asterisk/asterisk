@@ -5115,6 +5115,20 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	if (!(pbx = ast_calloc(1, sizeof(*pbx)))) {
 		return -1;
 	}
+
+	if (!ast_read_threadstorage_callid()) {
+		/* Associate new PBX thread with the channel call id if it is availble.
+		 * If not, create a new one instead.
+		 */
+		struct ast_callid *callid;
+		if (!(callid = ast_channel_callid(c))) {
+			callid = ast_create_callid();
+		}
+		ast_callid_threadassoc_add(callid);
+		ast_channel_callid_set(c, callid);
+		callid = ast_callid_unref(callid);
+	}
+
 	ast_channel_pbx_set(c, pbx);
 	/* Set reasonable defaults */
 	ast_channel_pbx(c)->rtimeoutms = 10000;
@@ -5488,11 +5502,6 @@ static void *pbx_thread(void *data)
 	   PBX has finished running on the channel
 	 */
 	struct ast_channel *c = data;
-
-	/* Associate new PBX thread with a call-id */
-	struct ast_callid *callid = ast_create_callid();
-	ast_callid_threadassoc_add(callid);
-	callid = ast_callid_unref(callid);
 
 	__ast_pbx_run(c, NULL);
 	decrease_call_count();
@@ -8953,8 +8962,12 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
+	struct ast_callid *callid;
+	int callid_created = 0;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
+
+	callid_created = ast_callid_threadstorage_auto(&callid);
 
 	if (synchronous) {
 		oh.context = context;
@@ -8973,6 +8986,16 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 				ast_channel_lock(chan);
 		}
 		if (chan) {
+			/* Bind the callid to the channel if it doesn't already have one on creation */
+			struct ast_callid *channel_callid = ast_channel_callid(chan);
+			if (channel_callid) {
+				ast_callid_unref(channel_callid);
+			} else {
+				if (callid) {
+					ast_channel_callid_set(chan, callid);
+				}
+			}
+
 			if (ast_channel_state(chan) == AST_STATE_UP) {
 					res = 0;
 				ast_verb(4, "Channel %s was answered.\n", ast_channel_name(chan));
@@ -9052,6 +9075,7 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 			}
 		}
 	} else {
+		struct ast_callid *channel_callid;
 		if (!(as = ast_calloc(1, sizeof(*as)))) {
 			res = -1;
 			goto outgoing_exten_cleanup;
@@ -9067,6 +9091,17 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 			res = -1;
 			goto outgoing_exten_cleanup;
 		}
+
+		/* Bind the newly created callid to the channel if it doesn't already have one on creation. */
+		channel_callid = ast_channel_callid(chan);
+		if (channel_callid) {
+			ast_callid_unref(channel_callid);
+		} else {
+			if (callid) {
+				ast_channel_callid_set(chan, callid);
+			}
+		}
+
 		as->chan = chan;
 		ast_copy_string(as->context, context, sizeof(as->context));
 		set_ext_pri(as->chan,  exten, priority);
@@ -9087,7 +9122,9 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 		}
 		res = 0;
 	}
+
 outgoing_exten_cleanup:
+	ast_callid_threadstorage_auto_clean(callid, callid_created);
 	ast_variables_destroy(vars);
 	return res;
 }
@@ -9122,8 +9159,13 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 {
 	struct ast_channel *chan;
 	struct app_tmp *tmp;
+	struct ast_callid *callid;
+	int callid_created;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
+
+	/* Start by checking for a callid in threadstorage, and if none is found, bind one. */
+	callid_created = ast_callid_threadstorage_auto(&callid);
 
 	memset(&oh, 0, sizeof(oh));
 	oh.vars = vars;
@@ -9138,6 +9180,16 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 	if (synchronous) {
 		chan = __ast_request_and_dial(type, cap, NULL, addr, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
+			/* Bind the newly created callid to the channel if it doesn't already have one on creation */
+			struct ast_callid *channel_callid = ast_channel_callid(chan);
+			if (channel_callid) {
+				ast_callid_unref(channel_callid);
+			} else {
+				if (callid) {
+					ast_channel_callid_set(chan, callid);
+				}
+			}
+
 			ast_set_variables(chan, vars);
 			if (account)
 				ast_cdr_setaccount(chan, account);
@@ -9200,6 +9252,7 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 
 	} else {
 		struct async_stat *as;
+		struct ast_callid *channel_callid;
 		if (!(as = ast_calloc(1, sizeof(*as)))) {
 			res = -1;
 			goto outgoing_app_cleanup;
@@ -9210,6 +9263,17 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 			res = -1;
 			goto outgoing_app_cleanup;
 		}
+
+		/* Bind the newly created callid to the channel if it doesn't already have one on creation. */
+		channel_callid = ast_channel_callid(chan);
+		if (channel_callid) {
+			ast_callid_unref(channel_callid);
+		} else {
+			if (callid) {
+				ast_channel_callid_set(chan, callid);
+			}
+		}
+
 		as->chan = chan;
 		ast_copy_string(as->app, app, sizeof(as->app));
 		if (appdata)
@@ -9235,7 +9299,9 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 		}
 		res = 0;
 	}
+
 outgoing_app_cleanup:
+	ast_callid_threadstorage_auto_clean(callid, callid_created);
 	ast_variables_destroy(vars);
 	return res;
 }

@@ -1236,6 +1236,11 @@ void close_logger(void)
 	AST_RWLIST_UNLOCK(&logchannels);
 }
 
+void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *callid)
+{
+	snprintf(buffer, buffer_size, "[C-%08x]", callid->call_identifier);
+}
+
 struct ast_callid *ast_create_callid(void)
 {
 	struct ast_callid *call;
@@ -1249,7 +1254,7 @@ struct ast_callid *ast_create_callid(void)
 	using = ast_atomic_fetchadd_int(&next_unique_callid, +1);
 
 	call->call_identifier = using;
-	ast_log(LOG_DEBUG, "CALL_ID [C-%08x] created by thread.\n", call->call_identifier);
+	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", call->call_identifier);
 	return call;
 }
 
@@ -1279,13 +1284,66 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 		/* callid will be unreffed at thread destruction */
 		ast_callid_ref(callid);
 		*pointing = callid;
-		ast_log(LOG_DEBUG, "CALL_ID [C-%08x] bound to thread.\n", callid->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", callid->call_identifier);
 	} else {
 		ast_log(LOG_WARNING, "Attempted to ast_callid_threadassoc_add on thread already associated with a callid.\n");
 		return 1;
 	}
 
 	return 0;
+}
+
+int ast_callid_threadassoc_remove()
+{
+	struct ast_callid **pointing;
+	pointing = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+	if (!(pointing)) {
+		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
+		return -1;
+	}
+
+	if (!(*pointing)) {
+		ast_log(LOG_ERROR, "Tried to clean callid thread storage with no callid in thread storage.\n");
+		return -1;
+	} else {
+		ast_debug(3, "Call_ID [C-%08x] being removed from thread.\n", (*pointing)->call_identifier);
+		*pointing = ast_callid_unref(*pointing);
+		return 0;
+	}
+}
+
+int ast_callid_threadstorage_auto(struct ast_callid **callid)
+{
+	struct ast_callid *tmp;
+
+	/* Start by trying to see if a callid is available from thread storage */
+	tmp = ast_read_threadstorage_callid();
+	if (tmp) {
+		*callid = tmp;
+		return 0;
+	}
+
+	/* If that failed, try to create a new one and bind it. */
+	tmp = ast_create_callid();
+	if (tmp) {
+		ast_callid_threadassoc_add(tmp);
+		*callid = tmp;
+		return 1;
+	}
+
+	/* If neither worked, then something must have gone wrong. */
+	return -1;
+}
+
+void ast_callid_threadstorage_auto_clean(struct ast_callid *callid, int callid_created)
+{
+	if (callid) {
+		/* If the callid was created rather than simply grabbed from the thread storage, we need to unbind here. */
+		if (callid_created == 1) {
+			ast_callid_threadassoc_remove();
+		}
+		callid = ast_callid_unref(callid);
+	}
 }
 
 /*!

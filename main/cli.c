@@ -1393,6 +1393,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct ast_str *output;/*!< Accumulation buffer for all output. */
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
+	struct ast_callid *callid;
+	char call_identifier_str[13] = "";
 #ifdef CHANNEL_TRACE
 	int trace_enabled;
 #endif
@@ -1440,6 +1442,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		strcpy(cdrtime, "N/A");
 	}
 
+	/* Construct the call identifier string based on the status of the channel's call identifier */
+	if ((callid = ast_channel_callid(c))) {
+		ast_callid_strnprint(call_identifier_str, sizeof(call_identifier_str), callid);
+		ast_callid_unref(callid);
+	}
+
 	ast_str_append(&output, 0,
 		" -- General --\n"
 		"           Name: %s\n"
@@ -1474,7 +1482,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"   Pickup Group: %llu\n"
 		"    Application: %s\n"
 		"           Data: %s\n"
-		"    Blocking in: %s\n",
+		"    Blocking in: %s\n"
+		" Call Identifer: %s\n",
 		ast_channel_name(c), ast_channel_tech(c)->type, ast_channel_uniqueid(c), ast_channel_linkedid(c),
 		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "(N/A)"),
 		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "(N/A)"),
@@ -1497,7 +1506,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		cdrtime, ast_channel_internal_bridged_channel(c) ? ast_channel_name(ast_channel_internal_bridged_channel(c)) : "<none>", ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>",
 		ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_callgroup(c), ast_channel_pickupgroup(c), (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
 		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
-		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
+		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"),
+		S_OR(call_identifier_str, "(None)"));
 
 	if (pbx_builtin_serialize_variables(c, &obuf)) {
 		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));

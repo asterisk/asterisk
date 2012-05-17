@@ -3693,12 +3693,15 @@ void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tec
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
+struct ast_callid *ast_channel_callid(const struct ast_channel *chan);
+void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *value);
 
 /* XXX Internal use only, make sure to move later */
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state);
 void ast_channel_softhangup_internal_flag_set(struct ast_channel *chan, int value);
 void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int value);
 void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value);
+void ast_channel_callid_cleanup(struct ast_channel *chan);
 int ast_channel_softhangup_internal_flag(struct ast_channel *chan);
 
 /* Format getters */

@@ -82,6 +82,7 @@ struct ast_channel {
 	struct ast_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
 							 *   in the CHANNEL dialplan function */
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
+	struct ast_callid *callid;			/*!< Bound call identifier pointer */
 #ifdef HAVE_EPOLL
 	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
 #endif
@@ -829,6 +830,31 @@ enum ast_channel_state ast_channel_state(const struct ast_channel *chan)
 {
 	return chan->state;
 }
+struct ast_callid *ast_channel_callid(const struct ast_channel *chan)
+{
+	if (chan->callid) {
+		ast_callid_ref(chan->callid);
+		return chan->callid;
+	}
+	return NULL;
+}
+void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
+{
+	if (chan->callid) {
+
+		if ((option_debug >= 3) || (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= 3)) {
+			char call_identifier_from[13];
+			char call_identifier_to[13];
+			ast_callid_strnprint(call_identifier_from, sizeof(call_identifier_from), chan->callid);
+			ast_callid_strnprint(call_identifier_to, sizeof(call_identifier_to), callid);
+			ast_log(LOG_DEBUG, "Channel Call ID changing from %s to %s\n", call_identifier_from, call_identifier_to);
+		}
+
+		/* unbind if already set */
+		ast_callid_unref(chan->callid);
+	}
+	chan->callid = ast_callid_ref(callid);
+}
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state value)
 {
 	chan->state = value;
@@ -954,6 +980,13 @@ void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int valu
 void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value)
 {
 	chan ->softhangup &= ~value;
+}
+
+void ast_channel_callid_cleanup(struct ast_channel *chan)
+{
+	if (chan->callid) {
+		chan->callid = ast_callid_unref(chan->callid);
+	}
 }
 
 /* Typedef accessors */
