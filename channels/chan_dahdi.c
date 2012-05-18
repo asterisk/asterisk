@@ -8051,6 +8051,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #else
 		ast_log(LOG_WARNING, "Received bits changed on %s signalling?\n", sig2str(p->sig));
 #endif
+		break;
 	case DAHDI_EVENT_PULSE_START:
 		/* Stop tone if there's a pulse start and the PBX isn't started */
 		if (!ast_channel_pbx(ast))
