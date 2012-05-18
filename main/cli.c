@@ -2350,8 +2350,10 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 
 	/* ensure that the array is NULL terminated */
 	if (matches + 1 >= match_list_len) {
-		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list))))
+		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list)))) {
+			ast_free(retstr);
 			return NULL;
+		}
 	}
 	match_list[matches + 1] = NULL;
 
