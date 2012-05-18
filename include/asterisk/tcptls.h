@@ -196,7 +196,24 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc);
  * \version 1.6.1 changed desc parameter to be of ast_tcptls_session_args type
  */
 void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
+
+/*!
+ * \brief Set up an SSL server
+ *
+ * \param cfg Configuration for the SSL server
+ * \retval 1 Success
+ * \retval 0 Failure
+ */
 int ast_ssl_setup(struct ast_tls_config *cfg);
+
+/*!
+ * \brief free resources used by an SSL server
+ *
+ * \note This only needs to be called if ast_ssl_setup() was
+ * directly called first.
+ * \param cfg Configuration for the SSL server
+ */
+void ast_ssl_teardown(struct ast_tls_config *cfg);
 
 /*!
  * \brief Used to parse conf files containing tls/ssl options.

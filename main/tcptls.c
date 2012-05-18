@@ -131,6 +131,14 @@ HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_sessio
 	return write(tcptls_session->fd, buf, count);
 }
 
+static void session_instance_destructor(void *obj)
+{
+	struct ast_tcptls_session_instance *i = obj;
+	if (i->parent && i->parent->tls_cfg) {
+		ast_ssl_teardown(i->parent->tls_cfg);
+	}
+}
+
 /*! \brief
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
@@ -279,7 +287,7 @@ void *ast_tcptls_server_root(void *data)
 			}
 			continue;
 		}
-		tcptls_session = ao2_alloc(sizeof(*tcptls_session), NULL);
+		tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
 		if (!tcptls_session) {
 			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
 			if (close(fd)) {
@@ -319,6 +327,14 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	SSL_load_error_strings();
 	SSLeay_add_ssl_algorithms();
 
+	/* Get rid of an old SSL_CTX since we're about to
+	 * allocate a new one
+	 */
+	if (cfg->ssl_ctx) {
+		SSL_CTX_free(cfg->ssl_ctx);
+		cfg->ssl_ctx = NULL;
+	}
+
 	if (client) {
 #ifndef OPENSSL_NO_SSL2
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV2_CLIENT)) {
@@ -354,6 +370,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 				ast_verb(0, "SSL error loading cert file. <%s>\n", cfg->certfile);
 				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -363,6 +381,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 				ast_verb(0, "SSL error loading private key file. <%s>\n", tmpprivate);
 				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -373,6 +393,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 				ast_verb(0, "SSL cipher error <%s>\n", cfg->cipher);
 				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -391,6 +413,14 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 int ast_ssl_setup(struct ast_tls_config *cfg)
 {
 	return __ssl_setup(cfg, 0);
+}
+
+void ast_ssl_teardown(struct ast_tls_config *cfg)
+{
+	if (cfg->ssl_ctx) {
+		SSL_CTX_free(cfg->ssl_ctx);
+		cfg->ssl_ctx = NULL;
+	}
 }
 
 struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session)
@@ -471,7 +501,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		}
 	}
 
-	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), NULL))) {
+	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor))) {
 		goto error;
 	}
 
