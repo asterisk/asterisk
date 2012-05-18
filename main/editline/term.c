@@ -472,7 +472,7 @@ term_rebuffer_display(EditLine *el)
 private int
 term_alloc_display(EditLine *el)
 {
-	int i;
+	int i, j;
 	char **b;
 	coord_t *c = &el->el_term.t_size;
 
@@ -481,8 +481,13 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			for (j = 0; j < i; j++) {
+				el_free(b[j]);
+			}
+			el_free(b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_display = b;
@@ -492,8 +497,13 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			for (j = 0; j < i; j++) {
+				el_free(b[j]);
+			}
+			el_free(b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_vdisplay = b;

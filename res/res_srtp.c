@@ -433,12 +433,14 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 	if (!(temp = res_srtp_new())) {
 		return -1;
 	}
+	ast_module_ref(ast_module_info->self);
 
+	/* Any failures after this point can use ast_srtp_destroy to destroy the instance */
 	if (srtp_create(&temp->session, &policy->sp) != err_status_ok) {
+		ast_srtp_destroy(temp);
 		return -1;
 	}
 
-	ast_module_ref(ast_module_info->self);
 	temp->rtp = rtp;
 	*srtp = temp;
 

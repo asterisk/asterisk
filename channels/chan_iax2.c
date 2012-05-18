@@ -6990,6 +6990,7 @@ static char *handle_cli_iax2_unregister(struct ast_cli_entry *e, int cmd, struct
 		} else {
 			ast_cli(a->fd, "Peer %s not registered\n", a->argv[2]);
 		}
+		peer_unref(p);
 	} else {
 		ast_cli(a->fd, "Peer unknown: %s. Not unregistered\n", a->argv[2]);
 	}
@@ -9942,6 +9943,7 @@ static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *dat
 		}
 		varlist = ast_calloc(1, sizeof(*varlist));
 		if (!varlist) {
+			ast_datastore_free(variablestore);
 			ast_log(LOG_ERROR, "Unable to assign new variable '%s'\n", data);
 			return -1;
 		}

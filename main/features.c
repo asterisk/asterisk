@@ -5740,6 +5740,7 @@ static void process_applicationmap_line(struct ast_variable *var)
 	} else {
 		ast_log(LOG_NOTICE, "Invalid 'ActivateOn' specification for feature '%s',"
 			" must be 'self', or 'peer'\n", var->name);
+		ast_free(feature);
 		return;
 	}
 
@@ -5754,6 +5755,7 @@ static void process_applicationmap_line(struct ast_variable *var)
 	} else {
 		ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
 			" must be 'caller', or 'callee', or 'both'\n", var->name);
+		ast_free(feature);
 		return;
 	}
 
