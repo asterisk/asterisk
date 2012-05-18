@@ -30603,6 +30603,7 @@ static int unload_module(void)
 	if (sip_tls_desc.master) {
 		ast_tcptls_server_stop(&sip_tls_desc);
 	}
+	ast_ssl_teardown(sip_tls_desc.tls_cfg);
 
 	/* Kill all existing TCP/TLS threads */
 	i = ao2_iterator_init(threadt, 0);
