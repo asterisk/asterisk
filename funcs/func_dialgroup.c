@@ -165,6 +165,7 @@ static int dialgroup_read(struct ast_channel *chan, const char *cmd, char *data,
 		ao2_ref(entry, -1);
 	}
 	ao2_iterator_destroy(&i);
+	ao2_ref(grhead, -1);
 
 	return res;
 }

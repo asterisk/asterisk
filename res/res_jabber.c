@@ -2252,6 +2252,7 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 		/* insert will furtherly be added to message list */
 		insert->from = ast_strdup(pak->from->full);
 		if (!insert->from) {
+			ast_free(insert);
 			ast_log(LOG_ERROR, "Memory allocation failure\n");
 			return;
 		}

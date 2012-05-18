@@ -9221,6 +9221,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				if ((ast->_state == AST_STATE_UP) && !p->outgoing) {
 					/* Treat this as a "hangup" instead of a "busy" on the assumption that
 					   a busy */
+					ast_frfree(f);
 					f = NULL;
 				}
 			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
@@ -9246,7 +9247,8 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				if (ast_tvdiff_ms(ast_tvnow(), p->waitingfordt) >= p->waitfordialtone ) {
 					p->waitingfordt.tv_sec = 0;
 					ast_log(LOG_WARNING, "Never saw dialtone on channel %d\n", p->channel);
-					f=NULL;
+					ast_frfree(f);
+					f = NULL;
 				} else if (f->frametype == AST_FRAME_VOICE) {
 					f->frametype = AST_FRAME_NULL;
 					f->subclass.integer = 0;
@@ -9261,6 +9263,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 								p->dop.dialstr[0] = '\0';
 								ast_mutex_unlock(&p->lock);
+								ast_frfree(f);
 								return NULL;
 							} else {
 								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);

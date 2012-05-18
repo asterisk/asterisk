@@ -358,6 +358,7 @@ static int calendar_is_busy(struct ast_calendar *cal)
 
 static enum ast_device_state calendarstate(const char *data)
 {
+	enum ast_device_state state;
 	struct ast_calendar *cal;
 
 	if (ast_strlen_zero(data) || (!(cal = find_calendar(data)))) {
@@ -365,10 +366,13 @@ static enum ast_device_state calendarstate(const char *data)
 	}
 
 	if (cal->tech->is_busy) {
-		return cal->tech->is_busy(cal) ? AST_DEVICE_INUSE : AST_DEVICE_NOT_INUSE;
+		state = cal->tech->is_busy(cal) ? AST_DEVICE_INUSE : AST_DEVICE_NOT_INUSE;
+	} else {
+		state = calendar_is_busy(cal) ? AST_DEVICE_INUSE : AST_DEVICE_NOT_INUSE;
 	}
 
-	return calendar_is_busy(cal) ? AST_DEVICE_INUSE : AST_DEVICE_NOT_INUSE;
+	cal = unref_calendar(cal);
+	return state;
 }
 
 static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *cat, const struct ast_calendar_tech *tech)
@@ -1007,6 +1011,7 @@ static int calendar_busy_exec(struct ast_channel *chan, const char *cmd, char *d
 	}
 
 	strcpy(buf, calendar_is_busy(cal) ? "1" : "0");
+	cal = unref_calendar(cal);
 
 	return 0;
 }
@@ -1161,6 +1166,8 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 			ast_debug(10, "%s (%ld - %ld) overlapped with (%ld - %ld)\n", event->summary, (long) event->start, (long) event->end, (long) start, (long) end);
 			if (add_event_to_list(events, event, start, end) < 0) {
 				event = ast_calendar_unref_event(event);
+				cal = unref_calendar(cal);
+				ao2_ref(events, -1);
 				ao2_iterator_destroy(&i);
 				return -1;
 			}
@@ -1178,6 +1185,8 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 
 	if (!(eventlist_datastore = ast_datastore_alloc(&eventlist_datastore_info, buf))) {
 		ast_log(LOG_ERROR, "Could not allocate datastore!\n");
+		cal = unref_calendar(cal);
+		ao2_ref(events, -1);
 		return -1;
 	}
 
@@ -1188,6 +1197,7 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 	ast_channel_datastore_add(chan, eventlist_datastore);
 	ast_channel_unlock(chan);
 
+	cal = unref_calendar(cal);
 	return 0;
 }
 

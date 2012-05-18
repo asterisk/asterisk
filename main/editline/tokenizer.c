@@ -113,12 +113,17 @@ tok_init(const char *ifs)
 	tok->argc = 0;
 	tok->amax = AINCR;
 	tok->argv = (char **) tok_malloc(sizeof(char *) * tok->amax);
-	if (tok->argv == NULL)
+	if (tok->argv == NULL) {
+		tok_free(tok);
 		return (NULL);
+	}
 	tok->argv[0] = NULL;
 	tok->wspace = (char *) tok_malloc(WINCR);
-	if (tok->wspace == NULL)
+	if (tok->wspace == NULL) {
+		tok_free(tok->argv);
+		tok_free(tok);
 		return (NULL);
+	}
 	tok->wmax = tok->wspace + WINCR;
 	tok->wstart = tok->wspace;
 	tok->wptr = tok->wspace;

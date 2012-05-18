@@ -1825,9 +1825,17 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 	
 		if (!inserted) {
 			AST_LIST_INSERT_TAIL(&rl_iter->rules, rule, list);
+			inserted = 1;
 		}
+
+		break;
 	}
 
+	if (!inserted) {
+		ast_log(LOG_WARNING, "Unknown rule list name %s; ignoring.\n", list_name);
+		ast_free(rule);
+		return -1;
+	}
 	return 0;
 }
 
@@ -4233,6 +4241,7 @@ static struct ast_datastore *setup_transfer_datastore(struct queue_ent *qe, stru
 	ast_channel_lock(qe->chan);
 	if (!(ds = ast_datastore_alloc(&queue_transfer_info, NULL))) {
 		ast_channel_unlock(qe->chan);
+		ast_free(qtds);
 		ast_log(LOG_WARNING, "Unable to create transfer datastore. queue_log will not show attended transfer\n");
 		return NULL;
 	}
