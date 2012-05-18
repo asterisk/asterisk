@@ -73,8 +73,8 @@ monitor-type = MixMonitor
 ;
 ; app_queue allows calls to members in a "Unknown" state to be treated as available
 ; setting check_state_unknown = yes will cause app_queue to query the channel driver
-; to better determine the state this only applies to queues with ringinuse or ignorebusy
-; set appropriately.
+; to better determine the state this only applies to queues with ringinuse set
+; appropriately.
 ;
 ;check_state_unknown = no
 ;
@@ -504,10 +504,11 @@ monitor-type = MixMonitor
 ; If you want the queue to avoid sending calls to members whose devices are
 ; known to be 'in use' (via the channel driver supporting that device state)
 ; uncomment this option. This can be controlled on a per member basis by
-; setting 'ignorebusy' in the QUEUE_MEMBER function. (Note: only the SIP
-; channel driver currently is able to report 'in use'.) (Note: if this option
-; is set to 'no' it will override the per-member 'ignorebusy' setting.
-;
+; setting 'ringinuse' on that member. This can be done in the member definition,
+; in the 'ringinuse' field on a realtime member, via the QUEUE_MEMBER dialplan
+; function, or with CLI/AMI. By default, the per member value will be the same
+; as the queue's ringinuse value if it isn't set on the member deliberately.
+; (Note: only the SIP channel driver currently is able to report 'in use'.)
 ; ringinuse = no
 ;
 ; If you wish to have a delay before the member is connected to the caller (or
@@ -551,12 +552,15 @@ monitor-type = MixMonitor
 ; must also preload pbx_config.so and chan_local.so (or pbx_ael.so, pbx_lua.so,
 ; or pbx_realtime.so, depending on how your dialplan is configured).
 ;
+; syntax: member => interface,[,penalty][,membername][,state_interface][,ringinuse]
+;
 ;member => DAHDI/1
 ;member => DAHDI/2,10
 ;member => DAHDI/3,10,Bob Johnson
 ;member => Agent/1001
 ;member => Agent/1002
 ;member => Local/1000@default,0,John Smith,SIP/1000
+;member => Local/2000@default,0,Lorem Ipsum,SIP/2000,no
 
 ;
 ; Note that using agent groups is probably not what you want.  Strategies do

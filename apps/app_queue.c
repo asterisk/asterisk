@@ -552,8 +552,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="paused">
 						<para>Gets or sets queue member paused status.</para>
 					</enum>
-					<enum name="ignorebusy">
-						<para>Gets or sets queue member ignorebusy.</para>
+					<enum name="ringinuse">
+						<para>Gets or sets queue member ringinuse.</para>
 					</enum>
 				</enumlist>
 			</parameter>
@@ -817,6 +817,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
+
+	<manager name="QueueMemberRingInUse" language="en_US">
+		<synopsis>
+			Set the ringinuse value for a queue member.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Interface" required="true" />
+			<parameter name="RingInUse" required="true" />
+			<parameter name="Queue" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+
 	<manager name="QueueRule" language="en_US">
 		<synopsis>
 			Queue Rules.
@@ -1032,6 +1047,9 @@ static int log_membername_as_agent = 0;
 /*! \brief queues.conf [general] option */
 static int check_state_unknown = 0;
 
+/*! \brief name of the ringinuse field in the realtime database */
+static char *realtime_ringinuse_field;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -1141,7 +1159,7 @@ struct member {
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
 	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
-	unsigned int ignorebusy:1;           /*!< Flag to ignore member if the status is not available */
+	unsigned int ringinuse:1;            /*!< Flag to ring queue members even if their status is 'inuse' */
 };
 
 enum empty_conditions {
@@ -1153,6 +1171,11 @@ enum empty_conditions {
 	QUEUE_EMPTY_INVALID = (1 << 5),
 	QUEUE_EMPTY_UNKNOWN = (1 << 6),
 	QUEUE_EMPTY_WRAPUP = (1 << 7),
+};
+
+enum member_properties {
+	MEMBER_PENALTY = 0,
+	MEMBER_RINGINUSE = 1,
 };
 
 /* values used in multi-bit flags in call_queue */
@@ -1721,12 +1744,12 @@ static int get_queue_member_status(struct member *cur)
 }
 
 /*! \brief allocate space for new queue member and set fields based on parameters passed */
-static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused, const char *state_interface)
+static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused, const char *state_interface, int ringinuse)
 {
 	struct member *cur;
 
 	if ((cur = ao2_alloc(sizeof(*cur), NULL))) {
-		cur->ignorebusy = 1;
+		cur->ringinuse = ringinuse;
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
@@ -2252,7 +2275,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 	int penalty = 0;
 	int paused  = 0;
 	int found = 0;
-	int ignorebusy = 0;
+	int ringinuse = q->ringinuse;
 
 	const char *config_val;
 	const char *rt_uniqueid = ast_variable_retrieve(member_config, interface, "uniqueid");
@@ -2282,10 +2305,14 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 		}
 	}
 
-	if ((config_val = ast_variable_retrieve(member_config, interface, "ignorebusy"))) {
-		ignorebusy = ast_true(config_val);
-	} else {
-		ignorebusy = 1;
+	if ((config_val = ast_variable_retrieve(member_config, interface, realtime_ringinuse_field))) {
+		if (ast_true(config_val)) {
+			ringinuse = 1;
+		} else if (ast_false(config_val)) {
+			ringinuse = 0;
+		} else {
+			ast_log(LOG_WARNING, "Invalid value of '%s' field for %s in queue '%s'\n", realtime_ringinuse_field, interface, q->name);
+		}
 	}
 
 	/* Find member by realtime uniqueid and update */
@@ -2301,7 +2328,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
 			}
 			m->penalty = penalty;
-			m->ignorebusy = ignorebusy;
+			m->ringinuse = ringinuse;
 			found = 1;
 			ao2_ref(m, -1);
 			break;
@@ -2312,10 +2339,9 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 
 	/* Create a new member */
 	if (!found) {
-		if ((m = create_queue_member(interface, membername, penalty, paused, state_interface))) {
+		if ((m = create_queue_member(interface, membername, penalty, paused, state_interface, ringinuse))) {
 			m->dead = 0;
 			m->realtime = 1;
-			m->ignorebusy = ignorebusy;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			if (!log_membername_as_agent) {
 				ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
@@ -3104,7 +3130,7 @@ static int num_available_members(struct call_queue *q)
 			case AST_DEVICE_RINGING:
 			case AST_DEVICE_RINGINUSE:
 			case AST_DEVICE_ONHOLD:
-				if ((!q->ringinuse) || (!mem->ignorebusy)) {
+				if (!mem->ringinuse) {
 					break;
 				}
 				/* else fall through */
@@ -3265,7 +3291,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 
-	if (!qe->parent->ringinuse || !tmp->member->ignorebusy) {
+	if (tmp->member->ringinuse) {
 		if (check_state_unknown && (tmp->member->status == AST_DEVICE_UNKNOWN)) {
 			newstate = ast_device_state(tmp->member->interface);
 			if (newstate != tmp->member->status) {
@@ -5560,7 +5586,8 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 
 	ao2_lock(q);
 	if ((old_member = interface_exists(q, interface)) == NULL) {
-		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface))) {
+		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface, q->ringinuse))) {
+			new_member->ringinuse = q->ringinuse;
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
@@ -5714,23 +5741,71 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
 	return foundinterface;
 }
 
+static int set_member_ringinuse_help_members(struct call_queue *q, const char *interface, int ringinuse)
+{
+	struct member *mem;
+	int foundinterface = 0;
+	char rtringinuse[80];
+
+	ao2_lock(q);
+	if ((mem = interface_exists(q, interface))) {
+		foundinterface++;
+		if (!mem->realtime) {
+			mem->ringinuse = ringinuse;
+		} else {
+			sprintf(rtringinuse, "%i", ringinuse);
+			update_realtime_member_field(mem, q->name, realtime_ringinuse_field, rtringinuse);
+		}
+		ast_queue_log(q->name, "NONE", interface, "RINGINUSE", "%d", ringinuse);
+		manager_event(EVENT_FLAG_AGENT, "QueueMemberRinginuse",
+			"Queue: %s\r\n"
+			"Location: %s\r\n"
+			"Ringinuse: %d\r\n",
+			q->name, mem->interface, ringinuse);
+		ao2_ref(mem, -1);
+	}
+	ao2_unlock(q);
+
+	return foundinterface;
+}
+
+static int set_member_value_help_members(struct call_queue *q, const char *interface, int property, int value)
+{
+	switch(property) {
+	case MEMBER_PENALTY:
+		return set_member_penalty_help_members(q, interface, value);
+
+	case MEMBER_RINGINUSE:
+		return set_member_ringinuse_help_members(q, interface, value);
+
+	default:
+		ast_log(LOG_ERROR, "Attempted to set invalid property\n");
+		return 0;
+	}
+}
+
 /*!
  * \internal
  * \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues.
- * \param[in] queuename If specified, only act on a member if it belongs to this queue
+ * \param[in] queuename If specified, only act on a mem`ber if it belongs to this queue
  * \param[in] interface Interface of queue member(s) having priority set.
+ * \param[in] property Which queue property is being set
  * \param[in] penalty Value penalty is being changed to for each member
  */
-static int set_member_penalty(const char *queuename, const char *interface, int penalty)
+static int set_member_value(const char *queuename, const char *interface, int property, int value)
 {
 	int foundinterface = 0, foundqueue = 0;
 	struct call_queue *q;
 	struct ast_config *queue_config = NULL;
 	struct ao2_iterator queue_iter;
 
-	if (penalty < 0 && !negative_penalty_invalid) {
-		ast_log(LOG_ERROR, "Invalid penalty (%d)\n", penalty);
-		return RESULT_FAILURE;
+	/* property dependent restrictions on values should be checked in this switch */
+	switch (property) {
+	case MEMBER_PENALTY:
+		if (value < 0 && !negative_penalty_invalid) {
+			ast_log(LOG_ERROR, "Invalid penalty (%d)\n", value);
+			return RESULT_FAILURE;
+		}
 	}
 
 	if (ast_strlen_zero(queuename)) { /* This means we need to iterate through all the queues. */
@@ -5743,7 +5818,7 @@ static int set_member_penalty(const char *queuename, const char *interface, int 
 					 name = ast_category_browse(queue_config, name)) {
 					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
-						foundinterface += set_member_penalty_help_members(q, interface, penalty);
+						foundinterface += set_member_value_help_members(q, interface, property, value);
 					}
 				}
 			}
@@ -5753,13 +5828,13 @@ static int set_member_penalty(const char *queuename, const char *interface, int 
 		queue_iter = ao2_iterator_init(queues, 0);
 		while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 			foundqueue++;
-			foundinterface += set_member_penalty_help_members(q, interface, penalty);
+			foundinterface += set_member_value_help_members(q, interface, property, value);
 		}
 		ao2_iterator_destroy(&queue_iter);
 	} else { /* We actually have a queuename, so we can just act on the single queue. */
 		if ((q = find_load_queue_rt_friendly(queuename))) {
 			foundqueue++;
-			foundinterface += set_member_penalty_help_members(q, interface, penalty);
+			foundinterface += set_member_value_help_members(q, interface, property, value);
 		}
 	}
 
@@ -6569,8 +6644,8 @@ static int queue_function_exists(struct ast_channel *chan, const char *cmd, char
 
 /*!
  * \brief Get number either busy / free / ready or total members of a specific queue
- * \brief Get or set member properties penalty / paused / ignorebusy
- * \retval number of members (busy / free / ready / total) or member info (penalty / paused / ignorebusy)
+ * \brief Get or set member properties penalty / paused / ringinuse
+ * \retval number of members (busy / free / ready / total) or member info (penalty / paused / ringinuse)
  * \retval -1 on error
 */
 static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -6645,13 +6720,14 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->paused;
 			ao2_ref(m, -1);
-		} else if (!strcasecmp(args.option, "ignorebusy") && !ast_strlen_zero(args.interface) &&
+		} else if ( (!strcasecmp(args.option, "ignorebusy") || !strcasecmp(args.option, "ringinuse")) &&
+			   !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
-			count = m->ignorebusy;
+			count = m->ringinuse;
 			ao2_ref(m, -1);
 		} else {
 			ast_log(LOG_ERROR, "Unknown option %s provided to %s, valid values are: "
-				"logged, free, ready, count, penalty, paused, ignorebusy\n", args.option, cmd);
+				"logged, free, ready, count, penalty, paused, ringinuse\n", args.option, cmd);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
@@ -6664,7 +6740,7 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 	return 0;
 }
 
-/*! \brief Dialplan function QUEUE_MEMBER() Sets the members penalty / paused / ignorebusy. */
+/*! \brief Dialplan function QUEUE_MEMBER() Sets the members penalty / paused / ringinuse. */
 static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	int memvalue;
@@ -6696,10 +6772,9 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 	}
 
 	memvalue = atoi(value);
-
 	if (!strcasecmp(args.option, "penalty")) {
 		/* if queuename = NULL then penalty will be set for interface in all the queues.*/
-		if (set_member_penalty(args.queuename, args.interface, memvalue)) {
+		if (set_member_value(args.queuename, args.interface, MEMBER_PENALTY, memvalue)) {
 			ast_log(LOG_ERROR, "Invalid interface, queue or penalty\n");
 			return -1;
 		}
@@ -6713,14 +6788,14 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 				} else {
 					m->paused = (memvalue <= 0) ? 0 : 1;
 				}
-			} else if (!strcasecmp(args.option, "ignorebusy")) {
+			} else if ((!strcasecmp(args.option, "ignorebusy")) || (!strcasecmp(args.option, "ringinuse"))) {
 				if (m->realtime) {
 					update_realtime_member_field(m, q->name, args.option, rtvalue);
 				} else {
-					m->ignorebusy = (memvalue <= 0) ? 0 : 1;
+					m->ringinuse = (memvalue <= 0) ? 0 : 1;
 				}
 			} else {
-				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ignorebusy are valid\n");
+				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ringinuse/ignorebusy are valid\n");
 				ao2_ref(m, -1);
 				ao2_unlock(q);
 				ao2_ref(q, -1);
@@ -6935,7 +7010,7 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 	}
 
 	/* if queuename = NULL then penalty will be set for interface in all the queues. */
-	if (set_member_penalty(args.queuename, args.interface, penalty)) {
+	if (set_member_value(args.queuename, args.interface, MEMBER_PENALTY, penalty)) {
 		ast_log(LOG_ERROR, "Invalid interface, queue or penalty\n");
 		return -1;
 	}
@@ -7088,11 +7163,13 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	struct member *cur, *newm;
 	struct member tmpmem;
 	int penalty;
+	int ringinuse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
 		AST_APP_ARG(penalty);
 		AST_APP_ARG(membername);
 		AST_APP_ARG(state_interface);
+		AST_APP_ARG(ringinuse);
 	);
 
 	if (ast_strlen_zero(memberdata)) {
@@ -7102,7 +7179,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 
 	/* Add a new member */
 	parse = ast_strdupa(memberdata);
-				
+
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	interface = args.interface;
@@ -7131,10 +7208,26 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 		state_interface = interface;
 	}
 
+	if (!ast_strlen_zero(args.ringinuse)) {
+		tmp = args.ringinuse;
+		ast_strip(tmp);
+		if (ast_true(tmp)) {
+			ringinuse = 1;
+		} else if (ast_false(tmp)) {
+			ringinuse = 0;
+		} else {
+			ast_log(LOG_ERROR, "Member %s has an invalid ringinuse value. Using %s ringinuse value.\n",
+				membername, q->name);
+			ringinuse = q->ringinuse;
+		}
+	} else {
+		ringinuse = q->ringinuse;
+	}
+
 	/* Find the old position in the list */
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
-	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface))) {
+	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface, ringinuse))) {
 		ao2_link(q->members, newm);
 		ao2_ref(newm, -1);
 	}
@@ -7242,13 +7335,21 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 	if (member_reload) {
 		ao2_callback(q->members, OBJ_NODATA, mark_member_dead, NULL);
 	}
+
+	/* On the first pass we just read the parameters of the queue */
 	for (var = ast_variable_browse(cfg, queuename); var; var = var->next) {
-		if (member_reload && !strcasecmp(var->name, "member")) {
-			reload_single_member(var->value, q);
-		} else if (queue_reload) {
+		if (queue_reload && strcasecmp(var->name, "member")) {
 			queue_set_param(q, var->name, var->value, var->lineno, 1);
 		}
 	}
+
+	/* On the second pass, we read members */
+	for (var = ast_variable_browse(cfg, queuename); var; var = var->next) {
+		if (member_reload && !strcasecmp(var->name, "member")) {
+			reload_single_member(var->value, q);
+		}
+	}
+
 	/* At this point, we've determined if the queue has a weight, so update use_weight
 	 * as appropriate
 	 */
@@ -7521,6 +7622,9 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 				if (mem->penalty) {
 					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
 				}
+
+				ast_str_append(&out, 0, " (ringinuse %s)", mem->ringinuse ? "enabled" : "disabled");
+
 				ast_str_append(&out, 0, "%s%s%s (%s)",
 					mem->dynamic ? " (dynamic)" : "",
 					mem->realtime ? " (realtime)" : "",
@@ -8070,6 +8174,40 @@ static char *complete_queue_add_member(const char *line, const char *word, int p
 	}
 }
 
+static int manager_queue_member_ringinuse(struct mansession *s, const struct message *m)
+{
+	const char *queuename, *interface, *ringinuse_s;
+	int ringinuse;
+
+	interface = astman_get_header(m, "Interface");
+	ringinuse_s = astman_get_header(m, "RingInUse");
+
+	/* Optional - if not supplied, set the ringinuse value for the given Interface in all queues */
+	queuename = astman_get_header(m, "Queue");
+
+	if (ast_strlen_zero(interface) || ast_strlen_zero(ringinuse_s)) {
+		astman_send_error(s, m, "Need 'Interface' and 'RingInUse' parameters.");
+		return 0;
+	}
+
+	if (ast_true(ringinuse_s)) {
+		ringinuse = 1;
+	} else if (ast_false(ringinuse_s)) {
+		ringinuse = 0;
+	} else {
+		astman_send_error(s, m, "'RingInUse' parameter must be a truth value (yes/no, on/off, 0/1, etc)");
+		return 0;
+	}
+
+	if (set_member_value(queuename, interface, MEMBER_RINGINUSE, ringinuse)) {
+		astman_send_error(s, m, "Invalid interface, queuename, or ringinuse value\n");
+	} else {
+		astman_send_ack(s, m, "Interface ringinuse set successfully");
+	}
+
+	return 0;
+}
+
 static int manager_queue_member_penalty(struct mansession *s, const struct message *m)
 {
 	const char *queuename, *interface, *penalty_s;
@@ -8087,7 +8225,7 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
  
 	penalty = atoi(penalty_s);
 
-	if (set_member_penalty((char *)queuename, (char *)interface, penalty)) {
+	if (set_member_value((char *)queuename, (char *)interface, MEMBER_PENALTY, penalty)) {
 		astman_send_error(s, m, "Invalid interface, queuename or penalty");
 	} else {
 		astman_send_ack(s, m, "Interface penalty set successfully");
@@ -8353,9 +8491,9 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 	}
 }
 
-static char *complete_queue_set_member_penalty(const char *line, const char *word, int pos, int state)
+static char *complete_queue_set_member_value(const char *line, const char *word, int pos, int state)
 {
-	/* 0 - queue; 1 - set; 2 - penalty; 3 - <penalty>; 4 - on; 5 - <member>; 6 - in; 7 - <queue>;*/
+	/* 0 - queue; 1 - set; 2 - penalty/ringinuse; 3 - <value>; 4 - on; 5 - <member>; 6 - in; 7 - <queue>;*/
 	switch (pos) {
 	case 4:
 		if (state == 0) {
@@ -8375,7 +8513,64 @@ static char *complete_queue_set_member_penalty(const char *line, const char *wor
 		return NULL;
 	}
 }
- 
+
+static char *handle_queue_set_member_ringinuse(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *queuename = NULL, *interface;
+	int ringinuse;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue set ringinuse";
+		e->usage =
+		"Usage: queue set ringinuse <yes/no> on <interface> [in <queue>]\n"
+		"	Set a member's ringinuse in the queue specified. If no queue is specified\n"
+		"	then that interface's penalty is set in all queues to which that interface is a member.\n";
+		break;
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_set_member_value(a->line, a->word, a->pos, a->n);
+	}
+
+	/* Sensible argument counts */
+	if (a->argc != 6 && a->argc != 8) {
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Uses proper indicational words */
+	if (strcmp(a->argv[4], "on") || (a->argc > 6 && strcmp(a->argv[6], "in"))) {
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Set the queue name if applicale */
+	if (a->argc == 8) {
+		queuename = a->argv[7];
+	}
+
+	/* Interface being set */
+	interface = a->argv[5];
+
+	/* Check and set the ringinuse value */
+	if (ast_true(a->argv[3])) {
+		ringinuse = 1;
+	} else if (ast_false(a->argv[3])) {
+		ringinuse = 0;
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	switch (set_member_value(queuename, interface, MEMBER_RINGINUSE, ringinuse)) {
+	case RESULT_SUCCESS:
+		ast_cli(a->fd, "Set ringinuse on interface '%s' from queue '%s'\n", interface, queuename);
+		return CLI_SUCCESS;
+	case RESULT_FAILURE:
+		ast_cli(a->fd, "Failed to set ringinuse on interface '%s' from queue '%s'\n", interface, queuename);
+		return CLI_FAILURE;
+	default:
+		return CLI_FAILURE;
+	}
+}
+
 static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *queuename = NULL, *interface;
@@ -8390,7 +8585,7 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 		"	then that interface's penalty is set in all queues to which that interface is a member\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_queue_set_member_penalty(a->line, a->word, a->pos, a->n);
+		return complete_queue_set_member_value(a->line, a->word, a->pos, a->n);
 	}
 
 	if (a->argc != 6 && a->argc != 8) {
@@ -8405,7 +8600,7 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 	interface = a->argv[5];
 	penalty = atoi(a->argv[3]);
 
-	switch (set_member_penalty(queuename, interface, penalty)) {
+	switch (set_member_value(queuename, interface, MEMBER_PENALTY, penalty)) {
 	case RESULT_SUCCESS:
 		ast_cli(a->fd, "Set penalty on interface '%s' from queue '%s'\n", interface, queuename);
 		return CLI_SUCCESS;
@@ -8586,6 +8781,7 @@ static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(handle_queue_remove_member, "Removes a channel from a specified queue"),
 	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
 	AST_CLI_DEFINE(handle_queue_set_member_penalty, "Set penalty for a channel of a specified queue"),
+	AST_CLI_DEFINE(handle_queue_set_member_ringinuse, "Set ringinuse for a channel of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
 	AST_CLI_DEFINE(handle_queue_reload, "Reload queues, members, queue rules, or parameters"),
 	AST_CLI_DEFINE(handle_queue_reset, "Reset statistics for a queue"),
@@ -8914,6 +9110,7 @@ static int load_module(void)
 {
 	int res;
 	struct ast_flags mask = {AST_FLAGS_ALL, };
+	struct ast_config *member_config;
 
 	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
 
@@ -8942,6 +9139,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member);
 	res |= ast_manager_register_xml("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom);
 	res |= ast_manager_register_xml("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty);
+	res |= ast_manager_register_xml("QueueMemberRingInUse", EVENT_FLAG_AGENT, manager_queue_member_ringinuse);
 	res |= ast_manager_register_xml("QueueRule", 0, manager_queue_rule_show);
 	res |= ast_manager_register_xml("QueueReload", 0, manager_queue_reload);
 	res |= ast_manager_register_xml("QueueReset", 0, manager_queue_reset);
@@ -8965,6 +9163,29 @@ static int load_module(void)
 	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
 
 	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
+
+	/*
+	 * This section is used to determine which name for 'ringinuse' to use in realtime members
+	 * Necessary for supporting older setups.
+	 */
+	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name LIKE", "%", SENTINEL);
+	if (!member_config) {
+		realtime_ringinuse_field = "ringinuse";
+	} else {
+		const char *config_val;
+		if ((config_val = ast_variable_retrieve(member_config, NULL, "ringinuse"))) {
+			ast_log(LOG_NOTICE, "ringinuse field entries found in queue_members table. Using 'ringinuse'\n");
+			realtime_ringinuse_field = "ringinuse";
+		} else if ((config_val = ast_variable_retrieve(member_config, NULL, "ignorebusy"))) {
+			ast_log(LOG_NOTICE, "ignorebusy field found in queue_members table with no ringinuse field. Using 'ignorebusy'\n");
+			realtime_ringinuse_field = "ignorebusy";
+		} else {
+			ast_log(LOG_NOTICE, "No entries were found for ringinuse/ignorebusy in queue_members table. Using 'ringinuse'\n");
+			realtime_ringinuse_field = "ringinuse";
+		}
+	}
+
+	ast_config_destroy(member_config);
 
 	return res ? AST_MODULE_LOAD_DECLINE : 0;
 }
