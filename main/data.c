@@ -1042,6 +1042,7 @@ static int data_search_cmp_ptr(const struct ast_data_search *root, const char *n
 	cmp_type = child->cmp_type;
 
 	if (sscanf(child->value, "%p", &node_ptr) <= 0) {
+		ao2_ref(child, -1);
 		return 1;
 	}
 
@@ -2186,6 +2187,7 @@ struct ast_xml_doc *ast_data_get_xml(const struct ast_data_query *query)
 
 	doc = ast_xml_new();
 	if (!doc) {
+		ast_data_free(res);
 		return NULL;
 	}
 

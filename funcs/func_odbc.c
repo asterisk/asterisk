@@ -539,6 +539,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 			ast_autoservice_stop(chan);
 		}
+		ast_free(resultset);
 		return -1;
 	}
 
@@ -553,6 +554,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 			ast_autoservice_stop(chan);
 		}
+		ast_free(resultset);
 		return -1;
 	}
 
@@ -578,6 +580,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 			ast_autoservice_stop(chan);
 		}
+		ast_free(resultset);
 		return res1;
 	}
 

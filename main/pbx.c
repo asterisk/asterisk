@@ -7511,6 +7511,8 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 
 				if (!new) {
 					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
+					ast_hashtab_end_traversal(prio_iter);
+					ast_hashtab_end_traversal(exten_iter);
 					return; /* no sense continuing. */
 				}
 				/* we will not replace existing entries in the new context with stuff from the old context.
@@ -8236,6 +8238,7 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 		if (!strcasecmp(ignorepatc->pattern, value)) {
 			/* Already there */
 			ast_unlock_context(con);
+			ast_free(ignorepat);
 			errno = EEXIST;
 			return -1;
 		}

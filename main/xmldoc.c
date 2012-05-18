@@ -1666,6 +1666,7 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 		ast_str_append(buffer, 0, "\n");
 		ast_xml_free_attr(optname);
 		ast_xml_free_attr(hasparams);
+		ast_free(optionsyntax);
 	}
 }
 
@@ -1740,12 +1741,14 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 	char *retstr = NULL;
 
 	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		ast_free(ret);
 		return NULL;
 	}
 
 	node = xmldoc_get_node(type, name, module, documentation_language);
 
 	if (!node || !ast_xml_node_get_children(node)) {
+		ast_free(ret);
 		return NULL;
 	}
 
@@ -1758,6 +1761,7 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 
 	if (!node || !ast_xml_node_get_children(node)) {
 		/* We couldn't find the syntax node. */
+		ast_free(ret);
 		return NULL;
 	}
 

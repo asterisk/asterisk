@@ -433,9 +433,8 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 		return -1;
 	}
 	if (!(body = ast_str_create(512)) ||
-		!(subdir = ast_str_create(32)) ||
-		!(response = ast_str_create(512))) {
-		ast_log(LOG_ERROR, "Could not allocate memory for request and response!\n");
+		!(subdir = ast_str_create(32))) {
+		ast_log(LOG_ERROR, "Could not allocate memory for request!\n");
 		goto write_cleanup;
 	}
 

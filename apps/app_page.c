@@ -270,6 +270,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		/* Append technology and resource */
 		if (ast_dial_append(dial, tech, resource) == -1) {
 			ast_log(LOG_ERROR, "Failed to add %s to outbound dial\n", tech);
+			ast_dial_destroy(dial);
 			continue;
 		}
 

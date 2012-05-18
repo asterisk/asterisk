@@ -415,12 +415,14 @@ static int record_exec(struct ast_channel *chan, const char *data)
 out:
 	if ((silence > 0) && rfmt.id) {
 		res = ast_set_read_format(chan, &rfmt);
-		if (res)
+		if (res) {
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(chan));
-		if (sildet)
-			ast_dsp_free(sildet);
+		}
 	}
 
+	if (sildet) {
+		ast_dsp_free(sildet);
+	}
 	return res;
 }
 

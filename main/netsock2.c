@@ -270,6 +270,10 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 		res_cnt++;
 	}
 
+	if (res_cnt == 0) {
+		goto cleanup;
+	}
+
 	if ((*addrs = ast_malloc(res_cnt * sizeof(struct ast_sockaddr))) == NULL) {
 		res_cnt = 0;
 		goto cleanup;

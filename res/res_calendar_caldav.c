@@ -188,9 +188,8 @@ static int caldav_write_event(struct ast_calendar_event *event)
 		return -1;
 	}
 	if (!(body = ast_str_create(512)) ||
-		!(subdir = ast_str_create(32)) ||
-		!(response = ast_str_create(512))) {
-		ast_log(LOG_ERROR, "Could not allocate memory for request and response!\n");
+		!(subdir = ast_str_create(32))) {
+		ast_log(LOG_ERROR, "Could not allocate memory for request!\n");
 		goto write_cleanup;
 	}
 
@@ -417,10 +416,12 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 			return;
 		}
 		data = icalproperty_get_attendee(prop);
-		if (!ast_strlen_zero(data)) {
-			attendee->data = ast_strdup(data);;
-			AST_LIST_INSERT_TAIL(&event->attendees, attendee, next);
+		if (ast_strlen_zero(data)) {
+			ast_free(attendee);
+			continue;
 		}
+		attendee->data = ast_strdup(data);
+		AST_LIST_INSERT_TAIL(&event->attendees, attendee, next);
 	}
 
 

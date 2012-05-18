@@ -2350,8 +2350,10 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 		max_equal = i;
 	}
 
-	if (!(retstr = ast_malloc(max_equal + 1)))
+	if (!(retstr = ast_malloc(max_equal + 1))) {
+		ast_free(match_list);
 		return NULL;
+	}
 
 	ast_copy_string(retstr, match_list[1], max_equal + 1);
 	match_list[0] = retstr;

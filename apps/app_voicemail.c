@@ -11728,16 +11728,22 @@ static int handle_subscribe(void *datap)
 static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
 {
 	uint32_t u, *uniqueid = ast_calloc(1, sizeof(*uniqueid));
-	if (ast_event_get_type(event) != AST_EVENT_UNSUB)
-		return;
-
-	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
-		return;
 
 	if (!uniqueid) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for uniqueid\n");
 		return;
 	}
+
+	if (ast_event_get_type(event) != AST_EVENT_UNSUB) {
+		ast_free(uniqueid);
+		return;
+	}
+
+	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI) {
+		ast_free(uniqueid);
+		return;
+	}
+
 	u = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
 	*uniqueid = u;
 	if (ast_taskprocessor_push(mwi_subscription_tps, handle_unsubscribe, uniqueid) < 0) {
@@ -12728,8 +12734,10 @@ static void read_password_from_file(const char *secretfn, char *password, int pa
 		const char *val = ast_variable_retrieve(pwconf, "general", "password");
 		if (val) {
 			ast_copy_string(password, val, passwordlen);
- 			return;
+			ast_config_destroy(pwconf);
+			return;
 		}
+		ast_config_destroy(pwconf);
 	}
 	ast_log(LOG_NOTICE, "Failed reading voicemail password from %s, using secret from config file\n", secretfn);
 }
@@ -12738,26 +12746,33 @@ static int write_password_to_file(const char *secretfn, const char *password) {
 	struct ast_config *conf;
 	struct ast_category *cat;
 	struct ast_variable *var;
+	int res = -1;
 
-	if (!(conf=ast_config_new())) {
+	if (!(conf = ast_config_new())) {
 		ast_log(LOG_ERROR, "Error creating new config structure\n");
-		return -1;
+		return res;
 	}
-	if (!(cat=ast_category_new("general","",1))) {
+	if (!(cat = ast_category_new("general", "", 1))) {
 		ast_log(LOG_ERROR, "Error creating new category structure\n");
-		return -1;
+		ast_config_destroy(conf);
+		return res;
 	}
-	if (!(var=ast_variable_new("password",password,""))) {
+	if (!(var = ast_variable_new("password", password, ""))) {
 		ast_log(LOG_ERROR, "Error creating new variable structure\n");
-		return -1;
+		ast_config_destroy(conf);
+		ast_category_destroy(cat);
+		return res;
 	}
-	ast_category_append(conf,cat);
-	ast_variable_append(cat,var);
-	if (ast_config_text_file_save(secretfn, conf, "app_voicemail")) {
+	ast_category_append(conf, cat);
+	ast_variable_append(cat, var);
+	if (!ast_config_text_file_save(secretfn, conf, "app_voicemail")) {
+		res = 0;
+	} else {
 		ast_log(LOG_ERROR, "Error writing voicemail password to %s\n", secretfn);
-		return -1;
 	}
-	return 0;
+
+	ast_config_destroy(conf);
+	return res;
 }
 
 static int vmsayname_exec(struct ast_channel *chan, const char *data)

@@ -597,6 +597,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		ast_test_status_update(test, "Test 13, add domain port failed.\n");
 		res = AST_TEST_FAIL;
 	}
+	ast_string_field_free_memory(reg);
+	ast_free(reg);
 
 	/* ---Test reg14, domain port without secret --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
@@ -623,7 +625,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 
 		ast_test_status_update(test, "Test 14, domain port without secret failed.\n");
 		res = AST_TEST_FAIL;
-}
+	}
+	ast_string_field_free_memory(reg);
+	ast_free(reg);
 
 
 	return res;

@@ -1255,6 +1255,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 	if (ast_strlen_zero(email)) {
 		ast_log(LOG_WARNING, "No address to send message to.\n");
+		ast_free(str1);
+		ast_free(str2);
 		return -1;	
 	}
 
@@ -1309,11 +1311,15 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to open temporary file '%s'\n", tmp);
+		ast_free(str1);
+		ast_free(str2);
 		return -1;
 	}
 	/* Allocate channel used for chanvar substitution */
 	ast = ast_dummy_channel_alloc();
 	if (!ast) {
+		ast_free(str1);
+		ast_free(str2);
 		return -1;
 	}
 

@@ -1491,6 +1491,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 
 			if (unchanged) {
 				AST_LIST_UNLOCK(&cfmtime_head);
+				ast_free(comment_buffer);
+				ast_free(lline_buffer);
 				return CONFIG_STATUS_FILEUNCHANGED;
 			}
 		}
@@ -1643,7 +1645,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 #endif
 
-	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+	if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
 		ast_free(comment_buffer);
 		ast_free(lline_buffer);
 		comment_buffer = NULL;
