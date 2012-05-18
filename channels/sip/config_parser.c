@@ -530,60 +530,6 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	ast_string_field_free_memory(reg);
 	ast_free(reg);
 
-	/* ---Test reg12, add domain port --- */
-	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
-		goto alloc_fail;
-	} else if (
-	   sip_parse_register_line(reg, default_expiry, reg12, 1) ||
-		strcmp(reg->callback, "s")           ||
-		strcmp(reg->username, "name") ||
-		strcmp(reg->regdomain, "namedomain") ||
-		strcmp(reg->hostname, "domain")     ||
-		strcmp(reg->authuser, "authuser")           ||
-		strcmp(reg->secret, "pass")         ||
-		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
-		reg->timeout != -1                  ||
-		reg->expire != -1                   ||
-		reg->refresh != default_expiry ||
-		reg->expiry != default_expiry ||
-		reg->configured_expiry != default_expiry ||
-		reg->portno != STANDARD_SIP_PORT    ||
-		reg->regdomainport != 4321          ||
-		reg->callid_valid != FALSE          ||
-		reg->ocseq != INITIAL_CSEQ) {
-
-		ast_test_status_update(test, "Test 12, add domain port failed.\n");
-		res = AST_TEST_FAIL;
-	}
-
-	/* ---Test reg13, domain port without secret --- */
-	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
-		goto alloc_fail;
-	} else if (
-	   sip_parse_register_line(reg, default_expiry, reg13, 1) ||
-		strcmp(reg->callback, "s")           ||
-		strcmp(reg->username, "name") ||
-		strcmp(reg->regdomain, "namedomain") ||
-		strcmp(reg->hostname, "domain")     ||
-		strcmp(reg->authuser, "")           ||
-		strcmp(reg->secret, "")         ||
-		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
-		reg->timeout != -1                  ||
-		reg->expire != -1                   ||
-		reg->refresh != default_expiry ||
-		reg->expiry != default_expiry ||
-		reg->configured_expiry != default_expiry ||
-		reg->portno != STANDARD_SIP_PORT    ||
-		reg->regdomainport != 4321          ||
-		reg->callid_valid != FALSE          ||
-		reg->ocseq != INITIAL_CSEQ) {
-
-		ast_test_status_update(test, "Test 13, domain port without secret failed.\n");
-		res = AST_TEST_FAIL;
-}
-
 	/* ---Test reg 9, missing domain, expected to fail --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
@@ -613,17 +559,71 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		res = AST_TEST_FAIL;
 	}
 
-	/* ---Test reg 11,  no registry line, expected to fail --- */
+	/* ---Test reg 12,  no registry line, expected to fail --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (!sip_parse_register_line(reg, default_expiry, NULL, 1)) {
 
 		ast_test_status_update(test,
-				"Test 11, NULL register line expected to fail but did not.\n");
+				"Test 12, NULL register line expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
 	ast_free(reg);
+
+	/* ---Test reg13, add domain port --- */
+	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
+		goto alloc_fail;
+	} else if (
+	   sip_parse_register_line(reg, default_expiry, reg12, 1) ||
+		strcmp(reg->callback, "s")           ||
+		strcmp(reg->username, "name") ||
+		strcmp(reg->regdomain, "namedomain") ||
+		strcmp(reg->hostname, "domain")     ||
+		strcmp(reg->authuser, "authuser")           ||
+		strcmp(reg->secret, "pass")         ||
+		strcmp(reg->peername, "")           ||
+		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->timeout != -1                  ||
+		reg->expire != -1                   ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
+		reg->portno != STANDARD_SIP_PORT    ||
+		reg->regdomainport != 4321          ||
+		reg->callid_valid != FALSE          ||
+		reg->ocseq != INITIAL_CSEQ) {
+
+		ast_test_status_update(test, "Test 13, add domain port failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* ---Test reg14, domain port without secret --- */
+	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
+		goto alloc_fail;
+	} else if (
+	   sip_parse_register_line(reg, default_expiry, reg13, 1) ||
+		strcmp(reg->callback, "s")           ||
+		strcmp(reg->username, "name") ||
+		strcmp(reg->regdomain, "namedomain") ||
+		strcmp(reg->hostname, "domain")     ||
+		strcmp(reg->authuser, "")           ||
+		strcmp(reg->secret, "")         ||
+		strcmp(reg->peername, "")           ||
+		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->timeout != -1                  ||
+		reg->expire != -1                   ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
+		reg->portno != STANDARD_SIP_PORT    ||
+		reg->regdomainport != 4321          ||
+		reg->callid_valid != FALSE          ||
+		reg->ocseq != INITIAL_CSEQ) {
+
+		ast_test_status_update(test, "Test 14, domain port without secret failed.\n");
+		res = AST_TEST_FAIL;
+}
 
 
 	return res;
