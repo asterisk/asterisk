@@ -9321,6 +9321,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			} else if (p->dialtone_detect && !p->outgoing && f->frametype == AST_FRAME_VOICE) {
 				if ((ast_dsp_get_tstate(p->dsp) == DSP_TONE_STATE_DIALTONE) && (ast_dsp_get_tcount(p->dsp) > 9)) {
 					/* Dialtone detected on inbound call; hangup the channel */
+					ast_frfree(f);
 					f = NULL;
 				}
 			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
