@@ -6113,6 +6113,9 @@ int ast_say_date_with_format_zh(struct ast_channel *chan, time_t t, const char *
 				if (tm.tm_hour < 10) {
 					res = wait_file(chan, ints, "digits/0", lang);
 				}
+				/* XXX Static analysis warns of no break here. No idea if this is
+				 * correct or not
+				 */
 			case 'k':
 				/* 24-Hour */
 				if (!(tm.tm_hour % 10) || tm.tm_hour < 10) {
