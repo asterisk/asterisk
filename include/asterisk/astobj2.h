@@ -581,7 +581,7 @@ struct ao2_global_obj {
  *
  * \details
  * This macro creates a global object holder that can be used to
- * hold an ao2 object accessible using an API.  The structure is
+ * hold an ao2 object accessible using the API.  The structure is
  * allocated and initialized to be empty.
  *
  * Example usage:
