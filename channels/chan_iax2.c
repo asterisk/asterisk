@@ -5671,7 +5671,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
 		res = -1;
-		break;
+		goto done;
 	}
 
 	res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
