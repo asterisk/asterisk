@@ -1313,44 +1313,51 @@ int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 int ast_queue_hangup(struct ast_channel *chan)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
+	int res;
+
 	/* Yeah, let's not change a lock-critical value without locking */
-	if (!ast_channel_trylock(chan)) {
-		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
-		manager_event(EVENT_FLAG_CALL, "HangupRequest",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan));
-		ast_channel_unlock(chan);
-	}
-	return ast_queue_frame(chan, &f);
+	ast_channel_lock(chan);
+	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
+
+	manager_event(EVENT_FLAG_CALL, "HangupRequest",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan));
+
+	res = ast_queue_frame(chan, &f);
+	ast_channel_unlock(chan);
+	return res;
 }
 
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
+	int res;
 
-	if (cause >= 0)
+	if (cause >= 0) {
 		f.data.uint32 = cause;
-
-	/* Yeah, let's not change a lock-critical value without locking */
-	if (!ast_channel_trylock(chan)) {
-		ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
-		if (cause < 0)
-			f.data.uint32 = ast_channel_hangupcause(chan);
-
-		manager_event(EVENT_FLAG_CALL, "HangupRequest",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Cause: %d\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			cause);
-		ast_channel_unlock(chan);
 	}
 
-	return ast_queue_frame(chan, &f);
+	/* Yeah, let's not change a lock-critical value without locking */
+	ast_channel_lock(chan);
+	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
+	if (cause < 0) {
+		f.data.uint32 = ast_channel_hangupcause(chan);
+	}
+
+	manager_event(EVENT_FLAG_CALL, "HangupRequest",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Cause: %d\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan),
+		cause);
+
+	res = ast_queue_frame(chan, &f);
+	ast_channel_unlock(chan);
+	return res;
 }
 
 /*! \brief Queue a control frame */
