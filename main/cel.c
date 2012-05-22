@@ -470,6 +470,31 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	return tchan;
 }
 
+int ast_cel_linkedid_ref(const char *linkedid)
+{
+	char *lid;
+
+	if (ast_strlen_zero(linkedid)) {
+		ast_log(LOG_ERROR, "The linkedid should never be empty\n");
+		return -1;
+	}
+
+	if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
+		if (!(lid = ao2_alloc(strlen(linkedid) + 1, NULL))) {
+			return -1;
+		}
+		strcpy(lid, linkedid);
+		if (!ao2_link(linkedids, lid)) {
+			ao2_ref(lid, -1);
+			return -1;
+		}
+		/* Leave both the link and the alloc refs to show a count of 1 + the link */
+	}
+	/* If we've found, go ahead and keep the ref to increment count of how many channels
+	 * have this linkedid. We'll clean it up in check_retire */
+	return 0;
+}
+
 int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event_type,
 		const char *userdefevname, const char *extra, struct ast_channel *peer2)
 {
@@ -487,22 +512,10 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
 	if (cel_enabled && ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
-		char *lid;
-		if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
-			if (!(lid = ao2_alloc(strlen(linkedid) + 1, NULL))) {
-				ast_mutex_unlock(&reload_lock);
-				return -1;
-			}
-			strcpy(lid, linkedid);
-			if (!ao2_link(linkedids, lid)) {
-				ao2_ref(lid, -1);
-				ast_mutex_unlock(&reload_lock);
-				return -1;
-			}
-			/* Leave both the link and the alloc refs to show a count of 1 + the link */
+		if (ast_cel_linkedid_ref(linkedid)) {
+			ast_mutex_unlock(&reload_lock);
+			return -1;
 		}
-		/* If we've found, go ahead and keep the ref to increment count of how many channels
-		 * have this linkedid. We'll clean it up in check_retire */
 	}
 
 	if (!cel_enabled || !ast_cel_track_event(event_type)) {

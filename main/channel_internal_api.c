@@ -423,7 +423,6 @@ DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount);
 DEFINE_STRINGFIELD_SETTERS_FOR(userfield);
 DEFINE_STRINGFIELD_SETTERS_FOR(call_forward);
 DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid);
-DEFINE_STRINGFIELD_SETTERS_FOR(linkedid);
 DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot);
 DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource);
 DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext);
@@ -445,6 +444,12 @@ DEFINE_STRINGFIELD_GETTER_FOR(linkedid);
 DEFINE_STRINGFIELD_GETTER_FOR(parkinglot);
 DEFINE_STRINGFIELD_GETTER_FOR(hangupsource);
 DEFINE_STRINGFIELD_GETTER_FOR(dialcontext);
+
+void ast_channel_linkedid_set(struct ast_channel *chan, const char *value)
+{
+	ast_assert(!ast_strlen_zero(value));
+	ast_string_field_set(chan, linkedid, value);
+}
 
 const char *ast_channel_appl(const struct ast_channel *chan)
 {
