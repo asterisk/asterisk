@@ -1694,7 +1694,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 		for (;;) {
 			time(&e);
 			/* Wait up to 15 seconds for all channels to go away */
-			if ((e - s) > 15 || !ast_active_channels() || shuttingdown != niceness) {
+			if ((e - s) > 15 || !ast_undestroyed_channels() || shuttingdown != niceness) {
 				break;
 			}
 			/* Sleep 1/10 of a second */
@@ -1708,7 +1708,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 			ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 		}
 		for (;;) {
-			if (!ast_active_channels() || shuttingdown != niceness) {
+			if (!ast_undestroyed_channels() || shuttingdown != niceness) {
 				break;
 			}
 			sleep(1);
