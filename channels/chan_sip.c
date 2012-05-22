@@ -12926,13 +12926,14 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	/* If we have no DNS manager let's do a lookup */
 	if (!mwi->dnsmgr) {
 		char transport[MAXHOSTNAMELEN];
+		struct sip_subscription_mwi *saved;
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(mwi->transport), get_srv_protocol(mwi->transport));
 
 		mwi->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
-		ASTOBJ_REF(mwi); /* Add a ref for storing the mwi on the dnsmgr for updates */
-		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, mwi);
+		saved = ASTOBJ_REF(mwi);
+		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, saved);
 		if (!mwi->dnsmgr) {
-			ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy); /* dnsmgr disabled, remove reference */
+			ASTOBJ_UNREF(saved, sip_subscribe_mwi_destroy); /* dnsmgr disabled, remove reference */
 		}
 	}
 
@@ -30932,10 +30933,12 @@ static void sip_send_all_registers(void)
 static void sip_send_all_mwi_subscriptions(void)
 {
 	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+		struct sip_subscription_mwi *saved;
 		ASTOBJ_WRLOCK(iterator);
 		AST_SCHED_DEL(sched, iterator->resub);
-		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, ASTOBJ_REF(iterator))) < 0) {
-			ASTOBJ_UNREF(iterator, sip_subscribe_mwi_destroy);
+		saved = ASTOBJ_REF(iterator);
+		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, saved)) < 0) {
+			ASTOBJ_UNREF(saved, sip_subscribe_mwi_destroy);
 		}
 		ASTOBJ_UNLOCK(iterator);
 	} while (0));
