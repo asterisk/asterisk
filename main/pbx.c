@@ -5105,6 +5105,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	int autoloopflag;
 	int error = 0;		/* set an error conditions */
 	struct ast_pbx *pbx;
+	struct ast_callid *callid;
 
 	/* A little initial setup here */
 	if (ast_channel_pbx(c)) {
@@ -5116,17 +5117,24 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		return -1;
 	}
 
-	if (!ast_read_threadstorage_callid()) {
+	callid = ast_read_threadstorage_callid();
+	/* If the thread isn't already associated with a callid, we should create that association. */
+	if (!callid) {
 		/* Associate new PBX thread with the channel call id if it is availble.
 		 * If not, create a new one instead.
 		 */
-		struct ast_callid *callid;
-		if (!(callid = ast_channel_callid(c))) {
+		callid = ast_channel_callid(c);
+		if (!callid) {
 			callid = ast_create_callid();
+			if (callid) {
+				ast_channel_callid_set(c, callid);
+			}
 		}
 		ast_callid_threadassoc_add(callid);
-		ast_channel_callid_set(c, callid);
 		callid = ast_callid_unref(callid);
+	} else {
+		/* Nothing to do here, The thread is already bound to a callid.  Let's just get rid of the reference. */
+		ast_callid_unref(callid);
 	}
 
 	ast_channel_pbx_set(c, pbx);
