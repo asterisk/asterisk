@@ -14736,6 +14736,20 @@ static void extract_host_from_hostport(char **hostport)
 	ast_sockaddr_split_hostport(*hostport, hostport, &dont_care, PARSE_PORT_IGNORE);
 }
 
+/*! \internal \brief Helper function to update a peer's lastmsgssent value
+ */
+static void update_peer_lastmsgssent(struct sip_peer *peer, int value, int locked)
+{
+	if (!locked) {
+		ao2_lock(peer);
+	}
+	peer->lastmsgssent = value;
+	if (!locked) {
+		ao2_unlock(peer);
+	}
+}
+
+
 /*! \brief Verify registration of user
 	- Registration is done in several steps, first a REGISTER without auth
 	  to get a challenge (nonce) then a second one with auth
@@ -14749,6 +14763,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	char tmp[256];
 	char *c, *name, *unused_password, *domain;
 	char *uri2 = ast_strdupa(uri);
+	int send_mwi = 0;
 
 	terminate_uri(uri2);
 
@@ -14852,19 +14867,16 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 					case PARSE_REGISTER_DENIED:
 						ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
 						transmit_response_with_date(p, "603 Denied", req);
-						peer->lastmsgssent = -1;
 						res = 0;
 						break;
 					case PARSE_REGISTER_FAILED:
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
 						transmit_response_with_date(p, "400 Bad Request", req);
-						peer->lastmsgssent = -1;
 						res = 0;
 						break;
 					case PARSE_REGISTER_QUERY:
 						ast_string_field_set(p, fullcontact, peer->fullcontact);
 						transmit_response_with_date(p, "200 OK", req);
-						peer->lastmsgssent = -1;
 						res = 0;
 						break;
 					case PARSE_REGISTER_UPDATE:
@@ -14872,8 +14884,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						update_peer(peer, p->expiry);
 						/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
-						if (!ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY))
-							peer->lastmsgssent = -1;
+						send_mwi = 1;
 						res = 0;
 						break;
 					}
@@ -14898,19 +14909,17 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			case PARSE_REGISTER_DENIED:
 				ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
 				transmit_response_with_date(p, "403 Forbidden (ACL)", req);
-				peer->lastmsgssent = -1;
 				res = 0;
 				break;
 			case PARSE_REGISTER_FAILED:
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
 				transmit_response_with_date(p, "400 Bad Request", req);
-				peer->lastmsgssent = -1;
 				res = 0;
 				break;
 			case PARSE_REGISTER_QUERY:
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
 				transmit_response_with_date(p, "200 OK", req);
-				peer->lastmsgssent = -1;
+				send_mwi = 1;
 				res = 0;
 				break;
 			case PARSE_REGISTER_UPDATE:
@@ -14918,7 +14927,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name, ast_sockaddr_stringify(addr));
-				peer->lastmsgssent = -1;
+				send_mwi = 1;
 				res = 0;
 				break;
 			}
@@ -14926,6 +14935,11 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		}
 	}
 	if (!res) {
+		if (send_mwi) {
+			sip_send_mwi_to_peer(peer, 0);
+		} else {
+			update_peer_lastmsgssent(peer, -1, 0);
+		}
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
@@ -25649,12 +25663,14 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	}
 
 	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt) {
+		update_peer_lastmsgssent(peer, -1, 1);
 		ao2_unlock(peer);
 		return 0;
 	}
 
 	/* Do we have an IP address? If not, skip this peer */
 	if (ast_sockaddr_isnull(&peer->addr) && ast_sockaddr_isnull(&peer->defaddr)) {
+		update_peer_lastmsgssent(peer, -1, 1);
 		ao2_unlock(peer);
 		return 0;
 	}
@@ -25665,6 +25681,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ao2_unlock(peer);
+		/* If there is no mailbox do nothing */
+		if (ast_strlen_zero(mailbox_str->str)) {
+			update_peer_lastmsgssent(peer, -1, 0);
+			return 0;
+		}
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
 		ao2_lock(peer);
 	}
@@ -25677,6 +25698,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		ao2_unlock(peer);
 		/* Build temporary dialog for this message */
 		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
+			update_peer_lastmsgssent(peer, -1, 0);
 			return -1;
 		}
 
@@ -25689,7 +25711,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p);
 			dialog_unref(p, "unref dialog p just created via sip_alloc");
-			/* sip_destroy(p); */
+			update_peer_lastmsgssent(peer, -1, 0);
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
@@ -25721,6 +25743,8 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	transmit_notify_with_mwi(p, newmsgs, oldmsgs, vmexten);
 	sip_pvt_unlock(p);
 	dialog_unref(p, "unref dialog ptr p just before it goes out of scope at the end of sip_send_mwi_to_peer.");
+
+	update_peer_lastmsgssent(peer, ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs)), 0);
 
 	return 0;
 }
