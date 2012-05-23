@@ -9675,7 +9675,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&flags, WAITEXTEN_MOH) && !opts[0] ) {
 		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n"); 
 	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
-		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL), strlen(opts[0]));
+		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL),
+			!ast_strlen_zero(opts[0]) ? strlen(opts[0]) + 1 : 0);
 	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {
 		struct ast_tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
 		if (ts) {
