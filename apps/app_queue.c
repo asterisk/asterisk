@@ -983,7 +983,6 @@ struct callattempt {
 	struct callattempt *call_next;
 	struct ast_channel *chan;
 	char interface[256];
-	int stillgoing;
 	int metric;
 	time_t lastcall;
 	struct call_queue *lastqueue;
@@ -992,8 +991,12 @@ struct callattempt {
 	struct ast_party_connected_line connected;
 	/*! TRUE if an AST_CONTROL_CONNECTED_LINE update was saved to the connected element. */
 	unsigned int pending_connected_update:1;
+	/*! TRUE if the connected line update is blocked. */
+	unsigned int block_connected_update:1;
 	/*! TRUE if caller id is not available for connected line */
 	unsigned int dial_callerid_absent:1;
+	/*! TRUE if the call is still active */
+	unsigned int stillgoing:1;
 	struct ast_aoc_decoded *aoc_s_rate_list;
 };
 
@@ -3425,15 +3428,13 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
  * \param[in] prebusies number of busy members calculated prior to calling wait_for_answer
  * \param[in] caller_disconnect if the 'H' option is used when calling Queue(), this is used to detect if the caller pressed * to disconnect the call
  * \param[in] forwardsallowed used to detect if we should allow call forwarding, based on the 'i' option to Queue()
- * \param[in] update_connectedline Allow connected line and redirecting updates to pass through.
  *
  * \todo eventually all call forward logic should be intergerated into and replaced by ast_call_forward()
  */
-static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed, int update_connectedline)
+static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
 {
 	const char *queue = qe->parent->name;
 	struct callattempt *o, *start = NULL, *prev = NULL;
-	int res;
 	int status;
 	int numbusies = prebusies;
 	int numnochan = 0;
@@ -3514,10 +3515,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 		/* Service all of the outgoing channels */
 		for (o = start; o; o = o->call_next) {
-			/* We go with a static buffer here instead of using ast_strdupa. Using
+			/* We go with a fixed buffer here instead of using ast_strdupa. Using
 			 * ast_strdupa in a loop like this one can cause a stack overflow
 			 */
 			char ochan_name[AST_CHANNEL_NAME];
+
 			if (o->chan) {
 				ast_channel_lock(o->chan);
 				ast_copy_string(ochan_name, o->chan->name, sizeof(ochan_name));
@@ -3526,7 +3528,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
-					if (update_connectedline) {
+					if (!o->block_connected_update) {
 						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 								ast_channel_update_connected_line(in, &o->connected, NULL);
@@ -3557,6 +3559,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_copy_string(on, o->member->interface, sizeof(on));
 				ast_copy_string(membername, o->member->membername, sizeof(membername));
 
+				/* Before processing channel, go ahead and check for forwarding */
 				if (!ast_strlen_zero(o->chan->call_forward) && !forwardsallowed) {
 					ast_verb(3, "Forwarding %s to '%s' prevented.\n", inchan_name, o->chan->call_forward);
 					numnochan++;
@@ -3578,10 +3581,17 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						stuff = tmpchan;
 						tech = "Local";
 					}
+					if (!strcasecmp(tech, "Local")) {
+						/*
+						 * Drop the connected line update block for local channels since
+						 * this is going to run dialplan and the user can change his
+						 * mind about what connected line information he wants to send.
+						 */
+						o->block_connected_update = 0;
+					}
 
 					ast_cel_report_event(in, AST_CEL_FORWARD, NULL, o->chan->call_forward, NULL);
 
-					/* Before processing channel, go ahead and check for forwarding */
 					ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", inchan_name, tech, stuff, ochan_name);
 					/* Setup parameters */
 					o->chan = ast_request(tech, in->nativeformats, in, stuff, &status);
@@ -3592,15 +3602,28 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
-						struct ast_party_redirecting redirecting;
+						ast_channel_lock_both(o->chan, original);
+						ast_party_redirecting_copy(&o->chan->redirecting, &original->redirecting);
+						ast_channel_unlock(o->chan);
+						ast_channel_unlock(original);
 
 						ast_channel_lock_both(o->chan, in);
 						ast_channel_inherit_variables(in, o->chan);
 						ast_channel_datastore_inherit(in, o->chan);
 
+						if (o->pending_connected_update) {
+							/*
+							 * Re-seed the callattempt's connected line information with
+							 * previously acquired connected line info from the queued
+							 * channel.  The previously acquired connected line info could
+							 * have been set through the CONNECTED_LINE dialplan function.
+							 */
+							o->pending_connected_update = 0;
+							ast_party_connected_line_copy(&o->connected, &in->connected);
+						}
+
 						ast_string_field_set(o->chan, accountcode, in->accountcode);
 
-						ast_channel_set_redirecting(o->chan, &original->redirecting, NULL);
 						if (!o->chan->redirecting.from.number.valid
 							|| ast_strlen_zero(o->chan->redirecting.from.number.str)) {
 							/*
@@ -3616,27 +3639,35 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 						o->chan->dialed.transit_network_select = in->dialed.transit_network_select;
 
-						ast_party_caller_copy(&o->chan->caller, &in->caller);
-						ast_party_connected_line_copy(&o->chan->connected, &original->connected);
+						o->dial_callerid_absent = !o->chan->caller.id.number.valid
+							|| ast_strlen_zero(o->chan->caller.id.number.str);
+						ast_connected_line_copy_from_caller(&o->chan->connected, &in->caller);
 
-						/*
-						 * We must unlock o->chan before calling
-						 * ast_channel_redirecting_macro, because we put o->chan into
-						 * autoservice there.  That is pretty much a guaranteed
-						 * deadlock.  This is why the handling of o->chan's lock may
-						 * seem a bit unusual here.
-						 */
-						ast_party_redirecting_init(&redirecting);
-						ast_party_redirecting_copy(&redirecting, &o->chan->redirecting);
-						ast_channel_unlock(o->chan);
-						res = ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0);
-						if (res) {
-							ast_channel_update_redirecting(in, &redirecting, NULL);
-						}
-						ast_party_redirecting_free(&redirecting);
 						ast_channel_unlock(in);
+						if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL
+							&& !o->block_connected_update) {
+							struct ast_party_redirecting redirecting;
 
-						update_connectedline = 1;
+							/*
+							 * Redirecting updates to the caller make sense only on single
+							 * call at a time strategies.
+							 *
+							 * We must unlock o->chan before calling
+							 * ast_channel_redirecting_macro, because we put o->chan into
+							 * autoservice there.  That is pretty much a guaranteed
+							 * deadlock.  This is why the handling of o->chan's lock may
+							 * seem a bit unusual here.
+							 */
+							ast_party_redirecting_init(&redirecting);
+							ast_party_redirecting_copy(&redirecting, &o->chan->redirecting);
+							ast_channel_unlock(o->chan);
+							if (ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0)) {
+								ast_channel_update_redirecting(in, &redirecting, NULL);
+							}
+							ast_party_redirecting_free(&redirecting);
+						} else {
+							ast_channel_unlock(o->chan);
+						}
 
 						if (ast_call(o->chan, stuff, 0)) {
 							ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
@@ -3657,7 +3688,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							/* This is our guy if someone answered. */
 							if (!peer) {
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
-								if (update_connectedline) {
+								if (!o->block_connected_update) {
 									if (o->pending_connected_update) {
 										if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 											ast_channel_update_connected_line(in, &o->connected, NULL);
@@ -3734,20 +3765,30 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							/* Ignore going off hook */
 							break;
 						case AST_CONTROL_CONNECTED_LINE:
-							if (!update_connectedline) {
+							if (o->block_connected_update) {
 								ast_verb(3, "Connected line update to %s prevented.\n", inchan_name);
-							} else if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
+								break;
+							}
+							if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
 								struct ast_party_connected_line connected;
+
 								ast_verb(3, "%s connected line has changed. Saving it until answer for %s\n", ochan_name, inchan_name);
 								ast_party_connected_line_set_init(&connected, &o->connected);
 								ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected);
 								ast_party_connected_line_set(&o->connected, &connected, NULL);
 								ast_party_connected_line_free(&connected);
 								o->pending_connected_update = 1;
-							} else {
-								if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
-									ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
-								}
+								break;
+							}
+
+							/*
+							 * Prevent using the CallerID from the outgoing channel since we
+							 * got a connected line update from it.
+							 */
+							o->dial_callerid_absent = 1;
+
+							if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
+								ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 							}
 							break;
 						case AST_CONTROL_AOC:
@@ -3762,13 +3803,22 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							}
 							break;
 						case AST_CONTROL_REDIRECTING:
-							if (!update_connectedline) {
-								ast_verb(3, "Redirecting update to %s prevented\n", inchan_name);
-							} else if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
-								ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ochan_name, inchan_name);
-								if (ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
-									ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
-								}
+							if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
+								/*
+								 * Redirecting updates to the caller make sense only on single
+								 * call at a time strategies.
+								 */
+								break;
+							}
+							if (o->block_connected_update) {
+								ast_verb(3, "Redirecting update to %s prevented\n",
+									inchan_name);
+								break;
+							}
+							ast_verb(3, "%s redirecting info has changed, passing it to %s\n",
+								ochan_name, inchan_name);
+							if (ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
+								ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
 							}
 							break;
 						default:
@@ -3807,6 +3857,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				}
 				return NULL;
 			}
+
+			/*!
+			 * \todo
+			 * XXX Queue like Dial really should send any connected line
+			 * updates (AST_CONTROL_CONNECTED_LINE) from the caller to each
+			 * ringing queue member.
+			 */
+
 			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
 				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
@@ -4345,7 +4403,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char *p;
 	char vars[2048];
 	int forwardsallowed = 1;
-	int update_connectedline = 1;
+	int block_connected_line = 0;
 	int callcompletedinsl;
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
@@ -4412,7 +4470,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			forwardsallowed = 0;
 			break;
 		case 'I':
-			update_connectedline = 0;
+			block_connected_line = 1;
 			break;
 		case 'x':
 			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMIXMON);
@@ -4512,17 +4570,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			AST_LIST_UNLOCK(dialed_interfaces);
 		}
 
-		ast_channel_lock(qe->chan);
 		/*
 		 * Seed the callattempt's connected line information with previously
 		 * acquired connected line info from the queued channel.  The
 		 * previously acquired connected line info could have been set
 		 * through the CONNECTED_LINE dialplan function.
 		 */
+		ast_channel_lock(qe->chan);
 		ast_party_connected_line_copy(&tmp->connected, &qe->chan->connected);
 		ast_channel_unlock(qe->chan);
 
-		tmp->stillgoing = -1;
+		tmp->block_connected_update = block_connected_line;
+		tmp->stillgoing = 1;
 		tmp->member = cur;/* Place the reference for cur into callattempt. */
 		tmp->lastcall = cur->lastcall;
 		tmp->lastqueue = cur->lastqueue;
@@ -4564,7 +4623,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	++qe->pending;
 	ao2_unlock(qe->parent);
 	ring_one(qe, outgoing, &numbusies);
-	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed, update_connectedline);
+	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies,
+		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
+		forwardsallowed);
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
 	 * the case, don't free the datastore here because later, when the channel
