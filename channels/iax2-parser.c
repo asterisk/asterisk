@@ -1168,51 +1168,60 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 
 struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheable)
 {
-	struct iax_frame *fr = NULL;
+	struct iax_frame *fr;
 
 #if !defined(LOW_MEMORY)
-	struct iax_frames *iax_frames = NULL;
-	struct iax_frame *smallest = NULL;
+	if (cacheable) {
+		struct iax_frames *iax_frames;
+		struct iax_frame *smallest;
 
-	/* Attempt to get a frame from this thread's cache */
-	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
-		smallest = AST_LIST_FIRST(&iax_frames->list);
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&iax_frames->list, fr, list) {
-			if (fr->afdatalen >= datalen) {
-				size_t afdatalen = fr->afdatalen;
-				AST_LIST_REMOVE_CURRENT(list);
-				iax_frames->size--;
-				memset(fr, 0, sizeof(*fr));
-				fr->afdatalen = afdatalen;
-				break;
-			} else if (smallest->afdatalen > fr->afdatalen) {
-				smallest = fr;
+		/* Attempt to get a frame from this thread's cache */
+		if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+			smallest = AST_LIST_FIRST(&iax_frames->list);
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&iax_frames->list, fr, list) {
+				if (fr->afdatalen >= datalen) {
+					size_t afdatalen = fr->afdatalen;
+					AST_LIST_REMOVE_CURRENT(list);
+					iax_frames->size--;
+					memset(fr, 0, sizeof(*fr));
+					fr->afdatalen = afdatalen;
+					break;
+				} else if (smallest->afdatalen > fr->afdatalen) {
+					smallest = fr;
+				}
 			}
-		}
-		AST_LIST_TRAVERSE_SAFE_END;
-	}
-	if (!fr) {
-		if (iax_frames && iax_frames->size >= FRAME_CACHE_MAX_SIZE && smallest) {
-			/* Make useless cache into something more useful */
-			AST_LIST_REMOVE(&iax_frames->list, smallest, list);
-			if (!(fr = ast_realloc(smallest, sizeof(*fr) + datalen))) {
-				AST_LIST_INSERT_TAIL(&iax_frames->list, smallest, list);
+			AST_LIST_TRAVERSE_SAFE_END;
+			if (!fr) {
+				if (iax_frames->size >= FRAME_CACHE_MAX_SIZE && smallest) {
+					/* Make useless cache into something more useful */
+					AST_LIST_REMOVE(&iax_frames->list, smallest, list);
+					iax_frames->size--;
+					ast_free(smallest);
+				}
+				if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen))) {
+					return NULL;
+				}
+				fr->afdatalen = datalen;
+			}
+		} else {
+			if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen))) {
 				return NULL;
 			}
-		} else if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))
+			fr->afdatalen = datalen;
+		}
+		fr->cacheable = 1;
+	} else
+#endif
+	{
+		if (!(fr = ast_calloc(1, sizeof(*fr) + datalen))) {
 			return NULL;
+		}
 		fr->afdatalen = datalen;
 	}
-#else
-	if (!(fr = ast_calloc(1, sizeof(*fr) + datalen)))
-		return NULL;
-	fr->afdatalen = datalen;
-#endif
 
 
 	fr->direction = direction;
 	fr->retrans = -1;
-	fr->cacheable = cacheable;
 	
 	if (fr->direction == DIRECTION_INGRESS)
 		ast_atomic_fetchadd_int(&iframes, 1);
