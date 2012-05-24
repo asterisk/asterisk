@@ -30370,7 +30370,7 @@ static int reload_config(enum channelreloadreason reason)
 	return 0;
 }
 
-static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
+static int apply_directmedia_ha(struct sip_pvt *p, struct ast_ha *directmediaha, const char *op)
 {
 	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
 	int res = AST_SENSE_ALLOW;
@@ -30378,7 +30378,7 @@ static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 	ast_rtp_instance_get_remote_address(p->rtp, &them);
 	ast_rtp_instance_get_local_address(p->rtp, &us);
 
-	if ((res = ast_apply_ha(p->directmediaha, &them)) == AST_SENSE_DENY) {
+	if ((res = ast_apply_ha(directmediaha, &them)) == AST_SENSE_DENY) {
 		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
 		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
 
@@ -30398,12 +30398,10 @@ static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 	if (!p) {
 		return NULL;
 	}
-	
+
 	sip_pvt_lock(p);
 	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
-		if (apply_directmedia_ha(p, "UDPTL T.38 data")) {
-			udptl = p->udptl;
-		}
+		udptl = p->udptl;
 	}
 	sip_pvt_unlock(p);
 	return udptl;
@@ -30452,6 +30450,74 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	return 0;
 }
 
+static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel *chan2, char *rtptype)
+{
+	struct sip_pvt *p1 = NULL, *p2 = NULL;
+	struct ast_ha *p2_directmediaha = NULL; /* opposed directmediaha for comparing against first channel host address */
+	struct ast_ha *p1_directmediaha = NULL; /* opposed directmediaha for comparing against second channel host address */
+	int res = 1;
+
+	if (!(p1 = ast_channel_tech_pvt(chan1))) {
+		return 0;
+	}
+
+	if (!(p2 = ast_channel_tech_pvt(chan2))) {
+		return 0;
+	}
+
+	sip_pvt_lock(p2);
+	if (p2->relatedpeer->directmediaha) {
+		p2_directmediaha = ast_duplicate_ha_list(p2->relatedpeer->directmediaha);
+	}
+	sip_pvt_unlock(p2);
+
+	sip_pvt_lock(p1);
+	if (p1->relatedpeer->directmediaha) {
+		p1_directmediaha = ast_duplicate_ha_list(p1->relatedpeer->directmediaha);
+	}
+
+	if (ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
+		if (!apply_directmedia_ha(p1, p2_directmediaha, rtptype)) {
+			res = 0;
+		}
+	}
+	sip_pvt_unlock(p1);
+
+	if (res == 0) {
+		goto allow_anyrtp_remote_end;
+	}
+
+	sip_pvt_lock(p2);
+	if (ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
+		if (!apply_directmedia_ha(p2, p1_directmediaha, rtptype)) {
+			res = 0;
+		}
+	}
+	sip_pvt_unlock(p2);
+
+allow_anyrtp_remote_end:
+
+	if (p2_directmediaha) {
+		ast_free_ha(p2_directmediaha);
+	}
+
+	if (p1_directmediaha) {
+		ast_free_ha(p1_directmediaha);
+	}
+
+	return res;
+}
+
+static int sip_allow_rtp_remote(struct ast_channel *chan1, struct ast_channel *chan2)
+{
+	return sip_allow_anyrtp_remote(chan1, chan2, "audio");
+}
+
+static int sip_allow_vrtp_remote(struct ast_channel *chan1, struct ast_channel *chan2)
+{
+	return sip_allow_anyrtp_remote(chan1, chan2, "video");
+}
+
 static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct sip_pvt *p = NULL;
@@ -30472,9 +30538,6 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "audio")) {
-			res = AST_RTP_GLUE_RESULT_FORBID;
-		}
 	} else if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
 	} else if (ast_test_flag(&global_jbconf, AST_JB_FORCED)) {
@@ -30510,9 +30573,6 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "video")) {
-			res = AST_RTP_GLUE_RESULT_FORBID;
-		}
 	}
 
 	sip_pvt_unlock(p);
@@ -30540,9 +30600,6 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, "text")) {
-			res = AST_RTP_GLUE_RESULT_FORBID;
-		}
 	}
 
 	sip_pvt_unlock(p);
@@ -30680,7 +30737,9 @@ static void sip_get_codec(struct ast_channel *chan, struct ast_format_cap *resul
 static struct ast_rtp_glue sip_rtp_glue = {
 	.type = "SIP",
 	.get_rtp_info = sip_get_rtp_peer,
+	.allow_rtp_remote = sip_allow_rtp_remote,
 	.get_vrtp_info = sip_get_vrtp_peer,
+	.allow_vrtp_remote = sip_allow_vrtp_remote,
 	.get_trtp_info = sip_get_trtp_peer,
 	.update_peer = sip_set_rtp_peer,
 	.get_codec = sip_get_codec,
