@@ -859,7 +859,8 @@ static void senddialendevent(struct ast_channel *src, const char *dialstatus)
  * \param o Outgoing call channel list.
  * \param num Incoming call channel cause accumulation
  * \param peerflags Dial option flags
- * \param single_caller_bored From wait_for_answer: single && !caller_entertained
+ * \param single TRUE if there is only one outgoing call.
+ * \param caller_entertained TRUE if the caller is being entertained by MOH or ringback.
  * \param to Remaining call timeout time.
  * \param forced_clid OPT_FORCECLID caller id to send
  * \param stored_clid Caller id representing the called party if needed
@@ -869,8 +870,8 @@ static void senddialendevent(struct ast_channel *src, const char *dialstatus)
  *
  * \todo eventually this function should be intergrated into and replaced by ast_call_forward()
  */
-static void do_forward(struct chanlist *o,
-	struct cause_args *num, struct ast_flags64 *peerflags, int single_caller_bored, int *to,
+static void do_forward(struct chanlist *o, struct cause_args *num,
+	struct ast_flags64 *peerflags, int single, int caller_entertained, int *to,
 	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
 {
 	char tmpchan[256];
@@ -898,6 +899,14 @@ static void do_forward(struct chanlist *o,
 		stuff = tmpchan;
 		tech = "Local";
 	}
+	if (!strcasecmp(tech, "Local")) {
+		/*
+		 * Drop the connected line update block for local channels since
+		 * this is going to run dialplan and the user can change his
+		 * mind about what connected line information he wants to send.
+		 */
+		ast_clear_flag64(o, OPT_IGNORE_CONNECTEDLINE);
+	}
 
 	ast_cel_report_event(in, AST_CEL_FORWARD, NULL, ast_channel_call_forward(c), NULL);
 
@@ -912,11 +921,14 @@ static void do_forward(struct chanlist *o,
 		/* Setup parameters */
 		c = o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &cause);
 		if (c) {
-			if (single_caller_bored) {
+			if (single && !caller_entertained) {
 				ast_channel_make_compatible(o->chan, in);
 			}
+			ast_channel_lock_both(in, o->chan);
 			ast_channel_inherit_variables(in, o->chan);
 			ast_channel_datastore_inherit(in, o->chan);
+			ast_channel_unlock(in);
+			ast_channel_unlock(o->chan);
 			/* When a call is forwarded, we don't want to track new interfaces
 			 * dialed for CC purposes. Setting the done flag will ensure that
 			 * any Dial operations that happen later won't record CC interfaces.
@@ -933,15 +945,18 @@ static void do_forward(struct chanlist *o,
 		handle_cause(cause, num);
 		ast_hangup(original);
 	} else {
-		struct ast_party_redirecting redirecting;
+		ast_channel_lock_both(c, original);
+		ast_party_redirecting_copy(ast_channel_redirecting(c),
+			ast_channel_redirecting(original));
+		ast_channel_unlock(c);
+		ast_channel_unlock(original);
 
 		ast_channel_lock_both(c, in);
 
-		if (single_caller_bored && CAN_EARLY_BRIDGE(peerflags, c, in)) {
+		if (single && !caller_entertained && CAN_EARLY_BRIDGE(peerflags, c, in)) {
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
-		ast_channel_set_redirecting(c, ast_channel_redirecting(original), NULL);
 		if (!ast_channel_redirecting(c)->from.number.valid
 			|| ast_strlen_zero(ast_channel_redirecting(c)->from.number.str)) {
 			/*
@@ -962,6 +977,7 @@ static void do_forward(struct chanlist *o,
 		if (ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 			caller.id = *stored_clid;
 			ast_channel_set_caller_event(c, &caller, NULL);
+			ast_set_flag64(o, DIAL_CALLERID_ABSENT);
 		} else if (ast_strlen_zero(S_COR(ast_channel_caller(c)->id.number.valid,
 			ast_channel_caller(c)->id.number.str, NULL))) {
 			/*
@@ -970,6 +986,9 @@ static void do_forward(struct chanlist *o,
 			 */
 			caller.id = *stored_clid;
 			ast_channel_set_caller_event(c, &caller, NULL);
+			ast_set_flag64(o, DIAL_CALLERID_ABSENT);
+		} else {
+			ast_clear_flag64(o, DIAL_CALLERID_ABSENT);
 		}
 
 		/* Determine CallerID for outgoing channel to send. */
@@ -987,23 +1006,33 @@ static void do_forward(struct chanlist *o,
 
 		ast_channel_appl_set(c, "AppDial");
 		ast_channel_data_set(c, "(Outgoing Line)");
-		/*
-		 * We must unlock c before calling ast_channel_redirecting_macro, because
-		 * we put c into autoservice there. That is pretty much a guaranteed
-		 * deadlock. This is why the handling of c's lock may seem a bit unusual
-		 * here.
-		 */
-		ast_party_redirecting_init(&redirecting);
-		ast_party_redirecting_copy(&redirecting, ast_channel_redirecting(c));
-		ast_channel_unlock(c);
-		if (ast_channel_redirecting_sub(c, in, &redirecting, 0) &&
-			ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
-			ast_channel_update_redirecting(in, &redirecting, NULL);
-		}
-		ast_party_redirecting_free(&redirecting);
-		ast_channel_unlock(in);
 
-		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
+		ast_channel_unlock(in);
+		if (single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+			struct ast_party_redirecting redirecting;
+
+			/*
+			 * Redirecting updates to the caller make sense only on single
+			 * calls.
+			 *
+			 * We must unlock c before calling
+			 * ast_channel_redirecting_macro, because we put c into
+			 * autoservice there.  That is pretty much a guaranteed
+			 * deadlock.  This is why the handling of c's lock may seem a
+			 * bit unusual here.
+			 */
+			ast_party_redirecting_init(&redirecting);
+			ast_party_redirecting_copy(&redirecting, ast_channel_redirecting(c));
+			ast_channel_unlock(c);
+			if (ast_channel_redirecting_sub(c, in, &redirecting, 0) &&
+				ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
+				ast_channel_update_redirecting(in, &redirecting, NULL);
+			}
+			ast_party_redirecting_free(&redirecting);
+		} else {
+			ast_channel_unlock(c);
+		}
+
 		if (ast_test_flag64(peerflags, OPT_CANCEL_TIMEOUT)) {
 			*to = -1;
 		}
@@ -1024,7 +1053,7 @@ static void do_forward(struct chanlist *o,
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
 		}
-		if (single_caller_bored) {
+		if (single && !caller_entertained) {
 			ast_indicate(in, -1);
 		}
 	}
@@ -1085,7 +1114,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			}
 		}
 
-		if (!ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE) && !ast_test_flag64(outgoing, DIAL_CALLERID_ABSENT)) {
+		if (!ast_test_flag64(outgoing, OPT_IGNORE_CONNECTEDLINE)
+			&& !ast_test_flag64(outgoing, DIAL_CALLERID_ABSENT)) {
 			ast_channel_lock(outgoing->chan);
 			ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(outgoing->chan));
 			ast_channel_unlock(outgoing->chan);
@@ -1148,7 +1178,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (ast_test_flag64(o, DIAL_STILLGOING) && ast_channel_state(c) == AST_STATE_UP) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
-					if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
+					if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
 								ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
@@ -1201,8 +1231,37 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					ast_frfree(f);
 				}
-				do_forward(o, &num, peerflags, single && !caller_entertained, to,
+
+				if (o->pending_connected_update) {
+					/*
+					 * Re-seed the chanlist's connected line information with
+					 * previously acquired connected line info from the incoming
+					 * channel.  The previously acquired connected line info could
+					 * have been set through the CONNECTED_LINE dialplan function.
+					 */
+					o->pending_connected_update = 0;
+					ast_channel_lock(in);
+					ast_party_connected_line_copy(&o->connected, ast_channel_connected(in));
+					ast_channel_unlock(in);
+				}
+
+				do_forward(o, &num, peerflags, single, caller_entertained, to,
 					forced_clid, stored_clid);
+
+				if (single && o->chan
+					&& !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)
+					&& !ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
+					ast_channel_lock(o->chan);
+					ast_connected_line_copy_from_caller(&connected_caller,
+						ast_channel_caller(o->chan));
+					ast_channel_unlock(o->chan);
+					connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+					if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
+						ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
+						ast_channel_update_connected_line(in, &connected_caller, NULL);
+					}
+					ast_party_connected_line_free(&connected_caller);
+				}
 				continue;
 			}
 			f = ast_read(winner);
@@ -1224,7 +1283,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					/* This is our guy if someone answered. */
 					if (!peer) {
 						ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
-						if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
+						if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->pending_connected_update) {
 								if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
 									ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
@@ -1358,21 +1417,25 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_indicate(in, f->subclass.integer);
 					break;
 				case AST_CONTROL_CONNECTED_LINE:
-					if (ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
+					if (ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 						ast_verb(3, "Connected line update to %s prevented.\n", ast_channel_name(in));
-					} else if (!single) {
+						break;
+					}
+					if (!single) {
 						struct ast_party_connected_line connected;
-						ast_verb(3, "%s connected line has changed. Saving it until answer for %s\n", ast_channel_name(c), ast_channel_name(in));
+
+						ast_verb(3, "%s connected line has changed. Saving it until answer for %s\n",
+							ast_channel_name(c), ast_channel_name(in));
 						ast_party_connected_line_set_init(&connected, &o->connected);
 						ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected);
 						ast_party_connected_line_set(&o->connected, &connected, NULL);
 						ast_party_connected_line_free(&connected);
 						o->pending_connected_update = 1;
-					} else {
-						if (ast_channel_connected_line_sub(c, in, f, 1) &&
-							ast_channel_connected_line_macro(c, in, f, 1, 1)) {
-							ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
-						}
+						break;
+					}
+					if (ast_channel_connected_line_sub(c, in, f, 1) &&
+						ast_channel_connected_line_macro(c, in, f, 1, 1)) {
+						ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 					}
 					break;
 				case AST_CONTROL_AOC:
@@ -1387,16 +1450,24 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				case AST_CONTROL_REDIRECTING:
-					if (ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
-						ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(in));
-					} else if (single) {
-						ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
-						if (ast_channel_redirecting_sub(c, in, f, 1) &&
-							ast_channel_redirecting_macro(c, in, f, 1, 1)) {
-							ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
-						}
-						pa->sentringing = 0;
+					if (!single) {
+						/*
+						 * Redirecting updates to the caller make sense only on single
+						 * calls.
+						 */
+						break;
 					}
+					if (ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+						ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(in));
+						break;
+					}
+					ast_verb(3, "%s redirecting info has changed, passing it to %s\n",
+						ast_channel_name(c), ast_channel_name(in));
+					if (ast_channel_redirecting_sub(c, in, f, 1) &&
+						ast_channel_redirecting_macro(c, in, f, 1, 1)) {
+						ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
+					}
+					pa->sentringing = 0;
 					break;
 				case AST_CONTROL_PROCEEDING:
 					ast_verb(3, "%s is proceeding passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
@@ -2202,8 +2273,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		outbound_group = ast_strdupa(outbound_group);
 	}
 	ast_channel_unlock(chan);
-	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE |
-			 OPT_CANCEL_TIMEOUT | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_FORCECLID);
+
+	/* Set per dial instance flags.  These flags are also passed back to RetryDial. */
+	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID
+		| OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_CANCEL_TIMEOUT
+		| OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB | OPT_FORCECLID);
 
 	/* PREDIAL: Run gosub on the caller's channel */
 	if (ast_test_flag64(&opts, OPT_PREDIAL_CALLER)
@@ -2251,6 +2325,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		tmp->number = cur;
 
 		if (opts.flags) {
+			/* Set per outgoing call leg options. */
 			ast_copy_flags64(tmp, &opts,
 				OPT_CANCEL_ELSEWHERE |
 				OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
@@ -2258,7 +2333,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 				OPT_CALLEE_PARK | OPT_CALLER_PARK |
 				OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
-				OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID);
+				OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID | OPT_IGNORE_CONNECTEDLINE);
 			ast_set2_flag64(tmp, args.url, DIAL_NOFORWARDHTML);
 		}
 
