@@ -1159,8 +1159,8 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	struct ast_channel *underlying_channel;
 
 	/* Do not waste resources trying to play files that do not exist */
-	if (!ast_fileexists(filename, NULL, NULL)) {
-		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
+	if (!ast_strlen_zero(filename) && !ast_fileexists(filename, NULL, NULL)) {
+		ast_log(LOG_WARNING, "File %s does not exist in any format\n", !ast_strlen_zero(filename) ? filename : "<unknown>");
 		return 0;
 	}
 
@@ -1180,7 +1180,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	/* The channel is all under our control, in goes the prompt */
 	if (!ast_strlen_zero(filename)) {
 		ast_stream_and_wait(conference_bridge->playback_chan, filename, "");
-	} else {
+	} else if (say_number >= 0) {
 		ast_say_number(conference_bridge->playback_chan, say_number, "", ast_channel_language(conference_bridge->playback_chan), NULL);
 	}
 
@@ -1203,7 +1203,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
  */
 static int play_sound_file(struct conference_bridge *conference_bridge, const char *filename)
 {
-	return play_sound_helper(conference_bridge, filename, 0);
+	return play_sound_helper(conference_bridge, filename, -1);
 }
 
 /*!
