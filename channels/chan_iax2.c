@@ -1842,24 +1842,25 @@ static void send_signaling(struct chan_iax2_pvt *pvt)
  *  we have received a destination call number. */
 static int queue_signalling(struct chan_iax2_pvt *pvt, struct ast_frame *f)
 {
-	struct signaling_queue_entry *new;
+	struct signaling_queue_entry *qe;
 
 	if (f->frametype == AST_FRAME_IAX || !pvt->hold_signaling) {
 		return 1; /* do not queue this frame */
-	} else if (!(new = ast_calloc(1, sizeof(struct signaling_queue_entry)))) {
+	} else if (!(qe = ast_calloc(1, sizeof(struct signaling_queue_entry)))) {
 		return -1;  /* out of memory */
 	}
 
-	memcpy(&new->f, f, sizeof(new->f)); /* copy ast_frame into our queue entry */
-
-	if (new->f.datalen) { /* if there is data in this frame copy it over as well */
-		if (!(new->f.data.ptr = ast_calloc(1, new->f.datalen))) {
-			free_signaling_queue_entry(new);
+	/* copy ast_frame into our queue entry */
+	qe->f = *f;
+	if (qe->f.datalen) {
+		/* if there is data in this frame copy it over as well */
+		if (!(qe->f.data.ptr = ast_malloc(qe->f.datalen))) {
+			free_signaling_queue_entry(qe);
 			return -1;
 		}
-		memcpy(new->f.data.ptr, f->data.ptr, sizeof(*new->f.data.ptr));
+		memcpy(qe->f.data.ptr, f->data.ptr, qe->f.datalen);
 	}
-	AST_LIST_INSERT_TAIL(&pvt->signaling_queue, new, next);
+	AST_LIST_INSERT_TAIL(&pvt->signaling_queue, qe, next);
 
 	return 0;
 }
@@ -4160,7 +4161,16 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	int needfree = 0;
 	struct ast_channel *owner = NULL;
 	struct ast_channel *bridge = NULL;
-	
+
+	/*
+	 * Clear fr->af.data if there is no data in the buffer.  Things
+	 * like AST_CONTROL_HOLD without a suggested music class must
+	 * have a NULL pointer.
+	 */
+	if (!fr->af.datalen) {
+		memset(&fr->af.data, 0, sizeof(fr->af.data));
+	}
+
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
 
