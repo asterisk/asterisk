@@ -2180,12 +2180,12 @@ static int can_write(struct ast_channel *chan, struct ast_flags64 *confflags)
 static void send_talking_event(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking)
 {
 	ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalking",
-	      "Channel: %s\r\n"
-	      "Uniqueid: %s\r\n"
-	      "Meetme: %s\r\n"
-	      "Usernum: %d\r\n"
-	      "Status: %s\r\n",
-	      ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no, talking ? "on" : "off");
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Meetme: %s\r\n"
+		"Usernum: %d\r\n"
+		"Status: %s\r\n",
+		ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no, talking ? "on" : "off");
 }
 
 static void set_user_talking(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking, int monitor)
@@ -3144,12 +3144,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				}
 
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
-						"Channel: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Meetme: %s\r\n"
-						"Usernum: %i\r\n"
-						"Status: on\r\n",
-						ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Meetme: %s\r\n"
+					"Usernum: %d\r\n"
+					"Status: on\r\n",
+					ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
 			}
 
 			/* If I should be un-muted but am not talker, un-mute me */
@@ -3162,12 +3162,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				}
 
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
-						"Channel: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Meetme: %s\r\n"
-						"Usernum: %i\r\n"
-						"Status: off\r\n",
-						ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Meetme: %s\r\n"
+					"Usernum: %d\r\n"
+					"Status: off\r\n",
+					ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
 			}
 			
 			if ((user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
@@ -3175,12 +3175,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				talkreq_manager = 1;
 
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
-					      "Channel: %s\r\n"
-							      "Uniqueid: %s\r\n"
-							      "Meetme: %s\r\n"
-							      "Usernum: %i\r\n"
-							      "Status: on\r\n",
-							      ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Meetme: %s\r\n"
+					"Usernum: %d\r\n"
+					"Status: on\r\n",
+					ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
 			}
 
 			
@@ -3188,12 +3188,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				!(user->adminflags & ADMINFLAG_T_REQUEST) && (talkreq_manager)) {
 				talkreq_manager = 0;
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
-					      "Channel: %s\r\n"
-							      "Uniqueid: %s\r\n"
-							      "Meetme: %s\r\n"
-							      "Usernum: %i\r\n"
-							      "Status: off\r\n",
-							     ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Meetme: %s\r\n"
+					"Usernum: %d\r\n"
+					"Status: off\r\n",
+					ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
 			}
 
 			/* If user have been hung up, exit the conference */
@@ -4578,9 +4578,8 @@ static struct ast_conf_user *find_user(struct ast_conference *conf, const char *
 {
 	struct ast_conf_user *user = NULL;
 	int cid;
-	
-	sscanf(callerident, "%30i", &cid);
-	if (conf && callerident) {
+
+	if (conf && callerident && sscanf(callerident, "%30d", &cid) == 1) {
 		user = ao2_find(conf->usercontainer, &cid, 0);
 		/* reference decremented later in admin_exec */
 		return user;
