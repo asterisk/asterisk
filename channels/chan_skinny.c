@@ -2677,6 +2677,10 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
+	if (!d) {
+		return;
+	}
+
 	if (!c->caller.id.number.valid
 		|| ast_strlen_zero(c->caller.id.number.str)
 		|| !c->connected.id.number.valid
@@ -3810,6 +3814,11 @@ static void *skinny_ss(void *data)
 	int res = 0;
 	int loop_pause = 100;
 
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return NULL;
+	}
+
 	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
 
 	len = strlen(d->exten);
@@ -3913,7 +3922,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	if (!d->registered) {
+	if (!d || !d->registered) {
 		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
 		return -1;
 	}
@@ -3976,6 +3985,11 @@ static int skinny_hangup(struct ast_channel *ast)
 
 	l = sub->parent;
 	d = l->device;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return 0;
+	}
 
 	if (skinnydebug)
 		ast_verb(3,"Hanging up %s/%d\n",d->name,sub->callid);
@@ -4374,7 +4388,13 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
-	struct skinnysession *s = d->session;
+	struct skinnysession *s;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return -1;
+	}
+	s = d->session;
 
 	if (!s) {
 		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast->name);
@@ -4608,8 +4628,13 @@ static int skinny_hold(struct skinny_subchannel *sub)
 	struct skinny_device *d = l->device;
 
 	/* Don't try to hold a channel that doesn't exist */
-	if (!sub || !sub->owner)
+	if (!sub || !sub->owner) {
 		return 0;
+	}
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return 0;
+	}
 
 	/* Channel needs to be put on hold */
 	if (skinnydebug)
@@ -4635,8 +4660,13 @@ static int skinny_unhold(struct skinny_subchannel *sub)
 	struct skinny_device *d = l->device;
 
 	/* Don't try to unhold a channel that doesn't exist */
-	if (!sub || !sub->owner)
+	if (!sub || !sub->owner) {
 		return 0;
+	}
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return 0;
+	}
 
 	/* Channel is on hold, so we will unhold */
 	if (skinnydebug)
@@ -4689,6 +4719,11 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 
 	l = sub->parent;
 	d = l->device;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return -1;
+	}
 
 	if (!sub->related) {
 		/* Another sub has not been created so this must be first XFER press */
@@ -4820,6 +4855,11 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
 	pthread_t t;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return 0;
+	}
 
 	if (l->hookstate == SKINNY_ONHOOK) {
 		l->hookstate = SKINNY_OFFHOOK;
