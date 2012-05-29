@@ -3143,6 +3143,10 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
 
+	if (!d) {
+		return;
+	}
+
 	if (!ast_channel_caller(c)->id.number.valid
 		|| ast_strlen_zero(ast_channel_caller(c)->id.number.str)
 		|| !ast_channel_connected(c)->id.number.valid
@@ -4263,6 +4267,11 @@ static void *skinny_ss(void *data)
 	int res = 0;
 	int loop_pause = 100;
 
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return NULL;
+	}
+
 	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
 
 	len = strlen(sub->exten);
@@ -4373,7 +4382,7 @@ static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 	struct ast_var_t *current;
 	int doautoanswer = 0;
 
-	if (!d->registered) {
+	if (!d || !d->registered) {
 		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
 		return -1;
 	}
@@ -4772,7 +4781,13 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinny_subchannel *sub = ast_channel_tech_pvt(ast);
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	struct skinnysession *s = d->session;
+	struct skinnysession *s;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return -1;
+	}
+	s = d->session;
 
 	if (!s) {
 		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast_channel_name(ast));
@@ -5512,6 +5527,11 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	l = sub->line;
 	d = l->device;
 
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return -1;
+	}
+
 	if (!sub->related) {
 		/* Another sub has not been created so this must be first XFER press */
 		if (!(sub->substate == SUBSTATE_HOLD)) {
@@ -5555,6 +5575,11 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
+
+	if (!d) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return 0;
+	}
 
 	if (d->hookstate == SKINNY_ONHOOK) {
 		d->hookstate = SKINNY_OFFHOOK;
