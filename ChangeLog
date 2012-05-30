@@ -1,3 +1,47 @@
+2012-05-30  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.5.0-digiumphones-rc2 Released.
+
+	* Resolve crash in subscribing for MWI notifications.
+
+	  ASTOBJ_UNREF sets the variable to NULL after unreffing it, so the
+	  variable shoudl definitely not be used after that. To solve this in
+	  the two cases that affect subscribing for MWI notifications, we
+	  instead save the ref locally, and unref them in the error
+	  conditions.
+	  
+	  (closes issue ASTERISK-19827)
+	  Reported by: B. R.
+	  Review: https://reviewboard.asterisk.org/r/1940/
+
+	* Fix crash in ConfBridge when user announcement is played for more
+	  than 2 users
+
+	  A patch introduced in r354938 made it so that ConfBridge would not
+	  attempt to play sound files if those files did not exist.
+	  Unfortunately, ConfBridge uses the same underlying fucntion,
+	  play_sound_helper, to playback both the sound files and numbers to
+	  callers. When a number is being played back, the name of the sound
+	  file is expected to be NULL. This NULL value was passed into a
+	  function that tested for the existance of a sound file and is not
+	  tolerant to NULL file names, causing a crash.
+
+	  This patch fixes the behavior, such that if a sound file does not
+	  exist we do not attempt to play it, but we only attempt that check
+	  if the sound file was specified in the first place. If a sound file
+	  was not specified, we use the 'play number' logic in the helper
+	  function.
+
+	  (closes issue ASTERISK-19899)
+	  Reported by: Florian Gilcher
+	  Tested by: Florian Gilcher
+	  patches:
+	    ASTERISK-19899.diff uploaded by mjordan (license 6283)
+
+	* AST-2012-007
+
+	* AST-2012-008
+
 2012-05-03  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.5.0-digiumphones-rc1 Released.
