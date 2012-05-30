@@ -1,3 +1,19 @@
+2012-05-30  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.12.2 Released.
+
+	* Resolve crash in subscribing for MWI notifications.
+
+	  ASTOBJ_UNREF sets the variable to NULL after unreffing it, so the
+	  variable should definitely not be used after that. To solve this in
+	  the two cases that affect subscribing for MWI notifications, we
+	  instead save the ref locally, and unref them in the error
+	  conditions.
+
+	  (closes issue ASTERISK-19827)
+	  Reported by: B. R.
+	  Review: https://reviewboard.asterisk.org/r/1940/
+
 2012-05-29  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.12.1 Released.
