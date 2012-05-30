@@ -115,13 +115,6 @@ static int pri_gendigittimeout = 8000;
 
 #define DCHAN_AVAILABLE	(DCHAN_NOTINALARM | DCHAN_UP)
 
-#define PRI_DEADLOCK_AVOIDANCE(p) \
-	do { \
-		sig_pri_unlock_private(p); \
-		usleep(1); \
-		sig_pri_lock_private(p); \
-	} while (0)
-
 static int pri_active_dchan_index(struct sig_pri_span *pri);
 
 static const char *sig_pri_call_level2str(enum sig_pri_call_level level)
@@ -345,16 +338,17 @@ static void sig_pri_lock_private(struct sig_pri_chan *p)
 
 static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_span *pri)
 {
-	int res;
 	/* Grab the lock first */
-	do {
-		res = ast_mutex_trylock(&pri->lock);
-		if (res) {
-			PRI_DEADLOCK_AVOIDANCE(p);
-		}
-	} while (res);
+	while (ast_mutex_trylock(&pri->lock)) {
+		/* Avoid deadlock */
+		sig_pri_unlock_private(p);
+		sched_yield();
+		sig_pri_lock_private(p);
+	}
 	/* Then break the poll */
-	pthread_kill(pri->master, SIGURG);
+	if (pri->master != AST_PTHREADT_NULL) {
+		pthread_kill(pri->master, SIGURG);
+	}
 	return 0;
 }
 
@@ -1193,10 +1187,13 @@ static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
 			/* We got the lock */
 			break;
 		}
-		/* We must unlock the PRI to avoid the possibility of a deadlock */
+
+		/* Avoid deadlock */
+		sig_pri_unlock_private(pri->pvts[chanpos]);
 		ast_mutex_unlock(&pri->lock);
-		PRI_DEADLOCK_AVOIDANCE(pri->pvts[chanpos]);
+		sched_yield();
 		ast_mutex_lock(&pri->lock);
+		sig_pri_lock_private(pri->pvts[chanpos]);
 	}
 }
 
