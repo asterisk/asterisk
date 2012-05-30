@@ -312,9 +312,7 @@ static void sig_ss7_lock_owner(struct sig_ss7_linkset *ss7, int chanpos)
 
 		/* Avoid deadlock */
 		sig_ss7_unlock_private(ss7->pvts[chanpos]);
-		ast_mutex_unlock(&ss7->lock);
-		sched_yield();
-		ast_mutex_lock(&ss7->lock);
+		DEADLOCK_AVOIDANCE(&ss7->lock);
 		sig_ss7_lock_private(ss7->pvts[chanpos]);
 	}
 }

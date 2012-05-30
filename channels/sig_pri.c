@@ -1199,9 +1199,7 @@ static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
 
 		/* Avoid deadlock */
 		sig_pri_unlock_private(pri->pvts[chanpos]);
-		ast_mutex_unlock(&pri->lock);
-		sched_yield();
-		ast_mutex_lock(&pri->lock);
+		DEADLOCK_AVOIDANCE(&pri->lock);
 		sig_pri_lock_private(pri->pvts[chanpos]);
 	}
 }
