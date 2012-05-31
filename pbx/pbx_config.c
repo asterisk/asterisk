@@ -1356,8 +1356,13 @@ static int unload_module(void)
 static char *pbx_strsep(char **destructible, const char *delim)
 {
 	int square = 0;
-	char *res = *destructible;
-	for (; destructible && *destructible && **destructible; (*destructible)++) {
+	char *res;
+
+	if (!destructible || !*destructible) {
+		return NULL;
+	}
+	res = *destructible;
+	for (; **destructible; (*destructible)++) {
 		if (**destructible == '[' && !strchr(delim, '[')) {
 			square++;
 		} else if (**destructible == ']' && !strchr(delim, ']')) {
@@ -1372,7 +1377,7 @@ static char *pbx_strsep(char **destructible, const char *delim)
 			break;
 		}
 	}
-	if (destructible && *destructible && **destructible == '\0') {
+	if (**destructible == '\0') {
 		*destructible = NULL;
 	}
 	return res;
@@ -1582,7 +1587,7 @@ process_extension:
 							v->lineno, vfile);
 					}
 				}
-				free(tc);
+				ast_free(tc);
 			} else if (!strcasecmp(v->name, "include")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_include2(con, realvalue, registrar)) {

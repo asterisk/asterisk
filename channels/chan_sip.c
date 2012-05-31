@@ -6384,31 +6384,27 @@ static int sip_hangup(struct ast_channel *ast)
 					ast_channel_unlock(bridge);
 				}
 
-				if (p->do_history || oldowner) {
-					if (p->rtp && (quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-						if (p->do_history) {
-							append_history(p, "RTCPaudio", "Quality:%s", quality);
-						}
-						if (oldowner) {
-							pbx_builtin_setvar_helper(oldowner, "RTPAUDIOQOS", quality);
-						}
+				/*
+				 * The channel variables are set below just to get the AMI
+				 * VarSet event because the channel is being hungup.
+				 */
+				if (p->rtp && (quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+					if (p->do_history) {
+						append_history(p, "RTCPaudio", "Quality:%s", quality);
 					}
-					if (p->vrtp && (quality = ast_rtp_instance_get_quality(p->vrtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-						if (p->do_history) {
-							append_history(p, "RTCPvideo", "Quality:%s", quality);
-						}
-						if (oldowner) {
-							pbx_builtin_setvar_helper(oldowner, "RTPVIDEOQOS", quality);
-						}
+					pbx_builtin_setvar_helper(oldowner, "RTPAUDIOQOS", quality);
+				}
+				if (p->vrtp && (quality = ast_rtp_instance_get_quality(p->vrtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+					if (p->do_history) {
+						append_history(p, "RTCPvideo", "Quality:%s", quality);
 					}
-					if (p->trtp && (quality = ast_rtp_instance_get_quality(p->trtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-						if (p->do_history) {
-							append_history(p, "RTCPtext", "Quality:%s", quality);
-						}
-						if (oldowner) {
-							pbx_builtin_setvar_helper(oldowner, "RTPTEXTQOS", quality);
-						}
+					pbx_builtin_setvar_helper(oldowner, "RTPVIDEOQOS", quality);
+				}
+				if (p->trtp && (quality = ast_rtp_instance_get_quality(p->trtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+					if (p->do_history) {
+						append_history(p, "RTCPtext", "Quality:%s", quality);
 					}
+					pbx_builtin_setvar_helper(oldowner, "RTPTEXTQOS", quality);
 				}
 
 				/* Send a hangup */
@@ -24883,9 +24879,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 	}
 
-	if (!req->ignore && p)
+	if (!req->ignore) {
 		p->lastinvite = seqno;
-	if (p && !p->needdestroy) {
+	}
+	if (!p->needdestroy) {
 		p->expiry = atoi(get_header(req, "Expires"));
 
 		/* check if the requested expiry-time is within the approved limits from sip.conf */

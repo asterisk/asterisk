@@ -404,7 +404,7 @@ tmp()
 #else
 	path = malloc(n);
 #endif
-	(void)snprintf(path, n, fmt, envtmp ? envtmp : "/tmp");
+	(void)snprintf(path, n, fmt, envtmp);
 
 	(void)sigfillset(&set);
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
