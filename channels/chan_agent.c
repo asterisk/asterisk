@@ -517,21 +517,27 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 /*!
  * Deletes an agent after doing some clean up.
  * Further documentation: How safe is this function ? What state should the agent be to be cleaned.
+ *
+ * \warning XXX This function seems to be very unsafe.
+ * Potential for double free and use after free among other
+ * problems.
+ *
  * \param p Agent to be deleted.
  * \returns Always 0.
  */
 static int agent_cleanup(struct agent_pvt *p)
 {
-	struct ast_channel *chan = NULL;
+	struct ast_channel *chan;
+
 	ast_mutex_lock(&p->lock);
 	chan = p->owner;
 	p->owner = NULL;
-	ast_channel_tech_pvt_set(chan, NULL);
 	/* Release ownership of the agent to other threads (presumably running the login app). */
 	p->app_sleep_cond = 1;
 	p->app_lock_flag = 0;
 	ast_cond_signal(&p->app_complete_cond);
 	if (chan) {
+		ast_channel_tech_pvt_set(chan, NULL);
 		chan = ast_channel_release(chan);
 	}
 	if (p->dead) {
@@ -540,7 +546,9 @@ static int agent_cleanup(struct agent_pvt *p)
 		ast_cond_destroy(&p->app_complete_cond);
 		ast_cond_destroy(&p->login_wait_cond);
 		ast_free(p);
-        }
+	} else {
+		ast_mutex_unlock(&p->lock);
+	}
 	return 0;
 }
 

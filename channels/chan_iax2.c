@@ -2433,19 +2433,20 @@ static void peercnt_remove(struct peercnt *peercnt)
 		.sin_addr.s_addr = peercnt->addr,
 	};
 
-	if (peercnt) {
-		/* Container locked here since peercnt may be unlinked from list.  If left unlocked,
-		 * peercnt_add could try and grab this entry from the table and modify it at the
-		 * "same time" this thread attemps to unlink it.*/
-		ao2_lock(peercnts);
-		peercnt->cur--;
-		ast_debug(1, "ip callno count decremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin.sin_addr));
-		/* if this was the last connection from the peer remove it from table */
-		if (peercnt->cur == 0) {
-			ao2_unlink(peercnts, peercnt);/* decrements ref from table, last ref is left to scheduler */
-		}
-		ao2_unlock(peercnts);
+	/*
+	 * Container locked here since peercnt may be unlinked from
+	 * list.  If left unlocked, peercnt_add could try and grab this
+	 * entry from the table and modify it at the "same time" this
+	 * thread attemps to unlink it.
+	 */
+	ao2_lock(peercnts);
+	peercnt->cur--;
+	ast_debug(1, "ip callno count decremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin.sin_addr));
+	/* if this was the last connection from the peer remove it from table */
+	if (peercnt->cur == 0) {
+		ao2_unlink(peercnts, peercnt);/* decrements ref from table, last ref is left to scheduler */
 	}
+	ao2_unlock(peercnts);
 }
 
 /*! 
@@ -5928,16 +5929,15 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	   The "genuine" distinction is needed because genuine frames must get a clock-based timestamp,
 	   the others need a timestamp slaved to the voice frames so that they go in sequence
 	*/
-	if (f) {
-		if (f->frametype == AST_FRAME_VOICE) {
-			voice = 1;
-			delivery = &f->delivery;
-		} else if (f->frametype == AST_FRAME_IAX) {
-			genuine = 1;
-		} else if (f->frametype == AST_FRAME_CNG) {
-			p->notsilenttx = 0;
-		}
+	if (f->frametype == AST_FRAME_VOICE) {
+		voice = 1;
+		delivery = &f->delivery;
+	} else if (f->frametype == AST_FRAME_IAX) {
+		genuine = 1;
+	} else if (f->frametype == AST_FRAME_CNG) {
+		p->notsilenttx = 0;
 	}
+
 	if (ast_tvzero(p->offset)) {
 		p->offset = ast_tvnow();
 		/* Round to nearest 20ms for nice looking traces */

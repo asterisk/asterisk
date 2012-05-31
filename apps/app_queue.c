@@ -2721,11 +2721,11 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			 */
 			if (!inserted && (qe->prio >= cur->prio) && position && (position <= pos + 1)) {
 				insert_entry(q, prev, qe, &pos);
+				inserted = 1;
 				/*pos is incremented inside insert_entry, so don't need to add 1 here*/
 				if (position < pos) {
 					ast_log(LOG_NOTICE, "Asked to be inserted at position %d but forced into position %d due to higher priority callers\n", position, pos);
 				}
-				inserted = 1;
 			}
 			cur->pos = ++pos;
 			prev = cur;
@@ -6468,6 +6468,8 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		set_queue_result(chan, reason);
 		return 0;
 	}
+	ast_assert(qe.parent != NULL);
+
 	ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "ENTERQUEUE", "%s|%s|%d",
 		S_OR(args.url, ""),
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
@@ -6625,12 +6627,13 @@ stop:
 	if (reason != QUEUE_UNKNOWN)
 		set_queue_result(chan, reason);
 
-	if (qe.parent) {
-		/* every queue_ent is given a reference to it's parent call_queue when it joins the queue.
-		 * This ref must be taken away right before the queue_ent is destroyed.  In this case
-		 * the queue_ent is about to be returned on the stack */
-		qe.parent = queue_unref(qe.parent);
-	}
+	/*
+	 * every queue_ent is given a reference to it's parent
+	 * call_queue when it joins the queue.  This ref must be taken
+	 * away right before the queue_ent is destroyed.  In this case
+	 * the queue_ent is about to be returned on the stack
+	 */
+	qe.parent = queue_unref(qe.parent);
 
 	return res;
 }

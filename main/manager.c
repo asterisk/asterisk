@@ -6360,7 +6360,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		ast_md5_hash(resp_hash, resp);
 	}
 
-	if (!d.nonce  || strncasecmp(d.response, resp_hash, strlen(resp_hash))) {
+	if (strncasecmp(d.response, resp_hash, strlen(resp_hash))) {
 		/* Something was wrong, so give the client to try with a new challenge */
 		AST_RWLIST_UNLOCK(&users);
 		nonce = 0;

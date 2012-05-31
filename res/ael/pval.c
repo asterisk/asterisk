@@ -1223,21 +1223,24 @@ static pval *get_goto_target(pval *item)
 			return x;
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 static void check_goto(pval *item)
 {
+	if (!item->u1.list) {
+		return;
+	}
+
 	/* check for the target of the goto-- does it exist? */
 	if ( !(item->u1.list)->next && !(item->u1.list)->u1.str ) {
 		ast_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  empty label reference found!\n",
 				item->filename, item->startline, item->endline);
 		errs++;
 	}
-	
+
 	/* just one item-- the label should be in the current extension */
-	
-	if (item->u1.list && !item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
+	if (!item->u1.list->next && !strstr(item->u1.list->u1.str,"${")) {
 		struct pval *z = get_extension_or_contxt(item);
 		struct pval *x = 0;
 		if (z)

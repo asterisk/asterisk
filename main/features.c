@@ -2182,10 +2182,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	set_peers(&caller_chan, &callee_chan, peer, chan, sense);
-	if (!caller_chan || !callee_chan) {
-		ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
-		return -1;
-	}
+
 	/* Find extra messages */
 	automon_message_start = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_START");
 	automon_message_stop = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_MESSAGE_STOP");
@@ -2261,6 +2258,8 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 	size_t len;
 	struct ast_channel *caller_chan, *callee_chan;
 	const char *mixmonitor_spy_type = "MixMonitor";
+	const char *touch_format;
+	const char *touch_monitor;
 	int count = 0;
 
 	if (!mixmonitor_ok) {
@@ -2295,7 +2294,6 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 
 	/* This means a mixmonitor is attached to the channel, running or not is unknown. */
 	if (count > 0) {
-
 		ast_verb(3, "User hit '%s' to stop recording call.\n", code);
 
 		/* Make sure they are running */
@@ -2320,51 +2318,44 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 		ast_log(LOG_WARNING,"Stopped MixMonitors are attached to the channel.\n");
 	}
 
-	if (caller_chan && callee_chan) {
-		const char *touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR_FORMAT");
-		const char *touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR");
+	touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR_FORMAT");
+	touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MIXMONITOR");
 
-		if (!touch_format)
-			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR_FORMAT");
+	if (!touch_format)
+		touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR_FORMAT");
 
-		if (!touch_monitor)
-			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR");
+	if (!touch_monitor)
+		touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MIXMONITOR");
 
-		if (touch_monitor) {
-			len = strlen(touch_monitor) + 50;
-			args = alloca(len);
-			touch_filename = alloca(len);
-			snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
-			snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
-		} else {
-			caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(caller_chan)->id.number.valid,
-				ast_channel_caller(caller_chan)->id.number.str, ast_channel_name(caller_chan)));
-			callee_chan_id = ast_strdupa(S_COR(ast_channel_caller(callee_chan)->id.number.valid,
-				ast_channel_caller(callee_chan)->id.number.str, ast_channel_name(callee_chan)));
-			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
-			args = alloca(len);
-			touch_filename = alloca(len);
-			snprintf(touch_filename, len, "auto-%ld-%s-%s", (long)time(NULL), caller_chan_id, callee_chan_id);
-			snprintf(args, len, "%s.%s,b", touch_filename, S_OR(touch_format, "wav"));
-		}
-
-		for( x = 0; x < strlen(args); x++) {
-			if (args[x] == '/')
-				args[x] = '-';
-		}
-
-		ast_verb(3, "User hit '%s' to record call. filename: %s\n", code, touch_filename);
-
-		pbx_exec(callee_chan, mixmonitor_app, args);
-		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
-		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
-		return AST_FEATURE_RETURN_SUCCESS;
-
+	if (touch_monitor) {
+		len = strlen(touch_monitor) + 50;
+		args = alloca(len);
+		touch_filename = alloca(len);
+		snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
+		snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
+	} else {
+		caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(caller_chan)->id.number.valid,
+			ast_channel_caller(caller_chan)->id.number.str, ast_channel_name(caller_chan)));
+		callee_chan_id = ast_strdupa(S_COR(ast_channel_caller(callee_chan)->id.number.valid,
+			ast_channel_caller(callee_chan)->id.number.str, ast_channel_name(callee_chan)));
+		len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
+		args = alloca(len);
+		touch_filename = alloca(len);
+		snprintf(touch_filename, len, "auto-%ld-%s-%s", (long)time(NULL), caller_chan_id, callee_chan_id);
+		snprintf(args, len, "%s.%s,b", touch_filename, S_OR(touch_format, "wav"));
 	}
 
-	ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");
-	return -1;
+	for( x = 0; x < strlen(args); x++) {
+		if (args[x] == '/')
+			args[x] = '-';
+	}
 
+	ast_verb(3, "User hit '%s' to record call. filename: %s\n", code, touch_filename);
+
+	pbx_exec(callee_chan, mixmonitor_app, args);
+	pbx_builtin_setvar_helper(callee_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
+	pbx_builtin_setvar_helper(caller_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
+	return AST_FEATURE_RETURN_SUCCESS;
 }
 
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
@@ -2587,6 +2578,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_channel *transferer;/* Party B */
 	struct ast_channel *transferee;/* Party A */
 	struct ast_exten *park_exten;
+	const char *chan1_attended_sound;
+	const char *chan2_attended_sound;
 	const char *transferer_real_context;
 	char xferto[256] = "";
 	int res;
@@ -2659,16 +2652,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* If we are performing an attended transfer and we have two channels involved then
 	   copy sound file information to play upon attended transfer completion */
-	if (transferee) {
-		const char *chan1_attended_sound = pbx_builtin_getvar_helper(transferer, "ATTENDED_TRANSFER_COMPLETE_SOUND");
-		const char *chan2_attended_sound = pbx_builtin_getvar_helper(transferee, "ATTENDED_TRANSFER_COMPLETE_SOUND");
-
-		if (!ast_strlen_zero(chan1_attended_sound)) {
-			pbx_builtin_setvar_helper(transferer, "BRIDGE_PLAY_SOUND", chan1_attended_sound);
-		}
-		if (!ast_strlen_zero(chan2_attended_sound)) {
-			pbx_builtin_setvar_helper(transferee, "BRIDGE_PLAY_SOUND", chan2_attended_sound);
-		}
+	chan1_attended_sound = pbx_builtin_getvar_helper(transferer, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+	chan2_attended_sound = pbx_builtin_getvar_helper(transferee, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+	if (!ast_strlen_zero(chan1_attended_sound)) {
+		pbx_builtin_setvar_helper(transferer, "BRIDGE_PLAY_SOUND", chan1_attended_sound);
+	}
+	if (!ast_strlen_zero(chan2_attended_sound)) {
+		pbx_builtin_setvar_helper(transferee, "BRIDGE_PLAY_SOUND", chan2_attended_sound);
 	}
 
 	/* Extract redial transferer information from the channel name. */

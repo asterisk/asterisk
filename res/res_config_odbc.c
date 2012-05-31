@@ -317,7 +317,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	char sql[1024];
 	char coltitle[256];
 	char rowdata[2048];
-	const char *initfield=NULL;
+	const char *initfield;
 	char *op;
 	const char *newparam;
 	char *stringp;
@@ -375,9 +375,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	}
 	va_end(aq);
 
-	if (initfield) {
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
-	}
+	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 
 	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
@@ -447,7 +445,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 					if (strchr(chunk, '^')) {
 						decode_chunk(chunk);
 					}
-					if (initfield && !strcmp(initfield, coltitle)) {
+					if (!strcmp(initfield, coltitle)) {
 						ast_category_rename(cat, chunk);
 					}
 					var = ast_variable_new(coltitle, chunk, "");

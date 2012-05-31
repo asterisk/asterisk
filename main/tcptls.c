@@ -255,7 +255,7 @@ static void *handle_tcptls_connection(void *data)
 		return NULL;
 	}
 
-	if (tcptls_session && tcptls_session->parent->worker_fn) {
+	if (tcptls_session->parent->worker_fn) {
 		return tcptls_session->parent->worker_fn(tcptls_session);
 	} else {
 		return tcptls_session;
@@ -457,9 +457,7 @@ client_start_error:
 		close(desc->accept_fd);
 		desc->accept_fd = -1;
 	}
-	if (tcptls_session) {
-		ao2_ref(tcptls_session, -1);
-	}
+	ao2_ref(tcptls_session, -1);
 	return NULL;
 
 }
