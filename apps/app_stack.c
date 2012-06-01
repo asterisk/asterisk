@@ -369,10 +369,21 @@ static int return_exec(struct ast_channel *chan, const char *data)
 static int gosub_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store;
-	AST_LIST_HEAD(,gosub_stack_frame) *oldlist;
-	struct gosub_stack_frame *newframe, *lastframe;
-	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
-	int i, max_argc = 0;
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	struct gosub_stack_frame *newframe;
+	struct gosub_stack_frame *lastframe;
+	char argname[15];
+	char *parse;
+	char *label;
+	char *caller_id;
+	char *orig_context;
+	char *orig_exten;
+	char *dest_context;
+	char *dest_exten;
+	int orig_priority;
+	int dest_priority;
+	int i;
+	int max_argc = 0;
 	AST_DECLARE_APP_ARGS(args2,
 		AST_APP_ARG(argval)[100];
 	);
@@ -382,26 +393,84 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	/*
+	 * Separate the arguments from the label
+	 *
+	 * NOTE:  You cannot use ast_app_separate_args for this, because
+	 * '(' cannot be used as a delimiter.
+	 */
+	parse = ast_strdupa(data);
+	label = strsep(&parse, "(");
+	if (parse) {
+		char *endparen;
+
+		endparen = strrchr(parse, ')');
+		if (endparen) {
+			*endparen = '\0';
+		} else {
+			ast_log(LOG_WARNING, "Ouch.  No closing paren: '%s'?\n", data);
+		}
+		AST_STANDARD_RAW_ARGS(args2, parse);
+	} else {
+		args2.argc = 0;
+	}
+
 	ast_channel_lock(chan);
+	orig_context = ast_strdupa(ast_channel_context(chan));
+	orig_exten = ast_strdupa(ast_channel_exten(chan));
+	orig_priority = ast_channel_priority(chan);
+	ast_channel_unlock(chan);
+
+	if (ast_parseable_goto(chan, label)) {
+		ast_log(LOG_ERROR, "%s address is invalid: '%s'\n", app_gosub, data);
+		goto error_exit;
+	}
+
+	ast_channel_lock(chan);
+	dest_context = ast_strdupa(ast_channel_context(chan));
+	dest_exten = ast_strdupa(ast_channel_exten(chan));
+	dest_priority = ast_channel_priority(chan);
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
+		++dest_priority;
+	}
+	caller_id = S_COR(ast_channel_caller(chan)->id.number.valid,
+		ast_channel_caller(chan)->id.number.str, NULL);
+	if (caller_id) {
+		caller_id = ast_strdupa(caller_id);
+	}
+	ast_channel_unlock(chan);
+
+	if (!ast_exists_extension(chan, dest_context, dest_exten, dest_priority, caller_id)) {
+		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for %s: (Context:%s, Extension:%s, Priority:%d)\n",
+			app_gosub, dest_context, dest_exten, dest_priority);
+		goto error_exit;
+	}
+
+	/* Now we know that we're going to a new location */
+
+	ast_channel_lock(chan);
+
+	/* Find stack datastore return list. */
 	if (!(stack_store = ast_channel_datastore_find(chan, &stack_info, NULL))) {
-		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n", ast_channel_name(chan));
+		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n",
+			ast_channel_name(chan));
 		stack_store = ast_datastore_alloc(&stack_info, NULL);
 		if (!stack_store) {
-			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");
-			ast_channel_unlock(chan);
-			return -1;
+			ast_log(LOG_ERROR, "Unable to allocate new datastore.  %s failed.\n",
+				app_gosub);
+			goto error_exit_locked;
 		}
 
 		oldlist = ast_calloc(1, sizeof(*oldlist));
 		if (!oldlist) {
-			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  Gosub will fail.\n");
+			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  %s failed.\n",
+				app_gosub);
 			ast_datastore_free(stack_store);
-			ast_channel_unlock(chan);
-			return -1;
+			goto error_exit_locked;
 		}
+		AST_LIST_HEAD_INIT(oldlist);
 
 		stack_store->data = oldlist;
-		AST_LIST_HEAD_INIT(oldlist);
 		ast_channel_datastore_add(chan, stack_store);
 	} else {
 		oldlist = stack_store->data;
@@ -411,53 +480,18 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		max_argc = lastframe->arguments;
 	}
 
-	/* Separate the arguments from the label */
-	/* NOTE:  you cannot use ast_app_separate_args for this, because '(' cannot be used as a delimiter. */
-	label = strsep(&tmp, "(");
-	if (tmp) {
-		endparen = strrchr(tmp, ')');
-		if (endparen)
-			*endparen = '\0';
-		else
-			ast_log(LOG_WARNING, "Ouch.  No closing paren: '%s'?\n", (char *)data);
-		AST_STANDARD_RAW_ARGS(args2, tmp);
-	} else
-		args2.argc = 0;
-
-	/* Mask out previous arguments in this invocation */
+	/* Mask out previous Gosub arguments in this invocation */
 	if (args2.argc > max_argc) {
 		max_argc = args2.argc;
 	}
 
-	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	newframe = gosub_allocate_frame(ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 1, max_argc);
-
+	/* Create the return address */
+	newframe = gosub_allocate_frame(orig_context, orig_exten, orig_priority + 1, max_argc);
 	if (!newframe) {
-		ast_channel_unlock(chan);
-		return -1;
+		goto error_exit_locked;
 	}
 
-	if (ast_parseable_goto(chan, label)) {
-		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
-		ast_free(newframe);
-		ast_channel_unlock(chan);
-		return -1;
-	}
-
-	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
-		ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan),
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
-				ast_channel_context(chan), ast_channel_exten(chan), ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP) ? ast_channel_priority(chan) + 1 : ast_channel_priority(chan));
-		ast_channel_context_set(chan, newframe->context);
-		ast_channel_exten_set(chan, newframe->extension);
-		ast_channel_priority_set(chan, newframe->priority - 1);
-		ast_free(newframe);
-		ast_channel_unlock(chan);
-		return -1;
-	}
-
-	/* Now that we know for certain that we're going to a new location, set our arguments */
+	/* Set our arguments */
 	for (i = 0; i < max_argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
 		frame_set_var(chan, newframe, argname, i < args2.argc ? args2.argval[i] : "");
@@ -467,13 +501,23 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	frame_set_var(chan, newframe, "ARGC", argname);
 
 	/* And finally, save our return address */
-	oldlist = stack_store->data;
 	AST_LIST_LOCK(oldlist);
 	AST_LIST_INSERT_HEAD(oldlist, newframe, entries);
 	AST_LIST_UNLOCK(oldlist);
 	ast_channel_unlock(chan);
 
 	return 0;
+
+error_exit:
+	ast_channel_lock(chan);
+
+error_exit_locked:
+	/* Restore the original dialplan location. */
+	ast_channel_context_set(chan, orig_context);
+	ast_channel_exten_set(chan, orig_exten);
+	ast_channel_priority_set(chan, orig_priority);
+	ast_channel_unlock(chan);
+	return -1;
 }
 
 static int gosubif_exec(struct ast_channel *chan, const char *data)
