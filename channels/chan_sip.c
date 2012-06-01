@@ -9225,7 +9225,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					secure_audio = 1;
 				} else if (strcmp(protocol, "AVP")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
-					continue;
+					res = -1;
+					goto process_sdp_cleanup;
 				}
 
 				if (p->offered_media[SDP_AUDIO].order_offered) {
@@ -9277,7 +9278,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					secure_video = 1;
 				} else if (strcmp(protocol, "AVP")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
-					continue;
+					res = -1;
+					goto process_sdp_cleanup;
 				}
 
 				if (p->offered_media[SDP_VIDEO].order_offered) {
@@ -9398,7 +9400,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		} else {
 			ast_log(LOG_WARNING, "Unsupported top-level media type in offer: %s\n", m);
-			continue;
+			res = -1;
+			goto process_sdp_cleanup;
 		}
 
 		/* Media stream specific parameters */
