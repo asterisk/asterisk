@@ -8753,7 +8753,7 @@ static int sockaddr_is_null_or_any(const struct ast_sockaddr *addr)
 	return ast_sockaddr_isnull(addr) || ast_sockaddr_is_any(addr);
 }
 
-/*! \brief Process SIP SDP offer, select formats and activate RTP channels
+/*! \brief Process SIP SDP offer, select formats and activate media channels
 	If offer is rejected, we will not change any properties of the call
  	Return 0 on success, a negative value on errors.
 	Must be called after find_sdp().
@@ -8778,16 +8778,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	struct ast_sockaddr videosa;
 	struct ast_sockaddr textsa;
 	struct ast_sockaddr imagesa;
-	struct ast_sockaddr *sa = NULL;	/*!< RTP Audio host IP */
-	struct ast_sockaddr *vsa = NULL;	/*!< RTP video host IP */
-	struct ast_sockaddr *tsa = NULL;	/*!< RTP text host IP */
-	struct ast_sockaddr *isa = NULL;     /*!< UDPTL host ip */
- 	int portno = -1;		/*!< RTP Audio port number */
- 	int vportno = -1;		/*!< RTP Video port number */
-	int tportno = -1;		/*!< RTP Text port number */
-	int udptlportno = -1;		/*!< UDPTL Image port number */
+	struct ast_sockaddr *sa = NULL;		/*!< RTP audio destination IP address */
+	struct ast_sockaddr *vsa = NULL;	/*!< RTP video destination IP address */
+	struct ast_sockaddr *tsa = NULL;	/*!< RTP text destination IP address */
+	struct ast_sockaddr *isa = NULL;	/*!< UDPTL image destination IP address */
+ 	int portno = -1;			/*!< RTP audio destination port number */
+ 	int vportno = -1;			/*!< RTP video destination port number */
+	int tportno = -1;			/*!< RTP text destination port number */
+	int udptlportno = -1;			/*!< UDPTL image destination port number */
 
-	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
+	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */
 	format_t peercapability = 0, vpeercapability = 0, tpeercapability = 0;
 	int peernoncodeccapability = 0, vpeernoncodeccapability = 0, tpeernoncodeccapability = 0;
 
@@ -8809,9 +8809,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int numberofports;
 	int numberofmediastreams = 0;
 	int last_rtpmap_codec = 0;
-	int red_data_pt[10];		/* For T.140 red */
-	int red_num_gen = 0;		/* For T.140 red */
-	char red_fmtp[100] = "empty";	/* For T.140 red */
+	int red_data_pt[10];		/* For T.140 RED */
+	int red_num_gen = 0;		/* For T.140 RED */
+	char red_fmtp[100] = "empty";	/* For T.140 RED */
 	int debug = sip_debug_test_pvt(p);
 
 	/* START UNKNOWN */
@@ -8834,18 +8834,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	memset(p->offered_media, 0, sizeof(p->offered_media));
 
-
 	/* default: novideo and notext set */
 	p->novideo = TRUE;
 	p->notext = TRUE;
-
-	if (p->vrtp) {
-		ast_rtp_codecs_payloads_clear(&newvideortp, NULL);
-	}
-
-	if (p->trtp) {
-		ast_rtp_codecs_payloads_clear(&newtextrtp, NULL);
-	}
 
 	/* Scan for the first media stream (m=) line to limit scanning of globals */
 	nextm = get_sdp_iterate(&next, req, "m");
@@ -8890,10 +8881,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			break;
 		}
 
-		ast_debug(3, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED.");
+		ast_debug(3, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED OR FAILED.");
  	}
-
-
 
 	/* Scan media stream (m=) specific parameters loop */
 	while (!ast_strlen_zero(nextm)) {
@@ -8905,146 +8894,195 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		char protocol[5] = {0,};
 		int x;
 
-		numberofports = 1;
+		numberofports = 0;
 		len = -1;
 		start = next;
 		m = nextm;
 		iterator = next;
 		nextm = get_sdp_iterate(&next, req, "m");
 
-		/* Search for audio media definition */
-		if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-		    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
-			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'audio' media offer because port number is zero\n");
-				continue;
-			}
-			if (!strcmp(protocol, "SAVP")) {
-				secure_audio = 1;
-			} else if (strcmp(protocol, "AVP")) {
-				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
-				continue;
-			}
-			if (p->offered_media[SDP_AUDIO].order_offered) {
-				ast_log(LOG_WARNING, "Multiple audio streams are not supported\n");
-				return -3;
-			}
-			audio = TRUE;
-			p->offered_media[SDP_AUDIO].order_offered = ++numberofmediastreams;
-			portno = x;
+		/* Check for 'audio' media offer */
+		if (strncmp(m, "audio ", 6) == 0) {
+			if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+				if (x == 0) {
+					ast_log(LOG_WARNING, "Ignoring audio media offer because port number is zero\n");
+					continue;
+				}
 
-			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_AUDIO].codecs, codecs, sizeof(p->offered_media[SDP_AUDIO].codecs));
-			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
-					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+				/* Check number of ports offered for stream */
+				if (numberofports > 1) {
+					ast_log(LOG_WARNING, "%d ports offered for audio media, not supported by Asterisk. Will try anyway...\n", numberofports);
+				}
+
+				if (!strcmp(protocol, "SAVP")) {
+					secure_audio = 1;
+				} else if (strcmp(protocol, "AVP")) {
+					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
+					continue;
+				}
+
+				if (p->offered_media[SDP_AUDIO].order_offered) {
+					ast_log(LOG_WARNING, "Rejecting non-primary audio stream: %s\n", m);
 					return -1;
 				}
-				if (debug)
-					ast_verbose("Found RTP audio format %d\n", codec);
 
-				ast_rtp_codecs_payloads_set_m_type(&newaudiortp, NULL, codec);
-			}
-		/* Search for video media definition */
-		} else if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			   (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
-			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'video' media offer because port number is zero\n");
-				continue;
-			}
-			if (!strcmp(protocol, "SAVP")) {
-				secure_video = 1;
-			} else if (strcmp(protocol, "AVP")) {
-				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
-				continue;
-			}
-			if (p->offered_media[SDP_VIDEO].order_offered) {
-				ast_log(LOG_WARNING, "Multiple video streams are not supported\n");
-				return -3;
-			}
-			video = TRUE;
-			p->novideo = FALSE;
-			p->offered_media[SDP_VIDEO].order_offered = ++numberofmediastreams;
-			vportno = x;
+				audio = TRUE;
+				p->offered_media[SDP_AUDIO].order_offered = ++numberofmediastreams;
+				portno = x;
 
-			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_VIDEO].codecs, codecs, sizeof(p->offered_media[SDP_VIDEO].codecs));
-			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
-					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+				/* Scan through the RTP payload types specified in a "m=" line: */
+				codecs = m + len;
+				ast_copy_string(p->offered_media[SDP_AUDIO].codecs, codecs, sizeof(p->offered_media[SDP_AUDIO].codecs));
+				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
+					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
+						ast_log(LOG_WARNING, "Invalid syntax in RTP audio format list: %s\n", codecs);
+						return -1;
+					}
+					if (debug) {
+						ast_verbose("Found RTP audio format %d\n", codec);
+					}
+
+					ast_rtp_codecs_payloads_set_m_type(&newaudiortp, NULL, codec);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Rejecting audio media offer due to invalid or unsupported syntax: %s\n", m);
+				return -1;
+			}
+		}
+		/* Check for 'video' media offer */
+		else if (strncmp(m, "video ", 6) == 0) {
+			if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+				if (x == 0) {
+					ast_log(LOG_WARNING, "Ignoring video media offer because port number is zero\n");
+					continue;
+				}
+
+				/* Check number of ports offered for stream */
+				if (numberofports > 1) {
+					ast_log(LOG_WARNING, "%d ports offered for video media, not supported by Asterisk. Will try anyway...\n", numberofports);
+				}
+
+				if (!strcmp(protocol, "SAVP")) {
+					secure_video = 1;
+				} else if (strcmp(protocol, "AVP")) {
+					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
+					continue;
+				}
+
+				if (p->offered_media[SDP_VIDEO].order_offered) {
+					ast_log(LOG_WARNING, "Rejecting non-primary video stream: %s\n", m);
 					return -1;
 				}
-				if (debug)
-					ast_verbose("Found RTP video format %d\n", codec);
-				ast_rtp_codecs_payloads_set_m_type(&newvideortp, NULL, codec);
-			}
-		/* Search for text media definition */
-		} else if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-			   (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
-			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'text' media offer because port number is zero\n");
-				continue;
-			}
-			if (p->offered_media[SDP_TEXT].order_offered) {
-				ast_log(LOG_WARNING, "Multiple text streams are not supported\n");
-				return -3;
-			}
-			text = TRUE;
-			p->notext = FALSE;
-			p->offered_media[SDP_TEXT].order_offered = ++numberofmediastreams;
-			tportno = x;
 
-			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_TEXT].codecs, codecs, sizeof(p->offered_media[SDP_TEXT].codecs));
-			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
-					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+				video = TRUE;
+				p->novideo = FALSE;
+				p->offered_media[SDP_VIDEO].order_offered = ++numberofmediastreams;
+				vportno = x;
+
+				/* Scan through the RTP payload types specified in a "m=" line: */
+				codecs = m + len;
+				ast_copy_string(p->offered_media[SDP_VIDEO].codecs, codecs, sizeof(p->offered_media[SDP_VIDEO].codecs));
+				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
+					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
+						ast_log(LOG_WARNING, "Invalid syntax in RTP video format list: %s\n", codecs);
+						return -1;
+					}
+					if (debug) {
+						ast_verbose("Found RTP video format %d\n", codec);
+					}
+					ast_rtp_codecs_payloads_set_m_type(&newvideortp, NULL, codec);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Rejecting video media offer due to invalid or unsupported syntax: %s\n", m);
+				return -1;
+			}
+		}
+		/* Check for 'text' media offer */
+		else if (strncmp(m, "text ", 5) == 0) {
+			if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+			    (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+				if (x == 0) {
+					ast_log(LOG_WARNING, "Ignoring text media offer because port number is zero\n");
+					continue;
+				}
+
+				/* Check number of ports offered for stream */
+				if (numberofports > 1) {
+					ast_log(LOG_WARNING, "%d ports offered for text media, not supported by Asterisk. Will try anyway...\n", numberofports);
+				}
+
+				if (p->offered_media[SDP_TEXT].order_offered) {
+					ast_log(LOG_WARNING, "Rejecting non-primary text stream: %s\n", m);
 					return -1;
 				}
-				if (debug)
-					ast_verbose("Found RTP text format %d\n", codec);
-				ast_rtp_codecs_payloads_set_m_type(&newtextrtp, NULL, codec);
-			}
-		/* Search for image media definition */
-		} else if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
-			    (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
-			if (x == 0) {
-				ast_log(LOG_WARNING, "ignoring 'image' media offer because port number is zero\n");
-				continue;
-			}
-			if (initialize_udptl(p)) {
-				continue;
-			}
 
-			if (p->offered_media[SDP_IMAGE].order_offered) {
-				ast_log(LOG_WARNING, "Multiple T.38 streams are not supported\n");
-				return -3;
+				text = TRUE;
+				p->notext = FALSE;
+				p->offered_media[SDP_TEXT].order_offered = ++numberofmediastreams;
+				tportno = x;
+
+				/* Scan through the RTP payload types specified in a "m=" line: */
+				codecs = m + len;
+				ast_copy_string(p->offered_media[SDP_TEXT].codecs, codecs, sizeof(p->offered_media[SDP_TEXT].codecs));
+				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
+					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
+						ast_log(LOG_WARNING, "Invalid syntax in RTP video format list: %s\n", codecs);
+						return -1;
+					}
+					if (debug) {
+						ast_verbose("Found RTP text format %d\n", codec);
+					}
+					ast_rtp_codecs_payloads_set_m_type(&newtextrtp, NULL, codec);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Rejecting text media offer due to invalid or unsupported syntax: %s\n", m);
+				return -1;
 			}
-			image = TRUE;
-			if (debug)
-				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
-			p->offered_media[SDP_IMAGE].order_offered = ++numberofmediastreams;
-			udptlportno = x;
+		}
+		/* Check for 'image' media offer */
+		else if (strncmp(m, "image ", 6) == 0) {
+			if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
+			     (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
+				if (x == 0) {
+					ast_log(LOG_WARNING, "Ignoring image media offer because port number is zero\n");
+					continue;
+				}
 
-			if (p->t38.state != T38_ENABLED) {
-				memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
+				if (initialize_udptl(p)) {
+					return -1;
+				}
 
-				/* default EC to none, the remote end should
-				 * respond with the EC they want to use */
-				ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				if (p->offered_media[SDP_IMAGE].order_offered) {
+					ast_log(LOG_WARNING, "Rejecting non-primary image stream: %s\n", m);
+					return -1;
+				}
+
+				image = TRUE;
+				if (debug) {
+					ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
+				}
+
+				p->offered_media[SDP_IMAGE].order_offered = ++numberofmediastreams;
+				udptlportno = x;
+
+				if (p->t38.state != T38_ENABLED) {
+					memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
+
+					/* default EC to none, the remote end should
+					 * respond with the EC they want to use */
+					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Rejecting image media offer due to invalid or unsupported syntax: %s\n", m);
+				return -1;
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
+			ast_log(LOG_WARNING, "Unsupported top-level media type in offer: %s\n", m);
 			continue;
 		}
 
-		/* Check for number of ports */
-		if (numberofports > 1)
-			ast_log(LOG_WARNING, "SDP offered %d ports for media, not supported by Asterisk. Will try anyway...\n", numberofports);
-		
 		/* Media stream specific parameters */
 		while ((type = get_sdp_line(&iterator, next - 1, req, &value)) != '\0') {
 			int processed = FALSE;
@@ -9114,12 +9152,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 
 			ast_debug(3, "Processing media-level (%s) SDP %c=%s... %s\n",
-					(audio == TRUE)? "audio" : (video == TRUE)? "video" : "image",
-					type, value,
-					(processed == TRUE)? "OK." : "UNSUPPORTED.");
+				  (audio == TRUE)? "audio" : (video == TRUE)? "video" : (text == TRUE)? "text" : "image",
+				  type, value,
+				  (processed == TRUE)? "OK." : "UNSUPPORTED OR FAILED.");
 		}
 	}
-
 
 	/* Sanity checks */
 	if (!sa && !vsa && !tsa && !isa) {
@@ -9127,36 +9164,37 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		return -1;
 	}
 
-	if (portno == -1 && vportno == -1 && udptlportno == -1  && tportno == -1) {
-		/* No acceptable offer found in SDP  - we have no ports */
-		/* Do not change RTP or VRTP if this is a re-invite */
+	if ((portno == -1) &&
+	    (vportno == -1) &&
+	    (tportno == -1) &&
+	    (udptlportno == -1)) {
 		ast_log(LOG_WARNING, "Failing due to no acceptable offer found\n");
-		return -2;
+		return -1;
 	}
 
 	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
-		return -4;
+		return -1;
 	}
 
 	if (!secure_audio && p->srtp) {
-		ast_log(LOG_WARNING, "We are requesting SRTP, but they responded without it!\n");
-		return -4;
+		ast_log(LOG_WARNING, "We are requesting SRTP for audio, but they responded without it!\n");
+		return -1;
 	}
 
 	if (secure_video && !(p->vsrtp && (ast_test_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure video requested in SDP offer\n");
-		return -4;
+		return -1;
 	}
 
 	if (!p->novideo && !secure_video && p->vsrtp) {
-		ast_log(LOG_WARNING, "We are requesting SRTP, but they responded without it!\n");
-		return -4;
+		ast_log(LOG_WARNING, "We are requesting SRTP for video, but they responded without it!\n");
+		return -1;
 	}
 
 	if (!(secure_audio || secure_video) && ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP)) {
 		ast_log(LOG_WARNING, "Matched device setup to use SRTP, but request was not!\n");
-		return -4;
+		return -1;
 	}
 
 	if (udptlportno == -1) {
@@ -9200,12 +9238,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	if (portno != -1 || vportno != -1 || tportno != -1) {
-		/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
+		/* We are now ready to change the sip session and RTP structures with the offered codecs, since
 		   they are acceptable */
 		p->jointcapability = newjointcapability;                /* Our joint codec profile for this call */
-		p->peercapability = newpeercapability;                  /* The other sides capability in latest offer */
+		p->peercapability = newpeercapability;                  /* The other side's capability in latest offer */
 		p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
-	
+
 		/* respond with single most preferred joint codec, limiting the other side's choice */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) {
 			p->jointcapability = ast_codec_choose(&p->prefs, p->jointcapability, 1);
@@ -9298,6 +9336,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_verbose("Peer doesn't provide T.140\n");
 		}
 	}
+
 	/* Setup image address and port */
 	if (p->udptl) {
 		if (udptlportno > 0) {
@@ -9378,7 +9417,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
-	
+
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (!ast_sockaddr_isnull(sa) || !ast_sockaddr_isnull(vsa) || !ast_sockaddr_isnull(tsa) || !ast_sockaddr_isnull(isa)) && (!sendonly || sendonly == -1)) {
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
@@ -9395,7 +9434,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_queue_frame(p->owner, &ast_null_frame);
 		change_hold_state(p, req, TRUE, sendonly);
 	}
-	
+
 	return 0;
 }
 
