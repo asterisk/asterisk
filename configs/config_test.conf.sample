@@ -1,0 +1,32 @@
+; Config to test config parsing
+; global and item have values that differ from defaults
+; global_defaults and item_defualts are to show all defaults are set
+; there should be an option for every default type, and a custom type
+
+[global]
+intopt=-1
+uintopt=1
+doubleopt=0.1
+sockaddropt=1.2.3.4:1234
+boolopt=true
+acldenyopt=0.0.0.0/0
+aclpermitopt=1.2.3.4/32
+codecopt=!all,ulaw,g729
+stropt=test
+customopt=yes
+
+[global_defaults]
+
+[item]
+intopt=-1
+uintopt=1
+doubleopt=0.1
+sockaddropt=1.2.3.4:1234
+boolopt=true
+acldenyopt=0.0.0.0/0
+aclpermitopt=1.2.3.4/32
+codecopt=!all,ulaw,g729
+stropt=test
+customopt=yes
+
+[item_defaults]
