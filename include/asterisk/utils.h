@@ -863,4 +863,51 @@ int ast_get_tid(void);
  */
 char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
 
+/*! \brief Declare a variable that will call a destructor function when it goes out of scope
+ * \param vartype The type of the variable
+ * \param varname The name of the variable
+ * \param initval The initial value of the variable
+ * \param dtor The destructor function of type' void func(vartype *)'
+ *
+ * \code
+ * void mything_cleanup(struct mything *t)
+ * {
+ *     if (t) {
+ *         ast_free(t->stuff);
+ *     }
+ * }
+ *
+ * void do_stuff(const char *name)
+ * {
+ *     RAII_VAR(struct mything *, thing, mything_alloc(name), mything_cleanup);
+ *     ...
+ * }
+ *
+ * \note This macro is especially useful for working with ao2 objects. A common idiom
+ * would be a function that needed to look up an ao2 object and might have several error
+ * conditions after the allocation that would normally need to unref the ao2 object.
+ * With RAII_VAR, it is possible to just return and leave the cleanup to the destructor
+ * function. For example:
+ * \code
+ * void do_stuff(const char *name)
+ * {
+ *     RAII_VAR(struct mything *, thing, find_mything(name), ao2_cleanup);
+ *     if (!thing) {
+ *         return;
+ *     }
+ *     if (error) {
+ *         return;
+ *     }
+ *     do_stuff_with_thing(thing);
+ *     return;
+ *     }
+ * }
+ * \encode
+ *
+ */
+#define RAII_VAR(vartype, varname, initval, dtor) \
+    auto void _dtor_ ## varname (vartype * v); \
+    auto void _dtor_ ## varname (vartype * v) { dtor(*v); } \
+    vartype varname __attribute__((cleanup(_dtor_ ## varname))) = (initval)
+
 #endif /* _ASTERISK_UTILS_H */

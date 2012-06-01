@@ -2658,6 +2658,13 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 			goto int32_done;
 		}
 		error = (x < low) || (x > high);
+		if (flags & PARSE_RANGE_DEFAULTS) {
+			if (x < low) {
+				def = low;
+			} else if (x > high) {
+				def = high;
+			}
+		}
 		if (flags & PARSE_OUT_RANGE) {
 			error = !error;
 		}
@@ -2704,6 +2711,13 @@ int32_done:
 			goto uint32_done;
 		}
 		error = (x < low) || (x > high);
+		if (flags & PARSE_RANGE_DEFAULTS) {
+			if (x < low) {
+				def = low;
+			} else if (x > high) {
+				def = high;
+			}
+		}
 		if (flags & PARSE_OUT_RANGE) {
 			error = !error;
 		}

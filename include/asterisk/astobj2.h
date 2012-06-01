@@ -1461,4 +1461,10 @@ void *__ao2_iterator_next(struct ao2_iterator *iter);
 /* extra functions */
 void ao2_bt(void);	/* backtrace */
 
+/*! gcc __attribute__(cleanup()) functions
+ * \note they must be able to handle NULL parameters because most of the
+ * allocation/find functions can fail and we don't want to try to tear
+ * down a NULL */
+void ao2_cleanup(void *obj);
+void ao2_iterator_cleanup(struct ao2_iterator *iter);
 #endif /* _ASTERISK_ASTOBJ2_H */

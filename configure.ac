@@ -980,6 +980,16 @@ else
 fi
 AC_SUBST(AST_DECLARATION_AFTER_STATEMENT)
 
+AC_MSG_CHECKING(for -Wtrampolines support)
+if $(${CC} -Wtrampolines -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	AC_MSG_RESULT(yes)
+	AST_TRAMPOLINES=-Wtrampolines
+else
+	AC_MSG_RESULT(no)
+	AST_TRAMPOLINES=
+fi
+AC_SUBST(AST_TRAMPOLINES)
+
 AC_MSG_CHECKING(for _FORTIFY_SOURCE support)
 if $(${CC} -D_FORTIFY_SOURCE=2 -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)

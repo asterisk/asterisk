@@ -638,6 +638,7 @@ void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, co
 {
 	if (!holder) {
 		/* For sanity */
+		ast_log(LOG_ERROR, "Must be called with a global object!\n");
 		return;
 	}
 	if (__ast_rwlock_wrlock(file, line, func, &holder->lock, name)) {
@@ -660,6 +661,7 @@ void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const c
 
 	if (!holder) {
 		/* For sanity */
+		ast_log(LOG_ERROR, "Must be called with a global object!\n");
 		return NULL;
 	}
 	if (__ast_rwlock_wrlock(file, line, func, &holder->lock, name)) {
@@ -696,8 +698,10 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 
 	if (!holder) {
 		/* For sanity */
+		ast_log(LOG_ERROR, "Must be called with a global object!\n");
 		return NULL;
 	}
+
 	if (__ast_rwlock_rdlock(file, line, func, &holder->lock, name)) {
 		/* Could not get the read lock. */
 		return NULL;
@@ -712,7 +716,6 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 
 	return obj;
 }
-
 
 /* internal callback to destroy a container. */
 static void container_destruct(void *c);
@@ -1517,6 +1520,20 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 		clone = NULL;
 	}
 	return clone;
+}
+
+void ao2_cleanup(void *obj)
+{
+	if (obj) {
+		ao2_ref(obj, -1);
+	}
+}
+
+void ao2_iterator_cleanup(struct ao2_iterator *iter)
+{
+	if (iter) {
+		ao2_iterator_destroy(iter);
+	}
 }
 
 #ifdef AO2_DEBUG
