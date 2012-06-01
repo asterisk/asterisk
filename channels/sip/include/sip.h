@@ -368,9 +368,11 @@
 #define SIP_PAGE3_SRTP_TAG_32            (1 << 1)  /*!< DP: Use a 32bit auth tag in INVITE not 80bit */
 #define SIP_PAGE3_NAT_AUTO_RPORT         (1 << 2)  /*!< DGP: Set SIP_NAT_FORCE_RPORT when NAT is detected */
 #define SIP_PAGE3_NAT_AUTO_COMEDIA       (1 << 3)  /*!< DGP: Set SIP_PAGE2_SYMMETRICRTP when NAT is detected */
+#define SIP_PAGE3_DIRECT_MEDIA_OUTGOING  (1 << 4)  /*!< DP: Only send direct media reinvites on outgoing calls */
 
 #define SIP_PAGE3_FLAGS_TO_COPY \
-	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32 | SIP_PAGE3_NAT_AUTO_RPORT | SIP_PAGE3_NAT_AUTO_COMEDIA)
+	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32 | SIP_PAGE3_NAT_AUTO_RPORT | SIP_PAGE3_NAT_AUTO_COMEDIA | \
+	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING)
 
 #define CHECK_AUTH_BUF_INITLEN   256
 
