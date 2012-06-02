@@ -270,6 +270,18 @@ void ast_sha1_hash(char *output, const char *input)
 		ptr += sprintf(ptr, "%2.2x", Message_Digest[x]);
 }
 
+/*! \brief Produce a 20 byte SHA1 hash of value. */
+void ast_sha1_hash_uint(uint8_t *digest, const char *input)
+{
+        struct SHA1Context sha;
+
+        SHA1Reset(&sha);
+
+        SHA1Input(&sha, (const unsigned char *) input, strlen(input));
+
+        SHA1Result(&sha, digest);
+}
+
 /*! \brief decode BASE64 encoded text */
 int ast_base64decode(unsigned char *dst, const char *src, int max)
 {

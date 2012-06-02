@@ -1,0 +1,17 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_websocket_add_protocol;
+		LINKER_SYMBOL_PREFIXast_websocket_remove_protocol;
+		LINKER_SYMBOL_PREFIXast_websocket_read;
+		LINKER_SYMBOL_PREFIXast_websocket_write;
+		LINKER_SYMBOL_PREFIXast_websocket_close;
+		LINKER_SYMBOL_PREFIXast_websocket_reconstruct_enable;
+		LINKER_SYMBOL_PREFIXast_websocket_reconstruct_disable;
+		LINKER_SYMBOL_PREFIXast_websocket_ref;
+		LINKER_SYMBOL_PREFIXast_websocket_unref;
+		LINKER_SYMBOL_PREFIXast_websocket_fd;
+		LINKER_SYMBOL_PREFIXast_websocket_remote_address;
+		LINKER_SYMBOL_PREFIXast_websocket_is_secure;
+	local:
+		*;
+};
