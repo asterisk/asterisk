@@ -39,8 +39,8 @@ syn region      asteriskExp             matchgroup=asteriskExpStart start="\$\["
 syn match       asteriskCodecsPermit    "^\s*\(allow\|disallow\)\s*=\s*.*$" contains=asteriskCodecs
 syn match       asteriskCodecs          "\(g723\|gsm\|ulaw\|alaw\|g726\|adpcm\|slin\|lpc10\|g729\|speex\|speex16\|ilbc\|all\s*$\)"
 syn match       asteriskError           "^\(type\|auth\|permit\|deny\|bindaddr\|host\)\s*=.*$"
-syn match       asteriskType            "^\zstype=\ze\<\(peer\|user\|friend\)\>$" contains=asteriskTypeType
-syn match       asteriskTypeType        "\<\(peer\|user\|friend\)\>" contained
+syn match       asteriskType            "^\zstype=\ze\<\(peer\|user\|friend\|phone\|line\|application\)\>$" contains=asteriskTypeType
+syn match       asteriskTypeType        "\<\(peer\|user\|friend\|phone\|line\|application\)\>" contained
 syn match       asteriskAuth            "^\zsauth\s*=\ze\s*\<\(md5\|rsa\|plaintext\)\>$" contains=asteriskAuthType
 syn match       asteriskAuthType        "\<\(md5\|rsa\|plaintext\)\>" contained
 syn match       asteriskAuth            "^\zs\(secret\|inkeys\|outkey\)\s*=\ze.*$"
