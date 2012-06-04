@@ -562,13 +562,9 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 
 			last_slash = strrchr(filename, '/');
 
-			ast_log(LOG_NOTICE, "!!!!!! File name is %s\n", filename);
-
 			if ((*ext = strrchr(filename, '.')) && (*ext > last_slash)) {
-				ast_log(LOG_NOTICE, "Found a dot. *ext is %s\n", *ext);
 				**ext = '\0';
 				*ext = *ext + 1;
-				ast_log(LOG_NOTICE, "After increment *ext is %s\n", *ext);
 			} else {
 				*ext = "raw";
 			}
