@@ -29,6 +29,12 @@ From 1.8.11 to 1.8.12:
 
 From 1.8.10 to 1.8.11:
 
+* The BLINDTRANSFER channel variable is deleted from a channel when it is
+  bridged to prevent subtle bugs in the parking feature.  The channel
+  variable is used by Asterisk internally for the Park application to work
+  properly.  If you were using it for your own purposes, copy it to your
+  own channel variable before the channel is bridged.
+
 * If no transport is specified in sip.conf, transport will default to UDP.
   Also, if multiple transport= lines are used, only the last will be used.
 
