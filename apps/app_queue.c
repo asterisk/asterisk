@@ -1703,12 +1703,18 @@ static int extensionstate2devicestate(int state)
 	return state;
 }
 
-static int extension_state_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
+static int extension_state_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct ao2_iterator miter, qiter;
 	struct member *m;
 	struct call_queue *q;
+	int state = info->exten_state;
 	int found = 0, device_state = extensionstate2devicestate(state);
+
+	/* only interested in extension state updates involving device states */
+	if (info->reason != AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
 
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate through queues"))) {

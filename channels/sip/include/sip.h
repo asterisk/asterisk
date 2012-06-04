@@ -1041,6 +1041,8 @@ struct sip_pvt {
 		AST_STRING_FIELD(parkinglot);   /*!< Parkinglot */
 		AST_STRING_FIELD(engine);       /*!< RTP engine to use */
 		AST_STRING_FIELD(dialstring);   /*!< The dialstring used to call this SIP endpoint */
+		AST_STRING_FIELD(last_presence_subtype);   /*!< The last presence subtype sent for a subscription. */
+		AST_STRING_FIELD(last_presence_message);   /*!< The last presence message for a subscription */
 		AST_STRING_FIELD(msg_body);     /*!< Text for a MESSAGE body */
 	);
 	char via[128];                          /*!< Via: header */
@@ -1141,6 +1143,7 @@ struct sip_pvt {
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;                      /*!< SUBSCRIBE: Last known extension state */
+	int last_presence_state;            /*!< SUBSCRIBE: Last known presence state */
 	uint32_t dialogver;                 /*!< SUBSCRIBE: Version for subscription dialog-info */
 
 	struct ast_dsp *dsp;                /*!< Inband DTMF or Fax CNG tone Detection dsp */

@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/datastore.h"
 #include "asterisk/pbx.h"
+#include "asterisk/manager.h"
 #include "asterisk/strings.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/app.h"
@@ -55,6 +56,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<enum name="from">
 					<para>Read-only.  The source of the message.  When processing an
 					incoming message, this will be set to the source of the message.</para>
+				</enum>
+				<enum name="custom_data">
+					<para>Write-only.  Mark or unmark all message headers for an outgoing
+					message.  The following values can be set:</para>
+					<enumlist>
+						<enum name="mark_all_outbound">
+							<para>Mark all headers for an outgoing message.</para>
+						</enum>
+						<enum name="clear_all_outbound">
+							<para>Unmark all headers for an outgoing message.</para>
+						</enum>
+					</enumlist>
 				</enum>
 				<enum name="body">
 					<para>Read/Write.  The message body.  When processing an incoming
@@ -139,6 +152,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
+	<manager name="MessageSend" language="en_US">
+		<synopsis>
+			Send an out of call message to an endpoint.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="To" required="true">
+				<para>The URI the message is to be sent to.</para>
+			</parameter>
+			<parameter name="From">
+				<para>A From URI for the message if needed for the
+				message technology being used to send this message.</para>
+				<note>
+					<para>For SIP the from parameter can be a configured peer name
+					or in the form of "display-name" &lt;URI&gt;.</para>
+				</note>
+			</parameter>
+			<parameter name="Body">
+				<para>The message body text.  This must not contain any newlines as that
+				conflicts with the AMI protocol.</para>
+			</parameter>
+			<parameter name="Base64Body">
+				<para>Text bodies requiring the use of newlines have to be base64 encoded
+				in this field.  Base64Body will be decoded before being sent out.
+				Base64Body takes precedence over Body.</para>
+			</parameter>
+			<parameter name="Variable">
+				<para>Message variable to set, multiple Variable: headers are
+				allowed.  The header value is a comma separated list of
+				name=value pairs.</para>
+			</parameter>
+		</syntax>
+	</manager>
  ***/
 
 struct msg_data {
@@ -393,6 +439,12 @@ struct ast_msg *ast_msg_alloc(void)
 	return msg;
 }
 
+struct ast_msg *ast_msg_ref(struct ast_msg *msg)
+{
+	ao2_ref(msg, 1);
+	return msg;
+}
+
 struct ast_msg *ast_msg_destroy(struct ast_msg *msg)
 {
 	ao2_ref(msg, -1);
@@ -519,7 +571,7 @@ static int msg_set_var_full(struct ast_msg *msg, const char *name, const char *v
 	return 0;
 }
 
-static int msg_set_var_outbound(struct ast_msg *msg, const char *name, const char *value)
+int ast_msg_set_var_outbound(struct ast_msg *msg, const char *name, const char *value)
 {
 	return msg_set_var_full(msg, name, value, 1);
 }
@@ -850,6 +902,26 @@ static int msg_func_write(struct ast_channel *chan, const char *function,
 		ast_msg_set_from(msg, "%s", value);
 	} else if (!strcasecmp(data, "body")) {
 		ast_msg_set_body(msg, "%s", value);
+	} else if (!strcasecmp(data, "custom_data")) {
+		int outbound = -1;
+		if (!strcasecmp(value, "mark_all_outbound")) {
+			outbound = 1;
+		} else if (!strcasecmp(value, "clear_all_outbound")) {
+			outbound = 0;
+		} else {
+			ast_log(LOG_WARNING, "'%s' is not a valid value for custom_data\n", value);
+		}
+
+		if (outbound != -1) {
+			struct msg_data *hdr_data;
+			struct ao2_iterator iter = ao2_iterator_init(msg->vars, 0);
+
+			while ((hdr_data = ao2_iterator_next(&iter))) {
+				hdr_data->send = outbound;
+				ao2_ref(hdr_data, -1);
+			}
+			ao2_iterator_destroy(&iter);
+		}
 	} else {
 		ast_log(LOG_WARNING, "'%s' is not a valid write argument.\n", data);
 	}
@@ -910,7 +982,7 @@ static int msg_data_func_write(struct ast_channel *chan, const char *function,
 
 	ao2_lock(msg);
 
-	msg_set_var_outbound(msg, data, value);
+	ast_msg_set_var_outbound(msg, data, value);
 
 	ao2_unlock(msg);
 	ao2_ref(msg, -1);
@@ -1041,6 +1113,120 @@ exit_cleanup:
 	return 0;
 }
 
+static int action_messagesend(struct mansession *s, const struct message *m)
+{
+	const char *to = ast_strdupa(astman_get_header(m, "To"));
+	const char *from = astman_get_header(m, "From");
+	const char *body = astman_get_header(m, "Body");
+	const char *base64body = astman_get_header(m, "Base64Body");
+	char base64decoded[1301] = { 0, };
+	char *tech_name = NULL;
+	struct ast_variable *vars = NULL;
+	struct ast_variable *data = NULL;
+	struct ast_msg_tech_holder *tech_holder = NULL;
+	struct ast_msg *msg;
+	int res = -1;
+
+	if (ast_strlen_zero(to)) {
+		astman_send_error(s, m, "No 'To' address specified.");
+		return -1;
+	}
+
+	if (!ast_strlen_zero(base64body)) {
+		ast_base64decode((unsigned char *) base64decoded, base64body, sizeof(base64decoded) - 1);
+		body = base64decoded;
+	}
+
+	tech_name = ast_strdupa(to);
+	tech_name = strsep(&tech_name, ":");
+	{
+		struct ast_msg_tech tmp_msg_tech = {
+			.name = tech_name,
+		};
+		struct ast_msg_tech_holder tmp_tech_holder = {
+			.tech = &tmp_msg_tech,
+		};
+
+		tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER);
+	}
+
+	if (!tech_holder) {
+		astman_send_error(s, m, "Message technology not found.");
+		return -1;
+	}
+
+	if (!(msg = ast_msg_alloc())) {
+		ao2_ref(tech_holder, -1);
+		astman_send_error(s, m, "Internal failure\n");
+		return -1;
+	}
+
+	data = astman_get_variables(m);
+	for (vars = data; vars; vars = vars->next) {
+		ast_msg_set_var_outbound(msg, vars->name, vars->value);
+	}
+
+	ast_msg_set_body(msg, "%s", body);
+
+	ast_rwlock_rdlock(&tech_holder->tech_lock);
+	if (tech_holder->tech) {
+		res = tech_holder->tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
+	}
+	ast_rwlock_unlock(&tech_holder->tech_lock);
+
+	ast_variables_destroy(vars);
+	ao2_ref(tech_holder, -1);
+	ao2_ref(msg, -1);
+
+	if (res) {
+		astman_send_error(s, m, "Message failed to send.");
+	} else {
+		astman_send_ack(s, m, "Message successfully sent");
+	}
+	return res;
+}
+
+int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
+{
+	char *tech_name = NULL;
+	struct ast_msg_tech_holder *tech_holder = NULL;
+	int res = -1;
+
+	if (ast_strlen_zero(to)) {
+		ao2_ref(msg, -1);
+		return -1;
+	}
+
+	tech_name = ast_strdupa(to);
+	tech_name = strsep(&tech_name, ":");
+	{
+		struct ast_msg_tech tmp_msg_tech = {
+			.name = tech_name,
+		};
+		struct ast_msg_tech_holder tmp_tech_holder = {
+			.tech = &tmp_msg_tech,
+		};
+
+		tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER);
+	}
+
+	if (!tech_holder) {
+		ao2_ref(msg, -1);
+		return -1;
+	}
+
+	ast_rwlock_rdlock(&tech_holder->tech_lock);
+	if (tech_holder->tech) {
+		res = tech_holder->tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
+	}
+	ast_rwlock_unlock(&tech_holder->tech_lock);
+
+	ao2_ref(tech_holder, -1);
+	ao2_ref(msg, -1);
+
+	return res;
+}
+
 int ast_msg_tech_register(const struct ast_msg_tech *tech)
 {
 	struct ast_msg_tech_holder tmp_tech_holder = {
@@ -1125,6 +1311,7 @@ int ast_msg_init(void)
 	res = __ast_custom_function_register(&msg_function, NULL);
 	res |= __ast_custom_function_register(&msg_data_function, NULL);
 	res |= ast_register_application2(app_msg_send, msg_send_exec, NULL, NULL, NULL);
+	res |= ast_manager_register_xml_core("MessageSend", EVENT_FLAG_MESSAGE, action_messagesend);
 
 	return res;
 }

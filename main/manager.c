@@ -82,6 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/security_events.h"
 #include "asterisk/aoc.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/presencestate.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -508,6 +509,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			will use devicestate to check the status of the device connected to the extension.</para>
 			<para>Will return an <literal>Extension Status</literal> message. The response will include
 			the hint for the extension and the status.</para>
+		</description>
+	</manager>
+	<manager name="PresenceState" language="en_US">
+		<synopsis>
+			Check Presence State
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Provider" required="true">
+				<para>Presence Provider to check the state of</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Report the presence state for the given presence provider.</para>
+			<para>Will return a <literal>Presence State</literal> message. The response will include the
+			presence state and, if set, a presence subtype and custom message.</para>
 		</description>
 	</manager>
 	<manager name="AbsoluteTimeout" language="en_US">
@@ -1218,6 +1235,7 @@ static const struct permalias {
 	{ EVENT_FLAG_CC, "cc" },
 	{ EVENT_FLAG_AOC, "aoc" },
 	{ EVENT_FLAG_TEST, "test" },
+	{ EVENT_FLAG_MESSAGE, "message" },
 	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
@@ -3211,6 +3229,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 
 	if (name_or_regex[0] != '/') {
 		if (!(c = ast_channel_get_by_name(name_or_regex))) {
+			ast_log(LOG_NOTICE, "!!!!!!!!!! Can't find channel to hang up!\n");
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
@@ -4384,6 +4403,43 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int action_presencestate(struct mansession *s, const struct message *m)
+{
+	const char *provider = astman_get_header(m, "Provider");
+	enum ast_presence_state state;
+	char *subtype;
+	char *message;
+	char subtype_header[256] = "";
+	char message_header[256] = "";
+
+	if (ast_strlen_zero(provider)) {
+		astman_send_error(s, m, "No provider specified");
+		return 0;
+	}
+
+	state = ast_presence_state(provider, &subtype, &message);
+
+	if (!ast_strlen_zero(subtype)) {
+		snprintf(subtype_header, sizeof(subtype_header),
+				"Subtype: %s\r\n", subtype);
+	}
+
+	if (!ast_strlen_zero(message)) {
+		snprintf(message_header, sizeof(message_header),
+				"Message: %s\r\n", message);
+	}
+
+	astman_append(s, "Message: Presence State\r\n"
+			"State: %s\r\n"
+			"%s"
+			"%s"
+			"\r\n",
+			ast_presence_state2str(state),
+			subtype_header,
+			message_header);
+	return 0;
+}
+
 static int action_timeout(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c;
@@ -5485,10 +5541,17 @@ int ast_manager_unregister(const char *action)
 	return 0;
 }
 
-static int manager_state_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
+static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	/* Notify managers of change */
 	char hint[512];
+	int state = info->exten_state;
+
+	/* only interested in device state for this right now */
+	if (info->reason !=  AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
+
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
 
 	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
@@ -6850,6 +6913,7 @@ static int __init_manager(int reload)
 		ast_manager_register_xml_core("Originate", EVENT_FLAG_ORIGINATE, action_originate);
 		ast_manager_register_xml_core("Command", EVENT_FLAG_COMMAND, action_command);
 		ast_manager_register_xml_core("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate);
+		ast_manager_register_xml_core("PresenceState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_presencestate);
 		ast_manager_register_xml_core("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout);
 		ast_manager_register_xml_core("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus);
 		ast_manager_register_xml_core("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount);

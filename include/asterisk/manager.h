@@ -86,6 +86,8 @@
 #define EVENT_FLAG_CC			(1 << 15) /* Call Completion events */
 #define EVENT_FLAG_AOC			(1 << 16) /* Advice Of Charge events */
 #define EVENT_FLAG_TEST			(1 << 17) /* Test event used to signal the Asterisk Test Suite */
+/*XXX Why shifted by 30? XXX */
+#define EVENT_FLAG_MESSAGE		(1 << 30) /* MESSAGE events. */
 /*@} */
 
 /*! \brief Export manager structures */

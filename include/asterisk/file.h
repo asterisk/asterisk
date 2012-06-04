@@ -49,7 +49,21 @@ struct ast_format;
 #define AST_DIGIT_ANYNUM "0123456789"
 
 #define SEEK_FORCECUR	10
-	
+
+/*! The type of event associated with a ast_waitstream_fr_cb invocation */
+enum ast_waitstream_fr_cb_values {
+	AST_WAITSTREAM_CB_REWIND = 1,
+	AST_WAITSTREAM_CB_FASTFORWARD,
+	AST_WAITSTREAM_CB_START
+};
+
+/*!
+ * \brief callback used during dtmf controlled file playback to indicate
+ * location of playback in a file after rewinding or fastfowarding
+ * a file.
+ */
+typedef void (ast_waitstream_fr_cb)(struct ast_channel *chan, long ms, enum ast_waitstream_fr_cb_values val);
+
 /*! 
  * \brief Streams a file 
  * \param c channel to stream the file to
@@ -161,6 +175,28 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context);
  * \retval -1 on error.
  */
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
+
+/*! 
+ * \brief Same as waitstream_fr but allows a callback to be alerted when a user
+ * fastforwards or rewinds the file.
+ * \param c channel to waitstream on
+ * \param breakon string of DTMF digits to break upon
+ * \param forward DTMF digit to fast forward upon
+ * \param rewind DTMF digit to rewind upon
+ * \param ms How many milliseconds to skip forward/back
+ * \param cb to call when rewind or fastfoward occurs. 
+ * Begins playback of a stream...
+ * Wait for a stream to stop or for any one of a given digit to arrive,  
+ * \retval 0 if the stream finishes.
+ * \retval the character if it was interrupted.
+ * \retval -1 on error.
+ */
+int ast_waitstream_fr_w_cb(struct ast_channel *c,
+	const char *breakon,
+	const char *forward,
+	const char *rewind,
+	int ms,
+	ast_waitstream_fr_cb cb);
 
 /*!
  * Same as waitstream, but with audio output to fd and monitored fd checking.  

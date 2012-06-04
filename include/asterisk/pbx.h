@@ -26,6 +26,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/sched.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/presencestate.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/hashtab.h"
 #include "asterisk/stringfields.h"
@@ -74,9 +75,24 @@ struct ast_exten;
 struct ast_include;
 struct ast_ignorepat;
 struct ast_sw;
+ 
+enum ast_state_cb_update_reason {
+	/*! The extension state update is a result of a device state changing on the extension. */
+	AST_HINT_UPDATE_DEVICE = 1,
+	/*! The extension state update is a result of presence state changing on the extension. */
+	AST_HINT_UPDATE_PRESENCE = 2,
+};
+
+struct ast_state_cb_info {
+	enum ast_state_cb_update_reason reason;
+	enum ast_extension_states exten_state;
+	enum ast_presence_state presence_state;
+	const char *presence_subtype;
+	const char *presence_message;
+};
 
 /*! \brief Typedef for devicestate and hint callbacks */
-typedef int (*ast_state_cb_type)(const char *context, const char *exten, enum ast_extension_states state, void *data);
+typedef int (*ast_state_cb_type)(char *context, char *id, struct ast_state_cb_info *info, void *data);
 
 /*! \brief Typedef for devicestate and hint callback removal indication callback */
 typedef void (*ast_state_cb_destroy_type)(int id, void *data);
@@ -400,6 +416,22 @@ enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devst
  * \return extension state as defined in the ast_extension_states enum
  */
 int ast_extension_state(struct ast_channel *c, const char *context, const char *exten);
+
+/*!
+ * \brief Uses hint and presence state callback to get the presence state of an extension
+ *
+ * \param c this is not important
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * \param[out] subtype Further information regarding the presence returned
+ * \param[out] message Custom message further describing current presence
+ *
+ * \note The subtype and message are dynamically allocated and must be freed by
+ * the caller of this function.
+ *
+ * \return returns the presence state value.
+ */
+int ast_hint_presence_state(struct ast_channel *c, const char *context, const char *exten, char **subtype, char **message);
 
 /*!
  * \brief Return string representation of the state of an extension

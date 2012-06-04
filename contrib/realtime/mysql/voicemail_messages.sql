@@ -25,5 +25,7 @@ CREATE TABLE voicemail_messages (
 	mailboxuser CHAR(30),
 	-- Context of the owner of the mailbox
 	mailboxcontext CHAR(30),
+	-- Unique ID of the message,
+	msg_id char(40),
 	PRIMARY KEY (dir, msgnum)
 );

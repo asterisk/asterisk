@@ -1510,7 +1510,7 @@ static struct ast_channel_tech skinny_tech = {
 	.bridge = ast_rtp_instance_bridge, 
 };
 
-static int skinny_extensionstate_cb(const char *context, const char *exten, enum ast_extension_states state, void *data);
+static int skinny_extensionstate_cb(char *context, char *id, struct ast_state_cb_info *info, void *data);
 static int skinny_transfer(struct skinny_subchannel *sub);
 
 static struct skinny_line *skinny_line_alloc(void)
@@ -3029,11 +3029,17 @@ static void transmit_capabilitiesreq(struct skinny_device *d)
 	transmit_response(d, req);
 }
 
-static int skinny_extensionstate_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
+static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct skinny_container *container = data;
 	struct skinny_device *d = NULL;
 	char hint[AST_MAX_EXTENSION];
+	int state = info->exten_state;
+
+	/* only interested in device state here */
+	if (info->reason != AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
 
 	if (container->type == SKINNY_SDCONTAINER) {
 		struct skinny_speeddial *sd = container->data;
@@ -5060,10 +5066,13 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 					AST_LIST_TRAVERSE(&tmpline->sublines, tmpsubline, list) {
 						if (!(subline == tmpsubline)) {
 							if (!strcasecmp(subline->lnname, tmpsubline->lnname)) {
+								struct ast_state_cb_info info = {
+									.exten_state = tmpsubline->extenstate,
+								};
 								tmpsubline->callid = callnums++;
 								transmit_callstate(tmpsubline->line->device, tmpsubline->line->instance, tmpsubline->callid, SKINNY_OFFHOOK);
 								push_callinfo(tmpsubline, sub);
-								skinny_extensionstate_cb(NULL, NULL, tmpsubline->extenstate, tmpsubline->container);
+								skinny_extensionstate_cb(NULL, NULL, &info, tmpsubline->container);
 							}
 						}
 					}

@@ -589,6 +589,63 @@ int ast_config_text_file_save(const char *filename, const struct ast_config *cfg
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator) __attribute__((deprecated));
 
 struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file, const char *who_asked);
+/*!
+ * \brief
+ * Copies the contents of one ast_config into another
+ *
+ * \note
+ * This creates a config on the heap. The caller of this must
+ * be prepared to free the memory returned.
+ *
+ * \param orig the config to copy
+ * \return The new config on success, NULL on failure.
+ */
+struct ast_config *ast_config_copy(const struct ast_config *orig);
+
+/*!
+ * \brief
+ * Flags that affect the behaviour of config hooks.
+ */
+enum config_hook_flags {
+	butt,
+};
+
+/*
+ * \brief Callback when configuration is updated
+ *
+ * \param cfg A copy of the configuration that is being changed.
+ *            This MUST be freed by the callback before returning.
+ */
+typedef int (*config_hook_cb)(struct ast_config *cfg);
+
+/*!
+ * \brief
+ * Register a config hook for a particular file and module
+ *
+ * \param name The name of the hook you are registering.
+ * \param filename The file whose config you wish to hook into.
+ * \param module The module that is reloading the config. This
+ *               can be useful if multiple modules may possibly
+ *               reload the same file, but you are only interested
+ *               when a specific module reloads the file
+ * \param flags Flags that affect the way hooks work.
+ * \param hook The callback to be called when config is loaded.
+ * return 0 Success
+ * return -1 Unsuccess, also known as UTTER AND COMPLETE FAILURE
+ */
+int ast_config_hook_register(const char *name,
+		const char *filename,
+		const char *module,
+		enum config_hook_flags flags,
+		config_hook_cb hook);
+
+/*!
+ * \brief
+ * Unregister a config hook
+ *
+ * \param name The name of the hook to unregister
+ */
+void ast_config_hook_unregister(const char *name);
 
 /*!
  * \brief Support code to parse config file arguments

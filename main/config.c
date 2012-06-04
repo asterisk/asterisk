@@ -64,6 +64,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *extconfig_conf = "extconfig.conf";
 
+static struct ao2_container *cfg_hooks;
+static void config_hook_exec(const char *filename, const char *module, struct ast_config *cfg);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
@@ -2278,6 +2280,39 @@ static struct ast_config_engine text_file_engine = {
 	.load_func = config_text_file_load,
 };
 
+struct ast_config *ast_config_copy(const struct ast_config *old)
+{
+	struct ast_config *new_config = ast_config_new();
+	struct ast_category *cat_iter;
+
+	if (!new_config) {
+		return NULL;
+	}
+
+	for (cat_iter = old->root; cat_iter; cat_iter = cat_iter->next) {
+		struct ast_category *new_cat =
+			ast_category_new(cat_iter->name, cat_iter->file, cat_iter->lineno);
+		if (!new_cat) {
+			goto fail;
+		}
+		ast_category_append(new_config, new_cat);
+		if (cat_iter->root) {
+			new_cat->root = ast_variables_dup(cat_iter->root);
+			if (!new_cat->root) {
+				goto fail;
+			}
+			new_cat->last = cat_iter->last;
+		}
+	}
+
+	return new_config;
+
+fail:
+	ast_config_destroy(new_config);
+	return NULL;
+}
+
+
 struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, struct ast_flags flags, const char *suggested_include_file, const char *who_asked)
 {
 	char db[256];
@@ -2310,10 +2345,12 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 
 	result = loader->load_func(db, table, filename, cfg, flags, suggested_include_file, who_asked);
 
-	if (result && result != CONFIG_STATUS_FILEINVALID && result != CONFIG_STATUS_FILEUNCHANGED)
+	if (result && result != CONFIG_STATUS_FILEINVALID && result != CONFIG_STATUS_FILEUNCHANGED) {
 		result->include_level--;
-	else if (result != CONFIG_STATUS_FILEINVALID)
+		config_hook_exec(filename, who_asked, result);
+	} else if (result != CONFIG_STATUS_FILEINVALID) {
 		cfg->include_level--;
+	}
 
 	return result;
 }
@@ -2966,5 +3003,87 @@ static struct ast_cli_entry cli_config[] = {
 int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
+	return 0;
+}
+
+struct cfg_hook {
+	const char *name;
+	const char *filename;
+	const char *module;
+	config_hook_cb hook_cb;
+};
+
+static void hook_destroy(void *obj)
+{
+	struct cfg_hook *hook = obj;
+	ast_free((void *) hook->name);
+	ast_free((void *) hook->filename);
+	ast_free((void *) hook->module);
+}
+
+static int hook_cmp(void *obj, void *arg, int flags)
+{
+	struct cfg_hook *hook1 = obj;
+	struct cfg_hook *hook2 = arg;
+
+	return !(strcasecmp(hook1->name, hook2->name)) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int hook_hash(const void *obj, const int flags)
+{
+	const struct cfg_hook *hook = obj;
+
+	return ast_str_hash(hook->name);
+}
+
+void ast_config_hook_unregister(const char *name)
+{
+	struct cfg_hook tmp;
+
+	tmp.name = ast_strdupa(name);
+
+	ao2_find(cfg_hooks, &tmp, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+}
+
+static void config_hook_exec(const char *filename, const char *module, struct ast_config *cfg)
+{
+	struct ao2_iterator it;
+	struct cfg_hook *hook;
+	if (!(cfg_hooks)) {
+		return;
+	}
+	it = ao2_iterator_init(cfg_hooks, 0);
+	while ((hook = ao2_iterator_next(&it))) {
+		if (!strcasecmp(hook->filename, filename) &&
+				!strcasecmp(hook->module, module)) {
+			struct ast_config *copy = ast_config_copy(cfg);
+			hook->hook_cb(copy);
+		}
+		ao2_ref(hook, -1);
+	}
+	ao2_iterator_destroy(&it);
+}
+
+int ast_config_hook_register(const char *name,
+		const char *filename,
+		const char *module,
+		enum config_hook_flags flags,
+		config_hook_cb hook_cb)
+{
+	struct cfg_hook *hook;
+	if (!cfg_hooks && !(cfg_hooks = ao2_container_alloc(17, hook_hash, hook_cmp))) {
+		return -1;
+	}
+
+	if (!(hook = ao2_alloc(sizeof(*hook), hook_destroy))) {
+		return -1;
+	}
+
+	hook->hook_cb = hook_cb;
+	hook->filename = ast_strdup(filename);
+	hook->name = ast_strdup(name);
+	hook->module = ast_strdup(module);
+
+	ao2_link(cfg_hooks, hook);
 	return 0;
 }

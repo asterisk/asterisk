@@ -23,8 +23,10 @@
 #ifndef _ASTERISK_APP_H
 #define _ASTERISK_APP_H
 
+#include "asterisk/stringfields.h"
 #include "asterisk/strings.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/file.h"
 
 struct ast_flags64;
 
@@ -76,6 +78,27 @@ struct ast_ivr_menu {
 	char *title;		/*!< Title of menu */
 	unsigned int flags;	/*!< Flags */
 	struct ast_ivr_option *options;	/*!< All options */
+};
+ 
+/*!
+ * \brief Structure used for ast_copy_recording_to_vm in order to cleanly supply
+ * data needed for making the recording from the recorded file.
+ */
+struct ast_vm_recording_data {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(context);
+		AST_STRING_FIELD(mailbox);
+		AST_STRING_FIELD(folder);
+		AST_STRING_FIELD(recording_file);
+		AST_STRING_FIELD(recording_ext);
+
+		AST_STRING_FIELD(call_context);
+		AST_STRING_FIELD(call_macrocontext);
+		AST_STRING_FIELD(call_extension);
+		AST_STRING_FIELD(call_callerchan);
+		AST_STRING_FIELD(call_callerid);
+		);
+	int call_priority;
 };
 
 #define AST_IVR_FLAG_AUTORESTART (1 << 0)
@@ -219,9 +242,19 @@ void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, con
 			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
 			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
 			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
-			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context));
+			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context),
+			      int (*copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data));
+
 
 void ast_uninstall_vm_functions(void);
+
+/*!
+ * \brief
+ * param[in] vm_rec_data Contains data needed to make the recording.
+ * retval 0 voicemail successfully created from recording.
+ * retval -1 Failure
+ */
+int ast_app_copy_recording_to_vm(struct ast_vm_recording_data *vm_rec_data);
 
 /*!
  * \brief Determine if a given mailbox has any voicemail
@@ -338,6 +371,29 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
  * playback stopped.  Pass NULL if you don't care.
  */
 int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms, long *offsetms);
+
+/*!
+ * \brief Stream a file with fast forward, pause, reverse, restart.
+ * \param chan
+ * \param file filename
+ * \param fwd, rev, stop, pause, restart, skipms, offsetms
+ * \param waitstream callback to invoke when fastforward or rewind occurrs.
+ *
+ * Before calling this function, set this to be the number
+ * of ms to start from the beginning of the file.  When the function
+ * returns, it will be the number of ms from the beginning where the
+ * playback stopped.  Pass NULL if you don't care.
+ */
+int ast_control_streamfile_w_cb(struct ast_channel *chan,
+	const char *file,
+	const char *fwd,
+	const char *rev,
+	const char *stop,
+	const char *pause,
+	const char *restart,
+	int skipms,
+	long *offsetms,
+	ast_waitstream_fr_cb cb);
 
 /*! \brief Play a stream and wait for a digit, returning the digit that was pressed */
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);
