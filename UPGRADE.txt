@@ -25,6 +25,11 @@ From 10 to 11:
 Parking:
  - The comebacktoorigin setting must now be set per parking lot. The setting in
    the general section will not be applied automatically to each parking lot.
+ - The BLINDTRANSFER channel variable is deleted from a channel when it is
+   bridged to prevent subtle bugs in the parking feature.  The channel
+   variable is used by Asterisk internally for the Park application to work
+   properly.  If you were using it for your own purposes, copy it to your
+   own channel variable before the channel is bridged.
 
 res_ais:
  - Users of res_ais in versions of Asterisk prior to Asterisk 11 must change
