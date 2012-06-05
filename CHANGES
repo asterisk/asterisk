@@ -31,6 +31,13 @@ Core
  * The minimum DTMF duration can now be configured in asterisk.conf
    as "mindtmfduration". The default value is (as before) set to 80 ms.
    (previously it was only available in source code)
+ * Each logging destination and console now have an independent notion of the
+   current verbosity level.  Logger.conf now allows an optional argument to
+   the 'verbose' specifier, indicating the level of verbosity sent to that
+   particular logging destination.  Additionally, remote consoles now each
+   have their own verbosity level.  The command 'core set verbose' will now set
+   a separate level for each remote console without affecting any other
+   console.
 
 CLI Changes
 -------------------
@@ -202,16 +209,6 @@ DUNDi changes
 -------------
  * Allow the built in variables ${NUMBER}, ${IPADDR} and ${SECRET} to be
    used within the dynamic weight attribute when specifying a mapping.
-
-Core changes
-------------
- * Each logging destination and console now have an independent notion of the
-   current verbosity level.  Logger.conf now allows an optional argument to
-   the 'verbose' specifier, indicating the level of verbosity sent to that
-   particular logging destination.  Additionally, remote consoles now each
-   have their own verbosity level.  The command 'core set verbose' will now set
-   a separate level for each remote console without affecting any other
-   console.
 
 Dialplan functions
 ------------------
