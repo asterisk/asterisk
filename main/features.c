@@ -7690,8 +7690,8 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 
 	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
 
-	/* setting this flag to generate a reason header in the cancel message to the ringing channel */
-	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ANSWERED_ELSEWHERE);
+	/* setting the HANGUPCAUSE so the ringing channel knows this call was not a missed call */
+	ast_channel_hangupcause_set(chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 
 	if (ast_channel_masquerade(target, chan)) {
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name,

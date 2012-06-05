@@ -4856,7 +4856,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	refresh_all_favorite(s); /* Update favicons in case of DND keys */
 	if (s->state == STATE_RINGING && sub->subtype == SUB_RING) {
 		send_no_ring(s);
-		if (!ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE) && ast_channel_hangupcause(ast) != AST_CAUSE_ANSWERED_ELSEWHERE) {
+		if (ast_channel_hangupcause(ast) != AST_CAUSE_ANSWERED_ELSEWHERE) {
 			d->missed_call++;
 			write_history(s, 'i', 1);
 		}

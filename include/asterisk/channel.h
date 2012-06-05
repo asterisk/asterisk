@@ -835,9 +835,10 @@ enum {
 	/*! This is set to tell the channel not to generate DTMF begin frames, and
 	 *  to instead only generate END frames. */
 	AST_FLAG_END_DTMF_ONLY = (1 << 14),
-	/*! Flag to show channels that this call is hangup due to the fact that the call
+	/* OBSOLETED in favor of AST_CAUSE_ANSWERED_ELSEWHERE
+	Flag to show channels that this call is hangup due to the fact that the call
 	    was indeed answered, but in another channel */
-	AST_FLAG_ANSWERED_ELSEWHERE = (1 << 15),
+	/* AST_FLAG_ANSWERED_ELSEWHERE = (1 << 15), */
 	/*! This flag indicates that on a masquerade, an active stream should not
 	 *  be carried over */
 	AST_FLAG_MASQ_NOSTREAM = (1 << 16),

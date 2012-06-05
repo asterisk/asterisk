@@ -6369,11 +6369,8 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_debug(1, "Asked to hangup channel that was not connected\n");
 		return 0;
 	}
-	if (ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE) || ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
+	if (ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 		ast_debug(1, "This call was answered elsewhere\n");
-		if (ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
-			ast_debug(1, "####### It's the cause code, buddy. The cause code!!!\n");
-		}
 		append_history(p, "Cancel", "Call answered elsewhere");
 		p->answered_elsewhere = TRUE;
 	}

@@ -3103,7 +3103,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception)) {
 			if (exception || cancel_answered_elsewhere) {
-				ast_set_flag(ast_channel_flags(outgoing->chan), AST_FLAG_ANSWERED_ELSEWHERE);
+				ast_channel_hangupcause_set(outgoing->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 			}
 			ast_hangup(outgoing->chan);
 		}
@@ -3357,7 +3357,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	ast_channel_lock_both(tmp->chan, qe->chan);
 
 	if (qe->cancel_answered_elsewhere) {
-		ast_set_flag(ast_channel_flags(tmp->chan), AST_FLAG_ANSWERED_ELSEWHERE);
+		ast_channel_hangupcause_set(tmp->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 	}
 	ast_channel_appl_set(tmp->chan, "AppQueue");
 	ast_channel_data_set(tmp->chan, "(Outgoing Line)");
@@ -4825,10 +4825,10 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		qe->cancel_answered_elsewhere = 1;
 	}
 
-	/* if the calling channel has the ANSWERED_ELSEWHERE flag set, make sure this is inherited. 
+	/* if the calling channel has AST_CAUSE_ANSWERED_ELSEWHERE set, make sure this is inherited.
 		(this is mainly to support chan_local)
 	*/
-	if (ast_test_flag(ast_channel_flags(qe->chan), AST_FLAG_ANSWERED_ELSEWHERE)) {
+	if (ast_channel_hangupcause(qe->chan) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 		qe->cancel_answered_elsewhere = 1;
 	}
 

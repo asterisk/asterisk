@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 
 #include "asterisk/lock.h"
+#include "asterisk/causes.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
@@ -909,9 +910,9 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 
 	ast_channel_cc_params_init(chan, ast_channel_get_cc_config_params(owner));
 
-	/* Make sure we inherit the ANSWERED_ELSEWHERE flag if it's set on the queue/dial call request in the dialplan */
-	if (ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE)) {
-		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ANSWERED_ELSEWHERE);
+	/* Make sure we inherit the AST_CAUSE_ANSWERED_ELSEWHERE if it's set on the queue/dial call request in the dialplan */
+	if (ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 	}
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
@@ -1028,9 +1029,9 @@ static int local_hangup(struct ast_channel *ast)
 
 	isoutbound = IS_OUTBOUND(ast, p); /* just comparing pointer of ast */
 
-	if (p->chan && ast_test_flag(ast_channel_flags(ast), AST_FLAG_ANSWERED_ELSEWHERE)) {
-		ast_set_flag(ast_channel_flags(p->chan), AST_FLAG_ANSWERED_ELSEWHERE);
-		ast_debug(2, "This local call has the ANSWERED_ELSEWHERE flag set.\n");
+	if (p->chan && ast_channel_hangupcause(ast) == AST_CAUSE_ANSWERED_ELSEWHERE) {
+		ast_channel_hangupcause_set(p->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
+		ast_debug(2, "This local call has AST_CAUSE_ANSWERED_ELSEWHERE set.\n");
 	}
 
 	if (isoutbound) {
