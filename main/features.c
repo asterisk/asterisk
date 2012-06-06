@@ -5353,7 +5353,7 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 /*! \brief Pickup parked call */
 static int parked_call_exec(struct ast_channel *chan, const char *data)
 {
-	int res = 0;
+	int res;
 	struct ast_channel *peer = NULL;
 	struct parkeduser *pu;
 	struct ast_context *con;
@@ -5599,10 +5599,11 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		}
 		ast_verb(3, "Channel %s tried to retrieve nonexistent parked call %d\n",
 			ast_channel_name(chan), park);
+		res = -1;
 	}
 
 	parkinglot_unref(parkinglot);
-	return -1;
+	return res;
 }
 
 /*!
