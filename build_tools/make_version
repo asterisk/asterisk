@@ -7,6 +7,7 @@ elif [ -d .svn ]; then
     BRANCH=0
     TEAM=0
     TAG=0
+    FEATURE=0
 
     REV=`svnversion -c ${1} | cut -d: -f2`
 
@@ -40,6 +41,9 @@ elif [ -d .svn ]; then
             else
                 RESULT="${RESULT}-${PART}"
             fi
+            if [ ${FEATURE} != 0 ] ; then
+                RESULT="${RESULT}-${FEATURE_NAME}"
+            fi
             break
         fi
 
@@ -49,6 +53,12 @@ elif [ -d .svn ]; then
             else
                 RESULT="${RESULT}-${PART}"
             fi
+            continue
+        fi
+
+        if [ "${PART}" = "certified" ] ; then
+            FEATURE=1
+            FEATURE_NAME="cert"
             continue
         fi
 
