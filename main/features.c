@@ -2423,7 +2423,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 
 	ast_debug(1, "Executing Blind Transfer %s, %s (sense=%d) \n", ast_channel_name(chan), ast_channel_name(peer), sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
-	transferer_real_context = real_ctx(transferer, transferee);
+	transferer_real_context = ast_strdupa(real_ctx(transferer, transferee));
 
 	/* Start autoservice on transferee while we talk to the transferer */
 	ast_autoservice_start(transferee);
@@ -2471,7 +2471,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", ast_channel_name(transferer));
 	finishup(transferee);
 	ast_channel_lock(transferer);
-	if (!ast_channel_cdr(transferer)) { /* this code should never get called (in a perfect world) */
+	if (!ast_channel_cdr(transferer)) {
+		/* this code should never get called (in a perfect world) */
 		ast_channel_cdr_set(transferer, ast_cdr_alloc());
 		if (ast_channel_cdr(transferer)) {
 			ast_cdr_init(ast_channel_cdr(transferer), transferer); /* initialize our channel's cdr */
@@ -2496,26 +2497,18 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		ast_channel_cdr_set(transferer, ast_channel_cdr(transferee));
 		ast_channel_cdr_set(transferee, swap);
 	}
-	if (!ast_channel_pbx(transferee)) {
-		/* Doh!  Use our handy async_goto functions */
-		ast_debug(1, "About to ast_async_goto %s.\n", ast_channel_name(transferee));
-		if (ast_async_goto(transferee, transferer_real_context, xferto, 1)) {
-			ast_log(LOG_WARNING, "Async goto failed :-(\n");
-		}
 
-		/* The transferee is masqueraded and the original bridged channels can be hungup. */
+	res = ast_channel_pbx(transferee) ? AST_FEATURE_RETURN_SUCCESSBREAK : -1;
+
+	/* Doh!  Use our handy async_goto functions */
+	if (ast_async_goto(transferee, transferer_real_context, xferto, 1)) {
+		ast_log(LOG_WARNING, "Async goto failed :-(\n");
 		res = -1;
-	} else {
-		/* Set the transferee's new extension, since it exists, using transferer context */
-		ast_debug(1, "About to explicit goto %s, it has a PBX.\n", ast_channel_name(transferee));
-		ast_set_flag(ast_channel_flags(transferee), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
-		set_c_e_p(transferee, transferer_real_context, xferto, 0);
-
-		/*
-		 * Break the bridge.  The transferee needs to resume executing
-		 * dialplan at the xferto location.
-		 */
-		res = AST_FEATURE_RETURN_SUCCESSBREAK;
+	} else if (res == AST_FEATURE_RETURN_SUCCESSBREAK) {
+		/* Don't let the after-bridge code run the h-exten */
+		ast_channel_lock(transferee);
+		ast_set_flag(ast_channel_flags(transferee), AST_FLAG_BRIDGE_HANGUP_DONT);
+		ast_channel_unlock(transferee);
 	}
 	check_goto_on_transfer(transferer);
 	return res;
