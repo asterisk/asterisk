@@ -9037,6 +9037,9 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 	}
 	/* No address for RTP, we're on hold */
 
+	/* Ensure hold flags are cleared so that overlapping flags do not conflict */
+	ast_clear_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD);
+
 	if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
 		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
 	else if (sendonly == 2)	/* Inactive stream */
