@@ -8603,8 +8603,18 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
 						goto winkflashdone;
 					}
-					/* Make new channel */
+
+					/*
+					 * Make new channel
+					 *
+					 * We cannot hold the p or ast locks while creating a new
+					 * channel.
+					 */
+					ast_mutex_unlock(&p->lock);
+					ast_channel_unlock(ast);
 					chan = dahdi_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, NULL);
+					ast_channel_lock(ast);
+					ast_mutex_lock(&p->lock);
 					if (p->dahditrcallerid) {
 						if (!p->origcid_num)
 							p->origcid_num = ast_strdup(p->cid_num);
