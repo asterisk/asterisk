@@ -535,23 +535,19 @@ static void analog_all_subchannels_hungup(struct analog_pvt *p)
 	}
 }
 
-#if 0
 static void analog_unlock_private(struct analog_pvt *p)
 {
 	if (p->calls->unlock_private) {
 		p->calls->unlock_private(p->chan_pvt);
 	}
 }
-#endif
 
-#if 0
 static void analog_lock_private(struct analog_pvt *p)
 {
 	if (p->calls->lock_private) {
 		p->calls->lock_private(p->chan_pvt);
 	}
 }
-#endif
 
 /*!
  * \internal
@@ -3203,8 +3199,18 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
 						goto winkflashdone;
 					}
-					/* Make new channel */
+
+					/*
+					 * Make new channel
+					 *
+					 * We cannot hold the p or ast locks while creating a new
+					 * channel.
+					 */
+					analog_unlock_private(p);
+					ast_channel_unlock(ast);
 					chan = analog_new_ast_channel(p, AST_STATE_RESERVED, 0, ANALOG_SUB_THREEWAY, NULL);
+					ast_channel_lock(ast);
+					analog_lock_private(p);
 					if (!chan) {
 						ast_log(LOG_WARNING,
 							"Cannot allocate new call structure on channel %d\n",
