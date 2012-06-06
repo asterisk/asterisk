@@ -26468,6 +26468,15 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		if (!p->initreq.headers && req->has_to_tag) {
 			/* If this is a first request and it got a to-tag, it is not for us */
 			if (!req->ignore && req->method == SIP_INVITE) {
+				/* We will be subversive here. By blanking out the to-tag of the request,
+				 * it will cause us to attach our own generated to-tag instead. This way,
+				 * when we receive an ACK, the ACK will contain the to-tag we generated,
+				 * resulting in a proper to-tag match.
+				 */
+				char *to_header = (char *) sip_get_header(req, "To");
+				char *tag = strstr(to_header, ";tag=");
+				*tag = '\0';
+				p->pendinginvite = p->icseq;
 				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req);
 				/* Will cease to exist after ACK */
 				return res;
