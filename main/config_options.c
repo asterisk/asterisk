@@ -596,7 +596,12 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj)
 	return 0;
 }
 
-/* default config option handlers */
+/* Default config option handlers */
+
+/*! \brief Default option handler for signed integers
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int int_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	int *field = (int *)(obj + opt->args[0]);
 	unsigned int flags = PARSE_INT32 | opt->flags;
@@ -623,6 +628,10 @@ static int int_handler_fn(const struct aco_option *opt, struct ast_variable *var
 	return res;
 }
 
+/*! \brief Default option handler for unsigned integers
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	unsigned int *field = (unsigned int *)(obj + opt->args[0]);
 	unsigned int flags = PARSE_INT32 | opt->flags;
@@ -649,27 +658,40 @@ static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *va
 	return res;
 }
 
+/*! \brief Default option handler for doubles
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int double_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	double *field = (double *)(obj + opt->args[0]);
 	return ast_parse_arg(var->value, PARSE_DOUBLE | opt->flags, field);
 }
 
+/*! \brief Default handler for ACLs
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int acl_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	struct ast_ha **ha = (struct ast_ha **)(obj + opt->args[0]);
-	const char *permit = (const char *) opt->args[1];
 	int error = 0;
-	*ha = ast_append_ha(permit, var->value, *ha, &error);
+	*ha = ast_append_ha(opt->flags ? "permit" : "deny", var->value, *ha, &error);
 	return error;
 }
 
-/* opt->args[0] = struct ast_codec_pref, opt->args[1] struct ast_format_cap * */
+/*! \brief Default option handler for codec preferences/capabilities
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int codec_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	struct ast_codec_pref *pref = (struct ast_codec_pref *)(obj + opt->args[0]);
 	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + opt->args[1]);
 	return ast_parse_allow_disallow(pref, *cap, var->value, opt->flags);
 }
 
-/* opt->args[0] = ast_string_field,  opt->args[1] = field_mgr_pool, opt->args[2] = field_mgr */
+/*! \brief Default option handler for stringfields
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int stringfield_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	ast_string_field *field = (const char **)(obj + opt->args[0]);
@@ -679,6 +701,10 @@ static int stringfield_handler_fn(const struct aco_option *opt, struct ast_varia
 	return 0;
 }
 
+/*! \brief Default option handler for bools (ast_true/ast_false)
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int bool_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	unsigned int *field = (unsigned int *)(obj + opt->args[0]);
@@ -686,6 +712,10 @@ static int bool_handler_fn(const struct aco_option *opt, struct ast_variable *va
 	return 0;
 }
 
+/*! \brief Default handler for ast_sockaddrs
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
 static int sockaddr_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sockaddr *field = (struct ast_sockaddr *)(obj + opt->args[0]);

@@ -206,26 +206,171 @@ int aco_info_init(struct aco_info *info);
  */
 void aco_info_destroy(struct aco_info *info);
 
-/*! \brief The option types with default handlers
+/*! \brief The option types
  *
  * \note aco_option_register takes an option type which is used
  * to look up the handler for that type. Each non-custom type requires
  * field names for specific types in the struct being configured. Each
- * option below is commented with the field types, *in the order
- * they must be passed* to aco_option_register. The fields
- * are located in the args array in the ast_config_option passed to
- * the default handler function.
- * */
+ * option below is commented with the field types, additional arguments
+ * and example usage with aco_option_register
+ */
 enum aco_option_type {
-	OPT_ACL_T,         /*!< fields: struct ast_ha * */
-	OPT_BOOL_T,        /*!< fields: unsigned int */
-	OPT_CODEC_T,       /*!< fields: struct ast_codec pref, struct ast_format_cap * */
-	OPT_CUSTOM_T,      /*!< fields: none */
-	OPT_DOUBLE_T,      /*!< fields: double */
-	OPT_INT_T,         /*!< fields: int */
-	OPT_SOCKADDR_T,    /*!< fields: struct ast_sockaddr */
-	OPT_STRINGFIELD_T, /*!< fields: ast_string_field */
-	OPT_UINT_T,        /*!< fields: unsigned int */
+	/*! \brief Type for default option handler for ACLs
+	 * \note aco_option_register flags:
+	 *   non-zero : "permit"
+	 *   0        : "deny"
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type struct ast_ha *.
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     struct ast_ha *ha;
+	 * };
+	 * aco_option_register(&cfg_info, "permit", ACO_EXACT, my_types, NULL, OPT_ACL_T, 1, FLDSET(struct test_item, ha));
+	 * aco_option_register(&cfg_info, "deny", ACO_EXACT, my_types, NULL, OPT_ACL_T, 0, FLDSET(struct test_item, ha));
+	 * {code}
+	 */
+	OPT_ACL_T,
+
+	/*! \brief Type for default option handler for bools (ast_true/ast_false)
+	 * \note aco_option_register flags:
+	 *   non-zero : process via ast_true
+	 *   0        : process via ast_false
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type int. It is important to note that the field
+	 *   cannot be a bitfield. If bitfields are required, they must be set via a custom handler.
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     int enabled;
+	 * };
+		aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_BOOL_T, 1, FLDSET(struct test_item, enabled));
+	 * {endcode}
+	 */
+	OPT_BOOL_T,
+
+	/*! \brief Type for default option handler for codec preferences/capabilities
+	 * \note aco_option_register flags:
+	 *   non-zero : This is an "allow" style option
+	 *   0        : This is a "disallow" style option
+	 * aco_option_register varargs:
+	 *   FLDSET macro with fields representing a struct ast_codec_pref and a struct ast_format_cap *
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     struct ast_codec_pref pref;
+	 *     struct ast_format cap *cap;
+	 * };
+	 * aco_option_register(&cfg_info, "allow", ACO_EXACT, my_types, "ulaw,alaw", OPT_CODEC_T, 1, FLDSET(struct test_item, pref, cap));
+	 * aco_option_register(&cfg_info, "disallow", ACO_EXACT, my_types, "all", OPT_CODEC_T, 0, FLDSET(struct test_item, pref, cap));
+	 */
+	OPT_CODEC_T,
+
+	/*! \brief Type for a custom (user-defined) option handler */
+	OPT_CUSTOM_T,
+
+	/*! \brief Type for default option handler for doubles
+	 *
+	 * \note aco_option_register flags:
+	 *   See flags available for use with the PARSE_DOUBLE type for the ast_parse_arg function
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type double
+	 *
+	 * Example:
+	 * struct test_item {
+	 *     double dub;
+	 * };
+	 * {code}
+	 * aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, my_types, "3", OPT_DOUBLE_T, FLDSET(struct test_item, dub));
+	 * {endcode}
+	 */
+	OPT_DOUBLE_T,
+
+	/*! \brief Type for default option handler for signed integers
+	 *
+	 * \note aco_option_register flags:
+	 *   See flags available for use with the PARSE_INT32 type for the ast_parse_arg function
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type int32_t
+	 *   The remaining varargs for should be arguments compatible with the varargs for the
+	 *   ast_parse_arg function with the PARSE_INT32 type and the flags passed in the
+	 *   aco_option_register flags parameter.
+	 *
+	 * \note In most situations, it is preferable to not pass the PARSE_DEFAULT flag. If a config
+	 * contains an invalid value, it is better to let the config loading fail with warnings so that
+	 * the problem is fixed by the administrator.
+	 *
+	 * Example:
+	 * struct test_item {
+	 *     int32_t intopt;
+	 * };
+	 * {code}
+	 * aco_option_register(&cfg_info, "intopt", ACO_EXACT, my_types, "3", OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct test_item, intopt), -10, 10);
+	 * {endcode}
+	 */
+	OPT_INT_T,
+
+	/*! \brief Type for default handler for ast_sockaddrs
+	 *
+	 * \note aco_option_register flags:
+	 *   See flags available for use with the PARSE_ADDR type for the ast_parse_arg function
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field being of type struct ast_sockaddr.
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     struct ast_sockaddr addr;
+	 * };
+	 * aco_option_register(&cfg_info, "sockaddropt", ACO_EXACT, my_types, "0.0.0.0:1234", OPT_SOCKADDR_T, 0, FLDSET(struct test_item, addr));
+	 * {endcode}
+	 */
+	OPT_SOCKADDR_T,
+
+	/*! \brief Type for default option handler for stringfields
+	 * \note aco_option_register flags:
+	 *   none
+	 * aco_option_register varargs:
+	 *   STRFLDSET macro with the field being the field created by AST_STRING_FIELD
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     AST_DECLARE_STRING_FIELDS(
+	 *         AST_STRING_FIELD(thing);
+	 *     );
+	 * };
+	 * aco_option_register(&cfg_info, "thing", ACO_EXACT, my_types, NULL, OPT_STR_T, 0, STRFLDSET(struct test_item, thing));
+	 * {endcode}
+	 */
+	OPT_STRINGFIELD_T,
+
+	/*! \brief Type for default option handler for unsigned integers
+	 *
+	 * \note aco_option_register flags:
+	 *   See flags available for use with the PARSE_UINT32 type for the ast_parse_arg function
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type uint32_t
+	 *   The remaining varargs for should be arguments compatible with the varargs for the
+	 *   ast_parse_arg function with the PARSE_UINT32 type and the flags passed in the
+	 *   aco_option_register flags parameter.
+	 *
+	 * \note In most situations, it is preferable to not pass the PARSE_DEFAULT flag. If a config
+	 * contains an invalid value, it is better to let the config loading fail with warnings so that
+	 * the problem is fixed by the administrator.
+	 *
+	 * Example:
+	 * struct test_item {
+	 *     int32_t intopt;
+	 * };
+	 * {code}
+	 * aco_option_register(&cfg_info, "uintopt", ACO_EXACT, my_types, "3", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct test_item, uintopt), 1, 10);
+	 * {endcode}
+	 */
+	OPT_UINT_T,
 };
 
 /*! \brief A callback function for handling a particular option

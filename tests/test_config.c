@@ -805,8 +805,8 @@ AST_TEST_DEFINE(config_options_test)
 	aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, config_test_conf.types, DOUBLE_DEFAULT, OPT_DOUBLE_T, 0, FLDSET(struct test_item, doubleopt));
 	aco_option_register(&cfg_info, "sockaddropt", ACO_EXACT, config_test_conf.types, SOCKADDR_DEFAULT, OPT_SOCKADDR_T, 0, FLDSET(struct test_item, sockaddropt));
 	aco_option_register(&cfg_info, "boolopt", ACO_EXACT, config_test_conf.types, BOOL_DEFAULT, OPT_BOOL_T, 1, FLDSET(struct test_item, boolopt));
-	aco_option_register(&cfg_info, "aclpermitopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 1, FLDSET(struct test_item, aclopt), "permit");
-	aco_option_register(&cfg_info, "acldenyopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 0, FLDSET(struct test_item, aclopt), "deny");
+	aco_option_register(&cfg_info, "aclpermitopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 1, FLDSET(struct test_item, aclopt));
+	aco_option_register(&cfg_info, "acldenyopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 0, FLDSET(struct test_item, aclopt));
 	aco_option_register(&cfg_info, "codecopt", ACO_EXACT, config_test_conf.types, CODEC_DEFAULT, OPT_CODEC_T, 1, FLDSET(struct test_item, codecprefopt, codeccapopt));
 	aco_option_register(&cfg_info, "stropt", ACO_EXACT, config_test_conf.types, STR_DEFAULT, OPT_STRINGFIELD_T, 0, STRFLDSET(struct test_item, stropt));
 	aco_option_register_custom(&cfg_info, "customopt", ACO_EXACT, config_test_conf.types, CUSTOM_DEFAULT, customopt_handler, 0);
