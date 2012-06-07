@@ -3300,7 +3300,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 
-	if (tmp->member->ringinuse) {
+	if (!tmp->member->ringinuse) {
 		if (check_state_unknown && (tmp->member->status == AST_DEVICE_UNKNOWN)) {
 			newstate = ast_device_state(tmp->member->interface);
 			if (newstate != tmp->member->status) {
@@ -5857,7 +5857,7 @@ static int set_member_value_help_members(struct call_queue *q, const char *inter
 /*!
  * \internal
  * \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues.
- * \param[in] queuename If specified, only act on a mem`ber if it belongs to this queue
+ * \param[in] queuename If specified, only act on a member if it belongs to this queue
  * \param[in] interface Interface of queue member(s) having priority set.
  * \param[in] property Which queue property is being set
  * \param[in] penalty Value penalty is being changed to for each member
