@@ -6380,6 +6380,18 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
+	ast_debug(1, "queue: %s, options: %s, url: %s, announce: %s, timeout: %s, agi: %s, macro: %s, gosub: %s, rule: %s, position: %s\n",
+		args.queuename,
+		S_OR(args.options, ""),
+		S_OR(args.url, ""),
+		S_OR(args.announceoverride, ""),
+		S_OR(args.queuetimeoutstr, ""),
+		S_OR(args.agi, ""),
+		S_OR(args.macro, ""),
+		S_OR(args.gosub, ""),
+		S_OR(args.rule, ""),
+		S_OR(args.position, ""));
+
 	if (!ast_strlen_zero(args.options)) {
 		ast_app_parse_options(queue_exec_options, &opts, opt_args, args.options);
 	}
@@ -6457,8 +6469,8 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	ast_debug(1, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
-		args.queuename, args.options, args.url, args.announceoverride, (long)qe.expire, prio);
+	ast_debug(1, "queue: %s, expires: %ld, priority: %d\n",
+		args.queuename, (long)qe.expire, prio);
 
 	qe.chan = chan;
 	qe.prio = prio;
