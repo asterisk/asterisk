@@ -386,15 +386,24 @@ typedef int (*aco_option_handler)(const struct aco_option *opt, struct ast_varia
 /*! \brief Allocate a container to hold config options */
 struct ao2_container *aco_option_container_alloc(void);
 
+/*! \brief Return values for the aco_process functions
+ */
+enum aco_process_status {
+	ACO_PROCESS_OK,        /*!< \brief The config was processed and applied */
+	ACO_PROCESS_UNCHANGED, /*!< \brief The config had not been edited and no changes applied */
+	ACO_PROCESS_ERROR,     /*!< \brief Their was an error and no changes were applied */
+};
+
 /*! \brief Process a config info via the options registered with an aco_info
  *
  * \param info The config_options_info to be used for handling the config
  * \param reload Whether or not this is a reload
  *
- * \retval 0 Success
- * \retval -1 Failure
+ * \retval ACO_PROCESS_OK Success
+ * \retval ACO_PROCESS_ERROR Failure
+ * \retval ACO_PROCESS_UNCHANGED No change due to unedited config file
  */
-int aco_process_config(struct aco_info *info, int reload);
+enum aco_process_status aco_process_config(struct aco_info *info, int reload);
 
 /*! \brief Process config info from an ast_config via options registered with an aco_info
  *
@@ -403,10 +412,10 @@ int aco_process_config(struct aco_info *info, int reload);
  * \param cfg A pointer to a loaded ast_config to parse
  * \param reload Whether or not this is a reload
  *
- * \retval 0 Success
- * \retval -1 Failure
+ * \retval ACO_PROCESS_OK Success
+ * \retval ACO_PROCESS_ERROR Failure
  */
-int aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg);
+enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg);
 
 /*! \brief Parse each option defined in a config category
  * \param type The aco_type with the options for parsing

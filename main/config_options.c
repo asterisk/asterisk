@@ -368,7 +368,7 @@ static int apply_config(struct aco_info *info)
 	return 0;
 }
 
-static int internal_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg)
+static enum aco_process_status internal_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg)
 {
 	const char *cat = NULL;
 
@@ -376,20 +376,20 @@ static int internal_process_ast_config(struct aco_info *info, struct aco_file *f
 		int i;
 		for (i = 0; !ast_strlen_zero(file->preload[i]); i++) {
 			if (process_category(cfg, info, file, file->preload[i], 1)) {
-				return -1;
+				return ACO_PROCESS_ERROR;
 			}
 		}
 	}
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 		if (process_category(cfg, info, file, cat, 0)) {
-			return -1;
+			return ACO_PROCESS_ERROR;
 		}
 	}
-	return 0;
+	return ACO_PROCESS_OK;
 }
 
-int aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg)
+enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg)
 {
 	if (!(info->internal->pending = info->snapshot_alloc())) {
 		ast_log(LOG_ERROR, "In %s: Could not allocate temporary objects\n", file->filename);
@@ -409,46 +409,46 @@ int aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct 
 	};
 
 	ao2_cleanup(info->internal->pending);
-	return 0;
+	return ACO_PROCESS_OK;
 
 error:
 	ao2_cleanup(info->internal->pending);
-	return -1;
+	return ACO_PROCESS_ERROR;
 }
 
-int aco_process_config(struct aco_info *info, int reload)
+enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 {
 	struct ast_config *cfg;
 	struct ast_flags cfg_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0, };
-	int res = 0, x = 0;
+	int res = ACO_PROCESS_OK, x = 0;
 	struct aco_file *file;
 
 	if (!(info->files[0])) {
 		ast_log(LOG_ERROR, "No filename given, cannot proceed!\n");
-		return -1;
+		return ACO_PROCESS_ERROR;
 	}
 
 	if (!(info->internal->pending = info->snapshot_alloc())) {
 		ast_log(LOG_ERROR, "In %s: Could not allocate temporary objects\n", info->module);
-		return -1;
+		return ACO_PROCESS_ERROR;
 	}
 
-	while (!res && (file = info->files[x++])) {
+	while (res != ACO_PROCESS_ERROR && (file = info->files[x++])) {
 		if (!(cfg = ast_config_load(file->filename, cfg_flags))) {
 			ast_log(LOG_ERROR, "Unable to load config file '%s'\n", file->filename);
-			res = -1;
+			res = ACO_PROCESS_ERROR;
 			break;
 		} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 			ast_debug(1, "%s was unchanged\n", file->filename);
-			res = 0;
+			res = ACO_PROCESS_UNCHANGED;
 			continue;
 		} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 			ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n", file->filename);
-			res = -1;
+			res = ACO_PROCESS_ERROR;
 			break;
 		} else if (cfg == CONFIG_STATUS_FILEMISSING) {
 			ast_log(LOG_ERROR, "%s is missing! Cannot load %s\n", file->filename, info->module);
-			res = -1;
+			res = ACO_PROCESS_ERROR;
 			break;
 		}
 
@@ -456,10 +456,21 @@ int aco_process_config(struct aco_info *info, int reload)
 		ast_config_destroy(cfg);
 	}
 
-	if (res || (res = ((info->pre_apply_config && info->pre_apply_config()) || apply_config(info)))) {
-		;
-	};
+	if (res != ACO_PROCESS_OK) {
+	   goto end;
+	}
 
+	if (info->pre_apply_config && (info->pre_apply_config()))  {
+		res = ACO_PROCESS_ERROR;
+		goto end;
+	}
+
+	if (apply_config(info)) {
+		res = ACO_PROCESS_ERROR;
+		goto end;
+	}
+
+end:
 	ao2_cleanup(info->internal->pending);
 	return res;
 }
