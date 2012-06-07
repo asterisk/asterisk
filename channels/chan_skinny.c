@@ -1414,7 +1414,6 @@ struct skinny_addon {
 	char vmexten[AST_MAX_EXTENSION];			\
 	int type;						\
 	int protocolversion;				\
-	int registered;						\
 	int hookstate;					\
 	int lastlineinstance;					\
 	int lastcallreference;					\
@@ -2093,7 +2092,6 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 			if (ast_strlen_zero(d->version_id)) {
 				ast_copy_string(d->version_id, version_id, sizeof(d->version_id));
 			}
-			d->registered = 1;
 			d->session = s;
 
 			slen = sizeof(sin);
@@ -2112,11 +2110,6 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 			}
 			AST_LIST_TRAVERSE(&d->lines, l, list) {
 				/* FIXME: All sorts of issues will occur if this line is already connected to a device */
-				if (l->device) {
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Rejected\r\nCause: LINE_ALREADY_CONNECTED\r\n", l->name, l->device->name); 
-					ast_verb(1, "Line %s already connected to %s. Not connecting to %s.\n", l->name, l->device->name, d->name);
-				} else {
-					l->device = d;
 					ast_format_cap_joint_copy(l->confcap, d->cap, l->cap);
 					l->prefs = l->confprefs;
 					if (!l->prefs.order[0]) {
@@ -2135,7 +2128,6 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 						ast_extension_state_add(subline->context, subline->exten, skinny_extensionstate_cb, subline->container);
 					}
 					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
-				}
 				--instance;
 			}
 			break;
@@ -2158,7 +2150,6 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 
 	if (d) {
 		d->session = NULL;
-		d->registered = 0;
 
 		AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 			if (sd->stateid > -1)
@@ -2166,7 +2157,6 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 		}
 		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			if (l->device == d) {
-				l->device = NULL;
 				ast_format_cap_remove_all(l->cap);
 				ast_parse_allow_disallow(&l->prefs, l->cap, "all", 0);
 				l->instance = 0;
@@ -3149,7 +3139,7 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
 
-	if (!d) {
+	if (!d->session) {
 		return;
 	}
 
@@ -3189,7 +3179,7 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	struct skinny_line *l = userdata;
 	struct skinny_device *d = l->device;
-	if (d) {
+	if (d && d->session) {
 		struct skinnysession *s = d->session;
 		struct skinny_line *l2;
 		int new_msgs = 0;
@@ -3627,7 +3617,7 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 				d->id,
 				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
 				device2str(d->type),
-				d->registered?'Y':'N',
+				d->session?'Y':'N',
 				numlines);
 		} else {
 			astman_append(s,
@@ -3645,7 +3635,7 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 				d->id,
 				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"-none-",
 				device2str(d->type),
-				d->registered?"registered":"unregistered",
+				d->session?"registered":"unregistered",
 				numlines);
 		}
 	}
@@ -3741,7 +3731,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				ast_cli(fd, "Neg Codecs: ");
 				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->cap);
 				ast_cli(fd, "%s\n", codec_buf);
-				ast_cli(fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
+				ast_cli(fd, "Registered:  %s\n", (d->session ? "Yes" : "No"));
 				ast_cli(fd, "Lines:       %d\n", numlines);
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					ast_cli(fd, "  %s (%s)\n", l->name, l->label);
@@ -3775,7 +3765,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				astman_append(s, "CodecOrder: ");
 				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->cap);
 				astman_append(s, "%s\r\n", codec_buf);
-				astman_append(s, "Devicestatus: %s\r\n", (d->registered?"registered":"unregistered"));
+				astman_append(s, "Devicestatus: %s\r\n", (d->session?"registered":"unregistered"));
 				astman_append(s, "NumberOfLines: %d\r\n", numlines);
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					astman_append(s, "Line: %s (%s)\r\n", l->name, l->label);
@@ -3868,7 +3858,7 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 		if (!s) {
 			ast_cli(fd, "%-20s %-20s %8d %-20s\n",
 				l->name,
-				(l->device ? l->device->name : "Not connected"),
+				l->device->name,
 				l->instance,
 				l->label);
 			if (verbose) {
@@ -3891,7 +3881,7 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 				"Label: %s\r\n",
 				idtext,
 				l->name,
-				(l->device?l->device->name:"None"),
+				l->device->name,
 				l->instance,
 				l->label);
 		}
@@ -4273,7 +4263,7 @@ static void *skinny_ss(void *data)
 	int res = 0;
 	int loop_pause = 100;
 
-	if (!d) {
+	if (!d->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
 		return NULL;
 	}
@@ -4388,7 +4378,7 @@ static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 	struct ast_var_t *current;
 	int doautoanswer = 0;
 
-	if (!d || !d->registered) {
+	if (!d || !d->session) {
 		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
 		return -1;
 	}
@@ -4628,7 +4618,7 @@ static int get_devicestate(struct skinny_line *l)
 
 	if (!l)
 		res = AST_DEVICE_INVALID;
-	else if (!l->device)
+	else if (!l->device || !l->device->session)
 		res = AST_DEVICE_UNAVAILABLE;
 	else if (l->dnd)
 		res = AST_DEVICE_BUSY;
@@ -4787,13 +4777,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinny_subchannel *sub = ast_channel_tech_pvt(ast);
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	struct skinnysession *s;
-
-	if (!d) {
-		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
-		return -1;
-	}
-	s = d->session;
+	struct skinnysession *s = d->session;
 
 	if (!s) {
 		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast_channel_name(ast));
@@ -4864,7 +4848,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 	struct ast_variable *v = NULL;
 	struct ast_format tmpfmt;
 
-	if (!l->device) {
+	if (!l->device || !l->device->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
 		return NULL;
 	}
@@ -5536,7 +5520,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	l = sub->line;
 	d = l->device;
 
-	if (!d) {
+	if (!d->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
 		return -1;
 	}
@@ -5585,7 +5569,7 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
 
-	if (!d) {
+	if (!d->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
 		return 0;
 	}
@@ -7496,6 +7480,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 							}
 							lineInstance++;
 							AST_LIST_INSERT_HEAD(&CDEV->lines, l, list);
+							l->device = CDEV;
 						}
  						break;
  					}
@@ -7737,7 +7722,6 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 
 			AST_LIST_LOCK(&d->lines);
 			AST_LIST_TRAVERSE(&d->lines, l, list){
-				l->device = d;	
 
 				AST_LIST_LOCK(&temp->lines);
 				AST_LIST_TRAVERSE(&temp->lines, ltemp, list) {
