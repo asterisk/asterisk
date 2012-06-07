@@ -3179,38 +3179,36 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	struct skinny_line *l = userdata;
 	struct skinny_device *d = l->device;
-	if (d && d->session) {
-		struct skinnysession *s = d->session;
-		struct skinny_line *l2;
-		int new_msgs = 0;
-		int dev_msgs = 0;
+	struct skinny_line *l2;
+	int dev_msgs = 0;
+	
+	if (!d || !d->session) {
+		return;
+	}
 
-		if (s) {
-			if (event) {
-				l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-			}
+	if (event) {
+		l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+	}
 
-			if (l->newmsgs) {
-				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
-			} else {
-				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
-			}
+	if (l->newmsgs) {
+		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+	} else {
+		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
+	}
 
-			/* find out wether the device lamp should be on or off */
-			AST_LIST_TRAVERSE(&d->lines, l2, list) {
-				if (l2->newmsgs) {
-					dev_msgs++;
-				}
-			}
-
-			if (dev_msgs) {
-				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, d->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
-			} else {
-				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
-			}
-			ast_verb(3, "Skinny mwi_event_cb found %d new messages\n", new_msgs);
+	/* find out wether the device lamp should be on or off */
+	AST_LIST_TRAVERSE(&d->lines, l2, list) {
+		if (l2->newmsgs) {
+			dev_msgs++;
 		}
 	}
+
+	if (dev_msgs) {
+		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, d->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+	} else {
+		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
+	}
+	ast_verb(3, "Skinny mwi_event_cb found %d new messages\n", l->newmsgs);
 }
 
 /* I do not believe skinny can deal with video.
