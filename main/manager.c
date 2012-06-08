@@ -3199,7 +3199,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	const char *name_or_regex = astman_get_header(m, "Channel");
 	const char *cause = astman_get_header(m, "Cause");
-	char idText[256] = "";
+	char idText[256];
 	regex_t regexbuf;
 	struct ast_channel_iterator *iter = NULL;
 	struct ast_str *regex_string;
@@ -3212,6 +3212,8 @@ static int action_hangup(struct mansession *s, const struct message *m)
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	} else {
+		idText[0] = '\0';
 	}
 
 	if (!ast_strlen_zero(cause)) {
@@ -3252,9 +3254,13 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	/* find and hangup any channels matching regex */
 
 	regex_string = ast_str_create(strlen(name_or_regex));
+	if (!regex_string) {
+		astman_send_error(s, m, "Memory Allocation Failure");
+		return 0;
+	}
 
 	/* Make "/regex/" into "regex" */
-	if (ast_regex_string_to_regex_pattern(name_or_regex, regex_string) != 0) {
+	if (ast_regex_string_to_regex_pattern(name_or_regex, &regex_string) != 0) {
 		astman_send_error(s, m, "Regex format invalid, Channel param should be /regex/");
 		ast_free(regex_string);
 		return 0;
@@ -3269,31 +3275,31 @@ static int action_hangup(struct mansession *s, const struct message *m)
 
 	astman_send_listack(s, m, "Channels hung up will follow", "start");
 
-	for (iter = ast_channel_iterator_all_new(); iter && (c = ast_channel_iterator_next(iter)); ) {
-		if (regexec(&regexbuf, ast_channel_name(c), 0, NULL, 0)) {
-			ast_channel_unref(c);
-			continue;
+	iter = ast_channel_iterator_all_new();
+	if (iter) {
+		for (; (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+			if (regexec(&regexbuf, ast_channel_name(c), 0, NULL, 0)) {
+				continue;
+			}
+
+			ast_verb(3, "%sManager '%s' from %s, hanging up channel: %s\n",
+				(s->session->managerid ? "HTTP " : ""),
+				s->session->username,
+				ast_inet_ntoa(s->session->sin.sin_addr),
+				ast_channel_name(c));
+
+			ast_channel_softhangup_withcause_locked(c, causecode);
+			channels_matched++;
+
+			astman_append(s,
+				"Event: ChannelHungup\r\n"
+				"Channel: %s\r\n"
+				"%s"
+				"\r\n", ast_channel_name(c), idText);
 		}
-
-		ast_verb(3, "%sManager '%s' from %s, hanging up channel: %s\n",
-			(s->session->managerid ? "HTTP " : ""),
-			s->session->username,
-			ast_inet_ntoa(s->session->sin.sin_addr),
-			ast_channel_name(c));
-
-		ast_channel_softhangup_withcause_locked(c, causecode);
-		channels_matched++;
-
-		astman_append(s,
-			"Event: ChannelHungup\r\n"
-			"Channel: %s\r\n"
-			"%s"
-			"\r\n", ast_channel_name(c), idText);
-
-		ast_channel_unref(c);
+		ast_channel_iterator_destroy(iter);
 	}
 
-	ast_channel_iterator_destroy(iter);
 	regfree(&regexbuf);
 	ast_free(regex_string);
 
