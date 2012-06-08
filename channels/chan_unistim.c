@@ -354,8 +354,6 @@ struct unistim_line {
 	char exten[AST_MAX_EXTENSION]; /*! Extension where to start */
 	char cid_num[AST_MAX_EXTENSION]; /*! CallerID Number */
 	char mailbox[AST_MAX_EXTENSION]; /*! Mailbox for MWI */
-	int lastmsgssent; /*! Used by MWI */
-	time_t nextmsgcheck; /*! Used by MWI */
 	char musicclass[MAX_MUSICCLASS]; /*! MusicOnHold class */
 	ast_group_t callgroup; /*! Call group */
 	ast_group_t pickupgroup; /*! Pickup group */
@@ -415,8 +413,10 @@ static struct unistim_device {
 	int output;				     /*!< Handset, headphone or speaker */
 	int previous_output;	    /*!< Previous output */
 	int volume;				     /*!< Default volume */
-        int selected;                           /*!< softkey selected */
+	int selected;                           /*!< softkey selected */
 	int mute;				       /*!< Mute mode */
+	int lastmsgssent;                                                   /*! Used by MWI */
+	time_t nextmsgcheck;                                            /*! Used by MWI */
 	int nat;					/*!< Used by the obscure ast_rtp_setnat */
 	enum autoprov_extn extension;   /*!< See ifdef EXTENSION for valid values */
 	char extension_number[11];      /*!< Extension number entered by the user */
@@ -780,7 +780,7 @@ static const char *ustmtext(const char *str, struct unistimsession *pte)
 			 USTM_LANG_DIR, lang->lang_short);
 		f = fopen(tmp, "r");
 		if (!f) {
-			ast_log(LOG_ERROR, "There is no translation file for '%s'\n", pte->device->language);
+			ast_log(LOG_WARNING, "There is no translation file for '%s'\n", lang->lang_short);
 			return str;
 		}
 		while (fgets(tmp, sizeof(tmp), f)) {
@@ -2924,6 +2924,7 @@ static void handle_dial_page(struct unistimsession *pte)
 	send_icon(TEXT_LINE0, FAV_ICON_NONE, pte);
 	pte->device->missed_call = 0;
 	send_led_update(pte, 0);
+	pte->device->lastmsgssent = -1;
 	return;
 }
 
@@ -3197,11 +3198,6 @@ static void handle_call_incoming(struct unistimsession *s)
 	if (unistimdebug) {
 		ast_verb(0, "Handle Call Incoming for %s@%s\n", sub->parent->name,
 					s->device->name);
-	}
-	start_rtp(sub);
-	if (!sub->rtp) {
-		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name,
-				s->device->name);
 	}
 	if (sub->owner) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
@@ -3998,6 +3994,8 @@ static void show_main_page(struct unistimsession *pte)
 	}
 
 	pte->state = STATE_MAINPAGE;
+	send_led_update(pte, 0);
+	pte->device->lastmsgssent = -1;
 
 	send_tone(pte, 0, 0);
 	send_stop_timer(pte); /* case of holding call */
@@ -5520,15 +5518,15 @@ static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick
 	} else { /* Fall back on checking the mailbox directly */
 		new = ast_app_has_voicemail(peer->mailbox, "INBOX");
 	}
-
-	peer->nextmsgcheck = tick + TIMER_MWI;
+	ast_debug(3, "MWI Status for mailbox %s is %d, lastmsgsent:%d\n",mailbox,new,peer->parent->lastmsgssent);
+	peer->parent->nextmsgcheck = tick + TIMER_MWI;
 
 	/* Return now if it's the same thing we told them last time */
-	if (new == peer->lastmsgssent) {
+	if ((peer->parent->session->state != STATE_MAINPAGE) || (new == peer->parent->lastmsgssent)) {
 		return 0;
 	}
 
-	peer->lastmsgssent = new;
+	peer->parent->lastmsgssent = new;
 	send_led_update(peer->parent->session, (new > 0));
 
 	return 0;
@@ -5682,7 +5680,7 @@ static void *do_monitor(void *data)
 				struct unistim_line *l;
 				AST_LIST_LOCK(&cur->device->lines);
 				AST_LIST_TRAVERSE(&cur->device->lines, l, list) {
-					if ((!ast_strlen_zero(l->mailbox)) && (tick >= l->nextmsgcheck)) {
+					if ((!ast_strlen_zero(l->mailbox)) && (tick >= l->parent->nextmsgcheck)) {
 						DEBUG_TIMER("Checking mailbox for MWI\n");
 						unistim_send_mwi_to_peer(l, tick);
 						break;
@@ -5818,6 +5816,12 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	if (unistimdebug) {
 		ast_verb(0, "unistim_request owner = %p\n", sub->owner);
 	}
+	start_rtp(sub);
+	if (!sub->rtp) {
+		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, d->name);
+                                    return NULL;
+	}
+
 	restart_monitor();
 
 	/* and finish */
