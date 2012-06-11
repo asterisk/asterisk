@@ -67,13 +67,6 @@ static const char *sig_ss7_call_level2str(enum sig_ss7_call_level level)
 	return "Unknown";
 }
 
-#define SIG_SS7_DEADLOCK_AVOIDANCE(p) \
-	do { \
-		sig_ss7_unlock_private(p); \
-		usleep(1); \
-		sig_ss7_lock_private(p); \
-	} while (0)
-
 static void sig_ss7_unlock_private(struct sig_ss7_chan *p)
 {
 	if (p->calls->unlock_private) {
@@ -94,7 +87,9 @@ static void sig_ss7_deadlock_avoidance_private(struct sig_ss7_chan *p)
 		p->calls->deadlock_avoidance_private(p->chan_pvt);
 	} else {
 		/* Fallback to the old way if callback not present. */
-		SIG_SS7_DEADLOCK_AVOIDANCE(p);
+		sig_ss7_unlock_private(p);
+		sched_yield();
+		sig_ss7_lock_private(p);
 	}
 }
 
@@ -314,10 +309,11 @@ static void sig_ss7_lock_owner(struct sig_ss7_linkset *ss7, int chanpos)
 			/* We got the lock */
 			break;
 		}
-		/* We must unlock the SS7 to avoid the possibility of a deadlock */
-		ast_mutex_unlock(&ss7->lock);
-		sig_ss7_deadlock_avoidance_private(ss7->pvts[chanpos]);
-		ast_mutex_lock(&ss7->lock);
+
+		/* Avoid deadlock */
+		sig_ss7_unlock_private(ss7->pvts[chanpos]);
+		DEADLOCK_AVOIDANCE(&ss7->lock);
+		sig_ss7_lock_private(ss7->pvts[chanpos]);
 	}
 }
 
@@ -1266,17 +1262,15 @@ static inline void ss7_rel(struct sig_ss7_linkset *ss7)
 
 static void ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
 {
-	int res;
 	/* Grab the lock first */
-	do {
-		res = ast_mutex_trylock(&ss7->lock);
-		if (res) {
-			sig_ss7_deadlock_avoidance_private(pvt);
-		}
-	} while (res);
+	while (ast_mutex_trylock(&ss7->lock)) {
+		/* Avoid deadlock */
+		sig_ss7_deadlock_avoidance_private(pvt);
+	}
 	/* Then break the poll */
-	if (ss7->master != AST_PTHREADT_NULL)
+	if (ss7->master != AST_PTHREADT_NULL) {
 		pthread_kill(ss7->master, SIGURG);
+	}
 }
 
 /*!

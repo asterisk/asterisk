@@ -202,6 +202,11 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 	struct speex_direction_info **sdi = NULL;
 	int is_new = 0;
 
+	if (strcasecmp(data, "rx") && strcasecmp(data, "tx")) {
+		ast_log(LOG_ERROR, "Invalid argument provided to the %s function\n", cmd);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &speex_datastore, NULL))) {
 		ast_channel_unlock(chan);
@@ -226,15 +231,8 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 
 	if (!strcasecmp(data, "rx")) {
 		sdi = &si->rx;
-	} else if (!strcasecmp(data, "tx")) {
-		sdi = &si->tx;
 	} else {
-		ast_log(LOG_ERROR, "Invalid argument provided to the %s function\n", cmd);
-
-		if (is_new) {
-			ast_datastore_free(datastore);
-			return -1;
-		}
+		sdi = &si->tx;
 	}
 
 	if (!*sdi) {

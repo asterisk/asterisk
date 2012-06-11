@@ -1255,6 +1255,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 	if (ast_strlen_zero(email)) {
 		ast_log(LOG_WARNING, "No address to send message to.\n");
+		ast_free(str1);
+		ast_free(str2);
 		return -1;	
 	}
 
@@ -1309,11 +1311,15 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to open temporary file '%s'\n", tmp);
+		ast_free(str1);
+		ast_free(str2);
 		return -1;
 	}
 	/* Allocate channel used for chanvar substitution */
 	ast = ast_dummy_channel_alloc();
 	if (!ast) {
+		ast_free(str1);
+		ast_free(str2);
 		return -1;
 	}
 
@@ -2085,7 +2091,7 @@ static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 	char *domain;
 	char *tmpptr;
 	struct minivm_account *vmu;
-	char *username = argv[0];
+	char *username;
 	const char *template = "";
 	const char *filename;
 	const char *format;
@@ -2459,7 +2465,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	char *domain;
 	char *tmpptr = NULL;
 	struct minivm_account *vmu;
-	char *username = argv[0];
+	char *username;
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	int error = FALSE;

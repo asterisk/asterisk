@@ -181,8 +181,13 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		args.context = "disa";
 	if (ast_strlen_zero(args.mailbox))
 		args.mailbox = "";
-	if (!ast_strlen_zero(args.options))
+	if (!ast_strlen_zero(args.options)) {
 		ast_app_parse_options(app_opts, &flags, NULL, args.options);
+	} else {
+		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
+		ast_clear_flag(&flags, AST_FLAGS_ALL);
+	}
+
 
 	ast_debug(1, "Mailbox: %s\n",args.mailbox);
 

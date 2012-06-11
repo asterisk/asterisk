@@ -976,26 +976,28 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 			/* is this a recursive parameter. */
 			paramname = xmldoc_get_syntax_cmd(node, "", 0);
 			isenum = 1;
-		} else if (!xmldoc_has_inside(node, "enumlist")) {
-			/* this is a simple parameter. */
-			attrname = ast_xml_get_attribute(node, "name");
-			if (!attrname) {
-				/* ignore this bogus parameter and continue. */
-				continue;
-			}
-			paramname = ast_strdup(attrname);
-			ast_xml_free_attr(attrname);
-			isenum = 0;
 		} else {
-			/* parse enumlist (note that this is a special enumlist
-			that is used to describe a syntax like {<param1>|<param2>|...} */
 			for (tmpnode = ast_xml_node_get_children(node); tmpnode; tmpnode = ast_xml_node_get_next(tmpnode)) {
 				if (!strcasecmp(ast_xml_node_get_name(tmpnode), "enumlist")) {
 					break;
 				}
 			}
-			paramname = xmldoc_parse_cmd_enumlist(tmpnode);
-			isenum = 1;
+			if (tmpnode) {
+				/* parse enumlist (note that this is a special enumlist
+				that is used to describe a syntax like {<param1>|<param2>|...} */
+				paramname = xmldoc_parse_cmd_enumlist(tmpnode);
+				isenum = 1;
+			} else {
+				/* this is a simple parameter. */
+				attrname = ast_xml_get_attribute(node, "name");
+				if (!attrname) {
+					/* ignore this bogus parameter and continue. */
+					continue;
+				}
+				paramname = ast_strdup(attrname);
+				ast_xml_free_attr(attrname);
+				isenum = 0;
+			}
 		}
 
 		/* Is this parameter required? */
@@ -1664,6 +1666,7 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 		ast_str_append(buffer, 0, "\n");
 		ast_xml_free_attr(optname);
 		ast_xml_free_attr(hasparams);
+		ast_free(optionsyntax);
 	}
 }
 
@@ -1715,7 +1718,11 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 				ast_xml_free_attr(paramname);
 				printed = 1;
 			}
-			xmldoc_parse_para(node, internaltabs, "\n", buffer);
+			if (xmldoc_parse_para(node, internaltabs, "\n", buffer)) {
+				/* If anything ever goes in below this condition before the continue below,
+				 * we should probably continue immediately. */
+				continue;
+			}
 			continue;
 		} else if ((xmldoc_parse_specialtags(node, internaltabs, "\n", buffer))) {
 			continue;
@@ -1734,12 +1741,14 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 	char *retstr = NULL;
 
 	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		ast_free(ret);
 		return NULL;
 	}
 
 	node = xmldoc_get_node(type, name, module, documentation_language);
 
 	if (!node || !ast_xml_node_get_children(node)) {
+		ast_free(ret);
 		return NULL;
 	}
 
@@ -1752,6 +1761,7 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 
 	if (!node || !ast_xml_node_get_children(node)) {
 		/* We couldn't find the syntax node. */
+		ast_free(ret);
 		return NULL;
 	}
 

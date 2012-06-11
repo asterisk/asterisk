@@ -9,6 +9,22 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 10.5.0 ------------------------------
+------------------------------------------------------------------------------
+
+SIP Changes
+-------------
+ * In previous versions of Asterisk, a SIP peer's LastMsgsSent value was
+   presented as part of the response to an AMI or CLI 'sip show peer [peer]'.
+   This was removed in Asterisk 10 as the variable was no longer used for its
+   original internal purpose of determining whether or not MWI notifications had
+   been sent to a peer; however, it was determined that the value is still
+   useful for reporting purposes.
+
+   The LastMsgsSent value has been re-added with the same functionality as in
+   previous versions of Asterisk.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 10.3.0 ------------------------------
 ------------------------------------------------------------------------------
 

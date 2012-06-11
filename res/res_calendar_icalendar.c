@@ -133,6 +133,7 @@ static icalcomponent *fetch_icalendar(struct icalendar_pvt *pvt)
 
 	if (!pvt) {
 		ast_log(LOG_ERROR, "There is no private!\n");
+		return NULL;
 	}
 
 	if (!(response = ast_str_create(512))) {
@@ -260,10 +261,12 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 			return;
 		}
 		data = icalproperty_get_attendee(prop);
-		if (!ast_strlen_zero(data)) {
-			attendee->data = ast_strdup(data);;
-			AST_LIST_INSERT_TAIL(&event->attendees, attendee, next);
+		if (ast_strlen_zero(data)) {
+			ast_free(attendee);
+			continue;
 		}
+		attendee->data = ast_strdup(data);;
+		AST_LIST_INSERT_TAIL(&event->attendees, attendee, next);
 	}
 
 

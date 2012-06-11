@@ -151,6 +151,11 @@ static void odbc_datastore_free(void *data)
 {
 	struct odbc_datastore *result = data;
 	struct odbc_datastore_row *row;
+
+	if (!result) {
+		return;
+	}
+
 	AST_LIST_LOCK(result);
 	while ((row = AST_LIST_REMOVE_HEAD(result, list))) {
 		ast_free(row);
@@ -539,6 +544,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 			ast_autoservice_stop(chan);
 		}
+		odbc_datastore_free(resultset);
 		return -1;
 	}
 
@@ -553,6 +559,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 			ast_autoservice_stop(chan);
 		}
+		odbc_datastore_free(resultset);
 		return -1;
 	}
 
@@ -578,6 +585,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 			ast_autoservice_stop(chan);
 		}
+		odbc_datastore_free(resultset);
 		return res1;
 	}
 
@@ -591,7 +599,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			char *ptrcoldata;
 
 			if (!coldata) {
-				ast_free(resultset);
+				odbc_datastore_free(resultset);
 				SQLCloseCursor(stmt);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
@@ -624,7 +632,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 					void *tmp = ast_realloc(resultset, sizeof(*resultset) + ast_str_strlen(colnames) + 1);
 					if (!tmp) {
 						ast_log(LOG_ERROR, "No space for a new resultset?\n");
-						ast_free(resultset);
+						odbc_datastore_free(resultset);
 						SQLCloseCursor(stmt);
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 						ast_odbc_release_obj(obj);

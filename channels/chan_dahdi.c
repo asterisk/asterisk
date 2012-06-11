@@ -7954,6 +7954,9 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	struct ast_frame *f;
 
 	idx = dahdi_get_index(ast, p, 0);
+	if (idx < 0) {
+		return &ast_null_frame;
+	}
 	mysig = p->sig;
 	if (p->outsigmod > -1)
 		mysig = p->outsigmod;
@@ -7967,8 +7970,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	p->subs[idx].f.data.ptr = NULL;
 	f = &p->subs[idx].f;
 
-	if (idx < 0)
-		return &p->subs[idx].f;
 	if (p->fake_event) {
 		res = p->fake_event;
 		p->fake_event = 0;
@@ -8048,6 +8049,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #else
 		ast_log(LOG_WARNING, "Received bits changed on %s signalling?\n", sig2str(p->sig));
 #endif
+		break;
 	case DAHDI_EVENT_PULSE_START:
 		/* Stop tone if there's a pulse start and the PBX isn't started */
 		if (!ast->pbx)
@@ -8935,7 +8937,9 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		ast_debug(1, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
-		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
+		if (p->owner) {
+			ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
+		}
 		f = &p->subs[idx].f;
 		return f;
 	}
@@ -9301,6 +9305,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				if ((ast->_state == AST_STATE_UP) && !p->outgoing) {
 					/* Treat this as a "hangup" instead of a "busy" on the assumption that
 					   a busy */
+					ast_frfree(f);
 					f = NULL;
 				}
 			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
@@ -9326,7 +9331,8 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				if (ast_tvdiff_ms(ast_tvnow(), p->waitingfordt) >= p->waitfordialtone ) {
 					p->waitingfordt.tv_sec = 0;
 					ast_log(LOG_WARNING, "Never saw dialtone on channel %d\n", p->channel);
-					f=NULL;
+					ast_frfree(f);
+					f = NULL;
 				} else if (f->frametype == AST_FRAME_VOICE) {
 					f->frametype = AST_FRAME_NULL;
 					f->subclass.integer = 0;
@@ -9341,6 +9347,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 								p->dop.dialstr[0] = '\0';
 								ast_mutex_unlock(&p->lock);
+								ast_frfree(f);
 								return NULL;
 							} else {
 								ast_debug(1, "Sent deferred digit string: %s\n", p->dop.dialstr);
@@ -11760,14 +11767,13 @@ static void *do_monitor(void *data)
 		count = 0;
 		for (i = iflist; i; i = i->next) {
 			ast_mutex_lock(&i->lock);
-			if ((i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
+			if (pfds && (i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
 				if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 					struct analog_pvt *p = i->sig_pvt;
 
-					if (!p)
+					if (!p) {
 						ast_log(LOG_ERROR, "No sig_pvt?\n");
-
-					if (!p->owner && !p->subs[SUB_REAL].owner) {
+					} else if (!p->owner && !p->subs[SUB_REAL].owner) {
 						/* This needs to be watched, as it lacks an owner */
 						pfds[count].fd = i->subs[SUB_REAL].dfd;
 						pfds[count].events = POLLPRI;

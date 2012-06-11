@@ -9,7 +9,7 @@
  * Thanks to mpglib from http://www.mpg123.org/
  * and Chris Stenton [jacs@gnome.co.uk]
  * for coding the ability to play stereo and non-8khz files
- 
+
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -48,20 +48,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MP3_DCACHE 8192
 
 struct mp3_private {
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;				/* Empty character */
-	int lasttimeout;
-	int maxlen;
-	struct timeval last;
+	/*! state for the mp3 decoder */
 	struct mpstr mp;
+	/*! buffer to hold mp3 data after read from disk */
 	char sbuf[MP3_SCACHE];
+	/*! buffer for slinear audio after being decoded out of sbuf */
 	char dbuf[MP3_DCACHE];
+	/*! how much data has been written to the output buffer in the ast_filestream */
 	int buflen;
+	/*! how much data has been written to sbuf */
 	int sbuflen;
+	/*! how much data is left to be read out of dbuf, starting at dbufoffset */
 	int dbuflen;
+	/*! current offset for reading data out of dbuf */
 	int dbufoffset;
-	int sbufoffset;
-	int lastseek;
 	int offset;
 	long seek;
 };
@@ -107,17 +107,17 @@ static int mp3_open(struct ast_filestream *s)
 static void mp3_close(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
-	
+
 	ExitMP3(&p->mp);
 	return;
 }
 
-static int mp3_squeue(struct ast_filestream *s) 
+static int mp3_squeue(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
 	int res=0;
-	
-	p->lastseek = ftell(s->f);
+
+	res = ftell(s->f);
 	p->sbuflen = fread(p->sbuf, 1, MP3_SCACHE, s->f);
 	if(p->sbuflen < 0) {
 		ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", p->sbuflen, strerror(errno));
@@ -131,11 +131,11 @@ static int mp3_squeue(struct ast_filestream *s)
 	return 0;
 }
 
-static int mp3_dqueue(struct ast_filestream *s) 
+static int mp3_dqueue(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
 	int res=0;
-	
+
 	if((res = decodeMP3(&p->mp,NULL,0,p->dbuf,MP3_DCACHE,&p->dbuflen)) == MP3_OK) {
 		p->sbuflen -= p->dbuflen;
 		p->dbufoffset = 0;
@@ -147,7 +147,7 @@ static int mp3_queue(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
 	int res = 0, bytes = 0;
-	
+
 	if(p->seek) {
 		ExitMP3(&p->mp);
 		InitMP3(&p->mp, OUTSCALE);
@@ -167,7 +167,7 @@ static int mp3_queue(struct ast_filestream *s)
 			if(res == MP3_ERR)
 				return -1;
 		}
-		
+
 		p->seek = 0;
 		return 0;
 	}
@@ -181,7 +181,7 @@ static int mp3_queue(struct ast_filestream *s)
 			if(mp3_squeue(s))
 				return -1;
 		}
-		
+
 	}
 
 	return 0;
@@ -194,36 +194,41 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 	int delay =0;
 	int save=0;
 
-	/* Send a frame from the file to the appropriate channel */
-
-	if(mp3_queue(s))
+	/* Pre-populate the buffer that holds audio to be returned (dbuf) */
+	if (mp3_queue(s)) {
 		return NULL;
+	}
 
-	if(p->dbuflen) {
-		for(p->buflen=0; p->buflen < MP3_BUFLEN && p->buflen < p->dbuflen; p->buflen++) {
-			s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[p->buflen+p->dbufoffset];
-			p->sbufoffset++;
+	if (p->dbuflen) {
+		/* Read out what's waiting in dbuf */
+		for (p->buflen = 0; p->buflen < MP3_BUFLEN && p->buflen < p->dbuflen; p->buflen++) {
+			s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[p->buflen + p->dbufoffset];
 		}
 		p->dbufoffset += p->buflen;
 		p->dbuflen -= p->buflen;
+	}
 
-		if(p->buflen < MP3_BUFLEN) {
-			if(mp3_queue(s))
-				return NULL;
+	if (p->buflen < MP3_BUFLEN) {
+		/* dbuf didn't have enough, so reset dbuf, fill it back up and continue */
+		p->dbuflen = p->dbufoffset = 0;
 
-			for(save = p->buflen; p->buflen < MP3_BUFLEN; p->buflen++) {
-				s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[(p->buflen-save)+p->dbufoffset];
-				p->sbufoffset++;
+		if (mp3_queue(s)) {
+			return NULL;
+		}
+
+		/* Make sure dbuf has enough to complete this read attempt */
+		if (p->dbuflen >= (MP3_BUFLEN - p->buflen)) {
+			for (save = p->buflen; p->buflen < MP3_BUFLEN; p->buflen++) {
+				s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[(p->buflen - save) + p->dbufoffset];
 			}
 			p->dbufoffset += (MP3_BUFLEN - save);
 			p->dbuflen -= (MP3_BUFLEN - save);
-
-		} 
+		}
 
 	}
-	
+
 	p->offset += p->buflen;
-	delay = p->buflen/2;
+	delay = p->buflen / 2;
 	s->fr.frametype = AST_FRAME_VOICE;
 	ast_format_set(&s->fr.subclass.format, AST_FORMAT_SLINEAR, 0);
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, p->buflen);
@@ -266,16 +271,16 @@ static int mp3_seek(struct ast_filestream *s, off_t sample_offset, int whence)
 
 	p->seek = offset;
 	return fseek(s->f, offset, SEEK_SET);
-	
+
 }
 
-static int mp3_rewrite(struct ast_filestream *s, const char *comment) 
+static int mp3_rewrite(struct ast_filestream *s, const char *comment)
 {
 	ast_log(LOG_ERROR,"I Can't write MP3 only read them.\n");
 	return -1;
 }
 
-static int mp3_trunc(struct ast_filestream *s) 
+static int mp3_trunc(struct ast_filestream *s)
 {
 
 	ast_log(LOG_ERROR,"I Can't write MP3 only read them.\n");
@@ -285,7 +290,7 @@ static int mp3_trunc(struct ast_filestream *s)
 static off_t mp3_tell(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
-	
+
 	return p->offset/2;
 }
 
@@ -321,6 +326,6 @@ static int load_module(void)
 static int unload_module(void)
 {
 	return ast_format_def_unregister(name);
-}	
+}
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "MP3 format [Any rate but 8000hz mono is optimal]");

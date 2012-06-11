@@ -805,7 +805,9 @@ struct pval *ael2_parse(char *filename, int *errors)
 	if (my_file)
 		free(my_file);
 	my_file = strdup(filename);
-	stat(filename, &stats);
+	if (stat(filename, &stats)) {
+		ast_log(LOG_WARNING, "failed to populate stats from file '%s'\n", filename);
+	}
 	buffer = (char*)malloc(stats.st_size+2);
 	if (fread(buffer, 1, stats.st_size, fin) != stats.st_size) {
 		ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
@@ -875,7 +877,9 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 		} else {
 			char *buffer;
 			struct stat stats;
-			stat(fnamebuf2, &stats);
+			if (stat(fnamebuf2, &stats)) {
+				ast_log(LOG_WARNING, "Failed to populate stats from file '%s'\n", fnamebuf2);
+			}
 			buffer = (char*)malloc(stats.st_size+1);
 			if (fread(buffer, 1, stats.st_size, in1) != stats.st_size) {
 				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));

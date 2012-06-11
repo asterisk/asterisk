@@ -118,6 +118,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "FollowMe";
 
+/*! Maximum accept/decline DTMF string plus terminator. */
+#define MAX_YN_STRING		20
+
 /*! \brief Number structure */
 struct number {
 	char number[512];	/*!< Phone Number(s) and/or Extension(s) */
@@ -130,12 +133,12 @@ struct number {
 struct call_followme {
 	ast_mutex_t lock;
 	char name[AST_MAX_EXTENSION];	/*!< Name - FollowMeID */
-	char moh[AST_MAX_CONTEXT];	/*!< Music On Hold Class to be used */
+	char moh[MAX_MUSICCLASS];	/*!< Music On Hold Class to be used */
 	char context[AST_MAX_CONTEXT];  /*!< Context to dial from */
 	unsigned int active;		/*!< Profile is active (1), or disabled (0). */
 	int realtime;           /*!< Cached from realtime */
-	char takecall[20];		/*!< Digit mapping to take a call */
-	char nextindp[20];		/*!< Digit mapping to decline a call */
+	char takecall[MAX_YN_STRING];	/*!< Digit mapping to take a call */
+	char nextindp[MAX_YN_STRING];	/*!< Digit mapping to decline a call */
 	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char norecordingprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char optionsprompt[PATH_MAX];	/*!< Sound prompt name and path */
@@ -161,14 +164,14 @@ struct fm_args {
 	/*! Accumulated connected line information from outbound call. */
 	struct ast_party_connected_line connected_out;
 	/*! TRUE if connected line information from inbound call changed. */
-	int pending_in_connected_update:1;
+	unsigned int pending_in_connected_update:1;
 	/*! TRUE if connected line information from outbound call is available. */
-	int pending_out_connected_update:1;
+	unsigned int pending_out_connected_update:1;
 	int status;
 	char context[AST_MAX_CONTEXT];
-	char namerecloc[AST_MAX_CONTEXT];
-	char takecall[20];		/*!< Digit mapping to take a call */
-	char nextindp[20];		/*!< Digit mapping to decline a call */
+	char namerecloc[PATH_MAX];
+	char takecall[MAX_YN_STRING];	/*!< Digit mapping to take a call */
+	char nextindp[MAX_YN_STRING];	/*!< Digit mapping to decline a call */
 	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char norecordingprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char optionsprompt[PATH_MAX];	/*!< Sound prompt name and path */
@@ -186,11 +189,12 @@ struct findme_user {
 	int ynidx;
 	int state;
 	char dialarg[256];
-	char yn[10];
+	/*! Collected digits to accept/decline the call. */
+	char yn[MAX_YN_STRING];
 	/*! TRUE if call cleared. */
-	int cleared:1;
+	unsigned int cleared:1;
 	/*! TRUE if connected line information is available. */
-	int pending_connected_update:1;
+	unsigned int pending_connected_update:1;
 	AST_LIST_ENTRY(findme_user) entry;
 };
 
@@ -214,13 +218,12 @@ AST_APP_OPTIONS(followme_opts, {
 	AST_APP_OPTION('s', FOLLOWMEFLAG_STATUSMSG),
 });
 
-static int ynlongest = 0;
-
 static const char *featuredigittostr;
 static int featuredigittimeout = 5000;		/*!< Feature Digit Timeout */
 static const char *defaultmoh = "default";    	/*!< Default Music-On-Hold Class */
 
-static char takecall[20] = "1", nextindp[20] = "2";
+static char takecall[MAX_YN_STRING] = "1";
+static char nextindp[MAX_YN_STRING] = "2";
 static char callfromprompt[PATH_MAX] = "followme/call-from";
 static char norecordingprompt[PATH_MAX] = "followme/no-recording";
 static char optionsprompt[PATH_MAX] = "followme/options";
@@ -842,21 +845,19 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_stopstream(winner);
 					tmpuser->digts = 0;
 					ast_debug(1, "DTMF received: %c\n", (char) f->subclass.integer);
-					tmpuser->yn[tmpuser->ynidx] = (char) f->subclass.integer;
-					tmpuser->ynidx++;
+					if (tmpuser->ynidx < ARRAY_LEN(tmpuser->yn) - 1) {
+						tmpuser->yn[tmpuser->ynidx++] = (char) f->subclass.integer;
+					}
 					ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
-					if (tmpuser->ynidx >= ynlongest) {
-						ast_debug(1, "reached longest possible match - doing evals\n");
-						if (!strcmp(tmpuser->yn, tpargs->takecall)) {
-							ast_debug(1, "Match to take the call!\n");
-							ast_frfree(f);
-							return tmpuser->ochan;
-						}
-						if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
-							ast_debug(1, "Next in dial plan step requested.\n");
-							ast_frfree(f);
-							return NULL;
-						}
+					if (!strcmp(tmpuser->yn, tpargs->takecall)) {
+						ast_debug(1, "Match to take the call!\n");
+						ast_frfree(f);
+						return tmpuser->ochan;
+					}
+					if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
+						ast_debug(1, "Next in dial plan step requested.\n");
+						ast_frfree(f);
+						return NULL;
 					}
 				}
 
@@ -904,16 +905,11 @@ static void findmeexec(struct fm_args *tpargs)
 	struct findme_user_listptr *findme_user_list;
 
 	findme_user_list = ast_calloc(1, sizeof(*findme_user_list));
+	if (!findme_user_list) {
+		ast_log(LOG_WARNING, "Failed to allocate memory for findme_user_list\n");
+		return;
+	}
 	AST_LIST_HEAD_INIT_NOLOCK(findme_user_list);
-
-	/* We're going to figure out what the longest possible string of digits to collect is */
-	ynlongest = 0;
-	if (strlen(tpargs->takecall) > ynlongest) {
-		ynlongest = strlen(tpargs->takecall);
-	}
-	if (strlen(tpargs->nextindp) > ynlongest) {
-		ynlongest = strlen(tpargs->nextindp);
-	}
 
 	caller = tpargs->chan;
 	for (idx = 1; !ast_check_hangup(caller); ++idx) {
@@ -1155,7 +1151,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	struct number *nm, *newnm;
 	int res = 0;
 	char *argstr;
-	char namerecloc[255];
 	struct ast_channel *caller;
 	struct ast_channel *outbound;
 	AST_DECLARE_APP_ARGS(args,
@@ -1227,7 +1222,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		ast_clear_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER);
 	}
 
-	namerecloc[0] = '\0';
 	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
 	} else {
@@ -1242,14 +1236,14 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) {
 			int duration = 5;
 
-			snprintf(namerecloc, sizeof(namerecloc), "%s/followme.%s",
+			snprintf(targs.namerecloc, sizeof(targs.namerecloc), "%s/followme.%s",
 				ast_config_AST_SPOOL_DIR, chan->uniqueid);
-			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration,
+			if (ast_play_and_record(chan, "vm-rec-name", targs.namerecloc, 5, "sln", &duration,
 				NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0) {
 				goto outrun;
 			}
-			if (!ast_fileexists(namerecloc, NULL, chan->language)) {
-				namerecloc[0] = '\0';
+			if (!ast_fileexists(targs.namerecloc, NULL, chan->language)) {
+				targs.namerecloc[0] = '\0';
 			}
 		}
 
@@ -1264,19 +1258,11 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	targs.status = 0;
 	targs.chan = chan;
-	ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
 	ast_channel_lock(chan);
 	ast_connected_line_copy_from_caller(&targs.connected_in, &chan->caller);
 	ast_channel_unlock(chan);
 
 	findmeexec(&targs);
-
-	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry)))
-		ast_free(nm);
-
-	if (!ast_strlen_zero(namerecloc))
-		unlink(namerecloc);
-
 	if (targs.status != 100) {
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
 			if (chan->_state != AST_STATE_UP) {
@@ -1339,8 +1325,15 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 
 outrun:
+	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry))) {
+		ast_free(nm);
+	}
+	if (!ast_strlen_zero(targs.namerecloc)) {
+		unlink(targs.namerecloc);
+	}
 	ast_party_connected_line_free(&targs.connected_in);
 	ast_party_connected_line_free(&targs.connected_out);
+
 	if (f->realtime) {
 		/* Not in list */
 		free_numbers(f);

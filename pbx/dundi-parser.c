@@ -454,15 +454,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	char subclass2[20];
 	char *subclass;
 	char tmp[256];
-	char retries[20];
-	if (ntohs(fhi->dtrans) & DUNDI_FLAG_RETRANS)
-		strcpy(retries, "Yes");
-	else
-		strcpy(retries, "No");
-	if ((ntohs(fhi->strans) & DUNDI_FLAG_RESERVED)) {
-		/* Ignore frames with high bit set to 1 */
-		return;
-	}
+	const char *retries = "Yes";
 	if ((fhi->cmdresp & 0x3f) > (int)sizeof(commands)/(int)sizeof(char *)) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fhi->cmdresp);
 		class = class2;
@@ -512,8 +504,10 @@ int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned 
 	ied->buf[ied->pos++] = ie;
 	ied->buf[ied->pos++] = datalen;
 	ied->buf[ied->pos++] = cause;
-	memcpy(ied->buf + ied->pos, data, datalen-1);
-	ied->pos += datalen-1;
+	if (data) {
+		memcpy(ied->buf + ied->pos, data, datalen-1);
+		ied->pos += datalen-1;
+	}
 	return 0;
 }
 
@@ -531,8 +525,10 @@ int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned s
 	flags = htons(flags);
 	memcpy(ied->buf + ied->pos, &flags, sizeof(flags));
 	ied->pos += 2;
-	memcpy(ied->buf + ied->pos, data, datalen-1);
-	ied->pos += datalen-2;
+	if (data) {
+		memcpy(ied->buf + ied->pos, data, datalen-2);
+		ied->pos += datalen-2;
+	}
 	return 0;
 }
 

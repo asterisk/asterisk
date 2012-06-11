@@ -373,10 +373,15 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 
 static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
+	struct ast_datastore *lock_store;
 	struct channel_lock_frame *clframe;
 	AST_LIST_HEAD(, channel_lock_frame) *list;
 
+	if (!chan) {
+		return -1;
+	}
+
+	lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
 	if (!lock_store) {
 		ast_log(LOG_WARNING, "No datastore for dialplan locks.  Nothing was ever locked!\n");
 		ast_copy_string(buf, "0", len);
@@ -417,26 +422,24 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 
 static int lock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	if (chan)
-		ast_autoservice_start(chan);
-
+	if (!chan) {
+		return -1;
+	}
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 0) ? "0" : "1", len);
-
-	if (chan)
-		ast_autoservice_stop(chan);
+	ast_autoservice_stop(chan);
 
 	return 0;
 }
 
 static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	if (chan)
-		ast_autoservice_start(chan);
-
+	if (!chan) {
+		return -1;
+	}
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 1) ? "0" : "1", len);
-
-	if (chan)
-		ast_autoservice_stop(chan);
+	ast_autoservice_stop(chan);
 
 	return 0;
 }
@@ -486,9 +489,11 @@ static int unload_module(void)
 	ast_custom_function_unregister(&trylock_function);
 	ast_custom_function_unregister(&unlock_function);
 
-	pthread_cancel(broker_tid);
-	pthread_kill(broker_tid, SIGURG);
-	pthread_join(broker_tid, NULL);
+	if (broker_tid != AST_PTHREADT_NULL) {
+		pthread_cancel(broker_tid);
+		pthread_kill(broker_tid, SIGURG);
+		pthread_join(broker_tid, NULL);
+	}
 
 	AST_LIST_UNLOCK(&locklist);
 
@@ -500,7 +505,14 @@ static int load_module(void)
 	int res = ast_custom_function_register(&lock_function);
 	res |= ast_custom_function_register(&trylock_function);
 	res |= ast_custom_function_register(&unlock_function);
-	ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL);
+
+	if (ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL)) {
+		ast_log(LOG_ERROR, "Failed to start lock broker thread. Unloading func_lock module.\n");
+		broker_tid = AST_PTHREADT_NULL;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	return res;
 }
 

@@ -604,6 +604,9 @@ static int control_streamfile(struct ast_channel *chan,
 	long pause_restart_point = 0;
 	long offset = 0;
 
+	if (!file) {
+		return -1;
+	}
 	if (offsetms) {
 		offset = *offsetms * 8; /* XXX Assumes 8kHz */
 	}
@@ -635,12 +638,10 @@ static int control_streamfile(struct ast_channel *chan,
 		res = ast_answer(chan);
 	}
 
-	if (file) {
-		if ((end = strchr(file, ':'))) {
-			if (!strcasecmp(end, ":end")) {
-				*end = '\0';
-				end++;
-			}
+	if ((end = strchr(file, ':'))) {
+		if (!strcasecmp(end, ":end")) {
+			*end = '\0';
+			end++;
 		}
 	}
 

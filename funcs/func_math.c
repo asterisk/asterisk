@@ -57,7 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<replaceable>number1</replaceable><replaceable>op</replaceable><replaceable>number2</replaceable>
 				where the possible values for <replaceable>op</replaceable>
 				are:</para>
-				<para>+,-,/,*,%,&lt;&lt;,&gt;&gt;,^,AND,OR,XOR,&lt;,%gt;,&gt;=,&lt;=,== (and behave as their C equivalents)</para>
+				<para>+,-,/,*,%,&lt;&lt;,&gt;&gt;,^,AND,OR,XOR,&lt;,&gt;,&lt;=,&gt;=,== (and behave as their C equivalents)</para>
 			</parameter>
 			<parameter name="type">
 				<para>Wanted type of result:</para>
@@ -254,7 +254,7 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		}
 	}
 
-	if (!mvalue1 || !mvalue2) {
+	if (!mvalue2) {
 		ast_log(LOG_WARNING,
 				"Supply all the parameters - just this once, please\n");
 		return -1;

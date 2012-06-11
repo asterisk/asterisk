@@ -1753,8 +1753,9 @@ static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 
 	extenstr[0] = '\0';
 
-	if (node && node->exten)
+	if (node->exten) {
 		snprintf(extenstr, sizeof(extenstr), "(%p)", node->exten);
+	}
 
 	if (strlen(node->x) > 1) {
 		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N',
@@ -5540,8 +5541,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		 * and continue, or we can drop out entirely. */
 
 		if (invalid
-			|| !ast_exists_extension(c, c->context, c->exten, 1,
-				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+			|| (ast_strlen_zero(dst_exten) &&
+				!ast_exists_extension(c, c->context, c->exten, 1,
+				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL)))) {
 			/*!\note
 			 * If there is no match at priority 1, it is not a valid extension anymore.
 			 * Try to continue at "i" (for invalid) or "e" (for exception) or exit if
@@ -6980,8 +6982,10 @@ static int show_debug_helper(int fd, const char *context, const char *exten, str
 
 		dpc->context_existence = 1;
 
-		if (!c->pattern_tree)
+		if (!c->pattern_tree) {
+			/* Ignore check_return warning from Coverity for ast_exists_extension below */
 			ast_exists_extension(NULL, c->name, "s", 1, ""); /* do this to force the trie to built, if it is not already */
+		}
 
 		ast_rdlock_context(c);
 
@@ -7774,6 +7778,8 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 
 				if (!new) {
 					ast_log(LOG_ERROR,"Could not allocate a new context for %s in merge_and_delete! Danger!\n", context->name);
+					ast_hashtab_end_traversal(prio_iter);
+					ast_hashtab_end_traversal(exten_iter);
 					return; /* no sense continuing. */
 				}
 				/* we will not replace existing entries in the new context with stuff from the old context.
@@ -8519,6 +8525,7 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 		if (!strcasecmp(ignorepatc->pattern, value)) {
 			/* Already there */
 			ast_unlock_context(con);
+			ast_free(ignorepat);
 			errno = EEXIST;
 			return -1;
 		}
@@ -9995,6 +10002,11 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 	struct timeval tv = ast_tvnow();
 	long timesecs;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "GotoIfTime requires a channel on which to operate\n");
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?'labeliftrue':'labeliffalse'\n");
 		return -1;
@@ -10002,17 +10014,16 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 
 	ts = s = ast_strdupa(data);
 
-	if (chan) {
-		ast_channel_lock(chan);
-		if ((ctime = pbx_builtin_getvar_helper(chan, "TESTTIME")) && sscanf(ctime, "%ld", &timesecs) == 1) {
-			tv.tv_sec = timesecs;
-		} else if (ctime) {
-			ast_log(LOG_WARNING, "Using current time to evaluate\n");
-			/* Reset when unparseable */
-			pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
-		}
-		ast_channel_unlock(chan);
+	ast_channel_lock(chan);
+	if ((ctime = pbx_builtin_getvar_helper(chan, "TESTTIME")) && sscanf(ctime, "%ld", &timesecs) == 1) {
+		tv.tv_sec = timesecs;
+	} else if (ctime) {
+		ast_log(LOG_WARNING, "Using current time to evaluate\n");
+		/* Reset when unparseable */
+		pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
 	}
+	ast_channel_unlock(chan);
+
 	/* Separate the Goto path */
 	strsep(&ts, "?");
 	branch1 = strsep(&ts,":");
@@ -10128,7 +10139,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&flags, WAITEXTEN_MOH) && !opts[0] ) {
 		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n"); 
 	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
-		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL), strlen(opts[0]));
+		ast_indicate_data(chan, AST_CONTROL_HOLD, S_OR(opts[0], NULL),
+			!ast_strlen_zero(opts[0]) ? strlen(opts[0]) + 1 : 0);
 	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {
 		struct ast_tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
 		if (ts) {
