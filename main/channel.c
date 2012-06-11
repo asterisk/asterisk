@@ -2566,12 +2566,18 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 		ast_channel_hangupsource_set(chan, source);
 	}
 	bridge = ast_bridged_channel(chan);
+	if (bridge) {
+		ast_channel_ref(bridge);
+	}
 	ast_channel_unlock(chan);
 
-	if (bridge && (force || ast_strlen_zero(ast_channel_hangupsource(bridge)))) {
+	if (bridge) {
 		ast_channel_lock(bridge);
-		ast_channel_hangupsource_set(chan, source);
+		if (force || ast_strlen_zero(ast_channel_hangupsource(bridge))) {
+			ast_channel_hangupsource_set(bridge, source);
+		}
 		ast_channel_unlock(bridge);
+		ast_channel_unref(bridge);
 	}
 }
 
