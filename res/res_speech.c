@@ -276,7 +276,6 @@ int ast_speech_change_results_type(struct ast_speech *speech, enum ast_speech_re
 /*! \brief Register a speech recognition engine */
 int ast_speech_register(struct ast_speech_engine *engine)
 {
-	struct ast_speech_engine *existing_engine = NULL;
 	int res = 0;
 
 	/* Confirm the engine meets the minimum API requirements */
@@ -286,7 +285,7 @@ int ast_speech_register(struct ast_speech_engine *engine)
 	}
 
 	/* If an engine is already loaded with this name, error out */
-	if ((existing_engine = find_engine(engine->name))) {
+	if (find_engine(engine->name)) {
 		ast_log(LOG_WARNING, "Speech recognition engine '%s' already exists.\n", engine->name);
 		return -1;
 	}

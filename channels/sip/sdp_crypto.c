@@ -52,9 +52,7 @@ static int set_crypto_policy(struct ast_srtp_policy *policy, int suite_val, cons
 
 static struct sdp_crypto *sdp_crypto_alloc(void)
 {
-	struct sdp_crypto *crypto;
-
-	return crypto = ast_calloc(1, sizeof(*crypto));
+	return ast_calloc(1, sizeof(struct sdp_crypto));
 }
 
 void sdp_crypto_destroy(struct sdp_crypto *crypto)

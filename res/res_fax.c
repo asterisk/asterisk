@@ -583,7 +583,7 @@ static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
 	char *m[5], *tok, *v = (char *)value;
 	int i = 0, j;
 
-	if (!(tok = strchr(v, ','))) {
+	if (!strchr(v, ',')) {
 		m[i++] = v;
 		m[i] = NULL;
 	} else {

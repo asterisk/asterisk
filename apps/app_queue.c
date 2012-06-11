@@ -2502,7 +2502,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	memset(tmpbuf, 0, sizeof(tmpbuf));
 	for (v = queue_vars; v; v = v->next) {
 		/* Convert to dashes `-' from underscores `_' as the latter are more SQL friendly. */
-		if ((tmp = strchr(v->name, '_'))) {
+		if (strchr(v->name, '_')) {
 			ast_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
 			tmp_name = tmpbuf;
 			tmp = tmpbuf;
