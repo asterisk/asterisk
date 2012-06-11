@@ -475,7 +475,8 @@ static struct ast_config *realtime_directory(char *context)
 		const char *context = ast_variable_retrieve(rtdata, mailbox, "context");
 
 		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
-		if (ast_true((hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir")))) {
+		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
+		if (ast_true(hidefromdir)) {
 			/* Skip hidden */
 			continue;
 		}

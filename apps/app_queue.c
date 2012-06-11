@@ -2281,7 +2281,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	memset(tmpbuf, 0, sizeof(tmpbuf));
 	for (v = queue_vars; v; v = v->next) {
 		/* Convert to dashes `-' from underscores `_' as the latter are more SQL friendly. */
-		if ((tmp = strchr(v->name, '_'))) {
+		if (strchr(v->name, '_')) {
 			ast_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
 			tmp_name = tmpbuf;
 			tmp = tmpbuf;
@@ -4814,10 +4814,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
-				const char *monexec, *monargs;
+				const char *monexec;
 				ast_debug(1, "Starting Monitor as requested.\n");
 				ast_channel_lock(qe->chan);
-				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || (monargs = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))) {
+				if ((monexec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC")) || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS")) {
 					which = qe->chan;
 					monexec = monexec ? ast_strdupa(monexec) : NULL;
 				}

@@ -566,7 +566,6 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 		AST_APP_ARG(delimiter);
 		AST_APP_ARG(fieldvalue);
 	);
-	const char *ptr;
 	struct ast_str *orig_list = ast_str_thread_get(&tmp_buf, 16);
 	const char *begin, *cur, *next;
 	int dlen, flen, first = 1;
@@ -606,7 +605,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 	}
 
 	/* If the string isn't there, just copy out the string and be done with it. */
-	if (!(ptr = strstr(ast_str_buffer(orig_list), args.fieldvalue))) {
+	if (!strstr(ast_str_buffer(orig_list), args.fieldvalue)) {
 		if (buf) {
 			ast_copy_string(buf, ast_str_buffer(orig_list), len);
 		} else {

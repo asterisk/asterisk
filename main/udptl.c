@@ -1355,10 +1355,10 @@ static void __ast_udptl_reload(int reload)
 				ast_log(LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
 #endif
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxUdpEC"))) {
+		if (ast_variable_retrieve(cfg, "general", "T38FaxUdpEC")) {
 			ast_log(LOG_WARNING, "T38FaxUdpEC in udptl.conf is no longer supported; use the t38pt_udptl configuration option in sip.conf instead.\n");
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
+		if (ast_variable_retrieve(cfg, "general", "T38FaxMaxDatagram")) {
 			ast_log(LOG_WARNING, "T38FaxMaxDatagram in udptl.conf is no longer supported; value is now supplied by T.38 applications.\n");
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "UDPTLFECEntries"))) {
