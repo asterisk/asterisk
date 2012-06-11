@@ -1470,6 +1470,8 @@ void ast_channel_clear_softhangup(struct ast_channel *chan, int flag);
  * \param source a string describing the source of the hangup for this channel
  * \param force
  *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
  * \since 1.8
  *
  * Hangupsource is generally the channel name that caused the bridge to be

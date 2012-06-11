@@ -2731,12 +2731,18 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 		ast_string_field_set(chan, hangupsource, source);
 	}
 	bridge = ast_bridged_channel(chan);
+	if (bridge) {
+		ast_channel_ref(bridge);
+	}
 	ast_channel_unlock(chan);
 
-	if (bridge && (force || ast_strlen_zero(bridge->hangupsource))) {
+	if (bridge) {
 		ast_channel_lock(bridge);
-		ast_string_field_set(chan, hangupsource, source);
+		if (force || ast_strlen_zero(bridge->hangupsource)) {
+			ast_string_field_set(bridge, hangupsource, source);
+		}
 		ast_channel_unlock(bridge);
+		ast_channel_unref(bridge);
 	}
 }
 

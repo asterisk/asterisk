@@ -3617,7 +3617,18 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 		f = &p->subs[idx].f;
 		return f;
 	}
+
 	f = __analog_handle_event(p, ast);
+	if (!f) {
+		const char *name = ast_strdupa(ast->name);
+
+		/* Tell the CDR this DAHDI device hung up */
+		analog_unlock_private(p);
+		ast_channel_unlock(ast);
+		ast_set_hangupsource(ast, name, 0);
+		ast_channel_lock(ast);
+		analog_lock_private(p);
+	}
 	return f;
 }
 

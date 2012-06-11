@@ -8870,13 +8870,18 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		f = &p->subs[idx].f;
 		return f;
 	}
+
 	f = dahdi_handle_event(ast);
+	if (!f) {
+		const char *name = ast_strdupa(ast->name);
 
-	/* tell the cdr this zap device hung up */
-	if (f == NULL) {
-		ast_set_hangupsource(ast, ast->name, 0);
+		/* Tell the CDR this DAHDI device hung up */
+		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(ast);
+		ast_set_hangupsource(ast, name, 0);
+		ast_channel_lock(ast);
+		ast_mutex_lock(&p->lock);
 	}
-
 	return f;
 }
 
