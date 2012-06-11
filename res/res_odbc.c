@@ -1632,7 +1632,7 @@ static int acf_transaction_write(struct ast_channel *chan, const char *cmd, char
 				pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "INVALID_DB");
 				return -1;
 			}
-			if (!(tx = find_transaction(chan, obj, value, 0))) {
+			if (!find_transaction(chan, obj, value, 0)) {
 				pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "FAILED_TO_CREATE");
 				return -1;
 			}
