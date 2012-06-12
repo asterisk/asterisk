@@ -1,3 +1,29 @@
+2012-06-12  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.11-cert3-rc2 Released.
+
+2012-06-12  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Fix deadlock in SIP transfers that involve a REFER request
+
+	  In r367163, "send to voicemail" functionality was added to the SIP
+	  channel driver.  This required updating the party redirecting
+	  information for the channel based on the headers provided in the
+	  REFER request.  WHen the redirecting party information is updated on
+	  the channel, a call to ast_indicate_data occurs.  Because
+	  handle_request_refer still had the sip_pvt locked, a deadlock could
+	  occur between the pbx_thread and the do_monitor thread servicing the
+	  REFER request.
+
+	  This patch preserves the proper locking order between the channel
+	  and the sip_pvt by ensuring that the sip_pvt is unlocked prior to
+	  updating the party redirecting information on the channel.
+
+	  (closes issue AST-903)
+	  Reported by: Matt Jordan
+	  patches:
+	    jira_ast_903_trunk.patch by rmudgett (license 5621)
+
 2012-05-31  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Certified Asterisk 1.8.11-cert3-rc1 Released.
