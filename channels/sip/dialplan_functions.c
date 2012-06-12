@@ -153,9 +153,9 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		}
 
 		if (ast_strlen_zero(args.field) || !strcasecmp(args.field, "all")) {
-			char quality_buf[AST_MAX_USER_FIELD], *quality;
+			char quality_buf[AST_MAX_USER_FIELD];
 
-			if (!(quality = ast_rtp_instance_get_quality(rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+			if (!ast_rtp_instance_get_quality(rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf))) {
 				return -1;
 			}
 

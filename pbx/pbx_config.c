@@ -1481,7 +1481,7 @@ static int pbx_load_config(const char *config_file)
 				}
 			} else if (!strcasecmp(v->name, "exten")) {
 				int ipri;
-				char *plus, *firstp;
+				char *plus;
 				char *pri, *appl, *data, *cidmatch;
 
 				if (!(stringp = tc = ast_strdup(v->value))) {
@@ -1551,7 +1551,7 @@ process_extension:
 				}
 				appl = S_OR(stringp, "");
 				/* Find the first occurrence of '(' */
-				if (!(firstp = strchr(appl, '('))) {
+				if (!strchr(appl, '(')) {
 					/* No arguments */
 					data = "";
 				} else {
