@@ -1,0 +1,642 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-10.6.0-digiumphones-rc1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-10.6.0-digiumphones-rc1</h3>
+<h3 align="center">Date: 2012-06-12</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-10.5.0-digiumphones.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+53 Michael<br/>
+53 rmudgett<br/>
+30 mjordan<br/>
+27 Mark<br/>
+27 Pavel<br/>
+27 Shaun<br/>
+26 Barry<br/>
+26 Corey<br/>
+26 Gunther<br/>
+26 Makoto<br/>
+26 Pawel<br/>
+26 Steve<br/>
+4 qwell<br/>
+2 mmichelson<br/>
+</td>
+<td>
+55 rmudgett<br/>
+53 Michael L. Young<br/>
+53 Thomas Arimont<br/>
+27 Alec Davis<br/>
+27 Chris Maciejewsk<br/>
+27 Damien Wedhorn<br/>
+27 Florian Gilcher<br/>
+27 Jacek<br/>
+27 Jaxon<br/>
+27 mjordan<br/>
+26 alecdavis<br/>
+26 Andrey Solovyev<br/>
+26 Ben Klang<br/>
+26 feyfre<br/>
+26 Maciej Karjewski<br/>
+26 Maciej Krajewski<br/>
+26 Mario<br/>
+26 Pawel Kuzak<br/>
+26 Terry Wilson<br/>
+</td>
+<td>
+8 mjordan<br/>
+4 rmudgett<br/>
+2 elguero<br/>
+2 jamicque<br/>
+2 kobaz<br/>
+2 makoto<br/>
+2 one47<br/>
+1 alecdavis<br/>
+1 aphiaspring87<br/>
+1 awktane<br/>
+1 babak2536<br/>
+1 bjm<br/>
+1 call<br/>
+1 chris-mac<br/>
+1 coreyfarrell<br/>
+1 corruptor<br/>
+1 dalenoll<br/>
+1 dan_lukes<br/>
+1 dcunningham<br/>
+1 deanvesuvio<br/>
+1 evrinoma@gmail.com<br/>
+1 feyfre<br/>
+1 gkelleter<br/>
+1 jacek<br/>
+1 jaxon<br/>
+1 jkroon<br/>
+1 kenshin<br/>
+1 lgfsantos<br/>
+1 mgrobecker<br/>
+1 mkuron<br/>
+1 mmichelson<br/>
+1 mtryfoss<br/>
+1 p_lindheimer<br/>
+1 patrol-cz<br/>
+1 pkuzak<br/>
+1 skade<br/>
+1 slavon<br/>
+1 sruffell<br/>
+1 susu<br/>
+1 tzafrir<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Addons/chan_ooh323</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19445">ASTERISK-19445</a>: Incorrect values are specified as length in memcpy and memset<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: makoto<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Applications/app_confbridge</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19471">ASTERISK-19471</a>: ConfBridge does not record anything<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: feyfre<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19641">ASTERISK-19641</a>: ConfBridge app plays conf-placeintoconf message to bridge, and not to joining channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: aphiaspring87<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19771">ASTERISK-19771</a>: User is unable to customize sound_leader_has_left<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: pkuzak<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19899">ASTERISK-19899</a>: Confbridge user number announcement segfaults for number > 2<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: skade<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Applications/app_dial</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19511">ASTERISK-19511</a>: Dial I option ignored if dial forked and one fork redirects<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19551">ASTERISK-19551</a>: Dial with Gosub autoservice error message is misleading<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: awktane<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Applications/app_forkcdr</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19164">ASTERISK-19164</a>: ForkCDR with 'e' option to set end time is overzealous<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: one47<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Applications/app_mixmonitor</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19727">ASTERISK-19727</a>: MixMonitor does not work on local channels<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: kobaz<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Applications/app_mp3</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19761">ASTERISK-19761</a>: mp3_read crash<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: chris-mac<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19511">ASTERISK-19511</a>: Dial I option ignored if dial forked and one fork redirects<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19536">ASTERISK-19536</a>: Queue option ringinuse is ignored<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: p_lindheimer<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Applications/app_stack</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19764">ASTERISK-19764</a>: Infinite loop with autoservice when looking for nonexistant extension label.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Applications/app_voicemail</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18243">ASTERISK-18243</a>: VoiceMail application fails to assign some DTMF codes for application exit when using d() option with context<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19876">ASTERISK-19876</a>: app_voicemail: make_email_file() sends emails with localized Date header<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mkuron<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19671">ASTERISK-19671</a>: Coverity Report: Fix issues for error type REVERSE_NEGATIVE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19708">ASTERISK-19708</a>: Call Deflection with DAHDISendCallreroutingFacility on EuroISDN not working<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: babak2536<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19842">ASTERISK-19842</a>: POTS flashhook transfer causes deadlock<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368782">368782</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett<br/>
+Coders: qwell<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19854">ASTERISK-19854</a>: freeze channels showing in core show channels<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: jaxon<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19521">ASTERISK-19521</a>: chan_iax2 does not honor trunkfreq config option<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: jkroon<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19597">ASTERISK-19597</a>: Failure to pass NULL data pointer with AST_CONTROL_HOLD frame causes crash when MOH is started<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mgrobecker<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_local</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19537">ASTERISK-19537</a>: Deadlock potential in ast_do_masquerade() because it calls ast_indicate with the channel lock held.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18321">ASTERISK-18321</a>: dynamic_exclude_static option with (temporary) unreachable DNS cause the abend<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: dan_lukes<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19425">ASTERISK-19425</a>: Calls not released after BYE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: dcunningham<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19455">ASTERISK-19455</a>: SIP channels permanently stuck in system after BYE message received<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: deanvesuvio<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19597">ASTERISK-19597</a>: Failure to pass NULL data pointer with AST_CONTROL_HOLD frame causes crash when MOH is started<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mgrobecker<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19827">ASTERISK-19827</a>: Asterisk crash, whenever mwi => pass:user:authuser@host:port/mailbox is set in sip.conf <br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: kenshin<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19892">ASTERISK-19892</a>: If Asterisk sends a 481 to an initial INVITE that contained a to-tag, then Asterisk will not recognize the ensuing ACK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368782">368782</a><br/>
+Reporter: mmichelson<br/>
+Testers: rmudgett<br/>
+Coders: qwell<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19914">ASTERISK-19914</a>: Incorrect SIP cause to Asterisk cause mapping in chan_sip<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: patrol-cz<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19919">ASTERISK-19919</a>: Incorrect a=inactive when call changes from SIP_PAGE2_CALL_ONHOLD_INACTIVE to SIP_PAGE2_CALL_ONHOLD_ONEDIR<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mtryfoss<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/IPv6</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19456">ASTERISK-19456</a>: Turn Off Warning Message When Bind Address Is Set To ANY<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: elguero<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-16735">ASTERISK-16735</a>: bad dialog-info remote information<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: jamicque<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-17866">ASTERISK-17866</a>: [patch] MWI last-msgs-sent is mis-reported<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: one47<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19856">ASTERISK-19856</a>: Transfer is being denied when global allowtransfer=no, ignoring peer setting<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: jacek<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Channels/chan_skinny</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19905">ASTERISK-19905</a>: Security Vulnerability: remotely exploitable crash in chan_skinny if client is disconnected when client is not in on-hook state<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Codecs/codec_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19643">ASTERISK-19643</a>: codec_dahdi: Block on frameout if the hardware has enough samples to complete a frame.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: sruffell<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Core/Channels</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19537">ASTERISK-19537</a>: Deadlock potential in ast_do_masquerade() because it calls ast_indicate with the channel lock held.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19579">ASTERISK-19579</a>: ERROR we couldn't allocate a port for RTP instance while DAHDI bridgeing<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: jamicque<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18308">ASTERISK-18308</a>: Problem with batch-creation of astdb entries<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: tzafrir<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19646">ASTERISK-19646</a>: Fix typo \n in chan_sip SDP negotiation warning message<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: slavon<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19755">ASTERISK-19755</a>: __ao2_ref() validates user_data twice<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: gkelleter<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19759">ASTERISK-19759</a>: Missing Payload Type From Events API<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: elguero<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19815">ASTERISK-19815</a>: Crash in core show locks when BETTER_BACKTRACES is enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: kobaz<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-16711">ASTERISK-16711</a>: [patch] Exceptionally long queue length queuing to XXXXX<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: alecdavis<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19718">ASTERISK-19718</a>: ast_app_inboxcount2() calls ast_inboxcount2_func without checking if it's assigned (instead checks ast_inboxcount_func)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: coreyfarrell<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Core/Portability</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19758">ASTERISK-19758</a>: main/asterisk.c rawmemchr() undefined on OpenBSD<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: bjm<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Features</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19383">ASTERISK-19383</a>: Asterisk 1.8.5.0 - atxfer authorization problem when a call returns for reject or no answer<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: lgfsantos<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19445">ASTERISK-19445</a>: Incorrect values are specified as length in memcpy and memset<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: makoto<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19633">ASTERISK-19633</a>: Having any h extension in peer's context breaks unaccepted attended feature transfers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: corruptor<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19717">ASTERISK-19717</a>: Attended transfer hangup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: susu<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Features/Parking</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19875">ASTERISK-19875</a>: Behavior change in BLINDTRANSFER variable such that it is not available at the h extension<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: call<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Functions/func_channel</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19911">ASTERISK-19911</a>: echocan_mode not documented<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: dalenoll<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Functions/func_devstate</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19444">ASTERISK-19444</a>: Usage for CLI command 'devstate change' is truncated by an unnecessary comma<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: makoto<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19462">ASTERISK-19462</a>: asterisk Illegal Instruction (core dumped)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: evrinoma@gmail.com<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19649">ASTERISK-19649</a>: Coverity Report: Fix issues for error type CONSTANT_EXPRESSION_RESULT<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19650">ASTERISK-19650</a>: Coverity Report: Fix issues for error type FORWARD_NULL<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19654">ASTERISK-19654</a>: Coverity Report: Fix issues for error type NULL_RETURNS<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19656">ASTERISK-19656</a>: Coverity Report: Fix issues for error type ARRAY_VS_SINGLETON<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: mjordan<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19662">ASTERISK-19662</a>: Coverity Report: Fix issues for error type MISSING_BREAK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mjordan<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Resources/res_adsi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19445">ASTERISK-19445</a>: Incorrect values are specified as length in memcpy and memset<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: makoto<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Resources/res_agi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19764">ASTERISK-19764</a>: Infinite loop with autoservice when looking for nonexistant extension label.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Resources/res_crypto</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19445">ASTERISK-19445</a>: Incorrect values are specified as length in memcpy and memset<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365264">365264</a><br/>
+Reporter: makoto<br/>
+Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben Klang, feyfre, Pawel Kuzak<br/>
+Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther<br/>
+<br/>
+<h3>Category: Resources/res_musiconhold</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19597">ASTERISK-19597</a>: Failure to pass NULL data pointer with AST_CONTROL_HOLD frame causes crash when MOH is started<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mgrobecker<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<h3>Category: Resources/res_realtime</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19597">ASTERISK-19597</a>: Failure to pass NULL data pointer with AST_CONTROL_HOLD frame causes crash when MOH is started<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368781">368781</a><br/>
+Reporter: mgrobecker<br/>
+Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk, Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon<br/>
+Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365297">365297</a></td><td>mmichelson</td><td>Populate file extensions for mixmonitor recordings properly.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=365396">365396</a></td><td>qwell</td><td>Add support for folders in MixMonitor 'm' option.  Backport manager actions.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=367162">367162</a></td><td>mmichelson</td><td>Add "send to voicemail" Digium phone functionality to Asterisk.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368609">368609</a></td><td>mjordan</td><td>Add feature modifier to versions produced from branches</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368783">368783</a></td><td>qwell</td><td>Fix merge prop.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368791">368791</a></td><td>mjordan</td><td>Fix deadlock in SIP transfers that involve a REFER request</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=368792">368792</a></td><td>mjordan</td><td>Update merge property info</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+CHANGES                                    |   16
+UPGRADE.txt                                |    6
+addons/format_mp3.c                        |   83 +--
+addons/ooh323c/src/h323/H323-MESSAGES.h    |    2
+addons/ooh323c/src/h323/H323-MESSAGESEnc.c |   44 -
+addons/ooh323c/src/ooh323.c                |   22
+addons/ooh323c/src/ooq931.c                |    2
+apps/app_chanspy.c                         |   41 -
+apps/app_confbridge.c                      |    8
+apps/app_dial.c                            |  171 ++++--
+apps/app_disa.c                            |    7
+apps/app_followme.c                        |   95 +--
+apps/app_meetme.c                          |   65 +-
+apps/app_minivm.c                          |   10
+apps/app_mixmonitor.c                      |  180 ++++++
+apps/app_page.c                            |    6
+apps/app_queue.c                           |  191 ++++---
+apps/app_record.c                          |    8
+apps/app_stack.c                           |  158 +++--
+apps/app_voicemail.c                       |   88 ++-
+build_tools/make_version                   |   10
+channels/chan_agent.c                      |   18
+channels/chan_dahdi.c                      |   34 -
+channels/chan_iax2.c                       |   96 ++-
+channels/chan_local.c                      |  213 ++++---
+channels/chan_sip.c                        |  786 ++++++++++++++++++-----------
+channels/chan_skinny.c                     |   29 -
+channels/iax2-parser.c                     |    2
+channels/iax2-provision.c                  |    6
+channels/sig_analog.c                      |   17
+channels/sig_pri.c                         |   36 -
+channels/sig_ss7.c                         |   34 -
+channels/sip/config_parser.c               |   91 +--
+channels/sip/include/sip.h                 |    1
+channels/sip/reqresp_parser.c              |  163 +-----
+codecs/codec_dahdi.c                       |   33 +
+funcs/func_aes.c                           |    4
+funcs/func_cdr.c                           |    2
+funcs/func_channel.c                       |   20
+funcs/func_devstate.c                      |    1
+funcs/func_dialgroup.c                     |    1
+funcs/func_lock.c                          |   46 +
+funcs/func_math.c                          |    4
+funcs/func_odbc.c                          |   12
+funcs/func_speex.c                         |   14
+include/asterisk/callerid.h                |    1
+include/asterisk/cel.h                     |    9
+include/asterisk/channel.h                 |    5
+include/asterisk/tcptls.h                  |   17
+main/acl.c                                 |    6
+main/app.c                                 |   13
+main/asterisk.c                            |   13
+main/callerid.c                            |    1
+main/cdr.c                                 |    9
+main/cel.c                                 |   43 +
+main/channel.c                             |  373 +++++++------
+main/cli.c                                 |   10
+main/config.c                              |   18
+main/data.c                                |   22
+main/devicestate.c                         |    2
+main/editline/readline.c                   |    8
+main/editline/term.c                       |   16
+main/editline/tokenizer.c                  |    9
+main/enum.c                                |    3
+main/event.c                               |    3
+main/features.c                            |  348 ++++++------
+main/manager.c                             |   22
+main/netsock2.c                            |    4
+main/pbx.c                                 |   42 -
+main/say.c                                 |    3
+main/tcptls.c                              |   40 +
+main/xmldoc.c                              |   40 -
+pbx/dundi-parser.c                         |   22
+pbx/pbx_config.c                           |   18
+pbx/pbx_dundi.c                            |    2
+res/ael/ael.flex                           |    8
+res/ael/pval.c                             |   21
+res/res_calendar.c                         |   14
+res/res_calendar_caldav.c                  |   13
+res/res_calendar_ews.c                     |    2
+res/res_calendar_exchange.c                |    5
+res/res_calendar_icalendar.c               |    9
+res/res_config_odbc.c                      |    8
+res/res_jabber.c                           |    1
+res/res_monitor.c                          |    4
+res/res_musiconhold.c                      |    2
+res/res_odbc.c                             |    4
+res/res_rtp_asterisk.c                     |    8
+res/res_srtp.c                             |    4
+tests/test_config.c                        |    9
+90 files changed, 2559 insertions(+), 1551 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

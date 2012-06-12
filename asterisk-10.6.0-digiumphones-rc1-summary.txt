@@ -1,0 +1,814 @@
+                                Release Summary
+
+                        asterisk-10.6.0-digiumphones-rc1
+
+                                Date: 2012-06-12
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.5.0-digiumphones.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   53 Michael               55 rmudgett              8 mjordan                
+   53 rmudgett              53 Michael L. Young      4 rmudgett               
+   30 mjordan               53 Thomas Arimont        2 elguero                
+   27 Mark                  27 Alec Davis            2 jamicque               
+   27 Pavel                 27 Chris Maciejewsk      2 kobaz                  
+   27 Shaun                 27 Damien Wedhorn        2 makoto                 
+   26 Barry                 27 Florian Gilcher       2 one47                  
+   26 Corey                 27 Jacek                 1 alecdavis              
+   26 Gunther               27 Jaxon                 1 aphiaspring87          
+   26 Makoto                27 mjordan               1 awktane                
+   26 Pawel                 26 alecdavis             1 babak2536              
+   26 Steve                 26 Andrey Solovyev       1 bjm                    
+   4 qwell                  26 Ben Klang             1 call                   
+   2 mmichelson             26 feyfre                1 chris-mac              
+                            26 Maciej Karjewski      1 coreyfarrell           
+                            26 Maciej Krajewski      1 corruptor              
+                            26 Mario                 1 dalenoll               
+                            26 Pawel Kuzak           1 dan_lukes              
+                            26 Terry Wilson          1 dcunningham            
+                                                     1 deanvesuvio            
+                                                     1 evrinoma@gmail.com     
+                                                     1 feyfre                 
+                                                     1 gkelleter              
+                                                     1 jacek                  
+                                                     1 jaxon                  
+                                                     1 jkroon                 
+                                                     1 kenshin                
+                                                     1 lgfsantos              
+                                                     1 mgrobecker             
+                                                     1 mkuron                 
+                                                     1 mmichelson             
+                                                     1 mtryfoss               
+                                                     1 p_lindheimer           
+                                                     1 patrol-cz              
+                                                     1 pkuzak                 
+                                                     1 skade                  
+                                                     1 slavon                 
+                                                     1 sruffell               
+                                                     1 susu                   
+                                                     1 tzafrir                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/chan_ooh323
+
+   ASTERISK-19445: Incorrect values are specified as length in memcpy and
+   memset
+   Revision: 365264
+   Reporter: makoto
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-19471: ConfBridge does not record anything
+   Revision: 365264
+   Reporter: feyfre
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19641: ConfBridge app plays conf-placeintoconf message to bridge,
+   and not to joining channel
+   Revision: 365264
+   Reporter: aphiaspring87
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19771: User is unable to customize sound_leader_has_left
+   Revision: 365264
+   Reporter: pkuzak
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19899: Confbridge user number announcement segfaults for number >
+   2
+   Revision: 368781
+   Reporter: skade
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Applications/app_dial
+
+   ASTERISK-19511: Dial I option ignored if dial forked and one fork
+   redirects
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19551: Dial with Gosub autoservice error message is misleading
+   Revision: 365264
+   Reporter: awktane
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Applications/app_forkcdr
+
+   ASTERISK-19164: ForkCDR with 'e' option to set end time is overzealous
+   Revision: 365264
+   Reporter: one47
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Applications/app_mixmonitor
+
+   ASTERISK-19727: MixMonitor does not work on local channels
+   Revision: 365264
+   Reporter: kobaz
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Applications/app_mp3
+
+   ASTERISK-19761: mp3_read crash
+   Revision: 368781
+   Reporter: chris-mac
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Applications/app_queue
+
+   ASTERISK-19511: Dial I option ignored if dial forked and one fork
+   redirects
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19536: Queue option ringinuse is ignored
+   Revision: 365264
+   Reporter: p_lindheimer
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Applications/app_stack
+
+   ASTERISK-19764: Infinite loop with autoservice when looking for
+   nonexistant extension label.
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-18243: VoiceMail application fails to assign some DTMF codes for
+   application exit when using d() option with context
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19876: app_voicemail: make_email_file() sends emails with
+   localized Date header
+   Revision: 368781
+   Reporter: mkuron
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-19671: Coverity Report: Fix issues for error type
+   REVERSE_NEGATIVE
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19708: Call Deflection with DAHDISendCallreroutingFacility on
+   EuroISDN not working
+   Revision: 365264
+   Reporter: babak2536
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19842: POTS flashhook transfer causes deadlock
+   Revision: 368782
+   Reporter: rmudgett
+   Testers: rmudgett
+   Coders: qwell
+
+   ASTERISK-19854: freeze channels showing in core show channels
+   Revision: 368781
+   Reporter: jaxon
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-19521: chan_iax2 does not honor trunkfreq config option
+   Revision: 365264
+   Reporter: jkroon
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19597: Failure to pass NULL data pointer with AST_CONTROL_HOLD
+   frame causes crash when MOH is started
+   Revision: 368781
+   Reporter: mgrobecker
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_local
+
+   ASTERISK-19537: Deadlock potential in ast_do_masquerade() because it calls
+   ast_indicate with the channel lock held.
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-18321: dynamic_exclude_static option with (temporary) unreachable
+   DNS cause the abend
+   Revision: 365264
+   Reporter: dan_lukes
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19425: Calls not released after BYE
+   Revision: 368781
+   Reporter: dcunningham
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19455: SIP channels permanently stuck in system after BYE message
+   received
+   Revision: 368781
+   Reporter: deanvesuvio
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19597: Failure to pass NULL data pointer with AST_CONTROL_HOLD
+   frame causes crash when MOH is started
+   Revision: 368781
+   Reporter: mgrobecker
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19827: Asterisk crash, whenever mwi =>
+   pass:user:authuser@host:port/mailbox is set in sip.conf
+   Revision: 368781
+   Reporter: kenshin
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19892: If Asterisk sends a 481 to an initial INVITE that
+   contained a to-tag, then Asterisk will not recognize the ensuing ACK
+   Revision: 368782
+   Reporter: mmichelson
+   Testers: rmudgett
+   Coders: qwell
+
+   ASTERISK-19914: Incorrect SIP cause to Asterisk cause mapping in chan_sip
+   Revision: 368781
+   Reporter: patrol-cz
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19919: Incorrect a=inactive when call changes from
+   SIP_PAGE2_CALL_ONHOLD_INACTIVE to SIP_PAGE2_CALL_ONHOLD_ONEDIR
+   Revision: 368781
+   Reporter: mtryfoss
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_sip/IPv6
+
+   ASTERISK-19456: Turn Off Warning Message When Bind Address Is Set To ANY
+   Revision: 365264
+   Reporter: elguero
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Channels/chan_sip/Subscriptions
+
+   ASTERISK-16735: bad dialog-info remote information
+   Revision: 368781
+   Reporter: jamicque
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-17866: [patch] MWI last-msgs-sent is mis-reported
+   Revision: 368781
+   Reporter: one47
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_sip/Transfers
+
+   ASTERISK-19856: Transfer is being denied when global allowtransfer=no,
+   ignoring peer setting
+   Revision: 368781
+   Reporter: jacek
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Channels/chan_skinny
+
+   ASTERISK-19905: Security Vulnerability: remotely exploitable crash in
+   chan_skinny if client is disconnected when client is not in on-hook state
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Codecs/codec_dahdi
+
+   ASTERISK-19643: codec_dahdi: Block on frameout if the hardware has enough
+   samples to complete a frame.
+   Revision: 368781
+   Reporter: sruffell
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Core/Channels
+
+   ASTERISK-19537: Deadlock potential in ast_do_masquerade() because it calls
+   ast_indicate with the channel lock held.
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19579: ERROR we couldn't allocate a port for RTP instance while
+   DAHDI bridgeing
+   Revision: 365264
+   Reporter: jamicque
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Core/General
+
+   ASTERISK-18308: Problem with batch-creation of astdb entries
+   Revision: 365264
+   Reporter: tzafrir
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19646: Fix typo \n in chan_sip SDP negotiation warning message
+   Revision: 365264
+   Reporter: slavon
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19755: __ao2_ref() validates user_data twice
+   Revision: 365264
+   Reporter: gkelleter
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19759: Missing Payload Type From Events API
+   Revision: 365264
+   Reporter: elguero
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19815: Crash in core show locks when BETTER_BACKTRACES is enabled
+   Revision: 365264
+   Reporter: kobaz
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Core/PBX
+
+   ASTERISK-16711: [patch] Exceptionally long queue length queuing to XXXXX
+   Revision: 368781
+   Reporter: alecdavis
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19718: ast_app_inboxcount2() calls ast_inboxcount2_func without
+   checking if it's assigned (instead checks ast_inboxcount_func)
+   Revision: 365264
+   Reporter: coreyfarrell
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Core/Portability
+
+   ASTERISK-19758: main/asterisk.c rawmemchr() undefined on OpenBSD
+   Revision: 365264
+   Reporter: bjm
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Features
+
+   ASTERISK-19383: Asterisk 1.8.5.0 - atxfer authorization problem when a
+   call returns for reject or no answer
+   Revision: 365264
+   Reporter: lgfsantos
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19445: Incorrect values are specified as length in memcpy and
+   memset
+   Revision: 365264
+   Reporter: makoto
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19633: Having any h extension in peer's context breaks unaccepted
+   attended feature transfers
+   Revision: 365264
+   Reporter: corruptor
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19717: Attended transfer hangup
+   Revision: 365264
+   Reporter: susu
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Features/Parking
+
+   ASTERISK-19875: Behavior change in BLINDTRANSFER variable such that it is
+   not available at the h extension
+   Revision: 368781
+   Reporter: call
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Functions/func_channel
+
+   ASTERISK-19911: echocan_mode not documented
+   Revision: 368781
+   Reporter: dalenoll
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Functions/func_devstate
+
+   ASTERISK-19444: Usage for CLI command 'devstate change' is truncated by an
+   unnecessary comma
+   Revision: 365264
+   Reporter: makoto
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: General
+
+   ASTERISK-19462: asterisk Illegal Instruction (core dumped)
+   Revision: 365264
+   Reporter: evrinoma@gmail.com
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19649: Coverity Report: Fix issues for error type
+   CONSTANT_EXPRESSION_RESULT
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19650: Coverity Report: Fix issues for error type FORWARD_NULL
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19654: Coverity Report: Fix issues for error type NULL_RETURNS
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+   ASTERISK-19656: Coverity Report: Fix issues for error type
+   ARRAY_VS_SINGLETON
+   Revision: 365264
+   Reporter: mjordan
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+   ASTERISK-19662: Coverity Report: Fix issues for error type MISSING_BREAK
+   Revision: 368781
+   Reporter: mjordan
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Resources/res_adsi
+
+   ASTERISK-19445: Incorrect values are specified as length in memcpy and
+   memset
+   Revision: 365264
+   Reporter: makoto
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Resources/res_agi
+
+   ASTERISK-19764: Infinite loop with autoservice when looking for
+   nonexistant extension label.
+   Revision: 368781
+   Reporter: rmudgett
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Resources/res_crypto
+
+   ASTERISK-19445: Incorrect values are specified as length in memcpy and
+   memset
+   Revision: 365264
+   Reporter: makoto
+   Testers: Michael L. Young, Terry Wilson, rmudgett, alecdavis, Maciej
+   Karjewski, Andrey Solovyev, Mario, Thomas Arimont, Maciej Krajewski, Ben
+   Klang, feyfre, Pawel Kuzak
+   Coders: Makoto, Steve, Michael, Barry, rmudgett, Pawel, Corey, Gunther
+
+  Category: Resources/res_musiconhold
+
+   ASTERISK-19597: Failure to pass NULL data pointer with AST_CONTROL_HOLD
+   frame causes crash when MOH is started
+   Revision: 368781
+   Reporter: mgrobecker
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+  Category: Resources/res_realtime
+
+   ASTERISK-19597: Failure to pass NULL data pointer with AST_CONTROL_HOLD
+   frame causes crash when MOH is started
+   Revision: 368781
+   Reporter: mgrobecker
+   Testers: rmudgett, Alec Davis, mjordan, Thomas Arimont, Chris Maciejewsk,
+   Florian Gilcher, Michael L. Young, Jacek, Damien Wedhorn, Jaxon
+   Coders: Mark, Shaun, mjordan, Michael, rmudgett, Pavel
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 365297   | mmichelson | Populate file extensions for      |            |
+   |          |            | mixmonitor recordings properly.   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add support for folders in        |            |
+   | 365396   | qwell      | MixMonitor 'm' option. Backport   |            |
+   |          |            | manager actions.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 367162   | mmichelson | Add "send to voicemail" Digium    |            |
+   |          |            | phone functionality to Asterisk.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 368609   | mjordan    | Add feature modifier to versions  |            |
+   |          |            | produced from branches            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 368783   | qwell      | Fix merge prop.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 368791   | mjordan    | Fix deadlock in SIP transfers     |            |
+   |          |            | that involve a REFER request      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 368792   | mjordan    | Update merge property info        |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                    |   16
+ UPGRADE.txt                                |    6
+ addons/format_mp3.c                        |   83 +--
+ addons/ooh323c/src/h323/H323-MESSAGES.h    |    2
+ addons/ooh323c/src/h323/H323-MESSAGESEnc.c |   44 -
+ addons/ooh323c/src/ooh323.c                |   22
+ addons/ooh323c/src/ooq931.c                |    2
+ apps/app_chanspy.c                         |   41 -
+ apps/app_confbridge.c                      |    8
+ apps/app_dial.c                            |  171 ++++--
+ apps/app_disa.c                            |    7
+ apps/app_followme.c                        |   95 +--
+ apps/app_meetme.c                          |   65 +-
+ apps/app_minivm.c                          |   10
+ apps/app_mixmonitor.c                      |  180 ++++++
+ apps/app_page.c                            |    6
+ apps/app_queue.c                           |  191 ++++---
+ apps/app_record.c                          |    8
+ apps/app_stack.c                           |  158 +++--
+ apps/app_voicemail.c                       |   88 ++-
+ build_tools/make_version                   |   10
+ channels/chan_agent.c                      |   18
+ channels/chan_dahdi.c                      |   34 -
+ channels/chan_iax2.c                       |   96 ++-
+ channels/chan_local.c                      |  213 ++++---
+ channels/chan_sip.c                        |  786 ++++++++++++++++++-----------
+ channels/chan_skinny.c                     |   29 -
+ channels/iax2-parser.c                     |    2
+ channels/iax2-provision.c                  |    6
+ channels/sig_analog.c                      |   17
+ channels/sig_pri.c                         |   36 -
+ channels/sig_ss7.c                         |   34 -
+ channels/sip/config_parser.c               |   91 +--
+ channels/sip/include/sip.h                 |    1
+ channels/sip/reqresp_parser.c              |  163 +-----
+ codecs/codec_dahdi.c                       |   33 +
+ funcs/func_aes.c                           |    4
+ funcs/func_cdr.c                           |    2
+ funcs/func_channel.c                       |   20
+ funcs/func_devstate.c                      |    1
+ funcs/func_dialgroup.c                     |    1
+ funcs/func_lock.c                          |   46 +
+ funcs/func_math.c                          |    4
+ funcs/func_odbc.c                          |   12
+ funcs/func_speex.c                         |   14
+ include/asterisk/callerid.h                |    1
+ include/asterisk/cel.h                     |    9
+ include/asterisk/channel.h                 |    5
+ include/asterisk/tcptls.h                  |   17
+ main/acl.c                                 |    6
+ main/app.c                                 |   13
+ main/asterisk.c                            |   13
+ main/callerid.c                            |    1
+ main/cdr.c                                 |    9
+ main/cel.c                                 |   43 +
+ main/channel.c                             |  373 +++++++------
+ main/cli.c                                 |   10
+ main/config.c                              |   18
+ main/data.c                                |   22
+ main/devicestate.c                         |    2
+ main/editline/readline.c                   |    8
+ main/editline/term.c                       |   16
+ main/editline/tokenizer.c                  |    9
+ main/enum.c                                |    3
+ main/event.c                               |    3
+ main/features.c                            |  348 ++++++------
+ main/manager.c                             |   22
+ main/netsock2.c                            |    4
+ main/pbx.c                                 |   42 -
+ main/say.c                                 |    3
+ main/tcptls.c                              |   40 +
+ main/xmldoc.c                              |   40 -
+ pbx/dundi-parser.c                         |   22
+ pbx/pbx_config.c                           |   18
+ pbx/pbx_dundi.c                            |    2
+ res/ael/ael.flex                           |    8
+ res/ael/pval.c                             |   21
+ res/res_calendar.c                         |   14
+ res/res_calendar_caldav.c                  |   13
+ res/res_calendar_ews.c                     |    2
+ res/res_calendar_exchange.c                |    5
+ res/res_calendar_icalendar.c               |    9
+ res/res_config_odbc.c                      |    8
+ res/res_jabber.c                           |    1
+ res/res_monitor.c                          |    4
+ res/res_musiconhold.c                      |    2
+ res/res_odbc.c                             |    4
+ res/res_rtp_asterisk.c                     |    8
+ res/res_srtp.c                             |    4
+ tests/test_config.c                        |    9
+ 90 files changed, 2559 insertions(+), 1551 deletions(-)
+
+     ----------------------------------------------------------------------
