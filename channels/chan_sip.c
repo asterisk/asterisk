@@ -1515,6 +1515,7 @@ static int parse_request(struct sip_request *req);
 static const char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
 static void parse_copy(struct sip_request *dst, const struct sip_request *src);
+static void parse_oli(struct sip_request *req, struct ast_channel *chan);
 static const char *find_alias(const char *name, const char *_default);
 static const char *__get_header(const struct sip_request *req, const char *name, int *start);
 static void lws2sws(struct ast_str *msgbuf);
@@ -23894,6 +23895,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		ast_party_redirecting_free(&redirecting);
 	}
 
+	/* Check if OLI/ANI-II is present in From: */
+	parse_oli(req, p->owner);
+
 	/* Session-Timers */
 	if ((p->sipoptions & SIP_OPT_TIMER) && !ast_strlen_zero(sip_get_header(req, "Session-Expires"))) {
 		/* The UAC has requested session-timers for this session. Negotiate
@@ -24212,6 +24216,51 @@ request_invite_cleanup:
 	}
 
 	return res;
+}
+
+/*! \brief Check for the presence of OLI tag(s) in the From header and set on the channel
+ */
+static void parse_oli(struct sip_request *req, struct ast_channel *chan)
+{
+	const char *from = NULL;
+	const char *s = NULL;
+	int ani2 = 0;
+
+	if (!chan || !req) {
+		/* null pointers are not helpful */
+		return;
+	}
+
+	from = sip_get_header(req, "From");
+	if (ast_strlen_zero(from)) {
+		/* no From header */
+		return;
+	}
+
+	/* Look for the possible OLI tags. */
+	if ((s = strcasestr(from, ";isup-oli="))) {
+		s += 10;
+	} else if ((s = strcasestr(from, ";ss7-oli="))) {
+		s += 9;
+	} else if ((s = strcasestr(from, ";oli="))) {
+		s += 5;
+	}
+
+	if (ast_strlen_zero(s)) {
+		/* OLI tag is missing, or present with nothing following the '=' sign */
+		return;
+	}
+
+	/* just in case OLI is quoted */
+	if (*s == '\"') {
+		s++;
+	}
+
+	if (sscanf(s, "%d", &ani2)) {
+		ast_channel_caller(chan)->ani2 = ani2;
+	}
+
+	return;
 }
 
 /*! \brief  Find all call legs and bridge transferee with target
