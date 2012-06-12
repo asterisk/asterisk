@@ -497,40 +497,23 @@ update:
 
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+INSTALLDIRS="$(MODULES_DIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
+	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
+	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
+	"$(ASTSPOOLDIR)/voicemail" "$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
+	"$(ASTLOGDIR)" "$(ASTLOGDIR)/cdr-csv" "$(ASTLOGDIR)/cdr-custom" \
+	"$(ASTLOGDIR)/cel-custom" "$(ASTDATADIR)" "$(ASTDATADIR)/documentation" \
+	"$(ASTDATADIR)/documentation/thirdparty" "$(ASTDATADIR)/firmware" \
+	"$(ASTDATADIR)/firmware/iax" "$(ASTDATADIR)/images" "$(ASTDATADIR)/keys" \
+	"$(ASTDATADIR)/phoneprov" "$(ASTDATADIR)/static-http" "$(ASTDATADIR)/sounds" \
+	"$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)"
 
 installdirs:
-	$(INSTALL) -d "$(DESTDIR)$(ASTLIBDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTMODDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSBINDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTVARRUNDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/dictate"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/meetme"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/monitor"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/system"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/tmp"
-	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/voicemail"
-	$(INSTALL) -d "$(DESTDIR)$(ASTHEADERDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTHEADERDIR)/doxygen"
-	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cdr-csv"
-	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cdr-custom"
-	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cel-custom"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/documentation"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/documentation/thirdparty"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/firmware"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/firmware/iax"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/images"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/keys"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/phoneprov"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/sounds"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/moh"
-	$(INSTALL) -d "$(DESTDIR)$(ASTMANDIR)/man8"
-	$(INSTALL) -d "$(DESTDIR)$(AGI_DIR)"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
+	@for i in $(INSTALLDIRS); do \
+		if [ ! -d "$(DESTDIR)$${i}" ]; then \
+			$(INSTALL) -d "$(DESTDIR)$${i}"; \
+		fi; \
+	done
 
 main-bininstall:
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" ASTLIBDIR="$(ASTLIBDIR)" $(SUBMAKE) -C main bininstall
