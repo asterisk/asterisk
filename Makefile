@@ -497,7 +497,7 @@ update:
 
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
-INSTALLDIRS="$(ASTLIBDIR)" "$(MODULES_DIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
+INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
 	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
 	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
 	"$(ASTSPOOLDIR)/voicemail" "$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
