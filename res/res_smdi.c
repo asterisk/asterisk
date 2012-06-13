@@ -33,7 +33,6 @@
 
 /*** MODULEINFO
 	<support_level>core</support_level>
-	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
