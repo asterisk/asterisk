@@ -466,7 +466,7 @@ update:
 
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
-INSTALLDIRS="$(MODULES_DIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
+INSTALLDIRS="$(ASTLIBDIR)" "$(MODULES_DIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
 	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
 	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
 	"$(ASTSPOOLDIR)/voicemail" "$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
@@ -478,8 +478,8 @@ INSTALLDIRS="$(MODULES_DIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
 	"$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)"
 
 installdirs:
-	for i in $(INSTALLDIRS); do \
-		if [ ! -d "$(DESTDIR)$${i}" ]; then \
+	@for i in $(INSTALLDIRS); do \
+		if [ ! -z "$${i}" -a ! -d "$(DESTDIR)$${i}" ]; then \
 			$(INSTALL) -d "$(DESTDIR)$${i}"; \
 		fi; \
 	done
