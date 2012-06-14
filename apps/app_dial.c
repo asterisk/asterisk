@@ -2280,7 +2280,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	if (ast_test_flag64(&opts, OPT_PREDIAL_CALLER)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLER])) {
 		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLER]);
-		ast_app_exec_sub(NULL, chan, opt_args[OPT_ARG_PREDIAL_CALLER]);
+		ast_app_exec_sub(NULL, chan, opt_args[OPT_ARG_PREDIAL_CALLER], 0);
 	}
 
 	/* loop through the list of dial destinations */
@@ -2550,12 +2550,18 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	if (ast_test_flag64(&opts, OPT_PREDIAL_CALLEE)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLEE])
 		&& !AST_LIST_EMPTY(&out_chans)) {
-		ast_autoservice_start(chan);
+		const char *predial_callee;
+
 		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLEE]);
-		AST_LIST_TRAVERSE(&out_chans, tmp, node) {
-			ast_pre_call(tmp->chan, opt_args[OPT_ARG_PREDIAL_CALLEE]);
+		predial_callee = ast_app_expand_sub_args(chan, opt_args[OPT_ARG_PREDIAL_CALLEE]);
+		if (predial_callee) {
+			ast_autoservice_start(chan);
+			AST_LIST_TRAVERSE(&out_chans, tmp, node) {
+				ast_pre_call(tmp->chan, predial_callee);
+			}
+			ast_autoservice_stop(chan);
+			ast_free((char *) predial_callee);
 		}
-		ast_autoservice_stop(chan);
 	}
 
 	/* Start all outgoing calls */
@@ -2884,7 +2890,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				}
 			}
 			if (gosub_args) {
-				res9 = ast_app_exec_sub(chan, peer, gosub_args);
+				res9 = ast_app_exec_sub(chan, peer, gosub_args, 0);
 				ast_free(gosub_args);
 			} else {
 				ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");

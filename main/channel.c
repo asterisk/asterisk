@@ -5729,7 +5729,7 @@ int ast_pre_call(struct ast_channel *chan, const char *sub_args)
 		return res;
 	}
 	ast_channel_unlock(chan);
-	return ast_app_exec_sub(NULL, chan, sub_args);
+	return ast_app_exec_sub(NULL, chan, sub_args, 0);
 }
 
 int ast_call(struct ast_channel *chan, const char *addr, int timeout)
@@ -9801,7 +9801,7 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 	}
 	ast_channel_unlock(sub_chan);
 
-	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args);
+	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -9844,7 +9844,7 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 	}
 	ast_channel_unlock(sub_chan);
 
-	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args);
+	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 

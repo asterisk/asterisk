@@ -5352,7 +5352,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 				}
 			}
 			if (gosub_args) {
-				ast_app_exec_sub(qe->chan, peer, gosub_args);
+				ast_app_exec_sub(qe->chan, peer, gosub_args, 0);
 				ast_free(gosub_args);
 			} else {
 				ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");

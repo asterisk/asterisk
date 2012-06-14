@@ -2724,7 +2724,7 @@ static void *generic_recall(void *data)
 	if (!ast_strlen_zero(callback_macro)) {
 		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
 				agent->core_id, agent->device_name);
-		if (ast_app_run_macro(NULL, chan, callback_macro, NULL)) {
+		if (ast_app_exec_macro(NULL, chan, callback_macro)) {
 			ast_cc_failed(agent->core_id, "Callback macro to %s failed. Maybe a hangup?", agent->device_name);
 			ast_hangup(chan);
 			return NULL;
@@ -2734,7 +2734,7 @@ static void *generic_recall(void *data)
 	if (!ast_strlen_zero(callback_sub)) {
 		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback subroutine configured for agent %s\n",
 				agent->core_id, agent->device_name);
-		if (ast_app_run_sub(NULL, chan, callback_sub, NULL)) {
+		if (ast_app_exec_sub(NULL, chan, callback_sub, 0)) {
 			ast_cc_failed(agent->core_id, "Callback subroutine to %s failed. Maybe a hangup?", agent->device_name);
 			ast_hangup(chan);
 			return NULL;

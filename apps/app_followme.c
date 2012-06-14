@@ -1386,14 +1386,15 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_PREDIAL_CALLEE)
 		&& !ast_strlen_zero(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE])) {
 		ast_replace_subargument_delimiter(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE]);
-		targs->predial_callee = opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE];
+		targs->predial_callee =
+			ast_app_expand_sub_args(chan, opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLEE]);
 	}
 
 	/* PREDIAL: Run gosub on the caller's channel */
 	if (ast_test_flag(&targs->followmeflags, FOLLOWMEFLAG_PREDIAL_CALLER)
 		&& !ast_strlen_zero(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER])) {
 		ast_replace_subargument_delimiter(opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER]);
-		ast_app_exec_sub(NULL, chan, opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER]);
+		ast_app_exec_sub(NULL, chan, opt_args[FOLLOWMEFLAG_ARG_PREDIAL_CALLER], 0);
 	}
 
 	/* Forget the 'N' option if the call is already up. */
@@ -1522,6 +1523,7 @@ outrun:
 	if (!ast_strlen_zero(targs->namerecloc)) {
 		unlink(targs->namerecloc);
 	}
+	ast_free((char *) targs->predial_callee);
 	ast_party_connected_line_free(&targs->connected_in);
 	ast_party_connected_line_free(&targs->connected_out);
 	ast_free(targs);
