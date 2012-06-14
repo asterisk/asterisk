@@ -136,9 +136,11 @@ typedef int (*aco_pre_apply_config)(void);
  */
 typedef void *(*aco_snapshot_alloc)(void);
 
+/*! \brief The representation of a single configuration file to be processed */
 struct aco_file {
-	const char *filename;
-	const char **preload;
+	const char *filename; /*!< \brief The filename to be processed */
+	const char *alias;    /*!< \brief An alias filename to be tried if 'filename' cannot be found */
+	const char **preload; /*!< \brief A null-terminated oredered array of categories to be loaded first */
 	struct aco_type *types[]; /*!< The list of types for this config. Required. Use a sentinel! */
 };
 

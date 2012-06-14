@@ -434,7 +434,13 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 	}
 
 	while (res != ACO_PROCESS_ERROR && (file = info->files[x++])) {
-		if (!(cfg = ast_config_load(file->filename, cfg_flags))) {
+		const char *filename = file->filename;
+try_alias:
+		if (!(cfg = ast_config_load(filename, cfg_flags))) {
+			if (file->alias && strcmp(file->alias, filename)) {
+				filename = file->alias;
+				goto try_alias;
+			}
 			ast_log(LOG_ERROR, "Unable to load config file '%s'\n", file->filename);
 			res = ACO_PROCESS_ERROR;
 			break;
@@ -447,6 +453,10 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 			res = ACO_PROCESS_ERROR;
 			break;
 		} else if (cfg == CONFIG_STATUS_FILEMISSING) {
+			if (file->alias && strcmp(file->alias, filename)) {
+				filename = file->alias;
+				goto try_alias;
+			}
 			ast_log(LOG_ERROR, "%s is missing! Cannot load %s\n", file->filename, info->module);
 			res = ACO_PROCESS_ERROR;
 			break;
