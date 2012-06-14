@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
-#include "asterisk/app_voicemail.h"
 
 /*! \internal \brief Permissions to set on the voicemail directories we create
  * - taken from app_voicemail */
