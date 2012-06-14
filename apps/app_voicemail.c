@@ -978,9 +978,10 @@ static int vm_msg_move(const char *mailbox, const char *context, size_t num_msgs
 static int vm_msg_remove(const char *mailbox, const char *context, size_t num_msgs, const char *folder, int *msgs);
 static int vm_msg_play(struct ast_channel *chan, const char *mailbox, const char *context, const char *folder, const char *msg_num, ast_vm_msg_play_cb cb);
 
-int vm_test_destroy_user(const char *context, const char *mailbox);
-int vm_test_create_user(const char *context, const char *mailbox);
-
+#ifdef TEST_FRAMEWORK
+static int vm_test_destroy_user(const char *context, const char *mailbox);
+static int vm_test_create_user(const char *context, const char *mailbox);
+#endif
 
 struct ao2_container *inprocess_container;
 
@@ -14186,7 +14187,7 @@ static struct ast_vm_msg_snapshot *vm_msg_snapshot_destroy(struct ast_vm_msg_sna
 
 #ifdef TEST_FRAMEWORK
 
-int vm_test_destroy_user(const char *context, const char *mailbox)
+static int vm_test_destroy_user(const char *context, const char *mailbox)
 {
 	struct ast_vm_user *vmu;
 
@@ -14204,7 +14205,7 @@ int vm_test_destroy_user(const char *context, const char *mailbox)
 	return 0;
 }
 
-int vm_test_create_user(const char *context, const char *mailbox)
+static int vm_test_create_user(const char *context, const char *mailbox)
 {
 	struct ast_vm_user *vmu;
 
@@ -14510,7 +14511,7 @@ static void notify_new_state(struct ast_vm_user *vmu)
 	queue_mwi_event(ext_context, urgent, new, old);
 }
 
-int vm_msg_forward(const char *from_mailbox,
+static int vm_msg_forward(const char *from_mailbox,
 	const char *from_context,
 	const char *from_folder,
 	const char *to_mailbox,
@@ -14647,7 +14648,7 @@ vm_forward_cleanup:
 	return res;
 }
 
-int vm_msg_move(const char *mailbox,
+static int vm_msg_move(const char *mailbox,
 	const char *context,
 	size_t num_msgs,
 	const char *oldfolder,
@@ -14742,7 +14743,7 @@ vm_move_cleanup:
 	return res;
 }
 
-int vm_msg_remove(const char *mailbox,
+static int vm_msg_remove(const char *mailbox,
 	const char *context,
 	size_t num_msgs,
 	const char *folder,
@@ -14836,7 +14837,7 @@ vm_remove_cleanup:
 	return res;
 }
 
-int vm_msg_play(struct ast_channel *chan,
+static int vm_msg_play(struct ast_channel *chan,
 	const char *mailbox,
 	const char *context,
 	const char *folder,
