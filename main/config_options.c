@@ -480,6 +480,10 @@ try_alias:
 		goto end;
 	}
 
+	if (info->post_apply_config) {
+		info->post_apply_config();
+	}
+
 end:
 	ao2_cleanup(info->internal->pending);
 	return res;

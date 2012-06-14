@@ -124,13 +124,20 @@ struct aco_type {
 	struct aco_type_internal *internal;
 };
 
-/*! \brief A callback function for applying the config changes
+/*! \brief A callback function to run just prior to applying config changes
  * \retval 0 Success
  * \retval non-zero Failure. Changes not applied
  */
 typedef int (*aco_pre_apply_config)(void);
 
-/*! \brief A callback functino for allocating an object to hold all config objects
+/*! \brief A callback function called only if config changes have been applied
+ *
+ * \note If a config file has not been edited prior to performing a reload, this
+ * callback will not be called.
+ */
+typedef void (*aco_post_apply_config)(void);
+
+/*! \brief A callback function for allocating an object to hold all config objects
  * \retval NULL error
  * \retval non-NULL a config object container
  */
@@ -145,12 +152,13 @@ struct aco_file {
 };
 
 struct aco_info {
-	const char *module;         /*!< The name of the module whose config is being processed */
+	const char *module; /*!< The name of the module whose config is being processed */
 	aco_pre_apply_config pre_apply_config; /*!< A callback called after processing, but before changes are applied */
+	aco_post_apply_config post_apply_config;/*!< A callback called after changes are applied */
 	aco_snapshot_alloc snapshot_alloc;     /*!< Allocate an object to hold all global configs and item containers */
 	struct ao2_global_obj *global_obj;     /*!< The global object array that holds the user-defined config object */
 	struct aco_info_internal *internal;
-	struct aco_file *files[];    /*!< The config filename */
+	struct aco_file *files[];    /*!< An array of aco_files to process */
 };
 
 /*! \brief A helper macro to ensure that aco_info types always have a sentinel */
