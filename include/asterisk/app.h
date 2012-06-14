@@ -27,6 +27,7 @@
 #include "asterisk/strings.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/file.h"
+#include "asterisk/linkedlists.h"
 
 struct ast_flags64;
 
@@ -183,6 +184,35 @@ int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel 
 int ast_app_run_macro(struct ast_channel *autoservice_chan,
 	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
 
+enum ast_vm_snapshot_sort_val {
+	AST_VM_SNAPSHOT_SORT_BY_ID = 0,
+	AST_VM_SNAPSHOT_SORT_BY_TIME,
+};
+
+struct ast_vm_msg_snapshot {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(msg_id);
+		AST_STRING_FIELD(callerid);
+		AST_STRING_FIELD(callerchan);
+		AST_STRING_FIELD(exten);
+		AST_STRING_FIELD(origdate);
+		AST_STRING_FIELD(origtime);
+		AST_STRING_FIELD(duration);
+		AST_STRING_FIELD(folder_name);
+		AST_STRING_FIELD(flag);
+	);
+	unsigned int msg_number;
+
+	AST_LIST_ENTRY(ast_vm_msg_snapshot) msg;
+};
+
+struct ast_vm_mailbox_snapshot {
+	int total_msg_num;
+	int folders;
+	/* Things are not quite as they seem here.  This points to an allocated array of lists. */
+	AST_LIST_HEAD_NOLOCK(, ast_vm_msg_snapshot) *snapshots;
+};
+
 /*!
  * \since 11
  * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
@@ -230,12 +260,22 @@ int ast_app_run_sub(struct ast_channel *autoservice_chan,
 	struct ast_channel *sub_chan, const char *sub_location, const char *sub_args);
 
 /*!
+ * \brief Voicemail playback callback function definition
+ *
+ * \param channel to play the file back on.
+ * \param location of file on disk
+ * \param duration of file in seconds. This will be zero if msg is very short or
+ * has an unknown duration.
+ */
+typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile, int duration);
+
+/*!
  * \brief Set voicemail function callbacks
  * \param[in] has_voicemail_func set function pointer
- * \param[in] inboxcount2_func set function pointer
- * \param[in] sayname_func set function pointer
  * \param[in] inboxcount_func set function pointer
+ * \param[in] inboxcount2_func set function pointer
  * \param[in] messagecount_func set function pointer
+ * \param[in] sayname_func set function pointer
  * \version 1.6.1 Added inboxcount2_func, sayname_func
  */
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
@@ -243,10 +283,51 @@ void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, con
 			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
 			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
 			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context),
-			      int (*copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data));
+			      int (*copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data),
+			      const char *vm_index_to_foldername(int id),
+			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_create)(const char *mailbox,
+				const char *context,
+				const char *folder,
+				int descending,
+				enum ast_vm_snapshot_sort_val sort_val,
+				int combine_INBOX_and_OLD),
+			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_destroy)(struct ast_vm_mailbox_snapshot *mailbox_snapshot),
+			      int (*vm_msg_move)(const char *mailbox,
+				const char *context,
+				size_t num_msgs,
+				const char *oldfolder,
+				const char *old_msg_ids[],
+				const char *newfolder),
+			      int (*vm_msg_remove)(const char *mailbox,
+				const char *context,
+				size_t num_msgs,
+				const char *folder,
+				const char *msgs[]),
+			      int (*vm_msg_forward)(const char *from_mailbox,
+				const char *from_context,
+				const char *from_folder,
+				const char *to_mailbox,
+				const char *to_context,
+				const char *to_folder,
+				size_t num_msgs,
+				const char *msg_ids[],
+				int delete_old),
+			      int (*vm_msg_play)(struct ast_channel *chan,
+				const char *mailbox,
+				const char *context,
+				const char *folder,
+				const char *msg_num,
+				ast_vm_msg_play_cb cb));
 
 
 void ast_uninstall_vm_functions(void);
+
+#ifdef TEST_FRAMEWORK
+void ast_install_vm_test_functions(int (*vm_test_destroy_user)(const char *context, const char *mailbox),
+				   int (*vm_test_create_user)(const char *context, const char *mailbox));
+
+void ast_uninstall_vm_test_functions(void);
+#endif
 
 /*!
  * \brief
@@ -310,6 +391,131 @@ int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *c
  * \return Number of messages in the given context, mailbox, and folder.  If folder is NULL, folder "INBOX" is assumed.  If folder is "INBOX", includes number of messages in the "Urgent" folder.
  */
 int ast_app_messagecount(const char *context, const char *mailbox, const char *folder);
+
+/*!
+ * \brief Return name of folder, given an id
+ * \param[in] id Folder id
+ * \return Name of folder
+ */
+const char *ast_vm_index_to_foldername(int id);
+
+/*
+ * \brief Create a snapshot of a mailbox which contains information about every msg.
+ *
+ * \param mailbox, the mailbox to look for
+ * \param context, the context to look for the mailbox in
+ * \param folder, OPTIONAL.  When not NULL only msgs from the specified folder will be included.
+ * \param desending, list the msgs in descending order rather than ascending order.
+ * \param combine_INBOX_and_OLD, When this argument is set, The OLD folder will be represented
+ *        in the INBOX folder of the snapshot. This allows the snapshot to represent the
+ *        OLD and INBOX messages in sorted order merged together.
+ *
+ * \retval snapshot on success
+ * \retval NULL on failure
+ */
+struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailbox,
+	const char *context,
+	const char *folder,
+	int descending,
+	enum ast_vm_snapshot_sort_val sort_val,
+	int combine_INBOX_and_OLD);
+
+/*
+ * \brief destroy a snapshot
+ *
+ * \param mailbox_snapshot The snapshot to destroy.
+ * \retval NULL
+ */
+struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_destroy(struct ast_vm_mailbox_snapshot *mailbox_snapshot);
+
+/*!
+ * \brief Move messages from one folder to another
+ *
+ * \param mailbox The mailbox to which the folders belong
+ * \param context The voicemail context for the mailbox
+ * \param num_msgs The number of messages to move
+ * \param oldfolder The folder from where messages should be moved
+ * \param old_msg_nums The message IDs of the messages to move
+ * \param newfolder The folder to which messages should be moved
+ * new folder. This array must be num_msgs sized.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+int ast_vm_msg_move(const char *mailbox,
+	const char *context,
+	size_t num_msgs,
+	const char *oldfolder,
+	const char *old_msg_ids[],
+	const char *newfolder);
+
+/*!
+ * \brief Remove/delete messages from a mailbox folder.
+ *
+ * \param mailbox The mailbox from which to delete messages
+ * \param context The voicemail context for the mailbox
+ * \param num_msgs The number of messages to delete
+ * \param folder The folder from which to remove messages
+ * \param msgs The message IDs of the messages to delete
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+int ast_vm_msg_remove(const char *mailbox,
+	const char *context,
+	size_t num_msgs,
+	const char *folder,
+	const char *msgs[]);
+
+/*!
+ * \brief forward a message from one mailbox to another.
+ *
+ * \brief from_mailbox The original mailbox the message is being forwarded from
+ * \brief from_context The voicemail context of the from_mailbox
+ * \brief from_folder The folder from which the message is being forwarded
+ * \brief to_mailbox The mailbox to forward the message to
+ * \brief to_context The voicemail context of the to_mailbox
+ * \brief to_folder The folder to which the message is being forwarded
+ * \brief num_msgs The number of messages being forwarded
+ * \brief msg_ids The message IDs of the messages in from_mailbox to forward
+ * \brief delete_old If non-zero, the forwarded messages are also deleted from from_mailbox.
+ * Otherwise, the messages will remain in the from_mailbox.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+int ast_vm_msg_forward(const char *from_mailbox,
+	const char *from_context,
+	const char *from_folder,
+	const char *to_mailbox,
+	const char *to_context,
+	const char *to_folder,
+	size_t num_msgs,
+	const char *msg_ids[],
+	int delete_old);
+
+/*!
+ * \brief Play a voicemail msg back on a channel.
+ *
+ * \param mailbox msg is in.
+ * \param context of mailbox.
+ * \param voicemail folder to look in.
+ * \param message number in the voicemailbox to playback to the channel.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_vm_msg_play(struct ast_channel *chan,
+	const char *mailbox,
+	const char *context,
+	const char *folder,
+	const char *msg_num,
+	ast_vm_msg_play_cb cb);
+
+#ifdef TEST_FRAMEWORK
+int ast_vm_test_destroy_user(const char *context, const char *mailbox);
+int ast_vm_test_create_user(const char *context, const char *mailbox);
+#endif
 
 /*! \brief Safely spawn an external program while closing file descriptors
 	\note This replaces the \b system call in all Asterisk modules
