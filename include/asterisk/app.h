@@ -184,35 +184,6 @@ int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel 
 int ast_app_run_macro(struct ast_channel *autoservice_chan,
 	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
 
-enum ast_vm_snapshot_sort_val {
-	AST_VM_SNAPSHOT_SORT_BY_ID = 0,
-	AST_VM_SNAPSHOT_SORT_BY_TIME,
-};
-
-struct ast_vm_msg_snapshot {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(msg_id);
-		AST_STRING_FIELD(callerid);
-		AST_STRING_FIELD(callerchan);
-		AST_STRING_FIELD(exten);
-		AST_STRING_FIELD(origdate);
-		AST_STRING_FIELD(origtime);
-		AST_STRING_FIELD(duration);
-		AST_STRING_FIELD(folder_name);
-		AST_STRING_FIELD(flag);
-	);
-	unsigned int msg_number;
-
-	AST_LIST_ENTRY(ast_vm_msg_snapshot) msg;
-};
-
-struct ast_vm_mailbox_snapshot {
-	int total_msg_num;
-	int folders;
-	/* Things are not quite as they seem here.  This points to an allocated array of lists. */
-	AST_LIST_HEAD_NOLOCK(, ast_vm_msg_snapshot) *snapshots;
-};
-
 /*!
  * \since 11
  * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
@@ -258,6 +229,35 @@ int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *s
  */
 int ast_app_run_sub(struct ast_channel *autoservice_chan,
 	struct ast_channel *sub_chan, const char *sub_location, const char *sub_args);
+
+enum ast_vm_snapshot_sort_val {
+	AST_VM_SNAPSHOT_SORT_BY_ID = 0,
+	AST_VM_SNAPSHOT_SORT_BY_TIME,
+};
+
+struct ast_vm_msg_snapshot {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(msg_id);
+		AST_STRING_FIELD(callerid);
+		AST_STRING_FIELD(callerchan);
+		AST_STRING_FIELD(exten);
+		AST_STRING_FIELD(origdate);
+		AST_STRING_FIELD(origtime);
+		AST_STRING_FIELD(duration);
+		AST_STRING_FIELD(folder_name);
+		AST_STRING_FIELD(flag);
+	);
+	unsigned int msg_number;
+
+	AST_LIST_ENTRY(ast_vm_msg_snapshot) msg;
+};
+
+struct ast_vm_mailbox_snapshot {
+	int total_msg_num;
+	int folders;
+	/* Things are not quite as they seem here.  This points to an allocated array of lists. */
+	AST_LIST_HEAD_NOLOCK(, ast_vm_msg_snapshot) *snapshots;
+};
 
 /*!
  * \brief Voicemail playback callback function definition
