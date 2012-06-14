@@ -10020,29 +10020,32 @@ static int pbx_builtin_setamaflags(struct ast_channel *chan, const char *data)
  */
 static int pbx_builtin_hangup(struct ast_channel *chan, const char *data)
 {
+	int cause;
+
 	ast_set_hangupsource(chan, "dialplan/builtin", 0);
 
 	if (!ast_strlen_zero(data)) {
-		int cause;
-		char *endptr;
-
-		if ((cause = ast_str2cause(data)) > -1) {
-			ast_channel_hangupcause_set(chan, cause);
-			return -1;
+		cause = ast_str2cause(data);
+		if (cause <= 0) {
+			if (sscanf(data, "%30d", &cause) != 1 || cause <= 0) {
+				ast_log(LOG_WARNING, "Invalid cause given to Hangup(): \"%s\"\n", data);
+				cause = 0;
+			}
 		}
-
-		cause = strtol((const char *) data, &endptr, 10);
-		if (cause != 0 || (data != endptr)) {
-			ast_channel_hangupcause_set(chan, cause);
-			return -1;
-		}
-
-		ast_log(LOG_WARNING, "Invalid cause given to Hangup(): \"%s\"\n", (char *) data);
+	} else {
+		cause = 0;
 	}
 
-	if (!ast_channel_hangupcause(chan)) {
-		ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL_CLEARING);
+	ast_channel_lock(chan);
+	if (cause <= 0) {
+		cause = ast_channel_hangupcause(chan);
+		if (cause <= 0) {
+			cause = AST_CAUSE_NORMAL_CLEARING;
+		}
 	}
+	ast_channel_hangupcause_set(chan, cause);
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_EXPLICIT);
+	ast_channel_unlock(chan);
 
 	return -1;
 }
