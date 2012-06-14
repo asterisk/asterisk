@@ -5011,6 +5011,11 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	pthread_t t;
 	int actualstate = state;
 
+	if (!l->device) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return;
+	}
+
 	if (sub->substate == SUBSTATE_ONHOOK) {
 		return;
 	}
@@ -5403,15 +5408,20 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	struct skinny_subchannel *activate_sub = NULL;
 	struct skinny_subchannel *tsub;
 
+	if (!l->device) {
+		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
+		return;
+	}
+
 	if (skinnydebug) {
 		ast_verb(3, "Sub %d - Dumping\n", sub->callid);
 	}
-	
+
 	if (!forcehangup && sub->substate == SUBSTATE_HOLD) {
 		l->activesub = NULL;
 		return;
 	}
-	
+
 	if (sub == l->activesub) {
 		d->hookstate = SKINNY_ONHOOK;
 		transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
