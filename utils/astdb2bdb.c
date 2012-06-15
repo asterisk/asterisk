@@ -18,10 +18,14 @@
 
 /*! \file
  *
- * \brief SQLite 3 astdb to Berkely DB converter
+ * \brief SQLite 3 astdb to Berkeley DB converter
  *
  * \author Terry Wilson <twilson@digium.com>
  */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
 
 #include "asterisk.h"
 

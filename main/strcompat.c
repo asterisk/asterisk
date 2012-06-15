@@ -19,6 +19,10 @@
  * \brief Compatibility functions for strsep and strtoq missing on Solaris 
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include <ctype.h>
