@@ -467,6 +467,7 @@ enum media_type {
 	SDP_VIDEO,   /*!< RTP/AVP Video */
 	SDP_IMAGE,   /*!< Image udptl, not TCP or RTP */
 	SDP_TEXT,    /*!< RTP/AVP Realtime Text */
+	SDP_UNKNOWN, /*!< Unknown media type */
 };
 
 /*! \brief Authentication types - proxy or www authentication
@@ -968,10 +969,11 @@ struct sip_st_cfg {
 };
 
 /*! \brief Structure for remembering offered media in an INVITE, to make sure we reply
-	to all media streams. In theory. In practise, we try our best. */
+	to all media streams. */
 struct offered_media {
-	int order_offered;		/*!< Order the media was offered in. Not offered is 0 */
-	char codecs[128];
+	enum media_type type;		/*!< The type of media that was offered */
+	char *decline_m_line;		/*!< Used if the media type is unknown/unused or a media stream is declined */
+	AST_LIST_ENTRY(offered_media) next;
 };
 
 /*! Additional headers to send with MESSAGE method packet. */
@@ -1194,7 +1196,7 @@ struct sip_pvt {
 	 *
 	 * The large-scale changes would be a good idea for implementing during an SDP rewrite.
 	 */
-	struct offered_media offered_media[OFFERED_MEDIA_COUNT];
+	AST_LIST_HEAD_NOLOCK(, offered_media) offered_media;
 	struct ast_cc_config_params *cc_params;
 	struct sip_epa_entry *epa_entry;
 	int fromdomainport;                 /*!< Domain port to show in from field */

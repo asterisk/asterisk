@@ -5850,6 +5850,16 @@ static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
 	ast_free(mwi);
 }
 
+/*! \brief Destroy SDP media offer list */
+static void offered_media_list_destroy(struct sip_pvt *p)
+{
+	struct offered_media *offer;
+	while ((offer = AST_LIST_REMOVE_HEAD(&p->offered_media, next))) {
+		ast_free(offer->decline_m_line);
+		ast_free(offer);
+	}
+}
+
 /*! \brief Execute destruction of SIP dialog structure, release memory */
 void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
@@ -5952,6 +5962,8 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
 		ast_free(req);
 	}
+
+	offered_media_list_destroy(p);
 
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
@@ -8033,6 +8045,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	ast_string_field_set(p, engine, default_engine);
 
 	AST_LIST_HEAD_INIT_NOLOCK(&p->request_queue);
+	AST_LIST_HEAD_INIT_NOLOCK(&p->offered_media);
 
 	/* Add to active dialog list */
 
@@ -9119,6 +9132,18 @@ static int sockaddr_is_null_or_any(const struct ast_sockaddr *addr)
 	return ast_sockaddr_isnull(addr) || ast_sockaddr_is_any(addr);
 }
 
+/*! \brief Check the media stream list to see if the given type already exists */
+static int has_media_stream(struct sip_pvt *p, enum media_type m)
+{
+	struct offered_media *offer = NULL;
+	AST_LIST_TRAVERSE(&p->offered_media, offer, next) {
+		if (m == offer->type) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /*! \brief Process SIP SDP offer, select formats and activate media channels
 	If offer is rejected, we will not change any properties of the call
  	Return 0 on success, a negative value on errors.
@@ -9139,6 +9164,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	const char *m = NULL;           /* SDP media offer */
 	const char *nextm = NULL;
 	int len = -1;
+	struct offered_media *offer;
 
 	/* Host information */
 	struct ast_sockaddr sessionsa;
@@ -9178,7 +9204,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int sendonly = -1;
 	int vsendonly = -1;
 	int numberofports;
-	int numberofmediastreams = 0;
 	int last_rtpmap_codec = 0;
 	int red_data_pt[10];		/* For T.140 RED */
 	int red_num_gen = 0;		/* For T.140 RED */
@@ -9209,7 +9234,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
-	memset(p->offered_media, 0, sizeof(p->offered_media));
+	offered_media_list_destroy(p);
 
 	/* Scan for the first media stream (m=) line to limit scanning of globals */
 	nextm = get_sdp_iterate(&next, req, "m");
@@ -9281,10 +9306,29 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		iterator = next;
 		nextm = get_sdp_iterate(&next, req, "m");
 
+		if (!(offer = ast_calloc(1, sizeof(*offer)))) {
+			ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer list\n");
+			res = -1;
+			goto process_sdp_cleanup;
+		}
+		AST_LIST_INSERT_TAIL(&p->offered_media, offer, next);
+		offer->type = SDP_UNKNOWN;
+
 		/* Check for 'audio' media offer */
 		if (strncmp(m, "audio ", 6) == 0) {
 			if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+				codecs = m + len;
+				/* produce zero-port m-line since it may be needed later
+				 * length is "m=audio 0 RTP/" + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(14 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be exactly the right length */
+				sprintf(offer->decline_m_line, "m=audio 0 RTP/%s %s", protocol, codecs);
+
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring audio media offer because port number is zero\n");
 					continue;
@@ -9299,23 +9343,19 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					secure_audio = 1;
 				} else if (strcmp(protocol, "AVP")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+					continue;
 				}
 
-				if (p->offered_media[SDP_AUDIO].order_offered) {
-					ast_log(LOG_WARNING, "Rejecting non-primary audio stream: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+				if (has_media_stream(p, SDP_AUDIO)) {
+					ast_log(LOG_WARNING, "Declining non-primary audio stream: %s\n", m);
+					continue;
 				}
 
 				audio = TRUE;
-				p->offered_media[SDP_AUDIO].order_offered = ++numberofmediastreams;
+				offer->type = SDP_AUDIO;
 				portno = x;
 
 				/* Scan through the RTP payload types specified in a "m=" line: */
-				codecs = m + len;
-				ast_copy_string(p->offered_media[SDP_AUDIO].codecs, codecs, sizeof(p->offered_media[SDP_AUDIO].codecs));
 				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 						ast_log(LOG_WARNING, "Invalid syntax in RTP audio format list: %s\n", codecs);
@@ -9338,38 +9378,45 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		else if (strncmp(m, "video ", 6) == 0) {
 			if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+				codecs = m + len;
+				/* produce zero-port m-line since it may be needed later
+				 * length is "m=video 0 RTP/" + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(14 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be exactly the right length */
+				sprintf(offer->decline_m_line, "m=video 0 RTP/%s %s", protocol, codecs);
+
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring video media offer because port number is zero\n");
+					ast_log(LOG_WARNING, "Ignoring video stream offer because port number is zero\n");
 					continue;
 				}
 
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
-					ast_log(LOG_WARNING, "%d ports offered for video media, not supported by Asterisk. Will try anyway...\n", numberofports);
+					ast_log(LOG_WARNING, "%d ports offered for video stream, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
 				if (!strcmp(protocol, "SAVP")) {
 					secure_video = 1;
 				} else if (strcmp(protocol, "AVP")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+					continue;
 				}
 
-				if (p->offered_media[SDP_VIDEO].order_offered) {
-					ast_log(LOG_WARNING, "Rejecting non-primary video stream: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+				if (has_media_stream(p, SDP_VIDEO)) {
+					ast_log(LOG_WARNING, "Declining non-primary video stream: %s\n", m);
+					continue;
 				}
 
 				video = TRUE;
 				p->novideo = FALSE;
-				p->offered_media[SDP_VIDEO].order_offered = ++numberofmediastreams;
+				offer->type = SDP_VIDEO;
 				vportno = x;
 
 				/* Scan through the RTP payload types specified in a "m=" line: */
-				codecs = m + len;
-				ast_copy_string(p->offered_media[SDP_VIDEO].codecs, codecs, sizeof(p->offered_media[SDP_VIDEO].codecs));
 				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 						ast_log(LOG_WARNING, "Invalid syntax in RTP video format list: %s\n", codecs);
@@ -9391,30 +9438,38 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		else if (strncmp(m, "text ", 5) == 0) {
 			if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 			    (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+				codecs = m + len;
+				/* produce zero-port m-line since it may be needed later
+				 * length is "m=text 0 RTP/AVP " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(17 + strlen(codecs) + 1))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be exactly the right length */
+				sprintf(offer->decline_m_line, "m=text 0 RTP/AVP %s", codecs);
+
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring text media offer because port number is zero\n");
+					ast_log(LOG_WARNING, "Ignoring text stream offer because port number is zero\n");
 					continue;
 				}
 
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
-					ast_log(LOG_WARNING, "%d ports offered for text media, not supported by Asterisk. Will try anyway...\n", numberofports);
+					ast_log(LOG_WARNING, "%d ports offered for text stream, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (p->offered_media[SDP_TEXT].order_offered) {
-					ast_log(LOG_WARNING, "Rejecting non-primary text stream: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+				if (has_media_stream(p, SDP_TEXT)) {
+					ast_log(LOG_WARNING, "Declining non-primary text stream: %s\n", m);
+					continue;
 				}
 
 				text = TRUE;
 				p->notext = FALSE;
-				p->offered_media[SDP_TEXT].order_offered = ++numberofmediastreams;
+				offer->type = SDP_TEXT;
 				tportno = x;
 
 				/* Scan through the RTP payload types specified in a "m=" line: */
-				codecs = m + len;
-				ast_copy_string(p->offered_media[SDP_TEXT].codecs, codecs, sizeof(p->offered_media[SDP_TEXT].codecs));
 				for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 					if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 						ast_log(LOG_WARNING, "Invalid syntax in RTP video format list: %s\n", codecs);
@@ -9427,7 +9482,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_rtp_codecs_payloads_set_m_type(&newtextrtp, NULL, codec);
 				}
 			} else {
-				ast_log(LOG_WARNING, "Rejecting text media offer due to invalid or unsupported syntax: %s\n", m);
+				ast_log(LOG_WARNING, "Rejecting text stream offer due to invalid or unsupported syntax: %s\n", m);
 				res = -1;
 				goto process_sdp_cleanup;
 			}
@@ -9436,20 +9491,29 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		else if (strncmp(m, "image ", 6) == 0) {
 			if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
 			     (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
+				/* produce zero-port m-line since it may be needed later
+				 * length is "m=image 0 UDPTL t38" + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(20))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be exactly the right length */
+				strcpy(offer->decline_m_line, "m=image 0 UDPTL t38");
+
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring image media offer because port number is zero\n");
+					ast_log(LOG_WARNING, "Ignoring image stream offer because port number is zero\n");
 					continue;
 				}
 
 				if (initialize_udptl(p)) {
-					res = -1;
-					goto process_sdp_cleanup;
+					ast_log(LOG_WARNING, "Failed to initialize UDPTL, declining image stream\n");
+					continue;
 				}
 
-				if (p->offered_media[SDP_IMAGE].order_offered) {
-					ast_log(LOG_WARNING, "Rejecting non-primary image stream: %s\n", m);
-					res = -1;
-					goto process_sdp_cleanup;
+				if (has_media_stream(p, SDP_IMAGE)) {
+					ast_log(LOG_WARNING, "Declining non-primary image stream: %s\n", m);
+					continue;
 				}
 
 				image = TRUE;
@@ -9457,7 +9521,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 				}
 
-				p->offered_media[SDP_IMAGE].order_offered = ++numberofmediastreams;
+				offer->type = SDP_IMAGE;
 				udptlportno = x;
 
 				if (p->t38.state != T38_ENABLED) {
@@ -9473,9 +9537,26 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				goto process_sdp_cleanup;
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unsupported top-level media type in offer: %s\n", m);
-			res = -1;
-			goto process_sdp_cleanup;
+			char type[20] = {0,};
+			char *typelen = strchr(m, ' ');
+			if (typelen && typelen - m < 20 &&
+			    ((sscanf(m, "%s %30u/%30u %n", type, &x, &numberofports, &len) == 2 && len > 0) ||
+			     (sscanf(m, "%s %30u %n", type, &x, &len) == 1 && len > 0))) {
+				/* produce zero-port m-line since it may be needed later
+				 * length is "m=" + type + " 0 " + remainder + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(2 + strlen(type) + 3 + strlen(m + len) + 1))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be long enough */
+				sprintf(offer->decline_m_line, "m=%s 0 %s", type, m + len);
+				continue;
+			} else {
+				ast_log(LOG_WARNING, "Unsupported top-level media type in offer: %s\n", m);
+				res = -1;
+				goto process_sdp_cleanup;
+			}
 		}
 
 		/* Media stream specific parameters */
@@ -9852,6 +9933,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 process_sdp_cleanup:
+	if (res) {
+		offered_media_list_destroy(p);
+	}
 	ast_format_cap_destroy(peercapability);
 	ast_format_cap_destroy(vpeercapability);
 	ast_format_cap_destroy(tpeercapability);
@@ -11817,6 +11901,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	struct ast_sockaddr udptldest = { {0,} };
 
 	/* SDP fields */
+	struct offered_media *offer;
 	char *version = 	"v=0\r\n";		/* Protocol version */
 	char subject[256];				/* Subject of the session */
 	char owner[256];				/* Session owner/creator */
@@ -11848,7 +11933,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 	char codecbuf[SIPBUFSIZE];
 	char buf[SIPBUFSIZE];
-	char dummy_answer[256];
 
 	/* Set the SDP session name */
 	snprintf(subject, sizeof(subject), "s=%s\r\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
@@ -12153,14 +12237,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	}
 	add_content(resp, session_time);
 	/* if this is a response to an invite, order our offers properly */
-	if (p->offered_media[SDP_AUDIO].order_offered ||
-		p->offered_media[SDP_VIDEO].order_offered ||
-		p->offered_media[SDP_TEXT].order_offered ||
-		p->offered_media[SDP_IMAGE].order_offered) {
-		int i;
-		/* we have up to 3 streams as limited by process_sdp */
-		for (i = 1; i <= 3; i++) {
-			if (p->offered_media[SDP_AUDIO].order_offered == i) {
+	if (!AST_LIST_EMPTY(&p->offered_media)) {
+		AST_LIST_TRAVERSE(&p->offered_media, offer, next) {
+			switch (offer->type) {
+			case SDP_AUDIO:
 				if (needaudio) {
 					add_content(resp, m_audio->str);
 					add_content(resp, a_audio->str);
@@ -12169,10 +12249,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 						add_content(resp, a_crypto);
 					}
 				} else {
-					snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].codecs);
-					add_content(resp, dummy_answer);
+					add_content(resp, offer->decline_m_line);
 				}
-			} else if (p->offered_media[SDP_VIDEO].order_offered == i) {
+				break;
+			case SDP_VIDEO:
 				if (needvideo) { /* only if video response is appropriate */
 					add_content(resp, m_video->str);
 					add_content(resp, a_video->str);
@@ -12181,10 +12261,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 						add_content(resp, v_a_crypto);
 					}
 				} else {
-					snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].codecs);
-					add_content(resp, dummy_answer);
+					add_content(resp, offer->decline_m_line);
 				}
-			} else if (p->offered_media[SDP_TEXT].order_offered == i) {
+				break;
+			case SDP_TEXT:
 				if (needtext) { /* only if text response is appropriate */
 					add_content(resp, m_text->str);
 					add_content(resp, a_text->str);
@@ -12193,16 +12273,20 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 						add_content(resp, t_a_crypto);
 					}
 				} else {
-					snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].codecs);
-					add_content(resp, dummy_answer);
+					add_content(resp, offer->decline_m_line);
 				}
-			} else if (p->offered_media[SDP_IMAGE].order_offered == i) {
+				break;
+			case SDP_IMAGE:
 				if (add_t38) {
 					add_content(resp, m_modem->str);
 					add_content(resp, a_modem->str);
 				} else {
-					add_content(resp, "m=image 0 udptl t38\r\n");
+					add_content(resp, offer->decline_m_line);
 				}
+				break;
+			case SDP_UNKNOWN:
+				add_content(resp, offer->decline_m_line);
+				break;
 			}
 		}
 	} else {
@@ -12452,7 +12536,8 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 	if (p->do_history) {
 		append_history(p, "ReInv", "Re-invite sent");
 	}
-	memset(p->offered_media, 0, sizeof(p->offered_media));
+
+	offered_media_list_destroy(p);
 
 	try_suggested_sip_codec(p);
 	if (t38version) {
@@ -12913,7 +12998,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 		add_diversion_header(&req, p);
 	}
 	if (sdp) {
-		memset(p->offered_media, 0, sizeof(p->offered_media));
+		offered_media_list_destroy(p);
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
 			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? ast_channel_name(p->owner) : "<none>");
 			add_sdp(&req, p, FALSE, FALSE, TRUE);
