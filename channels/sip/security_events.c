@@ -24,6 +24,10 @@
  * \author Michael L. Young <elgueromexicano@gmail.com>
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

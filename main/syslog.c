@@ -22,6 +22,10 @@
  * \author Sean Bright <sean@malleable.com>
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "asterisk/utils.h"
 #include "asterisk/syslog.h"

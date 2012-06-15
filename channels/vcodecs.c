@@ -19,6 +19,10 @@
  * $Revision$
  */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/frame.h"

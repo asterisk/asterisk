@@ -16,7 +16,9 @@
  * \author Christian Richter <crich@beronet.com>
  */
 
-
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
 
 #include <syslog.h>
 #include <sys/time.h>

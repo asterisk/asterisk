@@ -48,6 +48,9 @@
  * - app_fax.c
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
 
 #include "asterisk.h"
 

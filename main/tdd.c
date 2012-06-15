@@ -27,6 +27,10 @@
  * \note Includes code and algorithms from the Zapata library.
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
