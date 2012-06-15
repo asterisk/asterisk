@@ -78,6 +78,10 @@ new regions inside the keypad pictureas comments
  *
  */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "console_video.h"
 #include "asterisk/lock.h"

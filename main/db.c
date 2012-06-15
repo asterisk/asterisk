@@ -27,6 +27,10 @@
  * licensing even further) we elect to use DB1 which is BSD licensed 
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

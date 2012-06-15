@@ -36,6 +36,10 @@
 //#define DROP_PACKETS 5       /* if set, drop this % of video packets */
 //#define OLD_FFMPEG	1	/* set for old ffmpeg with no swscale */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>

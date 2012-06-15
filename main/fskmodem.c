@@ -21,6 +21,10 @@
  * \note Includes code and algorithms from the Zapata library.
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #ifdef INTEGER_CALLERID
