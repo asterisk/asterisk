@@ -24,6 +24,10 @@
   if qi is not NULL (TE-mode), offset is set
 */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include <string.h>

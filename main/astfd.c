@@ -23,6 +23,10 @@
  * \author Tilghman Lesher <tlesher@digium.com>
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #ifdef DEBUG_FD_LEAKS
