@@ -14180,7 +14180,7 @@ static int load_module(void)
 				 vm_msg_move, vm_msg_remove, vm_msg_forward, vm_msg_play);
 
 #ifdef TEST_FRAMEWORK
-	ast_install_vm_test_functions(vm_test_destroy_user, vm_test_create_user);
+	ast_install_vm_test_functions(vm_test_create_user, vm_test_destroy_user);
 #endif
 
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
