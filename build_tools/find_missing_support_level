@@ -1,0 +1,3 @@
+#!/bin/sh
+
+grep -r -L -e "support_level" * | grep -e "\.c$" -e "\.cxx$" | sort
