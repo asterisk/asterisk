@@ -2084,7 +2084,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	AST_LIST_TRAVERSE(&devices, d, list){
 		struct ast_sockaddr addr;
 		ast_sockaddr_from_sin(&addr, &s->sin);
-		if (!strcasecmp(req->data.reg.name, d->id)
+		if (!d->session && !strcasecmp(req->data.reg.name, d->id)
 				&& ast_apply_ha(d->ha, &addr)) {
 			s->device = d;
 			d->type = letohl(req->data.reg.type);
@@ -2109,25 +2109,24 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				instance++;
 			}
 			AST_LIST_TRAVERSE(&d->lines, l, list) {
-				/* FIXME: All sorts of issues will occur if this line is already connected to a device */
-					ast_format_cap_joint_copy(l->confcap, d->cap, l->cap);
-					l->prefs = l->confprefs;
-					if (!l->prefs.order[0]) {
-						l->prefs = d->confprefs;
-					}
-					/* l->capability = d->capability;
-					l->prefs = d->prefs; */
-					l->instance = instance;
-					l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
-					set_callforwards(l, NULL, 0);
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
-					register_exten(l);
-					/* initialize MWI on line and device */
-					mwi_event_cb(0, l);
-					AST_LIST_TRAVERSE(&l->sublines, subline, list) {
-						ast_extension_state_add(subline->context, subline->exten, skinny_extensionstate_cb, subline->container);
-					}
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
+				ast_format_cap_joint_copy(l->confcap, d->cap, l->cap);
+				l->prefs = l->confprefs;
+				if (!l->prefs.order[0]) {
+					l->prefs = d->confprefs;
+				}
+				/* l->capability = d->capability;
+				l->prefs = d->prefs; */
+				l->instance = instance;
+				l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
+				set_callforwards(l, NULL, 0);
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
+				register_exten(l);
+				/* initialize MWI on line and device */
+				mwi_event_cb(0, l);
+				AST_LIST_TRAVERSE(&l->sublines, subline, list) {
+					ast_extension_state_add(subline->context, subline->exten, skinny_extensionstate_cb, subline->container);
+				}
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
 				--instance;
 			}
 			break;
@@ -3856,7 +3855,7 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 		if (!s) {
 			ast_cli(fd, "%-20s %-20s %8d %-20s\n",
 				l->name,
-				l->device->name,
+				(l->device ? l->device->name : "Not connected"),
 				l->instance,
 				l->label);
 			if (verbose) {
@@ -3879,7 +3878,7 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 				"Label: %s\r\n",
 				idtext,
 				l->name,
-				l->device->name,
+				(l->device ? l->device->name : "None"),
 				l->instance,
 				l->label);
 		}
@@ -5011,11 +5010,6 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	pthread_t t;
 	int actualstate = state;
 
-	if (!l->device) {
-		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
-		return;
-	}
-
 	if (sub->substate == SUBSTATE_ONHOOK) {
 		return;
 	}
@@ -5407,11 +5401,6 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	struct skinny_device *d = l->device;
 	struct skinny_subchannel *activate_sub = NULL;
 	struct skinny_subchannel *tsub;
-
-	if (!l->device) {
-		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
-		return;
-	}
 
 	if (skinnydebug) {
 		ast_verb(3, "Sub %d - Dumping\n", sub->callid);
