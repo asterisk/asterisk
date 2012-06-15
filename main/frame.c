@@ -522,96 +522,70 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples)
 		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
 }
 
-/*! Dump a frame for debugging purposes */
-void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
+void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen)
 {
-	const char noname[] = "unknown";
-	char ftype[40] = "Unknown Frametype";
-	char cft[80];
-	char subclass[40] = "Unknown Subclass";
-	char csub[80];
-	char moreinfo[40] = "";
-	char cn[60];
-	char cp[40];
-	char cmn[40];
-	const char *message = "Unknown";
-
-	if (!name)
-		name = noname;
-
-
-	if (!f) {
-		ast_verbose("%s [ %s (NULL) ] [%s]\n",
-			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-			term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-		return;
-	}
-	/* XXX We should probably print one each of voice and video when the format changes XXX */
-	if (f->frametype == AST_FRAME_VOICE)
-		return;
-	if (f->frametype == AST_FRAME_VIDEO)
-		return;
 	switch(f->frametype) {
 	case AST_FRAME_DTMF_BEGIN:
-		strcpy(ftype, "DTMF Begin");
-		subclass[0] = f->subclass.integer;
-		subclass[1] = '\0';
+		if (slen > 1) {
+			subclass[0] = f->subclass.integer;
+			subclass[1] = '\0';
+		}
 		break;
 	case AST_FRAME_DTMF_END:
-		strcpy(ftype, "DTMF End");
-		subclass[0] = f->subclass.integer;
-		subclass[1] = '\0';
+		if (slen > 1) {
+			subclass[0] = f->subclass.integer;
+			subclass[1] = '\0';
+		}
 		break;
 	case AST_FRAME_CONTROL:
-		strcpy(ftype, "Control");
 		switch (f->subclass.integer) {
 		case AST_CONTROL_HANGUP:
-			strcpy(subclass, "Hangup");
+			ast_copy_string(subclass, "Hangup", slen);
 			break;
 		case AST_CONTROL_RING:
-			strcpy(subclass, "Ring");
+			ast_copy_string(subclass, "Ring", slen);
 			break;
 		case AST_CONTROL_RINGING:
-			strcpy(subclass, "Ringing");
+			ast_copy_string(subclass, "Ringing", slen);
 			break;
 		case AST_CONTROL_ANSWER:
-			strcpy(subclass, "Answer");
+			ast_copy_string(subclass, "Answer", slen);
 			break;
 		case AST_CONTROL_BUSY:
-			strcpy(subclass, "Busy");
+			ast_copy_string(subclass, "Busy", slen);
 			break;
 		case AST_CONTROL_TAKEOFFHOOK:
-			strcpy(subclass, "Take Off Hook");
+			ast_copy_string(subclass, "Take Off Hook", slen);
 			break;
 		case AST_CONTROL_OFFHOOK:
-			strcpy(subclass, "Line Off Hook");
+			ast_copy_string(subclass, "Line Off Hook", slen);
 			break;
 		case AST_CONTROL_CONGESTION:
-			strcpy(subclass, "Congestion");
+			ast_copy_string(subclass, "Congestion", slen);
 			break;
 		case AST_CONTROL_FLASH:
-			strcpy(subclass, "Flash");
+			ast_copy_string(subclass, "Flash", slen);
 			break;
 		case AST_CONTROL_WINK:
-			strcpy(subclass, "Wink");
+			ast_copy_string(subclass, "Wink", slen);
 			break;
 		case AST_CONTROL_OPTION:
-			strcpy(subclass, "Option");
+			ast_copy_string(subclass, "Option", slen);
 			break;
 		case AST_CONTROL_RADIO_KEY:
-			strcpy(subclass, "Key Radio");
+			ast_copy_string(subclass, "Key Radio", slen);
 			break;
 		case AST_CONTROL_RADIO_UNKEY:
-			strcpy(subclass, "Unkey Radio");
+			ast_copy_string(subclass, "Unkey Radio", slen);
 			break;
 		case AST_CONTROL_HOLD:
-			strcpy(subclass, "Hold");
+			ast_copy_string(subclass, "Hold", slen);
 			break;
 		case AST_CONTROL_UNHOLD:
-			strcpy(subclass, "Unhold");
+			ast_copy_string(subclass, "Unhold", slen);
 			break;
-		case AST_CONTROL_T38_PARAMETERS:
+		case AST_CONTROL_T38_PARAMETERS: {
+			char *message = "Unknown";
 			if (f->datalen != sizeof(struct ast_control_t38_parameters)) {
 				message = "Invalid";
 			} else {
@@ -628,89 +602,169 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 				else if (state == AST_T38_REFUSED)
 					message = "Refused";
 			}
-			snprintf(subclass, sizeof(subclass), "T38_Parameters/%s", message);
+			snprintf(subclass, slen, "T38_Parameters/%s", message);
 			break;
+		}
 		case -1:
-			strcpy(subclass, "Stop generators");
+			ast_copy_string(subclass, "Stop generators", slen);
 			break;
 		default:
-			snprintf(subclass, sizeof(subclass), "Unknown control '%d'", f->subclass.integer);
+			snprintf(subclass, slen, "Unknown control '%d'", f->subclass.integer);
 		}
 		break;
 	case AST_FRAME_NULL:
-		strcpy(ftype, "Null Frame");
-		strcpy(subclass, "N/A");
+		ast_copy_string(subclass, "N/A", slen);
 		break;
 	case AST_FRAME_IAX:
 		/* Should never happen */
-		strcpy(ftype, "IAX Specific");
-		snprintf(subclass, sizeof(subclass), "IAX Frametype %d", f->subclass.integer);
+		snprintf(subclass, slen, "IAX Frametype %d", f->subclass.integer);
 		break;
 	case AST_FRAME_TEXT:
-		strcpy(ftype, "Text");
-		strcpy(subclass, "N/A");
-		ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
+		ast_copy_string(subclass, "N/A", slen);
+		if (moreinfo) {
+			ast_copy_string(moreinfo, f->data.ptr, mlen);
+		}
 		break;
 	case AST_FRAME_IMAGE:
-		strcpy(ftype, "Image");
-		snprintf(subclass, sizeof(subclass), "Image format %s\n", ast_getformatname(&f->subclass.format));
+		snprintf(subclass, slen, "Image format %s\n", ast_getformatname(&f->subclass.format));
 		break;
 	case AST_FRAME_HTML:
-		strcpy(ftype, "HTML");
 		switch (f->subclass.integer) {
 		case AST_HTML_URL:
-			strcpy(subclass, "URL");
-			ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
+			ast_copy_string(subclass, "URL", slen);
+			if (moreinfo) {
+				ast_copy_string(moreinfo, f->data.ptr, mlen);
+			}
 			break;
 		case AST_HTML_DATA:
-			strcpy(subclass, "Data");
+			ast_copy_string(subclass, "Data", slen);
 			break;
 		case AST_HTML_BEGIN:
-			strcpy(subclass, "Begin");
+			ast_copy_string(subclass, "Begin", slen);
 			break;
 		case AST_HTML_END:
-			strcpy(subclass, "End");
+			ast_copy_string(subclass, "End", slen);
 			break;
 		case AST_HTML_LDCOMPLETE:
-			strcpy(subclass, "Load Complete");
+			ast_copy_string(subclass, "Load Complete", slen);
 			break;
 		case AST_HTML_NOSUPPORT:
-			strcpy(subclass, "No Support");
+			ast_copy_string(subclass, "No Support", slen);
 			break;
 		case AST_HTML_LINKURL:
-			strcpy(subclass, "Link URL");
-			ast_copy_string(moreinfo, f->data.ptr, sizeof(moreinfo));
+			ast_copy_string(subclass, "Link URL", slen);
+			if (moreinfo) {
+				ast_copy_string(moreinfo, f->data.ptr, mlen);
+			}
 			break;
 		case AST_HTML_UNLINK:
-			strcpy(subclass, "Unlink");
+			ast_copy_string(subclass, "Unlink", slen);
 			break;
 		case AST_HTML_LINKREJECT:
-			strcpy(subclass, "Link Reject");
+			ast_copy_string(subclass, "Link Reject", slen);
 			break;
 		default:
-			snprintf(subclass, sizeof(subclass), "Unknown HTML frame '%d'\n", f->subclass.integer);
+			snprintf(subclass, slen, "Unknown HTML frame '%d'\n", f->subclass.integer);
 			break;
 		}
 		break;
 	case AST_FRAME_MODEM:
-		strcpy(ftype, "Modem");
 		switch (f->subclass.integer) {
 		case AST_MODEM_T38:
-			strcpy(subclass, "T.38");
+			ast_copy_string(subclass, "T.38", slen);
 			break;
 		case AST_MODEM_V150:
-			strcpy(subclass, "V.150");
+			ast_copy_string(subclass, "V.150", slen);
 			break;
 		default:
-			snprintf(subclass, sizeof(subclass), "Unknown MODEM frame '%d'\n", f->subclass.integer);
+			snprintf(subclass, slen, "Unknown MODEM frame '%d'\n", f->subclass.integer);
 			break;
 		}
 		break;
 	default:
-		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
+		ast_copy_string(subclass, "Unknown Subclass", slen);
 	}
+}
+
+void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
+{
+	switch (frame_type) {
+	case AST_FRAME_DTMF_BEGIN:
+		ast_copy_string(ftype, "DTMF Begin", len);
+		break;
+	case AST_FRAME_DTMF_END:
+		ast_copy_string(ftype, "DTMF End", len);
+		break;
+	case AST_FRAME_CONTROL:
+		ast_copy_string(ftype, "Control", len);
+		break;
+	case AST_FRAME_NULL:
+		ast_copy_string(ftype, "Null Frame", len);
+		break;
+	case AST_FRAME_IAX:
+		/* Should never happen */
+		ast_copy_string(ftype, "IAX Specific", len);
+		break;
+	case AST_FRAME_TEXT:
+		ast_copy_string(ftype, "Text", len);
+		break;
+	case AST_FRAME_IMAGE:
+		ast_copy_string(ftype, "Image", len);
+		break;
+	case AST_FRAME_HTML:
+		ast_copy_string(ftype, "HTML", len);
+		break;
+	case AST_FRAME_MODEM:
+		ast_copy_string(ftype, "Modem", len);
+		break;
+	case AST_FRAME_VOICE:
+		ast_copy_string(ftype, "Voice", len);
+		break;
+	case AST_FRAME_VIDEO:
+		ast_copy_string(ftype, "Video", len);
+		break;
+	default:
+		snprintf(ftype, len, "Unknown Frametype '%d'", frame_type);
+	}
+}
+
+/*! Dump a frame for debugging purposes */
+void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
+{
+	const char noname[] = "unknown";
+	char ftype[40] = "Unknown Frametype";
+	char cft[80];
+	char subclass[40] = "Unknown Subclass";
+	char csub[80];
+	char moreinfo[40] = "";
+	char cn[60];
+	char cp[40];
+	char cmn[40];
+
+	if (!name) {
+		name = noname;
+	}
+
+	if (!f) {
+		ast_verb(-1, "%s [ %s (NULL) ] [%s]\n",
+			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
+			term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+		return;
+	}
+	/* XXX We should probably print one each of voice and video when the format changes XXX */
+	if (f->frametype == AST_FRAME_VOICE) {
+		return;
+	}
+	if (f->frametype == AST_FRAME_VIDEO) {
+		return;
+	}
+
+	ast_frame_type2str(f->frametype, ftype, sizeof(ftype));
+	ast_frame_subclass2str(f, subclass, sizeof(subclass), moreinfo, sizeof(moreinfo));
+
 	if (!ast_strlen_zero(moreinfo))
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",
+		ast_verb(-1, "%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype,
@@ -719,7 +773,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			    term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 	else
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
+		ast_verb(-1, "%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype,

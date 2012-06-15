@@ -597,9 +597,31 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment);
 int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2);
 
 /*!
- * \brief Clear all audio samples from an ast_frame. The frame must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR 
+ * \brief Clear all audio samples from an ast_frame. The frame must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR
  */
 int ast_frame_clear(struct ast_frame *frame);
+
+/*!
+ * \brief Copy the discription of a frame's subclass into the provided string
+ *
+ * \param f The frame to get the information from
+ * \param subclass Buffer to fill with subclass information
+ * \param slen Length of subclass buffer
+ * \param moreinfo Buffer to fill with additional information
+ * \param mlen Length of moreinfo buffer
+ * \since 11
+ */
+void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen);
+
+/*!
+ * \brief Copy the discription of a frame type into the provided string
+ *
+ * \param frame_type The frame type to be described
+ * \param ftype Buffer to fill with frame type description
+ * \param len Length of subclass buffer
+ * \since 11
+ */
+void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
