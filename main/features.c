@@ -3939,8 +3939,6 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 					break;
 				} else if (f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
 					ast_indicate_data(caller, AST_CONTROL_PVT_CAUSE_CODE, f->data.ptr, f->datalen);
-					ast_frfree(f);
-					break;
 				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 					if (caller_hungup) {
 						struct ast_party_connected_line connected;
