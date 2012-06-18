@@ -4892,7 +4892,6 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 	struct ast_channel *chan = pu->chan;	/* shorthand */
 	int tms;        /* timeout for this item */
 	int x;          /* fd index in channel */
-	int parking_complete = 0;
 
 	tms = ast_tvdiff_ms(ast_tvnow(), pu->start);
 	if (tms > pu->parkingtime) {
@@ -5017,104 +5016,103 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 		}
 
 		/* And take them out of the parking lot */
-		parking_complete = 1;
-	} else {	/* still within parking time, process descriptors */
-		x = 0;
-		if (pfds) {
-			for (; x < AST_MAX_FDS; x++) {
-				struct ast_frame *f;
-				int y;
-	
-				if (!ast_channel_fd_isset(chan, x)) {
-					continue;	/* nothing on this descriptor */
-				}
-	
-				for (y = 0; y < nfds; y++) {
-					if (pfds[y].fd == ast_channel_fd(chan, x)) {
-						/* Found poll record! */
-						break;
-					}
-				}
-				if (y == nfds) {
-					/* Not found */
-					continue;
-				}
-	
-				if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
-					/* Next x */
-					continue;
-				}
-	
-				if (pfds[y].revents & POLLPRI) {
-					ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-				} else {
-					ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-				}
-				ast_channel_fdno_set(chan, x);
-	
-				/* See if they need servicing */
-				f = ast_read(pu->chan);
-				/* Hangup? */
-				if (!f || (f->frametype == AST_FRAME_CONTROL
-					&& f->subclass.integer == AST_CONTROL_HANGUP)) {
-					if (f) {
-						ast_frfree(f);
-					}
-					post_manager_event("ParkedCallGiveUp", pu);
-					ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp",
-						NULL);
-	
-					/* There's a problem, hang them up */
-					ast_verb(2, "%s got tired of being parked\n", ast_channel_name(chan));
-					ast_hangup(chan);
-	
-					/* And take them out of the parking lot */
-					parking_complete = 1;
-					break;
-				} else {
-					/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
-					ast_frfree(f);
-					if (pu->hold_method == AST_CONTROL_HOLD
-						&& pu->moh_trys < 3
-						&& !ast_channel_generatordata(chan)) {
-						ast_debug(1,
-							"MOH on parked call stopped by outside source.  Restarting on channel %s.\n",
-							ast_channel_name(chan));
-						ast_indicate_data(chan, AST_CONTROL_HOLD,
-							S_OR(pu->parkinglot->cfg.mohclass, NULL),
-							(!ast_strlen_zero(pu->parkinglot->cfg.mohclass)
-								? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0));
-						pu->moh_trys++;
-					}
-					goto std;	/* XXX Ick: jumping into an else statement??? XXX */
-				}
-			} /* End for */
-		}
-		if (x >= AST_MAX_FDS) {
-std:
-			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
-				if (ast_channel_fd_isset(chan, x)) {
-					void *tmp = ast_realloc(*new_pfds,
-						(*new_nfds + 1) * sizeof(struct pollfd));
-
-					if (!tmp) {
-						continue;
-					}
-					*new_pfds = tmp;
-					(*new_pfds)[*new_nfds].fd = ast_channel_fd(chan, x);
-					(*new_pfds)[*new_nfds].events = POLLIN | POLLERR | POLLPRI;
-					(*new_pfds)[*new_nfds].revents = 0;
-					(*new_nfds)++;
-				}
-			}
-			/* Keep track of our shortest wait */
-			if (tms < *ms || *ms < 0) {
-				*ms = tms;
-			}
-		}
+		return 1;
 	}
 
-	return parking_complete;
+	/* still within parking time, process descriptors */
+	if (pfds) {
+		for (x = 0; x < AST_MAX_FDS; x++) {
+			struct ast_frame *f;
+			int y;
+
+			if (!ast_channel_fd_isset(chan, x)) {
+				continue;	/* nothing on this descriptor */
+			}
+
+			for (y = 0; y < nfds; y++) {
+				if (pfds[y].fd == ast_channel_fd(chan, x)) {
+					/* Found poll record! */
+					break;
+				}
+			}
+			if (y == nfds) {
+				/* Not found */
+				continue;
+			}
+
+			if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
+				/* Next x */
+				continue;
+			}
+
+			if (pfds[y].revents & POLLPRI) {
+				ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
+			} else {
+				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
+			}
+			ast_channel_fdno_set(chan, x);
+
+			/* See if they need servicing */
+			f = ast_read(pu->chan);
+			/* Hangup? */
+			if (!f || (f->frametype == AST_FRAME_CONTROL
+				&& f->subclass.integer == AST_CONTROL_HANGUP)) {
+				if (f) {
+					ast_frfree(f);
+				}
+				post_manager_event("ParkedCallGiveUp", pu);
+				ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp",
+					NULL);
+
+				/* There's a problem, hang them up */
+				ast_verb(2, "%s got tired of being parked\n", ast_channel_name(chan));
+				ast_hangup(chan);
+
+				/* And take them out of the parking lot */
+				return 1;
+			} else {
+				/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+				ast_frfree(f);
+				if (pu->hold_method == AST_CONTROL_HOLD
+					&& pu->moh_trys < 3
+					&& !ast_channel_generatordata(chan)) {
+					ast_debug(1,
+						"MOH on parked call stopped by outside source.  Restarting on channel %s.\n",
+						ast_channel_name(chan));
+					ast_indicate_data(chan, AST_CONTROL_HOLD,
+						S_OR(pu->parkinglot->cfg.mohclass, NULL),
+						(!ast_strlen_zero(pu->parkinglot->cfg.mohclass)
+							? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0));
+					pu->moh_trys++;
+				}
+				break;
+			}
+		} /* End for */
+	}
+
+	/* mark fds for next round */
+	for (x = 0; x < AST_MAX_FDS; x++) {
+		if (ast_channel_fd_isset(chan, x)) {
+			void *tmp = ast_realloc(*new_pfds,
+				(*new_nfds + 1) * sizeof(struct pollfd));
+
+			if (!tmp) {
+				continue;
+			}
+			*new_pfds = tmp;
+			(*new_pfds)[*new_nfds].fd = ast_channel_fd(chan, x);
+			(*new_pfds)[*new_nfds].events = POLLIN | POLLERR | POLLPRI;
+			(*new_pfds)[*new_nfds].revents = 0;
+			(*new_nfds)++;
+		}
+	}
+	/* Keep track of our shortest wait */
+	if (tms < *ms || *ms < 0) {
+		*ms = tms;
+	}
+
+	/* Stay in the parking lot. */
+	return 0;
 }
 
 /*! \brief Run management on parkinglots, called once per parkinglot */
