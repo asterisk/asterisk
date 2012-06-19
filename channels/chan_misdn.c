@@ -7583,7 +7583,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		}
 		f = ast_read(who);
 
-		if (!f || f->frametype == AST_FRAME_CONTROL) {
+		if (!f || (f->frametype == AST_FRAME_CONTROL && f->subtype.integer != AST_CONTROL_PVT_CAUSE_CODE)) {
 			/* got hangup .. */
 
 			if (!f) {
@@ -7613,7 +7613,11 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		}
 #endif
 
-		ast_write((who == c0) ? c1 : c0, f);
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+			ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr);
+		} else {
+			ast_write((who == c0) ? c1 : c0, f);
+		}
 	}
 
 	chan_misdn_log(1, ch1->bc->port, "I SEND: Splitting conference with Number:%d\n", ch1->bc->pid + 1);

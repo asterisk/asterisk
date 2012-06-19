@@ -7586,6 +7586,10 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		f = ast_read(who);
 		switch (f ? f->frametype : AST_FRAME_CONTROL) {
 		case AST_FRAME_CONTROL:
+			if (f && f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+				ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr);
+				break;
+			}
 			*fo = f;
 			*rc = who;
 			res = AST_BRIDGE_COMPLETE;

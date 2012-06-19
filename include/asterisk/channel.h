@@ -3565,6 +3565,15 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
  */
 void ast_channel_unlink(struct ast_channel *chan);
 
+/*!
+ * \brief Sets the HANGUPCAUSE hash and optionally the SIP_CAUSE hash 
+ * on the given channel
+ *
+ * \param chan channel on which to set the cause information
+ * \param cause_code ast_control_pvt_cause_code structure containing cause information
+ */
+void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code);
+
 /* ACCESSOR FUNTIONS */
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);
