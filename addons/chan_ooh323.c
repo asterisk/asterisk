@@ -1155,6 +1155,8 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 	if (p) {
 		ast_mutex_lock(&p->lock);
 
+		p->lastrtptx = time(NULL);
+
 		if (f->frametype == AST_FRAME_MODEM) {
 			ast_debug(1, "Send UDPTL %d/%d len %d for %s\n",
 				f->frametype, f->subclass.integer, f->datalen, ast->name);
@@ -3451,6 +3453,24 @@ static void *do_monitor(void *data)
 			h323_next = h323->next;
 
 			/* TODO: Need to add rtptimeout keepalive support */
+
+			if (h323->rtp && h323->rtptimeout && h323->lastrtptx &&
+				h323->lastrtptx + h323->rtptimeout < t) {
+				ast_rtp_instance_sendcng(h323->rtp, 0);
+				h323->lastrtptx = time(NULL);
+			}
+
+			if (h323->rtp && h323->owner && h323->rtptimeout &&
+				h323->lastrtprx &&
+				h323->lastrtprx + h323->rtptimeout < t) {
+				if (!ast_channel_trylock(h323->owner)) {
+					ast_softhangup_nolock(h323->owner, AST_SOFTHANGUP_DEV);
+					ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", ast_channel_name(h323->owner), (long) (t - h323->lastrtprx));
+					ast_channel_unlock(h323->owner);
+				}
+				
+			}
+
 			if (ast_test_flag(h323, H323_NEEDDESTROY)) {
 				ooh323_destroy (h323);
          } /* else if (ast_test_flag(h323, H323_NEEDSTART) && h323->owner) {
@@ -4277,12 +4297,14 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 	switch (ast->fdno) {
 	case 0:
 		f = ast_rtp_instance_read(p->rtp, 0);	/* RTP Audio */
+		p->lastrtprx = time(NULL);
 		break;
 	case 1:
 		f = ast_rtp_instance_read(p->rtp, 1);	/* RTCP Control Channel */
 		break;
 	case 2:
 		f = ast_rtp_instance_read(p->vrtp, 0);	/* RTP Video */
+		p->lastrtprx = time(NULL);
 		break;
 	case 3:
 		f = ast_rtp_instance_read(p->vrtp, 1);	/* RTCP Control Channel for video */
@@ -4291,6 +4313,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		f = ast_udptl_read(p->udptl);		/* UDPTL t.38 data */
 		if (gH323Debug) ast_debug(1, "Got UDPTL %d/%d len %d for %s\n",
 				f->frametype, f->subclass.integer, f->datalen, ast->name);
+		p->lastrtprx = time(NULL);
 		break;
 
 	default:
