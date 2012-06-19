@@ -10409,10 +10409,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	 * final response. For a CANCEL or ACK, we have to send to the same destination
 	 * as the original INVITE.
 	 */
-	if (sipmethod == SIP_CANCEL ||
-			(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED))) {
-		set_destination(p, ast_strdupa(p->uri));
-	} else if (p->route) {
+	if (p->route &&
+			!(sipmethod == SIP_CANCEL ||
+				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
 		set_destination(p, p->route->hop);
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
