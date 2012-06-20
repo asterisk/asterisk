@@ -235,8 +235,10 @@ int ast_sockaddr_parse(struct ast_sockaddr *addr, const char *str, int flags)
 			"addresses. Ignoring all but the first.\n");
 	}
 
-	addr->len = res->ai_addrlen;
-	memcpy(&addr->ss, res->ai_addr, addr->len);
+	if (addr) {
+		addr->len = res->ai_addrlen;
+		memcpy(&addr->ss, res->ai_addr, addr->len);
+	}
 
 	freeaddrinfo(res);
 
