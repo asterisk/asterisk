@@ -3749,7 +3749,7 @@ static void *do_monitor(void *data)
 				h323->lastrtprx + h323->rtptimeout < t) {
 				if (!ast_channel_trylock(h323->owner)) {
 					ast_softhangup_nolock(h323->owner, AST_SOFTHANGUP_DEV);
-					ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", h323->owner->name, (long) (t - h323->lastrtprx));
+					ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", ast_channel_name(h323->owner), (long) (t - h323->lastrtprx));
 					ast_channel_unlock(h323->owner);
 				}
 				
