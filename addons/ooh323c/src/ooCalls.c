@@ -265,14 +265,13 @@ int ooEndCall(OOH323CallData *call)
 
 int ooRemoveCallFromList (OOH323CallData *call)
 {
-   if(!call)
+   if(!call || !gH323ep.callList)
       return OO_OK;
 
    ast_mutex_lock(&callListLock);
 
    OOTRACEINFO3("Removing call %lx: %s\n", call, call->callToken);
 
-   if (!gH323ep.callList) return OO_OK;
    if(call == gH323ep.callList)
    {
       if(!call->next)
