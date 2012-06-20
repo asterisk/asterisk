@@ -1027,11 +1027,12 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 	if (!AST_RWLIST_EMPTY(&logchannels)) {
 		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
-			/* XXX May need to grow larger later in order to accomodate call counts higher than 999999. */
-			char call_identifier_str[13] = "";
+			char call_identifier_str[13];
 
 			if (logmsg->callid) {
 				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", logmsg->callid->call_identifier);
+			} else {
+				call_identifier_str[0] = '\0';
 			}
 
 
