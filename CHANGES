@@ -200,6 +200,8 @@ AMI (Asterisk Manager Interface) changes
    behavior to hanging up a single channel is unchanged, but if you pass a regex,
    the manager will send you a list of channels back that were hung up.
 
+ * Support for IPv6 addresses has been added.
+
 FAX changes
 -----------
  * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan
