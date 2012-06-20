@@ -155,8 +155,6 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	int *eivr_events_fd, int *eivr_commands_fd, int *eivr_errors_fd, 
 	const struct ast_str *args, const struct ast_flags flags);
 
-int eivr_connect_socket(struct ast_channel *chan, const char *host, int port);
-
 static void send_eivr_event(FILE *handle, const char event, const char *data,
 	const struct ast_channel *chan)
 {
