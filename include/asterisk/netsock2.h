@@ -343,7 +343,8 @@ int ast_sockaddr_split_hostport(char *str, char **host, char **port, int flags);
  *
  * Host names are NOT allowed.
  *
- * \param[out] addr The resulting ast_sockaddr
+ * \param[out] addr The resulting ast_sockaddr. This MAY be NULL from 
+ * functions that are performing validity checks only, e.g. ast_parse_arg().
  * \param str The string to parse
  * \param flags If set to zero, a port MAY be present. If set to
  * PARSE_PORT_IGNORE, a port MAY be present but will be ignored. If set to
