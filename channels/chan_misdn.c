@@ -7583,7 +7583,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		}
 		f = ast_read(who);
 
-		if (!f || (f->frametype == AST_FRAME_CONTROL && f->subtype.integer != AST_CONTROL_PVT_CAUSE_CODE)) {
+		if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass.integer != AST_CONTROL_PVT_CAUSE_CODE)) {
 			/* got hangup .. */
 
 			if (!f) {
