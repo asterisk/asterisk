@@ -1261,6 +1261,37 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
 
 /*!
  * \internal
+ * \brief Queue a PVT_CAUSE_CODE frame onto the owner channel.
+ * \since 11
+ *
+ * \param pri PRI span control structure.
+ * \param chanpos Channel position in the span.
+ * \param cause String describing the cause to be placed into the frame.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, const char *cause)
+{
+	struct ast_channel *chan;
+	struct ast_control_pvt_cause_code *cause_code;
+
+	sig_pri_lock_owner(pri, chanpos);
+	chan = pri->pvts[chanpos]->owner;
+	if (chan) {
+		int datalen = sizeof(*cause_code) + strlen(cause);
+		cause_code = alloca(datalen);
+		ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
+		ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));
+		ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
+		ast_channel_unlock(chan);
+	}
+}
+
+/*!
+ * \internal
  * \brief Find the channel associated with the libpri call.
  * \since 10.0
  *
@@ -5440,7 +5471,6 @@ static void *pri_dchannel(void *vpri)
 	pri_event *e;
 	struct pollfd fds[SIG_PRI_NUM_DCHANS];
 	int res;
-	int chanpos = 0;
 	int x;
 	int law;
 	struct ast_channel *c;
@@ -5648,6 +5678,9 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "pri_event returned error %d (%s)\n", errno, strerror(errno));
 
 		if (e) {
+			int chanpos = -1;
+			char cause_str[35];
+
 			if (pri->debug) {
 				ast_verbose("Span %d: Processing event %s(%d)\n",
 					pri->span, pri_event2str(e->e), e->e);
@@ -6448,6 +6481,11 @@ static void *pri_dchannel(void *vpri)
 					e->proceeding.call);
 
 				if (e->proceeding.cause > -1) {
+					if (pri->pvts[chanpos]->owner) {
+						snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_PROGRESS (%d)", e->proceeding.cause);
+						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+					}
+
 					ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
 
 					/* Work around broken, out of spec USER_BUSY cause in a progress message */
@@ -6459,6 +6497,8 @@ static void *pri_dchannel(void *vpri)
 							pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 						}
 					}
+				} else if (pri->pvts[chanpos]->owner) {
+					pri_queue_pvt_cause_data(pri, chanpos, "PRI PRI_EVENT_PROGRESS");
 				}
 
 				if (!pri->pvts[chanpos]->progress
@@ -6736,6 +6776,9 @@ static void *pri_dchannel(void *vpri)
 					if (pri->pvts[chanpos]->owner) {
 						int do_hangup = 0;
 
+						snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP (%d)", e->hangup.cause);
+						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+
 						/* Queue a BUSY instead of a hangup if our cause is appropriate */
 						ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
 						switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
@@ -6884,6 +6927,9 @@ static void *pri_dchannel(void *vpri)
 				}
 				if (pri->pvts[chanpos]->owner) {
 					int do_hangup = 0;
+
+					snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP_REQ (%d)", e->hangup.cause);
+					pri_queue_pvt_cause_data(pri, chanpos, cause_str);
 
 					ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
 					switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
@@ -7217,6 +7263,27 @@ static void *pri_dchannel(void *vpri)
 				ast_debug(1, "Span: %d Unhandled event: %s(%d)\n",
 					pri->span, pri_event2str(e->e), e->e);
 				break;
+			}
+
+			/* send tech-specific information for HANGUPCAUSE hash */
+			if (chanpos > -1 && pri->pvts[chanpos]) {
+				switch (e->e) {
+				/* already handled above */
+				case PRI_EVENT_PROGRESS:
+				case PRI_EVENT_HANGUP:
+				case PRI_EVENT_HANGUP_REQ:
+					break;
+				default:
+					sig_pri_lock_private(pri->pvts[chanpos]);
+					if (pri->pvts[chanpos]->owner) {
+						char *event_str = pri_event2str(e->e);
+
+						snprintf(cause_str, sizeof(cause_str), "PRI %s", event_str);
+						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+					}
+					sig_pri_unlock_private(pri->pvts[chanpos]);
+					break;
+				}
 			}
 		}
 		ast_mutex_unlock(&pri->lock);
