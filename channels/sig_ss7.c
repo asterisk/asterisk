@@ -372,6 +372,32 @@ static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int 
 
 /*!
  * \internal
+ * \brief Queue a PVT_CAUSE_CODE frame onto the owner channel.
+ * \since 11
+ *
+ * \param owner Owner channel of the pvt.
+ * \param cause String describing the cause to be placed into the frame.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ * \note Assumes the sig_ss7_lock_private(linkset->pvts[chanpos]) is already obtained.
+ * \note Assumes linkset->pvts[chanpos]->owner is non-NULL and its lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *cause)
+{
+	struct ast_control_pvt_cause_code *cause_code;
+	int datalen = sizeof(*cause_code) + strlen(cause);
+
+	cause_code = alloca(datalen);
+	ast_copy_string(cause_code->chan_name, ast_channel_name(owner), AST_CHANNEL_NAME);
+	ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));
+	ast_queue_control_data(owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
+}
+
+
+/*!
+ * \internal
  * \brief Find the channel position by CIC/DPC.
  *
  * \param linkset SS7 linkset control structure.
@@ -702,7 +728,6 @@ void *ss7_linkset(void *data)
 	struct ss7 *ss7 = linkset->ss7;
 	ss7_event *e = NULL;
 	struct sig_ss7_chan *p;
-	int chanpos;
 	struct pollfd pollers[SIG_SS7_NUM_DCHANS];
 	int nextms = 0;
 
@@ -770,6 +795,9 @@ void *ss7_linkset(void *data)
 		}
 
 		while ((e = ss7_check_event(ss7))) {
+			int chanpos = -1;
+			char cause_str[30];
+
 			if (linkset->debug) {
 				ast_verbose("Linkset %d: Processing event: %s\n",
 					linkset->span, ss7_event2str(e->e));
@@ -849,6 +877,7 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_owner(linkset, chanpos);
 				p->ss7call = NULL;
 				if (p->owner) {
+					ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_RSC");
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 					ast_channel_unlock(p->owner);
 				}
@@ -906,6 +935,7 @@ void *ss7_linkset(void *data)
 					}
 					p->call_level = SIG_SS7_CALL_LEVEL_GLARE;
 					if (p->owner) {
+						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)");
 						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
 						ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 						ast_channel_unlock(p->owner);
@@ -1049,6 +1079,9 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_private(p);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
+					snprintf(cause_str, sizeof(cause_str), "SS7 ISUP_EVENT_REL (%d)", e->rel.cause);
+					ss7_queue_pvt_cause_data(p->owner, cause_str);
+
 					ast_channel_hangupcause_set(p->owner, e->rel.cause);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 					ast_channel_unlock(p->owner);
@@ -1250,6 +1283,28 @@ void *ss7_linkset(void *data)
 			default:
 				ast_debug(1, "Unknown event %s\n", ss7_event2str(e->e));
 				break;
+			}
+
+			if (chanpos > -1) {
+				switch (e->e) {
+				/* handled above */
+				case ISUP_EVENT_IAM:
+				case ISUP_EVENT_REL:
+				case ISUP_EVENT_RSC:
+					break;
+				default:
+					p = linkset->pvts[chanpos];
+					sig_ss7_lock_private(p);
+					sig_ss7_lock_owner(linkset, chanpos);
+					if (p->owner) {
+						char *event_str = ss7_event2str(e->e);
+
+						snprintf(cause_str, sizeof(cause_str), "SS7 %s", event_str);
+						ss7_queue_pvt_cause_data(p->owner, cause_str);
+						ast_channel_unlock(p->owner);
+					}
+					sig_ss7_unlock_private(p);
+				}
 			}
 		}
 		ast_mutex_unlock(&linkset->lock);
