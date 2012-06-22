@@ -30842,17 +30842,17 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel
 	}
 
 	sip_pvt_lock(p2);
-	if (p2->relatedpeer->directmediaha) {
+	if (p2->relatedpeer && p2->relatedpeer->directmediaha) {
 		p2_directmediaha = ast_duplicate_ha_list(p2->relatedpeer->directmediaha);
 	}
 	sip_pvt_unlock(p2);
 
 	sip_pvt_lock(p1);
-	if (p1->relatedpeer->directmediaha) {
+	if (p1->relatedpeer && p1->relatedpeer->directmediaha) {
 		p1_directmediaha = ast_duplicate_ha_list(p1->relatedpeer->directmediaha);
 	}
 
-	if (ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
+	if (p2_directmediaha && ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
 		if (!apply_directmedia_ha(p1, p2_directmediaha, rtptype)) {
 			res = 0;
 		}
@@ -30864,7 +30864,7 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel
 	}
 
 	sip_pvt_lock(p2);
-	if (ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
+	if (p1_directmediaha && ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
 		if (!apply_directmedia_ha(p2, p1_directmediaha, rtptype)) {
 			res = 0;
 		}
