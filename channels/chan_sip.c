@@ -29159,6 +29159,12 @@ static int apply_directmedia_ha(struct sip_pvt *p1, struct sip_pvt *p2, const ch
 	ast_rtp_instance_get_remote_address(p1->rtp, &them);
 	ast_rtp_instance_get_local_address(p1->rtp, &us);
 
+	/* If p2 is a guest call, there will be no peer. If there is no peer, there
+	 * is no directmediaha, so go ahead and allow it */
+	if (!p2->relatedpeer) {
+		return res;
+	}
+
 	if ((res = ast_apply_ha(p2->relatedpeer->directmediaha, &them)) == AST_SENSE_DENY) {
 		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
 		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
