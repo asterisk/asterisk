@@ -2796,7 +2796,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_context_set(peer, ast_channel_context(chan));
 			ast_channel_exten_set(peer, ast_channel_exten(chan));
 			ast_channel_priority_set(peer, ast_channel_priority(chan) + 2);
-			ast_pbx_start(peer);
+			if (ast_pbx_start(peer)) {
+				ast_hangup(peer);
+			}
 			hanguptree(&out_chans, NULL, ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
 				*continue_exec = 1;
@@ -3044,24 +3046,26 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			}
 			ast_set2_flag(ast_channel_flags(peer), autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
-			if(!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-			} else { /* F() */
+		if (!ast_check_hangup(peer)) {
+			if (ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
 				int goto_res;
-				goto_res = ast_goto_if_exists(peer, ast_channel_context(chan), ast_channel_exten(chan), (ast_channel_priority(chan)) + 1); 
-				if (goto_res == AST_PBX_GOTO_FAILED) {
-					ast_hangup(peer);
+
+				if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
+					ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+					goto_res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+				} else { /* F() */
+					goto_res = ast_goto_if_exists(peer, ast_channel_context(chan),
+						ast_channel_exten(chan), ast_channel_priority(chan) + 1);
+				}
+				if (!goto_res && !ast_pbx_start(peer)) {
+					/* The peer is now running its own PBX. */
 					goto out;
 				}
-			}
-			ast_pbx_start(peer);
-		} else {
-			if (!ast_check_hangup(chan))
+			} else {
 				ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
-			ast_hangup(peer);
+			}
 		}
+		ast_hangup(peer);
 	}
 out:
 	if (moh) {
