@@ -2744,8 +2744,13 @@ static void *generic_recall(void *data)
 			return NULL;
 		}
 	}
-	ast_cc_agent_recalling(agent->core_id, "Generic agent %s is recalling", agent->device_name);
-	ast_pbx_start(chan);
+	if (ast_pbx_start(chan)) {
+		ast_cc_failed(agent->core_id, "PBX failed to start for %s.", agent->device_name);
+		ast_hangup(chan);
+		return NULL;
+	}
+	ast_cc_agent_recalling(agent->core_id, "Generic agent %s is recalling",
+		agent->device_name);
 	return NULL;
 }
 
