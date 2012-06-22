@@ -9202,7 +9202,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Others */
 	int sendonly = -1;
-	int vsendonly = -1;
 	int numberofports;
 	int last_rtpmap_codec = 0;
 	int red_data_pt[10];		/* For T.140 RED */
@@ -9269,7 +9268,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		case 'a':
 			if (process_sdp_a_sendonly(value, &sendonly)) {
 				processed = TRUE;
-				vsendonly = sendonly;
 			}
 			else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec))
 				processed = TRUE;
@@ -9601,9 +9599,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				/* Video specific scanning */
 				else if (video) {
-					if (process_sdp_a_sendonly(value, &vsendonly)) {
-						processed = TRUE;
-					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
+					if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
 					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
