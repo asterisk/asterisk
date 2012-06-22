@@ -4141,9 +4141,9 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%d)", dahdi_r2_cause_to_ast_cause(cause));
 	datalen += strlen(cause_str);
 	cause_code = alloca(datalen);
-	ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
+	ast_copy_string(cause_code->chan_name, ast_channel_name(p->owner), AST_CHANNEL_NAME);
 	ast_copy_string(cause_code->code, cause_str, datalen + 1 - sizeof(*cause_code));
-	ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
+	ast_queue_control_data(p->owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
 
 	/* when we have an owner we don't call dahdi_r2_disconnect_call here, that will
 	   be done in dahdi_hangup */
