@@ -5474,20 +5474,17 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		}
 
 		if (!ast_check_hangup(peer) && ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
+			int goto_res;
+
 			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
 				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-
-				if (ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]) == AST_PBX_SUCCESS) {
-					ast_pbx_start(peer);
-				} else {
-					ast_hangup(peer);
-				}
+				goto_res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
 			} else { /* F() */
-				if (ast_goto_if_exists(peer, caller_context, caller_extension, caller_priority + 1) == AST_PBX_GOTO_FAILED) {
-					ast_hangup(peer);
-				} else {
-					ast_pbx_start(peer);
-				}
+				goto_res = ast_goto_if_exists(peer, caller_context, caller_extension,
+					caller_priority + 1);
+			}
+			if (goto_res || ast_pbx_start(peer)) {
+				ast_hangup(peer);
 			}
 		} else {
 			ast_hangup(peer);
