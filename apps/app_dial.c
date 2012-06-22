@@ -2688,7 +2688,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_copy_string(peer->context, chan->context, sizeof(peer->context));
 			ast_copy_string(peer->exten, chan->exten, sizeof(peer->exten));
 			peer->priority = chan->priority + 2;
-			ast_pbx_start(peer);
+			if (ast_pbx_start(peer)) {
+				ast_hangup(peer);
+			}
 			hanguptree(outgoing, NULL, ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
 				*continue_exec = 1;
@@ -2979,24 +2981,26 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
-			if(!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-			} else { /* F() */
-				int res;
-				res = ast_goto_if_exists(peer, chan->context, chan->exten, (chan->priority) + 1); 
-				if (res == AST_PBX_GOTO_FAILED) {
-					ast_hangup(peer);
+		if (!ast_check_hangup(peer)) {
+			if (ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
+				int goto_res;
+
+				if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
+					replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+					goto_res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+				} else { /* F() */
+					goto_res = ast_goto_if_exists(peer, chan->context,
+						chan->exten, chan->priority + 1);
+				}
+				if (!goto_res && !ast_pbx_start(peer)) {
+					/* The peer is now running its own PBX. */
 					goto out;
 				}
-			}
-			ast_pbx_start(peer);
-		} else {
-			if (!ast_check_hangup(chan))
+			} else {
 				chan->hangupcause = peer->hangupcause;
-			ast_hangup(peer);
+			}
 		}
+		ast_hangup(peer);
 	}
 out:
 	if (moh) {
