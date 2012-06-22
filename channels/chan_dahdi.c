@@ -4125,6 +4125,10 @@ static int dahdi_r2_cause_to_ast_cause(openr2_call_disconnect_cause_t cause)
 static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disconnect_cause_t cause)
 {
 	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	char cause_str[20];
+	struct ast_control_pvt_cause_code *cause_code;
+	int datalen = sizeof(*cause_code);
+
 	ast_verbose("MFC/R2 call disconnected on channel %d\n", openr2_chan_get_number(r2chan));
 	ast_mutex_lock(&p->lock);
 	if (!p->owner) {
@@ -4133,6 +4137,14 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 		dahdi_r2_disconnect_call(p, OR2_CAUSE_NORMAL_CLEARING);
 		return;
 	}
+
+	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%d)", dahdi_r2_cause_to_ast_cause(cause));
+	datalen += strlen(cause_str);
+	cause_code = alloca(datalen);
+	ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
+	ast_copy_string(cause_code->code, cause_str, datalen + 1 - sizeof(*cause_code));
+	ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
+
 	/* when we have an owner we don't call dahdi_r2_disconnect_call here, that will
 	   be done in dahdi_hangup */
 	if (ast_channel_state(p->owner) == AST_STATE_UP) {
