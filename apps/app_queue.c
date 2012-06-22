@@ -5051,7 +5051,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 			if (!res2) {
 				if (qe->parent->memberdelay) {
 					ast_log(LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
-					res2 |= ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
+					res2 = ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
 				}
 				if (!res2 && announce) {
 					if (play_file(peer, announce) < 0) {
@@ -5079,8 +5079,8 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 						}
 					}
 				}
+				ast_autoservice_stop(qe->chan);
 			}
-			res2 |= ast_autoservice_stop(qe->chan);
 			if (ast_check_hangup(peer)) {
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", ast_channel_name(peer));
@@ -5098,8 +5098,8 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 				ast_hangup(peer);
 				ao2_ref(member, -1);
 				goto out;
-			} else if (res2) {
-				/* Caller must have hung up just before being connected*/
+			} else if (ast_check_hangup(qe->chan)) {
+				/* Caller must have hung up just before being connected */
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
