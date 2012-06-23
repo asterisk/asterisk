@@ -8051,26 +8051,28 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	/* If the other channel has not been hung up, return it to the PBX */
 	if (!ast_check_hangup(final_dest_chan)) {
 		if (ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
-			char *caller_context = ast_strdupa(ast_channel_context(chan));
-			char *caller_extension = ast_strdupa(ast_channel_exten(chan));
-			int caller_priority = ast_channel_priority(chan);
+			char *caller_context;
+			char *caller_extension;
+			int caller_priority;
+			int goto_opt;
+
+			ast_channel_lock(chan);
+			caller_context = ast_strdupa(ast_channel_context(chan));
+			caller_extension = ast_strdupa(ast_channel_exten(chan));
+			caller_priority = ast_channel_priority(chan);
+			ast_channel_unlock(chan);
 
 			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
 				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
 				/* Set current dialplan position to bridger dialplan position */
-				ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority);
-				/* Then perform the goto */
-				if (ast_parseable_goto(final_dest_chan, opt_args[OPT_ARG_CALLEE_GO_ON]) == AST_PBX_SUCCESS) {
-					ast_pbx_start(final_dest_chan);
-				} else {
-					ast_hangup(final_dest_chan);
-				}
+				goto_opt = ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority)
+					/* Then perform the goto */
+					|| ast_parseable_goto(final_dest_chan, opt_args[OPT_ARG_CALLEE_GO_ON]);
 			} else { /* F() */
-				if (ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority + 1) == AST_PBX_GOTO_FAILED) {
-					ast_hangup(final_dest_chan);
-				} else {
-					ast_pbx_start(final_dest_chan);
-				}
+				goto_opt = ast_goto_if_exists(final_dest_chan, caller_context, caller_extension, caller_priority + 1);
+			}
+			if (goto_opt || ast_pbx_start(final_dest_chan)) {
+				ast_hangup(final_dest_chan);
 			}
 		} else if (!ast_test_flag(&opts, OPT_CALLEE_KILL)) {
 			ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n",
