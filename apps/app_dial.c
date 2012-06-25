@@ -820,6 +820,20 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst, const char *dialstring)
 {
 	struct ast_channel *chans[] = { src, dst };
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a dial action has started.</synopsis>
+			<syntax>
+				<parameter name="SubEvent">
+					<enumlist>
+						<enum name="Begin"/>
+						<enum name="End"/>
+					</enumlist>
+					<para>A sub event type, specifying whether the dial action has begun or ended.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Dial", 2, chans,
 		"SubEvent: Begin\r\n"
 		"Channel: %s\r\n"
@@ -842,6 +856,16 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 
 static void senddialendevent(struct ast_channel *src, const char *dialstatus)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a dial action has ended.</synopsis>
+			<syntax>
+				<parameter name="DialStatus">
+					<para>The value of the <variable>DIALSTATUS</variable> channel variable.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(src, EVENT_FLAG_CALL, "Dial",
 		"SubEvent: End\r\n"
 		"Channel: %s\r\n"

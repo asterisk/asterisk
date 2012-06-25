@@ -539,6 +539,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	ast_channel_unlock(spyee_autochan->chan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel has started spying on another channel.</synopsis>
+			<see-also>
+				<ref type="application">ChanSpy</ref>
+				<ref type="application">ExtenSpy</ref>
+				<ref type="managerEvent">ChanSpyStop</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "ChanSpyStart", 2, chans,
 			"SpyerChannel: %s\r\n"
 			"SpyeeChannel: %s\r\n",
@@ -727,6 +737,14 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	}
 
 	ast_verb(2, "Done Spying on channel %s\n", name);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel has stopped spying on another channel.</synopsis>
+			<see-also>
+				<ref type="managerEvent">ChanSpyStart</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "ChanSpyStop", "SpyeeChannel: %s\r\n", name);
 
 	return running;

@@ -34,9 +34,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/strings.h"
 #include "asterisk/config.h"
 #include "asterisk/term.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/xmldoc.h"
 
 #ifdef AST_XML_DOCS
@@ -1043,13 +1043,14 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 }
 
 /*! \internal
- *  \brief Generate an AMI action syntax.
- *  \param fixnode The manager action node pointer.
- *  \param name The name of the manager action.
+ *  \brief Generate an AMI action/event syntax.
+ *  \param fixnode The manager action/event node pointer.
+ *  \param name The name of the manager action/event.
+ *  \param manager_type "Action" or "Event"
  *  \retval The generated syntax.
  *  \retval NULL on error.
  */
-static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char *name)
+static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char *name, const char *manager_type)
 {
 	struct ast_str *syntax;
 	struct ast_xml_node *node = fixnode;
@@ -1062,7 +1063,7 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 		return ast_strdup(name);
 	}
 
-	ast_str_append(&syntax, 0, "Action: %s", name);
+	ast_str_append(&syntax, 0, "%s: %s", manager_type, name);
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		if (strcasecmp(ast_xml_node_get_name(node), "parameter")) {
@@ -1070,7 +1071,7 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 		}
 
 		/* Is this parameter required? */
-		required = 0;
+		required = !strcasecmp(manager_type, "event") ? 1 : 0;
 		paramtype = ast_xml_get_attribute(node, "required");
 		if (paramtype) {
 			required = ast_true(paramtype);
@@ -1087,7 +1088,6 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 			(required ? "" : "["),
 			attrname,
 			(required ? "" : "]"));
-
 		ast_xml_free_attr(attrname);
 	}
 
@@ -1102,6 +1102,7 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 enum syntaxtype {
 	FUNCTION_SYNTAX,
 	MANAGER_SYNTAX,
+	MANAGER_EVENT_SYNTAX,
 	COMMAND_SYNTAX
 };
 
@@ -1110,10 +1111,11 @@ static struct strsyntaxtype {
 	const char *type;
 	enum syntaxtype stxtype;
 } stxtype[] = {
-	{ "function",		FUNCTION_SYNTAX	},
-	{ "application",	FUNCTION_SYNTAX	},
-	{ "manager",		MANAGER_SYNTAX  },
-	{ "agi",		COMMAND_SYNTAX	}
+	{ "function",		FUNCTION_SYNTAX			},
+	{ "application",	FUNCTION_SYNTAX			},
+	{ "manager",		MANAGER_SYNTAX			},
+	{ "managerEvent",	MANAGER_EVENT_SYNTAX	},
+	{ "agi",			COMMAND_SYNTAX			}
 };
 
 /*! \internal
@@ -1133,15 +1135,24 @@ static enum syntaxtype xmldoc_get_syntax_type(const char *type)
 	return FUNCTION_SYNTAX;
 }
 
-char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *module)
+/*!
+ * \internal
+ * \brief Build syntax information for an item
+ * \param node	The syntax node to parse
+ * \param type	The source type
+ * \param name	The name of the item that the syntax describes
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \returns A malloc'd character pointer to the syntax of the item
+ * \returns NULL on failure
+ *
+ * \since 11
+ */
+static char *_ast_xmldoc_build_syntax(struct ast_xml_node *node, const char *type, const char *name)
 {
-	struct ast_xml_node *node;
 	char *syntax = NULL;
-
-	node = xmldoc_get_node(type, name, module, documentation_language);
-	if (!node) {
-		return NULL;
-	}
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		if (!strcasecmp(ast_xml_node_get_name(node), "syntax")) {
@@ -1149,22 +1160,40 @@ char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *mo
 		}
 	}
 
-	if (node) {
-		switch (xmldoc_get_syntax_type(type)) {
-		case FUNCTION_SYNTAX:
-			syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
-			break;
-		case COMMAND_SYNTAX:
-			syntax = xmldoc_get_syntax_cmd(node, name, 1);
-			break;
-		case MANAGER_SYNTAX:
-			syntax = xmldoc_get_syntax_manager(node, name);
-			break;
-		default:
-			syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
-		}
+	if (!node) {
+		return syntax;
 	}
+
+	switch (xmldoc_get_syntax_type(type)) {
+	case FUNCTION_SYNTAX:
+		syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
+		break;
+	case COMMAND_SYNTAX:
+		syntax = xmldoc_get_syntax_cmd(node, name, 1);
+		break;
+	case MANAGER_SYNTAX:
+		syntax = xmldoc_get_syntax_manager(node, name, "Action");
+		break;
+	case MANAGER_EVENT_SYNTAX:
+		syntax = xmldoc_get_syntax_manager(node, name, "Event");
+		break;
+	default:
+		syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
+	}
+
 	return syntax;
+}
+
+char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *module)
+{
+	struct ast_xml_node *node;
+
+	node = xmldoc_get_node(type, name, module, documentation_language);
+	if (!node) {
+		return NULL;
+	}
+
+	return _ast_xmldoc_build_syntax(node, type, name);
 }
 
 /*! \internal
@@ -1439,24 +1468,26 @@ static int xmldoc_parse_variablelist(struct ast_xml_node *node, const char *tabs
 	return ret;
 }
 
-char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *module)
+/*!
+ * \internal
+ * \brief Build seealso information for an item
+ * \param node	The seealso node to parse
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \returns A malloc'd character pointer to the seealso information of the item
+ * \returns NULL on failure
+ *
+ * \since 11
+ */
+static char *_ast_xmldoc_build_seealso(struct ast_xml_node *node)
 {
-	struct ast_str *outputstr;
 	char *output;
-	struct ast_xml_node *node;
+	struct ast_str *outputstr;
 	const char *typename;
 	const char *content;
 	int first = 1;
-
-	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
-		return NULL;
-	}
-
-	/* get the application/function root node. */
-	node = xmldoc_get_node(type, name, module, documentation_language);
-	if (!node || !ast_xml_node_get_children(node)) {
-		return NULL;
-	}
 
 	/* Find the <see-also> node. */
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
@@ -1508,6 +1539,26 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *m
 
 	output = ast_strdup(ast_str_buffer(outputstr));
 	ast_free(outputstr);
+
+	return output;
+}
+
+char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *module)
+{
+	char *output;
+	struct ast_xml_node *node;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	/* get the application/function root node. */
+	node = xmldoc_get_node(type, name, module, documentation_language);
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	output = _ast_xmldoc_build_seealso(node);
 
 	return output;
 }
@@ -1738,21 +1789,26 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 	ast_free(internaltabs);
 }
 
-char *ast_xmldoc_build_arguments(const char *type, const char *name, const char *module)
+/*!
+ * \internal
+ * \brief Build the arguments for an item
+ * \param node	The arguments node to parse
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \returns A malloc'd character pointer to the arguments for the item
+ * \returns NULL on failure
+ *
+ * \since 11
+ */
+static char *_ast_xmldoc_build_arguments(struct ast_xml_node *node)
 {
-	struct ast_xml_node *node;
-	struct ast_str *ret = ast_str_create(128);
 	char *retstr = NULL;
+	struct ast_str *ret;
 
-	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
-		ast_free(ret);
-		return NULL;
-	}
-
-	node = xmldoc_get_node(type, name, module, documentation_language);
-
-	if (!node || !ast_xml_node_get_children(node)) {
-		ast_free(ret);
+	ret = ast_str_create(128);
+	if (!ret) {
 		return NULL;
 	}
 
@@ -1784,6 +1840,23 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name, const char 
 	ast_free(ret);
 
 	return retstr;
+}
+
+char *ast_xmldoc_build_arguments(const char *type, const char *name, const char *module)
+{
+	struct ast_xml_node *node;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	node = xmldoc_get_node(type, name, module, documentation_language);
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	return _ast_xmldoc_build_arguments(node);
 }
 
 /*! \internal
@@ -1828,36 +1901,23 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 }
 
 /*!
- *  \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree
- *  \param type Type of element (application, function, ...).
- *  \param name Name of element (Dial, Echo, Playback, ...).
+ *  \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree node
+ *  \param node The node to obtain the information from
  *  \param var Name of field to return (synopsis, description, etc).
  *  \param raw Field only contains text, no other elements inside it.
  *  \retval NULL On error.
  *  \retval Field text content on success.
+ *  \since 11
  */
-static char *xmldoc_build_field(const char *type, const char *name, const char *module, const char *var, int raw)
+static char *_xmldoc_build_field(struct ast_xml_node *node, const char *var, int raw)
 {
-	struct ast_xml_node *node;
 	char *ret = NULL;
 	struct ast_str *formatted;
-
-	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
-		ast_log(LOG_ERROR, "Tried to look in XML tree with faulty values.\n");
-		return ret;
-	}
-
-	node = xmldoc_get_node(type, name, module, documentation_language);
-
-	if (!node) {
-		ast_log(LOG_WARNING, "Couldn't find %s %s in XML documentation\n", type, name);
-		return ret;
-	}
 
 	node = ast_xml_find_element(ast_xml_node_get_children(node), var, NULL, NULL);
 
 	if (!node || !ast_xml_node_get_children(node)) {
-		ast_debug(1, "Cannot find variable '%s' in tree '%s'\n", var, name);
+		ast_debug(1, "Cannot find variable '%s' in tree\n", var);
 		return ret;
 	}
 
@@ -1870,14 +1930,278 @@ static char *xmldoc_build_field(const char *type, const char *name, const char *
 	return ret;
 }
 
+/*!
+ *  \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree
+ *  \param type Type of element (application, function, ...).
+ *  \param name Name of element (Dial, Echo, Playback, ...).
+ *  \param var Name of field to return (synopsis, description, etc).
+ *  \param raw Field only contains text, no other elements inside it.
+ *  \retval NULL On error.
+ *  \retval Field text content on success.
+ */
+static char *xmldoc_build_field(const char *type, const char *name, const char *module, const char *var, int raw)
+{
+	struct ast_xml_node *node;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "Tried to look in XML tree with faulty values.\n");
+		return NULL;
+	}
+
+	node = xmldoc_get_node(type, name, module, documentation_language);
+
+	if (!node) {
+		ast_log(LOG_WARNING, "Couldn't find %s %s in XML documentation\n", type, name);
+		return NULL;
+	}
+
+	return _xmldoc_build_field(node, var, raw);
+}
+
+/* \internal
+ * \brief Build the synopsis for an item
+ * \param node The synopsis node
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \returns A malloc'd character pointer to the synopsis information
+ * \returns NULL on failure
+ * \since 11
+ */
+static char *_ast_xmldoc_build_synopsis(struct ast_xml_node *node)
+{
+	return _xmldoc_build_field(node, "synopsis", 1);
+}
+
 char *ast_xmldoc_build_synopsis(const char *type, const char *name, const char *module)
 {
 	return xmldoc_build_field(type, name, module, "synopsis", 1);
 }
 
+/*!
+ * \internal
+ * \brief Build the descripton for an item
+ * \param node	The description node to parse
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \returns A malloc'd character pointer to the arguments for the item
+ * \returns NULL on failure
+ * \since 11
+ */
+static char *_ast_xmldoc_build_description(struct ast_xml_node *node)
+{
+	return _xmldoc_build_field(node, "description", 0);
+}
+
 char *ast_xmldoc_build_description(const char *type, const char *name, const char *module)
 {
 	return xmldoc_build_field(type, name, module, "description", 0);
+}
+
+/*! \internal \brief ast_xml_doc_item ao2 destructor
+ * \since 11
+ */
+static void ast_xml_doc_item_destructor(void *obj)
+{
+	struct ast_xml_doc_item *doc = obj;
+
+	if (!doc) {
+		return;
+	}
+
+	ast_free(doc->syntax);
+	ast_free(doc->seealso);
+	ast_free(doc->arguments);
+	ast_free(doc->synopsis);
+	ast_free(doc->description);
+	ast_string_field_free_memory(doc);
+
+	if (doc->next) {
+		ao2_ref(doc->next, -1);
+		doc->next = NULL;
+	}
+}
+
+/*! \internal
+ * \brief Create an ao2 ref counted ast_xml_doc_item
+ * \param name The name of the item
+ * \param type The item's source type
+ * \since 11
+ */
+static struct ast_xml_doc_item *ast_xml_doc_item_alloc(const char *name, const char *type)
+{
+	struct ast_xml_doc_item *item;
+
+	if (!(item = ao2_alloc(sizeof(*item), ast_xml_doc_item_destructor))) {
+		ast_log(AST_LOG_ERROR, "Failed to allocate memory for ast_xml_doc_item instance\n");
+		return NULL;
+	}
+
+	if (   !(item->syntax = ast_str_create(128))
+		|| !(item->seealso = ast_str_create(128))
+		|| !(item->arguments = ast_str_create(128))
+		|| !(item->synopsis = ast_str_create(128))
+		|| !(item->description = ast_str_create(128))) {
+		ast_log(AST_LOG_ERROR, "Failed to allocate strings for ast_xml_doc_item instance\n");
+		goto ast_xml_doc_item_failure;
+	}
+
+	if (ast_string_field_init(item, 64)) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize string field for ast_xml_doc_item instance\n");
+		goto ast_xml_doc_item_failure;
+	}
+	ast_string_field_set(item, name, name);
+	ast_string_field_set(item, type, type);
+
+	return item;
+
+ast_xml_doc_item_failure:
+	ao2_ref(item, -1);
+	return NULL;
+}
+
+/*! \internal
+ * \brief ao2 item hash function for ast_xml_doc_item
+ * \since 11
+ */
+static int ast_xml_doc_item_hash(const void *obj, const int flags)
+{
+	const struct ast_xml_doc_item *item = obj;
+	const char *name = (flags & OBJ_KEY) ? obj : item->name;
+	return ast_str_case_hash(name);
+}
+
+/*! \internal
+ * \brief ao2 item comparison function for ast_xml_doc_item
+ * \since 11
+ */
+static int ast_xml_doc_item_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_xml_doc_item *left = obj;
+	struct ast_xml_doc_item *right = arg;
+	const char *match = (flags & OBJ_KEY) ? arg : right->name;
+	return strcasecmp(left->name, match) ? 0 : (CMP_MATCH | CMP_STOP);
+}
+
+/* \internal
+ * \brief Build an XML documentation item
+ * \param node The root node for the item
+ * \param name The name of the item
+ * \param type The item's source type
+ *
+ * \returns NULL on failure
+ * \returns An ao2 ref counted object
+ * \since 11
+ */
+static struct ast_xml_doc_item *xmldoc_build_documentation_item(struct ast_xml_node *node, const char *name, const char *type)
+{
+	struct ast_xml_doc_item *item;
+	char *syntax;
+	char *seealso;
+	char *arguments;
+	char *synopsis;
+	char *description;
+
+	if (!(item = ast_xml_doc_item_alloc(name, type))) {
+		return NULL;
+	}
+
+	syntax = _ast_xmldoc_build_syntax(node, type, name);
+	seealso = _ast_xmldoc_build_seealso(node);
+	arguments = _ast_xmldoc_build_arguments(node);
+	synopsis = _ast_xmldoc_build_synopsis(node);
+	description = _ast_xmldoc_build_description(node);
+
+	if (syntax) {
+		ast_str_set(&item->syntax, 0, "%s", syntax);
+	}
+	if (seealso) {
+		ast_str_set(&item->seealso, 0, "%s", seealso);
+	}
+	if (arguments) {
+		ast_str_set(&item->arguments, 0, "%s", arguments);
+	}
+	if (synopsis) {
+		ast_str_set(&item->synopsis, 0, "%s", synopsis);
+	}
+	if (description) {
+		ast_str_set(&item->description, 0, "%s", description);
+	}
+
+	ast_free(syntax);
+	ast_free(seealso);
+	ast_free(arguments);
+	ast_free(synopsis);
+	ast_free(description);
+
+	return item;
+}
+
+struct ao2_container *ast_xmldoc_build_documentation(const char *type)
+{
+	struct ao2_container *docs;
+	struct ast_xml_doc_item *item = NULL, *root = NULL;
+	struct ast_xml_node *node = NULL, *instance = NULL;
+	struct documentation_tree *doctree;
+	const char *name;
+
+	if (!(docs = ao2_container_alloc(127, ast_xml_doc_item_hash, ast_xml_doc_item_cmp))) {
+		ast_log(AST_LOG_ERROR, "Failed to create container for xml document item instances\n");
+		return NULL;
+	}
+
+	AST_RWLIST_RDLOCK(&xmldoc_tree);
+	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
+		/* the core xml documents have priority over thirdparty document. */
+		node = ast_xml_get_root(doctree->doc);
+		if (!node) {
+			break;
+		}
+
+		for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+			/* Ignore empty nodes or nodes that aren't of the type requested */
+			if (!ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), type)) {
+				continue;
+			}
+			name = ast_xml_get_attribute(node, "name");
+
+			switch (xmldoc_get_syntax_type(type)) {
+			case MANAGER_EVENT_SYNTAX:
+				for (instance = ast_xml_node_get_children(node); instance; instance = ast_xml_node_get_next(instance)) {
+					struct ast_xml_doc_item *temp;
+					if (!ast_xml_node_get_children(instance) || strcasecmp(ast_xml_node_get_name(instance), "managerEventInstance")) {
+						continue;
+					}
+					temp = xmldoc_build_documentation_item(instance, name, type);
+					if (!temp) {
+						break;
+					}
+					if (!item) {
+						item = temp;
+						root = item;
+					} else {
+						item->next = temp;
+						item = temp;
+					}
+				}
+				item = root;
+				break;
+			default:
+				item = xmldoc_build_documentation_item(node, name, type);
+			}
+
+			if (item) {
+				ao2_link(docs, item);
+				item = NULL;
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	return docs;
 }
 
 #if !defined(HAVE_GLOB_NOMAGIC) || !defined(HAVE_GLOB_BRACE) || defined(DEBUG_NONGNU)

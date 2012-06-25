@@ -247,6 +247,14 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		pbx_builtin_setvar_helper(chan, var, value);
 	}
 
+	/*** DOCUMENTATION
+	<managerEventInstance>
+		<synopsis>Raised when a LOCAL channel variable is set due to a subroutine call.</synopsis>
+		<see-also>
+			<ref type="application">GoSub</ref>
+		</see-also>
+	</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
 		"Channel: %s\r\n"
 		"Variable: LOCAL(%s)\r\n"

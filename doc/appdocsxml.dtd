@@ -1,4 +1,4 @@
-  <!ELEMENT docs (application|function|agi|manager)*>
+  <!ELEMENT docs (application|function|agi|manager|managerEvent)*>
   <!ATTLIST docs xmlns:xi CDATA #FIXED "http://www.w3.org/2001/XInclude">
 
   <!ELEMENT xi:include (xi:fallback?) >
@@ -29,10 +29,17 @@
   <!ATTLIST manager name CDATA #REQUIRED>
   <!ATTLIST manager language CDATA #REQUIRED>
 
+  <!ELEMENT managerEvent (managerEventInstance+)>
+  <!ATTLIST managerEvent name CDATA #REQUIRED>
+  <!ATTLIST managerEvent language CDATA #REQUIRED>
+
+  <!ELEMENT managerEventInstance (synopsis?,syntax?,description?,see-also?)*>
+  <!ATTLIST managerEventInstance class CDATA #REQUIRED>
+
   <!ELEMENT see-also (ref|xi:include)*>
 
   <!ELEMENT ref (#PCDATA)>
-  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi) #REQUIRED>
+  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|managerEvent) #REQUIRED>
 
   <!ELEMENT synopsis (#PCDATA)>
 

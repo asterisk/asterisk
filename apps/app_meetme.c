@@ -1845,6 +1845,17 @@ static int conf_free(struct ast_conference *conf)
 	struct announce_listitem *item;
 	
 	AST_LIST_REMOVE(&confs, conf, list);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a MeetMe conference ends.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">MeetmeJoin</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "MeetmeEnd", "Meetme: %s\r\n", conf->confno);
 
 	if (conf->recording == MEETME_RECORD_ACTIVE) {
@@ -2179,13 +2190,30 @@ static int can_write(struct ast_channel *chan, struct ast_flags64 *confflags)
 
 static void send_talking_event(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a MeetMe user begins or ends talking.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Usernum'])" />
+				<parameter name="Status">
+					<enumlist>
+						<enum name="on"/>
+						<enum name="off"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalking",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
 		"Meetme: %s\r\n"
 		"Usernum: %d\r\n"
 		"Status: %s\r\n",
-		ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no, talking ? "on" : "off");
+		ast_channel_name(chan), ast_channel_uniqueid(chan),
+		conf->confno,
+		user->user_no, talking ? "on" : "off");
 }
 
 static void set_user_talking(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking, int monitor)
@@ -2777,6 +2805,23 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", ast_channel_name(chan), conf->dahdiconf);
 
 	if (!sent_event) {
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a user joins a MeetMe conference.</synopsis>
+				<syntax>
+					<parameter name="Meetme">
+						<para>The identifier for the MeetMe conference.</para>
+					</parameter>
+					<parameter name="Usernum">
+						<para>The identifier of the MeetMe user who joined.</para>
+					</parameter>
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">MeetmeLeave</ref>
+					<ref type="application">MeetMe</ref>
+				</see-also>
+			</managerEventInstance>
+		***/
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeJoin",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -3142,7 +3187,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				if (ast_test_flag64(confflags,  (CONFFLAG_MONITORTALKER | CONFFLAG_OPTIMIZETALKER))) {
 					set_user_talking(chan, conf, user, -1, ast_test_flag64(confflags, CONFFLAG_MONITORTALKER));
 				}
-
+				/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a MeetMe user is muted.</synopsis>
+					<syntax>
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Usernum'])" />
+						<parameter name="Status">
+							<enumlist>
+								<enum name="on"/>
+								<enum name="off"/>
+							</enumlist>
+						</parameter>
+					</syntax>
+				</managerEventInstance>
+				***/
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
 					"Channel: %s\r\n"
 					"Uniqueid: %s\r\n"
@@ -3160,7 +3219,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					ret = -1;
 					break;
 				}
-
+				/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a MeetMe user is unmuted.</synopsis>
+				</managerEventInstance>
+				***/
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
 					"Channel: %s\r\n"
 					"Uniqueid: %s\r\n"
@@ -3174,6 +3237,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				(user->adminflags & ADMINFLAG_T_REQUEST) && !(talkreq_manager)) {
 				talkreq_manager = 1;
 
+				/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a MeetMe user has started talking.</synopsis>
+					<syntax>
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Usernum'])" />
+						<parameter name="Status">
+							<enumlist>
+								<enum name="on"/>
+								<enum name="off"/>
+							</enumlist>
+						</parameter>
+					</syntax>
+				</managerEventInstance>
+				***/
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
 					"Channel: %s\r\n"
 					"Uniqueid: %s\r\n"
@@ -3183,10 +3261,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					ast_channel_name(chan), ast_channel_uniqueid(chan), conf->confno, user->user_no);
 			}
 
-			
 			if (!(user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
 				!(user->adminflags & ADMINFLAG_T_REQUEST) && (talkreq_manager)) {
 				talkreq_manager = 0;
+				/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a MeetMe user has finished talking.</synopsis>
+				</managerEventInstance>
+				***/
 				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
 					"Channel: %s\r\n"
 					"Uniqueid: %s\r\n"
@@ -3850,6 +3932,21 @@ bailoutandtrynormal:
 		now = ast_tvnow();
 
 		if (sent_event) {
+			/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a user leaves a MeetMe conference.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Meetme'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter[@name='Usernum'])" />
+					<parameter name="Duration">
+						<para>The length of time in seconds that the Meetme user was in the conference.</para>
+					</parameter>
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">MeetmeJoin</ref>
+				</see-also>
+			</managerEventInstance>
+			***/
 			ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeLeave",
 				"Channel: %s\r\n"
 				"Uniqueid: %s\r\n"

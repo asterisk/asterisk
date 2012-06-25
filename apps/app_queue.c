@@ -1579,6 +1579,50 @@ static int update_status(struct call_queue *q, struct member *m, const int statu
 		return 0;
 	}
 
+	/*** DOCUMENTATION
+	<managerEventInstance>
+		<synopsis>Raised when a Queue member's status has changed.</synopsis>
+		<syntax>
+			<parameter name="Queue">
+				<para>The name of the queue.</para>
+			</parameter>
+			<parameter name="Location">
+				<para>The queue member's channel technology or location.</para>
+			</parameter>
+			<parameter name="MemberName">
+				<para>The name of the queue member.</para>
+			</parameter>
+			<parameter name="StateInterface">
+				<para>Channel technology or location from which to read device state changes.</para>
+			</parameter>
+			<parameter name="Membership">
+				<enumlist>
+					<enum name="dynamic"/>
+					<enum name="realtime"/>
+					<enum name="static"/>
+				</enumlist>
+			</parameter>
+			<parameter name="Penalty">
+				<para>The penalty associated with the queue member.</para>
+			</parameter>
+			<parameter name="CallsTaken">
+				<para>The number of calls this queue member has serviced.</para>
+			</parameter>
+			<parameter name="LastCall">
+				<para>The time this member last took call, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+			</parameter>
+			<parameter name="Status">
+				<para>The status of the queue member.  This will be a device state value.</para>
+			</parameter>
+			<parameter name="Paused">
+				<enumlist>
+					<enum name="0"/>
+					<enum name="1"/>
+				</enumlist>
+			</parameter>
+		</syntax>
+	</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
 		"Queue: %s\r\n"
 		"Location: %s\r\n"
@@ -2746,6 +2790,24 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		ast_copy_string(qe->context, q->context, sizeof(qe->context));
 		q->count++;
 		res = 0;
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel joins a Queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<parameter name="Position">
+					<para>This channel's current position in the queue.</para>
+				</parameter>
+				<parameter name="Count">
+					<para>The total number of channels in the queue.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">Leave</ref>
+				<ref type="application">Queue</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
 		ast_manager_event(qe->chan, EVENT_FLAG_CALL, "Join",
 			"Channel: %s\r\n"
 			"CallerIDNum: %s\r\n"
@@ -3033,6 +3095,19 @@ static void leave_queue(struct queue_ent *qe)
 			q->count--;
 
 			/* Take us out of the queue */
+			/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a channel leaves a Queue.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Count'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Position'])" />
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">Join</ref>
+				</see-also>
+			</managerEventInstance>
+			***/
 			ast_manager_event(qe->chan, EVENT_FLAG_CALL, "Leave",
 				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\nPosition: %d\r\nUniqueid: %s\r\n",
 				ast_channel_name(qe->chan), q->name,  q->count, qe->pos, ast_channel_uniqueid(qe->chan));
@@ -3435,6 +3510,28 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 		ast_channel_lock_both(tmp->chan, qe->chan);
 
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when an Agent is notified of a member in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<parameter name="AgentCalled">
+					<para>The agent's technology or location.</para>
+				</parameter>
+				<parameter name="AgentName">
+					<para>The name of the agent.</para>
+				</parameter>
+				<parameter name="Variable" required="no" multiple="yes">
+					<para>Optional channel variables from the ChannelCalling channel</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentRingNoAnswer</ref>
+				<ref type="managerEvent">AgentComplete</ref>
+				<ref type="managerEvent">AgentConnect</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
 			"Queue: %s\r\n"
 			"AgentCalled: %s\r\n"
@@ -3644,6 +3741,21 @@ static void record_abandoned(struct queue_ent *qe)
 {
 	set_queue_variables(qe->parent, qe->chan);
 	ao2_lock(qe->parent);
+	/*** DOCUMENTATION
+	<managerEventInstance>
+		<synopsis>Raised when an caller abandons the queue.</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Position'])" />
+			<parameter name="OriginalPosition">
+				<para>The channel's original position in the queue.</para>
+			</parameter>
+			<parameter name="HoldTime">
+				<para>The time the channel was in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+			</parameter>
+		</syntax>
+	</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
 		"Queue: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -3669,14 +3781,32 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 
 	if (qe->parent->eventwhencalled) {
 		char vars[2048];
-
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when an agent is notified of a member in the queue and fails to answer.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
+				<parameter name="Member">
+					<para>The queue member's channel technology or location.</para>
+				</parameter>
+				<parameter name="RingTime">
+					<para>The time the agent was rung, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentCalled</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_AGENT, "AgentRingNoAnswer",
 						"Queue: %s\r\n"
 						"Uniqueid: %s\r\n"
 						"Channel: %s\r\n"
 						"Member: %s\r\n"
 						"MemberName: %s\r\n"
-						"Ringtime: %d\r\n"
+						"RingTime: %d\r\n"
 						"%s",
 						qe->parent->name,
 						ast_channel_uniqueid(qe->chan),
@@ -4543,6 +4673,32 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		break;
 	}
 
+	/*** DOCUMENTATION
+	<managerEventInstance>
+		<synopsis>Raised when an agent has finished servicing a member in the queue.</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
+			<parameter name="TalkTime">
+				<para>The time the agent talked with the member in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+			</parameter>
+			<parameter name="Reason">
+				<enumlist>
+					<enum name="caller"/>
+					<enum name="agent"/>
+					<enum name="transfer"/>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<see-also>
+			<ref type="managerEvent">AgentCalled</ref>
+			<ref type="managerEvent">AgentConnect</ref>
+		</see-also>
+	</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGENT, "AgentComplete",
 		"Queue: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -5086,6 +5242,21 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "AGENTDUMP", "%s", "");
 				if (qe->parent->eventwhencalled)
+					/*** DOCUMENTATION
+					<managerEventInstance>
+						<synopsis>Raised when an agent hangs up on a member in the queue.</synopsis>
+						<syntax>
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
+						</syntax>
+						<see-also>
+							<ref type="managerEvent">AgentCalled</ref>
+							<ref type="managerEvent">AgentConnect</ref>
+						</see-also>
+					</managerEventInstance>
+					***/
 					manager_event(EVENT_FLAG_AGENT, "AgentDump",
 							"Queue: %s\r\n"
 							"Uniqueid: %s\r\n"
@@ -5401,15 +5572,33 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		}
 
 		if (qe->parent->eventwhencalled)
+			/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an agent answers and is bridged to a member in the queue.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='RingTime'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">AgentCalled</ref>
+					<ref type="managerEvent">AgentComplete</ref>
+					<ref type="managerEvent">AgentDump</ref>
+				</see-also>
+			</managerEventInstance>
+			***/
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 					"Queue: %s\r\n"
 					"Uniqueid: %s\r\n"
 					"Channel: %s\r\n"
 					"Member: %s\r\n"
 					"MemberName: %s\r\n"
-					"Holdtime: %ld\r\n"
+					"HoldTime: %ld\r\n"
 					"BridgedChannel: %s\r\n"
-					"Ringtime: %ld\r\n"
+					"RingTime: %ld\r\n"
 					"%s",
 					queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
 					(long) time(NULL) - qe->start, ast_channel_uniqueid(peer), (long)(orig - to > 0 ? (orig - to) / 1000 : 0),
@@ -5609,6 +5798,20 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				queue_t_unref(q, "Interface wasn't dynamic, expiring temporary reference");
 				return RES_NOT_DYNAMIC;
 			}
+			/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a member is removed from the queue.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">QueueMemberAdded</ref>
+					<ref type="application">RemoveQueueMember</ref>
+				</see-also>
+			</managerEventInstance>
+			***/
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -5657,6 +5860,27 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 			new_member->ringinuse = q->ringinuse;
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
+			/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a member is added to the queue.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='StateInterface'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Membership'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Penalty'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='CallsTaken'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='LastCall'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Status'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">QueueMemberRemoved</ref>
+					<ref type="application">AddQueueMember</ref>
+				</see-also>
+			</managerEventInstance>
+			***/
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -5737,6 +5961,21 @@ static int set_member_paused(const char *queuename, const char *interface, const
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 
+				/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
+					<syntax>
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+					</syntax>
+					<see-also>
+						<ref type="application">PauseQueueMember</ref>
+						<ref type="application">UnPauseQueueMember</ref>
+					</see-also>
+				</managerEventInstance>
+				***/
 				if (!ast_strlen_zero(reason)) {
 					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
 						"Queue: %s\r\n"
@@ -5746,6 +5985,21 @@ static int set_member_paused(const char *queuename, const char *interface, const
 						"Reason: %s\r\n",
 							q->name, mem->interface, mem->membername, paused, reason);
 				} else {
+					/*** DOCUMENTATION
+					<managerEventInstance>
+						<synopsis>Raised when a member is paused/unpaused in the queue without a reason.</synopsis>
+						<syntax>
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+						</syntax>
+						<see-also>
+							<ref type="application">PauseQueueMember</ref>
+							<ref type="application">UnPauseQueueMember</ref>
+						</see-also>
+					</managerEventInstance>
+					***/
 					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
 						"Queue: %s\r\n"
 						"Location: %s\r\n"
@@ -5796,6 +6050,19 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
 			update_realtime_member_field(mem, q->name, "penalty", rtpenalty);
 		}
 		ast_queue_log(q->name, "NONE", interface, "PENALTY", "%d", penalty);
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a member's penalty is changed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Penalty'])" />
+			</syntax>
+			<see-also>
+				<ref type="function">QUEUE_MEMBER</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_AGENT, "QueueMemberPenalty",
 			"Queue: %s\r\n"
 			"Location: %s\r\n"
@@ -5824,6 +6091,24 @@ static int set_member_ringinuse_help_members(struct call_queue *q, const char *i
 			update_realtime_member_field(mem, q->name, realtime_ringinuse_field, rtringinuse);
 		}
 		ast_queue_log(q->name, "NONE", interface, "RINGINUSE", "%d", ringinuse);
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+				<parameter name="Ringinuse">
+					<enumlist>
+						<enum name="0"/>
+						<enum name="1"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="function">QUEUE_MEMBER</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_AGENT, "QueueMemberRinginuse",
 			"Queue: %s\r\n"
 			"Location: %s\r\n"

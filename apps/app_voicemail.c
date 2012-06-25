@@ -7753,7 +7753,30 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	queue_mwi_event(ext_context, urgentmsgs, newmsgs, oldmsgs);
 
-	ast_manager_event(chan, EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a new message has been left in a voicemail mailbox.</synopsis>
+			<syntax>
+				<parameter name="Mailbox">
+					<para>The mailbox with the new message, specified as <emphasis>mailbox</emphasis>@<emphasis>context</emphasis></para>
+				</parameter>
+				<parameter name="Waiting">
+					<para>Whether or not the mailbox has access to a voicemail application.</para>
+				</parameter>
+				<parameter name="New">
+					<para>The number of new messages.</para>
+				</parameter>
+				<parameter name="Old">
+					<para>The number of old messages.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
+	ast_manager_event(chan, EVENT_FLAG_CALL, "MessageWaiting",
+			"Mailbox: %s@%s\r\n"
+			"Waiting: %d\r\n"
+			"New: %d\r\n"
+			"Old: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox, flag);
 
 #ifdef IMAP_STORAGE
@@ -11396,6 +11419,11 @@ out:
 	if (valid) {
 		int new = 0, old = 0, urgent = 0;
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a user has finished listening to their messages.</synopsis>
+			</managerEventInstance>
+		***/
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 		/* Urgent flag not passwd to externnotify here */
 		run_externnotify(vmu->context, vmu->mailbox, NULL);

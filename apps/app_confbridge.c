@@ -529,16 +529,53 @@ static int conf_start_record(struct conference_bridge *conference_bridge)
 
 static void send_conf_start_event(const char *conf_name)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a conference starts.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>The name of the Confbridge conference.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeEnd</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "ConfbridgeStart", "Conference: %s\r\n", conf_name);
 }
 
 static void send_conf_end_event(const char *conf_name)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a conference ends.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ConfbridgeStart']/managerEventInstance/syntax/parameter[@name='Conference'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeStart</ref>
+				<ref type="application">ConfBridge</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "ConfbridgeEnd", "Conference: %s\r\n", conf_name);
 }
 
 static void send_join_event(struct ast_channel *chan, const char *conf_name)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel joins a Confbridge conference.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ConfbridgeStart']/managerEventInstance/syntax/parameter[@name='Conference'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeLeave</ref>
+				<ref type="application">ConfBridge</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "ConfbridgeJoin",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -555,6 +592,17 @@ static void send_join_event(struct ast_channel *chan, const char *conf_name)
 
 static void send_leave_event(struct ast_channel *chan, const char *conf_name)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel leaves a Confbridge conference.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ConfbridgeStart']/managerEventInstance/syntax/parameter[@name='Conference'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeJoin</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "ConfbridgeLeave",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -1242,6 +1290,20 @@ static void conf_handle_talker_cb(struct ast_bridge *bridge, struct ast_bridge_c
 	}
 
 	/* notify AMI someone is has either started or stopped talking */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a conference participant has started or stopped talking.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ConfbridgeStart']/managerEventInstance/syntax/parameter[@name='Conference'])" />
+				<parameter name="TalkingStatus">
+					<enumlist>
+						<enum name="on"/>
+						<enum name="off"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(bridge_channel->chan, EVENT_FLAG_CALL, "ConfbridgeTalking",
 	      "Channel: %s\r\n"
 	      "Uniqueid: %s\r\n"

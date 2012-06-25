@@ -12,6 +12,14 @@
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 
+Build System
+----
+ * A new make target, 'full', has been added to the Makefile.  This performs
+   the same compilation actions as make all, but will also scan the entirety of
+   each source file for documentation.  This option is needed to generate AMI
+   event documentation.  Note that your system must have Python in order for
+   this make target to succeed.
+
 Core
 ----
  * The expression parser now recognizes the ABS() absolute value function,
@@ -201,6 +209,13 @@ AMI (Asterisk Manager Interface) changes
    the manager will send you a list of channels back that were hung up.
 
  * Support for IPv6 addresses has been added.
+
+ * AMI Events can now be documented in the Asterisk source.  Two new CLI
+   commands have been added to display information about AMI events at run time:
+   manager show events, which shows a list of all known and documented AMI
+   events, and manager show event [event name], which shows detail information
+   about a specific AMI event.  Note that AMI event documentation is only
+   generated when Asterisk is compiled using 'make full'.
 
 FAX changes
 -----------

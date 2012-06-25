@@ -22,6 +22,8 @@
  */
 
 #include "asterisk/xml.h"
+#include "asterisk/stringfields.h"
+#include "asterisk/strings.h"
 
 /*! \brief From where the documentation come from, this structure is useful for
  *  use it inside application/functions/manager actions structure. */
@@ -31,6 +33,38 @@ enum ast_doc_src {
 };
 
 #ifdef AST_XML_DOCS
+
+struct ao2_container;
+
+/*! \brief Struct that contains the XML documentation for a particular item.  Note
+ * that this is an ao2 ref counted object.
+ *
+ * \note
+ * Each of the ast_str objects are built from the corresponding ast_xmldoc_build_*
+ * calls
+ *
+ * \since 11
+ */
+struct ast_xml_doc_item {
+	/*! The syntax of the item */
+	struct ast_str *syntax;
+	/*! Seealso tagged information, if it exists */
+	struct ast_str *seealso;
+	/*! The arguments to the item */
+	struct ast_str *arguments;
+	/*! A synopsis of the item */
+	struct ast_str *synopsis;
+	/*! A description of the item */
+	struct ast_str *description;
+	AST_DECLARE_STRING_FIELDS(
+		/*! The name of the item */
+		AST_STRING_FIELD(name);
+		/*! The type of the item */
+		AST_STRING_FIELD(type);
+	);
+	/*! The next XML documentation item that matches the same name/item type */
+	struct ast_xml_doc_item *next;
+};
 
 /*!
  *  \brief Get the syntax for a specified application or function.
@@ -91,6 +125,18 @@ char *ast_xmldoc_build_synopsis(const char *type, const char *name, const char *
  *  \retval A malloc'ed string with the formatted description.
  */
 char *ast_xmldoc_build_description(const char *type, const char *name, const char *module);
+
+/*!
+ *  \brief Build the documentation for a particular source type
+ *  \param type The source of the documentation items (application, function, etc.)
+ *
+ *  \retval NULL on error
+ *  \retval An ao2_container populated with ast_xml_doc instances for each item
+ *  that exists for the specified source type
+ *
+ *  \since 11
+ */
+struct ao2_container *ast_xmldoc_build_documentation(const char *type);
 
 #endif /* AST_XML_DOCS */
 

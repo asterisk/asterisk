@@ -1104,6 +1104,9 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 /*! \brief list of hooks registered */
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
+/*! \brief A container of event documentation nodes */
+AO2_GLOBAL_OBJ_STATIC(event_docs);
+
 static void free_channelvars(void);
 
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
@@ -6800,6 +6803,170 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	return CLI_SUCCESS;
 }
 
+#ifdef AST_XML_DOCS
+
+static int ast_xml_doc_item_cmp_fn(const void *a, const void *b)
+{
+	struct ast_xml_doc_item **item_a = (struct ast_xml_doc_item **)a;
+	struct ast_xml_doc_item **item_b = (struct ast_xml_doc_item **)b;
+	return strcmp((*item_a)->name, (*item_b)->name);
+}
+
+static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_container *events;
+	struct ao2_iterator *it_events;
+	struct ast_xml_doc_item *item;
+	struct ast_xml_doc_item **items;
+	struct ast_str *buffer;
+	int i = 0, totalitems = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show events";
+		e->usage =
+			"Usage: manager show events\n"
+				"	Prints a listing of the available Asterisk manager interface events.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	buffer = ast_str_create(128);
+	if (!buffer) {
+		return CLI_SUCCESS;
+	}
+
+	events = ao2_global_obj_ref(event_docs);
+	if (!events) {
+		ast_cli(a->fd, "No manager event documentation loaded\n");
+		ast_free(buffer);
+		return CLI_SUCCESS;
+	}
+
+	ao2_lock(events);
+	if (!(it_events = ao2_callback(events, OBJ_MULTIPLE | OBJ_NOLOCK, NULL, NULL))) {
+		ao2_unlock(events);
+		ast_log(AST_LOG_ERROR, "Unable to create iterator for events container\n");
+		ast_free(buffer);
+		ao2_ref(events, -1);
+		return CLI_SUCCESS;
+	}
+	if (!(items = ast_calloc(sizeof(struct ast_xml_doc_item *), ao2_container_count(events)))) {
+		ao2_unlock(events);
+		ast_log(AST_LOG_ERROR, "Unable to create temporary sorting array for events\n");
+		ao2_iterator_destroy(it_events);
+		ast_free(buffer);
+		ao2_ref(events, -1);
+		return CLI_SUCCESS;
+	}
+	ao2_unlock(events);
+
+	while ((item = ao2_iterator_next(it_events))) {
+		items[totalitems++] = item;
+		ao2_ref(item, -1);
+	}
+
+	qsort(items, totalitems, sizeof(struct ast_xml_doc_item *), ast_xml_doc_item_cmp_fn);
+
+	ast_cli(a->fd, "Events:\n");
+	ast_cli(a->fd, "  --------------------  --------------------  --------------------  \n");
+	for (i = 0; i < totalitems; i++) {
+		ast_str_append(&buffer, 0, "  %-20.20s", items[i]->name);
+		if ((i + 1) % 3 == 0) {
+			ast_cli(a->fd, "%s\n", ast_str_buffer(buffer));
+			ast_str_set(&buffer, 0, "%s", "");
+		}
+	}
+	if ((i + 1) % 3 != 0) {
+		ast_cli(a->fd, "%s\n", ast_str_buffer(buffer));
+	}
+
+	ao2_iterator_destroy(it_events);
+	ast_free(items);
+	ao2_ref(events, -1);
+	ast_free(buffer);
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_container *events;
+	struct ast_xml_doc_item *item, *temp;
+	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show event";
+		e->usage =
+			"Usage: manager show event <eventname>\n"
+			"       Provides a detailed description a Manager interface event.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	events = ao2_global_obj_ref(event_docs);
+	if (!events) {
+		ast_cli(a->fd, "No manager event documentation loaded\n");
+		return CLI_SUCCESS;
+	}
+
+	if (!(item = ao2_find(events, a->argv[3], OBJ_KEY))) {
+		ast_cli(a->fd, "Could not find event '%s'\n", a->argv[3]);
+		ao2_ref(events, -1);
+		return CLI_SUCCESS;
+	}
+
+	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+
+	ast_cli(a->fd, "Event: %s\n", a->argv[3]);
+	for (temp = item; temp; temp = temp->next) {
+		if (!ast_strlen_zero(ast_str_buffer(temp->synopsis))) {
+			ast_cli(a->fd, "%s%s\n\n",
+				synopsis_title,
+				ast_xmldoc_printable(ast_str_buffer(temp->synopsis), 1));
+		}
+		if (!ast_strlen_zero(ast_str_buffer(temp->syntax))) {
+			ast_cli(a->fd, "%s%s\n\n",
+				syntax_title,
+				ast_xmldoc_printable(ast_str_buffer(temp->syntax), 1));
+		}
+		if (!ast_strlen_zero(ast_str_buffer(temp->description))) {
+			ast_cli(a->fd, "%s%s\n\n",
+				description_title,
+				ast_xmldoc_printable(ast_str_buffer(temp->description), 1));
+		}
+		if (!ast_strlen_zero(ast_str_buffer(temp->arguments))) {
+			ast_cli(a->fd, "%s%s\n\n",
+				arguments_title,
+				ast_xmldoc_printable(ast_str_buffer(temp->arguments), 1));
+		}
+		if (!ast_strlen_zero(ast_str_buffer(temp->seealso))) {
+			ast_cli(a->fd, "%s%s\n\n",
+				seealso_title,
+				ast_xmldoc_printable(ast_str_buffer(temp->seealso), 1));
+		}
+	}
+
+	ao2_ref(item, -1);
+	ao2_ref(events, -1);
+	return CLI_SUCCESS;
+}
+
+#endif
+
 static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
 	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
@@ -6810,6 +6977,10 @@ static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
 	AST_CLI_DEFINE(handle_manager_reload, "Reload manager configurations"),
 	AST_CLI_DEFINE(handle_manager_show_settings, "Show manager global settings"),
+#ifdef AST_XML_DOCS
+	AST_CLI_DEFINE(handle_manager_show_events, "List manager interface events"),
+	AST_CLI_DEFINE(handle_manager_show_event, "Show a manager interface event"),
+#endif
 };
 
 /*!
@@ -6852,6 +7023,9 @@ static void load_channelvars(struct ast_variable *var)
 static int __init_manager(int reload)
 {
 	struct ast_config *ucfg = NULL, *cfg = NULL;
+#ifdef AST_XML_DOCS
+	struct ao2_container *temp_event_docs;
+#endif
 	const char *val;
 	char *cat = NULL;
 	int newhttptimeout = 60;
@@ -6910,6 +7084,17 @@ static int __init_manager(int reload)
 		/* Append placeholder event so master_eventq never runs dry */
 		append_event("Event: Placeholder\r\n\r\n", 0);
 	}
+
+#ifdef AST_XML_DOCS
+	temp_event_docs = ast_xmldoc_build_documentation("managerEvent");
+	if (temp_event_docs) {
+		temp_event_docs = ao2_global_obj_replace(event_docs, temp_event_docs);
+		if (temp_event_docs) {
+			ao2_ref(temp_event_docs, -1);
+		}
+	}
+#endif
+
 	if ((cfg = ast_config_load2("manager.conf", "manager", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	}
