@@ -6896,27 +6896,46 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_container *events;
+	struct ao2_iterator it_events;
 	struct ast_xml_doc_item *item, *temp;
+	int length;
+	int which;
+	char *match = NULL;
 	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
 
-	switch (cmd) {
-	case CLI_INIT:
+	if (cmd == CLI_INIT) {
 		e->command = "manager show event";
 		e->usage =
 			"Usage: manager show event <eventname>\n"
 			"       Provides a detailed description a Manager interface event.\n";
 		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc != 4) {
-		return CLI_SHOWUSAGE;
 	}
 
 	events = ao2_global_obj_ref(event_docs);
 	if (!events) {
 		ast_cli(a->fd, "No manager event documentation loaded\n");
 		return CLI_SUCCESS;
+	}
+
+	if (cmd == CLI_GENERATE) {
+		length = strlen(a->word);
+		which = 0;
+		it_events = ao2_iterator_init(events, 0);
+		while ((item = ao2_iterator_next(&it_events))) {
+			if (!strncasecmp(a->word, item->name, length) && ++which > a->n) {
+				match = ast_strdup(item->name);
+				ao2_ref(item, -1);
+				break;
+			}
+			ao2_ref(item, -1);
+		}
+		ao2_iterator_destroy(&it_events);
+		ao2_ref(events, -1);
+		return match;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
 	}
 
 	if (!(item = ao2_find(events, a->argv[3], OBJ_KEY))) {
