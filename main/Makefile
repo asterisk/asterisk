@@ -29,9 +29,6 @@ OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 # otherwise modules will not have them available if none of the static
 # objects use it.
 OBJS+=stdtime/localtime.o
-ifneq ($(firstword $(subst :, ,$(WEAKREF))),1)
-OBJS+=../res/res_adsi.o
-endif
 
 ASTSSL_LIBS:=$(OPENSSL_LIB)
 AST_LIBS+=$(BKTR_LIB)

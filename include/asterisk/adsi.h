@@ -24,7 +24,6 @@
 #define _ASTERISK_ADSI_H
 
 #include "asterisk/callerid.h"
-#include "asterisk/optional_api.h"
 
 /*! \name ADSI parameters */
 /*@{ */
@@ -121,11 +120,13 @@
 #define ADSI_DIR_FROM_LEFT (0)
 #define ADSI_DIR_FROM_RIGHT (1)
 
+#define AST_ADSI_VERSION 1
+
 /*@} */
 
-AST_OPTIONAL_API(int, ast_adsi_begin_download, (struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version), { return 0; });
+int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
 
-AST_OPTIONAL_API(int, ast_adsi_end_download, (struct ast_channel *chan), { return 0; });
+int ast_adsi_end_download(struct ast_channel *chan);
 
 /*! Restore ADSI initialization (for applications that play with ADSI
  *   and want to restore it to normal.  If you touch "INFO" then you
@@ -135,7 +136,7 @@ AST_OPTIONAL_API(int, ast_adsi_end_download, (struct ast_channel *chan), { retur
  * \retval 0 on success (or adsi unavailable)
  * \retval -1 on hangup
  */
-AST_OPTIONAL_API(int, ast_adsi_channel_restore, (struct ast_channel *chan), { return 0; });
+int ast_adsi_channel_restore(struct ast_channel *chan);
 
 /*!
  * \brief Display some stuff on the screen
@@ -147,7 +148,7 @@ AST_OPTIONAL_API(int, ast_adsi_channel_restore, (struct ast_channel *chan), { re
  * \retval 0 on success (or adsi unavailable)
  * \retval -1 on hangup
  */
-AST_OPTIONAL_API(int, ast_adsi_print, (struct ast_channel *chan, char **lines, int *align, int voice), { return 0; });
+int ast_adsi_print(struct ast_channel *chan, char **lines, int *align, int voice);
 
 /*!
  * \brief Check if scripts for a given app are already loaded.
@@ -161,16 +162,16 @@ AST_OPTIONAL_API(int, ast_adsi_print, (struct ast_channel *chan, char **lines, i
  * \retval -1 on hangup
  * \retval 1 if script already loaded.
  */
-AST_OPTIONAL_API(int, ast_adsi_load_session, (struct ast_channel *chan, unsigned char *app, int ver, int data), { return 0; });
-AST_OPTIONAL_API(int, ast_adsi_unload_session, (struct ast_channel *chan), { return 0; });
+int ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data);
+int ast_adsi_unload_session(struct ast_channel *chan);
 
 /* ADSI Layer 2 transmission functions */
-AST_OPTIONAL_API(int, ast_adsi_transmit_message, (struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype), { return 0; });
-AST_OPTIONAL_API(int, ast_adsi_transmit_message_full, (struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait), { return 0; });
+int ast_adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype);
+int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait);
 /*! Read some encoded DTMF data.
  * Returns number of bytes received
  */
-AST_OPTIONAL_API(int, ast_adsi_read_encoded_dtmf, (struct ast_channel *chan, unsigned char *buf, int maxlen), { return 0; });
+int ast_adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen);
 
 /* ADSI Layer 3 creation functions */
 
@@ -184,22 +185,22 @@ AST_OPTIONAL_API(int, ast_adsi_read_encoded_dtmf, (struct ast_channel *chan, uns
  * \retval -1 on error.
  */
 
-AST_OPTIONAL_API(int, ast_adsi_connect_session, (unsigned char *buf, unsigned char *fdn, int ver), { return 0; });
+int ast_adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver);
 
 /*! Build Query CPE ID of equipment.
  *  Returns number of bytes added to message
  */
-AST_OPTIONAL_API(int, ast_adsi_query_cpeid, (unsigned char *buf), { return 0; });
-AST_OPTIONAL_API(int, ast_adsi_query_cpeinfo, (unsigned char *buf), { return 0; });
+int ast_adsi_query_cpeid(unsigned char *buf);
+int ast_adsi_query_cpeinfo(unsigned char *buf);
 
 /*! Get CPE ID from an attached ADSI compatible CPE.
  * Returns 1 on success, storing 4 bytes of CPE ID at buf
  * or -1 on hangup, or 0 if there was no hangup but it failed to find the
  * device ID.  Returns to voice mode if "voice" is non-zero.
  */
-AST_OPTIONAL_API(int, ast_adsi_get_cpeid, (struct ast_channel *chan, unsigned char *cpeid, int voice), { return 0; });
+int ast_adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice);
 
-AST_OPTIONAL_API(int, ast_adsi_get_cpeinfo, (struct ast_channel *chan, int *width, int *height, int *buttons, int voice), { return 0; });
+int ast_adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice);
 
 /*!
  * \brief Begin an ADSI script download
@@ -213,7 +214,7 @@ AST_OPTIONAL_API(int, ast_adsi_get_cpeinfo, (struct ast_channel *chan, int *widt
  * \retval -1 on error.
  */
 
-AST_OPTIONAL_API(int, ast_adsi_download_connect, (unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver), { return 0; });
+int ast_adsi_download_connect(unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver);
 
 /*!
  * \brief Disconnects a running session.
@@ -222,7 +223,7 @@ AST_OPTIONAL_API(int, ast_adsi_download_connect, (unsigned char *buf, char *serv
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_disconnect_session, (unsigned char *buf), { return 0; });
+int ast_adsi_disconnect_session(unsigned char *buf);
 
 /*!
  * \brief Disconnects (and hopefully saves) a downloaded script
@@ -231,7 +232,7 @@ AST_OPTIONAL_API(int, ast_adsi_disconnect_session, (unsigned char *buf), { retur
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_download_disconnect, (unsigned char *buf), { return 0; });
+int ast_adsi_download_disconnect(unsigned char *buf);
 
 /*!
  * \brief Puts CPE in data mode.
@@ -240,9 +241,9 @@ AST_OPTIONAL_API(int, ast_adsi_download_disconnect, (unsigned char *buf), { retu
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_data_mode, (unsigned char *buf), { return 0; });
-AST_OPTIONAL_API(int, ast_adsi_clear_soft_keys, (unsigned char *buf), { return 0; });
-AST_OPTIONAL_API(int, ast_adsi_clear_screen, (unsigned char *buf), { return 0; });
+int ast_adsi_data_mode(unsigned char *buf);
+int ast_adsi_clear_soft_keys(unsigned char *buf);
+int ast_adsi_clear_screen(unsigned char *buf);
 
 /*!
  * \brief Puts CPE in voice mode.
@@ -252,13 +253,13 @@ AST_OPTIONAL_API(int, ast_adsi_clear_screen, (unsigned char *buf), { return 0; }
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_voice_mode, (unsigned char *buf, int when), { return 0; });
+int ast_adsi_voice_mode(unsigned char *buf, int when);
 
 /*!
  * \brief Returns non-zero if Channel does or might support ADSI
  * \param chan Channel to check
  */
-AST_OPTIONAL_API(int, ast_adsi_available, (struct ast_channel *chan), { return 0; });
+int ast_adsi_available(struct ast_channel *chan);
 
 /*!
  * \brief Loads a line of info into the display.
@@ -274,7 +275,7 @@ AST_OPTIONAL_API(int, ast_adsi_available, (struct ast_channel *chan), { return 0
  * \retval -1 on error.
  */
 
-AST_OPTIONAL_API(int, ast_adsi_display, (unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2), { return 0; });
+int ast_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
 
 /*!
  * \brief Sets the current line and page.
@@ -286,7 +287,7 @@ AST_OPTIONAL_API(int, ast_adsi_display, (unsigned char *buf, int page, int line,
  * \retval -1 on error.
  */
 
-AST_OPTIONAL_API(int, ast_adsi_set_line, (unsigned char *buf, int page, int line), { return 0; });
+int ast_adsi_set_line(unsigned char *buf, int page, int line);
 
 /*!
  * \brief Creates "load soft key" parameters
@@ -300,7 +301,7 @@ AST_OPTIONAL_API(int, ast_adsi_set_line, (unsigned char *buf, int page, int line
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_load_soft_key, (unsigned char *buf, int key, const char *llabel, const char *slabel, char *ret, int data), { return 0; });
+int ast_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, char *ret, int data);
 
 /*!
  * \brief Set which soft keys should be displayed
@@ -311,7 +312,7 @@ AST_OPTIONAL_API(int, ast_adsi_load_soft_key, (unsigned char *buf, int key, cons
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_set_keys, (unsigned char *buf, unsigned char *keys), { return 0; });
+int ast_adsi_set_keys(unsigned char *buf, unsigned char *keys);
 
 /*!
  * \brief Set input information
@@ -325,7 +326,7 @@ AST_OPTIONAL_API(int, ast_adsi_set_keys, (unsigned char *buf, unsigned char *key
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_input_control, (unsigned char *buf, int page, int line, int display, int format, int just), { return 0; });
+int ast_adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just);
 
 /*!
  * \brief Set input format
@@ -339,7 +340,41 @@ AST_OPTIONAL_API(int, ast_adsi_input_control, (unsigned char *buf, int page, int
  * \retval number of bytes added to buffer
  * \retval -1 on error.
  */
-AST_OPTIONAL_API(int, ast_adsi_input_format, (unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2), { return 0; });
+int ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
+
+struct adsi_funcs {
+	unsigned int version;
+	int (*begin_download)(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
+	int (*end_download)(struct ast_channel *chan);
+	int (*channel_restore) (struct ast_channel *chan);
+	int (*print) (struct ast_channel *chan, char **lines, int *align, int voice);
+	int (*load_session) (struct ast_channel *chan, unsigned char *app, int ver, int data);
+	int (*unload_session) (struct ast_channel *chan);
+	int (*transmit_message) (struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype);
+	int (*transmit_message_full) (struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait);
+	int (*read_encoded_dtmf) (struct ast_channel *chan, unsigned char *buf, int maxlen);
+	int (*connect_session) (unsigned char *buf, unsigned char *fdn, int ver);
+	int (*query_cpeid) (unsigned char *buf);
+	int (*query_cpeinfo) (unsigned char *buf);
+	int (*get_cpeid) (struct ast_channel *chan, unsigned char *cpeid, int voice);
+	int (*get_cpeinfo) (struct ast_channel *chan, int *width, int *height, int *buttons, int voice);
+	int (*download_connect) (unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver);
+	int (*disconnect_session) (unsigned char *buf);
+	int (*download_disconnect) (unsigned char *buf);
+	int (*data_mode) (unsigned char *buf);
+	int (*clear_soft_keys) (unsigned char *buf);
+	int (*clear_screen) (unsigned char *buf);
+	int (*voice_mode) (unsigned char *buf, int when);
+	int (*available) (struct ast_channel *chan);
+	int (*display) (unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
+	int (*set_line) (unsigned char *buf, int page, int line);
+	int (*load_soft_key) (unsigned char *buf, int key, const char *llabel, const char *slabel, char *ret, int data);
+	int (*set_keys) (unsigned char *buf, unsigned char *keys);
+	int (*input_control) (unsigned char *buf, int page, int line, int display, int format, int just);
+	int (*input_format) (unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
+};
+
+void ast_adsi_install_funcs(const struct adsi_funcs *funcs);
 
 #endif /* _ASTERISK_ADSI_H */
 
