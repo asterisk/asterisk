@@ -293,9 +293,9 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		cdr_get_tv(cdr->answer, raw ? NULL : fmt, workspace, workspacelen);
 	else if (!strcasecmp(name, "end"))
 		cdr_get_tv(cdr->end, raw ? NULL : fmt, workspace, workspacelen);
-	else if (!strcasecmp(name, "duration"))
-		snprintf(workspace, workspacelen, "%ld", cdr->duration ? cdr->duration : (long)ast_tvdiff_ms(ast_tvnow(), cdr->start) / 1000);
-	else if (!strcasecmp(name, "billsec"))
+	else if (!strcasecmp(name, "duration")) {
+		snprintf(workspace, workspacelen, "%ld", cdr->end.tv_sec != 0 ? cdr->duration : (long)ast_tvdiff_ms(ast_tvnow(), cdr->start) / 1000);
+	} else if (!strcasecmp(name, "billsec"))
 		snprintf(workspace, workspacelen, "%ld", cdr->billsec || cdr->answer.tv_sec == 0 ? cdr->billsec : (long)ast_tvdiff_ms(ast_tvnow(), cdr->answer) / 1000);
 	else if (!strcasecmp(name, "disposition")) {
 		if (raw) {
