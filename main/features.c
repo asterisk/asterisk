@@ -7138,8 +7138,15 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
  */
 static int do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
 {
+	const char *context;
+	const char *exten;
+	int priority;
+
 	ast_moh_stop(chan);
 	ast_channel_lock_both(chan, tmpchan);
+	context = ast_strdupa(ast_channel_context(chan));
+	exten = ast_strdupa(ast_channel_exten(chan));
+	priority = ast_channel_priority(chan);
 	ast_setstate(tmpchan, ast_channel_state(chan));
 	ast_format_copy(ast_channel_readformat(tmpchan), ast_channel_readformat(chan));
 	ast_format_copy(ast_channel_writeformat(tmpchan), ast_channel_writeformat(chan));
@@ -7153,7 +7160,7 @@ static int do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tm
 	ast_do_masquerade(tmpchan);
 
 	/* when returning from bridge, the channel will continue at the next priority */
-	ast_explicit_goto(tmpchan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan) + 1);
+	ast_explicit_goto(tmpchan, context, exten, priority + 1);
 
 	return 0;
 }
