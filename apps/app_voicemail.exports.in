@@ -15,6 +15,15 @@
 		LINKER_SYMBOL_PREFIXmm_notify;
 		LINKER_SYMBOL_PREFIXmm_searched;
 		LINKER_SYMBOL_PREFIXmm_status;
+		LINKER_SYMBOL_PREFIXast_vm_mailbox_snapshot_create;
+		LINKER_SYMBOL_PREFIXast_vm_mailbox_snapshot_destroy;
+		LINKER_SYMBOL_PREFIXast_vm_msg_move;
+		LINKER_SYMBOL_PREFIXast_vm_msg_remove;
+		LINKER_SYMBOL_PREFIXast_vm_msg_forward;
+		LINKER_SYMBOL_PREFIXast_vm_index_to_foldername;
+		LINKER_SYMBOL_PREFIXast_vm_msg_play;
+		LINKER_SYMBOL_PREFIXast_vm_test_create_user;
+		LINKER_SYMBOL_PREFIXast_vm_test_destroy_user;
 	local:
 		*;
 };

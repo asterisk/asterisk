@@ -1203,7 +1203,6 @@ static const struct ast_value_translation redirecting_reason_types[] = {
 	{ AST_REDIRECTING_REASON_OUT_OF_ORDER,   "out_of_order", "Called DTE Out-Of-Order" },
 	{ AST_REDIRECTING_REASON_AWAY,           "away",         "Callee is Away" },
 	{ AST_REDIRECTING_REASON_CALL_FWD_DTE,   "cf_dte",       "Call Forwarding By The Called DTE" },
-	{ AST_REDIRECTING_REASON_SEND_TO_VM,     "send_to_vm",   "Call is being redirected to user's voicemail"},
 /* *INDENT-ON* */
 };
 

@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
+#include "asterisk/app_voicemail.h"
 
 /*! \internal \brief Permissions to set on the voicemail directories we create
  * - taken from app_voicemail */
@@ -127,6 +128,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			VM_API_STRING_FIELD_VERIFY((expected)->origtime, msg->origtime); \
 			VM_API_STRING_FIELD_VERIFY((expected)->duration, msg->duration); \
 			VM_API_STRING_FIELD_VERIFY((expected)->folder_name, msg->folder_name); \
+			/* We are currently not going to check folder_dir, since its never written out. */ \
+			/* VM_API_STRING_FIELD_VERIFY((expected)->folder_dir, msg->folder_dir); \ */ \
 			VM_API_STRING_FIELD_VERIFY((expected)->flag, msg->flag); \
 			VM_API_INT_VERIFY((expected)->msg_number, msg->msg_number); \
 			break; \
@@ -315,13 +318,13 @@ static struct ast_vm_msg_snapshot *test_vm_api_create_mock_snapshot(const char *
  * \returns 0 on success
  * \returns 1 on failure
  */
-static int test_vm_api_create_voicemail_folder(const char *folder_path)
+static int test_vm_api_create_voicemail_folder(struct ast_vm_msg_snapshot *snapshot)
 {
 	mode_t mode = VOICEMAIL_DIR_MODE;
 	int res;
 
-	if ((res = ast_mkdir(folder_path, mode))) {
-		ast_log(AST_LOG_ERROR, "ast_mkdir '%s' failed: %s\n", folder_path, strerror(res));
+	if ((res = ast_mkdir(snapshot->folder_dir, mode))) {
+		ast_log(AST_LOG_ERROR, "ast_mkdir '%s' failed: %s\n", snapshot->folder_dir, strerror(res));
 		return 1;
 	}
 	return 0;
@@ -350,23 +353,24 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 	 */
 	snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
 		ast_config_AST_SPOOL_DIR, context, mailbox, snapshot->folder_name);
+	ast_string_field_set(snapshot, folder_dir, folder_path);
 	snprintf(msg_path, sizeof(msg_path), "%s/msg%04d.txt",
-		folder_path, snapshot->msg_number);
+		snapshot->folder_dir, snapshot->msg_number);
 	snprintf(snd_path, sizeof(snd_path), "%s/msg%04d.gsm",
-		folder_path, snapshot->msg_number);
+		snapshot->folder_dir, snapshot->msg_number);
 	snprintf(beep_path, sizeof(beep_path), "%s/sounds/en/beep.gsm", ast_config_AST_VAR_DIR);
 
-	if (test_vm_api_create_voicemail_folder(folder_path)) {
+	if (test_vm_api_create_voicemail_folder(snapshot)) {
 		return 1;
 	}
 
-	if (ast_lock_path(folder_path) == AST_LOCK_FAILURE) {
-		ast_log(AST_LOG_ERROR, "Unable to lock directory %s\n", folder_path);
+	if (ast_lock_path(snapshot->folder_dir) == AST_LOCK_FAILURE) {
+		ast_log(AST_LOG_ERROR, "Unable to lock directory %s\n", snapshot->folder_dir);
 		return 1;
 	}
 
 	if (symlink(beep_path, snd_path)) {
-		ast_unlock_path(folder_path);
+		ast_unlock_path(snapshot->folder_dir);
 		ast_log(AST_LOG_ERROR, "Failed to create a symbolic link from %s to %s: %s\n",
 			beep_path, snd_path, strerror(errno));
 		return 1;
@@ -375,7 +379,7 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 	if (!(msg_file = fopen(msg_path, "w"))) {
 		/* Attempt to remove the sound file */
 		unlink(snd_path);
-		ast_unlock_path(folder_path);
+		ast_unlock_path(snapshot->folder_dir);
 		ast_log(AST_LOG_ERROR, "Failed to open %s for writing\n", msg_path);
 		return 1;
 	}
@@ -413,11 +417,11 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 	fclose(msg_file);
 
 	if (chmod(msg_path, VOICEMAIL_FILE_MODE) < 0) {
-		ast_unlock_path(folder_path);
+		ast_unlock_path(snapshot->folder_dir);
 		ast_log(AST_LOG_ERROR, "Couldn't set permissions on voicemail text file %s: %s", msg_path, strerror(errno));
 		return 1;
 	}
-	ast_unlock_path(folder_path);
+	ast_unlock_path(snapshot->folder_dir);
 
 	return 0;
 }
@@ -435,13 +439,16 @@ static void test_vm_api_remove_voicemail(struct ast_vm_msg_snapshot *snapshot)
 		return;
 	}
 
-	snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
-		ast_config_AST_SPOOL_DIR, "default", snapshot->exten, snapshot->folder_name);
+	if (ast_strlen_zero(snapshot->folder_dir)) {
+		snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
+			ast_config_AST_SPOOL_DIR, "default", snapshot->exten, snapshot->folder_name);
+		ast_string_field_set(snapshot, folder_dir, folder_path);
+	}
 
 	snprintf(msg_path, sizeof(msg_path), "%s/msg%04d.txt",
-			folder_path, snapshot->msg_number);
+			snapshot->folder_dir, snapshot->msg_number);
 	snprintf(snd_path, sizeof(snd_path), "%s/msg%04d.gsm",
-			folder_path, snapshot->msg_number);
+			snapshot->folder_dir, snapshot->msg_number);
 	unlink(msg_path);
 	unlink(snd_path);
 
@@ -618,6 +625,7 @@ static void test_vm_api_test_teardown(void)
 static void test_vm_api_update_test_snapshots(struct ast_vm_mailbox_snapshot *mailbox_snapshot)
 {
 	int i, j;
+	char folder_path[PATH_MAX];
 	struct ast_vm_msg_snapshot *msg;
 
 	for (i = 0; i < TOTAL_SNAPSHOTS; ++i) {
@@ -631,6 +639,13 @@ static void test_vm_api_update_test_snapshots(struct ast_vm_mailbox_snapshot *ma
 					ast_string_field_set(test_snapshots[i], origtime, msg->origtime);
 					ast_string_field_set(test_snapshots[i], duration, msg->duration);
 					ast_string_field_set(test_snapshots[i], folder_name, msg->folder_name);
+					/* TODO: because the folder_dir isn't updated in a snapshot, this will
+					 * always be NULL.  We need to recreate the folder path here
+					ast_string_field_set(test_snapshots[i], folder_dir, msg->folder_dir);
+					*/
+					snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
+						ast_config_AST_SPOOL_DIR, "default", test_snapshots[i]->exten, test_snapshots[i]->folder_name);
+					ast_string_field_set(test_snapshots[i], folder_dir, folder_path);
 					ast_string_field_set(test_snapshots[i], flag, msg->flag);
 					test_snapshots[i]->msg_number = msg->msg_number;
 				}
