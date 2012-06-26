@@ -1161,7 +1161,7 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 }
 
 /*! \brief Start new local channel */
-static struct ast_channel *local_new(struct local_pvt *p, int state, const char *linkedid)
+static struct ast_channel *local_new(struct local_pvt *p, int state, const char *linkedid, struct ast_callid *callid)
 {
 	struct ast_channel *tmp = NULL, *tmp2 = NULL;
 	int randnum = ast_random() & 0xffff;
@@ -1190,6 +1190,11 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 		}
 		ast_log(LOG_WARNING, "Unable to allocate channel structure(s)\n");
 		return NULL;
+	}
+
+	if (callid) {
+		ast_channel_callid_set(tmp, callid);
+		ast_channel_callid_set(tmp2, callid);
 	}
 
 	ast_channel_tech_set(tmp, &local_tech);
@@ -1233,13 +1238,15 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 {
 	struct local_pvt *p;
 	struct ast_channel *chan;
+	struct ast_callid *callid = ast_read_threadstorage_callid();
 
 	/* Allocate a new private structure and then Asterisk channel */
 	p = local_alloc(data, cap);
 	if (!p) {
-		return NULL;
+		chan = NULL;
+		goto local_request_end;
 	}
-	chan = local_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+	chan = local_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, callid);
 	if (!chan) {
 		ao2_unlink(locals, p);
 	} else if (ast_channel_cc_params_init(chan, requestor ? ast_channel_get_cc_config_params((struct ast_channel *)requestor) : NULL)) {
@@ -1251,6 +1258,12 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 		chan = NULL;
 	}
 	ao2_ref(p, -1); /* kill the ref from the alloc */
+
+local_request_end:
+
+	if (callid) {
+		ast_callid_unref(callid);
+	}
 
 	return chan;
 }

@@ -1099,7 +1099,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 }
 
 /*! \brief Create new agent channel */
-static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char *linkedid)
+static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char *linkedid, struct ast_callid *callid)
 {
 	struct ast_channel *tmp;
 #if 0
@@ -1115,6 +1115,10 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate agent channel structure\n");
 		return NULL;
+	}
+
+	if (callid) {
+		ast_channel_callid_set(tmp, callid);
 	}
 
 	ast_channel_tech_set(tmp, &agent_tech);
@@ -1329,7 +1333,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", ast_channel_name(p->owner), newlyavailable->agent);
 			/* We found a pending call, time to merge */
-			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? ast_channel_linkedid(p->owner) : NULL);
+			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? ast_channel_linkedid(p->owner) : NULL, NULL);
 			parent = p->owner;
 			p->abouttograb = 1;
 			ast_mutex_unlock(&p->lock);
@@ -1422,6 +1426,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 	int waitforagent=0;
 	int hasagent = 0;
 	struct timeval now;
+	struct ast_callid *callid = ast_read_threadstorage_callid();
 
 	s = data;
 	if ((s[0] == '@') && (sscanf(s + 1, "%30d", &groupoff) == 1)) {
@@ -1445,7 +1450,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
 				if (!p->owner && p->chan) {
 					/* Fixed agent */
-					chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+					chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, callid);
 				}
 				if (chan) {
 					ast_mutex_unlock(&p->lock);
@@ -1468,7 +1473,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */
-						chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+						chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, callid);
 					}
 					if (chan) {
 						ast_mutex_unlock(&p->lock);
@@ -1487,7 +1492,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 			ast_debug(1, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
 			p->group = groupmatch;
-			chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+			chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, callid);
 			if (!chan) 
 				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 		} else {
@@ -1496,6 +1501,10 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 	}
 	*cause = hasagent ? AST_CAUSE_BUSY : AST_CAUSE_UNREGISTERED;
 	AST_LIST_UNLOCK(&agents);
+
+	if (callid) {
+		callid = ast_callid_unref(callid);
+	}
 
 	if (chan) {
 		ast_mutex_lock(&p->lock);

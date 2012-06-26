@@ -90,6 +90,7 @@ static void *autoservice_run(void *ign)
 		int i, x = 0, ms = 50;
 		struct ast_frame *f = NULL;
 		struct ast_frame *defer_frame = NULL;
+		struct ast_callid *callid = NULL;
 
 		AST_LIST_LOCK(&aslist);
 
@@ -126,6 +127,10 @@ static void *autoservice_run(void *ign)
 		chan = ast_waitfor_n(mons, x, &ms);
 		if (!chan) {
 			continue;
+		}
+
+		if ((callid = ast_channel_callid(chan))) {
+			ast_callid_threadassoc_add(callid);
 		}
 
 		f = ast_read(chan);
@@ -167,6 +172,11 @@ static void *autoservice_run(void *ign)
 			}
 		} else if (f) {
 			ast_frfree(f);
+		}
+
+		if (callid) {
+			ast_callid_threadassoc_remove();
+			callid = ast_callid_unref(callid);
 		}
 	}
 

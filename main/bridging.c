@@ -376,6 +376,10 @@ static void *bridge_thread(void *data)
 
 	ao2_lock(bridge);
 
+	if (bridge->callid) {
+		ast_callid_threadassoc_add(bridge->callid);
+	}
+
 	ast_debug(1, "Started bridge thread for %p\n", bridge);
 
 	/* Loop around until we are told to stop */
@@ -535,6 +539,10 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 	struct ast_bridge_channel *bridge_channel = NULL;
 
 	ao2_lock(bridge);
+
+	if (bridge->callid) {
+		bridge->callid = ast_callid_unref(bridge->callid);
+	}
 
 	bridge->stop = 1;
 
@@ -931,6 +939,10 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 
 	ao2_lock(bridge_channel->bridge);
 
+	if (!bridge_channel->bridge->callid) {
+		bridge_channel->bridge->callid = ast_read_threadstorage_callid();
+	}
+
 	state = bridge_channel->state;
 
 	/* Add channel into the bridge */
@@ -1059,6 +1071,10 @@ static void bridge_channel_destroy(void *obj)
 {
 	struct ast_bridge_channel *bridge_channel = obj;
 
+	if (bridge_channel->callid) {
+		bridge_channel->callid = ast_callid_unref(bridge_channel->callid);
+	}
+
 	if (bridge_channel->bridge) {
 		ao2_ref(bridge_channel->bridge, -1);
 		bridge_channel->bridge = NULL;
@@ -1122,6 +1138,10 @@ static void *bridge_channel_thread(void *data)
 	struct ast_bridge_channel *bridge_channel = data;
 	enum ast_bridge_channel_state state;
 
+	if (bridge_channel->callid) {
+		ast_callid_threadassoc_add(bridge_channel->callid);
+	}
+
 	state = bridge_channel_join(bridge_channel);
 
 	/* If no other thread is going to take the channel then hang it up, or else we would have to service it until something else came along */
@@ -1144,6 +1164,7 @@ static void *bridge_channel_thread(void *data)
 int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup)
 {
 	struct ast_bridge_channel *bridge_channel = bridge_channel_alloc(bridge);
+
 	/* Try to allocate a structure for the bridge channel */
 	if (!(bridge_channel)) {
 		return -1;
@@ -1154,7 +1175,7 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
 	bridge_channel->allow_impart_hangup = allow_hangup;
-
+	bridge_channel->callid = ast_read_threadstorage_callid();
 
 	/* Actually create the thread that will handle the channel */
 	if (ast_pthread_create(&bridge_channel->thread, NULL, bridge_channel_thread, bridge_channel)) {

@@ -1867,6 +1867,12 @@ static void *do_idle_thread(void *v_pvt)
 	char ex[80];
 	/* Wait up to 30 seconds for an answer */
 	int newms, ms = 30000;
+	struct ast_callid *callid;
+
+	if ((callid = ast_channel_callid(chan))) {
+		ast_callid_threadassoc_add(callid);
+		callid = ast_callid_unref(callid);
+	}
 
 	ast_verb(3, "Initiating idle call on channel %s\n", ast_channel_name(chan));
 	snprintf(ex, sizeof(ex), "%d/%s", pvt->channel, pvt->pri->idledial);
@@ -1916,10 +1922,16 @@ static void *pri_ss_thread(void *data)
 	int res;
 	int len;
 	int timeout;
+	struct ast_callid *callid;
 
 	if (!chan) {
 		/* We lost the owner before we could get started. */
 		return NULL;
+	}
+
+	if ((callid = ast_channel_callid(chan))) {
+		ast_callid_threadassoc_add(callid);
+		ast_callid_unref(callid);
 	}
 
 	/*
@@ -5151,6 +5163,60 @@ static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
+/*!
+ * \internal
+ * \brief Set callid threadstorage for the pri_dchannel thread when a new call is created
+ *
+ * \return A new callid which has been bound to threadstorage. The return must be
+ *         unreffed and the threadstorage should be unbound when the pri_dchannel
+ *         primary loop wraps.
+ */
+static struct ast_callid *func_pri_dchannel_new_callid(void)
+{
+	struct ast_callid *callid = ast_create_callid();
+
+	if (callid) {
+		ast_callid_threadassoc_add(callid);
+	}
+
+	return callid;
+}
+
+/*!
+ * \internal
+ * \brief Set callid threadstorage for the pri_dchannel thread to that of an existing channel
+ *
+ * \param pri PRI span control structure.
+ * \param chanpos channel position in the span
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return a reference to the callid bound to the channel which has also
+ *         been bound to threadstorage if it exists. If this returns non-NULL,
+ *         the callid must be unreffed and the threadstorage should be unbound
+ *         when the pri_dchannel primary loop wraps.
+ */
+static struct ast_callid *func_pri_dchannel_chanpos_callid(struct sig_pri_span *pri, int chanpos)
+{
+	if (chanpos < 0) {
+		return NULL;
+	}
+
+	sig_pri_lock_owner(pri, chanpos);
+	if (pri->pvts[chanpos]->owner) {
+		struct ast_callid *callid;
+		callid = ast_channel_callid(pri->pvts[chanpos]->owner);
+		ast_channel_unlock(pri->pvts[chanpos]->owner);
+		if (callid) {
+			ast_callid_threadassoc_add(callid);
+			return callid;
+		}
+	}
+
+	return NULL;
+}
+
 #if defined(HAVE_PRI_CALL_HOLD)
 /*!
  * \internal
@@ -5171,6 +5237,7 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	int chanpos_old;
 	int chanpos_new;
 	struct ast_channel *owner;
+	struct ast_callid *callid = NULL;
 
 	chanpos_old = pri_find_principle_by_call(pri, ev->hold.call);
 	if (chanpos_old < 0) {
@@ -5190,6 +5257,13 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	if (!owner) {
 		goto done_with_private;
 	}
+
+	callid = ast_channel_callid(owner);
+
+	if (callid) {
+		ast_callid_threadassoc_add(callid);
+	}
+
 	if (pri->pvts[chanpos_old]->call_level != SIG_PRI_CALL_LEVEL_CONNECT) {
 		/*
 		 * Make things simple.  Don't allow placing a call on hold that
@@ -5224,6 +5298,11 @@ done_with_private:;
 		retval = 0;
 	}
 
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
+
 	return retval;
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
@@ -5244,6 +5323,7 @@ done_with_private:;
 static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
+	struct ast_callid *callid;
 
 	/*
 	 * We were successfully put on hold by the remote party
@@ -5266,11 +5346,18 @@ static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 	}
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
+	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_ack.subcmds, ev->hold_ack.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_HOLD_ACK);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 	sig_pri_span_devstate_changed(pri);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -5290,6 +5377,7 @@ static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
+	struct ast_callid *callid;
 
 	chanpos = pri_find_principle(pri, ev->hold_rej.channel, ev->hold_rej.call);
 	if (chanpos < 0) {
@@ -5309,10 +5397,17 @@ static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
 		ev->hold_rej.cause, pri_cause2str(ev->hold_rej.cause));
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
+	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_rej.subcmds, ev->hold_rej.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_HOLD_REJ);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -5332,6 +5427,7 @@ static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
 static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
+	struct ast_callid *callid;
 
 	if (!(ev->retrieve.channel & PRI_HELD_CALL)) {
 		/* The call is not currently held. */
@@ -5373,6 +5469,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 		return;
 	}
 	sig_pri_lock_private(pri->pvts[chanpos]);
+	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.subcmds, ev->retrieve.call);
 	sig_pri_lock_owner(pri, chanpos);
 	pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
@@ -5386,6 +5483,11 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 		SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 	sig_pri_span_devstate_changed(pri);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -5405,6 +5507,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
+	struct ast_callid *callid;
 
 	chanpos = pri_find_fixup_principle(pri, ev->retrieve_ack.channel,
 		ev->retrieve_ack.call);
@@ -5413,12 +5516,19 @@ static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 	}
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
+	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_ack.subcmds,
 		ev->retrieve_ack.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_RETRIEVE_ACK);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 	sig_pri_span_devstate_changed(pri);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -5438,6 +5548,7 @@ static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
+	struct ast_callid *callid;
 
 	chanpos = pri_find_principle(pri, ev->retrieve_rej.channel, ev->retrieve_rej.call);
 	if (chanpos < 0) {
@@ -5457,11 +5568,18 @@ static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
 		ev->retrieve_rej.cause, pri_cause2str(ev->retrieve_rej.cause));
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
+	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_rej.subcmds,
 		ev->retrieve_rej.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_RETRIEVE_REJ);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -5515,6 +5633,8 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "Idle dial string '%s' lacks '@context'\n", pri->idleext);
 	}
 	for (;;) {
+		struct ast_callid *callid = NULL;
+
 		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 			if (!pri->dchans[i])
 				break;
@@ -5824,6 +5944,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->digit.subcmds,
 					e->digit.call);
 				/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
@@ -5855,6 +5978,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds, e->ring.call);
 				/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 				if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
@@ -5954,6 +6080,9 @@ static void *pri_dchannel(void *vpri)
 				if (e->ring.channel == -1 || PRI_CHANNEL(e->ring.channel) == 0xFF) {
 					/* Any channel requested. */
 					chanpos = pri_find_empty_chan(pri, 1);
+					if (-1 < chanpos) {
+						callid = func_pri_dchannel_new_callid();
+					}
 				} else if (PRI_CHANNEL(e->ring.channel) == 0x00) {
 					/* No channel specified. */
 #if defined(HAVE_PRI_CALL_WAITING)
@@ -5971,11 +6100,15 @@ static void *pri_dchannel(void *vpri)
 						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
 						break;
 					}
+
+					callid = func_pri_dchannel_new_callid();
+
 					/* Setup the call interface to use. */
 					sig_pri_init_config(pri->pvts[chanpos], pri);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 				} else {
 					/* A channel is specified. */
+					callid = func_pri_dchannel_new_callid();
 					chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
 					if (chanpos < 0) {
 						ast_log(LOG_WARNING,
@@ -6419,6 +6552,8 @@ static void *pri_dchannel(void *vpri)
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
 
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.subcmds,
 					e->ringing.call);
 				sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCNR);
@@ -6477,6 +6612,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.subcmds,
 					e->proceeding.call);
 
@@ -6534,6 +6672,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.subcmds,
 					e->proceeding.call);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING) {
@@ -6580,6 +6721,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 #if defined(HAVE_PRI_CALL_REROUTING)
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.subcmds,
 					e->facility.subcall);
@@ -6663,6 +6807,8 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 				sig_pri_lock_private(pri->pvts[chanpos]);
 
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 #if defined(HAVE_PRI_CALL_WAITING)
 				if (pri->pvts[chanpos]->is_call_waiting) {
 					pri->pvts[chanpos]->is_call_waiting = 0;
@@ -6724,6 +6870,9 @@ static void *pri_dchannel(void *vpri)
 				}
 
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->connect_ack.subcmds,
 					e->connect_ack.call);
 				sig_pri_open_media(pri->pvts[chanpos]);
@@ -6748,6 +6897,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.subcmds,
 					e->hangup.call);
 				switch (e->hangup.cause) {
@@ -6893,6 +7045,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.subcmds,
 					e->hangup.call);
 #if defined(HAVE_PRI_CALL_HOLD)
@@ -7035,6 +7190,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				pri->pvts[chanpos]->call = NULL;
 				if (pri->pvts[chanpos]->owner) {
 					ast_verb(3, "Span %d: Channel %d/%d got hangup ACK\n", pri->span,
@@ -7138,6 +7296,9 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->setup_ack.subcmds,
 					e->setup_ack.call);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_OVERLAP) {
@@ -7198,6 +7359,9 @@ static void *pri_dchannel(void *vpri)
 				}
 #endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 				sig_pri_lock_private(pri->pvts[chanpos]);
+
+				callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
+
 #if defined(HAVE_PRI_CALL_HOLD)
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.subcmds,
 					e->notify.call);
@@ -7284,6 +7448,11 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 					break;
 				}
+			}
+			/* If a callid was set, we need to deref it and remove it from thread storage. */
+			if (callid) {
+				callid = ast_callid_unref(callid);
+				ast_callid_threadassoc_remove();
 			}
 		}
 		ast_mutex_unlock(&pri->lock);

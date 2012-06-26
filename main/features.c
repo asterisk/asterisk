@@ -5417,8 +5417,17 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	if (pu) {
+		struct ast_callid *callid = ast_read_threadstorage_callid();
+
 		/* Found a parked call to pickup. */
 		peer = pu->chan;
+
+		/* We need to map the call id we have from this thread to the channel we found. */
+		if (callid) {
+			ast_channel_callid_set(peer, callid);
+			callid = ast_callid_unref(callid);
+		}
+
 		con = ast_context_find(parkinglot->cfg.parking_con);
 		if (con) {
 			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0)) {

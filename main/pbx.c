@@ -9202,6 +9202,14 @@ static void *async_wait(void *data)
 	struct ast_frame *f;
 	struct ast_app *app;
 
+	if (chan) {
+		struct ast_callid *callid = ast_channel_callid(chan);
+		if (callid) {
+			ast_callid_threadassoc_add(callid);
+			ast_callid_unref(callid);
+		}
+	}
+
 	while (timeout && (ast_channel_state(chan) != AST_STATE_UP)) {
 		res = ast_waitfor(chan, timeout);
 		if (res < 1)

@@ -1398,7 +1398,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	struct ast_callid *callid;
-	char call_identifier_str[13] = "";
+	char call_identifier_str[AST_CALLID_BUFFER_LENGTH] = "";
 #ifdef CHANNEL_TRACE
 	int trace_enabled;
 #endif

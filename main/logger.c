@@ -1691,7 +1691,7 @@ void ast_backtrace(void)
 #endif /* defined(HAVE_BKTR) */
 }
 
-void __ast_verbose_ap(const char *file, int line, const char *func, int level, const char *fmt, va_list ap)
+void __ast_verbose_ap(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, va_list ap)
 {
 	struct ast_str *buf = NULL;
 	int res = 0;
@@ -1743,15 +1743,30 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, c
 		return;
 	}
 
-	ast_log(__LOG_VERBOSE, file, line, func, "%s", ast_str_buffer(buf));
+	ast_log_callid(__LOG_VERBOSE, file, line, func, callid, "%s", ast_str_buffer(buf));
 }
 
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
 {
+	struct ast_callid *callid;
 	va_list ap;
 
+	callid = ast_read_threadstorage_callid();
+
 	va_start(ap, fmt);
-	__ast_verbose_ap(file, line, func, level, fmt, ap);
+	__ast_verbose_ap(file, line, func, level, callid, fmt, ap);
+	va_end(ap);
+
+	if (callid) {
+		ast_callid_unref(callid);
+	}
+}
+
+void __ast_verbose_callid(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	__ast_verbose_ap(file, line, func, level, callid, fmt, ap);
 	va_end(ap);
 }
 
@@ -1760,11 +1775,18 @@ void __ast_verbose(const char *file, int line, const char *func, int level, cons
 void __attribute__((format(printf, 1,2))) ast_verbose(const char *fmt, ...);
 void ast_verbose(const char *fmt, ...)
 {
+	struct ast_callid *callid;
 	va_list ap;
 
+	callid = ast_read_threadstorage_callid();
+
 	va_start(ap, fmt);
-	__ast_verbose_ap("", 0, "", 0, fmt, ap);
+	__ast_verbose_ap("", 0, "", 0, callid, fmt, ap);
 	va_end(ap);
+
+	if (callid) {
+		ast_callid_unref(callid);
+	}
 }
 
 int ast_register_verbose(void (*v)(const char *string))

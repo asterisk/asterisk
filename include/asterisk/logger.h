@@ -43,6 +43,8 @@ extern "C" {
 #define VERBOSE_PREFIX_3 "    -- "
 #define VERBOSE_PREFIX_4 "       > "
 
+#define AST_CALLID_BUFFER_LENGTH 13
+
 /*! \brief Used for sending a log message
 	This is the standard logger function.  Probably the only way you will invoke it would be something like this:
 	ast_log(AST_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
@@ -95,11 +97,18 @@ void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, 
  */
 void __attribute__((format(printf, 5, 6))) __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...);
 
+/*! Send a verbose message (based on verbose level) with deliberately specified callid
+ *  \brief just like __ast_verbose, only __ast_verbose_callid allows you to specify which callid is being used
+ *  for the log without needing to bind it to a thread. NULL is a valid argument for this function and will
+ *  allow you to specify that a log will never display a call id even when there is a call id bound to the
+ *  thread.
+ */
+void __attribute__((format(printf, 6, 7))) __ast_verbose_callid(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, ...);
+
 #define ast_verbose(...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, __VA_ARGS__)
+#define ast_verbose_callid(callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, callid, __VA_ARGS__)
 
-void __attribute__((format(printf, 5, 0))) __ast_verbose_ap(const char *file, int line, const char *func, int level, const char *fmt, va_list ap);
-
-#define ast_verbose_ap(fmt, ap)	__ast_verbose_ap(__FILE__, __LINE__, __PRETTY_FUNCTION__, -1, fmt, ap)
+void __attribute__((format(printf, 6, 0))) __ast_verbose_ap(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, va_list ap);
 
 void __attribute__((format(printf, 2, 3))) ast_child_verbose(int level, const char *fmt, ...);
 
@@ -342,6 +351,7 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *c
 } while (0)
 
 #define ast_verb(level, ...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__)
+#define ast_verb_callid(level, callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__)
 
 #ifndef _LOGGER_BACKTRACE_H
 #define _LOGGER_BACKTRACE_H

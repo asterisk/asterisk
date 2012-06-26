@@ -555,6 +555,8 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	int law;
 	struct ast_channel *c;
 	char tmp[256];
+	struct ast_callid *callid = NULL;
+	int callid_created = ast_callid_threadstorage_auto(&callid);
 
 	if (!(linkset->flags & LINKSET_FLAG_EXPLICITACM)) {
 		p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
@@ -584,6 +586,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		isup_rel(linkset->ss7, p->ss7call, -1);
 		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 		p->alreadyhungup = 1;
+		ast_callid_threadstorage_auto_clean(callid, callid_created);
 		return;
 	}
 
@@ -685,6 +688,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	/* Must return with linkset and private lock. */
 	ast_mutex_lock(&linkset->lock);
 	sig_ss7_lock_private(p);
+	ast_callid_threadstorage_auto_clean(callid, callid_created);
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct sig_ss7_linkset *ss7, const char *number, const unsigned nai)
@@ -717,6 +721,36 @@ static void ss7_apply_plan_to_number(char *buf, size_t size, const struct sig_ss
 static int ss7_pres_scr2cid_pres(char presentation_ind, char screening_ind)
 {
 	return ((presentation_ind & 0x3) << 5) | (screening_ind & 0x3);
+}
+
+/*!
+ * \internal
+ * \brief Set callid threadstorage for the ss7_linkset thread to that of an existing channel
+ *
+ * \param linkset ss7 span control structure.
+ * \param chanpos channel position in the span
+ *
+ * \note Assumes the ss7->lock is already obtained.
+ * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
+ *
+ * \return a reference to the callid bound to the channel which has also
+ *         been bound to threadstorage if it exists. If this returns non-NULL,
+ *         the callid must be unreffed and the threadstorage should be unbound
+ *         before the while loop wraps in ss7_linkset.
+ */
+static struct ast_callid *func_ss7_linkset_callid(struct sig_ss7_linkset *linkset, int chanpos)
+{
+	struct ast_callid *callid = NULL;
+	sig_ss7_lock_owner(linkset, chanpos);
+	if (linkset->pvts[chanpos]->owner) {
+		callid = ast_channel_callid(linkset->pvts[chanpos]->owner);
+		ast_channel_unlock(linkset->pvts[chanpos]->owner);
+		if (callid) {
+			ast_callid_threadassoc_add(callid);
+		}
+	}
+
+	return callid;
 }
 
 /* This is a thread per linkset that handles all received events from libss7. */
@@ -795,6 +829,7 @@ void *ss7_linkset(void *data)
 		}
 
 		while ((e = ss7_check_event(ss7))) {
+			struct ast_callid *callid = NULL;
 			int chanpos = -1;
 			char cause_str[30];
 
@@ -834,6 +869,8 @@ void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				callid = func_ss7_linkset_callid(linkset, chanpos);
+
 				switch (e->cpg.event) {
 				case CPG_EVENT_ALERTING:
 					if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
@@ -871,6 +908,7 @@ void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				callid = func_ss7_linkset_callid(linkset, chanpos);
 				sig_ss7_set_inservice(p, 1);
 				sig_ss7_set_remotelyblocked(p, 0);
 				isup_set_call_dpc(e->rsc.call, p->dpc);
@@ -1077,6 +1115,7 @@ void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				callid = func_ss7_linkset_callid(linkset, chanpos);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
 					snprintf(cause_str, sizeof(cause_str), "SS7 ISUP_EVENT_REL (%d)", e->rel.cause);
@@ -1111,6 +1150,7 @@ void *ss7_linkset(void *data)
 					}
 
 					sig_ss7_lock_private(p);
+					callid = func_ss7_linkset_callid(linkset, chanpos);
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_PROCEEDING);
 					if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
 						p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
@@ -1226,6 +1266,7 @@ void *ss7_linkset(void *data)
 				{
 					p = linkset->pvts[chanpos];
 					sig_ss7_lock_private(p);
+					callid = func_ss7_linkset_callid(linkset, chanpos);
 					if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
 						p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 					}
@@ -1245,6 +1286,7 @@ void *ss7_linkset(void *data)
 				{
 					p = linkset->pvts[chanpos];
 					sig_ss7_lock_private(p);
+					callid = func_ss7_linkset_callid(linkset, chanpos);
 					if (p->alreadyhungup) {
 						if (!p->owner) {
 							p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
@@ -1269,6 +1311,7 @@ void *ss7_linkset(void *data)
 					p = linkset->pvts[chanpos];
 					ast_debug(1, "FAA received on CIC %d\n", e->faa.cic);
 					sig_ss7_lock_private(p);
+					callid = func_ss7_linkset_callid(linkset, chanpos);
 					if (p->alreadyhungup){
 						if (!p->owner) {
 							p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
@@ -1305,6 +1348,12 @@ void *ss7_linkset(void *data)
 					}
 					sig_ss7_unlock_private(p);
 				}
+			}
+
+			/* Call ID stuff needs to be cleaned up here */
+			if (callid) {
+				callid = ast_callid_unref(callid);
+				ast_callid_threadassoc_remove();
 			}
 		}
 		ast_mutex_unlock(&linkset->lock);
