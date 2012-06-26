@@ -339,7 +339,7 @@ int ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *
 
 void ast_adsi_install_funcs(const struct adsi_funcs *funcs)
 {
-	if (funcs->version < current_adsi_version) {
+	if (funcs && funcs->version < current_adsi_version) {
 		ast_log(LOG_WARNING, "Cannot install ADSI function pointers due to version mismatch."
 				"Ours: %u, Theirs: %u\n", current_adsi_version, funcs->version);
 		return;
