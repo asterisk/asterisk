@@ -6350,7 +6350,7 @@ static int sip_hangup(struct ast_channel *ast)
 				stop_session_timer(p);
 			}
 
-			if (!p->pendinginvite) {
+			if (!p->pendinginvite || p->ongoing_reinvite) {
 				struct ast_channel *bridge = ast_bridged_channel(oldowner);
 				char quality_buf[AST_MAX_USER_FIELD], *quality;
 
@@ -11889,7 +11889,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);       /* Change direction of this dialog */
-
+	p->ongoing_reinvite = 1;
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
@@ -20092,8 +20092,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
  		p->invitestate = INV_COMPLETED;
  	
 	/* Final response, clear out pending invite */
-	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite)
+	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite) {
 		p->pendinginvite = 0;
+		if (reinvite) {
+			p->ongoing_reinvite = 0;
+		}
+	}
 
 	/* If this is a response to our initial INVITE, we need to set what we can use
 	 * for this peer.
