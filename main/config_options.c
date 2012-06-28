@@ -92,6 +92,7 @@ static int double_handler_fn(const struct aco_option *opt, struct ast_variable *
 static int sockaddr_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int stringfield_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int bool_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
+static int boolflag_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int acl_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int codec_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 
@@ -100,6 +101,7 @@ static aco_option_handler ast_config_option_default_handler(enum aco_option_type
 	switch(type) {
 	case OPT_ACL_T: return acl_handler_fn;
 	case OPT_BOOL_T: return bool_handler_fn;
+	case OPT_BOOLFLAG_T: return boolflag_handler_fn;
 	case OPT_CODEC_T: return codec_handler_fn;
 	case OPT_DOUBLE_T: return double_handler_fn;
 	case OPT_INT_T: return int_handler_fn;
@@ -738,6 +740,23 @@ static int bool_handler_fn(const struct aco_option *opt, struct ast_variable *va
 {
 	unsigned int *field = (unsigned int *)(obj + opt->args[0]);
 	*field = opt->flags ? ast_true(var->value) : ast_false(var->value);
+	return 0;
+}
+
+/*! \brief Default option handler for bools (ast_true/ast_false) that are stored as flags
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
+static int boolflag_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	unsigned int *flags_field = (unsigned int *)(obj + opt->args[0]);
+	unsigned int val = opt->flags ? ast_true(var->value) : ast_false(var->value);
+	unsigned int flag = opt->args[1];
+	if (val) {
+		*flags_field |= flag;
+	} else {
+		*flags_field &= ~flag;
+	}
 	return 0;
 }
 

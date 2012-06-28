@@ -261,6 +261,26 @@ enum aco_option_type {
 	 */
 	OPT_BOOL_T,
 
+	/*! \brief Type for default option handler for bools (ast_true/ast_false) that are stored in a flag
+	 * \note aco_option_register flags:
+	 *   non-zero : process via ast_true
+	 *   0        : process via ast_false
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type of unsigned int.
+	 *   The flag to set
+	 *
+	 * Example:
+	 * {code}
+	 * #define MY_TYPE_ISQUIET    1 << 4
+	 * struct test_item {
+	 *     unsigned int flags;
+	 * };
+		aco_option_register(&cfg_info, "quiet", ACO_EXACT, my_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), MY_TYPE_ISQUIET);
+	 * {endcode}
+	 */
+
+	OPT_BOOLFLAG_T,
+
 	/*! \brief Type for default option handler for codec preferences/capabilities
 	 * \note aco_option_register flags:
 	 *   non-zero : This is an "allow" style option

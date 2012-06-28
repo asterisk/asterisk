@@ -622,6 +622,7 @@ struct test_item {
 	);
 	int32_t intopt;
 	uint32_t uintopt;
+	unsigned int flags;
 	double doubleopt;
 	struct ast_sockaddr sockaddropt;
 	int boolopt;
@@ -784,6 +785,12 @@ AST_TEST_DEFINE(config_options_test)
 #define SOCKADDR_CONFIG "1.2.3.4:1234"
 #define BOOL_DEFAULT "false"
 #define BOOL_CONFIG "true"
+#define BOOLFLAG1_DEFAULT "false"
+#define BOOLFLAG1_CONFIG "true"
+#define BOOLFLAG2_DEFAULT "false"
+#define BOOLFLAG2_CONFIG "false"
+#define BOOLFLAG3_DEFAULT "false"
+#define BOOLFLAG3_CONFIG "true"
 #define ACL_DEFAULT NULL
 #define ACL_CONFIG_PERMIT "1.2.3.4/32"
 #define ACL_CONFIG_DENY "0.0.0.0/0"
@@ -793,6 +800,10 @@ AST_TEST_DEFINE(config_options_test)
 #define STR_CONFIG "test"
 #define CUSTOM_DEFAULT "no"
 #define CUSTOM_CONFIG "yes"
+
+#define BOOLFLAG1 1 << 0
+#define BOOLFLAG2 1 << 1
+#define BOOLFLAG3 1 << 2
 
 	if (aco_info_init(&cfg_info)) {
 		ast_test_status_update(test, "Could not init cfg info\n");
@@ -805,6 +816,9 @@ AST_TEST_DEFINE(config_options_test)
 	aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, config_test_conf.types, DOUBLE_DEFAULT, OPT_DOUBLE_T, 0, FLDSET(struct test_item, doubleopt));
 	aco_option_register(&cfg_info, "sockaddropt", ACO_EXACT, config_test_conf.types, SOCKADDR_DEFAULT, OPT_SOCKADDR_T, 0, FLDSET(struct test_item, sockaddropt));
 	aco_option_register(&cfg_info, "boolopt", ACO_EXACT, config_test_conf.types, BOOL_DEFAULT, OPT_BOOL_T, 1, FLDSET(struct test_item, boolopt));
+	aco_option_register(&cfg_info, "boolflag1", ACO_EXACT, config_test_conf.types, BOOLFLAG1_DEFAULT, OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), BOOLFLAG1);
+	aco_option_register(&cfg_info, "boolflag2", ACO_EXACT, config_test_conf.types, BOOLFLAG2_DEFAULT, OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), BOOLFLAG2);
+	aco_option_register(&cfg_info, "boolflag3", ACO_EXACT, config_test_conf.types, BOOLFLAG3_DEFAULT, OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), BOOLFLAG3);
 	aco_option_register(&cfg_info, "aclpermitopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 1, FLDSET(struct test_item, aclopt));
 	aco_option_register(&cfg_info, "acldenyopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 0, FLDSET(struct test_item, aclopt));
 	aco_option_register(&cfg_info, "codecopt", ACO_EXACT, config_test_conf.types, CODEC_DEFAULT, OPT_CODEC_T, 1, FLDSET(struct test_item, codecprefopt, codeccapopt));
@@ -826,6 +840,12 @@ AST_TEST_DEFINE(config_options_test)
 	ast_parse_arg(SOCKADDR_CONFIG, PARSE_ADDR, &configs.sockaddropt);
 	defaults.boolopt = ast_true(BOOL_DEFAULT);
 	configs.boolopt = ast_true(BOOL_CONFIG);
+	ast_set2_flag(&defaults, ast_true(BOOLFLAG1_DEFAULT), BOOLFLAG1);
+	ast_set2_flag(&defaults, ast_true(BOOLFLAG2_DEFAULT), BOOLFLAG2);
+	ast_set2_flag(&defaults, ast_true(BOOLFLAG3_DEFAULT), BOOLFLAG3);
+	ast_set2_flag(&configs, ast_true(BOOLFLAG1_CONFIG), BOOLFLAG1);
+	ast_set2_flag(&configs, ast_true(BOOLFLAG2_CONFIG), BOOLFLAG2);
+	ast_set2_flag(&configs, ast_true(BOOLFLAG3_CONFIG), BOOLFLAG3);
 
 	defaults.aclopt = NULL;
 	configs.aclopt = ast_append_ha("deny", ACL_CONFIG_DENY, configs.aclopt, &error);
@@ -865,7 +885,7 @@ AST_TEST_DEFINE(config_options_test)
 
 #define NOT_EQUAL_FAIL(field)  \
 	if (arr[x]->field != control->field) { \
-		ast_test_status_update(test, "%s di not match: %d != %d with x = %d\n", #field, arr[x]->field, control->field, x); \
+		ast_test_status_update(test, "%s did not match: %d != %d with x = %d\n", #field, arr[x]->field, control->field, x); \
 		res = AST_TEST_FAIL; \
 	}
 	for (x = 0; x < 4; x++) {
@@ -874,6 +894,7 @@ AST_TEST_DEFINE(config_options_test)
 		NOT_EQUAL_FAIL(intopt);
 		NOT_EQUAL_FAIL(uintopt);
 		NOT_EQUAL_FAIL(boolopt);
+		NOT_EQUAL_FAIL(flags);
 		NOT_EQUAL_FAIL(customopt);
 		if (fabs(arr[x]->doubleopt - control->doubleopt) > 0.001) {
 			ast_test_status_update(test, "doubleopt did not match: %f vs %f on loop %d\n", arr[x]->doubleopt, control->doubleopt, x);
