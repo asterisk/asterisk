@@ -1201,7 +1201,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 				if (glue1->get_codec && c1->tech_pvt) {
 					ast_format_cap_remove_all(cap1);
 					ast_format_cap_remove_all(oldcap1);
-					glue0->get_codec(c1, cap1);
+					glue1->get_codec(c1, cap1);
 					ast_format_cap_append(oldcap1, cap1);
 				}
 				/* Since UPDATE_BRIDGE_PEER is only used by the bridging code, don't forward it */
