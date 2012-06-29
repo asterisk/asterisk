@@ -731,6 +731,15 @@ enum ast_t38_state {
 	T38_STATE_NEGOTIATED,	/*!< T38 established */
 };
 
+/*! Hangup handler instance node. */
+struct ast_hangup_handler {
+	/*! Next hangup handler node. */
+	AST_LIST_ENTRY(ast_hangup_handler) node;
+	/*! Hangup handler arg string passed to the Gosub application */
+	char args[0];
+};
+
+AST_LIST_HEAD_NOLOCK(ast_hangup_handler_list, ast_hangup_handler);
 AST_LIST_HEAD_NOLOCK(ast_datastore_list, ast_datastore);
 AST_LIST_HEAD_NOLOCK(ast_autochan_list, ast_autochan);
 AST_LIST_HEAD_NOLOCK(ast_readq_list, ast_frame);
@@ -2196,6 +2205,17 @@ int ast_autoservice_start(struct ast_channel *chan);
  * \retval -1 error, or the channel has been hungup
  */
 int ast_autoservice_stop(struct ast_channel *chan);
+
+/*!
+ * \brief Put chan into autoservice while hanging up peer.
+ * \since 11.0
+ *
+ * \param chan Chan to put into autoservice.
+ * \param peer Chan to run hangup handlers and hangup.
+ *
+ * \return Nothing
+ */
+void ast_autoservice_chan_hangup_peer(struct ast_channel *chan, struct ast_channel *peer);
 
 /*!
  * \brief Ignore certain frame types
@@ -3748,6 +3768,7 @@ void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *valu
 void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value);
 
 /* List getters */
+struct ast_hangup_handler_list *ast_channel_hangup_handlers(struct ast_channel *chan);
 struct ast_datastore_list *ast_channel_datastores(struct ast_channel *chan);
 struct ast_autochan_list *ast_channel_autochans(struct ast_channel *chan);
 struct ast_readq_list *ast_channel_readq(struct ast_channel *chan);

@@ -137,6 +137,7 @@ struct ast_channel {
 	struct ast_readq_list readq;
 	struct ast_jb jb;				/*!< The jitterbuffer state */
 	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
+	struct ast_hangup_handler_list hangup_handlers;/*!< Hangup handlers on the channel. */
 	struct ast_datastore_list datastores; /*!< Data stores on the channel */
 	struct ast_autochan_list autochans; /*!< Autochans on the channel */
 	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
@@ -883,6 +884,10 @@ struct ast_format *ast_channel_readformat(struct ast_channel *chan)
 struct ast_format *ast_channel_writeformat(struct ast_channel *chan)
 {
 	return &chan->writeformat;
+}
+struct ast_hangup_handler_list *ast_channel_hangup_handlers(struct ast_channel *chan)
+{
+	return &chan->hangup_handlers;
 }
 struct ast_datastore_list *ast_channel_datastores(struct ast_channel *chan)
 {

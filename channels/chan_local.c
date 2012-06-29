@@ -238,6 +238,12 @@ static int local_setoption(struct ast_channel *ast, int option, void * data, int
 		return -1;
 	}
 
+	if (!strcmp(write_info->function, "CHANNEL")
+		&& !strncasecmp(write_info->data, "hangup_handler_", 15)) {
+		/* Block CHANNEL(hangup_handler_xxx) writes to the other local channel. */
+		return 0;
+	}
+
 	/* get the tech pvt */
 	if (!(p = ast_channel_tech_pvt(ast))) {
 		return -1;

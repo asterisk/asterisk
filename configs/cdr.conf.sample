@@ -36,8 +36,9 @@
 
 ; Normally, CDR's are not closed out until after all extensions are finished
 ; executing.  By enabling this option, the CDR will be ended before executing
-; the "h" extension so that CDR values such as "end" and "billsec" may be
-; retrieved inside of of this extension.  The default value is "no".
+; the "h" extension and hangup handlers so that CDR values such as "end" and
+; "billsec" may be retrieved inside of of this extension.
+; The default value is "no".
 ;endbeforehexten=no
 
 ; Normally, the 'billsec' field logged to the backends (text files or databases)

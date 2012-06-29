@@ -1881,7 +1881,8 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 		}
 		return 0; /* the good exit path */
 	} else {
-		ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+		/* hang up on the callee -- he didn't want to talk anyway! */
+		ast_autoservice_chan_hangup_peer(chan, peer);
 		return -1;
 	}
 }
@@ -2774,7 +2775,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				if (active_chan) {
 					struct ast_frame *fr = ast_read(active_chan);
 					if (!fr) {
-						ast_hangup(peer);
+						ast_autoservice_chan_hangup_peer(chan, peer);
 						res = -1;
 						goto done;
 					}
@@ -2790,7 +2791,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 							switch (fr->subclass.integer) {
 								case AST_CONTROL_HANGUP:
 									ast_frfree(fr);
-									ast_hangup(peer);
+									ast_autoservice_chan_hangup_peer(chan, peer);
 									res = -1;
 									goto done;
 								default:
@@ -2821,7 +2822,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_exten_set(peer, ast_channel_exten(chan));
 			ast_channel_priority_set(peer, ast_channel_priority(chan) + 2);
 			if (ast_pbx_start(peer)) {
-				ast_hangup(peer);
+				ast_autoservice_chan_hangup_peer(chan, peer);
 			}
 			hanguptree(&out_chans, NULL, ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
@@ -3027,7 +3028,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			res = ast_channel_make_compatible(chan, peer);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", ast_channel_name(chan), ast_channel_name(peer));
-				ast_hangup(peer);
+				ast_autoservice_chan_hangup_peer(chan, peer);
 				res = -1;
 				goto done;
 			}
@@ -3047,28 +3048,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (ast_test_flag64(&opts, OPT_PEER_H)
 			&& ast_exists_extension(peer, ast_channel_context(peer), "h", 1,
 				S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-			int autoloopflag;
-			int found;
-			int res9;
-			
-			ast_channel_exten_set(peer, "h");
-			ast_channel_priority_set(peer, 1);
-			autoloopflag = ast_test_flag(ast_channel_flags(peer), AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
-			ast_set_flag(ast_channel_flags(peer), AST_FLAG_IN_AUTOLOOP);
-
-			while ((res9 = ast_spawn_extension(peer, ast_channel_context(peer), ast_channel_exten(peer),
-				ast_channel_priority(peer),
-				S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL),
-				&found, 1)) == 0) {
-				ast_channel_priority_set(peer, ast_channel_priority(peer) + 1);
-			}
-
-			if (found && res9) {
-				/* Something bad happened, or a hangup has been requested. */
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(peer), ast_channel_exten(peer), ast_channel_priority(peer), ast_channel_name(peer));
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(peer), ast_channel_exten(peer), ast_channel_priority(peer), ast_channel_name(peer));
-			}
-			ast_set2_flag(ast_channel_flags(peer), autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
+			ast_autoservice_start(chan);
+			ast_pbx_h_exten_run(peer, ast_channel_context(peer));
+			ast_autoservice_stop(chan);
 		}
 		if (!ast_check_hangup(peer)) {
 			if (ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
@@ -3089,7 +3071,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
 			}
 		}
-		ast_hangup(peer);
+		ast_autoservice_chan_hangup_peer(chan, peer);
 	}
 out:
 	if (moh) {

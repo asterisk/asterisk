@@ -1490,7 +1490,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		res = ast_channel_make_compatible(caller, outbound);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", ast_channel_name(caller), ast_channel_name(outbound));
-			ast_hangup(outbound);
+			ast_autoservice_chan_hangup_peer(caller, outbound);
 			goto outrun;
 		}
 
@@ -1513,7 +1513,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 
 		res = ast_bridge_call(caller, outbound, &config);
-		ast_hangup(outbound);
+		ast_autoservice_chan_hangup_peer(caller, outbound);
 	}
 
 outrun:

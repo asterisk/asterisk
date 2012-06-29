@@ -98,6 +98,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="checkhangup">
 						<para>R/O Whether the channel is hanging up (1/0)</para>
 					</enum>
+					<enum name="hangup_handler_pop">
+						<para>W/O Replace the most recently added hangup handler
+						with a new hangup handler on the channel if supplied.  The
+						assigned string is passed to the Gosub application when
+						the channel is hung up.  Any optionally omitted context
+						and exten are supplied by the channel pushing the handler
+						before it is pushed.</para>
+					</enum>
+					<enum name="hangup_handler_push">
+						<para>W/O Push a hangup handler onto the channel hangup
+						handler stack.  The assigned string is passed to the
+						Gosub application when the channel is hung up.  Any
+						optionally omitted context and exten are supplied by the
+						channel pushing the handler before it is pushed.</para>
+					</enum>
+					<enum name="hangup_handler_wipe">
+						<para>W/O Wipe the entire hangup handler stack and replace
+						with a new hangup handler on the channel if supplied.  The
+						assigned string is passed to the Gosub application when
+						the channel is hung up.  Any optionally omitted context
+						and exten are supplied by the channel pushing the handler
+						before it is pushed.</para>
+					</enum>
 					<enum name="language">
 						<para>R/W language for sounds played.</para>
 					</enum>
@@ -523,6 +546,17 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 				break;
 			}
 		}
+	} else if (!strcasecmp(data, "hangup_handler_pop")) {
+		/* Pop one hangup handler before pushing the new handler. */
+		ast_pbx_hangup_handler_pop(chan);
+		ast_pbx_hangup_handler_push(chan, value);
+	} else if (!strcasecmp(data, "hangup_handler_push")) {
+		ast_pbx_hangup_handler_push(chan, value);
+	} else if (!strcasecmp(data, "hangup_handler_wipe")) {
+		/* Pop all hangup handlers before pushing the new handler. */
+		while (ast_pbx_hangup_handler_pop(chan)) {
+		}
+		ast_pbx_hangup_handler_push(chan, value);
 	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
 		struct ast_datastore *ds;
 		struct ast_secure_call_store *store;

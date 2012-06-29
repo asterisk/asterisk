@@ -46,6 +46,9 @@ Core
    have their own verbosity level.  The command 'core set verbose' will now set
    a separate level for each remote console without affecting any other
    console.
+ * Hangup handlers can be attached to channels using the CHANNEL(hangup_handler_xxx)
+   options.  Hangup handlers will run when the channel is hung up similar to the
+   h extension.
 
 CLI Changes
 -------------------

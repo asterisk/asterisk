@@ -313,6 +313,16 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	return res;
 }
 
+void ast_autoservice_chan_hangup_peer(struct ast_channel *chan, struct ast_channel *peer)
+{
+	if (chan && !ast_autoservice_start(chan)) {
+		ast_hangup(peer);
+		ast_autoservice_stop(chan);
+	} else {
+		ast_hangup(peer);
+	}
+}
+
 int ast_autoservice_ignore(struct ast_channel *chan, enum ast_frame_type ftype)
 {
 	struct asent *as;

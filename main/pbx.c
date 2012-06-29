@@ -5342,6 +5342,360 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_SPAWN, found, combined_find_spawn);
 }
 
+void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
+{
+	int autoloopflag;
+	int found;
+	int spawn_error;
+
+	ast_channel_lock(chan);
+
+	if (ast_channel_cdr(chan) && ast_opt_end_cdr_before_h_exten) {
+		ast_cdr_end(ast_channel_cdr(chan));
+	}
+
+	/* Set h exten location */
+	if (context != ast_channel_context(chan)) {
+		ast_channel_context_set(chan, context);
+	}
+	ast_channel_exten_set(chan, "h");
+	ast_channel_priority_set(chan, 1);
+
+	/*
+	 * Make sure that the channel is marked as hungup since we are
+	 * going to run the h exten on it.
+	 */
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_APPUNLOAD);
+
+	/* Save autoloop flag */
+	autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+	ast_channel_unlock(chan);
+
+	for (;;) {
+		spawn_error = ast_spawn_extension(chan, ast_channel_context(chan),
+			ast_channel_exten(chan), ast_channel_priority(chan),
+			S_COR(ast_channel_caller(chan)->id.number.valid,
+				ast_channel_caller(chan)->id.number.str, NULL), &found, 1);
+
+		ast_channel_lock(chan);
+		if (spawn_error) {
+			/* The code after the loop needs the channel locked. */
+			break;
+		}
+		ast_channel_priority_set(chan, ast_channel_priority(chan) + 1);
+		ast_channel_unlock(chan);
+	}
+	if (found && spawn_error) {
+		/* Something bad happened, or a hangup has been requested. */
+		ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n",
+			ast_channel_context(chan), ast_channel_exten(chan),
+			ast_channel_priority(chan), ast_channel_name(chan));
+		ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n",
+			ast_channel_context(chan), ast_channel_exten(chan),
+			ast_channel_priority(chan), ast_channel_name(chan));
+	}
+
+	/* An "h" exten has been run, so indicate that one has been run. */
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_RUN);
+
+	/* Restore autoloop flag */
+	ast_set2_flag(ast_channel_flags(chan), autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	ast_channel_unlock(chan);
+}
+
+int ast_pbx_hangup_handler_run(struct ast_channel *chan)
+{
+	struct ast_hangup_handler_list *handlers;
+	struct ast_hangup_handler *h_handler;
+
+	ast_channel_lock(chan);
+	handlers = ast_channel_hangup_handlers(chan);
+	if (AST_LIST_EMPTY(handlers)) {
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	if (ast_channel_cdr(chan) && ast_opt_end_cdr_before_h_exten) {
+		ast_cdr_end(ast_channel_cdr(chan));
+	}
+
+	/*
+	 * Make sure that the channel is marked as hungup since we are
+	 * going to run the hangup handlers on it.
+	 */
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_APPUNLOAD);
+
+	for (;;) {
+		handlers = ast_channel_hangup_handlers(chan);
+		h_handler = AST_LIST_REMOVE_HEAD(handlers, node);
+		if (!h_handler) {
+			break;
+		}
+
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a hangup handler is about to be called.</synopsis>
+				<syntax>
+					<parameter name="Handler">
+						<para>Hangup handler parameter string passed to the Gosub application.</para>
+					</parameter>
+				</syntax>
+			</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerRun",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Handler: %s\r\n",
+			ast_channel_name(chan),
+			ast_channel_uniqueid(chan),
+			h_handler->args);
+		ast_channel_unlock(chan);
+
+		ast_app_exec_sub(NULL, chan, h_handler->args, 1);
+		ast_free(h_handler);
+
+		ast_channel_lock(chan);
+	}
+	ast_channel_unlock(chan);
+	return 1;
+}
+
+void ast_pbx_hangup_handler_init(struct ast_channel *chan)
+{
+	struct ast_hangup_handler_list *handlers;
+
+	handlers = ast_channel_hangup_handlers(chan);
+	AST_LIST_HEAD_INIT_NOLOCK(handlers);
+}
+
+void ast_pbx_hangup_handler_destroy(struct ast_channel *chan)
+{
+	struct ast_hangup_handler_list *handlers;
+	struct ast_hangup_handler *h_handler;
+
+	ast_channel_lock(chan);
+
+	/* Get rid of each of the hangup handlers on the channel */
+	handlers = ast_channel_hangup_handlers(chan);
+	while ((h_handler = AST_LIST_REMOVE_HEAD(handlers, node))) {
+		ast_free(h_handler);
+	}
+
+	ast_channel_unlock(chan);
+}
+
+int ast_pbx_hangup_handler_pop(struct ast_channel *chan)
+{
+	struct ast_hangup_handler_list *handlers;
+	struct ast_hangup_handler *h_handler;
+
+	ast_channel_lock(chan);
+	handlers = ast_channel_hangup_handlers(chan);
+	h_handler = AST_LIST_REMOVE_HEAD(handlers, node);
+	if (h_handler) {
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>
+					Raised when a hangup handler is removed from the handler
+					stack by the CHANNEL() function.
+				</synopsis>
+				<syntax>
+					<parameter name="Handler">
+						<para>Hangup handler parameter string passed to the Gosub application.</para>
+					</parameter>
+				</syntax>
+				<see-also>
+					<ref type="managerEvent">HangupHandlerPush</ref>
+					<ref type="function">CHANNEL</ref>
+				</see-also>
+			</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerPop",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Handler: %s\r\n",
+			ast_channel_name(chan),
+			ast_channel_uniqueid(chan),
+			h_handler->args);
+	}
+	ast_channel_unlock(chan);
+	if (h_handler) {
+		ast_free(h_handler);
+		return 1;
+	}
+	return 0;
+}
+
+void ast_pbx_hangup_handler_push(struct ast_channel *chan, const char *handler)
+{
+	struct ast_hangup_handler_list *handlers;
+	struct ast_hangup_handler *h_handler;
+	const char *expanded_handler;
+
+	if (ast_strlen_zero(handler)) {
+		return;
+	}
+
+	expanded_handler = ast_app_expand_sub_args(chan, handler);
+	if (!expanded_handler) {
+		return;
+	}
+	h_handler = ast_malloc(sizeof(*h_handler) + 1 + strlen(expanded_handler));
+	if (!h_handler) {
+		ast_free((char *) expanded_handler);
+		return;
+	}
+	strcpy(h_handler->args, expanded_handler);/* Safe */
+	ast_free((char *) expanded_handler);
+
+	ast_channel_lock(chan);
+
+	handlers = ast_channel_hangup_handlers(chan);
+	AST_LIST_INSERT_HEAD(handlers, h_handler, node);
+
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>
+				Raised when a hangup handler is added to the handler
+				stack by the CHANNEL() function.
+			</synopsis>
+			<syntax>
+				<parameter name="Handler">
+					<para>Hangup handler parameter string passed to the Gosub application.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">HangupHandlerPop</ref>
+				<ref type="function">CHANNEL</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
+	manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerPush",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Handler: %s\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan),
+		h_handler->args);
+
+	ast_channel_unlock(chan);
+}
+
+#define HANDLER_FORMAT	"%-30s %s\n"
+
+/*!
+ * \internal
+ * \brief CLI output the hangup handler headers.
+ * \since 11.0
+ *
+ * \param fd CLI file descriptor to use.
+ *
+ * \return Nothing
+ */
+static void ast_pbx_hangup_handler_headers(int fd)
+{
+	ast_cli(fd, HANDLER_FORMAT, "Channel", "Handler");
+}
+
+/*!
+ * \internal
+ * \brief CLI output the channel hangup handlers.
+ * \since 11.0
+ *
+ * \param fd CLI file descriptor to use.
+ * \param chan Channel to show hangup handlers.
+ *
+ * \return Nothing
+ */
+static void ast_pbx_hangup_handler_show(int fd, struct ast_channel *chan)
+{
+	struct ast_hangup_handler_list *handlers;
+	struct ast_hangup_handler *h_handler;
+	int first = 1;
+
+	ast_channel_lock(chan);
+	handlers = ast_channel_hangup_handlers(chan);
+	AST_LIST_TRAVERSE(handlers, h_handler, node) {
+		ast_cli(fd, HANDLER_FORMAT, first ? ast_channel_name(chan) : "", h_handler->args);
+		first = 0;
+	}
+	ast_channel_unlock(chan);
+}
+
+/*
+ * \brief 'show hanguphandlers <channel>' CLI command implementation function...
+ */
+static char *handle_show_hangup_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel *chan;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show hanguphandlers";
+		e->usage =
+			"Usage: core show hanguphandlers <channel>\n"
+			"       Show hangup handlers of a specified channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	chan = ast_channel_get_by_name(a->argv[3]);
+	if (!chan) {
+		ast_cli(a->fd, "Channel does not exist.\n");
+		return CLI_FAILURE;
+	}
+
+	ast_pbx_hangup_handler_headers(a->fd);
+	ast_pbx_hangup_handler_show(a->fd, chan);
+
+	ast_channel_unref(chan);
+
+	return CLI_SUCCESS;
+}
+
+/*
+ * \brief 'show hanguphandlers all' CLI command implementation function...
+ */
+static char *handle_show_hangup_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_channel_iterator *iter;
+	struct ast_channel *chan;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show hanguphandlers all";
+		e->usage =
+			"Usage: core show hanguphandlers all\n"
+			"       Show hangup handlers for all channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	iter = ast_channel_iterator_all_new();
+	if (!iter) {
+		return CLI_FAILURE;
+	}
+
+	ast_pbx_hangup_handler_headers(a->fd);
+	for (; (chan = ast_channel_iterator_next(iter)); ast_channel_unref(chan)) {
+		ast_pbx_hangup_handler_show(a->fd, chan);
+	}
+	ast_channel_iterator_destroy(iter);
+
+	return CLI_SUCCESS;
+}
+
 /*! helper function to set extension and priority */
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
@@ -5680,27 +6034,15 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 
 	if (!args || !args->no_hangup_chan) {
 		ast_softhangup(c, AST_SOFTHANGUP_APPUNLOAD);
+		if (!ast_test_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN)
+			&& ast_exists_extension(c, ast_channel_context(c), "h", 1,
+				S_COR(ast_channel_caller(c)->id.number.valid,
+					ast_channel_caller(c)->id.number.str, NULL))) {
+			ast_pbx_h_exten_run(c, ast_channel_context(c));
+		}
+		ast_pbx_hangup_handler_run(c);
 	}
 
-	if ((!args || !args->no_hangup_chan)
-		&& !ast_test_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN)
-		&& ast_exists_extension(c, ast_channel_context(c), "h", 1,
-			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))) {
-		set_ext_pri(c, "h", 1);
-		if (ast_channel_cdr(c) && ast_opt_end_cdr_before_h_exten) {
-			ast_cdr_end(ast_channel_cdr(c));
-		}
-		while ((res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c),
-			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL),
-			&found, 1)) == 0) {
-			ast_channel_priority_set(c, ast_channel_priority(c) + 1);
-		}
-		if (found && res) {
-			/* Something bad happened, or a hangup has been requested. */
-			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
-			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_name(c));
-		}
-	}
 	ast_set2_flag(ast_channel_flags(c), autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	ast_clear_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
 	pbx_destroy(ast_channel_pbx(c));
@@ -7590,6 +7932,8 @@ static struct ast_cli_entry pbx_cli[] = {
 #endif
 	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
+	AST_CLI_DEFINE(handle_show_hangup_all, "Show hangup handlers of all channels"),
+	AST_CLI_DEFINE(handle_show_hangup_channel, "Show hangup handlers of a specified channel"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),
 	AST_CLI_DEFINE(handle_set_chanvar, "Set a channel variable"),

@@ -5266,7 +5266,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 							"%s",
 							queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
 							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-				ast_hangup(peer);
+				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 				ao2_ref(member, -1);
 				goto out;
 			} else if (ast_check_hangup(qe->chan)) {
@@ -5274,7 +5274,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
-				ast_hangup(peer);
+				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 				ao2_ref(member, -1);
 				return -1;
 			}
@@ -5296,7 +5296,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", ast_channel_name(qe->chan), ast_channel_name(peer));
 			record_abandoned(qe);
 			ast_cdr_failed(ast_channel_cdr(qe->chan));
-			ast_hangup(peer);
+			ast_autoservice_chan_hangup_peer(qe->chan, peer);
 			ao2_ref(member, -1);
 			return -1;
 		}
@@ -5673,10 +5673,10 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 					caller_priority + 1);
 			}
 			if (goto_res || ast_pbx_start(peer)) {
-				ast_hangup(peer);
+				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 			}
 		} else {
-			ast_hangup(peer);
+			ast_autoservice_chan_hangup_peer(qe->chan, peer);
 		}
 
 		res = bridge ? bridge : 1;

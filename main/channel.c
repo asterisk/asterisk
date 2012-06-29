@@ -1107,6 +1107,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 
+	ast_pbx_hangup_handler_init(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_datastores(tmp));
 
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_autochans(tmp));
@@ -1182,6 +1183,9 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 		/* Dummy channel structure allocation failure. */
 		return NULL;
 	}
+
+	ast_pbx_hangup_handler_init(tmp);
+	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_datastores(tmp));
 
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
@@ -2198,8 +2202,11 @@ static void ast_channel_destructor(void *obj)
 		ast_cel_check_retire_linkedid(chan);
 	}
 
-	/* Get rid of each of the data stores on the channel */
+	ast_pbx_hangup_handler_destroy(chan);
+
 	ast_channel_lock(chan);
+
+	/* Get rid of each of the data stores on the channel */
 	while ((datastore = AST_LIST_REMOVE_HEAD(ast_channel_datastores(chan), entry)))
 		/* Free the data store */
 		ast_datastore_free(datastore);
@@ -2316,10 +2323,17 @@ static void ast_channel_destructor(void *obj)
 static void ast_dummy_channel_destructor(void *obj)
 {
 	struct ast_channel *chan = obj;
+	struct ast_datastore *datastore;
 	struct ast_var_t *vardata;
 	struct varshead *headp;
 
-	headp = ast_channel_varshead(chan);
+	ast_pbx_hangup_handler_destroy(chan);
+
+	/* Get rid of each of the data stores on the channel */
+	while ((datastore = AST_LIST_REMOVE_HEAD(ast_channel_datastores(chan), entry))) {
+		/* Free the data store */
+		ast_datastore_free(datastore);
+	}
 
 	ast_party_dialed_free(ast_channel_dialed(chan));
 	ast_party_caller_free(ast_channel_caller(chan));
@@ -2328,6 +2342,7 @@ static void ast_dummy_channel_destructor(void *obj)
 
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
+	headp = ast_channel_varshead(chan);
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries)))
 		ast_var_delete(vardata);
 
@@ -2599,7 +2614,6 @@ static void destroy_hooks(struct ast_channel *chan)
 int ast_hangup(struct ast_channel *chan)
 {
 	char extra_str[64]; /* used for cel logging below */
-	int was_zombie;
 
 	ast_autoservice_stop(chan);
 
@@ -2632,11 +2646,20 @@ int ast_hangup(struct ast_channel *chan)
 	}
 
 	/* Mark as a zombie so a masquerade cannot be setup on this channel. */
-	if (!(was_zombie = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE))) {
-		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE);
-	}
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE);
 
 	ast_channel_unlock(chan);
+
+	/*
+	 * XXX if running the hangup handlers here causes problems
+	 * because the handlers take too long to execute, we could move
+	 * the meat of this function into another thread.  A thread
+	 * where channels go to die.
+	 *
+	 * If this is done, ast_autoservice_chan_hangup_peer() will no
+	 * longer be needed.
+	 */
+	ast_pbx_hangup_handler_run(chan);
 	ao2_unlink(channels, chan);
 	ast_channel_lock(chan);
 
@@ -2675,14 +2698,10 @@ int ast_hangup(struct ast_channel *chan)
 			(long) pthread_self(), ast_channel_name(chan), (long)ast_channel_blocker(chan), ast_channel_blockproc(chan));
 		ast_assert(ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING) == 0);
 	}
-	if (!was_zombie) {
-		ast_debug(1, "Hanging up channel '%s'\n", ast_channel_name(chan));
 
-		if (ast_channel_tech(chan)->hangup) {
-			ast_channel_tech(chan)->hangup(chan);
-		}
-	} else {
-		ast_debug(1, "Hanging up zombie '%s'\n", ast_channel_name(chan));
+	ast_debug(1, "Hanging up channel '%s'\n", ast_channel_name(chan));
+	if (ast_channel_tech(chan)->hangup) {
+		ast_channel_tech(chan)->hangup(chan);
 	}
 
 	ast_channel_unlock(chan);
@@ -6535,6 +6554,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	const struct ast_channel_tech *t;
 	void *t_pvt;
 	union {
+		struct ast_hangup_handler_list handlers;
 		struct ast_party_dialed dialed;
 		struct ast_party_caller caller;
 		struct ast_party_connected_line connected;
@@ -6758,6 +6778,11 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	ast_app_group_update(clonechan, original);
 
+	/* Swap hangup handlers. */
+	exchange.handlers = *ast_channel_hangup_handlers(original);
+	*ast_channel_hangup_handlers(original) = *ast_channel_hangup_handlers(clonechan);
+	*ast_channel_hangup_handlers(clonechan) = exchange.handlers;
+
 	/* Move data stores over */
 	if (AST_LIST_FIRST(ast_channel_datastores(clonechan))) {
 		struct ast_datastore *ds;
@@ -6878,19 +6903,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	 * container lock.
 	 */
 	ast_channel_unlock(original);
-
-	/* Disconnect the original original's physical side */
-	if (ast_channel_tech(clonechan)->hangup && ast_channel_tech(clonechan)->hangup(clonechan)) {
-		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-	} else {
-		/*
-		 * We just hung up the original original's physical side of the
-		 * channel.  Set the new zombie to use the kill channel driver
-		 * for safety.
-		 */
-		ast_channel_tech_set(clonechan, &ast_kill_tech);
-	}
-
 	ast_channel_unlock(clonechan);
 
 	/*
@@ -6938,32 +6950,17 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_datastore_free(xfer_ds);
 	}
 
-	if (clone_was_zombie) {
-		ast_channel_lock(clonechan);
-		ast_debug(1, "Destroying channel clone '%s'\n", ast_channel_name(clonechan));
-		ast_manager_event(clonechan, EVENT_FLAG_CALL, "Hangup",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Cause: %d\r\n"
-			"Cause-txt: %s\r\n",
-			ast_channel_name(clonechan),
-			ast_channel_uniqueid(clonechan),
-			ast_channel_hangupcause(clonechan),
-			ast_cause2str(ast_channel_hangupcause(clonechan))
-			);
-		ast_channel_unlock(clonechan);
-
-		/*
-		 * Drop the system reference to destroy the channel since it is
-		 * already unlinked.
-		 */
-		ast_channel_unref(clonechan);
-	} else {
+	if (!clone_was_zombie) {
 		ao2_link(channels, clonechan);
 	}
-
 	ao2_link(channels, original);
 	ao2_unlock(channels);
+
+	if (clone_was_zombie) {
+		/* Restart the ast_hangup() that was deferred because of this masquerade. */
+		ast_debug(1, "Destroying channel clone '%s'\n", ast_channel_name(clonechan));
+		ast_hangup(clonechan);
+	}
 
 	/* Release our held safety references. */
 	ast_channel_unref(original);

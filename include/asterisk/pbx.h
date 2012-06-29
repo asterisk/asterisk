@@ -368,6 +368,71 @@ struct ast_pbx_args {
 enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args *args);
 
 /*!
+ * \brief Run the h exten from the given context.
+ * \since 11.0
+ *
+ * \param chan Channel to run the h exten on.
+ * \param context Context the h exten is in.
+ *
+ * \return Nothing
+ */
+void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context);
+
+/*!
+ * \brief Run all hangup handlers on the channel.
+ * \since 11.0
+ *
+ * \param chan Channel to run the hangup handlers on.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \retval Zero if no hangup handlers run.
+ * \retval non-zero if hangup handlers were run.
+ */
+int ast_pbx_hangup_handler_run(struct ast_channel *chan);
+
+/*!
+ * \brief Init the hangup handler container on a channel.
+ * \since 11.0
+ *
+ * \param chan Channel to init the hangup handler container on.
+ *
+ * \return Nothing
+ */
+void ast_pbx_hangup_handler_init(struct ast_channel *chan);
+
+/*!
+ * \brief Destroy the hangup handler container on a channel.
+ * \since 11.0
+ *
+ * \param chan Channel to destroy the hangup handler container on.
+ *
+ * \return Nothing
+ */
+void ast_pbx_hangup_handler_destroy(struct ast_channel *chan);
+
+/*!
+ * \brief Pop the top of the channel hangup handler stack.
+ * \since 11.0
+ *
+ * \param chan Channel to push the hangup handler onto.
+ *
+ * \retval TRUE if a handler was popped off of the stack.
+ */
+int ast_pbx_hangup_handler_pop(struct ast_channel *chan);
+
+/*!
+ * \brief Push the given hangup handler onto the channel hangup handler stack.
+ * \since 11.0
+ *
+ * \param chan Channel to push the hangup handler onto.
+ * \param handler Gosub application parameter string.
+ *
+ * \return Nothing
+ */
+void ast_pbx_hangup_handler_push(struct ast_channel *chan, const char *handler);
+
+/*!
  * \brief Add and extension to an extension context.
  *
  * \param context context to add the extension to
