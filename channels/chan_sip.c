@@ -26949,7 +26949,7 @@ int get_address_family_filter(unsigned int transport)
 {
 	const struct ast_sockaddr *addr = NULL;
 
-	if (transport == SIP_TRANSPORT_UDP) {
+	if ((transport == SIP_TRANSPORT_UDP) || !transport) {
 		addr = &bindaddr;
 	}
 	else if (transport == SIP_TRANSPORT_TCP) {
