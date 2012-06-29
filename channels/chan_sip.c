@@ -1232,7 +1232,7 @@ static const char *sip_get_callid(struct ast_channel *chan);
 static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr);
 static int sip_standard_port(enum sip_transport type, int port);
 static int sip_prepare_socket(struct sip_pvt *p);
-static int get_address_family_filter(const struct ast_sockaddr *addr);
+static int get_address_family_filter(unsigned int transport);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
@@ -1415,6 +1415,8 @@ static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 				      const char *name, int flag, int family);
 static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 				      const char *name, int flag);
+static int ast_sockaddr_resolve_first_transport(struct ast_sockaddr *addr,
+						const char *name, int flag, unsigned int transport);
 
 /*--- Debugging
 	Functions for enabling debug per IP or fully, or enabling history logging for
@@ -3095,7 +3097,7 @@ static int proxy_update(struct sip_proxy *proxy)
 	if (!ast_sockaddr_parse(&proxy->ip, proxy->name, 0)) {
 		/* Ok, not an IP address, then let's check if it's a domain or host */
 		/* XXX Todo - if we have proxy port, don't do SRV */
-		proxy->ip.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
+		proxy->ip.ss.ss_family = get_address_family_filter(SIP_TRANSPORT_UDP); /* Filter address family */
 		if (ast_get_ip_or_srv(&proxy->ip, proxy->name, sip_cfg.srvlookup ? "_sip._udp" : NULL) < 0) {
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", proxy->name);
 				return FALSE;
@@ -4810,7 +4812,7 @@ static int realtime_peer_by_name(const char *const *name, struct ast_sockaddr *a
 					if (ast_sockaddr_resolve(&addrs,
 								 tmp->value,
 								 PARSE_PORT_FORBID,
-								 get_address_family_filter(&bindaddr)) <= 0 ||
+								 get_address_family_filter(SIP_TRANSPORT_UDP)) <= 0 ||
 								 ast_sockaddr_cmp(&addrs[0], addr)) {
 						/* No match */
 						ast_variables_destroy(*var);
@@ -5478,7 +5480,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 			}
 		}
 
-		if (ast_sockaddr_resolve_first(&dialog->sa, hostn, 0)) {
+		if (ast_sockaddr_resolve_first_transport(&dialog->sa, hostn, 0, dialog->socket.type ? dialog->socket.type : SIP_TRANSPORT_UDP)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
@@ -7804,7 +7806,7 @@ static int process_via(struct sip_pvt *p, const struct sip_request *req)
 	}
 
 	if (via->maddr) {
-		if (ast_sockaddr_resolve_first(&p->sa, via->maddr, PARSE_PORT_FORBID)) {
+		if (ast_sockaddr_resolve_first_transport(&p->sa, via->maddr, PARSE_PORT_FORBID, p->socket.type)) {
 			ast_log(LOG_WARNING, "Can't find address for maddr '%s'\n", via->maddr);
 			ast_log(LOG_ERROR, "error processing via header\n");
 			free_via(via);
@@ -10092,7 +10094,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 
 	/*! \todo XXX If we have sip_cfg.srvlookup on, then look for NAPTR/SRV,
 	 * otherwise, just look for A records */
-	if (ast_sockaddr_resolve_first(&p->sa, hostname, 0)) {
+	if (ast_sockaddr_resolve_first_transport(&p->sa, hostname, 0, p->socket.type)) {
 		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
 		return;
 	}
@@ -10113,7 +10115,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 
 		/*! \todo XXX If we have sip_cfg.srvlookup on, then look for
 		 * NAPTR/SRV, otherwise, just look for A records */
-		if (ast_sockaddr_resolve_first(&p->sa, hostname, PARSE_PORT_FORBID)) {
+		if (ast_sockaddr_resolve_first_transport(&p->sa, hostname, PARSE_PORT_FORBID, p->socket.type)) {
 			ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
 			return;
 		}
@@ -12451,7 +12453,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 		struct sip_subscription_mwi *saved;
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(mwi->transport), get_srv_protocol(mwi->transport));
 
-		mwi->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
+		mwi->us.ss.ss_family = get_address_family_filter(mwi->transport); /* Filter address family */
 		saved = ASTOBJ_REF(mwi);
 		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, saved);
 		if (!mwi->dnsmgr) {
@@ -13242,7 +13244,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		char transport[MAXHOSTNAMELEN];
 		peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0);
 		snprintf(transport, sizeof(transport), "_%s._%s",get_srv_service(r->transport), get_srv_protocol(r->transport)); /* have to use static get_transport function */
-		r->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
+		r->us.ss.ss_family = get_address_family_filter(r->transport); /* Filter address family */
 
 		/* No point in doing a DNS lookup of the register hostname if we're just going to
 		 * end up using an outbound proxy. obproxy_get is safe to call with either of r->call
@@ -13958,7 +13960,7 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 		return -1;
 	}
 
-	if (ast_sockaddr_resolve_first(addr, hostport, 0)) {
+	if (ast_sockaddr_resolve_first_transport(addr, hostport, 0, get_transport_str2enum(transport))) {
 		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't "
 			"resolve in DNS) : '%s'\n", hostport);
 		return -1;
@@ -14103,7 +14105,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_debug(1, "Store REGISTER's Contact header for call routing.\n");
 		/* XXX This could block for a long time XXX */
 		/*! \todo Check NAPTR/SRV if we have not got a port in the URI */
-		if (ast_sockaddr_resolve_first(&testsa, hostport, 0)) {
+		if (ast_sockaddr_resolve_first_transport(&testsa, hostport, 0, peer->socket.type)) {
 			ast_log(LOG_WARNING, "Invalid hostport '%s'\n", hostport);
 			ast_string_field_set(peer, fullcontact, "");
 			ast_string_field_set(pvt, our_contact, "");
@@ -18988,7 +18990,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Enable SIP Debugging for a single IP */
 static char *sip_do_debug_ip(int fd, const char *arg)
 {
-	if (ast_sockaddr_resolve_first(&debugaddr, arg, 0)) {
+	if (ast_sockaddr_resolve_first_af(&debugaddr, arg, 0, 0)) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -25558,8 +25560,20 @@ static struct ast_tcptls_session_instance *sip_tcp_locate(struct ast_sockaddr *s
  *
  * \note return 0 if addr is [::] else it returns addr's family.
  */
-int get_address_family_filter(const struct ast_sockaddr *addr)
+int get_address_family_filter(unsigned int transport)
 {
+	const struct ast_sockaddr *addr = NULL;
+
+	if (transport == SIP_TRANSPORT_UDP) {
+		addr = &bindaddr;
+	}
+	else if (transport == SIP_TRANSPORT_TCP) {
+		addr = &sip_tcp_desc.local_address;
+	}
+	else if (transport == SIP_TRANSPORT_TLS) {
+		addr = &sip_tls_desc.local_address;
+	}
+
 	if (ast_sockaddr_is_ipv6(addr) && ast_sockaddr_is_any(addr)) {
 		return 0;
 	}
@@ -26694,7 +26708,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	}
 
 	if (!ast_strlen_zero(remote_address)) {
-		if (ast_sockaddr_resolve_first(&remote_address_sa, remote_address, 0)) {
+		if (ast_sockaddr_resolve_first_transport(&remote_address_sa, remote_address, 0, transport)) {
 			ast_log(LOG_WARNING, "Unable to find IP address for host %s. We will not use this remote IP address\n", remote_address);
 		} else {
 			if (!ast_sockaddr_port(&remote_address_sa)) {
@@ -27916,7 +27930,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(peer->socket.type), get_srv_protocol(peer->socket.type));
 
-		peer->addr.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
+		peer->addr.ss.ss_family = get_address_family_filter(peer->socket.type); /* Filter address family */
 		if (ast_dnsmgr_lookup_cb(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL,
 					on_dns_update_peer, ref_peer(peer, "Store peer on dnsmgr"))) {
 			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
@@ -29955,7 +29969,17 @@ static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 				      const char* name, int flag)
 {
-	return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(&bindaddr));
+	return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(SIP_TRANSPORT_UDP));
+}
+
+/*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
+ *
+ * \warn Using this function probably means you have a faulty design.
+ */
+static int ast_sockaddr_resolve_first_transport(struct ast_sockaddr *addr,
+						const char* name, int flag, unsigned int transport)
+{
+        return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(transport));
 }
 
 /*! \brief
