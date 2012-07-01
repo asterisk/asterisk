@@ -19,6 +19,7 @@
  *   Windows Mobile, useful for testing purposes only.
  */
 
+#define PJ_HAS_IPV6 1
 
 /*
  * Typical configuration for WinCE target.
