@@ -1912,6 +1912,11 @@ int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level)
 	return -1;
 }
 
+struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *instance)
+{
+	return instance->engine->ice;
+}
+
 static void set_next_mime_type(const struct ast_format *format, int rtp_code, char *type, char *subtype, unsigned int sample_rate)
 {
 	int x = mime_types_len;

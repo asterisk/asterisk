@@ -1,0 +1,136 @@
+#if defined(PJ_BUILD_DLL)
+
+TARGET		pjmedia.dll
+TARGETTYPE	dll
+UID		0x0 0xA0000004
+
+CAPABILITY	None
+LIBRARY		null_audio.lib pjsdp.lib pjnath.lib pjlib_util.lib pjlib.lib esock.lib insock.lib charconv.lib euser.lib estlib.lib
+MACRO		PJ_DLL
+MACRO		PJ_EXPORTING
+
+DEFFILE		.\pjmedia.def
+
+#else
+
+TARGET 		pjmedia.lib
+TARGETTYPE 	lib
+
+#endif
+
+SOURCEPATH	..\pjmedia\src\pjmedia
+
+//
+// GCCE optimization setting
+//
+OPTION		GCCE -O2 -fno-unit-at-a-time
+
+MACRO		PJ_M_I386=1
+MACRO		PJ_SYMBIAN=1
+
+// Must compile as C++, otherwise exception would not work
+OPTION          CW -lang c++
+OPTION          ARMCC --cpp --gnu
+OPTION          GCC     -x c++
+OPTION          GCCE    -x c++
+
+//
+// Platform independent source
+//
+
+SOURCE		alaw_ulaw.c
+SOURCE		alaw_ulaw_table.c
+SOURCE		avi_player.c
+SOURCE		bidirectional.c
+SOURCE		clock_thread.c
+SOURCE		codec.c
+SOURCE		conf_switch.c
+SOURCE		conference.c
+SOURCE		converter.c
+SOURCE		converter_libswscale.c
+SOURCE		delaybuf.c
+SOURCE		echo_common.c
+SOURCE		echo_port.c
+SOURCE		echo_suppress.c
+SOURCE		endpoint.c
+SOURCE		errno.c
+SOURCE		event.c
+SOURCE		format.c
+SOURCE		g711.c
+SOURCE		jbuf.c
+SOURCE		master_port.c
+SOURCE		mem_capture.c
+SOURCE		mem_player.c
+SOURCE		null_port.c
+SOURCE		plc_common.c
+SOURCE		port.c
+SOURCE		resample_port.c
+SOURCE		resample_resample.c
+SOURCE		rtcp.c
+SOURCE		rtcp_xr.c
+SOURCE		rtp.c
+//SDP files are in pjsdp.mmp: sdp.c, sdp_cmp.c, sdp_neg.c
+//SOURCE		session.c		// deprecated
+SOURCE		silencedet.c
+SOURCE		sound_port.c
+SOURCE		splitcomb.c
+SOURCE		stereo_port.c
+SOURCE		stream.c
+SOURCE		stream_common.c
+SOURCE		stream_info.c
+SOURCE		tonegen.c
+SOURCE		transport_adapter_sample.c
+SOURCE		transport_ice.c
+SOURCE		transport_udp.c
+SOURCE		transport_srtp.c
+SOURCE		types.c
+SOURCE		vid_codec.c
+SOURCE		vid_codec_util.c
+SOURCE		vid_port.c
+SOURCE		vid_stream.c
+SOURCE		vid_stream_info.c
+SOURCE		vid_tee.c
+SOURCE		wav_player.c
+SOURCE		wav_playlist.c
+SOURCE		wav_writer.c
+SOURCE		wave.c
+SOURCE		wsola.c
+
+//
+// pjmedia-codec common files
+//
+SOURCEPATH	..\pjmedia\src\pjmedia-codec
+SOURCE		audio_codecs.c
+SOURCE		amr_sdp_match.c
+SOURCE		g7221_sdp_match.c
+SOURCE		h263_packetizer.c
+SOURCE		h264_packetizer.c
+
+
+//
+// Symbian specific
+// These are on separate project
+//
+//SOURCE		symbian_sound.cpp
+//SOURCE		null_sound.c
+
+
+//
+// Header files
+//
+
+
+SYSTEMINCLUDE	..\pjmedia\include
+SYSTEMINCLUDE	..\pjlib\include 
+SYSTEMINCLUDE	..\pjlib-util\include 
+SYSTEMINCLUDE	..\pjnath\include 
+SYSTEMINCLUDE	..\third_party\srtp\include
+SYSTEMINCLUDE	..\third_party\srtp\crypto\include
+SYSTEMINCLUDE	..\third_party\build\srtp
+SYSTEMINCLUDE	..
+
+SYSTEMINCLUDE	\epoc32\include
+SYSTEMINCLUDE	\epoc32\include\libc
+//SYSTEMINCLUDE	\epoc32\include\mmf\plugin
+
+

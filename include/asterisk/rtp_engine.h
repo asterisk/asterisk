@@ -310,6 +310,44 @@ if (stat == combined) { \
 return 0; \
 }
 
+/*! \brief ICE candidate types */
+enum ast_rtp_ice_candidate_type {
+	AST_RTP_ICE_CANDIDATE_TYPE_HOST,    /*!< ICE host candidate. A host candidate represents the actual local transport address in the host. */
+	AST_RTP_ICE_CANDIDATE_TYPE_SRFLX,   /*!< ICE server reflexive candidate, which represents the public mapped address of the local address. */
+	AST_RTP_ICE_CANDIDATE_TYPE_RELAYED, /*!< ICE relayed candidate, which represents the address allocated in TURN server. */
+};
+
+/*! \brief Structure for an ICE candidate */
+struct ast_rtp_engine_ice_candidate {
+	char *foundation;                     /*!< Foundation identifier */
+	unsigned int id;                      /*!< Component identifier */
+	char *transport;                      /*!< Transport for the media */
+	int priority;                         /*!< Priority which is used if multiple candidates can be used */
+	struct ast_sockaddr address;          /*!< Address of the candidate */
+	struct ast_sockaddr relay_address;    /*!< Relay address for the candidate */
+	enum ast_rtp_ice_candidate_type type; /*!< Type of candidate */
+};
+
+/*! \brief Structure that represents the optional ICE support within an RTP engine */
+struct ast_rtp_engine_ice {
+	/*! Callback for setting received authentication information */
+	void (*set_authentication)(struct ast_rtp_instance *instance, const char *ufrag, const char *password);
+	/*! Callback for adding a remote candidate */
+	void (*add_remote_candidate)(struct ast_rtp_instance *instance, const struct ast_rtp_engine_ice_candidate *candidate);
+	/*! Callback for starting ICE negotiation */
+	void (*start)(struct ast_rtp_instance *instance);
+	/*! Callback for stopping ICE support */
+	void (*stop)(struct ast_rtp_instance *instance);
+	/*! Callback for getting local username */
+	const char *(*get_ufrag)(struct ast_rtp_instance *instance);
+	/*! Callback for getting local password */
+	const char *(*get_password)(struct ast_rtp_instance *instance);
+	/*! Callback for getting local candidates */
+	struct ao2_container *(*get_local_candidates)(struct ast_rtp_instance *instance);
+	/*! Callback for telling the ICE support that it is talking to an ice-lite implementation */
+	void (*ice_lite)(struct ast_rtp_instance *instance);
+};
+
 /*! Structure that represents an RTP stack (engine) */
 struct ast_rtp_engine {
 	/*! Name of the RTP engine, used when explicitly requested */
@@ -381,6 +419,8 @@ struct ast_rtp_engine {
 	void (*available_formats)(struct ast_rtp_instance *instance, struct ast_format_cap *to_endpoint, struct ast_format_cap *to_asterisk, struct ast_format_cap *result);
 	/*! Callback to send CNG */
 	int (*sendcng)(struct ast_rtp_instance *instance, int level);
+	/*! Callback to pointer for optional ICE support */
+	struct ast_rtp_engine_ice *ice;
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
@@ -1905,6 +1945,16 @@ int ast_rtp_engine_load_format(const struct ast_format *format);
  * interface registered in order for the rtp engine to handle it correctly.  If an
  * attribute interface is unloaded, this function must be called to notify the rtp_engine. */
 int ast_rtp_engine_unload_format(const struct ast_format *format);
+
+/*!
+ * \brief Obtain a pointer to the ICE support present on an RTP instance
+ *
+ * \param instance the RTP instance
+ *
+ * \retval ICE support if present
+ * \retval NULL if no ICE support available
+ */
+struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *instance);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

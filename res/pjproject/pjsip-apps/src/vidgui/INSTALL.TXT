@@ -1,0 +1,32 @@
+
+                       vidgui
+                       
+This directory contains a Qt based video GUI sample. 
+
+Requirements:
+========================
+  - pjsip built with video support
+  - Qt SDK version 4.5 or above (version <4.5 doesn't have Cocoa support)
+
+Build instructions:
+===================
+  - Build pjsip first
+  - Follow the instructions for the appropriate platform below:
+
+    Visual Studio
+    -------------
+      - Run this to generate Visual Studio project file:
+         c:> qmake -tp vc
+      - Open vidgui.vcproj and build the app
+
+
+    Mac OS X
+    --------
+      $ qmake -spec macx-g++
+      $ make
+
+    Linux 
+    -----
+      $ qmake
+      $ make
+

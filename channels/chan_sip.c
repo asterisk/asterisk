@@ -1343,10 +1343,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 static int process_sdp_o(const char *o, struct sip_pvt *p);
 static int process_sdp_c(const char *c, struct ast_sockaddr *addr);
 static int process_sdp_a_sendonly(const char *a, int *sendonly);
+static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance);
 static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newaudiortp, int *last_rtpmap_codec);
 static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newvideortp, int *last_rtpmap_codec);
 static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newtextrtp, char *red_fmtp, int *red_num_gen, int *red_data_pt, int *last_rtpmap_codec);
 static int process_sdp_a_image(const char *a, struct sip_pvt *p);
+static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf);
+static void start_ice(struct ast_rtp_instance *instance);
 static void add_codec_to_sdp(const struct sip_pvt *p, struct ast_format *codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
@@ -9273,6 +9276,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				processed = TRUE;
 			else if (process_sdp_a_image(value, p))
 				processed = TRUE;
+
+			if (process_sdp_a_ice(value, p, p->rtp)) {
+				processed = TRUE;
+			}
+			if (process_sdp_a_ice(value, p, p->vrtp)) {
+				processed = TRUE;
+			}
+			if (process_sdp_a_ice(value, p, p->trtp)) {
+				processed = TRUE;
+			}
+
 			break;
 		}
 
@@ -9584,7 +9598,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			case 'a':
 				/* Audio specific scanning */
 				if (audio) {
-					if (process_sdp_a_sendonly(value, &sendonly)) {
+					if (process_sdp_a_ice(value, p, p->rtp)) {
+						processed = TRUE;
+					} else if (process_sdp_a_sendonly(value, &sendonly)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
 						processed_crypto = TRUE;
@@ -9595,7 +9611,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				/* Video specific scanning */
 				else if (video) {
-					if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
+					if (process_sdp_a_ice(value, p, p->vrtp)) {
+						processed = TRUE;
+					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
 					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
@@ -9604,7 +9622,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				/* Text (T.140) specific scanning */
 				else if (text) {
-					if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
+					if (process_sdp_a_ice(value, p, p->trtp)) {
+						processed = TRUE;
+					} if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value)) {
 						processed_crypto = TRUE;
@@ -9734,6 +9754,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup audio address and port */
 	if (p->rtp) {
 		if (portno > 0) {
+			start_ice(p->rtp);
 			ast_sockaddr_set_port(sa, portno);
 			ast_rtp_instance_set_remote_address(p->rtp, sa);
 			if (debug) {
@@ -9781,6 +9802,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup video address and port */
 	if (p->vrtp) {
 		if (vportno > 0) {
+			start_ice(p->vrtp);
 			ast_sockaddr_set_port(vsa, vportno);
 			ast_rtp_instance_set_remote_address(p->vrtp, vsa);
 			if (debug) {
@@ -9798,6 +9820,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup text address and port */
 	if (p->trtp) {
 		if (tportno > 0) {
+			start_ice(p->trtp);
 			ast_sockaddr_set_port(tsa, tportno);
 			ast_rtp_instance_set_remote_address(p->trtp, tsa);
 			if (debug) {
@@ -10059,6 +10082,61 @@ static int process_sdp_a_sendonly(const char *a, int *sendonly)
 			*sendonly = 0;
 		found = TRUE;
 	}
+	return found;
+}
+
+static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_ice *ice;
+	int found = FALSE;
+	char ufrag[256], pwd[256], foundation[32], transport[4], address[46], cand_type[6], relay_address[46] = "";
+	struct ast_rtp_engine_ice_candidate candidate = { 0, };
+	int port, relay_port = 0;
+
+	if (!instance || !(ice = ast_rtp_instance_get_ice(instance))) {
+		return found;
+	}
+
+	if (sscanf(a, "ice-ufrag: %255s", ufrag) == 1) {
+		ice->set_authentication(instance, ufrag, NULL);
+		found = TRUE;
+	} else if (sscanf(a, "ice-pwd: %255s", pwd) == 1) {
+		ice->set_authentication(instance, NULL, pwd);
+		found = TRUE;
+	} else if (sscanf(a, "candidate: %31s %30u %3s %30u %23s %30u typ %5s %*s %23s %*s %30u", foundation, &candidate.id, transport, &candidate.priority,
+			  address, &port, cand_type, relay_address, &relay_port) >= 7) {
+		candidate.foundation = foundation;
+		candidate.transport = transport;
+
+		ast_sockaddr_parse(&candidate.address, address, PARSE_PORT_FORBID);
+		ast_sockaddr_set_port(&candidate.address, port);
+
+		if (!strcasecmp(cand_type, "host")) {
+			candidate.type = AST_RTP_ICE_CANDIDATE_TYPE_HOST;
+		} else if (!strcasecmp(cand_type, "srflx")) {
+			candidate.type = AST_RTP_ICE_CANDIDATE_TYPE_SRFLX;
+		} else if (!strcasecmp(cand_type, "relay")) {
+			candidate.type = AST_RTP_ICE_CANDIDATE_TYPE_RELAYED;
+		} else {
+			return found;
+		}
+
+		if (!ast_strlen_zero(relay_address)) {
+			ast_sockaddr_parse(&candidate.relay_address, relay_address, PARSE_PORT_FORBID);
+		}
+
+		if (relay_port) {
+			ast_sockaddr_set_port(&candidate.relay_address, relay_port);
+		}
+
+		ice->add_remote_candidate(instance, &candidate);
+
+		found = TRUE;
+	} else if (!strcasecmp(a, "ice-lite")) {
+		ice->ice_lite(instance);
+		found = TRUE;
+	}
+
 	return found;
 }
 
@@ -11568,6 +11646,67 @@ static int add_vidupdate(struct sip_request *req)
 	return 0;
 }
 
+/*! \brief Add ICE attributes to SDP */
+static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf)
+{
+	struct ast_rtp_engine_ice *ice = ast_rtp_instance_get_ice(instance);
+	const char *username, *password;
+	struct ao2_container *candidates;
+	struct ao2_iterator i;
+	struct ast_rtp_engine_ice_candidate *candidate;
+
+	/* If no ICE support is present we can't very well add the attributes */
+	if (!ice || !(candidates = ice->get_local_candidates(instance))) {
+		return;
+	}
+
+	if ((username = ice->get_ufrag(instance))) {
+		ast_str_append(a_buf, 0, "a=ice-ufrag:%s\r\n", username);
+	}
+	if ((password = ice->get_password(instance))) {
+		ast_str_append(a_buf, 0, "a=ice-pwd:%s\r\n", password);
+	}
+
+	i = ao2_iterator_init(candidates, 0);
+
+	while ((candidate = ao2_iterator_next(&i))) {
+		ast_str_append(a_buf, 0, "a=candidate:%s %d %s %d ", candidate->foundation, candidate->id, candidate->transport, candidate->priority);
+		ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&candidate->address));
+		ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
+
+		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_HOST) {
+			ast_str_append(a_buf, 0, "host");
+		} else if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_SRFLX) {
+			ast_str_append(a_buf, 0, "srflx");
+		} else if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_RELAYED) {
+			ast_str_append(a_buf, 0, "relay");
+		}
+
+		if (!ast_sockaddr_isnull(&candidate->relay_address)) {
+			ast_str_append(a_buf, 0, " raddr %s ", ast_sockaddr_stringify_host(&candidate->relay_address));
+			ast_str_append(a_buf, 0, "rport %s", ast_sockaddr_stringify_port(&candidate->relay_address));
+		}
+
+		ast_str_append(a_buf, 0, "\r\n");
+	}
+
+	ao2_iterator_destroy(&i);
+
+	ao2_ref(candidates, -1);
+}
+
+/*! \brief Start ICE negotiation on an RTP instance */
+static void start_ice(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_ice *ice = ast_rtp_instance_get_ice(instance);
+
+	if (!ice) {
+		return;
+	}
+
+	ice->start(instance);
+}
+
 /*! \brief Add codec offer to SDP offer/answer body in INVITE or 200 OK */
 static void add_codec_to_sdp(const struct sip_pvt *p,
 	struct ast_format *format,
@@ -12038,6 +12177,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			if (debug) {
 				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&vdest));
 			}
+
+			if (!doing_directmedia) {
+				add_ice_to_sdp(p->vrtp, &a_video);
+			}
 		}
 
 		/* Ok, we need text. Let's add what we need for text and set codecs.
@@ -12050,6 +12193,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				t_a_crypto ? "SAVP" : "AVP");
 			if (debug) {  /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
+			}
+
+			if (!doing_directmedia) {
+				add_ice_to_sdp(p->trtp, &a_text);
 			}
 		}
 
@@ -12144,6 +12291,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* XXX don't think you can have ptime for text */
 		if (min_text_packet_size)
 			ast_str_append(&a_text, 0, "a=ptime:%d\r\n", min_text_packet_size);
+
+		if (!doing_directmedia) {
+			add_ice_to_sdp(p->rtp, &a_audio);
+		}
 
 		if (m_audio->len - m_audio->used < 2 || m_video->len - m_video->used < 2 ||
 		    m_text->len - m_text->used < 2 || a_text->len - a_text->used < 2 ||

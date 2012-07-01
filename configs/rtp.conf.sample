@@ -32,3 +32,23 @@ rtpend=20000
 ; if rtp packets are dropped from one or both ends after a call is
 ; connected. This option is set to 4 by default.
 ; probation=8
+;
+; Whether to enable or disable ICE support. This option is enabled by default.
+; icesupport=false
+;
+; Address to use for the STUN server when determining the external IP address and port
+; an RTP session can be reached at. This option is disabled by default.
+; stunaddr=
+;
+; Address to use for the TURN relay server when creating a TURN relay session. This option
+; is disabled by default.
+; turnaddr=
+;
+; Port used to contact the TURN relay server on. This option is set to 34780 by default.
+; turnport=34780
+;
+; Username used to authenticate with TURN relay server.
+; turnusername=
+;
+; Password used to authenticate with TURN relay server.
+; turnpassword=
