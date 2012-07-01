@@ -239,6 +239,7 @@ struct ast_rtp {
 	pj_turn_state_t turn_state; /*!< Current state of the TURN relay session */
 	ast_cond_t cond;            /*!< Condition for signaling */
 	unsigned int passthrough:1; /*!< Bit to indicate that the received packet should be passed through */
+	unsigned int ice_started:1; /*!< Bit to indicate ICE connectivity checks have started */
 
 	char remote_ufrag[256];  /*!< The remote ICE username */
 	char remote_passwd[256]; /*!< The remote ICE password */
@@ -446,7 +447,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	struct ast_rtp_engine_ice_candidate *candidate;
 	int cand_cnt = 0;
 
-	if (!rtp->ice || !rtp->remote_candidates) {
+	if (!rtp->ice || !rtp->remote_candidates || rtp->ice_started) {
 		return;
 	}
 
@@ -488,6 +489,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 
 	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->remote_candidates), &candidates[0]) == PJ_SUCCESS) {
 		pj_ice_sess_start_check(rtp->ice);
+		rtp->ice_started = 1;
 	}
 }
 
@@ -667,7 +669,11 @@ static pj_status_t ast_rtp_on_ice_tx_pkt(pj_ice_sess *ice, unsigned comp_id, uns
 		status = pj_sock_sendto(rtp->s, pkt, (pj_ssize_t*)&size, 0, dst_addr, dst_addr_len);
 	} else if (transport_id == TRANSPORT_SOCKET_RTCP) {
 		/* Traffic is destined to go right out the RTCP socket we already have */
-		status = pj_sock_sendto(rtp->rtcp->s, pkt, (pj_ssize_t*)&size, 0, dst_addr, dst_addr_len);
+		if (rtp->rtcp) {
+			status = pj_sock_sendto(rtp->rtcp->s, pkt, (pj_ssize_t*)&size, 0, dst_addr, dst_addr_len);
+		} else {
+			status = PJ_SUCCESS;
+		}
 	} else if (transport_id == TRANSPORT_TURN_RTP) {
 		/* Traffic is going through the RTP TURN relay */
 		if (rtp->turn_rtp) {
