@@ -186,3 +186,16 @@ soft hangup=channel request hangup
 
 [asterisk14](asterisk14_tpl)
 ; add any additional custom commands you want below here.
+
+[asterisk11_tpl](!)
+jabber list nodes=xmpp list nodes
+jabber purge nodes=xmpp purge nodes
+jabber delete node=xmpp delete node
+jabber create collection=xmpp create collection
+jabber create leaf=xmpp create leaf
+jabber set debug=xmpp set debug
+jabber show connections=xmpp show connections
+jabber show buddies=xmpp show buddies
+
+[asterisk11](asterisk11_tpl)
+; add any additional custom commands you want below here.

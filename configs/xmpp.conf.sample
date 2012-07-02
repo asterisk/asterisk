@@ -1,0 +1,39 @@
+[general]
+;debug=yes				; Enable debugging (disabled by default).
+;autoprune=yes				; Auto remove users from buddy list. Depending on your
+					; setup (ie, using your personal Gtalk account for a test)
+					; you might lose your contacts list. Default is 'no'.
+;autoregister=yes			; Auto register users from buddy list.
+;collection_nodes=yes			; Enable support for XEP-0248 for use with
+					; distributed device state.  Default is 'no'.
+;pubsub_autocreate=yes			; Whether or not the PubSub server supports/is using
+					; auto-create for nodes.  If it is, we have to
+					; explicitly pre-create nodes before publishing them.
+					; Default is 'no'.
+;auth_policy=accept			; Auto accept users' subscription requests (default).
+					; Set to deny for auto denial.
+;[asterisk]
+;type=client				; Client or Component connection
+;serverhost=astjab.org			; Route to server for example, talk.google.com
+;pubsub_node=pubsub.astjab.org		; Node to use for publishing events via PubSub
+;username=asterisk@astjab.org/asterisk	; Username with optional resource.
+;secret=blah				; Password
+;priority=1				; Resource priority
+;port=5222				; Port to use defaults to 5222
+;usetls=yes				; Use tls or not
+;usesasl=yes				; Use sasl or not
+;buddy=mogorman@astjab.org		; Manual addition of buddy to list.
+					; For distributed events, these buddies are
+					; automatically added in the whitelist as
+					; 'owners' of the node(s).
+;distribute_events=yes			; Whether or not to distribute events using
+					; this connection.  Default is 'no'.
+;status=available			; One of: chat, available, away, xaway, or dnd
+;statusmessage="I am available"		; Have custom status message for Asterisk
+;timeout=5				; Timeout (in seconds) on the message stack, defaults to 5.
+					; Messages stored longer than this value will be deleted by Asterisk.
+					; This option applies to incoming messages only, which are intended to
+					; be processed by the JABBER_RECEIVE dialplan function.
+;sendtodialplan=yes			; Send incoming messages into the dialplan.  Off by default.
+;context=messages			; Dialplan context to send incoming messages to.  If not set,
+					; "default" will be used.
