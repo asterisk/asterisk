@@ -3741,6 +3741,8 @@ static int reload_module(void)
 
 static int load_module(void)
 {
+	pj_lock_t *lock;
+
 	pj_log_set_level(0);
 
 	if (pj_init() != PJ_SUCCESS) {
@@ -3766,6 +3768,14 @@ static int load_module(void)
 		pj_shutdown();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	if (pj_lock_create_recursive_mutex(pool, "rtp%p", &lock) != PJ_SUCCESS) {
+		pj_caching_pool_destroy(&cachingpool);
+		pj_shutdown();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	pj_timer_heap_set_lock(timerheap, lock, PJ_TRUE);
 
 	if (pj_ioqueue_create(pool, 16, &ioqueue) != PJ_SUCCESS) {
 		pj_caching_pool_destroy(&cachingpool);
