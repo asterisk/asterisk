@@ -21315,9 +21315,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		p->ongoing_reinvite = 0;
 		if (p->reinviteid > -1) {
 			AST_SCHED_DEL_UNREF(sched, p->reinviteid, dialog_unref(p, "unref dialog for reinvite timeout because of a final response"));
-			/* Since we got a final response to the reinvite, but were relying on the reinvite_timeout
-			 * function to clean up after the reinvite, we need to make sure and call check_pendings */
-			check_pendings(p);
 		}
 	}
 
