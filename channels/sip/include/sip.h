@@ -1140,6 +1140,7 @@ struct sip_pvt {
 
 	int initid;                         /*!< Auto-congest ID if appropriate (scheduler) */
 	int waitid;                         /*!< Wait ID for scheduler after 491 or other delays */
+	int reinviteid;                     /*!< Reinvite in case of provisional, but no final response */
 	int autokillid;                     /*!< Auto-kill ID (scheduler) */
 	int t38id;                          /*!< T.38 Response ID */
 	struct sip_refer *refer;            /*!< REFER: SIP transfer data structure */

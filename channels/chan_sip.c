@@ -6374,6 +6374,21 @@ const char *hangup_cause2sip(int cause)
 	return 0;
 }
 
+static int reinvite_timeout(const void *data)
+{
+	struct sip_pvt *dialog = (struct sip_pvt *) data;
+	struct ast_channel *owner = sip_pvt_lock_full(dialog);
+	check_pendings(dialog);
+	dialog->reinviteid = -1;
+	if (owner) {
+		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
+	}
+	ao2_unlock(dialog);
+	dialog_unref(dialog, "unref for reinvite timeout");
+	return 0;
+}
+
 /*! \brief  sip_hangup: Hangup SIP call
  * Part of PBX interface, called from ast_hangup */
 static int sip_hangup(struct ast_channel *ast)
@@ -6497,7 +6512,7 @@ static int sip_hangup(struct ast_channel *ast)
 				stop_session_timer(p);
 			}
 
-			if (!p->pendinginvite || p->ongoing_reinvite) {
+			if (!p->pendinginvite) {
 				struct ast_channel *bridge = ast_bridged_channel(oldowner);
 				char quality_buf[AST_MAX_USER_FIELD], *quality;
 
@@ -6559,8 +6574,16 @@ static int sip_hangup(struct ast_channel *ast)
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 				ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 				AST_SCHED_DEL_UNREF(sched, p->waitid, dialog_unref(p, "when you delete the waitid sched, you should dec the refcount for the stored dialog ptr"));
-				if (sip_cancel_destroy(p))
+				if (sip_cancel_destroy(p)) {
 					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+				}
+				/* If we have an ongoing reinvite, there is a chance that we have gotten a provisional
+				 * response, but something weird has happened and we will never receive a final response.
+				 * So, just in case, check for pending actions after a bit of time to trigger the pending
+				 * bye that we are setting above */
+				if (p->ongoing_reinvite && p->reinviteid < 0) {
+					p->reinviteid = ast_sched_add(sched, 32 * p->timer_t1, reinvite_timeout, dialog_ref(p, "ref for reinvite_timeout"));
+				}
 			}
 		}
 	}
@@ -7971,6 +7994,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	p->method = intended_method;
 	p->initid = -1;
 	p->waitid = -1;
+	p->reinviteid = -1;
 	p->autokillid = -1;
 	p->request_queue_sched_id = -1;
 	p->provisional_keepalive_sched_id = -1;
@@ -21036,8 +21060,9 @@ static void check_pendings(struct sip_pvt *p)
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		} else {
 			/* We have a pending outbound invite, don't send something
-				new in-transaction */
-			if (p->pendinginvite)
+			 * new in-transaction, unless it is a pending reinvite, then
+			 * by the time we are called here, we should probably just hang up. */
+			if (p->pendinginvite && !p->ongoing_reinvite)
 				return;
 
 			if (p->owner) {
@@ -21286,12 +21311,19 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
  		p->invitestate = INV_COMPLETED;
 	}
  	
+	if ((resp >= 200 && reinvite)) {
+		p->ongoing_reinvite = 0;
+		if (p->reinviteid > -1) {
+			AST_SCHED_DEL_UNREF(sched, p->reinviteid, dialog_unref(p, "unref dialog for reinvite timeout because of a final response"));
+			/* Since we got a final response to the reinvite, but were relying on the reinvite_timeout
+			 * function to clean up after the reinvite, we need to make sure and call check_pendings */
+			check_pendings(p);
+		}
+	}
+
 	/* Final response, clear out pending invite */
 	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite) {
 		p->pendinginvite = 0;
-		if (reinvite) {
-			p->ongoing_reinvite = 0;
-		}
 	}
 
 	/* If this is a response to our initial INVITE, we need to set what we can use
