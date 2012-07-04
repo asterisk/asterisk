@@ -104,6 +104,8 @@ int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
                   call->callEndReason = OO_REASON_LOCAL_CLEARED;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             memset(olc, 0, sizeof(H245OpenLogicalChannel));
@@ -122,6 +124,8 @@ int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
                   call->callEndReason = OO_REASON_INVALIDMESSAGE;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
 
@@ -134,6 +138,8 @@ int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
                            "(%s, %s)\n",
                             olc->forwardLogicalChannelNumber, call->callType, 
                             call->callToken);
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
@@ -165,6 +171,8 @@ int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "forward Logical Channel Parameters found. "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                if(!h2250lcp->m.mediaChannelPresent)
@@ -187,6 +195,8 @@ int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
                	}
                   OOTRACEERR3("ERROR:Unsupported media channel address type "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
        
@@ -579,6 +589,8 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
                call->callEndReason = OO_REASON_LOCAL_CLEARED;
                call->callState = OO_CALL_CLEAR;
             }
+            finishPrint();
+            removeEventHandler(call->pctxt);
             return OO_FAILED;
          }
          memset(olc, 0, sizeof(H245OpenLogicalChannel));
@@ -598,7 +610,9 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
                call->callEndReason = OO_REASON_INVALIDMESSAGE;
                call->callState = OO_CALL_CLEAR;
             }
-            return OO_FAILED;
+              finishPrint();
+              removeEventHandler(call->pctxt);
+              return OO_FAILED;
          }
          /* For now, just add decoded fast start elemts to list. This list
             will be processed at the time of sending CONNECT message. */
@@ -672,6 +686,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_LOCAL_CLEARED;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             memset(olc, 0, sizeof(H245OpenLogicalChannel));
@@ -690,6 +706,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_INVALIDMESSAGE;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
 
@@ -702,6 +720,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                            "(%s, %s)\n",
                             olc->forwardLogicalChannelNumber, call->callType, 
                             call->callToken);
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
@@ -732,6 +752,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "forward Logical Channel Parameters found. "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                if(!h2250lcp->m.mediaChannelPresent)
@@ -739,6 +761,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "reverse media channel information found."
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                ret = ooGetIpPortFromH245TransportAddress(call, 
@@ -754,6 +778,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                	}
                   OOTRACEERR3("ERROR:Unsupported media channel address type "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
        
@@ -762,6 +788,8 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:No callback registered to start transmit "
                               "channel (%s, %s)\n",call->callType, 
                               call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                pChannel->chanCap->startTransmitChannel(call, pChannel);
@@ -902,6 +930,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_LOCAL_CLEARED;
                   call->callState = OO_CALL_CLEAR;
                }
+            finishPrint();
+            removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             memset(olc, 0, sizeof(H245OpenLogicalChannel));
@@ -920,6 +950,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_INVALIDMESSAGE;
                   call->callState = OO_CALL_CLEAR;
                }
+            finishPrint();
+            removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
 
@@ -932,6 +964,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                            "(%s, %s)\n",
                             olc->forwardLogicalChannelNumber, call->callType, 
                             call->callToken);
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
@@ -962,6 +996,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "forward Logical Channel Parameters found. "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                if(!h2250lcp->m.mediaChannelPresent)
@@ -969,6 +1005,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "reverse media channel information found."
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                ret = ooGetIpPortFromH245TransportAddress(call, 
@@ -992,6 +1030,8 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:No callback registered to start transmit "
                               "channel (%s, %s)\n",call->callType, 
                               call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                pChannel->chanCap->startTransmitChannel(call, pChannel);
@@ -1139,6 +1179,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_LOCAL_CLEARED;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             memset(olc, 0, sizeof(H245OpenLogicalChannel));
@@ -1157,6 +1199,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                   call->callEndReason = OO_REASON_INVALIDMESSAGE;
                   call->callState = OO_CALL_CLEAR;
                }
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
 
@@ -1169,6 +1213,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                            "(%s, %s)\n",
                             olc->forwardLogicalChannelNumber, call->callType, 
                             call->callToken);
+               finishPrint();
+               removeEventHandler(call->pctxt);
                return OO_FAILED;
             }
             if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
@@ -1199,6 +1245,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "forward Logical Channel Parameters found. "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                if(!h2250lcp->m.mediaChannelPresent)
@@ -1206,6 +1254,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
                               "reverse media channel information found."
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                ret = ooGetIpPortFromH245TransportAddress(call, 
@@ -1221,6 +1271,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                	}
                   OOTRACEERR3("ERROR:Unsupported media channel address type "
                               "(%s, %s)\n", call->callType, call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
        
@@ -1229,6 +1281,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
                   OOTRACEERR3("ERROR:No callback registered to start transmit "
                               "channel (%s, %s)\n",call->callType, 
                               call->callToken);
+                  finishPrint();
+                  removeEventHandler(call->pctxt);
                   return OO_FAILED;
                }
                pChannel->chanCap->startTransmitChannel(call, pChannel);
@@ -1363,8 +1417,6 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
       {
          OOTRACEINFO3("Remote endpoint has rejected fastStart. (%s, %s)\n",
                       call->callType, call->callToken);
-         /* Clear all channels we might have created */
-         ooClearAllLogicalChannels(call);
          OO_CLRFLAG (call->flags, OO_M_FASTSTART);
       }
    }
@@ -1686,11 +1738,12 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
             }
          }
 	 if (call->callState < OO_CALL_CLEAR) {
-         	ooSendCallProceeding(call);/* Send call proceeding message*/
-         	ret = ooH323CallAdmitted (call);
+		ooHandleFastStartChannels(call);
+		ooSendCallProceeding(call);/* Send call proceeding message*/
+		ret = ooH323CallAdmitted (call);
+		call->callState = OO_CALL_CONNECTING;
 	  }
 
-	 call->callState = OO_CALL_CONNECTING;
 
 	 } /* end ret == OO_OK */
          break;

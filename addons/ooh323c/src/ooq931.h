@@ -772,6 +772,8 @@ EXTERN char* ooQ931GetMessageTypeName(int messageType, char* buf);
 EXTERN char* ooQ931GetIEName(int number, char* buf);
 EXTERN int ooSendTCSandMSD(struct OOH323CallData *call);
 EXTERN int ooSendStartH245Facility(struct OOH323CallData *call);
+EXTERN int ooSendFSUpdate(struct OOH323CallData *call);
+EXTERN int ooHandleFastStartChannels(struct OOH323CallData *pCall);
 
 /** 
  * @} 

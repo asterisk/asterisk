@@ -97,6 +97,8 @@ typedef struct OOMediaInfo{
    int   cap;
    int   lMediaPort;
    int   lMediaCntrlPort;
+   int   lMediaRedirPort;
+   int   lMediaRedirCPort;
    char  lMediaIP[2+8*4+7];
    struct OOMediaInfo *next;
 } OOMediaInfo;
@@ -197,6 +199,7 @@ typedef struct OOH323CallData {
    ASN1UINT             statusDeterminationNumber;
    OOCapExchangeState   localTermCapState;
    OOCapExchangeState   remoteTermCapState;
+   OOBOOL		TCSPending;
    struct ooH323EpCapability* ourCaps;
    struct ooH323EpCapability* remoteCaps; /* TODO: once we start using jointCaps, get rid of remoteCaps*/
    struct ooH323EpCapability* jointCaps;
@@ -325,6 +328,9 @@ typedef int (*cb_OnReceivedDTMF)
 typedef void (*cb_OnModeChanged)
    (struct OOH323CallData *call, int isT38Mode);
 
+typedef void (*cb_OnMediaChanged)
+   (struct OOH323CallData *call, char* remoteIP, int remotePort);
+
 /**
  * This structure holds all of the H.323 signaling callback function 
  * addresses.
@@ -342,6 +348,7 @@ typedef struct OOH323CALLBACKS {
    cb_OpenLogicalChannels openLogicalChannels;
    cb_OnReceivedDTMF onReceivedDTMF;
    cb_OnModeChanged onModeChanged;
+   cb_OnMediaChanged onMediaChanged;
 } OOH323CALLBACKS;
 
 /**

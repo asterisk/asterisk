@@ -289,6 +289,11 @@ AGI
    are resolved and each address is attempted in turn until one succeeds or
    all fail.
 
+chan_ooh323
+-----------
+ * Direct media functionality has been added.
+   Options in config are:  directmedia (directrtp) and directrtpsetup (earlydirect)
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

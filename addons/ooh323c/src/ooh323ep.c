@@ -346,6 +346,7 @@ int ooH323EpSetH323Callbacks(OOH323CALLBACKS h323Callbacks)
    gH323ep.h323Callbacks.openLogicalChannels = h323Callbacks.openLogicalChannels;
    gH323ep.h323Callbacks.onReceivedDTMF = h323Callbacks.onReceivedDTMF;
    gH323ep.h323Callbacks.onModeChanged = h323Callbacks.onModeChanged;
+   gH323ep.h323Callbacks.onMediaChanged = h323Callbacks.onMediaChanged;
    return OO_OK;
 }
 

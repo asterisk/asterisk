@@ -871,6 +871,112 @@ int ooEncodeH225Message(OOH323CallData *call, Q931Message *pq931Msg,
    return OO_OK;
 }
 
+/* Handle FS receive channels for early media */
+
+int ooHandleFastStartChannels(OOH323CallData *pCall)
+{
+   int i = 0, j = 0, remoteMediaControlPort = 0, dir = 0;
+   char remoteMediaControlIP[2 + 8 * 4 + 7];
+   DListNode *pNode = NULL;
+   H245OpenLogicalChannel *olc = NULL;
+   ooH323EpCapability *epCap = NULL;
+   H245H2250LogicalChannelParameters *h2250lcp = NULL;
+
+
+   /* If fast start supported and remote endpoint has sent faststart element */
+   if (OO_TESTFLAG(pCall->flags, OO_M_FASTSTART) &&
+      pCall->remoteFastStartOLCs.count>0) {
+
+      /* Go though all the proposed channels */
+
+      for (i = 0, j = 0; i < (int)pCall->remoteFastStartOLCs.count; i++) {
+
+         pNode = dListFindByIndex(&pCall->remoteFastStartOLCs, i);
+         olc = (H245OpenLogicalChannel*)pNode->data;
+
+         /* Don't support both direction channel */
+         if (olc->forwardLogicalChannelParameters.dataType.t !=
+                                                   T_H245DataType_nullData &&
+            olc->m.reverseLogicalChannelParametersPresent) {
+		continue;
+	 }
+
+         /* Check forward logic channel */
+         if (olc->forwardLogicalChannelParameters.dataType.t !=
+                                                   T_H245DataType_nullData) {
+            /* Forward Channel - remote transmits - local receives */
+            OOTRACEDBGC4("Processing received forward olc %d (%s, %s)\n",
+                          olc->forwardLogicalChannelNumber, pCall->callType,
+                          pCall->callToken);
+            dir = OORX;
+            epCap = ooIsDataTypeSupported(pCall,
+                                &olc->forwardLogicalChannelParameters.dataType,
+                                OORX);
+
+            if (!epCap) {
+		continue; /* Not Supported Channel */
+	    }
+
+            OOTRACEINFO1("Receive Channel data type supported\n");
+            if (olc->forwardLogicalChannelParameters.multiplexParameters.t !=
+               T_H245OpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters) {
+               OOTRACEERR4("ERROR:Unknown multiplex parameter type for "
+                           "channel %d (%s, %s)\n",
+                           olc->forwardLogicalChannelNumber,
+                           pCall->callType, pCall->callToken);
+               memFreePtr(pCall->pctxt, epCap);
+               epCap = NULL;
+               continue;
+            }
+            h2250lcp = olc->forwardLogicalChannelParameters.multiplexParameters.u.h2250LogicalChannelParameters;
+
+            /* Check session is Not already established */
+            if (ooIsSessionEstablished(pCall, olc->forwardLogicalChannelParameters.multiplexParameters.u.h2250LogicalChannelParameters->sessionID, "receive")) {
+
+               OOTRACEINFO4("Receive channel with sessionID %d already "
+                            "established.(%s, %s)\n", olc->forwardLogicalChannelParameters.multiplexParameters.u.h2250LogicalChannelParameters->sessionID,
+                            pCall->callType, pCall->callToken);
+               memFreePtr(pCall->pctxt, epCap);
+               epCap = NULL;
+               continue;
+            }
+
+            /* Extract mediaControlChannel info, if supplied */
+            if (h2250lcp->m.mediaControlChannelPresent) {
+               if (OO_OK != ooGetIpPortFromH245TransportAddress(pCall,
+                                &h2250lcp->mediaControlChannel,
+                                remoteMediaControlIP, &remoteMediaControlPort)) {
+                  OOTRACEERR3("Error: Invalid media control channel address "
+                              "(%s, %s)\n", pCall->callType, pCall->callToken);
+                  memFreePtr(pCall->pctxt, epCap);
+                  epCap = NULL;
+                  continue;
+               }
+            } else {
+                continue;
+            }
+         } else {
+        /* Don't check reverse channels */
+           continue;
+         }
+
+         if (dir & OORX) {
+            remoteMediaControlPort--;
+	    if (gH323ep.h323Callbacks.onMediaChanged &&
+		pCall->callState < OO_CALL_CLEAR) {
+		gH323ep.h323Callbacks.onMediaChanged(pCall, remoteMediaControlIP,
+								remoteMediaControlPort);
+	    }
+         }
+
+
+      }
+
+   }
+   return ASN_OK;
+}
+
+
 int ooSetFastStartResponse(OOH323CallData *pCall, Q931Message *pQ931msg, 
    ASN1UINT *fsCount, ASN1DynOctStr **fsElem)
 {
@@ -1647,6 +1753,85 @@ int ooSendProgress(OOH323CallData *call)
    return ret;
 }
 
+
+int ooSendFSUpdate(OOH323CallData *call)
+{
+   int ret = 0;
+   Q931Message *pQ931Msg = NULL;
+   H225Facility_UUIE *facility = NULL;
+   OOCTXT *pctxt = call->msgctxt;
+
+   OOTRACEDBGA3("Building FS update message (%s, %s)\n", call->callType,
+                 call->callToken);
+   ret = ooCreateQ931Message(pctxt, &pQ931Msg, Q931FacilityMsg);
+   if (ret != OO_OK) {
+      OOTRACEERR3("ERROR: In allocating memory for facility message (%s, %s)\n",
+          call->callType, call->callToken);
+      return OO_FAILED;
+   }
+
+   pQ931Msg->callReference = call->callReference;
+
+   pQ931Msg->userInfo = (H225H323_UserInformation*)memAlloc(pctxt,
+                             sizeof(H225H323_UserInformation));
+   if (!pQ931Msg->userInfo) {
+      OOTRACEERR3("ERROR:Memory - ooSendFSUpdate - userInfo(%s, %s)\n",
+                   call->callType, call->callToken);
+      return OO_FAILED;
+   }
+   memset(pQ931Msg->userInfo, 0, sizeof(H225H323_UserInformation));
+   pQ931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent = 1;
+
+   pQ931Msg->userInfo->h323_uu_pdu.h245Tunneling =
+      OO_TESTFLAG (call->flags, OO_M_TUNNELING);
+
+   pQ931Msg->userInfo->h323_uu_pdu.h323_message_body.t =
+      T_H225H323_UU_PDU_h323_message_body_facility;
+
+   facility = (H225Facility_UUIE*)
+      memAllocZ (pctxt, sizeof(H225Facility_UUIE));
+
+   if (!facility) {
+      OOTRACEERR3("ERROR:Memory - ooSendFS Update - facility (%s, %s)\n",
+                  call->callType, call->callToken);
+      return OO_FAILED;
+   }
+
+   pQ931Msg->userInfo->h323_uu_pdu.h323_message_body.u.facility = facility;
+
+   /* Populate Facility UUIE */
+   facility->protocolIdentifier = gProtocolID;
+   facility->m.callIdentifierPresent = 1;
+   facility->callIdentifier.guid.numocts =
+                                   call->callIdentifier.guid.numocts;
+   memcpy(facility->callIdentifier.guid.data,
+	call->callIdentifier.guid.data,
+	call->callIdentifier.guid.numocts);
+   facility->reason.t = T_H225FacilityReason_forwardedElements;
+
+   ret = ooSetFastStartResponse(call, pQ931Msg,
+	&facility->fastStart.n, &facility->fastStart.elem);
+   if (ret != ASN_OK) {
+	return ret;
+   }
+   if (facility->fastStart.n > 0) {
+	facility->m.fastStartPresent = TRUE;
+	call->fsSent = TRUE;
+   } else {
+	facility->m.fastStartPresent = FALSE;
+   }
+
+   OOTRACEDBGA3("Built Facility message to send (%s, %s)\n", call->callType,
+		call->callToken);
+
+   ret = ooSendH225Msg(call, pQ931Msg);
+   if (ret != OO_OK) {
+	OOTRACEERR3("Error:Failed to enqueue Facility message to outbound "
+			"queue.(%s, %s)\n", call->callType, call->callToken);
+   }
+   memReset(call->msgctxt);
+   return ret;
+}
 
 int ooSendStartH245Facility(OOH323CallData *call)
 {

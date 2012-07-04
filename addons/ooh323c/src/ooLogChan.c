@@ -77,8 +77,9 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
    {
       OOTRACEDBGC3("Using configured media info (%s, %s)\n", call->callType,
                    call->callToken);
-      pNewChannel->localRtpPort = pMediaInfo->lMediaPort;
-      pNewChannel->localRtcpPort = pMediaInfo->lMediaCntrlPort;
+      pNewChannel->localRtpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirPort : pMediaInfo->lMediaPort;
+      /* check MediaRedirPort here because RedirCPort is ReditPort + 1 and can't be 0 ;) */
+      pNewChannel->localRtcpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirCPort : pMediaInfo->lMediaCntrlPort;
       /* If user application has not specified a specific ip and is using 
          multihomed mode, substitute appropriate ip.
       */
@@ -86,6 +87,8 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
          strcpy(pNewChannel->localIP, call->localIP);
       else
          strcpy(pNewChannel->localIP, pMediaInfo->lMediaIP);
+
+      OOTRACEDBGC5("Configured media info (%s, %s) %s:%d\n", call->callType, call->callToken, pNewChannel->localIP, pNewChannel->localRtcpPort);
    }
    else{
       OOTRACEDBGC3("Using default media info (%s, %s)\n", call->callType,
@@ -254,6 +257,26 @@ OOLogicalChannel* ooGetTransmitLogicalChannel
    return NULL;
 }
 
+
+OOLogicalChannel* ooGetReceiveLogicalChannel
+   (OOH323CallData *call)
+{
+   OOLogicalChannel * pChannel = NULL;
+   pChannel = call->logicalChans;
+   while (pChannel) {
+      OOTRACEINFO6("Listing logical channel %d cap %d state %d for (%s, %s)\n",
+		pChannel->channelNo, pChannel->chanCap->cap, pChannel->state,
+		call->callType, call->callToken);
+      if (!strcmp(pChannel->dir, "receive") && pChannel->state != OO_LOGICALCHAN_IDLE &&
+					       pChannel->state != OO_LOGICALCHAN_PROPOSEDFS) {
+         return pChannel;
+      } else {
+         pChannel = pChannel->next;
+      }
+   }
+   return NULL;
+}
+
 int ooClearAllLogicalChannels(OOH323CallData *call)
 {
    OOLogicalChannel * temp = NULL, *prev = NULL;
@@ -326,7 +349,7 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
    ooRemoveLogicalChannel(call, channelNo);/* TODO: efficiency - This causes re-search of
                                                     of logical channel in the list. Can be
                                                     easily improved.*/
-   }  while ((pLogicalChannel = ooFindLogicalChannelByLogicalChannelNo(call,channelNo)));
+   } while ((pLogicalChannel = ooFindLogicalChannelByLogicalChannelNo(call, channelNo)));
    return OO_OK;
 }
 

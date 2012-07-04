@@ -545,6 +545,68 @@ OOStkCmdStat ooSetANI(const char *callToken, const char* ani)
    return OO_STKCMD_SUCCESS;
 }
 
+OOStkCmdStat ooUpdateLogChannels(const char *callToken, const char* localIP, int port)
+{
+   OOStackCommand cmd;
+   OOH323CallData *call;
+
+   if (!callToken) {
+      return OO_STKCMD_INVALIDPARAM;
+   }
+
+   if (!(call = ooFindCallByToken(callToken))) {
+      return OO_STKCMD_INVALIDPARAM;
+   }
+
+   if (localIP == NULL) {
+      return OO_STKCMD_INVALIDPARAM;
+   }
+
+   if (call->CmdChan == 0) {
+      if (ooCreateCallCmdConnection(call) != OO_OK) {
+         return OO_STKCMD_CONNECTIONERR;
+      }
+   }
+
+   memset(&cmd, 0, sizeof(OOStackCommand));
+   cmd.type = OO_CMD_UPDLC;
+
+   cmd.param1 = ast_malloc(strlen(callToken) + 1);
+   cmd.param2 = ast_malloc(strlen(localIP) + 1);
+   cmd.param3 = ast_malloc(sizeof(int) + 1);
+   if (!cmd.param1 || !cmd.param2 || !cmd.param3) {
+      if (cmd.param1) {
+	ast_free(cmd.param1); /* Release memory */
+      }
+      if (cmd.param2) {
+	ast_free(cmd.param2);
+      }
+      if (cmd.param3) {
+	ast_free(cmd.param3);
+      }
+      return OO_STKCMD_MEMERR;
+   }
+   strcpy((char*)cmd.param1, callToken);
+   cmd.plen1 = strlen(callToken);
+   strcpy((char*)cmd.param2, localIP);
+   cmd.plen2 = strlen(localIP);
+   *((int *)cmd.param3) = port;
+   cmd.plen3 = sizeof(int) + 1;
+
+   if (ooWriteCallStackCommand(call, &cmd) != OO_OK) {
+      ast_free(cmd.param1);
+      ast_free(cmd.param2);
+      ast_free(cmd.param3);
+      return OO_STKCMD_WRITEERR;
+   }
+
+   ast_free(cmd.param1);
+   ast_free(cmd.param2);
+   ast_free(cmd.param3);
+
+   return OO_STKCMD_SUCCESS;
+}
+
 OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode)
 {
    OOStackCommand cmd;
@@ -592,7 +654,6 @@ OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode)
 
    return OO_STKCMD_SUCCESS;
 }
-
 
 const char* ooGetStkCmdStatusCodeTxt(OOStkCmdStat stat)
 {

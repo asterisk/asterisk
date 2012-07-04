@@ -817,6 +817,51 @@ int ooSendTermCapMsg(OOH323CallData *call)
 
    return ret;
 }
+int ooSendEmptyTermCapMsg(OOH323CallData *call)
+{
+   int ret;
+   H245RequestMessage *request = NULL;
+   OOCTXT *pctxt = NULL;
+   H245TerminalCapabilitySet *termCap = NULL;
+   H245Message *ph245msg = NULL;
+
+   ret = ooCreateH245Message(call, &ph245msg,
+				T_H245MultimediaSystemControlMessage_request);
+
+   if (ret == OO_FAILED) {
+      OOTRACEERR3("Error:Failed to create H245 message for Terminal "
+                  "CapabilitySet (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+
+  /* Set request type as TerminalCapabilitySet */
+   request = ph245msg->h245Msg.u.request;
+   pctxt = call->msgctxt;
+   ph245msg->msgType = OOTerminalCapabilitySet;
+   memset(request, 0, sizeof(H245RequestMessage));
+
+   request->t = T_H245RequestMessage_terminalCapabilitySet;
+   request->u.terminalCapabilitySet = (H245TerminalCapabilitySet*)
+                  memAlloc(pctxt, sizeof(H245TerminalCapabilitySet));
+   termCap = request->u.terminalCapabilitySet;
+   memset(termCap, 0, sizeof(H245TerminalCapabilitySet));
+   termCap->m.multiplexCapabilityPresent = 0;
+   termCap->m.capabilityTablePresent = 0;
+   termCap->m.capabilityDescriptorsPresent = 0;
+   termCap->sequenceNumber = ++(call->localTermCapSeqNo);
+   termCap->protocolIdentifier = gh245ProtocolID; /* protocol id */
+
+   OOTRACEDBGA3("Built empty terminal capability set message (%s, %s)\n",
+                 call->callType, call->callToken);
+   ret = ooSendH245Msg(call, ph245msg);
+   if (ret != OO_OK) {
+      OOTRACEERR3("Error:Failed to enqueue empty TCS message to outbound queue. "
+                  "(%s, %s)\n", call->callType, call->callToken);
+   }
+   ooFreeH245Message(call, ph245msg);
+
+   return ret;
+}
 
 
 ASN1UINT ooGenerateStatusDeterminationNumber()
@@ -1668,11 +1713,11 @@ int ooHandleOpenLogicalChannel_helper(OOH323CallData *call,
    }
 
    if (call->versionIP == 6) {
-	inet_pton(AF_INET6, call->localIP, iP6Address->network.data);
+	inet_pton(AF_INET6, pLogicalChannel->localIP, iP6Address->network.data);
    	iP6Address->network.numocts = 16;
    	iP6Address->tsapIdentifier = pLogicalChannel->localRtpPort;
    } else {
-	inet_pton(AF_INET, call->localIP, iPAddress->network.data);
+	inet_pton(AF_INET, pLogicalChannel->localIP, iPAddress->network.data);
    	iPAddress->network.numocts = 4;
    	iPAddress->tsapIdentifier = pLogicalChannel->localRtpPort;
    }
@@ -1692,7 +1737,7 @@ int ooHandleOpenLogicalChannel_helper(OOH323CallData *call,
                memAlloc(pctxt, sizeof(H245UnicastAddress_iP6Address));
    	iP6Address1 = unicastAddrs1->u.iP6Address;
    	memset(iP6Address1, 0, sizeof(H245UnicastAddress_iP6Address));
-	inet_pton(AF_INET6, call->localIP, iP6Address1->network.data);
+	inet_pton(AF_INET6, pLogicalChannel->localIP, iP6Address1->network.data);
    	iP6Address1->network.numocts = 16;
    	iP6Address1->tsapIdentifier = pLogicalChannel->localRtcpPort;
    } else {
@@ -1702,7 +1747,7 @@ int ooHandleOpenLogicalChannel_helper(OOH323CallData *call,
    	iPAddress1 = unicastAddrs1->u.iPAddress;
    	memset(iPAddress1, 0, sizeof(H245UnicastAddress_iPAddress));
 
-	inet_pton(AF_INET, call->localIP, iPAddress1->network.data);
+	inet_pton(AF_INET, pLogicalChannel->localIP, iPAddress1->network.data);
    	iPAddress1->network.numocts = 4;
    	iPAddress1->tsapIdentifier = pLogicalChannel->localRtcpPort;
    }
@@ -1723,7 +1768,7 @@ int ooHandleOpenLogicalChannel_helper(OOH323CallData *call,
    {
       epCap->startReceiveChannel(call, pLogicalChannel);      
       OOTRACEINFO6("Receive channel of type %s started at %s:%d(%s, %s)\n", 
-                    ooGetCapTypeText(epCap->cap), call->localIP, 
+                    ooGetCapTypeText(epCap->cap), pLogicalChannel->localIP,
                     pLogicalChannel->localRtpPort, call->callType, 
                     call->callToken);
    }
@@ -2219,6 +2264,63 @@ int ooCloseAllLogicalChannels(OOH323CallData *call, char* dir)
    return OO_OK;
 }
 
+int ooUpdateAllLogicalChannels(OOH323CallData *call, char* localIP, int port)
+{
+   ooLogicalChannel *temp;
+   OOMediaInfo *pMediaInfo = NULL;
+   char *lIP = localIP;
+   OOBOOL eTCS = FALSE;
+
+   if (!lIP || !lIP[0]) {
+      lIP = call->localIP;
+   }
+
+/* close all log chans */
+
+   temp = call->logicalChans;
+   while (temp) {
+      if (temp->state == OO_LOGICALCHAN_ESTABLISHED) {
+          /* Sending closelogicalchannel only for outgoing channels */
+         if (!strcmp(temp->dir, "transmit")) {
+	    if (call->h245SessionState != OO_H245SESSION_IDLE) {
+              ooSendCloseLogicalChannel(call, temp);
+            } else {
+              ooClearLogicalChannel(call, temp->channelNo);
+            }
+         } else if (!eTCS && call->h245SessionState != OO_H245SESSION_IDLE) {
+            ooSendEmptyTermCapMsg(call);
+            eTCS = TRUE;
+         }
+      }
+      temp = temp->next;
+   }
+
+/* change media address for all caps */
+
+   if (call->mediaInfo) {
+      pMediaInfo = call->mediaInfo;
+      while (pMediaInfo) {
+         strcpy(pMediaInfo->lMediaIP, lIP);
+         pMediaInfo->lMediaRedirPort = port;
+         pMediaInfo->lMediaRedirCPort = port + 1;
+         pMediaInfo = pMediaInfo->next;
+      }
+   }
+
+   if (call->h245SessionState == OO_H245SESSION_IDLE) {
+      if (call->fsSent) {
+         ooSendFSUpdate(call);
+      }
+   } else {
+      call->TCSPending = TRUE;
+   }
+
+/* Restart TCS exchange proc - Paul Cadah do it in chan_h323_exts native bridge code */
+/* We must do it after all log channels are closed */
+
+   return OO_OK;
+}
+
 int ooSendCloseLogicalChannel(OOH323CallData *call, ooLogicalChannel *logicalChan)
 {
    int ret = OO_OK, error=0;
@@ -2271,17 +2373,11 @@ int ooSendCloseLogicalChannel(OOH323CallData *call, ooLogicalChannel *logicalCha
    ooFreeH245Message(call, ph245msg);
    
    /* Stop the media transmission */
-   OOTRACEINFO4("Closing logical channel %d (%s, %s)\n", 
-                clc->forwardLogicalChannelNumber, call->callType, 
-                call->callToken);
-   ret = ooClearLogicalChannel(call, clc->forwardLogicalChannelNumber);
-   if(ret != OO_OK)
-   {
-      OOTRACEERR4("ERROR:Failed to close logical channel %d (%s, %s)\n",
-         clc->forwardLogicalChannelNumber, call->callType, call->callToken);
-      return OO_FAILED;
+   /* Moved to OnReceivedClosedChannelAck */
+   logicalChan->state = OO_LOGICALCHAN_CLOSEPENDING;
+   if (error) {
+	return OO_FAILED;
    }
-   if(error) return OO_FAILED;
    return ret;
 }
 
@@ -2459,17 +2555,18 @@ int ooOnReceivedRequestChannelClose(OOH323CallData *call,
 
    ooFreeH245Message(call, ph245msg);
    
-   /* Send Close Logical Channel*/
-   ret = ooSendCloseLogicalChannel(call, lChannel);
-   if(ret != OO_OK)
-   {
+   /* Send Close Logical Channel if LogChan is established */
+   if (lChannel->state == OO_LOGICALCHAN_ESTABLISHED) {
+     ret = ooSendCloseLogicalChannel(call, lChannel);
+     if (ret != OO_OK) {
       OOTRACEERR3("ERROR:Failed to build CloseLgicalChannel message(%s, %s)\n",
                    call->callType, call->callToken);
       return OO_FAILED;
+     }
    }
-
-   if(error) return OO_FAILED;
-
+   if (error) {
+	return OO_FAILED;
+   }
    return ret;
 }
 
@@ -2677,8 +2774,7 @@ int ooOnReceivedCloseLogicalChannel(OOH323CallData *call,
       clc->forwardLogicalChannelNumber, call->callType, call->callToken);
    
    ret = ooClearLogicalChannel(call, clc->forwardLogicalChannelNumber);
-   if(ret != OO_OK)
-   {
+   if (ret != OO_OK) {
       OOTRACEERR4("ERROR:Failed to close logical channel %d (%s, %s)\n",
          clc->forwardLogicalChannelNumber, call->callType, call->callToken);
       return OO_FAILED;
@@ -2728,6 +2824,16 @@ int ooOnReceivedCloseChannelAck(OOH323CallData* call,
                                 H245CloseLogicalChannelAck* clcAck)
 {
    int ret = OO_OK;
+   /* Stop the media transmission */
+   OOTRACEINFO4("Closing logical channel %d (%s, %s)\n",
+                clcAck->forwardLogicalChannelNumber, call->callType,
+                call->callToken);
+   ret = ooClearLogicalChannel(call, clcAck->forwardLogicalChannelNumber);
+   if (ret != OO_OK) {
+      OOTRACEERR4("ERROR:Failed to close logical channel %d (%s, %s)\n",
+         clcAck->forwardLogicalChannelNumber, call->callType, call->callToken);
+      return OO_FAILED;
+   }
    return ret;
 }
 
@@ -2789,7 +2895,13 @@ int ooHandleH245Message(OOH323CallData *call, H245Message * pmsg)
                   call->callType, call->callToken);
                if (ooOnReceivedCloseLogicalChannel(call, 
                                                request->u.closeLogicalChannel) == OO_OK) {
+		if (call->TCSPending && !ooGetTransmitLogicalChannel(call)) {
+			call->TCSPending = FALSE;
+			call->localTermCapState = OO_LocalTermCapExchange_Idle;
+			ooSendTermCapMsg(call);
+		} else if (!call->TCSPending) {
 			ooCloseAllLogicalChannels(call, NULL);
+		}
 	       }
                break;
             case T_H245RequestMessage_requestChannelClose:
@@ -2979,8 +3091,13 @@ int ooHandleH245Message(OOH323CallData *call, H245Message * pmsg)
                }
                ooOnReceivedCloseChannelAck(call, 
                                            response->u.closeLogicalChannelAck);
-		if(!ooGetTransmitLogicalChannel(call))
+	       if (call->TCSPending && !ooGetReceiveLogicalChannel(call)) {
+			call->TCSPending = FALSE;
+			call->localTermCapState = OO_LocalTermCapExchange_Idle;
+			ooSendTermCapMsg(call);
+	       } else if (!ooGetTransmitLogicalChannel(call)) {
 			ooOpenLogicalChannels(call);
+	       }
                break;
             case T_H245ResponseMessage_requestChannelCloseAck:
                 OOTRACEINFO4("RequestChannelCloseAck received - %d (%s, %s)\n",
@@ -3002,8 +3119,7 @@ int ooHandleH245Message(OOH323CallData *call, H245Message * pmsg)
                      break;
                   }
                 }
-                ooOnReceivedRequestChannelCloseAck(call, 
-                                             response->u.requestChannelCloseAck);
+		/* Do nothing by receive reqChanCloseAck */
                 break;
             case T_H245ResponseMessage_requestChannelCloseReject:
                OOTRACEINFO4("RequestChannelCloseReject received - %d (%s, %s)\n",
@@ -3110,6 +3226,7 @@ int ooOnReceivedTerminalCapabilitySet(OOH323CallData *call, H245Message *pmsg)
    H245TerminalCapabilitySet *tcs=NULL;
    DListNode *pNode=NULL;
    H245CapabilityTableEntry *capEntry = NULL;
+   ooLogicalChannel *temp = NULL;
 
    tcs =  pmsg->h245Msg.u.request->u.terminalCapabilitySet;
    if(call->remoteTermCapSeqNo > tcs->sequenceNumber)
@@ -3136,16 +3253,30 @@ int ooOnReceivedTerminalCapabilitySet(OOH323CallData *call, H245Message *pmsg)
    if(call->remoteTermCapSeqNo && call->remoteTermCapSeqNo == tcs->sequenceNumber)
     call->localTermCapState = OO_LocalTermCapExchange_Idle;
    }
-  
+/* empty tcs - renegotiate logical channels */
    if(!tcs->m.capabilityTablePresent)
    {
-      // OOTRACEWARN3("Warn:Ignoring TCS as no capability table present(%s, %s)\n",
-      OOTRACEWARN3("Empty TCS found.  Pausing call...(%s, %s)\n",
+      OOTRACEDBGC3("Empty TCS found.  (%s, %s)\n",
                     call->callType, call->callToken);
-      call->h245SessionState = OO_H245SESSION_PAUSED;
-      //ooSendTerminalCapabilitySetReject(call, tcs->sequenceNumber, 
-      //                   T_H245TerminalCapabilitySetReject_cause_unspecified);
-      //return OO_OK;
+
+      ooH245AcknowledgeTerminalCapabilitySet(call);
+      call->remoteTermCapSeqNo = tcs->sequenceNumber;
+
+/* close all transmit chans */
+
+      temp = call->logicalChans;
+      while (temp) {
+       if (temp->state == OO_LOGICALCHAN_ESTABLISHED) {
+          /* Sending closelogicalchannel only for outgoing channels */
+         if (!strcmp(temp->dir, "transmit")) {
+            ooSendCloseLogicalChannel(call, temp);
+         }
+       }
+       temp = temp->next;
+      }
+
+      call->TCSPending = TRUE;
+      return OO_OK;
    }
    call->remoteTermCapSeqNo = tcs->sequenceNumber;
 

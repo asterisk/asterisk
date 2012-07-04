@@ -116,6 +116,7 @@ EXTERN int ooGetOutgoingH245Msgbuf(struct OOH323CallData *call,
  * @return          OO_OK, on success. OO_FAILED, on failure.  
  */
 EXTERN int ooSendTermCapMsg(struct OOH323CallData *call);
+EXTERN int ooSendEmptyTermCapMsg(struct OOH323CallData *call);
 
 /**
  * This function is used to generate a random status determination number
@@ -289,6 +290,8 @@ EXTERN int ooOnReceivedTerminalCapabilitySetAck(struct OOH323CallData* call);
  * @return              OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooCloseAllLogicalChannels(struct OOH323CallData *call, char* dir);
+
+EXTERN int ooUpdateAllLogicalChannels(struct OOH323CallData *call, char* localIP, int port);
 
 
 /**

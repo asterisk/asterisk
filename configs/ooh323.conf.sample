@@ -27,13 +27,13 @@
 ;       OOH323/exten/peer OR OOH323/exten@ip
 ;
 ; Domain name resolution is not yet supported.
-; 
+;
 ; When a H.323 user calls into asterisk, his H323ID is matched with the profile
 ; name and context is determined to route the call
 ;
-; The channel driver will register all global aliases and aliases defined in 
+; The channel driver will register all global aliases and aliases defined in
 ; peer profiles with the gatekeeper, if one exists. So, that when someone
-; outside our pbx (non-user) calls an extension, gatekeeper will route that 
+; outside our pbx (non-user) calls an extension, gatekeeper will route that
 ; call to our asterisk box, from where it will be routed as per dial plan.
 
 
@@ -47,9 +47,9 @@
 ;The dotted IP address asterisk should listen on for incoming H323
 ;connections
 ;Default - tries to find out local ip address on it's own
-bindaddr=0.0.0.0    
+bindaddr=0.0.0.0
 
-;This parameter indicates whether channel driver should register with 
+;This parameter indicates whether channel driver should register with
 ;gatekeeper as a gateway or an endpoint.
 ;Default - no
 ;gateway=no
@@ -65,7 +65,7 @@ bindaddr=0.0.0.0
 
 ;H323-ID to be used for asterisk server
 ;Default - Asterisk PBX
-h323id=ObjSysAsterisk 
+h323id=ObjSysAsterisk
 e164=100
 
 ;CallerID to use for calls
@@ -88,7 +88,7 @@ gatekeeper = DISABLE
 
 ;Sets default context all clients will be placed in.
 ;Default - default
-context=public
+context=default
 
 ;Sets rtptimeout for all clients, unless overridden
 ;Default - 60 seconds
@@ -128,7 +128,7 @@ dtmfmode=rfc2833
 ; CNG tone or an incoming T.38 RequestMode packet
 ;
 ; yes - enable both detection (CNG & T.38)
-; no - disable both 
+; no - disable both
 ; cng - enable CNG detection (default)
 ; t38 - enable T.38 request detection
 ;
@@ -137,7 +137,7 @@ faxdetect = cng
 ; User/peer/friend definitions:
 ; User config options                    Peer config options
 ; ------------------                     -------------------
-; context                            
+; context
 ; disallow                               disallow
 ; allow                                  allow
 ; accountcode                            accountcode
@@ -153,6 +153,20 @@ faxdetect = cng
 
 ;
 
+;
+;	direct rtp between two remote peers, disabled by default
+;	can be specified globally or per peer/user section
+;
+directmedia=no
+;
+;	early direct rtp (try to establish direct rtp before asnwer)
+;	disabled by default, auto enabled by directmedia is enabled
+;	can be disabled escpecially if directmedia is enabled.
+;	can be specified globally or per peer/user section
+;
+;
+directrtpsetup=no
+
 ;Define users here
 ;Section header is extension
 [myuser1]
@@ -160,7 +174,7 @@ type=user
 context=context1
 disallow=all
 allow=gsm
-allow=ulaw    
+allow=ulaw
 
 
 

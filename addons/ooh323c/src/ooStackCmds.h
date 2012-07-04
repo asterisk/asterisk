@@ -68,7 +68,8 @@ typedef enum OOStackCmdID {
    OO_CMD_MANUALPROGRESS,    /*!< Send progress */
    OO_CMD_STOPMONITOR,       /*!< Stop the event monitor */
    OO_CMD_REQMODE,	     /*!< Request new mode */
-   OO_CMD_SETANI	     /*! <Set conncted info */
+   OO_CMD_SETANI,	     /*! <Set conncted info */
+   OO_CMD_UPDLC		     /*! <Update Logical channels */
    
 } OOStackCmdID;
 
@@ -178,6 +179,7 @@ EXTERN OOStkCmdStat ooRunCall(const char* dest, char* callToken, size_t bufsiz, 
 int ooGenerateOutgoingCallToken (char *callToken, size_t size);
 
 EXTERN OOStkCmdStat ooSetANI(const char *callToken, const char* ani);
+EXTERN OOStkCmdStat ooUpdateLogChannels(const char *callToken, const char* localIP, const int port);
 
 #ifdef __cplusplus
 }

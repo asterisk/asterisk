@@ -411,12 +411,26 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
    		}
 		break;
 
+	    case OO_CMD_UPDLC:
+		OOTRACEINFO4("Processing UpdLC command %s, localIP is %s, port is %d\n",
+				(char *)cmd.param1, (char *)cmd.param2, *(int *)cmd.param3);
+		if (cmd.param2) {
+			ooUpdateAllLogicalChannels(call, (char *)cmd.param2, *(int *)cmd.param3);
+		}
+		break;
+
             default: OOTRACEERR1("ERROR:Unknown command\n");
          }
       }
-      if(cmd.param1) free(cmd.param1);
-      if(cmd.param2) free(cmd.param2);
-      if(cmd.param3) free(cmd.param3);
+      if (cmd.param1) {
+	ast_free(cmd.param1);
+      }
+      if (cmd.param2) {
+	ast_free(cmd.param2);
+      }
+      if (cmd.param3) {
+	ast_free(cmd.param3);
+      }
    }
 
 
