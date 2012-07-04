@@ -82,7 +82,7 @@ void* ooh323c_call_thread(void* dummy)
  struct callthread* mycthread = (struct callthread *)dummy;
  struct pollfd pfds[1];
  char c;
- int res;
+ int res = 0;
 
  do {
 
@@ -114,7 +114,7 @@ void* ooh323c_call_thread(void* dummy)
 	ast_mutex_unlock(&mycthread->lock);
  	ast_mutex_unlock(&callThreadsLock);
 
- } while (mycthread->call != NULL);
+ } while (mycthread->call != NULL && res == 0);
 
  
  ast_mutex_destroy(&mycthread->lock);
@@ -129,7 +129,6 @@ void* ooh323c_call_thread(void* dummy)
 
 int ooh323c_start_call_thread(ooCallData *call) {
  char c = 'c';
- int res;
  struct callthread *cur = callThreads;
 
  ast_mutex_lock(&callThreadsLock);
@@ -138,9 +137,11 @@ int ooh323c_start_call_thread(ooCallData *call) {
  }
  ast_mutex_unlock(&callThreadsLock);
 
- if (cur != NULL && cur->inUse) {
+ if (cur != NULL) {
+   if (cur->inUse || write(cur->thePipe[1], &c, 1) < 0) {
 	ast_mutex_unlock(&cur->lock);
 	cur = NULL;
+   }
  }
 
 /* make new thread */
@@ -181,7 +182,6 @@ int ooh323c_start_call_thread(ooCallData *call) {
 		ast_debug(1,"using existing call thread for call %s\n", call->callToken);
 	cur->inUse = TRUE;
 	cur->call = call;
-	res = write(cur->thePipe[1], &c, 1);
 	ast_mutex_unlock(&cur->lock);
 
  }

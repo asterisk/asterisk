@@ -249,7 +249,6 @@ int ooSocketCreate (OOSOCKET* psocket, int family)
 int ooSocketCreateUDP (OOSOCKET* psocket, int family) 
 {
    int on;
-   struct linger linger;
    OOSOCKET sock;
 
    if (family == 6)
@@ -273,9 +272,11 @@ int ooSocketCreateUDP (OOSOCKET* psocket, int family)
       OOTRACEERR1("Error:Failed to set socket option SO_REUSEADDR\n");
       return ASN_E_INVSOCKET;
    }
+   // may be will use later
+   /*
    linger.l_onoff = 1;
    linger.l_linger = 0;
-   /*if (setsockopt (sock, SOL_SOCKET, SO_LINGER, 
+   if (setsockopt (sock, SOL_SOCKET, SO_LINGER, 
                  (const char* ) &linger, sizeof (linger)) == -1)
       return ASN_E_INVSOCKET;
    */
