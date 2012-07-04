@@ -114,7 +114,7 @@ void* ooh323c_call_thread(void* dummy)
 	ast_mutex_unlock(&mycthread->lock);
  	ast_mutex_unlock(&callThreadsLock);
 
- } while (mycthread->call != NULL && res == 0);
+ } while (mycthread->call != NULL && res >= 0);
 
  
  ast_mutex_destroy(&mycthread->lock);
