@@ -3850,7 +3850,7 @@ static int __sip_autodestruct(const void *data)
 			ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 			append_history(p, "ReliableXmit", "timeout");
 			if (sscanf(p->lastmsg, "Tx: %30s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %30s", method_str) == 1) {
-				if (method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
+				if (p->ongoing_reinvite || method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
 					pvt_set_needdestroy(p, "autodestruct");
 				}
 			}
@@ -6229,8 +6229,8 @@ static int reinvite_timeout(const void *data)
 {
 	struct sip_pvt *dialog = (struct sip_pvt *) data;
 	struct ast_channel *owner = sip_pvt_lock_full(dialog);
-	check_pendings(dialog);
 	dialog->reinviteid = -1;
+	check_pendings(dialog);
 	if (owner) {
 		ast_channel_unlock(owner);
 		ast_channel_unref(owner);
@@ -19864,8 +19864,11 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 static void check_pendings(struct sip_pvt *p)
 {
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-		/* if we can't BYE, then this is really a pending CANCEL */
-		if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
+		if (p->reinviteid > -1) {
+			/* Outstanding p->reinviteid timeout, so wait... */
+			return;
+		} else if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
+			/* if we can't BYE, then this is really a pending CANCEL */
 			p->invitestate = INV_CANCELLED;
 			transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
 			/* If the cancel occurred on an initial invite, cancel the pending BYE */
