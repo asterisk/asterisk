@@ -39,9 +39,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock2.h"
 #include "asterisk/lock.h"
 #include "asterisk/acl.h"
+#include "asterisk/cli.h"
+
 #include <fcntl.h>
 
 #define DEFAULT_MONITOR_REFRESH 30	/*!< Default refresh period in seconds */
+#define DEFAULT_RETRIES 3		/*!< retries shown in stun show status
+					     matching static retries in stun.c */
 
 static const char stun_conf_file[] = "res_stun_monitor.conf";
 static struct ast_sched_context *sched;
@@ -349,6 +353,63 @@ static int load_config(int startup)
 	return 0;
 }
 
+/*! \brief Execute stun show status command */
+static void _stun_show_status(int fd)
+{
+	const char *status;
+
+#define DATALN "%-25s %-5d %-7d %-8d %-7s %-16s %-d\n"
+#define HEADER "%-25s %-5s %-7s %-8s %-7s %-16s %-s\n"
+
+	/*! we only have one stun server, but start to play well with more */
+	ast_cli(fd, HEADER, "Hostname", "Port", "Period", "Retries", "Status", "ExternAddr", "ExternPort");
+
+	if (args.stun_poll_failed_gripe) {
+		status = "FAIL";
+	} else if (args.external_addr_known) {
+		status = "OK";
+	} else {
+		status = "INIT";
+	}
+	ast_cli( fd, DATALN,
+		     args.server_hostname,
+		     args.stun_port,
+		     args.refresh,
+		     DEFAULT_RETRIES,
+		     status,
+		     ast_inet_ntoa(args.external_addr.sin_addr),
+		     ntohs(args.external_addr.sin_port)
+		   );
+
+#undef HEADER
+#undef DATALN
+}
+
+static char *handle_cli_stun_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "stun show status";
+		e->usage =
+		    "Usage: stun show status\n"
+		    "       List all known STUN servers and statuses.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	_stun_show_status(a->fd);
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_stun[] = {
+	AST_CLI_DEFINE(handle_cli_stun_show_status, "Show STUN servers and statuses"),
+};
+
 static int __reload(int startup)
 {
 	int res;
@@ -375,6 +436,10 @@ static int unload_module(void)
 {
 	stun_stop_monitor();
 	ast_mutex_destroy(&args.lock);
+
+	/*! Unregister CLI commands */
+	ast_cli_unregister_multiple(cli_stun, ARRAY_LEN(cli_stun));
+
 	return 0;
 }
 
@@ -386,6 +451,9 @@ static int load_module(void)
 		ast_mutex_destroy(&args.lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	/*! Register CLI commands */
+	ast_cli_register_multiple(cli_stun, sizeof(cli_stun) / sizeof(struct ast_cli_entry));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
