@@ -1,3 +1,39 @@
+2012-07-06  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.6.0-rc2 Released.
+
+	* AST-2012-009
+
+	* AST-2012-010
+
+	* AST-2012-011
+
+	* Fix crash on a guest directmedia call
+
+	  A sip_pvt may not have relatedpeer set if a call doesn't match up
+	  with a peer.  If there is no relatedpeer, there is no direct media
+	  ACL to apply, so just return that is is allowed.
+
+	  (closes issue ASTERISK-20040)
+	
+	* Fix request routing issue when outboundproxy is used
+
+	  Asterisk was incorrectly setting the destination of CANCELs and ACKs
+	  for error responses to the URI of the initial INVITE.  This resulted
+	  in further requests, such as INVITEs with authentication
+	  credentials, to be routed incorrectly.  Instead when these CANCEL or
+	  ACKs are to be esnt, we should simply keep the destination the same
+	  as what it previously was.  There is no need to alter it any.
+
+	  (closes issue ASTERISK-20008)
+	
+	* Fix monitoring calls put in a parking lot
+
+	  Fix a regression that was introduced by r366167 which effectively
+	  disabled monitoring parked calls.
+
+	  (closes issue ASTERISK-20012)
+
 2012-06-08  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.6.0-rc1 Released.
