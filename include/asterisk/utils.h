@@ -168,7 +168,7 @@ extern uint64_t __unsigned_int_flags_dummy64;
 
 
 /* Non-type checking variations for non-unsigned int flags.  You
-   should only use non-unsigned int flags where required by 
+   should only use non-unsigned int flags where required by
    protocol etc and if you know what you're doing :)  */
 #define ast_test_flag_nonstd(p,flag) \
 					((p)->flags & (flag))
@@ -195,14 +195,12 @@ extern uint64_t __unsigned_int_flags_dummy64;
 
 #define AST_FLAGS_ALL UINT_MAX
 
-/*! \brief Structure used to handle boolean flags 
-*/
+/*! \brief Structure used to handle boolean flags */
 struct ast_flags {
 	unsigned int flags;
 };
 
-/*! \brief Structure used to handle a large number of boolean flags == used only in app_dial?
-*/
+/*! \brief Structure used to handle a large number of boolean flags == used only in app_dial? */
 struct ast_flags64 {
 	uint64_t flags;
 };
@@ -215,7 +213,7 @@ struct ast_hostent {
 /*! \brief Thread-safe gethostbyname function to use in Asterisk */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
-/*!  \brief Produces MD5 hash based on input string */
+/*! \brief Produces MD5 hash based on input string */
 void ast_md5_hash(char *output, const char *input);
 /*! \brief Produces SHA1 hash based on input string */
 void ast_sha1_hash(char *output, const char *input);
@@ -330,7 +328,7 @@ static force_inline void ast_slinear_saturated_subtract(short *input, short *val
 	else
 		*input = (short) res;
 }
-	
+
 static force_inline void ast_slinear_saturated_multiply(short *input, short *value)
 {
 	int res;
@@ -358,14 +356,14 @@ int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);
 
 /*!
-	\brief Try to write string, but wait no more than ms milliseconds
-	before timing out.
-
-	\note If you are calling ast_carefulwrite, it is assumed that you are calling
-	it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
-	there is only one system call made to do a write, unless we actually
-	have a need to wait.  This way, we get better performance.
-*/
+ * \brief Try to write string, but wait no more than ms milliseconds
+ * before timing out.
+ *
+ * \note If you are calling ast_carefulwrite, it is assumed that you are calling
+ * it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
+ * there is only one system call made to do a write, unless we actually
+ * have a need to wait.  This way, we get better performance.
+ */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 
 /*!
@@ -431,23 +429,23 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 /* End of thread management support */
 
 /*!
-	\brief Replace '^' in a string with ','
-	\param s String within which to replace characters
-*/
+ * \brief Replace '^' in a string with ','
+ * \param s String within which to replace characters
+ */
 void ast_replace_subargument_delimiter(char *s);
 
 /*!
-	\brief Process a string to find and replace characters
-	\param start The string to analyze
-	\param find The character to find
-	\param replace_with The character that will replace the one we are looking for
-*/
+ * \brief Process a string to find and replace characters
+ * \param start The string to analyze
+ * \param find The character to find
+ * \param replace_with The character that will replace the one we are looking for
+ */
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
 long int ast_random(void);
 
 
-/*! 
+/*!
  * \brief free() wrapper
  *
  * ast_free_ptr should be used when a function pointer for free() needs to be passed
@@ -586,7 +584,7 @@ char * attribute_malloc _ast_strdup(const char *str, const char *file, int linen
  * message in the case that the allocation fails.
  *
  * ast_strndup(), unlike strndup(), can safely accept a NULL argument for the
- * string to duplicate. If a NULL argument is provided, ast_strdup will return  
+ * string to duplicate. If a NULL argument is provided, ast_strdup will return
  * NULL without generating any kind of error log message.
  *
  * The arguments and return value are the same as strndup()
@@ -650,12 +648,12 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 
 #if !defined(ast_strdupa) && defined(__GNUC__)
 /*!
-  \brief duplicate a string in memory from the stack
-  \param s The string to duplicate
-
-  This macro will duplicate the given string.  It returns a pointer to the stack
-  allocatted memory for the new string.
-*/
+ * \brief duplicate a string in memory from the stack
+ * \param s The string to duplicate
+ *
+ * This macro will duplicate the given string.  It returns a pointer to the stack
+ * allocatted memory for the new string.
+ */
 #define ast_strdupa(s)                                                    \
 	(__extension__                                                    \
 	({                                                                \
@@ -668,27 +666,27 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 #endif
 
 /*!
-  \brief Disable PMTU discovery on a socket
-  \param sock The socket to manipulate
-  \return Nothing
-
-  On Linux, UDP sockets default to sending packets with the Dont Fragment (DF)
-  bit set. This is supposedly done to allow the application to do PMTU
-  discovery, but Asterisk does not do this.
-
-  Because of this, UDP packets sent by Asterisk that are larger than the MTU
-  of any hop in the path will be lost. This function can be called on a socket
-  to ensure that the DF bit will not be set.
+ * \brief Disable PMTU discovery on a socket
+ * \param sock The socket to manipulate
+ * \return Nothing
+ *
+ * On Linux, UDP sockets default to sending packets with the Dont Fragment (DF)
+ * bit set. This is supposedly done to allow the application to do PMTU
+ * discovery, but Asterisk does not do this.
+ *
+ * Because of this, UDP packets sent by Asterisk that are larger than the MTU
+ * of any hop in the path will be lost. This function can be called on a socket
+ * to ensure that the DF bit will not be set.
  */
 void ast_enable_packet_fragmentation(int sock);
 
 /*!
-  \brief Recursively create directory path
-  \param path The directory path to create
-  \param mode The permissions with which to try to create the directory
-  \return 0 on success or an error code otherwise
-
-  Creates a directory path, creating parent directories as needed.
+ * \brief Recursively create directory path
+ * \param path The directory path to create
+ * \param mode The permissions with which to try to create the directory
+ * \return 0 on success or an error code otherwise
+ *
+ * Creates a directory path, creating parent directories as needed.
  */
 int ast_mkdir(const char *path, int mode);
 
@@ -712,9 +710,9 @@ struct ast_http_digest {
 };
 
 /*!
- *\brief Parse digest authorization header.
- *\return Returns -1 if we have no auth or something wrong with digest.
- *\note This function may be used for Digest request and responce header.
+ * \brief Parse digest authorization header.
+ * \return Returns -1 if we have no auth or something wrong with digest.
+ * \note This function may be used for Digest request and responce header.
  * request arg is set to nonzero, if we parse Digest Request.
  * pedantic arg can be set to nonzero if we need to do addition Digest check.
  */
@@ -723,7 +721,7 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 
 #ifdef AST_DEVMODE
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-static void force_inline _ast_assert(int condition, const char *condition_str, 
+static void force_inline _ast_assert(int condition, const char *condition_str,
 	const char *file, int line, const char *function)
 {
 	if (__builtin_expect(!condition, 1)) {
@@ -804,7 +802,7 @@ static void force_inline _ast_assert(int condition, const char *condition_str,
 #define ast_make_room_for(offset, type) (((offset + (2 * __alignof__(type) - 1)) / __alignof__(type)) * __alignof__(type))
 
 /*!
- * \brief An Entity ID is essentially a MAC address, brief and unique 
+ * \brief An Entity ID is essentially a MAC address, brief and unique
  */
 struct ast_eid {
 	unsigned char eid[6];
@@ -825,7 +823,7 @@ extern struct ast_eid ast_eid_default;
 void ast_set_default_eid(struct ast_eid *eid);
 
 /*!
- * /brief Convert an EID to a string
+ * \brief Convert an EID to a string
  * \since 1.6.1
  */
 char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid);
@@ -856,7 +854,8 @@ int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
  */
 int ast_get_tid(void);
 
-/*!\brief Resolve a binary to a full pathname
+/*!
+ * \brief Resolve a binary to a full pathname
  * \param binary Name of the executable to resolve
  * \param fullpath Buffer to hold the complete pathname
  * \param fullpath_size Size of \a fullpath
@@ -865,7 +864,12 @@ int ast_get_tid(void);
  */
 char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
 
-/*! \brief Declare a variable that will call a destructor function when it goes out of scope
+/*!
+ * \brief Declare a variable that will call a destructor function when it goes out of scope.
+ *
+ * Resource Allocation Is Initialization (RAII) variable declaration.
+ *
+ * \since 11.0
  * \param vartype The type of the variable
  * \param varname The name of the variable
  * \param initval The initial value of the variable
@@ -901,11 +905,8 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
  *         return;
  *     }
  *     do_stuff_with_thing(thing);
- *     return;
- *     }
  * }
  * \encode
- *
  */
 #define RAII_VAR(vartype, varname, initval, dtor) \
     auto void _dtor_ ## varname (vartype * v); \
