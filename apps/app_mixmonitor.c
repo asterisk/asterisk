@@ -1258,6 +1258,7 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 	ast_channel_unlock(c);
 
 	if (res) {
+		c = ast_channel_unref(c);
 		astman_send_error(s, m, "Could not start monitoring channel");
 		return AMI_SUCCESS;
 	}
