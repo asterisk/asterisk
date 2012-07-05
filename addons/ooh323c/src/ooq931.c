@@ -875,7 +875,7 @@ int ooEncodeH225Message(OOH323CallData *call, Q931Message *pq931Msg,
 
 int ooHandleFastStartChannels(OOH323CallData *pCall)
 {
-   int i = 0, j = 0, remoteMediaControlPort = 0, dir = 0;
+   int i = 0, remoteMediaControlPort = 0, dir = 0;
    char remoteMediaControlIP[2 + 8 * 4 + 7];
    DListNode *pNode = NULL;
    H245OpenLogicalChannel *olc = NULL;
@@ -889,7 +889,7 @@ int ooHandleFastStartChannels(OOH323CallData *pCall)
 
       /* Go though all the proposed channels */
 
-      for (i = 0, j = 0; i < (int)pCall->remoteFastStartOLCs.count; i++) {
+      for (i = 0; i < (int)pCall->remoteFastStartOLCs.count; i++) {
 
          pNode = dListFindByIndex(&pCall->remoteFastStartOLCs, i);
          olc = (H245OpenLogicalChannel*)pNode->data;

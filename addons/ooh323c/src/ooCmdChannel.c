@@ -16,6 +16,7 @@
 
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 #include "ooStackCmds.h"
 #include "ootrace.h"
 #include "ooq931.h"
