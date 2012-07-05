@@ -1758,24 +1758,27 @@ static void free_user(struct ast_vm_user *vmu)
 static int vm_allocate_dh(struct vm_state *vms, struct ast_vm_user *vmu, int count_msg) {
 
 	int arraysize = (vmu->maxmsg > count_msg ? vmu->maxmsg : count_msg);
-	if (!vms->dh_arraysize) {
-		/* initial allocation */
+
+	/* remove old allocation */
+	if (vms->deleted) {
+		ast_free(vms->deleted);
+		vms->deleted = NULL;
+	}
+	if (vms->heard) {
+		ast_free(vms->heard);
+		vms->heard = NULL;
+	}
+	vms->dh_arraysize = 0;
+
+	if (arraysize > 0) {
 		if (!(vms->deleted = ast_calloc(arraysize, sizeof(int)))) {
 			return -1;
 		}
 		if (!(vms->heard = ast_calloc(arraysize, sizeof(int)))) {
+			ast_free(vms->deleted);
+			vms->deleted = NULL;
 			return -1;
 		}
-		vms->dh_arraysize = arraysize;
-	} else if (vms->dh_arraysize < arraysize) {
-		if (!(vms->deleted = ast_realloc(vms->deleted, arraysize * sizeof(int)))) {
-			return -1;
-		}
-		if (!(vms->heard = ast_realloc(vms->heard, arraysize * sizeof(int)))) {
-			return -1;
-		}
-		memset(vms->deleted, 0, arraysize * sizeof(int));
-		memset(vms->heard, 0, arraysize * sizeof(int));
 		vms->dh_arraysize = arraysize;
 	}
 
@@ -6567,9 +6570,15 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 		name = "Unknown Caller";
 
 	/* If deleted, show "undeleted" */
-
-	if (vms->deleted[vms->curmsg])
-		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
+#ifdef IMAP_STORAGE
+	ast_mutex_lock(&vms->lock);
+#endif
+	if (vms->deleted[vms->curmsg]) {
+ 		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
+	}
+#ifdef IMAP_STORAGE
+	ast_mutex_unlock(&vms->lock);
+#endif
 
 	/* Except "Exit" */
 	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
@@ -6622,8 +6631,15 @@ static void adsi_delete(struct ast_channel *chan, struct vm_state *vms)
 	}
 
 	/* If deleted, show "undeleted" */
-	if (vms->deleted[vms->curmsg]) 
+#ifdef IMAP_STORAGE
+	ast_mutex_lock(&vms->lock);
+#endif
+	if (vms->deleted[vms->curmsg]) {
 		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
+	}
+#ifdef IMAP_STORAGE
+	ast_mutex_unlock(&vms->lock);
+#endif
 
 	/* Except "Exit" */
 	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
@@ -7805,8 +7821,12 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
+#ifdef IMAP_STORAGE
+		ast_mutex_lock(&vms->lock);
+#endif
 		vms->heard[vms->curmsg] = 1;
 #ifdef IMAP_STORAGE
+		ast_mutex_unlock(&vms->lock);
 		/*IMAP storage stores any prepended message from a forward
 		 * as a separate file from the rest of the message
 		 */
@@ -8021,6 +8041,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	}
 	ast_unlock_path(vms->curdir);
 #else /* defined(IMAP_STORAGE) */
+	ast_mutex_lock(&vms->lock);
 	if (vms->deleted) {
 		/* Since we now expunge after each delete, deleting in reverse order
 		 * ensures that no reordering occurs between each step. */
@@ -8035,12 +8056,18 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 #endif
 
 done:
-	if (vms->deleted && last_msg_idx) {
+	if (vms->deleted) {
 		ast_free(vms->deleted);
+		vms->deleted = NULL;
 	}
-	if (vms->heard && last_msg_idx) {
+	if (vms->heard) {
 		ast_free(vms->heard);
+		vms->heard = NULL;
 	}
+	vms->dh_arraysize = 0;
+#ifdef IMAP_STORAGE
+	ast_mutex_unlock(&vms->lock);
+#endif
 
 	return 0;
 }
@@ -9135,14 +9162,25 @@ static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu,
 				res = ast_play_and_wait(chan, "vm-next");
 			}
 			if (!res) {
-				if (!vms->deleted[vms->curmsg])
+				int curmsg_deleted;
+#ifdef IMAP_STORAGE
+				ast_mutex_lock(&vms->lock);
+#endif
+				curmsg_deleted = vms->deleted[vms->curmsg];
+#ifdef IMAP_STORAGE
+				ast_mutex_unlock(&vms->lock);
+#endif
+				if (!curmsg_deleted) {
 					res = ast_play_and_wait(chan, "vm-delete");
-				else
+				} else {
 					res = ast_play_and_wait(chan, "vm-undelete");
-				if (!res)
+				}
+				if (!res) {
 					res = ast_play_and_wait(chan, "vm-toforward");
-				if (!res)
+				}
+				if (!res) {
 					res = ast_play_and_wait(chan, "vm-savemessage");
+				}
 			}
 		}
 		if (!res) {
@@ -10179,6 +10217,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			}
 
 			vms.starting = 1;
+			vms.curmsg = 0;
 			break;
 		case '3': /* Advanced options */
 			ast_test_suite_event_notify("ADVOPTIONS", "Message: entering advanced options menu");
