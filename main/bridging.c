@@ -235,9 +235,6 @@ static void bridge_check_dissolve(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 	}
 
-	/* Since all the channels are going away let's go ahead and stop our on thread */
-	bridge->stop = 1;
-
 	return;
 }
 
@@ -521,9 +518,14 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 
 	ao2_lock(bridge);
 
-	bridge->stop = 1;
-
-	bridge_poke(bridge);
+	if (bridge->thread != AST_PTHREADT_NULL) {
+		pthread_t thread = bridge->thread;
+		bridge->stop = 1;
+		bridge_poke(bridge);
+		ao2_unlock(bridge);
+		pthread_join(thread, NULL);
+		ao2_lock(bridge);
+	}
 
 	ast_debug(1, "Telling all channels in bridge %p to end and leave the party\n", bridge);
 
