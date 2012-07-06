@@ -7006,6 +7006,8 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_UPDATE_RTP_PEER: /* Absorb this since it is handled by the bridge */
 		break;
+	case AST_CONTROL_FLASH: /* Absorb this since it is irrelevant to SIP. */
+		break;
 	case -1:
 		res = -1;
 		break;
