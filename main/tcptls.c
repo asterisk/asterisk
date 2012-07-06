@@ -134,9 +134,6 @@ HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_sessio
 static void session_instance_destructor(void *obj)
 {
 	struct ast_tcptls_session_instance *i = obj;
-	if (i->parent && i->parent->tls_cfg) {
-		ast_ssl_teardown(i->parent->tls_cfg);
-	}
 	ast_mutex_destroy(&i->lock);
 }
 
