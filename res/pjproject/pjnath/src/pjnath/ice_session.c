@@ -455,6 +455,8 @@ static void destroy_ice(pj_ice_sess *ice,
 	LOG4((ice->obj_name, "Destroying ICE session"));
     }
 
+    ice->is_destroying = PJ_TRUE;
+
     /* Let other callbacks finish */
     if (ice->mutex) {
 	pj_mutex_lock(ice->mutex);
@@ -1840,7 +1842,15 @@ static pj_status_t start_periodic_check(pj_timer_heap_t *th,
     ice = td->ice;
     clist = td->clist;
 
+    if (ice->is_destroying)
+	return PJ_SUCCESS;
+
     pj_mutex_lock(ice->mutex);
+
+    if (ice->is_destroying) {
+	pj_mutex_unlock(ice->mutex);
+	return PJ_SUCCESS;
+    }
 
     /* Set timer ID to FALSE first */
     te->id = PJ_FALSE;
