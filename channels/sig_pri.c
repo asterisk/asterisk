@@ -6635,8 +6635,6 @@ static void *pri_dchannel(void *vpri)
 							pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 						}
 					}
-				} else if (pri->pvts[chanpos]->owner) {
-					pri_queue_pvt_cause_data(pri, chanpos, "PRI PRI_EVENT_PROGRESS");
 				}
 
 				if (!pri->pvts[chanpos]->progress
@@ -7429,26 +7427,6 @@ static void *pri_dchannel(void *vpri)
 				break;
 			}
 
-			/* send tech-specific information for HANGUPCAUSE hash */
-			if (chanpos > -1 && pri->pvts[chanpos]) {
-				switch (e->e) {
-				/* already handled above */
-				case PRI_EVENT_PROGRESS:
-				case PRI_EVENT_HANGUP:
-				case PRI_EVENT_HANGUP_REQ:
-					break;
-				default:
-					sig_pri_lock_private(pri->pvts[chanpos]);
-					if (pri->pvts[chanpos]->owner) {
-						char *event_str = pri_event2str(e->e);
-
-						snprintf(cause_str, sizeof(cause_str), "PRI %s", event_str);
-						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
-					}
-					sig_pri_unlock_private(pri->pvts[chanpos]);
-					break;
-				}
-			}
 			/* If a callid was set, we need to deref it and remove it from thread storage. */
 			if (callid) {
 				callid = ast_callid_unref(callid);

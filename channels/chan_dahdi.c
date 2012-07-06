@@ -4151,7 +4151,7 @@ static int dahdi_r2_cause_to_ast_cause(openr2_call_disconnect_cause_t cause)
 static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disconnect_cause_t cause)
 {
 	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
-	char cause_str[20];
+	char cause_str[50];
 	struct ast_control_pvt_cause_code *cause_code;
 	int datalen = sizeof(*cause_code);
 
@@ -4164,7 +4164,7 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 		return;
 	}
 
-	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%d)", dahdi_r2_cause_to_ast_cause(cause));
+	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%s)", openr2_proto_get_disconnect_string(cause));
 	datalen += strlen(cause_str);
 	cause_code = alloca(datalen);
 	ast_copy_string(cause_code->chan_name, ast_channel_name(p->owner), AST_CHANNEL_NAME);

@@ -1328,28 +1328,6 @@ void *ss7_linkset(void *data)
 				break;
 			}
 
-			if (chanpos > -1) {
-				switch (e->e) {
-				/* handled above */
-				case ISUP_EVENT_IAM:
-				case ISUP_EVENT_REL:
-				case ISUP_EVENT_RSC:
-					break;
-				default:
-					p = linkset->pvts[chanpos];
-					sig_ss7_lock_private(p);
-					sig_ss7_lock_owner(linkset, chanpos);
-					if (p->owner) {
-						char *event_str = ss7_event2str(e->e);
-
-						snprintf(cause_str, sizeof(cause_str), "SS7 %s", event_str);
-						ss7_queue_pvt_cause_data(p->owner, cause_str);
-						ast_channel_unlock(p->owner);
-					}
-					sig_ss7_unlock_private(p);
-				}
-			}
-
 			/* Call ID stuff needs to be cleaned up here */
 			if (callid) {
 				callid = ast_callid_unref(callid);

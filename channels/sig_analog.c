@@ -2670,7 +2670,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	pthread_t threadid;
 	struct ast_channel *chan;
 	struct ast_frame *f;
-	struct ast_control_pvt_cause_code *cause_code;
+	struct ast_control_pvt_cause_code *cause_code = NULL;
 	int data_size = sizeof(*cause_code);
 	char *subclass = NULL;
 
@@ -2703,29 +2703,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", analog_event2str(res), res, p->channel, idx);
 
-	/* add length of "ANALOG " */
-	data_size += 7;
-
 	if (res & (ANALOG_EVENT_PULSEDIGIT | ANALOG_EVENT_DTMFUP)) {
-		/* add length of "ANALOG_EVENT_" */
-		data_size += 13;
-		if (res & ANALOG_EVENT_PULSEDIGIT) {
-			/* add length of "PULSEDIGIT" */
-			data_size += 10;
-		} else {
-			/* add length of "DTMFUP" */
-			data_size += 6;
-		}
-
-		/* add length of " (c)" */
-		data_size += 4;
-
-		cause_code = alloca(data_size);
-		ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
-		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG ANALOG_EVENT_%s (%c)",
-			(res & ANALOG_EVENT_DTMFUP) ? "DTMFUP" : "PULSEDIGIT", res & 0xff);
-		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
-
 		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT) ? 1 : 0);
 		ast_debug(1, "Detected %sdigit '%c'\n", (res & ANALOG_EVENT_PULSEDIGIT) ? "pulse ": "", res & 0xff);
 		analog_confmute(p, 0);
@@ -2736,14 +2714,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	}
 
 	if (res & ANALOG_EVENT_DTMFDOWN) {
-		/* add length of "ANALOG_EVENT_DTMFDOWN (c)" */
-		data_size += 25;
-
-		cause_code = alloca(data_size);
-		ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
-		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG ANALOG_EVENT_DTMFDOWN (%c)", res & 0xff);
-		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
-
 		ast_debug(1, "DTMF Down '%c'\n", res & 0xff);
 		/* Mute conference */
 		analog_confmute(p, 1);
@@ -2753,12 +2723,21 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		return f;
 	}
 
-	subclass = analog_event2str(res);
-	data_size += strlen(subclass);
-	cause_code = alloca(data_size);
-	ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
-	snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG %s", subclass);
-	ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+	switch (res) {
+	case ANALOG_EVENT_ALARM:
+	case ANALOG_EVENT_POLARITY:
+	case ANALOG_EVENT_ONHOOK:
+		/* add length of "ANALOG " */
+		data_size += 7;
+		subclass = analog_event2str(res);
+		data_size += strlen(subclass);
+		cause_code = alloca(data_size);
+		ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
+		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG %s", subclass);
+		break;
+	default:
+		break;
+	}
 
 	switch (res) {
 	case ANALOG_EVENT_EC_DISABLED:
@@ -2845,6 +2824,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_set_alarm(p, 1);
 		analog_get_and_handle_alarms(p);
 	case ANALOG_EVENT_ONHOOK:
+		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 		switch (p->sig) {
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
@@ -3518,6 +3498,7 @@ winkflashdone:
 				case AST_STATE_RING:			/*!< Line is ringing */
 					if (p->hanguponpolarityswitch) {
 						ast_debug(1, "HangingUp on polarity switch! channel %d\n", p->channel);
+						ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 						p->polarity = POLARITY_IDLE;
 					} else {

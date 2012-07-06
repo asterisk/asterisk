@@ -10188,38 +10188,27 @@ static int socket_process_helper(struct iax2_thread *thread)
 	}
 #endif
 
-	if (iaxs[fr->callno]->owner && (fh->type == AST_FRAME_IAX || fh->type == AST_FRAME_CONTROL)) {
+	if (iaxs[fr->callno]->owner && fh->type == AST_FRAME_IAX &&
+			(fh->csub == IAX_COMMAND_HANGUP
+			|| fh->csub == IAX_COMMAND_REJECT
+			|| fh->csub == IAX_COMMAND_REGREJ
+			|| fh->csub == IAX_COMMAND_TXREJ)) {
 		struct ast_control_pvt_cause_code *cause_code;
 		int data_size = sizeof(*cause_code);
 		char subclass[40] = "";
 
 		/* get subclass text */
-		if (fh->type == AST_FRAME_IAX) {
-			iax_frame_subclass2str(fh->csub, subclass, sizeof(subclass));
-		} else {
-			struct ast_frame tmp_frame = {0,};
-			tmp_frame.frametype = fh->type;
-			tmp_frame.subclass.integer = fh->csub;
-			ast_frame_subclass2str(&tmp_frame, subclass, sizeof(subclass), NULL, 0);
-		}
+		iax_frame_subclass2str(fh->csub, subclass, sizeof(subclass));
 
 		/* add length of "IAX2 " */
 		data_size += 5;
-		if (fh->type == AST_FRAME_CONTROL) {
-			/* add length of "Control " */
-			data_size += 8;
-		} else if (fh->csub == IAX_COMMAND_HANGUP
-			|| fh->csub == IAX_COMMAND_REJECT
-			|| fh->csub == IAX_COMMAND_REGREJ
-			|| fh->csub == IAX_COMMAND_TXREJ) {
-			/* for IAX hangup frames, add length of () and number */
-			data_size += 3;
-			if (ies.causecode > 9) {
-				data_size++;
-			}
-			if (ies.causecode > 99) {
-				data_size++;
-			}
+		/* for IAX hangup frames, add length of () and number */
+		data_size += 3;
+		if (ies.causecode > 9) {
+			data_size++;
+		}
+		if (ies.causecode > 99) {
+			data_size++;
 		}
 		/* add length of subclass */
 		data_size += strlen(subclass);
@@ -10227,15 +10216,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 		cause_code = alloca(data_size);
 		ast_copy_string(cause_code->chan_name, ast_channel_name(iaxs[fr->callno]->owner), AST_CHANNEL_NAME);
 
-		if (fh->type == AST_FRAME_IAX &&
-			(fh->csub == IAX_COMMAND_HANGUP
-			|| fh->csub == IAX_COMMAND_REJECT
-			|| fh->csub == IAX_COMMAND_REGREJ
-			|| fh->csub == IAX_COMMAND_TXREJ)) {
-			snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "IAX2 %s(%d)", subclass, ies.causecode);
-		} else {
-			snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "IAX2 %s%s", (fh->type == AST_FRAME_CONTROL ? "Control " : ""), subclass);
-		}
+		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "IAX2 %s(%d)", subclass, ies.causecode);
 
 		iax2_queue_control_data(fr->callno, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 		if (!iaxs[fr->callno]) {
