@@ -1,0 +1,17 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_xmpp_client_find;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_disconnect;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_unref;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_lock;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_unlock;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_send;
+		LINKER_SYMBOL_PREFIXast_xmpp_client_send_message;
+		LINKER_SYMBOL_PREFIXast_xmpp_chatroom_invite;
+		LINKER_SYMBOL_PREFIXast_xmpp_chatroom_join;
+		LINKER_SYMBOL_PREFIXast_xmpp_chatroom_send;
+		LINKER_SYMBOL_PREFIXast_xmpp_chatroom_leave;
+		LINKER_SYMBOL_PREFIXast_xmpp_increment_mid;
+	local:
+		*;
+};

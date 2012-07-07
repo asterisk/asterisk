@@ -24,7 +24,7 @@
  *
  * \extref Iksemel http://code.google.com/p/iksemel/
  *
- * A refereouce module for interfacting Asterisk directly as a client or component with
+ * A reference module for interfacting Asterisk directly as a client or component with
  * an XMPP/Jabber compliant server.
  *
  * This module is based upon the original res_jabber as done by Matt O'Gorman.
@@ -32,7 +32,6 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>no</defaultenabled>
 	<depend>iksemel</depend>
 	<use type="external">openssl</use>
 	<support_level>core</support_level>

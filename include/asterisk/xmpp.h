@@ -35,7 +35,7 @@
 #endif /* HAVE_OPENSSL */
 
 /* file is read by blocks with this size */
-#define NET_IO_BUF_SIZE 4096
+#define NET_IO_BUF_SIZE 16384
 
 /* Return value for timeout connection expiration */
 #define IKS_NET_EXPIRED 12

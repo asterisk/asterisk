@@ -295,6 +295,15 @@ chan_ooh323
  * Direct media functionality has been added.
    Options in config are:  directmedia (directrtp) and directrtpsetup (earlydirect)
 
+chan_motif
+----------
+ * A new channel driver named chan_motif has been added which provides support for
+   Google Talk and Jingle in a single channel driver. This new channel driver includes
+   support for both audio and video, RFC2833 DTMF, all codecs supported by Asterisk,
+   hold, unhold, and ringing notification. It is also compliant with the current Jingle
+   specification, current Google Jingle specification, and the original Google Talk
+   protocol.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

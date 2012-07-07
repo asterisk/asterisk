@@ -1,0 +1,85 @@
+; Sample configuration file for chan_motif
+
+; Transports
+;
+; There are three different transports and protocol derivatives supported by chan_motif. They are in order of preference:
+; Jingle using ICE-UDP, Google Jingle, and Google-V1.
+;
+; Jingle as defined in XEP-0166 supports the widest range of features. It is referred to as "ice-udp" in this file. This is
+; the specification that Jingle clients implement.
+;
+; Google Jingle follows the Jingle specification for signaling but uses a custom transport for media. It is supported
+; by the Google Talk Plug-in in Gmail and by some other Jingle clients. It is referred to as "google" in this file.
+;
+; Google-V1 is the original Google Talk signaling protocol which uses an initial preliminary version of Jingle.
+; It also uses the same custom transport as Google Jingle for media. It is supported by Google Voice, some other Jingle
+; clients, and the Windows Google Talk client. It is referred to as "google-v1" in this file.
+;
+; Incoming sessions will automatically switch to the correct transport once it has been determined.
+;
+; Outgoing sessions are capable of determining if the target is capable of Jingle or a Google transport if the target is
+; in the roster. Unfortunately it is not possible to differentiate between a Google Jingle or Google-V1 capable resource
+; until a session initiate attempt occurs. If a resource is determined to use a Google transport it will initially use
+; Google Jingle but will fall back to Google-V1 if required.
+;
+; If an outgoing session attempt fails due to failure to support the given transport chan_motif will fall back in preference
+; order listed at the beginning of this document until all transports have been exhausted.
+;
+
+; Dialing and Resource Selection Strategy
+;
+; Placing a call through an endpoint can be accomplished using the following dial string:
+;
+; Motif/<endpoint name>/<target>
+;
+; When placing an outgoing call through an endpoint the requested target is searched for in the roster list. If present
+; the first Jingle or Google Jingle capable resource is specifically targetted. Since the capabilities of the resource are
+; known the outgoing session initation will disregard the configured transport and use the determined one.
+;
+; If the target is not found in the roster the target will be used as-is and a session will be initiated using the
+; transport specified in this configuration file. If no transport has been specified the endpoint defaults to ice-udp.
+;
+
+; Video Support
+;
+; Support for video does not need to be explicitly enabled. Configuring any video codec on your endpoint will
+; automatically enable it.
+
+; DTMF
+;
+; The only supported method for DTMF is RFC2833. This is always enabled on audio streams and negotiated if possible.
+
+; CallerID
+;
+; The incoming caller id number is populated with the username of the caller and the name is populated with the full
+; identity of the caller. If you would like to perform authentication or filtering of incoming calls it is recommended
+; that you use these fields to do so.
+;
+; Outgoing caller id can *not* be set.
+
+; Default template for endpoints, to be included in their definition
+[default](!)
+disallow=all
+allow=ulaw
+allow=h264
+context=incoming-motif ; Default context that incoming sessions will land in
+
+;maxicecandidates = 10 ; Maximum number of ICE candidates we will offer
+;maxpayloads = 30      ; Maximum number of payloads we will offer
+
+; Sample configuration entry for Jingle
+[jingle-endpoint](default)
+transport=ice-udp               ; Change the default protocol of outgoing sessions to Jingle ICE-UDP
+allow=g722                      ; Add G.722 as an allowed format since the other side may support it
+connection=local-jabber-account ; Connection to accept traffic on and send traffic out
+accountcode=jingle              ; Account code for CDR purposes
+
+; Sample configuration entry for Google Talk
+[gtalk-endpoint](default)
+transport=google         ; Since this is a Google Talk endpoint we want to offer Google Jingle for outgoing sessions
+connection=gtalk-account
+
+; Sample configuration entry for Google Voice
+[gvoice](default)
+transport=google-v1       ; Google Voice uses the original Google Talk protocol
+connection=gvoice-account

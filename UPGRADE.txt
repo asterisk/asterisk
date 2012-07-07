@@ -89,6 +89,14 @@ app_followme:
    You now have until the last step times out to decide if you want to accept
    the call or not before being disconnected.
 
+chan_gtalk:
+ - chan_gtalk has been deprecated in favor of the chan_motif channel driver. It is recommended
+   that users switch to using it as it is a core supported module.
+
+chan_jingle:
+ - chan_jingle has been deprecated in favor of the chan_motif channel driver. It is recommended
+   that users switch to using it as it is a core supported module.
+
 SIP
 ===
  - A new option "tonezone" for setting default tonezone for the channel driver

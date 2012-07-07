@@ -31,6 +31,7 @@
  */
 
 /*** MODULEINFO
+        <defaultenabled>no</defaultenabled>
 	<depend>iksemel</depend>
 	<use type="external">openssl</use>
 	<support_level>extended</support_level>
