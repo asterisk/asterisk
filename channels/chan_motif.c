@@ -1142,8 +1142,13 @@ static int jingle_add_payloads_to_description(struct jingle_session *session, st
 		iks_insert_attrib(payload, "id", tmp);
 		iks_insert_attrib(payload, "name", ast_rtp_lookup_mime_subtype2(1, &format, 0, 0));
 		iks_insert_attrib(payload, "channels", "1");
-		snprintf(tmp, sizeof(tmp), "%d", ast_rtp_lookup_sample_rate2(1, &format, 0));
-		iks_insert_attrib(payload, "clockrate", tmp);
+
+		if ((format.id == AST_FORMAT_G722) && ((session->transport == JINGLE_TRANSPORT_GOOGLE_V1) || (session->transport == JINGLE_TRANSPORT_GOOGLE_V2))) {
+			iks_insert_attrib(payload, "clockrate", "16000");
+		} else {
+			snprintf(tmp, sizeof(tmp), "%d", ast_rtp_lookup_sample_rate2(1, &format, 0));
+			iks_insert_attrib(payload, "clockrate", tmp);
+		}
 
 		iks_insert_node(description, payload);
 		payloads[i++] = payload;
