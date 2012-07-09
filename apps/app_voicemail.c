@@ -113,7 +113,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/adsi.h"
 #include "asterisk/app.h"
-#include "asterisk/app_voicemail.h"
 #include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/localtime.h"
@@ -969,9 +968,21 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 static int is_valid_dtmf(const char *key);
 static void read_password_from_file(const char *secretfn, char *password, int passwordlen);
 static int write_password_to_file(const char *secretfn, const char *password);
-struct ast_str *vm_mailbox_snapshot_str(const char *mailbox, const char *context);
 static const char *substitute_escapes(const char *value);
 static void free_user(struct ast_vm_user *vmu);
+
+static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *mailbox, const char *context, const char *folder, int descending, enum ast_vm_snapshot_sort_val sort_val, int combine_INBOX_and_OLD);
+static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_destroy(struct ast_vm_mailbox_snapshot *mailbox_snapshot);
+
+static int vm_msg_forward(const char *from_mailbox, const char *from_context, const char *from_folder, const char *to_mailbox, const char *to_context, const char *to_folder, size_t num_msgs, int *msg_ids, int delete_old);
+static int vm_msg_move(const char *mailbox, const char *context, size_t num_msgs, const char *oldfolder, int *old_msg_nums, const char *newfolder, int *new_msg_nums);
+static int vm_msg_remove(const char *mailbox, const char *context, size_t num_msgs, const char *folder, int *msgs);
+static int vm_msg_play(struct ast_channel *chan, const char *mailbox, const char *context, const char *folder, const char *msg_num, ast_vm_msg_play_cb cb);
+
+#ifdef TEST_FRAMEWORK
+static int vm_test_destroy_user(const char *context, const char *mailbox);
+static int vm_test_create_user(const char *context, const char *mailbox);
+#endif
 
 struct ao2_container *inprocess_container;
 
@@ -1755,6 +1766,12 @@ static const char *mbox(struct ast_vm_user *vmu, int id)
 #endif
 	return (id >= 0 && id < ARRAY_LEN(mailbox_folders)) ? mailbox_folders[id] : "Unknown";
 }
+
+static const char *vm_index_to_foldername(int id)
+{
+	return mbox(NULL, id);
+}
+
 
 static int get_folder_by_name(const char *name)
 {
@@ -5757,7 +5774,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	/* At this point, the actual creation of a voicemail message should be finished.
 	 * Now we just need to copy the files being recorded into the receiving folder. */
 
-	create_dirpath(dir, sizeof(dir), recipient->context, recipient->mailbox, "INBOX");
+	create_dirpath(dir, sizeof(dir), recipient->context, recipient->mailbox, recdata->folder);
 
 #ifdef IMAP_STORAGE
 	/* make recipient info into an inboxcount friendly string */
@@ -10276,7 +10293,7 @@ static int play_message_by_id(struct ast_channel *chan, const char *mailbox, con
 	}
 
 	/* Iterate through every folder, find the msg, and play it */
-	for (i = 0; i < AST_VM_FOLDER_NUMBER && !played; i++) {
+	for (i = 0; i < ARRAY_LEN(mailbox_folders) && !played; i++) {
 		ast_copy_string(vms.username, mailbox, sizeof(vms.username));
 		vms.lastmsg = -1;
 
@@ -13539,6 +13556,9 @@ static int unload_module(void)
 #endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_uninstall_vm_functions();
+#ifdef TEST_FRAMEWORK
+	ast_uninstall_vm_test_functions();
+#endif
 	ao2_ref(inprocess_container, -1);
 
 	if (poll_thread != AST_PTHREADT_NULL)
@@ -13595,7 +13615,15 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_data_register_multiple(vm_data_providers, ARRAY_LEN(vm_data_providers));
 
-	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname, msg_create_from_file);
+	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname, msg_create_from_file,
+				 vm_index_to_foldername,
+				 vm_mailbox_snapshot_create, vm_mailbox_snapshot_destroy,
+				 vm_msg_move, vm_msg_remove, vm_msg_forward, vm_msg_play);
+
+#ifdef TEST_FRAMEWORK
+	ast_install_vm_test_functions(vm_test_create_user, vm_test_destroy_user);
+#endif
+
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
 	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, SENTINEL);
 
@@ -14130,7 +14158,7 @@ static struct ast_vm_msg_snapshot *vm_msg_snapshot_destroy(struct ast_vm_msg_sna
 
 #ifdef TEST_FRAMEWORK
 
-int ast_vm_test_destroy_user(const char *context, const char *mailbox)
+static int vm_test_destroy_user(const char *context, const char *mailbox)
 {
 	struct ast_vm_user *vmu;
 
@@ -14148,7 +14176,7 @@ int ast_vm_test_destroy_user(const char *context, const char *mailbox)
 	return 0;
 }
 
-int ast_vm_test_create_user(const char *context, const char *mailbox)
+static int vm_test_create_user(const char *context, const char *mailbox)
 {
 	struct ast_vm_user *vmu;
 
@@ -14227,9 +14255,6 @@ static int vm_msg_snapshot_create(struct ast_vm_user *vmu,
 		if ((value = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 			ast_string_field_set(msg_snapshot, duration, value);
 		}
-		if ((value = ast_variable_retrieve(msg_cfg, "message", "folder_dir"))) {
-			ast_string_field_set(msg_snapshot, folder_dir, value);
-		}
 		if ((value = ast_variable_retrieve(msg_cfg, "message", "flag"))) {
 			ast_string_field_set(msg_snapshot, flag, value);
 		}
@@ -14278,7 +14303,7 @@ static int vm_msg_snapshot_create(struct ast_vm_user *vmu,
 	return 0;
 }
 
-struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailbox,
+static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *mailbox,
 	const char *context,
 	const char *folder,
 	int descending,
@@ -14304,7 +14329,7 @@ struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailb
 
 	if (!(ast_strlen_zero(folder))) {
 		/* find the folder index */
-		for (i = 0; i < AST_VM_FOLDER_NUMBER; i++) {
+		for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
 			if (!strcasecmp(mailbox_folders[i], folder)) {
 				this_index_only = i;
 				break;
@@ -14324,7 +14349,14 @@ struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailb
 		return NULL;
 	}
 
-	for (i = 0; i < AST_VM_FOLDER_NUMBER; i++) {
+	if (!(mailbox_snapshot->snapshots = ast_calloc(ARRAY_LEN(mailbox_folders), sizeof(*mailbox_snapshot->snapshots)))) {
+		ast_free(mailbox_snapshot);
+		return NULL;
+	}
+
+	mailbox_snapshot->folders = ARRAY_LEN(mailbox_folders);
+
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
 		int combining_old = 0;
 		if ((i == old_index) && (combine_INBOX_and_OLD)) {
 			combining_old = 1;
@@ -14379,63 +14411,26 @@ snapshot_cleanup:
 	return mailbox_snapshot;
 }
 
-struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_destroy(struct ast_vm_mailbox_snapshot *mailbox_snapshot)
+static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_destroy(struct ast_vm_mailbox_snapshot *mailbox_snapshot)
 {
 	int i;
 	struct ast_vm_msg_snapshot *msg_snapshot;
 
-	for (i = 0; i < AST_VM_FOLDER_NUMBER; i++) {
+	for (i = 0; i < mailbox_snapshot->folders; i++) {
 		while ((msg_snapshot = AST_LIST_REMOVE_HEAD(&mailbox_snapshot->snapshots[i], msg))) {
 			msg_snapshot = vm_msg_snapshot_destroy(msg_snapshot);
 		}
 	}
+	ast_free(mailbox_snapshot->snapshots);
 	ast_free(mailbox_snapshot);
 	return NULL;
-}
-
-struct ast_str *vm_mailbox_snapshot_str(const char *mailbox, const char *context)
-{
-	struct ast_vm_mailbox_snapshot *mailbox_snapshot = ast_vm_mailbox_snapshot_create(mailbox, context, NULL, 0, AST_VM_SNAPSHOT_SORT_BY_ID, 0);
-	struct ast_vm_msg_snapshot *msg_snapshot;
-	int i;
-	struct ast_str *str;
-
-	if (!mailbox_snapshot) {
-		return NULL;
-	}
-
-	if (!(str = ast_str_create(512))) {
-		return NULL;
-		mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
-	}
-
-	for (i = 0; i < AST_VM_FOLDER_NUMBER; i++) {
-		ast_str_append(&str, 0, "FOLDER: %s\n", mailbox_folders[i]);
-		AST_LIST_TRAVERSE(&mailbox_snapshot->snapshots[i], msg_snapshot, msg) {
-			ast_str_append(&str, 0, "MSG Number:   %d\n", msg_snapshot->msg_number);
-			ast_str_append(&str, 0, "MSG ID:       %s\n", msg_snapshot->msg_id);
-			ast_str_append(&str, 0, "CALLER ID:    %s\n", msg_snapshot->callerid);
-			ast_str_append(&str, 0, "CALLER CHAN:  %s\n", msg_snapshot->callerchan);
-			ast_str_append(&str, 0, "CALLER EXTEN: %s\n", msg_snapshot->exten);
-			ast_str_append(&str, 0, "DATE:         %s\n", msg_snapshot->origdate);
-			ast_str_append(&str, 0, "TIME:         %s\n", msg_snapshot->origtime);
-			ast_str_append(&str, 0, "DURATION:     %s\n", msg_snapshot->duration);
-			ast_str_append(&str, 0, "FOLDER NAME:  %s\n", msg_snapshot->folder_name);
-			ast_str_append(&str, 0, "FOLDER DIR:   %s\n", msg_snapshot->folder_dir);
-			ast_str_append(&str, 0, "FLAG:         %s\n", msg_snapshot->folder_dir);
-			ast_str_append(&str, 0, "\n");
-		}
-	}
-
-	mailbox_snapshot = ast_vm_mailbox_snapshot_destroy(mailbox_snapshot);
-	return str;
 }
 
 /*!
  * \brief common bounds checking and existence check for Voicemail API functions.
  *
  * \details
- * This is called by ast_vm_msg_move, ast_vm_msg_remove, and ast_vm_msg_forward to
+ * This is called by vm_msg_move, vm_msg_remove, and vm_msg_forward to
  * ensure that data passed in are valid. This tests the following:
  *
  * 1. No negative indexes are given.
@@ -14487,7 +14482,7 @@ static void notify_new_state(struct ast_vm_user *vmu)
 	queue_mwi_event(ext_context, urgent, new, old);
 }
 
-int ast_vm_msg_forward(const char *from_mailbox,
+static int vm_msg_forward(const char *from_mailbox,
 	const char *from_context,
 	const char *from_folder,
 	const char *to_mailbox,
@@ -14624,7 +14619,7 @@ vm_forward_cleanup:
 	return res;
 }
 
-int ast_vm_msg_move(const char *mailbox,
+static int vm_msg_move(const char *mailbox,
 	const char *context,
 	size_t num_msgs,
 	const char *oldfolder,
@@ -14719,7 +14714,7 @@ vm_move_cleanup:
 	return res;
 }
 
-int ast_vm_msg_remove(const char *mailbox,
+static int vm_msg_remove(const char *mailbox,
 	const char *context,
 	size_t num_msgs,
 	const char *folder,
@@ -14813,15 +14808,7 @@ vm_remove_cleanup:
 	return res;
 }
 
-const char *ast_vm_index_to_foldername(unsigned int index)
-{
-	if (index >= AST_VM_FOLDER_NUMBER) {
-		return "";
-	}
-	return mailbox_folders[index];
-}
-
-int ast_vm_msg_play(struct ast_channel *chan,
+static int vm_msg_play(struct ast_channel *chan,
 	const char *mailbox,
 	const char *context,
 	const char *folder,
@@ -14939,7 +14926,7 @@ play2_msg_cleanup:
  * AST_MODULE_INFO(, , "Comedian Mail (Voicemail System)"
  */
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, tdesc,
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

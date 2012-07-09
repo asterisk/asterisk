@@ -683,7 +683,8 @@ static const struct sip_reasons {
 	{ AST_REDIRECTING_REASON_FOLLOW_ME, "follow-me" },
 	{ AST_REDIRECTING_REASON_OUT_OF_ORDER, "out-of-service" },
 	{ AST_REDIRECTING_REASON_AWAY, "away" },
-	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "unknown"}
+	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "unknown"},
+	{ AST_REDIRECTING_REASON_SEND_TO_VM, "send_to_vm"},
 };
 
 
@@ -15390,7 +15391,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 			}
 			/* Remove enclosing double-quotes */
 			if (*reason_param == '"')
-				ast_strip_quoted(reason_param, "\"", "\"");
+				reason_param = ast_strip_quoted(reason_param, "\"", "\"");
 			if (!ast_strlen_zero(reason_param)) {
 				sip_set_redirstr(p, reason_param);
 				if (p->owner) {
@@ -23673,6 +23674,8 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	int localtransfer = 0;
 	int attendedtransfer = 0;
 	int res = 0;
+	struct ast_party_redirecting redirecting;
+	struct ast_set_party_redirecting update_redirecting;
 
 	if (req->debug) {
 		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n",
@@ -23977,13 +23980,25 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
-	/* Do not hold the pvt lock during the indicate and async_goto. Those functions
-	 * lock channels which will invalidate locking order if the pvt lock is held.*/
+	/* When a call is transferred to voicemail from a Digium phone, there may be
+	 * a Diversion header present in the REFER with an appropriate reason parameter
+	 * set. We need to update the redirecting information appropriately.
+	 */
+	ast_party_redirecting_init(&redirecting);
+	memset(&update_redirecting, 0, sizeof(update_redirecting));
+	change_redirecting_information(p, req, &redirecting, &update_redirecting, FALSE);
+
+	/* Do not hold the pvt lock during a call that causes an indicate or an async_goto.
+	 * Those functions lock channels which will invalidate locking order if the pvt lock
+	 * is held.*/
+	sip_pvt_unlock(p);
+	ast_channel_update_redirecting(current.chan2, &redirecting, &update_redirecting);
+	ast_party_redirecting_free(&redirecting);
+
 	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
 	 * servers - generate an INVITE with Replaces. Either way, let the dial plan decided
 	 * indicate before masquerade so the indication actually makes it to the real channel
 	 * when using local channels with MOH passthru */
-	sip_pvt_unlock(p);
 	ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
 	res = ast_async_goto(current.chan2, refer_to_context, refer_to, 1);
 
