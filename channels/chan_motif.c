@@ -29,7 +29,7 @@
 
 /*** MODULEINFO
 	<depend>iksemel</depend>
-	<depend>res_jabber</depend>
+	<depend>res_xmpp</depend>
 	<use type="external">openssl</use>
 	<support_level>core</support_level>
  ***/
@@ -579,7 +579,7 @@ static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, con
 
 	ast_format_cap_copy(session->cap, endpoint->cap);
 
-	/* While we rely on res_jabber for communication we still need a temporary ast_sockaddr to tell the RTP engine
+	/* While we rely on res_xmpp for communication we still need a temporary ast_sockaddr to tell the RTP engine
 	 * that we want IPv4 */
 	ast_sockaddr_parse(&tmp, "0.0.0.0", 0);
 
