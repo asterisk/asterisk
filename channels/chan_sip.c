@@ -16964,6 +16964,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	char *from;
 	char *to;
 	char from_name[50];
+	char stripped[SIPBUFSIZE];
 
 	if (strncmp(content_type, "text/plain", strlen("text/plain"))) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
@@ -17116,6 +17117,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	if (!ast_strlen_zero(p->peername)) {
 		res |= ast_msg_set_var(msg, "SIP_PEERNAME", p->peername);
 	}
+
+	ast_copy_string(stripped, sip_get_header(req, "Contact"), sizeof(stripped));
+	res |= ast_msg_set_var(msg, "SIP_FULLCONTACT", get_in_brackets(stripped));
 
 	res |= ast_msg_set_exten(msg, "%s", p->exten);
 	res |= set_message_vars_from_req(msg, req);
@@ -24955,6 +24959,7 @@ static int block_msg_header(const char *header_name)
 		"CSeq",
 		"Allow",
 		"Content-Length",
+		"Request-URI",
 	};
 
 	for (idx = 0; idx < ARRAY_LEN(hdr); ++idx) {
@@ -24981,6 +24986,17 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_MESSAGE, NULL))) {
 		return -1;
 	}
+
+        for (iter = ast_msg_var_iterator_init(msg);
+	     ast_msg_var_iterator_next(msg, iter, &var, &val);
+	     ast_msg_var_unref_current(iter)) {
+		if (!strcasecmp(var, "Request-URI")) {
+			ast_string_field_set(pvt, fullcontact, val);
+			ast_msg_var_unref_current(iter);
+			break;
+		}
+	}
+	ast_msg_var_iterator_destroy(iter);
 
 	to_uri = ast_strdupa(to);
 	to_uri = get_in_brackets(to_uri);
