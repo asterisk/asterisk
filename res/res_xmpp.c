@@ -2185,7 +2185,7 @@ static void xmpp_client_set_presence(struct ast_xmpp_client *client, const char 
 	iks_insert_node(presence, priority);
 	iks_insert_attrib(cnode, "node", "http://www.asterisk.org/xmpp/client/caps");
 	iks_insert_attrib(cnode, "ver", "asterisk-xmpp");
-	iks_insert_attrib(cnode, "ext", "voice-v1");
+	iks_insert_attrib(cnode, "ext", "voice-v1 video-v1 camera-v1");
 	iks_insert_attrib(cnode, "xmlns", "http://jabber.org/protocol/caps");
 	iks_insert_node(presence, cnode);
 	ast_xmpp_client_send(client, presence);
@@ -3084,7 +3084,9 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 			if (iks_find_with_attrib(pak->x, "c", "node", "http://www.google.com/xmpp/client/caps") ||
 			    iks_find_with_attrib(pak->x, "caps:c", "node", "http://www.google.com/xmpp/client/caps") ||
 			    iks_find_with_attrib(pak->x, "c", "node", "http://www.android.com/gtalk/client/caps") ||
-			    iks_find_with_attrib(pak->x, "caps:c", "node", "http://www.android.com/gtalk/client/caps")) {
+			    iks_find_with_attrib(pak->x, "caps:c", "node", "http://www.android.com/gtalk/client/caps") ||
+			    iks_find_with_attrib(pak->x, "c", "node", "http://mail.google.com/xmpp/client/caps") ||
+			    iks_find_with_attrib(pak->x, "caps:c", "node", "http://mail.google.com/xmpp/client/caps")) {
 				resource->caps.google = 1;
 			}
 
