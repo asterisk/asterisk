@@ -328,6 +328,7 @@ int ast_stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, 
 		struct stun_header *resp = (struct stun_header *)respdata;
 		int resplen = 0;	/* len excluding header */
 		int respleft = sizeof(respdata) - sizeof(struct stun_header);
+		char combined[33];
 
 		resp->id = hdr->id;
 		resp->msgtype = 0;
@@ -338,12 +339,16 @@ int ast_stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, 
 			if (stundebug)
 				ast_verbose("STUN Bind Request, username: %s\n",
 					    st.username ? st.username : "<none>");
-			if (st.username)
+			if (st.username) {
 				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
+				snprintf(combined, sizeof(combined), "%16s%16s", st.username + 16, st.username);
+			}
+
 			append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
 			resp->msglen = htons(resplen);
 			resp->msgtype = htons(STUN_BINDRESP);
 			stun_send(s, src, resp);
+			ast_stun_request(s, src, combined, NULL);
 			ret = AST_STUN_ACCEPT;
 			break;
 		default:
