@@ -17,6 +17,11 @@ Event=>check-sync
 [aastra-xml]
 Event=>aastra-xml
 
+; Digium
+
+[digium-check-cfg]
+Event=>check-sync
+
 ; Linksys
 
 [linksys-cold-restart]
