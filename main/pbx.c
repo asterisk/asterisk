@@ -234,7 +234,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">Exec</ref>
+			<ref type="application">ExecIf</ref>
 			<ref type="application">TryExec</ref>
+			<ref type="application">GotoIfTime</ref>
 		</see-also>
 	</application>
 	<application name="Goto" language="en_US">
@@ -278,10 +280,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="condition" required="true" />
 			<parameter name="destination" required="true" argsep=":">
 				<argument name="labeliftrue">
-					<para>Continue at <replaceable>labeliftrue</replaceable> if the condition is true.</para>
+					<para>Continue at <replaceable>labeliftrue</replaceable> if the condition is true.
+					Takes the form similar to Goto() of [[context,]extension,]priority.</para>
 				</argument>
 				<argument name="labeliffalse">
-					<para>Continue at <replaceable>labeliffalse</replaceable> if the condition is false.</para>
+					<para>Continue at <replaceable>labeliffalse</replaceable> if the condition is false.
+					Takes the form similar to Goto() of [[context,]extension,]priority.</para>
 				</argument>
 			</parameter>
 		</syntax>
@@ -320,8 +324,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<argument name="timezone" required="false" />
 			</parameter>
 			<parameter name="destination" required="true" argsep=":">
-				<argument name="labeliftrue" />
-				<argument name="labeliffalse" />
+				<argument name="labeliftrue">
+					<para>Continue at <replaceable>labeliftrue</replaceable> if the condition is true.
+					Takes the form similar to Goto() of [[context,]extension,]priority.</para>
+				</argument>
+				<argument name="labeliffalse">
+					<para>Continue at <replaceable>labeliffalse</replaceable> if the condition is false.
+					Takes the form similar to Goto() of [[context,]extension,]priority.</para>
+				</argument>
 			</parameter>
 		</syntax>
 		<description>
@@ -337,6 +347,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">GotoIf</ref>
+			<ref type="application">Goto</ref>
 			<ref type="function">IFTIME</ref>
 			<ref type="function">TESTTIME</ref>
 		</see-also>
