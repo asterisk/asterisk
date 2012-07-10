@@ -1,10 +1,15 @@
+2012-07-10  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.14.0 Released.
+
 2012-07-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.14.0-rc2 Released.
 
-	* AST-2012-010
+	* AST-2012-010: Possible Resource Leak on Uncompleted Re-INVITE
+  	  transactions
 
-	* AST-2012-011
+	* AST-2012-011: Remote Crash Vulnerability in VoiceMail Application
 
 	* Fix crash on a guest directmedia call
 
