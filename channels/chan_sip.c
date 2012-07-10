@@ -9527,14 +9527,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
 			     (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=image 0 UDPTL t38" + "\0" */
+				 * length is "m=image 0 udptl t38" + "\0" */
 				if (!(offer->decline_m_line = ast_malloc(20))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				strcpy(offer->decline_m_line, "m=image 0 UDPTL t38");
+				strcpy(offer->decline_m_line, "m=image 0 udptl t38");
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring image stream offer because port number is zero\n");
