@@ -955,6 +955,31 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		goto return_cleanup;
 	}
 
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when two halves of a Local Channel form a bridge.</synopsis>
+			<syntax>
+				<parameter name="Channel1">
+					<para>The name of the Local Channel half that bridges to another channel.</para>
+				</parameter>
+				<parameter name="Channel2">
+					<para>The name of the Local Channel half that executes the dialplan.</para>
+				</parameter>
+				<parameter name="Context">
+					<para>The context in the dialplan that Channel2 starts in.</para>
+				</parameter>
+				<parameter name="Exten">
+					<para>The extension in the dialplan that Channel2 starts in.</para>
+				</parameter>
+				<parameter name="LocalOptimization">
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "LocalBridge",
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"

@@ -1039,7 +1039,11 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 			ast_copy_string(cdr->accountcode, ast_channel_accountcode(chan), sizeof(cdr->accountcode));
 		}
 	}
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a CDR's AccountCode is changed.</synopsis>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "NewAccountCode",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -1065,7 +1069,11 @@ int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(chan), sizeof(cdr->peeraccount));
 		}
 	}
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a CDR's PeerAccount is changed.</synopsis>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "NewPeerAccount",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"

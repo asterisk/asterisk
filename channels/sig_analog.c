@@ -3138,6 +3138,11 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	case ANALOG_EVENT_NOALARM:
 		analog_set_alarm(p, 0);
 		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an Alarm is cleared on an Analog channel.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
 			"Channel: %d\r\n", p->channel);
 		break;
@@ -4013,6 +4018,19 @@ int analog_dnd(struct analog_pvt *p, int flag)
 	ast_verb(3, "%s DND on channel %d\n",
 			flag ? "Enabled" : "Disabled",
 			p->channel);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when the Do Not Disturb state is changed on an Analog channel.</synopsis>
+			<syntax>
+				<parameter name="Status">
+					<enumlist>
+						<enum name="enabled"/>
+						<enum name="disabled"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 			"Channel: DAHDI/%d\r\n"
 			"Status: %s\r\n", p->channel,

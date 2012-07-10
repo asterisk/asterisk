@@ -1125,6 +1125,15 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * a lot of data into this func to do it here!
 	 */
 	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a new channel is created.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newstate']/managerEventInstance/syntax/parameter[@name='ChannelState'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newstate']/managerEventInstance/syntax/parameter[@name='ChannelStateDesc'])" />
+				</syntax>
+			</managerEventInstance>
+		***/
 		ast_manager_event(tmp, EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"ChannelState: %d\r\n"
@@ -1329,7 +1338,11 @@ int ast_queue_hangup(struct ast_channel *chan)
 	/* Yeah, let's not change a lock-critical value without locking */
 	ast_channel_lock(chan);
 	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a hangup is requested with no set cause.</synopsis>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "HangupRequest",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n",
@@ -1357,7 +1370,14 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 	if (cause < 0) {
 		f.data.uint32 = ast_channel_hangupcause(chan);
 	}
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a hangup is requested with a specific cause code.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
+				</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "HangupRequest",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -2545,6 +2565,14 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 
 	ast_channel_lock(chan);
 	res = ast_softhangup_nolock(chan, cause);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a soft hangup is requested with a specific cause code.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
+				</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "SoftHangupRequest",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -2707,6 +2735,19 @@ int ast_hangup(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	ast_cc_offer(chan);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel is hung up.</synopsis>
+				<syntax>
+					<parameter name="Cause">
+						<para>A numeric cause code for why the channel was hung up.</para>
+					</parameter>
+					<parameter name="Cause-txt">
+						<para>A description of why the channel was hung up.</para>
+					</parameter>
+				</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -3522,6 +3563,31 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 
 static void send_dtmf_event(struct ast_channel *chan, const char *direction, const char digit, const char *begin, const char *end)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a DTMF digit has started or ended on a channel.</synopsis>
+				<syntax>
+					<parameter name="Direction">
+						<enumlist>
+							<enum name="Received"/>
+							<enum name="Sent"/>
+						</enumlist>
+					</parameter>
+					<parameter name="Begin">
+						<enumlist>
+							<enum name="Yes"/>
+							<enum name="No"/>
+						</enumlist>
+					</parameter>
+					<parameter name="End">
+						<enumlist>
+							<enum name="Yes"/>
+							<enum name="No"/>
+						</enumlist>
+					</parameter>
+				</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_DTMF,
 			"DTMF",
 			"Channel: %s\r\n"
@@ -6224,6 +6290,11 @@ int ast_channel_transfer_masquerade(
  */
 static void __ast_change_name_nolink(struct ast_channel *chan, const char *newname)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when the name of a channel is changed.</synopsis>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", ast_channel_name(chan), newname, ast_channel_uniqueid(chan));
 	ast_channel_name_set(chan, newname);
 }
@@ -6471,6 +6542,16 @@ static void report_new_callerid(struct ast_channel *chan)
 	int pres;
 
 	pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel receives new Caller ID information.</synopsis>
+			<syntax>
+				<parameter name="CID-CallingPres">
+					<para>A description of the Caller ID presentation.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "NewCallerid",
 		"Channel: %s\r\n"
 		"CallerIDNum: %s\r\n"
@@ -6665,6 +6746,25 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	chans[0] = clonechan;
 	chans[1] = original;
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a masquerade occurs between two channels, wherein the Clone channel's internal information replaces the Original channel's information.</synopsis>
+			<syntax>
+				<parameter name="Clone">
+					<para>The name of the channel whose information will be going into the Original channel.</para>
+				</parameter>
+				<parameter name="CloneState">
+					<para>The current state of the clone channel.</para>
+				</parameter>
+				<parameter name="Original">
+					<para>The name of the channel whose information will be replaced by the Clone channel's information.</para>
+				</parameter>
+				<parameter name="OriginalState">
+					<para>The current state of the original channel.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans,
 		"Clone: %s\r\n"
 		"CloneState: %s\r\n"
@@ -7058,6 +7158,31 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
 
 	/* setstate used to conditionally report Newchannel; this is no more */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel's state changes.</synopsis>
+			<syntax>
+				<parameter name="ChannelState">
+					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
+				</parameter>
+				<parameter name="ChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
 		"Channel: %s\r\n"
 		"ChannelState: %d\r\n"
@@ -7353,6 +7478,25 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, struct ast_channel *c1)
 {
 	struct ast_channel *chans[2] = { c0, c1 };
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a bridge changes between two channels.</synopsis>
+			<syntax>
+				<parameter name="Bridgestate">
+					<enumlist>
+						<enum name="Link"/>
+						<enum name="Unlink"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Bridgetype">
+					<enumlist>
+						<enum name="core"/>
+						<enum name="native"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Bridge", 2, chans,
 		"Bridgestate: %s\r\n"
 		"Bridgetype: %s\r\n"

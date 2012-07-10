@@ -2133,6 +2133,20 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							!ast_strlen_zero(p->moh) ? strlen(p->moh) + 1 : 0);
 						if (p->loginstart == 0)
 							time(&p->loginstart);
+						/*** DOCUMENTATION
+							<managerEventInstance>
+								<synopsis>Raised when an Agent has logged in.</synopsis>
+								<syntax>
+									<parameter name="Agent">
+										<para>The name of the agent.</para>
+									</parameter>
+								</syntax>
+								<see-also>
+									<ref type="application">AgentLogin</ref>
+									<ref type="managerEvent">Agentlogoff</ref>
+								</see-also>
+							</managerEventInstance>
+						***/
 						manager_event(EVENT_FLAG_AGENT, "Agentlogin",
 							      "Agent: %s\r\n"
 							      "Channel: %s\r\n"
@@ -2225,6 +2239,17 @@ static int login_exec(struct ast_channel *chan, const char *data)
 						logintime = time(NULL) - p->loginstart;
 						p->loginstart = 0;
 						ast_mutex_unlock(&p->lock);
+						/*** DOCUMENTATION
+							<managerEventInstance>
+								<synopsis>Raised when an Agent has logged off.</synopsis>
+								<syntax>
+									<xi:include xpointer="xpointer(/docs/managerEvent[@name='Agentlogin']/managerEventInstance/syntax/parameter[@name='Agent'])" />
+								</syntax>
+								<see-also>
+									<ref type="managerEvent">Agentlogin</ref>
+								</see-also>
+							</managerEventInstance>
+						***/
 						manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
 							      "Agent: %s\r\n"
 							      "Logintime: %ld\r\n"

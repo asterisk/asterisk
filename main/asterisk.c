@@ -1779,6 +1779,25 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 	/* Called on exit */
 	ast_verb(0, "Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
 	ast_debug(1, "Asterisk ending (%d).\n", num);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when Asterisk is shutdown or restarted.</synopsis>
+			<syntax>
+				<parameter name="Shutdown">
+					<enumlist>
+						<enum name="Uncleanly"/>
+						<enum name="Cleanly"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Restart">
+					<enumlist>
+						<enum name="True"/>
+						<enum name="False"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (ast_socket > -1) {
 		pthread_cancel(lthread);
@@ -4105,6 +4124,11 @@ int main(int argc, char *argv[])
 	}
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when all Asterisk initialization procedures have finished.</synopsis>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
 
 	ast_process_pending_reloads();

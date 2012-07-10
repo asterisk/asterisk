@@ -1162,6 +1162,19 @@ done:
 	/* Tell manager clients that are aggressive at logging in that we're done
 	   loading modules. If there's a DNS problem in chan_sip, we might not
 	   even reach this */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when all dynamic modules have finished their initial loading.</synopsis>
+			<syntax>
+				<parameter name="ModuleSelection">
+					<enumlist>
+						<enum name="Preload"/>
+						<enum name="All"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_SYSTEM, "ModuleLoadReport", "ModuleLoadStatus: Done\r\nModuleSelection: %s\r\nModuleCount: %d\r\n", preload_only ? "Preload" : "All", modulecount);
 
 	return res;

@@ -2175,6 +2175,11 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
 		/* Real channel */
 		snprintf(ch_name, sizeof(ch_name), "%d", p->channel);
 	}
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a DAHDI channel is created or an underlying technology is associated with a DAHDI channel.</synopsis>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "DAHDIChannel",
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -3866,10 +3871,20 @@ static void handle_clear_alarms(struct dahdi_pvt *p)
 
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
 		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
 	}
 	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
 		ast_log(LOG_NOTICE, "Alarm cleared on span %d\n", p->span);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an alarm is cleared on a DAHDI span.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarmClear", "Span: %d\r\n", p->span);
 	}
 }
@@ -7972,6 +7987,11 @@ static void handle_alarms(struct dahdi_pvt *p, int alms)
 	alarm_str = alarm2str(alms);
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
 		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an alarm is set on a DAHDI channel.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
 					  "Alarm: %s\r\n"
 					  "Channel: %d\r\n",
@@ -7980,6 +8000,11 @@ static void handle_alarms(struct dahdi_pvt *p, int alms)
 
 	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
 		ast_log(LOG_WARNING, "Detected alarm on span %d: %s\n", p->span, alarm_str);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an alarm is set on a DAHDI span.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarm",
 					  "Alarm: %s\r\n"
 					  "Span: %d\r\n",
@@ -10027,6 +10052,19 @@ static int dahdi_dnd(struct dahdi_pvt *dahdichan, int flag)
 	ast_verb(3, "%s DND on channel %d\n",
 			flag? "Enabled" : "Disabled",
 			dahdichan->channel);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when the Do Not Disturb state is changed on a DAHDI channel.</synopsis>
+			<syntax>
+				<parameter name="Status">
+					<enumlist>
+						<enum name="enabled"/>
+						<enum name="disabled"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 			"Channel: DAHDI/%d\r\n"
 			"Status: %s\r\n", dahdichan->channel,

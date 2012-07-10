@@ -476,7 +476,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<replaceable>Extension</replaceable>/<replaceable>Context</replaceable>/<replaceable>Priority</replaceable>
 			or <replaceable>Application</replaceable>/<replaceable>Data</replaceable></para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">OriginateResponse</ref>
+		</see-also>
 	</manager>
+	<managerEvent language="en_US" name="OriginateResponse">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to an Originate command.</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="Resonse">
+					<enumlist>
+						<enum name="Failure"/>
+						<enum name="Success"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Channel"/>
+				<parameter name="Context"/>
+				<parameter name="Exten"/>
+				<parameter name="Reason"/>
+				<parameter name="Uniqueid"/>
+				<parameter name="CallerIDNum"/>
+				<parameter name="CallerIDName"/>
+			</syntax>
+			<see-also>
+				<ref type="manager">Originate</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="Command" language="en_US">
 		<synopsis>
 			Execute Asterisk CLI Command.
@@ -5535,7 +5562,11 @@ static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info
 	}
 
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when an extension state has changed.</synopsis>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
 	return 0;
 }

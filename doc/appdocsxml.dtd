@@ -39,7 +39,7 @@
   <!ELEMENT see-also (ref|xi:include)*>
 
   <!ELEMENT ref (#PCDATA)>
-  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|managerEvent) #REQUIRED>
+  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|manager|managerEvent) #REQUIRED>
 
   <!ELEMENT synopsis (#PCDATA)>
 

@@ -5153,6 +5153,19 @@ static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan 
  */
 static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
 {
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a PRI channel is put on Hold.</synopsis>
+			<syntax>
+				<parameter name="Status">
+					<enumlist>
+						<enum name="On"/>
+						<enum name="Off"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Hold",
 		"Status: %s\r\n"
 		"Channel: %s\r\n"

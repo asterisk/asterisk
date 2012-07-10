@@ -471,6 +471,42 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">FEATURE</ref>
 		</see-also>
 	</function>
+	<managerEvent language="en_US" name="ParkedCallTimeOut">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a parked call times out.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Exten'])" />
+				<parameter name="Channel"/>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
+				<parameter name="CallerIDNum"/>
+				<parameter name="CallerIDName"/>
+				<parameter name="ConnectedLineNum"/>
+				<parameter name="ConnectedLineName"/>
+				<parameter name="UniqueID"/>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ParkedCall</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ParkedCallGiveUp">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a parked call hangs up while in the parking lot.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Exten'])" />
+				<parameter name="Channel"/>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
+				<parameter name="CallerIDNum"/>
+				<parameter name="CallerIDName"/>
+				<parameter name="ConnectedLineNum"/>
+				<parameter name="ConnectedLineName"/>
+				<parameter name="UniqueID"/>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ParkedCall</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #define DEFAULT_PARK_TIME							45000	/*!< ms */
@@ -1658,7 +1694,28 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		pu->context, pu->exten, pu->priority, (pu->parkingtime / 1000));
 
 	ast_cel_report_event(chan, AST_CEL_PARK_START, NULL, pu->parkinglot->name, peer);
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a call has been parked.</synopsis>
+			<syntax>
+				<parameter name="Exten">
+					<para>The parking lot extension.</para>
+				</parameter>
+				<parameter name="Parkinglot">
+					<para>The name of the parking lot.</para>
+				</parameter>
+				<parameter name="From">
+					<para>The name of the channel that parked the call.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">Park</ref>
+				<ref type="manager">Park</ref>
+				<ref type="managerEvent">ParkedCallTimeOut</ref>
+				<ref type="managerEvent">ParkedCallGiveUp</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event(chan, EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
@@ -5417,6 +5474,20 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		}
 
 		ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "UnParkedCall", chan);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a call has been unparked.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Exten'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='From'])" />
+				</syntax>
+				<see-also>
+					<ref type="application">ParkedCall</ref>
+					<ref type="managerEvent">ParkedCall</ref>
+				</see-also>
+			</managerEventInstance>
+		***/
 		ast_manager_event(pu->chan, EVENT_FLAG_CALL, "UnParkedCall",
 			"Exten: %s\r\n"
 			"Channel: %s\r\n"
@@ -7274,7 +7345,22 @@ static int action_bridge(struct mansession *s, const struct message *m)
 
 	chans[0] = tmpchana;
 	chans[1] = tmpchanb;
-
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a bridge is successfully created due to a manager action.</synopsis>
+			<syntax>
+				<parameter name="Response">
+					<enumlist>
+						<enum name="Success"/>
+						<enum name="Failed"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">Bridge</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "BridgeAction", 2, chans,
 				"Response: Success\r\n"
 				"Channel1: %s\r\n"
@@ -7702,6 +7788,15 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	}
 
 	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a call pickup occurs.</synopsis>
+			<syntax>
+				<parameter name="Channel"><para>The name of the channel that initiated the pickup.</para></parameter>
+				<parameter name="TargetChannel"><para>The name of the channel that is being picked up.</para></parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
 		"Channel: %s\r\n"
 		"TargetChannel: %s\r\n",
@@ -7908,6 +8003,14 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	/* avoid bridge with ourselves */
 	if (!strcmp(ast_channel_name(chan), args.dest_chan)) {
 		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", ast_channel_name(chan));
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an error occurs during bridge creation.</synopsis>
+				<see-also>
+					<ref type="application">Bridge</ref>
+				</see-also>
+			</managerEventInstance>
+		***/
 		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 			"Response: Failed\r\n"
 			"Reason: Unable to bridge channel to itself\r\n"
@@ -7999,6 +8102,14 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Report that the bridge will be successfull */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when the bridge is created successfully.</synopsis>
+			<see-also>
+				<ref type="application">Bridge</ref>
+			</see-also>
+		</managerEventInstance>
+	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "BridgeExec", 2, chans,
 		"Response: Success\r\n"
 		"Channel1: %s\r\n"

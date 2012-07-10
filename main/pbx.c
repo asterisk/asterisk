@@ -4414,6 +4414,19 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 					"in new stack");
 			}
+			/*** DOCUMENTATION
+				<managerEventInstance>
+					<synopsis>Raised when a channel enters a new context, extension, priority.</synopsis>
+					<syntax>
+						<parameter name="Application">
+							<para>The application about to be executed.</para>
+						</parameter>
+						<parameter name="AppData">
+							<para>The data to be passed to the application.</para>
+						</parameter>
+					</syntax>
+				</managerEventInstance>
+			***/
 			manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
 					"Channel: %s\r\n"
 					"Context: %s\r\n"
@@ -10922,6 +10935,11 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a variable is set to a particular value.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
 			"Channel: %s\r\n"
 			"Variable: %s\r\n"
