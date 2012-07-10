@@ -1,12 +1,17 @@
+2012-07-10  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.6.0-digiumphones Released.
+
 2012-07-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.6.0-digiumphones-rc2 Released.
 
-	* AST-2012-009
+	* AST-2012-009: Skinny Channel Driver Remote Crash Vulnerability
 
-	* AST-2012-010
+	* AST-2012-010: Possible Resource Leak on Uncompleted Re-INVITE
+	  Transactions
 
-	* AST-2012-011
+	* AST-2012-011: Remote Crash Vulnerability in VoiceMail Application
 
 	* Fix crash on a guest directmedia call
 
