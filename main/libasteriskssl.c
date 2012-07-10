@@ -81,7 +81,7 @@ int SSL_library_init(void)
 		ast_debug(1, "Called after startup... ignoring!\n");
 	}
 #endif
-	return 0;
+	return 1;
 }
 
 void SSL_load_error_strings(void)
