@@ -2100,7 +2100,9 @@ static int jingle_interpret_content(struct jingle_session *session, ikspak *pak)
 		/* If description information is available use it */
 		if ((description = iks_find_with_attrib(content, "description", "xmlns", JINGLE_RTP_NS)) ||
 		    (description = iks_find_with_attrib(content, "rtp:description", "xmlns:rtp", JINGLE_RTP_NS)) ||
+		    (description = iks_find_with_attrib(content, "pho:description", "xmlns:pho", GOOGLE_PHONE_NS)) ||
 		    (description = iks_find_with_attrib(pak->query, "description", "xmlns", GOOGLE_PHONE_NS)) ||
+		    (description = iks_find_with_attrib(pak->query, "pho:description", "xmlns:pho", GOOGLE_PHONE_NS)) ||
 		    (description = iks_find_with_attrib(pak->query, "vid:description", "xmlns", GOOGLE_VIDEO_NS))) {
 			/* If we failed to do something with the content description abort immediately */
 			if (jingle_interpret_description(session, description, name, &rtp)) {
