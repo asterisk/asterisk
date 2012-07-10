@@ -1119,22 +1119,28 @@ static void jingle_send_transport_info(struct jingle_session *session, const cha
 static int jingle_add_payloads_to_description(struct jingle_session *session, struct ast_rtp_instance *rtp, iks *description, iks **payloads, enum ast_format_type type)
 {
 	struct ast_format format;
-	int i = 0, res = 0;
+	int x = 0, i = 0, res = 0;
 
-	ast_format_cap_iter_start(session->jointcap);
-	while (!(ast_format_cap_iter_next(session->jointcap, &format)) && (i < (session->maxpayloads - 2))) {
+	for (x = 0; (x < AST_CODEC_PREF_SIZE) && (i < (session->maxpayloads - 2)); x++) {
 		int rtp_code;
 		iks *payload;
 		char tmp[32];
+
+		if (!ast_codec_pref_index(&session->prefs, x, &format)) {
+			break;
+		}
 
 		if (AST_FORMAT_GET_TYPE(format.id) != type) {
 			continue;
 		}
 
+		if (!ast_format_cap_iscompatible(session->jointcap, &format)) {
+			continue;
+		}
+
 		if (((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1, &format, 0)) == -1) ||
 		    (!(payload = iks_new("payload-type")))) {
-			res = -1;
-			goto end;
+			return -1;
 		}
 
 		if (session->transport == JINGLE_TRANSPORT_GOOGLE_V1) {
@@ -1194,9 +1200,6 @@ static int jingle_add_payloads_to_description(struct jingle_session *session, st
 			payloads[i++] = payload;
 		}
 	}
-
-end:
-	ast_format_cap_iter_end(session->jointcap);
 
 	return res;
 }
