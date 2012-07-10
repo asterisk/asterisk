@@ -820,12 +820,15 @@ static int jingle_add_google_candidates_to_transport(struct ast_rtp_instance *rt
 			break;
 		}
 
-		/* We only support RTP candidates */
-		if (candidate->id != 1) {
+		if (candidate->id == 1) {
+			iks_insert_attrib(local_candidate, "name", !video ? "rtp" : "video_rtp");
+		} else if (candidate->id == 2) {
+			iks_insert_attrib(local_candidate, "name", !video ? "rtcp" : "video_rtcp");
+		} else {
+			iks_delete(local_candidate);
 			continue;
 		}
 
-		iks_insert_attrib(local_candidate, "name", !video ? "rtp" : "video_rtp");
 		iks_insert_attrib(local_candidate, "address", ast_sockaddr_stringify_host(&candidate->address));
 		iks_insert_attrib(local_candidate, "port", ast_sockaddr_stringify_port(&candidate->address));
 
@@ -1148,6 +1151,27 @@ static int jingle_add_payloads_to_description(struct jingle_session *session, st
 		} else {
 			snprintf(tmp, sizeof(tmp), "%d", ast_rtp_lookup_sample_rate2(1, &format, 0));
 			iks_insert_attrib(payload, "clockrate", tmp);
+		}
+
+		if ((type == AST_FORMAT_TYPE_VIDEO) && (session->transport == JINGLE_TRANSPORT_GOOGLE_V2)) {
+			iks *parameter;
+
+			/* Google requires these parameters to be set, but alas we can not give accurate values so use some safe defaults */
+			if ((parameter = iks_new("parameter"))) {
+				iks_insert_attrib(parameter, "name", "width");
+				iks_insert_attrib(parameter, "value", "640");
+				iks_insert_node(payload, parameter);
+			}
+			if ((parameter = iks_new("parameter"))) {
+				iks_insert_attrib(parameter, "name", "height");
+				iks_insert_attrib(parameter, "value", "480");
+				iks_insert_node(payload, parameter);
+			}
+			if ((parameter = iks_new("parameter"))) {
+				iks_insert_attrib(parameter, "name", "framerate");
+				iks_insert_attrib(parameter, "value", "30");
+				iks_insert_node(payload, parameter);
+			}
 		}
 
 		iks_insert_node(description, payload);
@@ -2007,6 +2031,11 @@ static int jingle_interpret_google_transport(struct jingle_session *session, iks
 
 		/* We only support UDP so skip any other protocols */
 		if (!ast_strlen_zero(protocol) && strcasecmp(protocol, "udp")) {
+			continue;
+		}
+
+		/* We only permit audio and video, not RTCP */
+		if (strcasecmp(name, "rtp") && strcasecmp(name, "video_rtp")) {
 			continue;
 		}
 

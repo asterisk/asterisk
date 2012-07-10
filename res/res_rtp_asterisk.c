@@ -2421,14 +2421,14 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr addr;
-	unsigned int rtcpdata[8192 + AST_FRIENDLY_OFFSET];
+	unsigned char rtcpdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int *rtcpheader = (unsigned int *)(rtcpdata + AST_FRIENDLY_OFFSET);
 	int res, packetwords, position = 0;
 	struct ast_frame *f = &ast_null_frame;
 
 	/* Read in RTCP data from the socket */
 	if ((res = rtcp_recvfrom(instance, rtcpdata + AST_FRIENDLY_OFFSET,
-				sizeof(rtcpdata) - sizeof(unsigned int) * AST_FRIENDLY_OFFSET,
+				sizeof(rtcpdata) - AST_FRIENDLY_OFFSET,
 				0, &addr)) < 0) {
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
@@ -2440,6 +2440,28 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 
 	/* If this was handled by the ICE session don't do anything further */
 	if (!res) {
+		return &ast_null_frame;
+	}
+
+	if (!*(rtcpdata + AST_FRIENDLY_OFFSET)) {
+		struct sockaddr_in addr_tmp;
+		struct ast_sockaddr addr_v4;
+
+		if (ast_sockaddr_is_ipv4(&addr)) {
+			ast_sockaddr_to_sin(&addr, &addr_tmp);
+		} else if (ast_sockaddr_ipv4_mapped(&addr, &addr_v4)) {
+			ast_debug(1, "Using IPv6 mapped address %s for STUN\n",
+				  ast_sockaddr_stringify(&addr));
+			ast_sockaddr_to_sin(&addr_v4, &addr_tmp);
+		} else {
+			ast_debug(1, "Cannot do STUN for non IPv4 address %s\n",
+				  ast_sockaddr_stringify(&addr));
+			return &ast_null_frame;
+		}
+		if ((ast_stun_handle_packet(rtp->rtcp->s, &addr_tmp, rtcpdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == AST_STUN_ACCEPT)) {
+			ast_sockaddr_from_sin(&addr, &addr_tmp);
+			ast_sockaddr_copy(&rtp->rtcp->them, &addr);
+		}
 		return &ast_null_frame;
 	}
 
