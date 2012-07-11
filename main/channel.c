@@ -73,6 +73,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/channel_internal.h"
 
+/*** DOCUMENTATION
+ ***/
+
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #endif

@@ -55,6 +55,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/data.h"
 
+/*** DOCUMENTATION
+ ***/
+
 /*! Default AMA flag for billing records (CDR's) */
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];

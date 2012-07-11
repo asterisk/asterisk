@@ -46,6 +46,9 @@
 
 #include "sig_analog.h"
 
+/*** DOCUMENTATION
+ ***/
+
 /*! \note
  * Define if you want to check the hook state for an FXO (FXS signalled) interface
  * before dialing on it.  Certain FXO interfaces always think they're out of

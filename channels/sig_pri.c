@@ -56,6 +56,10 @@
 #error please update libpri
 #endif
 
+/*** DOCUMENTATION
+ ***/
+
+
 /* define this to send PRI user-user information elements */
 #undef SUPPORT_USERUSER
 

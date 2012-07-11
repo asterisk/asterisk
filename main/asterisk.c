@@ -154,6 +154,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 #include "../defaults.h"
 
+/*** DOCUMENTATION
+ ***/
+
 #ifndef AF_LOCAL
 #define AF_LOCAL AF_UNIX
 #define PF_LOCAL PF_UNIX

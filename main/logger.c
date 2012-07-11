@@ -69,6 +69,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #  endif
 #endif
 
+/*** DOCUMENTATION
+ ***/
+
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;

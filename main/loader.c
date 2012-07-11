@@ -60,6 +60,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/utils.h"
 
+/*** DOCUMENTATION
+ ***/
+
 #ifndef RTLD_NOW
 #define RTLD_NOW 0
 #endif
