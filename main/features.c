@@ -475,9 +475,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a parked call times out.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Exten'])" />
+				<parameter name="Exten">
+					<para>The parking lot extension.</para>
+				</parameter>
 				<parameter name="Channel"/>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
+				<parameter name="Parkinglot">
+					<para>The name of the parking lot.</para>
+				</parameter>
 				<parameter name="CallerIDNum"/>
 				<parameter name="CallerIDName"/>
 				<parameter name="ConnectedLineNum"/>
@@ -493,9 +497,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a parked call hangs up while in the parking lot.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Exten'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCallTimeOut']/managerEventInstance/syntax/parameter[@name='Exten'])" />
 				<parameter name="Channel"/>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCallTimeOut']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
 				<parameter name="CallerIDNum"/>
 				<parameter name="CallerIDName"/>
 				<parameter name="ConnectedLineNum"/>
