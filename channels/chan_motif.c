@@ -2494,7 +2494,8 @@ static int load_module(void)
 
 	if (aco_process_config(&cfg_info, 0)) {
 		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Not loading module.\n");
-		goto end;
+		aco_info_destroy(&cfg_info);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(sched = ast_sched_context_create())) {
