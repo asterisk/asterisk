@@ -1,4 +1,23 @@
-2012-07-09  Asterisk Development Team
+2012-07-11  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.11-cert5-rc2 Released.
+
+	* channels/sig_analog.c: Fix bad merge of r368759 in sig_analog
+
+	  The patch for r368759 in Asterisk 1.8 relied upon the methods
+	  analog_unlock_private/analog_lock_private.  In earlier versions of
+	  1.8, including the Certified Asterisk 1.8.11 branch, those two
+	  methods were unused, and hence were undefined out of the source.
+	  When the patch was made for 1.8.11-cert5, those two functions were
+	  not re-defined back in.  This caused linking errors when sig_analog
+	  was loaded.
+
+	  This patch properly restores those two methods, such that the fix
+	  for AST-891 works correctly.
+
+	  (issue AST-891)
+
+2012-07-09  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Certified Asterisk 1.8.11-cert5-rc1 Released.
 

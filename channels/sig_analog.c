@@ -535,23 +535,19 @@ static void analog_all_subchannels_hungup(struct analog_pvt *p)
 	}
 }
 
-#if 0
 static void analog_unlock_private(struct analog_pvt *p)
 {
 	if (p->calls->unlock_private) {
 		p->calls->unlock_private(p->chan_pvt);
 	}
 }
-#endif
 
-#if 0
 static void analog_lock_private(struct analog_pvt *p)
 {
 	if (p->calls->lock_private) {
 		p->calls->lock_private(p->chan_pvt);
 	}
 }
-#endif
 
 /*!
  * \internal
