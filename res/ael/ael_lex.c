@@ -56,7 +56,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -86,6 +85,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -160,7 +161,15 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -952,7 +961,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_POS
 #define	STORE_LOC
 #endif
-#line 954 "ael_lex.c"
+#line 963 "ael_lex.c"
 
 #define INITIAL 0
 #define paren 1
@@ -1054,10 +1063,6 @@ int ael_yyget_lineno (yyscan_t yyscanner );
 
 void ael_yyset_lineno (int line_number ,yyscan_t yyscanner );
 
-int ael_yyget_column  (yyscan_t yyscanner );
-
-void ael_yyset_column (int column_no ,yyscan_t yyscanner );
-
 YYSTYPE * ael_yyget_lval (yyscan_t yyscanner );
 
 void ael_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
@@ -1100,7 +1105,12 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1119,7 +1129,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		unsigned n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1207,7 +1217,7 @@ YY_DECL
 #line 217 "ael.flex"
 
 
-#line 1209 "ael_lex.c"
+#line 1219 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -2041,7 +2051,7 @@ YY_RULE_SETUP
 #line 656 "ael.flex"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 2043 "ael_lex.c"
+#line 2053 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2812,8 +2822,8 @@ YY_BUFFER_STATE ael_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to ael_yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -3368,7 +3378,9 @@ struct pval *ael2_parse(char *filename, int *errors)
 	if (my_file)
 		free(my_file);
 	my_file = strdup(filename);
-	stat(filename, &stats);
+	if (stat(filename, &stats)) {
+		ast_log(LOG_WARNING, "failed to populate stats from file '%s'\n", filename);
+	}
 	buffer = (char*)malloc(stats.st_size+2);
 	if (fread(buffer, 1, stats.st_size, fin) != stats.st_size) {
 		ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
@@ -3438,7 +3450,9 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 		} else {
 			char *buffer;
 			struct stat stats;
-			stat(fnamebuf2, &stats);
+			if (stat(fnamebuf2, &stats)) {
+				ast_log(LOG_WARNING, "Failed to populate stats from file '%s'\n", fnamebuf2);
+			}
 			buffer = (char*)malloc(stats.st_size+1);
 			if (fread(buffer, 1, stats.st_size, in1) != stats.st_size) {
 				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));

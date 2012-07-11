@@ -2,10 +2,10 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005-2006, BJ Weschke. All rights reserved.
- * 
+ *
  * BJ Weschke <bweschke@btwtech.com>
- * 
- * This code is released by the author with no restrictions on usage. 
+ *
+ * This code is released by the author with no restrictions on usage.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -18,9 +18,9 @@
 /*! \file
  *
  * \brief REALTIME dialplan function
- * 
+ *
  * \author BJ Weschke <bweschke@btwtech.com>
- * 
+ *
  * \ingroup functions
  */
 
@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="family" required="true" />
 			<parameter name="fieldmatch" required="true" />
-			<parameter name="value" />
+			<parameter name="matchvalue" />
 			<parameter name="delim1|field">
 				<para>Use <replaceable>delim1</replaceable> with <replaceable>delim2</replaceable> on
 				read and <replaceable>field</replaceable> without <replaceable>delim2</replaceable> on
@@ -63,11 +63,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>This function will read or write values from/to a RealTime repository.
-			REALTIME(....) will read names/values from the repository, and 
+			REALTIME(....) will read names/values from the repository, and
 			REALTIME(....)= will write a new value/field to the repository. On a
 			read, this function returns a delimited text string. The name/value
 			pairs are delimited by <replaceable>delim1</replaceable>, and the name and value are delimited
-			between each other with delim2. 
+			between each other with delim2.
 			If there is no match, NULL will be returned by the function.
 			On a write, this function will always return NULL.</para>
 		</description>
@@ -108,7 +108,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="family" required="true" />
 			<parameter name="fieldmatch" required="true" />
-			<parameter name="value" />
+			<parameter name="matchvalue" />
 			<parameter name="delim1" />
 			<parameter name="delim2" />
 		</syntax>
@@ -130,13 +130,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="family" required="true" />
 			<parameter name="fieldmatch" required="true" />
-			<parameter name="value" required="true" />
+			<parameter name="matchvalue" required="true" />
 			<parameter name="fieldname" required="true" />
 		</syntax>
 		<description>
 			<para>This function retrieves a single item, <replaceable>fieldname</replaceable>
 			from the RT engine, where <replaceable>fieldmatch</replaceable> contains the value
-			<replaceable>value</replaceable>.  When written to, the REALTIME_FIELD() function
+			<replaceable>matchvalue</replaceable>.  When written to, the REALTIME_FIELD() function
 			performs identically to the REALTIME() function.</para>
 		</description>
 		<see-also>
@@ -153,12 +153,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="family" required="true" />
 			<parameter name="fieldmatch" required="true" />
-			<parameter name="value" required="true" />
+			<parameter name="matchvalue" required="true" />
 		</syntax>
 		<description>
 			<para>This function retrieves a single record from the RT engine, where
 			<replaceable>fieldmatch</replaceable> contains the value
-			<replaceable>value</replaceable> and formats the output suitably, such that
+			<replaceable>matchvalue</replaceable> and formats the output suitably, such that
 			it can be assigned to the HASH() function.  The HASH() function then provides
 			a suitable method for retrieving each field value of the record.</para>
 		</description>
@@ -175,7 +175,7 @@ AST_THREADSTORAGE(buf1);
 AST_THREADSTORAGE(buf2);
 AST_THREADSTORAGE(buf3);
 
-static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
+static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_variable *var, *head;
 	struct ast_str *out;
@@ -190,7 +190,7 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: REALTIME(family,fieldmatch[,value[,delim1[,delim2]]]) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: REALTIME(family,fieldmatch[,matchvalue[,delim1[,delim2]]]) - missing argument!\n");
 		return -1;
 	}
 
@@ -243,14 +243,20 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,value,newcol) - missing argument!\n", cmd);
+		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,matchvalue,updatecol) - missing argument!\n", cmd);
 		return -1;
 	}
 
-	if (chan)
-		ast_autoservice_start(chan);
-
 	AST_STANDARD_APP_ARGS(args, data);
+
+	if (ast_strlen_zero(args.fieldmatch) || ast_strlen_zero(args.field)) {
+		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,matchvalue,updatecol) - missing argument!\n", cmd);
+		return -1;
+	}
+
+	if (chan) {
+		ast_autoservice_start(chan);
+	}
 
 	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, SENTINEL);
 
@@ -258,13 +264,14 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 		ast_log(LOG_WARNING, "Failed to update. Check the debug log for possible data repository related entries.\n");
 	}
 
-	if (chan)
+	if (chan) {
 		ast_autoservice_stop(chan);
+	}
 
-	return 0;
+	return res;
 }
 
-static int realtimefield_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
+static int realtimefield_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_variable *var, *head;
 	struct ast_str *escapebuf = ast_str_thread_get(&buf1, 16);
@@ -286,14 +293,14 @@ static int realtimefield_read(struct ast_channel *chan, const char *cmd, char *d
 	}
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,value%s) - missing argument!\n", cmd, which == rtfield ? ",fieldname" : "");
+		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,matchvalue%s) - missing argument!\n", cmd, which == rtfield ? ",fieldname" : "");
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if ((which == rtfield && args.argc != 4) || (which == rthash && args.argc != 3)) {
-		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,value%s) - missing argument!\n", cmd, which == rtfield ? ",fieldname" : "");
+		ast_log(LOG_WARNING, "Syntax: %s(family,fieldmatch,matchvalue%s) - missing argument!\n", cmd, which == rtfield ? ",fieldname" : "");
 		return -1;
 	}
 
@@ -366,7 +373,7 @@ static int function_realtime_store(struct ast_channel *chan, const char *cmd, ch
 	AST_STANDARD_APP_ARGS(a, data);
 	AST_STANDARD_APP_ARGS(v, valcopy);
 
-	res = ast_store_realtime(a.family, 
+	res = ast_store_realtime(a.family,
 		a.f[0], v.v[0], a.f[1], v.v[1], a.f[2], v.v[2], a.f[3], v.v[3], a.f[4], v.v[4],
 		a.f[5], v.v[5], a.f[6], v.v[6], a.f[7], v.v[7], a.f[8], v.v[8], a.f[9], v.v[9],
 		a.f[10], v.v[10], a.f[11], v.v[11], a.f[12], v.v[12], a.f[13], v.v[13], a.f[14], v.v[14],
@@ -388,7 +395,7 @@ static int function_realtime_store(struct ast_channel *chan, const char *cmd, ch
 	return 0;
 }
 
-static int function_realtime_readdestroy(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
+static int function_realtime_readdestroy(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_variable *var, *head;
 	struct ast_str *out;
@@ -403,7 +410,7 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: REALTIME_DESTROY(family,fieldmatch[,value[,delim1[,delim2]]]) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: REALTIME_DESTROY(family,fieldmatch[,matchvalue[,delim1[,delim2]]]) - missing argument!\n");
 		return -1;
 	}
 
