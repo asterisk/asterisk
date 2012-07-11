@@ -793,6 +793,7 @@ static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
 static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
 
 static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static struct ast_event_sub *acl_change_event_subscription; /*!< subscription id for named ACL system change events */
 static int network_change_event_sched_id = -1;
 
 static char used_context[AST_MAX_CONTEXT];        /*!< name of automatically created context for unloading */
@@ -1407,6 +1408,7 @@ static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
 static void mwi_event_cb(const struct ast_event *, void *);
 static void network_change_event_cb(const struct ast_event *, void *);
+static void acl_change_event_cb(const struct ast_event *event, void *userdata);
 static void sip_keepalive_all_peers(void);
 
 /*--- Applications, functions, CLI and manager command helpers */
@@ -4711,8 +4713,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	}
 
 	register_peer_exten(peer, FALSE);
-	ast_free_ha(peer->ha);
-	ast_free_ha(peer->directmediaha);
+	ast_free_acl_list(peer->acl);
+	ast_free_acl_list(peer->directmediaacl);
 	if (peer->selfdestruct)
 		ast_atomic_fetchadd_int(&apeerobjs, -1);
 	else if (!ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) && peer->is_realtime) {
@@ -5499,7 +5501,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		dialog->noncodeccapability |= AST_RTP_DTMF;
 	else
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
-	dialog->directmediaha = ast_duplicate_ha_list(peer->directmediaha);
+
+	dialog->directmediaacl = ast_duplicate_acl_list(peer->directmediaacl);
+
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	if (!dialog->portinuri)
@@ -5992,9 +5996,8 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->tsrtp = NULL;
 	}
 
-	if (p->directmediaha) {
-		ast_free_ha(p->directmediaha);
-		p->directmediaha = NULL;
+	if (p->directmediaacl) {
+		p->directmediaacl = ast_free_acl_list(p->directmediaacl);
 	}
 
 	ast_string_field_free_memory(p);
@@ -15034,8 +15037,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	/* Check that they're allowed to register at this IP */
-	if (ast_apply_ha(sip_cfg.contact_ha, &peer->addr) != AST_SENSE_ALLOW ||
-			ast_apply_ha(peer->contactha, &peer->addr) != AST_SENSE_ALLOW) {
+	if (ast_apply_acl(sip_cfg.contact_acl, &peer->addr, "SIP contact ACL: ") != AST_SENSE_ALLOW ||
+			ast_apply_acl(peer->contactacl, &peer->addr, "SIP contact ACL: ") != AST_SENSE_ALLOW) {
 		ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", hostport,
 			ast_sockaddr_stringify_addr(&testsa));
 		ast_string_field_set(peer, fullcontact, "");
@@ -15485,6 +15488,22 @@ static void network_change_event_unsubscribe(void)
 	}
 }
 
+static void acl_change_event_subscribe(void)
+{
+	if (!acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_subscribe(AST_EVENT_ACL_CHANGE,
+		acl_change_event_cb, "Manager must react to Named ACL changes", NULL, AST_EVENT_IE_END);
+	}
+
+}
+
+static void acl_change_event_unsubscribe(void)
+{
+	if (acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_unsubscribe(acl_change_event_subscription);
+	}
+}
+
 static int network_change_event_sched_cb(const void *data)
 {
 	network_change_event_sched_id = -1;
@@ -15796,7 +15815,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	}
 	peer = sip_find_peer(name, NULL, TRUE, FINDPEERS, FALSE, 0);
 
-	if (!(peer && ast_apply_ha(peer->ha, addr))) {
+	if (!(peer && ast_apply_acl(peer->acl, addr, "SIP Peer ACL: "))) {
 		/* Peer fails ACL check */
 		if (peer) {
 			sip_unref_peer(peer, "register_verify: sip_unref_peer: from sip_find_peer operation");
@@ -16950,7 +16969,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		return AUTH_DONT_KNOW;
 	}
 
-	if (!ast_apply_ha(peer->ha, addr)) {
+	if (!ast_apply_acl(peer->acl, addr, "SIP Peer ACL: ")) {
 		ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
 		sip_unref_peer(peer, "sip_unref_peer: check_peer_ok: from sip_find_peer call, early return of AUTH_ACL_FAILED");
 		return AUTH_ACL_FAILED;
@@ -17754,7 +17773,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			user->secret,
 			user->accountcode,
 			user->context,
-			AST_CLI_YESNO(user->ha != NULL),
+			AST_CLI_YESNO(ast_acl_list_is_empty(user->acl) == 0),
 			AST_CLI_YESNO(ast_test_flag(&user->flags[0], SIP_NAT_FORCE_RPORT)));
 		ao2_unlock(user);
 		sip_unref_peer(user, "sip show users");
@@ -18013,7 +18032,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ?
 				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " A " : " a " :
 				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
-			peer->ha ? " A " : "   ",       /* permit/deny */
+			(!ast_acl_list_is_empty(peer->acl)) ? " A " : "   ",       /* permit/deny */
 			tmp_port, status,
 			peer->description ? peer->description : "",
 			realtimepeers ? (peer->is_realtime ? "Cached RT" : "") : "");
@@ -18048,7 +18067,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "yes" : "no",
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
-			peer->ha ? "yes" : "no",       /* permit/deny */
+			ast_acl_list_is_empty(peer->acl) ? "no" : "yes",       /* permit/deny/acl */
 			status,
 			realtimepeers ? (peer->is_realtime ? "yes" : "no") : "no",
 			peer->description);
@@ -18719,8 +18738,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		ast_cli(fd, "  Force rport  : %s\n", force_rport_string(peer->flags));
 		ast_cli(fd, "  Symmetric RTP: %s\n", comedia_string(peer->flags));
-		ast_cli(fd, "  ACL          : %s\n", AST_CLI_YESNO(peer->ha != NULL));
-		ast_cli(fd, "  DirectMedACL : %s\n", AST_CLI_YESNO(peer->directmediaha != NULL));
+		ast_cli(fd, "  ACL          : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(peer->acl) == 0));
+		ast_cli(fd, "  DirectMedACL : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(peer->directmediaacl) == 0));
 		ast_cli(fd, "  T.38 support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 MaxDtgrm: %d\n", peer->t38_maxdatagram);
@@ -18838,7 +18857,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-Comedia: %s\r\n", ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) ?
 				(ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "A" : "a") :
 				(ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "Y" : "N"));
-		astman_append(s, "ACL: %s\r\n", (peer->ha?"Y":"N"));
+		astman_append(s, "ACL: %s\r\n", (ast_acl_list_is_empty(peer->acl) ? "N" : "Y"));
 		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)?"Y":"N"));
 		astman_append(s, "SIP-DirectMedia: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)?"Y":"N"));
 		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Y":"N"));
@@ -18989,7 +19008,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		ast_cli(a->fd, "  Pickupgroup  : ");
 		print_group(a->fd, user->pickupgroup, 0);
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
-		ast_cli(a->fd, "  ACL          : %s\n", AST_CLI_YESNO(user->ha != NULL));
+		ast_cli(a->fd, "  ACL          : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(user->acl) == 0));
  		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
  		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresher2str(user->stimer.st_ref));
  		ast_cli(a->fd, "  Sess-Expires : %d secs\n", user->stimer.st_max_se);
@@ -27643,6 +27662,23 @@ static int restart_monitor(void)
 	return 0;
 }
 
+static void acl_change_event_cb(const struct ast_event *event, void *userdata)
+{
+	ast_log(LOG_NOTICE, "Reloading chan_sip in response to ACL change event.\n");
+
+	ast_mutex_lock(&sip_reload_lock);
+
+	if (sip_reloading) {
+		ast_verbose("Previous SIP reload not yet done\n");
+	} else {
+		sip_reloading = TRUE;
+		sip_reloadreason = CHANNEL_ACL_RELOAD;
+	}
+
+	ast_mutex_unlock(&sip_reload_lock);
+
+	restart_monitor();
+}
 
 /*! \brief Session-Timers: Restart session timer */
 static void restart_session_timer(struct sip_pvt *p)
@@ -29041,8 +29077,8 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime, int devstate_only)
 {
 	struct sip_peer *peer = NULL;
-	struct ast_ha *oldha = NULL;
-	struct ast_ha *olddirectmediaha = NULL;
+	struct ast_acl_list *oldacl = NULL;
+	struct ast_acl_list *olddirectmediaacl = NULL;
 	int found = 0;
 	int firstpass = 1;
 	uint16_t port = 0;
@@ -29056,6 +29092,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	static int deprecation_warning = 1;
 	int alt_fullcontact = alt ? 1 : 0, headercount = 0;
 	struct ast_str *fullcontact = ast_str_alloca(512);
+	int acl_change_subscription_needed = 0;
 
 	if (!realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		/* Note we do NOT use sip_find_peer here, to avoid realtime recursion */
@@ -29104,10 +29141,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	/* Note that our peer HAS had its reference count increased */
 	if (firstpass) {
-		oldha = peer->ha;
-		peer->ha = NULL;
-		olddirectmediaha = peer->directmediaha;
-		peer->directmediaha = NULL;
+		oldacl = peer->acl;
+		peer->acl = NULL;
+		olddirectmediaacl = peer->directmediaacl;
+		peer->directmediaacl = NULL;
 		set_peer_defaults(peer);	/* Set peer defaults */
 		peer->type = 0;
 	}
@@ -29308,25 +29345,25 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					sip_unref_peer(peer, "sip_unref_peer: from build_peer defaultip");
 					return NULL;
 				}
-			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny") || !strcasecmp(v->name, "acl")) {
 				int ha_error = 0;
 				if (!ast_strlen_zero(v->value)) {
-					peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+					ast_append_acl(v->name, v->value, &peer->acl, &ha_error, &acl_change_subscription_needed);
 				}
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
-			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny") || !strcasecmp(v->name, "contactacl")) {
 				int ha_error = 0;
 				if (!ast_strlen_zero(v->value)) {
-					peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
+					ast_append_acl(v->name + 7, v->value, &peer->contactacl, &ha_error, &acl_change_subscription_needed);
 				}
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
-			} else if (!strcasecmp(v->name, "directmediapermit") || !strcasecmp(v->name, "directmediadeny")) {
+			} else if (!strcasecmp(v->name, "directmediapermit") || !strcasecmp(v->name, "directmediadeny") || !strcasecmp(v->name, "directmediaacl")) {
 				int ha_error = 0;
-				peer->directmediaha = ast_append_ha(v->name + 11, v->value, peer->directmediaha, &ha_error);
+				ast_append_acl(v->name + 11, v->value, &peer->directmediaacl, &ha_error, &acl_change_subscription_needed);
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad directmedia ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
@@ -29674,8 +29711,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		if (global_dynamic_exclude_static && !ast_sockaddr_isnull(&peer->addr)) {
 			int ha_error = 0;
-			sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify_addr(&peer->addr), 
-							sip_cfg.contact_ha, &ha_error);
+
+			ast_append_acl("deny", ast_sockaddr_stringify_addr(&peer->addr), &sip_cfg.contact_acl, &ha_error, NULL);
 			if (ha_error) {
 				ast_log(LOG_ERROR, "Bad or unresolved host/IP entry in configuration for peer %s, cannot add to contact ACL\n", peer->name);
 			}
@@ -29746,8 +29783,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	peer->the_mark = 0;
 
-	ast_free_ha(oldha);
-	ast_free_ha(olddirectmediaha);
+	oldacl = ast_free_acl_list(oldacl);
+	olddirectmediaacl = ast_free_acl_list(olddirectmediaacl);
 	if (!ast_strlen_zero(peer->callback)) { /* build string from peer info */
 		char *reg_string;
 		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, !ast_strlen_zero(peer->remotesecret) ? peer->remotesecret : peer->secret, peer->tohost, peer->callback) < 0) {
@@ -29757,6 +29794,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_free(reg_string);
 		}
 	}
+
+	/* If an ACL change subscription is needed and doesn't exist, we need one. */
+	if (acl_change_subscription_needed) {
+		acl_change_event_subscribe();
+	}
+
 	return peer;
 }
 
@@ -29838,13 +29881,14 @@ static int reload_config(enum channelreloadreason reason)
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct ast_flags dummy[3];
-	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_flags config_flags = { (reason == CHANNEL_MODULE_LOAD || reason == CHANNEL_ACL_RELOAD) ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct ast_sockaddr old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
 	int subscribe_network_change = 1;
 	time_t run_start, run_end;
 	int bindport = 0;
+	int acl_change_subscription_needed = 0;
 
 	run_start = time(0);
 	ast_unload_realtime("sipregs");
@@ -29887,8 +29931,7 @@ static int reload_config(enum channelreloadreason reason)
 		}
 	}
 
-	ast_free_ha(sip_cfg.contact_ha);
-	sip_cfg.contact_ha = NULL;
+	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
 
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
@@ -29981,7 +30024,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.accept_outofcall_message = DEFAULT_ACCEPT_OUTOFCALL_MESSAGE;
 	sip_cfg.allowsubscribe = FALSE;
 	sip_cfg.disallowed_methods = SIP_UNKNOWN;
-	sip_cfg.contact_ha = NULL;		/* Reset the contact ACL */
+	sip_cfg.contact_acl = NULL;		/* Reset the contact ACL */
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ast_get_version());
 	snprintf(global_sdpsession, sizeof(global_sdpsession), "%s %s", DEFAULT_SDPSESSION, ast_get_version());
 	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
@@ -30179,9 +30222,9 @@ static int reload_config(enum channelreloadreason reason)
 				  ast_sockaddr_stringify(&sip_tcp_desc.local_address));
 		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
 			global_dynamic_exclude_static = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny") || !strcasecmp(v->name, "contactacl")) {
 			int ha_error = 0;
-			sip_cfg.contact_ha = ast_append_ha(v->name + 7, v->value, sip_cfg.contact_ha, &ha_error);
+			ast_append_acl(v->name + 7, v->value, &sip_cfg.contact_acl, &ha_error, &acl_change_subscription_needed);
 			if (ha_error) {
 				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 			}
@@ -30959,10 +31002,15 @@ static int reload_config(enum channelreloadreason reason)
 	run_end = time(0);
 	ast_debug(4, "SIP reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
 
+	/* If an ACL change subscription is needed and doesn't exist, we need one. */
+	if (acl_change_subscription_needed) {
+		acl_change_event_subscribe();
+	}
+
 	return 0;
 }
 
-static int apply_directmedia_ha(struct sip_pvt *p, struct ast_ha *directmediaha, const char *op)
+static int apply_directmedia_acl(struct sip_pvt *p, struct ast_acl_list *directmediaacl, const char *op)
 {
 	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
 	int res = AST_SENSE_ALLOW;
@@ -30970,7 +31018,7 @@ static int apply_directmedia_ha(struct sip_pvt *p, struct ast_ha *directmediaha,
 	ast_rtp_instance_get_remote_address(p->rtp, &them);
 	ast_rtp_instance_get_local_address(p->rtp, &us);
 
-	if ((res = ast_apply_ha(directmediaha, &them)) == AST_SENSE_DENY) {
+	if ((res = ast_apply_acl(directmediaacl, &them, "SIP Direct Media ACL: ")) == AST_SENSE_DENY) {
 		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
 		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
 
@@ -31045,8 +31093,8 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel *chan2, char *rtptype)
 {
 	struct sip_pvt *p1 = NULL, *p2 = NULL;
-	struct ast_ha *p2_directmediaha = NULL; /* opposed directmediaha for comparing against first channel host address */
-	struct ast_ha *p1_directmediaha = NULL; /* opposed directmediaha for comparing against second channel host address */
+	struct ast_acl_list *p2_directmediaacl = NULL; /* opposed directmediaha for comparing against first channel host address */
+	struct ast_acl_list *p1_directmediaacl = NULL; /* opposed directmediaha for comparing against second channel host address */
 	int res = 1;
 
 	if (!(p1 = ast_channel_tech_pvt(chan1))) {
@@ -31058,18 +31106,18 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel
 	}
 
 	sip_pvt_lock(p2);
-	if (p2->relatedpeer && p2->relatedpeer->directmediaha) {
-		p2_directmediaha = ast_duplicate_ha_list(p2->relatedpeer->directmediaha);
+	if (p2->relatedpeer && p2->relatedpeer->directmediaacl) {
+		p2_directmediaacl = ast_duplicate_acl_list(p2->relatedpeer->directmediaacl);
 	}
 	sip_pvt_unlock(p2);
 
 	sip_pvt_lock(p1);
-	if (p1->relatedpeer && p1->relatedpeer->directmediaha) {
-		p1_directmediaha = ast_duplicate_ha_list(p1->relatedpeer->directmediaha);
+	if (p1->relatedpeer && p1->relatedpeer->directmediaacl) {
+		p1_directmediaacl = ast_duplicate_acl_list(p1->relatedpeer->directmediaacl);
 	}
 
-	if (p2_directmediaha && ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
-		if (!apply_directmedia_ha(p1, p2_directmediaha, rtptype)) {
+	if (p2_directmediaacl && ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
+		if (!apply_directmedia_acl(p1, p2_directmediaacl, rtptype)) {
 			res = 0;
 		}
 	}
@@ -31080,8 +31128,8 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel
 	}
 
 	sip_pvt_lock(p2);
-	if (p1_directmediaha && ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
-		if (!apply_directmedia_ha(p2, p1_directmediaha, rtptype)) {
+	if (p1_directmediaacl && ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
+		if (!apply_directmedia_acl(p2, p1_directmediaacl, rtptype)) {
 			res = 0;
 		}
 	}
@@ -31089,12 +31137,12 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel
 
 allow_anyrtp_remote_end:
 
-	if (p2_directmediaha) {
-		ast_free_ha(p2_directmediaha);
+	if (p2_directmediaacl) {
+		p2_directmediaacl = ast_free_acl_list(p2_directmediaacl);
 	}
 
-	if (p1_directmediaha) {
-		ast_free_ha(p1_directmediaha);
+	if (p1_directmediaacl) {
+		p1_directmediaacl = ast_free_acl_list(p1_directmediaacl);
 	}
 
 	return res;
@@ -32574,6 +32622,7 @@ static int unload_module(void)
 	int wait_count;
 
 	network_change_event_unsubscribe();
+	acl_change_event_unsubscribe();
 
 	ast_sched_dump(sched);
 	
@@ -32723,7 +32772,7 @@ static int unload_module(void)
 	ao2_t_ref(sip_monitor_instances, -1, "unref the sip_monitor_instances table");
 
 	clear_sip_domains();
-	ast_free_ha(sip_cfg.contact_ha);
+	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
 	close(sipsock);
 	ast_sched_context_destroy(sched);
 	con = ast_context_find(used_context);

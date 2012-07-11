@@ -518,11 +518,11 @@ inkeys=freeworlddialup
 ;
 ; Further user sections may be added, specifying a context and a secret used
 ; for connections with that given authentication name.  Limited IP based
-; access control is allowed by use of "permit" and "deny" keywords.  Multiple
-; rules are permitted.  Multiple permitted contexts may be specified, in
-; which case the first will be the default.  You can also override Caller*ID
-; so that when you receive a call you set the Caller*ID to be what you want
-; instead of trusting what the remote user provides
+; access control is allowed by use of "permit", "deny", and "acl" keywords.
+; Multiple rules are permitted. Multiple permitted contexts may be specified,
+; in which case the first will be the default.  You can also override
+; Caller*ID so that when you receive a call you set the Caller*ID to be what
+; you want instead of trusting what the remote user provides
 ;
 ; There are three authentication methods that are supported:  md5, plaintext,
 ; and rsa.  The least secure is "plaintext", which sends passwords cleartext
@@ -639,6 +639,7 @@ description=Demo System At Digium    ; Description of this peer, as listed by
 ;secret=shazbot  ; only the last specified secret will be used.
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
+;acl=example_named_acl
 
 ;
 ; With immediate=yes, an IAX2 phone or a phone on an IAXy acts as a hot-line

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -29,15 +29,18 @@ extern "C" {
 #endif
 
 #include "asterisk/network.h"
+#include "asterisk/linkedlists.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/io.h"
 
-#define AST_SENSE_DENY                  0
-#define AST_SENSE_ALLOW                 1
+enum ast_acl_sense {
+	AST_SENSE_DENY,
+	AST_SENSE_ALLOW
+};
 
 /* Host based access control */
 
-/*! \brief internal representation of acl entries
+/*! \brief internal representation of ACL entries
  * In principle user applications would have no need for this,
  * but there is sometimes a need to extract individual items,
  * e.g. to print them, and rather than defining iterators to
@@ -49,9 +52,28 @@ struct ast_ha {
 	/* Host access rule */
 	struct ast_sockaddr addr;
 	struct ast_sockaddr netmask;
-	int sense;
+	enum ast_acl_sense sense;
 	struct ast_ha *next;
 };
+
+#define ACL_NAME_LENGTH 80
+
+/*!
+ * \brief an ast_acl is a linked list node of ast_ha structs which may have names.
+ *
+ * \note These shouldn't be used directly by ACL consumers. Consumers should handle
+ *       ACLs via ast_acl_list structs.
+ */
+struct ast_acl {
+	struct ast_ha *acl;             /*!< Rules contained by the ACL */
+	int is_realtime;                /*!< If raised, this named ACL was retrieved from realtime storage */
+	int is_invalid;                 /*!< If raised, this is an invalid ACL which will automatically reject everything. */
+	char name[ACL_NAME_LENGTH];     /*!< If this was retrieved from the named ACL subsystem, this is the name of the ACL. */
+	AST_LIST_ENTRY(ast_acl) list;
+};
+
+/*! \brief Wrapper for an ast_acl linked list. */
+AST_LIST_HEAD(ast_acl_list, ast_acl);
 
 /*!
  * \brief Free a list of HAs
@@ -64,6 +86,18 @@ struct ast_ha {
  * \retval void
  */
 void ast_free_ha(struct ast_ha *ha);
+
+/*!
+ * \brief Free a list of ACLs
+ *
+ * \details
+ * Given the head of a list of ast_acl structs, it and all appended
+ * acl structs will be freed. This includes the ast_ha structs within
+ * the individual nodes.
+ * \param acl The list of ACLs to free
+ * \retval NULL
+ */
+struct ast_acl_list *ast_free_acl_list(struct ast_acl_list *acl);
 
 /*!
  * \brief Copy the contents of one HA to another
@@ -101,6 +135,35 @@ void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to);
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error);
 
 /*!
+ * \brief Add a rule to an ACL struct
+ *
+ * \details
+ * This adds a named ACL or an ACL rule to an ast_acl container.
+ * It works in a similar way to ast_append_ha.
+ *
+ * \param sense Can be any among "permit", "deny", or "acl"
+ *        this controls whether the rule being added will simply modify the unnamed ACL at the head of the list
+ *        or if a new named ACL will be added to that ast_acl.
+ * \param stuff If sense is 'permit'/'deny', this is the ip address and subnet mask separated with a '/' like in ast_append ha.
+ *        If it sense is 'acl', then this will be the name of the ACL being appended to the container.
+ * \param path Address of the ACL list being appended
+ * \param[out] error The int that error points to will be set to 1 if an error occurs.
+ * \param[out] named_acl_flag This will raise a flag under certain conditions to indicate that a named ACL has been added by this
+ *        operation. This may be used to indicate that an event subscription should be made against the named ACL subsystem.
+ *        Note: This flag may be raised by this function, but it will never be lowered by it.
+ */
+void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **path, int *error, int *named_acl_flag);
+
+/*!
+ * \brief Determines if an ACL is empty or if it contains entries
+ *
+ * \param acl_list The ACL list being checked
+ * \retval 0 - the list is not empty
+ * \retval 1 - the list is empty
+ */
+int ast_acl_list_is_empty(struct ast_acl_list *acl_list);
+
+/*!
  * \brief Apply a set of rules to a given IP address
  *
  * \details
@@ -115,7 +178,25 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
  * \retval AST_SENSE_ALLOW The IP address passes our ACL
  * \retval AST_SENSE_DENY The IP address fails our ACL
  */
-int ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr);
+enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr);
+
+/*!
+ * \brief Apply a set of rules to a given IP address
+ *
+ * \details
+ * Similar to the above, only uses an acl container, which is a whole slew
+ * of ast_ha lists. It runs ast_apply_ha on each of the ast_ha structs
+ * contained in the acl container. It will deny if any of the ast_ha lists
+ * fail, and it will pass only if all of the rules pass.
+ *
+ * \param acl The head of the list of ACLs to evaluate
+ * \param addr An ast_sockaddr whose address is considered when matching rules
+ * \param purpose Context for which the ACL is being applied - Establishes purpose of a notice when rejected
+ *
+ * \retval AST_SENSE_ALLOW The IP address passes our ACLs
+ * \retval AST_SENSE_DENY The IP address fails our ACLs
+ */
+enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *purpose);
 
 /*!
  * \brief Get the IP address given a hostname
@@ -199,13 +280,24 @@ int ast_lookup_iface(char *iface, struct ast_sockaddr *address);
  * value is allocated on the heap and must be freed independently
  * of the input parameter when finished.
  *
- * \note
- * This function is not actually used anywhere.
- *
  * \param original The ast_ha to copy
  * \retval The head of the list of duplicated ast_has
  */
 struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
+
+/*!
+ * \brief Duplicates the contests of a list of lists of host access rules.
+ *
+ * \details
+ * A deep copy of an ast_acl list is made (which in turn means a deep copy of
+ * each of the ast_ha structs contained within). The returned value is allocated
+ * on the heap and must be freed independently of the input paramater when
+ * finished.
+ *
+ * \param original The ast_acl_list to copy
+ * \retval The new duplicated ast_acl_list
+ */
+struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original);
 
 /*!
  * \brief Find our IP address
@@ -257,6 +349,41 @@ int ast_str2tos(const char *value, unsigned int *tos);
  * \return The string equivalent of the TOS value
  */
 const char *ast_tos2str(unsigned int tos);
+
+/*!
+ * \brief Retrieve a named ACL
+ *
+ * \details
+ * This function attempts to find a named ACL. If found, a copy
+ * of the requested ACL will be made which must be freed by
+ * the caller.
+ *
+ * \param name Name of the ACL sought
+ * \param[out] is_realtime will be true if the ACL being returned is from realtime
+ * \param[out] is_undefined will be true if no ACL profile can be found for the requested name
+ *
+ * \retval A copy of the named ACL as an ast_ha
+ * \retval NULL if no ACL could be found.
+ */
+struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_undefined);
+
+/*!
+ * \brief Initialize and configure the named ACL system.
+ *
+ * \details
+ * This function will prepare the named ACL system for use.
+ * For this reason, it needs to be called before other things that use ACLs are initialized.
+ */
+int ast_named_acl_init(void);
+
+/*!
+ * \brief reload/reconfigure the named ACL system.
+ *
+ * \details
+ * This function is designed to trigger an event upon a successful reload that may update
+ * ACL consumers.
+ */
+int ast_named_acl_reload(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

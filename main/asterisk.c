@@ -117,6 +117,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/channel.h"
 #include "asterisk/translate.h"
 #include "asterisk/features.h"
+#include "asterisk/acl.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
@@ -4029,6 +4030,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_named_acl_init()) { /* Initialize the Named ACL system */
 		printf("%s", term_quit());
 		exit(1);
 	}

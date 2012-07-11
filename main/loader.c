@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/channel.h"
 #include "asterisk/term.h"
+#include "asterisk/acl.h"
 #include "asterisk/manager.h"
 #include "asterisk/cdr.h"
 #include "asterisk/enum.h"
@@ -270,6 +271,7 @@ static struct reload_classes {
 	{ "dnsmgr",	dnsmgr_reload },
 	{ "extconfig",	read_config_maps },
 	{ "enum",	ast_enum_reload },
+	{ "acl",	ast_named_acl_reload },
 	{ "manager",	reload_manager },
 	{ "http",	ast_http_reload },
 	{ "logger",	logger_reload },

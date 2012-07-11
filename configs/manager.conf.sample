@@ -85,6 +85,7 @@ bindaddr = 0.0.0.0
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0
 ;permit=209.16.236.73/255.255.255.0
+;acl=named_acl_example               ; use a named ACL from acl.conf
 ;
 ;eventfilter=Event: Newchannel
 ;eventfilter=!Channel: DAHDI*

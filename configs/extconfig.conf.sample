@@ -32,6 +32,11 @@
 ;	cdr.conf
 ;	rtp.conf
 ;
+; Named ACLs specified in realtime also can not be used
+; from manager.conf unless the storage driver is preloaded.
+; Attempting to use a realtime stored named ACL before the
+; driver is loaded will result in an invalid ACL which
+; rejects all addresses.
 ;
 ; Realtime configuration engine
 ;
@@ -74,6 +79,7 @@
 ;meetme => mysql,general
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
+;acls => odbc,asterisk
 ;musiconhold => mysql,general
 ;queue_log => mysql,general
 ;

@@ -275,6 +275,7 @@ static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
 static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static struct ast_event_sub *acl_change_event_subscription; /*!< subscription id for ACL change events */
 static int network_change_event_sched_id = -1;
 
 static int maxauthreq = 3;
@@ -438,7 +439,7 @@ struct iax2_context {
 #define IAX_SHRINKCALLERID      (uint64_t)(1 << 31)   /*!< Turn on and off caller id shrinking */
 static int global_rtautoclear = 120;
 
-static int reload_config(void);
+static int reload_config(int forced_reload);
 
 /*!
  * \brief Call token validation settings.
@@ -479,7 +480,7 @@ struct iax2_user {
 	int maxauthreq; /*!< Maximum allowed outstanding AUTHREQs */
 	int curauthreq; /*!< Current number of outstanding AUTHREQs */
 	struct ast_codec_pref prefs;
-	struct ast_ha *ha;
+	struct ast_acl_list *acl;
 	struct iax2_context *contexts;
 	struct ast_variable *vars;
 	enum calltoken_peer_enum calltoken_required;        /*!< Is calltoken validation required or not, can be YES, NO, or AUTO */
@@ -539,7 +540,7 @@ struct iax2_peer {
 
 	struct ast_event_sub *mwi_event_sub;
 
-	struct ast_ha *ha;
+	struct ast_acl_list *acl;
 	enum calltoken_peer_enum calltoken_required;        /*!< Is calltoken validation required or not, can be YES, NO, or AUTO */
 };
 
@@ -1242,6 +1243,7 @@ static struct callno_entry *get_unused_callno(int trunk, int validated);
 static int replace_callno(const void *obj);
 static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *callno_entry);
 static void network_change_event_cb(const struct ast_event *, void *);
+static void acl_change_event_cb(const struct ast_event *, void *);
 
 static struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -1324,6 +1326,21 @@ static void network_change_event_unsubscribe(void)
 	}
 }
 
+static void acl_change_event_subscribe(void)
+{
+	if (!acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_subscribe(AST_EVENT_ACL_CHANGE,
+			acl_change_event_cb, "IAX2 ACL Change", NULL, AST_EVENT_IE_END);
+	}
+}
+
+static void acl_change_event_unsubscribe(void)
+{
+	if (acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_unsubscribe(acl_change_event_subscription);
+	}
+}
+
 static int network_change_event_sched_cb(const void *data)
 {
 	struct iax2_registry *reg;
@@ -1344,6 +1361,12 @@ static void network_change_event_cb(const struct ast_event *event, void *userdat
 		network_change_event_sched_id = iax2_sched_add(sched, 1000, network_change_event_sched_cb, NULL);
 	}
 
+}
+
+static void acl_change_event_cb(const struct ast_event *event, void *userdata)
+{
+	ast_log(LOG_NOTICE, "Reloading chan_iax2 in response to ACL change event.\n");
+	reload_config(1);
 }
 
 
@@ -3818,7 +3841,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 		ast_cli(a->fd, "  Encryption   : %s\n", peer->encmethods ? ast_str_buffer(encmethods) : "No");
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  Expire       : %d\n", peer->expire);
-		ast_cli(a->fd, "  ACL          : %s\n", (peer->ha ? "Yes" : "No"));
+		ast_cli(a->fd, "  ACL          : %s\n", (ast_acl_list_is_empty(peer->acl) ? "No" : "Yes"));
 		ast_cli(a->fd, "  Addr->IP     : %s Port %d\n",  peer_addr.sin_addr.s_addr ? ast_inet_ntoa(peer_addr.sin_addr) : "(Unspecified)", ntohs(peer_addr.sin_port));
 		ast_cli(a->fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(a->fd, "  Username     : %s\n", peer->username);
@@ -6701,7 +6724,7 @@ static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct
 
 		ast_cli(a->fd, FORMAT2, user->name, auth, user->authmethods, 
 			user->contexts ? user->contexts->context : DEFAULT_CONTEXT,
-			user->ha ? "Yes" : "No", pstr);
+			ast_acl_list_is_empty(user->acl) ? "No" : "Yes", pstr);
 	}
 	ao2_iterator_destroy(&i);
 
@@ -7681,7 +7704,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	while ((user = ao2_iterator_next(&i))) {
 		if ((ast_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
-			&& ast_apply_ha(user->ha, &addr) 	/* Access is permitted from this IP */
+			&& ast_apply_acl(user->acl, &addr, "IAX2 user ACL: ")	/* Access is permitted from this IP */
 			&& (ast_strlen_zero(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
 			if (!ast_strlen_zero(iaxs[callno]->username)) {
@@ -7692,7 +7715,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				break;
 			} else if (ast_strlen_zero(user->secret) && ast_strlen_zero(user->dbsecret) && ast_strlen_zero(user->inkeys)) {
 				/* No required authentication */
-				if (user->ha) {
+				if (user->acl) {
 					/* There was host authentication and we passed, bonus! */
 					if (bestscore < 4) {
 						bestscore = 4;
@@ -7712,7 +7735,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 					}
 				}
 			} else {
-				if (user->ha) {
+				if (user->acl) {
 					/* Authentication, but host access too, eh, it's something.. */
 					if (bestscore < 2) {
 						bestscore = 2;
@@ -8072,7 +8095,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	}
 
 	ast_sockaddr_from_sin(&addr, sin);
-	if (!ast_apply_ha(p->ha, &addr)) {
+	if (!ast_apply_acl(p->acl, &addr, "IAX2 Peer ACL: ")) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", ast_inet_ntoa(sin->sin_addr), p->name);
 		goto return_unref;
@@ -12514,7 +12537,7 @@ static void peer_destructor(void *obj)
 	struct iax2_peer *peer = obj;
 	int callno = peer->callno;
 
-	ast_free_ha(peer->ha);
+	ast_free_acl_list(peer->acl);
 
 	if (callno > 0) {
 		ast_mutex_lock(&iaxsl[callno]);
@@ -12537,10 +12560,11 @@ static void peer_destructor(void *obj)
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly)
 {
 	struct iax2_peer *peer = NULL;
-	struct ast_ha *oldha = NULL;
+	struct ast_acl_list *oldacl = NULL;
 	int maskfound = 0;
 	int found = 0;
 	int firstpass = 1;
+	int subscribe_acl_change = 0;
 
 	if (!temponly) {
 		peer = ao2_find(peers, name, OBJ_KEY);
@@ -12551,8 +12575,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	if (peer) {
 		found++;
 		if (firstpass) {
-			oldha = peer->ha;
-			peer->ha = NULL;
+			oldacl = peer->acl;
+			peer->acl = NULL;
 		}
 		unlink_peer(peer);
 	} else if ((peer = ao2_alloc(sizeof(*peer), peer_destructor))) {
@@ -12683,8 +12707,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
 				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
-				peer->ha = ast_append_ha(v->name, v->value, peer->ha, NULL);
+					   !strcasecmp(v->name, "deny") ||
+					   !strcasecmp(v->name, "acl")) {
+				ast_append_acl(v->name, v->value, &peer->acl, NULL, &subscribe_acl_change);
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
@@ -12795,8 +12820,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		ast_clear_flag64(peer, IAX_DELME);
 	}
 
-	if (oldha)
-		ast_free_ha(oldha);
+	if (oldacl)
+		ast_free_acl_list(oldacl);
 
 	if (!ast_strlen_zero(peer->mailbox)) {
 		char *mailbox, *context;
@@ -12810,6 +12835,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			AST_EVENT_IE_END);
 	}
 
+	if (subscribe_acl_change) {
+		acl_change_event_subscribe();
+	}
+
 	return peer;
 }
 
@@ -12817,7 +12846,7 @@ static void user_destructor(void *obj)
 {
 	struct iax2_user *user = obj;
 
-	ast_free_ha(user->ha);
+	ast_free_acl_list(user->acl);
 	free_context(user->contexts);
 	if(user->vars) {
 		ast_variables_destroy(user->vars);
@@ -12831,11 +12860,12 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 {
 	struct iax2_user *user = NULL;
 	struct iax2_context *con, *conl = NULL;
-	struct ast_ha *oldha = NULL;
+	struct ast_acl_list *oldacl = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
 	int firstpass=1;
 	int oldcurauthreq = 0;
+	int subscribe_acl_change = 0;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
 
@@ -12848,9 +12878,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 	if (user) {
 		if (firstpass) {
 			oldcurauthreq = user->curauthreq;
-			oldha = user->ha;
+			oldacl = user->acl;
 			oldcon = user->contexts;
-			user->ha = NULL;
+			user->acl = NULL;
 			user->contexts = NULL;
 		}
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
@@ -12899,8 +12929,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 					conl = con;
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
-				user->ha = ast_append_ha(v->name, v->value, user->ha, NULL);
+					   !strcasecmp(v->name, "deny") ||
+					   !strcasecmp(v->name, "acl")) {
+				ast_append_acl(v->name, v->value, &user->acl, NULL, &subscribe_acl_change);
 			} else if (!strcasecmp(v->name, "setvar")) {
 				varname = ast_strdupa(v->value);
 				if (varname && (varval = strchr(varname,'='))) {
@@ -13069,10 +13100,17 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 		ast_clear_flag64(user, IAX_DELME);
 	}
 cleanup:
-	if (oldha)
-		ast_free_ha(oldha);
-	if (oldcon)
+	if (oldacl) {
+		ast_free_acl_list(oldacl);
+	}
+	if (oldcon) {
 		free_context(oldcon);
+	}
+
+	if (subscribe_acl_change) {
+		acl_change_event_subscribe();
+	}
+
 	return user;
 }
 
@@ -13171,7 +13209,7 @@ static void set_config_destroy(void)
 }
 
 /*! \brief Load configuration */
-static int set_config(const char *config_file, int reload)
+static int set_config(const char *config_file, int reload, int forced)
 {
 	struct ast_config *cfg, *ucfg;
 	iax2_format capability = iax2_capability;
@@ -13187,7 +13225,7 @@ static int set_config(const char *config_file, int reload)
 	struct iax2_user *user;
 	struct iax2_peer *peer;
 	struct ast_netsock *ns;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { (reload && !forced) ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 #if 0
 	static unsigned short int last_port=0;
 #endif
@@ -13667,12 +13705,12 @@ static void poke_all_peers(void)
 	}
 	ao2_iterator_destroy(&i);
 }
-static int reload_config(void)
+static int reload_config(int forced_reload)
 {
 	static const char config[] = "iax.conf";
 	struct iax2_registry *reg;
 
-	if (set_config(config, 1) > 0) {
+	if (set_config(config, 1, forced_reload) > 0) {
 		prune_peers();
 		prune_users();
 		ao2_callback(callno_limits, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, prune_addr_range_cb, NULL);
@@ -13711,14 +13749,14 @@ static char *handle_cli_iax2_reload(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	}
 
-	reload_config();
+	reload_config(0);
 
 	return CLI_SUCCESS;
 }
 
 static int reload(void)
 {
-	return reload_config();
+	return reload_config(0);
 }
 
 static int cache_get_callno_locked(const char *data)
@@ -14483,6 +14521,7 @@ static int __unload_module(void)
 	int x;
 
 	network_change_event_unsubscribe();
+	acl_change_event_unsubscribe();
 
 	ast_manager_unregister("IAXpeers");
 	ast_manager_unregister("IAXpeerlist");
@@ -14818,7 +14857,7 @@ static int users_data_provider_get(const struct ast_data_search *search,
 		ast_data_add_int(data_enum_node, "value", user->amaflags);
 		ast_data_add_str(data_enum_node, "text", ast_cdr_flags2str(user->amaflags));
 
-		ast_data_add_bool(data_user, "access-control", user->ha ? 1 : 0);
+		ast_data_add_bool(data_user, "access-control", ast_acl_list_is_empty(user->acl) ? 0 : 1);
 
 		if (ast_test_flag64(user, IAX_CODEC_NOCAP)) {
 			pstr = "REQ only";
@@ -14922,7 +14961,7 @@ static int load_module(void)
 		ast_timer_set_rate(timer, 1000 / trunkfreq);
 	}
 
-	if (set_config(config, 0) == -1) {
+	if (set_config(config, 0, 0) == -1) {
 		if (timer) {
 			ast_timer_close(timer);
 		}

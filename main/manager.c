@@ -80,6 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/security_events.h"
+#include "asterisk/event.h"
 #include "asterisk/aoc.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
@@ -990,7 +991,7 @@ static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
 
 static int block_sockets;
 static int unauth_sessions = 0;
-
+static struct ast_event_sub *acl_change_event_subscription;
 
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
@@ -1010,6 +1011,23 @@ static const struct {
 	{{ "module", "unload", NULL }},
 	{{ "restart", "gracefully", NULL }},
 };
+
+static void acl_change_event_cb(const struct ast_event *event, void *userdata);
+
+static void acl_change_event_subscribe(void)
+{
+	if (!acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_subscribe(AST_EVENT_ACL_CHANGE,
+			acl_change_event_cb, "Manager must react to Named ACL changes", NULL, AST_EVENT_IE_END);
+	}
+}
+
+static void acl_change_event_unsubscribe(void)
+{
+	if (acl_change_event_subscription) {
+		acl_change_event_subscription = ast_event_unsubscribe(acl_change_event_subscription);
+	}
+}
 
 /* In order to understand what the heck is going on with the
  * mansession_session and mansession structs, we need to have a bit of a history
@@ -1110,7 +1128,6 @@ static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
 struct ast_manager_user {
 	char username[80];
 	char *secret;			/*!< Secret for logging in */
-	struct ast_ha *ha;		/*!< ACL setting */
 	int readperm;			/*!< Authorization for reading */
 	int writeperm;			/*!< Authorization for writing */
 	int writetimeout;		/*!< Per user Timeout for ast_carefulwrite() */
@@ -1118,6 +1135,7 @@ struct ast_manager_user {
 	int keep;			/*!< mark entries created on a reload */
 	struct ao2_container *whitefilters; /*!< Manager event filters - white list */
 	struct ao2_container *blackfilters; /*!< Manager event filters - black list */
+	struct ast_acl_list *acl;       /*!< ACL setting */
 	char *a1_hash;			/*!< precalculated A1 for Digest auth */
 	AST_RWLIST_ENTRY(ast_manager_user) list;
 };
@@ -1666,13 +1684,13 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd,
 		"       username: %s\n"
 		"         secret: %s\n"
-		"            acl: %s\n"
+		"            ACL: %s\n"
 		"      read perm: %s\n"
 		"     write perm: %s\n"
 		"displayconnects: %s\n",
 		(user->username ? user->username : "(N/A)"),
 		(user->secret ? "<Set>" : "(N/A)"),
-		(user->ha ? "yes" : "no"),
+		((user->acl && !ast_acl_list_is_empty(user->acl)) ? "yes" : "no"),
 		authority_to_str(user->readperm, &rauthority),
 		authority_to_str(user->writeperm, &wauthority),
 		(user->displayconnects ? "yes" : "no"));
@@ -2478,7 +2496,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	if (!(user = get_manager_by_name_locked(username))) {
 		report_invalid_user(s, username);
 		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_sockaddr_stringify_addr(&s->session->addr), username);
-	} else if (user->ha && !ast_apply_ha(user->ha, &s->session->addr)) {
+	} else if (user->acl && (ast_apply_acl(user->acl, &s->session->addr, "Manager User ACL: ") == AST_SENSE_DENY)) {
 		report_failed_acl(s, username);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(&s->session->addr), username);
 	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
@@ -6402,7 +6420,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 	/* --- We have User for this auth, now check ACL */
-	if (user->ha && !ast_apply_ha(user->ha, remote_address)) {
+	if (user->acl && !ast_apply_acl(user->acl, remote_address, "Manager User ACL:")) {
 		AST_RWLIST_UNLOCK(&users);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(&session->addr), d.username);
 		ast_http_error(ser, 403, "Permission denied", "Permission denied\n");
@@ -7070,7 +7088,7 @@ static void load_channelvars(struct ast_variable *var)
 	AST_RWLIST_UNLOCK(&channelvars);
 }
 
-static int __init_manager(int reload)
+static int __init_manager(int reload, int by_external_config)
 {
 	struct ast_config *ucfg = NULL, *cfg = NULL;
 #ifdef AST_XML_DOCS
@@ -7081,12 +7099,13 @@ static int __init_manager(int reload)
 	int newhttptimeout = 60;
 	struct ast_manager_user *user = NULL;
 	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { (reload && !by_external_config) ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	char a1[256];
 	char a1_hash[256];
 	struct ast_sockaddr ami_desc_local_address_tmp;
 	struct ast_sockaddr amis_desc_local_address_tmp;
 	int tls_was_enabled = 0;
+	int acl_subscription_flag = 0;
 
 	manager_enabled = 0;
 
@@ -7158,6 +7177,11 @@ static int __init_manager(int reload)
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf, or configuration is invalid. Asterisk management interface (AMI) disabled.\n");
 		return 0;
+	}
+
+	/* If this wasn't performed due to a forced reload (because those can be created by ACL change events, we need to unsubscribe to ACL change events. */
+	if (!by_external_config) {
+		acl_change_event_unsubscribe();
 	}
 
 	/* default values */
@@ -7310,7 +7334,7 @@ static int __init_manager(int reload)
 					ast_copy_string(user->username, cat, sizeof(user->username));
 					/* Insert into list */
 					AST_LIST_INSERT_TAIL(&users, user, list);
-					user->ha = NULL;
+					user->acl = NULL;
 					user->keep = 1;
 					user->readperm = -1;
 					user->writeperm = -1;
@@ -7367,7 +7391,7 @@ static int __init_manager(int reload)
 	/* cat is NULL here in any case */
 
 	while ((cat = ast_category_browse(cfg, cat))) {
-		struct ast_ha *oldha;
+		struct ast_acl_list *oldacl;
 
 		if (!strcasecmp(cat, "general")) {
 			continue;
@@ -7381,7 +7405,7 @@ static int __init_manager(int reload)
 			/* Copy name over */
 			ast_copy_string(user->username, cat, sizeof(user->username));
 
-			user->ha = NULL;
+			user->acl = NULL;
 			user->readperm = 0;
 			user->writeperm = 0;
 			/* Default displayconnect from [general] */
@@ -7399,8 +7423,8 @@ static int __init_manager(int reload)
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
 		user->keep = 1;
-		oldha = user->ha;
-		user->ha = NULL;
+		oldacl = user->acl;
+		user->acl = NULL;
 
 		var = ast_variable_browse(cfg, cat);
 		for (; var; var = var->next) {
@@ -7410,8 +7434,9 @@ static int __init_manager(int reload)
 				}
 				user->secret = ast_strdup(var->value);
 			} else if (!strcasecmp(var->name, "deny") ||
-				       !strcasecmp(var->name, "permit")) {
-				user->ha = ast_append_ha(var->name, var->value, user->ha, NULL);
+				       !strcasecmp(var->name, "permit") ||
+				       !strcasecmp(var->name, "acl")) {
+				ast_append_acl(var->name, var->value, &user->acl, NULL, &acl_subscription_flag);
 			}  else if (!strcasecmp(var->name, "read") ) {
 				user->readperm = get_perm(var->value);
 			}  else if (!strcasecmp(var->name, "write") ) {
@@ -7432,9 +7457,15 @@ static int __init_manager(int reload)
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}
 		}
-		ast_free_ha(oldha);
+
+		oldacl = ast_free_acl_list(oldacl);
 	}
 	ast_config_destroy(cfg);
+
+	/* Check the flag for named ACL event subscription and if we need to, register a subscription. */
+	if (acl_subscription_flag && !by_external_config) {
+		acl_change_event_subscribe();
+	}
 
 	/* Perform cleanup - essentially prune out old users that no longer exist */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&users, user, list) {
@@ -7464,7 +7495,7 @@ static int __init_manager(int reload)
 		ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
 		ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
 		ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
-		ast_free_ha(user->ha);
+		user->acl = ast_free_acl_list(user->acl);
 		ast_free(user);
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
@@ -7516,6 +7547,13 @@ static int __init_manager(int reload)
 	return 0;
 }
 
+static void acl_change_event_cb(const struct ast_event *event, void *userdata)
+{
+	/* For now, this is going to be performed simply and just execute a forced reload. */
+	ast_log(LOG_NOTICE, "Reloading manager in response to ACL change event.\n");
+	__init_manager(1, 1);
+}
+
 /* clear out every entry in the channelvar list */
 static void free_channelvars(void)
 {
@@ -7529,12 +7567,12 @@ static void free_channelvars(void)
 
 int init_manager(void)
 {
-	return __init_manager(0);
+	return __init_manager(0, 0);
 }
 
 int reload_manager(void)
 {
-	return __init_manager(1);
+	return __init_manager(1, 0);
 }
 
 int astman_datastore_add(struct mansession *s, struct ast_datastore *datastore)

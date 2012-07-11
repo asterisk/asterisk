@@ -190,6 +190,19 @@ void ast_config_destroy(struct ast_config *config);
 struct ast_variable *ast_category_root(struct ast_config *config, char *cat);
 
 /*!
+ * \brief Sorts categories in a config in the order of a numerical value contained within them.
+ *
+ * \param config The config structure you wish to sort
+ * \param variable Which numerical value you wish to sort by
+ * \param descending If true, we sort highest to lowest instead of lowest to highest
+ *
+ * \details
+ * This function will assume a value of 0 for any non-numerical strings and NULL fields.
+ */
+void ast_config_sort_categories(struct ast_config *config, int descending,
+								int (*comparator)(struct ast_category *p, struct ast_category *q));
+
+/*!
  * \brief Goes through categories
  *
  * \param config Which config structure you wish to "browse"
@@ -480,6 +493,15 @@ int ast_config_engine_register(struct ast_config_engine *newconfig);
  * \retval 0 Always
  */
 int ast_config_engine_deregister(struct ast_config_engine *del);
+
+/*!
+ * \brief Determine if a mapping exists for a given family
+ *
+ * \param family which family you are looking to see if a mapping exists for
+ * \retval 1 if it is mapped
+ * \retval 0 if it is not
+ */
+int ast_realtime_is_mapping_defined(const char *family);
 
 /*!
  * \brief Exposed initialization method for core process

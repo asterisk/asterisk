@@ -757,7 +757,7 @@ struct sip_settings {
 	char default_subscribecontext[AST_MAX_CONTEXT];
 	char default_record_on_feature[FEATURE_MAX_LEN];
 	char default_record_off_feature[FEATURE_MAX_LEN];
-	struct ast_ha *contact_ha;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
+	struct ast_acl_list *contact_acl;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 	struct ast_format_cap *caps; /*!< Supported codecs */
 	int tcp_enabled;
 	int default_max_forwards;    /*!< Default max forwards (SIP Anti-loop) */
@@ -1117,7 +1117,7 @@ struct sip_pvt {
 	int rtptimeout;                     /*!< RTP timeout time */
 	int rtpholdtimeout;                 /*!< RTP timeout time on hold*/
 	int rtpkeepalive;                   /*!< RTP send packets for keepalive */
-	struct ast_ha *directmediaha;		/*!< Which IPs are allowed to interchange direct media with this peer - copied from sip_peer */
+	struct ast_acl_list *directmediaacl; /*!< Which IPs are allowed to interchange direct media with this peer - copied from sip_peer */
 	struct ast_sockaddr recv;            /*!< Received as */
 	struct ast_sockaddr ourip;           /*!< Our IP (as seen from the outside) */
 	enum transfermodes allowtransfer;   /*!< REFER: restriction scheme */
@@ -1335,9 +1335,9 @@ struct sip_peer {
 	int keepalive;                  /*!<  Keepalive: How often to send keep alive packet */
 	int keepalivesend;              /*!<  Keepalive: Scheduled item for sending keep alive packet */
 	struct ast_sockaddr defaddr;     /*!<  Default IP address, used until registration */
-	struct ast_ha *ha;              /*!<  Access control list */
-	struct ast_ha *contactha;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */
-	struct ast_ha *directmediaha;   /*!<  Restrict what IPs are allowed to interchange direct media with */
+	struct ast_acl_list *acl;              /*!<  Access control list */
+	struct ast_acl_list *contactacl;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */
+	struct ast_acl_list *directmediaacl;   /*!<  Restrict what IPs are allowed to interchange direct media with */
 	struct ast_variable *chanvars;  /*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;         /*!<  Subscription for MWI */
 	struct sip_st_cfg stimer;       /*!<  SIP Session-Timers */

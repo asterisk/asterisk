@@ -10,8 +10,8 @@
 ;
 ;	Especially note the following settings:
 ;		- allowguest (default enabled)
-;		- permit/deny - IP address filters
-;		- contactpermit/contactdeny - IP address filters for registrations
+;		- permit/deny/acl - IP address filters
+;		- contactpermit/contactdeny/contactacl - IP address filters for registrations
 ;		- context - Which set of services you offer various users
 ;
 ; SIP dial strings
@@ -454,6 +454,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;contactdeny=0.0.0.0/0.0.0.0           ; Use contactpermit and contactdeny to
 ;contactpermit=172.16.0.0/255.255.0.0  ; restrict at what IPs your users may
                                        ; register their phones.
+;contactacl=named_acl_example          ; Use named ACLs defined in acl.conf
 
 ;engine=asterisk                ; RTP engine to use when communicating with the device
 
@@ -956,6 +957,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Use this if some of your phones are on IP addresses that
                                 ; can not reach each other directly. This way you can force 
                                 ; RTP to always flow through asterisk in such cases.
+;directmediaacl=acl_example     ; Use named ACLs defined in acl.conf
 
 ;ignoresdpversion=yes           ; By default, Asterisk will honor the session version
                                 ; number in SDP packets and will only modify the SDP
@@ -1211,10 +1213,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; t38pt_usertpsource
 ; contactpermit         ; Limit what a host may register as (a neat trick
 ; contactdeny           ; is to register at the same IP as a SIP provider,
-;                       ; then call oneself, and get redirected to that
+; contactacl            ; then call oneself, and get redirected to that
 ;                       ; same location).
 ; directmediapermit
 ; directmediadeny
+; directmediaacl
 ; unsolicited_mailbox
 ; use_q850_reason
 ; maxforwards
@@ -1419,6 +1422,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;permit=2001:db8::/32            ; IPv6 ACLs can be specified if desired. IPv6 ACLs
                                  ; apply only to IPv6 addresses, and IPv4 ACLs apply
                                  ; only to IPv4 addresses.
+;acl=named_acl_example           ; Use named ACLs defined in acl.conf
 
 ;[cisco1]
 ;type=friend

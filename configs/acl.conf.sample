@@ -1,0 +1,86 @@
+;
+; Named Access Control Lists (ACLs)
+;
+; A convenient way to share acl definitions
+;
+; This configuration file is read on startup
+;
+; CLI Commands
+; -----------------------------------------------------------
+;   acl show                         Show all named ACLs configured
+;   acl show <name>                  Show contents of a particular named ACL
+;   reload acl                       Reload configuration file
+;
+;[general]
+;systemname=asterisksystem1          ; If a system name is specified, realtime
+;                                    ; ACLs will only be retrieved if they have
+;                                    ; a systemname field that matches this value.
+;                                    ; If it's less blank, the field is ignored.
+;
+; Any configuration that uses ACLs which has been made to be able to use named
+; ACLs will specify a named ACL with the 'acl' option in its configuration in
+; a similar fashion to the usual 'permit' and 'deny' options. Example:
+; acl=my_named_acl
+;
+; Multiple named ACLs can be applied by either comma separating the arguments or
+; just by adding additional ACL lines. Example:
+; acl=my_named_acl
+; acl=my_named_acl2
+;
+; or
+;
+; acl=my_named_acl,my_named_acl2
+;
+; ACLs specified by name are evaluated independently from the ACL specified via
+; permit/deny. In order for an address to pass a given ACL, it must pass both
+; the ACL specified by permit/deny for a given item as well as any named ACLs
+; that were specified.
+;
+;[example_named_acl1]
+;deny=0.0.0.0/0.0.0.0
+;permit=209.16.236.0
+;permit=209.16.236.1
+;
+;[example_named_acl2]
+;permit=0.0.0.0/0.0.0.0
+;deny=10.24.20.171
+;deny=10.24.20.103
+;deny=209.16.236.1
+;
+; example_named_acl1 above shows an example of whitelisting. When whitelisting, the
+; named ACLs should follow a deny that blocks everything (like deny=0.0.0.0/0.0.0.0)
+; The following example explains how combining the ACLs works:
+; <in another configuration>
+; [example_item_with_acl]
+; acl=example_named_acl1
+; acl=example_named_acl2
+;
+; Suppose 209.16.236.0 tries to communicate and the ACL for that example is applied to it...
+; First, example_named_acl1 is evaluated. The address is allowed by that ACL.
+; Next, example_named_acl2 is evaluated. The address isn't blocked by example_named_acl2
+; either, so it passes.
+;
+; Suppose instead 209.16.236.1 tries to communicate and the same ACL is applied.
+; First, example_named_acl1 is evaluated and the address is allowed.
+; However, it is blocked by example_named_acl2, so the address is blocked from the combined
+; ACL.
+;
+; Similarly, the permits/denies in specific configurations that make up an ACL definition
+; are also treated as a separate ACL for evaluation. So if we change the example above to:
+; <in another configuration>
+; [example_item_with_acl]
+; acl=example_named_acl1
+; acl=example_named_acl2
+; deny=209.16.236.0
+;
+; Then 209.16.236.0 will be rejected by the non-named component of the combined ACL even
+; though it passes the two named components.
+;
+;
+; Named ACLs can use ipv6 addresses just like normal ACLs.
+;[ipv6_example_1]
+;deny = ::
+;permit = ::1/128
+;
+;[ipv6_example_2]
+;permit = fe80::21d:bad:fad:2323
