@@ -12044,18 +12044,18 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	else /* Save for any further attempts */
 		ast_string_field_set(p, fromname, n);
 
+	ast_copy_string(tmp_l, l, sizeof(tmp_l));
 	if (sip_cfg.pedanticsipchecking) {
 		ast_escape_quoted(n, tmp_n, sizeof(tmp_n));
 		n = tmp_n;
 		ast_uri_encode(l, tmp_l, sizeof(tmp_l), 0);
-		l = tmp_l;
 	}
 
 	ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 	if (!sip_standard_port(p->socket.type, ourport)) {
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, tmp_l, d, ourport, p->tag);
 	} else {
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, tmp_l, d, p->tag);
 	}
 
 	if (!ast_strlen_zero(explicit_uri)) {
