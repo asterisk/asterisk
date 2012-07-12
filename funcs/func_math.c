@@ -103,8 +103,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Decrements the value of a variable, while returning the updated value to the dialplan</para>
-			<para>Example: DEC(MyVAR) - Increments MyVar</para>
-			<para>Note: DEC(${MyVAR}) - Is wrong, as INC expects the variable name, not its value</para>
+			<para>Example: DEC(MyVAR) - Decrements MyVar</para>
+			<para>Note: DEC(${MyVAR}) - Is wrong, as DEC expects the variable name, not its value</para>
 		</description>
 	</function>
  ***/
