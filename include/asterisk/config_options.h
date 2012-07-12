@@ -496,7 +496,8 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
  * \param opt_type The option type for default option type handling
  * \param flags \a type specific flags, stored in the option and available to the handler
  *
- * \returns An option on success, NULL on failure
+ * \retval 0 Success
+ * \retval -1 Failure
  */
 #define aco_option_register(info, name, matchtype, types, default_val, opt_type, flags, ...) \
 	__aco_option_register(info, name, matchtype, types, default_val, opt_type, NULL, flags, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
@@ -509,10 +510,22 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
  * \param handler The handler callback for the option
  * \param flags \a type specific flags, stored in the option and available to the handler
  *
- * \returns An option on success, NULL on failure
+ * \retval 0 Success
+ * \retval -1 Failure
  */
-#define aco_option_register_custom(info, name, matchtype, type, default_val, handler, flags) \
-	__aco_option_register(info, name, matchtype, type, default_val, OPT_CUSTOM_T, handler, flags, 0);
+#define aco_option_register_custom(info, name, matchtype, types, default_val, handler, flags) \
+	__aco_option_register(info, name, matchtype, types, default_val, OPT_CUSTOM_T, handler, flags, 0);
+
+/*! \brief Register a deprecated (and aliased) config option
+ * \param info A pointer to the aco_info struct
+ * \param name The name of the deprecated option
+ * \param types An array of valid option types for matching categories to the correct struct type
+ * \param aliased_to The name of the option that this deprecated option matches to
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int aco_option_register_deprecated(struct aco_info *info, const char *name, struct aco_type **types, const char *aliased_to);
 
 /*! \note  Everything below this point is to handle converting varargs
  * containing field names, to varargs containing a count of args, followed

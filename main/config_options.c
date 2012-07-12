@@ -57,13 +57,15 @@ struct aco_type_internal {
 
 struct aco_option {
 	const char *name;
+	const char *aliased_to;
+	const char *default_val;
 	enum aco_matchtype match_type;
 	regex_t *name_regex;
-	const char *default_val;
 	struct aco_type **obj;
 	enum aco_option_type type;
 	aco_option_handler handler;
 	unsigned int flags;
+	unsigned char deprecated:1;
 	size_t argc;
 	intptr_t args[0];
 };
@@ -136,11 +138,51 @@ static regex_t *build_regex(const char *text)
 	return regex;
 }
 
+static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
+{
+	size_t idx = 0;
+	struct aco_type *type;
+
+	while ((type = types[idx++])) {
+		if (!ao2_link(type->internal->opts, opt)) {
+			while (--idx) {
+				ao2_unlink(types[idx]->internal->opts, opt);
+			}
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int aco_option_register_deprecated(struct aco_info *info, const char *name, struct aco_type **types, const char *aliased_to)
+{
+	struct aco_option *opt;
+
+	if (!info || ast_strlen_zero(name) || ast_strlen_zero(aliased_to)) {
+		return -1;
+	}
+
+	if (!(opt = ao2_alloc(sizeof(*opt), config_option_destroy))) {
+		return -1;
+	}
+
+	opt->name = name;
+	opt->aliased_to = aliased_to;
+	opt->deprecated = 1;
+	opt->match_type = ACO_EXACT;
+
+	if (link_option_to_types(types, opt)) {
+		ao2_ref(opt, -1);
+		return -1;
+	}
+
+	return 0;
+}
+
 int __aco_option_register(struct aco_info *info, const char *name, enum aco_matchtype matchtype, struct aco_type **types,
 	const char *default_val, enum aco_option_type kind, aco_option_handler handler, unsigned int flags, size_t argc, ...)
 {
 	struct aco_option *opt;
-	struct aco_type *type;
 	va_list ap;
 	int tmp;
 
@@ -183,15 +225,9 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 		return -1;
 	};
 
-	tmp = 0;
-	while ((type = types[tmp++])) {
-		if (!ao2_link(type->internal->opts, opt)) {
-			while (--tmp) {
-				ao2_unlink(types[tmp]->internal->opts, opt);
-			}
-			ao2_ref(opt, -1);
-			return -1;
-		}
+	if (link_option_to_types(types, opt)) {
+		ao2_ref(opt, -1);
+		return -1;
 	}
 
 	return 0;
@@ -501,10 +537,18 @@ int aco_process_category_options(struct aco_type *type, struct ast_config *cfg, 
 
 	for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 		RAII_VAR(struct aco_option *, opt, aco_option_find(type, var->name), ao2_cleanup);
+		if (opt && opt->deprecated && !ast_strlen_zero(opt->aliased_to)) {
+			const char *alias = ast_strdupa(opt->aliased_to);
+			ast_log(LOG_WARNING, "At line %d of %s option '%s' is deprecated. Use '%s' instead\n", var->lineno, var->file, var->name, alias);
+			ao2_ref(opt, -1);
+			opt = aco_option_find(type, alias);
+		}
+
 		if (!opt) {
 			ast_log(LOG_ERROR, "Could not find option suitable for category '%s' named '%s' at line %d of %s\n", cat, var->name, var->lineno, var->file);
 			return -1;
 		}
+
 		if (!opt->handler) {
 			/* It should be impossible for an option to not have a handler */
 			ast_log(LOG_ERROR, "BUG! Somehow a config option for %s/%s was created with no handler!\n", cat, var->name);

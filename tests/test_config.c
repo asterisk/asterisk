@@ -824,6 +824,8 @@ AST_TEST_DEFINE(config_options_test)
 	aco_option_register(&cfg_info, "codecopt", ACO_EXACT, config_test_conf.types, CODEC_DEFAULT, OPT_CODEC_T, 1, FLDSET(struct test_item, codecprefopt, codeccapopt));
 	aco_option_register(&cfg_info, "stropt", ACO_EXACT, config_test_conf.types, STR_DEFAULT, OPT_STRINGFIELD_T, 0, STRFLDSET(struct test_item, stropt));
 	aco_option_register_custom(&cfg_info, "customopt", ACO_EXACT, config_test_conf.types, CUSTOM_DEFAULT, customopt_handler, 0);
+	aco_option_register_deprecated(&cfg_info, "permit", config_test_conf.types, "aclpermitopt");
+	aco_option_register_deprecated(&cfg_info, "deny", config_test_conf.types, "acldenyopt");
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		ast_test_status_update(test, "Could not parse config\n");
