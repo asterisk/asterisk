@@ -11708,6 +11708,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 					ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 				} else if (ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+					ast_hangup(chan);
 				}
 			}
 			break;
@@ -11975,6 +11976,7 @@ static void *do_monitor(void *data)
 											res = ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan);
 											if (res) {
 												ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+												ast_hangup(chan);
 											} else {
 												i->dtmfcid_holdoff_state = 1;
 											}
