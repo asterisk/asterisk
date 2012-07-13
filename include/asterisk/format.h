@@ -29,7 +29,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/silk.h"
 #include "asterisk/celt.h"
-#define AST_FORMAT_ATTR_SIZE 128
+#define AST_FORMAT_ATTR_SIZE 64
 #define AST_FORMAT_INC 100000
 
 /*! This is the value that ends a var list of format attribute
