@@ -110,7 +110,7 @@
 #LIVE_AST_FOR_SYSTEM=yes
 ####################### End Samples
 
-BASE_DIR="$PWD/live"
+BASE_DIR="${AST_LIVE_BASE_DIR:-$PWD/live}"
 AST_CONF_DIR="$BASE_DIR/etc/asterisk"
 AST_CONF="$AST_CONF_DIR/asterisk.conf"
 AST_BIN="$BASE_DIR/usr/sbin/asterisk"
@@ -180,9 +180,19 @@ gen_live_asterisk() {
   cat <<EOF >"$BASE_DIR/asterisk"
 #!/bin/sh
 # a wrapper to run asterisk from the "live" copy:
+EOF
+  if realpath $0 >/dev/null 2>&1; then
+    cat <<EOF >>"$BASE_DIR/asterisk"
+export AST_LIVE_BASE_DIR="$PWD/live"
+real_me='`realpath $0`'
+exec "\$real_me" run "\$@"
+EOF
+  else # No realpath. Fall back to change working directory:
+    cat <<EOF >>"$BASE_DIR/asterisk"
 cd "$PWD"
 exec "$0" run "\$@"
 EOF
+  fi
 }
 
 command="$1"
