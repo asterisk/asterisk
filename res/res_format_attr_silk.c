@@ -47,6 +47,36 @@ struct silk_attr {
 	unsigned int packetloss_percentage;
 };
 
+static int silk_sdp_parse(struct ast_format_attr *format_attr, const char *attributes)
+{
+	struct silk_attr *attr = (struct silk_attr *) format_attr;
+	unsigned int val;
+
+	if (sscanf(attributes, "maxaveragebitrate=%30u", &val) == 1) {
+		attr->maxbitrate = val;
+	}
+	if (sscanf(attributes, "usedtx=%30u", &val) == 1) {
+		attr->dtx = val;
+	}
+	if (sscanf(attributes, "useinbandfec=%30u", &val) == 1) {
+		attr->fec = val;
+	}
+
+	return 0;
+}
+
+static void silk_sdp_generate(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str)
+{
+	struct silk_attr *attr = (struct silk_attr *) format_attr;
+
+	if ((attr->maxbitrate > 5000) && (attr->maxbitrate < 40000)) { 
+		ast_str_append(str, 0, "a=fmtp:%d maxaveragebitrate=%d\r\n", payload, attr->maxbitrate);
+	}
+
+	ast_str_append(str, 0, "a=fmtp:%d usedtx=%d\r\n", payload, attr->dtx);
+	ast_str_append(str, 0, "a=fmtp:%d useinbandfec=%d\r\n", payload, attr->fec);
+}
+
 static enum ast_format_cmp_res silk_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
 {
 	struct silk_attr *attr1 = (struct silk_attr *) fattr1;
@@ -195,6 +225,8 @@ static struct ast_format_attr_interface silk_interface = {
 	.format_attr_set = silk_set,
 	.format_attr_isset = silk_isset,
 	.format_attr_get_val = silk_get_val,
+	.format_attr_sdp_parse = silk_sdp_parse,
+	.format_attr_sdp_generate = silk_sdp_generate,
 };
 
 static int load_module(void)

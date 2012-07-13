@@ -10175,7 +10175,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 	int found = FALSE;
 	int codec;
 	char mimeSubtype[128];
-	char fmtp_string[64];
+	char fmtp_string[256];
 	unsigned int sample_rate;
 	int debug = sip_debug_test_pvt(p);
 
@@ -10222,12 +10222,17 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (debug)
 				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
 		}
-	} else if (sscanf(a, "fmtp: %30u %63s", &codec, fmtp_string) == 2) {
+	} else if (sscanf(a, "fmtp: %30u %255s", &codec, fmtp_string) == 2) {
 		struct ast_format *format;
 
 		if ((format = ast_rtp_codecs_get_payload_format(newaudiortp, codec))) {
 			unsigned int bit_rate;
-			int val = 0;
+
+			if (!ast_format_sdp_parse(format, fmtp_string)) {
+				found = TRUE;
+			} else {
+				ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
+			}
 
 			switch ((int) format->id) {
 			case AST_FORMAT_SIREN7:
@@ -10260,21 +10265,6 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 					}
 				}
 				break;
-			case AST_FORMAT_CELT:
-				if (sscanf(fmtp_string, "framesize=%30u", &val) == 1) {
-					ast_format_append(format, CELT_ATTR_KEY_FRAME_SIZE, val, AST_FORMAT_ATTR_END);
-				}
-			case AST_FORMAT_SILK:
-				if (sscanf(fmtp_string, "maxaveragebitrate=%30u", &val) == 1) {
-					ast_format_append(format, SILK_ATTR_KEY_MAX_BITRATE, val, AST_FORMAT_ATTR_END);
-				}
-				if (sscanf(fmtp_string, "usedtx=%30u", &val) == 1) {
-					ast_format_append(format, SILK_ATTR_KEY_DTX, val ? 1 : 0, AST_FORMAT_ATTR_END);
-				}
-				if (sscanf(fmtp_string, "useinbandfec=%30u", &val) == 1) {
-					ast_format_append(format, SILK_ATTR_KEY_FEC, val ? 1 : 0, AST_FORMAT_ATTR_END);
-				}
-				break;
 			}
 		}
 	}
@@ -10289,6 +10279,7 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 	char mimeSubtype[128];
 	unsigned int sample_rate;
 	int debug = sip_debug_test_pvt(p);
+	char fmtp_string[256];
 
 	if (sscanf(a, "rtpmap: %30u %127[^/]/%30u", &codec, mimeSubtype, &sample_rate) == 3) {
 		/* We have a rtpmap to handle */
@@ -10310,6 +10301,16 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 		} else {
 			if (debug)
 				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+		}
+	} else if (sscanf(a, "fmtp: %30u %255s", &codec, fmtp_string) == 2) {
+		struct ast_format *format;
+
+		if ((format = ast_rtp_codecs_get_payload_format(newvideortp, codec))) {
+			if (!ast_format_sdp_parse(format, fmtp_string)) {
+				found = TRUE;
+			} else {
+				ast_rtp_codecs_payloads_unset(newvideortp, NULL, codec);
+			}
 		}
 	}
 
@@ -11747,7 +11748,6 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 {
 	int rtp_code;
 	struct ast_format_list fmt;
-	int val = 0;
 
 	if (debug)
 		ast_verbose("Adding codec %d (%s) to SDP\n", format->id, ast_getformatname(format));
@@ -11764,6 +11764,8 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 		rtp_code,
 		ast_rtp_lookup_mime_subtype2(1, format, 0, ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
 		ast_rtp_lookup_sample_rate2(1, format, 0));
+
+	ast_format_sdp_generate(format, rtp_code, a_buf);
 
 	switch ((int) format->id) {
 	case AST_FORMAT_G729A:
@@ -11789,22 +11791,6 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	case AST_FORMAT_G719:
 		/* Indicate that we only expect 64Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=64000\r\n", rtp_code);
-		break;
-	case AST_FORMAT_CELT:
-		if (!ast_format_get_value(format, CELT_ATTR_KEY_FRAME_SIZE, &val) && val > 0) {
-			ast_str_append(a_buf, 0, "a=fmtp:%d framesize=%u\r\n", rtp_code, val);
-		}
-		break;
-	case AST_FORMAT_SILK:
-		if (!ast_format_get_value(format, SILK_ATTR_KEY_MAX_BITRATE, &val) && val > 5000 && val < 40000) {
-			ast_str_append(a_buf, 0, "a=fmtp:%d maxaveragebitrate=%u\r\n", rtp_code, val);
-		}
-		if (!ast_format_get_value(format, SILK_ATTR_KEY_DTX, &val)) {
-			ast_str_append(a_buf, 0, "a=fmtp:%d usedtx=%u\r\n", rtp_code, val ? 1 : 0);
-		}
-		if (!ast_format_get_value(format, SILK_ATTR_KEY_FEC, &val)) {
-			ast_str_append(a_buf, 0, "a=fmtp:%d useinbandfec=%u\r\n", rtp_code, val ? 1 : 0);
-		}
 		break;
 	}
 
@@ -11837,7 +11823,8 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, struct ast_format *format
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(1, format, 0, 0),
 		       ast_rtp_lookup_sample_rate2(1, format, 0));
-	/* Add fmtp code here */
+
+	ast_format_sdp_generate(format, rtp_code, a_buf);
 }
 
 /*! \brief Add text codec offer to SDP offer/answer body in INVITE or 200 OK */
@@ -12262,10 +12249,12 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		/* Start by sending our preferred audio/video codecs */
 		for (x = 0; x < AST_CODEC_PREF_SIZE; x++) {
-			if (!(ast_codec_pref_index(&p->prefs, x, &tmp_fmt)))
+			struct ast_format pref;
+
+			if (!(ast_codec_pref_index(&p->prefs, x, &pref)))
 				break;
 
-			if (!(ast_format_cap_iscompatible(tmpcap, &tmp_fmt)))
+			if (!ast_format_cap_get_compatible_format(tmpcap, &pref, &tmp_fmt))
 				continue;
 
 			if (ast_format_cap_iscompatible(alreadysent, &tmp_fmt))

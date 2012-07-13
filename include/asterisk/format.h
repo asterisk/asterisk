@@ -131,7 +131,7 @@ enum ast_format_id {
 /*! \brief This structure contains the buffer used for format attributes */
 struct ast_format_attr {
 	/*! The buffer formats can use to represent attributes */
-	uint8_t format_attr[AST_FORMAT_ATTR_SIZE];
+	uint32_t format_attr[AST_FORMAT_ATTR_SIZE];
 	/*! If a format's payload needs to pass through that a new marker is required
 	 * for RTP, this variable will be set. */
 	uint8_t rtp_marker_bit;
@@ -219,7 +219,45 @@ struct ast_format_attr_interface {
 	 * \retval -1 failure, Value was either not found, or not allowed to be accessed.
 	 */
 	int (* const format_attr_get_val)(const struct ast_format_attr *format_attr, int key, void *val);
+
+	/*
+	 * \brief Parse SDP attribute information, interpret it, and store it in ast_format_attr structure.
+	 *
+	 * \retval 0 Success, values were valid
+	 * \retval -1 Failure, some values were not acceptable
+	 */
+	int (* const format_attr_sdp_parse)(struct ast_format_attr *format_attr, const char *attributes);
+
+	/*!
+	 * \brief Generate SDP attribute information from an ast_format_attr structure.
+	 *
+	 * \note This callback should generate a full fmtp line using the provided payload number.
+	 */
+	void (* const format_attr_sdp_generate)(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str);
 };
+
+/*!
+ * \brief This function is used to have a media format aware module parse and interpret
+ * SDP attribute information. Once interpreted this information is stored on the format
+ * itself using Asterisk format attributes.
+ *
+ * \param format to set
+ * \param attributes string containing the fmtp line from the SDP
+ *
+ * \retval 0 success, attribute values were valid
+ * \retval -1 failure, values were not acceptable
+ */
+int ast_format_sdp_parse(struct ast_format *format, const char *attributes);
+
+/*!
+ * \brief This function is used to produce an fmtp SDP line for an Asterisk format. The
+ * attributes present on the Asterisk format are translated into the SDP equivalent.
+ *
+ * \param format to generate an fmtp line for
+ * \param payload numerical payload for the fmtp line
+ * \param str structure that the fmtp line will be appended to
+ */
+void ast_format_sdp_generate(const struct ast_format *format, unsigned int payload, struct ast_str **str);
 
 /*!
  * \brief This function is used to set an ast_format object to represent a media format

@@ -1286,12 +1286,22 @@ unsigned int ast_translate_path_steps(struct ast_format *dst_format, struct ast_
 void ast_translate_available_formats(struct ast_format_cap *dest, struct ast_format_cap *src, struct ast_format_cap *result)
 {
 	struct ast_format tmp_fmt;
-	struct ast_format cur_src;
+	struct ast_format cur_dest, cur_src;
 	int src_audio = 0;
 	int src_video = 0;
 	int index;
 
-	ast_format_cap_copy(result, dest);
+	ast_format_cap_iter_start(dest);
+	while (!ast_format_cap_iter_next(dest, &cur_dest)) {
+		/* We give preference to a joint format structure if possible */
+		if (ast_format_cap_get_compatible_format(src, &cur_dest, &tmp_fmt)) {
+			ast_format_cap_add(result, &tmp_fmt);
+		} else {
+			/* Otherwise we just use the destination format */
+			ast_format_cap_add(result, &cur_dest);
+		}
+	}
+	ast_format_cap_iter_end(dest);
 
 	/* if we don't have a source format, we just have to try all
 	   possible destination formats */

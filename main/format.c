@@ -119,6 +119,51 @@ static int has_interface(const struct ast_format *format)
 	return 1;
 }
 
+int ast_format_sdp_parse(struct ast_format *format, const char *attributes)
+{
+	struct interface_ao2_wrapper *wrapper;
+	int res;
+
+	if (!(wrapper = find_interface(format))) {
+		return 0;
+	}
+
+	ao2_rdlock(wrapper);
+	if (!(wrapper->interface || !wrapper->interface->format_attr_sdp_parse)) {
+		ao2_unlock(wrapper);
+		ao2_ref(wrapper, -1);
+		return 0;
+	}
+
+	res = wrapper->interface->format_attr_sdp_parse(&format->fattr, attributes);
+
+	ao2_unlock(wrapper);
+	ao2_ref(wrapper, -1);
+
+	return res;
+}
+
+void ast_format_sdp_generate(const struct ast_format *format, unsigned int payload, struct ast_str **str)
+{
+	struct interface_ao2_wrapper *wrapper;
+
+	if (!(wrapper = find_interface(format))) {
+		return;
+	}
+
+	ao2_rdlock(wrapper);
+	if (!(wrapper->interface || !wrapper->interface->format_attr_sdp_generate)) {
+		ao2_unlock(wrapper);
+		ao2_ref(wrapper, -1);
+		return;
+	}
+
+	wrapper->interface->format_attr_sdp_generate(&format->fattr, payload, str);
+
+	ao2_unlock(wrapper);
+	ao2_ref(wrapper, -1);
+}
+
 /*! \internal
  * \brief set format attributes using an interface
  */
