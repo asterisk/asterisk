@@ -1,3 +1,19 @@
+2102-07-16  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.6.1-digiumphones Released.
+
+	* Remove a superfluous and dangerous freeing of an SSL_CTX that could
+	  lead to a crash in tcptls
+
+	  The problem here is that multiple server sessions share a SSL_CTX.
+	  When on session ended, the SSL_CTX would be freed and set NULL,
+	  leaving the other sessions unable to function.
+
+	  The code being removed is superfluous because the SSL_CTX structures
+	  for servers will be properly freed when ast_ssl_teardown is called.
+
+	  (closes issue ASTERISK-20074)
+
 2012-07-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.6.0-digiumphones Released.
