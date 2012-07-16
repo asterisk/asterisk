@@ -118,6 +118,22 @@ Chan_dahdi changes
  * Added dialtone_detect option for analog ports to disconnect incoming
    calls when dialtone is detected.
 
+------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 10.4.0 ------------------------------
+------------------------------------------------------------------------------
+
+Build System
+------------
+ * The optimization portion of the build system has been reworked to avoid
+   broken builds on certain architectures.  All architecture-specific
+   optimization has been removed in favor of using -march=native to allow gcc
+   to detect the environment in which it is running when possible.  This can
+   be toggled as BUILD_NATIVE under "Compiler Flags" in menuselect.
+
+------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 10.3.0 ------------------------------
+------------------------------------------------------------------------------
+
 Chan_unistim changes
 --------------------
  * Added ability to use multiple lines on phone, so for one device in 
