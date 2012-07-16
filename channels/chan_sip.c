@@ -9602,8 +9602,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		/* Check for 'text' media offer */
 		else if (strncmp(m, "text ", 5) == 0) {
-			if ((sscanf(m, "text %30u/%30u RTP/%s %n", &x, &numberofports, protocol, &len) == 2 && len > 0) ||
-			    (sscanf(m, "text %30u RTP/%s %n", &x, protocol, &len) == 1 && len > 0)) {
+			if ((sscanf(m, "text %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "text %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
 				 * length is "m=text 0 RTP/" + protocol + " " + codecs + "\0" */
