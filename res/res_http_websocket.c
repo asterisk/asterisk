@@ -267,6 +267,23 @@ int ast_websocket_is_secure(struct ast_websocket *session)
 	return session->secure;
 }
 
+int ast_websocket_set_nonblock(struct ast_websocket *session)
+{
+	int flags;
+
+	if ((flags = fcntl(session->fd, F_GETFL)) == -1) {
+		return -1;
+	}
+
+	flags |= O_NONBLOCK;
+
+	if ((flags = fcntl(session->fd, F_SETFL, flags)) == -1) {
+		return -1;
+	}
+
+	return 0;
+}
+
 int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
 {
 	char buf[MAXIMUM_FRAME_SIZE] = "";

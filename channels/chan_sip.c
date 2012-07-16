@@ -1167,6 +1167,12 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
+/*! \brief A per-thread buffer for transport to string conversion */
+AST_THREADSTORAGE(sip_transport_str_buf);
+
+/*! \brief Size of the SIP transport buffer */
+#define SIP_TRANSPORT_STR_BUFSIZE 128
+
 /*! \brief Authentication container for realm authentication */
 static struct sip_auth_container *authl = NULL;
 /*! \brief Global authentication container protection while adjusting the references. */
@@ -2525,6 +2531,54 @@ static void *sip_tcp_worker_fn(void *data)
 	return _sip_tcp_helper_thread(tcptls_session);
 }
 
+/*! \brief SIP WebSocket connection handler */
+static void sip_websocket_callback(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers)
+{
+	int res;
+
+	if (ast_websocket_set_nonblock(session)) {
+		goto end;
+	}
+
+	while ((res = ast_wait_for_input(ast_websocket_fd(session), -1)) > 0) {
+		char *payload;
+		uint64_t payload_len;
+		enum ast_websocket_opcode opcode;
+		int fragmented;
+
+		if (ast_websocket_read(session, &payload, &payload_len, &opcode, &fragmented)) {
+			/* We err on the side of caution and terminate the session if any error occurs */
+			break;
+		}
+
+		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
+			struct sip_request req = { 0, };
+
+			if (!(req.data = ast_str_create(payload_len))) {
+				goto end;
+			}
+
+			if (ast_str_set(&req.data, -1, "%s", payload) == AST_DYNSTR_BUILD_FAILED) {
+				deinit_req(&req);
+				goto end;
+			}
+
+			req.socket.fd = ast_websocket_fd(session);
+			set_socket_transport(&req.socket, ast_websocket_is_secure(session) ? SIP_TRANSPORT_WSS : SIP_TRANSPORT_WS);
+			req.socket.ws_session = session;
+
+			handle_request_do(&req, ast_websocket_remote_address(session));
+			deinit_req(&req);
+
+		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+			break;
+		}
+	}
+
+end:
+	ast_websocket_unref(session);
+}
+
 /*! \brief Check if the authtimeout has expired.
  * \param start the time when the session started
  *
@@ -2800,6 +2854,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 					we receive is not the same - we should generate an error */
 
 			req.socket.tcptls_session = tcptls_session;
+			req.socket.ws_session = NULL;
 			handle_request_do(&req, &tcptls_session->remote_address);
 		}
 
@@ -3306,29 +3361,53 @@ static int get_transport_str2enum(const char *transport)
 	if (!strcasecmp(transport, "tls")) {
 		res |= SIP_TRANSPORT_TLS;
 	}
+	if (!strcasecmp(transport, "ws")) {
+		res |= SIP_TRANSPORT_WS;
+	}
+	if (!strcasecmp(transport, "wss")) {
+		res |= SIP_TRANSPORT_WSS;
+	}
 
 	return res;
 }
 
 /*! \brief Return configuration of transports for a device */
-static inline const char *get_transport_list(unsigned int transports) {
-	switch (transports) {
-		case SIP_TRANSPORT_UDP:
-			return "UDP";
-		case SIP_TRANSPORT_TCP:
-			return "TCP";
-		case SIP_TRANSPORT_TLS:
-			return "TLS";
-		case SIP_TRANSPORT_UDP | SIP_TRANSPORT_TCP:
-			return "TCP,UDP";
-		case SIP_TRANSPORT_UDP | SIP_TRANSPORT_TLS:
-			return "TLS,UDP";
-		case SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS:
-			return "TLS,TCP";
-		default:
-			return transports ?
-				"TLS,TCP,UDP" : "UNKNOWN";	
+static inline const char *get_transport_list(unsigned int transports)
+{
+	char *buf;
+
+	if (!transports) {
+		return "UNKNOWN";
 	}
+
+	if (!(buf = ast_threadstorage_get(&sip_transport_str_buf, SIP_TRANSPORT_STR_BUFSIZE))) {
+		return "";
+	}
+
+	memset(buf, 0, SIP_TRANSPORT_STR_BUFSIZE);
+
+	if (transports & SIP_TRANSPORT_UDP) {
+		strncat(buf, "UDP,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
+	}
+	if (transports & SIP_TRANSPORT_TCP) {
+		strncat(buf, "TCP,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
+	}
+	if (transports & SIP_TRANSPORT_TLS) {
+		strncat(buf, "TLS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
+	}
+	if (transports & SIP_TRANSPORT_WS) {
+		strncat(buf, "WS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
+	}
+	if (transports & SIP_TRANSPORT_WSS) {
+		strncat(buf, "WSS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
+	}
+
+	/* Remove the trailing ',' if present */
+	if (strlen(buf)) {
+		buf[strlen(buf) - 1] = 0;
+	}
+
+	return buf;
 }
 
 /*! \brief Return transport as string */
@@ -3341,6 +3420,9 @@ const char *sip_get_transport(enum sip_transport t)
 		return "TCP";
 	case SIP_TRANSPORT_TLS:
 		return "TLS";
+	case SIP_TRANSPORT_WS:
+	case SIP_TRANSPORT_WSS:
+		return "WS";
 	}
 
 	return "UNKNOWN";
@@ -3352,9 +3434,13 @@ static inline const char *get_srv_protocol(enum sip_transport t)
 	switch (t) {
 	case SIP_TRANSPORT_UDP:
 		return "udp";
+	case SIP_TRANSPORT_WS:
+		return "ws";
 	case SIP_TRANSPORT_TLS:
 	case SIP_TRANSPORT_TCP:
 		return "tcp";
+	case SIP_TRANSPORT_WSS:
+		return "wss";
 	}
 
 	return "udp";
@@ -3366,8 +3452,10 @@ static inline const char *get_srv_service(enum sip_transport t)
 	switch (t) {
 	case SIP_TRANSPORT_TCP:
 	case SIP_TRANSPORT_UDP:
+	case SIP_TRANSPORT_WS:
 		return "sip";
 	case SIP_TRANSPORT_TLS:
+	case SIP_TRANSPORT_WSS:
 		return "sips";
 	}
 	return "sip";
@@ -3414,6 +3502,11 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data)
 		res = ast_sendto(p->socket.fd, data->str, ast_str_strlen(data), 0, dst);
 	} else if (p->socket.tcptls_session) {
 		res = sip_tcptls_write(p->socket.tcptls_session, data->str, ast_str_strlen(data));
+	} else if (p->socket.ws_session) {
+		if (!(res = ast_websocket_write(p->socket.ws_session, AST_WEBSOCKET_OPCODE_TEXT, data->str, ast_str_strlen(data)))) {
+			/* The WebSocket API just returns 0 on success and -1 on failure, while this code expects the payload length to be returned */
+			res = ast_str_strlen(data);
+		}
 	} else {
 		ast_debug(2, "Socket type is TCP but no tcptls_session is present to write to\n");
 		return XMIT_ERROR;
@@ -4730,6 +4823,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	if (peer->socket.tcptls_session) {
 		ao2_ref(peer->socket.tcptls_session, -1);
 		peer->socket.tcptls_session = NULL;
+	} else if (peer->socket.ws_session) {
+		ast_websocket_unref(peer->socket.ws_session);
+		peer->socket.ws_session = NULL;
 	}
 
 	ast_cc_config_params_destroy(peer->cc_params);
@@ -5298,10 +5394,15 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 	if (to_sock->tcptls_session) {
 		ao2_ref(to_sock->tcptls_session, -1);
 		to_sock->tcptls_session = NULL;
+	} else if (to_sock->ws_session) {
+		ast_websocket_unref(to_sock->ws_session);
+		to_sock->ws_session = NULL;
 	}
 
 	if (from_sock->tcptls_session) {
 		ao2_ref(from_sock->tcptls_session, +1);
+	} else if (from_sock->ws_session) {
+		ast_websocket_ref(from_sock->ws_session);
 	}
 
 	*to_sock = *from_sock;
@@ -6012,6 +6113,9 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->socket.tcptls_session) {
 		ao2_ref(p->socket.tcptls_session, -1);
 		p->socket.tcptls_session = NULL;
+	} else if (p->socket.ws_session) {
+		ast_websocket_unref(p->socket.ws_session);
+		p->socket.ws_session = NULL;
 	}
 
 	if (p->peerauth) {
@@ -9334,7 +9438,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int image = FALSE;
 		int text = FALSE;
 		int processed_crypto = FALSE;
-		char protocol[5] = {0,};
+		char protocol[6] = {0,};
 		int x;
 
 		numberofports = 0;
@@ -9354,8 +9458,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 		/* Check for 'audio' media offer */
 		if (strncmp(m, "audio ", 6) == 0) {
-			if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if ((sscanf(m, "audio %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "audio %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
 				 * length is "m=audio 0 RTP/" + protocol + " " + codecs + "\0" */
@@ -9377,9 +9481,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_log(LOG_WARNING, "%d ports offered for audio media, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (!strcmp(protocol, "SAVP")) {
+				if (!strcmp(protocol, "SAVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVPF profle in audio offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "SAVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVP profile in audio offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "SAVP") || !strcmp(protocol, "SAVPF")) {
 					secure_audio = 1;
-				} else if (strcmp(protocol, "AVP")) {
+				} else if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVPF profile in audio offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVP profile in audio offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
 					continue;
 				}
@@ -9414,8 +9530,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		/* Check for 'video' media offer */
 		else if (strncmp(m, "video ", 6) == 0) {
-			if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			    (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if ((sscanf(m, "video %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "video %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
 				 * length is "m=video 0 RTP/" + protocol + " " + codecs + "\0" */
@@ -9437,9 +9553,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_log(LOG_WARNING, "%d ports offered for video stream, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (!strcmp(protocol, "SAVP")) {
+				if (!strcmp(protocol, "SAVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVPF profle in video offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "SAVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVP profile in video offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "SAVP") || !strcmp(protocol, "SAVPF")) {
 					secure_video = 1;
-				} else if (strcmp(protocol, "AVP")) {
+				} else if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVPF profile in video offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVP profile in video offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
 					continue;
 				}
@@ -9474,18 +9602,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		/* Check for 'text' media offer */
 		else if (strncmp(m, "text ", 5) == 0) {
-			if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-			    (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+			if ((sscanf(m, "text %30u/%30u RTP/%s %n", &x, &numberofports, protocol, &len) == 2 && len > 0) ||
+			    (sscanf(m, "text %30u RTP/%s %n", &x, protocol, &len) == 1 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=text 0 RTP/AVP " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(17 + strlen(codecs) + 1))) {
+				 * length is "m=text 0 RTP/" + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(13 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=text 0 RTP/AVP %s", codecs);
+				sprintf(offer->decline_m_line, "m=text 0 RTP/%s %s", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring text stream offer because port number is zero\n");
@@ -9495,6 +9623,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
 					ast_log(LOG_WARNING, "%d ports offered for text stream, not supported by Asterisk. Will try anyway...\n", numberofports);
+				}
+
+				if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVPF profile in text offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVP profile in text offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
+					ast_log(LOG_WARNING, "Unknown RTP profile in text offer: %s\n", m);
+					continue;
 				}
 
 				if (has_media_stream(p, SDP_TEXT)) {
@@ -10692,13 +10831,23 @@ static void add_route(struct sip_request *req, struct sip_route *route)
  */
 static void set_destination(struct sip_pvt *p, char *uri)
 {
-	char *h, *maddr, hostname[256];
+	char *trans, *h, *maddr, hostname[256];
 	int hn;
 	int debug=sip_debug_test_pvt(p);
 	int tls_on = FALSE;
 
 	if (debug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
+
+	if ((trans = strcasestr(uri, ";transport="))) {
+		trans += strlen(";transport=");
+
+		if (!strncasecmp(trans, "ws", 2)) {
+			if (debug)
+				ast_verbose("set_destination: URI is for WebSocket, we can't set destination\n");
+			return;
+		}
+	}
 
 	/* Find and parse hostname */
 	h = strchr(uri, '@');
@@ -12026,6 +12175,15 @@ static void get_crypto_attrib(struct sip_pvt *p, struct sip_srtp *srtp, const ch
 	}
 }
 
+static char *get_sdp_rtp_profile(const struct sip_pvt *p, unsigned int secure)
+{
+	if (ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+		return secure ? "SAVPF" : "AVPF";
+	} else {
+		return secure ? "SAVP" : "AVP";
+	}
+}
+
 /*! \brief Add Session Description Protocol message
 
     If oldsdp is TRUE, then the SDP version number is not incremented. This mechanism
@@ -12186,7 +12344,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needvideo) {
 			get_crypto_attrib(p, p->vsrtp, &v_a_crypto);
 			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ast_sockaddr_port(&vdest),
-				v_a_crypto ? "SAVP" : "AVP");
+				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -12207,7 +12365,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Lets set up the text sdp\n");
 			get_crypto_attrib(p, p->tsrtp, &t_a_crypto);
 			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ast_sockaddr_port(&tdest),
-				t_a_crypto ? "SAVP" : "AVP");
+				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
 			if (debug) {  /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
@@ -12224,7 +12382,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		get_crypto_attrib(p, p->srtp, &a_crypto);
 		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ast_sockaddr_port(&dest),
-			a_crypto ? "SAVP" : "AVP");
+			       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
@@ -14639,6 +14797,9 @@ static void set_socket_transport(struct sip_socket *socket, int transport)
 		if (socket->tcptls_session) {
 			ao2_ref(socket->tcptls_session, -1);
 			socket->tcptls_session = NULL;
+		} else if (socket->ws_session) {
+			ast_websocket_unref(socket->ws_session);
+			socket->ws_session = NULL;
 		}
 	}
 }
@@ -14661,6 +14822,9 @@ static int expire_register(const void *data)
 	if (peer->socket.tcptls_session) {
 		ao2_ref(peer->socket.tcptls_session, -1);
 		peer->socket.tcptls_session = NULL;
+	} else if (peer->socket.ws_session) {
+		ast_websocket_unref(peer->socket.ws_session);
+		peer->socket.ws_session = NULL;
 	}
 
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
@@ -16840,6 +17004,11 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 	uint16_t port;
 
 	ast_copy_string(via, sip_get_header(req, "Via"), sizeof(via));
+
+	/* If this is via WebSocket we don't use the Via header contents at all */
+	if (!strncasecmp(via, "SIP/2.0/WS", 10)) {
+		return;
+	}
 
 	/* Work on the leftmost value of the topmost Via header */
 	c = strchr(via, ',');
@@ -20984,6 +21153,9 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 	if (p->socket.tcptls_session) {
 		ao2_ref(p->socket.tcptls_session, -1);
 		p->socket.tcptls_session = NULL;
+	} else if (p->socket.ws_session) {
+		ast_websocket_unref(p->socket.ws_session);
+		p->socket.ws_session = NULL;
 	}
 
 	set_socket_transport(&p->socket, transport);
@@ -27196,6 +27368,9 @@ static int sip_prepare_socket(struct sip_pvt *p)
 			(s->tcptls_session->fd != -1)) {
 		return s->tcptls_session->fd;
 	}
+	if ((s->type & (SIP_TRANSPORT_WS | SIP_TRANSPORT_WSS))) {
+		return s->ws_session ? ast_websocket_fd(s->ws_session) : -1;
+	}
 
 	/*! \todo Check this... This might be wrong, depending on the proxy configuration
 		If proxy is in "force" mode its correct.
@@ -29188,6 +29363,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 					if (!strncasecmp(trans, "udp", 3)) {
 						peer->transports |= SIP_TRANSPORT_UDP;
+					} else if (!strncasecmp(trans, "wss", 3)) {
+						peer->transports |= SIP_TRANSPORT_WSS;
+					} else if (!strncasecmp(trans, "ws", 2)) {
+						peer->transports |= SIP_TRANSPORT_WS;
 					} else if (sip_cfg.tcp_enabled && !strncasecmp(trans, "tcp", 3)) {
 						peer->transports |= SIP_TRANSPORT_TCP;
 					} else if (default_tls_cfg.enabled && !strncasecmp(trans, "tls", 3)) {
@@ -29538,6 +29717,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[2], !strcasecmp(v->value, "32"), SIP_PAGE3_SRTP_TAG_32);
 			} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
+			} else if (!strcasecmp(v->name, "avpf")) {
+				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_USE_AVPF);
 			}
 		}
 
@@ -29651,7 +29832,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	 * 3. The socket.type is not set yet. */
 	if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
 		!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
-
 		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 	}
 
@@ -30189,6 +30369,10 @@ static int reload_config(enum channelreloadreason reason)
 					default_transports |= SIP_TRANSPORT_TCP;
 				} else if (!strncasecmp(trans, "tls", 3)) {
 					default_transports |= SIP_TRANSPORT_TLS;
+				} else if (!strncasecmp(trans, "wss", 3)) {
+					default_transports |= SIP_TRANSPORT_WSS;
+				} else if (!strncasecmp(trans, "ws", 2)) {
+					default_transports |= SIP_TRANSPORT_WS;
 				} else {
 					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
 				}
@@ -32598,6 +32782,8 @@ static int load_module(void)
 	sip_register_tests();
 	network_change_event_subscribe();
 
+	ast_websocket_add_protocol("sip", sip_websocket_callback);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -32609,6 +32795,8 @@ static int unload_module(void)
 	struct ast_context *con;
 	struct ao2_iterator i;
 	int wait_count;
+
+	ast_websocket_remove_protocol("sip", sip_websocket_callback);
 
 	network_change_event_unsubscribe();
 	acl_change_event_unsubscribe();

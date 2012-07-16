@@ -45,8 +45,10 @@ static enum ast_security_event_transport_type security_event_get_transport(const
 	case SIP_TRANSPORT_UDP:
 		return AST_SECURITY_EVENT_TRANSPORT_UDP;
 	case SIP_TRANSPORT_TCP:
+	case SIP_TRANSPORT_WS:
 		return AST_SECURITY_EVENT_TRANSPORT_TCP;
 	case SIP_TRANSPORT_TLS:
+	case SIP_TRANSPORT_WSS:
 		return AST_SECURITY_EVENT_TRANSPORT_TLS;
 	}
 

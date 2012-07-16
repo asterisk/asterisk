@@ -105,6 +105,8 @@ SIP Changes
  * Add support for lightweight NAT keepalive. If enabled a blank packet will
    be sent to the remote host at a given interval to keep the NAT mapping open.
    This can be enabled using the keepalive configuration option.
+ * Add support for WebSocket transport. This can be configured using 'ws' or 'wss'
+   as the transport.
 
 Chan_local changes
 ------------------

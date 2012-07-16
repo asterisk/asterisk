@@ -35,6 +35,7 @@
 #include "asterisk/indications.h"
 #include "asterisk/security_events.h"
 #include "asterisk/features.h"
+#include "asterisk/http_websocket.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -369,10 +370,11 @@
 #define SIP_PAGE3_NAT_AUTO_RPORT         (1 << 2)  /*!< DGP: Set SIP_NAT_FORCE_RPORT when NAT is detected */
 #define SIP_PAGE3_NAT_AUTO_COMEDIA       (1 << 3)  /*!< DGP: Set SIP_PAGE2_SYMMETRICRTP when NAT is detected */
 #define SIP_PAGE3_DIRECT_MEDIA_OUTGOING  (1 << 4)  /*!< DP: Only send direct media reinvites on outgoing calls */
+#define SIP_PAGE3_USE_AVPF               (1 << 5)  /*!< DGP: Support a minimal AVPF-compatible profile */
 
 #define SIP_PAGE3_FLAGS_TO_COPY \
 	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32 | SIP_PAGE3_NAT_AUTO_RPORT | SIP_PAGE3_NAT_AUTO_COMEDIA | \
-	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING)
+	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING | SIP_PAGE3_USE_AVPF)
 
 #define CHECK_AUTH_BUF_INITLEN   256
 
@@ -564,6 +566,8 @@ enum sip_transport {
 	SIP_TRANSPORT_UDP = 1,         /*!< Unreliable transport for SIP, needs retransmissions */
 	SIP_TRANSPORT_TCP = 1 << 1,    /*!< Reliable, but unsecure */
 	SIP_TRANSPORT_TLS = 1 << 2,    /*!< TCP/TLS - reliable and secure transport for signalling */
+        SIP_TRANSPORT_WS  = 1 << 3,    /*!< WebSocket, unsecure */
+        SIP_TRANSPORT_WSS = 1 << 4,    /*!< WebSocket, secure */
 };
 
 /*! \brief Automatic peer registration behavior
@@ -769,6 +773,7 @@ struct sip_socket {
 	int fd;                   /*!< Filed descriptor, the actual socket */
 	uint16_t port;
 	struct ast_tcptls_session_instance *tcptls_session;  /* If tcp or tls, a socket manager */
+	struct ast_websocket *ws_session; /*! If ws or wss, a WebSocket session */
 };
 
 /*! \brief sip_request: The data grabbed from the UDP socket
@@ -1284,7 +1289,7 @@ struct sip_peer {
 	enum sip_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
 	                                                     If register expires, default should be reset. to this value */
 	/* things that don't belong in flags */
-	unsigned short transports:3;    /*!< Transports (enum sip_transport) that are acceptable for this peer */
+	unsigned short transports:5;    /*!< Transports (enum sip_transport) that are acceptable for this peer */
 	unsigned short is_realtime:1;   /*!< this is a 'realtime' peer */
 	unsigned short rt_fromcontact:1;/*!< copy fromcontact from realtime */
 	unsigned short host_dynamic:1;  /*!< Dynamic Peers register with Asterisk */

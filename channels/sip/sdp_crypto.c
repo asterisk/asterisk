@@ -218,7 +218,7 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 		return -1;
 	}
 
-	if (session_params) {
+	if (!ast_strlen_zero(session_params)) {
 		ast_log(LOG_WARNING, "Unsupported crypto parameters: %s", session_params);
 		return -1;
 	}
