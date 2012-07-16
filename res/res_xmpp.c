@@ -2522,7 +2522,7 @@ static int xmpp_client_authenticate_digest(struct ast_xmpp_client *client, struc
 /*! \brief Internal function called when we need to authenticate using SASL */
 static int xmpp_client_authenticate_sasl(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, int type, iks *node)
 {
-	int features, len = strlen(cfg->user) + strlen(cfg->password) + 3;
+	int features, len = strlen(client->jid->user) + strlen(cfg->password) + 3;
 	iks *auth;
 	char combined[len];
 	char base64[(len + 2) * 4 / 3];
@@ -2535,7 +2535,7 @@ static int xmpp_client_authenticate_sasl(struct ast_xmpp_client *client, struct 
 	features = iks_stream_features(node);
 
 	if ((features & IKS_STREAM_SASL_MD5) && !xmpp_is_secure(client)) {
-		if (iks_start_sasl(client->parser, IKS_SASL_DIGEST_MD5, (char*)cfg->user, (char*)cfg->password) != IKS_OK) {
+		if (iks_start_sasl(client->parser, IKS_SASL_DIGEST_MD5, (char*)client->jid->user, (char*)cfg->password) != IKS_OK) {
 			ast_log(LOG_ERROR, "Tried to authenticate client '%s' using SASL DIGEST-MD5 but could not\n", client->name);
 			return -1;
 		}
@@ -2558,12 +2558,12 @@ static int xmpp_client_authenticate_sasl(struct ast_xmpp_client *client, struct 
 	iks_insert_attrib(auth, "xmlns", IKS_NS_XMPP_SASL);
 	iks_insert_attrib(auth, "mechanism", "PLAIN");
 
-	if (strchr(cfg->user, '/')) {
-		char *user = ast_strdupa(cfg->user);
+	if (strchr(client->jid->user, '/')) {
+		char *user = ast_strdupa(client->jid->user);
 
 		snprintf(combined, sizeof(combined), "%c%s%c%s", 0, strsep(&user, "/"), 0, cfg->password);
 	} else {
-		snprintf(combined, sizeof(combined), "%c%s%c%s", 0, cfg->user, 0, cfg->password);
+		snprintf(combined, sizeof(combined), "%c%s%c%s", 0, client->jid->user, 0, cfg->password);
 	}
 
 	ast_base64encode(base64, (const unsigned char *) combined, len - 1, (len + 2) * 4 / 3);
