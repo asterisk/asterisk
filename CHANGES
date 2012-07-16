@@ -128,6 +128,7 @@ Chan_unistim changes
    Russian languages.  Supported encodings: ISO 8859-1, ISO 8859-2, ISO 8859-4, 
    ISO 8859-5, ISO 2022-JP. Language controlled by 'language' and on-screen 
    menu of phone
+ * In addition to English added French and Russian languages for on-screen menus
  * Reworked dialing number input: added dialing by timeout, immediate dial on 
    on dialplan compare, phone number length now not limited by screen size
  * Added ability for pickup a call using fetures.conf defined value and 

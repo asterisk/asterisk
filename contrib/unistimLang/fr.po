@@ -1,0 +1,262 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-02-13 11:09+0600\n"
+"PO-Revision-Date: 2011-02-13 11:45+0600\n"
+"Last-Translator: Ian Deschenes <ian-deschenes@hotmail.com>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: French\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: chan_unistim_lang.c:2
+msgid "Miss"
+msgstr "Manquer"
+
+#: chan_unistim_lang.c:3
+msgid "Fail"
+msgstr "Echec"
+
+#: chan_unistim_lang.c:4
+msgid "Answ"
+msgstr "Repondr"
+
+#: chan_unistim_lang.c:5
+msgid "Number:"
+msgstr "Numero:"
+
+#: chan_unistim_lang.c:6
+msgid "Enter forward"
+msgstr "Entrer renvoi"
+
+#: chan_unistim_lang.c:7
+msgid "Fwd    Cancel BackSp Erase"
+msgstr "Renvoi AnnulerRetour Effacer"
+
+#: chan_unistim_lang.c:8
+msgid "Enter the number to dial"
+msgstr "Composer le numero"
+
+#: chan_unistim_lang.c:9
+msgid "and press Call"
+msgstr "et appuyer sur Appel"
+
+#: chan_unistim_lang.c:10
+msgid "Call   Redial BackSp Erase"
+msgstr "Appel  Rappel Retour Effacer"
+
+#: chan_unistim_lang.c:11
+msgid "Calling (pre-transfer)"
+msgstr "Appel (pre-transfert)"
+
+#: chan_unistim_lang.c:12
+#: chan_unistim_lang.c:17
+msgid "Dialing..."
+msgstr "Composition..."
+
+#: chan_unistim_lang.c:13
+msgid "TransfrCancel"
+msgstr "TransfrAnnuler"
+
+#: chan_unistim_lang.c:14
+#: chan_unistim_lang.c:20
+#: chan_unistim_lang.c:25
+#: chan_unistim_lang.c:55
+#: chan_unistim_lang.c:58
+msgid "Hangup Transf"
+msgstr "RacrochTransfr"
+
+#: chan_unistim_lang.c:15
+msgid "Calling..."
+msgstr "Composition..."
+
+#: chan_unistim_lang.c:16
+msgid "Calling :"
+msgstr "Composition :"
+
+#: chan_unistim_lang.c:18
+msgid "Hangup"
+msgstr "Racroch"
+
+#: chan_unistim_lang.c:19
+msgid "is on-line"
+msgstr "est en ligne"
+
+#: chan_unistim_lang.c:21
+msgid "Dial Cancel,back to priv. call."
+msgstr "Appel Ann.,retour a appel prec."
+
+#: chan_unistim_lang.c:22
+msgid "Dialing canceled,"
+msgstr "Composition annule,"
+
+#: chan_unistim_lang.c:23
+msgid "switching back to"
+msgstr "retour a l'appel"
+
+#: chan_unistim_lang.c:24
+msgid "previous call."
+msgstr "precedente."
+
+#: chan_unistim_lang.c:26
+#: chan_unistim_lang.c:29
+msgid "Select               Cancel"
+msgstr "Choisir              Annuler"
+
+#: chan_unistim_lang.c:27
+msgid "Using codec"
+msgstr "Codec en cours :"
+
+#: chan_unistim_lang.c:28
+msgid "Select BackSp Erase  Cancel"
+msgstr "ChoisirRetour EffacerAnnuler"
+
+#: chan_unistim_lang.c:30
+#, fuzzy
+msgid "Please enter a Terminal"
+msgstr "SVP entrer un Terminal"
+
+#: chan_unistim_lang.c:31
+msgid "Number (TN) :"
+msgstr "Numero (TN) :"
+
+#: chan_unistim_lang.c:32
+msgid "Enter  BackSpcErase"
+msgstr "Entrer Retour Effacer"
+
+#: chan_unistim_lang.c:33
+msgid "Invalid Terminal Number."
+msgstr "Numero de TN invalide."
+
+#: chan_unistim_lang.c:34
+#: chan_unistim_lang.c:36
+msgid "Please try again :"
+msgstr "SVP asseyer de nouveau :"
+
+#: chan_unistim_lang.c:35
+msgid "Invalid extension."
+msgstr "Extension invalide."
+
+#: chan_unistim_lang.c:37
+msgid "Prev   "
+msgstr "Preced."
+
+#: chan_unistim_lang.c:38
+msgid "Next   "
+msgstr "Suivant"
+
+#: chan_unistim_lang.c:39
+msgid "Redial "
+msgstr "Rappel "
+
+#: chan_unistim_lang.c:40
+#, c-format
+msgid "%s%s%sCancel"
+msgstr "%s%s%sAnnuler"
+
+#: chan_unistim_lang.c:41
+#, c-format
+msgid "Fwd to: %s"
+msgstr "Renvoi a: %s"
+
+#: chan_unistim_lang.c:42
+msgid "Call forwarded to :"
+msgstr "Renvoi d'appel a :"
+
+#: chan_unistim_lang.c:43
+msgid "Dial   Redial NoFwd  "
+msgstr "Appel  Rappel AnnRenv"
+
+#: chan_unistim_lang.c:44
+msgid "Dial  Redial  Fwd    Unregis"
+msgstr "Appel  Rappel Renvoi DeEnreg"
+
+#: chan_unistim_lang.c:45
+msgid "Dial   Redial Fwd    Pickup"
+msgstr "Appel  Rappel Renvoi Renouer"
+
+#: chan_unistim_lang.c:46
+#, c-format
+msgid "%d unanswered call"
+msgstr "%d appel non repondu"
+
+#: chan_unistim_lang.c:47
+#, c-format
+msgid "%d unanswered calls"
+msgstr "%d appel non repondu"
+
+#: chan_unistim_lang.c:48
+msgid "Sorry, this phone is not"
+msgstr "Desole, ce telephone"
+
+#: chan_unistim_lang.c:49
+msgid "registered in unistim.cfg"
+msgstr "n'a pas d'enregistrement"
+
+#: chan_unistim_lang.c:50
+msgid "is calling you."
+msgstr "vous appelle."
+
+#: chan_unistim_lang.c:51
+msgid "Accept               Ignore"
+msgstr "Accept               Ignorer"
+
+#: chan_unistim_lang.c:52
+msgid "Three way call canceled"
+msgstr "Appel a trois annuler"
+
+#: chan_unistim_lang.c:53
+msgid "switching back"
+msgstr "retour a l'appel"
+
+#: chan_unistim_lang.c:54
+msgid "to previous call."
+msgstr "precedent."
+
+#: chan_unistim_lang.c:56
+msgid "is now on-line"
+msgstr "est maintenat en ligne"
+
+#: chan_unistim_lang.c:57
+msgid "Transf Cancel"
+msgstr "TransfrAnnuler"
+
+#: chan_unistim_lang.c:59
+msgid "Ringing..."
+msgstr "Ring Ring..."
+
+#: chan_unistim_lang.c:60
+msgid "Busy"
+msgstr "Occuper"
+
+#: chan_unistim_lang.c:61
+msgid "Congestion"
+msgstr "Congestion"
+
+#: chan_unistim_lang.c:62
+msgid "Message :"
+msgstr "Message :"
+
+#: chan_unistim_lang.c:63
+msgid "Change codec"
+msgstr "Changer codec"
+
+#: chan_unistim_lang.c:64
+msgid "Contrast"
+msgstr "Contraste"
+
+#: chan_unistim_lang.c:65
+msgid "Language"
+msgstr "Language"
+
+#: chan_unistim_lang.c:66
+msgid "English"
+msgstr "English"
+
+#: chan_unistim_lang.c:67
+msgid "Russian"
+msgstr "Russian"
+
