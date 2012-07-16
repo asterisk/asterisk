@@ -2497,6 +2497,7 @@ static int xmpp_client_authenticate_digest(struct ast_xmpp_client *client, struc
 	iks_insert_cdata(iks_insert(query, "username"), client->jid->user, 0);
 	iks_insert_cdata(iks_insert(query, "resource"), client->jid->resource, 0);
 
+	iks_insert_attrib(query, "xmlns", "jabber:iq:auth");
 	snprintf(sidpass, sizeof(sidpass), "%s%s", iks_find_attrib(node, "id"), cfg->password);
 	ast_sha1_hash(buf, sidpass);
 	iks_insert_cdata(iks_insert(query, "digest"), buf, 0);
