@@ -4449,6 +4449,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		} else if (pte->state == STATE_EXTENSION) {
 			return;
 		} else {
+			pte->device->nextdial = 0;
 			show_main_page(pte);
 		}
 		return;
