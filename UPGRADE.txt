@@ -18,6 +18,11 @@
 ===
 ===========================================================
 
+From 1.8.12 to 1.8.13:
+* The complex processor detection and optimization has been removed from
+  the makefile in favor of using native optimization suppport when available.
+  BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
+
 From 1.8.11 to 1.8.12:
 * In AEL dialplans, the "h" extension will now be inherited from prior
   calling contexts, just as it had in 1.4.  If you have created an AEL

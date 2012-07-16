@@ -9,6 +9,18 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 1.8.12.0 ----------------------------
+------------------------------------------------------------------------------
+
+Build System
+------------
+ * The optimization portion of the build system has been reworked to avoid
+   broken builds on certain architectures.  All architecture-specific
+   optimization has been removed in favor of using -march=native to allow gcc
+   to detect the environment in which it is running when possible.  This can
+   be toggled as BUILD_NATIVE under "Compiler Flags" in menuselect.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.8.10.0 ----------------------------
 ------------------------------------------------------------------------------
 
