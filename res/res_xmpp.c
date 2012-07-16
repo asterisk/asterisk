@@ -2211,7 +2211,11 @@ static int xmpp_client_service_discovery_get_hook(void *data, ikspak *pak)
 	}
 
 	iks_insert_attrib(iq, "from", client->jid->full);
-	iks_insert_attrib(iq, "to", pak->from->full);
+
+	if (pak->from) {
+		iks_insert_attrib(iq, "to", pak->from->full);
+	}
+
 	iks_insert_attrib(iq, "type", "result");
 	iks_insert_attrib(iq, "id", pak->id);
 	iks_insert_attrib(query, "xmlns", "http://jabber.org/protocol/disco#info");
@@ -3037,8 +3041,11 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 	}
 
 	if (!(buddy = ao2_find(client->buddies, pak->from->partial, OBJ_KEY))) {
-		ast_log(LOG_WARNING, "Received presence information about '%s' despite not having them in roster on client '%s'\n",
-			pak->from->partial, client->name);
+		/* Only output the message if it is not about us */
+		if (strcmp(client->jid->partial, pak->from->partial)) {
+			ast_log(LOG_WARNING, "Received presence information about '%s' despite not having them in roster on client '%s'\n",
+				pak->from->partial, client->name);
+		}
 		return 0;
 	}
 
