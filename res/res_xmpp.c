@@ -2557,7 +2557,14 @@ static int xmpp_client_authenticate_sasl(struct ast_xmpp_client *client, struct 
 	iks_insert_attrib(auth, "xmlns", IKS_NS_XMPP_SASL);
 	iks_insert_attrib(auth, "mechanism", "PLAIN");
 
-	snprintf(combined, sizeof(combined), "%c%s%c%s", 0, cfg->user, 0, cfg->password);
+	if (strchr(cfg->user, '/')) {
+		char *user = ast_strdupa(cfg->user);
+
+		snprintf(combined, sizeof(combined), "%c%s%c%s", 0, strsep(&user, "/"), 0, cfg->password);
+	} else {
+		snprintf(combined, sizeof(combined), "%c%s%c%s", 0, cfg->user, 0, cfg->password);
+	}
+
 	ast_base64encode(base64, (const unsigned char *) combined, len - 1, (len + 2) * 4 / 3);
 	iks_insert_cdata(auth, base64, 0);
 
