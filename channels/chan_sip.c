@@ -3111,6 +3111,52 @@ static int proxy_update(struct sip_proxy *proxy)
 	return TRUE;
 }
 
+/*! \brief Parse proxy string and return an ao2_alloc'd proxy. If dest is
+ *         non-NULL, no allocation is performed and dest is used instead.
+ *         On error NULL is returned. */
+static struct sip_proxy *proxy_from_config(const char *proxy, int sipconf_lineno, struct sip_proxy *dest)
+{
+	char *mutable_proxy, *sep, *name;
+	int allocated = 0;
+
+	if (!dest) {
+		dest = ao2_alloc(sizeof(struct sip_proxy), NULL);
+		if (!dest) {
+			ast_log(LOG_WARNING, "Unable to allocate config storage for proxy\n");
+			return NULL;
+		}
+		allocated = 1;
+	}
+
+	/* Format is: [transport://]name[:port][,force] */
+	mutable_proxy = ast_skip_blanks(ast_strdupa(proxy));
+	sep = strchr(mutable_proxy, ',');
+	if (sep) {
+		*sep++ = '\0';
+		dest->force = !strncasecmp(ast_skip_blanks(sep), "force", 5);
+	} else {
+		dest->force = FALSE;
+	}
+
+	sip_parse_host(mutable_proxy, sipconf_lineno, &name, &dest->port, &dest->transport);
+
+	/* Check that there is a name at all */
+	if (ast_strlen_zero(name)) {
+		if (allocated) {
+			ao2_ref(dest, -1);
+		} else {
+			dest->name[0] = '\0';
+		}
+		return NULL;
+	}
+	ast_copy_string(dest->name, name, sizeof(dest->name));
+
+	/* Resolve host immediately */
+	proxy_update(dest);
+
+	return dest;
+}
+
 /*! \brief converts ascii port to int representation. If no
  *  pt buffer is provided or the pt has errors when being converted
  *  to an int value, the port provided as the standard is used.
@@ -27571,49 +27617,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "fromuser")) {
 				ast_string_field_set(peer, fromuser, v->value);
 			} else if (!strcasecmp(v->name, "outboundproxy")) {
-				char *host, *proxyname, *sep;
-
+				struct sip_proxy *proxy;
 				if (ast_strlen_zero(v->value)) {
 					ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf\n", v->lineno);
 					continue;
 				}
-
-				if (!peer->outboundproxy) {
-					peer->outboundproxy = ao2_alloc(sizeof(*peer->outboundproxy), NULL);
-					if (!peer->outboundproxy) {
-						ast_log(LOG_WARNING, "Unable to allocate config storage for outboundproxy\n");
-						continue;
-					}
-				}
-
-				host = ast_strdupa(v->value);
-				if (!host) {
-					ast_log(LOG_WARNING, "Unable to allocate stack space for parsing outboundproxy\n");
+				proxy = proxy_from_config(v->value, v->lineno, peer->outboundproxy);
+				if (!proxy) {
+					ast_log(LOG_WARNING, "failure parsing the outbound proxy on line %d of sip.conf.\n", v->lineno);
 					continue;
 				}
-
-				host = ast_skip_blanks(host);
-				sep = strchr(host, ',');
-				if (sep) {
-					*sep++ = '\0';
-					peer->outboundproxy->force = !strncasecmp(ast_skip_blanks(sep), "force", 5);
-				} else {
-					peer->outboundproxy->force = FALSE;
-				}
-
-				sip_parse_host(host, v->lineno, &proxyname,
-					       &peer->outboundproxy->port,
-					       &peer->outboundproxy->transport);
-
-				if (ast_strlen_zero(proxyname)) {
-					ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf\n", v->lineno);
-					sip_cfg.outboundproxy.name[0] = '\0';
-					continue;
-				}
-
-				ast_copy_string(peer->outboundproxy->name, proxyname, sizeof(peer->outboundproxy->name));
-
-				proxy_update(peer->outboundproxy);
+				peer->outboundproxy = proxy;
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
@@ -28557,41 +28571,16 @@ static int reload_config(enum channelreloadreason reason)
 				default_fromdomainport = STANDARD_SIP_PORT;
 			}
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			char *host, *proxyname, *sep;
-
+			struct sip_proxy *proxy;
 			if (ast_strlen_zero(v->value)) {
 				ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf\n", v->lineno);
 				continue;
 			}
-
-			host = ast_strdupa(v->value);
-			if (!host) {
-				ast_log(LOG_WARNING, "Unable to allocate stack space for parsing outboundproxy\n");
+			proxy = proxy_from_config(v->value, v->lineno, &sip_cfg.outboundproxy);
+			if (!proxy) {
+				ast_log(LOG_WARNING, "failure parsing the outbound proxy on line %d of sip.conf.\n", v->lineno);
 				continue;
 			}
-
-			host = ast_skip_blanks(host);
-			sep = strchr(host, ',');
-			if (sep) {
-				*sep++ = '\0';
-				sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(sep), "force", 5);
-			} else {
-				sip_cfg.outboundproxy.force = FALSE;
-			}
-
-			sip_parse_host(host, v->lineno, &proxyname,
-				       &sip_cfg.outboundproxy.port,
-				       &sip_cfg.outboundproxy.transport);
-
-			if (ast_strlen_zero(proxyname)) {
-				ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf\n", v->lineno);
-				sip_cfg.outboundproxy.name[0] = '\0';
-				continue;
-			}
-
-			ast_copy_string(sip_cfg.outboundproxy.name, proxyname, sizeof(sip_cfg.outboundproxy.name));
-
-			proxy_update(&sip_cfg.outboundproxy);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			sip_cfg.autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
