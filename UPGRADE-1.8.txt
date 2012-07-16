@@ -18,6 +18,11 @@
 ===
 ===========================================================
 
+From 1.8.12 to 1.8.13:
+* The complex processor detection and optimization has been removed from
+  the makefile in favor of using native optimization suppport when available.
+  BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
+
 From 1.8.10 to 1.8.11:
 
 * If no transport is specified in sip.conf, transport will default to UDP.

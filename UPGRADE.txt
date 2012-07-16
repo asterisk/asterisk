@@ -19,6 +19,12 @@
 ===
 ===========================================================
 
+From 10.4 to 10.5:
+
+* The complex processor detection and optimization has been removed from
+  the makefile in favor of using native optimization suppport when available.
+  BUILD_NATIVE can be disabled via menuselect under "Compiler Flags".
+
 From 10.3 to 10.4:
 
 * In AEL dialplans, the "h" extension will now be inherited from prior
