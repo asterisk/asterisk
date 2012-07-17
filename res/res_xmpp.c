@@ -387,9 +387,6 @@ static const char *app_ajistatus = "JabberStatus";
 static const char *app_ajijoin = "JabberJoin";
 static const char *app_ajileave = "JabberLeave";
 
-static struct ast_event_sub *mwi_sub = NULL;
-static struct ast_event_sub *device_state_sub = NULL;
-
 static ast_cond_t message_received_condition;
 static ast_mutex_t messagelock;
 
@@ -1379,18 +1376,24 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 		return;
 	}
 
-	if (!mwi_sub) {
-		mwi_sub = ast_event_subscribe(AST_EVENT_MWI, xmpp_pubsub_mwi_cb, "xmpp_pubsub_mwi_subscription",
-					      client, AST_EVENT_IE_END);
+	if (!(client->mwi_sub = ast_event_subscribe(AST_EVENT_MWI, xmpp_pubsub_mwi_cb, "xmpp_pubsub_mwi_subscription",
+						    client, AST_EVENT_IE_END))) {
+		return;
 	}
-	if (!device_state_sub) {
-		if (ast_enable_distributed_devstate()) {
-			return;
-		}
-		device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
-						       xmpp_pubsub_devstate_cb, "xmpp_pubsub_devstate_subscription", client, AST_EVENT_IE_END);
-		ast_event_dump_cache(device_state_sub);
+
+	if (ast_enable_distributed_devstate()) {
+		return;
 	}
+	
+
+	if (!(client->device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
+							     xmpp_pubsub_devstate_cb, "xmpp_pubsub_devstate_subscription", client, AST_EVENT_IE_END))) {
+		ast_event_unsubscribe(client->mwi_sub);
+		client->mwi_sub = NULL;
+		return;
+	}
+
+	ast_event_dump_cache(client->device_state_sub);
 
 	xmpp_pubsub_subscribe(client, "device_state");
 	xmpp_pubsub_subscribe(client, "message_waiting");
@@ -3278,10 +3281,20 @@ static int xmpp_action_hook(void *data, int type, iks *node)
 
 int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 {
-	if (client->thread != AST_PTHREADT_NULL) {
+	if ((client->thread != AST_PTHREADT_NULL) && !pthread_equal(pthread_self(), client->thread)) {
 		client->state = XMPP_STATE_DISCONNECTING;
 		pthread_join(client->thread, NULL);
 		client->thread = AST_PTHREADT_NULL;
+	}
+
+	if (client->mwi_sub) {
+		ast_event_unsubscribe(client->mwi_sub);
+		client->mwi_sub = NULL;
+	}
+
+	if (client->device_state_sub) {
+		ast_event_unsubscribe(client->device_state_sub);
+		client->device_state_sub = NULL;
 	}
 
 #ifdef HAVE_OPENSSL
@@ -3290,6 +3303,8 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 		SSL_CTX_free(client->ssl_context);
 		SSL_free(client->ssl_session);
 	}
+
+	client->stream_flags = 0;
 #endif
 
 	if (client->parser) {
@@ -3318,11 +3333,8 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 		return -1;
 	}
 
-#ifdef HAVE_OPENSSL
-	client->stream_flags = 0;
-#endif
+	ast_xmpp_client_disconnect(client);
 
-	client->state = XMPP_STATE_DISCONNECTED;
 	client->timeout = 50;
 	iks_parser_reset(client->parser);
 
@@ -3459,6 +3471,7 @@ static void *xmpp_client_thread(void *data)
 			ast_debug(3, "Connecting client '%s'\n", client->name);
 			if ((res = xmpp_client_reconnect(client)) != IKS_OK) {
 				sleep(4);
+				res = IKS_NET_RWERR;
 			}
 			continue;
 		}
@@ -4141,12 +4154,6 @@ static int unload_module(void)
 	ast_unregister_application(app_ajileave);
 	ast_manager_unregister("JabberSend");
 	ast_custom_function_unregister(&jabberstatus_function);
-	if (mwi_sub) {
-		ast_event_unsubscribe(mwi_sub);
-	}
-	if (device_state_sub) {
-		ast_event_unsubscribe(device_state_sub);
-	}
 	ast_custom_function_unregister(&jabberreceive_function);
 
 	ast_cond_destroy(&message_received_condition);
