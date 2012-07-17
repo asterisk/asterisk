@@ -888,8 +888,10 @@ static iks* xmpp_pubsub_iq_create(struct ast_xmpp_client *client, const char *ty
 		return NULL;
 	}
 
+	if (!ast_strlen_zero(clientcfg->pubsubnode)) {
+		iks_insert_attrib(request, "to", clientcfg->pubsubnode);
+	}
 
-	iks_insert_attrib(request, "to", clientcfg->pubsubnode);
 	iks_insert_attrib(request, "from", client->jid->full);
 	iks_insert_attrib(request, "type", type);
 	ast_xmpp_client_lock(client);
@@ -1197,6 +1199,32 @@ static void xmpp_pubsub_devstate_cb(const struct ast_event *ast_event, void *dat
 }
 
 /*!
+ * \brief Unsubscribe from a PubSub node
+ * \param client the configured XMPP client we use to connect to a XMPP server
+ * \param node the name of the node to which to unsubscribe from
+ * \return void
+ */
+static void xmpp_pubsub_unsubscribe(struct ast_xmpp_client *client, const char *node)
+{
+	iks *request = xmpp_pubsub_iq_create(client, "set");
+	iks *pubsub, *unsubscribe;
+
+	if (!request) {
+		ast_log(LOG_ERROR, "Could not create IQ when creating pubsub unsubscription on client '%s'\n", client->name);
+		return;
+	}
+
+	pubsub = iks_insert(request, "pubsub");
+	iks_insert_attrib(pubsub, "xmlns", "http://jabber.org/protocol/pubsub");
+	unsubscribe = iks_insert(pubsub, "unsubscribe");
+	iks_insert_attrib(unsubscribe, "jid", client->jid->partial);
+	iks_insert_attrib(unsubscribe, "node", node);
+
+	ast_xmpp_client_send(client, request);
+	iks_delete(request);
+}
+
+/*!
  * \brief Subscribe to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node the name of the node to which to subscribe
@@ -1219,7 +1247,7 @@ static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *no
 	iks_insert_attrib(subscribe, "jid", client->jid->partial);
 	iks_insert_attrib(subscribe, "node", node);
 	if (ast_test_flag(&cfg->global->pubsub, XMPP_XEP0248)) {
-		iks *options, *x, *sub_options, *sub_type, *sub_depth;
+		iks *options, *x, *sub_options, *sub_type, *sub_depth, *sub_expire;
 		options = iks_insert(pubsub, "options");
 		x = iks_insert(options, "x");
 		iks_insert_attrib(x, "xmlns", "jabber:x:data");
@@ -1233,8 +1261,11 @@ static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *no
 		iks_insert_attrib(sub_type, "var", "pubsub#subscription_type");
 		iks_insert_cdata(iks_insert(sub_type, "value"), "items", 5);
 		sub_depth = iks_insert(x, "field");
-		iks_insert_attrib(sub_type, "var", "pubsub#subscription_depth");
+		iks_insert_attrib(sub_depth, "var", "pubsub#subscription_depth");
 		iks_insert_cdata(iks_insert(sub_depth, "value"), "all", 3);
+		sub_expire = iks_insert(x, "field");
+		iks_insert_attrib(sub_expire, "var", "pubsub#expire");
+		iks_insert_cdata(iks_insert(sub_expire, "value"), "presence", 8);
 	}
 	ast_xmpp_client_send(client, request);
 	iks_delete(request);
@@ -1375,6 +1406,9 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 	if (!cfg || !cfg->clients || !(clientcfg = xmpp_config_find(cfg->clients, client->name))) {
 		return;
 	}
+
+	xmpp_pubsub_unsubscribe(client, "device_state");
+	xmpp_pubsub_unsubscribe(client, "message_waiting");
 
 	if (!(client->mwi_sub = ast_event_subscribe(AST_EVENT_MWI, xmpp_pubsub_mwi_cb, "xmpp_pubsub_mwi_subscription",
 						    client, AST_EVENT_IE_END))) {
@@ -3290,11 +3324,13 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 	if (client->mwi_sub) {
 		ast_event_unsubscribe(client->mwi_sub);
 		client->mwi_sub = NULL;
+		xmpp_pubsub_unsubscribe(client, "message_waiting");
 	}
 
 	if (client->device_state_sub) {
 		ast_event_unsubscribe(client->device_state_sub);
 		client->device_state_sub = NULL;
+		xmpp_pubsub_unsubscribe(client, "device_state");
 	}
 
 #ifdef HAVE_OPENSSL
