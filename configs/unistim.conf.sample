@@ -66,6 +66,7 @@ port=5000                    ; UDP port
 ;cwvolume=2                  ; ring volume : 0,1,2,3, default = 0
 ;cwstyle=3                   ; ring style : 0 to 7, default = 2
 ;sharpdial=1                 ; dial number by pressing #, default = 0
+;interdigit_timer=4000       ; timer for automatic dial after several digits of number entered (in ms, 0 is off)
 ;callhistory=1               ; 0 = disable, 1 = enable call history, default = 1
 ;callerid="Customer Support" <555-234-5678>
 ;context=default             ; context, default="default"

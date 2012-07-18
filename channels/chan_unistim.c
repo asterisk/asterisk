@@ -99,8 +99,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RETRANSMIT_TIMER	2000
 /*! How often the mailbox is checked for new messages */
 #define TIMER_MWI	       5000
-/*! How often the mailbox is checked for new messages */
-#define TIMER_DIAL	       4000
+/*! Timeout value for entered number being dialed */
+#define DEFAULT_INTERDIGIT_TIMER	4000
+
 /*! Not used */
 #define DEFAULT_CODEC	   0x00
 #define SIZE_PAGE	       4096
@@ -399,6 +400,7 @@ static struct unistim_device {
 	char ringstyle;			 /*!< Ring melody */
 	char cwvolume;			/*!< Ring volume on call waiting */
 	char cwstyle;			 /*!< Ring melody on call waiting */
+	int interdigit_timer;		/*!< Interdigit timer for dialing number by timeout */
 	time_t nextdial;		/*!< Timer used for dial by timeout */
 	int rtp_port;			   /*!< RTP port used by the phone */
 	int rtp_method;			 /*!< Select the unistim data used to establish a RTP session */
@@ -3475,7 +3477,9 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			!ast_matchmore_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL)) {
 		    keycode = KEY_FUNC1;
 		} else {
-		    pte->device->nextdial = get_tick_count() + TIMER_DIAL;
+			if (pte->device->interdigit_timer) {
+				pte->device->nextdial = get_tick_count() + pte->device->interdigit_timer;
+			}
 		}
 	}
 	if (keycode == KEY_FUNC4) {
@@ -6288,6 +6292,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	d->mute = MUTE_OFF;
 	d->height = DEFAULTHEIGHT;
 	d->selected = -1;
+	d->interdigit_timer = DEFAULT_INTERDIGIT_TIMER;
 	linelabel[0] = '\0';
 	dateformat = 1;
 	timeformat = 1;
@@ -6346,6 +6351,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			callhistory = atoi(v->value);
 		} else if (!strcasecmp(v->name, "sharpdial")) {
 			sharpdial = ast_true(v->value) ? 1 : 0;
+		} else if (!strcasecmp(v->name, "interdigit_timer")) {
+			d->interdigit_timer = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived")) {
 				lt->cid_num[0] = '\0';

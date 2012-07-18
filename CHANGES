@@ -140,6 +140,7 @@ Chan_unistim changes
    configuration multiple lines can be defined, it allows to have multiple calls
    on one phone, callwaiting and switching between calls.
  * Added option 'sharpdial' allowing end dialing by pressing # key
+ * Added option 'interdigit_timer' for controll phone dial timeout
  * Added options 'cwstyle', 'cwvolume' controlling callwaiting appearance
  * Added global 'debug' option, that enables debug in channel driver
  * Added ability for translation on-screen menu to multiple languages. Tested on
@@ -149,7 +150,7 @@ Chan_unistim changes
  * In addition to English added French and Russian languages for on-screen menus
  * Reworked dialing number input: added dialing by timeout, immediate dial on 
    on dialplan compare, phone number length now not limited by screen size
- * Added ability for pickup a call using fetures.conf defined value and 
+ * Added ability for pickup a call using features.conf defined value and 
    on-screen key
 
 Codec changes
