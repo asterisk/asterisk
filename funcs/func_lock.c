@@ -99,7 +99,7 @@ static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_chann
 static int unloading = 0;
 static pthread_t broker_tid = AST_PTHREADT_NULL;
 
-static struct ast_datastore_info lock_info = {
+static const struct ast_datastore_info lock_info = {
 	.type = "MUTEX",
 	.destroy = lock_free,
 	.chan_fixup = lock_fixup,
