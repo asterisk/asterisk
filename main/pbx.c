@@ -3277,7 +3277,7 @@ static void exception_store_free(void *data)
 	ast_free(exception);
 }
 
-static struct ast_datastore_info exception_store_info = {
+static const struct ast_datastore_info exception_store_info = {
 	.type = "EXCEPTION",
 	.destroy = exception_store_free,
 };

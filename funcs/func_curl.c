@@ -165,7 +165,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static void curlds_free(void *data);
 
-static struct ast_datastore_info curl_info = {
+static const struct ast_datastore_info curl_info = {
 	.type = "CURL",
 	.destroy = curlds_free,
 };

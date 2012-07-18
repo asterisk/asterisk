@@ -88,7 +88,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static void shared_variable_free(void *data);
 
-static struct ast_datastore_info shared_variable_info = {
+static const struct ast_datastore_info shared_variable_info = {
 	.type = "SHARED_VARIABLES",
 	.destroy = shared_variable_free,
 };
