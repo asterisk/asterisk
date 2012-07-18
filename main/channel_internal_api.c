@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/indications.h"
 #include "asterisk/channel_internal.h"
+#include "asterisk/test.h"
 
 /*!
  * \brief Main Channel structure associated with a channel.
@@ -846,20 +847,28 @@ struct ast_callid *ast_channel_callid(const struct ast_channel *chan)
 }
 void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
 {
+	char call_identifier_from[AST_CALLID_BUFFER_LENGTH];
+	char call_identifier_to[AST_CALLID_BUFFER_LENGTH];
+	call_identifier_from[0] = '\0';
+	ast_callid_strnprint(call_identifier_to, sizeof(call_identifier_to), callid);
 	if (chan->callid) {
-
-		if ((option_debug >= 3) || (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= 3)) {
-			char call_identifier_from[AST_CALLID_BUFFER_LENGTH];
-			char call_identifier_to[AST_CALLID_BUFFER_LENGTH];
-			ast_callid_strnprint(call_identifier_from, sizeof(call_identifier_from), chan->callid);
-			ast_callid_strnprint(call_identifier_to, sizeof(call_identifier_to), callid);
-			ast_log(LOG_DEBUG, "Channel Call ID changing from %s to %s\n", call_identifier_from, call_identifier_to);
-		}
-
+		ast_callid_strnprint(call_identifier_from, sizeof(call_identifier_from), chan->callid);
+		ast_debug(3, "Channel Call ID changing from %s to %s\n", call_identifier_from, call_identifier_to);
 		/* unbind if already set */
 		ast_callid_unref(chan->callid);
 	}
+
 	chan->callid = ast_callid_ref(callid);
+
+	ast_test_suite_event_notify("CallIDChange",
+		"State: CallIDChange\r\n"
+		"Channel: %s\r\n"
+		"CallID: %s\r\n"
+		"PriorCallID: %s\r\n",
+		ast_channel_name(chan),
+		call_identifier_to,
+		call_identifier_from);
+
 }
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state value)
 {
