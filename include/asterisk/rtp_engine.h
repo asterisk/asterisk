@@ -76,7 +76,11 @@ extern "C" {
 #include "asterisk/res_srtp.h"
 
 /* Maximum number of payloads supported */
-#define AST_RTP_MAX_PT 256
+#if defined(LOW_MEMORY)
+#define AST_RTP_MAX_PT 128
+#else
+#define AST_RTP_MAX_PT 196
+#endif
 
 /* Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5

@@ -9367,7 +9367,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	int peernoncodeccapability = 0, vpeernoncodeccapability = 0, tpeernoncodeccapability = 0;
 
-	struct ast_rtp_codecs newaudiortp, newvideortp, newtextrtp;
+	struct ast_rtp_codecs *newaudiortp = NULL, *newvideortp = NULL, *newtextrtp = NULL;
 	struct ast_format_cap *newjointcapability = ast_format_cap_alloc_nolock(); /* Negotiated capability */
 	struct ast_format_cap *newpeercapability = ast_format_cap_alloc_nolock();
 	int newnoncodeccapability;
@@ -9404,10 +9404,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
-	/* Make sure that the codec structures are all cleared out */
-	ast_rtp_codecs_payloads_clear(&newaudiortp, NULL);
-	ast_rtp_codecs_payloads_clear(&newvideortp, NULL);
-	ast_rtp_codecs_payloads_clear(&newtextrtp, NULL);
+	if (!(newaudiortp = ast_calloc(1, sizeof(*newaudiortp))) || !(newvideortp = ast_calloc(1, sizeof(*newvideortp))) ||
+	    !(newtextrtp = ast_calloc(1, sizeof(*newtextrtp)))) {
+		res = -1;
+		goto process_sdp_cleanup;
+	}
 
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
@@ -9448,11 +9449,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if (process_sdp_a_sendonly(value, &sendonly)) {
 				processed = TRUE;
 			}
-			else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec))
+			else if (process_sdp_a_audio(value, p, newaudiortp, &last_rtpmap_codec))
 				processed = TRUE;
-			else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec))
+			else if (process_sdp_a_video(value, p, newvideortp, &last_rtpmap_codec))
 				processed = TRUE;
-			else if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec))
+			else if (process_sdp_a_text(value, p, newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec))
 				processed = TRUE;
 			else if (process_sdp_a_image(value, p))
 				processed = TRUE;
@@ -9566,7 +9567,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						ast_verbose("Found RTP audio format %d\n", codec);
 					}
 
-					ast_rtp_codecs_payloads_set_m_type(&newaudiortp, NULL, codec);
+					ast_rtp_codecs_payloads_set_m_type(newaudiortp, NULL, codec);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Rejecting audio media offer due to invalid or unsupported syntax: %s\n", m);
@@ -9638,7 +9639,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (debug) {
 						ast_verbose("Found RTP video format %d\n", codec);
 					}
-					ast_rtp_codecs_payloads_set_m_type(&newvideortp, NULL, codec);
+					ast_rtp_codecs_payloads_set_m_type(newvideortp, NULL, codec);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Rejecting video media offer due to invalid or unsupported syntax: %s\n", m);
@@ -9702,7 +9703,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (debug) {
 						ast_verbose("Found RTP text format %d\n", codec);
 					}
-					ast_rtp_codecs_payloads_set_m_type(&newtextrtp, NULL, codec);
+					ast_rtp_codecs_payloads_set_m_type(newtextrtp, NULL, codec);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Rejecting text stream offer due to invalid or unsupported syntax: %s\n", m);
@@ -9820,7 +9821,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
-					} else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec)) {
+					} else if (process_sdp_a_audio(value, p, newaudiortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
 				}
@@ -9831,7 +9832,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
-					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
+					} else if (process_sdp_a_video(value, p, newvideortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
 				}
@@ -9839,7 +9840,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				else if (text) {
 					if (process_sdp_a_ice(value, p, p->trtp)) {
 						processed = TRUE;
-					} if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
+					} if (process_sdp_a_text(value, p, newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value)) {
 						processed_crypto = TRUE;
@@ -9912,9 +9913,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	/* Now gather all of the codecs that we are asked for: */
-	ast_rtp_codecs_payload_formats(&newaudiortp, peercapability, &peernoncodeccapability);
-	ast_rtp_codecs_payload_formats(&newvideortp, vpeercapability, &vpeernoncodeccapability);
-	ast_rtp_codecs_payload_formats(&newtextrtp, tpeercapability, &tpeernoncodeccapability);
+	ast_rtp_codecs_payload_formats(newaudiortp, peercapability, &peernoncodeccapability);
+	ast_rtp_codecs_payload_formats(newvideortp, vpeercapability, &vpeernoncodeccapability);
+	ast_rtp_codecs_payload_formats(newtextrtp, tpeercapability, &tpeernoncodeccapability);
 
 	ast_format_cap_append(newpeercapability, peercapability);
 	ast_format_cap_append(newpeercapability, vpeercapability);
@@ -9977,7 +9978,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					    ast_sockaddr_stringify(sa));
 			}
 
-			ast_rtp_codecs_payloads_copy(&newaudiortp, ast_rtp_instance_get_codecs(p->rtp), p->rtp);
+			ast_rtp_codecs_payloads_copy(newaudiortp, ast_rtp_instance_get_codecs(p->rtp), p->rtp);
 			/* Ensure RTCP is enabled since it may be inactive
 			   if we're coming back from a T.38 session */
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
@@ -10024,7 +10025,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_verbose("Peer video RTP is at port %s\n",
 					    ast_sockaddr_stringify(vsa));
 			}
-			ast_rtp_codecs_payloads_copy(&newvideortp, ast_rtp_instance_get_codecs(p->vrtp), p->vrtp);
+			ast_rtp_codecs_payloads_copy(newvideortp, ast_rtp_instance_get_codecs(p->vrtp), p->vrtp);
 		} else {
 			ast_rtp_instance_stop(p->vrtp);
 			if (debug)
@@ -10048,7 +10049,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			} else {
 				p->red = 0;
 			}
-			ast_rtp_codecs_payloads_copy(&newtextrtp, ast_rtp_instance_get_codecs(p->trtp), p->trtp);
+			ast_rtp_codecs_payloads_copy(newtextrtp, ast_rtp_instance_get_codecs(p->trtp), p->trtp);
 		} else {
 			ast_rtp_instance_stop(p->trtp);
 			if (debug)
@@ -10165,6 +10166,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 process_sdp_cleanup:
 	if (res) {
 		offered_media_list_destroy(p);
+	}
+	if (newtextrtp) {
+		ast_free(newtextrtp);
+	}
+	if (newvideortp) {
+		ast_free(newvideortp);
+	}
+	if (newaudiortp) {
+		ast_free(newaudiortp);
 	}
 	ast_format_cap_destroy(peercapability);
 	ast_format_cap_destroy(vpeercapability);
