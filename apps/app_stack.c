@@ -212,7 +212,7 @@ static const char app_pop[] = "StackPop";
 
 static void gosub_free(void *data);
 
-static struct ast_datastore_info stack_info = {
+static const struct ast_datastore_info stack_info = {
 	.type = "GOSUB",
 	.destroy = gosub_free,
 };

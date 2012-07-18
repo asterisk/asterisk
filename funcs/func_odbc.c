@@ -119,7 +119,7 @@ struct acf_odbc_query {
 
 static void odbc_datastore_free(void *data);
 
-static struct ast_datastore_info odbc_info = {
+static const struct ast_datastore_info odbc_info = {
 	.type = "FUNC_ODBC",
 	.destroy = odbc_datastore_free,
 };

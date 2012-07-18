@@ -1380,7 +1380,7 @@ static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt)
 		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
 }
 
-static struct ast_datastore_info iax2_variable_datastore_info = {
+static const struct ast_datastore_info iax2_variable_datastore_info = {
 	.type = "IAX2_VARIABLE",
 	.duplicate = iax2_dup_variable_datastore,
 	.destroy = iax2_free_variable_datastore,

@@ -383,7 +383,7 @@ static void mixmonitor_ds_destroy(void *data)
 	ast_mutex_unlock(&mixmonitor_ds->lock);
 }
 
-static struct ast_datastore_info mixmonitor_ds_info = {
+static const struct ast_datastore_info mixmonitor_ds_info = {
 	.type = "mixmonitor",
 	.destroy = mixmonitor_ds_destroy,
 };
