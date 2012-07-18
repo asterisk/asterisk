@@ -153,7 +153,7 @@ static void odbc_release_obj2(struct odbc_obj *obj, struct odbc_txn_frame *tx);
 
 AST_THREADSTORAGE(errors_buf);
 
-static struct ast_datastore_info txn_info = {
+static const struct ast_datastore_info txn_info = {
 	.type = "ODBC_Transaction",
 	.destroy = odbc_txn_free,
 };
