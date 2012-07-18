@@ -390,6 +390,14 @@ void ast_cel_check_retire_linkedid(struct ast_channel *chan)
 	ao2_ref(lid, -1);
 }
 
+/* Note that no 'chan_fixup' function is provided for this datastore type,
+ * because the channels that will use it will never be involved in masquerades.
+ */
+static const struct ast_datastore_info fabricated_channel_datastore = {
+	.type = "CEL fabricated channel",
+	.destroy = ast_free,
+};
+
 struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event *event)
 {
 	struct varshead *headp;
@@ -399,6 +407,8 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	struct ast_cel_event_record record = {
 		.version = AST_CEL_EVENT_RECORD_VERSION,
 	};
+	struct ast_datastore *datastore;
+	char *app_data;
 
 	/* do not call ast_channel_alloc because this is not really a real channel */
 	if (!(tchan = ast_dummy_channel_alloc())) {
@@ -461,9 +471,41 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
-	tchan->appl = ast_strdup(record.application_name);
-	tchan->data = ast_strdup(record.application_data);
 	tchan->amaflags = record.amaflag;
+
+	/* We need to store an 'application name' and 'application
+	 * data' on the channel for logging purposes, but the channel
+	 * structure only provides a place to store pointers, and it
+	 * expects these pointers to be pointing to data that does not
+	 * need to be freed. This means that the channel's destructor
+	 * does not attempt to free any storage that these pointers
+	 * point to. However, we can't provide data in that form directly for
+	 * these structure members. In order to ensure that these data
+	 * elements have a lifetime that matches the channel's
+	 * lifetime, we'll put them in a datastore attached to the
+	 * channel, and set's the channel's pointers to point into the
+	 * datastore.  The datastore will then be automatically destroyed
+	 * when the channel is destroyed.
+	 */
+
+	if (!(datastore = ast_datastore_alloc(&fabricated_channel_datastore, NULL))) {
+		ast_channel_unref(tchan);
+		return NULL;
+	}
+
+	if (!(app_data = ast_malloc(strlen(record.application_name) + strlen(record.application_data) + 2))) {
+		ast_datastore_free(datastore);
+		ast_channel_unref(tchan);
+		return NULL;
+	}
+
+	tchan->appl = app_data;
+	tchan->data = app_data + strlen(record.application_name) + 1;
+
+	strcpy((char *) tchan->appl, record.application_name);
+	strcpy((char *) tchan->data, record.application_data);
+	datastore->data = app_data;
+	ast_channel_datastore_add(tchan, datastore);
 
 	return tchan;
 }
