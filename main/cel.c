@@ -395,7 +395,7 @@ void ast_cel_check_retire_linkedid(struct ast_channel *chan)
  */
 static const struct ast_datastore_info fabricated_channel_datastore = {
 	.type = "CEL fabricated channel",
-	.destroy = ast_free,
+	.destroy = ast_free_ptr,
 };
 
 struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event *event)
@@ -499,11 +499,10 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		return NULL;
 	}
 
-	tchan->appl = app_data;
-	tchan->data = app_data + strlen(record.application_name) + 1;
+	tchan->appl = strcpy(app_data, record.application_name);
+	tchan->data = strcpy(app_data + strlen(record.application_name) + 1,
+		record.application_data);
 
-	strcpy((char *) tchan->appl, record.application_name);
-	strcpy((char *) tchan->data, record.application_data);
 	datastore->data = app_data;
 	ast_channel_datastore_add(tchan, datastore);
 
