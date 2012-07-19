@@ -70,7 +70,7 @@ clean::
 	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
 
 pjproject/build.mak:
-	cd pjproject && ./configure AR="" CFLAGS="-fPIC -g"  --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec
+	cd pjproject && ./configure AR="" CFLAGS=-fPIC  --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec
 
 include pjproject/build.mak
 
