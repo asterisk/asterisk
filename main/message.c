@@ -122,20 +122,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="to" required="true">
 				<para>A To URI for the message.</para>
+				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageToInfo'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='XMPPMessageToInfo'])" />
 			</parameter>
 			<parameter name="from" required="false">
 				<para>A From URI for the message if needed for the
 				message technology being used to send this message.</para>
-				<note>
-					<para>For SIP the from parameter can be a configured peer name
-					or in the form of "display-name" &lt;URI&gt;.</para>
-				</note>
+				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageFromInfo'])" />
 			</parameter>
 		</syntax>
 		<description>
 			<para>Send a text message.  The body of the message that will be
-			sent is what is currently set to <literal>MESSAGE(body)</literal>.</para>
-
+			sent is what is currently set to <literal>MESSAGE(body)</literal>.
+			  The technology chosen for sending the message is determined
+			based on a prefix to the <literal>to</literal> parameter.</para>
 			<para>This application sets the following channel variables:</para>
 			<variablelist>
 				<variable name="MESSAGE_SEND_STATUS">
@@ -164,14 +164,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="To" required="true">
 				<para>The URI the message is to be sent to.</para>
+				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageToInfo'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='XMPPMessageToInfo'])" />
 			</parameter>
 			<parameter name="From">
 				<para>A From URI for the message if needed for the
 				message technology being used to send this message.</para>
-				<note>
-					<para>For SIP the from parameter can be a configured peer name
-					or in the form of "display-name" &lt;URI&gt;.</para>
-				</note>
+				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageFromInfo'])" />
 			</parameter>
 			<parameter name="Body">
 				<para>The message body text.  This must not contain any newlines as that

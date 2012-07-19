@@ -572,6 +572,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			via multiple <literal>Variable: name=value</literal> sequences.</para>
 		</description>
 	</manager>
+	<info name="SIPMessageFromInfo" language="en_US" tech="SIP">
+		<para>The <literal>from</literal> parameter can be a configured peer name
+		or in the form of "display-name" &lt;URI&gt;.</para>
+	</info>
+	<info name="SIPMessageToInfo" language="en_US" tech="SIP">
+		<para>Specifying a prefix of <literal>sip:</literal> will send the
+		message as a SIP MESSAGE request.</para>
+	</info>
  ***/
 
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */

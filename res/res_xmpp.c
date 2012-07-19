@@ -270,6 +270,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Sends a message to a Jabber Client.</para>
 		</description>
 	</manager>
+	<info name="XMPPMessageToInfo" language="en_US" tech="XMPP">
+		<para>Specifying a prefix of <literal>xmpp:</literal> will send the
+		message as an XMPP chat message.</para>
+	</info>
 ***/
 
 /*! \brief Supported general configuration flags */

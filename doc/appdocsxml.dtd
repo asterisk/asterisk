@@ -1,4 +1,4 @@
-  <!ELEMENT docs (application|function|agi|manager|managerEvent)*>
+  <!ELEMENT docs (application|function|agi|manager|managerEvent|info)*>
   <!ATTLIST docs xmlns:xi CDATA #FIXED "http://www.w3.org/2001/XInclude">
 
   <!ELEMENT xi:include (xi:fallback?) >
@@ -36,6 +36,11 @@
   <!ELEMENT managerEventInstance (synopsis?,syntax?,description?,see-also?)*>
   <!ATTLIST managerEventInstance class CDATA #REQUIRED>
 
+  <!ELEMENT info (para|note|warning|variablelist|enumlist|info|xi:include)*>
+  <!ATTLIST info name CDATA #REQUIRED>
+  <!ATTLIST info language CDATA #REQUIRED>
+  <!ATTLIST info tech CDATA #REQUIRED>
+
   <!ELEMENT see-also (ref|xi:include)*>
 
   <!ELEMENT ref (#PCDATA)>
@@ -46,9 +51,9 @@
   <!ELEMENT syntax (parameter|xi:include)*>
   <!ATTLIST syntax argsep CDATA ",">
 
-  <!ELEMENT description (para|note|warning|variablelist|enumlist|xi:include)*>
+  <!ELEMENT description (para|note|warning|variablelist|enumlist|info|xi:include)*>
 
-  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|xi:include)*>
+  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|info|xi:include)*>
   <!ATTLIST parameter name CDATA "">
   <!ATTLIST parameter required (yes|no|true|false) "false">
   <!ATTLIST parameter multiple (yes|no|true|false) "false">
@@ -58,17 +63,17 @@
   <!ATTLIST parameter argsep CDATA ",">
 
   <!ELEMENT optionlist (option+)>
-  <!ELEMENT option (argument|para|note|warning|variablelist|enumlist|xi:include)*>
+  <!ELEMENT option (argument|para|note|warning|variablelist|enumlist|info|xi:include)*>
   <!ATTLIST option name CDATA #REQUIRED>
   <!ATTLIST option argsep CDATA ",">
   <!ATTLIST option implies CDATA "">
   <!ATTLIST option hasparams CDATA "">
 
   <!ELEMENT enumlist (enum+)>
-  <!ELEMENT enum (para|note|warning|parameter|enumlist|xi:include)*>
+  <!ELEMENT enum (para|note|warning|parameter|enumlist|info|xi:include)*>
   <!ATTLIST enum name CDATA "">
 
-  <!ELEMENT argument (para|note|warning|variablelist|argument|xi:include)*>
+  <!ELEMENT argument (para|note|warning|variablelist|argument|info|xi:include)*>
   <!ATTLIST argument name CDATA #REQUIRED>
   <!ATTLIST argument multiple (yes|no|true|false) "false">
   <!ATTLIST argument required (yes|no|true|false) "false">
@@ -87,7 +92,7 @@
   <!ELEMENT warning (para+|xi:include*)>
 
   <!ELEMENT variablelist (variable+|xi:include*)>
-  <!ELEMENT variable (#PCDATA|value|para|xi:include)*>
+  <!ELEMENT variable (#PCDATA|value|para|info|xi:include)*>
   <!ATTLIST variable name CDATA "">
 
   <!ELEMENT value (#PCDATA)>

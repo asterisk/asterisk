@@ -65,6 +65,10 @@ struct documentation_tree {
 
 static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *name, int printname);
 static int xmldoc_parse_enumlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer);
+static int xmldoc_parse_info(struct ast_xml_node *node, const char *tabs, const char *posttabs, struct ast_str **buffer);
+static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const char *posttabs, struct ast_str **buffer);
+static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *tabs, const char *posttabs, struct ast_str **buffer);
+
 
 /*!
  * \brief Container of documentation trees
@@ -1197,6 +1201,26 @@ char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *mo
 }
 
 /*! \internal
+ *  \brief Parse common internal elements.  This includes paragraphs, special
+ *         tags, and information nodes.
+ *  \param node The element to parse
+ *  \param tabs Add this string before the content of the parsed element.
+ *  \param posttabs Add this string after the content of the parsed element.
+ *  \param buffer This must be an already allocated ast_str. It will be used to
+ *                store the result (if something has already been placed in the
+ *                buffer, the parsed elements will be appended)
+ *  \retval 1 if any data was appended to the buffer
+ *  \retval 2 if the data appended to the buffer contained a text paragraph
+ *  \retval 0 if no data was appended to the buffer
+ */
+static int xmldoc_parse_common_elements(struct ast_xml_node *node, const char *tabs, const char *posttabs, struct ast_str **buffer)
+{
+	return (xmldoc_parse_para(node, tabs, posttabs, buffer)
+		|| xmldoc_parse_specialtags(node, tabs, posttabs, buffer)
+		|| xmldoc_parse_info(node, tabs, posttabs, buffer));
+}
+
+/*! \internal
  *  \brief Parse a <para> element.
  *  \param node The <para> element pointer.
  *  \param tabs Added this string before the content of the <para> element.
@@ -1287,7 +1311,8 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 		/* parse <para> elements inside special tags. */
 		for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 			/* first <para> just print it without tabs at the begining. */
-			if (xmldoc_parse_para(node, (!count ? "" : tabs), posttabs, buffer) == 2) {
+			if ((xmldoc_parse_para(node, (!count ? "" : tabs), posttabs, buffer) == 2)
+				|| (xmldoc_parse_info(node, (!count ? "": tabs), posttabs, buffer) == 2)) {
 				ret = 2;
 			}
 		}
@@ -1298,6 +1323,55 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 
 		break;
 	}
+
+	return ret;
+}
+
+/*! \internal
+ *  \brief Parse an 'info' tag inside an element.
+ *  \param node A pointer to the 'info' xml node.
+ *  \param tabs A string to be appended at the beginning of each line being printed
+ *              inside 'buffer'
+ *  \param posttabs Add this string after the content of the <para> element, if one exists
+ *  \param String buffer to put values found inide the info element.
+ *  \ret 2 if the information contained a para element, and it returned a value of 2
+ *  \ret 1 if information was put into the buffer
+ *  \ret 0 if no information was put into the buffer or error
+ */
+static int xmldoc_parse_info(struct ast_xml_node *node, const char *tabs, const char *posttabs, struct ast_str **buffer)
+{
+	const char *tech;
+	char *internaltabs;
+	int internal_ret;
+	int ret = 0;
+
+	if (strcasecmp(ast_xml_node_get_name(node), "info")) {
+		return ret;
+	}
+
+	ast_asprintf(&internaltabs, "%s    ", tabs);
+	if (!internaltabs) {
+		return ret;
+	}
+
+	tech = ast_xml_get_attribute(node, "tech");
+	if (tech) {
+		ast_str_append(buffer, 0, "%s<note>Technology: %s</note>\n", internaltabs, tech);
+		ast_xml_free_attr(tech);
+	}
+
+	ret = 1;
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		if (!strcasecmp(ast_xml_node_get_name(node), "enumlist")) {
+			xmldoc_parse_enumlist(node, internaltabs, buffer);
+		} else if ((internal_ret = xmldoc_parse_common_elements(node, internaltabs, posttabs, buffer))) {
+			if (internal_ret > ret) {
+				ret = internal_ret;
+			}
+		}
+	}
+	ast_free(internaltabs);
 
 	return ret;
 }
@@ -1327,7 +1401,7 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 	if (!argname) {
 		return 0;
 	}
-	if (xmldoc_has_inside(node, "para") || xmldoc_has_specialtags(node)) {
+	if (xmldoc_has_inside(node, "para") || xmldoc_has_inside(node, "info") || xmldoc_has_specialtags(node)) {
 		ast_str_append(buffer, 0, "%s%s%s", tabs, argname, (insideparameter ? "\n" : ""));
 		ast_xml_free_attr(argname);
 	} else {
@@ -1336,10 +1410,7 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 	}
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
-		if (xmldoc_parse_para(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
-			count++;
-			ret = 1;
-		} else if (xmldoc_parse_specialtags(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
+		if (xmldoc_parse_common_elements(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
 			count++;
 			ret = 1;
 		}
@@ -1368,10 +1439,7 @@ static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, st
 	int ret = 0, printedpara=0;
 
 	for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
-		if (xmldoc_parse_para(tmp, (ret ? tabs : ""), "\n", buffer)) {
-			printedpara = 1;
-			continue;
-		} else if (xmldoc_parse_specialtags(tmp, (ret ? tabs : ""), "\n", buffer)) {
+		if (xmldoc_parse_common_elements(tmp, (ret ? tabs : ""), "\n", buffer)) {
 			printedpara = 1;
 			continue;
 		}
@@ -1442,10 +1510,7 @@ static int xmldoc_parse_variablelist(struct ast_xml_node *node, const char *tabs
 	}
 	for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
 		/* We can have a <para> element inside the variable list */
-		if ((xmldoc_parse_para(tmp, (ret ? tabs : ""), "\n", buffer))) {
-			ret = 1;
-			continue;
-		} else if ((xmldoc_parse_specialtags(tmp, (ret ? tabs : ""), "\n", buffer))) {
+		if (xmldoc_parse_common_elements(tmp, (ret ? tabs : ""), "\n", buffer)) {
 			ret = 1;
 			continue;
 		}
@@ -1579,9 +1644,7 @@ static int xmldoc_parse_enum(struct ast_xml_node *fixnode, const char *tabs, str
 	ast_asprintf(&optiontabs, "%s    ", tabs);
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
-		if ((xmldoc_parse_para(node, (ret ? tabs : " - "), "\n", buffer))) {
-			ret = 1;
-		} else if ((xmldoc_parse_specialtags(node, (ret ? tabs : " - "), "\n", buffer))) {
+		if (xmldoc_parse_common_elements(node, (ret ? tabs : " - "), "\n", buffer)) {
 			ret = 1;
 		}
 
@@ -1659,9 +1722,7 @@ static int xmldoc_parse_option(struct ast_xml_node *fixnode, const char *tabs, s
 			continue;
 		}
 
-		if (xmldoc_parse_para(node, (ret ? tabs :  ""), "\n", buffer)) {
-			ret = 1;
-		} else if (xmldoc_parse_specialtags(node, (ret ? tabs :  ""), "\n", buffer)) {
+		if (xmldoc_parse_common_elements(node, (ret ? tabs :  ""), "\n", buffer)) {
 			ret = 1;
 		}
 
@@ -1779,6 +1840,18 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 				continue;
 			}
 			continue;
+		} else if (!strcasecmp(ast_xml_node_get_name(node), "info")) {
+			if (!printed) {
+				ast_str_append(buffer, 0, "%s\n", paramname);
+				ast_xml_free_attr(paramname);
+				printed = 1;
+			}
+			if (xmldoc_parse_info(node, internaltabs, "\n", buffer)) {
+				/* If anything ever goes in below this condition before the continue below,
+				 * we should probably continue immediately. */
+				continue;
+			}
+			continue;
 		} else if ((xmldoc_parse_specialtags(node, internaltabs, "\n", buffer))) {
 			continue;
 		}
@@ -1881,9 +1954,7 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 	} else {
 		for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
 			/* if found, parse a <para> element. */
-			if (xmldoc_parse_para(tmp, "", "\n", &ret)) {
-				continue;
-			} else if (xmldoc_parse_specialtags(tmp, "", "\n", &ret)) {
+			if (xmldoc_parse_common_elements(tmp, "", "\n", &ret)) {
 				continue;
 			}
 			/* if found, parse a <variablelist> element. */
