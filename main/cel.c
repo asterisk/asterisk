@@ -505,11 +505,10 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		return NULL;
 	}
 
-	ast_channel_appl_set(tchan, app_data);
-	ast_channel_data_set(tchan, app_data + strlen(record.application_name) + 1);
+	ast_channel_appl_set(tchan, strcpy(app_data, record.application_name));
+	ast_channel_data_set(tchan, strcpy(app_data + strlen(record.application_name) + 1,
+		record.application_data));
 
-	strcpy((char *) ast_channel_appl(tchan), record.application_name);
-	strcpy((char *) ast_channel_data(tchan), record.application_data);
 	datastore->data = app_data;
 	ast_channel_datastore_add(tchan, datastore);
 
