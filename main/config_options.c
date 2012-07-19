@@ -97,6 +97,8 @@ static int bool_handler_fn(const struct aco_option *opt, struct ast_variable *va
 static int boolflag_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int acl_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int codec_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
+static int noop_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
+static int chararray_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 
 static aco_option_handler ast_config_option_default_handler(enum aco_option_type type)
 {
@@ -104,9 +106,11 @@ static aco_option_handler ast_config_option_default_handler(enum aco_option_type
 	case OPT_ACL_T: return acl_handler_fn;
 	case OPT_BOOL_T: return bool_handler_fn;
 	case OPT_BOOLFLAG_T: return boolflag_handler_fn;
+	case OPT_CHAR_ARRAY_T: return chararray_handler_fn;
 	case OPT_CODEC_T: return codec_handler_fn;
 	case OPT_DOUBLE_T: return double_handler_fn;
 	case OPT_INT_T: return int_handler_fn;
+	case OPT_NOOP_T: return noop_handler_fn;
 	case OPT_SOCKADDR_T: return sockaddr_handler_fn;
 	case OPT_STRINGFIELD_T: return stringfield_handler_fn;
 	case OPT_UINT_T: return uint_handler_fn;
@@ -530,32 +534,40 @@ end:
 	ao2_cleanup(info->internal->pending);
 	return res;
 }
+int aco_process_var(struct aco_type *type, const char *cat, struct ast_variable *var, void *obj)
+{
+	RAII_VAR(struct aco_option *, opt, aco_option_find(type, var->name), ao2_cleanup);
+	if (opt && opt->deprecated && !ast_strlen_zero(opt->aliased_to)) {
+		const char *alias = ast_strdupa(opt->aliased_to);
+		ast_log(LOG_WARNING, "At line %d of %s option '%s' is deprecated. Use '%s' instead\n", var->lineno, var->file, var->name, alias);
+		ao2_ref(opt, -1);
+		opt = aco_option_find(type, alias);
+	}
+
+	if (!opt) {
+		ast_log(LOG_ERROR, "Could not find option suitable for category '%s' named '%s' at line %d of %s\n", cat, var->name, var->lineno, var->file);
+		return -1;
+	}
+
+	if (!opt->handler) {
+		/* It should be impossible for an option to not have a handler */
+		ast_log(LOG_ERROR, "BUG! Somehow a config option for %s/%s was created with no handler!\n", cat, var->name);
+		return -1;
+	}
+	if (opt->handler(opt, var, obj)) {
+		ast_log(LOG_ERROR, "Error parsing %s=%s at line %d of %s\n", var->name, var->value, var->lineno, var->file);
+		return -1;
+	}
+
+	return 0;
+}
 
 int aco_process_category_options(struct aco_type *type, struct ast_config *cfg, const char *cat, void *obj)
 {
 	struct ast_variable *var;
 
 	for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
-		RAII_VAR(struct aco_option *, opt, aco_option_find(type, var->name), ao2_cleanup);
-		if (opt && opt->deprecated && !ast_strlen_zero(opt->aliased_to)) {
-			const char *alias = ast_strdupa(opt->aliased_to);
-			ast_log(LOG_WARNING, "At line %d of %s option '%s' is deprecated. Use '%s' instead\n", var->lineno, var->file, var->name, alias);
-			ao2_ref(opt, -1);
-			opt = aco_option_find(type, alias);
-		}
-
-		if (!opt) {
-			ast_log(LOG_ERROR, "Could not find option suitable for category '%s' named '%s' at line %d of %s\n", cat, var->name, var->lineno, var->file);
-			return -1;
-		}
-
-		if (!opt->handler) {
-			/* It should be impossible for an option to not have a handler */
-			ast_log(LOG_ERROR, "BUG! Somehow a config option for %s/%s was created with no handler!\n", cat, var->name);
-			return -1;
-		}
-		if (opt->handler(opt, var, obj)) {
-			ast_log(LOG_ERROR, "Error parsing %s=%s at line %d of %s\n", var->name, var->value, var->lineno, var->file);
+		if (aco_process_var(type, cat, var, obj)) {
 			return -1;
 		}
 	}
@@ -812,4 +824,24 @@ static int sockaddr_handler_fn(const struct aco_option *opt, struct ast_variable
 {
 	struct ast_sockaddr *field = (struct ast_sockaddr *)(obj + opt->args[0]);
 	return ast_parse_arg(var->value, PARSE_ADDR | opt->flags, field);
+}
+
+/*! \brief Default handler for doing noithing
+ */
+static int noop_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	return 0;
+}
+
+/*! \brief Default handler for character arrays
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
+static int chararray_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	char *field = (char *)(obj + opt->args[0]);
+	size_t len = opt->args[1];
+
+	ast_copy_string(field, var->value, len);
+	return 0;
 }

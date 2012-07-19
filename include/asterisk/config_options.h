@@ -281,6 +281,20 @@ enum aco_option_type {
 
 	OPT_BOOLFLAG_T,
 
+	/*! \brief Type for default option handler for character arrays
+	 * \note aco_option_register varargs:
+	 *   CHARFLDSET macro with a field of type char[]
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     char description[128];
+	 * };
+	 * aco_option_register(&cfg_info, "description", ACO_EXACT, my_types, "none", OPT_CHAR_ARRAY_T, CHARFLDSET(struct test_item, description));
+	 * {endcode}
+	 */
+	OPT_CHAR_ARRAY_T,
+
 	/*! \brief Type for default option handler for codec preferences/capabilities
 	 * \note aco_option_register flags:
 	 *   non-zero : This is an "allow" style option
@@ -296,6 +310,7 @@ enum aco_option_type {
 	 * };
 	 * aco_option_register(&cfg_info, "allow", ACO_EXACT, my_types, "ulaw,alaw", OPT_CODEC_T, 1, FLDSET(struct test_item, pref, cap));
 	 * aco_option_register(&cfg_info, "disallow", ACO_EXACT, my_types, "all", OPT_CODEC_T, 0, FLDSET(struct test_item, pref, cap));
+	 * {endcode}
 	 */
 	OPT_CODEC_T,
 
@@ -343,6 +358,13 @@ enum aco_option_type {
 	 */
 	OPT_INT_T,
 
+	/*! \brief Type for a default handler that should do nothing
+	 *
+	 * \note This might be useful for a "type" field that is valid, but doesn't
+	 * actually need to do anything
+	 */
+	OPT_NOOP_T,
+
 	/*! \brief Type for default handler for ast_sockaddrs
 	 *
 	 * \note aco_option_register flags:
@@ -373,7 +395,7 @@ enum aco_option_type {
 	 *         AST_STRING_FIELD(thing);
 	 *     );
 	 * };
-	 * aco_option_register(&cfg_info, "thing", ACO_EXACT, my_types, NULL, OPT_STR_T, 0, STRFLDSET(struct test_item, thing));
+	 * aco_option_register(&cfg_info, "thing", ACO_EXACT, my_types, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct test_item, thing));
 	 * {endcode}
 	 */
 	OPT_STRINGFIELD_T,
@@ -446,6 +468,21 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload);
  * \retval ACO_PROCESS_ERROR Failure
  */
 enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg);
+
+/*! \brief Parse a single ast_variable and apply it to an object
+ * \note This function can be used to build up an object by repeatedly passing in
+ * the config variable name and values that would be found in a config file. This can
+ * be useful if the object is to be populated by a dialplan function, for example.
+ *
+ * \param type The aco_type associated with the object
+ * \param cat The category to use
+ * \param var A variable to apply to the object
+ * \param obj A pointer to the object to be configured
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int aco_process_var(struct aco_type *type, const char *cat, struct ast_variable *var, void *obj);
 
 /*! \brief Parse each option defined in a config category
  * \param type The aco_type with the options for parsing
@@ -658,6 +695,14 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * \param varargs The fields in the struct whose offsets are needed as arguments
  */
 #define STRFLDSET(type, ...) FLDSET(type, __VA_ARGS__, __field_mgr_pool, __field_mgr)
+
+/*! \def CHARFLDSET(type, field)
+ * \brief A helper macro to pass the appropriate arguments to aco_option_register for OPT_CHAR_ARRAY_T
+ * \note This will pass the offset of the field and its length as arguments
+ * \param type The type with the char array field (e.g. "struct my_struct")
+ * \param field The name of char array field
+ */
+#define CHARFLDSET(type, field) ARGIFY(offsetof(type, field), sizeof(((type *)0)->field))
 
 /*! \def POPPED(...)
  * \brief A list of arguments without the first argument

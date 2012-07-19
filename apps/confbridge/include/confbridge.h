@@ -120,7 +120,6 @@ struct conf_menu_entry {
  * sequences invoke.*/
 struct conf_menu {
 	char name[128];
-	int delme;
 	AST_LIST_HEAD_NOLOCK(, conf_menu_entry) entries;
 };
 
@@ -135,7 +134,6 @@ struct user_profile {
 	unsigned int talking_threshold;
 	/*! The time in ms of silence before a user is considered to be silent by the dsp. */
 	unsigned int silence_threshold;
-	int delme;
 };
 
 enum conf_sounds {
@@ -198,7 +196,6 @@ struct bridge_profile {
 	unsigned int internal_sample_rate; /*!< The internal sample rate of the bridge. 0 when set to auto adjust mode. */
 	unsigned int mix_interval;  /*!< The internal mixing interval used by the bridge. When set to 0 the bridgewill use a default interval. */
 	struct bridge_profile_sounds *sounds;
-	int delme;
 };
 
 /*! \brief The structure that represents a conference bridge */
