@@ -864,7 +864,7 @@ void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
 		"State: CallIDChange\r\n"
 		"Channel: %s\r\n"
 		"CallID: %s\r\n"
-		"PriorCallID: %s\r\n",
+		"PriorCallID: %s",
 		ast_channel_name(chan),
 		call_identifier_to,
 		call_identifier_from);
