@@ -39,13 +39,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/acl.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/paths.h"
 
 #define NACL_CONFIG "acl.conf"
 #define ACL_FAMILY "acls"
 
 struct named_acl_global_config {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(systemname);
+		/* Nothing here yet. */
 	);
 };
 
@@ -263,12 +264,8 @@ static struct named_acl *named_acl_find_realtime(const char *name)
 	struct ast_ha *built_ha = NULL;
 	struct named_acl *acl;
 
-	RAII_VAR(struct named_acl_config *, acl_options, ao2_global_obj_ref(globals), ao2_cleanup);
-
 	/* If we have a systemname set in the global options, we only want to retrieve entries with a matching systemname field. */
-	if (acl_options) {
-		systemname = acl_options->global->systemname;
-	}
+	systemname = ast_config_AST_SYSTEM_NAME;
 
 	if (ast_strlen_zero(systemname)) {
 		cfg = ast_load_realtime_multientry(ACL_FAMILY, "name", name, SENTINEL);
@@ -542,9 +539,6 @@ int ast_named_acl_init()
 	if (aco_info_init(&cfg_info)) {
 		return 0;
 	}
-
-	/* Register the global options */
-	aco_option_register(&cfg_info, "systemname", ACO_EXACT, global_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct named_acl_global_config, systemname));
 
 	/* Register the per level options. */
 	aco_option_register(&cfg_info, "permit", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 1, FLDSET(struct named_acl, ha));

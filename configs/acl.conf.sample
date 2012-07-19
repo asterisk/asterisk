@@ -11,12 +11,6 @@
 ;   acl show <name>                  Show contents of a particular named ACL
 ;   reload acl                       Reload configuration file
 ;
-;[general]
-;systemname=asterisksystem1          ; If a system name is specified, realtime
-;                                    ; ACLs will only be retrieved if they have
-;                                    ; a systemname field that matches this value.
-;                                    ; If it's less blank, the field is ignored.
-;
 ; Any configuration that uses ACLs which has been made to be able to use named
 ; ACLs will specify a named ACL with the 'acl' option in its configuration in
 ; a similar fashion to the usual 'permit' and 'deny' options. Example:
