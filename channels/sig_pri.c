@@ -1277,7 +1277,7 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
  *
  * \return Nothing
  */
-static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, const char *cause)
+static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, const char *cause, int ast_cause)
 {
 	struct ast_channel *chan;
 	struct ast_control_pvt_cause_code *cause_code;
@@ -1287,6 +1287,7 @@ static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, cons
 	if (chan) {
 		int datalen = sizeof(*cause_code) + strlen(cause);
 		cause_code = alloca(datalen);
+		cause_code->ast_cause = ast_cause;
 		ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
 		ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));
 		ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
@@ -6638,7 +6639,7 @@ static void *pri_dchannel(void *vpri)
 				if (e->proceeding.cause > -1) {
 					if (pri->pvts[chanpos]->owner) {
 						snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_PROGRESS (%d)", e->proceeding.cause);
-						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+						pri_queue_pvt_cause_data(pri, chanpos, cause_str, e->proceeding.cause);
 					}
 
 					ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
@@ -6944,7 +6945,7 @@ static void *pri_dchannel(void *vpri)
 						int do_hangup = 0;
 
 						snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP (%d)", e->hangup.cause);
-						pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+						pri_queue_pvt_cause_data(pri, chanpos, cause_str, e->hangup.cause);
 
 						/* Queue a BUSY instead of a hangup if our cause is appropriate */
 						ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
@@ -7099,7 +7100,7 @@ static void *pri_dchannel(void *vpri)
 					int do_hangup = 0;
 
 					snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP_REQ (%d)", e->hangup.cause);
-					pri_queue_pvt_cause_data(pri, chanpos, cause_str);
+					pri_queue_pvt_cause_data(pri, chanpos, cause_str, e->hangup.cause);
 
 					ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
 					switch (ast_channel_state(pri->pvts[chanpos]->owner)) {

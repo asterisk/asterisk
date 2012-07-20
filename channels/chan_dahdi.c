@@ -4182,6 +4182,7 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%s)", openr2_proto_get_disconnect_string(cause));
 	datalen += strlen(cause_str);
 	cause_code = alloca(datalen);
+	cause_code->ast_cause = dahdi_r2_cause_to_ast_cause(cause);
 	ast_copy_string(cause_code->chan_name, ast_channel_name(p->owner), AST_CHANNEL_NAME);
 	ast_copy_string(cause_code->code, cause_str, datalen + 1 - sizeof(*cause_code));
 	ast_queue_control_data(p->owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
@@ -7640,7 +7641,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		switch (f ? f->frametype : AST_FRAME_CONTROL) {
 		case AST_FRAME_CONTROL:
 			if (f && f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
-				ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr);
+				ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr, f->datalen);
 				break;
 			}
 			*fo = f;

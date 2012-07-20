@@ -88,6 +88,7 @@ struct ast_channel {
 #ifdef HAVE_EPOLL
 	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
 #endif
+	struct ao2_container *dialed_causes;		/*!< Contains tech-specific and Asterisk cause data from dialed channels */
 
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);         /*!< ASCII unique channel name */
@@ -1197,6 +1198,72 @@ struct ast_flags *ast_channel_flags(struct ast_channel *chan)
 	return &chan->flags;
 }
 
+static int collect_names_cb(void *obj, void *arg, int flags) {
+	struct ast_control_pvt_cause_code *cause_code = obj;
+	struct ast_str **str = arg;
+
+	ast_str_append(str, 0, "%s%s", (ast_str_strlen(*str) ? "," : ""), cause_code->chan_name);
+
+	return 0;
+}
+
+struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *chan)
+{
+	struct ast_str *chanlist = ast_str_create(128);
+
+	if (!chanlist) {
+		return NULL;
+	}
+
+	ao2_callback(chan->dialed_causes, 0, collect_names_cb, &chanlist);
+
+	return chanlist;
+}
+
+struct ast_control_pvt_cause_code *ast_channel_dialed_causes_find(const struct ast_channel *chan, const char *chan_name)
+{
+	return ao2_find(chan->dialed_causes, chan_name, OBJ_KEY);
+}
+
+int ast_channel_dialed_causes_add(const struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen)
+{
+	struct ast_control_pvt_cause_code *ao2_cause_code;
+	ao2_find(chan->dialed_causes, cause_code->chan_name, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA);
+	ao2_cause_code = ao2_alloc(datalen, NULL);
+
+	if (ao2_cause_code) {
+		memcpy(ao2_cause_code, cause_code, datalen);
+		ao2_link(chan->dialed_causes, ao2_cause_code);
+		ao2_ref(ao2_cause_code, -1);
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+void ast_channel_dialed_causes_clear(const struct ast_channel *chan)
+{
+	ao2_callback(chan->dialed_causes, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+}
+
+/* \brief Hash function for pvt cause code frames */
+static int pvt_cause_hash_fn(const void *vpc, const int flags)
+{
+	const struct ast_control_pvt_cause_code *pc = vpc;
+	return ast_str_hash(ast_tech_to_upper(ast_strdupa(pc->chan_name)));
+}
+
+/* \brief Comparison function for pvt cause code frames */
+static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
+{
+	struct ast_control_pvt_cause_code *pc = obj;
+	char *str = ast_tech_to_upper(ast_strdupa(vstr));
+	char *pc_str = ast_tech_to_upper(ast_strdupa(pc->chan_name));
+	return !strcmp(pc_str, str) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+#define DIALED_CAUSES_BUCKETS 37
+
 struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
@@ -1214,11 +1281,21 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 		return ast_channel_unref(tmp);
 	}
 
+	if (!(tmp->dialed_causes = ao2_container_alloc(DIALED_CAUSES_BUCKETS, pvt_cause_hash_fn, pvt_cause_cmp_fn))) {
+	        return ast_channel_unref(tmp);
+	}
+
 	return tmp;
 }
 
 void ast_channel_internal_cleanup(struct ast_channel *chan)
 {
+	if (chan->dialed_causes) {
+		ao2_t_ref(chan->dialed_causes, -1,
+			"done with dialed causes since the channel is going away");
+		chan->dialed_causes = NULL;
+	}
+
 	ast_string_field_free_memory(chan);
 }
 

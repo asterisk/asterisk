@@ -46,6 +46,10 @@ Dialplan Functions:
    CONNECTED_LINE_SEND_SUB, CONNECTED_LINE_SEND_SUB_ARGS.
  - The REDIRECTING function now supports the redirecting original party id
    and reason.
+ - The HANGUPCAUSE and HANGUPCAUSE_KEYS functions have been introduced to
+   provide a replacement for the SIP_CAUSE hash. The HangupCauseClear
+   application has also been introduced to remove this data from the channel
+   when necessary.
 
 
 func_enum:
@@ -105,10 +109,10 @@ SIP
    a call is terminated due to RTP stream inactivity or SIP session timer
    expiration.
  - SIP_CAUSE is now deprecated.  It has been modified to use the same
-   mechanism as HANGUPCAUSE.  Behavior should not change, but performance
-   should be vastly improved.  The HANGUPCAUSE hash should now be used instead
-   of SIP_CAUSE. Because of this, the storesipcause option in sip.conf is also
-   deprecated.
+   mechanism as the HANGUPCAUSE function.  Behavior should not change, but
+   performance should be vastly improved.  The HANGUPCAUSE function should now
+   be used instead of SIP_CAUSE. Because of this, the storesipcause option in
+   sip.conf is also deprecated.
  - The sip paramater for Originating Line Information (oli, isup-oli, and
    ss7-oli) is now parsed out of the From header and copied into the channel's
    ANI2 information field.  This is readable from the CALLERID(ani2) dialplan

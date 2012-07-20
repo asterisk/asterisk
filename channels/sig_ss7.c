@@ -384,12 +384,13 @@ static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int 
  *
  * \return Nothing
  */
-static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *cause)
+static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *cause, int ast_cause)
 {
 	struct ast_control_pvt_cause_code *cause_code;
 	int datalen = sizeof(*cause_code) + strlen(cause);
 
 	cause_code = alloca(datalen);
+	cause_code->ast_cause = ast_cause;
 	ast_copy_string(cause_code->chan_name, ast_channel_name(owner), AST_CHANNEL_NAME);
 	ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));
 	ast_queue_control_data(owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
@@ -915,7 +916,7 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_owner(linkset, chanpos);
 				p->ss7call = NULL;
 				if (p->owner) {
-					ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_RSC");
+					ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_RSC", AST_CAUSE_INTERWORKING);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 					ast_channel_unlock(p->owner);
 				}
@@ -973,7 +974,7 @@ void *ss7_linkset(void *data)
 					}
 					p->call_level = SIG_SS7_CALL_LEVEL_GLARE;
 					if (p->owner) {
-						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)");
+						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)", AST_CAUSE_NORMAL_CLEARING);
 						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
 						ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 						ast_channel_unlock(p->owner);
@@ -1119,7 +1120,7 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
 					snprintf(cause_str, sizeof(cause_str), "SS7 ISUP_EVENT_REL (%d)", e->rel.cause);
-					ss7_queue_pvt_cause_data(p->owner, cause_str);
+					ss7_queue_pvt_cause_data(p->owner, cause_str, e->rel.cause);
 
 					ast_channel_hangupcause_set(p->owner, e->rel.cause);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);

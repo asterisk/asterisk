@@ -3592,8 +3592,9 @@ void ast_channel_unlink(struct ast_channel *chan);
  *
  * \param chan channel on which to set the cause information
  * \param cause_code ast_control_pvt_cause_code structure containing cause information
+ * \param datalen total length of the structure since it may vary
  */
-void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code);
+void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen);
 
 /* ACCESSOR FUNTIONS */
 /*! \brief Set the channel name */
@@ -3824,6 +3825,67 @@ void ast_channel_internal_bridge_set(struct ast_channel *chan, struct ast_bridge
 
 struct ast_channel *ast_channel_internal_bridged_channel(const struct ast_channel *chan);
 void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct ast_channel *value);
+
+/*!
+ * \since 11
+ * \brief Retreive a comma-separated list of channels for which dialed cause information is available
+ *
+ * \details
+ * This function makes use of datastore operations on the channel, so
+ * it is important to lock the channel before calling this function.
+ *
+ * \param chan The channel from which to retreive information
+ * \retval NULL on allocation failure
+ * \retval Pointer to an ast_str object containing the desired information which must be freed
+ */
+struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *chan);
+
+/*!
+ * \since 11
+ * \brief Retreive a ref-counted cause code information structure
+ *
+ * \details
+ * This function makes use of datastore operations on the channel, so
+ * it is important to lock the channel before calling this function.
+ * This function increases the ref count of the returned object, so the
+ * calling function must decrease the reference count when it is finished
+ * with the object.
+ *
+ * \param chan The channel from which to retreive information
+ * \param chan_name The name of the channel about which to retreive information
+ * \retval NULL on search failure
+ * \retval Pointer to a ref-counted ast_control_pvt_cause_code object containing the desired information
+ */
+struct ast_control_pvt_cause_code *ast_channel_dialed_causes_find(const struct ast_channel *chan, const char *chan_name);
+
+/*!
+ * \since 11
+ * \brief Add cause code information to the channel
+ *
+ * \details
+ * This function makes use of datastore operations on the channel, so
+ * it is important to lock the channel before calling this function.
+ * The passed in data is copied and so is still owned by the caller.
+ *
+ * \param chan The channel on which to add information
+ * \param cause_code The cause information to be added to the channel
+ * \param datalen The total length of the structure since its length is variable
+ * \retval 0 on success
+ * \retval -1 on error
+ */
+int ast_channel_dialed_causes_add(const struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen);
+
+/*!
+ * \since 11
+ * \brief Clear all cause information from the channel
+ *
+ * \details
+ * This function makes use of datastore operations on the channel, so
+ * it is important to lock the channel before calling this function.
+ *
+ * \param chan The channel from which to clear information
+ */
+void ast_channel_dialed_causes_clear(const struct ast_channel *chan);
 
 struct ast_flags *ast_channel_flags(struct ast_channel *chan);
 #endif /* _ASTERISK_CHANNEL_H */

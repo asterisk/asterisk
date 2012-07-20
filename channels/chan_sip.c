@@ -27004,6 +27004,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 
 				snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
 
+				cause_code->ast_cause = hangup_sip2cause(respid);
 				if (global_store_sip_cause) {
 					cause_code->emulate_sip_cause = 1;
 				}

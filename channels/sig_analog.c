@@ -2735,6 +2735,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		subclass = analog_event2str(res);
 		data_size += strlen(subclass);
 		cause_code = alloca(data_size);
+		cause_code->ast_cause = AST_CAUSE_NORMAL_CLEARING;
 		ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
 		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG %s", subclass);
 		break;
@@ -2826,6 +2827,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	case ANALOG_EVENT_ALARM:
 		analog_set_alarm(p, 1);
 		analog_get_and_handle_alarms(p);
+		cause_code->ast_cause = AST_CAUSE_NETWORK_OUT_OF_ORDER;
 	case ANALOG_EVENT_ONHOOK:
 		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 		switch (p->sig) {

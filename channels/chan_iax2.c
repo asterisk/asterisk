@@ -5653,7 +5653,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		other = (who == c0) ? c1 : c0;  /* the 'other' channel */
 		if ((f->frametype == AST_FRAME_CONTROL)) {
 			if (f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
-				ast_channel_hangupcause_hash_set(other, f->data.ptr);
+				ast_channel_hangupcause_hash_set(other, f->data.ptr, f->datalen);
 			} else if (!(flags & AST_BRIDGE_IGNORE_SIGS)
 				&& (f->subclass.integer != AST_CONTROL_SRCUPDATE)) {
 				*fo = f;
@@ -10239,6 +10239,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 		cause_code = alloca(data_size);
 		ast_copy_string(cause_code->chan_name, ast_channel_name(iaxs[fr->callno]->owner), AST_CHANNEL_NAME);
 
+		cause_code->ast_cause = ies.causecode;
 		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "IAX2 %s(%d)", subclass, ies.causecode);
 
 		iax2_queue_control_data(fr->callno, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);

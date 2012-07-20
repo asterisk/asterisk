@@ -4298,12 +4298,14 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	return 0;
 }
 
-void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code)
+void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen)
 {
 	char causevar[256];
 
-	snprintf(causevar, sizeof(causevar), "HASH(HANGUPCAUSE,%s)", cause_code->chan_name);
-	ast_func_write(chan, causevar, cause_code->code);
+	if (ast_channel_dialed_causes_add(chan, cause_code, datalen)) {
+		ast_log(LOG_WARNING, "Unable to store hangup cause for %s on %s\n", cause_code->chan_name, ast_channel_name(chan));
+	}
+
 	if (cause_code->emulate_sip_cause) {
 		snprintf(causevar, sizeof(causevar), "HASH(SIP_CAUSE,%s)", cause_code->chan_name);
 		ast_func_write(chan, causevar, cause_code->code);
@@ -4455,7 +4457,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		ts = ast_get_indication_tone(ast_channel_zone(chan), "congestion");
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
-		ast_channel_hangupcause_hash_set(chan, data);
+		ast_channel_hangupcause_hash_set(chan, data, datalen);
 		res = 0;
 		break;
 	case AST_CONTROL_PROGRESS:
@@ -5602,7 +5604,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 					break;
 
 				case AST_CONTROL_PVT_CAUSE_CODE:
-					ast_channel_hangupcause_hash_set(chan, f->data.ptr);
+					ast_channel_hangupcause_hash_set(chan, f->data.ptr, f->datalen);
 					break;
 
 				/* Ignore these */
