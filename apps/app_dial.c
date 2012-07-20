@@ -825,11 +825,11 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 			<synopsis>Raised when a dial action has started.</synopsis>
 			<syntax>
 				<parameter name="SubEvent">
+					<para>A sub event type, specifying whether the dial action has begun or ended.</para>
 					<enumlist>
 						<enum name="Begin"/>
 						<enum name="End"/>
 					</enumlist>
-					<para>A sub event type, specifying whether the dial action has begun or ended.</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
