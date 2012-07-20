@@ -55,6 +55,8 @@ Core
  * Hangup handlers can be attached to channels using the CHANNEL(hangup_handler_xxx)
    options.  Hangup handlers will run when the channel is hung up similar to the
    h extension.
+ * The AMI Hangup event now includes the AccountCode header so you can easily
+   correlate with AMI Newchannel events.
 
 CLI Changes
 -------------------
