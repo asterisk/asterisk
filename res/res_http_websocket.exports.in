@@ -12,6 +12,7 @@
 		LINKER_SYMBOL_PREFIXast_websocket_fd;
 		LINKER_SYMBOL_PREFIXast_websocket_remote_address;
 		LINKER_SYMBOL_PREFIXast_websocket_is_secure;
+		LINKER_SYMBOL_PREFIXast_websocket_set_nonblock;
 	local:
 		*;
 };
