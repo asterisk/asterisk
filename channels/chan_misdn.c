@@ -7614,7 +7614,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 #endif
 
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
-			ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr);
+			ast_channel_hangupcause_hash_set((who == c0) ? c1 : c0, f->data.ptr, f->datalen);
 		} else {
 			ast_write((who == c0) ? c1 : c0, f);
 		}
