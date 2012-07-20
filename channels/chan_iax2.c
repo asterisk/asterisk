@@ -10170,7 +10170,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 	if (fr->callno > 0) {
 		struct ast_callid *mount_callid;
 		ast_mutex_lock(&iaxsl[fr->callno]);
-		if ((mount_callid = iax_pvt_callid_get(fr->callno))) {
+		if (iaxs[fr->callno] && ((mount_callid = iax_pvt_callid_get(fr->callno)))) {
 			/* Bind to thread */
 			ast_callid_threadassoc_add(mount_callid);
 			ast_callid_unref(mount_callid);
