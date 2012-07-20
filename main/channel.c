@@ -2758,6 +2758,7 @@ int ast_hangup(struct ast_channel *chan)
 		"CallerIDName: %s\r\n"
 		"ConnectedLineNum: %s\r\n"
 		"ConnectedLineName: %s\r\n"
+		"AccountCode: %s\r\n"
 		"Cause: %d\r\n"
 		"Cause-txt: %s\r\n",
 		ast_channel_name(chan),
@@ -2766,6 +2767,7 @@ int ast_hangup(struct ast_channel *chan)
 		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>"),
 		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, "<unknown>"),
 		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, "<unknown>"),
+		ast_channel_accountcode(chan),
 		ast_channel_hangupcause(chan),
 		ast_cause2str(ast_channel_hangupcause(chan))
 		);
