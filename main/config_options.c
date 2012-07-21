@@ -606,10 +606,12 @@ static int internal_type_init(struct aco_type *type)
 
 	if (!(type->internal->regex = build_regex(type->category))) {
 		internal_type_destroy(type);
+		return -1;
 	}
 
 	if (!(type->internal->opts = aco_option_container_alloc())) {
 		internal_type_destroy(type);
+		return -1;
 	}
 
 	return 0;

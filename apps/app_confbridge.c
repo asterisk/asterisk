@@ -2866,7 +2866,8 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_CALL, action_confbridgestoprecord);
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 
-	conf_load_config(0);
+	res |= conf_load_config(0);
+
 	return res;
 }
 

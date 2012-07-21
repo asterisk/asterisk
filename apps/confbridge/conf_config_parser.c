@@ -1183,6 +1183,8 @@ static int video_mode_handler(const struct aco_option *opt, struct ast_variable 
 		ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED);
 	} else if (!strcasecmp(var->value, "follow_talker")) {
 		ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+	} else if (!strcasecmp(var->value, "none")) {
+		return 0;
 	} else {
 		return -1;
 	}
@@ -1255,10 +1257,7 @@ int conf_load_config(int reload)
 {
 	if (!reload) {
 		if (aco_info_init(&cfg_info)) {
-			goto error;
-		}
-		if (ast_cli_register_multiple(cli_confbridge_parser, ARRAY_LEN(cli_confbridge_parser))) {
-			goto error;
+			return -1;
 		}
 	}
 
@@ -1307,7 +1306,15 @@ int conf_load_config(int reload)
 	/* Menu options */
 	aco_option_register_custom(&cfg_info, "^[0-9A-D*#]+$", ACO_REGEX, menu_types, NULL, menu_option_handler, 0);
 
-	return aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR;
+	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
+		goto error;
+	}
+
+	if (!reload && ast_cli_register_multiple(cli_confbridge_parser, ARRAY_LEN(cli_confbridge_parser))) {
+		goto error;
+	}
+
+	return 0;
 error:
 	conf_destroy_config();
 	return -1;
@@ -1379,6 +1386,10 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 	struct ast_datastore *datastore = NULL;
 	struct func_confbridge_data *b_data = NULL;
 	RAII_VAR(struct confbridge_cfg *, cfg, ao2_global_obj_ref(cfg_handle), ao2_cleanup);
+
+	if (!cfg) {
+		return NULL;
+	}
 
 	if (chan) {
 		ast_channel_lock(chan);
