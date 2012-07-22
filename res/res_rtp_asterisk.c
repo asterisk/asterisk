@@ -547,18 +547,32 @@ static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
 	pj_ice_sess_change_role(rtp->ice, PJ_ICE_SESS_ROLE_CONTROLLING);
 }
 
+static int ice_candidate_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_engine_ice_candidate *candidate1 = obj, *candidate2 = arg;
+
+	if ((strcmp(candidate1->foundation, candidate2->foundation)) ||
+	    (candidate1->id != candidate2->id) ||
+	    (ast_sockaddr_cmp(&candidate1->address, &candidate2->address)) ||
+	    (candidate1->type != candidate1->type)) {
+		return 0;
+	}
+
+	return CMP_MATCH | CMP_STOP;
+}
+
 static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned transport_id, pj_ice_cand_type type, pj_uint16_t local_pref,
 					const pj_sockaddr_t *addr, const pj_sockaddr_t *base_addr, const pj_sockaddr_t *rel_addr, int addr_len)
 {
 	pj_str_t foundation;
-	struct ast_rtp_engine_ice_candidate *candidate;
+	struct ast_rtp_engine_ice_candidate *candidate, *existing;
 	char address[PJ_INET6_ADDRSTRLEN];
 
 	pj_thread_register_check();
 
 	pj_ice_calc_foundation(rtp->ice->pool, &foundation, type, addr);
 
-	if (!rtp->local_candidates && !(rtp->local_candidates = ao2_container_alloc(1, NULL, NULL))) {
+	if (!rtp->local_candidates && !(rtp->local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
 		return;
 	}
 
@@ -584,6 +598,12 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 		candidate->type = AST_RTP_ICE_CANDIDATE_TYPE_SRFLX;
 	} else if (type == PJ_ICE_CAND_TYPE_RELAYED) {
 		candidate->type = AST_RTP_ICE_CANDIDATE_TYPE_RELAYED;
+	}
+
+	if ((existing = ao2_find(rtp->local_candidates, candidate, OBJ_POINTER))) {
+		ao2_ref(existing, -1);
+		ao2_ref(candidate, -1);
+		return;
 	}
 
 	if (pj_ice_sess_add_cand(rtp->ice, comp_id, transport_id, type, local_pref, &foundation, addr, addr, rel_addr, addr_len, NULL) != PJ_SUCCESS) {

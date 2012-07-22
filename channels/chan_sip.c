@@ -5468,6 +5468,7 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 static int dialog_initialize_rtp(struct sip_pvt *dialog)
 {
 	struct ast_sockaddr bindaddr_tmp;
+	struct ast_rtp_engine_ice *ice;
 
 	if (!sip_methods[dialog->method].need_rtp) {
 		return 0;
@@ -5478,11 +5479,20 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		return -1;
 	}
 
+	if (!ast_test_flag(&dialog->flags[2], SIP_PAGE3_ICE_SUPPORT) && (ice = ast_rtp_instance_get_ice(dialog->rtp))) {
+		ice->stop(dialog->rtp);
+	}
+
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT_ALWAYS) ||
 			(ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) && (ast_format_cap_has_type(dialog->caps, AST_FORMAT_TYPE_VIDEO)))) {
 		if (!(dialog->vrtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
+
+		if (!ast_test_flag(&dialog->flags[2], SIP_PAGE3_ICE_SUPPORT) && (ice = ast_rtp_instance_get_ice(dialog->vrtp))) {
+			ice->stop(dialog->vrtp);
+		}
+
 		ast_rtp_instance_set_timeout(dialog->vrtp, dialog->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->vrtp, dialog->rtpholdtimeout);
 		ast_rtp_instance_set_keepalive(dialog->vrtp, dialog->rtpkeepalive);
@@ -5494,6 +5504,11 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		if (!(dialog->trtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
+
+		if (!ast_test_flag(&dialog->flags[2], SIP_PAGE3_ICE_SUPPORT) && (ice = ast_rtp_instance_get_ice(dialog->trtp))) {
+			ice->stop(dialog->trtp);
+		}
+
 		/* Do not timeout text as its not constant*/
 		ast_rtp_instance_set_keepalive(dialog->trtp, dialog->rtpkeepalive);
 
@@ -12417,7 +12432,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&vdest));
 			}
 
-			if (!doing_directmedia) {
+			if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
 				add_ice_to_sdp(p->vrtp, &a_video);
 			}
 		}
@@ -12434,7 +12449,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
 
-			if (!doing_directmedia) {
+			if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
 				add_ice_to_sdp(p->trtp, &a_text);
 			}
 		}
@@ -12533,7 +12548,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (min_text_packet_size)
 			ast_str_append(&a_text, 0, "a=ptime:%d\r\n", min_text_packet_size);
 
-		if (!doing_directmedia) {
+		if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
 			add_ice_to_sdp(p->rtp, &a_audio);
 		}
 
@@ -29752,6 +29767,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 			} else if (!strcasecmp(v->name, "avpf")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_USE_AVPF);
+			} else if (!strcasecmp(v->name, "icesupport")) {
+				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
 			}
 		}
 
@@ -30285,6 +30302,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);    /*!< Default DTMF setting: RFC2833 */
 	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA);    /*!< Allow re-invites */
 	ast_set_flag(&global_flags[2], SIP_PAGE3_NAT_AUTO_RPORT); /*!< Default to nat=auto_force_rport */
+	ast_set_flag(&global_flags[2], SIP_PAGE3_ICE_SUPPORT); /*!< Default to enabling ICE support */
 	ast_copy_string(default_engine, DEFAULT_ENGINE, sizeof(default_engine));
 	ast_copy_string(default_parkinglot, DEFAULT_PARKINGLOT, sizeof(default_parkinglot));
 
@@ -30841,6 +30859,8 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
 			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
+		} else if (!strcasecmp(v->name, "icesupport")) {
+			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		}

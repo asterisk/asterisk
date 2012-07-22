@@ -900,6 +900,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; this feature.
 ;
 ; subscribe_network_change_event = yes ; on by default
+;
+; ICE/STUN/TURN usage can be disabled globally or on a per-peer basis using the icesupport
+; configuration option. When set to yes ICE support is enabled. When set to no it is disabled.
+;
+; icesupport = no
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite media streams to an optimal path. If there's
