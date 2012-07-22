@@ -13,17 +13,7 @@
 ------------------------------------------------------------------------------
 
 Build System
-----
- * A new make target, 'full', has been added to the Makefile.  This performs
-   the same compilation actions as make all, but will also scan the entirety of
-   each source file for documentation.  This option is needed to generate AMI
-   event documentation.  Note that your system must have Python in order for
-   this make target to succeed.
-
-Core
-----
- * The expression parser now recognizes the ABS() absolute value function,
-   which will convert negative floating point values to positive values.
+-------------------
  * The Asterisk build system will now build and install a shared library
    (libasteriskssl.so) used to wrap various initialization and shutdown functions
    from the libssl and libcrypto libraries provided by OpenSSL. This is done so
@@ -31,147 +21,112 @@ Core
    modules that are loaded into Asterisk, since they should only be called once
    in any single process. If desired, this feature can be disabled by supplying
    the "--disable-asteriskssl" option to the configure script.
- * Threads belonging to a particular call are now linked with callids which get
-   added to any log messages produced by those threads. Log messages can now be
-   easily identified as involved with a certain call by looking at their call id.
-   Call ids may also be attached to log messages for just about any case where
-   it can be determined to be related to a particular call.
- * The minimum DTMF duration can now be configured in asterisk.conf
-   as "mindtmfduration". The default value is (as before) set to 80 ms.
-   (previously it was only available in source code)
- * Each logging destination and console now have an independent notion of the
-   current verbosity level.  Logger.conf now allows an optional argument to
-   the 'verbose' specifier, indicating the level of verbosity sent to that
-   particular logging destination.  Additionally, remote consoles now each
-   have their own verbosity level.  The command 'core set verbose' will now set
-   a separate level for each remote console without affecting any other
-   console.
- * Named ACLs can now be specified in acl.conf and used in configurations that
-   use ACLs. As a general rule, if some derivative of 'permit' or 'deny' is
-   used to specify an ACL, a similar form of 'acl' will add a named ACL to the
-   working ACL. In addition, some CLI commands have
-   been added to provide informational and configuration reload capabilities to
-   this feature ('acl show [named acl]' and 'reload acl').
- * Hangup handlers can be attached to channels using the CHANNEL(hangup_handler_xxx)
-   options.  Hangup handlers will run when the channel is hung up similar to the
-   h extension.
- * The AMI Hangup event now includes the AccountCode header so you can easily
-   correlate with AMI Newchannel events.
 
-CLI Changes
--------------------
- * mixmonitor list <channel> command will now show MixMonitor ID, and the filenames
-   of all running mixmonitors on a channel.
- * The debuglevel of "pri set debug" is now a bitmask ranging from 0 to 15 if
-   numeric instead of 0, 1, or 2.
- * "stun show status" will show a table describing how the STUN client is behaving.
+ * A new make target, 'full', has been added to the Makefile.  This performs
+   the same compilation actions as make all, but will also scan the entirety of
+   each source file for documentation.  This option is needed to generate AMI
+   event documentation.  Note that your system must have Python in order for
+   this make target to succeed.
 
-ConfBridge
--------------------
- * Added menu action admin_toggle_mute_participants.  This will mute / unmute
-   all non-admin participants on a conference.  The confbridge configuration file
-   also allows for the default sounds played to all conference users when this
-   occurs to be overriden using sound_participants_unmuted and sound_participants_muted.
- * Added menu action participant_count.  This will playback the number of current
-   participants in a conference.
- * Added announcement configuration option to user profile. If set the sound file will
-   be played to the user, and only the user, upon joining the conference bridge.
-
-Voicemail
-------------------
- * Addition of the VM_INFO function - see Dialplan function changes
- * The imapserver, imapport, and imapflags configuration options can now be
-   overriden on a user by user basis.
-
-SIP Changes
------------
- * Asterisk will no longer substitute CID number for CID name into display
-   name field if CID number exists without a CID name. This change improves
-   compatibility with certain device features such as Avaya IP500's directory
-   lookup service.
- * A new setting for autocreatepeer (autocreatepeer=persistent) allows peers
-   created using that setting to not be removed during SIP reload.
- * Add support to realtime for the 'callbackextension' option
- * When multiple peers exist with the same address, but differing
-   callbackextension options, incoming requests that are matched by address
-   will be matched to the peer with the matching callbackextension if it is
-   available.
- * NAT settings are now a combinable list of options. The equivalent of the
-   deprecated nat=yes is nat=force_rport,comedia. nat=no behaves as before.
- * Two new NAT options, auto_force_rport and auto_comedia, have been added
-   which set the force_rport and comedia options automatically if Asterisk
-   detects that an incoming SIP request crossed a NAT after being sent by
-   the remote endpoint.
- * Adds an option send_diversion which can be disabled to prevent
-   diversion headers from automatically being added to invites.
- * Add support for lightweight NAT keepalive. If enabled a blank packet will
-   be sent to the remote host at a given interval to keep the NAT mapping open.
-   This can be enabled using the keepalive configuration option.
- * Add support for WebSocket transport. This can be configured using 'ws' or 'wss'
-   as the transport.
-
-Chan_local changes
-------------------
- * Added a manager event "LocalBridge" for local channel call bridges between
-   the two pseudo-channels created.
-
-Chan_dahdi changes
-------------------
- * Added dialtone_detect option for analog ports to disconnect incoming
-   calls when dialtone is detected.
-
-------------------------------------------------------------------------------
---- Functionality changes since Asterisk 10.4.0 ------------------------------
-------------------------------------------------------------------------------
-
-Build System
-------------
  * The optimization portion of the build system has been reworked to avoid
    broken builds on certain architectures.  All architecture-specific
    optimization has been removed in favor of using -march=native to allow gcc
    to detect the environment in which it is running when possible.  This can
    be toggled as BUILD_NATIVE under "Compiler Flags" in menuselect.
 
-------------------------------------------------------------------------------
---- Functionality changes since Asterisk 10.3.0 ------------------------------
-------------------------------------------------------------------------------
+ * BUILD_CFLAGS and BUILD_LDFLAGS can now be passed to menuselect, e.g.,
+   make BUILD_CFLAGS="whatever" BUILD_LDFLAGS="whatever"
 
-Chan_unistim changes
---------------------
- * Added ability to use multiple lines on phone, so for one device in 
-   configuration multiple lines can be defined, it allows to have multiple calls
-   on one phone, callwaiting and switching between calls.
- * Added option 'sharpdial' allowing end dialing by pressing # key
- * Added option 'interdigit_timer' for controll phone dial timeout
- * Added options 'cwstyle', 'cwvolume' controlling callwaiting appearance
- * Added global 'debug' option, that enables debug in channel driver
- * Added ability for translation on-screen menu to multiple languages. Tested on
-   Russian languages.  Supported encodings: ISO 8859-1, ISO 8859-2, ISO 8859-4, 
-   ISO 8859-5, ISO 2022-JP. Language controlled by 'language' and on-screen 
-   menu of phone
- * In addition to English added French and Russian languages for on-screen menus
- * Reworked dialing number input: added dialing by timeout, immediate dial on 
-   on dialplan compare, phone number length now not limited by screen size
- * Added ability for pickup a call using features.conf defined value and 
-   on-screen key
+ * Remove "asterisk/version.h" in favor of "asterisk/ast_version.h".  If you
+   previously parsed the header file to obtain the version of Asterisk, you
+   will now have to go through Asterisk to get the version information.
 
-Codec changes
--------------
- * Codec lists may now be modified by the '!' character, to allow succinct
-   specification of a list of codecs allowed and disallowed, without the
-   requirement to use two different keywords.  For example, to specify all
-   codecs except g729 and g723, one need only specify allow=all,!g729,!g723.
 
-Music On Hold Changes
----------------------
- * Added 'announcement' option which will play at the start of MOH and between
-   songs in modes of MOH that can detect transitions between songs (eg.
-   files, mp3, etc).
+Applications
+-------------------
 
-Queue changes
--------------
+Bridge
+-------------------
+ * Added 'F()' option. Similar to the dial option, this can be supplied with
+   arguments indicating where the callee should go after the caller is hung up,
+   or without options specified, the priority after the Queue will be used.
+
+
+ConfBridge
+-------------------
+ * Added menu action admin_toggle_mute_participants.  This will mute / unmute
+   all non-admin participants on a conference.  The confbridge configuration
+   file also allows for the default sounds played to all conference users when
+   this occurs to be overriden using sound_participants_unmuted and
+   sound_participants_muted.
+
+ * Added menu action participant_count.  This will playback the number of
+   current participants in a conference.
+
+ * Added announcement configuration option to user profile. If set the sound
+   file will be played to the user, and only the user, upon joining the
+   conference bridge.
+
+
+Dial
+-------------------
+ * Added 'b' and 'B' options to Dial that execute a Gosub on callee and caller
+   channels respectively before the callee channels are called.
+
+
+ExternalIVR
+-------------------
+ * Added support for IPv6.
+
+ * Add interrupt ('I') command to ExternalIVR.  Sending this command from an 
+   external process will cause the current playlist to be cleared, including
+   stopping any audio file that is currently playing.  This is useful when you
+   want to interrupt audio playback only when specific DTMF is entered by the
+   caller.
+
+
+FollowMe
+-------------------
+ * A new option, 'I' has been added to app_followme. By setting this option,
+   Asterisk will not update the caller with connected line changes when they
+   occur.  This is similar to app_dial and app_queue.
+
+ * The 'N' option is now ignored if the call is already answered.
+
+ * Added 'b' and 'B' options to FollowMe that execute a Gosub on callee
+   and caller channels respectively before the callee channels are called.
+
+ * The winning FollowMe outgoing call is now put on hold if the caller put it on
+   hold.
+
+
+MixMonitor
+------------------
+ * MixMonitor hooks now have IDs associated with them which can be used to
+   assign a target to StopMixMonitor. Use of MixMonitor's i(variable) option
+   will allow storage of the MixMontior ID in a channel variable. StopMixmonitor
+   now accepts that ID as an argument.
+
+ * Added 'm' option, which stores a copy of the recording as a voicemail in the
+   indicated mailboxes.
+
+
+OSP Applications
+-------------------
+ * Increased the default number of allowed destinations from 5 to 12.
+
+
+Page
+-------------------
+ * The app_page application now no longer depends on DAHDI or app_meetme.  It
+   has been re-architected to use app_confbridge internally.
+
+
+Queue
+-------------------
  * Added queue options autopausebusy and autopauseunavail for automatically
    pausing a queue member when their device reports busy or congestion.
+
  * The 'ignorebusy' option for queue members has been deprecated in favor of
    the option 'ringinuse. Also a 'queue set ringinuse' CLI command has been
    added as well as an AMI action 'QueueMemberRingInUse' to set this variable on a
@@ -181,59 +136,281 @@ Queue changes
    'ringinuse' setting and does not override per member settings like it does
    in earlier versions.
 
-Voicemail changes
------------------
- * When voicemail plays a message's envelope with saycid set to yes, when reaching
-   the caller id field it will play a recording of a file with the same base name
-   as the sender's callerid if there is a similarly named file in
-   <astspooldir>/recordings/callerids/
+ * Added 'F()' option. Similar to the dial option, this can be supplied with
+   arguments indicating where the callee should go after the caller is hung up,
+   or without options specified, the priority after the Queue will be used.
 
-Applications
-------------
+ * Added new option log_member_name_as_agent, which will cause the membername to
+   be logged in the agent field for ADDMEMBER and REMOVEMEMBER queue events if a
+   state_interface has been set.
+
+
+SayUnixTime
+------------------
  * Added 'j' option to SayUnixTime. SayUnixTime no longer auto jumps to extension
    when receiving DTMF.  Use the 'j' option to enable extension jumping. Also
    changed arguments to SayUnixTime so that every option is truly optional even
    when using multiple options (so that j option could be used without having to
-   manually specify timezone and format) There are other beneftis eg. format can
-   now be used without specifying time zone as well.
- * Added 'F()' option to Queue and Bridge. Similar to the dial option, these can
-   be supplied with arguments indicating where the callee should go after the caller
-   is hung up, or without options specified, the priority after the Queue/Bridge
-   will be used.
- * Added 'b' and 'B' options to Dial that execute a Gosub on callee and caller
-   channels respectively before the callee channels are called.
+   manually specify timezone and format) There are other benefits, e.g., format
+   can now be used without specifying time zone as well.
 
-Parking
-------------
- * New per parking lot options: comebackcontext and comebackdialtime. See
-   configs/features.conf.sample for more details.
 
- * Channel variable PARKER is now set when comebacktoorigin is disabled in
-   a parking lot.
+Voicemail
+------------------
+ * Addition of the VM_INFO function - see Function changes.
 
- * MixMonitor hooks now have IDs associated with them which can be used to assign
-   a target to StopMixMonitor. Use of MixMonitor's i(variable) option will allow
-   storage of the MixMontior ID in a channel variable.  StopMixmonitor now accepts
-   that ID as an argument.
+ * The imapserver, imapport, and imapflags configuration options can now be
+   overriden on a user by user basis.
 
-CDR postgresql driver changes
------------------------------
- * Added command "cdr show pgsql status" to check connection status
+ * When voicemail plays a message's envelope with saycid set to yes, when
+   reaching the caller id field it will play a recording of a file with the same
+   base name as the sender's callerid if there is a similarly named file in
+   <astspooldir>/recordings/callerids/
 
-AMI (Asterisk Manager Interface) changes
-----------------------------------------
- * Originate now generates an error response if the extension given
-   is not found in the dialplan
+ * Voicemails now contains a unique message identifier "msg_id", which is stored
+   in the message envelope with the sound files.  IMAP backends will now store
+   the message identifiers with a header of "X-Asterisk-VM-Message-ID".  ODBC
+   backends will store the message identifier in a "msg_id" column.  See
+   UPGRADE.txt for more information.
 
- * MixMonitor will now show IDs associated with the mixmonitor upon creating them
-   if the i(variable) option is used. StopMixMonitor will accept MixMonitorID as
-   on option to close specific MixMonitors.
+ * Added VoiceMailPlayMsg application.  This application will play a single
+   voicemail message from a mailbox.  The result of the application, SUCCESS or
+   FAILED, is stored in the channel variable VOICEMAIL_PLAYBACKSTATUS.
 
- * The SIPshowpeer manager action response field "SIP-Forcerport" has been updated
-   to include information about peers configured with nat=auto_force_rport by
-   returning "A" if auto_force_rport is set and nat is detected, and "a" if it is
-   set and nat is not detected. "Y" and "N" are still returned if auto_force_rport
-   is not enabled.
+
+Functions
+------------------
+ * Hangup handlers can be attached to channels using the CHANNEL() function.
+   Hangup handlers will run when the channel is hung up similar to the h
+   extension. The hangup_handler_push option will push a GoSub compatible
+   location in the dialplan onto the channel's hangup handler stack.  The
+   hangup_handler_pop option will remove the last added location, and optionally
+   replace it with a new GoSub compatible location.  The hangup_handler_wipe
+   option will remove all locations on the stack, and optionally add a new
+   location.
+
+ * The expression parser now recognizes the ABS() absolute value function,
+   which will convert negative floating point values to positive values.
+
+ * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan
+   control of faxdetect.
+
+ * Addition of the VM_INFO function that can be used to retrieve voicemail
+   user information, such as the email address and full name.
+   The MAILBOX_EXISTS dialplan function has been deprecated in favour of
+   VM_INFO.
+
+ * The REDIRECTING function now supports the redirecting original party id
+   and reason.
+
+ * Two new functions have been added: FEATURE() and FEATUREMAP().  FEATURE()
+   lets you set some of the configuration options from the [general] section
+   of features.conf on a per-channel basis.  FEATUREMAP() lets you customize
+   the key sequence used to activate built-in features, such as blindxfer,
+   and automon.  See the built-in documentation for details.
+
+ * MESSAGE(from) for incoming SIP messages now returns "display-name" <uri>
+   instead of simply the uri.  This is the format that MessageSend() can use
+   in the from parameter for outgoing SIP messages.
+
+ * Added the PRESENCE_STATE function.  This allows retrieving presence state
+   information from any presence state provider.  It also allows setting
+   presence state information from a CustomPresence presence state provider.
+   See AMI/CLI changes for related commands.
+
+
+Channel Drivers
+------------------
+
+chan_local
+------------------
+ * Added a manager event "LocalBridge" for local channel call bridges between
+   the two pseudo-channels created.
+
+
+chan_dahdi
+------------------
+ * Added dialtone_detect option for analog ports to disconnect incoming
+   calls when dialtone is detected.
+
+ * Added option colp_send to send ISDN connected line information.  Allowed
+   settings are block, to not send any connected line information; connect, to
+   send connected line information on initial connect; and update, to send
+   information on any update during a call.  Default is update.
+
+
+chan_motif
+------------------
+ * A new channel driver named chan_motif has been added which provides support for
+   Google Talk and Jingle in a single channel driver. This new channel driver includes
+   support for both audio and video, RFC2833 DTMF, all codecs supported by Asterisk,
+   hold, unhold, and ringing notification. It is also compliant with the current Jingle
+   specification, current Google Jingle specification, and the original Google Talk
+   protocol.
+
+
+chan_ooh323
+------------------
+ * Added NAT support for RTP.  Setting in config is 'nat', which can be set
+   globally and overriden on a peer by peer basis.
+
+ * Direct media functionality has been added. Options in config are: 
+   directmedia (directrtp) and directrtpsetup (earlydirect)
+
+ * ChannelUpdate events now contain a CallRef header.
+
+
+chan_sip
+------------------
+ * Asterisk will no longer substitute CID number for CID name in the display
+   name field if CID number exists without a CID name. This change improves
+   compatibility with certain device features such as Avaya IP500's directory
+   lookup service.
+
+ * A new setting for autocreatepeer (autocreatepeer=persistent) allows peers
+   created using that setting to not be removed during SIP reload.
+
+ * Added settings recordonfeature and recordofffeature.  When receiving an INFO
+   request with a "Record:" header, this will turn the requested feature on/off.
+   Allowed values are 'automon', 'automixmon', and blank to disable.  Note that
+   dynamic features must be enabled and configured properly on the requesting
+   channel for this to function properly.
+
+ * Add support to realtime for the 'callbackextension' option.
+
+ * When multiple peers exist with the same address, but differing
+   callbackextension options, incoming requests that are matched by address
+   will be matched to the peer with the matching callbackextension if it is
+   available.
+
+ * Two new NAT options, auto_force_rport and auto_comedia, have been added
+   which set the force_rport and comedia options automatically if Asterisk
+   detects that an incoming SIP request crossed a NAT after being sent by
+   the remote endpoint.
+
+ * NAT settings are now a combinable list of options. The equivalent of the
+   deprecated nat=yes is nat=force_rport,comedia. nat=no behaves as before.
+
+ * Adds an option send_diversion which can be disabled to prevent
+   diversion headers from automatically being added to INVITE requests.
+
+ * Add support for lightweight NAT keepalive. If enabled a blank packet will
+   be sent to the remote host at a given interval to keep the NAT mapping open.
+   This can be enabled using the keepalive configuration option.
+
+ * Add option 'tonezone' to specify country code for indications.  This option
+   can be set both globally and overridden for specific peers.
+
+ * The SIP Security Events Framework now supports IPv6.
+
+ * Add a new setting for directmedia, 'outgoing', to alleviate INVITE glares
+   between multiple user agents. When set, for directmedia reinvites,
+   Asterisk will not send an immediate reinvite on an incoming call leg. This
+   option is useful when peered with another SIP user agent that is known to
+   send immediate direct media reinvites upon call establishment.
+
+ * Add support for WebSocket transport. This can be configured using 'ws' or 'wss'
+   as the transport.
+
+ * When a MESSAGE request is received, the address the request was received from
+   is now saved in the SIP_RECVADDR variable.
+
+ * Add ANI2/OLI parsing for SIP.  The "From" header in INVITE requests is now
+   parsed for the presence of "isup-oli", "ss7-oli", or "oli" tags.  If present,
+   the ANI2/OLI information is set on the channel, which can be retrieved using
+   the CALLERID function.
+
+ * Peers can now be configured to support negotiation of ICE candidates using
+   the setting icesupport.  See res_rtp_asterisk changes for more information.
+
+ * Added support for format attribute negotiation.  See the Codecs changes for
+   more information.
+
+
+chan_skinny
+------------------
+ * Added skinny version 17 protocol support.
+
+
+chan_unistim
+--------------------
+ * Added ability to use multiple lines for a single phone.  This allows multiple
+   calls to occur on a single phone, using callwaiting and switching between calls.
+
+ * Added option 'sharpdial' allowing end dialing by pressing # key
+
+ * Added option 'interdigit_timer' to control phone dial timeout
+
+ * Added options 'cwstyle', 'cwvolume' controlling callwaiting appearance
+
+ * Added global 'debug' option, that enables debug in channel driver
+
+ * Added ability to translate on-screen menu in multiple languages. Tested on
+   Russian languages.  Supported encodings: ISO 8859-1, ISO 8859-2, ISO 8859-4, 
+   ISO 8859-5, ISO 2022-JP. Language controlled by 'language' and on-screen 
+   menu of phone
+
+ * In addition to English added French and Russian languages for on-screen menus
+
+ * Reworked dialing number input: added dialing by timeout, immediate dial on 
+   on dialplan compare, phone number length now not limited by screen size
+
+ * Added ability to pickup a call using features.conf defined value and 
+   on-screen key
+
+
+Core
+------------------
+ * The minimum DTMF duration can now be configured in asterisk.conf
+   as "mindtmfduration". The default value is (as before) set to 80 ms.
+   (previously it was only available in source code)
+
+ * Named ACLs can now be specified in acl.conf and used in configurations that
+   use ACLs. As a general rule, if some derivative of 'permit' or 'deny' is
+   used to specify an ACL, a similar form of 'acl' will add a named ACL to the
+   working ACL. In addition, some CLI commands have been added to provide
+   show information and allow for module reloading - see CLI Changes.
+
+ * DUNDi now allows the built in variables ${NUMBER}, ${IPADDR} and ${SECRET} to
+   be used within the dynamic weight attribute when specifying a mapping.
+
+ * CEL backends can now be configured to show "USER_DEFINED" in the EventName
+   header, instead of putting the user defined event name there.  When enabled
+   the UserDefType header is added for user defined events.  This feature is
+   enabled with the setting show_user_defined.
+
+ * Macro has been deprecated in favor of GoSub.  For redirecting and connected
+   line purposes use the following variables instead of their macro equivalents:
+   REDIRECTING_SEND_SUB, REDIRECTING_SEND_SUB_ARGS, CONNECTED_LINE_SEND_SUB,
+   CONNECTED_LINE_SEND_SUB_ARGS.  For CCSS, use cc_callback_sub instead of
+   cc_callback_macro in channel configurations.
+
+
+AGI
+------------------
+ * A new channel variable, AGIEXITONHANGUP, has been added which allows
+   Asterisk to behave like it did in Asterisk 1.4 and earlier where the
+   AGI application would exit immediately after a channel hangup is detected.
+
+ * IPv6 addresses are now supported when using FastAGI (agi://).  Hostnames
+   are resolved and each address is attempted in turn until one succeeds or
+   all fail.
+
+
+AMI (Asterisk Manager Interface)
+------------------
+ * Originate now generates an error response if the extension given is not found
+   in the dialplan
+
+ * MixMonitor will now show IDs associated with the mixmonitor upon creating
+   them if the i(variable) option is used. StopMixMonitor will accept
+   MixMonitorID as an option to close specific MixMonitors.
+
+ * The SIPshowpeer manager action response field "SIP-Forcerport" has been
+   updated to include information about peers configured with
+   nat=auto_force_rport by returning "A" if auto_force_rport is set and nat is
+   detected, and "a" if it is set and nat is not detected. "Y" and "N" are still
+   returned if auto_force_rport is not enabled.
 
  * Hangup now can take a regular expression as the Channel option.  If you want
    to hangup multiple channels, use /regex/ as the Channel option.  Existing 
@@ -242,49 +419,152 @@ AMI (Asterisk Manager Interface) changes
 
  * Support for IPv6 addresses has been added.
 
- * AMI Events can now be documented in the Asterisk source.  Two new CLI
-   commands have been added to display information about AMI events at run time:
-   manager show events, which shows a list of all known and documented AMI
-   events, and manager show event [event name], which shows detail information
-   about a specific AMI event.  Note that AMI event documentation is only
-   generated when Asterisk is compiled using 'make full'.
+ * AMI Events can now be documented in the Asterisk source. Note that AMI event
+   documentation is only generated when Asterisk is compiled using 'make full'.
+   See the CLI section for commands to display AMI event information.
 
-FAX changes
------------
- * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan
-   control of faxdetect.
+ * The AMI Hangup event now includes the AccountCode header so you can easily
+   correlate with AMI Newchannel events.
 
-DUNDi changes
--------------
- * Allow the built in variables ${NUMBER}, ${IPADDR} and ${SECRET} to be
-   used within the dynamic weight attribute when specifying a mapping.
+ * The QueueMemberStatus, QueueMemberAdded, and QueueMember events now include
+   the StateInterface of the queue member.
 
-Dialplan functions
-------------------
- * Addition of the VM_INFO function that can be used to retrieve voicemail
-   user information, such as the email address and full name.
-   The MAILBOX_EXISTS dialplan function has been deprecated in favour of
-   VM_INFO.
- * The REDIRECTING function now supports the redirecting original party id
-   and reason.
- * Two new functions have been added: FEATURE() and FEATUREMAP().  FEATURE()
-   lets you set some of the configuration options from the [general] section
-   of features.conf on a per-channel basis.  FEATUREMAP() lets you customize
-   the key sequence used to activate built-in features, such as blindxfer,
-   and automon.  See the built-in documentation for details.
+ * Added AMI event SessionTimeout in the Call category that is issued when a
+   call is terminated due to either RTP stream inactivity or SIP session timer
+   expiration.
 
-Followme changes
--------------
- * A new option, 'I' has been added to app_followme.
-   By setting this option, Asterisk will not update the caller with
-   connected line changes when they occur.  This is similar to app_dial
-   and app_queue.
- * The 'N' option is now ignored if the call is already answered.
- * Added 'b' and 'B' options to FollowMe that execute a Gosub on callee
-   and caller channels respectively before the callee channels are called.
+ * CEL events can now contain a user defined header UserDefType.  See core
+   changes for more information.
 
-RTP changes
--------------
+ * OOH323 ChannelUpdate events now contain a CallRef header.
+
+ * Added PresenceState command.  This command will report the presence state for
+   the given presence provider.
+
+ * Added Parkinglots command.  This will list all parking lots as a series of
+   AMI Parkinglot events.
+
+ * Added MessageSend command.  This behaves in the same manner as the
+   MessageSend application, and is a technolgoy agnostic mechanism to send out
+   of call text messages.
+
+ * Added "message" class authorization.  This grants an account permission to
+   send out of call messages.  Write-only.
+
+
+CLI
+-------------------
+ * The "mixmonitor list <channel>" command will now show MixMonitor ID, and the
+   filenames of all running mixmonitors on a channel.
+
+ * The debug level of "pri set debug" is now a bitmask ranging from 0 to 15 if
+   numeric instead of 0, 1, or 2.
+
+ * "stun show status" will show a table describing how the STUN client is
+   behaving.
+
+ * "acl show [named acl]" will show information regarding a Named ACL.  The
+   acl module can be reloaded with "reload acl".
+
+ * Added CLI command to display AMI event information - "manager show events",
+   which shows a list of all known and documented AMI events, and "manager show
+   event [event name]", which shows detail information about a specific AMI
+   event.
+
+ * The result of the CLI command "queue show" now includes the state interface
+   information of the queue member.
+
+ * The command "core set verbose" will now set a separate level of logging for
+   each remote console without affecting any other console.
+
+ * Added command "cdr show pgsql status" to check connection status
+
+ * "sip show channel" will now display the complete route set.
+
+ * Added "presencestate list" command.  This command will list all custom
+   presence states that have been set by using the PRESENCE_STATE dialplan
+   function.
+
+ * Added "presencestate change <entity> <state>[,<subtype>[,message[,options]]]"
+   command.  This changes a custom presence to a new state.
+
+
+Codecs
+-------------------
+ * Codec lists may now be modified by the '!' character, to allow succinct
+   specification of a list of codecs allowed and disallowed, without the
+   requirement to use two different keywords.  For example, to specify all
+   codecs except g729 and g723, one need only specify allow=all,!g729,!g723.
+
+ * Add support for parsing SDP attributes, generating SDP attributes, and
+   passing it through. This support includes codecs such as H.263, H.264, SILK,
+   and CELT. You are able to set up a call and have attribute information pass.
+   This should help considerably with video calls.
+
+
+Logging
+-------------------
+ * Asterisk version and build information is now logged at the beginning of a
+   log file.
+
+ * Threads belonging to a particular call are now linked with callids which get
+   added to any log messages produced by those threads. Log messages can now be
+   easily identified as involved with a certain call by looking at their call id.
+   Call ids may also be attached to log messages for just about any case where
+   it can be determined to be related to a particular call.
+
+ * Each logging destination and console now have an independent notion of the
+   current verbosity level.  Logger.conf now allows an optional argument to
+   the 'verbose' specifier, indicating the level of verbosity sent to that
+   particular logging destination.  Additionally, remote consoles now each
+   have their own verbosity level.  The command 'core set verbose' will now set
+   a separate level for each remote console without affecting any other
+   console.
+
+
+Music On Hold
+-------------------
+ * Added 'announcement' option which will play at the start of MOH and between
+   songs in modes of MOH that can detect transitions between songs (eg.
+   files, mp3, etc).
+
+
+Parking
+-------------------
+ * New per parking lot options: comebackcontext and comebackdialtime. See
+   configs/features.conf.sample for more details.
+
+ * Channel variable PARKER is now set when comebacktoorigin is disabled in
+   a parking lot.
+
+ * Channel variable PARKEDCALL is now set with the name of the parking lot 
+   when a timeout occurs.
+
+
+CDRs
+-------------------
+
+CDR Postgresql Driver
+-------------------
+ * Added command "cdr show pgsql status" to check connection status
+
+
+CDR Adaptive ODBC Driver
+-------------------
+ * Added schema option for databases that support specifying a schema.
+
+
+Resource Modules
+-------------------
+
+Calendars
+-------------------
+ * A CALENDAR_SUCCESS=1/0 channel variable is now set to show whether or not 
+   CALENDAR_WRITE has completed successfully.
+
+
+res_rtp_asterisk
+-------------------
  * A new option, 'probation' has been added to rtp.conf
    RTP in strictrtp mode can now require more than 1 packet to exit learning
    mode with a new source (and by default requires 4). The probation option
@@ -294,14 +574,13 @@ RTP changes
    mode has successfully exited. These changes are based on how pjmedia handles
    media sources and source changes.
 
-Text Messaging
---------------
- * MESSAGE(from) for incoming SIP messages now returns "display-name" <uri>
-   instead of simply the uri.  This is the format that MessageSend() can use
-   in the from parameter for outgoing SIP messages.
+ * Add support for ICE/STUN/TURN in res_rtp_asterisk.  This option can be
+   enabled or disabled using the icesupport setting.  A variety of other
+   settings have been introduced to configure STUN/TURN connections.
+
 
 res_corosync
-------------
+-------------------
  * A new module, res_corosync, has been introduced.  This module uses the
    Corosync cluster enginer (http://www.corosync.org) to allow a local cluster
    of Asterisk servers to both Message Waiting Indication (MWI) and/or
@@ -309,28 +588,26 @@ res_corosync
    is a replacement for the res_ais module that was in previous releases of
    Asterisk.
 
-AGI
----
- * A new channel variable, AGIEXITONHANGUP, has been added which allows
-   Asterisk to behave like it did in Asterisk 1.4 and earlier where the
-   AGI application would exit immediately after a channel hangup is detected.
- * IPv6 addresses are now supported when using FastAGI (agi://).  Hostnames
-   are resolved and each address is attempted in turn until one succeeds or
-   all fail.
 
-chan_ooh323
------------
- * Direct media functionality has been added.
-   Options in config are:  directmedia (directrtp) and directrtpsetup (earlydirect)
+res_xmpp
+-------------------
+ * This module adds a cleaned up, drop-in replacement for res_jabber called
+   res_xmpp. This provides the same externally facing functionality but is
+   implemented differently internally.  res_jabber has been deprecated in favor
+   of res_xmpp; please see the UPGRADE.txt file for more information.
 
-chan_motif
-----------
- * A new channel driver named chan_motif has been added which provides support for
-   Google Talk and Jingle in a single channel driver. This new channel driver includes
-   support for both audio and video, RFC2833 DTMF, all codecs supported by Asterisk,
-   hold, unhold, and ringing notification. It is also compliant with the current Jingle
-   specification, current Google Jingle specification, and the original Google Talk
-   protocol.
+
+Scripts
+-------------------
+ * The safe_asterisk script has been updated to allow several of its parameters
+   to be set from environment variables.  This also enables a custom run
+   directory of Asterisk to be specified, instead of defaulting to /tmp.
+
+ * The live_ast script will now look for the LIVE_AST_BASE_DIR variable and use
+   its value to determine the directory to assume is the top-level directory of
+   the source tree.  If the variable is not set, it defaults to the current
+   behavior and uses the current working directory.
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
