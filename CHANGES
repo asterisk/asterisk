@@ -311,6 +311,14 @@ chan_sip
 
  * Add support for WebSocket transport. This can be configured using 'ws' or 'wss'
    as the transport.
+ * Add options subminexpiry and submaxexpiry to set limits of subscription
+   timer independently from registration timer settings. The setting of the
+   registration timer limits still is done by options minexpiry, maxexpiry
+   and defaultexpiry. For backwards compatibility the setting of minexpiry
+   and maxexpiry also is used to configure the subscription timer limits if
+   subminexpiry and submaxexpiry are not set in sip.conf.
+ * Set registration timer limits to default values when reloading sip
+   configuration and values are not set by configuration.
 
  * When a MESSAGE request is received, the address the request was received from
    is now saved in the SIP_RECVADDR variable.

@@ -258,10 +258,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;cos_video=4                    ; Sets 802.1p priority for RTP video packets.
 ;cos_text=3                     ; Sets 802.1p priority for RTP text packets.
 
-;maxexpiry=3600                 ; Maximum allowed time of incoming registrations
-                                ; and subscriptions (seconds)
-;minexpiry=60                   ; Minimum length of registrations/subscriptions (default 60)
+;maxexpiry=3600                 ; Maximum allowed time of incoming registrations (seconds)
+;minexpiry=60                   ; Minimum length of registrations (default 60)
 ;defaultexpiry=120              ; Default length of incoming/outgoing registration
+;submaxexpiry=3600              ; Maximum allowed time of incoming subscriptions (seconds), default: maxexpiry
+;subminexpiry=60                ; Minimum length of subscriptions, default: minexpiry
 ;mwiexpiry=3600                 ; Expiry time for outgoing MWI subscriptions
 ;maxforwards=70			; Setting for the SIP Max-Forwards: header (loop prevention)
 				; Default value is 70

@@ -585,6 +585,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
 static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
+static int min_subexpiry = DEFAULT_MIN_EXPIRY;     /*!< Minimum accepted subscription time */
+static int max_subexpiry = DEFAULT_MAX_EXPIRY;     /*!< Maximum accepted subscription time */
 static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
 static int unauth_sessions = 0;
@@ -11546,12 +11548,12 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 }
 
 /*! \brief Append Min-Expires header, content length before transmitting response */
-static int transmit_response_with_minexpires(struct sip_pvt *p, const char *msg, const struct sip_request *req)
+static int transmit_response_with_minexpires(struct sip_pvt *p, const char *msg, const struct sip_request *req, int minexpires)
 {
 	struct sip_request resp;
 	char tmp[32];
 
-	snprintf(tmp, sizeof(tmp), "%d", min_expiry);
+	snprintf(tmp, sizeof(tmp), "%d", minexpires);
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Min-Expires", tmp);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
@@ -19678,6 +19680,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Reg. min duration       %d secs\n", min_expiry);
 	ast_cli(a->fd, "  Reg. max duration:      %d secs\n", max_expiry);
 	ast_cli(a->fd, "  Reg. default duration:  %d secs\n", default_expiry);
+	ast_cli(a->fd, "  Sub. min duration       %d secs\n", min_subexpiry);
+	ast_cli(a->fd, "  Sub. max duration:      %d secs\n", max_subexpiry);
 	ast_cli(a->fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(a->fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(a->fd, "  Notify ringing state:   %s\n", AST_CLI_YESNO(sip_cfg.notifyringing));
@@ -26330,7 +26334,7 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 	if (expires_int > max_expiry) {
 		expires_int = max_expiry;
 	} else if (expires_int < min_expiry && expires_int > 0) {
-		transmit_response_with_minexpires(p, "423 Interval too small", req);
+		transmit_response_with_minexpires(p, "423 Interval too small", req, min_expiry);
 		pvt_set_needdestroy(p, "Expires is less that the min expires allowed.");
 		return 0;
 	}
@@ -26762,13 +26766,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		p->expiry = atoi(sip_get_header(req, "Expires"));
 
 		/* check if the requested expiry-time is within the approved limits from sip.conf */
-		if (p->expiry > max_expiry) {
-			p->expiry = max_expiry;
-		} else if (p->expiry < min_expiry && p->expiry > 0) {
-			transmit_response_with_minexpires(p, "423 Interval too small", req);
+		if (p->expiry > max_subexpiry) {
+			p->expiry = max_subexpiry;
+		} else if (p->expiry < min_subexpiry && p->expiry > 0) {
+			transmit_response_with_minexpires(p, "423 Interval too small", req, min_subexpiry);
 			ast_log(LOG_WARNING, "Received subscription for extension \"%s\" context \"%s\" "
-				"with Expire header less that 'minexpire' limit. Received \"Expire: %d\" min is %d\n",
-				p->exten, p->context, p->expiry, min_expiry);
+				"with Expire header less than 'subminexpire' limit. Received \"Expire: %d\" min is %d\n",
+				p->exten, p->context, p->expiry, min_subexpiry);
 			pvt_set_needdestroy(p, "Expires is less that the min expires allowed.");
 			if (authpeer) {
 				sip_unref_peer(authpeer, "sip_unref_peer, from handle_request_subscribe (authpeer 6)");
@@ -30108,6 +30112,7 @@ static int reload_config(enum channelreloadreason reason)
 	time_t run_start, run_end;
 	int bindport = 0;
 	int acl_change_subscription_needed = 0;
+	int min_subexpiry_set = 0, max_subexpiry_set = 0;
 
 	run_start = time(0);
 	ast_unload_realtime("sipregs");
@@ -30324,6 +30329,9 @@ static int reload_config(enum channelreloadreason reason)
 	authlimit = DEFAULT_AUTHLIMIT;
 	authtimeout = DEFAULT_AUTHTIMEOUT;
 	global_store_sip_cause = DEFAULT_STORE_SIP_CAUSE;
+	min_expiry = DEFAULT_MIN_EXPIRY;
+	max_expiry = DEFAULT_MAX_EXPIRY;
+	default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 	sip_cfg.matchexternaddrlocally = DEFAULT_MATCHEXTERNADDRLOCALLY;
 
@@ -30595,6 +30603,18 @@ static int reload_config(enum channelreloadreason reason)
 			if (default_expiry < 1) {
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
 			}
+		} else if (!strcasecmp(v->name, "submaxexpirey") || !strcasecmp(v->name, "submaxexpiry")) {
+			max_subexpiry = atoi(v->value);
+			if (max_subexpiry < 1) {
+				max_subexpiry = DEFAULT_MAX_EXPIRY;
+			}
+			max_subexpiry_set = 1;
+		} else if (!strcasecmp(v->name, "subminexpirey") || !strcasecmp(v->name, "subminexpiry")) {
+			min_subexpiry = atoi(v->value);
+			if (min_subexpiry < 1) {
+				min_subexpiry = DEFAULT_MIN_EXPIRY;
+			}
+			min_subexpiry_set = 1;
 		} else if (!strcasecmp(v->name, "mwiexpiry") || !strcasecmp(v->name, "mwiexpirey")) {
 			mwi_expiry = atoi(v->value);
 			if (mwi_expiry < 1) {
@@ -30864,6 +30884,14 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		}
+	}
+
+	/* For backwards compatibility the corresponding registration timer value is used if subscription timer value isn't set by configuration */
+	if (!min_subexpiry_set) {
+		min_subexpiry = min_expiry;
+	}
+	if (!max_subexpiry_set) {
+		max_subexpiry = max_expiry;
 	}
 
 	if (reason != CHANNEL_MODULE_LOAD) {
