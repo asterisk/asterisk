@@ -117,6 +117,10 @@ SIP
    ss7-oli) is now parsed out of the From header and copied into the channel's
    ANI2 information field.  This is readable from the CALLERID(ani2) dialplan
    function.
+ - ICE support has been added and is enabled by default. Some endpoints may have
+   problems with the ICE candidates within the SDP. If this is the case ICE support
+   can be disabled globally or on a per-endpoint basis using the icesupport
+   configuration option. Symptoms of this include one way media or no media flow.
 
 chan_unistim
  - Due to massive update in chan_unistim phone keys functions and on-screen 
@@ -127,6 +131,12 @@ users.conf:
    as documented in extensions.conf.sample since v1.6.0 instead of a Macro as
    documented in v1.4.  Set the asterisk.conf stdexten=macro parameter to
    invoke the stdexten the old way.
+
+res_jabber
+ - This module has been deprecated in favor of the res_xmpp module. The res_xmpp
+   module is backwards compatible with the res_jabber configuration file, dialplan
+   functions, and AMI actions. The old CLI commands can also be made available using
+   the res_clialiases template for Asterisk 11.
 
 From 1.8 to 10:
 
