@@ -56,7 +56,7 @@ enum {
 
 /* Implementation functions */
 /* fixed */
-static void *jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold);
+static void *jb_create_fixed(struct ast_jb_conf *general_config);
 static void jb_destroy_fixed(void *jb);
 static int jb_put_first_fixed(void *jb, struct ast_frame *fin, long now);
 static int jb_put_fixed(void *jb, struct ast_frame *fin, long now);
@@ -66,7 +66,7 @@ static int jb_remove_fixed(void *jb, struct ast_frame **fout);
 static void jb_force_resynch_fixed(void *jb);
 static void jb_empty_and_reset_fixed(void *jb);
 /* adaptive */
-static void * jb_create_adaptive(struct ast_jb_conf *general_config, long resynch_threshold);
+static void * jb_create_adaptive(struct ast_jb_conf *general_config);
 static void jb_destroy_adaptive(void *jb);
 static int jb_put_first_adaptive(void *jb, struct ast_frame *fin, long now);
 static int jb_put_adaptive(void *jb, struct ast_frame *fin, long now);
@@ -413,7 +413,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	char name1[AST_CHANNEL_NAME], name2[AST_CHANNEL_NAME], *tmp;
 	int res;
 
-	jbobj = jb->jbobj = jbimpl->create(jbconf, jbconf->resync_threshold);
+	jbobj = jb->jbobj = jbimpl->create(jbconf);
 	if (!jbobj) {
 		ast_log(LOG_WARNING, "Failed to create jitterbuffer on channel '%s'\n", ast_channel_name(chan));
 		return -1;
@@ -600,12 +600,12 @@ void ast_jb_empty_and_reset(struct ast_channel *c0, struct ast_channel *c1)
 /* Implementation functions */
 
 /* fixed */
-static void * jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold)
+static void * jb_create_fixed(struct ast_jb_conf *general_config)
 {
 	struct fixed_jb_conf conf;
 
 	conf.jbsize = general_config->max_size;
-	conf.resync_threshold = resynch_threshold;
+	conf.resync_threshold = general_config->resync_threshold;
 
 	return fixed_jb_new(&conf);
 }
@@ -613,6 +613,9 @@ static void * jb_create_fixed(struct ast_jb_conf *general_config, long resynch_t
 static void jb_destroy_fixed(void *jb)
 {
 	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
+
+	/* Ensure the fixed jb is empty - otherwise it will raise an ASSERT */
+	jb_empty_and_reset_fixed(jb);
 
 	/* destroy the jb */
 	fixed_jb_destroy(fixedjb);
@@ -694,7 +697,7 @@ static void jb_empty_and_reset_fixed(void *jb)
 
 /* adaptive */
 
-static void *jb_create_adaptive(struct ast_jb_conf *general_config, long resynch_threshold)
+static void *jb_create_adaptive(struct ast_jb_conf *general_config)
 {
 	jb_conf jbconf;
 	jitterbuf *adaptivejb;
@@ -722,11 +725,6 @@ static void jb_destroy_adaptive(void *jb)
 
 static int jb_put_first_adaptive(void *jb, struct ast_frame *fin, long now)
 {
-	jitterbuf *adaptivejb = (jitterbuf *) jb;
-
-	/* Initialize the offset to that of the first frame's timestamp */
-	adaptivejb->info.resync_offset = fin->ts;
-
 	return jb_put_adaptive(jb, fin, now);
 }
 

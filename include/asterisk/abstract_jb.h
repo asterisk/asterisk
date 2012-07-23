@@ -92,7 +92,7 @@ struct ast_jb_conf
 
 /* Hooks for the abstract jb implementation */
 /*! \brief Create */
-typedef void * (*jb_create_impl)(struct ast_jb_conf *general_config, long resynch_threshold);
+typedef void * (*jb_create_impl)(struct ast_jb_conf *general_config);
 /*! \brief Destroy */
 typedef void (*jb_destroy_impl)(void *jb);
 /*! \brief Put first frame */

@@ -182,7 +182,7 @@ static int jb_framedata_init(struct jb_framedata *framedata, const char *data, c
 	}
 
 	/* now that all the user parsing is done and nothing will change, create the jb obj */
-	framedata->jb_obj = framedata->jb_impl->create(&framedata->jb_conf, framedata->jb_conf.resync_threshold);
+	framedata->jb_obj = framedata->jb_impl->create(&framedata->jb_conf);
 	return 0;
 }
 
