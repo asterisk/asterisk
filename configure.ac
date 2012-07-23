@@ -390,6 +390,7 @@ AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
 AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise])
+AST_EXT_LIB_SETUP([ILBC], [System iLBC], [ilbc], [, use 'internal' iLBC otherwise])
 AST_EXT_LIB_SETUP([GTK2], [gtk2], [gtk2])
 AST_EXT_LIB_SETUP([GMIME], [GMime], [gmime])
 AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
@@ -1247,6 +1248,26 @@ if test "${USE_GSM}" != "no"; then
    if test "${GSM_INTERNAL}" = "yes"; then
       PBX_GSM=1
       AC_DEFINE_UNQUOTED([HAVE_GSM_HEADER], 1, [Define to indicate that gsm.h has no prefix for its location])
+   fi
+fi
+
+ILBC_INTERNAL="yes"
+AC_SUBST(ILBC_INTERNAL)
+ILBC_SYSTEM="yes"
+if test "${USE_ILBC}" != "no"; then
+   if test "${ILBC_DIR}" = "internal"; then
+      ILBC_SYSTEM="no"
+   elif test "${ILBC_DIR}" != ""; then
+      ILBC_INTERNAL="no"
+   fi
+   if test "${ILBC_SYSTEM}" = "yes"; then
+      AST_PKG_CONFIG_CHECK(ILBC, libilbc)
+      if test "$PBX_ILBC" = '1'; then
+	 ILBC_INTERNAL='no'
+      fi
+   fi
+   if test "${ILBC_INTERNAL}" = "yes"; then
+      PBX_ILBC=1
    fi
 fi
 

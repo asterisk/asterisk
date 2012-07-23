@@ -21,11 +21,12 @@
 /*! \file
  *
  * \brief Translate between signed linear and Internet Low Bitrate Codec
- * 
+ *
  * \ingroup codecs
  */
 
 /*** MODULEINFO
+	<use>ilbc</use>
 	<support_level>core</support_level>
  ***/
 
@@ -37,8 +38,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
 
+#ifdef ILBC_WEBRTC
+#include <ilbc.h>
+typedef WebRtc_UWord16 ilbc_bytes;
+typedef WebRtc_Word16  ilbc_block;
+#define BUF_TYPE i16
+#else
 #include "ilbc/iLBC_encode.h"
 #include "ilbc/iLBC_decode.h"
+typedef unsigned char ilbc_bytes;
+typedef float         ilbc_block;
+#define BUF_TYPE uc
+#endif
 
 #define USE_ILBC_ENHANCER	0
 #define ILBC_MS 			30
@@ -86,7 +97,7 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
 	int16_t *dst = pvt->outbuf.i16;
-	float tmpf[ILBC_SAMPLES];
+	ilbc_block tmpf[ILBC_SAMPLES];
 
 	if (!f->data.ptr && f->datalen) {
 		ast_debug(1, "issue 16070, ILIB ERROR. data = NULL datalen = %d src = %s\n", f->datalen, f->src ? f->src : "no src set");
@@ -144,13 +155,13 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 	if (pvt->samples < ILBC_SAMPLES)
 		return NULL;
 	while (pvt->samples >= ILBC_SAMPLES) {
-		float tmpf[ILBC_SAMPLES];
+		ilbc_block tmpf[ILBC_SAMPLES];
 		int i;
 
 		/* Encode a frame of data */
 		for (i = 0 ; i < ILBC_SAMPLES ; i++)
 			tmpf[i] = tmp->buf[samples + i];
-		iLBC_encode( pvt->outbuf.uc + datalen, tmpf, &tmp->enc);
+		iLBC_encode( (ilbc_bytes*)pvt->outbuf.BUF_TYPE + datalen, tmpf, &tmp->enc);
 
 		datalen += ILBC_FRAME_LEN;
 		samples += ILBC_SAMPLES;

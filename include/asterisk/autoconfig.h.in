@@ -327,6 +327,9 @@
 /* Define to 1 if you have the Iksemel Jabber library. */
 #undef HAVE_IKSEMEL
 
+/* Define if your system has the ILBC libraries. */
+#undef HAVE_ILBC
+
 /* Define if your system has the UW IMAP Toolkit c-client library. */
 #undef HAVE_IMAP_TK
 

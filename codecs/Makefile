@@ -29,6 +29,12 @@ GSM_INCLUDE:=-Igsm/inc
 $(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): gsm/lib/libgsm.a
 endif
 
+ifneq ($(ILBC_INTERNAL),no)
+$(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
+else
+ILBC_INCLUDE+=-DILBC_WEBRTC
+endif
+
 
 clean::
 	$(MAKE) -C gsm clean
@@ -49,8 +55,6 @@ $(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBL
 $(LIBILBC):
 	@$(MAKE) -C ilbc all _ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations -Wshadow,$(_ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
 
-
-$(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
 
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): g722/g722_encode.o g722/g722_decode.o
 g722/g722_encode.o g722/g722_decode.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_g722)
