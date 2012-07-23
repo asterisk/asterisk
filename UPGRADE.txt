@@ -22,6 +22,14 @@
 
 From 10 to 11:
 
+Voicemail:
+ - All voicemails now have a "msg_id" which uniquely identifies a message. For
+   users of filesystem and IMAP storage of voicemail, this should be transparent.
+   For users of ODBC, you will need to add a "msg_id" column to your voice mail
+   messages table. This should be a string capable of holding at least 32 characters.
+   All messages created in old Asterisk installations will have a msg_id added to
+   them when required. This operation should be transparent as well.
+
 Parking:
  - The comebacktoorigin setting must now be set per parking lot. The setting in
    the general section will not be applied automatically to each parking lot.
