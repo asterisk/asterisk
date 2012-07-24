@@ -4820,7 +4820,7 @@ static int handle_presencechange(void *datap)
 	res = 0;
 
 presencechange_cleanup:
-	ast_free(hint_app);
+	ast_ref(hint_app, -1);
 	ao2_ref(pc, -1);
 
 	return res;
