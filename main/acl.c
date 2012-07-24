@@ -602,9 +602,11 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	struct ast_ha *ha;
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
-	char *tmp = ast_strdupa(stuff);
+	char *tmp, *list = ast_strdupa(stuff);
 	char *address = NULL, *mask = NULL;
 	int addr_is_v4;
+	int allowing = strncasecmp(sense, "p", 1) ? AST_SENSE_DENY : AST_SENSE_ALLOW;
+	const char *parsed_addr, *parsed_mask;
 
 	ret = path;
 	while (path) {
@@ -612,105 +614,110 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		path = path->next;
 	}
 
-	if (!(ha = ast_calloc(1, sizeof(*ha)))) {
-		if (error) {
-			*error = 1;
+	while ((tmp = strsep(&list, ","))) {
+		if (!(ha = ast_calloc(1, sizeof(*ha)))) {
+			if (error) {
+				*error = 1;
+			}
+			return ret;
 		}
-		return ret;
-	}
 
-	address = strsep(&tmp, "/");
-	if (!address) {
-		address = tmp;
-	} else {
-		mask = tmp;
-	}
-
-	if (!ast_sockaddr_parse(&ha->addr, address, PARSE_PORT_FORBID)) {
-		ast_log(LOG_WARNING, "Invalid IP address: %s\n", address);
-		ast_free_ha(ha);
-		if (error) {
-			*error = 1;
+		address = strsep(&tmp, "/");
+		if (!address) {
+			address = tmp;
+		} else {
+			mask = tmp;
 		}
-		return ret;
-	}
 
-	/* If someone specifies an IPv4-mapped IPv6 address,
-	 * we just convert this to an IPv4 ACL
-	 */
-	if (ast_sockaddr_ipv4_mapped(&ha->addr, &ha->addr)) {
-		ast_log(LOG_NOTICE, "IPv4-mapped ACL network address specified. "
-				"Converting to an IPv4 ACL network address.\n");
-	}
+		if (*address == '!') {
+			ha->sense = (allowing == AST_SENSE_DENY) ? AST_SENSE_ALLOW : AST_SENSE_DENY;
+			address++;
+		} else {
+			ha->sense = allowing;
+		}
 
-	addr_is_v4 = ast_sockaddr_is_ipv4(&ha->addr);
-
-	if (!mask) {
-		parse_cidr_mask(&ha->netmask, addr_is_v4, addr_is_v4 ? "32" : "128");
-	} else if (strchr(mask, ':') || strchr(mask, '.')) {
-		int mask_is_v4;
-		/* Mask is of x.x.x.x or x:x:x:x:x:x:x:x variety */
-		if (!ast_sockaddr_parse(&ha->netmask, mask, PARSE_PORT_FORBID)) {
-			ast_log(LOG_WARNING, "Invalid netmask: %s\n", mask);
+		if (!ast_sockaddr_parse(&ha->addr, address, PARSE_PORT_FORBID)) {
+			ast_log(LOG_WARNING, "Invalid IP address: %s\n", address);
 			ast_free_ha(ha);
 			if (error) {
 				*error = 1;
 			}
 			return ret;
 		}
-		/* If someone specifies an IPv4-mapped IPv6 netmask,
+
+		/* If someone specifies an IPv4-mapped IPv6 address,
 		 * we just convert this to an IPv4 ACL
 		 */
-		if (ast_sockaddr_ipv4_mapped(&ha->netmask, &ha->netmask)) {
-			ast_log(LOG_NOTICE, "IPv4-mapped ACL netmask specified. "
-					"Converting to an IPv4 ACL netmask.\n");
+		if (ast_sockaddr_ipv4_mapped(&ha->addr, &ha->addr)) {
+			ast_log(LOG_NOTICE, "IPv4-mapped ACL network address specified. "
+				"Converting to an IPv4 ACL network address.\n");
 		}
-		mask_is_v4 = ast_sockaddr_is_ipv4(&ha->netmask);
-		if (addr_is_v4 ^ mask_is_v4) {
-			ast_log(LOG_WARNING, "Address and mask are not using same address scheme.\n");
+
+		addr_is_v4 = ast_sockaddr_is_ipv4(&ha->addr);
+
+		if (!mask) {
+			parse_cidr_mask(&ha->netmask, addr_is_v4, addr_is_v4 ? "32" : "128");
+		} else if (strchr(mask, ':') || strchr(mask, '.')) {
+			int mask_is_v4;
+			/* Mask is of x.x.x.x or x:x:x:x:x:x:x:x variety */
+			if (!ast_sockaddr_parse(&ha->netmask, mask, PARSE_PORT_FORBID)) {
+				ast_log(LOG_WARNING, "Invalid netmask: %s\n", mask);
+				ast_free_ha(ha);
+				if (error) {
+					*error = 1;
+				}
+				return ret;
+			}
+			/* If someone specifies an IPv4-mapped IPv6 netmask,
+			 * we just convert this to an IPv4 ACL
+			 */
+			if (ast_sockaddr_ipv4_mapped(&ha->netmask, &ha->netmask)) {
+				ast_log(LOG_NOTICE, "IPv4-mapped ACL netmask specified. "
+					"Converting to an IPv4 ACL netmask.\n");
+			}
+			mask_is_v4 = ast_sockaddr_is_ipv4(&ha->netmask);
+			if (addr_is_v4 ^ mask_is_v4) {
+				ast_log(LOG_WARNING, "Address and mask are not using same address scheme.\n");
+				ast_free_ha(ha);
+				if (error) {
+					*error = 1;
+				}
+				return ret;
+			}
+		} else if (parse_cidr_mask(&ha->netmask, addr_is_v4, mask)) {
+			ast_log(LOG_WARNING, "Invalid CIDR netmask: %s\n", mask);
 			ast_free_ha(ha);
 			if (error) {
 				*error = 1;
 			}
 			return ret;
 		}
-	} else if (parse_cidr_mask(&ha->netmask, addr_is_v4, mask)) {
-		ast_log(LOG_WARNING, "Invalid CIDR netmask: %s\n", mask);
-		ast_free_ha(ha);
-		if (error) {
-			*error = 1;
+
+		if (apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
+			/* This shouldn't happen because ast_sockaddr_parse would
+			 * have failed much earlier on an unsupported address scheme
+			 */
+			char *failmask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
+			char *failaddr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
+			ast_log(LOG_WARNING, "Unable to apply netmask %s to address %s\n", failmask, failaddr);
+			ast_free_ha(ha);
+			if (error) {
+				*error = 1;
+			}
+			return ret;
 		}
-		return ret;
-	}
 
-	if (apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
-		/* This shouldn't happen because ast_sockaddr_parse would
-		 * have failed much earlier on an unsupported address scheme
-		 */
-		char *failmask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
-		char *failaddr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
-		ast_log(LOG_WARNING, "Unable to apply netmask %s to address %s\n", failmask, failaddr);
-		ast_free_ha(ha);
-		if (error) {
-			*error = 1;
+		if (prev) {
+			prev->next = ha;
+		} else {
+			ret = ha;
 		}
-		return ret;
-	}
+		prev = ha;
 
-	ha->sense = strncasecmp(sense, "p", 1) ? AST_SENSE_DENY : AST_SENSE_ALLOW;
+		parsed_addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
+		parsed_mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
 
-	ha->next = NULL;
-	if (prev) {
-		prev->next = ha;
-	} else {
-		ret = ha;
-	}
-
-	{
-		const char *addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
-		const char *mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
-
-		ast_debug(3, "%s/%s sense %d appended to acl\n", addr, mask, ha->sense);
+		ast_debug(3, "%s/%s sense %d appended to ACL\n", parsed_addr, parsed_mask, ha->sense);
 	}
 
 	return ret;

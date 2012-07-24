@@ -128,11 +128,13 @@ AST_TEST_DEFINE(acl)
 	struct acl denyallv4 = { "0.0.0.0/0", "deny" };
 	struct acl permitallv6 = { "::/0", "permit" };
 	struct acl denyallv6 = { "::/0", "deny" };
+
 	struct acl acl1[] = {
 		{ "0.0.0.0/0.0.0.0", "deny" },
 		{ "10.0.0.0/255.0.0.0", "permit" },
 		{ "192.168.0.0/255.255.255.0", "permit" },
 	};
+
 	struct acl acl2[] = {
 		{ "10.0.0.0/8", "deny" },
 		{ "10.0.0.0/8", "permit" },
@@ -152,6 +154,23 @@ AST_TEST_DEFINE(acl)
 		{ "fe80::ffff:0:ffff:0/112", "permit" },
 	};
 
+	struct acl acl5[] = {
+		{ "0.0.0.0/0.0.0.0", "deny" },
+		{ "10.0.0.0/255.0.0.0,192.168.0.0/255.255.255.0", "permit" },
+	};
+
+	struct acl acl6[] = {
+		{ "10.0.0.0/8", "deny" },
+		{ "10.0.0.0/8", "permit" },
+		{ "10.0.0.0/16,!10.0.0.0/24", "deny" },
+	};
+
+	struct acl acl7[] = {
+		{ "::/0,!fe80::/64", "deny" },
+		{ "fe80::ffff:0:0:0/80", "deny" },
+		{ "fe80::ffff:0:ffff:0/112", "permit" },
+	};
+
 	struct {
 		const char *test_address;
 		int v4_permitall_result;
@@ -162,16 +181,19 @@ AST_TEST_DEFINE(acl)
 		int acl2_result;
 		int acl3_result;
 		int acl4_result;
+		int acl5_result;
+		int acl6_result;
+		int acl7_result;
 	} acl_tests[] = {
-		{ "10.1.1.5", TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
-		{ "192.168.0.5", TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
-		{ "192.168.1.5", TACL_A, TACL_D, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A },
-		{ "10.0.0.1", TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
-		{ "10.0.10.10", TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A },
-		{ "172.16.0.1", TACL_A, TACL_D, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A },
-		{ "fe80::1234", TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A },
-		{ "fe80::ffff:1213:dead:beef", TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D },
-		{ "fe80::ffff:0:ffff:ABCD", TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A },
+		{ "10.1.1.5",                  TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
+		{ "192.168.0.5",               TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
+		{ "192.168.1.5",               TACL_A, TACL_D, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A },
+		{ "10.0.0.1",                  TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
+		{ "10.0.10.10",                TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A },
+		{ "172.16.0.1",                TACL_A, TACL_D, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A },
+		{ "fe80::1234",                TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
+		{ "fe80::ffff:1213:dead:beef", TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_D },
+		{ "fe80::ffff:0:ffff:ABCD",    TACL_A, TACL_A, TACL_A, TACL_D, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A, TACL_A },
 	};
 
 	struct ast_ha *permit_hav4 = NULL;
@@ -182,9 +204,27 @@ AST_TEST_DEFINE(acl)
 	struct ast_ha *ha2 = NULL;
 	struct ast_ha *ha3 = NULL;
 	struct ast_ha *ha4 = NULL;
+	struct ast_ha *ha5 = NULL;
+	struct ast_ha *ha6 = NULL;
+	struct ast_ha *ha7 = NULL;
 	enum ast_test_result_state res = AST_TEST_PASS;
 	int err = 0;
 	int i;
+
+	int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name) {
+		size_t i;
+
+		for (i = 0; i < len; ++i) {
+			if (!(*ha = ast_append_ha(acl[i].access, acl[i].host, *ha, &err))) {
+				ast_test_status_update(test, "Failed to add rule %s with access %s to %s\n",
+						       acl[i].host, acl[i].access, acl_name);
+				res = AST_TEST_FAIL;
+				return -1;
+			}
+		}
+
+		return 0;
+	}
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -222,40 +262,32 @@ AST_TEST_DEFINE(acl)
 		goto acl_cleanup;
 	}
 
-	for (i = 0; i < ARRAY_LEN(acl1); ++i) {
-		if (!(ha1 = ast_append_ha(acl1[i].access, acl1[i].host, ha1, &err))) {
-			ast_test_status_update(test, "Failed to add rule %s with access %s to ha1\n",
-					acl1[i].host, acl1[i].access);
-			res = AST_TEST_FAIL;
-			goto acl_cleanup;
-		}
+	if (build_ha(acl1, ARRAY_LEN(acl1), &ha1, "ha1") != 0) {
+		goto acl_cleanup;
 	}
 
-	for (i = 0; i < ARRAY_LEN(acl2); ++i) {
-		if (!(ha2 = ast_append_ha(acl2[i].access, acl2[i].host, ha2, &err))) {
-			ast_test_status_update(test, "Failed to add rule %s with access %s to ha2\n",
-					acl2[i].host, acl2[i].access);
-			res = AST_TEST_FAIL;
-			goto acl_cleanup;
-		}
+	if (build_ha(acl2, ARRAY_LEN(acl2), &ha2, "ha2") != 0) {
+		goto acl_cleanup;
 	}
 
-	for (i = 0; i < ARRAY_LEN(acl3); ++i) {
-		if (!(ha3 = ast_append_ha(acl3[i].access, acl3[i].host, ha3, &err))) {
-			ast_test_status_update(test, "Failed to add rule %s with access %s to ha3\n",
-					acl3[i].host, acl3[i].access);
-			res = AST_TEST_FAIL;
-			goto acl_cleanup;
-		}
+	if (build_ha(acl3, ARRAY_LEN(acl3), &ha3, "ha3") != 0) {
+		goto acl_cleanup;
 	}
 
-	for (i = 0; i < ARRAY_LEN(acl4); ++i) {
-		if (!(ha4 = ast_append_ha(acl4[i].access, acl4[i].host, ha4, &err))) {
-			ast_test_status_update(test, "Failed to add rule %s with access %s to ha4\n",
-					acl4[i].host, acl4[i].access);
-			res = AST_TEST_FAIL;
-			goto acl_cleanup;
-		}
+	if (build_ha(acl4, ARRAY_LEN(acl4), &ha4, "ha4") != 0) {
+		goto acl_cleanup;
+	}
+
+	if (build_ha(acl5, ARRAY_LEN(acl5), &ha5, "ha5") != 0) {
+		goto acl_cleanup;
+	}
+
+	if (build_ha(acl6, ARRAY_LEN(acl6), &ha6, "ha6") != 0) {
+		goto acl_cleanup;
+	}
+
+	if (build_ha(acl7, ARRAY_LEN(acl7), &ha7, "ha7") != 0) {
+		goto acl_cleanup;
 	}
 
 	for (i = 0; i < ARRAY_LEN(acl_tests); ++i) {
@@ -268,6 +300,9 @@ AST_TEST_DEFINE(acl)
 		int acl2_res;
 		int acl3_res;
 		int acl4_res;
+		int acl5_res;
+		int acl6_res;
+		int acl7_res;
 
 		ast_sockaddr_parse(&addr, acl_tests[i].test_address, PARSE_PORT_FORBID);
 
@@ -279,6 +314,9 @@ AST_TEST_DEFINE(acl)
 		acl2_res = ast_apply_ha(ha2, &addr);
 		acl3_res = ast_apply_ha(ha3, &addr);
 		acl4_res = ast_apply_ha(ha4, &addr);
+		acl5_res = ast_apply_ha(ha5, &addr);
+		acl6_res = ast_apply_ha(ha6, &addr);
+		acl7_res = ast_apply_ha(ha7, &addr);
 
 		if (permit_resv4 != acl_tests[i].v4_permitall_result) {
 			ast_test_status_update(test, "Access not as expected to %s on permitallv4. Expected %d but "
@@ -335,6 +373,27 @@ AST_TEST_DEFINE(acl)
 			res = AST_TEST_FAIL;
 			goto acl_cleanup;
 		}
+
+		if (acl5_res != acl_tests[i].acl5_result) {
+			ast_test_status_update(test, "Access not as expected to %s on acl5. Expected %d but "
+					"got %d instead\n", acl_tests[i].test_address, acl_tests[i].acl5_result, acl5_res);
+			res = AST_TEST_FAIL;
+			goto acl_cleanup;
+		}
+
+		if (acl6_res != acl_tests[i].acl6_result) {
+			ast_test_status_update(test, "Access not as expected to %s on acl6. Expected %d but "
+					"got %d instead\n", acl_tests[i].test_address, acl_tests[i].acl6_result, acl6_res);
+			res = AST_TEST_FAIL;
+			goto acl_cleanup;
+		}
+
+		if (acl7_res != acl_tests[i].acl7_result) {
+			ast_test_status_update(test, "Access not as expected to %s on acl7. Expected %d but "
+					"got %d instead\n", acl_tests[i].test_address, acl_tests[i].acl7_result, acl7_res);
+			res = AST_TEST_FAIL;
+			goto acl_cleanup;
+		}
 	}
 
 acl_cleanup:
@@ -361,6 +420,15 @@ acl_cleanup:
 	}
 	if (ha4) {
 		ast_free_ha(ha4);
+	}
+	if (ha5) {
+		ast_free_ha(ha5);
+	}
+	if (ha6) {
+		ast_free_ha(ha6);
+	}
+	if (ha7) {
+		ast_free_ha(ha7);
 	}
 	return res;
 }
