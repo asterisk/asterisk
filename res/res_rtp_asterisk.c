@@ -3799,7 +3799,9 @@ static int load_module(void)
 {
 	pj_lock_t *lock;
 
+#if 0
 	pj_log_set_level(0);
+#endif
 
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
