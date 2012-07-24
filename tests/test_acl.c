@@ -211,7 +211,8 @@ AST_TEST_DEFINE(acl)
 	int err = 0;
 	int i;
 
-	int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name) {
+	auto int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name);
+	auto int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name) {
 		size_t i;
 
 		for (i = 0; i < len; ++i) {
