@@ -532,7 +532,7 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 	res = ioctl(fd, SNDCTL_DSP_SPEED, &fmt);
 
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
+		ast_log(LOG_WARNING, "Failed to set sample rate to %d\n", desired);
 		return -1;
 	}
 	if (fmt != desired) {
