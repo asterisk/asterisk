@@ -491,8 +491,13 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	out->datalen = f->datalen;
 	out->samples = f->samples;
 	out->delivery = f->delivery;
-	/* Set us as having malloc'd header only, so it will eventually
-	   get freed. */
+	/* Even though this new frame was allocated from the heap, we can't mark it
+	 * with AST_MALLOCD_HDR, AST_MALLOCD_DATA and AST_MALLOCD_SRC, because that
+	 * would cause ast_frfree() to attempt to individually free each of those
+	 * under the assumption that they were separately allocated. Since this frame
+	 * was allocated in a single allocation, we'll only mark it as if the header
+	 * was heap-allocated; this will result in the entire frame being properly freed.
+	 */
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
 	if (out->datalen) {
