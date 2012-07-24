@@ -2351,20 +2351,6 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 			unistim_quiet_chan(peerd);
 		}
 
-		if (ast_channel_cdr(peera) && ast_channel_cdr(peerb)) {
-			ast_channel_cdr_set(peerb, ast_cdr_append(ast_channel_cdr(peerb), ast_channel_cdr(peera)));
-		} else if (ast_channel_cdr(peera)) {
-			ast_channel_cdr_set(peerb, ast_channel_cdr(peera));
-		}
-		ast_channel_cdr_set(peera, NULL);
-
-		if (ast_channel_cdr(peerb) && ast_channel_cdr(peerc)) {
-			ast_channel_cdr_set(peerb, ast_cdr_append(ast_channel_cdr(peerb), ast_channel_cdr(peerc)));
-		} else if (ast_channel_cdr(peerc)) {
-			ast_channel_cdr_set(peerb, ast_channel_cdr(peerc));
-		}
-		ast_channel_cdr_set(peerc, NULL);
-
 		ast_log(LOG_NOTICE, "UNISTIM transfer: trying to masquerade %s into %s\n", ast_channel_name(peerc), ast_channel_name(peerb));
 		if (ast_channel_masquerade(peerb, peerc)) {
 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", ast_channel_name(peerb),
