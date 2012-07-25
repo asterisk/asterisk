@@ -146,7 +146,7 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 
 ifneq ($(LIBEDIT_INTERNAL),no)
 LIBEDIT_OBJ=editline/libedit.a
-LIBEDIT_INCLUDE=-I$(ASTTOPDIR)/main/editline
+LIBEDIT_INCLUDE=-I. -Ieditline
 endif
 
 db.o: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
