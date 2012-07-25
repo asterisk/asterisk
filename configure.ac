@@ -406,6 +406,7 @@ AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
 AST_EXT_LIB_SETUP([KQUEUE], [kqueue support], [kqueue])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
+AST_EXT_LIB_SETUP([LIBEDIT], [NetBSD Editline library], [libedit], [, use 'internal' Editline otherwise])
 AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
@@ -1262,12 +1263,32 @@ if test "${USE_ILBC}" != "no"; then
    fi
    if test "${ILBC_SYSTEM}" = "yes"; then
       AST_PKG_CONFIG_CHECK(ILBC, libilbc)
-      if test "$PBX_ILBC" = '1'; then
-	 ILBC_INTERNAL='no'
+      if test "$PBX_ILBC" = "1"; then
+	 ILBC_INTERNAL="no"
       fi
    fi
    if test "${ILBC_INTERNAL}" = "yes"; then
       PBX_ILBC=1
+   fi
+fi
+
+LIBEDIT_INTERNAL="yes"
+AC_SUBST(LIBEDIT_INTERNAL)
+LIBEDIT_SYSTEM="yes"
+if test "${USE_LIBEDIT}" != "no"; then
+   if test "${LIBEDIT_DIR}" = "internal"; then
+      LIBEDIT_SYSTEM="no"
+   elif test "${LIBEDIT_DIR}" != ""; then
+      LIBEDIT_INTERNAL="no"
+   fi
+   if test "${LIBEDIT_SYSTEM}" = "yes"; then
+      AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
+      if test "$PBX_LIBEDIT" = "1"; then
+	 LIBEDIT_INTERNAL="no"
+      fi
+   fi
+   if test "${LIBEDIT_INTERNAL}" = "yes"; then
+      PBX_LIBEDIT=1
    fi
 fi
 

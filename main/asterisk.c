@@ -98,6 +98,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #endif
 #include <regex.h>
+#include <histedit.h>
 
 #if defined(SOLARIS)
 int daemon(int, int);  /* defined in libresolv of all places */
@@ -2704,7 +2705,7 @@ static char *cli_complete(EditLine *editline, int ch)
 			int mlen = 0, maxmbuf = 2048;
 			/* Start with a 2048 byte buffer */
 			if (!(mbuf = ast_malloc(maxmbuf))) {
-				lf->cursor[0] = savechr;
+				*((char *) lf->cursor) = savechr;
 				return (char *)(CC_ERROR);
 			}
 			snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
@@ -2716,7 +2717,7 @@ static char *cli_complete(EditLine *editline, int ch)
 					/* Every step increment buffer 1024 bytes */
 					maxmbuf += 1024;
 					if (!(mbuf = ast_realloc(mbuf, maxmbuf))) {
-						lf->cursor[0] = savechr;
+						*((char *) lf->cursor) = savechr;
 						return (char *)(CC_ERROR);
 					}
 				}
@@ -2778,7 +2779,7 @@ static char *cli_complete(EditLine *editline, int ch)
 		ast_free(matches);
 	}
 
-	lf->cursor[0] = savechr;
+	*((char *) lf->cursor) = savechr;
 
 	return (char *)(long)retval;
 }
@@ -2861,29 +2862,13 @@ static int ast_el_write_history(char *filename)
 
 static int ast_el_read_history(char *filename)
 {
-	char buf[MAX_HISTORY_COMMAND_LENGTH];
-	FILE *f;
-	int ret = -1;
+	HistEvent ev;
 
-	if (el_hist == NULL || el == NULL)
+	if (el_hist == NULL || el == NULL) {
 		ast_el_initialize();
-
-	if ((f = fopen(filename, "r")) == NULL)
-		return ret;
-
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
-		if (!strcmp(buf, "_HiStOrY_V2_\n"))
-			continue;
-		if (ast_all_zeros(buf))
-			continue;
-		if ((ret = ast_el_add_history(buf)) == -1)
-			break;
 	}
-	fclose(f);
 
-	return ret;
+	return history(el_hist, &ev, H_LOAD, filename);
 }
 
 static void ast_remotecontrol(char *data)

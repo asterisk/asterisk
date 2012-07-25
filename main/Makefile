@@ -144,7 +144,14 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -o testexpr2 ast_expr2f.o ast_expr2.o -lm
 	rm ast_expr2.o ast_expr2f.o
 
+ifneq ($(LIBEDIT_INTERNAL),no)
+LIBEDIT_OBJ=editline/libedit.a
+LIBEDIT_INCLUDE=-Ieditline
+endif
+
 db.o: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
+asterisk.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
+cli.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
 
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
 http.o: _ASTCFLAGS+=$(GMIME_INCLUDE)
@@ -228,13 +235,13 @@ endif
 
 endif
 
-$(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) editline/libedit.a $(AST_EMBED_LDSCRIPTS)
+$(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
-	$(ECHO_PREFIX) echo "   [LD] $(OBJS) editline/libedit.a $(AST_EMBED_LDSCRIPTS) -> $@"
+	$(ECHO_PREFIX) echo "   [LD] $(OBJS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) -> $@"
 ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
-	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) editline/libedit.a $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS)
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
 else
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) editline/libedit.a $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS) $(GMIMELDFLAGS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
 endif
 
 ifeq ($(GNU_LD),1)

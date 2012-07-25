@@ -235,7 +235,7 @@ TCSRCS="TEST/test.c"
 dnl Add files to the lists if readline compatibility is enabled.
 if test "x$enable_readline" = "xyes" ; then
   CCSRCS="$CCSRCS readline.c"
-  IHDRS="$IHDRS readline/readline.h"
+  IHDRS="$IHDRS readline.h"
   IHDR_LINKS="readline.h readline/history.h"
   HDR_DIRS="$HDR_DIRS include/readline"
   LIB_A_LINKS="$LIB_A_LINKS libedit.a libreadline.a"
