@@ -428,6 +428,9 @@ AMI (Asterisk Manager Interface)
    detected, and "a" if it is set and nat is not detected. "Y" and "N" are still
    returned if auto_force_rport is not enabled.
 
+ * Added SIPpeerstatus manager command which will generate PeerStatus events
+   similar to the existing PeerStatus events found in chan_sip on demand.
+
  * Hangup now can take a regular expression as the Channel option.  If you want
    to hangup multiple channels, use /regex/ as the Channel option.  Existing
    behavior to hanging up a single channel is unchanged, but if you pass a regex,

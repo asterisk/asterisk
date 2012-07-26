@@ -572,6 +572,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			via multiple <literal>Variable: name=value</literal> sequences.</para>
 		</description>
 	</manager>
+	<manager name="SIPpeerstatus" language="en_US">
+		<synopsis>
+			Show the status of one or all of the sip peers.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Peer" required="false">
+				<para>The peer name you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieves the status of one or all of the sip peers.  If no peer name is specified, status
+			for all of the sip peers will be retrieved.</para>
+		</description>
+	</manager>
 	<info name="SIPMessageFromInfo" language="en_US" tech="SIP">
 		<para>The <literal>from</literal> parameter can be a configured peer name
 		or in the form of "display-name" &lt;URI&gt;.</para>
@@ -18789,6 +18804,92 @@ static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return _sip_show_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
+static void send_manager_peer_status(struct mansession *s, struct sip_peer *peer, const char *idText)
+{
+	char time[128] = "";
+	char status[128] = "";
+	if (peer->maxms) {
+		if (peer->lastms < 0) {
+			snprintf(status, sizeof(status), "PeerStatus: Unreachable\r\n");
+		} else if (peer->lastms > peer->maxms) {
+			snprintf(status, sizeof(status), "PeerStatus: Lagged\r\n");
+			snprintf(time, sizeof(time), "Time: %d\r\n", peer->lastms);
+		} else if (peer->lastms) {
+			snprintf(status, sizeof(status), "PeerStatus: Reachable\r\n");
+			snprintf(time, sizeof(time), "Time: %d\r\n", peer->lastms);
+		} else {
+			snprintf(status, sizeof(status), "PeerStatus: Unknown\r\n");
+		}
+	} else {
+		snprintf(status, sizeof(status), "PeerStatus: Unmonitored\r\n");
+	}
+
+	astman_append(s,
+	"Event: PeerStatus\r\n"
+	"Privilege: System\r\n"
+	"ChannelType: SIP\r\n"
+	"Peer: SIP/%s\r\n"
+	"%s"
+	"%s"
+	"%s"
+	"\r\n",
+	peer->name, status, time, idText);
+}
+
+/*! \brief Show SIP peers in the manager API  */
+static int manager_sip_peer_status(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m,"ActionID");
+	const char *peer_name = astman_get_header(m,"Peer");
+	char idText[256] = "";
+	struct sip_peer *peer = NULL;
+
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	}
+
+	if (!ast_strlen_zero(peer_name)) {
+		/* strip SIP/ from the begining of the peer name */
+		if (strlen(peer_name) >= 4 && !strncasecmp("SIP/", peer_name, 4)) {
+			peer_name += 4;
+		}
+
+		peer = sip_find_peer(peer_name, NULL, TRUE, FINDPEERS, FALSE, 0);
+		if (!peer) {
+			astman_send_error(s, m, "No such peer");
+			return 0;
+		}
+	}
+
+	astman_send_ack(s, m, "Peer status will follow");
+
+	if (!peer) {
+		struct ao2_iterator i = ao2_iterator_init(peers, 0);
+		while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table for SIPpeerstatus"))) {
+			ao2_lock(peer);
+			send_manager_peer_status(s, peer, idText);
+			ao2_unlock(peer);
+			sip_unref_peer(peer, "unref peer for SIPpeerstatus");
+		}
+		ao2_iterator_destroy(&i);
+	} else {
+		ao2_lock(peer);
+		send_manager_peer_status(s, peer, idText);
+		ao2_unlock(peer);
+		sip_unref_peer(peer, "unref peer for SIPpeerstatus");
+	}
+
+
+	astman_append(s,
+	"Event: SIPpeerstatusComplete\r\n"
+	"%s"
+	"\r\n",
+	idText);
+
+	return 0;
+}
+
+
 /*! \brief Send qualify message to peer from cli or manager. Mostly for debugging. */
 static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
@@ -32789,6 +32890,7 @@ static int load_module(void)
 	ast_manager_register_xml("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer);
 	ast_manager_register_xml("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry);
 	ast_manager_register_xml("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify);
+	ast_manager_register_xml("SIPpeerstatus", EVENT_FLAG_SYSTEM, manager_sip_peer_status);
 	sip_poke_all_peers();
 	sip_keepalive_all_peers();
 	sip_send_all_registers();
@@ -32898,6 +33000,7 @@ static int unload_module(void)
 	ast_manager_unregister("SIPqualifypeer");
 	ast_manager_unregister("SIPshowregistry");
 	ast_manager_unregister("SIPnotify");
+	ast_manager_unregister("SIPpeerstatus");
 	
 	/* Kill TCP/TLS server threads */
 	if (sip_tcp_desc.master) {
