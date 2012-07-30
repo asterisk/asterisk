@@ -59,7 +59,7 @@ static const char descrip[] =
 "Syntax:\n"
 "  MYSQL(Set timeout <num>)\n"
 "    Set the connection timeout, in seconds.\n"
-"  MYSQL(Connect connid dhhost dbuser dbpass dbname [dbcharset])\n"
+"  MYSQL(Connect connid dhhost[:dbport] dbuser dbpass dbname [dbcharset])\n"
 "    Connects to a database.  Arguments contain standard MySQL parameters\n"
 "    passed to function mysql_real_connect.  Optional parameter dbcharset\n"
 "    defaults to 'latin1'.  Connection identifer returned in ${connid}\n"
@@ -322,6 +322,8 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 	MYSQL *mysql;
 	int timeout;
 	const char *ctimeout;
+	unsigned int port = 0;
+	char *port_str;
 
 	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
 
@@ -348,7 +350,15 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 		mysql_options(mysql, MYSQL_SET_CHARSET_NAME, args.dbcharset);
 	}
 
-	if (! mysql_real_connect(mysql, args.dbhost, args.dbuser, args.dbpass, args.dbname, 0, NULL,
+	if ((port_str = strchr(args.dbhost, ':'))) {
+		*port_str++ = '\0';
+		if (sscanf(port_str, "%u", &port) != 1) {
+			ast_log(LOG_WARNING, "Invalid port: '%s'\n", port_str);
+			port = 0;
+		}
+	}
+
+	if (!mysql_real_connect(mysql, args.dbhost, args.dbuser, args.dbpass, args.dbname, port, NULL,
 #ifdef CLIENT_MULTI_STATEMENTS
 			CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS
 #elif defined(CLIENT_MULTI_QUERIES)

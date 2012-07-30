@@ -110,6 +110,11 @@ MixMonitor
  * Added 'm' option, which stores a copy of the recording as a voicemail in the
    indicated mailboxes.
 
+MySQL
+-------------------
+ * The connect action in app_mysql now allows you to specify a port number to
+   connect to.  This is useful if you run a MySQL server on a non-standard
+   port number.
 
 OSP Applications
 -------------------
