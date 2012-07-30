@@ -7998,6 +7998,7 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 	/* create ast_channel and link all the objects together */
 	cl = chan_list_init(ORG_AST);
 	if (!cl) {
+		misdn_lib_release(newbc);
 		ast_log(LOG_ERROR, "Could not create call record for Dial(%s)\n", dial_str);
 		return NULL;
 	}
@@ -8006,6 +8007,7 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, requestor ? requestor->linkedid : NULL, port, channel);
 	if (!ast) {
 		chan_list_unref(cl, "Failed to create a new channel");
+		misdn_lib_release(newbc);
 		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
 		return NULL;
 	}
