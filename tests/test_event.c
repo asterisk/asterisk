@@ -178,12 +178,6 @@ AST_TEST_DEFINE(event_new_test)
 		goto return_cleanup;
 	}
 
-	if (ast_event_append_eid(&event)) {
-		ast_test_status_update(test, "Failed to append EID\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
 	if (check_event(event, test, type, "Custom", str, uint, bitflags)) {
 		ast_test_status_update(test, "Dynamically generated event broken\n");
 		res = AST_TEST_FAIL;
