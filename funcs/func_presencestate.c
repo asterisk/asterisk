@@ -559,7 +559,7 @@ AST_TEST_DEFINE(test_valid_parse_data)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "parse_valid_presence_data";
-		info->category = "/funcs/func_presence";
+		info->category = "/funcs/func_presence/";
 		info->summary = "PRESENCESTATE parsing test";
 		info->description =
 			"Ensure that parsing function accepts proper values, and gives proper outputs";
@@ -617,7 +617,7 @@ AST_TEST_DEFINE(test_invalid_parse_data)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "parse_invalid_presence_data";
-		info->category = "/funcs/func_presence";
+		info->category = "/funcs/func_presence/";
 		info->summary = "PRESENCESTATE parsing test";
 		info->description =
 			"Ensure that parsing function rejects improper values";
@@ -678,7 +678,7 @@ AST_TEST_DEFINE(test_presence_state_change)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_presence_state_change";
-		info->category = "/funcs/func_presence";
+		info->category = "/funcs/func_presence/";
 		info->summary = "presence state change subscription";
 		info->description =
 			"Ensure that presence state changes are communicated to subscribers";

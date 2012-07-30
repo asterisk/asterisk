@@ -553,18 +553,18 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	}
 
 	if (test->info.category[0] != '/' || test->info.category[strlen(test->info.category) - 1] != '/') {
-		ast_log(LOG_WARNING, "Test category is missing a leading or trailing backslash for test %s%s\n",
+		ast_log(LOG_WARNING, "Test category is missing a leading or trailing slash for test %s%s\n",
 				test->info.category, test->info.name);
 	}
 
 	if (ast_strlen_zero(test->info.summary)) {
-		ast_log(LOG_WARNING, "Test %s/%s has no summary, test registration refused.\n",
+		ast_log(LOG_WARNING, "Test %s%s has no summary, test registration refused.\n",
 				test->info.category, test->info.name);
 		return test_free(test);
 	}
 
 	if (ast_strlen_zero(test->info.description)) {
-		ast_log(LOG_WARNING, "Test %s/%s has no description, test registration refused.\n",
+		ast_log(LOG_WARNING, "Test %s%s has no description, test registration refused.\n",
 				test->info.category, test->info.name);
 		return test_free(test);
 	}
