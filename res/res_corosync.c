@@ -50,10 +50,13 @@ static struct {
 	const char *name;
 	struct ast_event_sub *sub;
 	unsigned char publish;
+	unsigned char publish_default;
 	unsigned char subscribe;
+	unsigned char subscribe_default;
 } event_types[] = {
 	[AST_EVENT_MWI] = { .name = "mwi", },
 	[AST_EVENT_DEVICE_STATE_CHANGE] = { .name = "device_state", },
+	[AST_EVENT_PING] = { .name = "ping", .publish_default = 1, .subscribe_default = 1 },
 };
 
 static struct {
@@ -143,7 +146,18 @@ static void cpg_deliver_cb(cpg_handle_t handle, const struct cpg_name *group_nam
 
 	memcpy(event, msg, msg_len);
 
-	ast_event_queue_and_cache(event);
+	if (ast_event_get_type(event) == AST_EVENT_PING) {
+		const struct ast_eid *eid;
+		char buf[128] = "";
+
+		eid = ast_event_get_ie_raw(event, AST_EVENT_IE_EID);
+		ast_eid_to_str(buf, sizeof(buf), (struct ast_eid *) eid);
+		ast_log(LOG_NOTICE, "(cpg_deliver_cb) Got event PING from server with EID: '%s'\n", buf);
+
+		ast_event_queue(event);
+	} else {
+		ast_event_queue_and_cache(event);
+	}
 }
 
 static void cpg_confchg_cb(cpg_handle_t handle, const struct cpg_name *group_name,
@@ -280,6 +294,15 @@ static void ast_event_cb(const struct ast_event *event, void *data)
 		.iov_len = ast_event_get_size(event),
 	};
 
+	if (ast_event_get_type(event) == AST_EVENT_PING) {
+		const struct ast_eid *eid;
+		char buf[128] = "";
+
+		eid = ast_event_get_ie_raw(event, AST_EVENT_IE_EID);
+		ast_eid_to_str(buf, sizeof(buf), (struct ast_eid *) eid);
+		ast_log(LOG_NOTICE, "(ast_event_cb) Got event PING from server with EID: '%s'\n", buf);
+	}
+
 	if (ast_eid_cmp(&ast_eid_default,
 			ast_event_get_ie_raw(event, AST_EVENT_IE_EID))) {
 		/* If the event didn't originate from this server, don't send it back out. */
@@ -368,6 +391,40 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+static char *corosync_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_event *event;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "corosync ping";
+		e->usage =
+			"Usage: corosync ping\n"
+			"       Send a test ping to the cluster.\n"
+			"A NOTICE will be in the log for every ping received\n"
+			"on a server.\n  If you send a ping, you should see a NOTICE\n"
+			"in the log for every server in the cluster.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	event = ast_event_new(AST_EVENT_PING, AST_EVENT_IE_END);
+
+	if (!event) {
+		return CLI_FAILURE;
+	}
+
+	ast_event_queue(event);
+
+	return CLI_SUCCESS;
+}
+
 static char *corosync_show_config(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	unsigned int i;
@@ -417,6 +474,7 @@ static char *corosync_show_config(struct ast_cli_entry *e, int cmd, struct ast_c
 static struct ast_cli_entry corosync_cli[] = {
 	AST_CLI_DEFINE(corosync_show_config, "Show configuration"),
 	AST_CLI_DEFINE(corosync_show_members, "Show cluster members"),
+	AST_CLI_DEFINE(corosync_ping, "Send a test ping to the cluster"),
 };
 
 enum {
@@ -457,8 +515,8 @@ static int load_general_config(struct ast_config *cfg)
 	ast_rwlock_wrlock(&event_types_lock);
 
 	for (i = 0; i < ARRAY_LEN(event_types); i++) {
-		event_types[i].publish = 0;
-		event_types[i].subscribe = 0;
+		event_types[i].publish = event_types[i].publish_default;
+		event_types[i].subscribe = event_types[i].subscribe_default;
 	}
 
 	for (v = ast_variable_browse(cfg, "general"); v && !res; v = v->next) {

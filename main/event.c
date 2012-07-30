@@ -663,6 +663,10 @@ static int dump_cache_cb(void *obj, void *arg, int flags)
 /*! \brief Dump the event cache for the subscribed event type */
 void ast_event_dump_cache(const struct ast_event_sub *event_sub)
 {
+	if (!ast_event_cache[event_sub->type].container) {
+		return;
+	}
+
 	ao2_callback(ast_event_cache[event_sub->type].container, OBJ_NODATA,
 			dump_cache_cb, (void *) event_sub);
 }
@@ -1211,7 +1215,6 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	struct ast_event *event;
 	enum ast_event_ie_type ie_type;
 	struct ast_event_ie_val *ie_val;
-	int has_ie = 0;
 	AST_LIST_HEAD_NOLOCK_STATIC(ie_vals, ast_event_ie_val);
 
 	/* Invalid type */
@@ -1262,7 +1265,6 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 
 		if (insert) {
 			AST_LIST_INSERT_TAIL(&ie_vals, ie_value, entry);
-			has_ie = 1;
 		} else {
 			ast_log(LOG_WARNING, "Unsupported PLTYPE(%d)\n", ie_value->ie_pltype);
 		}
@@ -1302,7 +1304,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		}
 	}
 
-	if (has_ie && !ast_event_get_ie_raw(event, AST_EVENT_IE_EID)) {
+	if (!ast_event_get_ie_raw(event, AST_EVENT_IE_EID)) {
 		/* If the event is originating on this server, add the server's
 		 * entity ID to the event. */
 		ast_event_append_eid(&event);
