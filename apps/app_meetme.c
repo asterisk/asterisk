@@ -32,7 +32,7 @@
 /*** MODULEINFO
 	<depend>dahdi</depend>
 	<defaultenabled>no</defaultenabled>
-	<support_level>deprecated</support_level>
+	<support_level>extended</support_level>
 	<replacement>app_confbridge</replacement>
  ***/
 
