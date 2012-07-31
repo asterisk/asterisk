@@ -148,7 +148,7 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!ast_strlen_zero(args.chan)) {
-		char *prefix = alloca(strlen(args.chan) + 2);
+		char *prefix = ast_alloca(strlen(args.chan) + 2);
 		sprintf(prefix, "%s-", args.chan);
 		if (!(c_ref = ast_channel_get_by_name(args.chan)) && !(c_ref = ast_channel_get_by_name_prefix(prefix, strlen(prefix)))) {
 			ast_log(LOG_ERROR, "Channel '%s' not found!  Variable '%s' will be blank.\n", args.chan, args.var);
@@ -206,7 +206,7 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!ast_strlen_zero(args.chan)) {
-		char *prefix = alloca(strlen(args.chan) + 2);
+		char *prefix = ast_alloca(strlen(args.chan) + 2);
 		sprintf(prefix, "%s-", args.chan);
 		if (!(c_ref = ast_channel_get_by_name(args.chan)) && !(c_ref = ast_channel_get_by_name_prefix(prefix, strlen(prefix)))) {
 			ast_log(LOG_ERROR, "Channel '%s' not found!  Variable '%s' not set to '%s'.\n", args.chan, args.var, value);

@@ -1749,11 +1749,11 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 		now = ast_tvnow();
 		ast_localtime(&now, &tm, NULL);
 		ast_strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(prefix) + strlen(fmt) + 1);
+		datefmt = ast_alloca(strlen(date) + 3 + strlen(prefix) + strlen(fmt) + 1);
 		sprintf(datefmt, "%c[%s] %s%s", (char) magic, date, prefix, fmt);
 		fmt = datefmt;
 	} else {
-		char *tmp = alloca(strlen(prefix) + strlen(fmt) + 2);
+		char *tmp = ast_alloca(strlen(prefix) + strlen(fmt) + 2);
 		sprintf(tmp, "%c%s%s", (char) magic, prefix, fmt);
 		fmt = tmp;
 	}

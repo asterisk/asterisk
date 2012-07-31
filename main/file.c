@@ -689,9 +689,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return NULL;
+	buf = ast_alloca(buflen);
 
 	if (!(file_fmt_cap = ast_format_cap_alloc_nolock())) {
 		return NULL;
@@ -735,9 +733,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return NULL;
+	buf = ast_alloca(buflen);
 
 	/* is the channel capable of video without translation ?*/
 	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO)) {
@@ -987,9 +983,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;	/* room for everything */
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return 0;
+	buf = ast_alloca(buflen);
 	return fileexists_core(filename, fmt, preflang, buf, buflen, NULL) ? 1 : 0;
 }
 
@@ -1168,7 +1162,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 					*c = '_';
 
 			size = strlen(fn) + strlen(record_cache_dir) + 2;
-			buf = alloca(size);
+			buf = ast_alloca(size);
 			strcpy(buf, record_cache_dir);
 			strcat(buf, "/");
 			strcat(buf, fn);

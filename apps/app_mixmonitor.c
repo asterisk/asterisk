@@ -905,7 +905,7 @@ static char *filename_parse(char *filename, char *buffer, size_t len)
 		ast_log(LOG_WARNING, "No file name was provided for a file save option.\n");
 	} else if (filename[0] != '/') {
 		char *build;
-		build = alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(filename) + 3);
+		build = ast_alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(filename) + 3);
 		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, filename);
 		filename = build;
 	}

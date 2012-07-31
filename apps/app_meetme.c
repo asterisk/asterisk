@@ -4322,8 +4322,7 @@ static int count_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	
-	if (!(localdata = ast_strdupa(data)))
-		return -1;
+	localdata = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	

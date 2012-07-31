@@ -1096,7 +1096,7 @@ static int inprocess_cmp_fn(void *obj, void *arg, int flags)
 
 static int inprocess_count(const char *context, const char *mailbox, int delta)
 {
-	struct inprocess *i, *arg = alloca(sizeof(*arg) + strlen(context) + strlen(mailbox) + 2);
+	struct inprocess *i, *arg = ast_alloca(sizeof(*arg) + strlen(context) + strlen(mailbox) + 2);
 	arg->context = arg->mailbox + strlen(mailbox) + 1;
 	strcpy(arg->mailbox, mailbox); /* SAFE */
 	strcpy(arg->context, context); /* SAFE */
@@ -1719,10 +1719,10 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					}
 					value = strstr(tmp, ",");
 					if (!value) {
-						new = alloca(strlen(newpassword)+1);
+						new = ast_alloca(strlen(newpassword)+1);
 						sprintf(new, "%s", newpassword);
 					} else {
-						new = alloca((strlen(value) + strlen(newpassword) + 1));
+						new = ast_alloca((strlen(value) + strlen(newpassword) + 1));
 						sprintf(new, "%s%s", newpassword, value);
 					}
 					if (!(cat = ast_category_get(cfg, category))) {
@@ -1757,7 +1757,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					} else {
 						var = NULL;
 					}
-					new = alloca(strlen(newpassword) + 1);
+					new = ast_alloca(strlen(newpassword) + 1);
 					sprintf(new, "%s", newpassword);
 					if (!(cat = ast_category_get(cfg, category))) {
 						ast_debug(4, "failed to get category!\n");
@@ -4472,7 +4472,7 @@ static int vm_delete(char *file)
 	int txtsize = 0;
 
 	txtsize = (strlen(file) + 5)*sizeof(char);
-	txt = alloca(txtsize);
+	txt = ast_alloca(txtsize);
 	/* Sprintf here would safe because we alloca'd exactly the right length,
 	 * but trying to eliminate all sprintf's anyhow
 	 */
@@ -8782,7 +8782,7 @@ static int vm_play_folder_name_gr(struct ast_channel *chan, char *box)
 	int cmd;
 	char *buf;
 
-	buf = alloca(strlen(box) + 2);
+	buf = ast_alloca(strlen(box) + 2);
 	strcpy(buf, box);
 	strcat(buf, "s");
 
@@ -11697,7 +11697,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 		read_password_from_file(secretfn, vmu->password, sizeof(vmu->password));
 	}
 
-	mailbox_full = alloca(strlen(box) + strlen(context) + 1);
+	mailbox_full = ast_alloca(strlen(box) + strlen(context) + 1);
 	strcpy(mailbox_full, box);
 	strcat(mailbox_full, "@");
 	strcat(mailbox_full, context);
@@ -15229,12 +15229,7 @@ static int vm_msg_forward(const char *from_mailbox,
 		goto vm_forward_cleanup;
 	}
 
-	if (!(msg_nums = alloca(sizeof(int) * num_msgs)))
-	{
-		ast_log(LOG_ERROR, "Unable to allocate stack space! Expect awful things!\n");
-		res = -1;
-		goto vm_forward_cleanup;
-	}
+	msg_nums = ast_alloca(sizeof(int) * num_msgs);
 
 	if ((res = message_range_and_existence_check(&from_vms, msg_ids, num_msgs, msg_nums, vmu) < 0)) {
 		goto vm_forward_cleanup;
@@ -15359,11 +15354,7 @@ static int vm_msg_move(const char *mailbox,
 		goto vm_move_cleanup;
 	}
 
-	if (!(old_msg_nums = alloca(sizeof(int) * num_msgs))) {
-		ast_log(LOG_ERROR, "Unable to allocate stack space! Expect awful things!\n");
-		res = -1;
-		goto vm_move_cleanup;
-	}
+	old_msg_nums = ast_alloca(sizeof(int) * num_msgs);
 
 	if ((res = message_range_and_existence_check(&vms, old_msg_ids, num_msgs, old_msg_nums, vmu)) < 0) {
 		goto vm_move_cleanup;
@@ -15464,11 +15455,7 @@ static int vm_msg_remove(const char *mailbox,
 		goto vm_remove_cleanup;
 	}
 
-	if (!(msg_nums = alloca(sizeof(int) * num_msgs))) {
-		ast_log(LOG_ERROR, "Unable to allocate stack space! Expect awful things\n");
-		res = -1;
-		goto vm_remove_cleanup;
-	}
+	msg_nums = ast_alloca(sizeof(int) * num_msgs);
 
 	if ((res = message_range_and_existence_check(&vms, msgs, num_msgs, msg_nums, vmu)) < 0) {
 		goto vm_remove_cleanup;

@@ -158,7 +158,7 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channam
 		 * debugging.
 		 */
 		pickup_args.len = strlen(channame) + 1;
-		chkchan = alloca(pickup_args.len + 1);
+		chkchan = ast_alloca(pickup_args.len + 1);
 		strcpy(chkchan, channame);
 		strcat(chkchan, "-");
 		pickup_args.name = chkchan;

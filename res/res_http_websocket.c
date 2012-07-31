@@ -208,7 +208,7 @@ int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode
 		header_size += 8;
 	}
 
-	frame = alloca(header_size);
+	frame = ast_alloca(header_size);
 	memset(frame, 0, sizeof(*frame));
 
 	frame[0] = opcode | 0x80;

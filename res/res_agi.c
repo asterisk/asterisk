@@ -1571,10 +1571,11 @@ static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
 	unsigned short srvport;
 
 	/* format of agiurl is "hagi://host.domain[:port][/script/name]" */
-	if (!(host = ast_strdupa(agiurl + 7))) { /* Remove hagi:// */
+	if (strlen(agiurl) < 7) { /* Remove hagi:// */
 		ast_log(LOG_WARNING, "An error occurred parsing the AGI URI: %s", agiurl);
 		return AGI_RESULT_FAILURE;
 	}
+	host = ast_strdupa(agiurl + 7);
 
 	/* Strip off any script name */
 	if ((script = strchr(host, '/'))) {
@@ -2500,7 +2501,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 			ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 		if (ast_compat_res_agi && argc >= 3 && !ast_strlen_zero(argv[2])) {
-			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr;
+			char *compat = ast_alloca(strlen(argv[2]) * 2 + 1), *cptr;
 			const char *vptr;
 			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
 				if (*vptr == ',') {

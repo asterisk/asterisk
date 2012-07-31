@@ -947,7 +947,7 @@ static int control_streamfile(struct ast_channel *chan,
 	}
 
 	if (blen > 2) {
-		breaks = alloca(blen + 1);
+		breaks = ast_alloca(blen + 1);
 		breaks[0] = '\0';
 		if (stop) {
 			strcat(breaks, stop);
@@ -1719,8 +1719,8 @@ static enum AST_LOCK_RESULT ast_lock_path_lockfile(const char *path)
 	int lp = strlen(path);
 	time_t start;
 
-	s = alloca(lp + 10);
-	fs = alloca(lp + 20);
+	s = ast_alloca(lp + 10);
+	fs = ast_alloca(lp + 20);
 
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, ast_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, AST_FILE_MODE);
@@ -1752,7 +1752,7 @@ static int ast_unlock_path_lockfile(const char *path)
 	char *s;
 	int res;
 
-	s = alloca(strlen(path) + 10);
+	s = ast_alloca(strlen(path) + 10);
 
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 
@@ -1793,7 +1793,7 @@ static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
 	struct path_lock *pl;
 	struct stat st, ost;
 
-	fs = alloca(strlen(path) + 20);
+	fs = ast_alloca(strlen(path) + 20);
 
 	snprintf(fs, strlen(path) + 19, "%s/lock", path);
 	if (lstat(fs, &st) == 0) {
@@ -1874,7 +1874,7 @@ static int ast_unlock_path_flock(const char *path)
 	char *s;
 	struct path_lock *p;
 
-	s = alloca(strlen(path) + 20);
+	s = ast_alloca(strlen(path) + 20);
 
 	AST_LIST_LOCK(&path_lock_list);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&path_lock_list, p, le) {

@@ -4181,7 +4181,7 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 
 	snprintf(cause_str, sizeof(cause_str), "R2 DISCONNECT (%s)", openr2_proto_get_disconnect_string(cause));
 	datalen += strlen(cause_str);
-	cause_code = alloca(datalen);
+	cause_code = ast_alloca(datalen);
 	cause_code->ast_cause = dahdi_r2_cause_to_ast_cause(cause);
 	ast_copy_string(cause_code->chan_name, ast_channel_name(p->owner), AST_CHANNEL_NAME);
 	ast_copy_string(cause_code->code, cause_str, datalen + 1 - sizeof(*cause_code));

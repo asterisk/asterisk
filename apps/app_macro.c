@@ -595,8 +595,7 @@ static int macroif_exec(struct ast_channel *chan, const char *data)
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
 
-	if (!(expr = ast_strdupa(data)))
-		return -1;
+	expr = ast_strdupa(data);
 
 	if ((label_a = strchr(expr, '?'))) {
 		*label_a = '\0';

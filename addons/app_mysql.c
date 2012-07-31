@@ -295,7 +295,7 @@ static int aMYSQL_set(struct ast_channel *chan, char *data)
 	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
 
 	if (args.argc == 3) {
-		var = alloca(6 + strlen(args.variable) + 1);
+		var = ast_alloca(6 + strlen(args.variable) + 1);
 		sprintf(var, "MYSQL_%s", args.variable);
 
 		/* Make the parameter case-insensitive */

@@ -4191,7 +4191,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			whereweare += (len + 3);
 
 			if (!var)
-				var = alloca(VAR_BUF_SIZE);
+				var = ast_alloca(VAR_BUF_SIZE);
 
 			/* Store variable name (and truncate) */
 			ast_copy_string(var, vars, len + 1);
@@ -4200,7 +4200,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			if (needsub) {
 				size_t used;
 				if (!ltmp)
-					ltmp = alloca(VAR_BUF_SIZE);
+					ltmp = ast_alloca(VAR_BUF_SIZE);
 
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &used);
 				vars = ltmp;
@@ -4209,7 +4209,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			}
 
 			if (!workspace)
-				workspace = alloca(VAR_BUF_SIZE);
+				workspace = ast_alloca(VAR_BUF_SIZE);
 
 			workspace[0] = '\0';
 
@@ -4280,7 +4280,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			whereweare += (len + 3);
 
 			if (!var)
-				var = alloca(VAR_BUF_SIZE);
+				var = ast_alloca(VAR_BUF_SIZE);
 
 			/* Store variable name (and truncate) */
 			ast_copy_string(var, vars, len + 1);
@@ -4289,7 +4289,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			if (needsub) {
 				size_t used;
 				if (!ltmp)
-					ltmp = alloca(VAR_BUF_SIZE);
+					ltmp = ast_alloca(VAR_BUF_SIZE);
 
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &used);
 				vars = ltmp;
@@ -4850,7 +4850,7 @@ static int handle_statechange(void *datap)
 		return -1;
 	}
 
-	cmpdevice = alloca(sizeof(*cmpdevice) + strlen(sc->dev));
+	cmpdevice = ast_alloca(sizeof(*cmpdevice) + strlen(sc->dev));
 	strcpy(cmpdevice->hintdevice, sc->dev);
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
@@ -11046,11 +11046,9 @@ int pbx_builtin_importvar(struct ast_channel *chan, const char *data)
 	if (channel && value && name) { /*! \todo XXX should do !ast_strlen_zero(..) of the args ? */
 		struct ast_channel *chan2 = ast_channel_get_by_name(channel);
 		if (chan2) {
-			char *s = alloca(strlen(value) + 4);
-			if (s) {
-				sprintf(s, "${%s}", value);
-				pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
-			}
+			char *s = ast_alloca(strlen(value) + 4);
+			sprintf(s, "${%s}", value);
+			pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
 			chan2 = ast_channel_unref(chan2);
 		}
 		pbx_builtin_setvar_helper(chan, name, tmp);

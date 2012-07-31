@@ -3084,10 +3084,7 @@ static int try_firmware(char *s)
 	unsigned char sum[16], buf[1024];
 	char *s2, *last;
 
-	if (!(s2 = alloca(strlen(s) + 100))) {
-		ast_log(LOG_WARNING, "Alloca failed!\n");
-		return -1;
-	}
+	s2 = ast_alloca(strlen(s) + 100);
 
 	last = strrchr(s, '/');
 	if (last)
@@ -6340,7 +6337,7 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 	int padding;
 	unsigned char *workspace;
 
-	workspace = alloca(*datalen);
+	workspace = ast_alloca(*datalen);
 	memset(f, 0, sizeof(*f));
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
@@ -6386,9 +6383,7 @@ static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh,
 {
 	int padding;
 	unsigned char *workspace;
-	workspace = alloca(*datalen + 32);
-	if (!workspace)
-		return -1;
+	workspace = ast_alloca(*datalen + 32);
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
 		if (iaxdebug)
@@ -10016,9 +10011,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 	char *using_prefs = "mine";
 
 	/* allocate an iax_frame with 4096 bytes of data buffer */
-	fr = alloca(sizeof(*fr) + 4096);
+	fr = ast_alloca(sizeof(*fr) + 4096);
 	memset(fr, 0, sizeof(*fr));
-	fr->afdatalen = 4096; /* From alloca() above */
+	fr->afdatalen = 4096; /* From ast_alloca() above */
 
 	/* Copy frequently used parameters to the stack */
 	res = thread->buf_len;
@@ -10236,7 +10231,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 		/* add length of subclass */
 		data_size += strlen(subclass);
 
-		cause_code = alloca(data_size);
+		cause_code = ast_alloca(data_size);
 		ast_copy_string(cause_code->chan_name, ast_channel_name(iaxs[fr->callno]->owner), AST_CHANNEL_NAME);
 
 		cause_code->ast_cause = ies.causecode;
@@ -12470,9 +12465,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	char *host;
 	char *portstr;
 
-	if (!(tmp = ast_strdupa(srcaddr)))
-		return -1;
-
+	tmp = ast_strdupa(srcaddr);
 	ast_sockaddr_split_hostport(tmp, &host, &portstr, 0);
 
 	if (portstr) {
@@ -12935,7 +12928,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				ast_append_acl(v->name, v->value, &user->acl, NULL, &subscribe_acl_change);
 			} else if (!strcasecmp(v->name, "setvar")) {
 				varname = ast_strdupa(v->value);
-				if (varname && (varval = strchr(varname,'='))) {
+				if ((varval = strchr(varname, '='))) {
 					*varval = '\0';
 					varval++;
 					if((tmpvar = ast_variable_new(varname, varval, ""))) {

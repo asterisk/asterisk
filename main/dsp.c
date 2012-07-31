@@ -1336,13 +1336,13 @@ static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_fra
 		len = f->datalen;
 		switch (f->subclass.format.id) {
 			case AST_FORMAT_ULAW:
-				s = alloca(len * 2);
+				s = ast_alloca(len * 2);
 				for (x = 0;x < len; x++) {
 					s[x] = AST_MULAW(odata[x]);
 				}
 				break;
 			case AST_FORMAT_ALAW:
-				s = alloca(len * 2);
+				s = ast_alloca(len * 2);
 				for (x = 0;x < len; x++) {
 					s[x] = AST_ALAW(odata[x]);
 				}
@@ -1406,13 +1406,13 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		switch (af->subclass.format.id) {
 		case AST_FORMAT_ULAW:
 		case AST_FORMAT_TESTLAW:
-			shortdata = alloca(af->datalen * 2);
+			shortdata = ast_alloca(af->datalen * 2);
 			for (x = 0;x < len; x++) {
 				shortdata[x] = AST_MULAW(odata[x]);
 			}
 			break;
 		case AST_FORMAT_ALAW:
-			shortdata = alloca(af->datalen * 2);
+			shortdata = ast_alloca(af->datalen * 2);
 			for (x = 0; x < len; x++) {
 				shortdata[x] = AST_ALAW(odata[x]);
 			}

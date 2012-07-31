@@ -1390,9 +1390,7 @@ static struct dundi_hdr *dundi_decrypt(struct dundi_transaction *trans, unsigned
 	unsigned long bytes;
 	struct dundi_hdr *h;
 	unsigned char *decrypt_space;
-	decrypt_space = alloca(srclen);
-	if (!decrypt_space)
-		return NULL;
+	decrypt_space = ast_alloca(srclen);
 	decrypt_memcpy(decrypt_space, src->encdata, srclen, src->iv, &trans->dcx);
 	/* Setup header */
 	h = (struct dundi_hdr *)dst;
@@ -1418,61 +1416,58 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	struct dundi_peer *peer;
 	unsigned char iv[16];
 	len = pack->datalen + pack->datalen / 100 + 42;
-	compress_space = alloca(len);
-	if (compress_space) {
-		memset(compress_space, 0, len);
-		/* We care about everthing save the first 6 bytes of header */
-		bytes = len;
-		res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
-		if (res != Z_OK) {
-			ast_debug(1, "Ouch, compression failed!\n");
-			return -1;
-		}
-		memset(&ied, 0, sizeof(ied));
-		/* Say who we are */
-		if (!pack->h->iseqno && !pack->h->oseqno) {
-			/* Need the key in the first copy */
-			if (!(peer = find_peer(&trans->them_eid)))
-				return -1;
-			if (update_key(peer))
-				return -1;
-			if (!peer->sentfullkey)
-				ast_set_flag(trans, FLAG_SENDFULLKEY);
-			/* Append key data */
-			dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
-			if (ast_test_flag(trans, FLAG_SENDFULLKEY)) {
-				dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
-				dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
-			} else {
-				dundi_ie_append_int(&ied, DUNDI_IE_KEYCRC32, peer->us_keycrc32);
-			}
-			/* Setup contexts */
-			trans->ecx = peer->us_ecx;
-			trans->dcx = peer->us_dcx;
-
-			/* We've sent the full key */
-			peer->sentfullkey = 1;
-		}
-		/* Build initialization vector */
-		build_iv(iv);
-		/* Add the field, rounded up to 16 bytes */
-		dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, iv, NULL, ((bytes + 15) / 16) * 16);
-		/* Copy the data */
-		if ((ied.pos + bytes) >= sizeof(ied.buf)) {
-			ast_log(LOG_NOTICE, "Final packet too large!\n");
-			return -1;
-		}
-		encrypt_memcpy(ied.buf + ied.pos, compress_space, bytes, iv, &trans->ecx);
-		ied.pos += ((bytes + 15) / 16) * 16;
-		/* Reconstruct header */
-		pack->datalen = sizeof(struct dundi_hdr);
-		pack->h->cmdresp = DUNDI_COMMAND_ENCRYPT;
-		pack->h->cmdflags = 0;
-		memcpy(pack->h->ies, ied.buf, ied.pos);
-		pack->datalen += ied.pos;
-		return 0;
+	compress_space = ast_alloca(len);
+	memset(compress_space, 0, len);
+	/* We care about everthing save the first 6 bytes of header */
+	bytes = len;
+	res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
+	if (res != Z_OK) {
+		ast_debug(1, "Ouch, compression failed!\n");
+		return -1;
 	}
-	return -1;
+	memset(&ied, 0, sizeof(ied));
+	/* Say who we are */
+	if (!pack->h->iseqno && !pack->h->oseqno) {
+		/* Need the key in the first copy */
+		if (!(peer = find_peer(&trans->them_eid)))
+			return -1;
+		if (update_key(peer))
+			return -1;
+		if (!peer->sentfullkey)
+			ast_set_flag(trans, FLAG_SENDFULLKEY);
+		/* Append key data */
+		dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
+		if (ast_test_flag(trans, FLAG_SENDFULLKEY)) {
+			dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
+			dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
+		} else {
+			dundi_ie_append_int(&ied, DUNDI_IE_KEYCRC32, peer->us_keycrc32);
+		}
+		/* Setup contexts */
+		trans->ecx = peer->us_ecx;
+		trans->dcx = peer->us_dcx;
+
+		/* We've sent the full key */
+		peer->sentfullkey = 1;
+	}
+	/* Build initialization vector */
+	build_iv(iv);
+	/* Add the field, rounded up to 16 bytes */
+	dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, iv, NULL, ((bytes + 15) / 16) * 16);
+	/* Copy the data */
+	if ((ied.pos + bytes) >= sizeof(ied.buf)) {
+		ast_log(LOG_NOTICE, "Final packet too large!\n");
+		return -1;
+	}
+	encrypt_memcpy(ied.buf + ied.pos, compress_space, bytes, iv, &trans->ecx);
+	ied.pos += ((bytes + 15) / 16) * 16;
+	/* Reconstruct header */
+	pack->datalen = sizeof(struct dundi_hdr);
+	pack->h->cmdresp = DUNDI_COMMAND_ENCRYPT;
+	pack->h->cmdflags = 0;
+	memcpy(pack->h->ies, ied.buf, ied.pos);
+	pack->datalen += ied.pos;
+	return 0;
 }
 
 static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned char *newsig, uint32_t keycrc32)
@@ -1589,10 +1584,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	}
 
 	if (datalen) {
-		bufcpy = alloca(datalen);
-		if (!bufcpy) {
-			goto return_cleanup;
-		}
+		bufcpy = ast_alloca(datalen);
 		/* Make a copy for parsing */
 		memcpy(bufcpy, hdr->ies, datalen);
 		ast_debug(1, "Got canonical message %d (%d), %d bytes data%s\n", cmd, hdr->oseqno, datalen, final ? " (Final)" : "");
@@ -3774,18 +3766,17 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 			nummaps++;
 	}
 	if (nummaps) {
-		maps = alloca(nummaps * sizeof(*maps));
+		maps = ast_alloca(nummaps * sizeof(*maps));
 		nummaps = 0;
-		if (maps) {
-			AST_LIST_TRAVERSE(&mappings, cur, list) {
-				if (!strcasecmp(cur->dcontext, context))
-					maps[nummaps++] = *cur;
-			}
+		AST_LIST_TRAVERSE(&mappings, cur, list) {
+			if (!strcasecmp(cur->dcontext, context))
+				maps[nummaps++] = *cur;
 		}
 	}
 	AST_LIST_UNLOCK(&peers);
-	if (!nummaps || !maps)
+	if (!nummaps) {
 		return -1;
+	}
 	ttlms = DUNDI_FLUFF_TIME + ttl * DUNDI_TTL_TIME;
 	memset(&dr2, 0, sizeof(dr2));
 	memset(&dr, 0, sizeof(dr));

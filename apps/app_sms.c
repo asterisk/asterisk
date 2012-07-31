@@ -1604,7 +1604,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 		samples = MAXSAMPLES;
 	}
 	len = samples * sizeof(*buf) + AST_FRIENDLY_OFFSET;
-	buf = alloca(len);
+	buf = ast_alloca(len);
 
 	f.frametype = AST_FRAME_VOICE;
 	ast_format_set(&f.subclass.format, __OUT_FMT, 0);

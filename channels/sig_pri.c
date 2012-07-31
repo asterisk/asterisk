@@ -1286,7 +1286,7 @@ static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, cons
 	chan = pri->pvts[chanpos]->owner;
 	if (chan) {
 		int datalen = sizeof(*cause_code) + strlen(cause);
-		cause_code = alloca(datalen);
+		cause_code = ast_alloca(datalen);
 		cause_code->ast_cause = ast_cause;
 		ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
 		ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));

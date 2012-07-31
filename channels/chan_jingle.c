@@ -1553,14 +1553,16 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 
 	if (data) {
 		s = ast_strdupa(data);
-		if (s) {
-			sender = strsep(&s, "/");
-			if (sender && (sender[0] != '\0'))
-				to = strsep(&s, "/");
-			if (!to) {
-				ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", data);
-				return NULL;
-			}
+		sender = strsep(&s, "/");
+		if (sender && (sender[0] != '\0'))
+			to = strsep(&s, "/");
+		if (!to) {
+			ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", data);
+			return NULL;
+		}
+		if (!to) {
+			ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", (char*) data);
+			return NULL;
 		}
 	}
 

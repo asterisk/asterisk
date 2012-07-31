@@ -2896,7 +2896,7 @@ static void ast_remotecontrol(char *data)
 	}
 	if (data) {
 		char prefix[] = "cli quit after ";
-		char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
+		char *tmp = ast_alloca(strlen(data) + strlen(prefix) + 1);
 		sprintf(tmp, "%s%s", prefix, data);
 		if (write(ast_consock, tmp, strlen(tmp) + 1) < 0) {
 			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));

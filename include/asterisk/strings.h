@@ -372,7 +372,7 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
 /*! \brief The descriptor of a dynamic string
  *  XXX storage will be optimized later if needed
  * We use the ts field to indicate the type of storage.
- * Three special constants indicate malloc, alloca() or static
+ * Three special constants indicate malloc, ast_alloca() or static
  * variables, all other values indicate a
  * struct ast_threadstorage pointer.
  */
@@ -623,7 +623,7 @@ int ast_str_copy_string(struct ast_str **dst, struct ast_str *src),
 #define ast_str_alloca(init_len)			\
 	({						\
 		struct ast_str *__ast_str_buf;			\
-		__ast_str_buf = alloca(sizeof(*__ast_str_buf) + init_len);	\
+		__ast_str_buf = ast_alloca(sizeof(*__ast_str_buf) + init_len);	\
 		__ast_str_buf->__AST_STR_LEN = init_len;			\
 		__ast_str_buf->__AST_STR_USED = 0;				\
 		__ast_str_buf->__AST_STR_TS = DS_ALLOCA;			\

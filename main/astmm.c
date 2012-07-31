@@ -430,7 +430,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 					break;
 			}
 			if (!cur) {
-				cur = alloca(sizeof(*cur));
+				cur = ast_alloca(sizeof(*cur));
 				memset(cur, 0, sizeof(*cur));
 				ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
 				cur->next = list;

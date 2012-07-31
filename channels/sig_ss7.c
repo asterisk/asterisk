@@ -389,7 +389,7 @@ static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *caus
 	struct ast_control_pvt_cause_code *cause_code;
 	int datalen = sizeof(*cause_code) + strlen(cause);
 
-	cause_code = alloca(datalen);
+	cause_code = ast_alloca(datalen);
 	cause_code->ast_cause = ast_cause;
 	ast_copy_string(cause_code->chan_name, ast_channel_name(owner), AST_CHANNEL_NAME);
 	ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));

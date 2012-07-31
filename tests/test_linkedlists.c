@@ -150,7 +150,7 @@ AST_TEST_DEFINE(single_ll_tests)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(bogus = alloca(sizeof(*bogus)))) {
+	if (!(bogus = ast_alloca(sizeof(*bogus)))) {
 		return AST_TEST_FAIL;
 	}
 
@@ -361,9 +361,7 @@ AST_TEST_DEFINE(double_ll_tests)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(bogus = alloca(sizeof(*bogus)))) {
-		return AST_TEST_FAIL;
-	}
+	bogus = ast_alloca(sizeof(*bogus));
 
 	if (AST_DLLIST_REMOVE_VERIFY(&test_list, bogus, dbl_list)) {
 		ast_test_status_update(test, "AST_DLLIST_REMOVE_VERIFY should safely return NULL for missing element from empty list\n");

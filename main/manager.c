@@ -2694,7 +2694,7 @@ static void astman_append_json(struct mansession *s, const char *str)
 {
 	char *buf;
 
-	buf = alloca(2 * strlen(str) + 1);
+	buf = ast_alloca(2 * strlen(str) + 1);
 	json_escape(buf, str);
 	astman_append(s, "%s", buf);
 }

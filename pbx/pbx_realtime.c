@@ -228,52 +228,50 @@ static struct ast_variable *realtime_common(const char *context, const char *ext
 		char exten[AST_MAX_EXTENSION];
 	} cache_search = { { .priority = priority, .context = (char *) context }, };
 	char *buf = ast_strdupa(data);
-	if (buf) {
-		/* "Realtime" prefix is stripped off in the parent engine.  The
-		 * remaining string is: [[context@]table][/opts] */
-		char *opts = strchr(buf, '/');
-		if (opts)
-			*opts++ = '\0';
-		table = strchr(buf, '@');
-		if (table) {
-			*table++ = '\0';
-			ctx = buf;
-		}
-		ctx = S_OR(ctx, context);
-		table = S_OR(table, "extensions");
-		if (!ast_strlen_zero(opts)) {
-			ast_app_parse_options(switch_opts, &flags, NULL, opts);
-		}
-		ast_copy_string(cache_search.exten, exten, sizeof(cache_search.exten));
-		if (mode == MODE_MATCH && (ce = ao2_find(cache, &cache_search, OBJ_POINTER))) {
-			var = dup_vars(ce->var);
+	/* "Realtime" prefix is stripped off in the parent engine.  The
+	 * remaining string is: [[context@]table][/opts] */
+	char *opts = strchr(buf, '/');
+	if (opts)
+		*opts++ = '\0';
+	table = strchr(buf, '@');
+	if (table) {
+		*table++ = '\0';
+		ctx = buf;
+	}
+	ctx = S_OR(ctx, context);
+	table = S_OR(table, "extensions");
+	if (!ast_strlen_zero(opts)) {
+		ast_app_parse_options(switch_opts, &flags, NULL, opts);
+	}
+	ast_copy_string(cache_search.exten, exten, sizeof(cache_search.exten));
+	if (mode == MODE_MATCH && (ce = ao2_find(cache, &cache_search, OBJ_POINTER))) {
+		var = dup_vars(ce->var);
+		ao2_ref(ce, -1);
+	} else {
+		var = realtime_switch_common(table, ctx, exten, priority, mode, flags);
+		do {
+			struct ast_variable *new;
+			/* Only cache matches */
+			if (mode != MODE_MATCH) {
+				break;
+			}
+			if (!(new = dup_vars(var))) {
+				break;
+			}
+			if (!(ce = ao2_alloc(sizeof(*ce) + strlen(exten) + strlen(context), free_entry))) {
+				ast_variables_destroy(new);
+				break;
+			}
+			ce->context = ce->exten + strlen(exten) + 1;
+			strcpy(ce->exten, exten); /* SAFE */
+			strcpy(ce->context, context); /* SAFE */
+			ce->priority = priority;
+			ce->var = new;
+			ce->when = ast_tvnow();
+			ao2_link(cache, ce);
+			pthread_kill(cleanup_thread, SIGURG);
 			ao2_ref(ce, -1);
-		} else {
-			var = realtime_switch_common(table, ctx, exten, priority, mode, flags);
-			do {
-				struct ast_variable *new;
-				/* Only cache matches */
-				if (mode != MODE_MATCH) {
-					break;
-				}
-				if (!(new = dup_vars(var))) {
-					break;
-				}
-				if (!(ce = ao2_alloc(sizeof(*ce) + strlen(exten) + strlen(context), free_entry))) {
-					ast_variables_destroy(new);
-					break;
-				}
-				ce->context = ce->exten + strlen(exten) + 1;
-				strcpy(ce->exten, exten); /* SAFE */
-				strcpy(ce->context, context); /* SAFE */
-				ce->priority = priority;
-				ce->var = new;
-				ce->when = ast_tvnow();
-				ao2_link(cache, ce);
-				pthread_kill(cleanup_thread, SIGURG);
-				ao2_ref(ce, -1);
-			} while (0);
-		}
+		} while (0);
 	}
 	return var;
 }
@@ -315,7 +313,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				if (ast_compat_pbx_realtime) {
 					char *ptr;
 					int in = 0;
-					tmp = alloca(strlen(v->value) * 2 + 1);
+					tmp = ast_alloca(strlen(v->value) * 2 + 1);
 					for (ptr = tmp; *v->value; v->value++) {
 						if (*v->value == ',') {
 							*ptr++ = '\\';

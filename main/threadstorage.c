@@ -215,7 +215,7 @@ static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int 
 		}
 
 		if (!file) {
-			file = alloca(sizeof(*file));
+			file = ast_alloca(sizeof(*file));
 			memset(file, 0, sizeof(*file));
 			file->name = fn ? to->function : to->file;
 			AST_LIST_INSERT_TAIL(&file_summary, file, entry);
