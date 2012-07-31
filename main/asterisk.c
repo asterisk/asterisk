@@ -139,6 +139,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/ast_version.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/presencestate.h"
 #include "asterisk/module.h"
 #include "asterisk/dsp.h"
 #include "asterisk/buildinfo.h"
@@ -3854,6 +3855,11 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	if (ast_msg_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	/* initialize the data retrieval API */
 	if (ast_data_init()) {
 		printf ("%s", term_quit());
@@ -3890,6 +3896,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_device_state_engine_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_presence_state_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

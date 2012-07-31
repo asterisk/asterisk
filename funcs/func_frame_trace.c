@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
@@ -317,6 +318,9 @@ static void print_frame(struct ast_frame *frame)
 			break;
 		case AST_CONTROL_END_OF_Q:
 			ast_verbose("SubClass: END_OF_Q\n");
+			break;
+		case AST_CONTROL_CUSTOM:
+			ast_verbose("Subclass: Custom");
 			break;
 		case AST_CONTROL_UPDATE_RTP_PEER:
 			ast_verbose("SubClass: UPDATE_RTP_PEER\n");

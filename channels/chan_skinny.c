@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
@@ -1408,7 +1409,7 @@ static const struct ast_channel_tech skinny_tech = {
 	.bridge = ast_rtp_instance_bridge, 
 };
 
-static int skinny_extensionstate_cb(char *context, char* exten, int state, void *data);
+static int skinny_extensionstate_cb(char *context, char* id, struct ast_state_cb_info *info, void *data);
 static int skinny_transfer(struct skinny_subchannel *sub);
 
 static void *get_button_template(struct skinnysession *s, struct button_definition_template *btn)
@@ -2623,11 +2624,17 @@ static void transmit_softkeytemplateres(struct skinny_device *d)
 }
 
 
-static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
+static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct skinny_speeddial *sd = data;
 	struct skinny_device *d = sd->parent;
 	char hint[AST_MAX_EXTENSION];
+	int state = info->exten_state;
+
+	/* only interested in device state here */
+	if (info->reason != AST_HINT_UPDATE_DEVICE) {
+		return 0;
+	}
 
 	if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, sd->context, sd->exten)) {
 		/* If they are not registered, we will override notification and show no availability */

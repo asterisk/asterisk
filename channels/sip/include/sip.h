@@ -211,6 +211,8 @@
 #define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
 #define DEFAULT_ALWAYSAUTHREJECT  TRUE  /*!< Don't reject authentication requests always */
 #define DEFAULT_AUTH_OPTIONS  FALSE
+#define DEFAULT_AUTH_MESSAGE  TRUE
+#define DEFAULT_ACCEPT_OUTOFCALL_MESSAGE TRUE
 #define DEFAULT_REGEXTENONQUALIFY FALSE
 #define DEFAULT_LEGACY_USEROPTION_PARSING FALSE
 #define DEFAULT_T1MIN             100   /*!< 100 MS for minimal roundtrip time */
@@ -686,6 +688,8 @@ struct sip_settings {
 	int allowguest;             /*!< allow unauthenticated peers to connect? */
 	int alwaysauthreject;       /*!< Send 401 Unauthorized for all failing requests */
 	int auth_options_requests;  /*!< Authenticate OPTIONS requests */
+	int auth_message_requests;  /*!< Authenticate MESSAGE requests */
+	int accept_outofcall_message; /*!< Accept MESSAGE outside of a call */
 	int compactheaders;         /*!< send compact sip headers */
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
 	int callevents;             /*!< Whether we send manager events or not */
@@ -704,6 +708,7 @@ struct sip_settings {
 	int domainsasrealm;         /*!< Use domains lists as realms */
 	struct sip_proxy outboundproxy; /*!< Outbound proxy */
 	char default_context[AST_MAX_CONTEXT];
+	char messagecontext[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
 	struct ast_ha *contact_ha;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 	format_t capability;        /*!< Supported codecs */
@@ -946,6 +951,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(useragent);    /*!< User agent in SIP request */
 		AST_STRING_FIELD(exten);        /*!< Extension where to start */
 		AST_STRING_FIELD(context);      /*!< Context for this call */
+		AST_STRING_FIELD(messagecontext);/*!< Default context for outofcall messages*/
 		AST_STRING_FIELD(subscribecontext); /*!< Subscribecontext */
 		AST_STRING_FIELD(subscribeuri); /*!< Subscribecontext */
 		AST_STRING_FIELD(fromdomain);   /*!< Domain to show in the from field */
@@ -978,6 +984,9 @@ struct sip_pvt {
 		AST_STRING_FIELD(parkinglot);   /*!< Parkinglot */
 		AST_STRING_FIELD(engine);       /*!< RTP engine to use */
 		AST_STRING_FIELD(dialstring);   /*!< The dialstring used to call this SIP endpoint */
+		AST_STRING_FIELD(last_presence_subtype);   /*!< The last presence subtype sent for a subscription. */
+		AST_STRING_FIELD(last_presence_message);   /*!< The last presence message for a subscription */
+		AST_STRING_FIELD(msg_body);     /*!< Text for a MESSAGE body */
 	);
 	char via[128];                          /*!< Via: header */
 	int maxforwards;                        /*!< SIP Loop prevention */
@@ -1076,6 +1085,7 @@ struct sip_pvt {
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;                      /*!< SUBSCRIBE: Last known extension state */
+	int last_presence_state;            /*!< SUBSCRIBE: Last known presence state */
 	uint32_t dialogver;                 /*!< SUBSCRIBE: Version for subscription dialog-info */
 
 	struct ast_dsp *dsp;                /*!< Inband DTMF or Fax CNG tone Detection dsp */
@@ -1180,6 +1190,7 @@ struct sip_peer {
 		AST_STRING_FIELD(md5secret);    /*!< Password in MD5 */
 		AST_STRING_FIELD(remotesecret); /*!< Remote secret (trunks, remote devices) */
 		AST_STRING_FIELD(context);      /*!< Default context for incoming calls */
+		AST_STRING_FIELD(messagecontext);/*!< Default context for outofcall messages*/
 		AST_STRING_FIELD(subscribecontext); /*!< Default context for subscriptions */
 		AST_STRING_FIELD(username);     /*!< Temporary username until registration */
 		AST_STRING_FIELD(accountcode);  /*!< Account code */

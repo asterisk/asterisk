@@ -54,8 +54,11 @@ enum ast_event_type {
 	AST_EVENT_SECURITY            = 0x08,
 	/*! Used by res_stun_monitor to alert listeners to an exernal network address change. */
 	AST_EVENT_NETWORK_CHANGE      = 0x09,
+	/*! The presence state for a presence provider */
+	AST_EVENT_PRESENCE_STATE      = 0x0a,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL               = 0x0a,
+	AST_EVENT_TOTAL               = 0x0b,
+
 };
 
 /*! \brief Event Information Element types */
@@ -283,8 +286,12 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_CHALLENGE           = 0x0032,
 	AST_EVENT_IE_RESPONSE            = 0x0033,
 	AST_EVENT_IE_EXPECTED_RESPONSE   = 0x0034,
+	AST_EVENT_IE_PRESENCE_PROVIDER   = 0x0035,
+	AST_EVENT_IE_PRESENCE_STATE      = 0x0036,
+	AST_EVENT_IE_PRESENCE_SUBTYPE    = 0x0037,
+	AST_EVENT_IE_PRESENCE_MESSAGE    = 0x0038,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x0035,
+	AST_EVENT_IE_TOTAL               = 0x0039,
 };
 
 /*!

@@ -34,3 +34,6 @@
 					; Messages stored longer than this value will be deleted by Asterisk.
 					; This option applies to incoming messages only, which are intended to
 					; be processed by the JABBER_RECEIVE dialplan function.
+;sendtodialplan=yes			; Send incoming messages into the dialplan.  Off by default.
+;context=messages			; Dialplan context to send incoming messages to.  If not set,
+					; "default" will be used.

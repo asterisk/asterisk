@@ -334,6 +334,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_READ_ACTION = 27,	/*!< Tell ast_read to take a specific action */
 	AST_CONTROL_AOC = 28,			/*!< Advice of Charge with encoded generic AOC payload */
 	AST_CONTROL_END_OF_Q = 29,		/*!< Indicate that this position was the end of the channel queue for a softhangup. */
+	AST_CONTROL_CUSTOM = 200,		/*!< Indicate a custom channel driver specific payload.  Look in custom_control_frame.h for how to define and use this frame. */
 	AST_CONTROL_INCOMPLETE = 30,	/*!< Indication that the extension dialed is incomplete */
 	AST_CONTROL_UPDATE_RTP_PEER = 31, /*!< Interrupt the bridge and have it update the peer */
 };

@@ -4319,6 +4319,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
 	case AST_CONTROL_AOC:
+	case AST_CONTROL_CUSTOM:
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_UPDATE_RTP_PEER:
 		break;
@@ -4507,6 +4508,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
 	case AST_CONTROL_AOC:
+	case AST_CONTROL_CUSTOM:
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_UPDATE_RTP_PEER:
 		/* Nothing left to do for these. */
@@ -9611,4 +9613,9 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	va_end(ap2);
 
 	return result;
+}
+
+void ast_channel_unlink(struct ast_channel *chan)
+{
+	ao2_unlink(channels, chan);
 }

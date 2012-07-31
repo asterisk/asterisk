@@ -1181,11 +1181,18 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 /*!
  * \brief the core of all waitstream() functions
  */
-static int waitstream_core(struct ast_channel *c, const char *breakon,
-	const char *forward, const char *reverse, int skip_ms,
-	int audiofd, int cmdfd,  const char *context)
+static int waitstream_core(struct ast_channel *c,
+	const char *breakon,
+	const char *forward,
+	const char *reverse,
+	int skip_ms,
+	int audiofd,
+	int cmdfd,
+	const char *context,
+	ast_waitstream_fr_cb cb)
 {
 	const char *orig_chan_name = NULL;
+
 	int err = 0;
 
 	if (!breakon)
@@ -1200,6 +1207,11 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 
 	if (ast_test_flag(c, AST_FLAG_MASQ_NOSTREAM))
 		orig_chan_name = ast_strdupa(c->name);
+
+	if (c->stream && cb) {
+		long ms_len = ast_tellstream(c->stream) / (ast_format_rate(c->stream->fmt->format) / 1000);
+		cb(c, ms_len, AST_WAITSTREAM_CB_START);
+	}
 
 	while (c->stream) {
 		int res;
@@ -1262,6 +1274,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						return res;
 					}
 				} else {
+					enum ast_waitstream_fr_cb_values cb_val = 0;
 					res = fr->subclass.integer;
 					if (strchr(forward, res)) {
 						int eoftest;
@@ -1272,13 +1285,19 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						} else {
 							ungetc(eoftest, c->stream->f);
 						}
+						cb_val = AST_WAITSTREAM_CB_FASTFORWARD;
 					} else if (strchr(reverse, res)) {
 						ast_stream_rewind(c->stream, skip_ms);
+						cb_val = AST_WAITSTREAM_CB_REWIND;
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
 						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 						return res;
-					}					
+					}
+					if (cb_val && cb) {
+						long ms_len = ast_tellstream(c->stream) / (ast_format_rate(c->stream->fmt->format) / 1000);
+						cb(c, ms_len, cb_val);
+					}
 				}
 				break;
 			case AST_FRAME_CONTROL:
@@ -1328,21 +1347,32 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 	return (err || c->_softhangup) ? -1 : 0;
 }
 
+int ast_waitstream_fr_w_cb(struct ast_channel *c,
+	const char *breakon,
+	const char *forward,
+	const char *reverse,
+	int ms,
+	ast_waitstream_fr_cb cb)
+{
+	return waitstream_core(c, breakon, forward, reverse, ms,
+		-1 /* no audiofd */, -1 /* no cmdfd */, NULL /* no context */, cb);
+}
+
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *reverse, int ms)
 {
 	return waitstream_core(c, breakon, forward, reverse, ms,
-		-1 /* no audiofd */, -1 /* no cmdfd */, NULL /* no context */);
+		-1 /* no audiofd */, -1 /* no cmdfd */, NULL /* no context */, NULL /* no callback */);
 }
 
 int ast_waitstream(struct ast_channel *c, const char *breakon)
 {
-	return waitstream_core(c, breakon, NULL, NULL, 0, -1, -1, NULL);
+	return waitstream_core(c, breakon, NULL, NULL, 0, -1, -1, NULL, NULL /* no callback */);
 }
 
 int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int cmdfd)
 {
 	return waitstream_core(c, breakon, NULL, NULL, 0,
-		audiofd, cmdfd, NULL /* no context */);
+		audiofd, cmdfd, NULL /* no context */, NULL /* no callback */);
 }
 
 int ast_waitstream_exten(struct ast_channel *c, const char *context)
@@ -1353,7 +1383,7 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 	if (!context)
 		context = c->context;
 	return waitstream_core(c, NULL, NULL, NULL, 0,
-		-1, -1, context);
+		-1, -1, context, NULL /* no callback */);
 }
 
 /*
