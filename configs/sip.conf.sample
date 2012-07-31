@@ -877,6 +877,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of INVITE. This can be combined with 'nonat', as
                                 ; 'directmedia=update,nonat'. It implies 'yes'.
 
+;directmedia=outgoing           ; When sending directmedia reinvites, do not send an immediate
+                                ; reinvite on an incoming call leg. This option is useful when
+                                ; peered with another SIP user agent that is known to send
+                                ; immediate direct media reinvites upon call establishment. Setting
+                                ; the option in this situation helps to prevent potential glares.
+                                ; Setting this option implies 'yes'.
+
 ;directrtpsetup=yes             ; Enable the new experimental direct RTP setup. This sets up
                                 ; the call directly with media peer-2-peer without re-invites.
                                 ; Will not work for video and cases where the callee sends
