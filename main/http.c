@@ -251,7 +251,7 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 		goto out403;
 	}
 
-	path = alloca(len);
+	path = ast_alloca(len);
 	sprintf(path, "%s/static-http/%s", ast_config_AST_DATA_DIR, uri);
 	if (stat(path, &st)) {
 		goto out404;
@@ -624,9 +624,7 @@ struct ast_variable *ast_http_get_post_vars(
 		return NULL;
 	}
 
-	if (!(buf = alloca(content_length))) {
-		return NULL;
-	}
+	buf = ast_alloca(content_length);
 	if (!fgets(buf, content_length, ser->f)) {
 		return NULL;
 	}
@@ -767,7 +765,7 @@ cleanup:
 static HOOK_T ssl_write(void *cookie, const char *buf, LEN_T len)
 {
 #if 0
-	char *s = alloca(len+1);
+	char *s = ast_alloca(len+1);
 	strncpy(s, buf, len);
 	s[len] = '\0';
 	ast_verbose("ssl write size %d <%s>\n", (int)len, s);

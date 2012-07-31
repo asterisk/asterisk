@@ -2054,10 +2054,6 @@ static int minivm_mwi_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	tmpptr = ast_strdupa((char *)data);
-	if (!tmpptr) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
 	argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 	if (argc < 4) {
 		ast_log(LOG_ERROR, "%d arguments passed to MiniVM_MWI, need 4.\n", argc);
@@ -2102,10 +2098,6 @@ static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	tmpptr = ast_strdupa((char *)data);
-	if (!tmpptr) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
 	argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 
 	if (argc == 2 && !ast_strlen_zero(argv[1]))
@@ -2186,10 +2178,6 @@ static int minivm_record_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	tmp = ast_strdupa((char *)data);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
 	argc = ast_app_separate_args(tmp, ',', argv, ARRAY_LEN(argv));
 	if (argc == 2) {
 		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1])) {
@@ -2249,10 +2237,6 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	tmpptr = ast_strdupa((char *)data);
-	if (!tmpptr) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
 	argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 
 	if (argc == 2) {
@@ -2476,14 +2460,9 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "MinivmAccmess needs at least two arguments: account and option\n");
 		error = TRUE;
-	} else 
+	} else {
 		tmpptr = ast_strdupa((char *)data);
-	if (!error) {
-		if (!tmpptr) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			error = TRUE;
-		} else
-			argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
+		argc = ast_app_separate_args(tmpptr, ',', argv, ARRAY_LEN(argv));
 	}
 
 	if (argc <=1) {
@@ -2623,7 +2602,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 			char *varname = ast_strdupa(var->value);
 			struct ast_variable *tmpvar;
 
-			if (varname && (varval = strchr(varname, '='))) {
+			if ((varval = strchr(varname, '='))) {
 				*varval = '\0';
 				varval++;
 				if ((tmpvar = ast_variable_new(varname, varval, ""))) {
@@ -2681,11 +2660,6 @@ static int timezone_add(const char *zonename, const char *config)
 		return 0;
 
 	msg_format = ast_strdupa(config);
-	if (msg_format == NULL) {
-		ast_log(LOG_WARNING, "Out of memory.\n");
-		ast_free(newzone);
-		return 0;
-	}
 
 	timezone_str = strsep(&msg_format, "|");
 	if (!msg_format) {
@@ -3201,10 +3175,7 @@ static int minivm_account_func_read(struct ast_channel *chan, const char *cmd, c
 	struct minivm_account *vmu;
 	char *username, *domain, *colname;
 
-	if (!(username = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
-		return -1;
-	}
+	username = ast_strdupa(data);
 
 	if ((colname = strchr(username, ':'))) {
 		*colname = '\0';
@@ -3355,10 +3326,8 @@ static int minivm_counter_func_read(struct ast_channel *chan, const char *cmd, c
 
 	*buf = '\0';
 
-	if (!(username = ast_strdupa(data))) {	/* Copy indata to local buffer */
-		ast_log(LOG_WARNING, "Memory error!\n");
-		return -1;
-	}
+	username = ast_strdupa(data);
+
 	if ((countername = strchr(username, ':'))) {
 		*countername = '\0';
 		countername++;
@@ -3414,10 +3383,7 @@ static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, 
 		return -1;
 	change = atoi(value);
 
-	if (!(username = ast_strdupa(data))) {	/* Copy indata to local buffer */
-		ast_log(LOG_WARNING, "Memory error!\n");
-		return -1;
-	}
+	username = ast_strdupa(data);
 
 	if ((countername = strchr(username, ':'))) {
 		*countername = '\0';

@@ -236,7 +236,7 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 		condition = ast_strdupa(data);
 
 	size = strlen(chan->context) + strlen(chan->exten) + 32;
-	my_name = alloca(size);
+	my_name = ast_alloca(size);
 	memset(my_name, 0, size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
@@ -281,7 +281,7 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 	if (!end && !while_pri) {
 		char *goto_str;
 		size = strlen(chan->context) + strlen(chan->exten) + 32;
-		goto_str = alloca(size);
+		goto_str = ast_alloca(size);
 		memset(goto_str, 0, size);
 		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
@@ -293,7 +293,7 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 		if (! pbx_builtin_getvar_helper(chan, end_varname)) {
 			char *goto_str;
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
-			goto_str = alloca(size);
+			goto_str = ast_alloca(size);
 			memset(goto_str, 0, size);
 			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);

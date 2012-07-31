@@ -303,7 +303,7 @@ static int lua_get_variable_value(lua_State *L)
 {
 	struct ast_channel *chan;
 	char *value = NULL, *name;
-	char *workspace = alloca(LUA_BUF_SIZE);
+	char *workspace = ast_alloca(LUA_BUF_SIZE);
 	int autoservice;
 
 	workspace[0] = '\0';
@@ -561,7 +561,7 @@ static int lua_get_variable(lua_State *L)
 	struct ast_channel *chan;
 	const char *name = luaL_checkstring(L, 2);
 	char *value = NULL;
-	char *workspace = alloca(LUA_BUF_SIZE);
+	char *workspace = ast_alloca(LUA_BUF_SIZE);
 	workspace[0] = '\0';
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
@@ -1080,7 +1080,7 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 	FILE *f;
 	int error_func;
 	char *data;
-	char *path = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
+	char *path = ast_alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
 	sprintf(path, "%s/%s", ast_config_AST_CONFIG_DIR, config);
 
 	if (!(f = fopen(path, "r"))) {

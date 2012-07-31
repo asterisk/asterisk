@@ -70,7 +70,7 @@ static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
 static HOOK_T ssl_write(void *cookie, const char *buf, LEN_T len)
 {
 #if 0
-	char *s = alloca(len+1);
+	char *s = ast_alloca(len+1);
 	strncpy(s, buf, len);
 	s[len] = '\0';
 	ast_verb(0, "ssl write size %d <%s>\n", (int)len, s);

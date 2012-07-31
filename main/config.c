@@ -116,7 +116,7 @@ static void  CB_ADD(struct ast_str **cb, const char *str)
 
 static void  CB_ADD_LEN(struct ast_str **cb, const char *str, int len)
 {
-	char *s = alloca(len + 1);
+	char *s = ast_alloca(len + 1);
 	ast_copy_string(s, str, len);
 	ast_str_append(cb, 0, "%s", str);
 }
@@ -2910,7 +2910,7 @@ static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct a
 	AST_LIST_LOCK(&cfmtime_head);
 	AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
 		if (!strcmp(cfmtime->filename, a->argv[2])) {
-			char *buf = alloca(strlen("module reload ") + strlen(cfmtime->who_asked) + 1);
+			char *buf = ast_alloca(strlen("module reload ") + strlen(cfmtime->who_asked) + 1);
 			sprintf(buf, "module reload %s", cfmtime->who_asked);
 			ast_cli_command(a->fd, buf);
 		}

@@ -165,7 +165,7 @@ static int pbx_load_module(void)
 	if (config[0] == '/')
 		rfilename = (char *)config;
 	else {
-		rfilename = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
+		rfilename = ast_alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
 		sprintf(rfilename, "%s/%s", ast_config_AST_CONFIG_DIR, config);
 	}
 	if (access(rfilename,R_OK) != 0) {
