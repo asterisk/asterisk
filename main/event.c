@@ -103,6 +103,7 @@ struct ast_event {
  */
 struct ast_event_ref {
 	struct ast_event *event;
+	unsigned int cache;
 };
 
 struct ast_event_ie_val {
@@ -1470,23 +1471,6 @@ static void event_update_cache(struct ao2_container *cache, struct ast_event *ev
 	ao2_unlock(cache);
 }
 
-int ast_event_queue_and_cache(struct ast_event *event)
-{
-	struct ao2_container *container;
-
-	container = ast_event_cache[ast_event_get_type(event)].container;
-	if (!container) {
-		ast_log(LOG_WARNING, "cache requested for non-cached event type\n");
-	} else {
-		event_update_cache(container, event);
-	}
-
-	if (ast_event_queue(event)) {
-		ast_event_destroy(event);
-	}
-	return 0;
-}
-
 static int handle_event(void *data)
 {
 	struct ast_event_ref *event_ref = data;
@@ -1496,6 +1480,16 @@ static int handle_event(void *data)
 		AST_EVENT_ALL
 	};
 	int i;
+
+	if (event_ref->cache) {
+		struct ao2_container *container;
+		container = ast_event_cache[ast_event_get_type(event_ref->event)].container;
+		if (!container) {
+			ast_log(LOG_WARNING, "cache requested for non-cached event type\n");
+		} else {
+			event_update_cache(container, event_ref->event);
+		}
+	}
 
 	for (i = 0; i < ARRAY_LEN(event_types); i++) {
 		AST_RWDLLIST_RDLOCK(&ast_event_subs[event_types[i]]);
@@ -1522,7 +1516,7 @@ static int handle_event(void *data)
 	return 0;
 }
 
-int ast_event_queue(struct ast_event *event)
+static int _ast_event_queue(struct ast_event *event, unsigned int cache)
 {
 	struct ast_event_ref *event_ref;
 	uint16_t host_event_type;
@@ -1549,6 +1543,7 @@ int ast_event_queue(struct ast_event *event)
 	}
 
 	event_ref->event = event;
+	event_ref->cache = cache;
 
 	res = ast_taskprocessor_push(event_dispatcher, handle_event, event_ref);
 	if (res) {
@@ -1556,6 +1551,16 @@ int ast_event_queue(struct ast_event *event)
 		ao2_ref(event_ref, -1);
 	}
 	return res;
+}
+
+int ast_event_queue(struct ast_event *event)
+{
+	return _ast_event_queue(event, 0);
+}
+
+int ast_event_queue_and_cache(struct ast_event *event)
+{
+	return _ast_event_queue(event, 1);
 }
 
 static int ast_event_hash_mwi(const void *obj, const int flags)
