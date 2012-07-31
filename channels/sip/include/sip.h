@@ -785,14 +785,14 @@ struct sip_socket {
  * Then call parse_request() and req.method = find_sip_method();
  * to initialize the other fields. The \r\n at the end of each line is
  * replaced by \0, so that data[] is not a conforming SIP message anymore.
- * After this processing, rlPart1 is set to non-NULL to remember
+ * After this processing, rlpart1 is set to non-NULL to remember
  * that we can run get_header() on this kind of packet.
  *
  * parse_request() splits the first line as follows:
  * Requests have in the first line      method uri SIP/2.0
- *      rlPart1 = method; rlPart2 = uri;
+ *      rlpart1 = method; rlpart2 = uri;
  * Responses have in the first line     SIP/2.0 NNN description
- *      rlPart1 = SIP/2.0; rlPart2 = NNN + description;
+ *      rlpart1 = SIP/2.0; rlpart2 = NNN + description;
  *
  * For outgoing packets, we initialize the fields with init_req() or init_resp()
  * (which fills the first line to "METHOD uri SIP/2.0" or "SIP/2.0 code text"),
@@ -802,8 +802,8 @@ struct sip_socket {
  * \endverbatim
  */
 struct sip_request {
-	ptrdiff_t rlPart1;      /*!< Offset of the SIP Method Name or "SIP/2.0" protocol version */
-	ptrdiff_t rlPart2;      /*!< Offset of the Request URI or Response Status */
+	ptrdiff_t rlpart1;      /*!< Offset of the SIP Method Name or "SIP/2.0" protocol version */
+	ptrdiff_t rlpart2;      /*!< Offset of the Request URI or Response Status */
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
@@ -824,7 +824,7 @@ struct sip_request {
 
 /* \brief given a sip_request and an offset, return the char * that resides there
  *
- * It used to be that rlPart1, rlPart2, and the header and line arrays were character
+ * It used to be that rlpart1, rlpart2, and the header and line arrays were character
  * pointers. They are now offsets into the ast_str portion of the sip_request structure.
  * To avoid adding a bunch of redundant pointer arithmetic to the code, this macro is
  * provided to retrieve the string at a particular offset within the request's buffer
@@ -918,26 +918,27 @@ struct _map_x_s {
 	const char *s;
 };
 
-/*! \brief Structure to handle SIP transfers. Dynamically allocated when needed
-	\note OEJ: Should be moved to string fields */
+/*! \brief Structure to handle SIP transfers. Dynamically allocated when needed */
 struct sip_refer {
-	char refer_to[AST_MAX_EXTENSION];             /*!< Place to store REFER-TO extension */
-	char refer_to_domain[AST_MAX_EXTENSION];      /*!< Place to store REFER-TO domain */
-	char refer_to_urioption[AST_MAX_EXTENSION];   /*!< Place to store REFER-TO uri options */
-	char refer_to_context[AST_MAX_EXTENSION];     /*!< Place to store REFER-TO context */
-	char referred_by[AST_MAX_EXTENSION];          /*!< Place to store REFERRED-BY extension */
-	char referred_by_name[AST_MAX_EXTENSION];     /*!< Place to store REFERRED-BY extension */
-	char refer_contact[AST_MAX_EXTENSION];        /*!< Place to store Contact info from a REFER extension */
-	char replaces_callid[SIPBUFSIZE];             /*!< Replace info: callid */
-	char replaces_callid_totag[SIPBUFSIZE/2];     /*!< Replace info: to-tag */
-	char replaces_callid_fromtag[SIPBUFSIZE/2];   /*!< Replace info: from-tag */
-	struct sip_pvt *refer_call;                   /*!< Call we are referring. This is just a reference to a
-	                                               * dialog owned by someone else, so we should not destroy
-	                                               * it when the sip_refer object goes.
-	                                               */
-	int attendedtransfer;                         /*!< Attended or blind transfer? */
-	int localtransfer;                            /*!< Transfer to local domain? */
-	enum referstatus status;                      /*!< REFER status */
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(refer_to);             /*!< Place to store REFER-TO extension */
+		AST_STRING_FIELD(refer_to_domain);      /*!< Place to store REFER-TO domain */
+		AST_STRING_FIELD(refer_to_urioption);   /*!< Place to store REFER-TO uri options */
+		AST_STRING_FIELD(refer_to_context);     /*!< Place to store REFER-TO context */
+		AST_STRING_FIELD(referred_by);          /*!< Place to store REFERRED-BY extension */
+		AST_STRING_FIELD(referred_by_name);     /*!< Place to store REFERRED-BY extension */
+		AST_STRING_FIELD(refer_contact);        /*!< Place to store Contact info from a REFER extension */
+		AST_STRING_FIELD(replaces_callid);      /*!< Replace info: callid */
+		AST_STRING_FIELD(replaces_callid_totag);   /*!< Replace info: to-tag */
+		AST_STRING_FIELD(replaces_callid_fromtag); /*!< Replace info: from-tag */
+	);
+	struct sip_pvt *refer_call;                     /*!< Call we are referring. This is just a reference to a
+							 * dialog owned by someone else, so we should not destroy
+							 * it when the sip_refer object goes.
+							 */
+	int attendedtransfer;                           /*!< Attended or blind transfer? */
+	int localtransfer;                              /*!< Transfer to local domain? */
+	enum referstatus status;                        /*!< REFER status */
 };
 
 /*! \brief Struct to handle custom SIP notify requests. Dynamically allocated when needed */
@@ -1006,7 +1007,6 @@ struct sip_pvt {
 		AST_STRING_FIELD(callid);       /*!< Global CallID */
 		AST_STRING_FIELD(initviabranch); /*!< The branch ID from the topmost Via header in the initial request */
 		AST_STRING_FIELD(initviasentby); /*!< The sent-by from the topmost Via header in the initial request */
-		AST_STRING_FIELD(randdata);     /*!< Random data */
 		AST_STRING_FIELD(accountcode);  /*!< Account code */
 		AST_STRING_FIELD(realm);        /*!< Authorization realm */
 		AST_STRING_FIELD(nonce);        /*!< Authorization nonce */
@@ -1304,9 +1304,9 @@ struct sip_peer {
 	struct sip_auth_container *auth;/*!< Realm authentication credentials */
 	int amaflags;                   /*!< AMA Flags (for billing) */
 	int callingpres;                /*!< Calling id presentation */
-	int inUse;                      /*!< Number of calls in use */
-	int inRinging;                  /*!< Number of calls ringing */
-	int onHold;                     /*!< Peer has someone on hold */
+	int inuse;                      /*!< Number of calls in use */
+	int ringing;                    /*!< Number of calls ringing */
+	int onhold;                     /*!< Peer has someone on hold */
 	int call_limit;                 /*!< Limit of concurrent calls */
 	int t38_maxdatagram;            /*!< T.38 FaxMaxDatagram override */
 	int busy_level;                 /*!< Level of active channels where we signal busy */

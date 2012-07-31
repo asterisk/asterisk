@@ -125,7 +125,7 @@ void sip_report_inval_password(const struct sip_pvt *p, const char *response_cha
                 },
                 .common.session_id  = session_id,
 
-		.challenge	    = p->randdata,
+		.challenge	    = p->nonce,
 		.received_challenge = response_challenge,
 		.received_hash	    = response_hash,
         };
@@ -206,7 +206,7 @@ void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *r
                 },
                 .common.session_id = session_id,
 
-                .challenge         = p->randdata,
+                .challenge         = p->nonce,
                 .response          = response,
                 .expected_response = expected_response,
         };
@@ -242,7 +242,7 @@ void sip_report_chal_sent(const struct sip_pvt *p)
                 },
                 .common.session_id = session_id,
 
-                .challenge         = p->randdata,
+                .challenge         = p->nonce,
         };
 
 	if (!ast_strlen_zero(p->from)) { /* When dialing, show account making call */
