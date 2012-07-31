@@ -1082,6 +1082,7 @@ struct mansession_session {
 	int inlen;		/*!< number of buffered bytes */
 	struct ao2_container *whitefilters;	/*!< Manager event filters - white list */
 	struct ao2_container *blackfilters;	/*!< Manager event filters - black list */
+	struct ast_variable *chanvars;  /*!< Channel variables to set for originate */
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
@@ -1137,6 +1138,7 @@ struct ast_manager_user {
 	struct ao2_container *blackfilters; /*!< Manager event filters - black list */
 	struct ast_acl_list *acl;       /*!< ACL setting */
 	char *a1_hash;			/*!< precalculated A1 for Digest auth */
+	struct ast_variable *chanvars;  /*!< Channel variables to set for originate */
 	AST_RWLIST_ENTRY(ast_manager_user) list;
 };
 
@@ -1430,6 +1432,9 @@ static void session_destructor(void *obj)
 	if (eqe) {
 		ast_atomic_fetchadd_int(&eqe->usecount, -1);
 	}
+	if (session->chanvars) {
+		ast_variables_destroy(session->chanvars);
+	}
 
 	if (session->whitefilters) {
 		ao2_t_callback(session->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
@@ -1643,6 +1648,7 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	char *ret = NULL;
 	struct ast_str *rauthority = ast_str_alloca(128);
 	struct ast_str *wauthority = ast_str_alloca(128);
+	struct ast_variable *v;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1694,6 +1700,10 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 		authority_to_str(user->readperm, &rauthority),
 		authority_to_str(user->writeperm, &wauthority),
 		(user->displayconnects ? "yes" : "no"));
+	ast_cli(a->fd, "      Variables: \n");
+		for (v = user->chanvars ; v ; v = v->next) {
+			ast_cli(a->fd, "                 %s = %s\n", v->name, v->value);
+		}
 
 	AST_RWLIST_UNLOCK(&users);
 
@@ -2546,6 +2556,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	s->session->readperm = user->readperm;
 	s->session->writeperm = user->writeperm;
 	s->session->writetimeout = user->writetimeout;
+	s->session->chanvars = ast_variables_dup(user->chanvars);
 
 	filter_iter = ao2_iterator_init(user->whitefilters, 0);
 	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
@@ -4210,7 +4221,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *async = astman_get_header(m, "Async");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *codecs = astman_get_header(m, "Codecs");
-	struct ast_variable *vars;
+	struct ast_variable *vars = NULL;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
 	int pi = 0;
@@ -4308,6 +4319,21 @@ static int action_originate(struct mansession *s, const struct message *m)
 
 	/* Allocate requested channel variables */
 	vars = astman_get_variables(m);
+	if (s->session->chanvars) {
+		struct ast_variable *v, *old;
+		old = vars;
+		vars = NULL;
+
+		/* The variables in the AMI originate action are appended at the end of the list, to override any user variables that apply*/
+
+		vars = ast_variables_dup(s->session->chanvars);
+		if (old) {
+			for (v = vars; v->next; v = v->next );
+			if (v->next) {
+				v->next = old;	/* Append originate variables at end of list */
+			}
+		}
+	}
 
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast;
@@ -7425,6 +7451,7 @@ static int __init_manager(int reload, int by_external_config)
 		user->keep = 1;
 		oldacl = user->acl;
 		user->acl = NULL;
+		ast_variables_destroy(user->chanvars);
 
 		var = ast_variable_browse(cfg, cat);
 		for (; var; var = var->next) {
@@ -7449,6 +7476,22 @@ static int __init_manager(int reload, int by_external_config)
 					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", var->value, var->lineno);
 				} else {
 					user->writetimeout = value;
+				}
+			} else if (!strcasecmp(var->name, "setvar")) {
+				struct ast_variable *tmpvar;
+				char varbuf[256];
+				char *varval;
+				char *varname;
+
+				ast_copy_string(varbuf, var->value, sizeof(varbuf));
+				varname = varbuf;
+
+				if ((varval = strchr(varname,'='))) {
+					*varval++ = '\0';
+					if ((tmpvar = ast_variable_new(varname, varval, ""))) {
+						tmpvar->next = user->chanvars;
+						user->chanvars = tmpvar;
+					}
 				}
 			} else if (!strcasecmp(var->name, "eventfilter")) {
 				const char *value = var->value;
@@ -7496,6 +7539,7 @@ static int __init_manager(int reload, int by_external_config)
 		ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
 		ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
 		user->acl = ast_free_acl_list(user->acl);
+		ast_variables_destroy(user->chanvars);
 		ast_free(user);
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;

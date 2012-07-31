@@ -7,7 +7,6 @@
 === and the other UPGRADE files for older releases.
 ===
 ==============================================================================
-
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
@@ -420,6 +419,8 @@ AGI
 
 AMI (Asterisk Manager Interface)
 ------------------
+ * Added setvar= option to manager accounts (much like sip.conf)
+
  * Originate now generates an error response if the extension given is not found
    in the dialplan
 
