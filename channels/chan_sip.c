@@ -795,6 +795,7 @@ static int global_max_se;                     /*!< Highest threshold for session
 static int global_store_sip_cause;    /*!< Whether the MASTER_CHANNEL(HASH(SIP_CAUSE,[chan_name])) var should be set */
 
 static int global_dynamic_exclude_static = 0; /*!< Exclude static peers from contact registrations */
+static unsigned char global_refer_addheaders; /*!< Add extra headers to outgoing REFER */
 /*@}*/
 
 /*!
@@ -13334,17 +13335,11 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	}
 	add_date(&req);
 	if (sipmethod == SIP_REFER && p->refer) {	/* Call transfer */
-		char buf[SIPBUFSIZE];
-
 		if (!ast_strlen_zero(p->refer->refer_to)) {
 			add_header(&req, "Refer-To", p->refer->refer_to);
 		}
 		if (!ast_strlen_zero(p->refer->referred_by)) {
-			snprintf(buf, sizeof(buf), "%s%s%s",
-				p->refer->referred_by_name,
-				!ast_strlen_zero(p->refer->referred_by_name) ? " " : "",
-				p->refer->referred_by);
-			add_header(&req, "Referred-By", buf);
+			add_header(&req, "Referred-By", p->refer->referred_by);
 		}
 	} else if (sipmethod == SIP_SUBSCRIBE) {
 		if (p->subscribed == MWI_NOTIFICATION) {
@@ -13383,7 +13378,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_supported(p, &req);
 
-	if (p->options && p->options->addsipheaders && p->owner) {
+	if (p->owner && ((p->options && p->options->addsipheaders)
+				  || (p->refer && global_refer_addheaders))) {
 		struct ast_channel *chan = p->owner; /* The owner channel */
 		struct varshead *headp;
 	
@@ -14662,9 +14658,6 @@ static int sip_notify_alloc(struct sip_pvt *p)
 */
 static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
-	struct sip_request req = {
-		.headers = 0,
-	};
 	char from[256];
 	const char *of;
 	char *c;
@@ -14711,17 +14704,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	ast_string_field_set(p->refer, referred_by, p->our_contact);
 	p->refer->status = REFER_SENT;   /* Set refer status */
 
-	reqprep(&req, p, SIP_REFER, 0, 1);
-
-	add_header(&req, "Refer-To", referto);
-	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_supported(p, &req);
-	if (!ast_strlen_zero(p->our_contact)) {
-		add_header(&req, "Referred-By", p->our_contact);
-	}
-
-	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
-
+	return transmit_invite(p, SIP_REFER, FALSE, 0, NULL);
 	/* We should propably wait for a NOTIFY here until we ack the transfer */
 	/* Maybe fork a new thread and wait for a STATUS of REFER_200OK on the refer status before returning to app_transfer */
 
@@ -16896,12 +16879,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	if (!ast_strlen_zero(p_referred_by)) {
 		h_referred_by = ast_strdupa(p_referred_by);
-
-		/* Store referrer's caller ID name */
-		ast_string_field_set(refer, referred_by_name, h_referred_by);
-		if ((ptr = strchr(refer->referred_by_name, '<')) > refer->referred_by_name) {
-			*(ptr - 1) = '\0'; /* Space */
-		}
 
 		referred_by_uri = get_in_brackets(h_referred_by);
 
@@ -30347,6 +30324,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 	global_t38_maxdatagram = -1;
 	global_shrinkcallerid = 1;
+	global_refer_addheaders = TRUE;
 	authlimit = DEFAULT_AUTHLIMIT;
 	authtimeout = DEFAULT_AUTHTIMEOUT;
 	global_store_sip_cause = DEFAULT_STORE_SIP_CAUSE;
@@ -30904,6 +30882,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
+		} else if (!strcasecmp(v->name, "refer_addheaders")) {
+			global_refer_addheaders = ast_true(v->value);
 		}
 	}
 

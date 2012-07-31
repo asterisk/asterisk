@@ -643,6 +643,11 @@ Scripts
    behavior and uses the current working directory.
 
 
+SIP changes
+--------------------------
+ * Extra headers specified with SIPAddHeader are sent with the REFER message
+   when using Transfer application. See refer_addheaders in sip.conf.sample.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

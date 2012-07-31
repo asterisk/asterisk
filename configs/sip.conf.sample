@@ -502,6 +502,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;use_q850_reason = no ; Default "no"
                       ; Set to yes add Reason header and use Reason header if it is available.
 
+; When the Transfer() application sends a REFER SIP message, extra headers specified in
+; the dialplan by way of SIPAddHeader are sent out with that message. 1.8 and earlier did not
+; add the extra headers. To revert to 1.8- behavior, call SIPRemoveHeader with no arguments
+; before calling Transfer() to remove all additional headers from the channel. The setting
+; below is for transitional compatibility only.
+;
+;refer_addheaders=yes	; on by default
+
 ;autocreatepeers=no             ; Allow any not exsplicitly defined here UAC to register
                                 ; WITHOUT AUTHENTICATION. Enabling this options poses a high
                                 ; potential security risk and should be avoided unless the 

@@ -926,7 +926,6 @@ struct sip_refer {
 		AST_STRING_FIELD(refer_to_urioption);   /*!< Place to store REFER-TO uri options */
 		AST_STRING_FIELD(refer_to_context);     /*!< Place to store REFER-TO context */
 		AST_STRING_FIELD(referred_by);          /*!< Place to store REFERRED-BY extension */
-		AST_STRING_FIELD(referred_by_name);     /*!< Place to store REFERRED-BY extension */
 		AST_STRING_FIELD(refer_contact);        /*!< Place to store Contact info from a REFER extension */
 		AST_STRING_FIELD(replaces_callid);      /*!< Replace info: callid */
 		AST_STRING_FIELD(replaces_callid_totag);   /*!< Replace info: to-tag */
