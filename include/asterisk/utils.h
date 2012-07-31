@@ -623,13 +623,22 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 
 #endif /* AST_DEBUG_MALLOC */
 
+/*!
+  \brief call __builtin_alloca to ensure we get gcc builtin semantics
+  \param size The size of the buffer we want allocated
+
+  This macro will attempt to allocate memory from the stack.  If it fails
+  you won't get a NULL returned, but a SEGFAULT if you're lucky.
+*/
+#define ast_alloca(size) __builtin_alloca(size)
+
 #if !defined(ast_strdupa) && defined(__GNUC__)
 /*!
   \brief duplicate a string in memory from the stack
   \param s The string to duplicate
 
-  This macro will duplicate the given string.  It returns a pointer to the stack
-  allocatted memory for the new string.
+  This macro will duplicate the given string.  It returns a pointer to stack
+  allocated memory for the new string.
 */
 #define ast_strdupa(s)                                                    \
 	(__extension__                                                    \

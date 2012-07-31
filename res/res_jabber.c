@@ -1544,8 +1544,8 @@ static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char
 
 	iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
 	len = strlen(username) + strlen(pass) + 3;
-	s = alloca(len);
-	base64 = alloca((len + 2) * 4 / 3);
+	s = ast_alloca(len);
+	base64 = ast_alloca((len + 2) * 4 / 3);
 	iks_insert_attrib(x, "mechanism", "PLAIN");
 	snprintf(s, len, "%c%s%c%s", 0, username, 0, pass);
 

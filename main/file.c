@@ -657,9 +657,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return NULL;
+	buf = ast_alloca(buflen);
 	fmts = fileexists_core(filename, NULL, preflang, buf, buflen);
 	if (fmts > 0)
 		fmts &= AST_FORMAT_AUDIO_MASK;
@@ -691,9 +689,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return NULL;
+	buf = ast_alloca(buflen);
 
 	for (format = AST_FORMAT_FIRST_VIDEO_BIT; format <= AST_FORMAT_VIDEO_MASK; format = format << 1) {
 		int fd;
@@ -927,9 +923,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 	if (preflang == NULL)
 		preflang = "";
 	buflen = strlen(preflang) + strlen(filename) + 4;	/* room for everything */
-	buf = alloca(buflen);
-	if (buf == NULL)
-		return 0;
+	buf = ast_alloca(buflen);
 	return fileexists_core(filename, fmt, preflang, buf, buflen);
 }
 
@@ -1108,7 +1102,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 					*c = '_';
 
 			size = strlen(fn) + strlen(record_cache_dir) + 2;
-			buf = alloca(size);
+			buf = ast_alloca(size);
 			strcpy(buf, record_cache_dir);
 			strcat(buf, "/");
 			strcat(buf, fn);

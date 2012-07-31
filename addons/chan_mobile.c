@@ -558,7 +558,7 @@ static char *handle_cli_mobile_search(struct ast_cli_entry *e, int cmd, struct a
 	max_rsp = 255;
 	flags = IREQ_CACHE_FLUSH;
 
-	ii = alloca(max_rsp * sizeof(inquiry_info));
+	ii = ast_alloca(max_rsp * sizeof(inquiry_info));
 	num_rsp = hci_inquiry(adapter->dev_id, len, max_rsp, NULL, &ii, flags);
 	if (num_rsp > 0) {
 		ast_cli(a->fd, FORMAT1, "Address", "Name", "Usable", "Type", "Port");

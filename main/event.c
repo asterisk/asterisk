@@ -469,7 +469,7 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 		ie_type != AST_EVENT_IE_END;
 		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
-		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
+		struct ast_event_ie_val *ie_value = ast_alloca(sizeof(*ie_value));
 		int insert = 0;
 
 		memset(ie_value, 0, sizeof(*ie_value));
@@ -493,7 +493,7 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
 
-			ie_value->payload.raw = alloca(datalen);
+			ie_value->payload.raw = ast_alloca(datalen);
 			memcpy(ie_value->payload.raw, data, datalen);
 			ie_value->raw_datalen = datalen;
 			insert = 1;
@@ -1142,7 +1142,7 @@ int ast_event_append_ie_str(struct ast_event **event, enum ast_event_ie_type ie_
 	size_t payload_len;
 
 	payload_len = sizeof(*str_payload) + strlen(str);
-	str_payload = alloca(payload_len);
+	str_payload = ast_alloca(payload_len);
 
 	strcpy(str_payload->str, str);
 	if (ie_type == AST_EVENT_IE_DEVICE) {
@@ -1215,7 +1215,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		ie_type != AST_EVENT_IE_END;
 		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
-		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
+		struct ast_event_ie_val *ie_value = ast_alloca(sizeof(*ie_value));
 		int insert = 0;
 
 		memset(ie_value, 0, sizeof(*ie_value));
@@ -1238,7 +1238,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		{
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
-			ie_value->payload.raw = alloca(datalen);
+			ie_value->payload.raw = ast_alloca(datalen);
 			memcpy(ie_value->payload.raw, data, datalen);
 			ie_value->raw_datalen = datalen;
 			insert = 1;

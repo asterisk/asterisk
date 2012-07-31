@@ -542,7 +542,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	if (args.filename[0] != '/') {
 		char *build;
 
-		build = alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(args.filename) + 3);
+		build = ast_alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(args.filename) + 3);
 		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, args.filename);
 		args.filename = build;
 	}

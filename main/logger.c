@@ -1513,11 +1513,11 @@ void __ast_verbose_ap(const char *file, int line, const char *func, const char *
 		now = ast_tvnow();
 		ast_localtime(&now, &tm, NULL);
 		ast_strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
+		datefmt = ast_alloca(strlen(date) + 3 + strlen(fmt) + 1);
 		sprintf(datefmt, "%c[%s] %s", 127, date, fmt);
 		fmt = datefmt;
 	} else {
-		char *tmp = alloca(strlen(fmt) + 2);
+		char *tmp = ast_alloca(strlen(fmt) + 2);
 		sprintf(tmp, "%c%s", 127, fmt);
 		fmt = tmp;
 	}

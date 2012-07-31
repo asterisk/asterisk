@@ -1857,15 +1857,13 @@ static struct ast_channel *gtalk_request(const char *type, format_t format, cons
 
 	if (data) {
 		s = ast_strdupa(data);
-		if (s) {
-			sender = strsep(&s, "/");
-			if (sender && (sender[0] != '\0')) {
-				to = strsep(&s, "/");
-			}
-			if (!to) {
-				ast_log(LOG_ERROR, "Bad arguments in Gtalk Dialstring: %s\n", (char*) data);
-				return NULL;
-			}
+		sender = strsep(&s, "/");
+		if (sender && (sender[0] != '\0')) {
+			to = strsep(&s, "/");
+		}
+		if (!to) {
+			ast_log(LOG_ERROR, "Bad arguments in Gtalk Dialstring: %s\n", (char*) data);
+			return NULL;
 		}
 	}
 

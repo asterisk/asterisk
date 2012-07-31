@@ -621,7 +621,7 @@ static int func_mchan_read(struct ast_channel *chan, const char *function,
 			     char *data, struct ast_str **buf, ssize_t len)
 {
 	struct ast_channel *mchan = ast_channel_get_by_name(chan->linkedid);
-	char *template = alloca(4 + strlen(data));
+	char *template = ast_alloca(4 + strlen(data));
 	sprintf(template, "${%s}", data); /* SAFE */
 	ast_str_substitute_variables(buf, len, mchan ? mchan : chan, template);
 	if (mchan) {

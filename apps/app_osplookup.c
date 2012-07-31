@@ -2240,10 +2240,7 @@ static int ospauth_exec(
 		AST_APP_ARG(options);
 	);
 
-	if (!(tmp = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return OSP_AST_ERROR;
-	}
+	tmp = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
@@ -2335,10 +2332,7 @@ static int osplookup_exec(
 		return OSP_AST_ERROR;
 	}
 
-	if (!(tmp = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return OSP_AST_ERROR;
-	}
+	tmp = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
@@ -2609,10 +2603,7 @@ static int ospnext_exec(
 		return OSP_AST_ERROR;
 	}
 
-	if (!(tmp = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return OSP_AST_ERROR;
-	}
+	tmp = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
@@ -2791,10 +2782,7 @@ static int ospfinished_exec(
 		AST_APP_ARG(options);
 	);
 
-	if (!(tmp = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return OSP_AST_ERROR;
-	}
+	tmp = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 

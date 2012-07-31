@@ -8297,7 +8297,7 @@ int ast_say_counted_noun(struct ast_channel *chan, int num, const char noun[])
 	} else {                                            /* English and default */
 		ending = counted_noun_ending_en(num);
 	}
-	temp = alloca((temp_len = (strlen(noun) + strlen(ending) + 1)));
+	temp = ast_alloca((temp_len = (strlen(noun) + strlen(ending) + 1)));
 	snprintf(temp, temp_len, "%s%s", noun, ending);
 	return ast_play_and_wait(chan, temp);
 }
@@ -8339,7 +8339,7 @@ int ast_say_counted_adjective(struct ast_channel *chan, int num, const char adje
 	} else {                                               /* English and default */
 		ending = "";
 	}
-	temp = alloca((temp_len = (strlen(adjective) + strlen(ending) + 1)));
+	temp = ast_alloca((temp_len = (strlen(adjective) + strlen(ending) + 1)));
 	snprintf(temp, temp_len, "%s%s", adjective, ending);
 	return ast_play_and_wait(chan, temp);
 }

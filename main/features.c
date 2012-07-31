@@ -716,7 +716,7 @@ static void set_new_chan_name(struct ast_channel *chan)
 	ast_channel_lock(chan);
 	seq_num = ast_atomic_fetchadd_int(&seq_num_last, +1);
 	len = snprintf(dummy, sizeof(dummy), "%s<XFER_%x>", chan->name, seq_num) + 1;
-	chan_name = alloca(len);
+	chan_name = ast_alloca(len);
 	snprintf(chan_name, len, "%s<XFER_%x>", chan->name, seq_num);
 	ast_channel_unlock(chan);
 
@@ -2111,8 +2111,8 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 
 	if (touch_monitor) {
 		len = strlen(touch_monitor) + 50;
-		args = alloca(len);
-		touch_filename = alloca(len);
+		args = ast_alloca(len);
+		touch_filename = ast_alloca(len);
 		snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
 		snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 	} else {
@@ -2121,8 +2121,8 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
 			callee_chan->caller.id.number.str, callee_chan->name));
 		len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
-		args = alloca(len);
-		touch_filename = alloca(len);
+		args = ast_alloca(len);
+		touch_filename = ast_alloca(len);
 		snprintf(touch_filename, len, "%s-%ld-%s-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, callee_chan_id);
 		snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 	}
@@ -2223,8 +2223,8 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 
 	if (touch_monitor) {
 		len = strlen(touch_monitor) + 50;
-		args = alloca(len);
-		touch_filename = alloca(len);
+		args = ast_alloca(len);
+		touch_filename = ast_alloca(len);
 		snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
 		snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
 	} else {
@@ -2233,8 +2233,8 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 		callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
 			callee_chan->caller.id.number.str, callee_chan->name));
 		len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
-		args = alloca(len);
-		touch_filename = alloca(len);
+		args = ast_alloca(len);
+		touch_filename = ast_alloca(len);
 		snprintf(touch_filename, len, "auto-%ld-%s-%s", (long)time(NULL), caller_chan_id, callee_chan_id);
 		snprintf(args, len, "%s.%s,b", touch_filename, S_OR(touch_format, "wav"));
 	}
@@ -3548,7 +3548,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 
 		disconnect_code = builtin_features[x].exten;
 		len = strlen(disconnect_code) + 1;
-		dialed_code = alloca(len);
+		dialed_code = ast_alloca(len);
 		memset(dialed_code, 0, len);
 		break;
 	}

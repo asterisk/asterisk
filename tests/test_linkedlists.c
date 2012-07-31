@@ -98,7 +98,7 @@ AST_TEST_DEFINE(single_ll_tests)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(bogus = alloca(sizeof(*bogus)))) {
+	if (!(bogus = ast_alloca(sizeof(*bogus)))) {
 		return AST_TEST_FAIL;
 	}
 

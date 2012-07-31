@@ -119,7 +119,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 			count++;
 	}
 
-	sortable_keys = alloca(count * sizeof(struct sortable_keys));
+	sortable_keys = ast_alloca(count * sizeof(struct sortable_keys));
 
 	memset(sortable_keys, 0, count * sizeof(struct sortable_keys));
 
@@ -170,9 +170,8 @@ static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **b
 	/* Check arguments */
 	if (args.argc < 3) {
 		return ERROR_NOARG;
-	} else if (!(var_expr = alloca(strlen(args.varname) + 4))) {
-		return ERROR_NOMEM;
 	}
+	var_expr = ast_alloca(strlen(args.varname) + 4);
 
 	/* Get the value of the variable named in the 1st argument */
 	snprintf(var_expr, strlen(args.varname) + 4, "${%s}", args.varname);

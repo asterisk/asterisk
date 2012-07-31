@@ -1337,13 +1337,13 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		break;
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_TESTLAW:
-		shortdata = alloca(af->datalen * 2);
+		shortdata = ast_alloca(af->datalen * 2);
 		for (x = 0;x < len; x++) {
 			shortdata[x] = AST_MULAW(odata[x]);
 		}
 		break;
 	case AST_FORMAT_ALAW:
-		shortdata = alloca(af->datalen * 2);
+		shortdata = ast_alloca(af->datalen * 2);
 		for (x = 0; x < len; x++) {
 			shortdata[x] = AST_ALAW(odata[x]);
 		}

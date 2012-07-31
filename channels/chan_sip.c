@@ -5392,7 +5392,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 
 				/* Change the dialog callid. */
 				callid_size = strlen(tmpcall) + strlen(peer->fromdomain) + 2;
-				new_callid = alloca(callid_size);
+				new_callid = ast_alloca(callid_size);
 				snprintf(new_callid, callid_size, "%s@%s", tmpcall, peer->fromdomain);
 				change_callid_pvt(dialog, new_callid);
 			}
@@ -12759,7 +12759,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 					cid_num = S_COR(caller->caller.id.number.valid,
 						caller->caller.id.number.str, "");
 					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					remote_target = alloca(need);
+					remote_target = ast_alloca(need);
 					snprintf(remote_target, need, "sip:%s@%s", cid_num, p->fromdomain);
 
 					remote_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
@@ -12768,7 +12768,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 					connected_num = S_COR(caller->connected.id.number.valid,
 						caller->connected.id.number.str, "");
 					need = strlen(connected_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					local_target = alloca(need);
+					local_target = ast_alloca(need);
 					snprintf(local_target, need, "sip:%s@%s", connected_num, p->fromdomain);
 
 					local_display = ast_strdupa(S_COR(caller->connected.id.name.valid,
@@ -23427,7 +23427,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			payload_size = ast_connected_line_build_data(connected_line_data,
 				sizeof(connected_line_data), &connected_to_target, NULL);
 			frame_size = payload_size + sizeof(*frame_payload);
-			if (payload_size != -1 && (frame_payload = alloca(frame_size))) {
+			if (payload_size != -1) {
+				frame_payload = ast_alloca(frame_size);
 				frame_payload->payload_size = payload_size;
 				memcpy(frame_payload->payload, connected_line_data, payload_size);
 				frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
@@ -29678,7 +29679,7 @@ static int sip_addheader(struct ast_channel *chan, const char *data)
 	}
 	if (ok) {
 		size_t len = strlen(inbuf);
-		subbuf = alloca(len + 1);
+		subbuf = ast_alloca(len + 1);
 		ast_get_encoded_str(inbuf, subbuf, len + 1);
 		pbx_builtin_setvar_helper(chan, varbuf, subbuf);
 		if (sipdebug) {

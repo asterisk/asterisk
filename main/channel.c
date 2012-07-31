@@ -3158,8 +3158,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		*exception = 0;
 	
 	if ((sz = n * AST_MAX_FDS + nfds)) {
-		pfds = alloca(sizeof(*pfds) * sz);
-		fdmap = alloca(sizeof(*fdmap) * sz);
+		pfds = ast_alloca(sizeof(*pfds) * sz);
+		fdmap = ast_alloca(sizeof(*fdmap) * sz);
 	} else {
 		/* nothing to allocate and no FDs to check */
 		return NULL;
@@ -6403,7 +6403,7 @@ static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer
 		sizeof(connected_line_data), &colp->target_id, NULL);
 	if (payload_size != -1) {
 		frame_size = payload_size + sizeof(*frame_payload);
-		frame_payload = alloca(frame_size);
+		frame_payload = ast_alloca(frame_size);
 		frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
 		frame_payload->payload_size = payload_size;
 		memcpy(frame_payload->payload, connected_line_data, payload_size);

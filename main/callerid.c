@@ -314,7 +314,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, f
 	int x;
 	short *buf;
 
-	buf = alloca(2 * len + cid->oldlen);
+	buf = ast_alloca(2 * len + cid->oldlen);
 
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen / 2;
@@ -552,7 +552,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, form
 	int x;
 	short *buf;
 
-	buf = alloca(2 * len + cid->oldlen);
+	buf = ast_alloca(2 * len + cid->oldlen);
 
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
