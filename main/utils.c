@@ -1029,7 +1029,7 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 #endif
 
 	if (!attr) {
-		attr = alloca(sizeof(*attr));
+		attr = ast_alloca(sizeof(*attr));
 		pthread_attr_init(attr);
 	}
 
@@ -1077,7 +1077,7 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 	int res;
 
 	if (!attr) {
-		attr = alloca(sizeof(*attr));
+		attr = ast_alloca(sizeof(*attr));
 		pthread_attr_init(attr);
 		attr_destroy = 1;
 	}
@@ -1941,7 +1941,7 @@ int ast_mkdir(const char *path, int mode)
 	int len = strlen(path), count = 0, x, piececount = 0;
 	char *tmp = ast_strdupa(path);
 	char **pieces;
-	char *fullpath = alloca(len + 1);
+	char *fullpath = ast_alloca(len + 1);
 	int res = 0;
 
 	for (ptr = tmp; *ptr; ptr++) {
@@ -1950,7 +1950,7 @@ int ast_mkdir(const char *path, int mode)
 	}
 
 	/* Count the components to the directory path */
-	pieces = alloca(count * sizeof(*pieces));
+	pieces = ast_alloca(count * sizeof(*pieces));
 	for (ptr = tmp; *ptr; ptr++) {
 		if (*ptr == '/') {
 			*ptr = '\0';

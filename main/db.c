@@ -192,7 +192,7 @@ static int db_open(void)
 	char *dbname;
 	struct stat dont_care;
 
-	if (!(dbname = alloca(strlen(ast_config_AST_DB) + sizeof(".sqlite3")))) {
+	if (!(dbname = ast_alloca(strlen(ast_config_AST_DB) + sizeof(".sqlite3")))) {
 		return -1;
 	}
 	strcpy(dbname, ast_config_AST_DB);

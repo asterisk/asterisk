@@ -250,17 +250,15 @@ static int import_helper(struct ast_channel *chan, const char *cmd, char *data, 
 		struct ast_channel *chan2;
 
 		if ((chan2 = ast_channel_get_by_name(args.channel))) {
-			char *s = alloca(strlen(args.varname) + 4);
-			if (s) {
-				sprintf(s, "${%s}", args.varname);
-				ast_channel_lock(chan2);
-				if (buf) {
-					pbx_substitute_variables_helper(chan2, s, buf, len);
-				} else {
-					ast_str_substitute_variables(str, len, chan2, s);
-				}
-				ast_channel_unlock(chan2);
+			char *s = ast_alloca(strlen(args.varname) + 4);
+			sprintf(s, "${%s}", args.varname);
+			ast_channel_lock(chan2);
+			if (buf) {
+				pbx_substitute_variables_helper(chan2, s, buf, len);
+			} else {
+				ast_str_substitute_variables(str, len, chan2, s);
 			}
+			ast_channel_unlock(chan2);
 			chan2 = ast_channel_unref(chan2);
 		}
 	}

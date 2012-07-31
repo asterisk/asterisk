@@ -535,7 +535,7 @@ static int config_module(int reload)
 			if (strchr(schemaname, '\\') || strchr(schemaname, '\'')) {
 				char *tmp = schemaname, *ptr;
 
-				ptr = schemaname = alloca(strlen(tmp) * 2 + 1);
+				ptr = schemaname = ast_alloca(strlen(tmp) * 2 + 1);
 				for (; *tmp; tmp++) {
 					if (strchr("\\'", *tmp)) {
 						*ptr++ = *tmp;
@@ -548,7 +548,7 @@ static int config_module(int reload)
 			if (strchr(tablename, '\\') || strchr(tablename, '\'')) {
 				char *tmp = tablename, *ptr;
 
-				ptr = tablename = alloca(strlen(tmp) * 2 + 1);
+				ptr = tablename = ast_alloca(strlen(tmp) * 2 + 1);
 				for (; *tmp; tmp++) {
 					if (strchr("\\'", *tmp)) {
 						*ptr++ = *tmp;

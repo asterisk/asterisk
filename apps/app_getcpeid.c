@@ -76,7 +76,7 @@ static int cpeid_exec(struct ast_channel *chan, const char *idata)
 	unsigned int x;
 
 	for (x = 0; x < 4; x++)
-		data[x] = alloca(80);
+		data[x] = ast_alloca(80);
 
 	strcpy(data[0], "** CPE Info **");
 	strcpy(data[1], "Identifying CPE...");

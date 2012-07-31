@@ -456,7 +456,7 @@ static int function_fieldqty_helper(struct ast_channel *chan, const char *cmd,
 	if (args.delim) {
 		ast_get_encoded_char(args.delim, delim, &delim_used);
 
-		varsubst = alloca(strlen(args.varname) + 4);
+		varsubst = ast_alloca(strlen(args.varname) + 4);
 
 		sprintf(varsubst, "${%s}", args.varname);
 		ast_str_substitute_variables(&str, 0, chan, varsubst);
@@ -522,7 +522,7 @@ static int function_fieldnum_helper(struct ast_channel *chan, const char *cmd,
 		ast_log(LOG_ERROR, "Usage: FIELDNUM(<listname>,<delimiter>,<fieldvalue>)\n");
 		res = -1;
 	} else {
-		varsubst = alloca(strlen(args.varname) + 4);
+		varsubst = ast_alloca(strlen(args.varname) + 4);
 		sprintf(varsubst, "${%s}", args.varname);
 
 		ast_str_substitute_variables(&str, 0, chan, varsubst);
@@ -606,7 +606,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 		return -1;
 	}
 
-	varsubst = alloca(strlen(args.listname) + 4);
+	varsubst = ast_alloca(strlen(args.listname) + 4);
 	sprintf(varsubst, "${%s}", args.listname);
 
 	/* If we don't lock the channel, the variable could disappear out from underneath us. */
@@ -636,7 +636,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 	}
 
 	dlen = strlen(args.delimiter);
-	delim = alloca(dlen + 1);
+	delim = ast_alloca(dlen + 1);
 	ast_get_encoded_str(args.delimiter, delim, dlen + 1);
 
 	if ((dlen = strlen(delim)) == 0) {
@@ -819,7 +819,7 @@ static int replace(struct ast_channel *chan, const char *cmd, char *data, struct
 		return -1;
 	}
 
-	varsubst = alloca(strlen(args.varname) + 4);
+	varsubst = ast_alloca(strlen(args.varname) + 4);
 	sprintf(varsubst, "${%s}", args.varname);
 	ast_str_substitute_variables(&str, 0, chan, varsubst);
 
@@ -906,7 +906,7 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 	find_size = strlen(args.find_string);
 
 	/* set varsubstr to the matching variable */
-	varsubstr = alloca(strlen(args.varname) + 4);
+	varsubstr = ast_alloca(strlen(args.varname) + 4);
 	sprintf(varsubstr, "${%s}", args.varname);
 	ast_str_substitute_variables(&str, 0, chan, varsubstr);
 
@@ -1026,9 +1026,10 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	char *origvar = "", *value2, varname[256];
 	int i, ishash = 0;
 
-	value2 = ast_strdupa(value);
-	if (!var || !value2)
+	if (!var) {
 		return -1;
+	}
+	value2 = ast_strdupa(value);
 
 	if (!strcmp(cmd, "HASH")) {
 		const char *var2 = pbx_builtin_getvar_helper(chan, "~ODBCFIELDS~");
@@ -1544,7 +1545,7 @@ static int shift_pop(struct ast_channel *chan, const char *cmd, char *data, stru
 		return -1;
 	}
 
-	varsubst = alloca(strlen(args.var) + 4);
+	varsubst = ast_alloca(strlen(args.var) + 4);
 	sprintf(varsubst, "${%s}", args.var);
 	ast_str_substitute_variables(&before, 0, chan, varsubst);
 
@@ -1608,7 +1609,7 @@ static int unshift_push(struct ast_channel *chan, const char *cmd, char *data, c
 		ast_get_encoded_char(args.delimiter, delimiter, &unused);
 	}
 
-	varsubst = alloca(strlen(args.var) + 4);
+	varsubst = ast_alloca(strlen(args.var) + 4);
 	sprintf(varsubst, "${%s}", args.var);
 	ast_str_substitute_variables(&previous_value, 0, chan, varsubst);
 
