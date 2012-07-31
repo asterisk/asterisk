@@ -13942,14 +13942,14 @@ static void reg_source_db(struct sip_peer *peer)
 	    peer->name, peer->username, ast_sockaddr_stringify_host(&sa), expire);
 
 	ast_sockaddr_copy(&peer->addr, &sa);
-	if (sipsock < 0) {
-		/* SIP isn't up yet, so schedule a poke only, pretty soon */
-		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer,
+	if (peer->maxms) {
+		/* Don't poke peer immediately, just schedule it within qualifyfreq */
+		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched,
+				ast_random() % ((peer->qualifyfreq) ? peer->qualifyfreq : global_qualifyfreq) + 1,
+				sip_poke_peer_s, peer,
 				unref_peer(_data, "removing poke peer ref"),
 				unref_peer(peer, "removing poke peer ref"),
 				ref_peer(peer, "adding poke peer ref"));
-	} else {
-		sip_poke_peer(peer, 0);
 	}
 	AST_SCHED_REPLACE_UNREF(peer->expire, sched, (expire + 10) * 1000, expire_register, peer,
 			unref_peer(_data, "remove registration ref"),
@@ -29807,16 +29807,19 @@ static void sip_poke_all_peers(void)
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
-		if (num == global_qualify_peers) {
-			ms += global_qualify_gap;
-			num = 0;
-		} else {
-			num++;
+		/* Don't schedule poking on a peer without qualify */
+		if (peer->maxms) {
+			if (num == global_qualify_peers) {
+				ms += global_qualify_gap;
+				num = 0;
+			} else {
+				num++;
+			}
+			AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ms, sip_poke_peer_s, peer,
+					unref_peer(_data, "removing poke peer ref"),
+					unref_peer(peer, "removing poke peer ref"),
+					ref_peer(peer, "adding poke peer ref"));
 		}
-		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ms, sip_poke_peer_s, peer,
-				unref_peer(_data, "removing poke peer ref"),
-				unref_peer(peer, "removing poke peer ref"),
-				ref_peer(peer, "adding poke peer ref"));
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator peer ptr");
 	}
