@@ -478,6 +478,13 @@ AMI (Asterisk Manager Interface)
 
 CLI
 -------------------
+ * The "dialplan add include" command has been modified to create context a context
+   if one does not already exist. For instance, "dialplan add include foo into bar"
+   will create context "bar" if it does not already exist.
+
+ * A  "dialplan remove context" command has been added to remove a context from
+   the dialplan
+
  * The "mixmonitor list <channel>" command will now show MixMonitor ID, and the
    filenames of all running mixmonitors on a channel.
 
