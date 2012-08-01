@@ -18,7 +18,7 @@
 #define _ASTERISK_ASTOBJ2_H
 
 #include "asterisk/compat.h"
-#include "asterisk/linkedlists.h"
+#include "asterisk/lock.h"
 
 /*! \file
  * \ref AstObj2
