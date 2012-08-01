@@ -2556,7 +2556,9 @@ static int authenticate(struct mansession *s, const struct message *m)
 	s->session->readperm = user->readperm;
 	s->session->writeperm = user->writeperm;
 	s->session->writetimeout = user->writetimeout;
-	s->session->chanvars = ast_variables_dup(user->chanvars);
+	if (user->chanvars) {
+		s->session->chanvars = ast_variables_dup(user->chanvars);
+	}
 
 	filter_iter = ao2_iterator_init(user->whitefilters, 0);
 	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
