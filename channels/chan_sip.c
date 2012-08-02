@@ -26604,7 +26604,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				if (strstr(p->useragent, "Polycom")) {
 					subscribed = XPIDF_XML; /* Older versions of Polycom firmware will claim pidf+xml, but really they only support xpidf+xml */
 				} else {
-					subscribed = XPIDF_XML; /* RFC 3863 format */
+					subscribed = PIDF_XML; /* RFC 3863 format */
 				}
 			} else if (strstr(accept, "application/dialog-info+xml")) {
 				subscribed = DIALOG_INFO_XML;
