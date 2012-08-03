@@ -652,14 +652,17 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 	if ((*hostname = strstr(line, "://"))) {
 		*hostname += 3;
 
-		if (!strncasecmp(line, "tcp", 3))
+		if (!strncasecmp(line, "tcp", 3)) {
 			*transport = SIP_TRANSPORT_TCP;
-		else if (!strncasecmp(line, "tls", 3))
+		} else if (!strncasecmp(line, "tls", 3)) {
 			*transport = SIP_TRANSPORT_TLS;
-		else if (!strncasecmp(line, "udp", 3))
+		} else if (!strncasecmp(line, "udp", 3)) {
 			*transport = SIP_TRANSPORT_UDP;
-		else
+		} else if (lineno) {
 			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", line, lineno);
+		} else {
+			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type in sip config. defaulting to udp.\n", line);
+		}
 	} else {
 		*hostname = line;
 		*transport = SIP_TRANSPORT_UDP;
@@ -671,14 +674,22 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 		line = *hostname;
 
 	if (ast_sockaddr_split_hostport(line, hostname, &port, 0) == 0) {
-		ast_log(LOG_WARNING, "Cannot parse host '%s' on line %d of sip.conf.\n",
-			line, lineno);
+		if (lineno) {
+			ast_log(LOG_WARNING, "Cannot parse host '%s' on line %d of sip.conf.\n",
+				line, lineno);
+		} else {
+			ast_log(LOG_WARNING, "Cannot parse host '%s' in sip config.\n", line);
+		}
 		return -1;
 	}
 
 	if (port) {
 		if (!sscanf(port, "%5u", portnum)) {
-			ast_log(LOG_NOTICE, "'%s' is not a valid port number on line %d of sip.conf. using default.\n", port, lineno);
+			if (lineno) {
+				ast_log(LOG_NOTICE, "'%s' is not a valid port number on line %d of sip.conf. using default.\n", port, lineno);
+			} else {
+				ast_log(LOG_NOTICE, "'%s' is not a valid port number in sip config. using default.\n", port);
+			}
 			port = NULL;
 		}
 	}
