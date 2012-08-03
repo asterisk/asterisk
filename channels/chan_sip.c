@@ -1590,7 +1590,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct ast_sockaddr *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog, struct ast_sockaddr *remote_address);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void change_callid_pvt(struct sip_pvt *pvt, const char *callid);
@@ -2015,7 +2015,7 @@ static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *availa
 
 	sip_pvt_lock(monitor_instance->subscription_pvt);
 	ast_set_flag(&monitor_instance->subscription_pvt->flags[0], SIP_OUTGOING);
-	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1, NULL);
+	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1);
 	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
 	monitor_instance->subscription_pvt->subscribed = CALL_COMPLETION;
 	monitor_instance->subscription_pvt->expiry = when;
@@ -3316,6 +3316,12 @@ unsigned int port_str2int(const char *pt, unsigned int standard)
 /*! \brief Get default outbound proxy or global proxy */
 static struct sip_proxy *obproxy_get(struct sip_pvt *dialog, struct sip_peer *peer)
 {
+	if (dialog && dialog->options && dialog->options->outboundproxy) {
+		if (sipdebug) {
+			ast_debug(1, "BLAH\n");
+		}
+		return dialog->options->outboundproxy;
+	}
 	if (peer && peer->outboundproxy) {
 		if (sipdebug) {
 			ast_debug(1, "OBPROXY: Applying peer OBproxy to this call\n");
@@ -5712,7 +5718,7 @@ static inline int default_sip_port(enum sip_transport type)
 /*! \brief create address structure from device name
  *      Or, if peer not found, find it in the global DNS
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog, struct ast_sockaddr *remote_address)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog)
 {
 	struct sip_peer *peer;
 	char *peername, *peername2, *hostn;
@@ -5743,9 +5749,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 			set_socket_transport(&dialog->socket, 0);
 		}
 		res = create_addr_from_peer(dialog, peer);
-		if (!ast_sockaddr_isnull(remote_address)) {
-			ast_sockaddr_copy(&dialog->sa, remote_address);
-		}
 		dialog->relatedpeer = sip_ref_peer(peer, "create_addr: setting dialog's relatedpeer pointer");
 		sip_unref_peer(peer, "create_addr: unref peer from sip_find_peer hashtab lookup");
 		return res;
@@ -6114,8 +6117,12 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (dumphistory)
 		sip_dump_history(p);
 
-	if (p->options)
+	if (p->options) {
+		if (p->options->outboundproxy) {
+			ao2_ref(p->options->outboundproxy, -1);
+		}
 		ast_free(p->options);
+	}
 
 	if (p->notify) {
 		ast_variables_destroy(p->notify->headers);
@@ -13281,7 +13288,7 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 
 	sip_pvt_lock(pvt);
 
-	if (create_addr(pvt, epa_entry->destination, NULL, TRUE, NULL)) {
+	if (create_addr(pvt, epa_entry->destination, NULL, TRUE)) {
 		sip_pvt_unlock(pvt);
 		dialog_unlink_all(pvt);
 		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
@@ -13587,7 +13594,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	}
 	
 	/* Setup the destination of our subscription */
-	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0, NULL)) {
+	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0)) {
 		dialog_unlink_all(mwi->call);
 		mwi->call = dialog_unref(mwi->call, "unref dialog after unlink_all");
 		return 0;
@@ -14102,7 +14109,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (create_addr(p, channame, NULL, 0, NULL)) {
+	if (create_addr(p, channame, NULL, 0)) {
 		/* Maybe they're not registered, etc. */
 		dialog_unlink_all(p);
 		dialog_unref(p, "unref dialog inside for loop" );
@@ -14446,7 +14453,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 
 		/* Find address to hostname */
-		if (create_addr(p, S_OR(r->peername, r->hostname), &r->us, 0, NULL)) {
+		if (create_addr(p, S_OR(r->peername, r->hostname), &r->us, 0)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			dialog_unlink_all(p);
@@ -20609,7 +20616,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			return CLI_FAILURE;
 		}
 
-		if (create_addr(p, a->argv[i], NULL, 1, NULL)) {
+		if (create_addr(p, a->argv[i], NULL, 1)) {
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p);
 			dialog_unref(p, "unref dialog inside for loop" );
@@ -22131,6 +22138,9 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 		ast_debug(3, "Got 200 OK on subscription for MWI\n");
 		set_pvt_allowed_methods(p, req);
 		if (p->options) {
+			if (p->options->outboundproxy) {
+				ao2_ref(p->options->outboundproxy, -1);
+			}
 			ast_free(p->options);
 			p->options = NULL;
 		}
@@ -25844,7 +25854,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	sip_pvt_lock(pvt);
 
 	/* Look up the host to contact */
-	if (create_addr(pvt, to_host, NULL, TRUE, NULL)) {
+	if (create_addr(pvt, to_host, NULL, TRUE)) {
 		sip_pvt_unlock(pvt);
 		dialog_unlink_all(pvt);
 		dialog_unref(pvt, "create_addr failed sending a MESSAGE");
@@ -28559,7 +28569,6 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	char dialstring[256];
 	char *remote_address;
 	enum sip_transport transport = 0;
-	struct ast_sockaddr remote_address_sa = { {0,} };
 	struct ast_callid *callid;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peerorhost);
@@ -28675,15 +28684,9 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	}
 
 	if (!ast_strlen_zero(remote_address)) {
-		if (ast_sockaddr_resolve_first_transport(&remote_address_sa, remote_address, 0, transport)) {
-			ast_log(LOG_WARNING, "Unable to find IP address for host %s. We will not use this remote IP address\n", remote_address);
-		} else {
-			if (!ast_sockaddr_port(&remote_address_sa)) {
-				ast_sockaddr_set_port(&remote_address_sa,
-						      transport & SIP_TRANSPORT_TLS ?
-						      STANDARD_TLS_PORT :
-						      STANDARD_SIP_PORT);
-			}
+		p->options->outboundproxy = proxy_from_config(remote_address, 0, NULL);
+		if (!p->options->outboundproxy) {
+			ast_log(LOG_WARNING, "Unable to parse outboundproxy %s. We will not use this remote IP address\n", remote_address);
 		}
 	}
 
@@ -28694,7 +28697,7 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		ext = extension (user part of URI)
 		dnid = destination of the call (applies to the To: header)
 	*/
-	if (create_addr(p, host, NULL, 1, &remote_address_sa)) {
+	if (create_addr(p, host, NULL, 1)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
 		dialog_unlink_all(p);

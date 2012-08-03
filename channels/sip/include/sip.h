@@ -851,6 +851,7 @@ struct sip_invite_param {
 	enum sip_auth_type auth_type;  /*!< Authentication type */
 	const char *replaces;       /*!< Replaces header for call transfers */
 	int transfer;               /*!< Flag - is this Invite part of a SIP transfer? (invite/replaces) */
+	struct sip_proxy *outboundproxy; /*!< Outbound proxy URI */
 };
 
 /*! \brief Structure to save routing information for a SIP session */
