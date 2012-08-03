@@ -661,7 +661,7 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 		} else if (lineno) {
 			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", line, lineno);
 		} else {
-			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type in sip config. defaulting to udp.\n", line, lineno);
+			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type in sip config. defaulting to udp.\n", line);
 		}
 	} else {
 		*hostname = line;
