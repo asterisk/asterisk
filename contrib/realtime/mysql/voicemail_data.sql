@@ -23,9 +23,7 @@ CREATE TABLE voicemail_data (
 	-- Value of the channel variable VM_CATEGORY, if set
 	category CHAR(30),
 	-- Length of the message, in seconds
-	duration INT(11),
-	-- Unique identifier for the message
-	msg_id CHAR(32)
+	duration INT(11)
 );
 
 
