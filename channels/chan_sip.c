@@ -3176,8 +3176,9 @@ static struct sip_proxy *obproxy_get(struct sip_pvt *dialog, struct sip_peer *pe
 {
 	if (dialog && dialog->options && dialog->options->outboundproxy) {
 		if (sipdebug) {
-			ast_debug(1, "BLAH\n");
+			ast_debug(1, "OBPROXY: Applying dialplan set OBproxy to this call\n");
 		}
+		append_history(dialog, "OBproxy", "Using dialplan obproxy %s", dialog->options->outboundproxy->name);
 		return dialog->options->outboundproxy;
 	}
 	if (peer && peer->outboundproxy) {
