@@ -953,6 +953,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	struct ast_format_cap *nativeformats;
 	struct ast_sched_context *schedctx;
 	struct ast_timer *timer;
+	struct timeval now;
 
 	/* If shutting down, don't allocate any new channels */
 	if (ast_shutting_down()) {
@@ -1041,6 +1042,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ast_channel_fin_set(tmp, global_fin);
 	ast_channel_fout_set(tmp, global_fout);
+
+	now = ast_tvnow();
+	ast_channel_creationtime_set(tmp, &now);
 
 	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
 		ast_channel_uniqueid_build(tmp, "%li.%d", (long) time(NULL),
@@ -2339,6 +2343,10 @@ static void ast_channel_destructor(void *obj)
 	if (callid) {
 		ast_callid_unref(callid);
 	}
+
+	ast_channel_named_callgroups_set(chan, NULL);
+	ast_channel_named_pickupgroups_set(chan, NULL);
+
 	ast_atomic_fetchadd_int(&chancount, -1);
 }
 
@@ -8074,6 +8082,113 @@ ast_group_t ast_get_group(const char *s)
 	return group;
 }
 
+/*! \brief Comparison function used for named group container */
+static int namedgroup_cmp_cb(void *obj, void *arg, int flags)
+{
+	const struct namedgroup_entry *an = obj;
+	const struct namedgroup_entry *bn = arg;
+	return strcmp(an->name, bn->name) ? 0 : CMP_MATCH | CMP_STOP;
+}
+
+/*! \brief Hashing function used for named group container */
+static int namedgroup_hash_cb(const void *obj, const int flags)
+{
+	const struct namedgroup_entry *entry = obj;
+	return entry->hash;
+}
+
+static void namedgroup_dtor(void *obj)
+{
+	ast_free(((struct namedgroup_entry*)obj)->name);
+}
+
+/*! \internal \brief Actually a refcounted ao2_object. An indirect ao2_container to hide the implementation of namedgroups. */
+struct ast_namedgroups {
+	struct ao2_container *container;
+};
+
+static void ast_namedgroups_dtor(void *obj)
+{
+	ao2_cleanup(((struct ast_namedgroups *)obj)->container);
+}
+
+struct ast_namedgroups *ast_get_namedgroups(const char *s)
+{
+	struct ast_namedgroups *namedgroups;
+	char *piece;
+	char *c;
+
+	if (ast_strlen_zero(s)) {
+		return NULL;
+	}
+	c = ast_strdupa(s);
+	if (!c) {
+		return NULL;
+	}
+
+	namedgroups = ao2_alloc_options(sizeof(*namedgroups), ast_namedgroups_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!namedgroups) {
+		return NULL;
+	}
+	namedgroups->container = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 19, namedgroup_hash_cb, namedgroup_cmp_cb);
+	if (!namedgroups->container) {
+		ao2_ref(namedgroups, -1);
+		return NULL;
+	}
+
+	/*! \brief Remove leading and trailing whitespace */
+	c = ast_strip(c);
+
+	while ((piece = strsep(&c, ","))) {
+		struct namedgroup_entry *entry;
+
+		/* remove leading/trailing whitespace */
+		piece = ast_strip(piece);
+		if (strlen(piece) == 0) {
+			ast_log(LOG_ERROR, "Syntax error parsing named group configuration '%s' at '%s'. Ignoring.\n", s, piece);
+			continue;
+		}
+
+		entry = ao2_alloc_options(sizeof(*entry), namedgroup_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+		if (!entry) {
+			ao2_ref(namedgroups, -1);
+			return NULL;
+		}
+		entry->name = ast_strdup(piece);
+		if (!entry->name) {
+			ao2_ref(entry, -1);
+			ao2_ref(namedgroups, -1);
+			return NULL;
+		}
+		entry->hash = ast_str_hash(entry->name);
+		/* every group name may exist only once, delete duplicates */
+		ao2_find(namedgroups->container, entry, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+		ao2_link(namedgroups->container, entry);
+		ao2_ref(entry, -1);
+	}
+
+	if (ao2_container_count(namedgroups->container) == 0) {
+		ao2_ref(namedgroups, -1);
+		namedgroups = NULL;
+	}
+
+	return namedgroups;
+}
+
+struct ast_namedgroups *ast_unref_namedgroups(struct ast_namedgroups *groups)
+{
+	ao2_cleanup(groups);
+	return NULL;
+}
+
+struct ast_namedgroups *ast_ref_namedgroups(struct ast_namedgroups *groups)
+{
+	if (groups) {
+		ao2_ref(groups, 1);
+	}
+	return groups;
+}
+
 static int (*ast_moh_start_ptr)(struct ast_channel *, const char *, const char *) = NULL;
 static void (*ast_moh_stop_ptr)(struct ast_channel *) = NULL;
 static void (*ast_moh_cleanup_ptr)(struct ast_channel *) = NULL;
@@ -8302,6 +8417,59 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 		}
 	}
 	return buf;
+}
+
+/*! \brief Print named call group and named pickup group ---*/
+char *ast_print_namedgroups(struct ast_str **buf, struct ast_namedgroups *group)
+{
+	struct namedgroup_entry *ng;
+	int first = 1;
+	struct ao2_iterator it;
+
+	if (group == NULL) {
+		return ast_str_buffer(*buf);
+	}
+
+	it = ao2_iterator_init(group->container, 0);
+	while ((ng = ao2_iterator_next(&it))) {
+		if (!first) {
+			ast_str_append(buf, 0, ", ");
+		} else {
+			first = 0;
+		}
+		ast_str_append(buf, 0, "%s", ng->name);
+		ao2_ref(ng, -1);
+	}
+	ao2_iterator_destroy(&it);
+
+	return ast_str_buffer(*buf);
+}
+
+static int namedgroup_match(void *obj, void *arg, int flags)
+{
+	void *match;
+
+	match = ao2_find(arg, obj, OBJ_POINTER);
+	ao2_cleanup(match);
+
+	return match ? CMP_MATCH | CMP_STOP : 0;
+}
+
+int ast_namedgroups_intersect(struct ast_namedgroups *a, struct ast_namedgroups *b)
+{
+	/*
+	 * Do a and b intersect? Since b is hash table average time complexity is O(|a|)
+	 */
+	void *match;
+
+	if (!a || !b) {
+		return 0;
+	}
+
+	match = ao2_callback(a->container, 0, namedgroup_match, b->container);
+	ao2_cleanup(match);
+
+	return match != NULL;
 }
 
 void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)

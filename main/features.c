@@ -7679,10 +7679,19 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
 	ast_channel_lock(target);
-	if (chan != target && (ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
-		&& ast_can_pickup(target)) {
-		/* Return with the channel still locked on purpose */
-		return CMP_MATCH | CMP_STOP;
+
+	/*
+	 * Both, callgroup and namedcallgroup pickup variants are matched independently.
+	 * Checking for named group match is done last since it's a rather expensive operation.
+	 */
+	if (chan != target && ast_can_pickup(target)
+		&& ((ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
+			|| (ast_namedgroups_intersect(ast_channel_named_pickupgroups(chan), ast_channel_named_callgroups(target))))) {
+		/*
+		 * Return with the channel unlocked on purpose, else we would lock many channels with the chance for deadlock
+		 */
+		ast_channel_unlock(target);
+		return CMP_MATCH;
 	}
 	ast_channel_unlock(target);
 
@@ -7700,11 +7709,36 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 int ast_pickup_call(struct ast_channel *chan)
 {
 	struct ast_channel *target;/*!< Potential pickup target */
+	struct ao2_iterator *targets_it;/*!< Potential pickup targets, must find the oldest of them */
+	struct ast_channel *candidate;/*!< Potential new older target */
 	int res = -1;
 	ast_debug(1, "pickup attempt by %s\n", ast_channel_name(chan));
 
-	/* The found channel is already locked. */
-	target = ast_channel_callback(find_channel_by_group, NULL, chan, 0);
+	/*
+	 * Transfer all pickup-able channels to another container-iterator.
+	 * Iterate it to find the oldest channel.
+	 */
+	targets_it = (struct ao2_iterator *)ast_channel_callback(find_channel_by_group, NULL, chan, OBJ_MULTIPLE);
+
+	target = NULL;
+	while ((candidate = ao2_iterator_next(targets_it))) {
+		if (!target || ast_tvcmp(ast_channel_creationtime(candidate), ast_channel_creationtime(target)) < 0) {
+			target = candidate;
+		}
+		ast_channel_unref(candidate);
+	}
+	if (target) {
+		/* The found channel must be locked and ref'd. */
+		ast_channel_lock(ast_channel_ref(target));
+		/* Recheck pickup ability */
+		if (!ast_can_pickup(target)) {
+			ast_channel_unlock(target);
+			target = ast_channel_unref(target);/* Bad luck */
+		}
+	}
+
+	ao2_iterator_destroy(targets_it);
+
 	if (target) {
 		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
 

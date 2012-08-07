@@ -841,6 +841,15 @@ group=1
 ;
 callgroup=1
 pickupgroup=1
+;
+; Named ring groups (a.k.a. named call groups) and named pickup groups.
+; If a phone is ringing and it is a member of a group which is one of your
+; named pickup groups, then you can answer it by picking up and dialing *8#.
+; For simple offices, just make these both the same.
+; The number of named groups is not limited.
+;
+;namedcallgroup=engineering,sales,netgroup,protgroup
+;namedpickupgroup=sales
 
 ; Channel variable to be set for all calls from this channel
 ;setvar=CHANNEL=42

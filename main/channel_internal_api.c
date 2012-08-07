@@ -136,6 +136,9 @@ struct ast_channel {
 	struct varshead varshead;			/*!< A linked list for channel variables. See \ref AstChanVar */
 	ast_group_t callgroup;				/*!< Call group for call pickups */
 	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
+	struct ast_namedgroups *named_callgroups;	/*!< Named call group for call pickups */
+	struct ast_namedgroups *named_pickupgroups;	/*!< Named pickup group - which call groups can be picked up? */
+	struct timeval creationtime;			/*!< The time of channel creation */
 	struct ast_readq_list readq;
 	struct ast_jb jb;				/*!< The jitterbuffer state */
 	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
@@ -983,6 +986,14 @@ void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value)
 {
 	chan->varshead = *value;
 }
+struct timeval ast_channel_creationtime(struct ast_channel *chan)
+{
+	return chan->creationtime;
+}
+void ast_channel_creationtime_set(struct ast_channel *chan, struct timeval *value)
+{
+	chan->creationtime = *value;
+}
 
 /* Evil softhangup accessors */
 int ast_channel_softhangup_internal_flag(struct ast_channel *chan)
@@ -1025,6 +1036,24 @@ ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan)
 void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value)
 {
 	chan->pickupgroup = value;
+}
+struct ast_namedgroups *ast_channel_named_callgroups(const struct ast_channel *chan)
+{
+	return chan->named_callgroups;
+}
+void ast_channel_named_callgroups_set(struct ast_channel *chan, struct ast_namedgroups *value)
+{
+	ast_unref_namedgroups(chan->named_callgroups);
+	chan->named_callgroups = ast_ref_namedgroups(value);
+}
+struct ast_namedgroups *ast_channel_named_pickupgroups(const struct ast_channel *chan)
+{
+	return chan->named_pickupgroups;
+}
+void ast_channel_named_pickupgroups_set(struct ast_channel *chan, struct ast_namedgroups *value)
+{
+	ast_unref_namedgroups(chan->named_pickupgroups);
+	chan->named_pickupgroups = ast_ref_namedgroups(value);
 }
 
 /* Alertpipe functions */

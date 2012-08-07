@@ -410,6 +410,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="pickupgroup">
 						<para>The configured Pickupgroup.</para>
 					</enum>
+					<enum name="namedcallgroup">
+						<para>The configured Named Callgroup.</para>
+					</enum>
+					<enum name="namedpickupgroup">
+						<para>The configured Named Pickupgroup.</para>
+					</enum>
 					<enum name="codecs">
 						<para>The configured codecs.</para>
 					</enum>
@@ -1453,6 +1459,7 @@ static char * _sip_show_peers(int fd, int *total, struct mansession *s, const st
 static char *sip_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static void  print_group(int fd, ast_group_t group, int crlf);
+static void  print_named_groups(int fd, struct ast_namedgroups *groups, int crlf);
 static const char *dtmfmode2str(int mode) attribute_const;
 static int str2dtmfmode(const char *str) attribute_unused;
 static const char *insecure2str(int mode) attribute_const;
@@ -4907,6 +4914,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		peer->socket.ws_session = NULL;
 	}
 
+	peer->named_callgroups = ast_unref_namedgroups(peer->named_callgroups);
+	peer->named_pickupgroups = ast_unref_namedgroups(peer->named_pickupgroups);
+
 	ast_cc_config_params_destroy(peer->cc_params);
 
 	ast_string_field_free_memory(peer);
@@ -5628,6 +5638,10 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ref_proxy(dialog, obproxy_get(dialog, peer));
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
+	ast_unref_namedgroups(dialog->named_callgroups);
+	dialog->named_callgroups = ast_ref_namedgroups(peer->named_callgroups);
+	ast_unref_namedgroups(dialog->named_pickupgroups);
+	dialog->named_pickupgroups = ast_ref_namedgroups(peer->named_pickupgroups);
 	ast_copy_string(dialog->zone, peer->zone, sizeof(dialog->zone));
 	dialog->allowtransfer = peer->allowtransfer;
 	dialog->jointnoncodeccapability = dialog->noncodeccapability;
@@ -6218,6 +6232,9 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ao2_t_ref(p->peerauth, -1, "Removing active peer authentication");
 		p->peerauth = NULL;
 	}
+
+	p->named_callgroups = ast_unref_namedgroups(p->named_callgroups);
+	p->named_pickupgroups = ast_unref_namedgroups(p->named_pickupgroups);
 
 	p->caps = ast_format_cap_destroy(p->caps);
 	p->jointcaps = ast_format_cap_destroy(p->jointcaps);
@@ -7570,6 +7587,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	ast_channel_callgroup_set(tmp, i->callgroup);
 	ast_channel_pickupgroup_set(tmp, i->pickupgroup);
+
+	ast_channel_named_callgroups_set(tmp, i->named_callgroups);
+	ast_channel_named_pickupgroups_set(tmp, i->named_pickupgroups);
+
 	ast_channel_caller(tmp)->id.name.presentation = i->callingpres;
 	ast_channel_caller(tmp)->id.number.presentation = i->callingpres;
 	if (!ast_strlen_zero(i->parkinglot)) {
@@ -17344,6 +17365,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		p->amaflags = peer->amaflags;
 		p->callgroup = peer->callgroup;
 		p->pickupgroup = peer->pickupgroup;
+		ast_unref_namedgroups(p->named_callgroups);
+		p->named_callgroups = ast_ref_namedgroups(peer->named_callgroups);
+		ast_unref_namedgroups(p->named_pickupgroups);
+		p->named_pickupgroups = ast_ref_namedgroups(peer->named_pickupgroups);
 		ast_format_cap_copy(p->caps, peer->caps);
 		ast_format_cap_copy(p->jointcaps, peer->caps);
 		p->prefs = peer->prefs;
@@ -18347,6 +18372,16 @@ static void print_group(int fd, ast_group_t group, int crlf)
 	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );
 }
 
+/*! \brief Print named call groups and pickup groups */
+static void print_named_groups(int fd, struct ast_namedgroups *group, int crlf)
+{
+	struct ast_str *buf = ast_str_create(1024);
+	if (buf) {
+		ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_namedgroups(&buf, group) );
+		ast_free(buf);
+	}
+}
+
 /*! \brief mapping between dtmf flags and strings */
 static const struct _map_x_s dtmfstr[] = {
 	{ SIP_DTMF_RFC2833,     "rfc2833" },
@@ -19002,6 +19037,10 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		print_group(fd, peer->callgroup, 0);
 		ast_cli(fd, "  Pickupgroup  : ");
 		print_group(fd, peer->pickupgroup, 0);
+		ast_cli(fd, "  Named Callgr : ");
+		print_named_groups(fd, peer->named_callgroups, 0);
+		ast_cli(fd, "  Nam. Pickupgr: ");
+		print_named_groups(fd, peer->named_pickupgroups, 0);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_cli(fd, "  MOH Suggest  : %s\n", peer->mohsuggest);
 		ast_cli(fd, "  Mailbox      : %s\n", mailbox_str->str);
@@ -19096,7 +19135,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		peer = sip_unref_peer(peer, "sip_show_peer: sip_unref_peer: done with peer ptr");
 	} else  if (peer && type == 1) { /* manager listing */
 		char buffer[256];
-		struct ast_str *mailbox_str = ast_str_alloca(512);
+		struct ast_str *tmp_str = ast_str_alloca(512);
 		astman_append(s, "Channeltype: SIP\r\n");
 		astman_append(s, "ObjectName: %s\r\n", peer->name);
 		astman_append(s, "ChanObjectType: peer\r\n");
@@ -19118,9 +19157,15 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "%s\r\n", ast_print_group(buffer, sizeof(buffer), peer->callgroup));
 		astman_append(s, "Pickupgroup: ");
 		astman_append(s, "%s\r\n", ast_print_group(buffer, sizeof(buffer), peer->pickupgroup));
+		astman_append(s, "Named Callgroup: ");
+		astman_append(s, "%s\r\n", ast_print_namedgroups(&tmp_str, peer->named_callgroups));
+		ast_str_reset(tmp_str);
+		astman_append(s, "Named Pickupgroup: ");
+		astman_append(s, "%s\r\n", ast_print_namedgroups(&tmp_str, peer->named_pickupgroups));
+		ast_str_reset(tmp_str);
 		astman_append(s, "MOHSuggest: %s\r\n", peer->mohsuggest);
-		peer_mailboxes_to_str(&mailbox_str, peer);
-		astman_append(s, "VoiceMailbox: %s\r\n", mailbox_str->str);
+		peer_mailboxes_to_str(&tmp_str, peer);
+		astman_append(s, "VoiceMailbox: %s\r\n", tmp_str->str);
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Maxforwards: %d\r\n", peer->maxforwards);
@@ -19287,6 +19332,10 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		print_group(a->fd, user->callgroup, 0);
 		ast_cli(a->fd, "  Pickupgroup  : ");
 		print_group(a->fd, user->pickupgroup, 0);
+		ast_cli(a->fd, "  Named Callgr : ");
+		print_named_groups(a->fd, user->named_callgroups, 0);
+		ast_cli(a->fd, "  Nam. Pickupgr: ");
+		print_named_groups(a->fd, user->named_pickupgroups, 0);
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  ACL          : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(user->acl) == 0));
  		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
@@ -21039,6 +21088,18 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		ast_print_group(buf, len, peer->callgroup);
 	} else  if (!strcasecmp(colname, "pickupgroup")) {
 		ast_print_group(buf, len, peer->pickupgroup);
+	} else  if (!strcasecmp(colname, "namedcallgroup")) {
+		struct ast_str *tmp_str = ast_str_create(1024);
+		if (tmp_str) {
+			ast_copy_string(buf, ast_print_namedgroups(&tmp_str, peer->named_callgroups), len);
+			ast_free(tmp_str);
+		}
+	} else  if (!strcasecmp(colname, "namedpickupgroup")) {
+		struct ast_str *tmp_str = ast_str_create(1024);
+		if (tmp_str) {
+			ast_copy_string(buf, ast_print_namedgroups(&tmp_str, peer->named_pickupgroups), len);
+			ast_free(tmp_str);
+		}
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -29431,6 +29492,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 	}
 
+	/* clear named callgroup and named pickup group container */
+	peer->named_callgroups = ast_unref_namedgroups(peer->named_callgroups);
+	peer->named_pickupgroups = ast_unref_namedgroups(peer->named_pickupgroups);
+
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
 			if (handle_common_options(&peerflags[0], &mask[0], v)) {
@@ -29668,6 +29733,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
 				peer->pickupgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "namedcallgroup")) {
+				peer->named_callgroups = ast_get_namedgroups(v->value);
+			} else if (!strcasecmp(v->name, "namedpickupgroup")) {
+				peer->named_pickupgroups = ast_get_namedgroups(v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
 				int error = ast_parse_allow_disallow(&peer->prefs, peer->caps, v->value, TRUE);
 				if (error) {

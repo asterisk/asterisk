@@ -973,6 +973,17 @@ enum channelreloadreason {
 	CHANNEL_ACL_RELOAD,
 };
 
+
+/*! \brief Structure to handle ao2-container for named groups */
+struct namedgroup_entry {
+	/*! string representation of group */
+	char *name;
+
+	/*! pre-built hash of groupname string */
+	unsigned int hash;
+};
+
+
 /*!
  * \note None of the datastore API calls lock the ast_channel they are using.
  *       So, the channel should be locked before calling the functions that
@@ -2417,8 +2428,21 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 
 ast_group_t ast_get_group(const char *s);
 
-/*! \brief print call- and pickup groups into buffer */
+/*! \brief Print call- and pickup groups into buffer */
 char *ast_print_group(char *buf, int buflen, ast_group_t group);
+
+/*! \brief Opaque struct holding a namedgroups set, i.e. a set of group names */
+struct ast_namedgroups;
+
+/*! \brief Create an ast_namedgroups set with group name from comma separated string s */
+struct ast_namedgroups *ast_get_namedgroups(const char *s);
+struct ast_namedgroups *ast_unref_namedgroups(struct ast_namedgroups *groups);
+struct ast_namedgroups *ast_ref_namedgroups(struct ast_namedgroups *groups);
+/*! \brief Return TRUE if group a and b contain at least one common groupname */
+int ast_namedgroups_intersect(struct ast_namedgroups *a, struct ast_namedgroups *b);
+
+/*! \brief Print named call groups and named pickup groups ---*/
+char *ast_print_namedgroups(struct ast_str **buf, struct ast_namedgroups *groups);
 
 /*!
  * \brief Convert enum channelreloadreason to text string for manager event
@@ -3768,6 +3792,8 @@ void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redi
 void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value);
 void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value);
 void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value);
+struct timeval ast_channel_creationtime(struct ast_channel *chan);
+void ast_channel_creationtime_set(struct ast_channel *chan, struct timeval *value);
 
 /* List getters */
 struct ast_hangup_handler_list *ast_channel_hangup_handlers(struct ast_channel *chan);
@@ -3780,6 +3806,10 @@ ast_group_t ast_channel_callgroup(const struct ast_channel *chan);
 void ast_channel_callgroup_set(struct ast_channel *chan, ast_group_t value);
 ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan);
 void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value);
+struct ast_namedgroups *ast_channel_named_callgroups(const struct ast_channel *chan);
+void ast_channel_named_callgroups_set(struct ast_channel *chan, struct ast_namedgroups *value);
+struct ast_namedgroups *ast_channel_named_pickupgroups(const struct ast_channel *chan);
+void ast_channel_named_pickupgroups_set(struct ast_channel *chan, struct ast_namedgroups *value);
 
 /* Alertpipe accessors--the "internal" functions for channel.c use only */
 typedef enum {

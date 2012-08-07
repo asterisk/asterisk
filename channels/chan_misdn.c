@@ -5904,6 +5904,9 @@ static int read_config(struct chan_list *ch)
 	char buf2[256];
 	ast_group_t pg;
 	ast_group_t cg;
+	struct ast_namedgroups *npg;
+	struct ast_namedgroups *ncg;
+	struct ast_str *tmp_str;
 
 	if (!ch) {
 		ast_log(LOG_WARNING, "Cannot configure without chanlist\n");
@@ -5986,6 +5989,20 @@ static int read_config(struct chan_list *ch)
 	chan_misdn_log(5, port, " --> * CallGrp:%s PickupGrp:%s\n", ast_print_group(buf, sizeof(buf), cg), ast_print_group(buf2, sizeof(buf2), pg));
 	ast_channel_pickupgroup_set(ast, pg);
 	ast_channel_callgroup_set(ast, cg);
+
+	misdn_cfg_get(port, MISDN_CFG_NAMEDPICKUPGROUP, &npg, sizeof(npg));
+	misdn_cfg_get(port, MISDN_CFG_NAMEDCALLGROUP, &ncg, sizeof(ncg));
+
+	tmp_str = ast_str_create(1024);
+	if (tmp_str) {
+		chan_misdn_log(5, port, " --> * NamedCallGrp:%s\n", ast_print_namedgroups(&tmp_str, ncg));
+		ast_str_reset(tmp_str);
+		chan_misdn_log(5, port, " --> * NamedPickupGrp:%s\n", ast_print_namedgroups(&tmp_str, npg));
+		ast_free(tmp_str);
+	}
+
+	ast_channel_named_pickupgroups_set(ast, npg);
+	ast_channel_named_callgroups_set(ast, ncg);
 
 	if (ch->originator == ORG_AST) {
 		char callerid[BUFFERSIZE + 1];

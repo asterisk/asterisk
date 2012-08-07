@@ -1062,6 +1062,8 @@ struct sip_pvt {
 	uint32_t init_icseq;                    /*!< Initial incoming seqno from first request */
 	ast_group_t callgroup;                  /*!< Call group */
 	ast_group_t pickupgroup;                /*!< Pickup group */
+	struct ast_namedgroups *named_callgroups;   /*!< Named call group */
+	struct ast_namedgroups *named_pickupgroups; /*!< Named pickup group */
 	uint32_t lastinvite;                    /*!< Last seqno of invite */
 	struct ast_flags flags[3];              /*!< SIP_ flags */
 
@@ -1328,6 +1330,8 @@ struct sip_peer {
 	int rtpkeepalive;               /*!<  Send RTP packets for keepalive */
 	ast_group_t callgroup;          /*!<  Call group */
 	ast_group_t pickupgroup;        /*!<  Pickup group */
+	struct ast_namedgroups *named_callgroups;   /*!< Named call group */
+	struct ast_namedgroups *named_pickupgroups; /*!< Named pickup group */
 	struct sip_proxy *outboundproxy;/*!< Outbound proxy for this peer */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct ast_sockaddr addr;        /*!<  IP address of peer */

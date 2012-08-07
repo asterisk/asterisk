@@ -109,11 +109,13 @@ MixMonitor
  * Added 'm' option, which stores a copy of the recording as a voicemail in the
    indicated mailboxes.
 
+
 MySQL
 -------------------
  * The connect action in app_mysql now allows you to specify a port number to
    connect to.  This is useful if you run a MySQL server on a non-standard
    port number.
+
 
 OSP Applications
 -------------------
@@ -242,6 +244,9 @@ chan_dahdi
    send connected line information on initial connect; and update, to send
    information on any update during a call.  Default is update.
 
+ * Add options namedcallgroup and namedpickupgroup to support installations
+   where a higher number of groups (>64) is required.
+
 
 chan_motif
 ------------------
@@ -315,14 +320,19 @@ chan_sip
 
  * Add support for WebSocket transport. This can be configured using 'ws' or 'wss'
    as the transport.
+
  * Add options subminexpiry and submaxexpiry to set limits of subscription
    timer independently from registration timer settings. The setting of the
    registration timer limits still is done by options minexpiry, maxexpiry
    and defaultexpiry. For backwards compatibility the setting of minexpiry
    and maxexpiry also is used to configure the subscription timer limits if
    subminexpiry and submaxexpiry are not set in sip.conf.
+
  * Set registration timer limits to default values when reloading sip
    configuration and values are not set by configuration.
+
+ * Add options namedcallgroup and namedpickupgroup to support installations
+   where a higher number of groups (>64) is required.
 
  * When a MESSAGE request is received, the address the request was received from
    is now saved in the SIP_RECVADDR variable.
@@ -369,6 +379,12 @@ chan_unistim
 
  * Added ability to pickup a call using features.conf defined value and
    on-screen key
+
+
+chan_mISDN:
+------------------
+ * Add options namedcallgroup and namedpickupgroup to support installations
+   where a higher number of groups (>64) is required.
 
 
 Core

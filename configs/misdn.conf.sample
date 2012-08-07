@@ -390,6 +390,13 @@ nodialtone=no
 ;callgroup=1
 ;pickupgroup=1
 
+; Named pickup groups and named call groups
+;
+; give a name to groups and configure any number of groups
+;
+;namedcallgroup=engineering,sales,netgroup,protgroup
+;namedpickupgroup=sales
+
 ; Set the outgoing caller id to the value.
 ;callerid="name" <number>
 

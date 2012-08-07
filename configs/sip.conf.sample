@@ -1432,6 +1432,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;callgroup=1,3-4                 ; We are in caller groups 1,3,4
 ;pickupgroup=1,3-5               ; We can do call pick-p for call group 1,3,4,5
+;namedcallgroup=engineering,sales,netgroup,protgroup ; We are in named call groups engineering,sales,netgroup,protgroup
+;namedpickupgroup=sales          ; We can do call pick-p for named call group sales
 ;defaultip=192.168.0.60          ; IP address to use if peer has not registered
 ;deny=0.0.0.0/0.0.0.0            ; ACL: Control access to this account based on IP address
 ;permit=192.168.0.60/255.255.255.0

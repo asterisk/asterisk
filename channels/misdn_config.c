@@ -70,7 +70,8 @@ enum misdn_cfg_type {
 	MISDN_CTYPE_BOOL,
 	MISDN_CTYPE_BOOLINT,
 	MISDN_CTYPE_MSNLIST,
-	MISDN_CTYPE_ASTGROUP
+	MISDN_CTYPE_ASTGROUP,
+	MISDN_CTYPE_ASTNAMEDGROUP
 };
 
 struct msn_list {
@@ -83,6 +84,7 @@ union misdn_cfg_pt {
 	int *num;
 	struct msn_list *ml;
 	ast_group_t *grp;
+	struct ast_namedgroups *namgrp;
 	void *any;
 };
 
@@ -330,6 +332,10 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"Callgroup." },
 	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE,
 		"Pickupgroup." },
+	{ "namedcallgroup", MISDN_CFG_NAMEDCALLGROUP, MISDN_CTYPE_ASTNAMEDGROUP, NO_DEFAULT, NONE,
+		"Named callgroup." },
+	{ "namedpickupgroup", MISDN_CFG_NAMEDPICKUPGROUP, MISDN_CTYPE_ASTNAMEDGROUP, NO_DEFAULT, NONE,
+		"Named pickupgroup." },
 	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE,
 		"Defines the maximum amount of incoming calls per port for this group.\n"
 		"\tCalls which exceed the maximum will be marked with the channel variable\n"
@@ -541,10 +547,13 @@ static void _free_port_cfg (void)
 	for (j = 0; free_list[j]; ++j) {
 		for (i = 0; i < NUM_PORT_ELEMENTS; ++i) {
 			if (free_list[j][i].any) {
-				if (port_spec[i].type == MISDN_CTYPE_MSNLIST)
+				if (port_spec[i].type == MISDN_CTYPE_MSNLIST) {
 					_free_msn_list(free_list[j][i].ml);
-				else
+				} else if (port_spec[i].type == MISDN_CTYPE_ASTNAMEDGROUP) {
+					ast_unref_namedgroups(free_list[j][i].namgrp);
+				} else {
 					ast_free(free_list[j][i].any);
+				}
 			}
 		}
 	}
@@ -587,6 +596,17 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 						ast_copy_string(buf, port_cfg[0][place].str, bufsize);
 					} else
 						memset(buf, 0, bufsize);
+					break;
+				case MISDN_CTYPE_ASTNAMEDGROUP:
+					if (bufsize >= sizeof(struct ast_namedgroups *)) {
+						if (port_cfg[port][place].namgrp) {
+							*(struct ast_namedgroups **)buf = port_cfg[port][place].namgrp;
+						} else if (port_cfg[0][place].namgrp) {
+							*(struct ast_namedgroups **)buf = port_cfg[0][place].namgrp;
+						} else {
+							*(struct ast_namedgroups **)buf = NULL;
+						}
+					}
 					break;
 				default:
 					if (port_cfg[port][place].any)
@@ -831,6 +851,25 @@ void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* 
 			else
 				snprintf(buf, bufsize, " -> %s:", port_spec[place].name);
 			break;
+		case MISDN_CTYPE_ASTNAMEDGROUP:
+			if (port_cfg[port][place].namgrp) {
+				struct ast_str *tmp_str = ast_str_create(1024);
+				if (tmp_str) {
+					snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name,
+							ast_print_namedgroups(&tmp_str, port_cfg[port][place].namgrp));
+					ast_free(tmp_str);
+				}
+			} else if (port_cfg[0][place].namgrp) {
+				struct ast_str *tmp_str = ast_str_create(1024);
+				if (tmp_str) {
+					snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name,
+							ast_print_namedgroups(&tmp_str, port_cfg[0][place].namgrp));
+					ast_free(tmp_str);
+				}
+			} else {
+				snprintf(buf, bufsize, " -> %s:", port_spec[place].name);
+			}
+			break;
 		case MISDN_CTYPE_MSNLIST:
 			if (port_cfg[port][place].ml)
 				iter = port_cfg[port][place].ml;
@@ -983,6 +1022,9 @@ static int _parse (union misdn_cfg_pt *dest, const char *value, enum misdn_cfg_t
 			dest->grp = ast_malloc(sizeof(ast_group_t));
 		}
 		*(dest->grp) = ast_get_group(value);
+		break;
+	case MISDN_CTYPE_ASTNAMEDGROUP:
+		dest->namgrp = ast_get_namedgroups(value);
 		break;
 	}
 

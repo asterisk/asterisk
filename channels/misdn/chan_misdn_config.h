@@ -89,6 +89,8 @@ enum misdn_cfg_elements {
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_CALLGROUP,           /* ast_group_t */
 	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
+	MISDN_CFG_NAMEDCALLGROUP,      /* ast_namedgroups * */
+	MISDN_CFG_NAMEDPICKUPGROUP,    /* ast_namedgroups * */
 	MISDN_CFG_MAX_IN,              /* int */
 	MISDN_CFG_MAX_OUT,              /* int */
 	MISDN_CFG_L1_TIMEOUT,          /* int */

@@ -1092,6 +1092,16 @@ struct dahdi_pvt {
 	 */
 	ast_group_t pickupgroup;
 	/*!
+	 * \brief Named call groups this belongs to.
+	 * \note The "namedcallgroup" string read in from chan_dahdi.conf
+	 */
+	struct ast_namedgroups *named_callgroups;
+	/*!
+	 * \brief Named pickup groups this belongs to.
+	 * \note The "namedpickupgroup" string read in from chan_dahdi.conf
+	 */
+	struct ast_namedgroups *named_pickupgroups;
+	/*!
 	 * \brief Channel variable list with associated values to set when a channel is created.
 	 * \note The "setvar" strings read in from chan_dahdi.conf
 	 */
@@ -5917,6 +5927,10 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 	if (p->cc_params) {
 		ast_cc_config_params_destroy(p->cc_params);
 	}
+
+	p->named_callgroups = ast_unref_namedgroups(p->named_callgroups);
+	p->named_pickupgroups = ast_unref_namedgroups(p->named_pickupgroups);
+
 	ast_mutex_destroy(&p->lock);
 	dahdi_close_sub(p, SUB_REAL);
 	if (p->owner)
@@ -9904,6 +9918,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		/* Only FXO signalled stuff can be picked up */
 		ast_channel_callgroup_set(tmp, i->callgroup);
 		ast_channel_pickupgroup_set(tmp, i->pickupgroup);
+		ast_channel_named_callgroups_set(tmp, i->named_callgroups);
+		ast_channel_named_pickupgroups_set(tmp, i->named_pickupgroups);
 	}
 	if (!ast_strlen_zero(i->parkinglot))
 		ast_channel_parkinglot_set(tmp, i->parkinglot);
@@ -13159,6 +13175,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->group = conf->chan.group;
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
+		ast_unref_namedgroups(tmp->named_callgroups);
+		tmp->named_callgroups = ast_ref_namedgroups(conf->chan.named_callgroups);
+		ast_unref_namedgroups(tmp->named_pickupgroups);
+		tmp->named_pickupgroups = ast_ref_namedgroups(conf->chan.named_pickupgroups);
 		if (conf->chan.vars) {
 			struct ast_variable *v, *tmpvar;
 	                for (v = conf->chan.vars ; v ; v = v->next) {
@@ -17557,6 +17577,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.pickupgroup = 0;
 			else
 				confp->chan.pickupgroup = ast_get_group(v->value);
+		} else if (!strcasecmp(v->name, "namedcallgroup")) {
+			confp->chan.named_callgroups = ast_get_namedgroups(v->value);
+		} else if (!strcasecmp(v->name, "namedpickupgroup")) {
+			confp->chan.named_pickupgroups = ast_get_namedgroups(v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
 			char *varname = ast_strdupa(v->value), *varval = NULL;
 			struct ast_variable *tmpvar;
@@ -18541,6 +18565,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		}
 		ast_cc_config_params_destroy(conf.chan.cc_params);
 	}
+
+	/* Since named callgroup and named pickup group are ref'd to dahdi_pvt at this point, unref container in confp's pvt. */
+	confp->chan.named_callgroups = ast_unref_namedgroups(confp->chan.named_callgroups);
+	confp->chan.named_pickupgroups = ast_unref_namedgroups(confp->chan.named_pickupgroups);
+
 	return 0;
 }
 
