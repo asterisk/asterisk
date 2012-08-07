@@ -1869,7 +1869,11 @@ static int jingle_interpret_description(struct jingle_session *session, iks *des
 		return -1;
 	}
 
-	ast_rtp_codecs_payloads_clear(&codecs, NULL);
+	if (ast_rtp_codecs_payloads_initialize(&codecs)) {
+		jingle_queue_hangup_with_cause(session, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
+		ast_log(LOG_ERROR, "Could not initialize codecs for negotiation on session '%s'\n", session->sid);
+		return -1;
+	}
 
 	/* Iterate the codecs updating the relevant RTP instance as we go */
 	for (codec = iks_child(description); codec; codec = iks_next(codec)) {
@@ -1894,10 +1898,12 @@ static int jingle_interpret_description(struct jingle_session *session, iks *des
 	if (ast_format_cap_is_empty(session->jointcap)) {
 		/* We have no compatible codecs, so terminate the session appropriately */
 		jingle_queue_hangup_with_cause(session, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
+		ast_rtp_codecs_payloads_destroy(&codecs);
 		return -1;
 	}
 
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(*rtp), *rtp);
+	ast_rtp_codecs_payloads_destroy(&codecs);
 
 	return 0;
 }

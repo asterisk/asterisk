@@ -218,6 +218,8 @@ static void instance_destructor(void *obj)
 		res_srtp->destroy(instance->srtp);
 	}
 
+	ast_rtp_codecs_payloads_destroy(&instance->codecs);
+
 	/* Drop our engine reference */
 	ast_module_unref(instance->engine->mod);
 
@@ -272,6 +274,11 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 	instance->engine = engine;
 	ast_sockaddr_copy(&instance->local_address, sa);
 	ast_sockaddr_copy(&address, sa);
+
+	if (ast_rtp_codecs_payloads_initialize(&instance->codecs)) {
+		ao2_ref(instance, -1);
+		return NULL;
+	}
 
 	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
 
@@ -411,18 +418,48 @@ struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *inst
 	return &instance->codecs;
 }
 
+static int rtp_payload_type_hash(const void *obj, const int flags)
+{
+	const struct ast_rtp_payload_type *type = obj;
+	const int *rtp_code = obj;
+
+	return (flags & OBJ_KEY) ? *rtp_code : type->rtp_code;
+}
+
+static int rtp_payload_type_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_payload_type *type1 = obj, *type2 = arg;
+	const int *rtp_code = arg;
+
+	return (type1->rtp_code == (OBJ_KEY ? *rtp_code : type2->rtp_code)) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+int ast_rtp_codecs_payloads_initialize(struct ast_rtp_codecs *codecs)
+{
+	if (!(codecs->payloads = ao2_container_alloc(AST_RTP_MAX_PT, rtp_payload_type_hash, rtp_payload_type_cmp))) {
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs)
+{
+	ao2_cleanup(codecs->payloads);
+}
+
 void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance)
 {
-	int i;
+	ast_rtp_codecs_payloads_destroy(codecs);
 
-	for (i = 0; i < AST_RTP_MAX_PT; i++) {
-		codecs->payloads[i].asterisk_format = 0;
-		codecs->payloads[i].rtp_code = 0;
-		ast_format_clear(&codecs->payloads[i].format);
-		if (instance && instance->engine && instance->engine->payload_set) {
+	if (instance && instance->engine && instance->engine->payload_set) {
+		int i;
+		for (i = 0; i < AST_RTP_MAX_PT; i++) {
 			instance->engine->payload_set(instance, i, 0, NULL, 0);
 		}
 	}
+
+	ast_rtp_codecs_payloads_initialize(codecs);
 }
 
 void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance)
@@ -432,13 +469,27 @@ void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_r
 	ast_rwlock_rdlock(&static_RTP_PT_lock);
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
 		if (static_RTP_PT[i].rtp_code || static_RTP_PT[i].asterisk_format) {
+			struct ast_rtp_payload_type *type;
 
-			codecs->payloads[i].asterisk_format = static_RTP_PT[i].asterisk_format;
-			codecs->payloads[i].rtp_code = static_RTP_PT[i].rtp_code;
-			ast_format_copy(&codecs->payloads[i].format, &static_RTP_PT[i].format);
-			if (instance && instance->engine && instance->engine->payload_set) {
-				instance->engine->payload_set(instance, i, codecs->payloads[i].asterisk_format, &codecs->payloads[i].format, codecs->payloads[i].rtp_code);
+			if (!(type = ao2_alloc(sizeof(*type), NULL))) {
+				/* Unfortunately if this occurs the payloads container will not contain all possible default payloads
+				 * but we err on the side of doing what we can in the hopes that the extreme memory conditions which
+				 * caused this to occur will go away.
+				 */
+				continue;
 			}
+
+			type->asterisk_format = static_RTP_PT[i].asterisk_format;
+			type->rtp_code = static_RTP_PT[i].rtp_code;
+			ast_format_copy(&type->format, &static_RTP_PT[i].format);
+
+			ao2_link_flags(codecs->payloads, type, OBJ_NOLOCK);
+
+			if (instance && instance->engine && instance->engine->payload_set) {
+				instance->engine->payload_set(instance, i, type->asterisk_format, &type->format, type->rtp_code);
+			}
+
+			ao2_ref(type, -1);
 		}
 	}
 	ast_rwlock_unlock(&static_RTP_PT_lock);
@@ -447,38 +498,57 @@ void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_r
 void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
 {
 	int i;
+	struct ast_rtp_payload_type *type;
 
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
-		if (src->payloads[i].rtp_code || src->payloads[i].asterisk_format) {
-			ast_debug(2, "Copying payload %d from %p to %p\n", i, src, dest);
-			dest->payloads[i].asterisk_format = src->payloads[i].asterisk_format;
-			dest->payloads[i].rtp_code = src->payloads[i].rtp_code;
-			ast_format_copy(&dest->payloads[i].format, &src->payloads[i].format);
-			if (instance && instance->engine && instance->engine->payload_set) {
-				instance->engine->payload_set(instance, i, dest->payloads[i].asterisk_format, &dest->payloads[i].format, dest->payloads[i].rtp_code);
-			}
+		struct ast_rtp_payload_type *new_type;
+
+		if (!(type = ao2_find(src->payloads, &i, OBJ_KEY | OBJ_NOLOCK))) {
+			continue;
 		}
+
+		if (!(new_type = ao2_alloc(sizeof(*new_type), NULL))) {
+			continue;
+		}
+
+		ast_debug(2, "Copying payload %d from %p to %p\n", i, src, dest);
+
+		*new_type = *type;
+
+		ao2_link_flags(dest->payloads, new_type, OBJ_NOLOCK);
+
+		ao2_ref(new_type, -1);
+
+		if (instance && instance->engine && instance->engine->payload_set) {
+			instance->engine->payload_set(instance, i, type->asterisk_format, &type->format, type->rtp_code);
+		}
+
+		ao2_ref(type, -1);
 	}
 }
 
 void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload)
 {
+	struct ast_rtp_payload_type *type;
 
 	ast_rwlock_rdlock(&static_RTP_PT_lock);
-	if (payload < 0 || payload >= AST_RTP_MAX_PT || (!static_RTP_PT[payload].rtp_code && !static_RTP_PT[payload].asterisk_format)) {
+	if (payload < 0 || payload >= AST_RTP_MAX_PT || !(type = ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK))) {
 		ast_rwlock_unlock(&static_RTP_PT_lock);
 		return;
 	}
 
-	codecs->payloads[payload].asterisk_format = static_RTP_PT[payload].asterisk_format;
-	codecs->payloads[payload].rtp_code = static_RTP_PT[payload].rtp_code;
-	ast_format_copy(&codecs->payloads[payload].format, &static_RTP_PT[payload].format);
+	type->asterisk_format = static_RTP_PT[payload].asterisk_format;
+	type->rtp_code = static_RTP_PT[payload].rtp_code;
+	ast_format_copy(&type->format, &static_RTP_PT[payload].format);
 
 	ast_debug(1, "Setting payload %d based on m type on %p\n", payload, codecs);
 
 	if (instance && instance->engine && instance->engine->payload_set) {
-		instance->engine->payload_set(instance, payload, codecs->payloads[payload].asterisk_format, &codecs->payloads[payload].format, codecs->payloads[payload].rtp_code);
+		instance->engine->payload_set(instance, payload, type->asterisk_format, &type->format, type->rtp_code);
 	}
+
+	ao2_ref(type, -1);
+
 	ast_rwlock_unlock(&static_RTP_PT_lock);
 }
 
@@ -496,6 +566,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 	ast_rwlock_rdlock(&mime_types_lock);
 	for (i = 0; i < mime_types_len; ++i) {
 		const struct ast_rtp_mime_type *t = &ast_rtp_mime_types[i];
+		struct ast_rtp_payload_type *type;
 
 		if (strcasecmp(mimesubtype, t->subtype)) {
 			continue;
@@ -514,15 +585,25 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		}
 
 		found = 1;
-		codecs->payloads[pt] = t->payload_type;
+
+		if (!(type = ao2_find(codecs->payloads, &pt, OBJ_KEY | OBJ_NOLOCK))) {
+			if (!(type = ao2_alloc(sizeof(*type), NULL))) {
+				continue;
+			}
+			ao2_link_flags(codecs->payloads, type, OBJ_NOLOCK);
+		}
+
+		*type = t->payload_type;
 
 		if ((t->payload_type.format.id == AST_FORMAT_G726) && t->payload_type.asterisk_format && (options & AST_RTP_OPT_G726_NONSTANDARD)) {
-			ast_format_set(&codecs->payloads[pt].format, AST_FORMAT_G726_AAL2, 0);
+			ast_format_set(&type->format, AST_FORMAT_G726_AAL2, 0);
 		}
 
 		if (instance && instance->engine && instance->engine->payload_set) {
-			instance->engine->payload_set(instance, pt, codecs->payloads[i].asterisk_format, &codecs->payloads[i].format, codecs->payloads[i].rtp_code);
+			instance->engine->payload_set(instance, pt, type->asterisk_format, &type->format, type->rtp_code);
 		}
+
+		ao2_ref(type, -1);
 
 		break;
 	}
@@ -544,9 +625,7 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 
 	ast_debug(2, "Unsetting payload %d on %p\n", payload, codecs);
 
-	codecs->payloads[payload].asterisk_format = 0;
-	codecs->payloads[payload].rtp_code = 0;
-	ast_format_clear(&codecs->payloads[payload].format);
+	ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK | OBJ_NODATA | OBJ_UNLINK);
 
 	if (instance && instance->engine && instance->engine->payload_set) {
 		instance->engine->payload_set(instance, payload, 0, NULL, 0);
@@ -555,15 +634,16 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 
 struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs *codecs, int payload)
 {
-	struct ast_rtp_payload_type result = { .asterisk_format = 0, };
+	struct ast_rtp_payload_type result = { .asterisk_format = 0, }, *type;
 
 	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
 		return result;
 	}
 
-	result.asterisk_format = codecs->payloads[payload].asterisk_format;
-	result.rtp_code = codecs->payloads[payload].rtp_code;
-	ast_format_copy(&result.format, &codecs->payloads[payload].format);
+	if ((type = ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK))) {
+		result = *type;
+		ao2_ref(type, -1);
+	}
 
 	if (!result.rtp_code && !result.asterisk_format) {
 		ast_rwlock_rdlock(&static_RTP_PT_lock);
@@ -577,46 +657,78 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
 
 struct ast_format *ast_rtp_codecs_get_payload_format(struct ast_rtp_codecs *codecs, int payload)
 {
+	struct ast_rtp_payload_type *type;
+	struct ast_format *format;
+
 	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
 		return NULL;
 	}
-	if (!codecs->payloads[payload].asterisk_format) {
+
+	if (!(type = ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK))) {
 		return NULL;
 	}
-	return &codecs->payloads[payload].format;
+
+	format = type->asterisk_format ? &type->format : NULL;
+
+	ao2_ref(type, -1);
+
+	return format;
+}
+
+static int rtp_payload_type_add_ast(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_payload_type *type = obj;
+	struct ast_format_cap *astformats = arg;
+
+	if (type->asterisk_format) {
+		ast_format_cap_add(astformats, &type->format);
+	}
+
+	return 0;
+}
+
+static int rtp_payload_type_add_nonast(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_payload_type *type = obj;
+	int *nonastformats = arg;
+
+	if (!type->asterisk_format) {
+		*nonastformats |= type->rtp_code;
+	}
+
+	return 0;
 }
 
 void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_format_cap *astformats, int *nonastformats)
 {
-	int i;
-
 	ast_format_cap_remove_all(astformats);
 	*nonastformats = 0;
 
-	for (i = 0; i < AST_RTP_MAX_PT; i++) {
-		if (codecs->payloads[i].rtp_code || codecs->payloads[i].asterisk_format) {
-			ast_debug(1, "Incorporating payload %d on %p\n", i, codecs);
-		}
-		if (codecs->payloads[i].asterisk_format) {
-			ast_format_cap_add(astformats, &codecs->payloads[i].format);
-		} else {
-			*nonastformats |= codecs->payloads[i].rtp_code;
-		}
-	}
+	ao2_callback(codecs->payloads, OBJ_NODATA | OBJ_MULTIPLE | OBJ_NOLOCK, rtp_payload_type_add_ast, astformats);
+	ao2_callback(codecs->payloads, OBJ_NODATA | OBJ_MULTIPLE | OBJ_NOLOCK, rtp_payload_type_add_nonast, nonastformats);
+}
+
+static int rtp_payload_type_find_format(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_payload_type *type = obj;
+	struct ast_format *format = arg;
+
+	return (type->asterisk_format && (ast_format_cmp(&type->format, format) != AST_FORMAT_CMP_NOT_EQUAL)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
 {
-	int i;
-	int res = -1;
-	for (i = 0; i < AST_RTP_MAX_PT; i++) {
-		if (codecs->payloads[i].asterisk_format && asterisk_format && format &&
-			(ast_format_cmp(format, &codecs->payloads[i].format) != AST_FORMAT_CMP_NOT_EQUAL)) {
-			return i;
-		} else if (!codecs->payloads[i].asterisk_format && !asterisk_format &&
-			(codecs->payloads[i].rtp_code == code)) {
-			return i;
-		}
+	struct ast_rtp_payload_type *type;
+	int i, res = -1;
+
+	if (asterisk_format && format && (type = ao2_callback(codecs->payloads, OBJ_NOLOCK, rtp_payload_type_find_format, (void*)format))) {
+		res = type->rtp_code;
+		ao2_ref(type, -1);
+		return res;
+	} else if (!asterisk_format && (type = ao2_find(codecs->payloads, &code, OBJ_NOLOCK | OBJ_KEY))) {
+		res = type->rtp_code;
+		ao2_ref(type, -1);
+		return res;
 	}
 
 	ast_rwlock_rdlock(&static_RTP_PT_lock);

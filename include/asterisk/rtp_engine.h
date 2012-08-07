@@ -431,10 +431,10 @@ struct ast_rtp_engine {
 
 /*! Structure that represents codec and packetization information */
 struct ast_rtp_codecs {
+	/*! Payloads present */
+	struct ao2_container *payloads;
 	/*! Codec packetization preferences */
 	struct ast_codec_pref pref;
-	/*! Payloads present */
-	struct ast_rtp_payload_type payloads[AST_RTP_MAX_PT];
 };
 
 /*! Structure that represents the glue that binds an RTP instance to a channel */
@@ -943,6 +943,41 @@ int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_pr
  * \since 1.8
  */
 struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Initialize an RTP codecs structure
+ *
+ * \param codecs The codecs structure to initialize
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_rtp_codecs codecs;
+ * ast_rtp_codecs_payloads_initialize(&codecs);
+ * \endcode
+ *
+ * \since 11
+ */
+int ast_rtp_codecs_payloads_initialize(struct ast_rtp_codecs *codecs);
+
+/*!
+ * \brief Destroy the contents of an RTP codecs structure (but not the structure itself)
+ *
+ * \param codecs The codecs structure to destroy the contents of
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_rtp_codecs codecs;
+ * ast_rtp_codecs_payloads_destroy(&codecs);
+ * \endcode
+ *
+ * \since 11
+ */
+void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs);
 
 /*!
  * \brief Clear payload information from an RTP instance
