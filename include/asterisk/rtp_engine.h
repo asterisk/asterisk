@@ -236,7 +236,8 @@ struct ast_rtp_payload_type {
 	struct ast_format format;
 	/*! Actual internal RTP specific value of the payload */
 	int rtp_code;
-
+	/*! Actual payload number */
+	int payload;
 };
 
 /*! Structure that represents statistics from an RTP instance */
