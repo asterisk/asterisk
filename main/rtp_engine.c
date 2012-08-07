@@ -590,10 +590,12 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 			if (!(type = ao2_alloc(sizeof(*type), NULL))) {
 				continue;
 			}
+			type->rtp_code = pt;
 			ao2_link_flags(codecs->payloads, type, OBJ_NOLOCK);
 		}
 
 		*type = t->payload_type;
+		type->rtp_code = pt;
 
 		if ((t->payload_type.format.id == AST_FORMAT_G726) && t->payload_type.asterisk_format && (options & AST_RTP_OPT_G726_NONSTANDARD)) {
 			ast_format_set(&type->format, AST_FORMAT_G726_AAL2, 0);
