@@ -153,8 +153,10 @@ struct sig_ss7_callback {
 	void (* const open_media)(void *pvt);
 };
 
+/*! Global sig_ss7 callbacks to the upper layer. */
+extern struct sig_ss7_callback sig_ss7_callbacks;
+
 struct sig_ss7_chan {
-	struct sig_ss7_callback *calls;
 	void *chan_pvt;					/*!< Private structure of the user of this module. */
 	struct sig_ss7_linkset *ss7;
 	struct ast_channel *owner;
@@ -250,7 +252,6 @@ struct sig_ss7_chan {
 struct sig_ss7_linkset {
 	pthread_t master;					/*!< Thread of master */
 	ast_mutex_t lock;					/*!< libss7 access lock */
-	struct sig_ss7_callback *calls;
 	struct ss7 *ss7;
 	struct sig_ss7_chan *pvts[SIG_SS7_MAX_CHANNELS];/*!< Member channel pvt structs */
 	int fds[SIG_SS7_NUM_DCHANS];
@@ -291,7 +292,7 @@ void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condition, const void *data, size_t datalen);
 struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law, const struct ast_channel *requestor, int transfercapability);
 void sig_ss7_chan_delete(struct sig_ss7_chan *doomed);
-struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_callback *callback, struct sig_ss7_linkset *ss7);
+struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_linkset *ss7);
 void sig_ss7_init_linkset(struct sig_ss7_linkset *ss7);
 
 void sig_ss7_cli_show_channels_header(int fd);

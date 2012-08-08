@@ -3614,7 +3614,7 @@ static int my_ss7_play_tone(void *pvt, enum sig_ss7_tone tone)
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
-static struct sig_ss7_callback dahdi_ss7_callbacks =
+struct sig_ss7_callback sig_ss7_callbacks =
 {
 	.lock_private = my_lock_private,
 	.unlock_private = my_unlock_private,
@@ -12653,7 +12653,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					destroy_dahdi_pvt(tmp);
 					return NULL;
 				}
-				ss7_chan = sig_ss7_chan_new(tmp, &dahdi_ss7_callbacks, &ss7->ss7);
+				ss7_chan = sig_ss7_chan_new(tmp, &ss7->ss7);
 				if (!ss7_chan) {
 					destroy_dahdi_pvt(tmp);
 					return NULL;
@@ -18855,7 +18855,6 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 		int x;
 		for (x = 0; x < NUM_SPANS; x++) {
 			if (linksets[x].ss7.ss7) {
-				linksets[x].ss7.calls = &dahdi_ss7_callbacks;
 				if (ast_pthread_create(&linksets[x].ss7.master, NULL, ss7_linkset, &linksets[x].ss7)) {
 					ast_log(LOG_ERROR, "Unable to start SS7 linkset on span %d\n", x + 1);
 					return -1;

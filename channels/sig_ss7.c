@@ -72,22 +72,22 @@ static const char *sig_ss7_call_level2str(enum sig_ss7_call_level level)
 
 static void sig_ss7_unlock_private(struct sig_ss7_chan *p)
 {
-	if (p->calls->unlock_private) {
-		p->calls->unlock_private(p->chan_pvt);
+	if (sig_ss7_callbacks.unlock_private) {
+		sig_ss7_callbacks.unlock_private(p->chan_pvt);
 	}
 }
 
 static void sig_ss7_lock_private(struct sig_ss7_chan *p)
 {
-	if (p->calls->lock_private) {
-		p->calls->lock_private(p->chan_pvt);
+	if (sig_ss7_callbacks.lock_private) {
+		sig_ss7_callbacks.lock_private(p->chan_pvt);
 	}
 }
 
 static void sig_ss7_deadlock_avoidance_private(struct sig_ss7_chan *p)
 {
-	if (p->calls->deadlock_avoidance_private) {
-		p->calls->deadlock_avoidance_private(p->chan_pvt);
+	if (sig_ss7_callbacks.deadlock_avoidance_private) {
+		sig_ss7_callbacks.deadlock_avoidance_private(p->chan_pvt);
 	} else {
 		/* Fallback to the old way if callback not present. */
 		sig_ss7_unlock_private(p);
@@ -99,53 +99,53 @@ static void sig_ss7_deadlock_avoidance_private(struct sig_ss7_chan *p)
 void sig_ss7_set_alarm(struct sig_ss7_chan *p, int in_alarm)
 {
 	p->inalarm = in_alarm;
-	if (p->calls->set_alarm) {
-		p->calls->set_alarm(p->chan_pvt, in_alarm);
+	if (sig_ss7_callbacks.set_alarm) {
+		sig_ss7_callbacks.set_alarm(p->chan_pvt, in_alarm);
 	}
 }
 
 static void sig_ss7_set_dialing(struct sig_ss7_chan *p, int is_dialing)
 {
-	if (p->calls->set_dialing) {
-		p->calls->set_dialing(p->chan_pvt, is_dialing);
+	if (sig_ss7_callbacks.set_dialing) {
+		sig_ss7_callbacks.set_dialing(p->chan_pvt, is_dialing);
 	}
 }
 
 static void sig_ss7_set_digital(struct sig_ss7_chan *p, int is_digital)
 {
-	if (p->calls->set_digital) {
-		p->calls->set_digital(p->chan_pvt, is_digital);
+	if (sig_ss7_callbacks.set_digital) {
+		sig_ss7_callbacks.set_digital(p->chan_pvt, is_digital);
 	}
 }
 
 static void sig_ss7_set_outgoing(struct sig_ss7_chan *p, int is_outgoing)
 {
 	p->outgoing = is_outgoing;
-	if (p->calls->set_outgoing) {
-		p->calls->set_outgoing(p->chan_pvt, is_outgoing);
+	if (sig_ss7_callbacks.set_outgoing) {
+		sig_ss7_callbacks.set_outgoing(p->chan_pvt, is_outgoing);
 	}
 }
 
 static void sig_ss7_set_inservice(struct sig_ss7_chan *p, int is_inservice)
 {
-	if (p->calls->set_inservice) {
-		p->calls->set_inservice(p->chan_pvt, is_inservice);
+	if (sig_ss7_callbacks.set_inservice) {
+		sig_ss7_callbacks.set_inservice(p->chan_pvt, is_inservice);
 	}
 }
 
 static void sig_ss7_set_locallyblocked(struct sig_ss7_chan *p, int is_blocked)
 {
 	p->locallyblocked = is_blocked;
-	if (p->calls->set_locallyblocked) {
-		p->calls->set_locallyblocked(p->chan_pvt, is_blocked);
+	if (sig_ss7_callbacks.set_locallyblocked) {
+		sig_ss7_callbacks.set_locallyblocked(p->chan_pvt, is_blocked);
 	}
 }
 
 static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked)
 {
 	p->remotelyblocked = is_blocked;
-	if (p->calls->set_remotelyblocked) {
-		p->calls->set_remotelyblocked(p->chan_pvt, is_blocked);
+	if (sig_ss7_callbacks.set_remotelyblocked) {
+		sig_ss7_callbacks.set_remotelyblocked(p->chan_pvt, is_blocked);
 	}
 }
 
@@ -160,8 +160,8 @@ static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked)
  */
 static void sig_ss7_open_media(struct sig_ss7_chan *p)
 {
-	if (p->calls->open_media) {
-		p->calls->open_media(p->chan_pvt);
+	if (sig_ss7_callbacks.open_media) {
+		sig_ss7_callbacks.open_media(p->chan_pvt);
 	}
 }
 
@@ -178,7 +178,7 @@ static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
 {
 	struct ast_party_caller caller;
 
-	if (p->calls->set_callerid) {
+	if (sig_ss7_callbacks.set_callerid) {
 		ast_party_caller_init(&caller);
 
 		caller.id.name.str = p->cid_name;
@@ -203,7 +203,7 @@ static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
 		caller.ani.number.valid = 1;
 
 		caller.ani2 = p->cid_ani2;
-		p->calls->set_callerid(p->chan_pvt, &caller);
+		sig_ss7_callbacks.set_callerid(p->chan_pvt, &caller);
 	}
 }
 
@@ -219,8 +219,8 @@ static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
  */
 static void sig_ss7_set_dnid(struct sig_ss7_chan *p, const char *dnid)
 {
-	if (p->calls->set_dnid) {
-		p->calls->set_dnid(p->chan_pvt, dnid);
+	if (sig_ss7_callbacks.set_dnid) {
+		sig_ss7_callbacks.set_dnid(p->chan_pvt, dnid);
 	}
 }
 
@@ -228,8 +228,8 @@ static int sig_ss7_play_tone(struct sig_ss7_chan *p, enum sig_ss7_tone tone)
 {
 	int res;
 
-	if (p->calls->play_tone) {
-		res = p->calls->play_tone(p->chan_pvt, tone);
+	if (sig_ss7_callbacks.play_tone) {
+		res = sig_ss7_callbacks.play_tone(p->chan_pvt, tone);
 	} else {
 		res = -1;
 	}
@@ -238,8 +238,8 @@ static int sig_ss7_play_tone(struct sig_ss7_chan *p, enum sig_ss7_tone tone)
 
 static int sig_ss7_set_echocanceller(struct sig_ss7_chan *p, int enable)
 {
-	if (p->calls->set_echocanceller) {
-		return p->calls->set_echocanceller(p->chan_pvt, enable);
+	if (sig_ss7_callbacks.set_echocanceller) {
+		return sig_ss7_callbacks.set_echocanceller(p->chan_pvt, enable);
 	}
 	return -1;
 }
@@ -248,8 +248,8 @@ static void sig_ss7_loopback(struct sig_ss7_chan *p, int enable)
 {
 	if (p->loopedback != enable) {
 		p->loopedback = enable;
-		if (p->calls->set_loopback) {
-			p->calls->set_loopback(p->chan_pvt, enable);
+		if (sig_ss7_callbacks.set_loopback) {
+			sig_ss7_callbacks.set_loopback(p->chan_pvt, enable);
 		}
 	}
 }
@@ -258,8 +258,8 @@ static struct ast_channel *sig_ss7_new_ast_channel(struct sig_ss7_chan *p, int s
 {
 	struct ast_channel *ast;
 
-	if (p->calls->new_ast_channel) {
-		ast = p->calls->new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
+	if (sig_ss7_callbacks.new_ast_channel) {
+		ast = sig_ss7_callbacks.new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
 	} else {
 		return NULL;
 	}
@@ -283,8 +283,8 @@ static struct ast_channel *sig_ss7_new_ast_channel(struct sig_ss7_chan *p, int s
 
 static void sig_ss7_handle_link_exception(struct sig_ss7_linkset *linkset, int which)
 {
-	if (linkset->calls->handle_link_exception) {
-		linkset->calls->handle_link_exception(linkset, which);
+	if (sig_ss7_callbacks.handle_link_exception) {
+		sig_ss7_callbacks.handle_link_exception(linkset, which);
 	}
 }
 
@@ -362,8 +362,8 @@ static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int 
 	struct ast_frame f = {AST_FRAME_CONTROL, };
 	struct sig_ss7_chan *p = ss7->pvts[chanpos];
 
-	if (p->calls->queue_control) {
-		p->calls->queue_control(p->chan_pvt, subclass);
+	if (sig_ss7_callbacks.queue_control) {
+		sig_ss7_callbacks.queue_control(p->chan_pvt, subclass);
 	}
 
 	f.subclass.integer = subclass;
@@ -1944,13 +1944,12 @@ void sig_ss7_cli_show_channels(int fd, struct sig_ss7_linkset *linkset)
  * \since 1.8
  *
  * \param pvt_data Upper layer private data structure.
- * \param callback Callbacks to the upper layer.
  * \param ss7 Controlling linkset for the channel.
  *
  * \retval sig_ss7_chan on success.
  * \retval NULL on error.
  */
-struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_callback *callback, struct sig_ss7_linkset *ss7)
+struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_linkset *ss7)
 {
 	struct sig_ss7_chan *pvt;
 
@@ -1959,7 +1958,6 @@ struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_callback *c
 		return pvt;
 	}
 
-	pvt->calls = callback;
 	pvt->chan_pvt = pvt_data;
 	pvt->ss7 = ss7;
 
