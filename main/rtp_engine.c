@@ -534,9 +534,19 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 	struct ast_rtp_payload_type *type;
 
 	ast_rwlock_rdlock(&static_RTP_PT_lock);
-	if (payload < 0 || payload >= AST_RTP_MAX_PT || !(type = ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK))) {
+
+	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
 		ast_rwlock_unlock(&static_RTP_PT_lock);
 		return;
+	}
+
+	if (!(type = ao2_find(codecs->payloads, &payload, OBJ_KEY | OBJ_NOLOCK))) {
+		if (!(type = ao2_alloc(sizeof(*type), NULL))) {
+			ast_rwlock_unlock(&static_RTP_PT_lock);
+			return;
+		}
+		type->payload = payload;
+		ao2_link_flags(codecs->payloads, type, OBJ_NOLOCK);
 	}
 
 	type->asterisk_format = static_RTP_PT[payload].asterisk_format;
