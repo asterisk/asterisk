@@ -1035,6 +1035,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 					}
 				}
 			} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
+				ast_autochan_destroy(autochan);
 				iter = ast_channel_iterator_destroy(iter);
 				goto exit;
 			}
