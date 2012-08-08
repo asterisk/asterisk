@@ -224,6 +224,9 @@ Functions
    presence state information from a CustomPresence presence state provider.
    See AMI/CLI changes for related commands.
 
+ * Added the AMI_CLIENT function to make manager account attributes available
+   to the dialplan. It currently supports returning the current number of
+   active sessions for a given account.
 
 Channel Drivers
 ------------------
