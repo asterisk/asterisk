@@ -203,7 +203,6 @@ static const struct {
 	const char *name;
 	const char *desc;
 } causes[] = {
-	{ AST_CAUSE_NOTDEFINED, "NOTDEFINED", "Cause not defined" },
 	{ AST_CAUSE_UNALLOCATED, "UNALLOCATED", "Unallocated (unassigned) number" },
 	{ AST_CAUSE_NO_ROUTE_TRANSIT_NET, "NO_ROUTE_TRANSIT_NET", "No route to specified transmit network" },
 	{ AST_CAUSE_NO_ROUTE_DESTINATION, "NO_ROUTE_DESTINATION", "No route to destination" },
