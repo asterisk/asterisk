@@ -231,6 +231,9 @@ struct sig_pri_callback {
 	void (*module_unref)(void);
 };
 
+/*! Global sig_pri callbacks to the upper layer. */
+extern struct sig_pri_callback sig_pri_callbacks;
+
 #define SIG_PRI_NUM_DCHANS		4		/*!< No more than 4 d-channels */
 #define SIG_PRI_MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 
@@ -358,7 +361,6 @@ struct sig_pri_chan {
 	unsigned service_status;
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
-	struct sig_pri_callback *calls;
 	void *chan_pvt;					/*!< Private structure of the user of this module. */
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	/*!
@@ -583,7 +585,6 @@ struct sig_pri_span {
 	pthread_t master;							/*!< Thread of master */
 	ast_mutex_t lock;							/*!< libpri access Mutex */
 	time_t lastreset;							/*!< time when unused channels were last reset */
-	struct sig_pri_callback *calls;
 	/*!
 	 * \brief Congestion device state of the span.
 	 * \details
@@ -648,7 +649,7 @@ void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup);
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup);
 void sig_pri_chan_delete(struct sig_pri_chan *doomed);
 
 int pri_is_up(struct sig_pri_span *pri);

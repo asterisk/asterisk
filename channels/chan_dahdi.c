@@ -3442,7 +3442,7 @@ static void my_pri_init_config(void *priv, struct sig_pri_span *pri);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 static int dahdi_new_pri_nobch_channel(struct sig_pri_span *pri);
 
-static struct sig_pri_callback dahdi_pri_callbacks =
+struct sig_pri_callback sig_pri_callbacks =
 {
 	.handle_dchan_exception = my_handle_dchan_exception,
 	.play_tone = my_pri_play_tone,
@@ -12812,8 +12812,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 							return NULL;
 						}
 
-						ast_debug(4, "Adding callbacks %p to chan %d\n", &dahdi_pri_callbacks, tmp->channel);
-						pri_chan = sig_pri_chan_new(tmp, &dahdi_pri_callbacks, &pris[span].pri, tmp->logicalspan, p.chanpos, pris[span].mastertrunkgroup);
+						pri_chan = sig_pri_chan_new(tmp, &pris[span].pri, tmp->logicalspan, p.chanpos, pris[span].mastertrunkgroup);
 						if (!pri_chan) {
 							destroy_dahdi_pvt(tmp);
 							return NULL;
@@ -13596,7 +13595,7 @@ static int dahdi_new_pri_nobch_channel(struct sig_pri_span *pri)
 	pvt->faxbuf_no = dahdi_pseudo_parms.faxbuf_no;
 	pvt->faxbuf_policy = dahdi_pseudo_parms.faxbuf_policy;
 
-	chan = sig_pri_chan_new(pvt, &dahdi_pri_callbacks, pri, 0, 0, 0);
+	chan = sig_pri_chan_new(pvt, pri, 0, 0, 0);
 	if (!chan) {
 		destroy_dahdi_pvt(pvt);
 		return -1;
@@ -14435,8 +14434,6 @@ static int prepare_pri(struct dahdi_pri *pri)
 	struct dahdi_params p;
 	struct dahdi_bufferinfo bi;
 	struct dahdi_spaninfo si;
-
-	pri->pri.calls = &dahdi_pri_callbacks;
 
 	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (!pri->dchannels[i])

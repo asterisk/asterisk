@@ -161,30 +161,31 @@ static unsigned int PVT_TO_CHANNEL(struct sig_pri_chan *p)
 
 static void sig_pri_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
-	if (pri->calls->handle_dchan_exception)
-		pri->calls->handle_dchan_exception(pri, index);
+	if (sig_pri_callbacks.handle_dchan_exception) {
+		sig_pri_callbacks.handle_dchan_exception(pri, index);
+	}
 }
 
 static void sig_pri_set_dialing(struct sig_pri_chan *p, int is_dialing)
 {
-	if (p->calls->set_dialing) {
-		p->calls->set_dialing(p->chan_pvt, is_dialing);
+	if (sig_pri_callbacks.set_dialing) {
+		sig_pri_callbacks.set_dialing(p->chan_pvt, is_dialing);
 	}
 }
 
 static void sig_pri_set_digital(struct sig_pri_chan *p, int is_digital)
 {
 	p->digital = is_digital;
-	if (p->calls->set_digital) {
-		p->calls->set_digital(p->chan_pvt, is_digital);
+	if (sig_pri_callbacks.set_digital) {
+		sig_pri_callbacks.set_digital(p->chan_pvt, is_digital);
 	}
 }
 
 static void sig_pri_set_outgoing(struct sig_pri_chan *p, int is_outgoing)
 {
 	p->outgoing = is_outgoing;
-	if (p->calls->set_outgoing) {
-		p->calls->set_outgoing(p->chan_pvt, is_outgoing);
+	if (sig_pri_callbacks.set_outgoing) {
+		sig_pri_callbacks.set_outgoing(p->chan_pvt, is_outgoing);
 	}
 }
 
@@ -203,15 +204,15 @@ void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
 	p->resetting = SIG_PRI_RESET_IDLE;
 
 	p->inalarm = in_alarm;
-	if (p->calls->set_alarm) {
-		p->calls->set_alarm(p->chan_pvt, in_alarm);
+	if (sig_pri_callbacks.set_alarm) {
+		sig_pri_callbacks.set_alarm(p->chan_pvt, in_alarm);
 	}
 }
 
 static const char *sig_pri_get_orig_dialstring(struct sig_pri_chan *p)
 {
-	if (p->calls->get_orig_dialstring) {
-		return p->calls->get_orig_dialstring(p->chan_pvt);
+	if (sig_pri_callbacks.get_orig_dialstring) {
+		return sig_pri_callbacks.get_orig_dialstring(p->chan_pvt);
 	}
 	ast_log(LOG_ERROR, "get_orig_dialstring callback not defined\n");
 	return "";
@@ -220,8 +221,8 @@ static const char *sig_pri_get_orig_dialstring(struct sig_pri_chan *p)
 #if defined(HAVE_PRI_CCSS)
 static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t buf_size)
 {
-	if (p->calls->make_cc_dialstring) {
-		p->calls->make_cc_dialstring(p->chan_pvt, buf, buf_size);
+	if (sig_pri_callbacks.make_cc_dialstring) {
+		sig_pri_callbacks.make_cc_dialstring(p->chan_pvt, buf, buf_size);
 	} else {
 		ast_log(LOG_ERROR, "make_cc_dialstring callback not defined\n");
 		buf[0] = '\0';
@@ -231,8 +232,8 @@ static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t
 
 static void sig_pri_dial_digits(struct sig_pri_chan *p, const char *dial_string)
 {
-	if (p->calls->dial_digits) {
-		p->calls->dial_digits(p->chan_pvt, dial_string);
+	if (sig_pri_callbacks.dial_digits) {
+		sig_pri_callbacks.dial_digits(p->chan_pvt, dial_string);
 	}
 }
 
@@ -249,8 +250,8 @@ static void sig_pri_dial_digits(struct sig_pri_chan *p, const char *dial_string)
  */
 static void sig_pri_span_devstate_changed(struct sig_pri_span *pri)
 {
-	if (pri->calls->update_span_devstate) {
-		pri->calls->update_span_devstate(pri);
+	if (sig_pri_callbacks.update_span_devstate) {
+		sig_pri_callbacks.update_span_devstate(pri);
 	}
 }
 
@@ -267,7 +268,7 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 {
 	struct ast_party_caller caller;
 
-	if (p->calls->set_callerid) {
+	if (sig_pri_callbacks.set_callerid) {
 		ast_party_caller_init(&caller);
 
 		caller.id.name.str = p->cid_name;
@@ -293,7 +294,7 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 		caller.ani.number.valid = 1;
 
 		caller.ani2 = p->cid_ani2;
-		p->calls->set_callerid(p->chan_pvt, &caller);
+		sig_pri_callbacks.set_callerid(p->chan_pvt, &caller);
 	}
 }
 
@@ -309,8 +310,8 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
  */
 static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
 {
-	if (p->calls->set_dnid) {
-		p->calls->set_dnid(p->chan_pvt, dnid);
+	if (sig_pri_callbacks.set_dnid) {
+		sig_pri_callbacks.set_dnid(p->chan_pvt, dnid);
 	}
 }
 
@@ -326,27 +327,29 @@ static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
  */
 static void sig_pri_set_rdnis(struct sig_pri_chan *p, const char *rdnis)
 {
-	if (p->calls->set_rdnis) {
-		p->calls->set_rdnis(p->chan_pvt, rdnis);
+	if (sig_pri_callbacks.set_rdnis) {
+		sig_pri_callbacks.set_rdnis(p->chan_pvt, rdnis);
 	}
 }
 
 static void sig_pri_unlock_private(struct sig_pri_chan *p)
 {
-	if (p->calls->unlock_private)
-		p->calls->unlock_private(p->chan_pvt);
+	if (sig_pri_callbacks.unlock_private) {
+		sig_pri_callbacks.unlock_private(p->chan_pvt);
+	}
 }
 
 static void sig_pri_lock_private(struct sig_pri_chan *p)
 {
-	if (p->calls->lock_private)
-		p->calls->lock_private(p->chan_pvt);
+	if (sig_pri_callbacks.lock_private) {
+		sig_pri_callbacks.lock_private(p->chan_pvt);
+	}
 }
 
 static void sig_pri_deadlock_avoidance_private(struct sig_pri_chan *p)
 {
-	if (p->calls->deadlock_avoidance_private) {
-		p->calls->deadlock_avoidance_private(p->chan_pvt);
+	if (sig_pri_callbacks.deadlock_avoidance_private) {
+		sig_pri_callbacks.deadlock_avoidance_private(p->chan_pvt);
 	} else {
 		/* Fallback to the old way if callback not present. */
 		sig_pri_unlock_private(p);
@@ -927,39 +930,42 @@ static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_chan
  */
 static void sig_pri_dsp_reset_and_flush_digits(struct sig_pri_chan *p)
 {
-	if (p->calls->dsp_reset_and_flush_digits) {
-		p->calls->dsp_reset_and_flush_digits(p->chan_pvt);
+	if (sig_pri_callbacks.dsp_reset_and_flush_digits) {
+		sig_pri_callbacks.dsp_reset_and_flush_digits(p->chan_pvt);
 	}
 }
 
 static int sig_pri_set_echocanceller(struct sig_pri_chan *p, int enable)
 {
-	if (p->calls->set_echocanceller)
-		return p->calls->set_echocanceller(p->chan_pvt, enable);
-	else
+	if (sig_pri_callbacks.set_echocanceller) {
+		return sig_pri_callbacks.set_echocanceller(p->chan_pvt, enable);
+	} else {
 		return -1;
+	}
 }
 
 static void sig_pri_fixup_chans(struct sig_pri_chan *old_chan, struct sig_pri_chan *new_chan)
 {
-	if (old_chan->calls->fixup_chans)
-		old_chan->calls->fixup_chans(old_chan->chan_pvt, new_chan->chan_pvt);
+	if (sig_pri_callbacks.fixup_chans) {
+		sig_pri_callbacks.fixup_chans(old_chan->chan_pvt, new_chan->chan_pvt);
+	}
 }
 
 static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
 {
-	if (p->calls->play_tone)
-		return p->calls->play_tone(p->chan_pvt, tone);
-	else
+	if (sig_pri_callbacks.play_tone) {
+		return sig_pri_callbacks.play_tone(p->chan_pvt, tone);
+	} else {
 		return -1;
+	}
 }
 
 static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
-	if (p->calls->new_ast_channel) {
-		c = p->calls->new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
+	if (sig_pri_callbacks.new_ast_channel) {
+		c = sig_pri_callbacks.new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
 	} else {
 		return NULL;
 	}
@@ -1001,8 +1007,8 @@ static void sig_pri_open_media(struct sig_pri_chan *p)
 		return;
 	}
 
-	if (p->calls->open_media) {
-		p->calls->open_media(p->chan_pvt);
+	if (sig_pri_callbacks.open_media) {
+		sig_pri_callbacks.open_media(p->chan_pvt);
 	}
 }
 
@@ -1019,8 +1025,8 @@ static void sig_pri_open_media(struct sig_pri_chan *p)
  */
 static void sig_pri_ami_channel_event(struct sig_pri_chan *p)
 {
-	if (p->calls->ami_channel_event) {
-		p->calls->ami_channel_event(p->chan_pvt, p->owner);
+	if (sig_pri_callbacks.ami_channel_event) {
+		sig_pri_callbacks.ami_channel_event(p->chan_pvt, p->owner);
 	}
 }
 
@@ -1255,8 +1261,8 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
 	struct ast_frame f = {AST_FRAME_CONTROL, };
 	struct sig_pri_chan *p = pri->pvts[chanpos];
 
-	if (p->calls->queue_control) {
-		p->calls->queue_control(p->chan_pvt, subclass);
+	if (sig_pri_callbacks.queue_control) {
+		sig_pri_callbacks.queue_control(p->chan_pvt, subclass);
 	}
 
 	f.subclass.integer = subclass;
@@ -1783,8 +1789,8 @@ static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_span *p
 	ast_copy_string(pvt->context, pri->ch_cfg.context, sizeof(pvt->context));
 	ast_copy_string(pvt->mohinterpret, pri->ch_cfg.mohinterpret, sizeof(pvt->mohinterpret));
 
-	if (pri->calls->init_config) {
-		pri->calls->init_config(pvt->chan_pvt, pri);
+	if (sig_pri_callbacks.init_config) {
+		sig_pri_callbacks.init_config(pvt->chan_pvt, pri);
 	}
 }
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
@@ -1855,8 +1861,8 @@ static int pri_find_empty_nobch(struct sig_pri_span *pri)
 	}
 
 	/* Need to create a new interface. */
-	if (pri->calls->new_nobch_intf) {
-		idx = pri->calls->new_nobch_intf(pri);
+	if (sig_pri_callbacks.new_nobch_intf) {
+		idx = sig_pri_callbacks.new_nobch_intf(pri);
 	} else {
 		idx = -1;
 	}
@@ -2655,7 +2661,7 @@ static void sig_pri_cc_monitor_instance_destroy(void *data)
 		pri_cc_cancel(monitor_instance->pri->pri, monitor_instance->cc_id);
 		ast_mutex_unlock(&monitor_instance->pri->lock);
 	}
-	monitor_instance->pri->calls->module_unref();
+	sig_pri_callbacks.module_unref();
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
 
@@ -2682,7 +2688,7 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
 {
 	struct sig_pri_cc_monitor_instance *monitor_instance;
 
-	if (!pri->calls->module_ref || !pri->calls->module_unref) {
+	if (!sig_pri_callbacks.module_ref || !sig_pri_callbacks.module_unref) {
 		return NULL;
 	}
 
@@ -2697,7 +2703,7 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
 	monitor_instance->core_id = core_id;
 	strcpy(monitor_instance->name, device_name);
 
-	pri->calls->module_ref();
+	sig_pri_callbacks.module_ref();
 
 	ao2_link(sig_pri_cc_monitors, monitor_instance);
 	return monitor_instance;
@@ -8647,8 +8653,8 @@ void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast)
 		{
 			struct ast_frame f = {AST_FRAME_CONTROL, };
 
-			if (pvt->calls->queue_control) {
-				pvt->calls->queue_control(pvt->chan_pvt, AST_CONTROL_ANSWER);
+			if (sig_pri_callbacks.queue_control) {
+				sig_pri_callbacks.queue_control(pvt->chan_pvt, AST_CONTROL_ANSWER);
 			}
 
 			f.subclass.integer = AST_CONTROL_ANSWER;
@@ -9121,7 +9127,7 @@ int sig_pri_is_alarm_ignored(struct sig_pri_span *pri)
 	return pri->layer1_ignored;
 }
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup)
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup)
 {
 	struct sig_pri_chan *p;
 
@@ -9133,7 +9139,6 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 	p->prioffset = channo;
 	p->mastertrunkgroup = trunkgroup;
 
-	p->calls = callback;
 	p->chan_pvt = pvt_data;
 
 	p->pri = pri;
