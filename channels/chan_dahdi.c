@@ -1598,6 +1598,47 @@ static inline int dahdi_sig_pri_lib_handles(int signaling)
 	return handles;
 }
 
+static int analog_lib_handles(int signalling, int radio, int oprmode)
+{
+	switch (signalling) {
+	case SIG_FXOLS:
+	case SIG_FXOGS:
+	case SIG_FXOKS:
+	case SIG_FXSLS:
+	case SIG_FXSGS:
+	case SIG_FXSKS:
+	case SIG_EMWINK:
+	case SIG_EM:
+	case SIG_EM_E1:
+	case SIG_FEATD:
+	case SIG_FEATDMF:
+	case SIG_E911:
+	case SIG_FGC_CAMA:
+	case SIG_FGC_CAMAMF:
+	case SIG_FEATB:
+	case SIG_SFWINK:
+	case SIG_SF:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_FEATDMF_TA:
+	case SIG_SF_FEATB:
+		break;
+	default:
+		/* The rest of the function should cover the remainder of signalling types */
+		return 0;
+	}
+
+	if (radio) {
+		return 0;
+	}
+
+	if (oprmode) {
+		return 0;
+	}
+
+	return 1;
+}
+
 static enum analog_sigtype dahdisig_to_analogsig(int sig)
 {
 	switch (sig) {
@@ -2256,11 +2297,16 @@ static void my_get_and_handle_alarms(void *pvt)
 
 static void *my_get_sigpvt_bridged_channel(struct ast_channel *chan)
 {
-	struct dahdi_pvt *p = ast_channel_tech_pvt(ast_bridged_channel(chan));
-	if (p)
-		return p->sig_pvt;
-	else
-		return NULL;
+	struct ast_channel *bridged = ast_bridged_channel(chan);
+
+	if (bridged && ast_channel_tech(bridged) == &dahdi_tech) {
+		struct dahdi_pvt *p = ast_channel_tech_pvt(bridged);
+
+		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+			return p->sig_pvt;
+		}
+	}
+	return NULL;
 }
 
 static int my_get_sub_fd(void *pvt, enum analog_sub sub)
@@ -4764,45 +4810,6 @@ static char *dahdi_sig2str(int sig)
 }
 
 #define sig2str dahdi_sig2str
-
-static int analog_lib_handles(int signalling, int radio, int oprmode)
-{
-	switch (signalling) {
-	case SIG_FXOLS:
-	case SIG_FXOGS:
-	case SIG_FXOKS:
-	case SIG_FXSLS:
-	case SIG_FXSGS:
-	case SIG_FXSKS:
-	case SIG_EMWINK:
-	case SIG_EM:
-	case SIG_EM_E1:
-	case SIG_FEATD:
-	case SIG_FEATDMF:
-	case SIG_E911:
-	case SIG_FGC_CAMA:
-	case SIG_FGC_CAMAMF:
-	case SIG_FEATB:
-	case SIG_SFWINK:
-	case SIG_SF:
-	case SIG_SF_FEATD:
-	case SIG_SF_FEATDMF:
-	case SIG_FEATDMF_TA:
-	case SIG_SF_FEATB:
-		break;
-	default:
-		/* The rest of the function should cover the remainder of signalling types */
-		return 0;
-	}
-
-	if (radio)
-		return 0;
-
-	if (oprmode)
-		return 0;
-
-	return 1;
-}
 
 static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int idx, int slavechannel)
 {
@@ -13376,7 +13383,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->callwaitingcallerid = conf->chan.callwaitingcallerid;
 				analog_p->ringt = conf->chan.ringt;
 				analog_p->ringt_base = ringt_base;
-				analog_p->chan_tech = &dahdi_tech;
 				analog_p->onhooktime = time(NULL);
 				if (chan_sig & __DAHDI_SIG_FXO) {
 					memset(&p, 0, sizeof(p));
