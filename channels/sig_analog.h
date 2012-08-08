@@ -288,7 +288,6 @@ struct analog_pvt {
 	unsigned int use_smdi:1;
 	/*! \brief The SMDI interface to get SMDI messages from. */
 	struct ast_smdi_interface *smdi_iface;
-	const struct ast_channel_tech *chan_tech;
 
 	/* Not used for anything but log messages.  Could be just the TCID */
 	int channel;					/*!< Channel Number */
