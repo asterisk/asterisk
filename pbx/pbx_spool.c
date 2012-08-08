@@ -67,6 +67,8 @@ enum {
 	SPOOL_FLAG_ALWAYS_DELETE = (1 << 0),
 	/* Don't unlink the call file after processing, move in qdonedir */
 	SPOOL_FLAG_ARCHIVE = (1 << 1),
+	/* Connect the channel with the outgoing extension once early media is received */
+	SPOOL_FLAG_EARLY_MEDIA = (1 << 2),
 };
 
 static char qdir[255];
@@ -253,6 +255,8 @@ static int apply_outgoing(struct outgoing *o, const char *fn, FILE *f)
 					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
 				} else if (!strcasecmp(buf, "archive")) {
 					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
+				} else if (!strcasecmp(buf, "early_media")) {
+					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_EARLY_MEDIA);
 				} else {
 					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 				}
@@ -357,7 +361,8 @@ static void *attempt_thread(void *data)
 		ast_verb(3, "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
 		res = ast_pbx_outgoing_exten(o->tech, o->capabilities, o->dest,
 			o->waittime * 1000, o->context, o->exten, o->priority, &reason,
-			2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+			2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL,
+			ast_test_flag(&o->options, SPOOL_FLAG_EARLY_MEDIA));
 		o->vars = NULL;
 	}
 	if (res) {

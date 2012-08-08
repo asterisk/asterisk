@@ -425,6 +425,9 @@ Core
  * Asterisk can now use a system-provided NetBSD editline library (libedit) if it
    is available.
 
+ * Call files now support the "early_media" option to connect with an outgoing
+   extension when early media is received.
+
 AGI
 ------------------
  * A new channel variable, AGIEXITONHANGUP, has been added which allows
@@ -438,6 +441,10 @@ AGI
 
 AMI (Asterisk Manager Interface)
 ------------------
+ * The originate action now has an option "EarlyMedia" that enables the
+   call to bridge when we get early media in the call. Previously,
+   early media was disregarded always when originating calls using AMI.
+
  * Added setvar= option to manager accounts (much like sip.conf)
 
  * Originate now generates an error response if the extension given is not found

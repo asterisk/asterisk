@@ -5620,8 +5620,14 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 					ast_channel_hangupcause_hash_set(chan, f->data.ptr, f->datalen);
 					break;
 
-				/* Ignore these */
 				case AST_CONTROL_PROGRESS:
+					if (oh && oh->connect_on_early_media) {
+						*outstate = f->subclass.integer;
+						timeout = 0;		/* trick to force exit from the while() */
+						break;
+					}
+					/* Fallthrough */
+				/* Ignore these */
 				case AST_CONTROL_PROCEEDING:
 				case AST_CONTROL_HOLD:
 				case AST_CONTROL_UNHOLD:

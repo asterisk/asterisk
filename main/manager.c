@@ -465,6 +465,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Account">
 				<para>Account code.</para>
 			</parameter>
+			<parameter name="EarlyMedia">
+				<para>Set to <literal>true</literal> to force call bridge on early media..</para>
+			</parameter>
 			<parameter name="Async">
 				<para>Set to <literal>true</literal> for fast origination.</para>
 			</parameter>
@@ -3915,6 +3918,7 @@ action_command_cleanup:
 struct fast_originate_helper {
 	int timeout;
 	struct ast_format_cap *cap;				/*!< Codecs used for a call */
+	int early_media;
 	AST_DECLARE_STRING_FIELDS (
 		AST_STRING_FIELD(tech);
 		/*! data can contain a channel name, extension number, username, password, etc. */
@@ -3966,7 +3970,7 @@ static void *fast_originate(void *data)
 			in->timeout, in->context, in->exten, in->priority, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
-			in->vars, in->account, &chan);
+			in->vars, in->account, &chan, in->early_media);
 	}
 	/* Any vars memory was passed to the ast_pbx_outgoing_xxx() calls. */
 	in->vars = NULL;
@@ -4245,6 +4249,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *async = astman_get_header(m, "Async");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *codecs = astman_get_header(m, "Codecs");
+	const char *early_media = astman_get_header(m, "Earlymedia");
 	struct ast_variable *vars = NULL;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
@@ -4257,6 +4262,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
 	struct ast_format tmp_fmt;
 	pthread_t th;
+	int bridge_early = 0;
 
 	if (!cap) {
 		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
@@ -4359,6 +4365,9 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	}
 
+	/* For originate async - we can bridge in early media stage */
+	bridge_early = ast_true(early_media);
+
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast;
 
@@ -4384,6 +4393,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			fast->cap = cap;
 			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
 			fast->timeout = to;
+			fast->early_media = bridge_early;
 			fast->priority = pi;
 			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
 				destroy_fast_originate_helper(fast);
@@ -4397,7 +4407,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		/* Any vars memory was passed to ast_pbx_outgoing_app(). */
 	} else {
 		if (exten && context && pi) {
-			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL, bridge_early);
 			/* Any vars memory was passed to ast_pbx_outgoing_exten(). */
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");

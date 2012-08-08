@@ -9559,6 +9559,7 @@ struct async_stat {
 	int timeout;
 	char app[AST_MAX_EXTENSION];
 	char appdata[1024];
+	int early_media;			/* Connect the bridge if early media arrives, don't wait for answer */
 };
 
 static void *async_wait(void *data)
@@ -9569,6 +9570,7 @@ static void *async_wait(void *data)
 	int res;
 	struct ast_frame *f;
 	struct ast_app *app;
+	int have_early_media = 0;
 
 	if (chan) {
 		struct ast_callid *callid = ast_channel_callid(chan);
@@ -9593,10 +9595,18 @@ static void *async_wait(void *data)
 				ast_frfree(f);
 				break;
 			}
+			if (as->early_media && f->subclass.integer == AST_CONTROL_PROGRESS) {
+				have_early_media = 1;
+				ast_frfree(f);
+				break;
+			}
 		}
 		ast_frfree(f);
 	}
-	if (ast_channel_state(chan) == AST_STATE_UP) {
+	if (ast_channel_state(chan) == AST_STATE_UP || have_early_media) {
+		if (have_early_media) {
+			ast_debug(2, "Activating pbx since we have early media \n");
+		}
 		if (!ast_strlen_zero(as->app)) {
 			app = pbx_findapp(as->app);
 			if (app) {
@@ -9657,7 +9667,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
+int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -9665,6 +9675,8 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 	int callid_created = 0;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
+
+	oh.connect_on_early_media = early_media;
 
 	callid_created = ast_callid_threadstorage_auto(&callid);
 
@@ -9695,9 +9707,9 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 				}
 			}
 
-			if (ast_channel_state(chan) == AST_STATE_UP) {
+			if (ast_channel_state(chan) == AST_STATE_UP || (early_media && *reason == AST_CONTROL_PROGRESS)) {
 					res = 0;
-				ast_verb(4, "Channel %s was answered.\n", ast_channel_name(chan));
+				ast_verb(4, "Channel %s %s\n", ast_channel_name(chan), ast_channel_state(chan) == AST_STATE_UP ? "was answered" : "got early media");
 
 				if (synchronous > 1) {
 					if (channel)

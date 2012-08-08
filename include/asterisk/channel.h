@@ -907,6 +907,7 @@ struct outgoing_helper {
 	const char *context;
 	const char *exten;
 	int priority;
+	int connect_on_early_media;	/* If set, treat session progress as answer */
 	const char *cid_num;
 	const char *cid_name;
 	const char *account;

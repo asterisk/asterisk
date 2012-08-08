@@ -119,7 +119,7 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 		return CLI_FAILURE;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-	ast_pbx_outgoing_exten(chantech, cap, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL);
+	ast_pbx_outgoing_exten(chantech, cap, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL, 0);
 	cap = ast_format_cap_destroy(cap);
 
 	return CLI_SUCCESS;
