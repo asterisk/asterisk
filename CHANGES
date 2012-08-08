@@ -351,6 +351,8 @@ chan_sip
  * Added support for format attribute negotiation.  See the Codecs changes for
    more information.
 
+ * Extra headers specified with SIPAddHeader are sent with the REFER message
+   when using Transfer application. See refer_addheaders in sip.conf.sample.
 
 chan_skinny
 ------------------
@@ -667,12 +669,6 @@ Scripts
    its value to determine the directory to assume is the top-level directory of
    the source tree.  If the variable is not set, it defaults to the current
    behavior and uses the current working directory.
-
-
-SIP changes
---------------------------
- * Extra headers specified with SIPAddHeader are sent with the REFER message
-   when using Transfer application. See refer_addheaders in sip.conf.sample.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
