@@ -3768,7 +3768,7 @@ static int my_have_progressdetect(void *pvt)
 	}
 }
 
-static struct analog_callback dahdi_analog_callbacks =
+struct analog_callback analog_callbacks =
 {
 	.play_tone = my_play_tone,
 	.get_event = my_get_event,
@@ -12630,7 +12630,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->outsigmod = conf->chan.outsigmod;
 
 			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
-				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), &dahdi_analog_callbacks, tmp);
+				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), tmp);
 				if (!analog_p) {
 					destroy_dahdi_pvt(tmp);
 					return NULL;

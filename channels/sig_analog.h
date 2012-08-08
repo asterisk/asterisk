@@ -239,6 +239,8 @@ struct analog_callback {
 	int (* const have_progressdetect)(void *pvt);
 };
 
+/*! Global analog callbacks to the upper layer. */
+extern struct analog_callback analog_callbacks;
 
 
 struct analog_subchannel {
@@ -254,8 +256,6 @@ struct analog_pvt {
 	enum analog_sigtype sig;
 	/* To contain the private structure passed into the channel callbacks */
 	void *chan_pvt;
-	/* Callbacks for various functions needed by the analog API */
-	struct analog_callback *calls;
 	/* All members after this are giong to be transient, and most will probably change */
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
 
@@ -346,7 +346,7 @@ struct analog_pvt {
 	int ringt_base;
 };
 
-struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data);
+struct analog_pvt *analog_new(enum analog_sigtype signallingtype, void *private_data);
 void analog_delete(struct analog_pvt *doomed);
 
 void analog_free(struct analog_pvt *p);

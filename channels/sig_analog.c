@@ -161,56 +161,56 @@ const char *analog_cidtype_to_str(unsigned int cid_type)
 
 static int analog_start_cid_detect(struct analog_pvt *p, int cid_signalling)
 {
-	if (p->calls->start_cid_detect) {
-		return p->calls->start_cid_detect(p->chan_pvt, cid_signalling);
+	if (analog_callbacks.start_cid_detect) {
+		return analog_callbacks.start_cid_detect(p->chan_pvt, cid_signalling);
 	}
 	return -1;
 }
 
 static int analog_stop_cid_detect(struct analog_pvt *p)
 {
-	if (p->calls->stop_cid_detect) {
-		return p->calls->stop_cid_detect(p->chan_pvt);
+	if (analog_callbacks.stop_cid_detect) {
+		return analog_callbacks.stop_cid_detect(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_get_callerid(struct analog_pvt *p, char *name, char *number, enum analog_event *ev, size_t timeout)
 {
-	if (p->calls->get_callerid) {
-		return p->calls->get_callerid(p->chan_pvt, name, number, ev, timeout);
+	if (analog_callbacks.get_callerid) {
+		return analog_callbacks.get_callerid(p->chan_pvt, name, number, ev, timeout);
 	}
 	return -1;
 }
 
 static const char *analog_get_orig_dialstring(struct analog_pvt *p)
 {
-	if (p->calls->get_orig_dialstring) {
-		return p->calls->get_orig_dialstring(p->chan_pvt);
+	if (analog_callbacks.get_orig_dialstring) {
+		return analog_callbacks.get_orig_dialstring(p->chan_pvt);
 	}
 	return "";
 }
 
 static int analog_get_event(struct analog_pvt *p)
 {
-	if (p->calls->get_event) {
-		return p->calls->get_event(p->chan_pvt);
+	if (analog_callbacks.get_event) {
+		return analog_callbacks.get_event(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_wait_event(struct analog_pvt *p)
 {
-	if (p->calls->wait_event) {
-		return p->calls->wait_event(p->chan_pvt);
+	if (analog_callbacks.wait_event) {
+		return analog_callbacks.wait_event(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_have_progressdetect(struct analog_pvt *p)
 {
-	if (p->calls->have_progressdetect) {
-		return p->calls->have_progressdetect(p->chan_pvt);
+	if (analog_callbacks.have_progressdetect) {
+		return analog_callbacks.have_progressdetect(p->chan_pvt);
 	}
 	/* Don't have progress detection. */
 	return 0;
@@ -345,16 +345,16 @@ static void analog_swap_subs(struct analog_pvt *p, enum analog_sub a, enum analo
 	p->subs[a].inthreeway = p->subs[b].inthreeway;
 	p->subs[b].inthreeway = tinthreeway;
 
-	if (p->calls->swap_subs) {
-		p->calls->swap_subs(p->chan_pvt, a, p->subs[a].owner, b, p->subs[b].owner);
+	if (analog_callbacks.swap_subs) {
+		analog_callbacks.swap_subs(p->chan_pvt, a, p->subs[a].owner, b, p->subs[b].owner);
 	}
 }
 
 static int analog_alloc_sub(struct analog_pvt *p, enum analog_sub x)
 {
-	if (p->calls->allocate_sub) {
+	if (analog_callbacks.allocate_sub) {
 		int res;
-		res = p->calls->allocate_sub(p->chan_pvt, x);
+		res = analog_callbacks.allocate_sub(p->chan_pvt, x);
 		if (!res) {
 			p->subs[x].allocd = 1;
 		}
@@ -367,8 +367,8 @@ static int analog_unalloc_sub(struct analog_pvt *p, enum analog_sub x)
 {
 	p->subs[x].allocd = 0;
 	p->subs[x].owner = NULL;
-	if (p->calls->unallocate_sub) {
-		return p->calls->unallocate_sub(p->chan_pvt, x);
+	if (analog_callbacks.unallocate_sub) {
+		return analog_callbacks.unallocate_sub(p->chan_pvt, x);
 	}
 	return 0;
 }
@@ -383,8 +383,8 @@ static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_part
 		p->callwaitcas = 0;
 	}
 
-	if (p->calls->send_callerid) {
-		return p->calls->send_callerid(p->chan_pvt, cwcid, caller);
+	if (analog_callbacks.send_callerid) {
+		return analog_callbacks.send_callerid(p->chan_pvt, cwcid, caller);
 	}
 	return 0;
 }
@@ -412,8 +412,8 @@ static int _analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int 
 
 static int analog_dsp_reset_and_flush_digits(struct analog_pvt *p)
 {
-	if (p->calls->dsp_reset_and_flush_digits) {
-		return p->calls->dsp_reset_and_flush_digits(p->chan_pvt);
+	if (analog_callbacks.dsp_reset_and_flush_digits) {
+		return analog_callbacks.dsp_reset_and_flush_digits(p->chan_pvt);
 	}
 
 	/* Return 0 since I think this is unnecessary to do in most cases it is used.  Mostly only for ast_dsp */
@@ -422,8 +422,8 @@ static int analog_dsp_reset_and_flush_digits(struct analog_pvt *p)
 
 static int analog_play_tone(struct analog_pvt *p, enum analog_sub sub, enum analog_tone tone)
 {
-	if (p->calls->play_tone) {
-		return p->calls->play_tone(p->chan_pvt, sub, tone);
+	if (analog_callbacks.play_tone) {
+		return analog_callbacks.play_tone(p->chan_pvt, sub, tone);
 	}
 	return -1;
 }
@@ -431,8 +431,8 @@ static int analog_play_tone(struct analog_pvt *p, enum analog_sub sub, enum anal
 static void analog_set_new_owner(struct analog_pvt *p, struct ast_channel *new_owner)
 {
 	p->owner = new_owner;
-	if (p->calls->set_new_owner) {
-		p->calls->set_new_owner(p->chan_pvt, new_owner);
+	if (analog_callbacks.set_new_owner) {
+		analog_callbacks.set_new_owner(p->chan_pvt, new_owner);
 	}
 }
 
@@ -440,11 +440,11 @@ static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int sta
 {
 	struct ast_channel *c;
 
-	if (!p->calls->new_ast_channel) {
+	if (!analog_callbacks.new_ast_channel) {
 		return NULL;
 	}
 
-	c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, sub, requestor);
+	c = analog_callbacks.new_ast_channel(p->chan_pvt, state, startpbx, sub, requestor);
 	if (c) {
 		ast_channel_call_forward_set(c, p->call_forward);
 	}
@@ -457,64 +457,64 @@ static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int sta
 
 static int analog_set_echocanceller(struct analog_pvt *p, int enable)
 {
-	if (p->calls->set_echocanceller) {
-		return p->calls->set_echocanceller(p->chan_pvt, enable);
+	if (analog_callbacks.set_echocanceller) {
+		return analog_callbacks.set_echocanceller(p->chan_pvt, enable);
 	}
 	return -1;
 }
 
 static int analog_train_echocanceller(struct analog_pvt *p)
 {
-	if (p->calls->train_echocanceller) {
-		return p->calls->train_echocanceller(p->chan_pvt);
+	if (analog_callbacks.train_echocanceller) {
+		return analog_callbacks.train_echocanceller(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_is_off_hook(struct analog_pvt *p)
 {
-	if (p->calls->is_off_hook) {
-		return p->calls->is_off_hook(p->chan_pvt);
+	if (analog_callbacks.is_off_hook) {
+		return analog_callbacks.is_off_hook(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_ring(struct analog_pvt *p)
 {
-	if (p->calls->ring) {
-		return p->calls->ring(p->chan_pvt);
+	if (analog_callbacks.ring) {
+		return analog_callbacks.ring(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_flash(struct analog_pvt *p)
 {
-	if (p->calls->flash) {
-		return p->calls->flash(p->chan_pvt);
+	if (analog_callbacks.flash) {
+		return analog_callbacks.flash(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_start(struct analog_pvt *p)
 {
-	if (p->calls->start) {
-		return p->calls->start(p->chan_pvt);
+	if (analog_callbacks.start) {
+		return analog_callbacks.start(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_dial_digits(struct analog_pvt *p, enum analog_sub sub, struct analog_dialoperation *dop)
 {
-	if (p->calls->dial_digits) {
-		return p->calls->dial_digits(p->chan_pvt, sub, dop);
+	if (analog_callbacks.dial_digits) {
+		return analog_callbacks.dial_digits(p->chan_pvt, sub, dop);
 	}
 	return -1;
 }
 
 static int analog_on_hook(struct analog_pvt *p)
 {
-	if (p->calls->on_hook) {
-		return p->calls->on_hook(p->chan_pvt);
+	if (analog_callbacks.on_hook) {
+		return analog_callbacks.on_hook(p->chan_pvt);
 	}
 	return -1;
 }
@@ -522,44 +522,44 @@ static int analog_on_hook(struct analog_pvt *p)
 static void analog_set_outgoing(struct analog_pvt *p, int is_outgoing)
 {
 	p->outgoing = is_outgoing;
-	if (p->calls->set_outgoing) {
-		p->calls->set_outgoing(p->chan_pvt, is_outgoing);
+	if (analog_callbacks.set_outgoing) {
+		analog_callbacks.set_outgoing(p->chan_pvt, is_outgoing);
 	}
 }
 
 static int analog_check_for_conference(struct analog_pvt *p)
 {
-	if (p->calls->check_for_conference) {
-		return p->calls->check_for_conference(p->chan_pvt);
+	if (analog_callbacks.check_for_conference) {
+		return analog_callbacks.check_for_conference(p->chan_pvt);
 	}
 	return -1;
 }
 
 static void analog_all_subchannels_hungup(struct analog_pvt *p)
 {
-	if (p->calls->all_subchannels_hungup) {
-		p->calls->all_subchannels_hungup(p->chan_pvt);
+	if (analog_callbacks.all_subchannels_hungup) {
+		analog_callbacks.all_subchannels_hungup(p->chan_pvt);
 	}
 }
 
 static void analog_unlock_private(struct analog_pvt *p)
 {
-	if (p->calls->unlock_private) {
-		p->calls->unlock_private(p->chan_pvt);
+	if (analog_callbacks.unlock_private) {
+		analog_callbacks.unlock_private(p->chan_pvt);
 	}
 }
 
 static void analog_lock_private(struct analog_pvt *p)
 {
-	if (p->calls->lock_private) {
-		p->calls->lock_private(p->chan_pvt);
+	if (analog_callbacks.lock_private) {
+		analog_callbacks.lock_private(p->chan_pvt);
 	}
 }
 
 static void analog_deadlock_avoidance_private(struct analog_pvt *p)
 {
-	if (p->calls->deadlock_avoidance_private) {
-		p->calls->deadlock_avoidance_private(p->chan_pvt);
+	if (analog_callbacks.deadlock_avoidance_private) {
+		analog_callbacks.deadlock_avoidance_private(p->chan_pvt);
 	} else {
 		/* Fallback to manual avoidance if callback not present. */
 		analog_unlock_private(p);
@@ -601,83 +601,83 @@ static void analog_lock_sub_owner(struct analog_pvt *pvt, enum analog_sub sub_id
 
 static int analog_off_hook(struct analog_pvt *p)
 {
-	if (p->calls->off_hook) {
-		return p->calls->off_hook(p->chan_pvt);
+	if (analog_callbacks.off_hook) {
+		return analog_callbacks.off_hook(p->chan_pvt);
 	}
 	return -1;
 }
 
 static void analog_set_needringing(struct analog_pvt *p, int value)
 {
-	if (p->calls->set_needringing) {
-		return p->calls->set_needringing(p->chan_pvt, value);
+	if (analog_callbacks.set_needringing) {
+		analog_callbacks.set_needringing(p->chan_pvt, value);
 	}
 }
 
 #if 0
 static void analog_set_polarity(struct analog_pvt *p, int value)
 {
-	if (p->calls->set_polarity) {
-		return p->calls->set_polarity(p->chan_pvt, value);
+	if (analog_callbacks.set_polarity) {
+		analog_callbacks.set_polarity(p->chan_pvt, value);
 	}
 }
 #endif
 
 static void analog_start_polarityswitch(struct analog_pvt *p)
 {
-	if (p->calls->start_polarityswitch) {
-		return p->calls->start_polarityswitch(p->chan_pvt);
+	if (analog_callbacks.start_polarityswitch) {
+		analog_callbacks.start_polarityswitch(p->chan_pvt);
 	}
 }
 static void analog_answer_polarityswitch(struct analog_pvt *p)
 {
-	if (p->calls->answer_polarityswitch) {
-		return p->calls->answer_polarityswitch(p->chan_pvt);
+	if (analog_callbacks.answer_polarityswitch) {
+		analog_callbacks.answer_polarityswitch(p->chan_pvt);
 	}
 }
 
 static void analog_hangup_polarityswitch(struct analog_pvt *p)
 {
-	if (p->calls->hangup_polarityswitch) {
-		return p->calls->hangup_polarityswitch(p->chan_pvt);
+	if (analog_callbacks.hangup_polarityswitch) {
+		analog_callbacks.hangup_polarityswitch(p->chan_pvt);
 	}
 }
 
 static int analog_dsp_set_digitmode(struct analog_pvt *p, enum analog_dsp_digitmode mode)
 {
-	if (p->calls->dsp_set_digitmode) {
-		return p->calls->dsp_set_digitmode(p->chan_pvt, mode);
+	if (analog_callbacks.dsp_set_digitmode) {
+		return analog_callbacks.dsp_set_digitmode(p->chan_pvt, mode);
 	}
 	return -1;
 }
 
 static void analog_cb_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub analog_index, struct ast_frame **dest)
 {
-	if (p->calls->handle_dtmf) {
-		p->calls->handle_dtmf(p->chan_pvt, ast, analog_index, dest);
+	if (analog_callbacks.handle_dtmf) {
+		analog_callbacks.handle_dtmf(p->chan_pvt, ast, analog_index, dest);
 	}
 }
 
 static int analog_wink(struct analog_pvt *p, enum analog_sub index)
 {
-	if (p->calls->wink) {
-		return p->calls->wink(p->chan_pvt, index);
+	if (analog_callbacks.wink) {
+		return analog_callbacks.wink(p->chan_pvt, index);
 	}
 	return -1;
 }
 
 static int analog_has_voicemail(struct analog_pvt *p)
 {
-	if (p->calls->has_voicemail) {
-		return p->calls->has_voicemail(p->chan_pvt);
+	if (analog_callbacks.has_voicemail) {
+		return analog_callbacks.has_voicemail(p->chan_pvt);
 	}
 	return -1;
 }
 
 static int analog_is_dialing(struct analog_pvt *p, enum analog_sub index)
 {
-	if (p->calls->is_dialing) {
-		return p->calls->is_dialing(p->chan_pvt, index);
+	if (analog_callbacks.is_dialing) {
+		return analog_callbacks.is_dialing(p->chan_pvt, index);
 	}
 	return -1;
 }
@@ -779,20 +779,20 @@ static int analog_update_conf(struct analog_pvt *p)
 	for (x = 0; x < 3; x++) {
 		/* Look for three way calls */
 		if ((p->subs[x].allocd) && p->subs[x].inthreeway) {
-			if (p->calls->conf_add) {
-				p->calls->conf_add(p->chan_pvt, x);
+			if (analog_callbacks.conf_add) {
+				analog_callbacks.conf_add(p->chan_pvt, x);
 			}
 			needconf++;
 		} else {
-			if (p->calls->conf_del) {
-				p->calls->conf_del(p->chan_pvt, x);
+			if (analog_callbacks.conf_del) {
+				analog_callbacks.conf_del(p->chan_pvt, x);
 			}
 		}
 	}
 	ast_debug(1, "Updated conferencing on %d, with %d conference users\n", p->channel, needconf);
 
-	if (p->calls->complete_conference_update) {
-		p->calls->complete_conference_update(p->chan_pvt, needconf);
+	if (analog_callbacks.complete_conference_update) {
+		analog_callbacks.complete_conference_update(p->chan_pvt, needconf);
 	}
 	return 0;
 }
@@ -887,8 +887,8 @@ int analog_available(struct analog_pvt *p)
 static int analog_stop_callwait(struct analog_pvt *p)
 {
 	p->callwaitcas = 0;
-	if (p->calls->stop_callwait) {
-		return p->calls->stop_callwait(p->chan_pvt);
+	if (analog_callbacks.stop_callwait) {
+		return analog_callbacks.stop_callwait(p->chan_pvt);
 	}
 	return 0;
 }
@@ -896,8 +896,8 @@ static int analog_stop_callwait(struct analog_pvt *p)
 static int analog_callwait(struct analog_pvt *p)
 {
 	p->callwaitcas = p->callwaitingcallerid;
-	if (p->calls->callwait) {
-		return p->calls->callwait(p->chan_pvt);
+	if (analog_callbacks.callwait) {
+		return analog_callbacks.callwait(p->chan_pvt);
 	}
 	return 0;
 }
@@ -905,54 +905,53 @@ static int analog_callwait(struct analog_pvt *p)
 static void analog_set_callwaiting(struct analog_pvt *p, int callwaiting_enable)
 {
 	p->callwaiting = callwaiting_enable;
-	if (p->calls->set_callwaiting) {
-		p->calls->set_callwaiting(p->chan_pvt, callwaiting_enable);
+	if (analog_callbacks.set_callwaiting) {
+		analog_callbacks.set_callwaiting(p->chan_pvt, callwaiting_enable);
 	}
 }
 
 static void analog_set_cadence(struct analog_pvt *p, struct ast_channel *chan)
 {
-	if (p->calls->set_cadence) {
-		return p->calls->set_cadence(p->chan_pvt, &p->cidrings, chan);
+	if (analog_callbacks.set_cadence) {
+		analog_callbacks.set_cadence(p->chan_pvt, &p->cidrings, chan);
 	}
 }
 
 static void analog_set_dialing(struct analog_pvt *p, int is_dialing)
 {
 	p->dialing = is_dialing;
-	if (p->calls->set_dialing) {
-		return p->calls->set_dialing(p->chan_pvt, is_dialing);
+	if (analog_callbacks.set_dialing) {
+		analog_callbacks.set_dialing(p->chan_pvt, is_dialing);
 	}
 }
 
 static void analog_set_alarm(struct analog_pvt *p, int in_alarm)
 {
 	p->inalarm = in_alarm;
-	if (p->calls->set_alarm) {
-		return p->calls->set_alarm(p->chan_pvt, in_alarm);
+	if (analog_callbacks.set_alarm) {
+		analog_callbacks.set_alarm(p->chan_pvt, in_alarm);
 	}
 }
 
 static void analog_set_ringtimeout(struct analog_pvt *p, int ringt)
 {
 	p->ringt = ringt;
-	if (!p->calls->set_ringtimeout) {
-		return;
+	if (analog_callbacks.set_ringtimeout) {
+		analog_callbacks.set_ringtimeout(p->chan_pvt, ringt);
 	}
-	p->calls->set_ringtimeout(p->chan_pvt, ringt);
 }
 
 static void analog_set_waitingfordt(struct analog_pvt *p, struct ast_channel *ast)
 {
-	if (p->calls->set_waitingfordt) {
-		return p->calls->set_waitingfordt(p->chan_pvt, ast);
+	if (analog_callbacks.set_waitingfordt) {
+		analog_callbacks.set_waitingfordt(p->chan_pvt, ast);
 	}
 }
 
 static int analog_check_waitingfordt(struct analog_pvt *p)
 {
-	if (p->calls->check_waitingfordt) {
-		return p->calls->check_waitingfordt(p->chan_pvt);
+	if (analog_callbacks.check_waitingfordt) {
+		return analog_callbacks.check_waitingfordt(p->chan_pvt);
 	}
 
 	return 0;
@@ -960,16 +959,15 @@ static int analog_check_waitingfordt(struct analog_pvt *p)
 
 static void analog_set_confirmanswer(struct analog_pvt *p, int flag)
 {
-	if (!p->calls->set_confirmanswer) {
-		return;
+	if (analog_callbacks.set_confirmanswer) {
+		analog_callbacks.set_confirmanswer(p->chan_pvt, flag);
 	}
-	p->calls->set_confirmanswer(p->chan_pvt, flag);
 }
 
 static int analog_check_confirmanswer(struct analog_pvt *p)
 {
-	if (p->calls->check_confirmanswer) {
-		return p->calls->check_confirmanswer(p->chan_pvt);
+	if (analog_callbacks.check_confirmanswer) {
+		return analog_callbacks.check_confirmanswer(p->chan_pvt);
 	}
 
 	return 0;
@@ -977,34 +975,31 @@ static int analog_check_confirmanswer(struct analog_pvt *p)
 
 static void analog_cancel_cidspill(struct analog_pvt *p)
 {
-	if (!p->calls->cancel_cidspill) {
-		return;
+	if (analog_callbacks.cancel_cidspill) {
+		analog_callbacks.cancel_cidspill(p->chan_pvt);
 	}
-
-	p->calls->cancel_cidspill(p->chan_pvt);
 }
 
 static int analog_confmute(struct analog_pvt *p, int mute)
 {
-	if (p->calls->confmute) {
-		return p->calls->confmute(p->chan_pvt, mute);
+	if (analog_callbacks.confmute) {
+		return analog_callbacks.confmute(p->chan_pvt, mute);
 	}
 	return 0;
 }
 
 static void analog_set_pulsedial(struct analog_pvt *p, int flag)
 {
-	if (!p->calls->set_pulsedial) {
-		return;
+	if (analog_callbacks.set_pulsedial) {
+		analog_callbacks.set_pulsedial(p->chan_pvt, flag);
 	}
-	p->calls->set_pulsedial(p->chan_pvt, flag);
 }
 
 static int analog_set_linear_mode(struct analog_pvt *p, enum analog_sub sub, int linear_mode)
 {
-	if (p->calls->set_linear_mode) {
+	if (analog_callbacks.set_linear_mode) {
 		/* Return provides old linear_mode setting or error indication */
-		return p->calls->set_linear_mode(p->chan_pvt, sub, linear_mode);
+		return analog_callbacks.set_linear_mode(p->chan_pvt, sub, linear_mode);
 	}
 	return -1;
 }
@@ -1012,8 +1007,8 @@ static int analog_set_linear_mode(struct analog_pvt *p, enum analog_sub sub, int
 static void analog_set_inthreeway(struct analog_pvt *p, enum analog_sub sub, int inthreeway)
 {
 	p->subs[sub].inthreeway = inthreeway;
-	if (p->calls->set_inthreeway) {
-		p->calls->set_inthreeway(p->chan_pvt, sub, inthreeway);
+	if (analog_callbacks.set_inthreeway) {
+		analog_callbacks.set_inthreeway(p->chan_pvt, sub, inthreeway);
 	}
 }
 
@@ -1667,35 +1662,31 @@ static int analog_my_getsigstr(struct ast_channel *chan, char *str, const char *
 
 static int analog_handle_notify_message(struct ast_channel *chan, struct analog_pvt *p, int cid_flags, int neon_mwievent)
 {
-	if (p->calls->handle_notify_message) {
-		p->calls->handle_notify_message(chan, p->chan_pvt, cid_flags, neon_mwievent);
+	if (analog_callbacks.handle_notify_message) {
+		analog_callbacks.handle_notify_message(chan, p->chan_pvt, cid_flags, neon_mwievent);
 		return 0;
 	}
 	return -1;
 }
 
-static int analog_increase_ss_count(struct analog_pvt *p)
+static void analog_increase_ss_count(void)
 {
-	if (p->calls->increase_ss_count) {
-		p->calls->increase_ss_count();
-		return 0;
+	if (analog_callbacks.increase_ss_count) {
+		analog_callbacks.increase_ss_count();
 	}
-	return -1;
 }
 
-static int analog_decrease_ss_count(struct analog_pvt *p)
+static void analog_decrease_ss_count(void)
 {
-	if (p->calls->decrease_ss_count) {
-		p->calls->decrease_ss_count();
-		return 0;
+	if (analog_callbacks.decrease_ss_count) {
+		analog_callbacks.decrease_ss_count();
 	}
-	return -1;
 }
 
 static int analog_distinctive_ring(struct ast_channel *chan, struct analog_pvt *p, int idx, int *ringdata)
 {
-	if (p->calls->distinctive_ring) {
-		return p->calls->distinctive_ring(chan, p->chan_pvt, idx, ringdata);
+	if (analog_callbacks.distinctive_ring) {
+		return analog_callbacks.distinctive_ring(chan, p->chan_pvt, idx, ringdata);
 	}
 	return -1;
 
@@ -1703,23 +1694,23 @@ static int analog_distinctive_ring(struct ast_channel *chan, struct analog_pvt *
 
 static void analog_get_and_handle_alarms(struct analog_pvt *p)
 {
-	if (p->calls->get_and_handle_alarms) {
-		return p->calls->get_and_handle_alarms(p->chan_pvt);
+	if (analog_callbacks.get_and_handle_alarms) {
+		analog_callbacks.get_and_handle_alarms(p->chan_pvt);
 	}
 }
 
-static void *analog_get_bridged_channel(struct analog_pvt *p, struct ast_channel *chan)
+static void *analog_get_bridged_channel(struct ast_channel *chan)
 {
-	if (p->calls->get_sigpvt_bridged_channel) {
-		return p->calls->get_sigpvt_bridged_channel(chan);
+	if (analog_callbacks.get_sigpvt_bridged_channel) {
+		return analog_callbacks.get_sigpvt_bridged_channel(chan);
 	}
 	return NULL;
 }
 
 static int analog_get_sub_fd(struct analog_pvt *p, enum analog_sub sub)
 {
-	if (p->calls->get_sub_fd) {
-		return p->calls->get_sub_fd(p->chan_pvt, sub);
+	if (analog_callbacks.get_sub_fd) {
+		return analog_callbacks.get_sub_fd(p->chan_pvt, sub);
 	}
 	return -1;
 }
@@ -1775,7 +1766,7 @@ static void *__analog_ss_thread(void *data)
 	int idx;
 	struct ast_callid *callid;
 
-	analog_increase_ss_count(p);
+	analog_increase_ss_count();
 
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
@@ -2323,7 +2314,7 @@ static void *__analog_ss_thread(void *data)
 				struct analog_pvt *pbridge = NULL;
 				/* set up the private struct of the bridged one, if any */
 				if (nbridge) {
-					pbridge = analog_get_bridged_channel(p, nbridge);
+					pbridge = analog_get_bridged_channel(nbridge);
 				}
 				if (pbridge && ISTRUNK(pbridge)) {
 					/* Clear out the dial buffer */
@@ -2651,7 +2642,7 @@ quit:
 	if (smdi_msg) {
 		ASTOBJ_UNREF(smdi_msg, ast_smdi_md_message_destroy);
 	}
-	analog_decrease_ss_count(p);
+	analog_decrease_ss_count();
 	return NULL;
 }
 
@@ -3940,7 +3931,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 }
 
 
-struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data)
+struct analog_pvt *analog_new(enum analog_sigtype signallingtype, void *private_data)
 {
 	struct analog_pvt *p;
 
@@ -3949,7 +3940,6 @@ struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_
 		return p;
 	}
 
-	p->calls = c;
 	p->outsigmod = ANALOG_SIG_NONE;
 	p->sig = signallingtype;
 	p->chan_pvt = private_data;
