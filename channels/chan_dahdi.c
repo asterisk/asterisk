@@ -71,12 +71,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * be placed in sig_analog and the duplicated code could be removed.
  */
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 #include "sig_pri.h"
+#ifndef PRI_RESTART
+#error "Upgrade your libpri"
 #endif
+#endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_SS7)
 #include "sig_ss7.h"
+#if defined(LIBSS7_ABI_COMPATIBILITY)
+#error "Your installed libss7 is not compatible"
+#endif
 #endif	/* defined(HAVE_SS7) */
 
 #ifdef HAVE_OPENR2
@@ -14057,9 +14063,6 @@ static void *mfcr2_monitor(void *data)
 #endif /* HAVE_OPENR2 */
 
 #if defined(HAVE_PRI)
-#ifndef PRI_RESTART
-#error "Upgrade your libpri"
-#endif
 static void dahdi_pri_message(struct pri *pri, char *s)
 {
 	int x;
