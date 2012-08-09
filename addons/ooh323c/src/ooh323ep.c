@@ -56,7 +56,7 @@ int ooH323EpInitialize
       strcpy(gH323ep.traceFile, DEFAULT_TRACEFILE);      
    }
 
-   gH323ep.fptraceFile = fopen(gH323ep.traceFile, "w");
+   gH323ep.fptraceFile = fopen(gH323ep.traceFile, "a");
    if(gH323ep.fptraceFile == NULL)
    {
       printf("Error:Failed to open trace file %s for write.\n", 
