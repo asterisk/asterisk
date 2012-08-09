@@ -1141,6 +1141,7 @@ static void destroy_escs(void)
 
 struct state_notify_data {
 	int state;
+	struct ao2_container *device_state_info;
 	int presence_state;
 	const char *presence_subtype;
 	const char *presence_message;
@@ -1438,7 +1439,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
 
 /*--- Device monitoring and Device/extension state/event handling */
-static int extensionstate_update(char *context, char *exten, struct state_notify_data *data, struct sip_pvt *p);
+static int extensionstate_update(const char *context, const char *exten, struct state_notify_data *data, struct sip_pvt *p, int force);
 static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_info *info, void *data);
 static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer, int force);
@@ -6241,6 +6242,11 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	p->peercaps = ast_format_cap_destroy(p->peercaps);
 	p->redircaps = ast_format_cap_destroy(p->redircaps);
 	p->prefcaps = ast_format_cap_destroy(p->prefcaps);
+
+	if (p->last_device_state_info) {
+		ao2_ref(p->last_device_state_info, -1);
+		p->last_device_state_info = NULL;
+	}
 
 	/* Lastly, kill the callid associated with the pvt */
 	if (p->logger_callid) {
@@ -13661,22 +13667,30 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	return 0;
 }
 
-/*! \brief Find the channel that is causing the RINGING update */
-static int find_calling_channel(void *obj, void *arg, void *data, int flags)
+/*! \internal \brief Find the channel that is causing the RINGING update, ref'd */
+static struct ast_channel *find_ringing_channel(struct ao2_container *device_state_info, struct sip_pvt *p)
 {
-	struct ast_channel *c = obj;
-	struct sip_pvt *p = data;
-	int res;
+	struct ao2_iterator citer;
+	struct ast_device_state_info *device_state;
+	struct ast_channel *c = NULL;
+	struct timeval tv = {0,};
 
-	ast_channel_lock(c);
-
-	res = (ast_channel_pbx(c) &&
-			(!strcasecmp(ast_channel_macroexten(c), p->exten) || !strcasecmp(ast_channel_exten(c), p->exten)) &&
-			(sip_cfg.notifycid == IGNORE_CONTEXT || !strcasecmp(ast_channel_context(c), p->context)));
-
-	ast_channel_unlock(c);
-
-	return res ? CMP_MATCH | CMP_STOP : 0;
+	/* iterate ringing devices and get the oldest of all causing channels */
+	citer = ao2_iterator_init(device_state_info, 0);
+	for (; (device_state = ao2_iterator_next(&citer)); ao2_ref(device_state, -1)) {
+		if (!device_state->causing_channel || (device_state->device_state != AST_DEVICE_RINGING &&
+		    device_state->device_state != AST_DEVICE_RINGINUSE)) {
+			continue;
+		}
+		ast_channel_lock(device_state->causing_channel);
+		if (ast_tvzero(tv) || ast_tvcmp(ast_channel_creationtime(device_state->causing_channel), tv) < 0) {
+			c = device_state->causing_channel;
+			tv = ast_channel_creationtime(c);
+		}
+		ast_channel_unlock(device_state->causing_channel);
+	}
+	ao2_iterator_destroy(&citer);
+	return c ? ast_channel_ref(c) : NULL;
 }
 
 /* XXX Candidate for moving into its own file */
@@ -13819,7 +13833,7 @@ static void state_notify_build_xml(struct state_notify_data *data, int full, con
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
 		ast_str_append(tmp, 0, "<?xml version=\"1.0\"?>\n");
 		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%u\" state=\"%s\" entity=\"%s\">\n", p->dialogver, full ? "full" : "partial", mto);
-		if ((data->state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
+		if (data->state > 0 && (data->state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
 			const char *local_display = exten;
 			char *local_target = ast_strdupa(mto);
 			const char *remote_display = exten;
@@ -13837,34 +13851,35 @@ static void state_notify_build_xml(struct state_notify_data *data, int full, con
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
 			   the hint'd device is not sufficient. */
 			if (sip_cfg.notifycid) {
-				struct ast_channel *caller;
+				struct ast_channel *callee;
 
-				if ((caller = ast_channel_callback(find_calling_channel, NULL, p, 0))) {
+				callee = find_ringing_channel(data->device_state_info, p);
+				if (callee) {
 					char *cid_num;
 					char *connected_num;
 					int need;
 
-					ast_channel_lock(caller);
-					cid_num = S_COR(ast_channel_caller(caller)->id.number.valid,
-						ast_channel_caller(caller)->id.number.str, "");
+					ast_channel_lock(callee);
+					cid_num = S_COR(ast_channel_caller(callee)->id.number.valid,
+						ast_channel_caller(callee)->id.number.str, "");
 					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					remote_target = ast_alloca(need);
-					snprintf(remote_target, need, "sip:%s@%s", cid_num, p->fromdomain);
-
-					remote_display = ast_strdupa(S_COR(ast_channel_caller(caller)->id.name.valid,
-						ast_channel_caller(caller)->id.name.str, ""));
-
-					connected_num = S_COR(ast_channel_connected(caller)->id.number.valid,
-						ast_channel_connected(caller)->id.number.str, "");
-					need = strlen(connected_num) + strlen(p->fromdomain) + sizeof("sip:@");
 					local_target = ast_alloca(need);
-					snprintf(local_target, need, "sip:%s@%s", connected_num, p->fromdomain);
+					snprintf(local_target, need, "sip:%s@%s", cid_num, p->fromdomain);
 
-					local_display = ast_strdupa(S_COR(ast_channel_connected(caller)->id.name.valid,
-						ast_channel_connected(caller)->id.name.str, ""));
+					local_display = ast_strdupa(S_COR(ast_channel_caller(callee)->id.name.valid,
+						ast_channel_caller(callee)->id.name.str, ""));
 
-					ast_channel_unlock(caller);
-					caller = ast_channel_unref(caller);
+					connected_num = S_COR(ast_channel_connected(callee)->id.number.valid,
+						ast_channel_connected(callee)->id.number.str, "");
+					need = strlen(connected_num) + strlen(p->fromdomain) + sizeof("sip:@");
+					remote_target = ast_alloca(need);
+					snprintf(remote_target, need, "sip:%s@%s", connected_num, p->fromdomain);
+
+					remote_display = ast_strdupa(S_COR(ast_channel_connected(callee)->id.name.valid,
+						ast_channel_connected(callee)->id.name.str, ""));
+
+					ast_channel_unlock(callee);
+					callee = ast_channel_unref(callee);
 				}
 
 				/* We create a fake call-id which the phone will send back in an INVITE
@@ -15800,7 +15815,7 @@ static void cb_extensionstate_destroy(int id, void *data)
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
-static int extensionstate_update(char *context, char *exten, struct state_notify_data *data, struct sip_pvt *p)
+static int extensionstate_update(const char *context, const char *exten, struct state_notify_data *data, struct sip_pvt *p, int force)
 {
 	sip_pvt_lock(p);
 
@@ -15813,6 +15828,38 @@ static int extensionstate_update(char *context, char *exten, struct state_notify
 		append_history(p, "Subscribestatus", "%s", data->state == AST_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated");
 		break;
 	default:	/* Tell user */
+		if (force) {
+			/* we must skip the next two checks for a queued state change or resubscribe */
+		} else if (p->laststate == data->state && (~data->state & AST_EXTENSION_RINGING)) {
+			/* don't notify unchanged state or unchanged early-state causing parties again */
+			sip_pvt_unlock(p);
+			return 0;
+		} else if (data->state & AST_EXTENSION_RINGING) {
+			/* check if another channel than last time is ringing now to be notified */
+			struct ast_channel *ringing = find_ringing_channel(data->device_state_info, p);
+			if (!ringing) {
+				/* there's something wrong, the device is ringing but there is no
+				 * ringing channel (yet, chan_sip is strange
+				 * the device is in AST_DEVICE_RINGING but the channel is in AST_STATE_DOWN)
+				 */
+				sip_pvt_unlock(p);
+				return 0;
+			}
+			if (!ast_tvcmp(ast_channel_creationtime(ringing), p->last_ringing_channel_time)) {
+				/* we assume here that no two channels have the exact same creation time */
+				ao2_ref(ringing, -1);
+				sip_pvt_unlock(p);
+				return 0;
+			}
+			p->last_ringing_channel_time = ast_channel_creationtime(ringing);
+			ao2_ref(ringing, -1);
+		}
+		/* ref before unref because the new could be the same as the old one. Don't risk destruction! */
+		if (data->device_state_info) {
+			ao2_ref(data->device_state_info, 1);
+		}
+		ao2_cleanup(p->last_device_state_info);
+		p->last_device_state_info = data->device_state_info;
 		p->laststate = data->state;
 		p->last_presence_state = data->presence_state;
 		ast_string_field_set(p, last_presence_subtype, S_OR(data->presence_subtype, ""));
@@ -15822,6 +15869,11 @@ static int extensionstate_update(char *context, char *exten, struct state_notify
 	if (p->subscribed != NONE) {	/* Only send state NOTIFY if we know the format */
 		if (!p->pendinginvite) {
 			transmit_state_notify(p, data, 1, FALSE);
+			if (p->last_device_state_info) {
+				/* We don't need the saved ref anymore, don't keep channels ref'd. */
+				ao2_ref(p->last_device_state_info, -1);
+				p->last_device_state_info = NULL;
+			}
 		} else {
 			/* We already have a NOTIFY sent that is not answered. Queue the state up.
 			   if many state changes happen meanwhile, we will only send a notification of the last one */
@@ -15844,6 +15896,7 @@ static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_inf
 	struct sip_pvt *p = data;
 	struct state_notify_data notify_data = {
 		.state = info->exten_state,
+		.device_state_info = info->device_state_info,
 		.presence_state = info->presence_state,
 		.presence_subtype = info->presence_subtype,
 		.presence_message = info->presence_message,
@@ -15854,7 +15907,7 @@ static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_inf
 		return 0;
 	}
 
-	return extensionstate_update(context, exten, &notify_data, p);
+	return extensionstate_update(context, exten, &notify_data, p, FALSE);
 }
 
 /*! \brief Send a fake 401 Unauthorized response when the administrator
@@ -22130,13 +22183,14 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
 				struct state_notify_data data = {
 					.state = p->laststate,
+					.device_state_info = p->last_device_state_info,
 					.presence_state = p->last_presence_state,
 					.presence_subtype = p->last_presence_subtype,
 					.presence_message = p->last_presence_message,
 				};
 				/* Ready to send the next state we have on queue */
 				ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
-				extensionstate_update((char *)p->context, (char *)p->exten, &data, (void *) p);
+				extensionstate_update(p->context, p->exten, &data, p, TRUE);
 			}
 		}
 		break;
@@ -26863,6 +26917,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			struct state_notify_data data = { 0, };
 			char *subtype = NULL;
 			char *message = NULL;
+			struct ao2_container *device_state_info = NULL;
 
 			if (p->expiry > 0 && !resubscribe) {
 				/* Add subscription for extension state from the PBX core */
@@ -26870,12 +26925,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 					ast_extension_state_del(p->stateid, cb_extensionstate);
 				}
 				dialog_ref(p, "copying dialog ptr into extension state struct");
-				p->stateid = ast_extension_state_add_destroy(p->context, p->exten, cb_extensionstate, cb_extensionstate_destroy, p);
+				p->stateid = ast_extension_state_add_destroy_extended(p->context, p->exten, cb_extensionstate, cb_extensionstate_destroy, p);
 				if (p->stateid == -1) {
 					dialog_unref(p, "copying dialog ptr into extension state struct failed");
 				}
 			}
-			if ((data.state = ast_extension_state(NULL, p->context, p->exten)) < 0) {
+			if ((data.state = ast_extension_state_extended(NULL, p->context, p->exten, &device_state_info)) < 0) {
+				ao2_cleanup(device_state_info);
 				if (p->expiry > 0) {
 					ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension.\n", p->exten, p->context, ast_sockaddr_stringify(&p->sa));
 				}
@@ -26893,12 +26949,31 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			transmit_response(p, "200 OK", req);
-			transmit_state_notify(p, &data, 1, FALSE);	/* Send first notification */
+			/* RFC 3265: A notification must be sent on every subscribe, so force it */
+			data.device_state_info = device_state_info;
+			if (data.state & AST_EXTENSION_RINGING) {
+				/* save last_ringing_channel_time if this state really contains a ringing channel
+				 * because extensionstate_update() doesn't do it if forced
+				 */
+				struct ast_channel *ringing = find_ringing_channel(data.device_state_info, p);
+				if (ringing) {
+					p->last_ringing_channel_time = ast_channel_creationtime(ringing);
+					ao2_ref(ringing, -1);
+				} else {
+					/* The device is ringing but there is no ringing channel (chan_sip:
+					 * the device can be AST_DEVICE_RINGING but the channel is AST_STATE_DOWN yet),
+					 * correct state for state_notify_build_xml not to search a ringing channel.
+					 */
+					data.state &= ~AST_EXTENSION_RINGING;
+				}
+			}
+			extensionstate_update(p->context, p->exten, &data, p, TRUE);
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(data.state));
 			/* hide the 'complete' exten/context in the refer_to field for later display */
 			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
 			/* Deleted the slow iteration of all sip dialogs to find old subscribes from this peer for exten@context */
 
+			ao2_cleanup(device_state_info);
 			ast_free(subtype);
 			ast_free(message);
 		}

@@ -939,6 +939,8 @@ struct ast_state_cb {
 	int id;
 	/*! Arbitrary data passed for callbacks. */
 	void *data;
+	/*! Flag if this callback is an extended callback containing detailed device status */
+	int extended;
 	/*! Callback when state changes. */
 	ast_state_cb_type change_cb;
 	/*! Callback when destroyed so any resources given by the registerer can be freed. */
@@ -1195,6 +1197,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	const char *registrar, int lock_context);
 static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
+static void get_device_state_causing_channels(struct ao2_container *c);
 
 /*!
  * \internal
@@ -4558,7 +4561,19 @@ static char *parse_hint_device(struct ast_str *hint_args)
 	return ast_str_buffer(hint_args);
 }
 
-static int ast_extension_state3(struct ast_str *hint_app)
+static void device_state_info_dt(void *obj)
+{
+	struct ast_device_state_info *info = obj;
+
+	ao2_cleanup(info->causing_channel);
+}
+
+static struct ao2_container *alloc_device_state_info(void)
+{
+	return ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+}
+
+static int ast_extension_state3(struct ast_str *hint_app, struct ao2_container *device_state_info)
 {
 	char *cur;
 	char *rest;
@@ -4569,14 +4584,28 @@ static int ast_extension_state3(struct ast_str *hint_app)
 
 	ast_devstate_aggregate_init(&agg);
 	while ((cur = strsep(&rest, "&"))) {
-		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
+		enum ast_device_state state = ast_device_state(cur);
+
+		ast_devstate_aggregate_add(&agg, state);
+		if (device_state_info) {
+			struct ast_device_state_info *obj;
+
+			obj = ao2_alloc_options(sizeof(*obj) + strlen(cur), device_state_info_dt, AO2_ALLOC_OPT_LOCK_NOLOCK);
+			/* if failed we cannot add this device */
+			if (obj) {
+				obj->device_state = state;
+				strcpy(obj->device_name, cur);
+				ao2_link(device_state_info, obj);
+				ao2_ref(obj, -1);
+			}
+		}
 	}
 
 	return ast_devstate_to_extenstate(ast_devstate_aggregate_result(&agg));
 }
 
 /*! \brief Check state of extension by using hints */
-static int ast_extension_state2(struct ast_exten *e)
+static int ast_extension_state2(struct ast_exten *e, struct ao2_container *device_state_info)
 {
 	struct ast_str *hint_app = ast_str_thread_get(&extensionstate_buf, 32);
 
@@ -4585,7 +4614,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	}
 
 	ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(e));
-	return ast_extension_state3(hint_app);
+	return ast_extension_state3(hint_app, device_state_info);
 }
 
 /*! \brief Return extension_state as string */
@@ -4600,8 +4629,9 @@ const char *ast_extension_state2str(int extension_state)
 	return "Unknown";
 }
 
-/*! \brief Check extension state for an extension by using hint */
-int ast_extension_state(struct ast_channel *c, const char *context, const char *exten)
+/*! \internal \brief Check extension state for an extension by using hint */
+static int internal_extension_state_extended(struct ast_channel *c, const char *context, const char *exten,
+	struct ao2_container *device_state_info)
 {
 	struct ast_exten *e;
 
@@ -4620,7 +4650,38 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 		}
 	}
 
-	return ast_extension_state2(e);  /* Check all devices in the hint */
+	return ast_extension_state2(e, device_state_info);  /* Check all devices in the hint */
+}
+
+/*! \brief Check extension state for an extension by using hint */
+int ast_extension_state(struct ast_channel *c, const char *context, const char *exten)
+{
+	return internal_extension_state_extended(c, context, exten, NULL);
+}
+
+/*! \brief Check extended extension state for an extension by using hint */
+int ast_extension_state_extended(struct ast_channel *c, const char *context, const char *exten,
+	struct ao2_container **device_state_info)
+{
+	struct ao2_container *container = NULL;
+	int ret;
+
+	if (device_state_info) {
+		container = alloc_device_state_info();
+	}
+
+	ret = internal_extension_state_extended(c, context, exten, container);
+	if (ret < 0 && container) {
+		ao2_ref(container, -1);
+		container = NULL;
+	}
+
+	if (device_state_info) {
+		get_device_state_causing_channels(container);
+		*device_state_info = container;
+	}
+
+	return ret;
 }
 
 static int extension_presence_state_helper(struct ast_exten *e, char **subtype, char **message)
@@ -4676,7 +4737,8 @@ static int execute_state_callback(ast_state_cb_type cb,
 	const char *exten,
 	void *data,
 	enum ast_state_cb_update_reason reason,
-	struct ast_hint *hint)
+	struct ast_hint *hint,
+	struct ao2_container *device_state_info)
 {
 	int res = 0;
 	struct ast_state_cb_info info = { 0, };
@@ -4687,6 +4749,7 @@ static int execute_state_callback(ast_state_cb_type cb,
 	if (hint) {
 		ao2_lock(hint);
 		info.exten_state = hint->laststate;
+		info.device_state_info = device_state_info;
 		info.presence_state = hint->last_presence_state;
 		if (!(ast_strlen_zero(hint->last_presence_subtype))) {
 			info.presence_subtype = ast_strdupa(hint->last_presence_subtype);
@@ -4798,7 +4861,8 @@ static int handle_presencechange(void *datap)
 				exten_name,
 				state_cb->data,
 				AST_HINT_UPDATE_PRESENCE,
-				hint);
+				hint,
+				NULL);
 		}
 		ao2_iterator_destroy(&cb_iter);
 
@@ -4810,7 +4874,8 @@ static int handle_presencechange(void *datap)
 				exten_name,
 				state_cb->data,
 				AST_HINT_UPDATE_PRESENCE,
-				hint);
+				hint,
+				NULL);
 		}
 		ao2_iterator_destroy(&cb_iter);
 	}
@@ -4824,6 +4889,87 @@ presencechange_cleanup:
 	ao2_ref(pc, -1);
 
 	return res;
+}
+
+/*!
+ * /internal
+ * /brief Identify a channel for every device which is supposedly responsible for the device state.
+ *
+ * Especially when the device is ringing, the oldest ringing channel is chosen.
+ * For all other cases the first encountered channel in the specific state is chosen.
+ */
+static void get_device_state_causing_channels(struct ao2_container *c)
+{
+	struct ao2_iterator iter;
+	struct ast_device_state_info *info;
+	struct ast_channel *chan;
+
+	if (!c || !ao2_container_count(c)) {
+		return;
+	}
+	iter = ao2_iterator_init(c, 0);
+	for (; (info = ao2_iterator_next(&iter)); ao2_ref(info, -1)) {
+		enum ast_channel_state search_state = 0; /* prevent false uninit warning */
+		char match[AST_CHANNEL_NAME];
+		struct ast_channel_iterator *chan_iter;
+		struct timeval chantime = {0, }; /* prevent false uninit warning */
+
+		switch (info->device_state) {
+		case AST_DEVICE_RINGING:
+		case AST_DEVICE_RINGINUSE:
+			/* find ringing channel */
+			search_state = AST_STATE_RINGING;
+			break;
+		case AST_DEVICE_BUSY:
+			/* find busy channel */
+			search_state = AST_STATE_BUSY;
+			break;
+		case AST_DEVICE_ONHOLD:
+		case AST_DEVICE_INUSE:
+			/* find up channel */
+			search_state = AST_STATE_UP;
+			break;
+		case AST_DEVICE_UNKNOWN:
+		case AST_DEVICE_NOT_INUSE:
+		case AST_DEVICE_INVALID:
+		case AST_DEVICE_UNAVAILABLE:
+		case AST_DEVICE_TOTAL /* not a state */:
+			/* no channels are of interest */
+			continue;
+		}
+
+		/* iterate over all channels of the device */
+	        snprintf(match, sizeof(match), "%s-", info->device_name);
+		chan_iter = ast_channel_iterator_by_name_new(match, strlen(match));
+		for (; (chan = ast_channel_iterator_next(chan_iter)); ast_channel_unref(chan)) {
+			ast_channel_lock(chan);
+			/* this channel's state doesn't match */
+			if (search_state != ast_channel_state(chan)) {
+				ast_channel_unlock(chan);
+				continue;
+			}
+			/* any non-ringing channel will fit */
+			if (search_state != AST_STATE_RINGING) {
+				ast_channel_unlock(chan);
+				info->causing_channel = chan; /* is kept ref'd! */
+				break;
+			}
+			/* but we need the oldest ringing channel of the device to match with undirected pickup */
+			if (!info->causing_channel) {
+				chantime = ast_channel_creationtime(chan);
+				ast_channel_ref(chan); /* must ref it! */
+				info->causing_channel = chan;
+			} else if (ast_tvcmp(ast_channel_creationtime(chan), chantime) < 0) {
+				chantime = ast_channel_creationtime(chan);
+				ast_channel_unref(info->causing_channel);
+				ast_channel_ref(chan); /* must ref it! */
+				info->causing_channel = chan;
+			}
+			ast_channel_unlock(chan);
+		}
+		ast_channel_iterator_destroy(chan_iter);
+	}
+	ao2_iterator_destroy(&iter);
 }
 
 static int handle_statechange(void *datap)
@@ -4869,6 +5015,9 @@ static int handle_statechange(void *datap)
 	for (; (device = ao2_iterator_next(dev_iter)); ao2_t_ref(device, -1, "Next device")) {
 		struct ast_state_cb *state_cb;
 		int state;
+		int same_state;
+		struct ao2_container *device_state_info;
+		int first_extended_cb_call = 1;
 
 		if (!device->hint) {
 			/* Should never happen. */
@@ -4902,8 +5051,13 @@ static int handle_statechange(void *datap)
 		 * device state or notifying the watchers without causing a
 		 * deadlock.  (conlock, hints, and hint)
 		 */
-		state = ast_extension_state3(hint_app);
-		if (state == hint->laststate) {
+		/* Make a container so state3 can fill it if we wish.
+		 * If that failed we simply do not provide the extended state info.
+		 */
+		device_state_info = alloc_device_state_info();
+		state = ast_extension_state3(hint_app, device_state_info);
+		if ((same_state = state == hint->laststate) && (~state & AST_EXTENSION_RINGING)) {
+			ao2_cleanup(device_state_info);
 			continue;
 		}
 
@@ -4912,27 +5066,41 @@ static int handle_statechange(void *datap)
 
 		/* For general callbacks */
 		cb_iter = ao2_iterator_init(statecbs, 0);
-		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
+		for (; !same_state && (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
 			execute_state_callback(state_cb->change_cb,
 				context_name,
 				exten_name,
 				state_cb->data,
 				AST_HINT_UPDATE_DEVICE,
-				hint);
+				hint,
+				NULL);
 		}
 		ao2_iterator_destroy(&cb_iter);
 
 		/* For extension callbacks */
+		/* extended callbacks are called when the state changed or when AST_EVENT_RINGING is
+		 * included. Normal callbacks are only called when the state changed.
+		 */
 		cb_iter = ao2_iterator_init(hint->callbacks, 0);
 		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
-			execute_state_callback(state_cb->change_cb,
-				context_name,
-				exten_name,
-				state_cb->data,
-				AST_HINT_UPDATE_DEVICE,
-				hint);
+			if (state_cb->extended && first_extended_cb_call) {
+				/* Fill detailed device_state_info now that we know it is used by extd. callback */
+				first_extended_cb_call = 0;
+				get_device_state_causing_channels(device_state_info);
+			}
+			if (state_cb->extended || !same_state) {
+				execute_state_callback(state_cb->change_cb,
+					context_name,
+					exten_name,
+					state_cb->data,
+					AST_HINT_UPDATE_DEVICE,
+					hint,
+					state_cb->extended ? device_state_info : NULL);
+			}
 		}
 		ao2_iterator_destroy(&cb_iter);
+
+		ao2_cleanup(device_state_info);
 	}
 	ast_mutex_unlock(&context_merge_lock);
 
@@ -4959,9 +5127,9 @@ static void destroy_state_cb(void *doomed)
 	}
 }
 
-/*! \brief Add watcher for extension states with destructor */
-int ast_extension_state_add_destroy(const char *context, const char *exten,
-	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
+/*! \internal \brief Add watcher for extension states with destructor */
+static int extension_state_add_destroy(const char *context, const char *exten,
+	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data, int extended)
 {
 	struct ast_hint *hint;
 	struct ast_state_cb *state_cb;
@@ -4985,6 +5153,7 @@ int ast_extension_state_add_destroy(const char *context, const char *exten,
 		state_cb->change_cb = change_cb;
 		state_cb->destroy_cb = destroy_cb;
 		state_cb->data = data;
+		state_cb->extended = extended;
 		ao2_link(statecbs, state_cb);
 
 		ao2_ref(state_cb, -1);
@@ -5037,6 +5206,7 @@ int ast_extension_state_add_destroy(const char *context, const char *exten,
 	state_cb->change_cb = change_cb;	/* Pointer to callback routine */
 	state_cb->destroy_cb = destroy_cb;
 	state_cb->data = data;		/* Data for the callback */
+	state_cb->extended = extended;
 	ao2_link(hint->callbacks, state_cb);
 
 	ao2_ref(state_cb, -1);
@@ -5046,11 +5216,32 @@ int ast_extension_state_add_destroy(const char *context, const char *exten,
 	return id;
 }
 
+/*! \brief Add watcher for extension states with destructor */
+int ast_extension_state_add_destroy(const char *context, const char *exten,
+	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
+{
+	return extension_state_add_destroy(context, exten, change_cb, destroy_cb, data, 0);
+}
+
 /*! \brief Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data)
 {
-	return ast_extension_state_add_destroy(context, exten, change_cb, NULL, data);
+	return extension_state_add_destroy(context, exten, change_cb, NULL, data, 0);
+}
+
+/*! \brief Add watcher for extended extension states with destructor */
+int ast_extension_state_add_destroy_extended(const char *context, const char *exten,
+	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
+{
+	return extension_state_add_destroy(context, exten, change_cb, destroy_cb, data, 1);
+}
+
+/*! \brief Add watcher for extended extension states */
+int ast_extension_state_add_extended(const char *context, const char *exten,
+	ast_state_cb_type change_cb, void *data)
+{
+	return extension_state_add_destroy(context, exten, change_cb, NULL, data, 1);
 }
 
 /*! \brief Find Hint by callback id */
@@ -5144,7 +5335,8 @@ static void destroy_hint(void *obj)
 				exten_name,
 				state_cb->data,
 				AST_HINT_UPDATE_DEVICE,
-				hint);
+				hint,
+				NULL);
 			ao2_ref(state_cb, -1);
 		}
 		ao2_ref(hint->callbacks, -1);
@@ -5218,7 +5410,7 @@ static int ast_add_hint(struct ast_exten *e)
 		return -1;
 	}
 	hint_new->exten = e;
-	hint_new->laststate = ast_extension_state2(e);
+	hint_new->laststate = ast_extension_state2(e, NULL);
 	if ((presence_state = extension_presence_state_helper(e, &subtype, &message)) > 0) {
 		hint_new->last_presence_state = presence_state;
 		hint_new->last_presence_subtype = subtype;
@@ -8381,6 +8573,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 				saved_hint->exten,
 				thiscb->data,
 				AST_HINT_UPDATE_DEVICE,
+				NULL,
 				NULL);
 			/* Ref that we added when putting into saved_hint->callbacks */
 			ao2_ref(thiscb, -1);

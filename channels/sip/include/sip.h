@@ -1155,6 +1155,8 @@ struct sip_pvt {
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;                      /*!< SUBSCRIBE: Last known extension state */
+	struct ao2_container *last_device_state_info; /*!< SUBSCRIBE: last known extended extension state (take care of refs)*/
+	struct timeval last_ringing_channel_time; /*!< SUBSCRIBE: channel timestamp of the channel which caused the last early-state notification */
 	int last_presence_state;            /*!< SUBSCRIBE: Last known presence state */
 	uint32_t dialogver;                 /*!< SUBSCRIBE: Version for subscription dialog-info */
 

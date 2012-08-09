@@ -83,9 +83,16 @@ enum ast_state_cb_update_reason {
 	AST_HINT_UPDATE_PRESENCE = 2,
 };
 
+struct ast_device_state_info {
+	enum ast_device_state device_state;
+	struct ast_channel *causing_channel;
+	char device_name[1];
+};
+
 struct ast_state_cb_info {
 	enum ast_state_cb_update_reason reason;
 	enum ast_extension_states exten_state;
+	struct ao2_container *device_state_info; /* holds ast_device_state_info, must be referenced by callback if stored */
 	enum ast_presence_state presence_state;
 	const char *presence_subtype;
 	const char *presence_message;
@@ -483,6 +490,20 @@ enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devst
 int ast_extension_state(struct ast_channel *c, const char *context, const char *exten);
 
 /*!
+ * \brief Uses hint and devicestate callback to get the extended state of an extension
+ * \since 11
+ *
+ * \param c this is not important
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * \param[out] device_state_info ptr to an ao2_container with extended state info, must be unref'd after use.
+ *
+ * \return extension state as defined in the ast_extension_states enum
+ */
+int ast_extension_state_extended(struct ast_channel *c, const char *context, const char *exten,
+	struct ao2_container **device_state_info);
+
+/*!
  * \brief Uses hint and presence state callback to get the presence state of an extension
  *
  * \param c this is not important
@@ -531,6 +552,30 @@ int ast_extension_state_add_destroy(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data);
 
 /*!
+ * \brief Registers an extended state change callback with destructor.
+ * \since 11
+ *
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * \param change_cb callback to call if state changed
+ * \param destroy_cb callback to call when registration destroyed.
+ * \param data to pass to callback
+ *
+ * \note The change_cb is called if the state of an extension is changed.
+ * The extended state is passed to the callback in the device_state_info
+ * member of ast_state_cb_info.
+ *
+ * \note The destroy_cb is called when the registration is
+ * deleted so the registerer can release any associated
+ * resources.
+ *
+ * \retval -1 on failure
+ * \retval ID on success
+ */
+int ast_extension_state_add_destroy_extended(const char *context, const char *exten,
+	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data);
+
+/*!
  * \brief Registers a state change callback
  *
  * \param context which context to look in
@@ -544,6 +589,25 @@ int ast_extension_state_add_destroy(const char *context, const char *exten,
  * \retval ID on success
  */
 int ast_extension_state_add(const char *context, const char *exten,
+	ast_state_cb_type change_cb, void *data);
+
+/*!
+ * \brief Registers an extended state change callback
+ * \since 11
+ *
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * \param change_cb callback to call if state changed
+ * \param data to pass to callback
+ *
+ * \note The change_cb is called if the state of an extension is changed.
+ * The extended state is passed to the callback in the device_state_info
+ * member of ast_state_cb_info.
+ *
+ * \retval -1 on failure
+ * \retval ID on success
+ */
+int ast_extension_state_add_extended(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data);
 
 /*!
