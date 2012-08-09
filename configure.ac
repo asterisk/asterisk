@@ -1999,7 +1999,8 @@ if test "x${PBX_SPANDSP}" = "x1" ; then
 	AST_EXT_LIB_CHECK([SPANDSP], [spandsp], [t38_terminal_init], [spandsp.h], [-ltiff])
 fi
 
-AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_pollflags], [libss7.h])
+# Check for libss7 v1.0 branch compatible version.
+AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_set_adjpc], [libss7.h])
 
 AST_EXT_LIB_CHECK([OPENR2], [openr2], [openr2_chan_new], [openr2.h])
 

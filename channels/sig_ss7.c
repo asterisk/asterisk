@@ -44,6 +44,9 @@
 #include "asterisk/transcap.h"
 
 #include "sig_ss7.h"
+#if defined(LIBSS7_ABI_COMPATIBILITY)
+#error "Your installed libss7 is not compatible"
+#endif
 
 /* ------------------------------------------------------------------- */
 
