@@ -2281,9 +2281,9 @@ static char *dundi_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return NULL;
 	}
 
-	if (a->argc != e->args)
+	if (a->argc != e->args) {
 		return CLI_SHOWUSAGE;
-
+	}
 	if (!strncasecmp(a->argv[e->args -1], "on", 2)) {
 		dundidebug = 1;
 		ast_cli(a->fd, "DUNDi Debugging Enabled\n");
@@ -2308,9 +2308,9 @@ static char *dundi_store_history(struct ast_cli_entry *e, int cmd, struct ast_cl
 		return NULL;
 	}
 
-	if (a->argc != e->args)
+	if (a->argc != e->args) {
 		return CLI_SHOWUSAGE;
-
+	}
 	if (!strncasecmp(a->argv[e->args -1], "on", 2)) {
 		global_storehistory = 1;
 		ast_cli(a->fd, "DUNDi History Storage Enabled\n");
@@ -2336,13 +2336,15 @@ static char *dundi_flush(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if ((a->argc < 2) || (a->argc > 3))
+	if ((a->argc < 2) || (a->argc > 3)) {
 		return CLI_SHOWUSAGE;
+	}
 	if (a->argc > 2) {
-		if (!strcasecmp(a->argv[2], "stats"))
+		if (!strcasecmp(a->argv[2], "stats")) {
 			stats = 1;
-		else
+		} else {
 			return CLI_SHOWUSAGE;
+		}
 	}
 	if (stats) {
 		/* Flush statistics */
@@ -2442,13 +2444,15 @@ static char *dundi_do_lookup(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return NULL;
 	}
 
-	if ((a->argc < 3) || (a->argc > 4))
+	if ((a->argc < 3) || (a->argc > 4)) {
 		return CLI_SHOWUSAGE;
+	}
 	if (a->argc > 3) {
-		if (!strcasecmp(a->argv[3], "bypass"))
+		if (!strcasecmp(a->argv[3], "bypass")) {
 			bypass=1;
-		else
+		} else {
 			return CLI_SHOWUSAGE;
+		}
 	}
 	ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
@@ -2491,8 +2495,9 @@ static char *dundi_do_precache(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if ((a->argc < 3) || (a->argc > 3))
+	if ((a->argc < 3) || (a->argc > 3)) {
 		return CLI_SHOWUSAGE;
+	}
 	ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
@@ -2529,8 +2534,9 @@ static char *dundi_do_query(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if ((a->argc < 3) || (a->argc > 3))
+	if ((a->argc < 3) || (a->argc > 3)) {
 		return CLI_SHOWUSAGE;
+	}
 	if (ast_str_to_eid(&eid, a->argv[2])) {
 		ast_cli(a->fd, "'%s' is not a valid EID!\n", a->argv[2]);
 		return CLI_SHOWUSAGE;
@@ -2577,8 +2583,9 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	case CLI_GENERATE:
 		return complete_peer_helper(a->line, a->word, a->pos, a->n, 3);
 	}
-	if (a->argc != 4)
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
+	}
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, list) {
 		if (!strcasecmp(ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), a->argv[3]))
@@ -2659,14 +2666,16 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return NULL;
 	}
 
-	if ((a->argc != 3) && (a->argc != 4) && (a->argc != 5))
+	if ((a->argc != 3) && (a->argc != 4) && (a->argc != 5)) {
 		return CLI_SHOWUSAGE;
+	}
 	if ((a->argc == 4)) {
- 		if (!strcasecmp(a->argv[3], "registered")) {
+		if (!strcasecmp(a->argv[3], "registered")) {
 			registeredonly = 1;
-		} else
+		} else {
 			return CLI_SHOWUSAGE;
- 	}
+		}
+	}
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "EID", "Host", "Port", "Model", "AvgTime", "Status");
 	AST_LIST_TRAVERSE(&peers, peer, list) {
@@ -2745,8 +2754,9 @@ static char *dundi_show_trans(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	AST_LIST_TRAVERSE(&alltrans, trans, all) {
@@ -2772,8 +2782,9 @@ static char *dundi_show_entityid(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 	AST_LIST_LOCK(&peers);
 	ast_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
 	AST_LIST_UNLOCK(&peers);
@@ -2797,8 +2808,9 @@ static char *dundi_show_requests(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	AST_LIST_TRAVERSE(&requests, req, list) {
@@ -2830,8 +2842,9 @@ static char *dundi_show_mappings(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	AST_LIST_TRAVERSE(&mappings, map, list) {
@@ -2863,8 +2876,9 @@ static char *dundi_show_precache(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 	time(&now);
 	ast_cli(a->fd, FORMAT2, "Number", "Context", "Expiration");
 	AST_LIST_LOCK(&pcq);
@@ -2883,6 +2897,166 @@ static char *dundi_show_precache(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT2
 }
 
+static char *dundi_show_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT2 "%-12.12s %-16.16s %-10.10s  %-18s %-7s %s\n"
+#define FORMAT "%-12.12s %-16.16s %6d sec  %-18s %-7d %s/%s (%s)\n"
+        struct ast_db_entry *db_tree, *db_entry;
+	int cnt = 0;
+	time_t ts, now;
+	dundi_eid src_eid;
+	char src_eid_str[20];
+	int expiry, tech, weight;
+	struct ast_flags flags;
+	char fs[256];
+	int length;
+	char *ptr, *term, *src, *number, *context, *dst;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show cache";
+		e->usage =
+		"Usage: dundi show cache\n"
+		"       Lists all DUNDi cache entries.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	time(&now);
+	db_tree = ast_db_gettree("dundi/cache", NULL);
+	ast_cli(a->fd, FORMAT2, "Number", "Context", "Expiration", "From", "Weight", "Destination (Flags)");
+	for (db_entry = db_tree; db_entry; db_entry = db_entry->next) {
+		if ((strncmp(db_entry->key, "/dundi/cache/hint/", 18) == 0) || ast_get_time_t(db_entry->data, &ts, 0, &length)) {
+			continue;
+		}
+
+		expiry = ts - now;
+
+		if (expiry <= 0) {
+			continue;
+		}
+
+		ptr = db_entry->key + sizeof("/dundi/cache");
+		strtok(ptr, "/");
+		number = strtok(NULL, "/");
+		context = strtok(NULL, "/");
+		ptr = strtok(NULL, "/");
+
+		if (*ptr != 'e') {
+			continue;
+		}
+
+		ptr = db_entry->data + length + 1;
+
+		if ((sscanf(ptr, "%30d/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) != 3)) {
+			continue;
+		}
+
+		ptr += length;
+		dst = ptr;
+		term = strchr(ptr, '|');
+
+		if (!term) {
+			continue;
+		}
+
+		/* Ok, at this point we know we aren't going to skp the entry, so we go ahead and increment the count. */
+		cnt++;
+
+		*term = '\0';
+		src = strrchr(ptr, '/');
+		dundi_eid_zero(&src_eid);
+
+		if (src) {
+			*src = '\0';
+			src++;
+			dundi_str_short_to_eid(&src_eid, src);
+			ast_eid_to_str(src_eid_str, sizeof(src_eid_str), &src_eid);
+		}
+
+		ast_cli(a->fd, FORMAT, number, context, expiry, src_eid_str, weight, tech2str(tech), dst, dundi_flags2str(fs, sizeof(fs), flags.flags));
+	}
+
+	ast_cli(a->fd, "Number of entries: %d\n", cnt);
+	ast_db_freetree(db_tree);
+
+	return CLI_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+}
+
+static char *dundi_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT2 "%-12.12s %-16.16s %-10.10s  %-18s\n"
+#define FORMAT "%-12.12s %-16.16s %6d sec  %-18s\n"
+	struct ast_db_entry *db_tree, *db_entry;
+	int cnt = 0;
+	time_t ts, now;
+	dundi_eid src_eid;
+	char src_eid_str[20];
+	int expiry;
+	int length;
+	char *ptr, *src, *number, *context;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show hints";
+		e->usage =
+			"Usage: dundi show hints\n"
+			"       Lists all DUNDi 'DONTASK' hints in the cache.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	time(&now);
+	db_tree = ast_db_gettree("dundi/cache/hint", NULL);
+	ast_cli(a->fd, FORMAT2, "Prefix", "Context", "Expiration", "From");
+
+	for (db_entry = db_tree; db_entry; db_entry = db_entry->next) {
+		if (ast_get_time_t(db_entry->data, &ts, 0, &length)) {
+			continue;
+		}
+
+		expiry = ts - now;
+
+		if (expiry <= 0) {
+			continue;
+		}
+
+		ptr = db_entry->key + sizeof("/dundi/cache/hint");
+		src = strtok(ptr, "/");
+		number = strtok(NULL, "/");
+		context = strtok(NULL, "/");
+		ptr = strtok(NULL, "/");
+
+		if (*ptr != 'e') {
+			continue;
+		}
+
+		cnt++;
+		dundi_str_short_to_eid(&src_eid, src);
+		ast_eid_to_str(src_eid_str, sizeof(src_eid_str), &src_eid);
+		ast_cli(a->fd, FORMAT, number, context, expiry, src_eid_str);
+	}
+
+	ast_cli(a->fd, "Number of entries: %d\n", cnt);
+	ast_db_freetree(db_tree);
+
+	return CLI_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+}
+
 static struct ast_cli_entry cli_dundi[] = {
 	AST_CLI_DEFINE(dundi_set_debug, "Enable/Disable DUNDi debugging"),
 	AST_CLI_DEFINE(dundi_store_history, "Enable/Disable DUNDi historic records"),
@@ -2894,6 +3068,8 @@ static struct ast_cli_entry cli_dundi[] = {
 	AST_CLI_DEFINE(dundi_show_precache, "Show DUNDi precache"),
 	AST_CLI_DEFINE(dundi_show_requests, "Show DUNDi requests"),
 	AST_CLI_DEFINE(dundi_show_peer, "Show info on a specific DUNDi peer"),
+	AST_CLI_DEFINE(dundi_show_cache, "Show DUNDi cache"),
+	AST_CLI_DEFINE(dundi_show_hints, "Show DUNDi hints in the cache"),
 	AST_CLI_DEFINE(dundi_do_precache, "Precache a number in DUNDi"),
 	AST_CLI_DEFINE(dundi_do_lookup, "Lookup a number in DUNDi"),
 	AST_CLI_DEFINE(dundi_do_query, "Query a DUNDi EID"),

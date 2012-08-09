@@ -564,6 +564,11 @@ Codecs
  * The iLBC codec can now use a system-provided iLBC library if one is installed,
    just like the GSM codec.
 
+DUNDi changes
+-------------
+ * Added CLI commands dundi show hints and dundi show cache which will list DUNDi
+   'DONTASK' hints in the cache and list all DUNDi cache entires respectively.
+
 Logging
 -------------------
  * Asterisk version and build information is now logged at the beginning of a
