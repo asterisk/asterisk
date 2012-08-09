@@ -53,7 +53,7 @@
 
 #include "sig_pri.h"
 #ifndef PRI_EVENT_FACILITY
-#error please update libpri
+#error "Upgrade your libpri"
 #endif
 
 /* define this to send PRI user-user information elements */
