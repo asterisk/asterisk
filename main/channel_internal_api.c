@@ -930,6 +930,10 @@ struct ast_party_connected_line *ast_channel_connected(struct ast_channel *chan)
 {
 	return &chan->connected;
 }
+struct ast_party_id ast_channel_connected_effective_id(struct ast_channel *chan)
+{
+	return ast_party_id_merge(&chan->connected.id, &chan->connected.priv);
+}
 struct ast_party_dialed *ast_channel_dialed(struct ast_channel *chan)
 {
 	return &chan->dialed;
@@ -937,6 +941,18 @@ struct ast_party_dialed *ast_channel_dialed(struct ast_channel *chan)
 struct ast_party_redirecting *ast_channel_redirecting(struct ast_channel *chan)
 {
 	return &chan->redirecting;
+}
+struct ast_party_id ast_channel_redirecting_effective_orig(struct ast_channel *chan)
+{
+	return ast_party_id_merge(&chan->redirecting.orig, &chan->redirecting.priv_orig);
+}
+struct ast_party_id ast_channel_redirecting_effective_from(struct ast_channel *chan)
+{
+	return ast_party_id_merge(&chan->redirecting.from, &chan->redirecting.priv_from);
+}
+struct ast_party_id ast_channel_redirecting_effective_to(struct ast_channel *chan)
+{
+	return ast_party_id_merge(&chan->redirecting.to, &chan->redirecting.priv_to);
 }
 struct timeval *ast_channel_dtmf_tv(struct ast_channel *chan)
 {

@@ -1399,6 +1399,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	int hour=0, min=0, sec=0;
 	struct ast_callid *callid;
 	char call_identifier_str[AST_CALLID_BUFFER_LENGTH] = "";
+	struct ast_party_id effective_connected_id;
 #ifdef CHANNEL_TRACE
 	int trace_enabled;
 #endif
@@ -1452,6 +1453,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_callid_unref(callid);
 	}
 
+	effective_connected_id = ast_channel_connected_effective_id(c);
+
 	ast_str_append(&output, 0,
 		" -- General --\n"
 		"           Name: %s\n"
@@ -1462,6 +1465,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		" Caller ID Name: %s\n"
 		"Connected Line ID: %s\n"
 		"Connected Line ID Name: %s\n"
+		"Eff. Connected Line ID: %s\n"
+		"Eff. Connected Line ID Name: %s\n"
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
 		"          State: %s (%d)\n"
@@ -1493,6 +1498,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "(N/A)"),
 		S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "(N/A)"),
 		S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "(N/A)"),
+		S_COR(effective_connected_id.number.valid, effective_connected_id.number.str, "(N/A)"),
+		S_COR(effective_connected_id.name.valid, effective_connected_id.name.str, "(N/A)"),
 		S_OR(ast_channel_dialed(c)->number.str, "(N/A)"),
 		ast_channel_language(c),
 		ast_state2str(ast_channel_state(c)), ast_channel_state(c), ast_channel_rings(c),

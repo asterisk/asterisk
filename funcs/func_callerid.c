@@ -103,6 +103,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "subaddr-type" />
 					<enum name = "subaddr-odd" />
 					<enum name = "tag" />
+					<enum name = "priv-all" />
+					<enum name = "priv-name" />
+					<enum name = "priv-name-valid" />
+					<enum name = "priv-name-charset" />
+					<enum name = "priv-name-pres" />
+					<enum name = "priv-num" />
+					<enum name = "priv-num-valid" />
+					<enum name = "priv-num-plan" />
+					<enum name = "priv-num-pres" />
+					<enum name = "priv-subaddr" />
+					<enum name = "priv-subaddr-valid" />
+					<enum name = "priv-subaddr-type" />
+					<enum name = "priv-subaddr-odd" />
+					<enum name = "priv-tag" />
 					<enum name = "ANI-all" />
 					<enum name = "ANI-name" />
 					<enum name = "ANI-name-valid" />
@@ -209,6 +223,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "subaddr-type" />
 					<enum name = "subaddr-odd" />
 					<enum name = "tag" />
+					<enum name = "priv-all" />
+					<enum name = "priv-name" />
+					<enum name = "priv-name-valid" />
+					<enum name = "priv-name-charset" />
+					<enum name = "priv-name-pres" />
+					<enum name = "priv-num" />
+					<enum name = "priv-num-valid" />
+					<enum name = "priv-num-plan" />
+					<enum name = "priv-num-pres" />
+					<enum name = "priv-subaddr" />
+					<enum name = "priv-subaddr-valid" />
+					<enum name = "priv-subaddr-type" />
+					<enum name = "priv-subaddr-odd" />
+					<enum name = "priv-tag" />
 				</enumlist>
 			</parameter>
 			<parameter name="i">
@@ -285,6 +313,48 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "to-subaddr-type" />
 					<enum name = "to-subaddr-odd" />
 					<enum name = "to-tag" />
+					<enum name = "priv-orig-all" />
+					<enum name = "priv-orig-name" />
+					<enum name = "priv-orig-name-valid" />
+					<enum name = "priv-orig-name-charset" />
+					<enum name = "priv-orig-name-pres" />
+					<enum name = "priv-orig-num" />
+					<enum name = "priv-orig-num-valid" />
+					<enum name = "priv-orig-num-plan" />
+					<enum name = "priv-orig-num-pres" />
+					<enum name = "priv-orig-subaddr" />
+					<enum name = "priv-orig-subaddr-valid" />
+					<enum name = "priv-orig-subaddr-type" />
+					<enum name = "priv-orig-subaddr-odd" />
+					<enum name = "priv-orig-tag" />
+					<enum name = "priv-from-all" />
+					<enum name = "priv-from-name" />
+					<enum name = "priv-from-name-valid" />
+					<enum name = "priv-from-name-charset" />
+					<enum name = "priv-from-name-pres" />
+					<enum name = "priv-from-num" />
+					<enum name = "priv-from-num-valid" />
+					<enum name = "priv-from-num-plan" />
+					<enum name = "priv-from-num-pres" />
+					<enum name = "priv-from-subaddr" />
+					<enum name = "priv-from-subaddr-valid" />
+					<enum name = "priv-from-subaddr-type" />
+					<enum name = "priv-from-subaddr-odd" />
+					<enum name = "priv-from-tag" />
+					<enum name = "priv-to-all" />
+					<enum name = "priv-to-name" />
+					<enum name = "priv-to-name-valid" />
+					<enum name = "priv-to-name-charset" />
+					<enum name = "priv-to-name-pres" />
+					<enum name = "priv-to-num" />
+					<enum name = "priv-to-num-valid" />
+					<enum name = "priv-to-num-plan" />
+					<enum name = "priv-to-num-pres" />
+					<enum name = "priv-to-subaddr" />
+					<enum name = "priv-to-subaddr-valid" />
+					<enum name = "priv-to-subaddr-type" />
+					<enum name = "priv-to-subaddr-odd" />
+					<enum name = "priv-to-tag" />
 					<enum name = "reason" />
 					<enum name = "count" />
 				</enumlist>
@@ -997,6 +1067,17 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, 
 				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 				break;
 			}
+		} else if (!strcasecmp("priv", member.argv[0])) {
+			status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+				&ast_channel_caller(chan)->priv);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+				break;
+			}
 		} else {
 			status = party_id_read(buf, len, member.argc, member.argv, &ast_channel_caller(chan)->id);
 			switch (status) {
@@ -1159,6 +1240,23 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 			break;
 		}
 		ast_party_caller_free(&caller);
+	} else if (!strcasecmp("priv", member.argv[0])) {
+		ast_party_caller_set_init(&caller, ast_channel_caller(chan));
+		status = party_id_write(&caller.priv, member.argc - 1, member.argv + 1, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			ast_party_caller_set(ast_channel_caller(chan), &caller, NULL);
+			if (ast_channel_cdr(chan)) {
+				ast_cdr_setcid(ast_channel_cdr(chan), chan);
+			}
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+			break;
+		}
+		ast_party_caller_free(&caller);
 	} else {
 		ast_party_caller_set_init(&caller, ast_channel_caller(chan));
 		status = party_id_write(&caller.id, member.argc, member.argv, value);
@@ -1199,6 +1297,7 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 {
 	struct ast_party_members member;
 	char *read_what;
+	enum ID_FIELD_STATUS status;
 
 	/* Ensure that the buffer is empty */
 	*buf = 0;
@@ -1218,8 +1317,18 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 
 	if (member.argc == 1 && !strcasecmp("source", member.argv[0])) {
 		ast_copy_string(buf, ast_connected_line_source_name(ast_channel_connected(chan)->source), len);
+	} else if (!strcasecmp("priv", member.argv[0])) {
+		status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+			&ast_channel_connected(chan)->priv);
+		switch (status) {
+		case ID_FIELD_VALID:
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
+			break;
+		}
 	} else {
-		enum ID_FIELD_STATUS status;
 		status = party_id_read(buf, len, member.argc, member.argv, &ast_channel_connected(chan)->id);
 		switch (status) {
 		case ID_FIELD_VALID:
@@ -1258,6 +1367,7 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 	struct ast_party_members member;
 	struct ast_flags opts;
 	char *opt_args[CONNECTED_LINE_OPT_ARG_ARRAY_SIZE];
+	enum ID_FIELD_STATUS status;
 
 	if (!value || !chan) {
 		return -1;
@@ -1312,8 +1422,20 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 			connected.source = source;
 			set_it(chan, &connected, NULL);
 		}
+	} else if (!strcasecmp("priv", member.argv[0])) {
+		status = party_id_write(&connected.priv, member.argc - 1, member.argv + 1, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			set_it(chan, &connected, NULL);
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
+			break;
+		}
+		ast_party_connected_line_free(&connected);
 	} else {
-		enum ID_FIELD_STATUS status;
 		status = party_id_write(&connected.id, member.argc, member.argv, value);
 		switch (status) {
 		case ID_FIELD_VALID:
@@ -1418,6 +1540,43 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, ast_redirecting_reason_name(ast_redirecting->reason), len);
 	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {
 		snprintf(buf, len, "%d", ast_redirecting->count);
+	} else if (1 < member.argc && !strcasecmp("priv", member.argv[0])) {
+		if (!strcasecmp("orig", member.argv[1])) {
+			status = party_id_read(buf, len, member.argc - 2, member.argv + 2,
+				&ast_redirecting->priv_orig);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+		} else if (!strcasecmp("from", member.argv[1])) {
+			status = party_id_read(buf, len, member.argc - 2, member.argv + 2,
+				&ast_redirecting->priv_from);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+		} else if (!strcasecmp("to", member.argv[1])) {
+			status = party_id_read(buf, len, member.argc - 2, member.argv + 2,
+				&ast_redirecting->priv_to);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+		} else {
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+		}
 	} else {
 		ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
 	}
@@ -1597,6 +1756,51 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 			set_it(chan, &redirecting, NULL);
 		} else {
 			ast_log(LOG_ERROR, "Unknown redirecting count '%s', value unchanged\n", val);
+		}
+	} else if (1 < member.argc && !strcasecmp("priv", member.argv[0])) {
+		if (!strcasecmp("orig", member.argv[1])) {
+			status = party_id_write(&redirecting.priv_orig, member.argc - 2, member.argv + 2,
+				value);
+			switch (status) {
+			case ID_FIELD_VALID:
+				set_it(chan, &redirecting, NULL);
+				break;
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+			ast_party_redirecting_free(&redirecting);
+		} else if (!strcasecmp("from", member.argv[1])) {
+			status = party_id_write(&redirecting.priv_from, member.argc - 2, member.argv + 2,
+				value);
+			switch (status) {
+			case ID_FIELD_VALID:
+				set_it(chan, &redirecting, NULL);
+				break;
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+			ast_party_redirecting_free(&redirecting);
+		} else if (!strcasecmp("to", member.argv[1])) {
+			status = party_id_write(&redirecting.priv_to, member.argc - 2, member.argv + 2, value);
+			switch (status) {
+			case ID_FIELD_VALID:
+				set_it(chan, &redirecting, NULL);
+				break;
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+				break;
+			}
+			ast_party_redirecting_free(&redirecting);
+		} else {
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
 		}
 	} else {
 		ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);

@@ -7801,6 +7801,9 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_party_connected_line_init(&connected_caller);
 	ast_party_connected_line_copy(&connected_caller, ast_channel_connected(target));
 	ast_channel_unlock(target);/* The pickup race is avoided so we do not need the lock anymore. */
+	/* Reset any earlier private connected id representation */
+	ast_party_id_reset(&connected_caller.priv);
+
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_sub(NULL, chan, &connected_caller, 0) &&
 		ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {

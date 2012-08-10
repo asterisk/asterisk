@@ -1891,6 +1891,13 @@ void ast_party_subaddress_free(struct ast_party_subaddress *doomed)
 	doomed->str = NULL;
 }
 
+void ast_set_party_id_all(struct ast_set_party_id *update_id)
+{
+	update_id->name = 1;
+	update_id->number = 1;
+	update_id->subaddress = 1;
+}
+
 void ast_party_id_init(struct ast_party_id *init)
 {
 	ast_party_name_init(&init->name);
@@ -2023,6 +2030,45 @@ int ast_party_id_presentation(const struct ast_party_id *id)
 	return number_value | number_screening;
 }
 
+void ast_party_id_invalidate(struct ast_party_id *id)
+{
+	id->name.valid = 0;
+	id->number.valid = 0;
+	id->subaddress.valid = 0;
+}
+
+void ast_party_id_reset(struct ast_party_id *id)
+{
+	ast_party_id_free(id);
+	ast_party_id_init(id);
+}
+
+struct ast_party_id ast_party_id_merge(struct ast_party_id *base, struct ast_party_id *overlay)
+{
+	struct ast_party_id merged;
+
+	merged = *base;
+	if (overlay->name.valid) {
+		merged.name = overlay->name;
+	}
+	if (overlay->number.valid) {
+		merged.number = overlay->number;
+	}
+	if (overlay->subaddress.valid) {
+		merged.subaddress = overlay->subaddress;
+	}
+	/* Note the actual structure is returned and not a pointer to it! */
+	return merged;
+}
+
+void ast_party_id_merge_copy(struct ast_party_id *dest, struct ast_party_id *base, struct ast_party_id *overlay)
+{
+	struct ast_party_id merged;
+
+	merged = ast_party_id_merge(base, overlay);
+	ast_party_id_copy(dest, &merged);
+}
+
 void ast_party_dialed_init(struct ast_party_dialed *init)
 {
 	init->number.str = NULL;
@@ -2077,6 +2123,7 @@ void ast_party_caller_init(struct ast_party_caller *init)
 {
 	ast_party_id_init(&init->id);
 	ast_party_id_init(&init->ani);
+	ast_party_id_init(&init->priv);
 	init->ani2 = 0;
 }
 
@@ -2089,6 +2136,7 @@ void ast_party_caller_copy(struct ast_party_caller *dest, const struct ast_party
 
 	ast_party_id_copy(&dest->id, &src->id);
 	ast_party_id_copy(&dest->ani, &src->ani);
+	ast_party_id_copy(&dest->priv, &src->priv);
 	dest->ani2 = src->ani2;
 }
 
@@ -2096,6 +2144,7 @@ void ast_party_caller_set_init(struct ast_party_caller *init, const struct ast_p
 {
 	ast_party_id_set_init(&init->id, &guide->id);
 	ast_party_id_set_init(&init->ani, &guide->ani);
+	ast_party_id_set_init(&init->priv, &guide->priv);
 	init->ani2 = guide->ani2;
 }
 
@@ -2103,6 +2152,7 @@ void ast_party_caller_set(struct ast_party_caller *dest, const struct ast_party_
 {
 	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
 	ast_party_id_set(&dest->ani, &src->ani, update ? &update->ani : NULL);
+	ast_party_id_set(&dest->priv, &src->priv, update ? &update->priv : NULL);
 	dest->ani2 = src->ani2;
 }
 
@@ -2110,12 +2160,14 @@ void ast_party_caller_free(struct ast_party_caller *doomed)
 {
 	ast_party_id_free(&doomed->id);
 	ast_party_id_free(&doomed->ani);
+	ast_party_id_free(&doomed->priv);
 }
 
 void ast_party_connected_line_init(struct ast_party_connected_line *init)
 {
 	ast_party_id_init(&init->id);
 	ast_party_id_init(&init->ani);
+	ast_party_id_init(&init->priv);
 	init->ani2 = 0;
 	init->source = AST_CONNECTED_LINE_UPDATE_SOURCE_UNKNOWN;
 }
@@ -2129,6 +2181,7 @@ void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const 
 
 	ast_party_id_copy(&dest->id, &src->id);
 	ast_party_id_copy(&dest->ani, &src->ani);
+	ast_party_id_copy(&dest->priv, &src->priv);
 	dest->ani2 = src->ani2;
 	dest->source = src->source;
 }
@@ -2137,6 +2190,7 @@ void ast_party_connected_line_set_init(struct ast_party_connected_line *init, co
 {
 	ast_party_id_set_init(&init->id, &guide->id);
 	ast_party_id_set_init(&init->ani, &guide->ani);
+	ast_party_id_set_init(&init->priv, &guide->priv);
 	init->ani2 = guide->ani2;
 	init->source = guide->source;
 }
@@ -2145,6 +2199,7 @@ void ast_party_connected_line_set(struct ast_party_connected_line *dest, const s
 {
 	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
 	ast_party_id_set(&dest->ani, &src->ani, update ? &update->ani : NULL);
+	ast_party_id_set(&dest->priv, &src->priv, update ? &update->priv : NULL);
 	dest->ani2 = src->ani2;
 	dest->source = src->source;
 }
@@ -2153,6 +2208,7 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
 {
 	connected->id = caller->id;
 	connected->ani = caller->ani;
+	connected->priv = caller->priv;
 	connected->ani2 = caller->ani2;
 	connected->source = AST_CONNECTED_LINE_UPDATE_SOURCE_UNKNOWN;
 }
@@ -2161,6 +2217,7 @@ void ast_party_connected_line_free(struct ast_party_connected_line *doomed)
 {
 	ast_party_id_free(&doomed->id);
 	ast_party_id_free(&doomed->ani);
+	ast_party_id_free(&doomed->priv);
 }
 
 void ast_party_redirecting_init(struct ast_party_redirecting *init)
@@ -2168,6 +2225,9 @@ void ast_party_redirecting_init(struct ast_party_redirecting *init)
 	ast_party_id_init(&init->orig);
 	ast_party_id_init(&init->from);
 	ast_party_id_init(&init->to);
+	ast_party_id_init(&init->priv_orig);
+	ast_party_id_init(&init->priv_from);
+	ast_party_id_init(&init->priv_to);
 	init->count = 0;
 	init->reason = AST_REDIRECTING_REASON_UNKNOWN;
 	init->orig_reason = AST_REDIRECTING_REASON_UNKNOWN;
@@ -2183,6 +2243,9 @@ void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct
 	ast_party_id_copy(&dest->orig, &src->orig);
 	ast_party_id_copy(&dest->from, &src->from);
 	ast_party_id_copy(&dest->to, &src->to);
+	ast_party_id_copy(&dest->priv_orig, &src->priv_orig);
+	ast_party_id_copy(&dest->priv_from, &src->priv_from);
+	ast_party_id_copy(&dest->priv_to, &src->priv_to);
 	dest->count = src->count;
 	dest->reason = src->reason;
 	dest->orig_reason = src->orig_reason;
@@ -2193,6 +2256,9 @@ void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const st
 	ast_party_id_set_init(&init->orig, &guide->orig);
 	ast_party_id_set_init(&init->from, &guide->from);
 	ast_party_id_set_init(&init->to, &guide->to);
+	ast_party_id_set_init(&init->priv_orig, &guide->priv_orig);
+	ast_party_id_set_init(&init->priv_from, &guide->priv_from);
+	ast_party_id_set_init(&init->priv_to, &guide->priv_to);
 	init->count = guide->count;
 	init->reason = guide->reason;
 	init->orig_reason = guide->orig_reason;
@@ -2203,6 +2269,9 @@ void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct 
 	ast_party_id_set(&dest->orig, &src->orig, update ? &update->orig : NULL);
 	ast_party_id_set(&dest->from, &src->from, update ? &update->from : NULL);
 	ast_party_id_set(&dest->to, &src->to, update ? &update->to : NULL);
+	ast_party_id_set(&dest->priv_orig, &src->priv_orig, update ? &update->priv_orig : NULL);
+	ast_party_id_set(&dest->priv_from, &src->priv_from, update ? &update->priv_from : NULL);
+	ast_party_id_set(&dest->priv_to, &src->priv_to, update ? &update->priv_to : NULL);
 	dest->count = src->count;
 	dest->reason = src->reason;
 	dest->orig_reason = src->orig_reason;
@@ -2213,6 +2282,9 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 	ast_party_id_free(&doomed->orig);
 	ast_party_id_free(&doomed->from);
 	ast_party_id_free(&doomed->to);
+	ast_party_id_free(&doomed->priv_orig);
+	ast_party_id_free(&doomed->priv_from);
+	ast_party_id_free(&doomed->priv_to);
 }
 
 /*! \brief Free a channel structure */
@@ -6624,6 +6696,11 @@ static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer
 	 * case, the frame we queue tells ast_read() to call the
 	 * connected line interception macro configured for transferee.
 	 */
+
+	/* Reset any earlier private connected id representation */
+	ast_party_id_reset(&colp->target_id.priv);
+	ast_party_id_reset(&colp->transferee_id.priv);
+
 	payload_size = ast_connected_line_build_data(connected_line_data,
 		sizeof(connected_line_data), &colp->target_id, NULL);
 	if (payload_size != -1) {
@@ -6947,13 +7024,29 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_channel_dialed_set(original, ast_channel_dialed(clonechan));
 	ast_channel_dialed_set(clonechan, &exchange.dialed);
 
+	/* Reset any earlier private caller id representations */
+	ast_party_id_reset(&ast_channel_caller(original)->priv);
+	ast_party_id_reset(&ast_channel_caller(clonechan)->priv);
+
 	exchange.caller = *ast_channel_caller(original);
 	ast_channel_caller_set(original, ast_channel_caller(clonechan));
 	ast_channel_caller_set(clonechan, &exchange.caller);
 
+	/* Reset any earlier private connected id representations */
+	ast_party_id_reset(&ast_channel_connected(original)->priv);
+	ast_party_id_reset(&ast_channel_connected(clonechan)->priv);
+
 	exchange.connected = *ast_channel_connected(original);
 	ast_channel_connected_set(original, ast_channel_connected(clonechan));
 	ast_channel_connected_set(clonechan, &exchange.connected);
+
+	/* Reset any earlier private redirecting orig, from or to representations */
+	ast_party_id_reset(&ast_channel_redirecting(original)->priv_orig);
+	ast_party_id_reset(&ast_channel_redirecting(clonechan)->priv_orig);
+	ast_party_id_reset(&ast_channel_redirecting(original)->priv_from);
+	ast_party_id_reset(&ast_channel_redirecting(clonechan)->priv_from);
+	ast_party_id_reset(&ast_channel_redirecting(original)->priv_to);
+	ast_party_id_reset(&ast_channel_redirecting(clonechan)->priv_to);
 
 	exchange.redirecting = *ast_channel_redirecting(original);
 	ast_channel_redirecting_set(original, ast_channel_redirecting(clonechan));
@@ -9029,6 +9122,19 @@ enum {
 	AST_CONNECTED_LINE_NAME_PRESENTATION,
 	AST_CONNECTED_LINE_NUMBER_VALID,
 	AST_CONNECTED_LINE_NUMBER_PRESENTATION,
+	AST_CONNECTED_LINE_PRIV_NUMBER,
+	AST_CONNECTED_LINE_PRIV_NUMBER_PLAN,
+	AST_CONNECTED_LINE_PRIV_NUMBER_VALID,
+	AST_CONNECTED_LINE_PRIV_NUMBER_PRESENTATION,
+	AST_CONNECTED_LINE_PRIV_NAME,
+	AST_CONNECTED_LINE_PRIV_NAME_VALID,
+	AST_CONNECTED_LINE_PRIV_NAME_CHAR_SET,
+	AST_CONNECTED_LINE_PRIV_NAME_PRESENTATION,
+	AST_CONNECTED_LINE_PRIV_SUBADDRESS,
+	AST_CONNECTED_LINE_PRIV_SUBADDRESS_TYPE,
+	AST_CONNECTED_LINE_PRIV_SUBADDRESS_ODD_EVEN,
+	AST_CONNECTED_LINE_PRIV_SUBADDRESS_VALID,
+	AST_CONNECTED_LINE_PRIV_TAG,
 };
 
 int ast_connected_line_build_data(unsigned char *data, size_t datalen, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
@@ -9057,6 +9163,26 @@ int ast_connected_line_build_data(unsigned char *data, size_t datalen, const str
 		.combined_presentation = AST_CONNECTED_LINE_ID_PRESENTATION,
 	};
 
+	static const struct ast_party_id_ies priv_ies = {
+		.name.str = AST_CONNECTED_LINE_PRIV_NAME,
+		.name.char_set = AST_CONNECTED_LINE_PRIV_NAME_CHAR_SET,
+		.name.presentation = AST_CONNECTED_LINE_PRIV_NAME_PRESENTATION,
+		.name.valid = AST_CONNECTED_LINE_PRIV_NAME_VALID,
+
+		.number.str = AST_CONNECTED_LINE_PRIV_NUMBER,
+		.number.plan = AST_CONNECTED_LINE_PRIV_NUMBER_PLAN,
+		.number.presentation = AST_CONNECTED_LINE_PRIV_NUMBER_PRESENTATION,
+		.number.valid = AST_CONNECTED_LINE_PRIV_NUMBER_VALID,
+
+		.subaddress.str = AST_CONNECTED_LINE_PRIV_SUBADDRESS,
+		.subaddress.type = AST_CONNECTED_LINE_PRIV_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_CONNECTED_LINE_PRIV_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_CONNECTED_LINE_PRIV_SUBADDRESS_VALID,
+
+		.tag = AST_CONNECTED_LINE_PRIV_TAG,
+		.combined_presentation = 0,/* Not sent. */
+	};
+
 	/*
 	 * The size of integer values must be fixed in case the frame is
 	 * shipped to another machine.
@@ -9073,6 +9199,13 @@ int ast_connected_line_build_data(unsigned char *data, size_t datalen, const str
 
 	res = party_id_build_data(data + pos, datalen - pos, &connected->id,
 		"connected line", &ies, update ? &update->id : NULL);
+	if (res < 0) {
+		return -1;
+	}
+	pos += res;
+
+	res = party_id_build_data(data + pos, datalen - pos, &connected->priv,
+		"connected line priv", &priv_ies, update ? &update->priv : NULL);
 	if (res < 0) {
 		return -1;
 	}
@@ -9190,16 +9323,6 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			}
 			connected->id.number.valid = data[pos];
 			break;
-/* Connected line party id combined presentation */
-		case AST_CONNECTED_LINE_ID_PRESENTATION:
-			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid connected line combined presentation (%u)\n",
-					(unsigned) ie_len);
-				break;
-			}
-			combined_presentation = data[pos];
-			got_combined_presentation = 1;
-			break;
 /* Connected line party id subaddress */
 		case AST_CONNECTED_LINE_SUBADDRESS:
 			ast_free(connected->id.subaddress.str);
@@ -9241,6 +9364,125 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			if (connected->id.tag) {
 				memcpy(connected->id.tag, data + pos, ie_len);
 				connected->id.tag[ie_len] = 0;
+			}
+			break;
+/* Connected line party id combined presentation */
+		case AST_CONNECTED_LINE_ID_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line combined presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			combined_presentation = data[pos];
+			got_combined_presentation = 1;
+			break;
+/* Private connected line party id name */
+		case AST_CONNECTED_LINE_PRIV_NAME:
+			ast_free(connected->priv.name.str);
+			connected->priv.name.str = ast_malloc(ie_len + 1);
+			if (connected->priv.name.str) {
+				memcpy(connected->priv.name.str, data + pos, ie_len);
+				connected->priv.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_PRIV_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.name.char_set = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.name.presentation = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.name.valid = data[pos];
+			break;
+/* Private connected line party id number */
+		case AST_CONNECTED_LINE_PRIV_NUMBER:
+			ast_free(connected->priv.number.str);
+			connected->priv.number.str = ast_malloc(ie_len + 1);
+			if (connected->priv.number.str) {
+				memcpy(connected->priv.number.str, data + pos, ie_len);
+				connected->priv.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_PRIV_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.number.plan = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_NUMBER_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private number presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.number.presentation = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.number.valid = data[pos];
+			break;
+/* Private connected line party id subaddress */
+		case AST_CONNECTED_LINE_PRIV_SUBADDRESS:
+			ast_free(connected->priv.subaddress.str);
+			connected->priv.subaddress.str = ast_malloc(ie_len + 1);
+			if (connected->priv.subaddress.str) {
+				memcpy(connected->priv.subaddress.str, data + pos, ie_len);
+				connected->priv.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_PRIV_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.subaddress.type = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid connected line private subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_CONNECTED_LINE_PRIV_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line private subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->priv.subaddress.valid = data[pos];
+			break;
+/* Private connected line party tag */
+		case AST_CONNECTED_LINE_PRIV_TAG:
+			ast_free(connected->priv.tag);
+			connected->priv.tag = ast_malloc(ie_len + 1);
+			if (connected->priv.tag) {
+				memcpy(connected->priv.tag, data + pos, ie_len);
+				connected->priv.tag[ie_len] = 0;
 			}
 			break;
 /* Connected line party source */
@@ -9383,6 +9625,45 @@ enum {
 	AST_REDIRECTING_ORIG_SUBADDRESS_VALID,
 	AST_REDIRECTING_ORIG_TAG,
 	AST_REDIRECTING_ORIG_REASON,
+	AST_REDIRECTING_PRIV_TO_NUMBER,
+	AST_REDIRECTING_PRIV_TO_NUMBER_PLAN,
+	AST_REDIRECTING_PRIV_TO_NUMBER_VALID,
+	AST_REDIRECTING_PRIV_TO_NUMBER_PRESENTATION,
+	AST_REDIRECTING_PRIV_TO_NAME,
+	AST_REDIRECTING_PRIV_TO_NAME_VALID,
+	AST_REDIRECTING_PRIV_TO_NAME_CHAR_SET,
+	AST_REDIRECTING_PRIV_TO_NAME_PRESENTATION,
+	AST_REDIRECTING_PRIV_TO_SUBADDRESS,
+	AST_REDIRECTING_PRIV_TO_SUBADDRESS_TYPE,
+	AST_REDIRECTING_PRIV_TO_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_PRIV_TO_SUBADDRESS_VALID,
+	AST_REDIRECTING_PRIV_TO_TAG,
+	AST_REDIRECTING_PRIV_FROM_NUMBER,
+	AST_REDIRECTING_PRIV_FROM_NUMBER_PLAN,
+	AST_REDIRECTING_PRIV_FROM_NUMBER_VALID,
+	AST_REDIRECTING_PRIV_FROM_NUMBER_PRESENTATION,
+	AST_REDIRECTING_PRIV_FROM_NAME,
+	AST_REDIRECTING_PRIV_FROM_NAME_VALID,
+	AST_REDIRECTING_PRIV_FROM_NAME_CHAR_SET,
+	AST_REDIRECTING_PRIV_FROM_NAME_PRESENTATION,
+	AST_REDIRECTING_PRIV_FROM_SUBADDRESS,
+	AST_REDIRECTING_PRIV_FROM_SUBADDRESS_TYPE,
+	AST_REDIRECTING_PRIV_FROM_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_PRIV_FROM_SUBADDRESS_VALID,
+	AST_REDIRECTING_PRIV_FROM_TAG,
+	AST_REDIRECTING_PRIV_ORIG_NUMBER,
+	AST_REDIRECTING_PRIV_ORIG_NUMBER_VALID,
+	AST_REDIRECTING_PRIV_ORIG_NUMBER_PLAN,
+	AST_REDIRECTING_PRIV_ORIG_NUMBER_PRESENTATION,
+	AST_REDIRECTING_PRIV_ORIG_NAME,
+	AST_REDIRECTING_PRIV_ORIG_NAME_VALID,
+	AST_REDIRECTING_PRIV_ORIG_NAME_CHAR_SET,
+	AST_REDIRECTING_PRIV_ORIG_NAME_PRESENTATION,
+	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS,
+	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_TYPE,
+	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_VALID,
+	AST_REDIRECTING_PRIV_ORIG_TAG,
 };
 
 int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
@@ -9448,6 +9729,63 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 		.tag = AST_REDIRECTING_TO_TAG,
 		.combined_presentation = AST_REDIRECTING_TO_ID_PRESENTATION,
 	};
+	static const struct ast_party_id_ies priv_orig_ies = {
+		.name.str = AST_REDIRECTING_PRIV_ORIG_NAME,
+		.name.char_set = AST_REDIRECTING_PRIV_ORIG_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_PRIV_ORIG_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_PRIV_ORIG_NAME_VALID,
+
+		.number.str = AST_REDIRECTING_PRIV_ORIG_NUMBER,
+		.number.plan = AST_REDIRECTING_PRIV_ORIG_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_PRIV_ORIG_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_PRIV_ORIG_NUMBER_VALID,
+
+		.subaddress.str = AST_REDIRECTING_PRIV_ORIG_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_VALID,
+
+		.tag = AST_REDIRECTING_PRIV_ORIG_TAG,
+		.combined_presentation = 0,/* Not sent. */
+	};
+	static const struct ast_party_id_ies priv_from_ies = {
+		.name.str = AST_REDIRECTING_PRIV_FROM_NAME,
+		.name.char_set = AST_REDIRECTING_PRIV_FROM_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_PRIV_FROM_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_PRIV_FROM_NAME_VALID,
+
+		.number.str = AST_REDIRECTING_PRIV_FROM_NUMBER,
+		.number.plan = AST_REDIRECTING_PRIV_FROM_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_PRIV_FROM_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_PRIV_FROM_NUMBER_VALID,
+
+		.subaddress.str = AST_REDIRECTING_PRIV_FROM_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_PRIV_FROM_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_PRIV_FROM_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_PRIV_FROM_SUBADDRESS_VALID,
+
+		.tag = AST_REDIRECTING_PRIV_FROM_TAG,
+		.combined_presentation = 0,/* Not sent. */
+	};
+	static const struct ast_party_id_ies priv_to_ies = {
+		.name.str = AST_REDIRECTING_PRIV_TO_NAME,
+		.name.char_set = AST_REDIRECTING_PRIV_TO_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_PRIV_TO_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_PRIV_TO_NAME_VALID,
+
+		.number.str = AST_REDIRECTING_PRIV_TO_NUMBER,
+		.number.plan = AST_REDIRECTING_PRIV_TO_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_PRIV_TO_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_PRIV_TO_NUMBER_VALID,
+
+		.subaddress.str = AST_REDIRECTING_PRIV_TO_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_PRIV_TO_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_PRIV_TO_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_PRIV_TO_SUBADDRESS_VALID,
+
+		.tag = AST_REDIRECTING_PRIV_TO_TAG,
+		.combined_presentation = 0,/* Not sent. */
+	};
 
 	/* Redirecting frame version */
 	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
@@ -9474,6 +9812,27 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 
 	res = party_id_build_data(data + pos, datalen - pos, &redirecting->to,
 		"redirecting-to", &to_ies, update ? &update->to : NULL);
+	if (res < 0) {
+		return -1;
+	}
+	pos += res;
+
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->priv_orig,
+		"redirecting-priv-orig", &priv_orig_ies, update ? &update->priv_orig : NULL);
+	if (res < 0) {
+		return -1;
+	}
+	pos += res;
+
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->priv_from,
+		"redirecting-priv-from", &priv_from_ies, update ? &update->priv_from : NULL);
+	if (res < 0) {
+		return -1;
+	}
+	pos += res;
+
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->priv_to,
+		"redirecting-priv-to", &priv_to_ies, update ? &update->priv_to : NULL);
 	if (res < 0) {
 		return -1;
 	}
@@ -9894,6 +10253,333 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			if (redirecting->to.tag) {
 				memcpy(redirecting->to.tag, data + pos, ie_len);
 				redirecting->to.tag[ie_len] = 0;
+			}
+			break;
+/* Private redirecting-orig party id name */
+		case AST_REDIRECTING_PRIV_ORIG_NAME:
+			ast_free(redirecting->priv_orig.name.str);
+			redirecting->priv_orig.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_orig.name.str) {
+				memcpy(redirecting->priv_orig.name.str, data + pos, ie_len);
+				redirecting->priv_orig.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.name.valid = data[pos];
+			break;
+/* Private redirecting-orig party id number */
+		case AST_REDIRECTING_PRIV_ORIG_NUMBER:
+			ast_free(redirecting->priv_orig.number.str);
+			redirecting->priv_orig.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_orig.number.str) {
+				memcpy(redirecting->priv_orig.number.str, data + pos, ie_len);
+				redirecting->priv_orig.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.number.plan = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NUMBER_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig number presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.number.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.number.valid = data[pos];
+			break;
+/* Private redirecting-orig party id subaddress */
+		case AST_REDIRECTING_PRIV_ORIG_SUBADDRESS:
+			ast_free(redirecting->priv_orig.subaddress.str);
+			redirecting->priv_orig.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_orig.subaddress.str) {
+				memcpy(redirecting->priv_orig.subaddress.str, data + pos, ie_len);
+				redirecting->priv_orig.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid private redirecting-orig subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-orig subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_orig.subaddress.valid = data[pos];
+			break;
+/* Private redirecting-orig party id tag */
+		case AST_REDIRECTING_PRIV_ORIG_TAG:
+			ast_free(redirecting->priv_orig.tag);
+			redirecting->priv_orig.tag = ast_malloc(ie_len + 1);
+			if (redirecting->priv_orig.tag) {
+				memcpy(redirecting->priv_orig.tag, data + pos, ie_len);
+				redirecting->priv_orig.tag[ie_len] = 0;
+			}
+			break;
+/* Private redirecting-from party id name */
+		case AST_REDIRECTING_PRIV_FROM_NAME:
+			ast_free(redirecting->priv_from.name.str);
+			redirecting->priv_from.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_from.name.str) {
+				memcpy(redirecting->priv_from.name.str, data + pos, ie_len);
+				redirecting->priv_from.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.name.valid = data[pos];
+			break;
+/* Private redirecting-from party id number */
+		case AST_REDIRECTING_PRIV_FROM_NUMBER:
+			ast_free(redirecting->priv_from.number.str);
+			redirecting->priv_from.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_from.number.str) {
+				memcpy(redirecting->priv_from.number.str, data + pos, ie_len);
+				redirecting->priv_from.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.number.plan = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NUMBER_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from number presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.number.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.number.valid = data[pos];
+			break;
+/* Private redirecting-from party id subaddress */
+		case AST_REDIRECTING_PRIV_FROM_SUBADDRESS:
+			ast_free(redirecting->priv_from.subaddress.str);
+			redirecting->priv_from.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_from.subaddress.str) {
+				memcpy(redirecting->priv_from.subaddress.str, data + pos, ie_len);
+				redirecting->priv_from.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_FROM_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid private redirecting-from subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_FROM_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-from subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_from.subaddress.valid = data[pos];
+			break;
+/* Private redirecting-from party id tag */
+		case AST_REDIRECTING_PRIV_FROM_TAG:
+			ast_free(redirecting->priv_from.tag);
+			redirecting->priv_from.tag = ast_malloc(ie_len + 1);
+			if (redirecting->priv_from.tag) {
+				memcpy(redirecting->priv_from.tag, data + pos, ie_len);
+				redirecting->priv_from.tag[ie_len] = 0;
+			}
+			break;
+/* Private redirecting-to party id name */
+		case AST_REDIRECTING_PRIV_TO_NAME:
+			ast_free(redirecting->priv_to.name.str);
+			redirecting->priv_to.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_to.name.str) {
+				memcpy(redirecting->priv_to.name.str, data + pos, ie_len);
+				redirecting->priv_to.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_TO_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.name.valid = data[pos];
+			break;
+/* Private redirecting-to party id number */
+		case AST_REDIRECTING_PRIV_TO_NUMBER:
+			ast_free(redirecting->priv_to.number.str);
+			redirecting->priv_to.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_to.number.str) {
+				memcpy(redirecting->priv_to.number.str, data + pos, ie_len);
+				redirecting->priv_to.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_TO_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.number.plan = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_NUMBER_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to number presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.number.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.number.valid = data[pos];
+			break;
+/* Private redirecting-to party id subaddress */
+		case AST_REDIRECTING_PRIV_TO_SUBADDRESS:
+			ast_free(redirecting->priv_to.subaddress.str);
+			redirecting->priv_to.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->priv_to.subaddress.str) {
+				memcpy(redirecting->priv_to.subaddress.str, data + pos, ie_len);
+				redirecting->priv_to.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_PRIV_TO_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid private redirecting-to subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_PRIV_TO_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid private redirecting-to subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->priv_to.subaddress.valid = data[pos];
+			break;
+/* Private redirecting-to party id tag */
+		case AST_REDIRECTING_PRIV_TO_TAG:
+			ast_free(redirecting->priv_to.tag);
+			redirecting->priv_to.tag = ast_malloc(ie_len + 1);
+			if (redirecting->priv_to.tag) {
+				memcpy(redirecting->priv_to.tag, data + pos, ie_len);
+				redirecting->priv_to.tag[ie_len] = 0;
 			}
 			break;
 /* Redirecting reason */

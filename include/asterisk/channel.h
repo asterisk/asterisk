@@ -380,6 +380,9 @@ struct ast_party_caller {
 	 */
 	struct ast_party_id ani;
 
+	/*! \brief Private caller party ID */
+	struct ast_party_id priv;
+
 	/*! \brief Automatic Number Identification 2 (Info Digits) */
 	int ani2;
 };
@@ -393,6 +396,8 @@ struct ast_set_party_caller {
 	struct ast_set_party_id id;
 	/*! What ANI id information to set. */
 	struct ast_set_party_id ani;
+	/*! What private caller id information to set. */
+	struct ast_set_party_id priv;
 };
 
 /*!
@@ -412,6 +417,9 @@ struct ast_party_connected_line {
 	 * save the corresponding caller id value.
 	 */
 	struct ast_party_id ani;
+
+	/*! \brief Private connected party ID */
+	struct ast_party_id priv;
 
 	/*!
 	 * \brief Automatic Number Identification 2 (Info Digits)
@@ -437,6 +445,8 @@ struct ast_set_party_connected_line {
 	struct ast_set_party_id id;
 	/*! What ANI id information to set. */
 	struct ast_set_party_id ani;
+	/*! What private connected line id information to set. */
+	struct ast_set_party_id priv;
 };
 
 /*!
@@ -457,6 +467,15 @@ struct ast_party_redirecting {
 
 	/*! \brief Call is redirecting to a new party (Sent to the caller) */
 	struct ast_party_id to;
+
+	/*! \brief Who originally redirected the call (Sent to the party the call is redirected toward) - private representation */
+	struct ast_party_id priv_orig;
+
+	/*! \brief Who is redirecting the call (Sent to the party the call is redirected toward) - private representation */
+	struct ast_party_id priv_from;
+
+	/*! \brief Call is redirecting to a new party (Sent to the caller)  - private representation */
+	struct ast_party_id priv_to;
 
 	/*! \brief Number of times the call was redirected */
 	int count;
@@ -479,6 +498,12 @@ struct ast_set_party_redirecting {
 	struct ast_set_party_id from;
 	/*! What redirecting-to id information to set. */
 	struct ast_set_party_id to;
+	/*! What private redirecting-orig id information to set. */
+	struct ast_set_party_id priv_orig;
+	/*! What private redirecting-from id information to set. */
+	struct ast_set_party_id priv_from;
+	/*! What private redirecting-to id information to set. */
+	struct ast_set_party_id priv_to;
 };
 
 /*!
@@ -2864,6 +2889,16 @@ void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct as
 void ast_party_subaddress_free(struct ast_party_subaddress *doomed);
 
 /*!
+ * \brief Set the update marker to update all information of a corresponding party id.
+ * \since 11.0
+ *
+ * \param update_id The update marker for a corresponding party id.
+ *
+ * \return Nothing
+ */
+void ast_set_party_id_all(struct ast_set_party_id *update_id);
+
+/*!
  * \brief Initialize the given party id structure.
  * \since 1.8
  *
@@ -2934,6 +2969,66 @@ void ast_party_id_free(struct ast_party_id *doomed);
  * \return Overall presentation value for the given party.
  */
 int ast_party_id_presentation(const struct ast_party_id *id);
+
+/*!
+ * \brief Invalidate all components of the given party id.
+ * \since 11.0
+ *
+ * \param id The party id to invalidate.
+ *
+ * \return Nothing
+ */
+void ast_party_id_invalidate(struct ast_party_id *id);
+
+/*!
+ * \brief Destroy and initialize the given party id structure.
+ * \since 11.0
+ *
+ * \param id The party id to reset.
+ *
+ * \return Nothing
+ */
+void ast_party_id_reset(struct ast_party_id *id);
+
+/*!
+ * \brief Merge a given party id into another given party id.
+ * \since 11.0
+ *
+ * \details
+ * This function will generate an effective party id.
+ * 
+ * Each party id component of the party id 'base' is overwritten
+ * by components of the party id 'overlay' if the overlay
+ * component is marked as valid.  However the component 'tag' of
+ * the base party id remains untouched.
+ *
+ * \param base The party id which is merged.
+ * \param overlay The party id which is used to merge into.
+ *
+ * \return The merged party id as a struct, not as a pointer.
+ * \note The merged party id returned is a shallow copy and must not be freed.
+ */
+struct ast_party_id ast_party_id_merge(struct ast_party_id *base, struct ast_party_id *overlay);
+
+/*!
+ * \brief Copy a merge of a given party id into another given party id to a given destination party id.
+ * \since 11.0
+ *
+ * \details
+ * Each party id component of the party id 'base' is overwritten by components
+ * of the party id 'overlay' if the 'overlay' component is marked as valid.
+ * However the component 'tag' of the 'base' party id remains untouched.
+ * The result is copied into the given party id 'dest'.
+ *
+ * \note The resulting merged party id is a real copy and has to be freed.
+ *
+ * \param dest The resulting merged party id.
+ * \param base The party id which is merged.
+ * \param overlay The party id which is used to merge into.
+ *
+ * \return Nothing
+ */
+void ast_party_id_merge_copy(struct ast_party_id *dest, struct ast_party_id *base, struct ast_party_id *overlay);
 
 /*!
  * \brief Initialize the given dialed structure.
@@ -3778,8 +3873,12 @@ struct ast_frame *ast_channel_dtmff(struct ast_channel *chan);
 struct ast_jb *ast_channel_jb(struct ast_channel *chan);
 struct ast_party_caller *ast_channel_caller(struct ast_channel *chan);
 struct ast_party_connected_line *ast_channel_connected(struct ast_channel *chan);
+struct ast_party_id ast_channel_connected_effective_id(struct ast_channel *chan);
 struct ast_party_dialed *ast_channel_dialed(struct ast_channel *chan);
 struct ast_party_redirecting *ast_channel_redirecting(struct ast_channel *chan);
+struct ast_party_id ast_channel_redirecting_effective_orig(struct ast_channel *chan);
+struct ast_party_id ast_channel_redirecting_effective_from(struct ast_channel *chan);
+struct ast_party_id ast_channel_redirecting_effective_to(struct ast_channel *chan);
 struct timeval *ast_channel_dtmf_tv(struct ast_channel *chan);
 struct timeval *ast_channel_whentohangup(struct ast_channel *chan);
 struct varshead *ast_channel_varshead(struct ast_channel *chan);

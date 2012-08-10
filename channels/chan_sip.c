@@ -6009,6 +6009,9 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 			connected.id.name.presentation = p->callingpres;
 		}
 		if (update_connected.id.number || update_connected.id.name) {
+			/* Invalidate any earlier private connected id representation */
+			ast_set_party_id_all(&update_connected.priv);
+
 			connected.id.tag = (char *) p->cid_tag;
 			connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 			ast_channel_queue_connected_line_update(ast, &connected, &update_connected);
@@ -11872,25 +11875,28 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	char tmp2[256];
 	char *lid_num = NULL;
 	char *lid_name = NULL;
-	int lid_pres;
+	int lid_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 	const char *fromdomain;
 	const char *privacy = NULL;
 	const char *screen = NULL;
 	const char *anonymous_string = "\"Anonymous\" <sip:anonymous@anonymous.invalid>";
+	struct ast_party_id connected_id;
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return 0;
 	}
 
-	if (p->owner && ast_channel_connected(p->owner)->id.number.valid
-		&& ast_channel_connected(p->owner)->id.number.str) {
-		lid_num = ast_channel_connected(p->owner)->id.number.str;
+	if (p->owner) {
+		connected_id = ast_channel_connected_effective_id(p->owner);
+
+		if (connected_id.number.valid) {
+			lid_num = connected_id.number.str;
+		}
+		if (connected_id.name.valid) {
+			lid_name = connected_id.name.str;
+		}
+		lid_pres = ast_party_id_presentation(&connected_id);
 	}
-	if (p->owner && ast_channel_connected(p->owner)->id.name.valid
-		&& ast_channel_connected(p->owner)->id.name.str) {
-		lid_name = ast_channel_connected(p->owner)->id.name.str;
-	}
-	lid_pres = (p->owner) ? ast_party_id_presentation(&ast_channel_connected(p->owner)->id) : AST_PRES_NUMBER_NOT_AVAILABLE;
 
 	if (ast_strlen_zero(lid_num))
 		return 0;
@@ -13079,6 +13085,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	int ourport;
 	int cid_has_name = 1;
 	int cid_has_num = 1;
+	struct ast_party_id connected_id;
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
 	 	const char *s = p->username;	/* being a string field, cannot be NULL */
@@ -13104,9 +13111,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 	if (p->owner) {
-		if ((ast_party_id_presentation(&ast_channel_connected(p->owner)->id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
-			l = ast_channel_connected(p->owner)->id.number.valid ? ast_channel_connected(p->owner)->id.number.str : NULL;
-			n = ast_channel_connected(p->owner)->id.name.valid ? ast_channel_connected(p->owner)->id.name.str : NULL;
+		connected_id = ast_channel_connected_effective_id(p->owner);
+
+		if ((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			if (connected_id.number.valid) {
+				l = connected_id.number.str;
+			}
+			if (connected_id.name.valid) {
+				n = connected_id.name.str;
+			}
 		} else {
 			/* Even if we are using RPID, we shouldn't leak information in the From if the user wants
 			 * their callerid restricted */
@@ -13260,8 +13273,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  */
 static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 {
-	const char *diverting_number;
-	const char *diverting_name;
+	struct ast_party_id diverting_from;
 	const char *reason;
 	char header_text[256];
 
@@ -13274,23 +13286,22 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 		return;
 	}
 
-	diverting_number = ast_channel_redirecting(pvt->owner)->from.number.str;
-	if (!ast_channel_redirecting(pvt->owner)->from.number.valid
-		|| ast_strlen_zero(diverting_number)) {
+	diverting_from = ast_channel_redirecting_effective_from(pvt->owner);
+	if (!diverting_from.number.valid
+		|| ast_strlen_zero(diverting_from.number.str)) {
 		return;
 	}
 
 	reason = sip_reason_code_to_str(ast_channel_redirecting(pvt->owner)->reason);
 
 	/* We at least have a number to place in the Diversion header, which is enough */
-	diverting_name = ast_channel_redirecting(pvt->owner)->from.name.str;
-	if (!ast_channel_redirecting(pvt->owner)->from.name.valid
-		|| ast_strlen_zero(diverting_name)) {
-		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number,
+	if (!diverting_from.name.valid
+		|| ast_strlen_zero(diverting_from.name.str)) {
+		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_from.number.str,
 				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
 	} else {
 		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s",
-				diverting_name, diverting_number,
+				diverting_from.name.str, diverting_from.number.str,
 				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
 	}
 
@@ -14195,19 +14206,20 @@ static void update_redirecting(struct sip_pvt *p, const void *data, size_t datal
 /*! \brief Notify peer that the connected line has changed */
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen)
 {
+	struct ast_party_id connected_id = ast_channel_connected_effective_id(p->owner);
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return;
 	}
-	if (!ast_channel_connected(p->owner)->id.number.valid
-		|| ast_strlen_zero(ast_channel_connected(p->owner)->id.number.str)) {
+	if (!connected_id.number.valid
+		|| ast_strlen_zero(connected_id.number.str)) {
 		return;
 	}
 
 	append_history(p, "ConnectedLine", "%s party is now %s <%s>",
 		ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "Calling" : "Called",
-		S_COR(ast_channel_connected(p->owner)->id.name.valid, ast_channel_connected(p->owner)->id.name.str, ""),
-		S_COR(ast_channel_connected(p->owner)->id.number.valid, ast_channel_connected(p->owner)->id.number.str, ""));
+		S_COR(connected_id.name.valid, connected_id.name.str, ""),
+		S_COR(connected_id.number.valid, connected_id.number.str, ""));
 
 	if (ast_channel_state(p->owner) == AST_STATE_UP || ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		struct sip_request req;
@@ -21789,6 +21801,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				connected.id.name.str = (char *) p->cid_name;
 				connected.id.name.presentation = p->callingpres;
 
+				/* Invalidate any earlier private connected id representation */
+				ast_set_party_id_all(&update_connected.priv);
+
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected,
@@ -21832,6 +21847,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			memset(&update_redirecting, 0, sizeof(update_redirecting));
 			change_redirecting_information(p, req, &redirecting, &update_redirecting,
 				FALSE);
+
+			/* Invalidate any earlier private redirecting id representations */
+			ast_set_party_id_all(&update_redirecting.priv_orig);
+			ast_set_party_id_all(&update_redirecting.priv_from);
+			ast_set_party_id_all(&update_redirecting.priv_to);
+
 			ast_channel_queue_redirecting_update(p->owner, &redirecting,
 				&update_redirecting);
 			ast_party_redirecting_free(&redirecting);
@@ -21866,6 +21887,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				connected.id.name.valid = 1;
 				connected.id.name.str = (char *) p->cid_name;
 				connected.id.name.presentation = p->callingpres;
+
+				/* Invalidate any earlier private connected id representation */
+				ast_set_party_id_all(&update_connected.priv);
 
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
@@ -21936,6 +21960,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 					connected.id.name.presentation = p->callingpres;
 				}
 				if (update_connected.id.number || update_connected.id.name) {
+					/* Invalidate any earlier private connected id representation */
+					ast_set_party_id_all(&update_connected.priv);
+
 					connected.id.tag = (char *) p->cid_tag;
 					connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 					ast_channel_queue_connected_line_update(p->owner, &connected,
@@ -24010,6 +24037,9 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 		connected.id.name.str = (char *) p->cid_name;
 		connected.id.name.presentation = p->callingpres;
 
+		/* Invalidate any earlier private connected id representation */
+		ast_set_party_id_all(&update_connected.priv);
+
 		connected.id.tag = (char *) p->cid_tag;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		ast_channel_queue_connected_line_update(p->owner, &connected, &update_connected);
@@ -24359,6 +24389,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				connected.id.name.valid = 1;
 				connected.id.name.str = (char *) p->cid_name;
 				connected.id.name.presentation = p->callingpres;
+
+				/* Invalidate any earlier private connected id representation */
+				ast_set_party_id_all(&update_connected.priv);
 
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
@@ -25054,6 +25087,9 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	ast_party_connected_line_copy(&connected_to_transferee, ast_channel_connected(current->chan1));
 	/* No need to lock target.chan1 here since it was locked in get_sip_pvt_byid_locked */
 	ast_party_connected_line_copy(&connected_to_target, ast_channel_connected(target.chan1));
+	/* Reset any earlier private connected id representation */
+	ast_party_id_reset(&connected_to_transferee.priv);
+	ast_party_id_reset(&connected_to_target.priv);
 	connected_to_target.source = connected_to_transferee.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	res = attempt_transfer(current, &target);
 	if (res) {
