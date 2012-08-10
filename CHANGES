@@ -228,6 +228,10 @@ Functions
    to the dialplan. It currently supports returning the current number of
    active sessions for a given account.
 
+ * Added support for private party ID information to CALLERID, CONNECTEDLINE,
+   and the REDIRECTING functions.
+
+
 Channel Drivers
 ------------------
 
@@ -249,6 +253,8 @@ chan_dahdi
 
  * Add options namedcallgroup and namedpickupgroup to support installations
    where a higher number of groups (>64) is required.
+
+ * Added support to use private party ID information with PRI calls.
 
 
 chan_motif
@@ -354,6 +360,9 @@ chan_sip
  * Extra headers specified with SIPAddHeader are sent with the REFER message
    when using Transfer application. See refer_addheaders in sip.conf.sample.
 
+ * Added support to use private party ID information with calls.
+
+
 chan_skinny
 ------------------
  * Added skinny version 17 protocol support.
@@ -390,6 +399,8 @@ chan_mISDN:
 ------------------
  * Add options namedcallgroup and namedpickupgroup to support installations
    where a higher number of groups (>64) is required.
+
+ * Added support to use private party ID information with calls.
 
 
 Core
@@ -429,6 +440,9 @@ Core
 
  * Call files now support the "early_media" option to connect with an outgoing
    extension when early media is received.
+
+ * Added support to use private party ID information with calls.
+
 
 AGI
 ------------------
