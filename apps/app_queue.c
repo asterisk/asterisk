@@ -304,7 +304,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="queuename" required="true" />
 			<parameter name="interface" />
-			<parameter name="options" />
 		</syntax>
 		<description>
 			<para>If the interface is <emphasis>NOT</emphasis> in the queue it will return an error.</para>
@@ -314,6 +313,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<value name="REMOVED" />
 					<value name="NOTINQUEUE" />
 					<value name="NOSUCHQUEUE" />
+					<value name="NOTDYNAMIC" />
 				</variable>
 			</variablelist>
 			<para>Example: RemoveQueueMember(techsupport,SIP/3000)</para>
@@ -5678,12 +5678,11 @@ static int rqm_exec(struct ast_channel *chan, const char *data)
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
-		AST_APP_ARG(options);
 	);
 
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[,interface[,options]])\n");
+		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[,interface])\n");
 		return -1;
 	}
 
