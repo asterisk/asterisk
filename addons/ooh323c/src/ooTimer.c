@@ -17,6 +17,7 @@
 #include "asterisk.h"
 #include "asterisk/lock.h"
 
+#include "ootypes.h"
 #include "ooDateTime.h"
 #include "ooTimer.h"
 #include "ootrace.h"
@@ -101,6 +102,7 @@ OOBOOL ooTimerExpired (OOTimer* pTimer)
 void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
 {
    OOTimer* pTimer;
+   int ret = OO_OK;
 
    while (pList->count > 0) {
       pTimer = (OOTimer*) pList->head->data;
@@ -112,12 +114,16 @@ void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
           */
          if (pTimer->reRegister) ooTimerReset (pctxt, pList, pTimer);
 
+	 ret = (*pTimer->timeoutCB)(pTimer->cbData);
+
          if (!pTimer->reRegister) {
             ooTimerDelete (pctxt, pList, pTimer);
          }
       }
       else break;
    }
+
+   return (void)ret;
 }
 
 int ooTimerInsertEntry (OOCTXT* pctxt, DList *pList, OOTimer* pTimer)
