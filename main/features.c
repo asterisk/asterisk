@@ -7718,26 +7718,37 @@ int ast_pickup_call(struct ast_channel *chan)
 	 * Transfer all pickup-able channels to another container-iterator.
 	 * Iterate it to find the oldest channel.
 	 */
-	targets_it = (struct ao2_iterator *)ast_channel_callback(find_channel_by_group, NULL, chan, OBJ_MULTIPLE);
+	targets_it = (struct ao2_iterator *) ast_channel_callback(find_channel_by_group,
+		NULL, chan, OBJ_MULTIPLE);
+	if (!targets_it) {
+		/* Search really failed. */
+		goto no_pickup_calls;
+	}
 
 	target = NULL;
 	while ((candidate = ao2_iterator_next(targets_it))) {
-		if (!target || ast_tvcmp(ast_channel_creationtime(candidate), ast_channel_creationtime(target)) < 0) {
+		if (!target) {
 			target = candidate;
+			continue;
+		}
+		if (ast_tvcmp(ast_channel_creationtime(candidate), ast_channel_creationtime(target)) < 0) {
+			ast_channel_unref(target);
+			target = candidate;
+			continue;
 		}
 		ast_channel_unref(candidate);
 	}
+	ao2_iterator_destroy(targets_it);
 	if (target) {
 		/* The found channel must be locked and ref'd. */
-		ast_channel_lock(ast_channel_ref(target));
+		ast_channel_lock(target);
 		/* Recheck pickup ability */
 		if (!ast_can_pickup(target)) {
+			/* Someone else picked it up or the call went away. */
 			ast_channel_unlock(target);
-			target = ast_channel_unref(target);/* Bad luck */
+			target = ast_channel_unref(target);
 		}
 	}
-
-	ao2_iterator_destroy(targets_it);
 
 	if (target) {
 		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
@@ -7754,6 +7765,7 @@ int ast_pickup_call(struct ast_channel *chan)
 		target = ast_channel_unref(target);
 	}
 
+no_pickup_calls:
 	if (res < 0) {
 		ast_debug(1, "No call pickup possible... for %s\n", ast_channel_name(chan));
 		if (!ast_strlen_zero(pickupfailsound)) {
