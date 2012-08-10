@@ -15830,7 +15830,10 @@ static int extensionstate_update(const char *context, const char *exten, struct 
 	default:	/* Tell user */
 		if (force) {
 			/* we must skip the next two checks for a queued state change or resubscribe */
-		} else if (p->laststate == data->state && (~data->state & AST_EXTENSION_RINGING)) {
+		} else if ((p->laststate == data->state && (~data->state & AST_EXTENSION_RINGING)) &&
+				(p->last_presence_state == data->presence_state &&
+					!strcmp(p->last_presence_subtype, data->presence_subtype) &&
+					!strcmp(p->last_presence_message, data->presence_message))) {
 			/* don't notify unchanged state or unchanged early-state causing parties again */
 			sip_pvt_unlock(p);
 			return 0;
