@@ -1270,13 +1270,11 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	case AST_CONTROL_CONGESTION:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
 			ooHangCall(callToken, OO_REASON_LOCAL_CONGESTED, AST_CAUSE_SWITCH_CONGESTION);
-			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_BUSY:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
 			ooHangCall(callToken, OO_REASON_LOCAL_BUSY, AST_CAUSE_USER_BUSY);
-			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_HOLD:
