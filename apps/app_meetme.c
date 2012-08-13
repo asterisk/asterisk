@@ -2753,6 +2753,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}
 	} else {
+		int lastusers = conf->users;
 		if (user->dahdichannel && ast_test_flag64(confflags, CONFFLAG_STARMENU)) {
 			/*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones when the menu is enabled */
 			x = 1;
@@ -3032,7 +3033,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				}
 				break;
 			}
-	
+
+			/* Throw a TestEvent if a user exit did not cause this user to leave the conference */
+			if (conf->users != lastusers) {
+				if (conf->users < lastusers) {
+					ast_test_suite_event_notify("NOEXIT", "Message: CONFFLAG_MARKEDEXIT\r\nLastUsers: %d\r\nUsers: %d", lastusers, conf->users);
+				}
+				lastusers = conf->users;
+			}
+
 			/* Check if my modes have changed */
 
 			/* If I should be muted but am still talker, mute me */
