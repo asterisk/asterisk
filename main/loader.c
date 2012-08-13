@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/udptl.h"
 #include "asterisk/heap.h"
 #include "asterisk/app.h"
+#include "asterisk/test.h"
 
 #include <dlfcn.h>
 
@@ -572,8 +573,10 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		mod->info->restore_globals();
 
 #ifdef LOADABLE_MODULES
-	if (!error)
+	if (!error) {
 		unload_dynamic_module(mod);
+		ast_test_suite_event_notify("MODULE_UNLOAD", "Message: %s", resource_name);
+	}
 #endif
 
 	if (!error)
@@ -907,6 +910,7 @@ int ast_load_resource(const char *resource_name)
 	int res;
 	AST_LIST_LOCK(&module_list);
 	res = load_resource(resource_name, 0, NULL, 0);
+	ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
 	AST_LIST_UNLOCK(&module_list);
 
 	return res;
