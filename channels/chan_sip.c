@@ -15406,7 +15406,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 		pbx_builtin_setvar_helper(p->owner, "__SIPRDNISDOMAIN", rdomain);
 
 	if (sip_debug_test_pvt(p))
-		ast_verbose("RDNIS for this call is %s (reason %s)\n", exten, reason ? reason_param : "");
+		ast_verbose("RDNIS for this call is %s (reason %s)\n", exten, S_OR(reason_param, ""));
 
 	/*ast_string_field_set(p, rdnis, rexten);*/
 
