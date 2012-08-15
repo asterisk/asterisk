@@ -27207,6 +27207,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 				}
 
 				ast_queue_control_data(p->owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+				ast_channel_hangupcause_hash_set(p->owner, cause_code, data_size);
 			}
 
 			handle_response(p, respid, e + len, req, seqno);

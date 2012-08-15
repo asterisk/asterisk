@@ -1300,6 +1300,7 @@ static void pri_queue_pvt_cause_data(struct sig_pri_span *pri, int chanpos, cons
 		ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
 		ast_copy_string(cause_code->code, cause, datalen + 1 - sizeof(*cause_code));
 		ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, datalen);
+		ast_channel_hangupcause_hash_set(chan, cause_code, datalen);
 		ast_channel_unlock(chan);
 	}
 }

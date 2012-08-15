@@ -10237,7 +10237,12 @@ static int socket_process_helper(struct iax2_thread *thread)
 		cause_code->ast_cause = ies.causecode;
 		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "IAX2 %s(%d)", subclass, ies.causecode);
 
-		iax2_queue_control_data(fr->callno, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+		iax2_lock_owner(fr->callno);
+		if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
+			ast_queue_control_data(iaxs[fr->callno]->owner, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+			ast_channel_hangupcause_hash_set(iaxs[fr->callno]->owner, cause_code, data_size);
+			ast_channel_unlock(iaxs[fr->callno]->owner);
+		}
 		if (!iaxs[fr->callno]) {
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
