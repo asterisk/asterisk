@@ -2687,8 +2687,19 @@ static void update_realtime_members(struct call_queue *q)
 	struct ao2_iterator mem_iter;
 
 	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , SENTINEL))) {
-		/*This queue doesn't have realtime members*/
+		/* This queue doesn't have realtime members. If the queue still has any realtime
+		 * members in memory, they need to be removed.
+		 */
+		ao2_lock(q);
+		mem_iter = ao2_iterator_init(q->members, 0);
+		while ((m = ao2_iterator_next(&mem_iter))) {
+			if (m->realtime) {
+				ao2_unlink(q->members, m);
+			}
+			ao2_ref(m, -1);
+		}
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
+		ao2_unlock(q);
 		return;
 	}
 
