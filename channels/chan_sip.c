@@ -26522,9 +26522,11 @@ int get_address_family_filter(unsigned int transport)
 
 	if ((transport == SIP_TRANSPORT_UDP) || !transport) {
 		addr = &bindaddr;
-	} else if (transport == SIP_TRANSPORT_TCP || transport == SIP_TRANSPORT_WS) {
+	}
+	else if (transport == SIP_TRANSPORT_TCP) {
 		addr = &sip_tcp_desc.local_address;
-	} else if (transport == SIP_TRANSPORT_TLS || transport == SIP_TRANSPORT_WSS) {
+	}
+	else if (transport == SIP_TRANSPORT_TLS) {
 		addr = &sip_tls_desc.local_address;
 	}
 
