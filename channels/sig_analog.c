@@ -2819,6 +2819,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		cause_code->ast_cause = AST_CAUSE_NETWORK_OUT_OF_ORDER;
 	case ANALOG_EVENT_ONHOOK:
 		ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+		ast_channel_hangupcause_hash_set(ast, cause_code, data_size);
 		switch (p->sig) {
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
@@ -3498,6 +3499,7 @@ winkflashdone:
 					if (p->hanguponpolarityswitch) {
 						ast_debug(1, "HangingUp on polarity switch! channel %d\n", p->channel);
 						ast_queue_control_data(ast, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+						ast_channel_hangupcause_hash_set(ast, cause_code, data_size);
 						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 						p->polarity = POLARITY_IDLE;
 					} else {
