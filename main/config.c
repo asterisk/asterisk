@@ -2827,8 +2827,9 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 			error = 1;
 			goto int32_done;
 		}
+		errno = 0;
 		x = strtol(arg, &endptr, 0);
-		if (*endptr || x < INT32_MIN || x > INT32_MAX) {
+		if (*endptr || errno || x < INT32_MIN || x > INT32_MAX) {
 			/* Parse error, or type out of int32_t bounds */
 			error = 1;
 			goto int32_done;
@@ -2881,8 +2882,9 @@ int32_done:
 			error = 1;
 			goto uint32_done;
 		}
+		errno = 0;
 		x = strtoul(arg, &endptr, 0);
-		if (*endptr || x > UINT32_MAX) {
+		if (*endptr || errno || x > UINT32_MAX) {
 			error = 1;
 			goto uint32_done;
 		}
