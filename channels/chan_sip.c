@@ -11914,7 +11914,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		}
 		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
 	} else {
-		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name, lid_num, fromdomain, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "calling" : "called");
+		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name, lid_num, fromdomain, p->outgoing_call ? "calling" : "called");
 
 		switch (lid_pres) {
 		case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
