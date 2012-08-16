@@ -745,6 +745,8 @@ int ast_module_reload(const char *name)
 		}
 
 		if (!info->reload) {	/* cannot be reloaded */
+			/* Nothing to reload, so reload is successful */
+			ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", cur->resource);
 			if (res < 1)	/* store result if possible */
 				res = 1;	/* 1 = no reload() method */
 			continue;
@@ -752,7 +754,9 @@ int ast_module_reload(const char *name)
 
 		res = 2;
 		ast_verb(3, "Reloading module '%s' (%s)\n", cur->resource, info->description);
-		info->reload();
+		if (!info->reload()) {
+			ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", cur->resource);
+		}
 	}
 	AST_LIST_UNLOCK(&module_list);
 
@@ -896,7 +900,9 @@ int ast_load_resource(const char *resource_name)
 	int res;
 	AST_LIST_LOCK(&module_list);
 	res = load_resource(resource_name, 0, NULL, 0);
-	ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
+	if (!res) {
+		ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
+	}
 	AST_LIST_UNLOCK(&module_list);
 
 	return res;
