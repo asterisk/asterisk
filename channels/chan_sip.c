@@ -25445,8 +25445,12 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			p->pendinginvite = 0;
 			acked = __sip_ack(p, seqno, 1 /* response */, 0);
 			if (find_sdp(req)) {
-				if (process_sdp(p, req, SDP_T38_NONE))
+				if (process_sdp(p, req, SDP_T38_NONE)) {
 					return -1;
+				}
+				if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+					ast_queue_control(p->owner, AST_CONTROL_SRCCHANGE);
+				}
 			}
 			check_pendings(p);
 		} else if (p->glareinvite == seqno) {
