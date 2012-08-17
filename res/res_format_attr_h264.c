@@ -53,6 +53,8 @@ enum h264_attr_keys {
 	H264_ATTR_KEY_MAX_CPB,
 	H264_ATTR_KEY_MAX_DPB,
 	H264_ATTR_KEY_MAX_BR,
+	H264_ATTR_KEY_MAX_SMBPS,
+	H264_ATTR_KEY_MAX_FPS,
 	H264_ATTR_KEY_REDUNDANT_PIC_CAP,
 	H264_ATTR_KEY_PARAMETER_ADD,
 	H264_ATTR_KEY_PACKETIZATION_MODE,
@@ -138,6 +140,10 @@ static int h264_format_attr_sdp_parse(struct ast_format_attr *format_attr, const
 			format_attr->format_attr[H264_ATTR_KEY_MAX_DPB] = val;
 		} else if (sscanf(attrib, "max-br=%30u", &val) == 1) {
 			format_attr->format_attr[H264_ATTR_KEY_MAX_BR] = val;
+		} else if (sscanf(attrib, "max-smbps=%30u", &val) == 1) {
+			format_attr->format_attr[H264_ATTR_KEY_MAX_SMBPS] = val;
+		} else if (sscanf(attrib, "max-fps=%30u", &val) == 1) {
+			format_attr->format_attr[H264_ATTR_KEY_MAX_FPS] = val;
 		} else if (sscanf(attrib, "redundant-pic-cap=%30u", &val) == 1) {
 			format_attr->format_attr[H264_ATTR_KEY_REDUNDANT_PIC_CAP] = val;
 		} else if (sscanf(attrib, "parameter-add=%30u", &val) == 1) {
@@ -178,6 +184,10 @@ static const char *h264_attr_key_to_str(enum h264_attr_keys key)
 		return "max-dpb";
 	case H264_ATTR_KEY_MAX_BR:
 		return "max-br";
+	case H264_ATTR_KEY_MAX_SMBPS:
+		return "max-smbps";
+	case H264_ATTR_KEY_MAX_FPS:
+		return "max-fps";
 	case H264_ATTR_KEY_REDUNDANT_PIC_CAP:
 		return "redundant-pic-cap";
 	case H264_ATTR_KEY_PARAMETER_ADD:
