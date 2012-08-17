@@ -718,7 +718,9 @@ int ast_module_reload(const char *name)
 	/* Call "predefined" reload here first */
 	for (i = 0; reload_classes[i].name; i++) {
 		if (!name || !strcasecmp(name, reload_classes[i].name)) {
-			reload_classes[i].reload_fn();	/* XXX should check error ? */
+			if (!reload_classes[i].reload_fn()) {
+				ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", name);
+			}
 			res = 2;	/* found and reloaded */
 		}
 	}
