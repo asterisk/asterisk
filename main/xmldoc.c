@@ -1944,14 +1944,16 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 {
 	struct ast_xml_node *tmp;
 	const char *notcleanret, *tmpstr;
-	struct ast_str *ret = ast_str_create(128);
+	struct ast_str *ret;
 
 	if (raw_output) {
+		/* xmldoc_string_cleanup will allocate the ret object */
 		notcleanret = ast_xml_get_text(node);
 		tmpstr = notcleanret;
 		xmldoc_string_cleanup(ast_skip_blanks(notcleanret), &ret, 0);
 		ast_xml_free_text(tmpstr);
 	} else {
+		ret = ast_str_create(128);
 		for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
 			/* if found, parse a <para> element. */
 			if (xmldoc_parse_common_elements(tmp, "", "\n", &ret)) {
