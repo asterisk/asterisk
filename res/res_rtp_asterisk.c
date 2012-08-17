@@ -94,6 +94,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_LEARNING_MIN_SEQUENTIAL 4
 
+enum strict_rtp_state {
+	STRICT_RTP_OPEN = 0, /*! No RTP packets should be dropped, all sources accepted */
+	STRICT_RTP_LEARN,    /*! Accept next packet as source */
+	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
+};
+
+#define DEFAULT_STRICT_RTP STRICT_RTP_CLOSED
+#define DEFAULT_ICESUPPORT 1
+
 extern struct ast_srtp_res *res_srtp;
 static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
@@ -110,12 +119,12 @@ static int rtcpdebugport;		/*< Debug only RTCP packets from IP or IP+Port if por
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
-static int strictrtp;			/*< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
-static int learning_min_sequential;	/*< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
-static int icesupport;
+static int strictrtp = DEFAULT_STRICT_RTP; /*< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
+static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
+static int icesupport = DEFAULT_ICESUPPORT;
 static struct sockaddr_in stunaddr;
 static pj_str_t turnaddr;
-static int turnport;
+static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
 
@@ -136,12 +145,6 @@ static pj_thread_t *thread;
 
 /*! \brief Notification that the ICE/TURN worker thread should stop */
 static int worker_terminate;
-
-enum strict_rtp_state {
-	STRICT_RTP_OPEN = 0, /*! No RTP packets should be dropped, all sources accepted */
-	STRICT_RTP_LEARN,    /*! Accept next packet as source */
-	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
-};
 
 #define FLAG_3389_WARNING               (1 << 0)
 #define FLAG_NAT_ACTIVE                 (3 << 1)
@@ -3702,9 +3705,9 @@ static int rtp_reload(int reload)
 	rtpstart = DEFAULT_RTP_START;
 	rtpend = DEFAULT_RTP_END;
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
-	strictrtp = STRICT_RTP_CLOSED;
+	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
-	icesupport = 1;
+	icesupport = DEFAULT_ICESUPPORT;
 	turnport = DEFAULT_TURN_PORT;
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
