@@ -36,6 +36,7 @@
 
 /*** MODULEINFO
 	<conflict>app_fax</conflict>
+	<support_level>core</support_level>
 ***/
 
 /*! \file
@@ -52,10 +53,6 @@
  * so it can use the technology modules to perform the actual FAX transmissions.
  * \ingroup applications
  */
-
-/*** MODULEINFO
-	<support_level>core</support_level>
- ***/
 
 #include "asterisk.h"
 

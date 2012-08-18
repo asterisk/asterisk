@@ -1,15 +1,19 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
+			<support_level>core</support_level>
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
+			<support_level>core</support_level>
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
 			<support_level>extended</support_level>
 		</member>
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
+			<support_level>core</support_level>
 		</member>
 		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
+			<support_level>core</support_level>
 		</member>
 		<member name="REBUILD_PARSERS" displayname="Rebuild AEL and expression parsers from bison/flex source files">
 			<depend>bison</depend>
@@ -24,7 +28,7 @@
 			<depend>BFD</depend>
 			<depend>DLADDR</depend>
 			<defaultenabled>no</defaultenabled>
-			<support_level>extended</support_level>
+			<support_level>core</support_level>
 		</member>
 		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one">
 			<defaultenabled>no</defaultenabled>
@@ -32,6 +36,7 @@
 			<support_level>extended</support_level>
 		</member>
 		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans">
+			<support_level>core</support_level>
 		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 			<support_level>extended</support_level>
@@ -53,6 +58,7 @@
 			<support_level>extended</support_level>
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
+			<support_level>core</support_level>
 		</member>
 		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
 			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
