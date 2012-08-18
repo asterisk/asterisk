@@ -1748,7 +1748,7 @@ static int xmpp_send_exec(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, s);
 
-	if ((args.argc < 3) || ast_strlen_zero(args.message) || !strchr(args.recipient, '2')) {
+	if ((args.argc < 3) || ast_strlen_zero(args.message) || !strchr(args.recipient, '@')) {
 		ast_log(LOG_WARNING, "%s requires arguments (account,jid,message)\n", app_ajisend);
 		return -1;
 	}
