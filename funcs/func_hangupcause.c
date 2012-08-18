@@ -218,7 +218,7 @@ static struct ast_custom_function hangupcause_keys_function = {
 	.read = hangupcause_keys_read,
 };
 
-static const char app[] = "HangupcauseClear";
+static const char app[] = "HangupCauseClear";
 
 /*!
  * \internal
