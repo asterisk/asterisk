@@ -1056,8 +1056,6 @@ static int __ast_http_load(int reload)
 			} else if (!strcasecmp(v->name, "bindaddr")) {
 				if (!(num_addrs = ast_sockaddr_resolve(&addrs, v->value, 0, AST_AF_UNSPEC))) {
 					ast_log(LOG_WARNING, "Invalid bind address %s\n", v->value);
-				} else {
-					ast_log(LOG_WARNING, "Got %d addresses\n", num_addrs);
 				}
 			} else if (!strcasecmp(v->name, "prefix")) {
 				if (!ast_strlen_zero(v->value)) {
