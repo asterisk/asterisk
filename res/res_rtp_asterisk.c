@@ -416,17 +416,29 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 	ao2_ref(remote_candidate, -1);
 }
 
+AST_THREADSTORAGE(pj_thread_storage);
+
 /*! \brief Function used to check if the calling thread is registered with pjlib. If it is not it will be registered. */
 static void pj_thread_register_check(void)
 {
-	pj_thread_desc desc;
+	pj_thread_desc *desc;
 	pj_thread_t *thread;
 
 	if (pj_thread_is_registered() == PJ_TRUE) {
 		return;
 	}
 
-	pj_thread_register("Asterisk Thread", desc, &thread);
+	desc = ast_threadstorage_get(&pj_thread_storage, sizeof(pj_thread_desc));
+	if (!desc) {
+		ast_log(LOG_ERROR, "Could not get thread desc from thread-local storage. Expect awful things to occur\n");
+		return;
+	}
+	pj_bzero(*desc, sizeof(*desc));
+
+	if (pj_thread_register("Asterisk Thread", *desc, &thread) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Coudln't register thread with PJLIB.\n");
+	}
+	return;
 }
 
 /*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
