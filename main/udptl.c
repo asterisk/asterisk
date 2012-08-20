@@ -312,16 +312,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 	int stat1;
 	int stat2;
 	int i;
-	int j;
-	int k;
-	int l;
-	int m;
-	int x;
-	int limit;
-	int which;
-	unsigned int ptr;
-	unsigned int count;
-	int total_count;
+	unsigned int ptr;	/* an index that keeps track of how much of the UDPTL packet has been processed */
 	int seq_no;
 	const uint8_t *ifp = NULL;
 	const uint8_t *data = NULL;
@@ -354,13 +345,21 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 		if (seq_no > s->rx_seq_no) {
 			/* We received a later packet than we expected, so we need to check if we can fill in the gap from the
 			   secondary packets. */
-			total_count = 0;
+			int total_count = 0;
 			do {
+				unsigned int count;
 				if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
 					return -1;
 				for (i = 0; i < count && total_count + i < ARRAY_LEN(bufs); i++) {
-					if ((stat1 = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
+					if ((stat1 = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0) {
 						return -1;
+					}
+					/* valid secondaries can contain zero-length packets that should be ignored */
+					if (!bufs[total_count + i] || !lengths[total_count + i]) {
+						/* drop the count of items to process and reuse the buffers that were just set */
+						i--;
+						count--;
+					}
 				}
 				total_count += i;
 			}
@@ -370,7 +369,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 				if (seq_no - i >= s->rx_seq_no) {
 					/* This one wasn't seen before */
 					/* Decode the secondary IFP packet */
-					//fprintf(stderr, "Secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
+					ast_debug(3, "Recovering lost packet via secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
 					s->f[ifp_no].frametype = AST_FRAME_MODEM;
 					s->f[ifp_no].subclass.codec = AST_MODEM_T38;
 
@@ -390,6 +389,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 	}
 	else
 	{
+		int j;
+		int l;
+		int x;
 		/* FEC mode for error recovery */
 		/* Our buffers cannot tolerate overlength IFP packets in FEC mode */
 		if (ifp_len > LOCAL_FAX_MAX_DATAGRAM)
@@ -452,10 +454,13 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 		/* See if we can reconstruct anything which is missing */
 		/* TODO: this does not comprehensively hunt back and repair everything that is possible */
 		for (l = x; l != ((x - (16 - span*entries)) & UDPTL_BUF_MASK); l = (l - 1) & UDPTL_BUF_MASK) {
+			int m;
 			if (s->rx[l].fec_len[0] <= 0)
 				continue;
 			for (m = 0; m < s->rx[l].fec_entries; m++) {
-				limit = (l + m) & UDPTL_BUF_MASK;
+				int k;
+				int which;
+				int limit = (l + m) & UDPTL_BUF_MASK;
 				for (which = -1, k = (limit - s->rx[l].fec_span * s->rx[l].fec_entries) & UDPTL_BUF_MASK; k != limit; k = (k + s->rx[l].fec_entries) & UDPTL_BUF_MASK) {
 					if (s->rx[k].buf_len <= 0)
 						which = (which == -1) ? k : -2;
