@@ -795,7 +795,7 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 		return;
 	}
 
-	num_symbols = bt->num_frames;
+	num_frames = bt->num_frames;
 	if ((symbols = ast_bt_get_symbols(bt->addresses, num_frames))) {
 		int frame_iterator;
 
