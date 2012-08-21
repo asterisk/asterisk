@@ -668,13 +668,13 @@ static struct sqlite_cache_tables *find_table(const char *tablename)
 	}
 
 	/* Table structure not cached; build the structure now */
-	if (asprintf(&sql, sql_table_structure, tablename) < 0) {
-		ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+	if (ast_asprintf(&sql, sql_table_structure, tablename) < 0) {
 		sql = NULL;
 	}
 	if (!(tblptr = ast_calloc(1, sizeof(*tblptr) + strlen(tablename) + 1))) {
 		AST_RWLIST_UNLOCK(&sqlite_tables);
 		ast_log(LOG_ERROR, "Memory error.  Cannot cache table '%s'\n", tablename);
+		ast_free(sql);
 		return NULL;
 	}
 	tblptr->name = (char *)tblptr + sizeof(*tblptr);
@@ -690,9 +690,11 @@ static struct sqlite_cache_tables *find_table(const char *tablename)
 		ast_free(errstr);
 		free_table(tblptr);
 		AST_RWLIST_UNLOCK(&sqlite_tables);
+		ast_free(sql);
 		return NULL;
 	}
 	ast_mutex_unlock(&mutex);
+	ast_free(sql);
 
 	if (AST_LIST_EMPTY(&(tblptr->columns))) {
 		free_table(tblptr);
