@@ -360,11 +360,11 @@ static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
 	va_end(ap);
 
 	if (dbfcmd(dbproc, buffer) == FAIL) {
-		free(buffer);
+		ast_free(buffer);
 		return 1;
 	}
 
-	free(buffer);
+	ast_free(buffer);
 
 	if (dbsqlexec(dbproc) == FAIL) {
 		return 1;
