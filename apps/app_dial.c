@@ -2795,8 +2795,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
 						what_is_s = "~~s~~";
 					}
-					if (asprintf(&gosub_args, "%s,%s,1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s, gosub_argstart + 1) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					if (ast_asprintf(&gosub_args, "%s,%s,1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s, gosub_argstart + 1) < 0) {
 						gosub_args = NULL;
 					}
 					*gosub_argstart = ',';
@@ -2806,8 +2805,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						 ast_exists_extension(peer, opt_args[OPT_ARG_CALLEE_GOSUB], "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
 						what_is_s = "~~s~~";
 					}
-					if (asprintf(&gosub_args, "%s,%s,1", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s) < 0) {
-						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+					if (ast_asprintf(&gosub_args, "%s,%s,1", opt_args[OPT_ARG_CALLEE_GOSUB], what_is_s) < 0) {
 						gosub_args = NULL;
 					}
 				}

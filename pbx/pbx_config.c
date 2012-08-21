@@ -435,14 +435,12 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 						if (++which > a->n) {
 							/* If there is an extension then return exten@context. */
 							if (ast_get_extension_matchcid(e) && (!strchr(a->word, '@') || strchr(a->word, '/'))) {
-								if (asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c)) < 0) {
-									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+								if (ast_asprintf(&ret, "%s/%s@%s", ast_get_extension_name(e), ast_get_extension_cidmatch(e), ast_get_context_name(c)) < 0) {
 									ret = NULL;
 								}
 								break;
 							} else if (!ast_get_extension_matchcid(e) && !strchr(a->word, '/')) {
-								if (asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c)) < 0) {
-									ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+								if (ast_asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c)) < 0) {
 									ret = NULL;
 								}
 								break;

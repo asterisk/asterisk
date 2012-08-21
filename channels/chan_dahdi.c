@@ -14233,8 +14233,8 @@ static char *complete_span_helper(const char *line, const char *word, int pos, i
 
 	for (which = span = 0; span < NUM_SPANS; span++) {
 		if (pris[span].pri.pri && ++which > state) {
-			if (asprintf(&ret, "%d", span + 1) < 0) {	/* user indexes start from 1 */
-				ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+			if (ast_asprintf(&ret, "%d", span + 1) < 0) {	/* user indexes start from 1 */
+				ret = NULL;
 			}
 			break;
 		}

@@ -1719,11 +1719,9 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 				sprintf(secret, "%s%s", pak->id, client->password);
 				ast_sha1_hash(shasum, secret);
-				handshake = NULL;
-				if (asprintf(&handshake, "<handshake>%s</handshake>", shasum) >= 0) {
+				if (ast_asprintf(&handshake, "<handshake>%s</handshake>", shasum) >= 0) {
 					aji_send_raw(client, handshake);
 					ast_free(handshake);
-					handshake = NULL;
 				}
 				client->state = AJI_CONNECTING;
 				if (aji_recv(client, 1) == 2) /*XXX proper result for iksemel library on iks_recv of <handshake/> XXX*/
@@ -4415,8 +4413,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 		return 0;
 	}
 	if (!strchr(client->user, '/') && !client->component) { /*client */
-		resource = NULL;
-		if (asprintf(&resource, "%s/asterisk", client->user) >= 0) {
+		if (ast_asprintf(&resource, "%s/asterisk", client->user) >= 0) {
 			client->jid = iks_id_new(client->stack, resource);
 			ast_free(resource);
 		}
