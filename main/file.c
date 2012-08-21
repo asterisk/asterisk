@@ -261,14 +261,12 @@ static char *build_filename(const char *filename, const char *ext)
 		ext = "WAV";
 
 	if (filename[0] == '/') {
-		if (asprintf(&fn, "%s.%s", filename, ext) < 0) {
-			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		if (ast_asprintf(&fn, "%s.%s", filename, ext) < 0) {
 			fn = NULL;
 		}
 	} else {
-		if (asprintf(&fn, "%s/sounds/%s.%s",
+		if (ast_asprintf(&fn, "%s/sounds/%s.%s",
 			     ast_config_AST_DATA_DIR, filename, ext) < 0) {
-			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 			fn = NULL;
 		}
 	}
@@ -1070,6 +1068,9 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 			format_found = 1;
 
 		fn = build_filename(filename, type);
+		if (!fn) {
+			continue;
+		}
 		errno = 0;
 		bfile = fopen(fn, "r");
 
@@ -1090,6 +1091,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		fs->mode = mode;
 		fs->filename = ast_strdup(filename);
 		fs->vfs = NULL;
+		ast_free(fn);
 		break;
 	}
 
@@ -1137,6 +1139,9 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			format_found = 1;
 
 		fn = build_filename(filename, type);
+		if (!fn) {
+			continue;
+		}
 		fd = open(fn, flags | myflags, mode);
 		if (fd > -1) {
 			/* fdopen() the resulting file stream */
@@ -1197,6 +1202,9 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 				if (fs) {
 					ast_closestream(fs);
 					fs = NULL;
+				}
+				if (!buf) {
+					ast_free(fn);
 				}
 				continue;
 			}
