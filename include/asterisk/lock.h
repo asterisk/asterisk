@@ -549,6 +549,82 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
 #define AST_RWLOCK_DEFINE_STATIC(rwlock) __AST_RWLOCK_DEFINE(static, rwlock, AST_RWLOCK_INIT_VALUE, 1)
 #define AST_RWLOCK_DEFINE_STATIC_NOTRACKING(rwlock) __AST_RWLOCK_DEFINE(static, rwlock, AST_RWLOCK_INIT_VALUE_NOTRACKING, 0)
 
+/*!
+ * \brief Scoped Locks
+ *
+ * Scoped locks provide a way to use RAII locks. In other words,
+ * declaration of a scoped lock will automatically define and lock
+ * the lock. When the lock goes out of scope, it will automatically
+ * be unlocked.
+ *
+ * \example
+ * int some_function(struct ast_channel *chan)
+ * {
+ *     SCOPED_LOCK(lock, chan, ast_channel_lock, ast_channel_unlock);
+ *
+ *     if (!strcmp(ast_channel_name(chan, "foo")) {
+ *         return 0;
+ *     }
+ *
+ *     return -1;
+ * }
+ *
+ * In the above example, neither return path requires explicit unlocking
+ * of the channel.
+ *
+ * \note
+ * Care should be taken when using SCOPED_LOCKS in conjunction with ao2 objects.
+ * ao2 objects should be unlocked before they are unreffed. Since SCOPED_LOCK runs
+ * once the variable goes out of scope, this can easily lead to situations where the
+ * variable gets unlocked after it is unreffed.
+ *
+ * \param varname The unique name to give to the scoped lock. You are not likely to reference
+ * this outside of the SCOPED_LOCK invocation.
+ * \param lock The variable to lock. This can be anything that can be passed to a locking
+ * or unlocking function.
+ * \param lockfunc The function to call to lock the lock
+ * \param unlockfunc The function to call to unlock the lock
+ */
+#define SCOPED_LOCK(varname, lock, lockfunc, unlockfunc) \
+	auto void _dtor_ ## varname (typeof((lock)) * v); \
+	auto void _dtor_ ## varname (typeof((lock)) * v) { unlockfunc(*v); } \
+	typeof((lock)) varname __attribute__((cleanup(_dtor_ ## varname))) = lock; lockfunc((lock))
+
+/*!
+ * \brief scoped lock specialization for mutexes
+ */
+#define SCOPED_MUTEX(varname, lock) SCOPED_LOCK(varname, (lock), ast_mutex_lock, ast_mutex_unlock)
+
+/*!
+ * \brief scoped lock specialization for read locks
+ */
+#define SCOPED_RDLOCK(varname, lock) SCOPED_LOCK(varname, (lock), ast_rwlock_rdlock, ast_rwlock_unlock)
+
+/*!
+ * \brief scoped lock specialization for write locks
+ */
+#define SCOPED_WRLOCK(varname, lock) SCOPED_LOCK(varname, (lock), ast_rwlock_wrlock, ast_rwlock_unlock)
+
+/*!
+ * \brief scoped lock specialization for ao2 mutexes.
+ */
+#define SCOPED_AO2LOCK(varname, obj) SCOPED_LOCK(varname, (obj), ao2_lock, ao2_unlock)
+
+/*!
+ * \brief scoped lock specialization for ao2 read locks.
+ */
+#define SCOPED_AO2RDLOCK(varname, obj) SCOPED_LOCK(varname, (obj), ao2_rdlock, ao2_unlock)
+
+/*!
+ * \brief scoped lock specialization for ao2 write locks.
+ */
+#define SCOPED_AO2WRLOCK(varname, obj) SCOPED_LOCK(varname, (obj), ao2_wrlock, ao2_unlock)
+
+/*!
+ * \brief scoped lock specialization for channels.
+ */
+#define SCOPED_CHANNELLOCK(varname, chan) SCOPED_LOCK(varname, (chan), ast_channel_lock, ast_channel_unlock)
+
 #ifndef __CYGWIN__	/* temporary disabled for cygwin */
 #define pthread_mutex_t		use_ast_mutex_t_instead_of_pthread_mutex_t
 #define pthread_cond_t		use_ast_cond_t_instead_of_pthread_cond_t

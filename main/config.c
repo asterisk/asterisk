@@ -2194,15 +2194,13 @@ static void clear_config_maps(void)
 {
 	struct ast_config_map *map;
 
-	ast_mutex_lock(&config_lock);
+	SCOPED_MUTEX(lock, &config_lock);
 
 	while (config_maps) {
 		map = config_maps;
 		config_maps = config_maps->next;
 		ast_free(map);
 	}
-
-	ast_mutex_unlock(&config_lock);
 }
 
 static int append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority)
@@ -2325,7 +2323,7 @@ int ast_config_engine_register(struct ast_config_engine *new)
 {
 	struct ast_config_engine *ptr;
 
-	ast_mutex_lock(&config_lock);
+	SCOPED_MUTEX(lock, &config_lock);
 
 	if (!config_engine_list) {
 		config_engine_list = new;
@@ -2334,7 +2332,6 @@ int ast_config_engine_register(struct ast_config_engine *new)
 		ptr->next = new;
 	}
 
-	ast_mutex_unlock(&config_lock);
 	ast_log(LOG_NOTICE,"Registered Config Engine %s\n", new->name);
 
 	return 1;
@@ -2344,7 +2341,7 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 {
 	struct ast_config_engine *ptr, *last=NULL;
 
-	ast_mutex_lock(&config_lock);
+	SCOPED_MUTEX(lock, &config_lock);
 
 	for (ptr = config_engine_list; ptr; ptr=ptr->next) {
 		if (ptr == del) {
@@ -2357,24 +2354,19 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 		last = ptr;
 	}
 
-	ast_mutex_unlock(&config_lock);
-
 	return 0;
 }
 
 int ast_realtime_is_mapping_defined(const char *family)
 {
 	struct ast_config_map *map;
-	ast_mutex_lock(&config_lock);
+	SCOPED_MUTEX(lock, &config_lock);
 
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(family, map->name)) {
-			ast_mutex_unlock(&config_lock);
 			return 1;
 		}
 	}
-
-	ast_mutex_unlock(&config_lock);
 
 	return 0;
 }
@@ -2385,7 +2377,7 @@ static struct ast_config_engine *find_engine(const char *family, int priority, c
 	struct ast_config_engine *eng, *ret = NULL;
 	struct ast_config_map *map;
 
-	ast_mutex_lock(&config_lock);
+	SCOPED_MUTEX(lock, &config_lock);
 
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(family, map->name) && (priority == map->priority)) {
@@ -2404,8 +2396,6 @@ static struct ast_config_engine *find_engine(const char *family, int priority, c
 				ret = eng;
 		}
 	}
-
-	ast_mutex_unlock(&config_lock);
 
 	/* if we found a mapping, but the engine is not available, then issue a warning */
 	if (map && !ret)
@@ -3028,23 +3018,23 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 		return NULL;
 	}
 
-	ast_mutex_lock(&config_lock);
+	{
+		SCOPED_MUTEX(lock, &config_lock);
 
-	if (!config_engine_list) {
-		ast_cli(a->fd, "No config mappings found.\n");
-	} else {
-		for (eng = config_engine_list; eng; eng = eng->next) {
-			ast_cli(a->fd, "Config Engine: %s\n", eng->name);
-			for (map = config_maps; map; map = map->next) {
-				if (!strcasecmp(map->driver, eng->name)) {
-					ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
-							map->table ? map->table : map->name);
+		if (!config_engine_list) {
+			ast_cli(a->fd, "No config mappings found.\n");
+		} else {
+			for (eng = config_engine_list; eng; eng = eng->next) {
+				ast_cli(a->fd, "Config Engine: %s\n", eng->name);
+				for (map = config_maps; map; map = map->next) {
+					if (!strcasecmp(map->driver, eng->name)) {
+						ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+								map->table ? map->table : map->name);
+					}
 				}
 			}
 		}
 	}
-
-	ast_mutex_unlock(&config_lock);
 
 	return CLI_SUCCESS;
 }
