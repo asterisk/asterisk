@@ -5517,8 +5517,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 					 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
 					what_is_s = "~~s~~";
 				}
-				if (asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
-					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+				if (ast_asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
 					gosub_args = NULL;
 				}
 				*gosub_argstart = ',';
@@ -5528,8 +5527,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 					 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
 					what_is_s = "~~s~~";
 				}
-				if (asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
-					ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+				if (ast_asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
 					gosub_args = NULL;
 				}
 			}

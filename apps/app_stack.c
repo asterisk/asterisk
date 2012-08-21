@@ -1094,13 +1094,11 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	}
 
 	if (argc == 5) {
-		if (asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority, argv[4]) < 0) {
-			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		if (ast_asprintf(&gosub_args, "%s,%s,%d(%s)", argv[1], argv[2], priority, argv[4]) < 0) {
 			gosub_args = NULL;
 		}
 	} else {
-		if (asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority) < 0) {
-			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
+		if (ast_asprintf(&gosub_args, "%s,%s,%d", argv[1], argv[2], priority) < 0) {
 			gosub_args = NULL;
 		}
 	}
