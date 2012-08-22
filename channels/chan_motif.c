@@ -170,6 +170,7 @@ struct jingle_session {
 	struct ast_format_cap *peercap;       /*!< Peer codec capabilities */
 	unsigned int outgoing:1;              /*!< Whether this is an outgoing leg or not */
 	unsigned int gone:1;                  /*!< In the eyes of Jingle this session is already gone */
+	struct ast_callid *callid;            /*!< Bound session call-id */
 };
 
 static const char desc[] = "Motif Jingle Channel";
@@ -436,6 +437,10 @@ static void jingle_session_destructor(void *obj)
 	ast_format_cap_destroy(session->jointcap);
 	ast_format_cap_destroy(session->peercap);
 
+	if (session->callid) {
+		ast_callid_unref(session->callid);
+	}
+
 	ast_string_field_free_memory(session);
 }
 
@@ -539,11 +544,15 @@ static void jingle_enable_video(struct jingle_session *session)
 static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, const char *from, const char *sid)
 {
 	struct jingle_session *session;
+	struct ast_callid *callid;
 	struct ast_sockaddr tmp;
 
 	if (!(session = ao2_alloc(sizeof(*session), jingle_session_destructor))) {
 		return NULL;
 	}
+
+	callid = ast_read_threadstorage_callid();
+	session->callid = (callid ? callid : ast_create_callid());
 
 	if (ast_string_field_init(session, 512)) {
 		ao2_ref(session, -1);
@@ -572,7 +581,8 @@ static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, con
 
 	if (!(session->cap = ast_format_cap_alloc_nolock()) ||
 	    !(session->jointcap = ast_format_cap_alloc_nolock()) ||
-	    !(session->peercap = ast_format_cap_alloc_nolock())) {
+	    !(session->peercap = ast_format_cap_alloc_nolock()) ||
+	    !session->callid) {
 		ao2_ref(session, -1);
 		return NULL;
 	}
@@ -617,6 +627,8 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 	ast_channel_tech_set(chan, &jingle_tech);
 	ast_channel_tech_pvt_set(chan, session);
 	session->owner = chan;
+
+	ast_channel_callid_set(chan, session->callid);
 
 	ast_format_cap_copy(ast_channel_nativeformats(chan), session->cap);
 	ast_codec_choose(&session->prefs, session->cap, 1, &tmpfmt);
@@ -1346,6 +1358,8 @@ static int jingle_outgoing_hook(void *data, ikspak *pak)
 	iks_filter_remove_rule(session->connection->filter, session->rule);
 	session->rule = NULL;
 
+	ast_callid_threadassoc_add(session->callid);
+
 	/* If no error occurred they accepted our session-initiate message happily */
 	if (!error) {
 		struct ast_channel *chan;
@@ -1358,7 +1372,8 @@ static int jingle_outgoing_hook(void *data, ikspak *pak)
 		ao2_unlock(session);
 
 		jingle_send_transport_info(session, iks_find_attrib(pak->x, "from"));
-		return IKS_FILTER_EAT;
+
+		goto end;
 	}
 
 	/* Assume that because this is an error the session is gone, there is only one case where this is incorrect - a redirect */
@@ -1427,6 +1442,9 @@ static int jingle_outgoing_hook(void *data, ikspak *pak)
 	} else {
 		jingle_queue_hangup_with_cause(session, AST_CAUSE_PROTOCOL_ERROR);
 	}
+
+end:
+	ast_callid_threadassoc_remove();
 
 	return IKS_FILTER_EAT;
 }
@@ -2384,6 +2402,11 @@ static int jingle_action_hook(void *data, ikspak *pak)
 		session = ao2_find(endpoint->state->sessions, sid, OBJ_KEY);
 	}
 
+	/* If a session is present associate the callid with this thread */
+	if (session) {
+		ast_callid_threadassoc_add(session->callid);
+	}
+
 	/* Iterate through supported action handlers looking for one that is able to handle this */
 	for (i = 0; i < ARRAY_LEN(jingle_action_handlers); i++) {
 		if (!strcasecmp(jingle_action_handlers[i].action, action)) {
@@ -2400,6 +2423,7 @@ static int jingle_action_hook(void *data, ikspak *pak)
 
 	/* If a session was successfully found for this message deref it now since the handler is done */
 	if (session) {
+		ast_callid_threadassoc_remove();
 		ao2_ref(session, -1);
 	}
 
