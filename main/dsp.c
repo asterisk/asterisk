@@ -918,7 +918,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 				mute_fragment(dsp, &mute);
 				mute.start = (sample > MF_GSIZE) ? (sample - MF_GSIZE) : 0;
 			}
-			mute.end = limit + DTMF_GSIZE;
+			mute.end = limit + MF_GSIZE;
 		}
 
 		/* Reinitialise the detector for the next block */
