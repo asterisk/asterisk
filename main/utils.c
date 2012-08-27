@@ -770,16 +770,20 @@ static const char *locktype2str(enum ast_lock_type type)
 static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt)
 {
 	char **symbols;
+	int num_frames;
 
 	if (!bt) {
 		ast_str_append(str, 0, "\tNo backtrace to print\n");
 		return;
 	}
 
-	if ((symbols = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
+	/* store frame count locally to avoid the memory corruption that
+	 * sometimes happens on virtualized CentOS 6.x systems */
+	num_frames = bt->num_frames;
+	if ((symbols = ast_bt_get_symbols(bt->addresses, num_frames))) {
 		int frame_iterator;
 		
-		for (frame_iterator = 0; frame_iterator < bt->num_frames; ++frame_iterator) {
+		for (frame_iterator = 0; frame_iterator < num_frames; ++frame_iterator) {
 			ast_str_append(str, 0, "\t%s\n", symbols[frame_iterator]);
 		}
 
