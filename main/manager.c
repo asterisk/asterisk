@@ -541,7 +541,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Returns number of messages.</para>
 			<para>Message: Mailbox Status.</para>
 			<para>Mailbox: <replaceable>mailboxid</replaceable>.</para>
-			<para>Waiting: <replaceable>count</replaceable>.</para>
+			<para>Waiting: <literal>0</literal> if messages waiting, <literal>1</literal>
+			if no messages waiting.</para>
 		</description>
 	</manager>
 	<manager name="MailboxCount" language="en_US">
