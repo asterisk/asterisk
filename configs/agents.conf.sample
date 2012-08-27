@@ -30,7 +30,7 @@
 ;autologoffunavail=yes
 ;
 ; Define ackcall to require a DTMF acknowledgement when
-; an agent logs in using AgentLogin.  Default is "no".
+; a logged-in agent receives a call.  Default is "no".
 ; Use the acceptdtmf option to configure what DTMF key
 ; press should be used to acknowledge the call. The
 ; default is '#'.
