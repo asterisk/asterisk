@@ -795,6 +795,8 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 		return;
 	}
 
+	/* store frame count locally to avoid the memory corruption that
+	 * sometimes happens on virtualized CentOS 6.x systems */
 	num_frames = bt->num_frames;
 	if ((symbols = ast_bt_get_symbols(bt->addresses, num_frames))) {
 		int frame_iterator;
