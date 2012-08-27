@@ -57,7 +57,7 @@ monitor-type = MixMonitor
 ; shared_lastcall will make the lastcall and calls received be the same in
 ; members logged in more than one queue.  This is useful to make the queue
 ; respect the wrapuptime of another queue for a shared member.
-; The default value is yes.
+; The default value is no.
 ;
 ;shared_lastcall=no
 ;
