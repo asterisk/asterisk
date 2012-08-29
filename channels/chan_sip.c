@@ -18934,14 +18934,6 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 	struct sip_peer *peer;
 	int load_realtime;
 
-	const char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
-
-	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-	}
-
-
 	if (argc < 4)
 		return CLI_SHOWUSAGE;
 
@@ -18958,11 +18950,7 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 	}
 
 	if (type != 0) {
-		astman_append(s,
-		"Event: SIPqualifypeerComplete\r\n"
-		"%s"
-		"\r\n",
-		idText);
+		astman_send_ack(s, m, "Qualify Peer successful");
 	}
 
 	return CLI_SUCCESS;
