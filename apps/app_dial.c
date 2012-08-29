@@ -3065,9 +3065,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					/* The peer is now running its own PBX. */
 					goto out;
 				}
-			} else {
-				ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
 			}
+		} else if (!ast_check_hangup(chan)) {
+			ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
 		}
 		ast_autoservice_chan_hangup_peer(chan, peer);
 	}
