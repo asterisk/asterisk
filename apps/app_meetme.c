@@ -1148,11 +1148,11 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 	int res = -1;
 
 	ast_test_suite_event_notify("CONFPLAY", "Channel: %s\r\n"
-									"Conference: %s\r\n"
-									"Marked: %d",
-									chan->name,
-									conf->confno,
-									conf->markedusers);
+		"Conference: %s\r\n"
+		"Marked: %d",
+		ast_channel_name(chan),
+		conf->confno,
+		conf->markedusers);
 
 	if (!ast_check_hangup(chan))
 		res = ast_autoservice_start(chan);
@@ -4607,7 +4607,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 							/* Prompt user for pin if pin is required */
 							ast_test_suite_event_notify("PLAYBACK", "Message: conf-getpin\r\n"
 								"Channel: %s",
-								chan->name);
+								ast_channel_name(chan));
 							res = ast_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
 						}
 						if (res >= 0) {
