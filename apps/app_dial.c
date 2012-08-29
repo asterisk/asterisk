@@ -2994,9 +2994,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					/* The peer is now running its own PBX. */
 					goto out;
 				}
-			} else {
-				chan->hangupcause = peer->hangupcause;
 			}
+		} else if (!ast_check_hangup(chan)) {
+			chan->hangupcause = peer->hangupcause;
 		}
 		ast_hangup(peer);
 	}
