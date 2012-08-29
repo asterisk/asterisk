@@ -1113,6 +1113,13 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 	int len;
 	int res = -1;
 
+	ast_test_suite_event_notify("CONFPLAY", "Channel: %s\r\n"
+									"Conference: %s\r\n"
+									"Marked: %d",
+									chan->name,
+									conf->confno,
+									conf->markedusers);
+
 	if (!ast_check_hangup(chan))
 		res = ast_autoservice_start(chan);
 
@@ -4304,6 +4311,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 
 			/* Not found? */
 			if (ast_strlen_zero(confno)) {
+				ast_test_suite_event_notify("PLAYBACK", "Message: conf-noempty");
 				res = ast_streamfile(chan, "conf-noempty", chan->language);
 				if (!res)
 					ast_waitstream(chan, "");
@@ -4385,6 +4393,9 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 							res = 0;
 						} else {
 							/* Prompt user for pin if pin is required */
+							ast_test_suite_event_notify("PLAYBACK", "Message: conf-getpin\r\n"
+								"Channel: %s",
+								chan->name);
 							res = ast_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
 						}
 						if (res >= 0) {
