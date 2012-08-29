@@ -3928,7 +3928,7 @@ static int retrans_pkt(const void *data)
 				/* there is nothing left to do, mark the dialog as gone */
 				sip_alreadygone(pkt->owner);
 			}
-			ast_queue_hangup_with_cause(pkt->owner->owner, AST_CAUSE_PROTOCOL_ERROR);
+			ast_queue_hangup_with_cause(pkt->owner->owner, AST_CAUSE_NO_USER_RESPONSE);
 			ast_channel_unlock(pkt->owner->owner);
 		} else {
 			/* If no channel owner, destroy now */
