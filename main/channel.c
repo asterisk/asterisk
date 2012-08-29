@@ -986,7 +986,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_internal_fd_clear_all(tmp);
 
 #ifdef HAVE_EPOLL
-	ast_channel_epfd(tmp) = epoll_create(25);
+	ast_channel_epfd_set(tmp, epoll_create(25));
 #endif
 
 	if (!(schedctx = ast_sched_context_create())) {
@@ -1217,7 +1217,7 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	ast_channel_internal_alertpipe_clear(tmp);
 	ast_channel_internal_fd_clear_all(tmp);
 #ifdef HAVE_EPOLL
-	ast_channel_epfd(tmp) = -1;
+	ast_channel_epfd_set(tmp, -1);
 #endif
 
 	headp = ast_channel_varshead(tmp);
