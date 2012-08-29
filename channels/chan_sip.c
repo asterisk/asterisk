@@ -18934,6 +18934,14 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 	struct sip_peer *peer;
 	int load_realtime;
 
+	const char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
+
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	}
+
+
 	if (argc < 4)
 		return CLI_SHOWUSAGE;
 
@@ -18943,9 +18951,20 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 		sip_unref_peer(peer, "qualify: done with peer");
 	} else if (type == 0) {
 		ast_cli(fd, "Peer '%s' not found\n", argv[3]);
+		return CLI_SUCCESS;
 	} else {
 		astman_send_error(s, m, "Peer not found");
+		return CLI_SUCCESS;
 	}
+
+	if (type != 0) {
+		astman_append(s,
+		"Event: SIPqualifypeerComplete\r\n"
+		"%s"
+		"\r\n",
+		idText);
+	}
+
 	return CLI_SUCCESS;
 }
 
@@ -18966,7 +18985,6 @@ static int manager_sip_qualify_peer(struct mansession *s, const struct message *
 	a[3] = peer;
 
 	_sip_qualify_peer(1, -1, s, m, 4, a);
-	astman_append(s, "\r\n\r\n" );
 	return 0;
 }
 
