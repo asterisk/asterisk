@@ -1387,6 +1387,7 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 {
 	struct ast_channel *tmp;
 	struct varshead *headp;
+	int x;
 
 #if defined(REF_DEBUG)
 	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel",
@@ -1405,6 +1406,22 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	if ((ast_string_field_init(tmp, 128))) {
 		return ast_channel_unref(tmp);
 	}
+
+	/*
+	 * Init file descriptors to unopened state just in case
+	 * autoservice is called on the channel or something tries to
+	 * read a frame from it.
+	 */
+	tmp->timingfd = -1;
+	for (x = 0; x < ARRAY_LEN(tmp->alertpipe); ++x) {
+		tmp->alertpipe[x] = -1;
+	}
+	for (x = 0; x < ARRAY_LEN(tmp->fds); ++x) {
+		tmp->fds[x] = -1;
+	}
+#ifdef HAVE_EPOLL
+	tmp->epfd = -1;
+#endif
 
 	headp = &tmp->varshead;
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
