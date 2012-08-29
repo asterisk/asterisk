@@ -26,7 +26,8 @@
 struct MD5Context {
 	uint32_t buf[4];
 	uint32_t bits[2];
-	unsigned char in[64];
+	/*! Align because we cast this buffer to uint32s */
+	unsigned char in[64] __attribute__((aligned(__alignof__(uint32_t))));
 };
 
 void MD5Init(struct MD5Context *context);
