@@ -1208,6 +1208,18 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	ast_pbx_hangup_handler_init(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_datastores(tmp));
 
+	/*
+	 * Init file descriptors to unopened state just in case
+	 * autoservice is called on the channel or something tries to
+	 * read a frame from it.
+	 */
+	ast_channel_timingfd_set(tmp, -1);
+	ast_channel_internal_alertpipe_clear(tmp);
+	ast_channel_internal_fd_clear_all(tmp);
+#ifdef HAVE_EPOLL
+	ast_channel_epfd(tmp) = -1;
+#endif
+
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 
