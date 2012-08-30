@@ -1365,8 +1365,8 @@ int ast_cc_monitor_count(const char * const name, const char * const type);
  * The code in the core will take care of making sure that the information gets passed
  * up the ladder correctly.
  *
- * \param core_id The core ID of the corresponding CC transaction
- * \param debug
+ * \par core_id The core ID of the corresponding CC transaction
+ * \par debug
  * \retval 0 Request successfully queued
  * \retval -1 Request could not be queued
  */
@@ -1482,7 +1482,7 @@ int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan);
 /*!
  * \since 1.8
  * \brief Set the CC_INTERFACES channel variable for a channel using an
- * extension@context as a starting point
+ * \verbatim extension@context \endverbatim as a starting point
  *
  * \details
  * The CC_INTERFACES channel variable will have the interfaces that should be
@@ -1498,7 +1498,7 @@ int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan);
  *
  * \param chan The channel to set the CC_INTERFACES variable on
  * \param extension The name of the extension for which we're setting the variable.
- * This should be in the form of "exten@context"
+ * This should be in the form of \verbatim exten@context \endverbatim
  */
 int ast_set_cc_interfaces_chanvar(struct ast_channel *chan, const char * const extension);
 

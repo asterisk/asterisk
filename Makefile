@@ -742,6 +742,7 @@ webvmail:
 	@echo " +-------------------------------------------+"
 
 progdocs:
+	doxygen -u contrib/asterisk-ng-doxygen
 	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
 	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen -
 

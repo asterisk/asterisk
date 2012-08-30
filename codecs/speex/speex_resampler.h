@@ -137,7 +137,8 @@ SpeexResamplerState *speex_resampler_init(spx_uint32_t nb_channels,
  * @param in_rate Input sampling rate rounded to the nearest integer (in Hz).
  * @param out_rate Output sampling rate rounded to the nearest integer (in Hz).
  * @param quality Resampling quality between 0 and 10, where 0 has poor quality
- * and 10 has very high quality.
+ * 	and 10 has very high quality.
+ * @param err
  * @return Newly created resampler state
  * @retval NULL Error: not enough memory
  */

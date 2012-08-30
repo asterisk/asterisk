@@ -46,8 +46,8 @@ struct ast_key;
 
 /*!
  * \brief Retrieve a key
- * \param name of the key we are retrieving
- * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
+ * \param key Name of the key we are retrieving
+ * \param type Intger type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
  *
  * \retval the key on success.
  * \retval NULL on failure.
@@ -70,6 +70,7 @@ AST_OPTIONAL_API(int, ast_check_signature, (struct ast_key *key, const char *msg
  * \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
  * \param msg the message that has been signed
+ * \param msglen
  * \param sig the proposed valid signature in raw binary representation
  *
  * \retval 0 if the signature is valid.
@@ -95,6 +96,7 @@ AST_OPTIONAL_API(int, ast_sign, (struct ast_key *key, char *msg, char *sig), { r
  * \brief Sign a message signature using a given private key
  * \param key a private key to use to create the signature
  * \param msg the message to sign
+ * \param msglen
  * \param sig a pointer to a buffer of at least 128 bytes in which the
  * raw encoded signature will be stored
  *

@@ -119,7 +119,7 @@ int ast_format_cap_is_empty(const struct ast_format_cap *cap);
 /*!
  * \brief Remove format capability from capability structure.
  *
- * \Note format must match Exactly to format in ast_format_cap object in order
+ * \note format must match Exactly to format in ast_format_cap object in order
  * to be removed.
  *
  * \retval 0, remove was successful
@@ -131,7 +131,7 @@ int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format)
  * \brief Remove all format capabilities from capability
  * structure for a specific format id.
  *
- * \Note This will remove _ALL_ formats matching the format id from the
+ * \note This will remove _ALL_ formats matching the format id from the
  * capabilities structure.
  *
  * \retval 0, remove was successful
@@ -263,7 +263,7 @@ void ast_format_cap_iter_start(struct ast_format_cap *cap);
  * }
  * ast_format_cap_iter_end(Cap);
  *
- * \Note Unless the container was alloced using no_lock, the container
+ * \note Unless the container was alloced using no_lock, the container
  * will be locked during the entire iteration until ast_format_cap_iter_end
  * is called. XXX Remember this, and do not attempt to lock any containers
  * within this iteration that will violate locking order.
@@ -298,7 +298,7 @@ void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src);
 /*! \brief Get the names of a set of formats
  * \param buf a buffer for the output string
  * \param size size of buf (bytes)
- * \param format the format (combined IDs of codecs)
+ * \param cap format the format (combined IDs of codecs)
  * Prints a list of readable codec names corresponding to "format".
  * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.

@@ -382,7 +382,7 @@ static struct ast_channel_tech agent_tech = {
  * unrefed once it is no longer needed.
  *
  * \param pvt Pointer to the LOCKED agent_pvt for which the owner is needed
- * \ret locked channel which owns the pvt at the time of completion. NULL if not available.
+ * \ref locked channel which owns the pvt at the time of completion. NULL if not available.
  */
 static struct ast_channel *agent_lock_owner(struct agent_pvt *pvt)
 {

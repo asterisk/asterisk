@@ -601,12 +601,12 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
  * \note The last parameter(s) point to a buffer of sufficient size,
  * which on success is filled with the matching filename.
  *
- * \param filename, name of the file.
- * \param fmt, format to look for the file in. OPTIONAL
- * \param preflang, the perfered language
- * \param buf, returns the matching filename
- * \param buflen, size of the buf
- * \param result_cap, OPTIONAL format capabilities result structure
+ * \param filename Name of the file.
+ * \param fmt Format to look for the file in. OPTIONAL
+ * \param preflang The perfered language
+ * \param buf Returns the matching filename
+ * \param buflen Size of the buf
+ * \param result_cap OPTIONAL format capabilities result structure
  *        returns what formats the file was found in.
  *
  * \retval 1, true. file exists and result format is set

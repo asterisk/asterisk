@@ -176,7 +176,6 @@ void *aco_pending_config(struct aco_info *info);
 /*! \def CONFIG_INFO_STANDARD
  * \brief Declare an aco_info struct with default module and preload values
  * \param name The name of the struct
- * \param fn The filename of the config
  * \param arr The global object array for holding the user-defined config object
  * \param alloc The allocater for the user-defined config object
  *
@@ -462,7 +461,6 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload);
  * \param info The aco_info to be used for handling the config
  * \param file The file attached to aco_info that the config represents
  * \param cfg A pointer to a loaded ast_config to parse
- * \param reload Whether or not this is a reload
  *
  * \retval ACO_PROCESS_OK Success
  * \retval ACO_PROCESS_ERROR Failure
@@ -496,7 +494,7 @@ int aco_process_var(struct aco_type *type, const char *cat, struct ast_variable 
 int aco_process_category_options(struct aco_type *type, struct ast_config *cfg, const char *cat, void *obj);
 
 /*! \brief Set all default options of \a obj
- * \param info The aco_type with the options
+ * \param type The aco_type with the options
  * \param category The configuration category from which \a obj is being configured
  * \param obj The object being configured
  *
@@ -511,11 +509,12 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj);
  *
  * \param info The aco_info holding this module's config information
  * \param name The name of the option
+ * \param match_type
  * \param types An array of valid option types for matching categories to the correct struct type
  * \param default_val The default value of the option in the same format as defined in a config file
  * \param type The option type (only for default handlers)
  * \param handler The handler function for the option (only for non-default types)
- * \param flags \a type specific flags, stored in the option and available to the handler
+ * \param flags a type specific flags, stored in the option and available to the handler
  * \param argc The number for variadic arguments
  * \param ... field offsets to store for default handlers
  *
@@ -528,10 +527,12 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 /*! \brief Register a config option
  * \param info A pointer to the aco_info struct
  * \param name The name of the option
+ * \param matchtype
  * \param types An array of valid option types for matching categories to the correct struct type
  * \param default_val The default value of the option in the same format as defined in a config file
  * \param opt_type The option type for default option type handling
- * \param flags \a type specific flags, stored in the option and available to the handler
+ * \param flags a type specific flags, stored in the option and available to the handler
+ * \param ...
  *
  * \retval 0 Success
  * \retval -1 Failure
@@ -542,6 +543,7 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 /*! \brief Register a config option
  * \param info A pointer to the aco_info struct
  * \param name The name of the option
+ * \param matchtype
  * \param types An array of valid option types for matching categories to the correct struct type
  * \param default_val The default value of the option in the same format as defined in a config file
  * \param handler The handler callback for the option
@@ -570,14 +572,15 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * passed in. It is currently limited to 8 arguments, but 8 variadic
  * arguments, like 640K, should be good enough for anyone. If not, it is
  * easy to add more.
- * */
+ *
+ */
 
-/*! \def ARGMAP(func, func_arg, x, ...)
+/*!
  * \brief Map \a func(\a func_arg, field) across all fields including \a x
  * \param func The function (almost certainly offsetof) to map across the fields
  * \param func_arg The first argument (almost certainly a type (e.g. "struct mystruct")
  * \param x The first field
- * \param varargs The rest of the fields
+ * \param ... varargs The rest of the fields
  *
  * Example usage:
  * \code
@@ -588,17 +591,19 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * };
  * ARGMAP(offsetof, struct foo, a, c)
  * \endcode
+ *
  * produces the string:
+ *
  * \code
  * 2, offsetof(struct foo, a), offsetof(struct foo, b)
- * \encode
+ * \endcode
  * which can be passed as the varargs to some other function
  *
  * The macro isn't limited to offsetof, but that is the only purpose for
  * which it has been tested.
  *
  * As an example of how the processing works:
- *
+ * \verbatim
  * ARGMAP(offsetof, struct foo, a, b, c) ->
  * ARGMAP_(3, offsetof, struct foo, a, b, c) ->
  * ARGMAP_3(offsetof, struct foo, 3, a, b, c) ->
@@ -606,12 +611,15 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * ARGMAP_1(offsetof, struct foo, ARGIFY(3, offsetof(struct foo, a), offsetof(struct foo, b)), c) ->
  * ARGIFY(3, offsetof(struct foo, a), offsetof(struct foo, b), offsetof(struct foo, c)) ->
  * 3, offsetof(struct foo, a), offsetof(struct foo, b), offsetof(struct foo, c)
+ * \endverbatim
+ *
  */
 #define ARGMAP(func, func_arg, x, ...) ARGMAP_(VA_NARGS(x, ##__VA_ARGS__), func, func_arg, x, __VA_ARGS__)
 
 /*! \note This is sneaky. On the very first argument, we set "in" to N, the number of arguments, so
  * that the accumulation both works properly for the first argument (since "in" can't be empty) and
- * we get the number of arguments in our varargs as a bonus */
+ * we get the number of arguments in our varargs as a bonus
+ */
 #define ARGMAP_(N, func, func_arg, x, ...) PASTE(ARGMAP_, N)(func, func_arg, N, x, __VA_ARGS__)
 
 /*! \def PASTE(arg1, arg2)
@@ -629,7 +637,7 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * \param func_arg The first argument to func (most likely a type e.g. "struct my_struct")
  * \param in The accumulated function-mapped field names so far
  * \param x The next field name
- * \param varargs The rest of the field names
+ * \param ... varargs The rest of the field names
  */
 #define ARGMAP_1(func, func_arg, in, x, ...) ARGIFY(in, func(func_arg, x))
 #define ARGMAP_2(func, func_arg, in, x, ...)\
@@ -651,18 +659,19 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * \brief Results in the number of arguments passed to it
  * \note Currently only up to 8, but expanding is easy. This macro basically counts
  * commas + 1. To visualize:
- *
+ * \verbatim
  * VA_NARGS(one, two, three) ->                    v
  * VA_NARGS1(one, two, three,  8,  7,  6,  5,  4,  3,  2,  1,  0) ->
  * VA_NARGS1( _1,  _2,    _3, _4, _5, _6, _7, _8,  N, ...       ) N -> 3
- *
+ * 
  * Note that VA_NARGS *does not* work when there are no arguments passed. Pasting an empty
  * __VA_ARGS__ with a comma like ", ##__VA_ARGS__" will delete the leading comma, but it
  * does not work when __VA_ARGS__ is the first argument. Instead, 1 is returned instead of 0:
- *
+ * 
  * VA_NARGS() ->                              v
  * VA_NARGS1(  ,  8,  7,  6,  5,  4,  3,  2,  1,  0) ->
  * VA_NARGS1(_1, _2, _3, _4, _5, _6, _7, _8,  N) -> 1
+ * \endverbatim
  */
 #define VA_NARGS(...) VA_NARGS1(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 #define VA_NARGS1(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
@@ -670,7 +679,7 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
 /*! \def FLDSET(type, ...)
  * \brief Convert a struct and list of fields to an argument list of field offsets
  * \param type The type with the fields (e.g. "struct my_struct")
- * \param varags The fields in the struct whose offsets are needed as arguments
+ * \param ... varags The fields in the struct whose offsets are needed as arguments
  *
  * For example:
  * \code
@@ -692,7 +701,7 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * default stringfield option handler, so registering options that point to stringfields requires
  * this macro to be called instead of the FLDSET macro.
  * \param type The type with the fields (e.g. "struct my_struct")
- * \param varargs The fields in the struct whose offsets are needed as arguments
+ * \param ... varargs The fields in the struct whose offsets are needed as arguments
  */
 #define STRFLDSET(type, ...) FLDSET(type, __VA_ARGS__, __field_mgr_pool, __field_mgr)
 
@@ -710,9 +719,10 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  * FLDSET. This is because a call to FLDSET may be followed by additional arguments in
  * aco_register_option, so the true number of arguments will possibly be different than what
  * ARGMAP returns.
- * \params varags A list of arguments
- *
+ * \param ... varags A list of arguments
+ * \verbatim
  * POPPED(a, b, c) -> b, c
+ * \endverbatim
  */
 #define POPPED(...) POPPED1(__VA_ARGS__)
 #define POPPED1(x, ...) __VA_ARGS__

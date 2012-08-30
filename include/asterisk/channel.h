@@ -1280,7 +1280,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
  *        by the low level module and attempt to place a call on it
  *
  * \param type type of channel to request
- * \param format capabilities for requested channel
+ * \param cap format capabilities for requested channel
  * \param requestor channel asking for data
  * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
@@ -1298,7 +1298,7 @@ struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap
  * \brief Request a channel of a given type, with data as optional information used
  * by the low level module and attempt to place a call on it
  * \param type type of channel to request
- * \param format capabilities for requested channel
+ * \param cap format capabilities for requested channel
  * \param requestor channel requesting data
  * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
@@ -1317,7 +1317,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
  * \param caller in channel that requested orig
  * \param orig channel being replaced by the call forward channel
  * \param timeout maximum amount of time to wait for setup of new forward channel
- * \param format capabilities for requested channel
+ * \param cap format capabilities for requested channel
  * \param oh outgoing helper used with original channel
  * \param outstate reason why unsuccessful (if uncuccessful)
  * \return Returns the forwarded call's ast_channel on success or NULL on failure
@@ -1794,7 +1794,7 @@ int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap
 /*!
  * \brief Sets read format on channel chan
  * \param chan channel to change
- * \param formats, format to set for reading
+ * \param format format to set for reading
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_read_format(struct ast_channel *chan, struct ast_format *format);
@@ -1802,7 +1802,7 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format);
 /*!
  * \brief Sets read format on channel chan by id
  * \param chan channel to change
- * \param format id to set for reading, only used for formats without attributes
+ * \param id format id to set for reading, only used for formats without attributes
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id);
@@ -1819,7 +1819,7 @@ int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_ca
 /*!
  * \brief Sets write format on channel chan
  * \param chan channel to change
- * \param formats, format to set for writing
+ * \param format format to set for writing
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
@@ -1827,7 +1827,7 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
 /*!
  * \brief Sets write format on channel chan
  * \param chan channel to change
- * \param format id to set for writing, only used for formats without attributes
+ * \param id format id to set for writing, only used for formats without attributes
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id);
@@ -2100,7 +2100,7 @@ int ast_channel_setoption(struct ast_channel *channel, int option, void *data, i
 /*!
  * \brief Pick the best codec
  *
- * \param capabilities to pick best codec out of
+ * \param cap capabilities to pick best codec out of
  * \param result stucture to store the best codec in.
  * \retval on success, pointer to result structure
  * \retval on failure, NULL

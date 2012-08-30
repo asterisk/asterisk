@@ -63,6 +63,7 @@ struct ast_datastore {
  * \brief Create a data store object
  * \param[in] info information describing the data store object
  * \param[in] uid unique identifer
+ * \param file, line, function
  * \version 1.6.1 moved here and renamed from ast_channel_datastore_alloc
  */
 struct ast_datastore * attribute_malloc __ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,

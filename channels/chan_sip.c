@@ -5367,7 +5367,7 @@ static struct sip_peer *sip_find_peer_full(const char *peer, struct ast_sockaddr
 
 /*!
  * \brief Locate device by name or ip address
- * \param peer, sin, realtime, devstate_only, transport
+ * \param peer, addr, realtime, devstate_only, transport
  * \param which_objects Define which objects should be matched when doing a lookup
  *        by name.  Valid options are FINDUSERS, FINDPEERS, or FINDALLDEVICES.
  *        Note that this option is not used at all when doing a lookup by IP.
@@ -10965,7 +10965,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 /*! \brief Set destination from SIP URI
  *
  * Parse uri to h (host) and port - uri is already just the part inside the <>
- * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...]
+ * general form we are expecting is \verbatim sip[s]:username[:password][;parameter]@host[:port][;...] \endverbatim
  * If there's a port given, turn NAPTR/SRV off. NAPTR might indicate SIPS preference even
  * for SIP: uri's
  *
@@ -15430,8 +15430,14 @@ static void list_route(struct sip_route *route)
 	}
 }
 
-/*! \brief Build route list from Record-Route header 
-    \param resp the SIP response code or 0 for a request */
+/*! \brief Build route list from Record-Route header
+ *
+ * \param p
+ * \param req
+ * \param backwards
+ * \param resp the SIP response code or 0 for a request
+ *
+ */
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp)
 {
 	struct sip_route *thishop, *head, *tail;
@@ -28415,7 +28421,7 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 /*!
  * \brief Get the session-timer mode 
  * \param p pointer to the SIP dialog 
- * \param no_cached, set this to true in order to force a peername lookup on
+ * \param no_cached Set this to true in order to force a peername lookup on
  *        the session timer mode.
 */
 enum st_mode st_get_mode(struct sip_pvt *p, int no_cached)
@@ -32260,7 +32266,7 @@ static int reload(void)
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by address family
  *
- * \warn Using this function probably means you have a faulty design.
+ * \warning Using this function probably means you have a faulty design.
  */
 static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 				      const char* name, int flag, int family)
@@ -32284,7 +32290,7 @@ static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
  *
- * \warn Using this function probably means you have a faulty design.
+ * \warning Using this function probably means you have a faulty design.
  */
 static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 				      const char* name, int flag)
@@ -32294,7 +32300,7 @@ static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
  *
- * \warn Using this function probably means you have a faulty design.
+ * \warning Using this function probably means you have a faulty design.
  */
 static int ast_sockaddr_resolve_first_transport(struct ast_sockaddr *addr,
 						const char* name, int flag, unsigned int transport)

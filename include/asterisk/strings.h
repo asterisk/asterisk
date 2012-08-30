@@ -804,6 +804,8 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct a
  * \brief Append to a dynamic string using a va_list
  *
  * Same as ast_str_set_va(), but append to the current content.
+ *
+ * \param buf, max_len, fmt, ap
  */
 AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struct ast_str **buf, ssize_t max_len, const char *fmt, va_list ap),
 {

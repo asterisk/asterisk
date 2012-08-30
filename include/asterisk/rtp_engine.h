@@ -1164,7 +1164,7 @@ struct ast_format *ast_rtp_codecs_get_payload_format(struct ast_rtp_codecs *code
  * \brief Get the sample rate associated with known RTP payload types
  *
  * \param asterisk_format True if the value in format is to be used.
- * \param An asterisk format
+ * \param format An asterisk format
  * \param code from AST_RTP list
  *
  * \return the sample rate if the format was found, zero if it was not found
@@ -1815,7 +1815,7 @@ void ast_rtp_instance_set_hold_timeout(struct ast_rtp_instance *instance, int ti
  * \brief Set the RTP keepalive interval
  *
  * \param instance The RTP instance
- * \param period Value to set the keepalive interval to
+ * \param timeout Value to set the keepalive interval to
  *
  * Example usage:
  *

@@ -422,7 +422,6 @@ static void lua_update_registry(lua_State *L, const char *context, const char *e
  * The value on the top of the stack is popped and used as the name.
  *
  * \param L the lua_State to use
- * \param name the name of the variable
  */
 static void lua_push_variable_table(lua_State *L)
 {

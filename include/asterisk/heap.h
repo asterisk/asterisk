@@ -213,6 +213,7 @@ size_t ast_heap_size(struct ast_heap *h);
  * \brief Write-Lock a heap
  *
  * \param h the heap
+ * \param file, func, line
  *
  * A lock is provided for convenience.  It can be assumed that none of the
  * ast_heap API calls are thread safe.  This lock does not have to be used
@@ -227,6 +228,7 @@ int __ast_heap_wrlock(struct ast_heap *h, const char *file, const char *func, in
  * \brief Read-Lock a heap
  *
  * \param h the heap
+ * \param file, func, line
  *
  * A lock is provided for convenience.  It can be assumed that none of the
  * ast_heap API calls are thread safe.  This lock does not have to be used
@@ -241,6 +243,7 @@ int __ast_heap_rdlock(struct ast_heap *h, const char *file, const char *func, in
  * \brief Unlock a heap
  *
  * \param h the heap
+ * \param file, func, line
  *
  * \return see the documentation for pthread_rwlock_unlock()
  * \since 1.6.1

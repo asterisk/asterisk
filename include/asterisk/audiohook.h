@@ -154,10 +154,10 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
 /*! \brief Reads a frame in from the audiohook structure in mixed audio mode and copies read and write frame data to provided arguments.
  * \param audiohook Audiohook structure
  * \param samples Number of samples wanted
- * \param direction Direction the audio frame came from
- * \param format Format of frame remote side wants back
- * \param ast_frame read_frame - if available, we'll copy the read buffer to this.
- * \param ast_frame write_frame - if available, we'll copy the write buffer to this.
+ * \param ast_format Format of frame remote side wants back
+ * \param read_frame if available, we'll copy the read buffer to this.
+ * \param write_frame if available, we'll copy the write buffer to this.
+ * \param direction
  * \return Returns frame on success, NULL on failure
  */
 struct ast_frame *ast_audiohook_read_frame_all(struct ast_audiohook *audiohook, size_t samples, struct ast_format *format, struct ast_frame **read_frame, struct ast_frame **write_frame);

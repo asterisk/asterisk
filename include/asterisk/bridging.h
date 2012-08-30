@@ -312,7 +312,7 @@ int ast_bridge_destroy(struct ast_bridge *bridge);
  * \param chan Channel to join
  * \param swap Channel to swap out if swapping
  * \param features Bridge features structure
- * \param (Optional) Bridging tech optimization parameters for this channel.
+ * \param tech_args Optional Bridging tech optimization parameters for this channel.
  *
  * \retval state that channel exited the bridge with
  *
@@ -504,8 +504,8 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
 /*! \brief Adjust the internal mixing sample rate of a bridge used during
  *         multimix mode.
  *
- * \param bridge_channel Channel to change the sample rate on.
- * \param sample rate, the sample rate to change to. If a
+ * \param bridge Channel to change the sample rate on.
+ * \param sample_rate the sample rate to change to. If a
  *        value of 0 is passed here, the bridge will be free to pick
  *        what ever sample rate it chooses.
  *
@@ -515,8 +515,8 @@ void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int
 /*! \brief Adjust the internal mixing interval of a bridge used during
  *         multimix mode.
  *
- * \param bridge_channel Channel to change the sample rate on.
- * \param mixing_interval, the sample rate to change to.  If 0 is set
+ * \param bridge Channel to change the sample rate on.
+ * \param mixing_interval the sample rate to change to.  If 0 is set
  * the bridge tech is free to choose any mixing interval it uses by default.
  */
 void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixing_interval);

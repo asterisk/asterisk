@@ -167,6 +167,7 @@ int __attribute__((format(printf, 2, 3)))
  * \brief Set a variable on the message going to the dialplan.
  * \note Setting a variable that already exists overwrites the existing variable value
  *
+ * \param msg
  * \param name Name of variable to set
  * \param value Value of variable to set
  *
@@ -179,6 +180,7 @@ int ast_msg_set_var(struct ast_msg *msg, const char *name, const char *value);
  * \brief Set a variable on the message being sent to a message tech directly.
  * \note Setting a variable that already exists overwrites the existing variable value
  *
+ * \param msg
  * \param name Name of variable to set
  * \param value Value of variable to set
  *

@@ -302,10 +302,10 @@ void conf_menu_entry_destroy(struct conf_menu_entry *menu_entry);
  * \brief Once a DTMF sequence matches a sequence in the user's DTMF menu, this function will get
  * called to perform the menu action.
  *
- * \param bridge_channel, Bridged channel this is involving
- * \param conference_bridge_user, the conference user to perform the action on.
- * \param menu_entry, the menu entry that invoked this callback to occur.
- * \param menu, an AO2 referenced pointer to the entire menu structure the menu_entry
+ * \param bridge_channel Bridged channel this is involving
+ * \param conference_bridge_user the conference user to perform the action on.
+ * \param menu_entry the menu entry that invoked this callback to occur.
+ * \param menu an AO2 referenced pointer to the entire menu structure the menu_entry
  *        derived from.
  *
  * \note The menu_entry is a deep copy of the entry found in the menu structure.  This allows

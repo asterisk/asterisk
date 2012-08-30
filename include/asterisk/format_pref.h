@@ -59,9 +59,9 @@ void ast_codec_pref_init(struct ast_codec_pref *pref);
 
 /*!
  * \brief Codec located at a particular place in the preference index.
- * \param preference structure to get the codec out of
+ * \param pref preference structure to get the codec out of
  * \param index to retrieve from
- * \param retult ast_format structure to store the index value in
+ * \param result ast_format structure to store the index value in
  * \return pointer to input ast_format on success, NULL on failure
 */
 struct ast_format *ast_codec_pref_index(struct ast_codec_pref *pref, int index, struct ast_format *result);

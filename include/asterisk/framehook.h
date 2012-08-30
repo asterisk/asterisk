@@ -219,9 +219,9 @@ struct ast_framehook_interface {
  * \brief Attach an framehook onto a channel for frame interception.
  * \since 1.8
  *
- * \param ast_channel, The channel to attach the hook on to.
- * \param framehook interface, The framehook's callback functions and stored data.
-*
+ * \param chan ast_channel The channel to attach the hook on to.
+ * \param i framehook interface, The framehook's callback functions and stored data.
+ *
  * \pre XXX The Channel must be locked during this function all.
  *
  * \note The data pointer is never touched by the framehook API except to
@@ -242,8 +242,8 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
  * the framehook will be detached and destroyed during channel
  * destruction.
  *
- * \param The channel the framehook is attached to
- * \param The framehook's id
+ * \param chan The channel the framehook is attached to
+ * \param framehook_id The framehook's id
  *
  * \retval 0 success
  * \retval -1 framehook did not exist on the channel. This means the
@@ -258,7 +258,7 @@ int ast_framehook_detach(struct ast_channel *chan, int framehook_id);
  *
  * \pre XXX The Channel must be locked during this function all.
  * 
- * \param channel containing the framehook list to destroy.
+ * \param chan channel containing the framehook list to destroy.
  * \retval 0 success
  * \retval -1 failure
  */
@@ -274,7 +274,7 @@ int ast_framehook_list_destroy(struct ast_channel *chan);
  *
  * \pre XXX The Channel must be locked during this function all.
  *
- * \param framehook list to push event to.
+ * \param framehooks list to push event to.
  * \param frame being pushed to the framehook list.
  *
  * \return The resulting frame after being viewed and modified by the framehook callbacks.
@@ -291,7 +291,7 @@ struct ast_frame *ast_framehook_list_read_event(struct ast_framehook_list *frame
  *
  * \pre XXX The Channel must be locked during this function all.
  *
- * \param framehook list to push event to.
+ * \param framehooks list to push event to.
  * \param frame being pushed to the framehook list.
  *
  * \return The resulting frame after being viewed and modified by the framehook callbacks.
@@ -303,7 +303,7 @@ struct ast_frame *ast_framehook_list_write_event(struct ast_framehook_list *fram
  * \since 1.8
  * \pre XXX The Channel must be locked during this function all.
  *
- * \param the framehook list
+ * \param framehooks the framehook list
  * \retval 0, not empty
  * \retval 1, is empty
  */

@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! \file sip_srtp.h
+/*! \file srtp.h
  *
  * \brief SIP Secure RTP (SRTP)
  *

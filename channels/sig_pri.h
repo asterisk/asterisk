@@ -592,7 +592,7 @@ struct sig_pri_span {
 	 * AST_DEVICE_BUSY - All B channels are in use.
 	 * AST_DEVICE_UNAVAILABLE - Span is in alarm.
 	 * \note
-	 * Device name: \startverbatim DAHDI/I<span>/congestion. \endverbatim
+	 * Device name: \verbatim DAHDI/I<span>/congestion. \endverbatim
 	 */
 	int congestion_devstate;
 #if defined(THRESHOLD_DEVSTATE_PLACEHOLDER)

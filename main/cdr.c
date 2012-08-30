@@ -1013,7 +1013,10 @@ char *ast_cdr_disp2str(int disposition)
 	return "UNKNOWN";
 }
 
-/*! Converts AMA flag to printable string */
+/*! Converts AMA flag to printable string 
+ *
+ * \param flag, flags
+ */
 char *ast_cdr_flags2str(int flag)
 {
 	switch (flag) {

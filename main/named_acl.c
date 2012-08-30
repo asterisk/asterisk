@@ -195,7 +195,7 @@ void *named_acl_alloc(const char *cat)
  * \brief Find a named ACL in a container by its name
  *
  * \param container ao2container holding the named ACLs
- * \param name of the ACL wanted to be found
+ * \param cat name of the ACL wanted to be found
  * \retval pointer to the named ACL if available. Null if not found.
  */
 void *named_acl_find(struct ao2_container *container, const char *cat)

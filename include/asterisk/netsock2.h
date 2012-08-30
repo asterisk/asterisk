@@ -73,7 +73,7 @@ struct ast_sockaddr {
  * if you know what you're doing.
  *
  * \param addr The IPv4-mapped address to convert
- * \param mapped_addr The resulting IPv4 address
+ * \param ast_mapped The resulting IPv4 address
  * \retval 0 Unable to make the conversion
  * \retval 1 Successful conversion
  */
@@ -310,10 +310,10 @@ static inline char *ast_sockaddr_stringify_port(const struct ast_sockaddr *addr)
  * \brief
  * Splits a string into its host and port components
  *
- * \param str[in]   The string to parse. May be modified by writing a NUL at the end of
+ * \param[in] str The string to parse. May be modified by writing a NUL at the end of
  *                  the host part.
- * \param host[out] Pointer to the host component within \a str.
- * \param port[out] Pointer to the port component within \a str.
+ * \param[out] host Pointer to the host component within \a str.
+ * \param[out] port Pointer to the port component within \a str.
  * \param flags     If set to zero, a port MAY be present. If set to PARSE_PORT_IGNORE, a
  *                  port MAY be present but will be ignored. If set to PARSE_PORT_REQUIRE,
  *                  a port MUST be present. If set to PARSE_PORT_FORBID, a port MUST NOT
@@ -467,7 +467,7 @@ int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr);
  * \brief
  * Determine if an IPv4 address is a multicast address
  *
- * \parm addr the address to check
+ * \param addr the address to check
  *
  * This function checks if an address is in the 224.0.0.0/4 network block.
  *
@@ -647,9 +647,9 @@ int _ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
 /*!
  * \since 1.8
  *
- * \brief
- * Converts a struct sockaddr_in to a struct ast_sockaddr.
+ * \brief Converts a struct sockaddr_in to a struct ast_sockaddr.
  *
+ * \param addr
  * \param sin The sockaddr_in to convert
  * \return an ast_sockaddr structure
  */

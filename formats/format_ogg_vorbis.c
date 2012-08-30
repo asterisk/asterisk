@@ -342,7 +342,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 
 /*!
  * \brief Trucate an OGG/Vorbis filestream.
- * \param s The filestream to truncate.
+ * \param fs The filestream to truncate.
  * \return 0 on success, -1 on failure.
  */
 
@@ -354,7 +354,7 @@ static int ogg_vorbis_trunc(struct ast_filestream *fs)
 
 /*!
  * \brief Tell the current position in OGG/Vorbis filestream measured in pcms.
- * \param s The filestream to take action on.
+ * \param fs The filestream to take action on.
  * \return 0 or greater with the position measured in samples, or -1 for false.
  */
 static off_t ogg_vorbis_tell(struct ast_filestream *fs)
@@ -374,7 +374,7 @@ static off_t ogg_vorbis_tell(struct ast_filestream *fs)
 
 /*!
  * \brief Seek to a specific position in an OGG/Vorbis filestream.
- * \param s The filestream to take action on.
+ * \param fs The filestream to take action on.
  * \param sample_offset New position for the filestream, measured in 8KHz samples.
  * \param whence Location to measure 
  * \return 0 on success, -1 on failure.

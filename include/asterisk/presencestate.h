@@ -62,9 +62,9 @@ enum ast_presence_state ast_presence_state_val(const char *val);
 /*!
  * \brief Asks a presence state provider for the current presence state.
  *
- * \param presence_provider, The presence provider to retrieve the state from.
- * \param subtype, The output paramenter to store the subtype string in. Must be freed if returned
- * \param message, The output paramenter to store the message string in. Must be freed if returned
+ * \param presence_provider The presence provider to retrieve the state from.
+ * \param subtype The output paramenter to store the subtype string in. Must be freed if returned
+ * \param message The output paramenter to store the message string in. Must be freed if returned
  *
  * \retval presence state value on success,
  * \retval -1 on failure.
@@ -78,9 +78,9 @@ enum ast_presence_state ast_presence_state(const char *presence_provider, char *
  * requested (such as a base64 decode). In such instances, use of the event cache is not suitable
  * and should be bypassed.
  *
- * \param presence_provider, The presence provider to retrieve the state from.
- * \param subtype, The output paramenter to store the subtype string in. Must be freed if returned
- * \param message, The output paramenter to store the message string in. Must be freed if returned
+ * \param presence_provider The presence provider to retrieve the state from.
+ * \param subtype The output paramenter to store the subtype string in. Must be freed if returned
+ * \param message The output paramenter to store the message string in. Must be freed if returned
  *
  * \retval presence state value on success,
  * \retval -1 on failure.

@@ -193,7 +193,7 @@ struct ast_variable *ast_category_root(struct ast_config *config, char *cat);
  * \brief Sorts categories in a config in the order of a numerical value contained within them.
  *
  * \param config The config structure you wish to sort
- * \param variable Which numerical value you wish to sort by
+ * \param comparator variable Which numerical value you wish to sort by
  * \param descending If true, we sort highest to lowest instead of lowest to highest
  *
  * \details
@@ -741,9 +741,9 @@ enum ast_parse_flags {
  *
  * \param arg the string to parse. It is not modified.
  * \param flags combination of ast_parse_flags to specify the
- * return type and additional checks.
+ * 	return type and additional checks.
  * \param result pointer to the result. NULL is valid here, and can
- * be used to perform only the validity checks.
+ * 	be used to perform only the validity checks.
  * \param ... extra arguments are required according to flags.
  *
  * \retval 0 in case of success, != 0 otherwise.
@@ -841,7 +841,7 @@ int ast_rq_is_int(require_type type),
  * \param chunk Data to be decoded
  * \return The decoded data, in the original buffer
  * \since 1.8
- * \warn This function modifies the original buffer
+ * \warning This function modifies the original buffer
  */
 char *ast_realtime_decode_chunk(char *chunk);
 

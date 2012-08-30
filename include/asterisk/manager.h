@@ -247,7 +247,9 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
  * \param event Event name
  * \param chancount Number of channels in chans parameter
  * \param chans A pointer to an array of channels involved in the event
+ * \param file, line, func
  * \param contents Format string describing event
+ * \param ...
  * \since 1.8
 */
 int __ast_manager_event_multichan(int category, const char *event, int chancount,

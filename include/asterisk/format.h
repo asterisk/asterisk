@@ -264,9 +264,9 @@ void ast_format_sdp_generate(const struct ast_format *format, unsigned int paylo
  * with optional format attributes represented by format specific key value pairs.
  *
  * \param format to set
- * \param id, format id to set on format
+ * \param id format id to set on format
  * \param set_attributes, are there attributes to set on this format. 0 == false, 1 == True.
- * \param var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
+ * \param ... var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
  *
  * \details Example usage.
  * ast_format_set(format, AST_FORMAT_ULAW, 0); // no capability attributes are needed for ULAW
@@ -290,7 +290,7 @@ struct ast_format *ast_format_set(struct ast_format *format, enum ast_format_id 
  * set additional format attributes to the structure.
  *
  * \param format to set
- * \param var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
+ * \param ... var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
  *
  * \details Example usage.
  * ast_format_set(format, AST_FORMAT_SILK, 0);
@@ -421,7 +421,7 @@ const char* ast_getformatname(const struct ast_format *format);
 /*! \brief Returns a string containing all formats pertaining to an format id.
  * \param buf a buffer for the output string
  * \param size size of buf (bytes)
- * \param format id.
+ * \param id format id.
  * \return The return value is buf.
  */
 char* ast_getformatname_multiple_byid(char *buf, size_t size, enum ast_format_id id);

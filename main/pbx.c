@@ -6794,6 +6794,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and locks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
+ * \param context The context
  */
 int ast_context_lockmacro(const char *context)
 {
@@ -6815,6 +6816,7 @@ int ast_context_lockmacro(const char *context)
  * \note This function locks contexts list by &conlist, searches for the right context
  * structure, and unlocks the macrolock mutex in that context.
  * macrolock is used to limit a macro to be executed by one call at a time.
+ * \param context The context
  */
 int ast_context_unlockmacro(const char *context)
 {
@@ -8796,7 +8798,12 @@ static const char * const months[] =
 	"dec",
 	NULL,
 };
-
+/*! /brief Build timing
+ *
+ * /param i, info
+ * /param info_in
+ *
+ */
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
 	char *info;
