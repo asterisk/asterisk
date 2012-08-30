@@ -3145,10 +3145,19 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	ast_channel_unlock(tmp->chan);
 	ast_channel_unlock(qe->chan);
 
-	/* Place the call, but don't wait on the answer */
-	if ((res = ast_call(tmp->chan, location, 0))) {
+	ao2_lock(tmp->member);
+	update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
+	if (!qe->parent->ringinuse && (tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
+		ast_verb(1, "Member %s is busy, cannot dial", tmp->member->interface);
+		res = -1;
+	}
+	else {
+		/* Place the call, but don't wait on the answer */
+		res = ast_call(tmp->chan, location, 0);
+	}
+	ao2_unlock(tmp->member);
+	if (res) {
 		/* Again, keep going even if there's an error */
-		ast_debug(1, "ast call on peer returned %d\n", res);
 		ast_verb(3, "Couldn't call %s\n", tmp->interface);
 		do_hang(tmp);
 		(*busies)++;
