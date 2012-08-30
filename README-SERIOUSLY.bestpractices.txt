@@ -23,6 +23,9 @@ Sections
 * Reducing Pattern Match Typos: 
         Using the 'same' prefix, or using Goto()
 
+* Manager Class Authorizations:
+        Recognizing potential issues with certain classes of authorization
+
 ----------------
 Additional Links
 ----------------
@@ -293,3 +296,51 @@ same => n,Hangup()
 exten => error,1,Verbose(2,Unable to lookup technology or device for extension)
 same => n,Playback(silence/1&num-not-in-db)
 same => n,Hangup()
+
+
+============================
+Manager Class Authorizations
+============================
+
+Manager accounts have associated class authorizations that define what actions
+and events that account can execute/receive.  In order to run Asterisk commands
+or dialplan applications that affect the system Asterisk executes on, the
+"system" class authorization should be set on the account.
+
+However, Manager commands that originate new calls into the Asterisk dialplan
+have the potential to alter or affect the system as well, even though the
+class authorization for origination commands is "originate".  Take, for example,
+the Originate manager command:
+
+Action: Originate
+Channel: SIP/foo
+Exten: s
+Context: default
+Priority: 1
+Application: System
+Data: echo hello world!
+
+This manager command will attempt to execute an Asterisk application, System,
+which is normally associated with the "system" class authorication.  While some
+checks have been put into Asterisk to take this into account, certain dialplan
+configurations and/or clever manipulation of the Originate manager action can
+circumvent these checks.  For example, take the following dialplan:
+
+exten => s,1,Verbose(Incoming call)
+same => n,MixMonitor(foo.wav,,${EXEC_COMMAND})
+same => n,Dial(SIP/bar)
+same => n,Hangup()
+
+Whatever has been defined in the variable EXEC_COMMAND will be executed after
+MixMonitor has finished recording the call.  The dialplan writer may have
+intended that this variable to be set by some other location in the dialplan;
+however, the Manager action Originate allows for channel variables to be set by
+the account initiating the new call.  This could allow the Originate action to
+execute some command on the system by setting the EXEC_COMMAND dialplan variable
+in the Variable: header.
+
+In general, you should treat the Manager class authorization "originate" the
+same as the class authorization "system".  Good system configuration, such as
+not running Asterisk as root, can prevent serious problems from arising when
+allowing external connections to originate calls into Asterisk.
+
