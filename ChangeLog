@@ -1,3 +1,13 @@
+2012-08-30  Asterisk Development Team <asteriskteam@digium.com>
+
+        * Asterisk 10.7.1-digiumphones Released.
+	
+        * AST-2012-013: Resolve ACL rules being ignored during calls by some
+          IAX2 peers 
+			  
+        * AST-2012-012: Resolve AMI User Unauthorized Shell Access through
+          ExternalIVR
+
 2012-07-30  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.7.0-digiumphones Released.
