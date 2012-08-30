@@ -8404,8 +8404,8 @@ static int unload_module(void)
 		queue_t_unref(q, "Done with iterator");
 	}
 	ao2_iterator_destroy(&q_iter);
-	ao2_ref(queues, -1);
 	devicestate_tps = ast_taskprocessor_unreference(devicestate_tps);
+	ao2_ref(queues, -1);
 	ast_unload_realtime("queue_members");
 	return res;
 }
