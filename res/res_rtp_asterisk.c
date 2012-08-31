@@ -2789,7 +2789,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	}
 
 	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
-	if (!ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance1), 0, NULL, bridged_payload) &&
+	if ((ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance1), 0, NULL, bridged_payload) == -1) &&
 	    !ast_rtp_codecs_get_payload_format(ast_rtp_instance_get_codecs(instance1), bridged_payload)) {
 		return -1;
 	}
