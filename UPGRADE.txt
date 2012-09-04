@@ -23,7 +23,9 @@
 
 From 11 to 12:
 
-
+Queue:
+ - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
+   performed on is a member of at least one queue.
 
 From 10 to 11:
 
