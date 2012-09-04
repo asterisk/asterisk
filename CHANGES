@@ -8,6 +8,16 @@
 ===
 ==============================================================================
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
+------------------------------------------------------------------------------
+
+Logging
+-------------------
+ * When performing queue pause/unpause on an interface without specifying an
+   individual queue, the PAUSEALL/UNPAUSEALL event will only be logged if at
+   least one member of any queue exists for that interface.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 

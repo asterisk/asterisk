@@ -5944,11 +5944,6 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	struct ao2_iterator queue_iter;
 	int failed;
 
-	/* Special event for when all queues are paused - individual events still generated */
-	/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
-	if (ast_strlen_zero(queuename))
-		ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
-
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate over queues"))) {
 		ao2_lock(q);
@@ -5971,6 +5966,16 @@ static int set_member_paused(const char *queuename, const char *interface, const
 					continue;
 				}
 				found++;
+
+				/* Before we do the PAUSE/UNPAUSE log, if this was a PAUSEALL/UNPAUSEALL, log that here, but only on the first found entry. */
+				if (found == 1) {
+
+					/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
+					if (ast_strlen_zero(queuename)) {
+						ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
+					}
+				}
+
 				mem->paused = paused;
 
 				if (queue_persistent_members) {
