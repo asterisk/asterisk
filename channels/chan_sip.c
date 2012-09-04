@@ -15859,22 +15859,22 @@ static int extensionstate_update(const char *context, const char *exten, struct 
 		} else if (data->state & AST_EXTENSION_RINGING) {
 			/* check if another channel than last time is ringing now to be notified */
 			struct ast_channel *ringing = find_ringing_channel(data->device_state_info, p);
-			if (!ringing) {
-				/* there's something wrong, the device is ringing but there is no
-				 * ringing channel (yet, chan_sip is strange
-				 * the device is in AST_DEVICE_RINGING but the channel is in AST_STATE_DOWN)
-				 */
-				sip_pvt_unlock(p);
-				return 0;
+			if (ringing) {
+				if (!ast_tvcmp(ast_channel_creationtime(ringing), p->last_ringing_channel_time)) {
+					/* we assume here that no two channels have the exact same creation time */
+					ao2_ref(ringing, -1);
+					sip_pvt_unlock(p);
+					return 0;
+				} else {
+					p->last_ringing_channel_time = ast_channel_creationtime(ringing);
+					ao2_ref(ringing, -1);
+				}
 			}
-			if (!ast_tvcmp(ast_channel_creationtime(ringing), p->last_ringing_channel_time)) {
-				/* we assume here that no two channels have the exact same creation time */
-				ao2_ref(ringing, -1);
-				sip_pvt_unlock(p);
-				return 0;
-			}
-			p->last_ringing_channel_time = ast_channel_creationtime(ringing);
-			ao2_ref(ringing, -1);
+			/* If no ringing channel was found, it doesn't necessarily indicate anything bad.
+			 * Likely, a device state change occurred for a custom device state, which does not
+			 * correspond to any channel. In such a case, just go ahead and pass the notification
+			 * along.
+			 */
 		}
 		/* ref before unref because the new could be the same as the old one. Don't risk destruction! */
 		if (data->device_state_info) {
@@ -27011,13 +27011,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				if (ringing) {
 					p->last_ringing_channel_time = ast_channel_creationtime(ringing);
 					ao2_ref(ringing, -1);
-				} else {
-					/* The device is ringing but there is no ringing channel (chan_sip:
-					 * the device can be AST_DEVICE_RINGING but the channel is AST_STATE_DOWN yet),
-					 * correct state for state_notify_build_xml not to search a ringing channel.
-					 */
-					data.state &= ~AST_EXTENSION_RINGING;
 				}
+				/* If there is no channel, this likely indicates that the ringing indication
+				 * is due to a custom device state. These do not have associated channels.
+				 */
 			}
 			extensionstate_update(p->context, p->exten, &data, p, TRUE);
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(data.state));
