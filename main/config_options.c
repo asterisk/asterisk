@@ -148,6 +148,10 @@ static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
 	struct aco_type *type;
 
 	while ((type = types[idx++])) {
+		if (!type->internal) {
+			ast_log(LOG_ERROR, "Attempting to register option using uninitialized type\n");
+			return -1;
+		}
 		if (!ao2_link(type->internal->opts, opt)) {
 			while (--idx) {
 				ao2_unlink(types[idx]->internal->opts, opt);
@@ -269,6 +273,12 @@ static int find_option_cb(void *obj, void *arg, int flags)
 static struct aco_option *aco_option_find(struct aco_type *type, const char *name)
 {
 	struct aco_option *opt;
+
+	if (!type || !type->internal || !type->internal->opts) {
+		ast_log(LOG_NOTICE, "Attempting to use NULL or unitialized config type\n");
+		return NULL;
+	}
+
 	/* Try an exact match with OBJ_KEY for the common/fast case, then iterate through
 	 * all options for the regex cases */
 	if (!(opt = ao2_callback(type->internal->opts, OBJ_KEY, find_option_cb, (void *) name))) {
@@ -437,6 +447,11 @@ static enum aco_process_status internal_process_ast_config(struct aco_info *info
 
 enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco_file *file, struct ast_config *cfg)
 {
+	if (!info->internal) {
+		ast_log(LOG_ERROR, "Attempt to process %s with uninitialized aco_info\n", file->filename);
+		goto error;
+	}
+
 	if (!(info->internal->pending = info->snapshot_alloc())) {
 		ast_log(LOG_ERROR, "In %s: Could not allocate temporary objects\n", file->filename);
 		goto error;
@@ -471,6 +486,11 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 
 	if (!(info->files[0])) {
 		ast_log(LOG_ERROR, "No filename given, cannot proceed!\n");
+		return ACO_PROCESS_ERROR;
+	}
+
+	if (!info->internal) {
+		ast_log(LOG_ERROR, "Attempting to process uninitialized aco_info\n");
 		return ACO_PROCESS_ERROR;
 	}
 
@@ -577,6 +597,13 @@ int aco_process_category_options(struct aco_type *type, struct ast_config *cfg, 
 
 static void internal_type_destroy(struct aco_type *type)
 {
+	/* If we've already had all our internal data cleared out,
+	 * then there's no need to proceed further
+	 */
+	if (!type->internal) {
+		return;
+	}
+
 	if (type->internal->regex) {
 		regfree(type->internal->regex);
 		ast_free(type->internal->regex);

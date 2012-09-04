@@ -2832,6 +2832,10 @@ static int load_module(void)
 {
 	int res = 0;
 
+	if (conf_load_config(0)) {
+		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	if ((ast_custom_function_register(&confbridge_function))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -2870,10 +2874,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (conf_load_config(0)) {
-		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
