@@ -531,6 +531,7 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 	int limit;
 	int res = 0;
 	int16_t *ptr;
+	short samp;
 	int start, end;
 	fragment_t mute = {0, 0};
 
@@ -548,10 +549,11 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		end = start + limit;
 
 		for (i = limit, ptr = amp ; i > 0; i--, ptr++) {
+			samp = *ptr;
 			/* signed 32 bit int should be enough to suqare any possible signed 16 bit value */
-			s->energy += (int32_t) *ptr * (int32_t) *ptr;
+			s->energy += (int32_t) samp * (int32_t) samp;
 
-			goertzel_sample(&s->tone, *ptr);
+			goertzel_sample(&s->tone, samp);
 		}
 
 		s->samples_pending -= limit;
@@ -644,10 +646,10 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 {
 	float row_energy[4];
 	float col_energy[4];
-	float famp;
 	int i;
 	int j;
 	int sample;
+	short samp;
 	int best_row;
 	int best_col;
 	int hit;
@@ -670,18 +672,18 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		/* The following unrolled loop takes only 35% (rough estimate) of the
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample; j < limit; j++) {
-			famp = amp[j];
-			s->td.dtmf.energy += famp*famp;
+			samp = amp[j];
+			s->td.dtmf.energy += (int32_t) samp * (int32_t) samp;
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			goertzel_sample(s->td.dtmf.row_out, amp[j]);
-			goertzel_sample(s->td.dtmf.col_out, amp[j]);
-			goertzel_sample(s->td.dtmf.row_out + 1, amp[j]);
-			goertzel_sample(s->td.dtmf.col_out + 1, amp[j]);
-			goertzel_sample(s->td.dtmf.row_out + 2, amp[j]);
-			goertzel_sample(s->td.dtmf.col_out + 2, amp[j]);
-			goertzel_sample(s->td.dtmf.row_out + 3, amp[j]);
-			goertzel_sample(s->td.dtmf.col_out + 3, amp[j]);
+			goertzel_sample(s->td.dtmf.row_out, samp);
+			goertzel_sample(s->td.dtmf.col_out, samp);
+			goertzel_sample(s->td.dtmf.row_out + 1, samp);
+			goertzel_sample(s->td.dtmf.col_out + 1, samp);
+			goertzel_sample(s->td.dtmf.row_out + 2, samp);
+			goertzel_sample(s->td.dtmf.col_out + 2, samp);
+			goertzel_sample(s->td.dtmf.row_out + 3, samp);
+			goertzel_sample(s->td.dtmf.col_out + 3, samp);
 		}
 		s->td.dtmf.current_sample += (limit - sample);
 		if (s->td.dtmf.current_sample < DTMF_GSIZE) {
@@ -799,6 +801,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 	int i;
 	int j;
 	int sample;
+	short samp;
 	int hit;
 	int limit;
 	fragment_t mute = {0, 0};
@@ -822,12 +825,13 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		for (j = sample;  j < limit;  j++) {
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			goertzel_sample(s->td.mf.tone_out, amp[j]);
-			goertzel_sample(s->td.mf.tone_out + 1, amp[j]);
-			goertzel_sample(s->td.mf.tone_out + 2, amp[j]);
-			goertzel_sample(s->td.mf.tone_out + 3, amp[j]);
-			goertzel_sample(s->td.mf.tone_out + 4, amp[j]);
-			goertzel_sample(s->td.mf.tone_out + 5, amp[j]);
+			samp = amp[j];
+			goertzel_sample(s->td.mf.tone_out, samp);
+			goertzel_sample(s->td.mf.tone_out + 1, samp);
+			goertzel_sample(s->td.mf.tone_out + 2, samp);
+			goertzel_sample(s->td.mf.tone_out + 3, samp);
+			goertzel_sample(s->td.mf.tone_out + 4, samp);
+			goertzel_sample(s->td.mf.tone_out + 5, samp);
 		}
 		s->td.mf.current_sample += (limit - sample);
 		if (s->td.mf.current_sample < MF_GSIZE) {
