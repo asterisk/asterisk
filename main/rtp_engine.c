@@ -762,7 +762,21 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 
 	return res;
 }
+int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int code)
+{
+	struct ast_rtp_payload_type *type;
+	int res = -1;
 
+	/* Search the payload type in the codecs passed */
+	if ((type = ao2_find(codecs->payloads, &code, OBJ_NOLOCK | OBJ_KEY)))
+	{
+		res = type->payload;
+		ao2_ref(type, -1);
+		return res;
+	}
+
+	return res;
+}
 const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, struct ast_format *format, int code, enum ast_rtp_options options)
 {
 	int i;
