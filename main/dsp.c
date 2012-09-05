@@ -320,7 +320,6 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 		s->chunky++;
 		s->v3 = s->v3 >> 1;
 		s->v2 = s->v2 >> 1;
-		v1 = v1 >> 1;
 	}
 }
 
@@ -505,7 +504,7 @@ static void ast_mf_detect_init (mf_detect_state_t *s)
 	int i;
 	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
 	for (i = 0;  i < 6;  i++) {
-		goertzel_init (&s->tone_out[i], mf_tones[i], 160);
+		goertzel_init (&s->tone_out[i], mf_tones[i], MF_GSIZE);
 	}
 	s->current_sample = 0;
 	s->current_hit = 0;
