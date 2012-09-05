@@ -332,6 +332,7 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 			PQclear(result);
 			goto ast_log_cleanup;
 		}
+		PQclear(result);
 
 ast_log_cleanup:
 		ast_free(sql);
