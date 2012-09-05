@@ -222,7 +222,6 @@ typedef struct {
 	int v3;
 	int chunky;
 	int fac;
-	int samples;
 } goertzel_state_t;
 
 typedef struct {
@@ -312,7 +311,6 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 		s->chunky++;
 		s->v3 = s->v3 >> 1;
 		s->v2 = s->v2 >> 1;
-		v1 = v1 >> 1;
 	}
 }
 
@@ -335,11 +333,10 @@ static inline float goertzel_result(goertzel_state_t *s)
 	return (float)r.value * (float)(1 << r.power);
 }
 
-static inline void goertzel_init(goertzel_state_t *s, float freq, int samples, unsigned int sample_rate)
+static inline void goertzel_init(goertzel_state_t *s, float freq, unsigned int sample_rate)
 {
 	s->v2 = s->v3 = s->chunky = 0.0;
 	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * freq / sample_rate));
-	s->samples = samples;
 }
 
 static inline void goertzel_reset(goertzel_state_t *s)
@@ -445,7 +442,7 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 	   and thus no tone will be detected in them */
 	s->hits_required = (duration_samples - (s->block_size - 1)) / s->block_size;
 
-	goertzel_init(&s->tone, freq, s->block_size, sample_rate);
+	goertzel_init(&s->tone, freq, sample_rate);
 
 	s->samples_pending = s->block_size;
 	s->hit_count = 0;
@@ -486,8 +483,8 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s, unsigned int sample_ra
 	s->lasthit = 0;
 	s->current_hit = 0;
 	for (i = 0;  i < 4;  i++) {
-		goertzel_init(&s->row_out[i], dtmf_row[i], DTMF_GSIZE, sample_rate);
-		goertzel_init(&s->col_out[i], dtmf_col[i], DTMF_GSIZE, sample_rate);
+		goertzel_init(&s->row_out[i], dtmf_row[i], sample_rate);
+		goertzel_init(&s->col_out[i], dtmf_col[i], sample_rate);
 		s->energy = 0.0;
 	}
 	s->current_sample = 0;
@@ -498,12 +495,12 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s, unsigned int sample_ra
 	s->misses_to_end = DTMF_MISSES_TO_END;
 }
 
-static void ast_mf_detect_init (mf_detect_state_t *s, unsigned int sample_rate)
+static void ast_mf_detect_init(mf_detect_state_t *s, unsigned int sample_rate)
 {
 	int i;
 	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
-	for (i = 0;  i < 6;  i++) {
-		goertzel_init (&s->tone_out[i], mf_tones[i], 160, sample_rate);
+	for (i = 0; i < 6; i++) {
+		goertzel_init(&s->tone_out[i], mf_tones[i], sample_rate);
 	}
 	s->current_sample = 0;
 	s->current_hit = 0;
@@ -1642,7 +1639,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 	dsp->gsamps = 0;
 	for (x = 0; x < ARRAY_LEN(modes[dsp->progmode].freqs); x++) {
 		if (modes[dsp->progmode].freqs[x]) {
-			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->gsamp_size, dsp->sample_rate);
+			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->sample_rate);
 			max = x + 1;
 		}
 	}
