@@ -1216,6 +1216,24 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * \since 1.8
  */
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code);
+/*!
+ * \brief Search for a payload code in the ast_rtp_codecs structure
+ *
+ * \param codecs Codecs structure to look in
+ * \param code The format to look for
+ *
+ * \retval Numerical payload or -1 if unable to find payload in codecs
+ *
+ * Example usage:
+ *
+ * \code
+ * int payload = ast_rtp_codecs_payload_code(&codecs, 0);
+ * \endcode
+ *
+ * This looks for the numerical payload for ULAW in the codecs structure.
+ *
+ */
+int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int code);
 
 /*!
  * \brief Retrieve mime subtype information on a payload
