@@ -205,9 +205,9 @@ enum gsamp_thresh {
 #define DTMF_GSIZE		102
 
 /* How many successive hits needed to consider begin of a digit */
-#define DTMF_HITS_TO_BEGIN	4
+#define DTMF_HITS_TO_BEGIN	2
 /* How many successive misses needed to consider end of a digit */
-#define DTMF_MISSES_TO_END	4
+#define DTMF_MISSES_TO_END	3
 
 /*!
  * \brief The default silence threshold we will use if an alternate
@@ -353,7 +353,7 @@ typedef struct {
 } fragment_t;
 
 /* Note on tone suppression (squelching). Individual detectors (DTMF/MF/generic tone)
- * report fragmens of the frame in which detected tone resides and which needs
+ * report fragments of the frame in which detected tone resides and which needs
  * to be "muted" in order to suppress the tone. To mark fragment for muting,
  * detectors call mute_fragment passing fragment_t there. Multiple fragments
  * can be marked and ast_dsp_process later will mute all of them.
@@ -438,7 +438,7 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 	s->block_size = periods_in_block * sample_rate / freq;
 
 	/* tone_detect is currently only used to detect fax tones and we
-	   do not need suqlching the fax tones */
+	   do not need squelching the fax tones */
 	s->squelch = 0;
 
 	/* Account for the first and the last block to be incomplete
@@ -550,7 +550,7 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 
 		for (i = limit, ptr = amp ; i > 0; i--, ptr++) {
 			samp = *ptr;
-			/* signed 32 bit int should be enough to suqare any possible signed 16 bit value */
+			/* signed 32 bit int should be enough to square any possible signed 16 bit value */
 			s->energy += (int32_t) samp * (int32_t) samp;
 
 			goertzel_sample(&s->tone, samp);
@@ -727,39 +727,90 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			}
 		}
 
-		if (hit == s->td.dtmf.lasthit) {
-			if (s->td.dtmf.current_hit) {
-				/* We are in the middle of a digit already */
-				if (hit) {
-					if (hit != s->td.dtmf.current_hit) {
-						/* Look for a start of a new digit.
-						   This is because hits_to_begin may be smaller than misses_to_end
-						   and we may find the beginning of new digit before we consider last one ended. */
-						s->td.dtmf.current_hit = 0;
-					} else {
-						/* Current hit was same as last, so increment digit duration (of last digit) */
-						s->digitlen[s->current_digits - 1] += DTMF_GSIZE;
-					}
-				} else {
-					/* No Digit */
-					s->td.dtmf.misses++;
-					if (s->td.dtmf.misses == s->td.dtmf.misses_to_end) {
-						/* There were enough misses to consider digit ended */
-						s->td.dtmf.current_hit = 0;
-					}
+/*
+ * Adapted from ETSI ES 201 235-3 V1.3.1 (2006-03)
+ * (40ms reference is tunable with hits_to_begin and misses_to_end)
+ * each hit/miss is 12.75ms with DTMF_GSIZE at 102
+ *
+ * Character recognition: When not DRC *(1) and then
+ *      Shall exist VSC > 40 ms (hits_to_begin)
+ *      May exist 20 ms <= VSC <= 40 ms
+ *      Shall not exist VSC < 20 ms
+ *
+ * Character recognition: When DRC and then
+ *      Shall cease Not VSC > 40 ms (misses_to_end)
+ *      May cease 20 ms >= Not VSC >= 40 ms
+ *      Shall not cease Not VSC < 20 ms
+ *
+ * *(1) or optionally a different digit recognition condition
+ *
+ * Legend: VSC The continuous existence of a valid signal condition.
+ *      Not VSC The continuous non-existence of valid signal condition.
+ *      DRC The existence of digit recognition condition.
+ *      Not DRC The non-existence of digit recognition condition.
+ */
+
+/*
+ * Example: hits_to_begin=2 misses_to_end=3
+ * -------A last_hit=A hits=0&1
+ * ------AA hits=2 current_hit=A misses=0       BEGIN A
+ * -----AA- misses=1 last_hit=' ' hits=0
+ * ----AA-- misses=2
+ * ---AA--- misses=3 current_hit=' '            END A
+ * --AA---B last_hit=B hits=0&1
+ * -AA---BC last_hit=C hits=0&1
+ * AA---BCC hits=2 current_hit=C misses=0       BEGIN C
+ * A---BCC- misses=1 last_hit=' ' hits=0
+ * ---BCC-C misses=0 last_hit=C hits=0&1
+ * --BCC-CC misses=0
+ *
+ * Example: hits_to_begin=3 misses_to_end=2
+ * -------A last_hit=A hits=0&1
+ * ------AA hits=2
+ * -----AAA hits=3 current_hit=A misses=0       BEGIN A
+ * ----AAAB misses=1 last_hit=B hits=0&1
+ * ---AAABB misses=2 current_hit=' ' hits=2     END A
+ * --AAABBB hits=3 current_hit=B misses=0       BEGIN B
+ * -AAABBBB misses=0
+ *
+ * Example: hits_to_begin=2 misses_to_end=2
+ * -------A last_hit=A hits=0&1
+ * ------AA hits=2 current_hit=A misses=0       BEGIN A
+ * -----AAB misses=1 hits=0&1
+ * ----AABB misses=2 current_hit=' ' hits=2 current_hit=B misses=0 BEGIN B
+ * ---AABBB misses=0
+ */
+
+		if (s->td.dtmf.current_hit) {
+			/* We are in the middle of a digit already */
+			if (hit != s->td.dtmf.current_hit) {
+				s->td.dtmf.misses++;
+				if (s->td.dtmf.misses == s->td.dtmf.misses_to_end) {
+					/* There were enough misses to consider digit ended */
+					s->td.dtmf.current_hit = 0;
 				}
-			} else if (hit) {
-				/* Detecting new digit */
-				s->td.dtmf.hits++;
-				if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin) {
-					store_digit(s, hit);
-					s->td.dtmf.current_hit = hit;
-				}
+			} else {
+				s->td.dtmf.misses = 0;
+				/* Current hit was same as last, so increment digit duration (of last digit) */
+				s->digitlen[s->current_digits - 1] += DTMF_GSIZE;
 			}
-		} else {
-			s->td.dtmf.hits = 1;
-			s->td.dtmf.misses = 1;
+		}
+
+		/* Look for a start of a new digit no matter if we are already in the middle of some
+		   digit or not. This is because hits_to_begin may be smaller than misses_to_end
+		   and we may find begin of new digit before we consider last one ended. */
+
+		if (hit != s->td.dtmf.lasthit) {
 			s->td.dtmf.lasthit = hit;
+			s->td.dtmf.hits = 0;
+		}
+		if (hit && hit != s->td.dtmf.current_hit) {
+			s->td.dtmf.hits++;
+			if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin) {
+				store_digit(s, hit);
+				s->td.dtmf.current_hit = hit;
+				s->td.dtmf.misses = 0;
+			}
 		}
 
 		/* If we had a hit in this block, include it into mute fragment */
