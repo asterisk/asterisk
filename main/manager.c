@@ -687,16 +687,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Asterisk module name (including .so extension) or subsystem identifier:</para>
 				<enumlist>
 					<enum name="cdr" />
-					<enum name="enum" />
 					<enum name="dnsmgr" />
 					<enum name="extconfig" />
+					<enum name="enum" />
 					<enum name="manager" />
-					<enum name="rtp" />
 					<enum name="http" />
+					<enum name="logger" />
+					<enum name="features" />
+					<enum name="dsp" />
+					<enum name="udptl" />
+					<enum name="indications" />
+					<enum name="cel" />
+					<enum name="plc" />
 				</enumlist>
 			</parameter>
 			<parameter name="LoadType" required="true">
-				<para>The operation to be done on module.</para>
+				<para>The operation to be done on module. Subsystem identifiers may only
+				be reloaded.</para>
 				<enumlist>
 					<enum name="load" />
 					<enum name="unload" />
