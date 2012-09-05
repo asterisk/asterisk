@@ -882,13 +882,21 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	if (rtp->ice) {
 		pj_str_t combined = pj_str(ast_sockaddr_stringify(sa));
 		pj_sockaddr address;
+		pj_status_t status;
 
 		pj_thread_register_check();
 
 		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &combined, &address);
 
-		if (pj_ice_sess_on_rx_pkt(rtp->ice, rtcp ? COMPONENT_RTCP : COMPONENT_RTP, rtcp ? TRANSPORT_SOCKET_RTCP : TRANSPORT_SOCKET_RTP,
-					  buf, len, &address, pj_sockaddr_get_len(&address)) != PJ_SUCCESS) {
+		status = pj_ice_sess_on_rx_pkt(rtp->ice, rtcp ? COMPONENT_RTCP : COMPONENT_RTP,
+			rtcp ? TRANSPORT_SOCKET_RTCP : TRANSPORT_SOCKET_RTP, buf, len, &address,
+			pj_sockaddr_get_len(&address));
+		if (status != PJ_SUCCESS) {
+			char buf[100];
+
+			pj_strerror(status, buf, sizeof(buf));
+			ast_log(LOG_WARNING, "PJ ICE Rx error status code: %d '%s'.\n",
+				(int) status, buf);
 			return -1;
 		}
 		if (!rtp->passthrough) {
@@ -2482,7 +2490,8 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 				0, &addr)) < 0) {
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
-			ast_log(LOG_WARNING, "RTCP Read error: %s.  Hanging up.\n", strerror(errno));
+			ast_log(LOG_WARNING, "RTCP Read error: %s.  Hanging up.\n",
+				(errno) ? strerror(errno) : "Unspecified");
 			return NULL;
 		}
 		return &ast_null_frame;
@@ -2790,8 +2799,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	}
 
 	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
-	if (ast_rtp_codecs_find_payload_code(ast_rtp_instance_get_codecs(instance1),bridged_payload) == -1)
-	{
+	if (ast_rtp_codecs_find_payload_code(ast_rtp_instance_get_codecs(instance1), bridged_payload) == -1) {
 		ast_debug(1, "Unsupported payload type received \n");
 		return -1;
 	}
@@ -2876,7 +2884,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				&addr)) < 0) {
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
-			ast_log(LOG_WARNING, "RTP Read error: %s. Hanging up.\n", strerror(errno));
+			ast_log(LOG_WARNING, "RTP Read error: %s.  Hanging up.\n",
+				(errno) ? strerror(errno) : "Unspecified");
 			return NULL;
 		}
 		return &ast_null_frame;
