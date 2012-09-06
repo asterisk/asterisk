@@ -7112,17 +7112,97 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 	return CLI_SUCCESS;
 }
 
-static char *complete_queue(const char *line, const char *word, int pos, int state)
+/*! 
+ * \brief Check if a given word is in a space-delimited list
+ *
+ * \param list Space delimited list of words
+ * \param word The word used to search the list
+ *
+ * \note This function will not return 1 if the word is at the very end of the
+ * list (followed immediately by a \0, not a space) since it is used for
+ * checking tab-completion and a word at the end is still being tab-completed.
+ *
+ * \return Returns 1 if the word is found
+ * \return Returns 0 if the word is not found
+*/
+static int word_in_list(const char *list, const char *word) {
+	int list_len, word_len = strlen(word);
+	const char *find, *end_find, *end_list;
+
+	/* strip whitespace from front */
+	while (isspace(*list)) {
+		list++;
+	}
+
+	while ((find = strstr(list, word))) {
+		/* beginning of find starts inside another word? */
+		if (find != list && *(find - 1) != ' ') {
+			list = find;
+			/* strip word from front */
+			while (!isspace(*list) && *list != '\0') {
+				list++;
+			}
+			/* strip whitespace from front */
+			while (isspace(*list)) {
+				list++;
+			}
+			continue;
+		}
+
+		/* end of find ends inside another word or at very end of list? */
+		list_len = strlen(list);
+		end_find = find + word_len;
+		end_list = list + list_len;
+		if (end_find == end_list || *end_find != ' ') {
+			list = find;
+			/* strip word from front */
+			while (!isspace(*list) && *list != '\0') {
+				list++;
+			}
+			/* strip whitespace from front */
+			while (isspace(*list)) {
+				list++;
+			}
+			continue;
+		}
+
+		/* terminating conditions satisfied, word at beginning or separated by ' ' */
+		return 1;
+	}
+	
+	return 0;
+}
+
+/*! 
+ * \brief Check if a given word is in a space-delimited list
+ *
+ * \param line The line as typed not including the current word being completed
+ * \param word The word currently being completed
+ * \param pos The number of completed words in line
+ * \param state The nth desired completion option
+ * \param word_list_offset Offset into the line where the list of queues begins.  If non-zero, queues in the list will not be offered for further completion.
+ *
+ * \return Returns the queue tab-completion for the given word and state
+*/
+static char *complete_queue(const char *line, const char *word, int pos, int state, ptrdiff_t word_list_offset)
 {
 	struct call_queue *q;
 	char *ret = NULL;
 	int which = 0;
 	int wordlen = strlen(word);
 	struct ao2_iterator queue_iter;
+	const char *word_list = NULL;
+
+	/* for certain commands, already completed items should be left out of
+	 * the list */
+	if (word_list_offset && strlen(line) >= word_list_offset) {
+		word_list = line + word_list_offset;
+	}
 
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
-		if (!strncasecmp(word, q->name, wordlen) && ++which > state) {
+		if (!strncasecmp(word, q->name, wordlen) && ++which > state
+			&& (!word_list_offset || !word_in_list(word_list, q->name))) {
 			ret = ast_strdup(q->name);
 			queue_t_unref(q, "Done with iterator");
 			break;
@@ -7131,9 +7211,10 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	}
 	ao2_iterator_destroy(&queue_iter);
 
-	/* Pretend "rules" is always at the end of the queues list since it is
-	 * an alternate command that should be tab-completable */
-	if (!ret && which == state && !wordlen) {
+	/* Pretend "rules" is at the end of the queues list in certain
+	 * circumstances since it is an alternate command that should be
+	 * tab-completable for "queue show" */
+	if (!ret && which == state && !wordlen && !strncmp("queue show", line, 10)) {
 		ret = ast_strdup("rules");
 	}
 
@@ -7142,8 +7223,9 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 
 static char *complete_queue_show(const char *line, const char *word, int pos, int state)
 {
-	if (pos == 2)
-		return complete_queue(line, word, pos, state);
+	if (pos == 2) {
+		return complete_queue(line, word, pos, state, 0);
+	}
 	return NULL;
 }
 
@@ -7573,7 +7655,7 @@ static char *complete_queue_add_member(const char *line, const char *word, int p
 	case 4: /* only one possible match, "to" */
 		return state == 0 ? ast_strdup("to") : NULL;
 	case 5: /* <queue> */
-		return complete_queue(line, word, pos, state);
+		return complete_queue(line, word, pos, state, 0);
 	case 6: /* only one possible match, "penalty" */
 		return state == 0 ? ast_strdup("penalty") : NULL;
 	case 7:
@@ -7709,8 +7791,9 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	if (pos == 4)   /* only one possible match, 'from' */
 		return (state == 0 ? ast_strdup("from") : NULL);
 
-	if (pos == 5)   /* No need to duplicate code */
-		return complete_queue(line, word, pos, state);
+	if (pos == 5) {  /* No need to duplicate code */
+		return complete_queue(line, word, pos, state, 0);
+	}
 
 	/* here is the case for 3, <member> */
 	queue_iter = ao2_iterator_init(queues, 0);
@@ -7794,7 +7877,7 @@ static char *complete_queue_pause_member(const char *line, const char *word, int
 	case 4:	/* only one possible match, "queue" */
 		return state == 0 ? ast_strdup("queue") : NULL;
 	case 5:	/* <queue> */
-		return complete_queue(line, word, pos, state);
+		return complete_queue(line, word, pos, state, 0);
 	case 6: /* "reason" */
 		return state == 0 ? ast_strdup("reason") : NULL;
 	case 7: /* Can't autocomplete a reason, since it's 100% customizeable */
@@ -7872,7 +7955,7 @@ static char *complete_queue_set_member_penalty(const char *line, const char *wor
 			return NULL;
 		}
 	case 7:
-		return complete_queue(line, word, pos, state);
+		return complete_queue(line, word, pos, state, 0);
 	default:
 		return NULL;
 	}
@@ -7991,7 +8074,7 @@ static char *handle_queue_reset(struct ast_cli_entry *e, int cmd, struct ast_cli
 			return NULL;
 		case CLI_GENERATE:
 			if (a->pos >= 3) {
-				return complete_queue(a->line, a->word, a->pos, a->n);
+				return complete_queue(a->line, a->word, a->pos, a->n, 17);
 			} else {
 				return NULL;
 			}
@@ -8040,7 +8123,13 @@ static char *handle_queue_reload(struct ast_cli_entry *e, int cmd, struct ast_cl
 			return NULL;
 		case CLI_GENERATE:
 			if (a->pos >= 3) {
-				return complete_queue(a->line, a->word, a->pos, a->n);
+				/* find the point at which the list of queue names starts */
+				const char *command_end = a->line + strlen("queue reload ");
+				command_end = strchr(command_end, ' ');
+				if (!command_end) {
+					command_end = a->line + strlen(a->line);
+				}
+				return complete_queue(a->line, a->word, a->pos, a->n, command_end - a->line);
 			} else {
 				return NULL;
 			}
