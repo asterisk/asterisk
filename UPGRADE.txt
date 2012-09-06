@@ -18,6 +18,11 @@
 ===
 ===========================================================
 
+From 1.8.13 to 1.8.14:
+* permitdirectmedia/denydirectmedia now controls whether peers can be
+  bridged via directmedia by comparing the ACL to the bridging peer's
+  address rather than its own address.
+
 From 1.8.12 to 1.8.13:
 * The complex processor detection and optimization has been removed from
   the makefile in favor of using native optimization suppport when available.
