@@ -385,7 +385,7 @@ static int reload_followme(int reload)
 	char *cat = NULL, *tmp;
 	struct ast_variable *var;
 	struct number *cur, *nm;
-	char numberstr[90];
+	char *numberstr;
 	int timeout;
 	int numorder;
 	const char *takecallstr;
@@ -501,7 +501,7 @@ static int reload_followme(int reload)
 				int idx = 0;
 
 				/* Add a new number */
-				ast_copy_string(numberstr, var->value, sizeof(numberstr));
+				numberstr = ast_strdupa(var->value);
 				if ((tmp = strchr(numberstr, ','))) {
 					*tmp++ = '\0';
 					timeout = atoi(tmp);
