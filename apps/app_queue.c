@@ -1612,7 +1612,18 @@ static int update_status(struct call_queue *q, struct member *m, const int statu
 				<para>The time this member last took call, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
 			</parameter>
 			<parameter name="Status">
-				<para>The status of the queue member.  This will be a device state value.</para>
+				<para>The numeric device state status of the queue member.</para>
+				<enumlist>
+					<enum name="0"><para>AST_DEVICE_UNKNOWN</para></enum>
+					<enum name="1"><para>AST_DEVICE_NOT_INUSE</para></enum>
+					<enum name="2"><para>AST_DEVICE_INUSE</para></enum>
+					<enum name="3"><para>AST_DEVICE_BUSY</para></enum>
+					<enum name="4"><para>AST_DEVICE_INVALID</para></enum>
+					<enum name="5"><para>AST_DEVICE_UNAVAILABLE</para></enum>
+					<enum name="6"><para>AST_DEVICE_RINGING</para></enum>
+					<enum name="7"><para>AST_DEVICE_RINGINUSE</para></enum>
+					<enum name="8"><para>AST_DEVICE_ONHOLD</para></enum>
+				</enumlist>
 			</parameter>
 			<parameter name="Paused">
 				<enumlist>
