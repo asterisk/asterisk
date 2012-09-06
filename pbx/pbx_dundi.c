@@ -3351,8 +3351,10 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 		}
 
 		AST_LIST_TRAVERSE(&peers, peer, list) {
-			if (has_permission(&peer->include, dr->dcontext) &&
-			    ast_eid_cmp(&peer->eid, &trans->them_eid) &&
+			if (ast_eid_cmp(&peer->eid, &empty_eid) &&			/* peer's eid is not empty (in case of dynamic peers) */
+				(peer->lastms > -1) &&							/* peer is reachable */
+				has_permission(&peer->include, dr->dcontext) &&	/* peer has destination context */
+				ast_eid_cmp(&peer->eid, &trans->them_eid) &&	/* peer is not transaction endpoint */
 				(peer->order <= order)) {
 				/* For each other transaction, make sure we don't
 				   ask this EID about the others if they're not
@@ -4505,7 +4507,9 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 		if (needregister) {
 			peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
 		}
-		qualify_peer(peer, 1);
+		if (ast_eid_cmp(&peer->eid, &empty_eid)) {
+			qualify_peer(peer, 1);
+		}
 	}
 	AST_LIST_UNLOCK(&peers);
 }
