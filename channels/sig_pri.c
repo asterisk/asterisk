@@ -4752,6 +4752,12 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_notify(struct ast_channel *chan, s
 
 	next_state = pvt->moh_state;
 	switch (event) {
+	case SIG_PRI_MOH_EVENT_HOLD:
+		if (strcasecmp(pvt->mohinterpret, "passthrough")) {
+			/* Restart MOH in case it was stopped by other means. */
+			ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+		}
+		break;
 	case SIG_PRI_MOH_EVENT_UNHOLD:
 		pri_notify(pvt->pri->pri, pvt->call, pvt->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
 		/* Fall through */
@@ -4786,6 +4792,10 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_moh(struct ast_channel *chan, stru
 
 	next_state = pvt->moh_state;
 	switch (event) {
+	case SIG_PRI_MOH_EVENT_HOLD:
+		/* Restart MOH in case it was stopped by other means. */
+		ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+		break;
 	case SIG_PRI_MOH_EVENT_RESET:
 	case SIG_PRI_MOH_EVENT_UNHOLD:
 		ast_moh_stop(chan);
