@@ -13,6 +13,8 @@
 ;
 ; In the case of LDAP the last keyword in each line above specifies
 ; a section in this file.
+;
+; LDAP schema and ldif files can be located in contrib/scripts.
 
 ; TLS support
 ; -----------
