@@ -5020,6 +5020,18 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockad
 		goto cleanup;
 	}
 
+	/* Previous versions of Asterisk did not require the type field to be
+	 * set for real time peers.  This statement preserves that behavior. */
+	if  (peer->type == 0) {
+		if (which_objects == FINDUSERS) {
+			peer->type = SIP_TYPE_USER;
+		} else if (which_objects == FINDPEERS) {
+			peer->type = SIP_TYPE_PEER;
+		} else {
+			peer->type = SIP_TYPE_PEER | SIP_TYPE_USER;
+		}
+	}
+
 	ast_debug(3, "-REALTIME- loading peer from database to memory. Name: %s. Peer objects: %d\n", peer->name, rpeerobjs);
 
 	if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) && !devstate_only) {
