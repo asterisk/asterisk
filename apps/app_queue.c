@@ -8080,6 +8080,12 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	}
 	ao2_iterator_destroy(&queue_iter);
 
+	/* Pretend "rules" is always at the end of the queues list since it is
+	 * an alternate command that should be tab-completable */
+	if (!ret && which == state && !wordlen) {
+		ret = ast_strdup("rules");
+	}
+
 	return ret;
 }
 
