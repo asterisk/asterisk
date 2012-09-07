@@ -272,16 +272,17 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func) 
 {
 	size_t len;
-	void *ptr;
+	char *ptr;
 
-	if (!s)
+	if (!s) {
 		return NULL;
+	}
 
-	len = strlen(s) + 1;
-	if (len > n)
-		len = n;
-	if ((ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func, 0)))
-		strcpy(ptr, s);
+	len = strnlen(s, n);
+	if ((ptr = __ast_alloc_region(len + 1, FUNC_STRNDUP, file, lineno, func, 0))) {
+		memcpy(ptr, s, len);
+		ptr[len] = '\0';
+	}
 
 	return ptr;
 }
