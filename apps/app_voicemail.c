@@ -648,7 +648,6 @@ struct ast_vm_user {
 	char *emailbody;                 /*!< E-mail body */
 	char pager[80];                  /*!< E-mail address to pager (no attachment) */
 	char serveremail[80];            /*!< From: Mail address */
-	char mailcmd[160];               /*!< Configurable mail command */
 	char language[MAX_LANGUAGE];     /*!< Config: Language setting */
 	char zonetag[80];                /*!< Time zone */
 	char locale[20];                 /*!< The locale (for presentation of date/time) */
@@ -11327,7 +11326,6 @@ static struct ast_cli_entry cli_voicemail[] = {
 		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
 		USER(ast_vm_user, pager, AST_DATA_STRING)			\
 		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
-		USER(ast_vm_user, mailcmd, AST_DATA_STRING)			\
 		USER(ast_vm_user, language, AST_DATA_STRING)			\
 		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
 		USER(ast_vm_user, callback, AST_DATA_STRING)			\
@@ -11355,7 +11353,6 @@ static struct ast_cli_entry cli_voicemail[] = {
 		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
 		USER(ast_vm_user, pager, AST_DATA_STRING)			\
 		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
-		USER(ast_vm_user, mailcmd, AST_DATA_STRING)			\
 		USER(ast_vm_user, language, AST_DATA_STRING)			\
 		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
 		USER(ast_vm_user, callback, AST_DATA_STRING)			\
@@ -11731,8 +11728,8 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			vmu->fullname,
 			vmu->email,
 			vmu->pager,
-			vmu->serveremail,
-			vmu->mailcmd,
+			ast_strlen_zero(vmu->serveremail) ? serveremail : vmu->serveremail,
+			mailcmd,
 			vmu->language,
 			vmu->zonetag,
 			vmu->callback,
