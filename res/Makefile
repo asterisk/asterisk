@@ -67,17 +67,22 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
+	$(MAKE) -C pjproject realclean
 	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
 
 pjproject/build.mak:
 	cd pjproject && ./configure AR="" CFLAGS=-fPIC  --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec
 
+.PHONY : pjproject
+pjproject: pjproject/build.mak
+	# Make sure we always build pjproject with a single job.
+	$(MAKE) -j1 -C pjproject dep
+	$(MAKE) -j1 -C pjproject
+
 include pjproject/build.mak
 
-res_rtp_asterisk.o: pjproject/build.mak $(PJ_LIB_FILES)
+$(PJ_LIB_FILES): pjproject
+res_rtp_asterisk.o: $(PJ_LIB_FILES)
 res_rtp_asterisk.o: _ASTCFLAGS+=$(PJ_CFLAGS)
 res_rtp_asterisk.so: _ASTLDFLAGS+=$(PJ_LDFLAGS)
 res_rtp_asterisk.so: LIBS+=$(PJ_LDLIBS)
-
-$(PJ_LIB_FILES):
-	cd pjproject && make dep && make
