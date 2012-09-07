@@ -1229,6 +1229,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	char dur[PATH_MAX];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[PATH_MAX];
+	char newtmp[PATH_MAX]; /* Only used with volgain */
 	struct timeval now;
 	struct ast_tm tm;
 	struct minivm_zone *the_zone = NULL;
@@ -1268,26 +1269,21 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 	/* If we have a gain option, process it now with sox */
 	if (type == MVM_MESSAGE_EMAIL && (vmu->volgain < -.001 || vmu->volgain > .001) ) {
-		char newtmp[PATH_MAX];
 		char tmpcmd[PATH_MAX];
 		int tmpfd;
-
-		/**
-		 * XXX
-		 * /bug tmpfd is a leaked fd.  The file is also never unlinked.
-		 *      See app_voicemail.c for how the code works there that
-		 *      doesn't have this bug.
-		 */
 
 		ast_copy_string(newtmp, "/tmp/XXXXXX", sizeof(newtmp));
 		ast_debug(3, "newtmp: %s\n", newtmp);
 		tmpfd = mkstemp(newtmp);
-		if (tmpfd > -1) {
-			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
-			ast_safe_system(tmpcmd);
-			finalfilename = newtmp;
-			ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
+		if (tmpfd < 0) {
+			ast_log(LOG_WARNING, "Failed to create temporary file for volgain: %d\n", errno);
+			return -1;
 		}
+		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
+		ast_safe_system(tmpcmd);
+		close(tmpfd);
+		finalfilename = newtmp;
+		ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
 	} else {
 		finalfilename = ast_strdupa(filename);
 	}
