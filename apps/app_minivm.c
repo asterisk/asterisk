@@ -1277,6 +1277,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		tmpfd = mkstemp(newtmp);
 		if (tmpfd < 0) {
 			ast_log(LOG_WARNING, "Failed to create temporary file for volgain: %d\n", errno);
+			ast_free(str1);
+			ast_free(str2);
 			return -1;
 		}
 		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
