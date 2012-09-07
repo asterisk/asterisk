@@ -4543,7 +4543,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				callattempt_free(tmp);
 				ao2_ref(cur, -1);
 				ao2_iterator_destroy(&memi);
-				ao2_unlock(&qe->parent);
+				ao2_unlock(qe->parent);
 				goto out;
 			}
 			datastore->data = dialed_interfaces;
