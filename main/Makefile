@@ -194,6 +194,8 @@ ASTSSL_SO_VERSION=1
 
 ASTSSL_LDLIBS=-L. -lasteriskssl
 
+libasteriskssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+
 ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 ASTSSL_LIB:=libasteriskssl.so
 
@@ -234,6 +236,8 @@ $(ASTSSL_LIB): libasteriskssl.o
 endif
 
 endif
+
+tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 
 $(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
