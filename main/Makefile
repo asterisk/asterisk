@@ -175,6 +175,10 @@ endif
 
 $(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\"
 
+ssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+
+tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+
 $(MAIN_TGT): $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
 	$(ECHO_PREFIX) echo "   [LD] $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS) -> $@"
