@@ -50,6 +50,7 @@ struct sdp_crypto {
 	char *a_crypto;
 	unsigned char local_key[SRTP_MASTER_LEN];
 	char local_key64[SRTP_MASTER_LEN64];
+	unsigned char remote_key[SRTP_MASTER_LEN];
 };
 
 static int set_crypto_policy(struct ast_srtp_policy *policy, int suite_val, const unsigned char *master_key, unsigned long ssrc, int inbound);
@@ -260,11 +261,16 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 		return -1;
 	}
 
-
 	if ((key_len = ast_base64decode(remote_key, key_salt, sizeof(remote_key))) != SRTP_MASTER_LEN) {
-		ast_log(LOG_WARNING, "SRTP sdescriptions key %d != %d\n", key_len, SRTP_MASTER_LEN);
+		ast_log(LOG_WARNING, "SRTP descriptions key %d != %d\n", key_len, SRTP_MASTER_LEN);
 		return -1;
 	}
+
+	if (!memcmp(p->remote_key, remote_key, sizeof(p->remote_key))) {
+		ast_debug(1, "SRTP remote key unchanged; maintaining current policy\n");
+		return 0;
+	}
+	memcpy(p->remote_key, remote_key, sizeof(p->remote_key));
 
 	if (sdp_crypto_activate(p, suite_val, remote_key, rtp) < 0) {
 		return -1;
