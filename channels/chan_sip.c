@@ -9423,6 +9423,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 
 				if (initialize_udptl(p)) {
+					ast_log(LOG_WARNING, "Rejecting offer with image stream due to UDPTL initialization failure\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
