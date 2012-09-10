@@ -34,7 +34,8 @@
         <defaultenabled>no</defaultenabled>
 	<depend>iksemel</depend>
 	<use type="external">openssl</use>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
+	<replacement>res_xmpp</replacement>
  ***/
 
 #include "asterisk.h"

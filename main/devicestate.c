@@ -70,7 +70,7 @@
  *	The CLI command "show hints" show last known state
  *
  *	\note None of these handle user states, like an IM presence
- *	system. res_jabber.c can subscribe and watch such states
+ *	system. res_xmpp.c can subscribe and watch such states
  *	in jabber/xmpp based systems.
  *
  *	\section AstDevStateArch Architecture for devicestates
