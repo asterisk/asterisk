@@ -185,7 +185,7 @@ Some examples of modules that provide C APIs (potentially among other things) ar
  - res_ael_share.c
  - res_crypto.c
  - res_curl.c
- - res_jabber.c
+ - res_xmpp.c
  - res_monitor.c
  - res_smdi.c
  - res_speech.c

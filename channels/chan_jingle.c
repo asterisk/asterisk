@@ -32,7 +32,8 @@
 	<depend>res_jabber</depend>
 	<use type="external">openssl</use>
 	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
+	<replacement>chan_motif</replacement>
  ***/
 
 #include "asterisk.h"
