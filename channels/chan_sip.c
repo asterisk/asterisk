@@ -545,6 +545,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Qualify a SIP peer.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">SIPqualifypeerdone</ref>
+		</see-also>
 	</manager>
 	<manager name="SIPshowregistry" language="en_US">
 		<synopsis>
@@ -18957,18 +18960,47 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 	if ((peer = sip_find_peer(argv[3], NULL, load_realtime, FINDPEERS, FALSE, 0))) {
+
+		const char *id = astman_get_header(m,"ActionID");
+		char idText[256] = "";
+
+		if (type != 0) {
+			astman_send_ack(s, m, "SIP peer found - will qualify");
+		}
+
+		if (!ast_strlen_zero(id)) {
+			snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+		}
+
 		sip_poke_peer(peer, 1);
+
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when SIPqualifypeer has finished qualifying the specified peer.</synopsis>
+				<syntax>
+					<parameter name="Peer">
+						<para>The name of the peer.</para>
+					</parameter>
+					<parameter name="ActionID">
+						<para>This is only included if an ActionID Header was sent with the action request, in which case it will be that ActionID.</para>
+					</parameter>
+				</syntax>
+				<see-also>
+					<ref type="manager">SIPqualifypeer</ref>
+				</see-also>
+			</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_CALL, "SIPqualifypeerdone",
+			"Peer: %s\r\n"
+			"%s",
+			argv[3],
+			idText);
+
 		sip_unref_peer(peer, "qualify: done with peer");
 	} else if (type == 0) {
 		ast_cli(fd, "Peer '%s' not found\n", argv[3]);
-		return CLI_SUCCESS;
 	} else {
 		astman_send_error(s, m, "Peer not found");
-		return CLI_SUCCESS;
-	}
-
-	if (type != 0) {
-		astman_send_ack(s, m, "Qualify Peer successful");
 	}
 
 	return CLI_SUCCESS;
