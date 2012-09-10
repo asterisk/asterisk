@@ -6988,6 +6988,10 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Keep the same language.  */
 	ast_channel_language_set(original, ast_channel_language(clonechan));
+
+	/* Keep the same parkinglot. */
+	ast_channel_parkinglot_set(original, ast_channel_parkinglot(clonechan));
+
 	/* Copy the FD's other than the generator fd */
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		if (x != AST_GENERATOR_FD)
