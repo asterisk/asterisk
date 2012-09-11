@@ -705,7 +705,18 @@ static void chan_cleanup(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
-AST_THREADSTORAGE(msg_q_chan);
+static void destroy_msg_q_chan(void *data)
+{
+	struct ast_channel **chan = data;
+
+	if (!*chan) {
+		return;
+	}
+
+	ast_channel_release(*chan);
+}
+
+AST_THREADSTORAGE_CUSTOM(msg_q_chan, NULL, destroy_msg_q_chan);
 
 /*!
  * \internal
@@ -1131,4 +1142,9 @@ int ast_msg_init(void)
 	res |= ast_register_application2(app_msg_send, msg_send_exec, NULL, NULL, NULL);
 
 	return res;
+}
+
+void ast_msg_shutdown(void)
+{
+	msg_q_tp = ast_taskprocessor_unreference(msg_q_tp);
 }

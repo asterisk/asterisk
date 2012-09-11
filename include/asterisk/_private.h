@@ -48,6 +48,7 @@ int ast_cel_engine_reload(void);	/*!< Provided by cel.c */
 int ast_ssl_init(void);                 /*!< Provided by ssl.c */
 int ast_test_init(void);            /*!< Provided by test.c */
 int ast_msg_init(void);             /*!< Provided by message.c */
+void ast_msg_shutdown(void);        /*!< Provided by message.c */
 
 /*!
  * \brief Reload asterisk modules.
