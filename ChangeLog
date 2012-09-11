@@ -1,3 +1,78 @@
+2012-09-11  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.16.0-rc2 Released.
+
+	* AST-2012-013: Resolve ACL rules being ignored during calls by some
+	  IAX2 peers
+
+	* AST-2012-012: Resolve AMI User Unauthorized Shell Access through
+	  ExternalIVR
+
+	* r371860: Fix hangup cause passthrough regression.
+
+	  The v1.8 -r369258 change to fix the F and F(x) action logic
+	  introduced a regression in passing the hangup cause from the called
+	  channel to the caller channel.
+
+	  (closes issue ASTERISK-20287)
+	  Reported by: Konstantin Suvorov
+	  Patches:
+	      app_dial_hangupcause.patch (license #6421) patch uploaded by
+	      Konstantin Suvorov (modified)
+	      Tested by: rmudgett
+
+	* r372709: Only re-create an SRTP session when needed; respond with
+	  correct crypto policy
+
+	  In r356604, SRTP handling was fixed to accomodate multiple crypto
+	  keys in an SDP offer and the ability to re-create an SRTP session
+	  when the crypto keys changed. In certain circumstances - most
+	  notably when a phone is put on hold after having been bridged for a
+	  significant amount of time - the act of re-creating the SRTP session
+	  causes problems for certain models of	phones.	The patch committed in
+	  r356604 always re-created the SRTP session regardless	of whether or
+	  not the cryptographic keys changed. Since this is technically
+	  not necessary, this patch modifies the behavior to only re-create the
+	  SRTP session if Asterisk detects that the remote key has changed.
+	  This allows models of phones that do not handle the SRTP session
+	  changing to continue to work, while also providing the behavior
+	  needed for those phones that do re-negotiate cryptographic keys.
+
+	  In addition, in Asterisk 1.8 only, it was found that phones that
+	  offer	AES_CM_128_HMAC_SHA1_32 will end up with no audio if the phone
+	  is the initiator of the call. The phone will send an INVITE request
+	  specifying that AES_CM_128_HMAC_SHA1_32 be used for the cryptographic
+	  policy; Asterisk will set its policy to that value. Unfortunately,
+	  when the call is Answered and a 200 OK is sent back to the UA, the
+	  policy sent in the response's SDP will be the hard coded value
+	  AES_CM_128_HMAC_SHA1_80. This potentially results in Asterisk using
+	  the INVITE request's policy of AES_CM_128_HMAC_SHA1_32, while the
+	  phone uses Asterisk's response of AES_CM_128_HMAC_SHA1_80. Hilarity
+	  ensues as both endpoints think the other is crazy.
+
+	  This patch fixes that by caching the policy from the request and
+	  responding with it. Note that this is not a problem in Asterisk 10
+	  and later, as	the ability to configure the policy was added in that
+	  version.
+
+	  (issue ASTERISK-20194)
+	  Reported by: Nicolo Mazzon
+	  Tested by: Nicolo Mazzon
+
+	  Review: https://reviewboard.asterisk.org/r/2099
+
+	* r372840: Fix bad channel application data reference.
+
+	  When channels get bridged due to an AMI bridge action
+	  or a DTMF attended transfer, the two channels that
+	  get bridged have their application data pointing to
+	  the other channel's name. This means that if one channel
+	  is hung up but the other moves on, it means that the
+	  channel that moves on will have its application data
+	  pointing at freed memory.
+
+	  (issue ASTERISK-20335)
+
 2012-07-31  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.16.0-rc1 Released.
