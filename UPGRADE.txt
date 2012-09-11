@@ -23,6 +23,11 @@
 
 From 11 to 12:
 
+AMI:
+ - The SIP SIPqualifypeer action now sends a response indicating it will qualify
+   a peer once a peer has been found to qualify.  Once the qualify has been
+   completed it will now issue a SIPqualifypeerdone event.
+
 Queue:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
    performed on is a member of at least one queue.
@@ -94,8 +99,6 @@ AMI:
     the DBDel action does.
   - The IAX2 PeerStatus event now sends a 'Port' header.  In Asterisk 10, this was
     erroneously being sent as a 'Post' header.
-  - The SIP SIPqualifypeer action now receives an appropriate response when it
-    is completed successfully. It also no longer sends extra blank lines afterwards.
 
 CCSS:
  - Macro is deprecated. Use cc_callback_sub instead of cc_callback_macro

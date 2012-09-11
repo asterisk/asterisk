@@ -11,6 +11,12 @@
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------
 
+AMI (Asterisk Manager Interface)
+------------------
+ * The SIPqualifypeer action now acknowledges the request once it has established
+   that the request is against a known peer. It also issues a new event,
+   'SIPqualifypeerdone', once the qualify action has been completed.
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an
