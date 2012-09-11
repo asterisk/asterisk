@@ -1702,6 +1702,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	 * (if in batch mode). really_quit happens to call it again when running
 	 * the atexit handlers, otherwise this would be a bit early. */
 	ast_cdr_engine_term();
+	ast_msg_shutdown();
 
 	if (niceness == SHUTDOWN_NORMAL) {
 		time_t s, e;
