@@ -1087,6 +1087,33 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, const char *addr,
 	int timeout, int *outstate, const char *language);
 
+static const struct ast_datastore_info channel_app_data_datastore = {
+	.type = "Channel appdata datastore",
+	.destroy = ast_free_ptr,
+};
+
+static int set_chan_app_data(struct ast_channel *chan, const char *src_app_data)
+{
+	struct ast_datastore *datastore;
+	char *dst_app_data;
+
+	datastore = ast_datastore_alloc(&channel_app_data_datastore, NULL);
+	if (!datastore) {
+		return -1;
+	}
+
+	dst_app_data = ast_malloc(strlen(src_app_data) + 1);
+	if (!dst_app_data) {
+		ast_datastore_free(datastore);
+		return -1;
+	}
+
+	ast_channel_data_set(chan, strcpy(dst_app_data, src_app_data));
+	datastore->data = dst_app_data;
+	ast_channel_datastore_add(chan, datastore);
+	return 0;
+}
+
 /*!
  * \brief bridge the call
  * \param data thread bridge.
@@ -1106,9 +1133,13 @@ static void *bridge_call_thread(void *data)
 	}
 
 	ast_channel_appl_set(tobj->chan, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
-	ast_channel_data_set(tobj->chan, ast_channel_name(tobj->peer));
+	if (set_chan_app_data(tobj->chan, ast_channel_name(tobj->peer))) {
+		ast_channel_data_set(tobj->chan, "(Empty)");
+	}
 	ast_channel_appl_set(tobj->peer, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
-	ast_channel_data_set(tobj->peer, ast_channel_name(tobj->chan));
+	if (set_chan_app_data(tobj->peer, ast_channel_name(tobj->chan))) {
+		ast_channel_data_set(tobj->peer, "(Empty)");
+	}
 
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 
