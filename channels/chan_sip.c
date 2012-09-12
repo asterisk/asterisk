@@ -3922,7 +3922,7 @@ static int __sip_autodestruct(const void *data)
 	 */
 	owner = sip_pvt_lock_full(p);
 	if (owner) {
-		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s). Rescheduling destruction for 10000 ms\n", p->callid, sip_methods[p->method].text);
+		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner %s in place (Method: %s). Rescheduling destruction for 10000 ms\n", p->callid, owner->name, sip_methods[p->method].text);
 		ast_queue_hangup_with_cause(owner, AST_CAUSE_PROTOCOL_ERROR);
 		ast_channel_unlock(owner);
 		ast_channel_unref(owner);
