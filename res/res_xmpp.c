@@ -2983,9 +2983,15 @@ static int xmpp_component_authenticating(struct ast_xmpp_client *client, struct 
 static int xmpp_pak_message(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, iks *node, ikspak *pak)
 {
 	struct ast_xmpp_message *message;
+	char *body;
 	int deleted = 0;
 
 	ast_debug(3, "XMPP client '%s' received a message\n", client->name);
+
+	if (!(body = iks_find_cdata(pak->x, "body"))) {
+		/* Message contains no body, ignore it. */
+		return 0;
+	}
 
 	if (!(message = ast_calloc(1, sizeof(*message)))) {
 		return -1;
@@ -2993,9 +2999,7 @@ static int xmpp_pak_message(struct ast_xmpp_client *client, struct ast_xmpp_clie
 
 	message->arrived = ast_tvnow();
 
-	if (iks_find_cdata(pak->x, "body")) {
-		message->message = ast_strdup(iks_find_cdata(pak->x, "body"));
-	}
+	message->message = ast_strdup(body);
 
 	ast_copy_string(message->id, S_OR(pak->id, ""), sizeof(message->id));
 	message->from = !ast_strlen_zero(pak->from->full) ? ast_strdup(pak->from->full) : NULL;
