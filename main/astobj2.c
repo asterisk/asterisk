@@ -207,7 +207,7 @@ void *ao2_object_get_lockaddr(void *obj)
  */
 
 
-int __ao2_ref_debug(void *user_data, const int delta, char *tag, char *file, int line, const char *funcname)
+int __ao2_ref_debug(void *user_data, const int delta, const char *tag, const char *file, int line, const char *funcname)
 {
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
 	
