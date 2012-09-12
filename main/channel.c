@@ -8508,6 +8508,9 @@ void ast_channels_init(void)
 {
 	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
 			ast_channel_hash_cb, ast_channel_cmp_cb);
+	if (channels) {
+		ao2_container_register("channels", channels);
+	}
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
 
