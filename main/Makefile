@@ -187,14 +187,14 @@ endif
 
 $(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\"
 
+libasteriskssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+
 ifeq ($(AST_ASTERISKSSL),yes)
 # The ABI *version* of the asteriskssl library; don't change this unless there truly is a
 # non-backwards-compatible ABI change in the library
 ASTSSL_SO_VERSION=1
 
 ASTSSL_LDLIBS=-L. -lasteriskssl
-
-libasteriskssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 
 ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 ASTSSL_LIB:=libasteriskssl.so
@@ -257,8 +257,12 @@ endif
 bininstall:
 	$(INSTALL) -m 755 $(MAIN_TGT) "$(DESTDIR)$(ASTSBINDIR)/"
 ifeq ($(AST_ASTERISKSSL),yes)
+ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 	$(INSTALL) -m 755 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION) "$(DESTDIR)$(ASTLIBDIR)/"
 	$(LN) -sf "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)" "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB)"
+else # Darwin
+	$(INSTALL) -m 755 $(ASTSSL_LIB) "$(DESTDIR)$(ASTLIBDIR)/"
+endif
 ifneq ($(LDCONFIG),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
 endif
