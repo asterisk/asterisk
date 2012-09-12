@@ -92,6 +92,7 @@ struct ast_callid {
 AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, unique_callid_cleanup);
 
 static enum rotatestrategy {
+	NONE = 0,                /* Do not rotate log files at all, instead rely on external mechanisms */
 	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
 	ROTATE = 1 << 1,         /* Rotate all files, such that the oldest file has the highest suffix */
 	TIMESTAMP = 1 << 2,      /* Append the epoch timestamp onto the end of the archived file */
@@ -427,6 +428,8 @@ static void init_logger_chain(int locked, const char *altconf)
 			rotatestrategy = ROTATE;
 		} else if (strcasecmp(s, "sequential") == 0) {
 			rotatestrategy = SEQUENTIAL;
+		} else if (strcasecmp(s, "none") == 0) {
+			rotatestrategy = NONE;
 		} else {
 			fprintf(stderr, "Unknown rotatestrategy: %s\n", s);
 		}
@@ -610,6 +613,9 @@ static int rotate_file(const char *filename)
 	char *suffixes[4] = { "", ".gz", ".bz2", ".Z" };
 
 	switch (rotatestrategy) {
+	case NONE:
+		/* No rotation */
+		break;
 	case SEQUENTIAL:
 		for (x = 0; ; x++) {
 			snprintf(new, sizeof(new), "%s.%d", filename, x);
@@ -810,7 +816,7 @@ static int reload_logger(int rotate, const char *altconf)
 		}
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
 			int rotate_this = 0;
-			if (ftello(f->fileptr) > 0x40000000) { /* Arbitrarily, 1 GB */
+			if (rotatestrategy != NONE && ftello(f->fileptr) > 0x40000000) { /* Arbitrarily, 1 GB */
 				/* Be more proactive about rotating massive log files */
 				rotate_this = 1;
 			}

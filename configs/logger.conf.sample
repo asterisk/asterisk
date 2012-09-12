@@ -40,6 +40,9 @@
 ;queue_log_name = queue_log
 ;
 ; Log rotation strategy:
+; none:  Do not perform any logrotation at all.  You should make
+;        very sure to set up some external logrotate mechanism
+;        as the asterisk logs can get very large, very quickly.
 ; sequential:  Rename archived logs in order, such that the newest
 ;              has the highest sequence number [default].  When
 ;              exec_after_rotate is set, ${filename} will specify
