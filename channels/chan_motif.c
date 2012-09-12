@@ -2098,9 +2098,15 @@ static int jingle_interpret_content(struct jingle_session *session, ikspak *pak)
 
 	/* Look at the content in the session initiation */
 	for (content = iks_child(iks_child(pak->x)); content; content = iks_next(content)) {
-		char *name = iks_find_attrib(content, "name");
+		char *name;
 		struct ast_rtp_instance *rtp = NULL;
 		iks *description, *transport;
+
+		if (strcmp(iks_name(content), "content")) {
+			continue;
+		}
+
+		name = iks_find_attrib(content, "name");
 
 		if (session->transport != JINGLE_TRANSPORT_GOOGLE_V1) {
 			/* If this content stanza has no name consider it invalid and move on */
