@@ -3515,7 +3515,6 @@ int ast_waitfor(struct ast_channel *c, int ms)
 	return ms;
 }
 
-/* XXX never to be called with ms = -1 */
 int ast_waitfordigit(struct ast_channel *c, int ms)
 {
 	return ast_waitfordigit_full(c, ms, -1, -1);
@@ -3564,8 +3563,10 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 	return res;
 }
 
-int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
+int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, int cmdfd)
 {
+	struct timeval start = ast_tvnow();
+
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
@@ -3573,15 +3574,29 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 	/* Only look for the end of DTMF, don't bother with the beginning and don't emulate things */
 	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
 
-	/* Wait for a digit, no more than ms milliseconds total. */
-	
-	while (ms) {
+	/* Wait for a digit, no more than timeout_ms milliseconds total.
+	 * Or, wait indefinitely if timeout_ms is <0.
+	 */
+	while (ast_tvdiff_ms(ast_tvnow(), start) < timeout_ms || timeout_ms < 0) {
 		struct ast_channel *rchan;
 		int outfd=-1;
+		int ms;
+
+		if (timeout_ms < 0) {
+			ms = timeout_ms;
+		} else {
+			ms = timeout_ms - ast_tvdiff_ms(ast_tvnow(), start);
+			if (ms < 0) {
+				ms = 0;
+			}
+		}
 
 		errno = 0;
+		/* While ast_waitfor_nandfds tries to help by reducing the timeout by how much was waited,
+		 * it is unhelpful if it waited less than a millisecond.
+		 */
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
-		
+
 		if (!rchan && outfd < 0 && ms) {
 			if (errno == 0 || errno == EINTR)
 				continue;

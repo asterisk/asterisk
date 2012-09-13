@@ -1874,7 +1874,7 @@ char *ast_recvtext(struct ast_channel *chan, int timeout);
 /*!
  * \brief Waits for a digit
  * \param c channel to wait for a digit on
- * \param ms how many milliseconds to wait
+ * \param ms how many milliseconds to wait (<0 for indefinite).
  * \return Returns <0 on error, 0 on no entry, and the digit on success.
  */
 int ast_waitfordigit(struct ast_channel *c, int ms);
@@ -1883,7 +1883,7 @@ int ast_waitfordigit(struct ast_channel *c, int ms);
  * \brief Wait for a digit
  * Same as ast_waitfordigit() with audio fd for outputting read audio and ctrlfd to monitor for reading.
  * \param c channel to wait for a digit on
- * \param ms how many milliseconds to wait
+ * \param ms how many milliseconds to wait (<0 for indefinite).
  * \param audiofd audio file descriptor to write to if audio frames are received
  * \param ctrlfd control file descriptor to monitor for reading
  * \return Returns 1 if ctrlfd becomes available
