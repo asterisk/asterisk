@@ -278,7 +278,10 @@ ifneq ($(LDCONFIG),)
 endif
 
 clean::
-	rm -f asterisk libasteriskssl.o $(ASTSSL_LIB) $(ASTSSL_LIB).*
+	rm -f asterisk libasteriskssl.o
+ifeq ($(AST_ASTERISKSSL),yes)
+	rm -f $(ASTSSL_LIB) $(ASTSSL_LIB).*
+endif
 	rm -f asterisk.exports libasteriskssl.exports
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C stdtime clean
