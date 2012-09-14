@@ -462,7 +462,7 @@ void *__ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
 
 #endif
 
-int __ao2_ref_debug(void *o, int delta, char *tag, char *file, int line, const char *funcname);
+int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *funcname);
 int __ao2_ref(void *o, int delta);
 
 /*! @} */
