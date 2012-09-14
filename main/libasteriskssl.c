@@ -158,7 +158,6 @@ int ast_ssl_init(void)
 	void (*real_CRYPTO_set_locking_callback)(void (*)(int, int, const char *, int));
 	void (*real_SSL_load_error_strings)(void);
 	void (*real_ERR_load_SSL_strings)(void);
-	void (*real_ERR_load_crypto_strings)(void);
 	void (*real_ERR_load_BIO_strings)(void);
 	const char *errstr;
 
@@ -220,16 +219,8 @@ int ast_ssl_init(void)
 	get_OpenSSL_function(ERR_load_SSL_strings);
 	real_ERR_load_SSL_strings();
 
-	get_OpenSSL_function(ERR_load_crypto_strings);
-	real_ERR_load_crypto_strings();
-
 	get_OpenSSL_function(ERR_load_BIO_strings);
 	real_ERR_load_BIO_strings();
-
-#if 0
-	/* currently this is just another call to SSL_library_init, so we don't call it */
-	OpenSSL_add_all_algorithms();
-#endif
 
 	startup_complete = 1;
 
