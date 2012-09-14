@@ -2381,6 +2381,8 @@ static void sip_tcptls_client_args_destructor(void *obj)
 		ast_free(args->tls_cfg->cipher);
 		ast_free(args->tls_cfg->cafile);
 		ast_free(args->tls_cfg->capath);
+
+		ast_ssl_teardown(args->tls_cfg);
 	}
 	ast_free(args->tls_cfg);
 	ast_free((char *) args->name);
@@ -26112,7 +26114,7 @@ create_tcptls_session_fail:
 		ao2_t_ref(ca, -1, "failed to create client, getting rid of client tcptls_session arguments");
 	}
 	if (s->tcptls_session) {
-		ast_tcptls_close_session_file(tcptls_session);
+		ast_tcptls_close_session_file(s->tcptls_session);
 		s->fd = -1;
 		ao2_ref(s->tcptls_session, -1);
 		s->tcptls_session = NULL;
@@ -31020,6 +31022,7 @@ static int unload_module(void)
 	if (sip_tls_desc.master) {
 		ast_tcptls_server_stop(&sip_tls_desc);
 	}
+	ast_ssl_teardown(sip_tls_desc.tls_cfg);
 
 	/* Kill all existing TCP/TLS threads */
 	i = ao2_iterator_init(threadt, 0);

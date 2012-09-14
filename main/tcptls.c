@@ -78,6 +78,7 @@ static int ssl_close(void *cookie)
 {
 	int cookie_fd = SSL_get_fd(cookie);
 	int ret;
+
 	if (cookie_fd > -1) {
 		/*
 		 * According to the TLS standard, it is acceptable for an application to only send its shutdown
@@ -87,6 +88,12 @@ static int ssl_close(void *cookie)
 		if ((ret = SSL_shutdown(cookie)) < 0) {
 			ast_log(LOG_ERROR, "SSL_shutdown() failed: %d\n", SSL_get_error(cookie, ret));
 		}
+
+		if (!((SSL*)cookie)->server) {
+			/* For client threads, ensure that the error stack is cleared */
+			ERR_remove_state(0);
+		}
+
 		SSL_free(cookie);
 		/* adding shutdown(2) here has no added benefit */
 		if (close(cookie_fd)) {
@@ -308,8 +315,13 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!cfg->enabled)
 		return 0;
 
-	SSL_load_error_strings();
-	SSLeay_add_ssl_algorithms();
+	/* Get rid of an old SSL_CTX since we're about to
+	 * allocate a new one
+	 */
+	if (cfg->ssl_ctx) {
+		SSL_CTX_free(cfg->ssl_ctx);
+		cfg->ssl_ctx = NULL;
+	}
 
 	if (client) {
 #ifndef OPENSSL_NO_SSL2
@@ -344,8 +356,9 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
 				ast_verb(0, "SSL error loading cert file. <%s>", cfg->certfile);
-				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -353,8 +366,9 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			if (!client) {
 				/* Clients don't need a private key, but if its setup we can use it */
 				ast_verb(0, "SSL error loading private key file. <%s>", tmpprivate);
-				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -363,8 +377,9 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
 				ast_verb(0, "SSL cipher error <%s>", cfg->cipher);
-				sleep(2);
 				cfg->enabled = 0;
+				SSL_CTX_free(cfg->ssl_ctx);
+				cfg->ssl_ctx = NULL;
 				return 0;
 			}
 		}
@@ -382,6 +397,16 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 int ast_ssl_setup(struct ast_tls_config *cfg)
 {
 	return __ssl_setup(cfg, 0);
+}
+
+void ast_ssl_teardown(struct ast_tls_config *cfg)
+{
+#ifdef DO_SSL
+	if (cfg->ssl_ctx) {
+		SSL_CTX_free(cfg->ssl_ctx);
+		cfg->ssl_ctx = NULL;
+	}
+#endif
 }
 
 struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session)
