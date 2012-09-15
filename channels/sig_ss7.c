@@ -528,6 +528,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		p->call_level = SIG_SS7_CALL_LEVEL_SETUP;
 	}
 
+	/* Companding law is determined by SS7 signaling type. */
 	if (linkset->type == SS7_ITU) {
 		law = SIG_SS7_ALAW;
 	} else {
@@ -1777,6 +1778,13 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law, const struct ast_channel *requestor, int transfercapability)
 {
 	struct ast_channel *ast;
+
+	/* Companding law is determined by SS7 signaling type. */
+	if (p->ss7->type == SS7_ITU) {
+		law = SIG_SS7_ALAW;
+	} else {
+		law = SIG_SS7_ULAW;
+	}
 
 	sig_ss7_set_outgoing(p, 1);
 	ast = sig_ss7_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
