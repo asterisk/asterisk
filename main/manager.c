@@ -1935,6 +1935,10 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 	int x, l = strlen(var);
 	const char *result = "";
 
+	if (!m) {
+		return result;
+	}
+
 	for (x = 0; x < m->hdrcount; x++) {
 		const char *h = m->headers[x];
 		if (!strncasecmp(var, h, l) && h[l] == ':') {
