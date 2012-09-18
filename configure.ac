@@ -1038,6 +1038,18 @@ else
 fi
 AC_SUBST(AST_NATIVE_ARCH)
 
+dnl Nested functions required for RAII implementation
+AC_MSG_CHECKING(for -fnested-functions)
+AC_COMPILE_IFELSE(
+	dnl Prototype needed due to http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36774
+	[AC_LANG_PROGRAM([], [auto void foo(void); void foo(void) {}])],
+	AC_MSG_RESULT(no)
+	[AST_NESTED_FUNCTIONS=],
+	AC_MSG_RESULT(required)
+	[AST_NESTED_FUNCTIONS=-fnested-functions]
+)
+AC_SUBST(AST_NESTED_FUNCTIONS)
+
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
         [AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
