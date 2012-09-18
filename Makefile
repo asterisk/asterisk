@@ -184,7 +184,7 @@ ifeq ($(findstring -Wall,$(_ASTCFLAGS) $(ASTCFLAGS)),)
   _ASTCFLAGS+=-Wall
 endif
 
-_ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+_ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_NESTED_FUNCTIONS) $(DEBUG)
 ADDL_TARGETS=
 
 ifeq ($(AST_DEVMODE),yes)

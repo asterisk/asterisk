@@ -919,8 +919,9 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
  * \endcode
  */
 #define RAII_VAR(vartype, varname, initval, dtor) \
+    /* Prototype needed due to http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36774 */ \
     auto void _dtor_ ## varname (vartype * v); \
-    auto void _dtor_ ## varname (vartype * v) { dtor(*v); } \
+    void _dtor_ ## varname (vartype * v) { dtor(*v); } \
     vartype varname __attribute__((cleanup(_dtor_ ## varname))) = (initval)
 
 #endif /* _ASTERISK_UTILS_H */
