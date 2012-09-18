@@ -1340,7 +1340,7 @@ int ast_callid_threadassoc_remove()
 		ast_log(LOG_ERROR, "Tried to clean callid thread storage with no callid in thread storage.\n");
 		return -1;
 	} else {
-		ast_debug(3, "Call_ID [C-%08x] being removed from thread.\n", (*pointing)->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (*pointing)->call_identifier);
 		*pointing = ast_callid_unref(*pointing);
 		return 0;
 	}
