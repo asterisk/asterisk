@@ -23,6 +23,13 @@ Logging
    individual queue, the PAUSEALL/UNPAUSEALL event will only be logged if at
    least one member of any queue exists for that interface.
 
+Queue
+-------------------
+ * Add queue available hint.  exten => 8501,hint,Queue:markq_avail
+   Note: the suffix '_avail' after the queuename.
+   Reports 'InUse' for no logged in agents or no free agents.
+   Reports 'Idle' when an agent is free.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------

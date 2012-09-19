@@ -1660,29 +1660,53 @@ static int handle_statechange(void *datap)
 	struct member *m;
 	struct call_queue *q;
 	char interface[80], *slash_pos;
-	int found = 0;
+	int found = 0;			/* Found this member in any queue */
+	int found_member;		/* Found this member in this queue */
+	int avail = 0;			/* Found an available member in this queue */
 
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate over queues"))) {
 		ao2_lock(q);
 
+		avail = 0;
+		found_member = 0;
 		miter = ao2_iterator_init(q->members, 0);
 		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
-			ast_copy_string(interface, m->state_interface, sizeof(interface));
+			if (!found_member) {
+				ast_copy_string(interface, m->state_interface, sizeof(interface));
 
-			if ((slash_pos = strchr(interface, '/'))) {
-				if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
-					*slash_pos = '\0';
+				if ((slash_pos = strchr(interface, '/'))) {
+					if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/'))) {
+						*slash_pos = '\0';
+					}
+				}
+
+				if (!strcasecmp(interface, sc->dev)) {
+					found_member = 1;
+					update_status(q, m, sc->state);
 				}
 			}
 
-			if (!strcasecmp(interface, sc->dev)) {
-				found = 1;
-				update_status(q, m, sc->state);
+			/* check every member until we find one NOT_INUSE */
+			if (!avail && (m->status == AST_DEVICE_NOT_INUSE) && !m->paused) {
+				avail = 1;
+			}
+			if (avail && found_member) {
+				/* early exit as we've found an available member and the member of interest */
 				ao2_ref(m, -1);
 				break;
 			}
 		}
+
+		if (found_member) {
+			found = 1;
+			if (avail) {
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+			} else {
+				ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+			}
+		}
+
 		ao2_iterator_destroy(&miter);
 
 		ao2_unlock(q);
@@ -5852,7 +5876,11 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			if (queue_persistent_members) {
 				dump_queue_members(q);
 			}
-			
+
+			if (!ao2_container_count(q->members)) {
+				ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+			}
+
 			res = RES_OKAY;
 		} else {
 			res = RES_EXISTS;
@@ -5931,6 +5959,10 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 
 			if (dump) {
 				dump_queue_members(q);
+			}
+
+			if (ao2_container_count(q->members) == 1) {
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
 			}
 
 			res = RES_OKAY;
