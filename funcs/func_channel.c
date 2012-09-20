@@ -87,10 +87,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>R/O format currently being written.</para>
 					</enum>
 					<enum name="callgroup">
-						<para>R/W call groups for call pickup.</para>
+						<para>R/W numeric call pickup groups that this channel is a member.</para>
 					</enum>
 					<enum name="pickupgroup">
-						<para>R/W call groups for call pickup.</para>
+						<para>R/W numeric call pickup groups this channel can pickup.</para>
+					</enum>
+					<enum name="namedcallgroup">
+						<para>R/W named call pickup groups that this channel is a member.</para>
+					</enum>
+					<enum name="namedpickupgroup">
+						<para>R/W named call pickup groups this channel can pickup.</para>
 					</enum>
 					<enum name="channeltype">
 						<para>R/O technology used for channel.</para>
@@ -346,15 +352,18 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			     char *data, char *buf, size_t len)
 {
 	int ret = 0;
-	char tmp[512];
 	struct ast_format_cap *tmpcap;
 
 	if (!strcasecmp(data, "audionativeformat")) {
+		char tmp[512];
+
 		if ((tmpcap = ast_format_cap_get_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_AUDIO))) {
 			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
 			tmpcap = ast_format_cap_destroy(tmpcap);
 		}
 	} else if (!strcasecmp(data, "videonativeformat")) {
+		char tmp[512];
+
 		if ((tmpcap = ast_format_cap_get_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO))) {
 			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
 			tmpcap = ast_format_cap_destroy(tmpcap);
@@ -417,6 +426,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "peer")) {
 		struct ast_channel *p;
+
 		ast_channel_lock(chan);
 		p = ast_bridged_channel(chan);
 		if (p || ast_channel_tech(chan) || ast_channel_cdr(chan)) /* dummy channel? if so, we hid the peer name in the language */
@@ -437,16 +447,27 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, transfercapability_table[ast_channel_transfercapability(chan) & 0x1f], len);
 	} else if (!strcasecmp(data, "callgroup")) {
 		char groupbuf[256];
+
 		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), ast_channel_callgroup(chan)), len);
 	} else if (!strcasecmp(data, "pickupgroup")) {
 		char groupbuf[256];
+
 		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), ast_channel_pickupgroup(chan)), len);
+	} else if (!strcasecmp(data, "namedcallgroup")) {
+		struct ast_str *tmp_str = ast_str_alloca(1024);
+
+		locked_copy_string(chan, buf,  ast_print_namedgroups(&tmp_str, ast_channel_named_callgroups(chan)), len);
+	} else if (!strcasecmp(data, "namedpickupgroup")) {
+		struct ast_str *tmp_str = ast_str_alloca(1024);
+
+		locked_copy_string(chan, buf,  ast_print_namedgroups(&tmp_str, ast_channel_named_pickupgroups(chan)), len);
 	} else if (!strcasecmp(data, "amaflags")) {
-		char amabuf[256];
-		snprintf(amabuf,sizeof(amabuf), "%d", ast_channel_amaflags(chan));
-		locked_copy_string(chan, buf, amabuf, len);
+		ast_channel_lock(chan);
+		snprintf(buf, len, "%d", ast_channel_amaflags(chan));
+		ast_channel_unlock(chan);
 	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
 		struct ast_datastore *ds;
+
 		ast_channel_lock(chan);
 		if ((ds = ast_channel_datastore_find(chan, &secure_call_info, NULL))) {
 			struct ast_secure_call_store *encrypt = ds->data;
@@ -529,9 +550,27 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			new_zone = ast_tone_zone_unref(new_zone);
 		}
 	} else if (!strcasecmp(data, "callgroup")) {
+		ast_channel_lock(chan);
 		ast_channel_callgroup_set(chan, ast_get_group(value));
+		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "pickupgroup")) {
+		ast_channel_lock(chan);
 		ast_channel_pickupgroup_set(chan, ast_get_group(value));
+		ast_channel_unlock(chan);
+	} else if (!strcasecmp(data, "namedcallgroup")) {
+		struct ast_namedgroups *groups = ast_get_namedgroups(value);
+
+		ast_channel_lock(chan);
+		ast_channel_named_callgroups_set(chan, groups);
+		ast_channel_unlock(chan);
+		ast_unref_namedgroups(groups);
+	} else if (!strcasecmp(data, "namedpickupgroup")) {
+		struct ast_namedgroups *groups = ast_get_namedgroups(value);
+
+		ast_channel_lock(chan);
+		ast_channel_named_pickupgroups_set(chan, groups);
+		ast_channel_unlock(chan);
+		ast_unref_namedgroups(groups);
 	} else if (!strcasecmp(data, "txgain")) {
 		sscanf(value, "%4hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);
@@ -540,12 +579,15 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		ast_channel_setoption(chan, AST_OPTION_RXGAIN, &gainset, sizeof(gainset), 0);
 	} else if (!strcasecmp(data, "transfercapability")) {
 		unsigned short i;
+
+		ast_channel_lock(chan);
 		for (i = 0; i < 0x20; i++) {
 			if (!strcasecmp(transfercapability_table[i], value) && strcmp(value, "UNK")) {
 				ast_channel_transfercapability_set(chan, i);
 				break;
 			}
 		}
+		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "hangup_handler_pop")) {
 		/* Pop one hangup handler before pushing the new handler. */
 		ast_pbx_hangup_handler_pop(chan);
@@ -581,13 +623,13 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		} else {
 			store = ds->data;
 		}
-		ast_channel_unlock(chan);
 
 		if (!strcasecmp(data, "secure_bridge_signaling")) {
 			store->signaling = ast_true(value) ? 1 : 0;
 		} else if (!strcasecmp(data, "secure_bridge_media")) {
 			store->media = ast_true(value) ? 1 : 0;
 		}
+		ast_channel_unlock(chan);
 	} else if (!ast_channel_tech(chan)->func_channel_write
 		 || ast_channel_tech(chan)->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",
