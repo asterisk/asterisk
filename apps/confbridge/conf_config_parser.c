@@ -325,6 +325,7 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		 * structure of a dynamic profile will need to be altered, a completely new sounds structure must be
 		 * create instead of simply holding a reference to the one built by the config file. */
 		ast_string_field_set(sounds, onlyperson, tmp->sounds->onlyperson);
+		ast_string_field_set(sounds, onlyone, tmp->sounds->onlyone);
 		ast_string_field_set(sounds, hasjoin, tmp->sounds->hasjoin);
 		ast_string_field_set(sounds, hasleft, tmp->sounds->hasleft);
 		ast_string_field_set(sounds, kicked, tmp->sounds->kicked);
@@ -341,6 +342,8 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		ast_string_field_set(sounds, unlockednow, tmp->sounds->unlockednow);
 		ast_string_field_set(sounds, lockednow, tmp->sounds->lockednow);
 		ast_string_field_set(sounds, errormenu, tmp->sounds->errormenu);
+		ast_string_field_set(sounds, join, tmp->sounds->join);
+		ast_string_field_set(sounds, leave, tmp->sounds->leave);
 
 		ao2_ref(tmp->sounds, -1); /* sounds struct copied over to it from the template by reference only. */
 		ao2_ref(oldsounds,-1);    /* original sounds struct we don't need anymore */
