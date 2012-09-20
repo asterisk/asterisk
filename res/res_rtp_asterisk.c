@@ -1587,8 +1587,9 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 		new_duration = (new_duration & ~0xFFFF) | samples;
 
 		if (event_end & 0x80) {
-			/* End event */
-			if ((rtp->last_seqno != seqno) && (timestamp > rtp->last_end_timestamp)) {
+			/* End event.  Absorb re-transmits, and account for some endpoints
+			 * that erroneously increment the timestamp during re-transmissions */
+			if ((seqno != rtp->last_seqno) && (timestamp > rtp->last_end_timestamp + 320)) {
 				rtp->last_end_timestamp = timestamp;
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
@@ -1598,7 +1599,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 				AST_LIST_INSERT_TAIL(frames, f, frame_list);
 			} else if (rtpdebug) {
-				ast_debug(1, "Dropping duplicate or out of order DTMF END frame (seqno: %d, ts %d, digit %c)\n",
+				ast_debug(1, "Dropping re-transmitted, duplicate, or out of order DTMF END frame (seqno: %d, ts %d, digit %c)\n",
 					seqno, timestamp, resp);
 			}
 		} else {
