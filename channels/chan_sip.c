@@ -9871,10 +9871,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		} else {
 			char type[20] = {0,};
-			char *typelen = strchr(m, ' ');
-			if (typelen && typelen - m < 20 &&
-			    ((sscanf(m, "%s %30u/%30u %n", type, &x, &numberofports, &len) == 2 && len > 0) ||
-			     (sscanf(m, "%s %30u %n", type, &x, &len) == 1 && len > 0))) {
+			if ((sscanf(m, "%19s %30u/%30u %n", type, &x, &numberofports, &len) == 3 && len > 0) ||
+			     (sscanf(m, "%19s %30u %n", type, &x, &len) == 2 && len > 0)) {
 				/* produce zero-port m-line since it may be needed later
 				 * length is "m=" + type + " 0 " + remainder + "\0" */
 				if (!(offer->decline_m_line = ast_malloc(2 + strlen(type) + 3 + strlen(m + len) + 1))) {
