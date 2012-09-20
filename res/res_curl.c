@@ -39,20 +39,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 
+static const char *dependents[] = {
+	"func_curl.so",
+	"res_config_curl.so",
+};
+
 static int unload_module(void)
 {
 	int res = 0;
+	size_t i;
 
 	/* If the dependent modules are still in memory, forbid unload */
-	if (ast_module_check("func_curl.so")) {
-		ast_log(LOG_ERROR, "func_curl.so (dependent module) is still loaded.  Cannot unload res_curl.so\n");
-		return -1;
+	for (i = 0; i < ARRAY_LEN(dependents); i++) {
+		if (ast_module_check(dependents[i])) {
+			ast_log(LOG_ERROR, "%s (dependent module) is still loaded.  Cannot unload res_curl.so\n", dependents[i]);
+			res = -1;
+		}
 	}
 
-	if (ast_module_check("res_config_curl.so")) {
-		ast_log(LOG_ERROR, "res_config_curl.so (dependent module) is still loaded.  Cannot unload res_curl.so\n");
+	if (res)
 		return -1;
-	}
 
 	curl_global_cleanup();
 
@@ -64,7 +70,7 @@ static int load_module(void)
 	int res = 0;
 
 	if (curl_global_init(CURL_GLOBAL_ALL)) {
-		ast_log(LOG_ERROR, "Unable to initialize the CURL library. Cannot load res_curl\n");
+		ast_log(LOG_ERROR, "Unable to initialize the cURL library. Cannot load res_curl.so\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
