@@ -40,6 +40,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <fcntl.h>
 
+#ifdef HAVE_OPENSSL_SRTP
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/bio.h>
+#endif
+
 /* Asterisk discourages the use of bzero in favor of memset, in fact if you try to use bzero it will tell you to use memset. As a result bzero has to be undefined
  * here since it is used internally by pjlib. The only other option would be to modify pjlib... which won't happen. */
 #undef bzero
@@ -94,6 +100,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_LEARNING_MIN_SEQUENTIAL 4
 
+#define SRTP_MASTER_KEY_LEN 16
+#define SRTP_MASTER_SALT_LEN 14
+#define SRTP_MASTER_LEN (SRTP_MASTER_KEY_LEN + SRTP_MASTER_SALT_LEN)
+
 enum strict_rtp_state {
 	STRICT_RTP_OPEN = 0, /*! No RTP packets should be dropped, all sources accepted */
 	STRICT_RTP_LEARN,    /*! Accept next packet as source */
@@ -104,6 +114,8 @@ enum strict_rtp_state {
 #define DEFAULT_ICESUPPORT 1
 
 extern struct ast_srtp_res *res_srtp;
+extern struct ast_srtp_policy_res *res_srtp_policy;
+
 static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
 static int rtpstart = DEFAULT_RTP_START;			/*!< First port for RTP sessions (set in rtp.conf) */
@@ -253,6 +265,21 @@ struct ast_rtp {
 
 	struct ao2_container *local_candidates;   /*!< The local ICE candidates */
 	struct ao2_container *remote_candidates;  /*!< The remote ICE candidates */
+
+#ifdef HAVE_OPENSSL_SRTP
+	SSL_CTX *ssl_ctx; /*!< SSL context */
+	SSL *ssl;         /*!< SSL session */
+	BIO *read_bio;    /*!< Memory buffer for reading */
+	BIO *write_bio;   /*!< Memory buffer for writing */
+	enum ast_rtp_dtls_setup dtls_setup; /*!< Current setup state */
+	enum ast_srtp_suite suite;   /*!< SRTP crypto suite */
+	char local_fingerprint[160]; /*!< Fingerprint of our certificate */
+	unsigned char remote_fingerprint[EVP_MAX_MD_SIZE]; /*!< Fingerprint of the peer certificate */
+	enum ast_rtp_dtls_connection connection; /*!< Whether this is a new or existing connection */
+	unsigned int dtls_failure:1; /*!< Failure occurred during DTLS negotiation */
+	unsigned int rekey; /*!< Interval at which to renegotiate and rekey */
+	int rekeyid; /*!< Scheduled item id for rekeying */
+#endif
 };
 
 /*!
@@ -358,6 +385,12 @@ static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_s
 static void ast_rtp_stop(struct ast_rtp_instance *instance);
 static int ast_rtp_qos_set(struct ast_rtp_instance *instance, int tos, int cos, const char* desc);
 static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
+
+#ifdef HAVE_OPENSSL_SRTP
+static int ast_rtp_activate(struct ast_rtp_instance *instance);
+#endif
+
+static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
 
 /*! \brief Destructor for locally created ICE candidates */
 static void ast_rtp_ice_candidate_destroy(void *obj)
@@ -657,6 +690,305 @@ static struct ast_rtp_engine_ice ast_rtp_ice = {
 	.ice_lite = ast_rtp_ice_lite,
 };
 
+#ifdef HAVE_OPENSSL_SRTP
+static void dtls_info_callback(const SSL *ssl, int where, int ret)
+{
+	struct ast_rtp *rtp = SSL_get_ex_data(ssl, 0);
+
+	/* We only care about alerts */
+	if (!(where & SSL_CB_ALERT)) {
+		return;
+	}
+
+	rtp->dtls_failure = 1;
+}
+
+static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, const struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!dtls_cfg->enabled) {
+		return 0;
+	}
+
+	if (!ast_rtp_engine_srtp_is_registered()) {
+		return -1;
+	}
+
+	if (!(rtp->ssl_ctx = SSL_CTX_new(DTLSv1_method()))) {
+		return -1;
+	}
+
+	SSL_CTX_set_verify(rtp->ssl_ctx, dtls_cfg->verify ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT : SSL_VERIFY_NONE, NULL);
+
+	if (dtls_cfg->suite == AST_AES_CM_128_HMAC_SHA1_80) {
+		SSL_CTX_set_tlsext_use_srtp(rtp->ssl_ctx, "SRTP_AES128_CM_SHA1_80");
+	} else if (dtls_cfg->suite == AST_AES_CM_128_HMAC_SHA1_32) {
+		SSL_CTX_set_tlsext_use_srtp(rtp->ssl_ctx, "SRTP_AES128_CM_SHA1_32");
+	} else {
+		ast_log(LOG_ERROR, "Unsupported suite specified for DTLS-SRTP on RTP instance '%p'\n", instance);
+		goto error;
+	}
+
+	if (!ast_strlen_zero(dtls_cfg->certfile)) {
+		char *private = ast_strlen_zero(dtls_cfg->pvtfile) ? dtls_cfg->certfile : dtls_cfg->pvtfile;
+		BIO *certbio;
+		X509 *cert;
+		unsigned int size, i;
+		unsigned char fingerprint[EVP_MAX_MD_SIZE];
+		char *local_fingerprint = rtp->local_fingerprint;
+
+		if (!SSL_CTX_use_certificate_file(rtp->ssl_ctx, dtls_cfg->certfile, SSL_FILETYPE_PEM)) {
+			ast_log(LOG_ERROR, "Specified certificate file '%s' for RTP instance '%p' could not be used\n",
+				dtls_cfg->certfile, instance);
+			goto error;
+		}
+
+		if (!SSL_CTX_use_PrivateKey_file(rtp->ssl_ctx, private, SSL_FILETYPE_PEM) ||
+		    !SSL_CTX_check_private_key(rtp->ssl_ctx)) {
+			ast_log(LOG_ERROR, "Specified private key file '%s' for RTP instance '%p' could not be used\n",
+				private, instance);
+			goto error;
+		}
+
+		if (!(certbio = BIO_new(BIO_s_file()))) {
+			ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
+				instance);
+			goto error;
+		}
+
+		if (!BIO_read_filename(certbio, dtls_cfg->certfile) ||
+		    !(cert = PEM_read_bio_X509(certbio, NULL, 0, NULL)) ||
+		    !X509_digest(cert, EVP_sha1(), fingerprint, &size) ||
+		    !size) {
+			ast_log(LOG_ERROR, "Could not produce fingerprint from certificate '%s' for RTP instance '%p'\n",
+				dtls_cfg->certfile, instance);
+			BIO_free_all(certbio);
+			goto error;
+		}
+
+		for (i = 0; i < size; i++) {
+			sprintf(local_fingerprint, "%.2X:", fingerprint[i]);
+			local_fingerprint += 3;
+		}
+
+		*(local_fingerprint-1) = 0;
+
+		BIO_free_all(certbio);
+	}
+
+	if (!ast_strlen_zero(dtls_cfg->cipher)) {
+		if (!SSL_CTX_set_cipher_list(rtp->ssl_ctx, dtls_cfg->cipher)) {
+			ast_log(LOG_ERROR, "Invalid cipher specified in cipher list '%s' for RTP instance '%p'\n",
+				dtls_cfg->cipher, instance);
+			goto error;
+		}
+	}
+
+	if (!ast_strlen_zero(dtls_cfg->cafile) || !ast_strlen_zero(dtls_cfg->capath)) {
+		if (!SSL_CTX_load_verify_locations(rtp->ssl_ctx, S_OR(dtls_cfg->cafile, NULL), S_OR(dtls_cfg->capath, NULL))) {
+			ast_log(LOG_ERROR, "Invalid certificate authority file '%s' or path '%s' specified for RTP instance '%p'\n",
+				S_OR(dtls_cfg->cafile, ""), S_OR(dtls_cfg->capath, ""), instance);
+			goto error;
+		}
+	}
+
+	rtp->rekey = dtls_cfg->rekey;
+	rtp->dtls_setup = dtls_cfg->default_setup;
+	rtp->suite = dtls_cfg->suite;
+
+	if (!(rtp->ssl = SSL_new(rtp->ssl_ctx))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for SSL context on RTP instance '%p'\n",
+			instance);
+		goto error;
+	}
+
+	SSL_set_ex_data(rtp->ssl, 0, rtp);
+	SSL_set_info_callback(rtp->ssl, dtls_info_callback);
+
+	if (!(rtp->read_bio = BIO_new(BIO_s_mem()))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for inbound SSL traffic on RTP instance '%p'\n",
+			instance);
+		goto error;
+	}
+	BIO_set_mem_eof_return(rtp->read_bio, -1);
+
+	if (!(rtp->write_bio = BIO_new(BIO_s_mem()))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for outbound SSL traffic on RTP instance '%p'\n",
+			instance);
+		goto error;
+	}
+	BIO_set_mem_eof_return(rtp->write_bio, -1);
+
+	SSL_set_bio(rtp->ssl, rtp->read_bio, rtp->write_bio);
+
+	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		SSL_set_accept_state(rtp->ssl);
+	} else {
+		SSL_set_connect_state(rtp->ssl);
+	}
+
+	rtp->connection = AST_RTP_DTLS_CONNECTION_NEW;
+
+	return 0;
+
+error:
+	if (rtp->read_bio) {
+		BIO_free(rtp->read_bio);
+		rtp->read_bio = NULL;
+	}
+
+	if (rtp->write_bio) {
+		BIO_free(rtp->write_bio);
+		rtp->write_bio = NULL;
+	}
+
+	if (rtp->ssl) {
+		SSL_free(rtp->ssl);
+		rtp->ssl = NULL;
+	}
+
+	SSL_CTX_free(rtp->ssl_ctx);
+	rtp->ssl_ctx = NULL;
+
+	return -1;
+}
+
+static int ast_rtp_dtls_active(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	return !rtp->ssl_ctx ? 0 : 1;
+}
+
+static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp->ssl_ctx) {
+		SSL_CTX_free(rtp->ssl_ctx);
+		rtp->ssl_ctx = NULL;
+	}
+
+	if (rtp->ssl) {
+		SSL_free(rtp->ssl);
+		rtp->ssl = NULL;
+	}
+}
+
+static void ast_rtp_dtls_reset(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	/* If the SSL session is not yet finalized don't bother resetting */
+	if (!SSL_is_init_finished(rtp->ssl)) {
+		return;
+	}
+
+	SSL_shutdown(rtp->ssl);
+	rtp->connection = AST_RTP_DTLS_CONNECTION_NEW;
+}
+
+static enum ast_rtp_dtls_connection ast_rtp_dtls_get_connection(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	return rtp->connection;
+}
+
+static enum ast_rtp_dtls_setup ast_rtp_dtls_get_setup(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	return rtp->dtls_setup;
+}
+
+static void ast_rtp_dtls_set_setup(struct ast_rtp_instance *instance, enum ast_rtp_dtls_setup setup)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	enum ast_rtp_dtls_setup old = rtp->dtls_setup;
+
+	switch (setup) {
+	case AST_RTP_DTLS_SETUP_ACTIVE:
+		rtp->dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
+		break;
+	case AST_RTP_DTLS_SETUP_PASSIVE:
+		rtp->dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
+		break;
+	case AST_RTP_DTLS_SETUP_ACTPASS:
+		/* We can't respond to an actpass setup with actpass ourselves... so respond with active, as we can initiate connections */
+		if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
+			rtp->dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
+		}
+		break;
+	case AST_RTP_DTLS_SETUP_HOLDCONN:
+		rtp->dtls_setup = AST_RTP_DTLS_SETUP_HOLDCONN;
+		break;
+	default:
+		/* This should never occur... if it does exit early as we don't know what state things are in */
+		return;
+	}
+
+	/* If the setup state did not change we go on as if nothing happened */
+	if (old == rtp->dtls_setup) {
+		return;
+	}
+
+	/* If they don't want us to establish a connection wait until later */
+	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_HOLDCONN) {
+		return;
+	}
+
+	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
+		SSL_set_connect_state(rtp->ssl);
+	} else if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		SSL_set_accept_state(rtp->ssl);
+	} else {
+		return;
+	}
+}
+
+static void ast_rtp_dtls_set_fingerprint(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash, const char *fingerprint)
+{
+	char *tmp = ast_strdupa(fingerprint), *value;
+	int pos = 0;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (hash != AST_RTP_DTLS_HASH_SHA1) {
+		return;
+	}
+
+	while ((value = strsep(&tmp, ":")) && (pos != (EVP_MAX_MD_SIZE - 1))) {
+		sscanf(value, "%02x", (unsigned int*)&rtp->remote_fingerprint[pos++]);
+	}
+}
+
+static const char *ast_rtp_dtls_get_fingerprint(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (hash != AST_RTP_DTLS_HASH_SHA1) {
+		return NULL;
+	}
+
+	return rtp->local_fingerprint;
+}
+
+/* DTLS RTP Engine interface declaration */
+static struct ast_rtp_engine_dtls ast_rtp_dtls = {
+	.set_configuration = ast_rtp_dtls_set_configuration,
+	.active = ast_rtp_dtls_active,
+	.stop = ast_rtp_dtls_stop,
+	.reset = ast_rtp_dtls_reset,
+	.get_connection = ast_rtp_dtls_get_connection,
+	.get_setup = ast_rtp_dtls_get_setup,
+	.set_setup = ast_rtp_dtls_set_setup,
+	.set_fingerprint = ast_rtp_dtls_set_fingerprint,
+	.get_fingerprint = ast_rtp_dtls_get_fingerprint,
+};
+
+#endif
+
 /* RTP Engine Declaration */
 static struct ast_rtp_engine asterisk_rtp_engine = {
 	.name = "asterisk",
@@ -685,6 +1017,10 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.qos = ast_rtp_qos_set,
 	.sendcng = ast_rtp_sendcng,
 	.ice = &ast_rtp_ice,
+#ifdef HAVE_OPENSSL_SRTP
+	.dtls = &ast_rtp_dtls,
+	.activate = ast_rtp_activate,
+#endif
 };
 
 static void ast_rtp_on_ice_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len)
@@ -874,6 +1210,168 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 	return 1;
 }
 
+#ifdef HAVE_OPENSSL_SRTP
+static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
+{
+	size_t pending = BIO_ctrl_pending(rtp->write_bio);
+
+	if (pending > 0) {
+		char outgoing[pending];
+		size_t out;
+		struct ast_sockaddr remote_address = { {0, } };
+		int ice;
+
+		ast_rtp_instance_get_remote_address(instance, &remote_address);
+
+		/* If we do not yet know an address to send this to defer it until we do */
+		if (ast_sockaddr_isnull(&remote_address)) {
+			return;
+		}
+
+		out = BIO_read(rtp->write_bio, outgoing, sizeof(outgoing));
+
+		__rtp_sendto(instance, outgoing, out, 0, &remote_address, 0, &ice, 0);
+	}
+}
+
+static int dtls_srtp_renegotiate(const void *data)
+{
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	SSL_renegotiate(rtp->ssl);
+	SSL_do_handshake(rtp->ssl);
+	dtls_srtp_check_pending(instance, rtp);
+
+	rtp->rekeyid = -1;
+	ao2_ref(instance, -1);
+
+	return 0;
+}
+
+static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct ast_rtp_instance *instance)
+{
+	unsigned char material[SRTP_MASTER_LEN * 2];
+	unsigned char *local_key, *local_salt, *remote_key, *remote_salt;
+	struct ast_srtp_policy *local_policy, *remote_policy = NULL;
+	struct ast_rtp_instance_stats stats = { 0, };
+
+	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
+	if (SSL_CTX_get_verify_mode(rtp->ssl_ctx) != SSL_VERIFY_NONE) {
+		X509 *certificate;
+
+		if (!(certificate = SSL_get_peer_certificate(rtp->ssl))) {
+			ast_log(LOG_WARNING, "No certificate was provided by the peer on RTP instance '%p'\n", instance);
+			return -1;
+		}
+
+		/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
+		if (rtp->remote_fingerprint[0]) {
+			unsigned char fingerprint[EVP_MAX_MD_SIZE];
+			unsigned int size;
+
+			if (!X509_digest(certificate, EVP_sha1(), fingerprint, &size) ||
+			    !size ||
+			    memcmp(fingerprint, rtp->remote_fingerprint, size)) {
+				X509_free(certificate);
+				ast_log(LOG_WARNING, "Fingerprint provided by remote party does not match that of peer certificate on RTP instance '%p'\n",
+					instance);
+				return -1;
+			}
+		}
+
+		X509_free(certificate);
+	}
+
+	/* Ensure that certificate verification was successful */
+	if (SSL_get_verify_result(rtp->ssl) != X509_V_OK) {
+		ast_log(LOG_WARNING, "Peer certificate on RTP instance '%p' failed verification test\n",
+			instance);
+		return -1;
+	}
+
+	/* Produce key information and set up SRTP */
+	if (!SSL_export_keying_material(rtp->ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
+		ast_log(LOG_WARNING, "Unable to extract SRTP keying material from DTLS-SRTP negotiation on RTP instance '%p'\n",
+			instance);
+		return -1;
+	}
+
+	/* Whether we are acting as a server or client determines where the keys/salts are */
+	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
+		local_key = material;
+		remote_key = local_key + SRTP_MASTER_KEY_LEN;
+		local_salt = remote_key + SRTP_MASTER_KEY_LEN;
+		remote_salt = local_salt + SRTP_MASTER_SALT_LEN;
+	} else {
+		remote_key = material;
+		local_key = remote_key + SRTP_MASTER_KEY_LEN;
+		remote_salt = local_key + SRTP_MASTER_KEY_LEN;
+		local_salt = remote_salt + SRTP_MASTER_SALT_LEN;
+	}
+
+	if (!(local_policy = res_srtp_policy->alloc())) {
+		return -1;
+	}
+
+	if (res_srtp_policy->set_master_key(local_policy, local_key, SRTP_MASTER_KEY_LEN, local_salt, SRTP_MASTER_SALT_LEN) < 0) {
+		ast_log(LOG_WARNING, "Could not set key/salt information on local policy of '%p' when setting up DTLS-SRTP\n", rtp);
+		goto error;
+	}
+
+	if (res_srtp_policy->set_suite(local_policy, rtp->suite)) {
+		ast_log(LOG_WARNING, "Could not set suite to '%d' on local policy of '%p' when setting up DTLS-SRTP\n", rtp->suite, rtp);
+		goto error;
+	}
+
+	if (ast_rtp_instance_get_stats(instance, &stats, AST_RTP_INSTANCE_STAT_LOCAL_SSRC)) {
+		goto error;
+	}
+
+	res_srtp_policy->set_ssrc(local_policy, stats.local_ssrc, 0);
+
+	if (!(remote_policy = res_srtp_policy->alloc())) {
+		goto error;
+	}
+
+	if (res_srtp_policy->set_master_key(remote_policy, remote_key, SRTP_MASTER_KEY_LEN, remote_salt, SRTP_MASTER_SALT_LEN) < 0) {
+		ast_log(LOG_WARNING, "Could not set key/salt information on remote policy of '%p' when setting up DTLS-SRTP\n", rtp);
+		goto error;
+	}
+
+	if (res_srtp_policy->set_suite(remote_policy, rtp->suite)) {
+		ast_log(LOG_WARNING, "Could not set suite to '%d' on remote policy of '%p' when setting up DTLS-SRTP\n", rtp->suite, rtp);
+		goto error;
+	}
+
+	res_srtp_policy->set_ssrc(remote_policy, 0, 1);
+
+	if (ast_rtp_instance_add_srtp_policy(instance, remote_policy, local_policy)) {
+		ast_log(LOG_WARNING, "Could not set policies when setting up DTLS-SRTP on '%p'\n", rtp);
+		goto error;
+	}
+
+	if (rtp->rekey) {
+		ao2_ref(instance, +1);
+		if ((rtp->rekeyid = ast_sched_add(rtp->sched, rtp->rekey * 1000, dtls_srtp_renegotiate, instance)) < 0) {
+			ao2_ref(instance, -1);
+			goto error;
+		}
+	}
+
+	return 0;
+
+error:
+	res_srtp_policy->destroy(local_policy);
+
+	if (remote_policy) {
+		res_srtp_policy->destroy(remote_policy);
+	}
+
+	return -1;
+}
+#endif
+
 static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
 {
 	int len;
@@ -883,6 +1381,56 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	if ((len = ast_recvfrom(rtcp ? rtp->rtcp->s : rtp->s, buf, size, flags, sa)) < 0) {
 	   return len;
 	}
+
+#ifdef HAVE_OPENSSL_SRTP
+	if (!rtcp) {
+		char *in = buf;
+
+		dtls_srtp_check_pending(instance, rtp);
+
+		/* If this is an SSL packet pass it to OpenSSL for processing */
+		if ((*in >= 20) && (*in <= 64)) {
+			int res = 0;
+
+			/* If no SSL session actually exists terminate things */
+			if (!rtp->ssl) {
+				ast_log(LOG_ERROR, "Received SSL traffic on RTP instance '%p' without an SSL session\n",
+					instance);
+				return -1;
+			}
+
+			/* If we don't yet know if we are active or passive and we receive a packet... we are obviously passive */
+			if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
+				rtp->dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
+				SSL_set_accept_state(rtp->ssl);
+			}
+
+			dtls_srtp_check_pending(instance, rtp);
+
+			BIO_write(rtp->read_bio, buf, len);
+
+			len = SSL_read(rtp->ssl, buf, len);
+
+			dtls_srtp_check_pending(instance, rtp);
+
+			if (rtp->dtls_failure) {
+				ast_log(LOG_ERROR, "DTLS failure occurred on RTP instance '%p', terminating\n",
+					instance);
+				return -1;
+			}
+
+			if (SSL_is_init_finished(rtp->ssl)) {
+				/* Any further connections will be existing since this is now established */
+				rtp->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
+
+				/* Use the keying material to set up key/salt information */
+				res = dtls_srtp_setup(rtp, srtp, instance);
+			}
+
+			return res;
+		}
+	}
+#endif
 
 	if (rtp->ice) {
 		pj_str_t combined = pj_str(ast_sockaddr_stringify(sa));
@@ -927,7 +1475,7 @@ static int rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t siz
 	return __rtp_recvfrom(instance, buf, size, flags, sa, 0);
 }
 
-static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice)
+static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp)
 {
 	int len = size;
 	void *temp = buf;
@@ -936,7 +1484,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 
 	*ice = 0;
 
-	if (res_srtp && srtp && res_srtp->protect(srtp, &temp, &len, rtcp) < 0) {
+	if (use_srtp && res_srtp && srtp && res_srtp->protect(srtp, &temp, &len, rtcp) < 0) {
 		return -1;
 	}
 
@@ -954,12 +1502,12 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 
 static int rtcp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int *ice)
 {
-	return __rtp_sendto(instance, buf, size, flags, sa, 1, ice);
+	return __rtp_sendto(instance, buf, size, flags, sa, 1, ice, 1);
 }
 
 static int rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int *ice)
 {
-	return __rtp_sendto(instance, buf, size, flags, sa, 0, ice);
+	return __rtp_sendto(instance, buf, size, flags, sa, 0, ice, 1);
 }
 
 static int rtp_get_rate(struct ast_format *format)
@@ -1223,6 +1771,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	/* Record any information we may need */
 	rtp->sched = sched;
 
+#ifdef HAVE_OPENSSL_SRTP
+	rtp->rekeyid = -1;
+#endif
+
 	return 0;
 }
 
@@ -1284,6 +1836,18 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	if (rtp->remote_candidates) {
 		ao2_ref(rtp->remote_candidates, -1);
 	}
+
+#ifdef HAVE_OPENSSL_SRTP
+	/* Destroy the SSL context if present */
+	if (rtp->ssl_ctx) {
+		SSL_CTX_free(rtp->ssl_ctx);
+	}
+
+	/* Destroy the SSL session if present */
+	if (rtp->ssl) {
+		SSL_free(rtp->ssl);
+	}
+#endif
 
 	/* Destroy synchronization items */
 	ast_mutex_destroy(&rtp->lock);
@@ -3507,6 +4071,10 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr addr = { {0,} };
 
+#ifdef HAVE_OPENSSL_SRTP
+	AST_SCHED_DEL_UNREF(rtp->sched, rtp->rekeyid, ao2_ref(instance, -1));
+#endif
+
 	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
 		if (!ast_sched_del(rtp->sched, rtp->rtcp->schedid)) {
 			/* successfully cancelled scheduler entry. */
@@ -3585,6 +4153,23 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 
 	return res;
 }
+
+#ifdef HAVE_OPENSSL_SRTP
+static int ast_rtp_activate(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp->ssl) {
+		return 0;
+	}
+
+	SSL_do_handshake(rtp->ssl);
+
+	dtls_srtp_check_pending(instance, rtp);
+
+	return 0;
+}
+#endif
 
 static char *rtp_do_debug_ip(struct ast_cli_args *a)
 {

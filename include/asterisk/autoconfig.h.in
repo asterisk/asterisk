@@ -527,6 +527,9 @@
 /* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
 #undef HAVE_OPENSSL
 
+/* Define to 1 if CRYPTO has the OpenSSL SRTP Extension Support feature. */
+#undef HAVE_OPENSSL_SRTP
+
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 

@@ -2058,6 +2058,74 @@ struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *ins
 	return instance->engine->ice;
 }
 
+struct ast_rtp_engine_dtls *ast_rtp_instance_get_dtls(struct ast_rtp_instance *instance)
+{
+	return instance->engine->dtls;
+}
+
+int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, const char *value)
+{
+	if (!strcasecmp(name, "dtlsenable")) {
+		dtls_cfg->enabled = ast_true(value) ? 1 : 0;
+	} else if (!strcasecmp(name, "dtlsverify")) {
+		dtls_cfg->verify = ast_true(value) ? 1 : 0;
+	} else if (!strcasecmp(name, "dtlsrekey")) {
+		if (sscanf(value, "%30u", &dtls_cfg->rekey) != 1) {
+			return -1;
+		}
+	} else if (!strcasecmp(name, "dtlscertfile")) {
+		ast_free(dtls_cfg->certfile);
+		dtls_cfg->certfile = ast_strdup(value);
+	} else if (!strcasecmp(name, "dtlsprivatekey")) {
+		ast_free(dtls_cfg->pvtfile);
+		dtls_cfg->pvtfile = ast_strdup(value);
+	} else if (!strcasecmp(name, "dtlscipher")) {
+		ast_free(dtls_cfg->cipher);
+		dtls_cfg->cipher = ast_strdup(value);
+	} else if (!strcasecmp(name, "dtlscafile")) {
+		ast_free(dtls_cfg->cafile);
+		dtls_cfg->cafile = ast_strdup(value);
+	} else if (!strcasecmp(name, "dtlscapath") || !strcasecmp(name, "dtlscadir")) {
+		ast_free(dtls_cfg->capath);
+		dtls_cfg->capath = ast_strdup(value);
+	} else if (!strcasecmp(name, "dtlssetup")) {
+		if (!strcasecmp(value, "active")) {
+			dtls_cfg->default_setup = AST_RTP_DTLS_SETUP_ACTIVE;
+		} else if (!strcasecmp(value, "passive")) {
+			dtls_cfg->default_setup = AST_RTP_DTLS_SETUP_PASSIVE;
+		} else if (!strcasecmp(value, "actpass")) {
+			dtls_cfg->default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rtp_dtls_cfg *dst_cfg)
+{
+	dst_cfg->enabled = src_cfg->enabled;
+	dst_cfg->verify = src_cfg->verify;
+	dst_cfg->rekey = src_cfg->rekey;
+	dst_cfg->suite = src_cfg->suite;
+	dst_cfg->certfile = ast_strdup(src_cfg->certfile);
+	dst_cfg->pvtfile = ast_strdup(src_cfg->pvtfile);
+	dst_cfg->cipher = ast_strdup(src_cfg->cipher);
+	dst_cfg->cafile = ast_strdup(src_cfg->cafile);
+	dst_cfg->capath = ast_strdup(src_cfg->capath);
+	dst_cfg->default_setup = src_cfg->default_setup;
+}
+
+void ast_rtp_dtls_cfg_free(struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+	ast_free(dtls_cfg->certfile);
+	ast_free(dtls_cfg->pvtfile);
+	ast_free(dtls_cfg->cipher);
+	ast_free(dtls_cfg->cafile);
+	ast_free(dtls_cfg->capath);
+}
+
 static void set_next_mime_type(const struct ast_format *format, int rtp_code, char *type, char *subtype, unsigned int sample_rate)
 {
 	int x = mime_types_len;

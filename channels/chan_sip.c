@@ -1387,11 +1387,13 @@ static int process_sdp_o(const char *o, struct sip_pvt *p);
 static int process_sdp_c(const char *c, struct ast_sockaddr *addr);
 static int process_sdp_a_sendonly(const char *a, int *sendonly);
 static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance);
+static int process_sdp_a_dtls(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance);
 static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newaudiortp, int *last_rtpmap_codec);
 static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newvideortp, int *last_rtpmap_codec);
 static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newtextrtp, char *red_fmtp, int *red_num_gen, int *red_data_pt, int *last_rtpmap_codec);
 static int process_sdp_a_image(const char *a, struct sip_pvt *p);
 static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf);
+static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf);
 static void start_ice(struct ast_rtp_instance *instance);
 static void add_codec_to_sdp(const struct sip_pvt *p, struct ast_format *codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
@@ -4928,6 +4930,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	ast_string_field_free_memory(peer);
 
 	peer->caps = ast_format_cap_destroy(peer->caps);
+
+	ast_rtp_dtls_cfg_free(&peer->dtls_cfg);
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -5515,6 +5519,29 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 	*to_sock = *from_sock;
 }
 
+/*! \brief Initialize DTLS-SRTP support on an RTP instance */
+static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_rtp_instance *rtp, struct sip_srtp **srtp)
+{
+	struct ast_rtp_engine_dtls *dtls;
+
+	if (!dialog->dtls_cfg.enabled) {
+		return 0;
+	}
+
+	if (!ast_rtp_engine_srtp_is_registered()) {
+		ast_log(LOG_ERROR, "No SRTP module loaded, can't setup SRTP session.\n");
+		return -1;
+	}
+
+	if (!(dtls = ast_rtp_instance_get_dtls(rtp)) ||
+	    dtls->set_configuration(rtp, &dialog->dtls_cfg) ||
+	    !(*srtp = sip_srtp_alloc())) {
+		return -1;
+	}
+
+	return 0;
+}
+
 /*! \brief Initialize RTP portion of a dialog
  * \return -1 on failure, 0 on success
  */
@@ -5536,6 +5563,10 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		ice->stop(dialog->rtp);
 	}
 
+	if (dialog_initialize_dtls_srtp(dialog, dialog->rtp, &dialog->srtp)) {
+		return -1;
+	}
+
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT_ALWAYS) ||
 			(ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) && (ast_format_cap_has_type(dialog->caps, AST_FORMAT_TYPE_VIDEO)))) {
 		if (!(dialog->vrtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
@@ -5544,6 +5575,10 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 
 		if (!ast_test_flag(&dialog->flags[2], SIP_PAGE3_ICE_SUPPORT) && (ice = ast_rtp_instance_get_ice(dialog->vrtp))) {
 			ice->stop(dialog->vrtp);
+		}
+
+		if (dialog_initialize_dtls_srtp(dialog, dialog->vrtp, &dialog->vsrtp)) {
+			return -1;
 		}
 
 		ast_rtp_instance_set_timeout(dialog->vrtp, dialog->rtptimeout);
@@ -5560,6 +5595,10 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 
 		if (!ast_test_flag(&dialog->flags[2], SIP_PAGE3_ICE_SUPPORT) && (ice = ast_rtp_instance_get_ice(dialog->trtp))) {
 			ice->stop(dialog->trtp);
+		}
+
+		if (dialog_initialize_dtls_srtp(dialog, dialog->trtp, &dialog->tsrtp)) {
+			return -1;
 		}
 
 		/* Do not timeout text as its not constant*/
@@ -5617,6 +5656,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->amaflags = peer->amaflags;
 
 	ast_string_field_set(dialog, engine, peer->engine);
+
+	ast_rtp_dtls_cfg_copy(&peer->dtls_cfg, &dialog->dtls_cfg);
 
 	dialog->rtptimeout = peer->rtptimeout;
 	dialog->rtpholdtimeout = peer->rtpholdtimeout;
@@ -6262,6 +6303,8 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	p->peercaps = ast_format_cap_destroy(p->peercaps);
 	p->redircaps = ast_format_cap_destroy(p->redircaps);
 	p->prefcaps = ast_format_cap_destroy(p->prefcaps);
+
+	ast_rtp_dtls_cfg_free(&p->dtls_cfg);
 
 	if (p->last_device_state_info) {
 		ao2_ref(p->last_device_state_info, -1);
@@ -9577,6 +9620,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				processed = TRUE;
 			}
 
+			if (process_sdp_a_dtls(value, p, p->rtp)) {
+				processed = TRUE;
+			}
+			if (process_sdp_a_dtls(value, p, p->vrtp)) {
+				processed = TRUE;
+			}
+			if (process_sdp_a_dtls(value, p, p->trtp)) {
+				processed = TRUE;
+			}
+
 			break;
 		}
 
@@ -9594,8 +9647,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int image = FALSE;
 		int text = FALSE;
 		int processed_crypto = FALSE;
-		char protocol[6] = {0,};
+		char protocol[18] = {0,};
 		int x;
+		struct ast_rtp_engine_dtls *dtls;
 
 		numberofports = 0;
 		len = -1;
@@ -9614,21 +9668,26 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 		/* Check for 'audio' media offer */
 		if (strncmp(m, "audio ", 6) == 0) {
-			if ((sscanf(m, "audio %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			    (sscanf(m, "audio %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if ((sscanf(m, "audio %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "audio %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=audio 0 RTP/" + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(14 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=audio 0 " + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=audio 0 RTP/%s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=audio 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring audio media offer because port number is zero\n");
+					continue;
+				}
+
+				if (has_media_stream(p, SDP_AUDIO)) {
+					ast_log(LOG_WARNING, "Declining non-primary audio stream: %s\n", m);
 					continue;
 				}
 
@@ -9637,27 +9696,32 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_log(LOG_WARNING, "%d ports offered for audio media, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (!strcmp(protocol, "SAVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+				if ((!strcmp(protocol, "RTP/SAVPF") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received SAVPF profle in audio offer but AVPF is not enabled: %s\n", m);
 					continue;
-				} else if (!strcmp(protocol, "SAVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+				} else if ((!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVP")) && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received SAVP profile in audio offer but AVPF is enabled: %s\n", m);
 					continue;
-				} else if (!strcmp(protocol, "SAVP") || !strcmp(protocol, "SAVPF")) {
+				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
 					secure_audio = 1;
-				} else if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+
+					if (p->srtp) {
+						ast_set_flag(p->srtp, SRTP_CRYPTO_OFFER_OK);
+					}
+				} else if (!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "RTP/SAVPF")) {
+					secure_audio = 1;
+				} else if (!strcmp(protocol, "RTP/AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received AVPF profile in audio offer but AVPF is not enabled: %s\n", m);
 					continue;
-				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+				} else if (!strcmp(protocol, "RTP/AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received AVP profile in audio offer but AVPF is enabled: %s\n", m);
 					continue;
-				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
-					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
+				} else if ((!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) &&
+					   (!(dtls = ast_rtp_instance_get_dtls(p->rtp)) || !dtls->active(p->rtp))) {
+					ast_log(LOG_WARNING, "Received UDP/TLS in audio offer but DTLS is not enabled: %s\n", m);
 					continue;
-				}
-
-				if (has_media_stream(p, SDP_AUDIO)) {
-					ast_log(LOG_WARNING, "Declining non-primary audio stream: %s\n", m);
+				} else if (strcmp(protocol, "RTP/AVP") && strcmp(protocol, "RTP/AVPF")) {
+					ast_log(LOG_WARNING, "Unknown RTP profile in audio offer: %s\n", m);
 					continue;
 				}
 
@@ -9686,18 +9750,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		/* Check for 'video' media offer */
 		else if (strncmp(m, "video ", 6) == 0) {
-			if ((sscanf(m, "video %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			    (sscanf(m, "video %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if ((sscanf(m, "video %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "video %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=video 0 RTP/" + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(14 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=video 0 " + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=video 0 RTP/%s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=video 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring video stream offer because port number is zero\n");
@@ -9709,27 +9773,33 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_log(LOG_WARNING, "%d ports offered for video stream, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (!strcmp(protocol, "SAVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received SAVPF profle in video offer but AVPF is not enabled: %s\n", m);
-					continue;
-				} else if (!strcmp(protocol, "SAVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received SAVP profile in video offer but AVPF is enabled: %s\n", m);
-					continue;
-				} else if (!strcmp(protocol, "SAVP") || !strcmp(protocol, "SAVPF")) {
-					secure_video = 1;
-				} else if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received AVPF profile in video offer but AVPF is not enabled: %s\n", m);
-					continue;
-				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received AVP profile in video offer but AVPF is enabled: %s\n", m);
-					continue;
-				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
-					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
+				if (has_media_stream(p, SDP_VIDEO)) {
+					ast_log(LOG_WARNING, "Declining non-primary video stream: %s\n", m);
 					continue;
 				}
 
-				if (has_media_stream(p, SDP_VIDEO)) {
-					ast_log(LOG_WARNING, "Declining non-primary video stream: %s\n", m);
+				if ((!strcmp(protocol, "RTP/SAVPF") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVPF profle in video offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if ((!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVP")) && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received SAVP profile in video offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
+					secure_video = 1;
+
+					if (p->vsrtp || (p->vsrtp = sip_srtp_alloc())) {
+						ast_set_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK);
+					}
+				} else if (!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "RTP/SAVPF")) {
+					secure_video = 1;
+				} else if (!strcmp(protocol, "RTP/AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVPF profile in video offer but AVPF is not enabled: %s\n", m);
+					continue;
+				} else if (!strcmp(protocol, "RTP/AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+					ast_log(LOG_WARNING, "Received AVP profile in video offer but AVPF is enabled: %s\n", m);
+					continue;
+				} else if (strcmp(protocol, "RTP/AVP") && strcmp(protocol, "RTP/AVPF")) {
+					ast_log(LOG_WARNING, "Unknown RTP profile in video offer: %s\n", m);
 					continue;
 				}
 
@@ -9758,18 +9828,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		/* Check for 'text' media offer */
 		else if (strncmp(m, "text ", 5) == 0) {
-			if ((sscanf(m, "text %30u/%30u RTP/%5s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
-			    (sscanf(m, "text %30u RTP/%5s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if ((sscanf(m, "text %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			    (sscanf(m, "text %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=text 0 RTP/" + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(13 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=text 0 " + protocol + " " + codecs + "\0" */
+				if (!(offer->decline_m_line = ast_malloc(9 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=text 0 RTP/%s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=text 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring text stream offer because port number is zero\n");
@@ -9781,13 +9851,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_log(LOG_WARNING, "%d ports offered for text stream, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
-				if (!strcmp(protocol, "AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+				if (!strcmp(protocol, "RTP/AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received AVPF profile in text offer but AVPF is not enabled: %s\n", m);
 					continue;
-				} else if (!strcmp(protocol, "AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+				} else if (!strcmp(protocol, "RTP/AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 					ast_log(LOG_WARNING, "Received AVP profile in text offer but AVPF is enabled: %s\n", m);
 					continue;
-				} else if (strcmp(protocol, "AVP") && strcmp(protocol, "AVPF")) {
+				} else if (strcmp(protocol, "RTP/AVP") && strcmp(protocol, "RTP/AVPF")) {
 					ast_log(LOG_WARNING, "Unknown RTP profile in text offer: %s\n", m);
 					continue;
 				}
@@ -9923,6 +9993,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				if (audio) {
 					if (process_sdp_a_ice(value, p, p->rtp)) {
 						processed = TRUE;
+					} else if (process_sdp_a_dtls(value, p, p->rtp)) {
+						processed = TRUE;
 					} else if (process_sdp_a_sendonly(value, &sendonly)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
@@ -9936,6 +10008,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				else if (video) {
 					if (process_sdp_a_ice(value, p, p->vrtp)) {
 						processed = TRUE;
+					} else if (process_sdp_a_dtls(value, p, p->vrtp)) {
+						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
@@ -9947,7 +10021,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				else if (text) {
 					if (process_sdp_a_ice(value, p, p->trtp)) {
 						processed = TRUE;
-					} if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
+					} else if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value)) {
 						processed_crypto = TRUE;
@@ -10461,6 +10535,56 @@ static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_in
 	} else if (!strcasecmp(a, "ice-lite")) {
 		ice->ice_lite(instance);
 		found = TRUE;
+	}
+
+	return found;
+}
+
+static int process_sdp_a_dtls(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_dtls *dtls;
+	int found = FALSE;
+	char value[256], hash[6];
+
+	if (!instance || !p->dtls_cfg.enabled || !(dtls = ast_rtp_instance_get_dtls(instance))) {
+		return found;
+	}
+
+	if (sscanf(a, "setup: %255s", value) == 1) {
+		found = TRUE;
+
+		if (!strcasecmp(value, "active")) {
+			dtls->set_setup(instance, AST_RTP_DTLS_SETUP_ACTIVE);
+		} else if (!strcasecmp(value, "passive")) {
+			dtls->set_setup(instance, AST_RTP_DTLS_SETUP_PASSIVE);
+		} else if (!strcasecmp(value, "actpass")) {
+			dtls->set_setup(instance, AST_RTP_DTLS_SETUP_ACTPASS);
+		} else if (!strcasecmp(value, "holdconn")) {
+			dtls->set_setup(instance, AST_RTP_DTLS_SETUP_HOLDCONN);
+		} else {
+			ast_log(LOG_WARNING, "Unsupported setup attribute value '%s' received on dialog '%s'\n",
+				value, p->callid);
+		}
+	} else if (sscanf(a, "connection: %255s", value) == 1) {
+		found = TRUE;
+
+		if (!strcasecmp(value, "new")) {
+			dtls->reset(instance);
+		} else if (!strcasecmp(value, "existing")) {
+			/* Since they want to just use what already exists we go on as if nothing happened */
+		} else {
+			ast_log(LOG_WARNING, "Unsupported connection attribute value '%s' received on dialog '%s'\n",
+				value, p->callid);
+		}
+	} else if (sscanf(a, "fingerprint: %5s %255s", hash, value) == 2) {
+		found = TRUE;
+
+		if (!strcasecmp(hash, "sha-1")) {
+			dtls->set_fingerprint(instance, AST_RTP_DTLS_HASH_SHA1, value);
+		} else {
+			ast_log(LOG_WARNING, "Unsupported fingerprint hash type '%s' received on dialog '%s'\n",
+				hash, p->callid);
+		}
 	}
 
 	return found;
@@ -12053,6 +12177,49 @@ static void start_ice(struct ast_rtp_instance *instance)
 	ice->start(instance);
 }
 
+/*! \brief Add DTLS attributes to SDP */
+static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf)
+{
+	struct ast_rtp_engine_dtls *dtls;
+	const char *fingerprint;
+
+	if (!instance || !(dtls = ast_rtp_instance_get_dtls(instance)) || !dtls->active(instance)) {
+		return;
+	}
+
+	switch (dtls->get_connection(instance)) {
+	case AST_RTP_DTLS_CONNECTION_NEW:
+		ast_str_append(a_buf, 0, "a=connection:new\r\n");
+		break;
+	case AST_RTP_DTLS_CONNECTION_EXISTING:
+		ast_str_append(a_buf, 0, "a=connection:existing\r\n");
+		break;
+	default:
+		break;
+	}
+
+	switch (dtls->get_setup(instance)) {
+	case AST_RTP_DTLS_SETUP_ACTIVE:
+		ast_str_append(a_buf, 0, "a=setup:active\r\n");
+		break;
+	case AST_RTP_DTLS_SETUP_PASSIVE:
+		ast_str_append(a_buf, 0, "a=setup:passive\r\n");
+		break;
+	case AST_RTP_DTLS_SETUP_ACTPASS:
+		ast_str_append(a_buf, 0, "a=setup:actpass\r\n");
+		break;
+	case AST_RTP_DTLS_SETUP_HOLDCONN:
+		ast_str_append(a_buf, 0, "a=setup:holdconn\r\n");
+		break;
+	default:
+		break;
+	}
+
+	if ((fingerprint = dtls->get_fingerprint(instance, AST_RTP_DTLS_HASH_SHA1))) {
+		ast_str_append(a_buf, 0, "a=fingerprint:SHA-1 %s\r\n", fingerprint);
+	}
+}
+
 /*! \brief Add codec offer to SDP offer/answer body in INVITE or 200 OK */
 static void add_codec_to_sdp(const struct sip_pvt *p,
 	struct ast_format *format,
@@ -12323,6 +12490,11 @@ static void get_crypto_attrib(struct sip_pvt *p, struct sip_srtp *srtp, const ch
 			srtp->crypto = sdp_crypto_setup();
 		}
 
+		if (p->dtls_cfg.enabled) {
+			/* If DTLS-SRTP is enabled the key details will be pulled from TLS */
+			return;
+		}
+
 		/* set the key length based on INVITE or settings */
 		if (ast_test_flag(srtp, SRTP_CRYPTO_TAG_80)) {
 			taglen = 80;
@@ -12341,12 +12513,18 @@ static void get_crypto_attrib(struct sip_pvt *p, struct sip_srtp *srtp, const ch
 	}
 }
 
-static char *get_sdp_rtp_profile(const struct sip_pvt *p, unsigned int secure)
+static char *get_sdp_rtp_profile(const struct sip_pvt *p, unsigned int secure, struct ast_rtp_instance *instance)
 {
-	if (ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-		return secure ? "SAVPF" : "AVPF";
+	struct ast_rtp_engine_dtls *dtls;
+
+	if ((dtls = ast_rtp_instance_get_dtls(instance)) && dtls->active(instance)) {
+		return ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF) ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
 	} else {
-		return secure ? "SAVP" : "AVP";
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
+			return secure ? "RTP/SAVPF" : "RTP/AVPF";
+		} else {
+			return secure ? "RTP/SAVP" : "RTP/AVP";
+		}
 	}
 }
 
@@ -12509,8 +12687,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		   Video is handled differently than audio since we can not transcode. */
 		if (needvideo) {
 			get_crypto_attrib(p, p->vsrtp, &v_a_crypto);
-			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ast_sockaddr_port(&vdest),
-				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
+			ast_str_append(&m_video, 0, "m=video %d %s", ast_sockaddr_port(&vdest),
+				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->vrtp));
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -12519,8 +12697,12 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&vdest));
 			}
 
-			if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
-				add_ice_to_sdp(p->vrtp, &a_video);
+			if (!doing_directmedia) {
+				if (ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
+					add_ice_to_sdp(p->vrtp, &a_video);
+				}
+
+				add_dtls_to_sdp(p->vrtp, &a_video);
 			}
 		}
 
@@ -12530,14 +12712,18 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
 			get_crypto_attrib(p, p->tsrtp, &t_a_crypto);
-			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ast_sockaddr_port(&tdest),
-				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
+			ast_str_append(&m_text, 0, "m=text %d %s", ast_sockaddr_port(&tdest),
+				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->trtp));
 			if (debug) {  /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
 
-			if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
-				add_ice_to_sdp(p->trtp, &a_text);
+			if (!doing_directmedia) {
+				if (ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
+					add_ice_to_sdp(p->trtp, &a_text);
+				}
+
+				add_dtls_to_sdp(p->trtp, &a_text);
 			}
 		}
 
@@ -12547,8 +12733,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		   peer doesn't have to ast_gethostbyname() us */
 
 		get_crypto_attrib(p, p->srtp, &a_crypto);
-		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ast_sockaddr_port(&dest),
-			       get_sdp_rtp_profile(p, a_crypto ? 1 : 0));
+		ast_str_append(&m_audio, 0, "m=audio %d %s", ast_sockaddr_port(&dest),
+			       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->rtp));
 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
@@ -12635,8 +12821,12 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (min_text_packet_size)
 			ast_str_append(&a_text, 0, "a=ptime:%d\r\n", min_text_packet_size);
 
-		if (!doing_directmedia && ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
-			add_ice_to_sdp(p->rtp, &a_audio);
+		if (!doing_directmedia) {
+			if (ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
+				add_ice_to_sdp(p->rtp, &a_audio);
+			}
+
+			add_dtls_to_sdp(p->rtp, &a_audio);
 		}
 
 		if (m_audio->len - m_audio->used < 2 || m_video->len - m_video->used < 2 ||
@@ -17354,6 +17544,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		set_t38_capabilities(p);
 	}
 
+	ast_rtp_dtls_cfg_copy(&peer->dtls_cfg, &p->dtls_cfg);
+
 	/* Copy SIP extensions profile to peer */
 	/* XXX is this correct before a successful auth ? */
 	if (p->sipoptions)
@@ -17399,6 +17591,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
 		ast_string_field_set(p, peername, peer->name);
 		ast_string_field_set(p, authname, peer->name);
+
+		ast_rtp_dtls_cfg_copy(&peer->dtls_cfg, &p->dtls_cfg);
 
 		if (sipmethod == SIP_INVITE) {
 			/* destroy old channel vars and copy in new ones. */
@@ -30009,8 +30203,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_USE_AVPF);
 			} else if (!strcasecmp(v->name, "icesupport")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
+			} else {
+				ast_rtp_dtls_cfg_parse(&peer->dtls_cfg, v->name, v->value);
 			}
 		}
+
+		/* Apply the encryption tag length to the DTLS configuration, in case DTLS is in use */
+		peer->dtls_cfg.suite = (ast_test_flag(&peer->flags[2], SIP_PAGE3_SRTP_TAG_32) ? AST_AES_CM_128_HMAC_SHA1_32 : AST_AES_CM_128_HMAC_SHA1_80);
 
 		/* These apply to devstate lookups */
 		if (realtime && !strcasecmp(v->name, "lastms")) {
@@ -32201,6 +32400,8 @@ static int setup_srtp(struct sip_srtp **srtp)
 
 static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a)
 {
+	struct ast_rtp_engine_dtls *dtls;
+
 	/* If no RTP instance exists for this media stream don't bother processing the crypto line */
 	if (!rtp) {
 		ast_debug(3, "Received offer with crypto line for media stream that is not enabled\n");
@@ -32230,6 +32431,11 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 	}
 
 	ast_set_flag(*srtp, SRTP_CRYPTO_OFFER_OK);
+
+	if ((dtls = ast_rtp_instance_get_dtls(rtp))) {
+		dtls->stop(rtp);
+		p->dtls_cfg.enabled = 0;
+	}
 
 	return TRUE;
 }
