@@ -1652,6 +1652,39 @@ static int update_status(struct call_queue *q, struct member *m, const int statu
 	return 0;
 }
 
+/*!
+ * \internal \brief Determine if a queue member is available
+ * \retval 1 if the member is available
+ * \retval 0 if the member is not available
+ */
+static int is_member_available(struct member *mem)
+{
+	int available = 0;
+
+	switch (mem->status) {
+		case AST_DEVICE_INVALID:
+		case AST_DEVICE_UNAVAILABLE:
+			break;
+		case AST_DEVICE_INUSE:
+		case AST_DEVICE_BUSY:
+		case AST_DEVICE_RINGING:
+		case AST_DEVICE_RINGINUSE:
+		case AST_DEVICE_ONHOLD:
+			if (!mem->ringinuse) {
+				break;
+			}
+			/* else fall through */
+		case AST_DEVICE_NOT_INUSE:
+		case AST_DEVICE_UNKNOWN:
+			if (!mem->paused) {
+				available = 1;
+			}
+			break;
+	}
+
+	return available;
+}
+
 /*! \brief set a member's status based on device state of that member's interface*/
 static int handle_statechange(void *datap)
 {
@@ -1688,8 +1721,8 @@ static int handle_statechange(void *datap)
 			}
 
 			/* check every member until we find one NOT_INUSE */
-			if (!avail && (m->status == AST_DEVICE_NOT_INUSE) && !m->paused) {
-				avail = 1;
+			if (!avail) {
+				avail = is_member_available(m);
 			}
 			if (avail && found_member) {
 				/* early exit as we've found an available member and the member of interest */
@@ -3251,26 +3284,8 @@ static int num_available_members(struct call_queue *q)
 
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((mem = ao2_iterator_next(&mem_iter))) {
-		switch (mem->status) {
-			case AST_DEVICE_INVALID:
-			case AST_DEVICE_UNAVAILABLE:
-				break;
-			case AST_DEVICE_INUSE:
-			case AST_DEVICE_BUSY:
-			case AST_DEVICE_RINGING:
-			case AST_DEVICE_RINGINUSE:
-			case AST_DEVICE_ONHOLD:
-				if (!mem->ringinuse) {
-					break;
-				}
-				/* else fall through */
-			case AST_DEVICE_NOT_INUSE:
-			case AST_DEVICE_UNKNOWN:
-				if (!mem->paused) {
-					avl++;
-				}
-				break;
-		}
+
+		avl += is_member_available(mem);
 		ao2_ref(mem, -1);
 
 		/* If autofill is not enabled or if the queue's strategy is ringall, then
