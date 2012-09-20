@@ -476,13 +476,13 @@ static void ast_fax_detect_init(struct ast_dsp *s)
 
 }
 
-static void ast_dtmf_detect_init (dtmf_detect_state_t *s, unsigned int sample_rate)
+static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rate)
 {
 	int i;
 
 	s->lasthit = 0;
 	s->current_hit = 0;
-	for (i = 0;  i < 4;  i++) {
+	for (i = 0; i < 4; i++) {
 		goertzel_init(&s->row_out[i], dtmf_row[i], sample_rate);
 		goertzel_init(&s->col_out[i], dtmf_col[i], sample_rate);
 		s->energy = 0.0;
@@ -537,7 +537,7 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		s->mute_samples -= mute.end;
 	}
 
-	for (start = 0;  start < samples;  start = end) {
+	for (start = 0; start < samples; start = end) {
 		/* Process in blocks. */
 		limit = samples - start;
 		if (limit > s->samples_pending) {
@@ -691,7 +691,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		row_energy[0] = goertzel_result (&s->td.dtmf.row_out[0]);
 		col_energy[0] = goertzel_result (&s->td.dtmf.col_out[0]);
 
-		for (best_row = best_col = 0, i = 1;  i < 4;  i++) {
+		for (best_row = best_col = 0, i = 1; i < 4; i++) {
 			row_energy[i] = goertzel_result (&s->td.dtmf.row_out[i]);
 			if (row_energy[i] > row_energy[best_row]) {
 				best_row = i;
@@ -708,7 +708,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		    col_energy[best_col] < row_energy[best_row] * DTMF_REVERSE_TWIST &&
 		    col_energy[best_col] * DTMF_NORMAL_TWIST > row_energy[best_row]) {
 			/* Relative peak test */
-			for (i = 0;  i < 4;  i++) {
+			for (i = 0; i < 4; i++) {
 				if ((i != best_col &&
 				    col_energy[i] * DTMF_RELATIVE_PEAK_COL > col_energy[best_col]) ||
 				    (i != best_row
@@ -860,7 +860,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 	}
 
 	hit = 0;
-	for (sample = 0;  sample < samples;  sample = limit) {
+	for (sample = 0; sample < samples; sample = limit) {
 		/* 80 is optimised to meet the MF specs. */
 		/* XXX So then why is MF_GSIZE defined as 120? */
 		if ((samples - sample) >= (MF_GSIZE - s->td.mf.current_sample)) {
@@ -870,7 +870,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		}
 		/* The following unrolled loop takes only 35% (rough estimate) of the
 		   time of a rolled loop on the machine on which it was developed */
-		for (j = sample;  j < limit;  j++) {
+		for (j = sample; j < limit; j++) {
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
 			samp = amp[j];
@@ -974,7 +974,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		}
 
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 6;  i++) {
+		for (i = 0; i < 6; i++) {
 			goertzel_reset(&s->td.mf.tone_out[i]);
 		}
 		s->td.mf.current_sample = 0;
@@ -1727,7 +1727,7 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	if (dsp->digitmode & DSP_DIGITMODE_MF) {
 		mf_detect_state_t *s = &dsp->digit_state.td.mf;
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 6;  i++) {
+		for (i = 0; i < 6; i++) {
 			goertzel_reset(&s->tone_out[i]);
 		}
 		s->hits[4] = s->hits[3] = s->hits[2] = s->hits[1] = s->hits[0] = s->current_hit = 0;
@@ -1735,7 +1735,7 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	} else {
 		dtmf_detect_state_t *s = &dsp->digit_state.td.dtmf;
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 4;  i++) {
+		for (i = 0; i < 4; i++) {
 			goertzel_reset(&s->row_out[i]);
 			goertzel_reset(&s->col_out[i]);
 		}
