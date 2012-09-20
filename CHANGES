@@ -690,6 +690,13 @@ Scripts
    the source tree.  If the variable is not set, it defaults to the current
    behavior and uses the current working directory.
 
+Queue
+-------------------
+ * Add queue available hint.  exten => 8501,hint,Queue:markq_avail
+   Note: the suffix '_avail' after the queuename.
+   Reports 'InUse' for no logged in agents or no free agents.
+   Reports 'Idle' when an agent is free.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
