@@ -2868,6 +2868,10 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
 		ast_copy_string(qe->context, q->context, sizeof(qe->context));
 		q->count++;
+		if (q->count == 1) {
+			ast_devstate_changed(AST_DEVICE_RINGING, "Queue:%s", q->name);
+		}
+
 		res = 0;
 		/*** DOCUMENTATION
 		<managerEventInstance>
@@ -3172,6 +3176,9 @@ static void leave_queue(struct queue_ent *qe)
 		if (current == qe) {
 			char posstr[20];
 			q->count--;
+			if (!q->count) {
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s", q->name);
+			}
 
 			/* Take us out of the queue */
 			/*** DOCUMENTATION

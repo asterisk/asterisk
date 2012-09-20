@@ -173,6 +173,7 @@ Queue
    be logged in the agent field for ADDMEMBER and REMOVEMEMBER queue events if a
    state_interface has been set.
 
+ * Add queue monitoring hints.  exten => 8501,hint,Queue:markq.
 
 SayUnixTime
 ------------------

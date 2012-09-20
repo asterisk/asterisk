@@ -708,12 +708,16 @@ include => demo
 ;exten => 6600,hint,park:701@parkedcalls
 ;exten => 6600,1,noop
 ;
-
 ;To subscribe to the availability of a free member in the 'markq' queue.
 ;Note: '_avail' is added to the QueueName
 ;exten => 8501,hint,Queue:markq_avail
 ;exten => 8501,1,Queue(markq)
-
+;
+; You can also monitor the status of a queue by providing a hint for a
+; particular queue name.
+;exten => 8502,hint,Queue:markq
+;exten => 8502,1,Queue(markq)
+;
 ; Some other handy things are an extension for checking voicemail via
 ; voicemailmain
 ;
