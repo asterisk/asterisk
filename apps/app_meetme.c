@@ -4454,6 +4454,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 									}
 								}
 								AST_LIST_UNLOCK(&confs);
+								cnf = NULL;
 								if (!found) {
 									/* At this point, we have a confno_tmp (static conference) that is empty */
 									if ((empty_no_pin && ast_strlen_zero(stringp)) || (!empty_no_pin)) {
