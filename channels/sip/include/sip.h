@@ -36,6 +36,7 @@
 #include "asterisk/security_events.h"
 #include "asterisk/features.h"
 #include "asterisk/http_websocket.h"
+#include "asterisk/rtp_engine.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -1212,6 +1213,8 @@ struct sip_pvt {
 	struct ast_cc_config_params *cc_params;
 	struct sip_epa_entry *epa_entry;
 	int fromdomainport;                 /*!< Domain port to show in from field */
+
+	struct ast_rtp_dtls_cfg dtls_cfg;
 };
 
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission
@@ -1361,6 +1364,8 @@ struct sip_peer {
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
 	unsigned int disallowed_methods;
 	struct ast_cc_config_params *cc_params;
+
+	struct ast_rtp_dtls_cfg dtls_cfg;
 };
 
 /*!

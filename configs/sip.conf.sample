@@ -1240,6 +1240,38 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; maxforwards
 ; encryption
 ; description		; Used to provide a description of the peer in console output
+; dtlsenable
+; dtlsverify
+; dtlsrekey
+; dtlscertfile
+; dtlsprivatekey
+; dtlscipher
+; dtlscafile
+; dtlscapath
+; dtlssetup
+;
+
+;------------------------------------------------------------------------------
+; DTLS-SRTP CONFIGURATION
+;
+; DTLS-SRTP support is available if the underlying RTP engine in use supports it.
+;
+; dtlsenable = yes                   ; Enable or disable DTLS-SRTP support
+; dtlsverify = yes                   ; Verify that the provided peer certificate is valid
+; dtlsrekey = 60                     ; Interval at which to renegotiate the TLS session and rekey the SRTP session
+;                                    ; If this is not set or the value provided is 0 rekeying will be disabled
+; dtlscertfile = file                ; Path to certificate file to present
+; dtlsprivatekey = file              ; Path to private key for certificate file
+; dtlscipher = <SSL cipher string>   ; Cipher to use for TLS negotiation
+;                                    ; A list of valid SSL cipher strings can be found at:
+;                                    ; http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+; dtlscafile = file                  ; Path to certificate authority certificate
+; dtlscapath = path                  ; Path to a directory containing certificate authority certificates
+; dtlssetup = actpass                ; Whether we are willing to accept connections, connect to the other party, or both.
+;                                    ; Valid options are active (we want to connect to the other party), passive (we want to
+;                                    ; accept connections only), and actpass (we will do both). This value will be used in
+;                                    ; the outgoing SDP when offering and for incoming SDP offers when the remote party sends
+;                                    ; actpass
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

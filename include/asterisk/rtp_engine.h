@@ -353,6 +353,61 @@ struct ast_rtp_engine_ice {
 	void (*ice_lite)(struct ast_rtp_instance *instance);
 };
 
+/*! \brief DTLS setup types */
+enum ast_rtp_dtls_setup {
+	AST_RTP_DTLS_SETUP_ACTIVE,   /*!< Endpoint is willing to inititate connections */
+	AST_RTP_DTLS_SETUP_PASSIVE,  /*!< Endpoint is willing to accept connections */
+	AST_RTP_DTLS_SETUP_ACTPASS,  /*!< Endpoint is willing to both accept and initiate connections */
+	AST_RTP_DTLS_SETUP_HOLDCONN, /*!< Endpoint does not want the connection to be established right now */
+};
+
+/*! \brief DTLS connection states */
+enum ast_rtp_dtls_connection {
+        AST_RTP_DTLS_CONNECTION_NEW,      /*!< Endpoint wants to use a new connection */
+	AST_RTP_DTLS_CONNECTION_EXISTING, /*!< Endpoint wishes to use existing connection */
+};
+
+/*! \brief DTLS fingerprint hashes */
+enum ast_rtp_dtls_hash {
+	AST_RTP_DTLS_HASH_SHA1, /*!< SHA-1 fingerprint hash */
+};
+
+/*! \brief DTLS configuration structure */
+struct ast_rtp_dtls_cfg {
+	unsigned int enabled:1;                /*!< Whether DTLS support is enabled or not */
+	unsigned int verify:1;                 /*!< Whether to request and verify a client certificate when acting as server */
+	unsigned int rekey;                    /*!< Interval at which to renegotiate and rekey - defaults to 0 (off) */
+	enum ast_rtp_dtls_setup default_setup; /*!< Default setup type to use for outgoing */
+	enum ast_srtp_suite suite;             /*!< Crypto suite in use */
+	char *certfile;                        /*!< Certificate file */
+	char *pvtfile;                         /*!< Private key file */
+	char *cipher;                          /*!< Cipher to use */
+	char *cafile;                          /*!< Certificate authority file */
+	char *capath;                          /*!< Path to certificate authority */
+};
+
+/*! \brief Structure that represents the optional DTLS SRTP support within an RTP engine */
+struct ast_rtp_engine_dtls {
+	/*! Set the configuration of the DTLS support on the instance */
+	int (*set_configuration)(struct ast_rtp_instance *instance, const struct ast_rtp_dtls_cfg *dtls_cfg);
+	/*! Get if the DTLS SRTP support is active or not */
+	int (*active)(struct ast_rtp_instance *instance);
+	/*! Stop and terminate DTLS SRTP support */
+	void (*stop)(struct ast_rtp_instance *instance);
+	/*! Reset the connection and start fresh */
+	void (*reset)(struct ast_rtp_instance *instance);
+	/*! Get the current connection state */
+	enum ast_rtp_dtls_connection (*get_connection)(struct ast_rtp_instance *instance);
+	/*! Get the current setup state */
+	enum ast_rtp_dtls_setup (*get_setup)(struct ast_rtp_instance *instance);
+	/*! Set the remote setup state */
+	void (*set_setup)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_setup setup);
+	/*! Set the remote fingerprint */
+	void (*set_fingerprint)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash, const char *fingerprint);
+	/*! Get the local fingerprint */
+	const char *(*get_fingerprint)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash);
+};
+
 /*! Structure that represents an RTP stack (engine) */
 struct ast_rtp_engine {
 	/*! Name of the RTP engine, used when explicitly requested */
@@ -426,6 +481,8 @@ struct ast_rtp_engine {
 	int (*sendcng)(struct ast_rtp_instance *instance, int level);
 	/*! Callback to pointer for optional ICE support */
 	struct ast_rtp_engine_ice *ice;
+	/*! Callback to pointer for optional DTLS SRTP support */
+	struct ast_rtp_engine_dtls *dtls;
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
@@ -2013,6 +2070,43 @@ int ast_rtp_engine_unload_format(const struct ast_format *format);
  * \retval NULL if no ICE support available
  */
 struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Obtain a pointer to the DTLS support present on an RTP instance
+ *
+ * \param instance the RTP instance
+ *
+ * \retval DTLS support if present
+ * \retval NULL if no DTLS support available
+ */
+struct ast_rtp_engine_dtls *ast_rtp_instance_get_dtls(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Parse DTLS related configuration options
+ *
+ * \param dtls_cfg a DTLS configuration structure
+ * \param name name of the configuration option
+ * \param value value of the configuration option
+ *
+ * \retval 0 if handled
+ * \retval -1 if not handled
+ */
+int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, const char *value);
+
+/*!
+ * \brief Copy contents of a DTLS configuration structure
+ *
+ * \param src_cfg source DTLS configuration structure
+ * \param dst_cfg destination DTLS configuration structure
+ */
+void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rtp_dtls_cfg *dst_cfg);
+
+/*!
+ * \brief Free contents of a DTLS configuration structure
+ *
+ * \param dtls_cfg a DTLS configuration structure
+ */
+void ast_rtp_dtls_cfg_free(struct ast_rtp_dtls_cfg *dtls_cfg);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
