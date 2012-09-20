@@ -999,17 +999,6 @@ enum channelreloadreason {
 	CHANNEL_ACL_RELOAD,
 };
 
-
-/*! \brief Structure to handle ao2-container for named groups */
-struct namedgroup_entry {
-	/*! string representation of group */
-	char *name;
-
-	/*! pre-built hash of groupname string */
-	unsigned int hash;
-};
-
-
 /*!
  * \note None of the datastore API calls lock the ast_channel they are using.
  *       So, the channel should be locked before calling the functions that
@@ -2454,20 +2443,20 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 
 ast_group_t ast_get_group(const char *s);
 
-/*! \brief Print call- and pickup groups into buffer */
+/*! \brief Print call and pickup groups into buffer */
 char *ast_print_group(char *buf, int buflen, ast_group_t group);
 
 /*! \brief Opaque struct holding a namedgroups set, i.e. a set of group names */
 struct ast_namedgroups;
 
-/*! \brief Create an ast_namedgroups set with group name from comma separated string s */
+/*! \brief Create an ast_namedgroups set with group names from comma separated string */
 struct ast_namedgroups *ast_get_namedgroups(const char *s);
 struct ast_namedgroups *ast_unref_namedgroups(struct ast_namedgroups *groups);
 struct ast_namedgroups *ast_ref_namedgroups(struct ast_namedgroups *groups);
 /*! \brief Return TRUE if group a and b contain at least one common groupname */
 int ast_namedgroups_intersect(struct ast_namedgroups *a, struct ast_namedgroups *b);
 
-/*! \brief Print named call groups and named pickup groups ---*/
+/*! \brief Print named call groups and named pickup groups */
 char *ast_print_namedgroups(struct ast_str **buf, struct ast_namedgroups *groups);
 
 /*!

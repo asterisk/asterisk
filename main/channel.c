@@ -8220,97 +8220,86 @@ ast_group_t ast_get_group(const char *s)
 	return group;
 }
 
+/*! \brief Named group member structure */
+struct namedgroup_member {
+	/*! Pre-built hash of group member name. */
+	unsigned int hash;
+	/*! Group member name. (End allocation of name string.) */
+	char name[1];
+};
+
 /*! \brief Comparison function used for named group container */
 static int namedgroup_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct namedgroup_entry *an = obj;
-	const struct namedgroup_entry *bn = arg;
+	const struct namedgroup_member *an = obj;
+	const struct namedgroup_member *bn = arg;
+
 	return strcmp(an->name, bn->name) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 /*! \brief Hashing function used for named group container */
 static int namedgroup_hash_cb(const void *obj, const int flags)
 {
-	const struct namedgroup_entry *entry = obj;
-	return entry->hash;
-}
+	const struct namedgroup_member *member = obj;
 
-static void namedgroup_dtor(void *obj)
-{
-	ast_free(((struct namedgroup_entry*)obj)->name);
-}
-
-/*! \internal \brief Actually a refcounted ao2_object. An indirect ao2_container to hide the implementation of namedgroups. */
-struct ast_namedgroups {
-	struct ao2_container *container;
-};
-
-static void ast_namedgroups_dtor(void *obj)
-{
-	ao2_cleanup(((struct ast_namedgroups *)obj)->container);
+	return member->hash;
 }
 
 struct ast_namedgroups *ast_get_namedgroups(const char *s)
 {
-	struct ast_namedgroups *namedgroups;
+	struct ao2_container *namedgroups;
 	char *piece;
 	char *c;
 
-	if (ast_strlen_zero(s)) {
-		return NULL;
-	}
-	c = ast_strdupa(s);
-	if (!c) {
-		return NULL;
-	}
-
-	namedgroups = ao2_alloc_options(sizeof(*namedgroups), ast_namedgroups_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!namedgroups) {
-		return NULL;
-	}
-	namedgroups->container = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 19, namedgroup_hash_cb, namedgroup_cmp_cb);
-	if (!namedgroups->container) {
-		ao2_ref(namedgroups, -1);
+	if (!s) {
 		return NULL;
 	}
 
 	/*! \brief Remove leading and trailing whitespace */
-	c = ast_strip(c);
+	c = ast_trim_blanks(ast_strdupa(ast_skip_blanks(s)));
+	if (ast_strlen_zero(c)) {
+		return NULL;
+	}
+
+	namedgroups = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 19,
+		namedgroup_hash_cb, namedgroup_cmp_cb);
+	if (!namedgroups) {
+		return NULL;
+	}
 
 	while ((piece = strsep(&c, ","))) {
-		struct namedgroup_entry *entry;
+		struct namedgroup_member *member;
+		size_t len;
 
 		/* remove leading/trailing whitespace */
 		piece = ast_strip(piece);
-		if (strlen(piece) == 0) {
-			ast_log(LOG_ERROR, "Syntax error parsing named group configuration '%s' at '%s'. Ignoring.\n", s, piece);
+
+		len = strlen(piece);
+		if (!len) {
 			continue;
 		}
 
-		entry = ao2_alloc_options(sizeof(*entry), namedgroup_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
-		if (!entry) {
+		member = ao2_alloc_options(sizeof(*member) + len, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+		if (!member) {
 			ao2_ref(namedgroups, -1);
 			return NULL;
 		}
-		entry->name = ast_strdup(piece);
-		if (!entry->name) {
-			ao2_ref(entry, -1);
-			ao2_ref(namedgroups, -1);
-			return NULL;
-		}
-		entry->hash = ast_str_hash(entry->name);
+		strcpy(member->name, piece);/* Safe */
+		member->hash = ast_str_hash(member->name);
+
 		/* every group name may exist only once, delete duplicates */
-		ao2_find(namedgroups->container, entry, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
-		ao2_link(namedgroups->container, entry);
-		ao2_ref(entry, -1);
+		ao2_find(namedgroups, member, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+		ao2_link(namedgroups, member);
+		ao2_ref(member, -1);
 	}
 
-	if (ao2_container_count(namedgroups->container) == 0) {
+	if (!ao2_container_count(namedgroups)) {
+		/* There were no group names specified. */
 		ao2_ref(namedgroups, -1);
 		namedgroups = NULL;
 	}
 
-	return namedgroups;
+	return (struct ast_namedgroups *) namedgroups;
 }
 
 struct ast_namedgroups *ast_unref_namedgroups(struct ast_namedgroups *groups)
@@ -8560,26 +8549,24 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 	return buf;
 }
 
-/*! \brief Print named call group and named pickup group ---*/
 char *ast_print_namedgroups(struct ast_str **buf, struct ast_namedgroups *group)
 {
-	struct namedgroup_entry *ng;
+	struct ao2_container *grp = (struct ao2_container *) group;
+	struct namedgroup_member *ng;
 	int first = 1;
 	struct ao2_iterator it;
 
-	if (group == NULL) {
+	if (!grp) {
 		return ast_str_buffer(*buf);
 	}
 
-	it = ao2_iterator_init(group->container, 0);
-	while ((ng = ao2_iterator_next(&it))) {
+	for (it = ao2_iterator_init(grp, 0); (ng = ao2_iterator_next(&it)); ao2_ref(ng, -1)) {
 		if (!first) {
 			ast_str_append(buf, 0, ", ");
 		} else {
 			first = 0;
 		}
 		ast_str_append(buf, 0, "%s", ng->name);
-		ao2_ref(ng, -1);
 	}
 	ao2_iterator_destroy(&it);
 
@@ -8598,16 +8585,24 @@ static int namedgroup_match(void *obj, void *arg, int flags)
 
 int ast_namedgroups_intersect(struct ast_namedgroups *a, struct ast_namedgroups *b)
 {
-	/*
-	 * Do a and b intersect? Since b is hash table average time complexity is O(|a|)
-	 */
 	void *match;
+	struct ao2_container *group_a = (struct ao2_container *) a;
+	struct ao2_container *group_b = (struct ao2_container *) b;
 
 	if (!a || !b) {
 		return 0;
 	}
 
-	match = ao2_callback(a->container, 0, namedgroup_match, b->container);
+	/*
+	 * Do groups a and b intersect?  Since a and b are hash tables,
+	 * the average time complexity is:
+	 * O(a.count <= b.count ? a.count : b.count)
+	 */
+	if (ao2_container_count(group_b) < ao2_container_count(group_a)) {
+		/* Traverse over the smaller group. */
+		SWAP(group_a, group_b);
+	}
+	match = ao2_callback(group_a, 0, namedgroup_match, group_b);
 	ao2_cleanup(match);
 
 	return match != NULL;

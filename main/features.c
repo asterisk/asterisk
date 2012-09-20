@@ -7707,26 +7707,98 @@ int ast_can_pickup(struct ast_channel *chan)
 static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
-	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
+	struct ast_channel *chan = arg;/*!< Channel wanting to pickup call */
+
+	if (chan == target) {
+		return 0;
+	}
 
 	ast_channel_lock(target);
+	if (ast_can_pickup(target)) {
+		/* Lock both channels. */
+		while (ast_channel_trylock(chan)) {
+			ast_channel_unlock(target);
+			sched_yield();
+			ast_channel_lock(target);
+		}
 
-	/*
-	 * Both, callgroup and namedcallgroup pickup variants are matched independently.
-	 * Checking for named group match is done last since it's a rather expensive operation.
-	 */
-	if (chan != target && ast_can_pickup(target)
-		&& ((ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
-			|| (ast_namedgroups_intersect(ast_channel_named_pickupgroups(chan), ast_channel_named_callgroups(target))))) {
 		/*
-		 * Return with the channel unlocked on purpose, else we would lock many channels with the chance for deadlock
+		 * Both callgroup and namedcallgroup pickup variants are
+		 * matched independently.  Checking for named group match is
+		 * done last since it's a more expensive operation.
 		 */
-		ast_channel_unlock(target);
-		return CMP_MATCH;
+		if ((ast_channel_pickupgroup(chan) & ast_channel_callgroup(target))
+			|| (ast_namedgroups_intersect(ast_channel_named_pickupgroups(chan),
+				ast_channel_named_callgroups(target)))) {
+			struct ao2_container *candidates = data;/*!< Candidate channels found. */
+
+			/* This is a candidate to pickup */
+			ao2_link(candidates, target);
+		}
+		ast_channel_unlock(chan);
 	}
 	ast_channel_unlock(target);
 
 	return 0;
+}
+
+struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan)
+{
+	struct ao2_container *candidates;/*!< Candidate channels found to pickup. */
+	struct ast_channel *target;/*!< Potential pickup target */
+
+	candidates = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+	if (!candidates) {
+		return NULL;
+	}
+
+	/* Find all candidate targets by group. */
+	ast_channel_callback(find_channel_by_group, chan, candidates, 0);
+
+	/* Find the oldest pickup target candidate */
+	target = NULL;
+	for (;;) {
+		struct ast_channel *candidate;/*!< Potential new older target */
+		struct ao2_iterator iter;
+
+		iter = ao2_iterator_init(candidates, 0);
+		while ((candidate = ao2_iterator_next(&iter))) {
+			if (!target) {
+				/* First target. */
+				target = candidate;
+				continue;
+			}
+			if (ast_tvcmp(ast_channel_creationtime(candidate), ast_channel_creationtime(target)) < 0) {
+				/* We have a new target. */
+				ast_channel_unref(target);
+				target = candidate;
+				continue;
+			}
+			ast_channel_unref(candidate);
+		}
+		ao2_iterator_destroy(&iter);
+		if (!target) {
+			/* No candidates found. */
+			break;
+		}
+
+		/* The found channel must be locked and ref'd. */
+		ast_channel_lock(target);
+
+		/* Recheck pickup ability */
+		if (ast_can_pickup(target)) {
+			/* This is the channel to pickup. */
+			break;
+		}
+
+		/* Someone else picked it up or the call went away. */
+		ast_channel_unlock(target);
+		ao2_unlink(candidates, target);
+		target = ast_channel_unref(target);
+	}
+	ao2_ref(candidates, -1);
+
+	return target;
 }
 
 /*!
@@ -7740,47 +7812,12 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 int ast_pickup_call(struct ast_channel *chan)
 {
 	struct ast_channel *target;/*!< Potential pickup target */
-	struct ao2_iterator *targets_it;/*!< Potential pickup targets, must find the oldest of them */
-	struct ast_channel *candidate;/*!< Potential new older target */
 	int res = -1;
+
 	ast_debug(1, "pickup attempt by %s\n", ast_channel_name(chan));
 
-	/*
-	 * Transfer all pickup-able channels to another container-iterator.
-	 * Iterate it to find the oldest channel.
-	 */
-	targets_it = (struct ao2_iterator *) ast_channel_callback(find_channel_by_group,
-		NULL, chan, OBJ_MULTIPLE);
-	if (!targets_it) {
-		/* Search really failed. */
-		goto no_pickup_calls;
-	}
-
-	target = NULL;
-	while ((candidate = ao2_iterator_next(targets_it))) {
-		if (!target) {
-			target = candidate;
-			continue;
-		}
-		if (ast_tvcmp(ast_channel_creationtime(candidate), ast_channel_creationtime(target)) < 0) {
-			ast_channel_unref(target);
-			target = candidate;
-			continue;
-		}
-		ast_channel_unref(candidate);
-	}
-	ao2_iterator_destroy(targets_it);
-	if (target) {
-		/* The found channel must be locked and ref'd. */
-		ast_channel_lock(target);
-		/* Recheck pickup ability */
-		if (!ast_can_pickup(target)) {
-			/* Someone else picked it up or the call went away. */
-			ast_channel_unlock(target);
-			target = ast_channel_unref(target);
-		}
-	}
-
+	/* The found channel is already locked. */
+	target = ast_pickup_find_by_group(chan);
 	if (target) {
 		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
 
@@ -7796,7 +7833,6 @@ int ast_pickup_call(struct ast_channel *chan)
 		target = ast_channel_unref(target);
 	}
 
-no_pickup_calls:
 	if (res < 0) {
 		ast_debug(1, "No call pickup possible... for %s\n", ast_channel_name(chan));
 		if (!ast_strlen_zero(pickupfailsound)) {

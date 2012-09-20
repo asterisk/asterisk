@@ -183,6 +183,16 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct as
  */
 int ast_can_pickup(struct ast_channel *chan);
 
+/*!
+ * \brief Find a pickup channel target by group.
+ *
+ * \param chan channel that initiated pickup.
+ *
+ * \retval target on success.  The returned channel is locked and reffed.
+ * \retval NULL on error.
+ */
+struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan);
+
 /*! \brief Pickup a call */
 int ast_pickup_call(struct ast_channel *chan);
 
