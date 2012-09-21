@@ -22,7 +22,7 @@
  *
  * \brief Jingle Channel Driver
  *
- * \extref Iksemel http://iksemel.jabberstudio.org/
+ * Iksemel http://iksemel.jabberstudio.org/
  * 
  * \ingroup channel_drivers
  */

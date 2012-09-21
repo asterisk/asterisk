@@ -21,7 +21,8 @@
  * \brief RADIUS CDR Support
  *
  * \author Philippe Sultan
- * \extref The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
+ * The Radius Client Library
+ * 	http://developer.berlios.de/projects/radiusclient-ng/
  *
  * \arg See also \ref AstCDR
  * \ingroup cdr_drivers
@@ -187,7 +188,8 @@ static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 	}
 
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
-	   of Acct-Unique-Session-Id on server side */
+	 * of Acct-Unique-Session-Id on server side 
+	 */
 	/* Channel */
 	if (!rc_avpair_add(rh, tosend, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))
 		return -1;

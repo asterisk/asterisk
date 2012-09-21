@@ -2142,8 +2142,8 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param line_number
- * @param yyscanner The scanner object.
+ * \param column_no line_number
+ * \param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)
 {

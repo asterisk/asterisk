@@ -568,6 +568,8 @@ static enum ast_device_state cc_state_to_devstate_map[] = {
  * \intenral
  * \brief lookup the ast_device_state mapped to cc_state
  *
+ * \param state
+ *
  * \return the correponding DEVICE STATE from the cc_state_to_devstate_map
  * when passed an internal state.
  */
@@ -1638,7 +1640,7 @@ struct extension_child_dialstring {
 	 *
 	 * \details
 	 * This serves mainly as a key when searching for a particular dialstring.
-	 * For instance, let's say that we have called device SIP/400@somepeer. This
+	 * For instance, let's say that we have called device SIP/400\@somepeer. This
 	 * device offers call completion, but then due to some unforeseen circumstance,
 	 * this device backs out and makes CC unavailable. When that happens, we need
 	 * to find the dialstring that corresponds to that device, and we use the

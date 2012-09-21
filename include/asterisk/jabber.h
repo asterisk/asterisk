@@ -21,7 +21,7 @@
  * \arg \ref AJI_intro
  * \ref res_jabber.c
  * \author Matt O'Gorman <mogorman@digium.com>
- * \extref IKSEMEL http://iksemel.jabberstudio.org
+ * IKSEMEL http://iksemel.jabberstudio.org
  *
  * \page AJI_intro AJI - The Asterisk Jabber Interface
  * 

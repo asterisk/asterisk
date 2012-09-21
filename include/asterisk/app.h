@@ -331,6 +331,9 @@ typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile
 
 /*!
  * \brief Set voicemail function callbacks
+ *
+ * \param copy_recording_to_vm_func, vm_index_to_foldername, vm_mailbox_snapshot_create
+ * \param vm_mailbox_snapshot_destroy, vm_msg_move, vm_msg_remove, vm_msg_forward, vm_msg_play
  * \param[in] has_voicemail_func set function pointer
  * \param[in] inboxcount_func set function pointer
  * \param[in] inboxcount2_func set function pointer
@@ -411,7 +414,10 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder);
 /*!
  * \brief Determine number of new/old messages in a mailbox
  * \since 1.0
- * \param[in] mailbox Mailbox specification in the format mbox[@context][&mbox2[@context2]][...]
+ * \param[in] mailbox Mailbox specification in the format
+ * 	/code
+ *	 mbox[\@context][&mbox2[\@context2]][...]
+ *	/code
  * \param[out] newmsgs Number of messages in the "INBOX" folder.  Includes number of messages in the "Urgent" folder, if any.
  * \param[out] oldmsgs Number of messages in the "Old" folder.
  * \retval 0 Success
@@ -495,7 +501,7 @@ struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_destroy(struct ast_vm_ma
  * \param context The voicemail context for the mailbox
  * \param num_msgs The number of messages to move
  * \param oldfolder The folder from where messages should be moved
- * \param old_msg_nums The message IDs of the messages to move
+ * \param old_msg_ids The message IDs of the messages to move
  * \param newfolder The folder to which messages should be moved
  * new folder. This array must be num_msgs sized.
  *
@@ -557,10 +563,12 @@ int ast_vm_msg_forward(const char *from_mailbox,
 /*!
  * \brief Play a voicemail msg back on a channel.
  *
+ * \param chan
  * \param mailbox msg is in.
  * \param context of mailbox.
- * \param voicemail folder to look in.
- * \param message number in the voicemailbox to playback to the channel.
+ * \param folder voicemail folder to look in.
+ * \param msg_num message number in the voicemailbox to playback to the channel.
+ * \param cb
  *
  * \retval 0 success
  * \retval -1 failure
@@ -643,7 +651,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
  * \param chan
  * \param file filename
  * \param fwd, rev, stop, pause, restart, skipms, offsetms
- * \param waitstream callback to invoke when fastforward or rewind occurrs.
+ * \param cb waitstream callback to invoke when fastforward or rewind occurrs.
  *
  * Before calling this function, set this to be the number
  * of ms to start from the beginning of the file.  When the function

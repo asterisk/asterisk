@@ -336,7 +336,7 @@ static void SHA1ProcessMessageBlock(SHA1Context *context)
 /*!
  * \brief This helper function finishes off the digest calculations.
  * \param context [in/out]  The context to pad.
- * \param Pad_byte [in]  The last byte to add to the message block
+ * \param Pad_Byte [in]  The last byte to add to the message block
  *     before the 0-padding and length.  This will contain the last
  *     bits of the message followed by another single bit.  If the
  *     message was an exact multiple of 8-bits long, Pad_Byte will
@@ -359,7 +359,7 @@ static void SHA1Finalize(SHA1Context * context, uint8_t Pad_Byte)
 /*!
  * \brief Pad message to be 512 bits.
  * \param context [in/out]  The context to pad.
- * \param Pad_byte [in]  Last padding byte.
+ * \param Pad_Byte [in]  Last padding byte.
  *
  *  According to the standard, the message must be padded to the next
  *  even multiple of 512 bits.  The first padding bit must be a '1'.

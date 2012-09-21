@@ -23,7 +23,7 @@
  *
  * \AsteriskTrunkWarning
  *
- * <hr/>
+ * <hr>
  * \section WorkflowDescription Description of the Issue Tracker Workflow
  * 
  * (This document is most beneficial for Asterisk bug marshals, however it is good

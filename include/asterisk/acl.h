@@ -189,7 +189,7 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
  * contained in the acl container. It will deny if any of the ast_ha lists
  * fail, and it will pass only if all of the rules pass.
  *
- * \param acl The head of the list of ACLs to evaluate
+ * \param acl_list The head of the list of ACLs to evaluate
  * \param addr An ast_sockaddr whose address is considered when matching rules
  * \param purpose Context for which the ACL is being applied - Establishes purpose of a notice when rejected
  *

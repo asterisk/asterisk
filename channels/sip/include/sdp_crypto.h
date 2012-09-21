@@ -65,7 +65,8 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
  * \details
  * The offer is stored on the sdp_crypto struct in a_crypto
  *
- * \param A valid sdp_crypto struct
+ * \param p A valid sdp_crypto struct
+ * \param taglen Length
  *
  * \retval 0 success
  * \retval nonzero failure

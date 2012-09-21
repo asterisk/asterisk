@@ -22,7 +22,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * \extref Uses the OpenSSL library, available at
+ * Uses the OpenSSL library, available at
  *	http://www.openssl.org/
  */
 

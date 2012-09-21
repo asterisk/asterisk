@@ -26,7 +26,7 @@
  *
  * \ingroup codecs
  *
- * \extref The Speex library - http://www.speex.org
+ * The Speex library - http://www.speex.org
  *
  */
 
@@ -44,7 +44,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <speex/speex.h>
 
 /* We require a post 1.1.8 version of Speex to enable preprocessing
-   and better type handling */   
+ * and better type handling
+ */   
 #ifdef _SPEEX_TYPES_H
 #include <speex/speex_preprocess.h>
 #endif

@@ -19,7 +19,7 @@
 /*! \file
  * \brief XMPP Interface
  * \author Joshua Colp <jcolp@digium.com>
- * \extref IKSEMEL http://iksemel.jabberstudio.org
+ * IKSEMEL http://iksemel.jabberstudio.org
  */
 
 #ifndef _ASTERISK_XMPP_H

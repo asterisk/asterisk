@@ -29,7 +29,7 @@
  *
  * \par See also
  * \arg Config_h323
- * \extref OpenH323 http://www.voxgratia.org/
+ * OpenH323 http://www.voxgratia.org/
  *
  * \ingroup channel_drivers
  */

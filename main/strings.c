@@ -70,7 +70,7 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 		}
 		/*
 		 * Ask vsnprintf how much space we need. Remember that vsnprintf
-		 * does not count the final <code>'\0'</code> so we must add 1.
+		 * does not count the final <code>'\\0'</code> so we must add 1.
 		 */
 		va_copy(aq, ap);
 		res = vsnprintf((*buf)->__AST_STR_STR + offset, (*buf)->__AST_STR_LEN - offset, fmt, aq);

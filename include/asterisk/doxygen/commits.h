@@ -23,23 +23,23 @@
  *
  * \AsteriskTrunkWarning
  *
- * <hr/>
+ * <hr>
  *
  * \section CommitMsgFormatting Commit Message Formatting
  *
  * The following illustrates the basic outline for commit messages:
  *
-  \verbatim
-  <One-liner summary of changes>
-
-  <Empty Line> 
-
-  <Verbose description of the changes>
-
-  <Empty Line> 
-
-  <Special Tags>
-  \endverbatim
+ * \verbatim
+ * <One-liner summary of changes>
+ *
+ * <Empty Line> 
+ *
+ * <Verbose description of the changes>
+ *
+ * <Empty Line> 
+ *
+ * <Special Tags>
+ * \endverbatim
  *
  * Some commit history viewers treat the first line of commit messages as the
  * summary for the commit.  So, an effort should be made to format our commit
@@ -52,7 +52,7 @@
  * \note For trivial commits, such as "fix the build", or "fix spelling mistake",
  *       the verbose description may not be necessary.
  *
- * <hr/>
+ * <hr>
  *
  * \section CommitMsgTags Special Tags for Commit Messages
  *
@@ -77,12 +77,12 @@
  *
  * Here is an example of what the template will generate for you:
  *
-  \verbatim
-  (closes issue #1234)
-  Reported by: SomeGuy
-  Patches:
-       fix_bug_1234.diff uploaded by SomeDeveloper (license 5678)
-  \endverbatim
+ * \verbatim
+ * (closes issue #1234)
+ * Reported by: SomeGuy
+ * Patches:
+ *      fix_bug_1234.diff uploaded by SomeDeveloper (license 5678)
+ * \endverbatim
  *
  * If the patch being committed was written by the person doing the commit,
  * and is not available to reference as an upload to the issue, there is no
@@ -97,7 +97,7 @@
  *
  * \note The trailing slash in the review URL is required.
  *
- * <hr/>
+ * <hr>
  *
  * \section CommitMsgSvnmerge Commit Messages with svnmerge
  *

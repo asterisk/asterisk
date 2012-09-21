@@ -22,7 +22,7 @@
  *
  * \author Tilghman Lesher <res_curl_v1@the-tilghman.com>
  *
- * \extref Depends on the CURL library  - http://curl.haxx.se/
+ * Depends on the CURL library  - http://curl.haxx.se/
  * 
  */
 

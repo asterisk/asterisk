@@ -104,9 +104,11 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((d
  * \brief Retrieves a connected ODBC object
  * \param name The name of the ODBC class for which a connection is needed.
  * \param flags One or more of the following flags:
- * \li RES_ODBC_SANITY_CHECK Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
- * \li RES_ODBC_INDEPENDENT_CONNECTION Return a handle which is independent from all others.  Usually used when starting a transaction.
- * \li RES_ODBC_CONNECTED Only return a connected handle.  Intended for use with peers which use idlecheck, which are checked periodically for reachability.
+ *	\li RES_ODBC_SANITY_CHECK Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
+ *	\li RES_ODBC_INDEPENDENT_CONNECTION Return a handle which is independent from all others.  Usually used when starting a transaction.
+ *	\li RES_ODBC_CONNECTED Only return a connected handle.  Intended for use with peers which use idlecheck, which are checked periodically for reachability.
+ * \param  file, function, lineno
+ *
  * \return ODBC object
  * \retval NULL if there is no connection available with the requested name.
  *

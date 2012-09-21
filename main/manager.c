@@ -22,7 +22,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * \extref OpenSSL http://www.openssl.org - for AMI/SSL
+ * OpenSSL http://www.openssl.org - for AMI/SSL
  *
  * At the moment this file contains a number of functions, namely:
  *

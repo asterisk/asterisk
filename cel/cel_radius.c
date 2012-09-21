@@ -20,7 +20,7 @@
  *
  * \brief RADIUS CEL Support
  * \author Philippe Sultan
- * \extref The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
+ * The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
  *
  * \arg See also \ref AstCEL
  * \ingroup cel_drivers

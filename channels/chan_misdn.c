@@ -24,7 +24,7 @@
  *
  * \author Christian Richter <crich@beronet.com>
  *
- * \extref MISDN http://www.misdn.org/
+ * MISDN http://www.misdn.org/
  *
  * \ingroup channel_drivers
  */

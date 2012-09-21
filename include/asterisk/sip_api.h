@@ -29,9 +29,10 @@ extern "C" {
 /*!
  * \brief Send a customized SIP INFO request
  *
+ * \param chan Channel
  * \param headers The headers to add to the INFO request
  * \param content_type The content type header to add
- * \param conten The body of the INFO request
+ * \param content The body of the INFO request
  * \param useragent_filter If non-NULL, only send the INFO if the
  * recipient's User-Agent contains useragent_filter as a substring
  *

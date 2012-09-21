@@ -621,7 +621,7 @@ static void send_leave_event(struct ast_channel *chan, const char *conf_name)
  * \brief Announce number of users in the conference bridge to the caller
  *
  * \param conference_bridge Conference bridge to peek at
- * \param (OPTIONAL) conference_bridge_user Caller
+ * \param conference_bridge_user Optional Caller
  *
  * \note if caller is NULL, the announcment will be sent to all participants in the conference.
  * \return Returns 0 on success, -1 if the user hung up
@@ -1258,7 +1258,7 @@ static int play_sound_file(struct conference_bridge *conference_bridge, const ch
  * \brief Play number into the conference bridge
  *
  * \param conference_bridge The conference bridge to say the number into
- * \param number to say
+ * \param say_number number to say
  *
  * \retval 0 success
  * \retval -1 failure

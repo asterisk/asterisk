@@ -29,11 +29,11 @@
  * \brief PostgreSQL CEL logger 
  * 
  * \author Steve Murphy <murf@digium.com>
- * \extref PostgreSQL http://www.postgresql.org/
+ * PostgreSQL http://www.postgresql.org/
  *
  * See also
  * \arg \ref Config_cel
- * \extref PostgreSQL http://www.postgresql.org/
+ * PostgreSQL http://www.postgresql.org/
  * \ingroup cel_drivers
  */
 

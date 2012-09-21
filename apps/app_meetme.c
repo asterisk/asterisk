@@ -1217,6 +1217,7 @@ static int user_max_cmp(void *obj, void *arg, int flags)
  * \param dynamic Mark the newly created conference as dynamic
  * \param refcount How many references to mark on the conference
  * \param chan The asterisk channel
+ * \param test
  *
  * \return A pointer to the conference struct, or NULL if it wasn't found and
  *         make or dynamic were not set.

@@ -29,7 +29,7 @@
  * 
  * \ingroup channel_drivers
  *
- * \extref Portaudio http://www.portaudio.com/
+ * Portaudio http://www.portaudio.com/
  *
  * To install portaudio v19 from svn, check it out using the following command:
  *  - svn co https://www.portaudio.com/repos/portaudio/branches/v19-devel

@@ -22,7 +22,7 @@
  *
  * \author Joshua Colp <jcolp@digium.com>
  *
- * \extref Iksemel http://code.google.com/p/iksemel/
+ * Iksemel http://code.google.com/p/iksemel/
  *
  * A reference module for interfacting Asterisk directly as a client or component with
  * an XMPP/Jabber compliant server.
@@ -1017,6 +1017,7 @@ static void xmpp_pubsub_create_affiliations(struct ast_xmpp_client *client, cons
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node_type the type of node to create
  * \param name the name of the node to create
+ * \param collection_name
  * \return void
  */
 static void xmpp_pubsub_create_node(struct ast_xmpp_client *client, const char *node_type, const
@@ -1078,6 +1079,7 @@ static void xmpp_pubsub_create_collection(struct ast_xmpp_client *client, const 
 /*!
  * \brief Create a PubSub leaf node.
  * \param client the configured XMPP client we use to connect to a XMPP server
+ * \param collection_name
  * \param leaf_name The name to use for this collection
  * \return void.
  */
@@ -1090,8 +1092,10 @@ static void xmpp_pubsub_create_leaf(struct ast_xmpp_client *client, const char *
 /*!
  * \brief Publish MWI to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
- * \param device the name of the device whose state to publish
- * \param device_state the state to publish
+ * \param mailbox The Mailbox
+ * \param context The Context
+ * \param oldmsgs Old messages
+ * \param newmsgs New Messages
  * \return void
  */
 static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *mailbox,
@@ -1278,6 +1282,7 @@ static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *no
 /*!
  * \brief Callback for handling PubSub events
  * \param data void pointer to ast_xmpp_client structure
+ * \param pak A pak
  * \return IKS_FILTER_EAT
  */
 static int xmpp_pubsub_handle_event(void *data, ikspak *pak)

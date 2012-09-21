@@ -68,7 +68,7 @@
  * \arg \b Main:  Asterisk Developer's website http://www.asterisk.org/developers/
  * \arg \b Bugs: The Issue Tracker https://issues.asterisk.org
  * \arg \b Lists: List Server http://lists.digium.com
- * \arg \b Wiki: The Asterisk Wiki 	http://www.voip-info.org
+ * \arg \b Wiki: The Asterisk Wiki 	http://wiki.asterisk..org
  * \arg \b Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
  * \arg \b Digium: The Asterisk Company http://www.digium.com
  */
@@ -92,8 +92,6 @@
  * \arg \ref AstExtState
  * \arg \ref AstDataRetrieval
  *
- * \subsection model_txt Generic Model
- * \verbinclude model.txt
  * \subsection channel_txt Channels
  * \arg See \ref Def_Channel
  */
@@ -224,7 +222,6 @@
  * - \ref pbx_retrieve_variable()
  * - \ref AstChanVar
  *
- *  \verbinclude channelvariables.tex
  */
 
 /*! 
@@ -281,7 +278,6 @@
  * \arg \ref enum.c
  * \arg \ref func_enum.c
  *
- * \verbinclude enum.txt
  */
 
 /*! 
@@ -334,7 +330,6 @@
 
 /*! 
  * \page Config_ast Asterisk.conf
- * \verbinclude asterisk-conf.txt
  */
 
 /*! 
@@ -373,11 +368,9 @@
  * IAX2 is implemented in \ref chan_iax2.c
  * \arg \link Config_iax iax.conf Configuration file example \endlink
  * \section iaxreadme IAX readme file
- * \verbinclude iax.txt
  * \section Config_iax IAX Configuration example
  * \verbinclude iax.conf.sample
  * \section iaxjitter IAX Jitterbuffer information
- * \verbinclude jitterbuffer.txt
  */
 
 /*! 
@@ -409,7 +402,6 @@
  * \page README_misdn MISDN documentation
  * \arg See \ref Config_misdn
  * \section mISDN configuration
- * \verbinclude misdn.txt
  */
 
 /*! 
@@ -728,7 +720,6 @@
  * \arg Configuration file:
  * \verbinclude res_config_sqlite.conf
  * \arg SQL tables:
- * \verbinclude res_config_sqlite.txt
  * \arg See also:
  * http://www.sqlite.org
  */

@@ -24,7 +24,7 @@
  * \author Russell Bryant <russell@digium.com>
  *
  * Here is a useful mailing list post that describes SMDI protocol details:
- * \ref http://lists.digium.com/pipermail/asterisk-dev/2003-June/000884.html
+ * http://lists.digium.com/pipermail/asterisk-dev/2003-June/000884.html
  *
  * \todo This module currently has its own mailbox monitoring thread.  This should
  * be converted to MWI subscriptions and just let the optional global voicemail

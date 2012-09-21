@@ -178,7 +178,7 @@ static void *skel_level_alloc(const char *cat);
  * internally by the Config Options code to check if an level has already been added to the
  * container that will be swapped for the live container on a successul reload.
  *
- * \param container A non-active container to search for a level
+ * \param tmp_container A non-active container to search for a level
  * \param category The category associated with the level to check for
  * \retval non-NULL The level from the container
  * \retval NULL The level does not exist in the container
@@ -648,6 +648,14 @@ static int unload_module(void)
 	return ast_unregister_application(app);
 }
 
+/*!
+ * \brief Load the module
+ *
+ * \par The configuration file
+ * 
+ * The application app_skel uses a configuration file.
+ * \verbinclude app_skel.conf.sample
+ */
 static int load_module(void)
 {
 	if (aco_info_init(&cfg_info)) {

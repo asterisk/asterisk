@@ -28,7 +28,7 @@
  * \author Carl-Einar Thorner <cthorner@voicerd.com>
  * \author Russell Bryant <russell@digium.com>
  *
- * \extref OpenLDAP http://www.openldap.org
+ * OpenLDAP http://www.openldap.org
  */
 
 /*** MODULEINFO

@@ -23,7 +23,7 @@
  *
  * \AsteriskTrunkWarning
  *
- * <hr/>
+ * <hr>
  *
  * \section ReviewboardGuidelines Usage Guidelines
  *
@@ -52,7 +52,7 @@
  * testing and should not have blatant coding guidelines violations.  Lack of
  * these things is careless and shows disrespect for those reviewing your code.
  *
- * <hr/>
+ * <hr>
  *
  * \section ReviewboardPosting Posting Code to Reviewboard
  *
@@ -61,25 +61,25 @@
  * The easiest way to post a patch to reviewboard is by using the
  * post-review tool.  We have post-review in our repotools svn repository.
  *
-   \verbatim
-   $ svn co http://svn.digium.com/svn/repotools
-   \endverbatim
+ * \verbatim
+ * $ svn co http://svn.digium.com/svn/repotools
+ * \endverbatim
  *
  * Essentially, post-review is a script that will take the output of "svn
  * diff" and create a review request out of it for you.  So, once you have
  * a working copy with the changes you expect in the output of "svn diff",
  * you just run the following command:
  *
-   \verbatim
-   $ post-review
-   \endverbatim
+ * \verbatim
+ * $ post-review
+ * \endverbatim
  * 
  * If it complains about not knowing which reviewboard server to use, add
  * the server option:
  * 
-   \verbatim
-   $ post-review --server=https://reviewboard.asterisk.org
-   \endverbatim
+ * \verbatim
+ * $ post-review --server=https://reviewboard.asterisk.org
+ * \endverbatim
  *
  * \subsection postreviewnewfiles Dealing with New Files
  * 
@@ -90,15 +90,15 @@
  * 
  * You would start by getting your changes applied to a trunk working copy:
  * 
-   \verbatim
-   $ cd .../trunk
-   \endverbatim
+ * \verbatim
+ * $ cd .../trunk
+ * \endverbatim
  * 
  * Then, apply the changes from your branch:
  * 
-   \verbatim
-   $ svn merge .../trunk .../team/group/my_new_code
-   \endverbatim
+ * \verbatim
+ * $ svn merge .../trunk .../team/group/my_new_code
+ * \endverbatim
  * 
  * Now, the code is merged into your working copy.  However, for a new
  * file, subversion treats it as a copy of existing content and not new
@@ -106,10 +106,10 @@
  * it to show up in the diff, use the following commands so svn treats it
  * as new content and publishes it in the diff:
  * 
-   \verbatim
-   $ svn revert my_new_file.c
-   $ svn add my_new_file.c
-   \endverbatim
+ * \verbatim
+ * $ svn revert my_new_file.c
+ * $ svn add my_new_file.c
+ * \endverbatim
  * 
  * Now, it should work, and you can run "post-review" as usual.
  *
@@ -121,7 +121,7 @@
  * Apply the current version of the diff to a working copy as described above,
  * and then run the following command:
  * 
-   \verbatim
-   $ post-review -r <review request number>
-   \endverbatim
+ * \verbatim
+ * $ post-review -r <review request number>
+ * \endverbatim
  */

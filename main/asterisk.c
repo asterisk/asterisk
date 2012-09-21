@@ -21,6 +21,15 @@
 /*!
  * \mainpage Asterisk -- The Open Source Telephony Project
  *
+ * \par Welcome
+ *
+ * This documentation created by the Doxygen project clearly explains the
+ * internals of the Asterisk software. This documentation contains basic
+ * examples, developer documentation, support information, and information
+ * for upgrading.
+ * 
+ * 
+ * 
  * \par Developer Documentation for Asterisk
  *
  * This is the main developer documentation for Asterisk. It is
@@ -44,19 +53,19 @@
  * of <a href="http://www.digium.com">Digium, Inc</a>.
  *
  * \author Mark Spencer <markster@digium.com>
- * Also see \ref AstCREDITS
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists, and IRC
  * channels for your use.
+ *
+ * \todo Add pages for mailinglists, IRC, etc...
  */
 
 /*! \file
-  \brief Top level source file for Asterisk  - the Open Source PBX. Implementation
-  of PBX core functions and CLI interface.
-
+ * \brief Top level source file for Asterisk - the Open Source PBX.
+ *	Implementation of PBX core functions and CLI interface.
  */
 
 /*** MODULEINFO
@@ -1024,7 +1033,8 @@ static struct sigaction ignore_sig_handler = {
 
 AST_MUTEX_DEFINE_STATIC(safe_system_lock);
 /*! \brief Keep track of how many threads are currently trying to wait*() on
- *  a child process */
+ *  a child process
+ */
 static unsigned int safe_system_level = 0;
 static struct sigaction safe_system_prev_handler;
 
@@ -1200,7 +1210,7 @@ static void ast_network_puts(const char *string)
 }
 
 /*!
- * write the string to the console, and all attached
+ * \brief write the string to the console, and all attached
  * console clients
  */
 void ast_console_puts(const char *string)
@@ -1537,10 +1547,10 @@ static int ast_tryconnect(void)
 }
 
 /*! \brief Urgent handler
-
- Called by soft_hangup to interrupt the poll, read, or other
- system call.  We don't actually need to do anything though.
- Remember: Cannot EVER ast_log from within a signal handler
+ *
+ * Called by soft_hangup to interrupt the poll, read, or other
+ * system call.  We don't actually need to do anything though.
+ * Remember: Cannot EVER ast_log from within a signal handler
  */
 static void _urg_handler(int num)
 {
@@ -1628,8 +1638,10 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
-/*! \brief We set ourselves to a high priority, that we might pre-empt everything
-   else.  If your PBX has heavy activity on it, this is a good thing.  */
+/*! \brief We set ourselves to a high priority, that we might pre-empt
+ * everything else.  If your PBX has heavy activity on it, this is a
+ * good thing.
+ */
 int ast_set_priority(int pri)
 {
 	struct sched_param sched;
@@ -1737,7 +1749,8 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	}
 
 	/* Re-acquire lock and check if someone changed the niceness, in which
-	 * case someone else has taken over the shutdown. */
+	 * case someone else has taken over the shutdown.
+	 */
 	ast_mutex_lock(&safe_system_lock);
 	if (shuttingdown != niceness) {
 		if (shuttingdown == NOT_SHUTTING_DOWN && option_verbose && ast_opt_console) {
@@ -3478,7 +3491,10 @@ int main(int argc, char *argv[])
 
 	if (getenv("HOME"))
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
-	/* Check for options */
+	/*! \brief Check for options
+	 *
+	 * \todo Document these options
+	 */
 	while ((c = getopt(argc, argv, "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:")) != -1) {
 		/*!\note Please keep the ordering here to alphabetical, capital letters
 		 * first.  This will make it easier in the future to select unused

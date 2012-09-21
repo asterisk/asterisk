@@ -23,7 +23,7 @@
  *
  * \AsteriskTrunkWarning
  *
- * <hr/>
+ * <hr>
  *
  * \section Introduction Introduction
  * This document will instruct you how to setup a local git mirror of the 
@@ -32,7 +32,7 @@
  * Why would you want that? for starters, it's a fast repository browser
  * and works well even when offline. More on why and why not at 'Pros and Cons'
  * in the end of this document. 
- * <hr/>
+ * <hr>
  *
  * \section Setup Setup
  *
@@ -120,7 +120,7 @@
   echo 'exclude res_snmp' >build_tools/conf
  \endverbatim
  *
- * <hr/>
+ * <hr>
  *
  * \section Update Update
  * The main Asterisk repository tends to get new commits occasionally. I
@@ -133,7 +133,7 @@
  \endverbatim
  *
  * Next, get all updates.
- * <hr/>
+ * <hr>
  *
  * \section Usage Usage
  *
@@ -183,7 +183,7 @@
   git svn rebase --fetch-all
  \endverbatim
  *
- * <hr/>
+ * <hr>
  *
  * \section ProsAndCons Pros and Cons
  *
@@ -233,5 +233,5 @@
  *  to test that. Even if it will, it will require an extra step of manual
  *  editing.
  *
- * <hr/>
+ * <hr>
  */

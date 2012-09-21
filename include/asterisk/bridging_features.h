@@ -197,7 +197,7 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * \param dtmf DTMF string to be activated upon
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
- * \param Optional destructor callback for hook_pvt data
+ * \param destructor Optional destructor callback for hook_pvt data
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -226,9 +226,9 @@ int ast_bridge_features_hook(struct ast_bridge_features *features,
 /*! \brief Set a callback on the features structure to receive talking notifications on.
  *
  * \param features Bridge features structure
- * \param talker_cb, Callback function to execute when talking events occur in the bridge core.
+ * \param talker_cb Callback function to execute when talking events occur in the bridge core.
  * \param pvt_data Optional unique data that will be passed with the talking events.
- * \param Optional destructor callback for pvt data.
+ * \param talker_destructor Optional destructor callback for pvt data.
  *
  * \retval 0, success
  * \retval -1, failure

@@ -371,7 +371,7 @@ struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original)
  * \param netmask The netmask configured in the host access rule.
  * \param result The resultant address after applying the netmask to the given address
  * \retval 0 Successfully applied netmask
- * \reval -1 Failed to apply netmask
+ * \retval -1 Failed to apply netmask
  */
 static int apply_netmask(const struct ast_sockaddr *addr, const struct ast_sockaddr *netmask,
 		struct ast_sockaddr *result)

@@ -23,7 +23,7 @@
  * References:
  * - http://www.xmpp.org - The XMPP standards foundation
  *
- * \extref Iksemel http://code.google.com/p/iksemel/
+ * Iksemel http://code.google.com/p/iksemel/
  *
  * \todo If you unload this module, chan_gtalk/jingle will be dead. How do we handle that?
  * \todo Dialplan applications need RETURN variable, like JABBERSENDSTATUS
@@ -3304,6 +3304,7 @@ static void aji_init_event_distribution(struct aji_client *client)
 /*!
  * \brief Callback for handling PubSub events
  * \param data void pointer to aji_client structure
+ * \param pak A pak
  * \return IKS_FILTER_EAT
  */
 static int aji_handle_pubsub_event(void *data, ikspak *pak)
@@ -3476,8 +3477,10 @@ static void aji_publish_device_state(struct aji_client *client, const char *devi
 /*!
  * \brief Publish MWI to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
- * \param device the name of the device whose state to publish
- * \param device_state the state to publish
+ * \param mailbox The mailbox
+ * \param context The context
+ * \param oldmsgs Old messages
+ * \param newmsgs New messages
  * \return void
  */
 static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
@@ -3833,6 +3836,7 @@ static void aji_create_pubsub_collection(struct aji_client *client, const char
 /*!
  * \brief Create a PubSub leaf node.
  * \param client the configured XMPP client we use to connect to a XMPP server
+ * \param collection_name The name to use for this collection
  * \param leaf_name The name to use for this collection
  * \return void.
  */
@@ -3847,6 +3851,7 @@ const char *leaf_name)
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param node_type the type of node to create
  * \param name the name of the node to create
+ * \param collection_name The name to use for this collection
  * \return iks*
  */
 static iks* aji_create_pubsub_node(struct aji_client *client, const char *node_type, const

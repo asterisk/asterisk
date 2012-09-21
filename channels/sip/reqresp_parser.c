@@ -1523,9 +1523,9 @@ AST_TEST_DEFINE(parse_contact_header_test)
  * item is found that is not supported, it is copied to the unsupported
  * out buffer.
  *
- * \param option list
+ * \param options list
  * \param unsupported out buffer (optional)
- * \param unsupported out buffer length (optional)
+ * \param unsupported_len out buffer length (optional)
  */
 unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len)
 {

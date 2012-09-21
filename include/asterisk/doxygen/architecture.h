@@ -26,7 +26,7 @@
 \author Russell Bryant <russell@digium.com>
 \AsteriskTrunkWarning
 
-<hr/>
+<hr>
 
 \section ArchTOC Table of Contents
 
@@ -64,7 +64,7 @@
     -# \ref ArchThreadDebugging
     -# \ref ArchMemoryDebugging
 
-<hr/>
+<hr>
 
 \section ArchIntro Introduction
 
@@ -295,7 +295,7 @@ many events to one call.  The CEL modules look very similar to CDR modules.
 
 CEL modules typically live in the <code>cel/</code> directory in the source tree.
 
-For a list of CEL handlers, see \ref cel_drivers.
+For a list of CEL handlers, see cel_drivers.
 
 For additional information about the CEL API, see
 <code>include/asterisk/cel.h</code>.
@@ -407,7 +407,7 @@ When an inbound channel executes an application such as <code>Dial()</code>, an
 outbound channel is created and bridged to the inbound channel once it answers.
 
 Dialplan applications always execute in the context of a channel thread.  Dialplan
-functions \i almost always do, as well.  However, it is possible to read and write
+functions almost always do, as well.  However, it is possible to read and write
 dialplan functions from an asynchronous interface such as the Asterisk CLI or the
 manager interface (AMI).  However, it is still always the channel thread that is
 the owner of the ast_channel data structure.
@@ -710,7 +710,7 @@ The implementation of this memory debugging system can be found in
 <code>main/astmm.c</code>.
 
 
-<hr/>
+<hr>
 Return to the \ref ArchTOC
  */
 
