@@ -125,7 +125,7 @@ enum busy_detect {
 	BUSY_PAT_PERCENT = 7,	/*!< The percentage difference between measured and actual pattern */
 	BUSY_THRESHOLD = 100,	/*!< Max number of ms difference between max and min times in busy */
 	BUSY_MIN = 75,		/*!< Busy must be at least 80 ms in half-cadence */
-	BUSY_MAX =3100		/*!< Busy can't be longer than 3100 ms in half-cadence */
+	BUSY_MAX = 3100		/*!< Busy can't be longer than 3100 ms in half-cadence */
 };
 
 /*! Remember last 15 units */
@@ -689,15 +689,15 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		}
 		/* We are at the end of a DTMF detection block */
 		/* Find the peak row and the peak column */
-		row_energy[0] = goertzel_result (&s->td.dtmf.row_out[0]);
-		col_energy[0] = goertzel_result (&s->td.dtmf.col_out[0]);
+		row_energy[0] = goertzel_result(&s->td.dtmf.row_out[0]);
+		col_energy[0] = goertzel_result(&s->td.dtmf.col_out[0]);
 
 		for (best_row = best_col = 0, i = 1; i < 4; i++) {
-			row_energy[i] = goertzel_result (&s->td.dtmf.row_out[i]);
+			row_energy[i] = goertzel_result(&s->td.dtmf.row_out[i]);
 			if (row_energy[i] > row_energy[best_row]) {
 				best_row = i;
 			}
-			col_energy[i] = goertzel_result (&s->td.dtmf.col_out[i]);
+			col_energy[i] = goertzel_result(&s->td.dtmf.col_out[i]);
 			if (col_energy[i] > col_energy[best_col]) {
 				best_col = i;
 			}
@@ -1392,13 +1392,13 @@ static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_fra
 		switch (f->subclass.format.id) {
 			case AST_FORMAT_ULAW:
 				s = ast_alloca(len * 2);
-				for (x = 0;x < len; x++) {
+				for (x = 0; x < len; x++) {
 					s[x] = AST_MULAW(odata[x]);
 				}
 				break;
 			case AST_FORMAT_ALAW:
 				s = ast_alloca(len * 2);
-				for (x = 0;x < len; x++) {
+				for (x = 0; x < len; x++) {
 					s[x] = AST_ALAW(odata[x]);
 				}
 				break;
@@ -1462,7 +1462,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		case AST_FORMAT_ULAW:
 		case AST_FORMAT_TESTLAW:
 			shortdata = ast_alloca(af->datalen * 2);
-			for (x = 0;x < len; x++) {
+			for (x = 0; x < len; x++) {
 				shortdata[x] = AST_MULAW(odata[x]);
 			}
 			break;
@@ -1647,7 +1647,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 		}
 	}
 	dsp->freqcount = max;
-	dsp->ringtimeout= 0;
+	dsp->ringtimeout = 0;
 }
 
 unsigned int ast_dsp_get_sample_rate(const struct ast_dsp *dsp)
@@ -1766,7 +1766,7 @@ void ast_dsp_reset(struct ast_dsp *dsp)
 	}
 	memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
 	memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));
-	dsp->ringtimeout= 0;
+	dsp->ringtimeout = 0;
 }
 
 int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
