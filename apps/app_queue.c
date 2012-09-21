@@ -7788,6 +7788,7 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 	}
 	if (member_reload) {
 		ao2_callback(q->members, OBJ_NODATA, mark_member_dead, NULL);
+		q->found = 1;
 	}
 
 	/* On the first pass we just read the parameters of the queue */
@@ -7824,6 +7825,17 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		ao2_unlock(q);
 	}
 	queue_t_unref(q, "Expiring creation reference");
+}
+
+static int remove_members_and_mark_unfound(void *obj, void *arg, int flags)
+{
+	struct call_queue *q = obj;
+	char *queuename = arg;
+	if (!q->realtime && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
+		q->found = 0;
+
+	}
+	return 0;
 }
 
 static int mark_dead_and_unfound(void *obj, void *arg, int flags)
@@ -7866,6 +7878,7 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	char *cat;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	const int queue_reload = ast_test_flag(mask, QUEUE_RELOAD_PARAMETERS);
+	const int member_reload = ast_test_flag(mask, QUEUE_RELOAD_MEMBER);
 
 	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
@@ -7885,6 +7898,10 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	 * with the other queue parameters at all*/
 	if (queue_reload) {
 		ao2_callback(queues, OBJ_NODATA | OBJ_NOLOCK, mark_dead_and_unfound, (char *) queuename);
+	}
+
+	if (member_reload) {
+		ao2_callback(queues, OBJ_NODATA, remove_members_and_mark_unfound, (char *) queuename);
 	}
 
 	/* Chug through config file */
