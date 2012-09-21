@@ -480,13 +480,13 @@ static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rat
 {
 	int i;
 
-	s->lasthit = 0;
-	s->current_hit = 0;
 	for (i = 0; i < 4; i++) {
 		goertzel_init(&s->row_out[i], dtmf_row[i], sample_rate);
 		goertzel_init(&s->col_out[i], dtmf_col[i], sample_rate);
-		s->energy = 0.0;
 	}
+	s->lasthit = 0;
+	s->current_hit = 0;
+	s->energy = 0.0;
 	s->current_sample = 0;
 	s->hits = 0;
 	s->misses = 0;
@@ -498,10 +498,11 @@ static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rat
 static void ast_mf_detect_init(mf_detect_state_t *s, unsigned int sample_rate)
 {
 	int i;
-	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
+
 	for (i = 0; i < 6; i++) {
 		goertzel_init(&s->tone_out[i], mf_tones[i], sample_rate);
 	}
+	s->hits[0] = s->hits[1] = s->hits[2] = s->hits[3] = s->hits[4] = 0;
 	s->current_sample = 0;
 	s->current_hit = 0;
 }
@@ -1016,6 +1017,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 
 static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 {
+	short samp;
 	int x;
 	int y;
 	int pass;
@@ -1028,10 +1030,11 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			pass = dsp->gsamp_size - dsp->gsamps;
 		}
 		for (x = 0; x < pass; x++) {
+			samp = s[x];
+			dsp->genergy += (int32_t) samp * (int32_t) samp;
 			for (y = 0; y < dsp->freqcount; y++) {
-				goertzel_sample(&dsp->freqs[y], s[x]);
+				goertzel_sample(&dsp->freqs[y], samp);
 			}
-			dsp->genergy += s[x] * s[x];
 		}
 		s += pass;
 		dsp->gsamps += pass;
@@ -1730,7 +1733,8 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 		for (i = 0; i < 6; i++) {
 			goertzel_reset(&s->tone_out[i]);
 		}
-		s->hits[4] = s->hits[3] = s->hits[2] = s->hits[1] = s->hits[0] = s->current_hit = 0;
+		s->hits[4] = s->hits[3] = s->hits[2] = s->hits[1] = s->hits[0] = 0;
+		s->current_hit = 0;
 		s->current_sample = 0;
 	} else {
 		dtmf_detect_state_t *s = &dsp->digit_state.td.dtmf;
@@ -1739,7 +1743,8 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 			goertzel_reset(&s->row_out[i]);
 			goertzel_reset(&s->col_out[i]);
 		}
-		s->lasthit = s->current_hit = 0;
+		s->lasthit = 0;
+		s->current_hit = 0;
 		s->energy = 0.0;
 		s->current_sample = 0;
 		s->hits = 0;
