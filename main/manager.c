@@ -1112,7 +1112,7 @@ struct mansession_session {
 	int authenticated;	/*!< Authentication status */
 	int readperm;		/*!< Authorization for reading */
 	int writeperm;		/*!< Authorization for writing */
-	char inbuf[1025];	/*!< Buffer -  we use the extra byte to add a '\0' and simplify parsing */
+	char inbuf[1025];	/*!< Buffer -  we use the extra byte to add a '\\0' and simplify parsing */
 	int inlen;		/*!< number of buffered bytes */
 	struct ao2_container *whitefilters;	/*!< Manager event filters - white list */
 	struct ao2_container *blackfilters;	/*!< Manager event filters - black list */

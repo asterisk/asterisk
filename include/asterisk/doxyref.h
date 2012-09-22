@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2009, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -17,9 +17,9 @@
 /*! 
  * \file
  *
- * This is the main header file used for generating miscellaneous developer
- * documentation using doxygen.  This also pulls in all of the documentation
- * that is in include/asterisk/doxygen/.
+ * This is the main header file used for generating miscellaneous documentation
+ * using Doxygen.  This also utilizes the documentation in 
+ * include/asterisk/doxygen/ header files.
  */
 
 /* 
@@ -133,19 +133,19 @@
 /*! 
  * \page AstDebug Debugging
  * \section debug Debugging
- * \verbinclude backtrace.txt
+ * \todo include backtrace txt that was removed
  */
 
 /*!
  * \page AstSpeech The Generic Speech Recognition API
  * \section debug The Generic Speech Recognition API
- * \verbinclude speechrec.txt
+ * \todo include missing speechrec txt
  */
 
 /*! 
  * \page DataStores Channel Data Stores
  * \section debug Channel Data Stores
- * \verbinclude datastores.txt
+ * \todo include missing datastores txt
  */
 
 /*! 
@@ -153,7 +153,7 @@
  * \section ami AMI - The manager Interface
  * \arg \link Config_ami Configuration file \endlink
  * \arg \ref manager.c
- * \verbinclude manager.txt
+ * \todo include missing manager txt
  */
 
 /*!
@@ -161,8 +161,8 @@
  * \section realtime ARA - a generic API to storage and retrieval
  * Implemented in \ref config.c 
  * Implemented in \ref pbx_realtime.c 
- * \verbinclude realtime.txt
- * \verbinclude extconfig.txt
+ * \todo include missing realtime txt
+ * \todo include missing extconfig txt
  */
 
 /*! 
@@ -191,7 +191,7 @@
  * \arg \ref cdr_drivers
  * \arg \ref Config_cdr CDR configuration files
  *
- * \verbinclude cdrdriver.txt
+ * \todo include missing cdrdriver txt
  */
 
 /*! 
@@ -207,7 +207,7 @@
 /*! 
  * \page AstVideo Video support in Asterisk
  * \section sectAstVideo Video support in Asterisk
- * \verbinclude video.txt
+ * \todo include missing video txt
  */
 
 /*! 
@@ -486,7 +486,7 @@
  * \par See also
  * \arg \ref cdrconf
  * \arg Implemented in \ref cdr_csv.c
- * \verbinclude cdr_csv.conf.sample
+ * \verbinclude cdr.conf.sample
  */
 
 /*! 
@@ -517,8 +517,7 @@
 
 /*! 
  * \page cdr_odbc Adaptive ODBC CDR driver configuration
- * \arg See also \ref cdrconf
- * \arg Implemented in \ref cdr_adaptive_odbc.c
+ * \li See also \ref cdrconf
  * \verbinclude cdr_adaptive_odbc.conf.sample
  * See also:
  * \arg http://www.unixodbc.org
@@ -531,13 +530,6 @@
  * See also:
  * \arg http://www.postgresql.org
  * \verbinclude cdr_pgsql.conf.sample
- */
-
-/*!
- * \page cdr_radius RADIUS CDR driver configuration
- * \arg See also \ref cdrconf
- * \arg Implemented in \ref cdr_radius.c
- * \verbinclude cdr_radius.conf.sample
  */
 
 /*! 
@@ -649,6 +641,28 @@
  */
 
 /*! 
+ * \page AstHTTP AMI over HTTP support
+ * The http.c file includes support for manager transactions over
+ * http.
+ * \section ami AMI - The manager Interface
+ * \arg \link Config_ami Configuration file \endlink
+ */
+
+/*! 
+ * \page res_config_sqlite SQLite Resource driver configuration
+ * \arg Implemented in \ref res_config_sqlite.c
+ * \arg Configuration file:
+ * \verbinclude res_config_sqlite.conf
+ * \arg SQL tables:
+ * \arg See also:
+ * http://www.sqlite.org
+ */
+
+/*
+ * Doxygen Groups
+ */
+
+/*! 
  * \addtogroup cdr_drivers Module: CDR Drivers
  * \section CDR_generic Asterisk CDR Drivers
  * \brief CDR drivers are loaded dynamically, each loaded CDR driver produce 
@@ -656,7 +670,6 @@
  * \arg \ref Config_mod "Modules Configuration"
  * \arg \ref Config_cdr "CDR Configuration"
  */
-
 
 /*! 
  * \addtogroup channel_drivers Module: Asterisk Channel Drivers
@@ -705,23 +718,3 @@
  * \addtogroup rtp_engines Module: RTP Engines
  * \section rtp_engine_blah Asterisk RTP Engines
  */
-
-/*! 
- * \page AstHTTP AMI over HTTP support
- * The http.c file includes support for manager transactions over
- * http.
- * \section ami AMI - The manager Interface
- * \arg \link Config_ami Configuration file \endlink
- */
-
-/*! 
- * \page res_config_sqlite SQLite Resource driver configuration
- * \arg Implemented in \ref res_config_sqlite.c
- * \arg Configuration file:
- * \verbinclude res_config_sqlite.conf
- * \arg SQL tables:
- * \arg See also:
- * http://www.sqlite.org
- */
-
-

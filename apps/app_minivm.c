@@ -26,7 +26,6 @@
  * based on the Comedian Mail voicemail system (app_voicemail.c).
  * 
  * \par See also
- * \arg \ref Config_minivm
  * \arg \ref Config_minivm_examples
  * \arg \ref App_minivm
  *

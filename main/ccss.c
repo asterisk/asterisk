@@ -565,7 +565,7 @@ static enum ast_device_state cc_state_to_devstate_map[] = {
 };
 
 /*!
- * \intenral
+ * \internal
  * \brief lookup the ast_device_state mapped to cc_state
  *
  * \param state

@@ -265,7 +265,7 @@ void ast_format_sdp_generate(const struct ast_format *format, unsigned int paylo
  *
  * \param format to set
  * \param id format id to set on format
- * \param set_attributes, are there attributes to set on this format. 0 == false, 1 == True.
+ * \param set_attributes are there attributes to set on this format. 0 == false, 1 == True.
  * \param ... var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
  *
  * \details Example usage.

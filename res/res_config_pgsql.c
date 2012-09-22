@@ -139,7 +139,7 @@ static void destroy_table(struct tables *table)
  *  \return -2 on query failure that resulted in disconnection
  *  \return 0 on success
  *
- *  \example see pgsql_exec for full example
+ *  \note see pgsql_exec for full example
  */
 static int _pgsql_exec(const char *database, const char *tablename, const char *sql, PGresult **result)
 {

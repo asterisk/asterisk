@@ -20,7 +20,7 @@
  *
  * \brief Debugging routines for file descriptor leaks
  *
- * \author Tilghman Lesher <tlesher@digium.com>
+ * \author Tilghman Lesher \verbatim <tlesher@digium.com> \endverbatim
  */
 
 /*** MODULEINFO

@@ -21,18 +21,18 @@
  * \author Mark Spencer <markster@digium.com>
  * \brief Comedian Mail - Voicemail System
  *
- * \extref unixODBC (http://www.unixodbc.org/)
- * \extref A source distribution of University of Washington's IMAP c-client
+ * unixODBC (http://www.unixodbc.org/)
+ * A source distribution of University of Washington's IMAP c-client
  *         (http://www.washington.edu/imap/)
  *
  * \par See also
  * \arg \ref Config_vm
  * \note For information about voicemail IMAP storage, https://wiki.asterisk.org/wiki/display/AST/IMAP+Voicemail+Storage
- * \ingroup applications
- * \note This module requires res_adsi to load. This needs to be optional
+  * \ingroup applications
+ * \todo This module requires res_adsi to load. This needs to be optional
  * during compilation.
  *
- * \note This file is now almost impossible to work with, due to all \#ifdefs.
+ * \todo This file is now almost impossible to work with, due to all \#ifdefs.
  *       Feels like the database code before realtime. Someone - please come up
  *       with a plan to clean this up.
  */
@@ -1053,7 +1053,7 @@ static int message_range_and_existence_check(struct vm_state *vms, const char *m
  *
  * \note the "move" parameter is only honored for IMAP voicemail presently
  * \retval 0 Success
- * \revval other Failure
+ * \retval other Failure
  */
 static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg, int box, int *newmsg, int move);
 
@@ -4804,7 +4804,7 @@ static const char *ast_str_encode_mime(struct ast_str **end, ssize_t maxlen, con
  * \param chan
  * \param category
  * \param imap if == 1, indicates the target folder for the email notification to be sent to will be an IMAP mailstore. This causes additional mailbox headers to be set, which would facilitate searching for the email in the destination IMAP folder.
- * \param flag
+ * \param flag, msg_id
  *
  * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
  */
@@ -5630,7 +5630,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
  * \param recip
  * \param fmt
  * \param dir
- * \param flag
+ * \param flag, dest_folder
  *
  * This is only used by file storage based mailboxes.
  *
@@ -5746,7 +5746,7 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 
 /** 
  * \brief Determines if the given folder has messages.
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param mailbox The \@ delimited string for user\@context. If no context is found, uses 'default' for the context.
  * \param folder the folder to look in
  *
  * This function is used when the mailbox is stored in a filesystem back end.
@@ -15089,6 +15089,7 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_destroy(struct ast_vm
  * \param msg_ids An array of message identifiers
  * \param num_msgs The number of identifiers in msg_ids
  * \param msg_nums [out] The message indexes corresponding to the given
+ * \param vmu
  * message IDs
  * \pre vms must have open_mailbox() called on it prior to this function.
  *

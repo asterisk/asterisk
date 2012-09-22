@@ -5799,8 +5799,9 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 
 
 /*! \brief Dump all members in a specific queue to the database
- *
+ * \code
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>;<state_interface>[|...]
+ * \endcode
  */
 static void dump_queue_members(struct call_queue *pm_queue)
 {

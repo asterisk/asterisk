@@ -40,7 +40,7 @@
  * \todo Transaction support
  *
  * ******** Wishlist: Improvements
- * - Support of SIP domains for devices, so that we match on username@domain in the From: header
+ * - Support of SIP domains for devices, so that we match on username\@domain in the From: header
  * - Connect registrations with a specific device on the incoming call. It's not done
  *   automatically in Asterisk
  *
@@ -729,7 +729,6 @@ static const struct sip_reasons {
 	Default setttings are used as a channel setting and as a default when
 	configuring devices
 */
-/*@{*/
 static char default_language[MAX_LANGUAGE];      /*!< Default language setting for new channels */
 static char default_callerid[AST_MAX_EXTENSION]; /*!< Default caller ID for sip messages */
 static char default_mwi_from[80];                /*!< Default caller ID for MWI updates */
@@ -749,7 +748,6 @@ static struct ast_codec_pref default_prefs;        /*!< Default codec prefs */
 static char default_zone[MAX_TONEZONE_COUNTRY];        /*!< Default tone zone for channels created from the SIP driver */
 static unsigned int default_transports;            /*!< Default Transports (enum sip_transport) that are acceptable */
 static unsigned int default_primary_transport;     /*!< Default primary Transport (enum sip_transport) for outbound connections to devices */
-/*@}*/
 
 static struct sip_settings sip_cfg;		/*!< SIP configuration data.
 					\note in the future we could have multiple of these (per domain, per device group etc) */

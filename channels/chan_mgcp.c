@@ -24,7 +24,6 @@
  *
  * \par See also
  * \arg \ref Config_mgcp
- * \arg \ref res_pktccops
  *
  * \ingroup channel_drivers
  */

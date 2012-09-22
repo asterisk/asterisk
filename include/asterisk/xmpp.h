@@ -234,7 +234,7 @@ int ast_xmpp_chatroom_join(struct ast_xmpp_client *client, const char *room, con
  *
  * \param client Pointer to the client
  * \param nickname Nickname to use
- * \param Address Address of the room
+ * \param address Address of the room
  * \param message Message itself
  *
  * \retval 0 on success

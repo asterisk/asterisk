@@ -121,7 +121,8 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif /* HAVE_CAP */
 #endif /* linux */
 
-#include "asterisk/paths.h"	/* we define here the variables so better agree on the prototype */
+/* we define here the variables so to better agree on the prototype */
+#include "asterisk/paths.h"
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
@@ -410,8 +411,6 @@ const char *ast_file_version_find(const char *file)
 		return iterator->version;
 	return NULL;
 }
-
-
 
 struct thread_list_t {
 	AST_RWLIST_ENTRY(thread_list_t) list;

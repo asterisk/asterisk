@@ -8799,7 +8799,7 @@ static const char * const months[] =
 };
 /*! /brief Build timing
  *
- * /param i, info
+ * /param i info
  * /param info_in
  *
  */

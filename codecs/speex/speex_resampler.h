@@ -113,14 +113,15 @@ enum {
 struct SpeexResamplerState_;
 typedef struct SpeexResamplerState_ SpeexResamplerState;
 
-/** Create a new resampler with integer input and output rates.
- * @param nb_channels Number of channels to be processed
- * @param in_rate Input sampling rate (integer number of Hz).
- * @param out_rate Output sampling rate (integer number of Hz).
- * @param quality Resampling quality between 0 and 10, where 0 has poor quality
- * and 10 has very high quality.
- * @return Newly created resampler state
- * @retval NULL Error: not enough memory
+/** \brief Create a new resampler with integer input and output rates.
+ * \param nb_channels Number of channels to be processed
+ * \param in_rate Input sampling rate (integer number of Hz).
+ * \param out_rate Output sampling rate (integer number of Hz).
+ * \param quality Resampling quality between 0 and 10, where 0 has poor quality
+ * 	and 10 has very high quality.
+ * \param err
+ * \return Newly created resampler state
+ * \retval NULL Error: not enough memory
  */
 SpeexResamplerState *speex_resampler_init(spx_uint32_t nb_channels, 
                                           spx_uint32_t in_rate, 

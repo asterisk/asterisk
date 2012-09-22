@@ -18,7 +18,7 @@
 
 /*!
  * \file
- * \author Tilghman Lesher <tlesher AT digium DOT com>
+ * \author Tilghman Lesher \verbatim <tlesher AT digium DOT com> \endverbatim
  *
  * \brief kqueue timing interface
  */

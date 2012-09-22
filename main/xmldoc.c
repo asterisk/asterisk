@@ -2014,13 +2014,14 @@ static char *_xmldoc_build_field(struct ast_xml_node *node, const char *var, int
 }
 
 /*!
- *  \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree
- *  \param type Type of element (application, function, ...).
- *  \param name Name of element (Dial, Echo, Playback, ...).
- *  \param var Name of field to return (synopsis, description, etc).
- *  \param raw Field only contains text, no other elements inside it.
- *  \retval NULL On error.
- *  \retval Field text content on success.
+ * \brief Get the content of a field (synopsis, description, etc) from an asterisk document tree
+ * \param type Type of element (application, function, ...).
+ * \param name Name of element (Dial, Echo, Playback, ...).
+ * \param var Name of field to return (synopsis, description, etc).
+ * \param module
+ * \param raw Field only contains text, no other elements inside it.
+ * \retval NULL On error.
+ * \retval Field text content on success.
  */
 static char *xmldoc_build_field(const char *type, const char *name, const char *module, const char *var, int raw)
 {

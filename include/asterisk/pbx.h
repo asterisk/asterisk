@@ -821,7 +821,7 @@ int ast_context_add_include(const char *context, const char *include,
  * \brief Add a context include
  *
  * \param con context to add the include to
- * \param value include include to add
+ * \param value include value to add
  * \param registrar who registered the context
  *
  * Adds an include taking a struct ast_context as the first parameter

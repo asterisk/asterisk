@@ -97,9 +97,11 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
 }
 
 /*! \brief Initialize an audiohook structure
+ *
  * \param audiohook Audiohook structure
  * \param type
- * \param init, source, init_flags
+ * \param source, init_flags
+ *
  * \return Returns 0 on success, -1 on failure
  */
 int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source, enum ast_audiohook_init_flags init_flags)

@@ -15,9 +15,10 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
+
 /*! \file
  *
- *  \brief A program to read in the /tmp/refs file generated
+ * \brief A program to read in the /tmp/refs file generated
  *         by astobj2 code when the REF_DEBUG macro is defined.
  *         It will read in the file line by line, and
  *         sort the data out by object, and check to see
@@ -28,15 +29,15 @@
  *         this program reads in the /tmp/refs file and 
  *         generates no output. No news is good news.
  *  The contents of the /tmp/refs file looks like this:
+ * \verbatim
+ * 0x84fd718 -1   astobj2.c:926:cd_cb_debug (deref object via container destroy) [@1]
+ * 0x84fd718 =1   chan_sip.c:19760:build_user (allocate a user struct)
+ * 0x84fd718 +1   chan_sip.c:21558:reload_config (link user into users table) [@1]
+ * 0x84fd718 -1   chan_sip.c:2376:unref_user (Unref the result of build_user. Now, the table link is the only one left.) [@2]
+ * 0x84fd718 **call destructor** astobj2.c:926:cd_cb_debug (deref object via container destroy)
+ * \endverbatim
  *
-0x84fd718 -1   astobj2.c:926:cd_cb_debug (deref object via container destroy) [@1]
-0x84fd718 =1   chan_sip.c:19760:build_user (allocate a user struct)
-0x84fd718 +1   chan_sip.c:21558:reload_config (link user into users table) [@1]
-0x84fd718 -1   chan_sip.c:2376:unref_user (Unref the result of build_user. Now, the table link is the only one left.) [@2]
-0x84fd718 **call destructor** astobj2.c:926:cd_cb_debug (deref object via container destroy)
- *
- *
- *  \author Steve Murphy <murf@digium.com>
+ * \author Steve Murphy <murf@digium.com>
  */
 
 /*** MODULEINFO

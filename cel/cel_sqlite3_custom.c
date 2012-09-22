@@ -65,7 +65,9 @@ static const char name[] = "cel_sqlite3_custom";
 static sqlite3 *db = NULL;
 
 static char table[80];
-/*! XXX \bug Handling of this var is crash prone on reloads */
+/*!
+ * \bug Handling of this var is crash prone on reloads
+ */
 static char *columns;
 static struct ast_event_sub *event_sub = NULL;
 

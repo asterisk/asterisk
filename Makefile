@@ -746,6 +746,7 @@ progdocs:
 	doxygen -u contrib/asterisk-ng-doxygen
 	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
 	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen -
+	rm -f contrib/asterisk-ng-doxygen.bak
 
 install-logrotate:
 	if [ ! -d "$(DESTDIR)$(ASTETCDIR)/../logrotate.d" ]; then \

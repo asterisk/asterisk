@@ -36,7 +36,7 @@
  *
  * \section conf_sec Configuration
  *
- * The main configuration file is res_config_sqlite.conf. It must be readable or
+ * The main configuration file is res_config_sqlite.conf.sample It must be readable or
  * res_config_sqlite will fail to start. It is suggested to use the sample file
  * in this package as a starting point. The file has only one section
  * named <code>general</code>. Here are the supported parameters :

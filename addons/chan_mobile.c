@@ -1524,8 +1524,8 @@ static int rfcomm_read_and_append_char(int rsock, char **buf, size_t count, size
 }
 
 /*!
- * \brief Read until '\r\n'.
- * This function consumes the '\r\n' but does not add it to buf.
+ * \brief Read until \verbatim '\r\n'. \endverbatim
+ * This function consumes the \verbatim'\r\n'\endverbatim but does not add it to buf.
  */
 static int rfcomm_read_until_crlf(int rsock, char **buf, size_t count, size_t *in_count)
 {
@@ -1552,7 +1552,7 @@ static int rfcomm_read_until_crlf(int rsock, char **buf, size_t count, size_t *i
 
 /*!
  * \brief Read the remainder of an AT SMS prompt.
- * \note the entire parsed string is '\r\n> '
+ * \note the entire parsed string is \verbatim '\r\n> ' \endverbatim
  *
  * By the time this function is executed, only a ' ' is left to read.
  */
@@ -1570,7 +1570,7 @@ e_return:
 }
 
 /*!
- * \brief Read until a \r\nOK\r\n message.
+ * \brief Read until a \verbatim \r\nOK\r\n \endverbatim message.
  */
 static int rfcomm_read_until_ok(int rsock, char **buf, size_t count, size_t *in_count)
 {
@@ -1667,7 +1667,7 @@ static int rfcomm_read_until_ok(int rsock, char **buf, size_t count, size_t *in_
 
 /*!
  * \brief Read the remainder of a +CMGR message.
- * \note the entire parsed string is '+CMGR: ...\r\n...\r\n...\r\n...\r\nOK\r\n'
+ * \note the entire parsed string is \verbatim '+CMGR: ...\r\n...\r\n...\r\n...\r\nOK\r\n' \endverbatim
  */
 static int rfcomm_read_cmgr(int rsock, char **buf, size_t count, size_t *in_count)
 {
@@ -1686,7 +1686,7 @@ static int rfcomm_read_cmgr(int rsock, char **buf, size_t count, size_t *in_coun
 
 /*!
  * \brief Read and AT result code.
- * \note the entire parsed string is '\r\n<result code>\r\n'
+ * \note the entire parsed string is \verbatim '\r\n<result code>\r\n' \endverbatim
  */
 static int rfcomm_read_result(int rsock, char **buf, size_t count, size_t *in_count)
 {
@@ -1724,7 +1724,7 @@ e_return:
 
 /*!
  * \brief Read the remainder of an AT command.
- * \note the entire parsed string is '<at command>\r'
+ * \note the entire parsed string is \verbatim '<at command>\r' \endverbatim
  */
 static int rfcomm_read_command(int rsock, char **buf, size_t count, size_t *in_count)
 {
@@ -1758,8 +1758,8 @@ static int rfcomm_read_command(int rsock, char **buf, size_t count, size_t *in_c
  * \endverbatim
  *
  * These formats correspond to AT result codes, AT commands, and the AT SMS
- * prompt respectively.  When messages are read the leading and trailing '\r'
- * and '\n' characters are discarded.  If the given buffer is not large enough
+ * prompt respectively.  When messages are read the leading and trailing \verbatim '\r' \endverbatim
+ * and \verbatim '\n' \endverbatim characters are discarded.  If the given buffer is not large enough
  * to hold the response, what does not fit in the buffer will be dropped.
  *
  * \note The rfcomm connection to the device is asynchronous, so there is no
@@ -2132,7 +2132,7 @@ static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value)
  * \brief Parse a CLIP event.
  * \param hfp an hfp_pvt struct
  * \param buf the buffer to parse (null terminated)
- * @note buf will be modified when the CID string is parsed
+ * \note buf will be modified when the CID string is parsed
  * \return NULL on error (parse error) or a pointer to the caller id
  * information in buf
  */
@@ -2178,7 +2178,7 @@ static char *hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
  * \brief Parse a CMTI notification.
  * \param hfp an hfp_pvt struct
  * \param buf the buffer to parse (null terminated)
- * @note buf will be modified when the CMTI message is parsed
+ * \note buf will be modified when the CMTI message is parsed
  * \return -1 on error (parse error) or the index of the new sms message
  */
 static int hfp_parse_cmti(struct hfp_pvt *hfp, char *buf)
@@ -2203,7 +2203,7 @@ static int hfp_parse_cmti(struct hfp_pvt *hfp, char *buf)
  * \param from_number a pointer to a char pointer which will store the from
  * number
  * \param text a pointer to a char pointer which will store the message text
- * @note buf will be modified when the CMGR message is parsed
+ * \note buf will be modified when the CMGR message is parsed
  * \retval -1 parse error
  * \retval 0 success
  */
@@ -2266,7 +2266,7 @@ static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, ch
  * \brief Parse a CUSD answer.
  * \param hfp an hfp_pvt struct
  * \param buf the buffer to parse (null terminated)
- * @note buf will be modified when the CUSD string is parsed
+ * \note buf will be modified when the CUSD string is parsed
  * \return NULL on error (parse error) or a pointer to the cusd message
  * information in buf
  */

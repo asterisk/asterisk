@@ -20,7 +20,7 @@
  * \file
  * \brief Gosub tests
  *
- * \author\verbatim Tilghman Lesher <tlesher AT digium DOT com> \endverbatim
+ * \author Tilghman Lesher \verbatim <tlesher AT digium DOT com> \endverbatim
  *
  * \ingroup tests
  */
