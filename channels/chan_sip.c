@@ -12096,8 +12096,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		} else {
 			/* Even if we are using RPID, we shouldn't leak information in the From if the user wants
 			 * their callerid restricted */
-			l = CALLERID_UNKNOWN;
-			n = l;
+			l = "anonymous";
+			n = CALLERID_UNKNOWN;
 			d = FROMDOMAIN_INVALID;
 		}
 	}
