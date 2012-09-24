@@ -74,11 +74,12 @@ enum h264_attr_keys {
 
 static enum ast_format_cmp_res h264_format_attr_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
 {
-	unsigned int idc1 = fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] ? fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] : 0x42;
-	unsigned int idc2 = fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC] ? fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC] : 0x42;
+	if (!fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] || !fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC] ||
+	    (fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] == fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC])) {
+		return AST_FORMAT_CMP_EQUAL;
+	}
 
-	/* We are as permissive as possible to ensure the maximum number of calls succeed */
-	return (idc1 == idc2) ? AST_FORMAT_CMP_EQUAL : AST_FORMAT_CMP_NOT_EQUAL;
+	return AST_FORMAT_CMP_NOT_EQUAL;
 }
 
 static int h264_format_attr_get_joint(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result)
