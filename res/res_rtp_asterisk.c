@@ -1587,9 +1587,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 		new_duration = (new_duration & ~0xFFFF) | samples;
 
 		if (event_end & 0x80) {
-			/* End event.  Absorb re-transmits, and account for some endpoints
-			 * that erroneously increment the timestamp during re-transmissions */
-			if ((seqno != rtp->last_seqno) && (timestamp > rtp->last_end_timestamp + 320)) {
+			if ((seqno != rtp->last_seqno) && (timestamp > rtp->last_end_timestamp)) {
 				rtp->last_end_timestamp = timestamp;
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
