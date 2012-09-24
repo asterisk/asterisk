@@ -5746,9 +5746,10 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 
 		xmitres = transmit_invite(p, SIP_INVITE, 1, 2, uri);
-		sip_pvt_unlock(p);
-		if (xmitres == XMIT_ERROR)
+		if (xmitres == XMIT_ERROR) {
+			sip_pvt_unlock(p);
 			return -1;
+		}
 		p->invitestate = INV_CALLING;
 
 		/* Initialize auto-congest time */
@@ -5756,6 +5757,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 								dialog_unref(_data, "dialog ptr dec when SCHED_REPLACE del op succeeded"),
 								dialog_unref(p, "dialog ptr dec when SCHED_REPLACE add failed"),
 								dialog_ref(p, "dialog ptr inc when SCHED_REPLACE add succeeded") );
+		sip_pvt_unlock(p);
 	}
 	return res;
 }
@@ -5849,6 +5851,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	
 	if (p->mwi) {
 		p->mwi->call = NULL;
+		p->mwi = NULL;
 	}
 
 	if (dumphistory)
@@ -5859,29 +5862,37 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 			ao2_ref(p->options->outboundproxy, -1);
 		}
 		ast_free(p->options);
+		p->options = NULL;
 	}
 
 	if (p->notify) {
 		ast_variables_destroy(p->notify->headers);
 		ast_free(p->notify->content);
 		ast_free(p->notify);
+		p->notify = NULL;
 	}
 	if (p->rtp) {
 		ast_rtp_instance_destroy(p->rtp);
+		p->rtp = NULL;
 	}
 	if (p->vrtp) {
 		ast_rtp_instance_destroy(p->vrtp);
+		p->vrtp = NULL;
 	}
 	if (p->trtp) {
 		ast_rtp_instance_destroy(p->trtp);
+		p->trtp = NULL;
 	}
-	if (p->udptl)
+	if (p->udptl) {
 		ast_udptl_destroy(p->udptl);
+		p->udptl = NULL;
+	}
 	if (p->refer) {
 		if (p->refer->refer_call) {
 			p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
 		}
 		ast_free(p->refer);
+		p->refer = NULL;
 	}
 	if (p->route) {
 		free_old_route(p->route);
@@ -5932,6 +5943,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	ast_string_field_free_memory(p);
 
 	ast_cc_config_params_destroy(p->cc_params);
+	p->cc_params = NULL;
 
 	if (p->epa_entry) {
 		ao2_ref(p->epa_entry, -1);
@@ -8238,7 +8250,9 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 
 		/* Iterate a list of dialogs already matched by Call-id */
 		while (iterator && (sip_pvt_ptr = ao2_iterator_next(iterator))) {
+			sip_pvt_lock(sip_pvt_ptr);
 			found = match_req_to_dialog(sip_pvt_ptr, &args);
+			sip_pvt_unlock(sip_pvt_ptr);
 
 			switch (found) {
 			case SIP_REQ_MATCH:
@@ -8256,6 +8270,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			case SIP_REQ_NOT_MATCH:
 			default:
 				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search");
+				break;
 			}
 		}
 		if (iterator) {
@@ -10437,8 +10452,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	int is_strict = FALSE;		/*!< Strict routing flag */
 	int is_outbound = ast_test_flag(&p->flags[0], SIP_OUTGOING);	/* Session direction */
 
-	memset(req, 0, sizeof(struct sip_request));
-	
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Tx: %s", sip_methods[sipmethod].text);
 	
 	if (!seqno) {
@@ -11811,19 +11824,21 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 
 	/* copy the entire request then restore the original data and content
 	 * members from the dst request */
-	memcpy(dst, src, sizeof(*dst));
+	*dst = *src;
 	dst->data = duplicate;
 	dst->content = duplicate_content;
 
 	/* copy the data into the dst request */
-	if (!dst->data && !(dst->data = ast_str_create(ast_str_strlen(src->data) + 1)))
+	if (!dst->data && !(dst->data = ast_str_create(ast_str_strlen(src->data) + 1))) {
 		return;
+	}
 	ast_str_copy_string(&dst->data, src->data);
 
 	/* copy the content into the dst request (if it exists) */
 	if (src->content) {
-		if (!dst->content && !(dst->content = ast_str_create(ast_str_strlen(src->content) + 1)))
+		if (!dst->content && !(dst->content = ast_str_create(ast_str_strlen(src->content) + 1))) {
 			return;
+		}
 		ast_str_copy_string(&dst->content, src->content);
 	}
 }
@@ -12296,8 +12311,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 {
 	struct sip_request req;
 	struct ast_variable *var;
-	
-	req.method = sipmethod;
+
 	if (init) {/* Bump branch even on initial requests */
 		p->branch ^= ast_random();
 		p->invite_branch = p->branch;
@@ -18101,13 +18115,18 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 	char durbuf[10];
 	int duration;
 	int durh, durm, durs;
-	struct ast_channel *c = cur->owner;
+	struct ast_channel *c;
 	struct __show_chan_arg *arg = __arg;
 	int fd = arg->fd;
 
+	sip_pvt_lock(cur);
+	c = cur->owner;
 
-	if (cur->subscribed != NONE) /* Subscriptions */
+	if (cur->subscribed != NONE) {
+		/* Subscriptions */
+		sip_pvt_unlock(cur);
 		return 0;	/* don't care, we scan all channels */
+	}
 
 	if (!cur->rtp) {
 		if (sipdebug) {
@@ -18116,10 +18135,12 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 				invitestate2string[cur->invitestate].desc,
 				"-- No RTP active");
 		}
+		sip_pvt_unlock(cur);
 		return 0;	/* don't care, we scan all channels */
 	}
 
 	if (ast_rtp_instance_get_stats(cur->rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
+		sip_pvt_unlock(cur);
 		ast_log(LOG_WARNING, "Could not get RTP stats.\n");
 		return 0;
 	}
@@ -18150,6 +18171,7 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		stats.txjitter
 	);
 	arg->numchans++;
+	sip_pvt_unlock(cur);
 
 	return 0;	/* don't care, we scan all channels */
 }
@@ -18485,8 +18507,11 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 {
 	struct sip_pvt *cur = __cur;
 	struct __show_chan_arg *arg = __arg;
-	const struct ast_sockaddr *dst = sip_real_dst(cur);
-	
+	const struct ast_sockaddr *dst;
+
+	sip_pvt_lock(cur);
+	dst = sip_real_dst(cur);
+
 	/* XXX indentation preserved to reduce diff. Will be fixed later */
 	if (cur->subscribed == NONE && !arg->subscriptions) {
 		/* set if SIP transfer in progress */
@@ -18521,6 +18546,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 			);
 		arg->numchans++;
 	}
+	sip_pvt_unlock(cur);
 	return 0;	/* don't care, we scan all channels */
 }
 
