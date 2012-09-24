@@ -14183,6 +14183,11 @@ static int transmit_state_notify(struct sip_pvt *p, struct state_notify_data *da
 	struct sip_request req;
 	const struct cfsubscription_types *subscriptiontype;
 
+	/* If the subscription has not yet been accepted do not send a NOTIFY */
+	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+		return 0;
+	}
+
 	memset(from, 0, sizeof(from));
 	memset(to, 0, sizeof(to));
 
@@ -27224,7 +27229,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 					dialog_unref(p, "copying dialog ptr into extension state struct failed");
 				}
 			}
-			if ((data.state = ast_extension_state_extended(NULL, p->context, p->exten, &device_state_info)) < 0) {
+
+			sip_pvt_unlock(p);
+			data.state = ast_extension_state_extended(NULL, p->context, p->exten, &device_state_info);
+			sip_pvt_lock(p);
+
+			if (data.state < 0) {
 				ao2_cleanup(device_state_info);
 				if (p->expiry > 0) {
 					ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension.\n", p->exten, p->context, ast_sockaddr_stringify(&p->sa));
