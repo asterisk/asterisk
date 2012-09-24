@@ -12228,11 +12228,17 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 {
 	int rtp_code;
 	struct ast_format_list fmt;
+	const char *mime;
+	unsigned int rate;
 
 	if (debug)
 		ast_verbose("Adding codec %d (%s) to SDP\n", format->id, ast_getformatname(format));
-	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 1, format, 0)) == -1)
+
+	if (((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 1, format, 0)) == -1) ||
+	    !(mime = ast_rtp_lookup_mime_subtype2(1, format, 0, ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0)) ||
+	    !(rate = ast_rtp_lookup_sample_rate2(1, format, 0))) {
 		return;
+	}
 
 	if (p->rtp) {
 		struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(p->rtp)->pref;
@@ -12240,10 +12246,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	} else /* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
 		return;
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n",
-		rtp_code,
-		ast_rtp_lookup_mime_subtype2(1, format, 0, ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
-		ast_rtp_lookup_sample_rate2(1, format, 0));
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code, mime, rate);
 
 	ast_format_sdp_generate(format, rtp_code, a_buf);
 
@@ -12289,6 +12292,8 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, struct ast_format *format
 			     int debug, int *min_packet_size)
 {
 	int rtp_code;
+	const char *subtype;
+	unsigned int rate;
 
 	if (!p->vrtp)
 		return;
@@ -12296,13 +12301,14 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, struct ast_format *format
 	if (debug)
 		ast_verbose("Adding video codec %d (%s) to SDP\n", format->id, ast_getformatname(format));
 
-	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->vrtp), 1, format, 0)) == -1)
+	if (((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->vrtp), 1, format, 0)) == -1) ||
+	    !(subtype = ast_rtp_lookup_mime_subtype2(1, format, 0, 0)) ||
+	    !(rate = ast_rtp_lookup_sample_rate2(1, format, 0))) {
 		return;
+	}
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-		       ast_rtp_lookup_mime_subtype2(1, format, 0, 0),
-		       ast_rtp_lookup_sample_rate2(1, format, 0));
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code, subtype, rate);
 
 	ast_format_sdp_generate(format, rtp_code, a_buf);
 }
