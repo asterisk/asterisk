@@ -12896,6 +12896,11 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	struct sip_request req;
 	const struct cfsubscription_types *subscriptiontype;
 
+	/* If the subscription has not yet been accepted do not send a NOTIFY */
+	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+		return 0;
+	}
+
 	memset(from, 0, sizeof(from));
 	memset(to, 0, sizeof(to));
 
@@ -25134,8 +25139,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				unref_peer(peer, "release a peer ref now that MWI is sent");
 			}
 		} else if (p->subscribed != CALL_COMPLETION) {
-			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
+			sip_pvt_unlock(p);
+			firststate = ast_extension_state(NULL, p->context, p->exten);
+			sip_pvt_lock(p);
 
+			if (firststate < 0) {
 				ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension.\n", p->exten, p->context, ast_sockaddr_stringify(&p->sa));
 				transmit_response(p, "404 Not found", req);
 				pvt_set_needdestroy(p, "no extension for SUBSCRIBE");
