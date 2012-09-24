@@ -4320,8 +4320,22 @@ static int rtp_reload(int reload)
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
+
+	/** This resource is not "reloaded" so much as unloaded and loaded again.
+	 * In the case of the TURN related variables, the memory referenced by a
+	 * previously loaded instance  *should* have been released when the
+	 * corresponding pool was destroyed. If at some point in the future this
+	 * resource were to support ACTUAL live reconfiguration and did NOT release
+	 * the pool this will cause a small memory leak.
+	 */
+
 	icesupport = DEFAULT_ICESUPPORT;
 	turnport = DEFAULT_TURN_PORT;
+	memset(&stunaddr, 0, sizeof(stunaddr));
+	turnaddr = pj_str(NULL);
+	turnusername = pj_str(NULL);
+	turnpassword = pj_str(NULL);
+
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);
@@ -4381,11 +4395,15 @@ static int rtp_reload(int reload)
 			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "turnaddr"))) {
-			pj_strdup2(pool, &turnaddr, s);
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "turnport"))) {
-			if (!(turnport = atoi(s))) {
-				turnport = DEFAULT_TURN_PORT;
+			struct sockaddr_in addr;
+			addr.sin_port = htons(DEFAULT_TURN_PORT);
+			if (ast_parse_arg(s, PARSE_INADDR, &addr)) {
+				ast_log(LOG_WARNING, "Invalid TURN server address: %s\n", s);
+			} else {
+				pj_strdup2(pool, &turnaddr, ast_inet_ntoa(addr.sin_addr));
+				/* ntohs() is not a bug here. The port number is used in host byte order with
+				 * a pjnat API. */
+				turnport = ntohs(addr.sin_port);
 			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "turnusername"))) {

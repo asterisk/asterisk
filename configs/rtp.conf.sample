@@ -36,16 +36,22 @@ rtpend=20000
 ; Whether to enable or disable ICE support. This option is enabled by default.
 ; icesupport=false
 ;
-; Address to use for the STUN server when determining the external IP address and port
-; an RTP session can be reached at. This option is disabled by default.
+; Hostname or address for the STUN server used when determining the external
+; IP address and port an RTP session can be reached at. The port number is
+; optional. If omitted the default value of 3478 will be used. This option is
+; disabled by default.
+;
+; e.g. stundaddr=mystun.server.com:3478
+;
 ; stunaddr=
 ;
-; Address to use for the TURN relay server when creating a TURN relay session. This option
-; is disabled by default.
-; turnaddr=
+; Hostname or address for the TURN server to be used as a relay. The port
+; number is optional. If omitted the default value of 3478 will be used.
+; This option is disabled by default.
 ;
-; Port used to contact the TURN relay server on. This option is set to 34780 by default.
-; turnport=34780
+; e.g. turnaddr=myturn.server.com:34780
+;
+; turnaddr=
 ;
 ; Username used to authenticate with TURN relay server.
 ; turnusername=
