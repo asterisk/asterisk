@@ -53,7 +53,9 @@
 					<enum name="Chanspy" />
 					<enum name="Volume" />
 					<enum name="Speex" />
+					<enum name="pitch_shift" />
 					<enum name="JACK_HOOK" />
+					<enum name="Mute" />
 				</enumlist>
 				<para>Note that the names are not case-sensitive</para>
 			</parameter>

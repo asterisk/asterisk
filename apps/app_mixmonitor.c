@@ -105,6 +105,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Records the audio on the current channel to the specified file.</para>
 			<para>This application does not automatically answer and should be preceeded by
 			an application such as Answer or Progress().</para>
+			<note><para>MixMonitor runs as an audiohook. In order to keep it running through
+			a transfer, AUDIOHOOK_INHERIT must be set for the channel which ran mixmonitor.
+			For more information, including dialplan configuration set for using
+			AUDIOHOOK_INHERIT with MixMonitor, see the function documentation for
+			AUDIOHOOK_INHERIT.</para></note>
 			<variablelist>
 				<variable name="MIXMONITOR_FILENAME">
 					<para>Will contain the filename used to record.</para>
@@ -116,6 +121,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">StopMixMonitor</ref>
 			<ref type="application">PauseMonitor</ref>
 			<ref type="application">UnpauseMonitor</ref>
+			<ref type="function">AUDIOHOOK_INHERIT</ref>
 		</see-also>
 	</application>
 	<application name="StopMixMonitor" language="en_US">
