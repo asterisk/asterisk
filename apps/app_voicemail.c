@@ -1808,6 +1808,11 @@ static void vm_imap_delete(char *file, int msgnum, struct ast_vm_user *vmu)
 		return;
 	}
 
+	if (msgnum < 0) {
+		imap_delete_old_greeting(file, vms);
+		return;
+	}
+
 	/* find real message number based on msgnum */
 	/* this may be an index into vms->msgArray based on the msgnum. */
 	messageNum = vms->msgArray[msgnum];
