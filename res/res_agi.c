@@ -1003,10 +1003,18 @@ static const struct ast_datastore_info agi_commands_datastore_info = {
 	.destroy = agi_destroy_commands_cb
 };
 
-static struct agi_cmd *get_agi_cmd(struct ast_channel *chan)
+/*!
+ * \brief Retrieve the list head to the requested channel's AGI datastore
+ * \param chan Channel datastore is requested for
+ * \param cmd Pointer to the struct pointer which will reference the head of the agi command list.
+ *
+ * \retval 0 if the datastore was valid and the list head was retrieved appropriately (even if it's
+ *           NULL and the list is empty)
+ * \retval -1 if the datastore could not be retrieved causing an error
+*/
+static int get_agi_cmd(struct ast_channel *chan, struct agi_cmd **cmd)
 {
 	struct ast_datastore *store;
-	struct agi_cmd *cmd;
 	AST_LIST_HEAD(, agi_cmd) *agi_commands;
 
 	ast_channel_lock(chan);
@@ -1015,13 +1023,14 @@ static struct agi_cmd *get_agi_cmd(struct ast_channel *chan)
 	if (!store) {
 		ast_log(LOG_ERROR, "Huh? Async AGI datastore disappeared on Channel %s!\n",
 			ast_channel_name(chan));
-		return NULL;
+		*cmd = NULL;
+		return -1;
 	}
 	agi_commands = store->data;
 	AST_LIST_LOCK(agi_commands);
-	cmd = AST_LIST_REMOVE_HEAD(agi_commands, entry);
+	*cmd = AST_LIST_REMOVE_HEAD(agi_commands, entry);
 	AST_LIST_UNLOCK(agi_commands);
-	return cmd;
+	return 0;
 }
 
 /* channel is locked when calling this one either from the CLI or manager thread */
@@ -1322,7 +1331,16 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		 * Process as many commands as we can.  Commands are added via
 		 * the manager or the cli threads.
 		 */
-		while (!hungup && (cmd = get_agi_cmd(chan))) {
+		while (!hungup) {
+			res = get_agi_cmd(chan, &cmd);
+
+			if (res) {
+				returnstatus = AGI_RESULT_FAILURE;
+				goto async_agi_done;
+			} else if (!cmd) {
+				break;
+			}
+
 			/* OK, we have a command, let's call the command handler. */
 			cmd_status = agi_handle_command(chan, &async_agi, cmd->cmd_buffer, 0);
 
