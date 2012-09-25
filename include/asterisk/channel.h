@@ -450,6 +450,21 @@ struct ast_set_party_connected_line {
 };
 
 /*!
+ * \brief Redirecting reason information
+ */
+struct ast_party_redirecting_reason {
+	/*! \brief a string value for the redirecting reason
+	 *
+	 * Useful for cases where an endpoint has specified a redirecting reason
+	 * that does not correspond to an enum AST_REDIRECTING_REASON
+	 */
+	char *str;
+
+	/*! \brief enum AST_REDIRECTING_REASON value for redirection */
+	int code;
+};
+
+/*!
  * \since 1.8
  * \brief Redirecting Line information.
  * RDNIS (Redirecting Directory Number Information Service)
@@ -477,14 +492,14 @@ struct ast_party_redirecting {
 	/*! \brief Call is redirecting to a new party (Sent to the caller)  - private representation */
 	struct ast_party_id priv_to;
 
+	/*! \brief Reason for the redirection */
+	struct ast_party_redirecting_reason reason;
+
+	/*! \brief Reason for the redirection by the original party */
+	struct ast_party_redirecting_reason orig_reason;
+
 	/*! \brief Number of times the call was redirected */
 	int count;
-
-	/*! \brief enum AST_REDIRECTING_REASON value for redirection */
-	int reason;
-
-	/*! \brief enum AST_REDIRECTING_REASON value for redirection by original party */
-	int orig_reason;
 };
 
 /*!
@@ -3227,6 +3242,68 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
  * \return Nothing
  */
 void ast_party_connected_line_free(struct ast_party_connected_line *doomed);
+
+/*!
+ * \brief Initialize the given redirecting reason structure
+ *
+ * \param init Redirecting reason structure to initialize
+ *
+ * \return Nothing
+ */
+void ast_party_redirecting_reason_init(struct ast_party_redirecting_reason *init);
+
+/*!
+ * \brief Copy the source redirecting reason information to the destination redirecting reason.
+ *
+ * \param dest Destination redirecting reason
+ * \param src Source redirecting reason
+ *
+ * \return Nothing
+ */
+void ast_party_redirecting_reason_copy(struct ast_party_redirecting_reason *dest,
+		const struct ast_party_redirecting_reason *src);
+
+/*!
+ * \brief Initialize the given redirecting reason structure using the given guide
+ * for a set update operation.
+ *
+ * \details
+ * The initialization is needed to allow a set operation to know if a
+ * value needs to be updated.  Simple integers need the guide's original
+ * value in case the set operation is not trying to set a new value.
+ * String values are simply set to NULL pointers if they are not going
+ * to be updated.
+ *
+ * \param init Redirecting reason structure to initialize.
+ * \param guide Source redirecting reason to use as a guide in initializing.
+ *
+ * \return Nothing
+ */
+void ast_party_redirecting_reason_set_init(struct ast_party_redirecting_reason *init,
+		const struct ast_party_redirecting_reason *guide);
+
+/*!
+ * \brief Set the redirecting reason information based on another redirecting reason source
+ *
+ * This is similar to ast_party_redirecting_reason_copy, except that NULL values for
+ * strings in the src parameter indicate not to update the corresponding dest values.
+ *
+ * \param dest The redirecting reason one wishes to update
+ * \param src The new redirecting reason values to update the dest
+ *
+ * \return Nothing
+ */
+void ast_party_redirecting_reason_set(struct ast_party_redirecting_reason *dest,
+		const struct ast_party_redirecting_reason *src);
+
+/*!
+ * \brief Destroy the redirecting reason contents
+ *
+ * \param doomed The redirecting reason to destroy.
+ *
+ * \return Nothing
+ */
+void ast_party_redirecting_reason_free(struct ast_party_redirecting_reason *doomed);
 
 /*!
  * \brief Initialize the given redirecting structure.

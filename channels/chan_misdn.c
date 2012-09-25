@@ -6383,7 +6383,7 @@ static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct as
 		bc->redirecting.to.number_plan = NUMPLAN_UNKNOWN;
 	}
 
-	bc->redirecting.reason = ast_to_misdn_reason(ast_channel_redirecting(ast)->reason);
+	bc->redirecting.reason = ast_to_misdn_reason(ast_channel_redirecting(ast)->reason.code);
 	bc->redirecting.count = ast_channel_redirecting(ast)->count;
 }
 
@@ -6427,7 +6427,7 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
 		| misdn_to_ast_screen(redirect->to.screening);
 	redirecting.to.tag = tag;
 
-	redirecting.reason = misdn_to_ast_reason(redirect->reason);
+	redirecting.reason.code = misdn_to_ast_reason(redirect->reason);
 	redirecting.count = redirect->count;
 
 	ast_channel_set_redirecting(ast, &redirecting, &update_redirecting);

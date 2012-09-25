@@ -1576,7 +1576,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
 static int set_address_from_contact(struct sip_pvt *pvt);
 static void check_via(struct sip_pvt *p, struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
-static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
+static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason, char **reason_str);
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
 static int transmit_state_notify(struct sip_pvt *p, struct state_notify_data *data, int full, int timeout);
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
@@ -2379,8 +2379,35 @@ static enum AST_REDIRECTING_REASON sip_reason_str_to_code(const char *text)
 	return ast;
 }
 
-static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
+static const char *sip_reason_code_to_str(struct ast_party_redirecting_reason *reason, int *table_lookup)
 {
+	int code = reason->code;
+
+	/* If there's a specific string set, then we just
+	 * use it.
+	 */
+	if (!ast_strlen_zero(reason->str)) {
+		/* If we care about whether this can be found in
+		 * the table, then we need to check about that.
+		 */
+		if (table_lookup) {
+			/* If the string is literally "unknown" then don't bother with the lookup
+			 * because it can lead to a false negative.
+			 */
+			if (!strcasecmp(reason->str, "unknown") ||
+					sip_reason_str_to_code(reason->str) != AST_REDIRECTING_REASON_UNKNOWN) {
+				*table_lookup = TRUE;
+			} else {
+				*table_lookup = FALSE;
+			}
+		}
+		return reason->str;
+	}
+
+	if (table_lookup) {
+		*table_lookup = TRUE;
+	}
+
 	if (code >= 0 && code < ARRAY_LEN(sip_reason_table)) {
 		return sip_reason_table[code].text;
 	}
@@ -13528,7 +13555,9 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 {
 	struct ast_party_id diverting_from;
 	const char *reason;
+	int found_in_table;
 	char header_text[256];
+	char encoded_number[SIPBUFSIZE/2];
 
 	/* We skip this entirely if the configuration doesn't allow diversion headers */
 	if (!sip_cfg.send_diversion) {
@@ -13545,17 +13574,37 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 		return;
 	}
 
-	reason = sip_reason_code_to_str(ast_channel_redirecting(pvt->owner)->reason);
+	if (sip_cfg.pedanticsipchecking) {
+		ast_uri_encode(diverting_from.number.str, encoded_number, sizeof(encoded_number), ast_uri_sip_user);
+	} else {
+		ast_copy_string(encoded_number, diverting_from.number.str, sizeof(encoded_number));
+	}
+
+	reason = sip_reason_code_to_str(&ast_channel_redirecting(pvt->owner)->reason, &found_in_table);
 
 	/* We at least have a number to place in the Diversion header, which is enough */
 	if (!diverting_from.name.valid
 		|| ast_strlen_zero(diverting_from.name.str)) {
-		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_from.number.str,
-				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
+		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s%s%s",
+				encoded_number,
+				ast_sockaddr_stringify_host_remote(&pvt->ourip),
+				found_in_table ? "" : "\"",
+				reason,
+				found_in_table ? "" : "\"");
 	} else {
-		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s",
-				diverting_from.name.str, diverting_from.number.str,
-				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
+		char escaped_name[SIPBUFSIZE/2];
+		if (sip_cfg.pedanticsipchecking) {
+			ast_escape_quoted(diverting_from.name.str, escaped_name, sizeof(escaped_name));
+		} else {
+			ast_copy_string(escaped_name, diverting_from.name.str, sizeof(escaped_name));
+		}
+		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s%s%s",
+				escaped_name,
+				encoded_number,
+				ast_sockaddr_stringify_host_remote(&pvt->ourip),
+				found_in_table ? "" : "\"",
+				reason,
+				found_in_table ? "" : "\"");
 	}
 
 	add_header(req, "Diversion", header_text);
@@ -16839,8 +16888,19 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 	return 1;
 }
 
-/*! \brief Get referring dnis */
-static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason)
+/*! \brief Get referring dnis
+ *
+ * \param p dialog information
+ * \param oreq The request to retrieve RDNIS from
+ * \param[out] name The name of the party redirecting the call.
+ * \param[out] number The number of the party redirecting the call.
+ * \param[out] reason_code The numerical code corresponding to the reason for the redirection.
+ * \param[out] reason_str A string describing the reason for redirection. Will never be zero-length
+ *
+ * \retval -1 Could not retrieve RDNIS information
+ * \retval 0 RDNIS successfully retrieved
+ */
+static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason_code, char **reason_str)
 {
 	char tmp[256], *exten, *rexten, *rdomain, *rname = NULL;
 	char *params, *reason_param = NULL;
@@ -16897,9 +16957,9 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	if (p->owner)
 		pbx_builtin_setvar_helper(p->owner, "__SIPRDNISDOMAIN", rdomain);
 
-	if (sip_debug_test_pvt(p))
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("RDNIS for this call is %s (reason %s)\n", exten, S_OR(reason_param, ""));
-
+	}
 	/*ast_string_field_set(p, rdnis, rexten);*/
 
 	if (*tmp == '\"') {
@@ -16919,8 +16979,14 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 		*name = ast_strdup(rname);
 	}
 
-	if (reason && !ast_strlen_zero(reason_param)) {
-		*reason = sip_reason_str_to_code(reason_param);
+	if (!ast_strlen_zero(reason_param)) {
+		if (reason_code) {
+			*reason_code = sip_reason_str_to_code(reason_param);
+		}
+
+		if (reason_str) {
+			*reason_str = ast_strdup(reason_param);
+		}
 	}
 
 	return 0;
@@ -21622,11 +21688,12 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 	char *redirecting_from_number = NULL;
 	char *redirecting_to_name = NULL;
 	char *redirecting_to_number = NULL;
+	char *reason_str = NULL;
 	int reason = AST_REDIRECTING_REASON_UNCONDITIONAL;
 	int is_response = req->method == SIP_RESPONSE;
 	int res = 0;
 
-	res = get_rdnis(p, req, &redirecting_from_name, &redirecting_from_number, &reason);
+	res = get_rdnis(p, req, &redirecting_from_name, &redirecting_from_number, &reason, &reason_str);
 	if (res == -1) {
 		if (is_response) {
 			get_name_and_number(sip_get_header(req, "TO"), &redirecting_from_name, &redirecting_from_number);
@@ -21679,7 +21746,12 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		ast_free(redirecting->to.name.str);
 		redirecting->to.name.str = redirecting_to_name;
 	}
-	redirecting->reason = reason;
+	redirecting->reason.code = reason;
+	if (reason_str) {
+		ast_debug(3, "Got redirecting reason %s\n", reason_str);
+		ast_free(redirecting->reason.str);
+		redirecting->reason.str = reason_str;
+	}
 }
 
 /*! \brief Parse 302 Moved temporalily response
@@ -22450,6 +22522,28 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 		break;
 
+	case 480: /* Temporarily unavailable. */
+		/* RFC 3261 encourages setting the reason phrase to something indicative
+		 * of why the endpoint is not available. We will make this readable via the
+		 * redirecting reason.
+		 */
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		append_history(p, "TempUnavailable", "Endpoint is temporarily unavailable.");
+		if (p->owner && !req->ignore) {
+			struct ast_party_redirecting redirecting;
+			struct ast_set_party_redirecting update_redirecting;
+			ast_party_redirecting_set_init(&redirecting, ast_channel_redirecting(p->owner));
+			memset(&update_redirecting, 0, sizeof(update_redirecting));
+
+			redirecting.reason.code = sip_reason_str_to_code(rest);
+			redirecting.reason.str = ast_strdup(rest);
+
+			ast_channel_queue_redirecting_update(p->owner, &redirecting, &update_redirecting);
+			ast_party_redirecting_free(&redirecting);
+
+			ast_queue_control(p->owner, AST_CONTROL_BUSY);
+		}
+		break;
 	case 487: /* Cancelled transaction */
 		/* We have sent CANCEL on an outbound INVITE
 			This transaction is already scheduled to be killed by sip_hangup().
@@ -23320,7 +23414,16 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				handle_response_invite(p, resp, rest, req, seqno);
 			}
 			break;
-
+		case 480:
+			if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_SUBSCRIBE) {
+				handle_response_subscribe(p, resp, rest, req, seqno);
+			} else if (owner) {
+				/* No specific handler. Default to congestion */
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			}
+			break;
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -23409,7 +23512,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					}
 					break;
 				case 482: /* Loop Detected */
-				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
 				case 400: /* Bad Request */

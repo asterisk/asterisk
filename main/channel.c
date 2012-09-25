@@ -2235,6 +2235,49 @@ void ast_party_connected_line_free(struct ast_party_connected_line *doomed)
 	ast_party_id_free(&doomed->priv);
 }
 
+void ast_party_redirecting_reason_init(struct ast_party_redirecting_reason *init)
+{
+	init->str = NULL;
+	init->code = AST_REDIRECTING_REASON_UNKNOWN;
+}
+
+void ast_party_redirecting_reason_copy(struct ast_party_redirecting_reason *dest, const struct ast_party_redirecting_reason *src)
+{
+	if (dest == src) {
+		return;
+	}
+
+	ast_free(dest->str);
+	dest->str = ast_strdup(src->str);
+	dest->code = src->code;
+}
+
+void ast_party_redirecting_reason_set_init(struct ast_party_redirecting_reason *init, const struct ast_party_redirecting_reason *guide)
+{
+	init->str = NULL;
+	init->code = guide->code;
+}
+
+void ast_party_redirecting_reason_set(struct ast_party_redirecting_reason *dest, const struct ast_party_redirecting_reason *src)
+{
+	if (dest == src) {
+		return;
+	}
+
+	if (src->str && src->str != dest->str) {
+		ast_free(dest->str);
+		dest->str = ast_strdup(src->str);
+	}
+
+	dest->code = src->code;
+}
+
+void ast_party_redirecting_reason_free(struct ast_party_redirecting_reason *doomed)
+{
+	ast_free(doomed->str);
+}
+
+
 void ast_party_redirecting_init(struct ast_party_redirecting *init)
 {
 	ast_party_id_init(&init->orig);
@@ -2243,9 +2286,9 @@ void ast_party_redirecting_init(struct ast_party_redirecting *init)
 	ast_party_id_init(&init->priv_orig);
 	ast_party_id_init(&init->priv_from);
 	ast_party_id_init(&init->priv_to);
+	ast_party_redirecting_reason_init(&init->reason);
+	ast_party_redirecting_reason_init(&init->orig_reason);
 	init->count = 0;
-	init->reason = AST_REDIRECTING_REASON_UNKNOWN;
-	init->orig_reason = AST_REDIRECTING_REASON_UNKNOWN;
 }
 
 void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src)
@@ -2261,9 +2304,9 @@ void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct
 	ast_party_id_copy(&dest->priv_orig, &src->priv_orig);
 	ast_party_id_copy(&dest->priv_from, &src->priv_from);
 	ast_party_id_copy(&dest->priv_to, &src->priv_to);
+	ast_party_redirecting_reason_copy(&dest->reason, &src->reason);
+	ast_party_redirecting_reason_copy(&dest->orig_reason, &src->orig_reason);
 	dest->count = src->count;
-	dest->reason = src->reason;
-	dest->orig_reason = src->orig_reason;
 }
 
 void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const struct ast_party_redirecting *guide)
@@ -2274,9 +2317,9 @@ void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const st
 	ast_party_id_set_init(&init->priv_orig, &guide->priv_orig);
 	ast_party_id_set_init(&init->priv_from, &guide->priv_from);
 	ast_party_id_set_init(&init->priv_to, &guide->priv_to);
+	ast_party_redirecting_reason_set_init(&init->reason, &guide->reason);
+	ast_party_redirecting_reason_set_init(&init->orig_reason, &guide->orig_reason);
 	init->count = guide->count;
-	init->reason = guide->reason;
-	init->orig_reason = guide->orig_reason;
 }
 
 void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src, const struct ast_set_party_redirecting *update)
@@ -2287,9 +2330,9 @@ void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct 
 	ast_party_id_set(&dest->priv_orig, &src->priv_orig, update ? &update->priv_orig : NULL);
 	ast_party_id_set(&dest->priv_from, &src->priv_from, update ? &update->priv_from : NULL);
 	ast_party_id_set(&dest->priv_to, &src->priv_to, update ? &update->priv_to : NULL);
+	ast_party_redirecting_reason_set(&dest->reason, &src->reason);
+	ast_party_redirecting_reason_set(&dest->orig_reason, &src->orig_reason);
 	dest->count = src->count;
-	dest->reason = src->reason;
-	dest->orig_reason = src->orig_reason;
 }
 
 void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
@@ -2300,6 +2343,8 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 	ast_party_id_free(&doomed->priv_orig);
 	ast_party_id_free(&doomed->priv_from);
 	ast_party_id_free(&doomed->priv_to);
+	ast_party_redirecting_reason_free(&doomed->reason);
+	ast_party_redirecting_reason_free(&doomed->orig_reason);
 }
 
 /*! \brief Free a channel structure */
@@ -9616,7 +9661,7 @@ enum {
 	AST_REDIRECTING_TO_NAME,
 	AST_REDIRECTING_TO_NUMBER_PLAN,
 	AST_REDIRECTING_TO_ID_PRESENTATION,/* Combined number and name presentation. */
-	AST_REDIRECTING_REASON,
+	AST_REDIRECTING_REASON_CODE,
 	AST_REDIRECTING_COUNT,
 	AST_REDIRECTING_FROM_SUBADDRESS,
 	AST_REDIRECTING_FROM_SUBADDRESS_TYPE,
@@ -9656,7 +9701,7 @@ enum {
 	AST_REDIRECTING_ORIG_SUBADDRESS_ODD_EVEN,
 	AST_REDIRECTING_ORIG_SUBADDRESS_VALID,
 	AST_REDIRECTING_ORIG_TAG,
-	AST_REDIRECTING_ORIG_REASON,
+	AST_REDIRECTING_ORIG_REASON_CODE,
 	AST_REDIRECTING_PRIV_TO_NUMBER,
 	AST_REDIRECTING_PRIV_TO_NUMBER_PLAN,
 	AST_REDIRECTING_PRIV_TO_NUMBER_VALID,
@@ -9696,7 +9741,47 @@ enum {
 	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_ODD_EVEN,
 	AST_REDIRECTING_PRIV_ORIG_SUBADDRESS_VALID,
 	AST_REDIRECTING_PRIV_ORIG_TAG,
+	AST_REDIRECTING_REASON_STR,
+	AST_REDIRECTING_ORIG_REASON_STR,
 };
+
+struct ast_party_redirecting_reason_ies {
+	int code;
+	int str;
+};
+
+static int redirecting_reason_build_data(unsigned char *data, size_t datalen,
+		const struct ast_party_redirecting_reason *reason, const char *label,
+		const struct ast_party_redirecting_reason_ies *ies)
+{
+	size_t length;
+	size_t pos = 0;
+	int32_t value;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
+		ast_log(LOG_WARNING, "No space left for %s code\n", label);
+		return -1;
+	}
+	data[pos++] = ies->code;
+	data[pos++] = sizeof(value);
+	value = htonl(reason->code);
+	memcpy(data + pos, &value, sizeof(value));
+	pos += sizeof(value);
+
+	if (reason->str) {
+		length = strlen(reason->str);
+		if (datalen < pos + sizeof(data[0] * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for %s string\n", label);
+			return -1;
+		}
+		data[pos++] = ies->str;
+		data[pos++] = length;
+		memcpy(data + pos, reason->str, length);
+		pos += length;
+	}
+
+	return pos;
+}
 
 int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
 {
@@ -9818,6 +9903,15 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 		.tag = AST_REDIRECTING_PRIV_TO_TAG,
 		.combined_presentation = 0,/* Not sent. */
 	};
+	static const struct ast_party_redirecting_reason_ies reason_ies = {
+		.code = AST_REDIRECTING_REASON_CODE,
+		.str = AST_REDIRECTING_REASON_STR,
+	};
+
+	static const struct ast_party_redirecting_reason_ies orig_reason_ies = {
+		.code = AST_REDIRECTING_ORIG_REASON_CODE,
+		.str = AST_REDIRECTING_ORIG_REASON_STR,
+	};
 
 	/* Redirecting frame version */
 	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
@@ -9871,26 +9965,20 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	pos += res;
 
 	/* Redirecting reason */
-	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
-		ast_log(LOG_WARNING, "No space left for redirecting reason\n");
+	res = redirecting_reason_build_data(data + pos, datalen - pos, &redirecting->reason,
+			"redirecting-reason", &reason_ies);
+	if (res < 0) {
 		return -1;
 	}
-	data[pos++] = AST_REDIRECTING_REASON;
-	data[pos++] = sizeof(value);
-	value = htonl(redirecting->reason);
-	memcpy(data + pos, &value, sizeof(value));
-	pos += sizeof(value);
+	pos += res;
 
 	/* Redirecting original reason */
-	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
-		ast_log(LOG_WARNING, "No space left for redirecting original reason\n");
+	res = redirecting_reason_build_data(data + pos, datalen - pos, &redirecting->orig_reason,
+			"redirecting-orig-reason", &orig_reason_ies);
+	if (res < 0) {
 		return -1;
 	}
-	data[pos++] = AST_REDIRECTING_ORIG_REASON;
-	data[pos++] = sizeof(value);
-	value = htonl(redirecting->orig_reason);
-	memcpy(data + pos, &value, sizeof(value));
-	pos += sizeof(value);
+	pos += res;
 
 	/* Redirecting count */
 	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
@@ -10614,25 +10702,43 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 				redirecting->priv_to.tag[ie_len] = 0;
 			}
 			break;
-/* Redirecting reason */
-		case AST_REDIRECTING_REASON:
+/* Redirecting reason code */
+		case AST_REDIRECTING_REASON_CODE:
 			if (ie_len != sizeof(value)) {
 				ast_log(LOG_WARNING, "Invalid redirecting reason (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
 			memcpy(&value, data + pos, sizeof(value));
-			redirecting->reason = ntohl(value);
+			redirecting->reason.code = ntohl(value);
 			break;
-/* Redirecting orig-reason */
-		case AST_REDIRECTING_ORIG_REASON:
+/* Redirecting reason string */
+		case AST_REDIRECTING_REASON_STR:
+			ast_free(redirecting->reason.str);
+			redirecting->reason.str = ast_malloc(ie_len + 1);
+			if (redirecting->reason.str) {
+				memcpy(redirecting->reason.str, data + pos, ie_len);
+				redirecting->reason.str[ie_len] = 0;
+			}
+			break;
+/* Redirecting orig-reason code */
+		case AST_REDIRECTING_ORIG_REASON_CODE:
 			if (ie_len != sizeof(value)) {
 				ast_log(LOG_WARNING, "Invalid redirecting original reason (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
 			memcpy(&value, data + pos, sizeof(value));
-			redirecting->orig_reason = ntohl(value);
+			redirecting->orig_reason.code = ntohl(value);
+			break;
+/* Redirecting orig-reason string */
+		case AST_REDIRECTING_ORIG_REASON_STR:
+			ast_free(redirecting->orig_reason.str);
+			redirecting->orig_reason.str = ast_malloc(ie_len + 1);
+			if (redirecting->orig_reason.str) {
+				memcpy(redirecting->orig_reason.str, data + pos, ie_len);
+				redirecting->orig_reason.str[ie_len] = 0;
+			}
 			break;
 /* Redirecting count */
 		case AST_REDIRECTING_COUNT:

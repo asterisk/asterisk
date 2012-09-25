@@ -1493,7 +1493,7 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 	if (!strcasecmp("orig", member.argv[0])) {
 		if (member.argc == 2 && !strcasecmp("reason", member.argv[1])) {
 			ast_copy_string(buf,
-				ast_redirecting_reason_name(ast_redirecting->orig_reason), len);
+				ast_redirecting_reason_name(&ast_redirecting->orig_reason), len);
 		} else {
 			status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
 				&ast_redirecting->orig);
@@ -1537,7 +1537,7 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 			ast_named_caller_presentation(
 				ast_party_id_presentation(&ast_redirecting->from)), len);
 	} else if (member.argc == 1 && !strcasecmp("reason", member.argv[0])) {
-		ast_copy_string(buf, ast_redirecting_reason_name(ast_redirecting->reason), len);
+		ast_copy_string(buf, ast_redirecting_reason_name(&ast_redirecting->reason), len);
 	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {
 		snprintf(buf, len, "%d", ast_redirecting->count);
 	} else if (1 < member.argc && !strcasecmp("priv", member.argv[0])) {
@@ -1659,10 +1659,16 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 			}
 
 			if (reason < 0) {
-				ast_log(LOG_ERROR,
-					"Unknown redirecting orig reason '%s', value unchanged\n", val);
+			/* The argument passed into the function does not correspond to a pre-defined
+			 * reason, so we can just set the reason string to what was given and set the
+			 * code to be unknown
+			 */
+				redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+				redirecting.orig_reason.str = val;
+				set_it(chan, &redirecting, NULL);
 			} else {
-				redirecting.orig_reason = reason;
+				redirecting.orig_reason.code = reason;
+				redirecting.orig_reason.str = "";
 				set_it(chan, &redirecting, NULL);
 			}
 		} else {
@@ -1742,9 +1748,16 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 		}
 
 		if (reason < 0) {
-			ast_log(LOG_ERROR, "Unknown redirecting reason '%s', value unchanged\n", val);
+			/* The argument passed into the function does not correspond to a pre-defined
+			 * reason, so we can just set the reason string to what was given and set the
+			 * code to be unknown
+			 */
+			redirecting.reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+			redirecting.reason.str = val;
+			set_it(chan, &redirecting, NULL);
 		} else {
-			redirecting.reason = reason;
+			redirecting.reason.code = reason;
+			redirecting.reason.str = "";
 			set_it(chan, &redirecting, NULL);
 		}
 	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {

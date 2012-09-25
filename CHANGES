@@ -30,6 +30,13 @@ Queue
    Reports 'InUse' for no logged in agents or no free agents.
    Reports 'Idle' when an agent is free.
 
+Core
+------------------
+ * Redirecting reasons can now be set to arbitrary strings. This means
+   that the REDIRECTING dialplan function can be used to set the redirecting
+   reason to any string. It also allows for custom strings to be read as the
+   redirecting reason from SIP Diversion headers.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------

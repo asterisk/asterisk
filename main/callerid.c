@@ -1237,12 +1237,17 @@ const char *ast_redirecting_reason_describe(int data)
 	return "not-known";
 }
 
-const char *ast_redirecting_reason_name(int data)
+const char *ast_redirecting_reason_name(const struct ast_party_redirecting_reason *data)
 {
 	int index;
 
+	if (!ast_strlen_zero(data->str)) {
+		/* Use this string if it has been set. Otherwise, use the table. */
+		return data->str;
+	}
+
 	for (index = 0; index < ARRAY_LEN(redirecting_reason_types); ++index) {
-		if (redirecting_reason_types[index].value == data) {
+		if (redirecting_reason_types[index].value == data->code) {
 			return redirecting_reason_types[index].name;
 		}
 	}

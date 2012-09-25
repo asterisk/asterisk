@@ -424,15 +424,17 @@ int ast_redirecting_reason_parse(const char *data);
  */
 const char *ast_redirecting_reason_describe(int data);
 
+struct ast_party_redirecting_reason;
+
 /*!
  * \since 1.8
  * \brief Convert redirecting reason value to text code
  *
- * \param data Q931_REDIRECTING_REASON from callerid.h
+ * \param data ast_party_redirecting_reason structure from channel.h
  *
  * \return string for config file
  */
-const char *ast_redirecting_reason_name(int data);
+const char *ast_redirecting_reason_name(const struct ast_party_redirecting_reason *data);
 
 /*!
  * \brief Connected line update source code

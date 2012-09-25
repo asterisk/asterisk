@@ -916,8 +916,8 @@ static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_chan
 	sig_pri_party_id_from_ast(&pri_redirecting.to, &redirecting_to);
 	sig_pri_party_id_from_ast(&pri_redirecting.orig_called, &redirecting_orig);
 	pri_redirecting.count = ast_redirecting->count;
-	pri_redirecting.orig_reason = ast_to_pri_reason(ast_redirecting->orig_reason);
-	pri_redirecting.reason = ast_to_pri_reason(ast_redirecting->reason);
+	pri_redirecting.orig_reason = ast_to_pri_reason(ast_redirecting->orig_reason.code);
+	pri_redirecting.reason = ast_to_pri_reason(ast_redirecting->reason.code);
 
 	pri_redirecting_update(pvt->pri->pri, pvt->call, &pri_redirecting);
 }
@@ -2177,8 +2177,8 @@ static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redire
 	sig_pri_party_id_convert(&ast_redirecting->from, &pri_redirecting->from, pri);
 	sig_pri_party_id_convert(&ast_redirecting->to, &pri_redirecting->to, pri);
 	ast_redirecting->count = pri_redirecting->count;
-	ast_redirecting->reason = pri_to_ast_reason(pri_redirecting->reason);
-	ast_redirecting->orig_reason = pri_to_ast_reason(pri_redirecting->orig_reason);
+	ast_redirecting->reason.code = pri_to_ast_reason(pri_redirecting->reason);
+	ast_redirecting->orig_reason.code = pri_to_ast_reason(pri_redirecting->orig_reason);
 }
 
 /*!
