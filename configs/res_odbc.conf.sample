@@ -23,7 +23,7 @@ enabled => no
 ; (or /usr/local/etc/odbc.ini, on FreeBSD and similar systems).
 dsn => asterisk
 ;
-; Username for connecting to the database.  The default user is "root".
+; Username for connecting to the database.  The user defaults to the context name if unspecified.
 ;username => myuser
 ;
 ; Password for authenticating the user to the database.  The default
