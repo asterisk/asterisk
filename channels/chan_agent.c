@@ -223,7 +223,6 @@ static int autologoff;
 static int wrapuptime;
 static int ackcall;
 static int endcall;
-static int multiplelogin = 1;
 static int autologoffunavail = 0;
 static char acceptdtmf = DEFAULT_ACCEPTDTMF;
 static char enddtmf = DEFAULT_ENDDTMF;
@@ -1198,9 +1197,6 @@ static int read_agent_config(int reload)
 	strcpy(recordformatext, "wav");
 	urlprefix[0] = '\0';
 	savecallsin[0] = '\0';
-
-	/* Read in [general] section for persistence */
-	multiplelogin = ast_true(ast_variable_retrieve(cfg, "general", "multiplelogin"));
 
 	/* Read in the [agents] section */
 	v = ast_variable_browse(cfg, "agents");
