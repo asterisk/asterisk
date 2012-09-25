@@ -208,7 +208,7 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	struct multicast_rtp *multicast = ast_rtp_instance_get_data(instance);
 	struct ast_frame *f = frame;
 	struct ast_sockaddr remote_address;
-	int hdrlen = 12, res, codec;
+	int hdrlen = 12, res = 0, codec;
 	unsigned char *rtpheader;
 
 	/* We only accept audio, nothing else */
@@ -237,12 +237,12 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 
 	/* Finally send it out to the eager phones listening for us */
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
-	res = ast_sendto(multicast->socket, (void *) rtpheader, f->datalen + hdrlen, 0, &remote_address);
 
-	if (res < 0) {
+	if (ast_sendto(multicast->socket, (void *) rtpheader, f->datalen + hdrlen, 0, &remote_address) < 0) {
 		ast_log(LOG_ERROR, "Multicast RTP Transmission error to %s: %s\n",
 			ast_sockaddr_stringify(&remote_address),
 			strerror(errno));
+		res = -1;
 	}
 
 	/* If we were forced to duplicate the frame free the new one */
