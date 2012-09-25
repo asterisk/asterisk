@@ -3,9 +3,6 @@
 ;
 
 [general]
-; Enable or disable a single extension from logging in as multiple agents.
-; The default value is "yes".
-;multiplelogin=yes
 
 [agents]
 ;
