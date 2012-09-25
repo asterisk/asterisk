@@ -5286,7 +5286,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
-		format = "ABdY 'digits/at' IMp";
+		format = "AdBY 'digits/at' IMp";
 
 	ast_localtime(&when, &tm, tzone);
 
@@ -5408,7 +5408,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
-				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* Shorthand for "Today", "Yesterday", or AdBY */
 				/* XXX As emphasized elsewhere, this should the native way in your
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
@@ -5428,12 +5428,12 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 						/* Yesterday */
 						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
-						res = ast_say_date_with_format_nl(chan, t, ints, lang, "ABdY", tzone);
+						res = ast_say_date_with_format_nl(chan, t, ints, lang, "AdBY", tzone);
 					}
 				}
 				break;
 			case 'q':
-				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
 				{
 					struct timeval now = ast_tvnow();
 					struct ast_tm tmnow;
@@ -5452,7 +5452,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 						/* Within the last week */
 						res = ast_say_date_with_format_nl(chan, t, ints, lang, "A", tzone);
 					} else {
-						res = ast_say_date_with_format_nl(chan, t, ints, lang, "ABdY", tzone);
+						res = ast_say_date_with_format_nl(chan, t, ints, lang, "AdBY", tzone);
 					}
 				}
 				break;
