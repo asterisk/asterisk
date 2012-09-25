@@ -757,6 +757,15 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			f.data.ptr = (void *) data;
 			f.datalen = datalen;
 			res = local_queue_frame(p, isoutbound, &f, ast, 1);
+
+			if (!res && (condition == AST_CONTROL_T38_PARAMETERS) &&
+			    (datalen == sizeof(struct ast_control_t38_parameters))) {
+				const struct ast_control_t38_parameters *parameters = data;
+				
+				if (parameters->request_response == AST_T38_REQUEST_PARMS) {
+					res = AST_T38_REQUEST_PARMS;
+				}
+			}
 		} else {
 			ast_debug(4, "Blocked indication %d\n", condition);
 		}
