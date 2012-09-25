@@ -30318,7 +30318,8 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 
 	if (!(opp_chan = ast_bridged_channel(chan))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
+	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+		   (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -30373,7 +30374,8 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 
 	if (!(opp_chan = ast_bridged_channel(chan))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
+	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+		   (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -30419,7 +30421,8 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 
 	if (!(opp_chan = ast_bridged_channel(chan))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if ((opp_chan->tech != &sip_tech) || (!(opp = opp_chan->tech_pvt))) {
+	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+		   (!(opp = opp_chan->tech_pvt))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
