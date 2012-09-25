@@ -597,11 +597,20 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; * session-expires   - Maximum session refresh interval in seconds. Defaults to 1800 secs.
 ; * session-minse     - Minimum session refresh interval in seconds. Defualts to 90 secs.
 ; * session-refresher - The session refresher (uac|uas). Defaults to 'uas'.
+;                            uac - Default to the caller initially refreshing when possible
+;                            uas - Default to the callee initially refreshing when possible
+;
+; Note that, due to recommendations in RFC 4028, Asterisk will always honor the other
+; endpoint's preference for who will handle refreshes. Asterisk will never override the
+; preferences of the other endpoint. Doing so could result in Asterisk and the endpoint
+; fighting over who sends the refreshes. This holds true for the initiation of session
+; timers and subsequent re-INVITE requests whether Asterisk is the caller or callee, or
+; whether Asterisk is currently the refresher or not.
 ;
 ;session-timers=originate
 ;session-expires=600
 ;session-minse=90
-;session-refresher=uas
+;session-refresher=uac
 ;
 ;--------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes                 ; Turn on SIP debugging by default, from

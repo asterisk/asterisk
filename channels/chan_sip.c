@@ -795,7 +795,7 @@ static int global_qualify_gap;          /*!< Time between our group of peer poke
 static int global_qualify_peers;        /*!< Number of peers to poke at a given time */
 
 static enum st_mode global_st_mode;           /*!< Mode of operation for Session-Timers           */
-static enum st_refresher global_st_refresher; /*!< Session-Timer refresher                        */
+static enum st_refresher_param global_st_refresher; /*!< Session-Timer refresher                        */
 static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
 static int global_max_se;                     /*!< Highest threshold for session refresh interval */
 
@@ -1666,8 +1666,8 @@ static int  proc_session_timer(const void *vp);
 static void stop_session_timer(struct sip_pvt *p);
 static void start_session_timer(struct sip_pvt *p);
 static void restart_session_timer(struct sip_pvt *p);
-static const char *strefresher2str(enum st_refresher r);
-static int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher *const p_ref);
+static const char *strefresherparam2str(enum st_refresher r);
+static int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher_param *const p_ref);
 static int parse_minse(const char *p_hdrval, int *const p_interval);
 static int st_get_se(struct sip_pvt *, int max);
 static enum st_refresher st_get_refresher(struct sip_pvt *);
@@ -11387,7 +11387,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
-			strefresher2str(p->stimer->st_ref));
+			p->stimer->st_ref == SESSION_TIMER_REFRESHER_US ? "uas" : "uac");
 		add_header(resp, "Session-Expires", se_hdr);
 	}
 
@@ -11554,7 +11554,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	    && sipmethod == SIP_INVITE) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
-			strefresher2str(p->stimer->st_ref));
+			p->stimer->st_ref == SESSION_TIMER_REFRESHER_US ? "uac" : "uas");
 		add_header(req, "Session-Expires", se_hdr);
 		snprintf(se_hdr, sizeof(se_hdr), "%d", st_get_se(p, FALSE));
 		add_header(req, "Min-SE", se_hdr);
@@ -18172,21 +18172,28 @@ static enum st_mode str2stmode(const char *s)
 }
 
 /* Session-Timer Refreshers */
-static const struct _map_x_s strefreshers[] = {
-        { SESSION_TIMER_REFRESHER_AUTO,     "auto"},
-        { SESSION_TIMER_REFRESHER_UAC,      "uac"},
-        { SESSION_TIMER_REFRESHER_UAS,      "uas"},
-        { -1,                               NULL},
+static const struct _map_x_s strefresher_params[] = {
+        { SESSION_TIMER_REFRESHER_PARAM_UNKNOWN, "unknown" },
+        { SESSION_TIMER_REFRESHER_PARAM_UAC,     "uac"     },
+        { SESSION_TIMER_REFRESHER_PARAM_UAS,     "uas"     },
+        { -1,                                NULL  },
 };
 
-static const char *strefresher2str(enum st_refresher r)
+static const struct _map_x_s strefreshers[] = {
+        { SESSION_TIMER_REFRESHER_AUTO, "auto" },
+        { SESSION_TIMER_REFRESHER_US,   "us"   },
+        { SESSION_TIMER_REFRESHER_THEM, "them" },
+        { -1,                           NULL   },
+};
+
+static const char *strefresherparam2str(enum st_refresher r)
 {
-	return map_x_s(strefreshers, r, "Unknown");
+	return map_x_s(strefresher_params, r, "Unknown");
 }
 
-static enum st_refresher str2strefresher(const char *s)
+static enum st_refresher str2strefresherparam(const char *s)
 {
-	return map_s_x(strefreshers, s, -1);
+	return map_s_x(strefresher_params, s, -1);
 }
 
 /* Autocreatepeer modes */
@@ -18196,6 +18203,11 @@ static struct _map_x_s autopeermodes[] = {
         { AUTOPEERS_PERSIST,  "Persisted"},
         { -1, NULL},
 };
+
+static const char *strefresher2str(enum st_refresher r)
+{
+	return map_x_s(strefreshers, r, "Unknown");
+}
 
 static const char *autocreatepeer2str(enum autocreatepeer_mode r)
 {
@@ -19489,7 +19501,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		}
 
 		ast_cli(fd, "  Sess-Timers  : %s\n", stmode2str(peer->stimer.st_mode_oper));
-		ast_cli(fd, "  Sess-Refresh : %s\n", strefresher2str(peer->stimer.st_ref));
+		ast_cli(fd, "  Sess-Refresh : %s\n", strefresherparam2str(peer->stimer.st_ref));
 		ast_cli(fd, "  Sess-Expires : %d secs\n", peer->stimer.st_max_se);
 		ast_cli(fd, "  Min-Sess     : %d secs\n", peer->stimer.st_min_se);
 		ast_cli(fd, "  RTP Engine   : %s\n", peer->engine);
@@ -19558,7 +19570,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-T.38EC: %s\r\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		astman_append(s, "SIP-T.38MaxDtgrm: %d\r\n", peer->t38_maxdatagram);
 		astman_append(s, "SIP-Sess-Timers: %s\r\n", stmode2str(peer->stimer.st_mode_oper));
-		astman_append(s, "SIP-Sess-Refresh: %s\r\n", strefresher2str(peer->stimer.st_ref));
+		astman_append(s, "SIP-Sess-Refresh: %s\r\n", strefresherparam2str(peer->stimer.st_ref));
 		astman_append(s, "SIP-Sess-Expires: %d\r\n", peer->stimer.st_max_se);
 		astman_append(s, "SIP-Sess-Min: %d\r\n", peer->stimer.st_min_se);
 		astman_append(s, "SIP-RTP-Engine: %s\r\n", peer->engine);
@@ -19704,7 +19716,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  ACL          : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(user->acl) == 0));
  		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
- 		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresher2str(user->stimer.st_ref));
+ 		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresherparam2str(user->stimer.st_ref));
  		ast_cli(a->fd, "  Sess-Expires : %d secs\n", user->stimer.st_max_se);
  		ast_cli(a->fd, "  Sess-Min-SE  : %d secs\n", user->stimer.st_min_se);
 		ast_cli(a->fd, "  RTP Engine   : %s\n", user->engine);
@@ -20160,7 +20172,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Outb. proxy:            %s %s\n", ast_strlen_zero(sip_cfg.outboundproxy.name) ? "<not set>" : sip_cfg.outboundproxy.name,
 							sip_cfg.outboundproxy.force ? "(forced)" : "");
 	ast_cli(a->fd, "  Session Timers:         %s\n", stmode2str(global_st_mode));
-	ast_cli(a->fd, "  Session Refresher:      %s\n", strefresher2str (global_st_refresher));
+	ast_cli(a->fd, "  Session Refresher:      %s\n", strefresherparam2str(global_st_refresher));
 	ast_cli(a->fd, "  Session Expires:        %d secs\n", global_max_se);
 	ast_cli(a->fd, "  Session Min-SE:         %d secs\n", global_min_se);
  	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
@@ -20618,7 +20630,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  					ast_cli(a->fd, "  S-Timer Peer Sts:       %s\n", cur->stimer->st_active_peer_ua ? "Active" : "Inactive");
  					ast_cli(a->fd, "  S-Timer Cached Min-SE:  %d\n", cur->stimer->st_cached_min_se);
  					ast_cli(a->fd, "  S-Timer Cached SE:      %d\n", cur->stimer->st_cached_max_se);
- 					ast_cli(a->fd, "  S-Timer Cached Ref:     %s\n", strefresher2str(cur->stimer->st_cached_ref));
+ 					ast_cli(a->fd, "  S-Timer Cached Ref:     %s\n", strefresherparam2str(cur->stimer->st_cached_ref));
  					ast_cli(a->fd, "  S-Timer Cached Mode:    %s\n", stmode2str(cur->stimer->st_cached_mode));
  				}
 			}
@@ -22335,15 +22347,18 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			p_hdrval = (char*)sip_get_header(req, "Session-Expires");
 			if (!ast_strlen_zero(p_hdrval)) {
 				/* UAS supports Session-Timers */
-				enum st_refresher tmp_st_ref = SESSION_TIMER_REFRESHER_AUTO;
+				enum st_refresher_param st_ref_param;
 				int tmp_st_interval = 0;
-				rtn = parse_session_expires(p_hdrval, &tmp_st_interval, &tmp_st_ref);
+				rtn = parse_session_expires(p_hdrval, &tmp_st_interval, &st_ref_param);
 				if (rtn != 0) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 				}
-				if (tmp_st_ref == SESSION_TIMER_REFRESHER_UAC ||
-					tmp_st_ref == SESSION_TIMER_REFRESHER_UAS) {
-					p->stimer->st_ref = tmp_st_ref;
+				if (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) {
+				   p->stimer->st_ref = SESSION_TIMER_REFRESHER_US;
+				} else if (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAS) {
+					p->stimer->st_ref = SESSION_TIMER_REFRESHER_THEM;
+				} else {
+					ast_log(LOG_WARNING, "Unknown refresher on %s\n", p->callid);
 				}
 				if (tmp_st_interval) {
 					p->stimer->st_interval = tmp_st_interval;
@@ -22354,7 +22369,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			} else {
 				/* UAS doesn't support Session-Timers */
 				if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE) {
-					p->stimer->st_ref = SESSION_TIMER_REFRESHER_UAC;
+					p->stimer->st_ref = SESSION_TIMER_REFRESHER_US;
 					p->stimer->st_active_peer_ua = FALSE;
 					start_session_timer(p);
 				}
@@ -24392,7 +24407,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	int uac_min_se = -1;            /* UAC's Min-SE in integer format                           */
 	int st_active = FALSE;          /* Session-Timer on/off boolean                             */
 	int st_interval = 0;            /* Session-Timer negotiated refresh interval                */
-	enum st_refresher st_ref;       /* Session-Timer session refresher                          */
+	enum st_refresher tmp_st_ref = SESSION_TIMER_REFRESHER_AUTO; /* Session-Timer refresher     */
 	int dlg_min_se = -1;
 	struct {
 		char exten[AST_MAX_EXTENSION];
@@ -24400,7 +24415,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	} pickup = {
 			.exten = "",
 	};
-	st_ref = SESSION_TIMER_REFRESHER_AUTO;
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -24934,6 +24948,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 	/* Session-Timers */
 	if ((p->sipoptions & SIP_OPT_TIMER) && !ast_strlen_zero(sip_get_header(req, "Session-Expires"))) {
+		enum st_refresher_param st_ref_param;
+
 		/* The UAC has requested session-timers for this session. Negotiate
 		the session refresh interval and who will be the refresher */
 		ast_debug(2, "Incoming INVITE with 'timer' option supported and \"Session-Expires\" header.\n");
@@ -24944,7 +24960,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 		/* Parse the Session-Expires header */
 		p_uac_se_hdr = sip_get_header(req, "Session-Expires");
-		rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref);
+		rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref_param);
+		tmp_st_ref = (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) ? SESSION_TIMER_REFRESHER_THEM : SESSION_TIMER_REFRESHER_US;
 		if (rtn != 0) {
 			transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
 			p->invitestate = INV_COMPLETED;
@@ -24986,8 +25003,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 			p->stimer->st_active_peer_ua = TRUE;
 			st_active = TRUE;
-			if (st_ref == SESSION_TIMER_REFRESHER_AUTO) {
-				st_ref = st_get_refresher(p);
+			if (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UNKNOWN) {
+				tmp_st_ref = st_get_refresher(p);
 			}
 
 			if (uac_max_se > 0) {
@@ -25028,7 +25045,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		case SESSION_TIMER_MODE_ORIGINATE:
 			st_active = TRUE;
 			st_interval = st_get_se(p, TRUE);
-			st_ref = SESSION_TIMER_REFRESHER_UAS;
+			tmp_st_ref = SESSION_TIMER_REFRESHER_US;
 			p->stimer->st_active_peer_ua = FALSE;
 			break;
 
@@ -25040,9 +25057,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	if (reinvite == 0) {
 		/* Session-Timers: Start session refresh timer based on negotiation/config */
 		if (st_active == TRUE) {
-			p->stimer->st_active   = TRUE;
+			p->stimer->st_active = TRUE;
 			p->stimer->st_interval = st_interval;
-			p->stimer->st_ref      = st_ref;
+			p->stimer->st_ref = tmp_st_ref;
 			start_session_timer(p);
 		}
 	} else {
@@ -25055,7 +25072,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			/* The UAC may be adjusting the session-timers mid-session */
 			if (st_interval > 0) {
 				p->stimer->st_interval = st_interval;
-				p->stimer->st_ref      = st_ref;
+				p->stimer->st_ref      = tmp_st_ref;
 			}
 
 			restart_session_timer(p);
@@ -28491,7 +28508,6 @@ static void start_session_timer(struct sip_pvt *p)
 static int proc_session_timer(const void *vp)
 {
 	struct sip_pvt *p = (struct sip_pvt *) vp;
-	int sendreinv = FALSE;
 	int res = 0;
 
 	if (!p->stimer) {
@@ -28509,23 +28525,7 @@ static int proc_session_timer(const void *vp)
 		goto return_unref;
 	}
 
-	switch (p->stimer->st_ref) {
-	case SESSION_TIMER_REFRESHER_UAC:
-		if (p->outgoing_call == TRUE) {
-	  		sendreinv = TRUE;
-		}
-		break;
-	case SESSION_TIMER_REFRESHER_UAS:
-		if (p->outgoing_call != TRUE) {
-  			sendreinv = TRUE;
-		}
-		break;
-	default:
-		ast_log(LOG_ERROR, "Unknown session refresher %d\n", p->stimer->st_ref);
-		goto return_unref;
-	}
-
-	if (sendreinv == TRUE) {
+	if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
 		res = 1;
 		transmit_reinvite_with_sdp(p, FALSE, TRUE);
 	} else {
@@ -28594,7 +28594,7 @@ int parse_minse (const char *p_hdrval, int *const p_interval)
 
 
 /*! \brief Session-Timers: Function for parsing Session-Expires header */
-int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher *const p_ref)
+int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher_param *const p_ref)
 {
 	char *p_token;
 	int  ref_idx;
@@ -28605,7 +28605,7 @@ int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_r
 		return -1;
 	}
 
-	*p_ref = SESSION_TIMER_REFRESHER_AUTO;
+	*p_ref = SESSION_TIMER_REFRESHER_PARAM_UNKNOWN;
 	*p_interval = 0;
 
 	p_se_hdr = ast_strdupa(p_hdrval);
@@ -28630,10 +28630,10 @@ int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_r
 			p_se_hdr = ast_skip_blanks(p_se_hdr);
 
 			if (!strncasecmp(p_se_hdr, "uac", strlen("uac"))) {
-				*p_ref = SESSION_TIMER_REFRESHER_UAC;
+				*p_ref = SESSION_TIMER_REFRESHER_PARAM_UAC;
 				ast_debug(2, "Refresher: UAC\n");
 			} else if (!strncasecmp(p_se_hdr, "uas", strlen("uas"))) {
-				*p_ref = SESSION_TIMER_REFRESHER_UAS;
+				*p_ref = SESSION_TIMER_REFRESHER_PARAM_UAS;
 				ast_debug(2, "Refresher: UAS\n");
 			} else {
 				ast_log(LOG_WARNING, "Invalid refresher value %s\n", p_se_hdr);
@@ -28705,20 +28705,24 @@ int st_get_se(struct sip_pvt *p, int max)
 
 
 /*! \brief Get the entity (UAC or UAS) that's acting as the session-timer refresher
+ * \note This is only called when processing an INVITE, so in that case Asterisk is
+ *       always currently the UAS. If this is ever used to process responses, the
+ *       function will have to be changed.
  * \param p pointer to the SIP dialog
 */
 enum st_refresher st_get_refresher(struct sip_pvt *p)
 {
-	if (p->stimer->st_cached_ref != SESSION_TIMER_REFRESHER_AUTO)
+	if (p->stimer->st_cached_ref != SESSION_TIMER_REFRESHER_AUTO) {
 		return p->stimer->st_cached_ref;
+	}
 
 	if (p->relatedpeer) {
-		p->stimer->st_cached_ref = p->relatedpeer->stimer.st_ref;
+		p->stimer->st_cached_ref = (p->relatedpeer->stimer.st_ref == SESSION_TIMER_REFRESHER_PARAM_UAC) ? SESSION_TIMER_REFRESHER_THEM : SESSION_TIMER_REFRESHER_US;
 		return p->stimer->st_cached_ref;
 	}
 	
-	p->stimer->st_cached_ref = global_st_refresher;
-	return global_st_refresher;
+	p->stimer->st_cached_ref = (global_st_refresher == SESSION_TIMER_REFRESHER_PARAM_UAC) ? SESSION_TIMER_REFRESHER_THEM : SESSION_TIMER_REFRESHER_US;
+	return p->stimer->st_cached_ref;
 }
 
 
@@ -30248,7 +30252,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					peer->stimer.st_min_se = global_min_se;
 				}
 			} else if (!strcasecmp(v->name, "session-refresher")) {
-				int i = (int) str2strefresher(v->value);
+				int i = (int) str2strefresherparam(v->value);
 				if (i < 0) {
 					ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
 					peer->stimer.st_ref = global_st_refresher;
@@ -30782,7 +30786,7 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Session-Timers */
 	global_st_mode = SESSION_TIMER_MODE_ACCEPT;
-	global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
+	global_st_refresher = SESSION_TIMER_REFRESHER_PARAM_UAS;
 	global_min_se  = DEFAULT_MIN_SE;
 	global_max_se  = DEFAULT_MAX_SE;
 
@@ -31331,10 +31335,10 @@ static int reload_config(enum channelreloadreason reason)
 				global_min_se = DEFAULT_MIN_SE;
 			}
 		} else if (!strcasecmp(v->name, "session-refresher")) {
-			int i = (int) str2strefresher(v->value);
+			int i = (int) str2strefresherparam(v->value);
 			if (i < 0) {
 				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
-				global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
+				global_st_refresher = SESSION_TIMER_REFRESHER_PARAM_UAS;
 			} else {
 				global_st_refresher = i;
 			}

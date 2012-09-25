@@ -556,9 +556,15 @@ enum st_mode {
 
 /*! \brief The entity playing the refresher role for Session-Timers */
 enum st_refresher {
-        SESSION_TIMER_REFRESHER_AUTO,    /*!< Negotiated                      */
-        SESSION_TIMER_REFRESHER_UAC,     /*!< Session is refreshed by the UAC */
-        SESSION_TIMER_REFRESHER_UAS      /*!< Session is refreshed by the UAS */
+        SESSION_TIMER_REFRESHER_AUTO, /*!< Negotiated                      */
+        SESSION_TIMER_REFRESHER_US,   /*!< Initially prefer session refresh by Asterisk */
+        SESSION_TIMER_REFRESHER_THEM, /*!< Initially prefer session refresh by the other side */
+};
+
+enum st_refresher_param {
+	SESSION_TIMER_REFRESHER_PARAM_UNKNOWN,
+	SESSION_TIMER_REFRESHER_PARAM_UAC,
+	SESSION_TIMER_REFRESHER_PARAM_UAS,
 };
 
 /*! \brief Define some implemented SIP transports
@@ -954,14 +960,14 @@ struct sip_notify {
 struct sip_st_dlg {
 	int st_active;                     /*!< Session-Timers on/off */
 	int st_interval;                   /*!< Session-Timers negotiated session refresh interval */
+	enum st_refresher st_ref;          /*!< Session-Timers cached refresher */
 	int st_schedid;                    /*!< Session-Timers ast_sched scheduler id */
-	enum st_refresher st_ref;          /*!< Session-Timers session refresher */
 	int st_expirys;                    /*!< Session-Timers number of expirys */
 	int st_active_peer_ua;             /*!< Session-Timers on/off in peer UA */
 	int st_cached_min_se;              /*!< Session-Timers cached Min-SE */
 	int st_cached_max_se;              /*!< Session-Timers cached Session-Expires */
 	enum st_mode st_cached_mode;       /*!< Session-Timers cached M.O. */
-	enum st_refresher st_cached_ref;   /*!< Session-Timers cached refresher */
+	enum st_refresher st_cached_ref;   /*!< Session-Timers session refresher */
 	unsigned char quit_flag:1;         /*!< Stop trying to lock; just quit */
 };
 
@@ -970,10 +976,10 @@ struct sip_st_dlg {
  *   of SIP Session-Timers feature on a per user/peer basis.
  */
 struct sip_st_cfg {
-	enum st_mode st_mode_oper;    /*!< Mode of operation for Session-Timers           */
-	enum st_refresher st_ref;     /*!< Session-Timer refresher                        */
-	int st_min_se;                /*!< Lowest threshold for session refresh interval  */
-	int st_max_se;                /*!< Highest threshold for session refresh interval */
+	enum st_mode st_mode_oper;      /*!< Mode of operation for Session-Timers           */
+	enum st_refresher_param st_ref; /*!< Session-Timer refresher                        */
+	int st_min_se;                  /*!< Lowest threshold for session refresh interval  */
+	int st_max_se;                  /*!< Highest threshold for session refresh interval */
 };
 
 /*! \brief Structure for remembering offered media in an INVITE, to make sure we reply
