@@ -9342,12 +9342,12 @@ static const char qsmp_cmd_usage[] =
 
 static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(queue_show, "Show status of a specified queue"),
+	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
 	AST_CLI_DEFINE(handle_queue_add_member, "Add a channel to a specified queue"),
 	AST_CLI_DEFINE(handle_queue_remove_member, "Removes a channel from a specified queue"),
 	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
 	AST_CLI_DEFINE(handle_queue_set_member_penalty, "Set penalty for a channel of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_set_member_ringinuse, "Set ringinuse for a channel of a specified queue"),
-	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
 	AST_CLI_DEFINE(handle_queue_reload, "Reload queues, members, queue rules, or parameters"),
 	AST_CLI_DEFINE(handle_queue_reset, "Reset statistics for a queue"),
 };
