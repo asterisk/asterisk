@@ -240,8 +240,6 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 	char *_message;
 	char *_subtype;
 
-	ast_log(LOG_NOTICE, "TITTY BOMBS!\n");
-
 	ast_db_get(astdb_family, data, buf, sizeof(buf));
 
 	if (parse_data(buf, &state, &_subtype, &_message, &_options)) {
