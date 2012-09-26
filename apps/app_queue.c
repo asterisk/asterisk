@@ -2018,6 +2018,15 @@ static void init_queue(struct call_queue *q)
 	while ((pr_iter = AST_LIST_REMOVE_HEAD(&q->rules,list))) {
 		ast_free(pr_iter);
 	}
+
+	/* On restart assume no members are available.
+	 * The queue_avail hint is a boolean state to indicate whether a member is available or not.
+	 *
+	 * This seems counter intuitive, but is required to light a BLF
+	 * AST_DEVICE_INUSE indicates no members are available.
+	 * AST_DEVICE_NOT_INUSE indicates a member is available.
+	 */
+	ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
 }
 
 static void clear_queue(struct call_queue *q)
@@ -5900,7 +5909,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				dump_queue_members(q);
 			}
 
-			if (!ao2_container_count(q->members)) {
+			if (!num_available_members(q)) {
 				ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
 			}
 
@@ -5977,15 +5986,15 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 				new_member->penalty, new_member->calls, (int) new_member->lastcall,
 				new_member->status, new_member->paused);
 
+			if (is_member_available(new_member)) {
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+			}
+
 			ao2_ref(new_member, -1);
 			new_member = NULL;
 
 			if (dump) {
 				dump_queue_members(q);
-			}
-
-			if (ao2_container_count(q->members) == 1) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
 			}
 
 			res = RES_OKAY;
@@ -6046,6 +6055,12 @@ static int set_member_paused(const char *queuename, const char *interface, const
 
 				if (queue_persistent_members) {
 					dump_queue_members(q);
+				}
+
+				if (is_member_available(mem)) {
+					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+				} else if (!num_available_members(q)) {
+					ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
 				}
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
