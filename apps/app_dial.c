@@ -151,11 +151,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="calling" />
 					<argument name="progress" />
 					<para>Send the specified DTMF strings <emphasis>after</emphasis> the called
-					party has answered, but before the call gets bridged. The 
-					<replaceable>called</replaceable> DTMF string is sent to the called party, and the 
-					<replaceable>calling</replaceable> DTMF string is sent to the calling party. Both arguments 
+					party has answered, but before the call gets bridged.  The
+					<replaceable>called</replaceable> DTMF string is sent to the called party, and the
+					<replaceable>calling</replaceable> DTMF string is sent to the calling party.  Both arguments
 					can be used alone.  If <replaceable>progress</replaceable> is specified, its DTMF is sent
-					immediately after receiving a PROGRESS message.</para>
+					to the called party immediately after receiving a PROGRESS message.</para>
+					<para>See SendDTMF for valid digits.</para>
 				</option>
 				<option name="e">
 					<para>Execute the <literal>h</literal> extension for peer after the call ends</para>
