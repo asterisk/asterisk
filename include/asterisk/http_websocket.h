@@ -19,7 +19,7 @@
 #ifndef _ASTERISK_HTTP_WEBSOCKET_H
 #define _ASTERISK_HTTP_WEBSOCKET_H
 
-#include "asterisk/module.h"
+#include "asterisk/optional_api.h"
 
 /*!
  * \file http_websocket.h
@@ -66,7 +66,7 @@ typedef void (*ast_websocket_callback)(struct ast_websocket *session, struct ast
  * \retval 0 success
  * \retval -1 if sub-protocol handler could not be registered
  */
-int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback);
+AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
 
 /*!
  * \brief Remove a sub-protocol handler from the server
@@ -77,7 +77,7 @@ int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback
  * \retval 0 success
  * \retval -1 if sub-protocol was not found or if callback did not match
  */
-int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callback);
+AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
 
 /*!
  * \brief Read a WebSocket frame and handle it
@@ -93,7 +93,7 @@ int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callb
  *
  * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
  */
-int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented);
+AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented), {return -1;});
 
 /*!
  * \brief Construct and transmit a WebSocket frame
@@ -106,7 +106,7 @@ int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length);
+AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length), {return -1;});
 
 /*!
  * \brief Close a WebSocket session by sending a message with the CLOSE opcode and an optional code
@@ -117,7 +117,7 @@ int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-int ast_websocket_close(struct ast_websocket *session, uint16_t reason);
+AST_OPTIONAL_API(int, ast_websocket_close, (struct ast_websocket *session, uint16_t reason), {return -1;});
 
 /*!
  * \brief Enable multi-frame reconstruction up to a certain number of bytes
@@ -126,7 +126,7 @@ int ast_websocket_close(struct ast_websocket *session, uint16_t reason);
  * \param bytes If a reconstructed payload exceeds the specified number of bytes the payload will be returned
  *              and upon reception of the next multi-frame a new reconstructed payload will begin.
  */
-void ast_websocket_reconstruct_enable(struct ast_websocket *session, size_t bytes);
+AST_OPTIONAL_API(void, ast_websocket_reconstruct_enable, (struct ast_websocket *session, size_t bytes), {return;});
 
 /*!
  * \brief Disable multi-frame reconstruction
@@ -136,21 +136,21 @@ void ast_websocket_reconstruct_enable(struct ast_websocket *session, size_t byte
  * \note If reconstruction is disabled each message that is part of a multi-frame message will be sent up to
  *       the user when ast_websocket_read is called.
  */
-void ast_websocket_reconstruct_disable(struct ast_websocket *session);
+AST_OPTIONAL_API(void, ast_websocket_reconstruct_disable, (struct ast_websocket *session), {return;});
 
 /*!
  * \brief Increase the reference count for a WebSocket session
  *
  * \param session Pointer to the WebSocket session
  */
-void ast_websocket_ref(struct ast_websocket *session);
+AST_OPTIONAL_API(void, ast_websocket_ref, (struct ast_websocket *session), {return;});
 
 /*!
  * \brief Decrease the reference count for a WebSocket session
  *
  * \param session Pointer to the WebSocket session
  */
-void ast_websocket_unref(struct ast_websocket *session);
+AST_OPTIONAL_API(void, ast_websocket_unref, (struct ast_websocket *session), {return;});
 
 /*!
  * \brief Get the file descriptor for a WebSocket session.
@@ -159,14 +159,14 @@ void ast_websocket_unref(struct ast_websocket *session);
  *
  * \note You must *not* directly read from or write to this file descriptor. It should only be used for polling.
  */
-int ast_websocket_fd(struct ast_websocket *session);
+AST_OPTIONAL_API(int, ast_websocket_fd, (struct ast_websocket *session), {return -1;});
 
 /*!
  * \brief Get the remote address for a WebSocket connected session.
  *
  * \retval ast_sockaddr Remote address
  */
-struct ast_sockaddr *ast_websocket_remote_address(struct ast_websocket *session);
+AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_remote_address, (struct ast_websocket *session), {return NULL;});
 
 /*!
  * \brief Get whether the WebSocket session is using a secure transport or not.
@@ -174,7 +174,7 @@ struct ast_sockaddr *ast_websocket_remote_address(struct ast_websocket *session)
  * \retval 0 if unsecure
  * \retval 1 if secure
  */
-int ast_websocket_is_secure(struct ast_websocket *session);
+AST_OPTIONAL_API(int, ast_websocket_is_secure, (struct ast_websocket *session), {return -1;});
 
 /*!
  * \brief Set the socket of a WebSocket session to be non-blocking.
@@ -182,6 +182,6 @@ int ast_websocket_is_secure(struct ast_websocket *session);
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_websocket_set_nonblock(struct ast_websocket *session);
+AST_OPTIONAL_API(int, ast_websocket_set_nonblock, (struct ast_websocket *session), {return -1;});
 
 #endif
