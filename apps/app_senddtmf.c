@@ -21,14 +21,14 @@
  * \brief App to send DTMF digits
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -46,7 +46,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="digits" required="true">
-				<para>List of digits 0-9,*#,abcd</para>
+				<para>List of digits 0-9,*#,a-d,A-D to send also w for a half second pause,
+				and f or F for a flash-hook if the channel supports
+				flash-hook.</para>
 			</parameter>
 			<parameter name="timeout_ms" required="false">
 				<para>Amount of time to wait in ms between tones. (defaults to .25s)</para>
@@ -54,13 +56,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="duration_ms" required="false">
 				<para>Duration of each digit</para>
 			</parameter>
-                        <parameter name="channel" required="false">
-                                <para>Channel where digits will be played</para>
-                        </parameter>
+			<parameter name="channel" required="false">
+				<para>Channel where digits will be played</para>
+			</parameter>
 		</syntax>
 		<description>
-			<para>DTMF digits sent to a channel with half second pause</para>
-			<para>It will pass all digits or terminate if it encounters an error.</para>
+			<para>It will send all digits or terminate if it encounters an error.</para>
 		</description>
 		<see-also>
 			<ref type="application">Read</ref>
@@ -84,14 +85,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 	</manager>
  ***/
-static char *app = "SendDTMF";
+
+static const char senddtmf_name[] = "SendDTMF";
 
 static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 {
-	int res = 0;
+	int res;
 	char *data;
 	int dinterval = 0, duration = 0;
-	struct ast_channel *dchan;
+	struct ast_channel *chan_found = NULL;
+	struct ast_channel *chan_dest = chan;
+	struct ast_channel *chan_autoservice = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
 		AST_APP_ARG(dinterval);
@@ -100,15 +104,17 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	);
 
 	if (ast_strlen_zero(vdata)) {
-		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
+		ast_log(LOG_WARNING, "SendDTMF requires an argument\n");
 		return 0;
 	}
-
-	dchan = chan;
 
 	data = ast_strdupa(vdata);
 	AST_STANDARD_APP_ARGS(args, data);
 
+	if (ast_strlen_zero(args.digits)) {
+		ast_log(LOG_WARNING, "The digits argument is required (0-9,*#,a-d,A-D,wfF)\n");
+		return 0;
+	}
 	if (!ast_strlen_zero(args.dinterval)) {
 		ast_app_parse_timelen(args.dinterval, &dinterval, TIMELEN_MILLISECONDS);
 	}
@@ -116,18 +122,23 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 		ast_app_parse_timelen(args.duration, &duration, TIMELEN_MILLISECONDS);
 	}
 	if (!ast_strlen_zero(args.channel)) {
-		dchan = ast_channel_get_by_name(args.channel);
+		chan_found = ast_channel_get_by_name(args.channel);
+		if (!chan_found) {
+			ast_log(LOG_WARNING, "No such channel: %s\n", args.channel);
+			return 0;
+		}
+		chan_dest = chan_found;
+		if (chan_found != chan) {
+			chan_autoservice = chan;
+		}
 	}
-	if (dchan != chan) {
-		ast_autoservice_start(chan);
-	}
-	res = ast_dtmf_stream(dchan, NULL, args.digits, dinterval <= 0 ? 250 : dinterval, duration);
-	if (dchan != chan) {
-		ast_autoservice_stop(chan);
-		ast_channel_unref(dchan);
+	res = ast_dtmf_stream(chan_dest, chan_autoservice, args.digits,
+		dinterval <= 0 ? 250 : dinterval, duration);
+	if (chan_found) {
+		ast_channel_unref(chan_found);
 	}
 
-	return res;
+	return chan_autoservice ? 0 : res;
 }
 
 static int manager_play_dtmf(struct mansession *s, const struct message *m)
@@ -160,10 +171,10 @@ static int unload_module(void)
 {
 	int res;
 
-	res = ast_unregister_application(app);
+	res = ast_unregister_application(senddtmf_name);
 	res |= ast_manager_unregister("PlayDTMF");
 
-	return res;	
+	return res;
 }
 
 static int load_module(void)
@@ -171,7 +182,7 @@ static int load_module(void)
 	int res;
 
 	res = ast_manager_register_xml("PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf);
-	res |= ast_register_application_xml(app, senddtmf_exec);
+	res |= ast_register_application_xml(senddtmf_name, senddtmf_exec);
 
 	return res;
 }
