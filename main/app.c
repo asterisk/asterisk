@@ -731,31 +731,24 @@ int ast_vm_test_destroy_user(const char *context, const char *mailbox)
 int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration)
 {
 	const char *ptr;
-	int res = 0;
+	int res;
 	struct ast_silence_generator *silgen = NULL;
 
 	if (!between) {
 		between = 100;
 	}
 
-	if (peer) {
-		res = ast_autoservice_start(peer);
+	if (peer && ast_autoservice_start(peer)) {
+		return -1;
 	}
 
-	if (!res) {
-		res = ast_waitfor(chan, 100);
-	}
-
-	/* ast_waitfor will return the number of remaining ms on success */
-	if (res < 0) {
-		if (peer) {
-			ast_autoservice_stop(peer);
-		}
-		return res;
-	}
-
+	/* Need a quiet time before sending digits. */
 	if (ast_opt_transmit_silence) {
 		silgen = ast_channel_start_silence_generator(chan);
+	}
+	res = ast_safe_sleep(chan, 100);
+	if (res) {
+		goto dtmf_stream_cleanup;
 	}
 
 	for (ptr = digits; *ptr; ptr++) {
@@ -765,11 +758,11 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 				break;
 			}
 		} else if (strchr("0123456789*#abcdfABCDF", *ptr)) {
-			/* Character represents valid DTMF */
 			if (*ptr == 'f' || *ptr == 'F') {
 				/* ignore return values if not supported by channel */
 				ast_indicate(chan, AST_CONTROL_FLASH);
 			} else {
+				/* Character represents valid DTMF */
 				ast_senddigit(chan, *ptr, duration);
 			}
 			/* pause between digits */
@@ -781,16 +774,12 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 		}
 	}
 
-	if (peer) {
-		/* Stop autoservice on the peer channel, but don't overwrite any error condition
-		   that has occurred previously while acting on the primary channel */
-		if (ast_autoservice_stop(peer) && !res) {
-			res = -1;
-		}
-	}
-
+dtmf_stream_cleanup:
 	if (silgen) {
 		ast_channel_stop_silence_generator(chan, silgen);
+	}
+	if (peer && ast_autoservice_stop(peer)) {
+		res = -1;
 	}
 
 	return res;
