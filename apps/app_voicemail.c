@@ -455,6 +455,33 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
+	<manager name="VoicemailRefresh" language="en_US">
+		<synopsis>
+			Tell Asterisk to poll mailboxes for a change
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" />
+			<parameter name="Mailbox" />
+		</syntax>
+		<description>
+			<para>Normally, MWI indicators are only sent when Asterisk itself
+			changes a mailbox.  With external programs that modify the content
+			of a mailbox from outside the application, an option exists called
+			<literal>pollmailboxes</literal> that will cause voicemail to
+			continually scan all mailboxes on a system for changes.  This can
+			cause a large amount of load on a system.  This command allows
+			external applications to signal when a particular mailbox has
+			changed, thus permitting external applications to modify mailboxes
+			and MWI to work without introducing considerable CPU load.</para>
+			<para>If <replaceable>Context</replaceable> is not specified, all
+			mailboxes on the system will be polled for changes.  If
+			<replaceable>Context</replaceable> is specified, but
+			<replaceable>Mailbox</replaceable> is omitted, then all mailboxes
+			within <replaceable>Context</replaceable> will be polled.
+			Otherwise, only a single mailbox will be polled for changes.</para>
+		</description>
+	</manager>
  ***/
 
 #ifdef IMAP_STORAGE
@@ -12646,6 +12673,42 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
+static int manager_voicemail_refresh(struct mansession *s, const struct message *m)
+{
+	const char *context = astman_get_header(m, "Context");
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	struct mwi_sub *mwi_sub;
+	const char *at;
+
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			if (
+				/* First case: everything matches */
+				(ast_strlen_zero(context) && ast_strlen_zero(mailbox)) ||
+				/* Second case: match the mailbox only */
+				(ast_strlen_zero(context) && !ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strncmp(mailbox, mwi_sub->mailbox, at - mwi_sub->mailbox) == 0) ||
+				/* Third case: match the context only */
+				(!ast_strlen_zero(context) && ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strcmp(context, at + 1) == 0) ||
+				/* Final case: match an exact specified mailbox */
+				(!ast_strlen_zero(context) && !ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strncmp(mailbox, mwi_sub->mailbox, at - mwi_sub->mailbox) == 0 &&
+					strcmp(context, at + 1) == 0)
+			) {
+				poll_subscribed_mailbox(mwi_sub);
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
+	astman_send_ack(s, m, "Refresh sent");
+	return RESULT_SUCCESS;
+}
+
 /*! \brief Manager list voicemail users command */
 static int manager_list_voicemail_users(struct mansession *s, const struct message *m)
 {
@@ -14185,6 +14248,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_custom_function_unregister(&vm_info_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
+	res |= ast_manager_unregister("VoicemailRefresh");
 	res |= ast_data_unregister(NULL);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
@@ -14242,6 +14306,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&mailbox_exists_acf);
 	res |= ast_custom_function_register(&vm_info_acf);
 	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
+	res |= ast_manager_register_xml("VoicemailRefresh", EVENT_FLAG_USER, manager_voicemail_refresh);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_REGISTER(test_voicemail_msgcount);

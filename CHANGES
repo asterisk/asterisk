@@ -17,6 +17,9 @@ AMI (Asterisk Manager Interface)
    that the request is against a known peer. It also issues a new event,
    'SIPqualifypeerdone', once the qualify action has been completed.
 
+ * Added VoicemailRefresh action to allow an external entity to trigger mailbox
+   updates when changes occur instead of requiring the use of pollmailboxes.
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an
