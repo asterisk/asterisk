@@ -163,6 +163,7 @@
 
 /*** MODULEINFO
 	<use type="module">res_crypto</use>
+	<use type="module">res_http_websocket</use>
 	<depend>chan_local</depend>
 	<support_level>core</support_level>
  ***/
@@ -33654,5 +33655,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 		.unload = unload_module,
 		.reload = reload,
 		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-		.nonoptreq = "res_crypto,chan_local",
+		.nonoptreq = "res_crypto,chan_local,res_http_websocket",
 	       );

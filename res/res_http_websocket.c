@@ -37,6 +37,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/file.h"
 #include "asterisk/unaligned.h"
+
+#define AST_API_MODULE
 #include "asterisk/http_websocket.h"
 
 /*! \brief GUID used to compute the accept key, defined in the specifications */
@@ -116,7 +118,7 @@ static void session_destroy_fn(void *obj)
 	ast_free(session->payload);
 }
 
-int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback)
+int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_websocket_callback callback)
 {
 	struct websocket_protocol *protocol;
 
@@ -151,7 +153,7 @@ int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback
 	return 0;
 }
 
-int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callback)
+int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
 {
 	struct websocket_protocol *protocol;
 
@@ -173,7 +175,7 @@ int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callb
 }
 
 /*! \brief Close function for websocket session */
-int ast_websocket_close(struct ast_websocket *session, uint16_t reason)
+int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, uint16_t reason)
 {
 	char frame[4] = { 0, }; /* The header is 2 bytes and the reason code takes up another 2 bytes */
 
@@ -190,7 +192,7 @@ int ast_websocket_close(struct ast_websocket *session, uint16_t reason)
 
 
 /*! \brief Write function for websocket traffic */
-int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
+int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
 {
 	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
@@ -232,42 +234,42 @@ int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode
 	return 0;
 }
 
-void ast_websocket_reconstruct_enable(struct ast_websocket *session, size_t bytes)
+void AST_OPTIONAL_API_NAME(ast_websocket_reconstruct_enable)(struct ast_websocket *session, size_t bytes)
 {
 	session->reconstruct = MIN(bytes, MAXIMUM_RECONSTRUCTION_CEILING);
 }
 
-void ast_websocket_reconstruct_disable(struct ast_websocket *session)
+void AST_OPTIONAL_API_NAME(ast_websocket_reconstruct_disable)(struct ast_websocket *session)
 {
 	session->reconstruct = 0;
 }
 
-void ast_websocket_ref(struct ast_websocket *session)
+void AST_OPTIONAL_API_NAME(ast_websocket_ref)(struct ast_websocket *session)
 {
 	ao2_ref(session, +1);
 }
 
-void ast_websocket_unref(struct ast_websocket *session)
+void AST_OPTIONAL_API_NAME(ast_websocket_unref)(struct ast_websocket *session)
 {
 	ao2_ref(session, -1);
 }
 
-int ast_websocket_fd(struct ast_websocket *session)
+int AST_OPTIONAL_API_NAME(ast_websocket_fd)(struct ast_websocket *session)
 {
 	return session->closing ? -1 : session->fd;
 }
 
-struct ast_sockaddr *ast_websocket_remote_address(struct ast_websocket *session)
+struct ast_sockaddr * AST_OPTIONAL_API_NAME(ast_websocket_remote_address)(struct ast_websocket *session)
 {
 	return &session->address;
 }
 
-int ast_websocket_is_secure(struct ast_websocket *session)
+int AST_OPTIONAL_API_NAME(ast_websocket_is_secure)(struct ast_websocket *session)
 {
 	return session->secure;
 }
 
-int ast_websocket_set_nonblock(struct ast_websocket *session)
+int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *session)
 {
 	int flags;
 
@@ -284,7 +286,7 @@ int ast_websocket_set_nonblock(struct ast_websocket *session)
 	return 0;
 }
 
-int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
+int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
 {
 	char buf[MAXIMUM_FRAME_SIZE] = "";
 	size_t frame_size, expected = 2;
