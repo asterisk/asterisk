@@ -1323,10 +1323,32 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
+			<syntax>
+				<parameter name="SubEvent">
+					<para>A sub event type, specifying the channel AsyncAGI processing status.</para>
+					<enumlist>
+						<enum name="Start"/>
+						<enum name="Exec"/>
+						<enum name="End"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Env">
+					<para>URL encoded string read from the AsyncAGI server.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
 		"SubEvent: Start\r\n"
 		"Channel: %s\r\n"
-		"Env: %s\r\n", ast_channel_name(chan), ami_buffer);
+		"Uniqueid: %s\r\n"
+		"Env: %s\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan),
+		ami_buffer);
 	hungup = ast_check_hangup(chan);
 	for (;;) {
 		/*
@@ -1369,13 +1391,35 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
 					"SubEvent: Exec\r\n"
 					"Channel: %s\r\n"
-					"Result: %s\r\n", ast_channel_name(chan), ami_buffer);
+					"Uniqueid: %s\r\n"
+					"Result: %s\r\n",
+					ast_channel_name(chan),
+					ast_channel_uniqueid(chan),
+					ami_buffer);
 			} else {
+				/*** DOCUMENTATION
+					<managerEventInstance>
+						<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
+						<syntax>
+							<parameter name="CommandID" required="false">
+								<para>Optional command ID sent by the AsyncAGI server to identify the command.</para>
+							</parameter>
+							<parameter name="Result">
+								<para>URL encoded result string from the executed AGI command.</para>
+							</parameter>
+						</syntax>
+					</managerEventInstance>
+				***/
 				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
 					"SubEvent: Exec\r\n"
 					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n"
 					"CommandID: %s\r\n"
-					"Result: %s\r\n", ast_channel_name(chan), cmd->cmd_id, ami_buffer);
+					"Result: %s\r\n",
+					ast_channel_name(chan),
+					ast_channel_uniqueid(chan),
+					cmd->cmd_id,
+					ami_buffer);
 			}
 			free_agi_cmd(cmd);
 
@@ -1434,11 +1478,18 @@ async_agi_done:
 	if (async_agi.speech) {
 		ast_speech_destroy(async_agi.speech);
 	}
-	/* notify manager users this channel cannot be
-	   controlled anymore by Async AGI */
+	/* notify manager users this channel cannot be controlled anymore by Async AGI */
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
 		"SubEvent: End\r\n"
-		"Channel: %s\r\n", ast_channel_name(chan));
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan));
 
 async_agi_abort:
 	/* close the pipe */
@@ -3414,11 +3465,36 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 	int command_id = ast_random();
 	int resultcode;
 
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a received AGI command starts processing.</synopsis>
+			<syntax>
+				<parameter name="SubEvent">
+					<para>A sub event type, specifying whether the AGI command has begun or ended.</para>
+					<enumlist>
+						<enum name="Start"/>
+						<enum name="End"/>
+					</enumlist>
+				</parameter>
+				<parameter name="CommandId">
+					<para>Random identification number assigned to the execution of this command.</para>
+				</parameter>
+				<parameter name="Command">
+					<para>The AGI command as received from the external source.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	***/
 	manager_event(EVENT_FLAG_AGI, "AGIExec",
-			"SubEvent: Start\r\n"
-			"Channel: %s\r\n"
-			"CommandId: %d\r\n"
-			"Command: %s\r\n", ast_channel_name(chan), command_id, ami_cmd);
+		"SubEvent: Start\r\n"
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"CommandId: %d\r\n"
+		"Command: %s\r\n",
+		ast_channel_name(chan),
+		ast_channel_uniqueid(chan),
+		command_id,
+		ami_cmd);
 	parse_args(buf, &argc, argv);
 	c = find_command(argv, 0);
 	if (c && (!dead || (dead && c->dead))) {
@@ -3453,13 +3529,25 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 			resultcode = 200;
 			break;
 		}
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a received AGI command completes processing.</synopsis>
+			</managerEventInstance>
+		***/
 		manager_event(EVENT_FLAG_AGI, "AGIExec",
-				"SubEvent: End\r\n"
-				"Channel: %s\r\n"
-				"CommandId: %d\r\n"
-				"Command: %s\r\n"
-				"ResultCode: %d\r\n"
-				"Result: %s\r\n", ast_channel_name(chan), command_id, ami_cmd, resultcode, ami_res);
+			"SubEvent: End\r\n"
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"CommandId: %d\r\n"
+			"Command: %s\r\n"
+			"ResultCode: %d\r\n"
+			"Result: %s\r\n",
+			ast_channel_name(chan),
+			ast_channel_uniqueid(chan),
+			command_id,
+			ami_cmd,
+			resultcode,
+			ami_res);
 		switch (res) {
 		case RESULT_SHOWUSAGE:
 			if (ast_strlen_zero(c->usage)) {
@@ -3481,21 +3569,31 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 	} else if (c) {
 		ast_agi_send(agi->fd, chan, "511 Command Not Permitted on a dead channel\n");
 		manager_event(EVENT_FLAG_AGI, "AGIExec",
-				"SubEvent: End\r\n"
-				"Channel: %s\r\n"
-				"CommandId: %d\r\n"
-				"Command: %s\r\n"
-				"ResultCode: 511\r\n"
-				"Result: Command not permitted on a dead channel\r\n", ast_channel_name(chan), command_id, ami_cmd);
+			"SubEvent: End\r\n"
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"CommandId: %d\r\n"
+			"Command: %s\r\n"
+			"ResultCode: 511\r\n"
+			"Result: Command not permitted on a dead channel\r\n",
+			ast_channel_name(chan),
+			ast_channel_uniqueid(chan),
+			command_id,
+			ami_cmd);
 	} else {
 		ast_agi_send(agi->fd, chan, "510 Invalid or unknown command\n");
 		manager_event(EVENT_FLAG_AGI, "AGIExec",
-				"SubEvent: End\r\n"
-				"Channel: %s\r\n"
-				"CommandId: %d\r\n"
-				"Command: %s\r\n"
-				"ResultCode: 510\r\n"
-				"Result: Invalid or unknown command\r\n", ast_channel_name(chan), command_id, ami_cmd);
+			"SubEvent: End\r\n"
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"CommandId: %d\r\n"
+			"Command: %s\r\n"
+			"ResultCode: 510\r\n"
+			"Result: Invalid or unknown command\r\n",
+			ast_channel_name(chan),
+			ast_channel_uniqueid(chan),
+			command_id,
+			ami_cmd);
 	}
 	return AGI_RESULT_SUCCESS;
 }
