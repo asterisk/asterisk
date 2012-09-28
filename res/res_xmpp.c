@@ -4204,6 +4204,8 @@ static int unload_module(void)
 	ast_manager_unregister("JabberSend");
 	ast_custom_function_unregister(&jabberstatus_function);
 	ast_custom_function_unregister(&jabberreceive_function);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
 
 	ast_cond_destroy(&message_received_condition);
 	ast_mutex_destroy(&messagelock);
