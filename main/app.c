@@ -757,6 +757,11 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 			if ((res = ast_safe_sleep(chan, 500))) {
 				break;
 			}
+		} else if (*ptr == 'W') {
+			/* 'W' -- wait a second */
+			if ((res = ast_safe_sleep(chan, 1000))) {
+				break;
+			}
 		} else if (strchr("0123456789*#abcdfABCDF", *ptr)) {
 			if (*ptr == 'f' || *ptr == 'F') {
 				/* ignore return values if not supported by channel */

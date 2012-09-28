@@ -1257,10 +1257,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 		analog_set_waitingfordt(p, ast);
 		if (!res) {
 			if (analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop)) {
-				int saveerr = errno;
-
 				analog_on_hook(p);
-				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 				return -1;
 			}
 		} else {
@@ -2767,10 +2764,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				analog_train_echocanceller(p);
 				ast_copy_string(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr));
 				p->dop.op = ANALOG_DIAL_OP_REPLACE;
-				if (analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop)) {
-					int dial_err = errno;
-					ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(dial_err));
-				}
+				analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
 				p->echobreak = 0;
 			} else {
 				analog_set_dialing(p, 0);
@@ -2963,9 +2957,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				p->echobreak = 0;
 			}
 			if (analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop)) {
-				int saveerr = errno;
 				analog_on_hook(p);
-				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 				return NULL;
 			}
 			analog_set_dialing(p, 1);
@@ -2999,8 +2991,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				} else if (!ast_strlen_zero(p->dop.dialstr)) {
 					/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
 					res = analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
-					if (res < 0) {
-						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+					if (res) {
 						p->dop.dialstr[0] = '\0';
 						return NULL;
 					} else {
@@ -3409,8 +3400,7 @@ winkflashdone:
 			/* FGD MF and EMWINK *Must* wait for wink */
 			if (!ast_strlen_zero(p->dop.dialstr)) {
 				res = analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+				if (res) {
 					p->dop.dialstr[0] = '\0';
 					return NULL;
 				} else {
@@ -3441,8 +3431,7 @@ winkflashdone:
 		case ANALOG_SIG_SF_FEATD:
 			if (!ast_strlen_zero(p->dop.dialstr)) {
 				res = analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+				if (res) {
 					p->dop.dialstr[0] = '\0';
 					return NULL;
 				} else {

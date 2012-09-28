@@ -32,6 +32,23 @@ Queue:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
    performed on is a member of at least one queue.
 
+Dial:
+ - Now recognizes 'W' to pause sending DTMF for one second in addition to
+   the previously existing 'w' that paused sending DTMF for half a second.
+
+ExternalIVR:
+ - Now recognizes 'W' to pause sending DTMF for one second in addition to
+   the previously existing 'w' that paused sending DTMF for half a second.
+
+SendDTMF:
+ - Now recognizes 'W' to pause sending DTMF for one second in addition to
+   the previously existing 'w' that paused sending DTMF for half a second.
+
+chan_dahdi:
+ - Analog port dialing and deferred DTMF dialing for PRI now distinguishes
+   between 'w' and 'W'.  The 'w' pauses dialing for half a second.  The 'W'
+   pauses dialing for one second.
+
 From 10 to 11:
 
 Voicemail:

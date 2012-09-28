@@ -1738,6 +1738,60 @@ static int analogsub_to_dahdisub(enum analog_sub analogsub)
 	return index;
 }
 
+/*!
+ * \internal
+ * \brief Send a dial string to DAHDI.
+ * \since 12.0.0
+ *
+ * \param pvt DAHDI private pointer
+ * \param operation DAHDI dial operation to do to string
+ * \param dial_str Dial string to send
+ *
+ * \retval 0 on success.
+ * \retval non-zero on error.
+ */
+static int dahdi_dial_str(struct dahdi_pvt *pvt, int operation, const char *dial_str)
+{
+	int res;
+	int offset;
+	const char *pos;
+	struct dahdi_dialoperation zo = {
+		.op = operation,
+	};
+
+	/* Convert the W's to ww. */
+	pos = dial_str;
+	for (offset = 0; offset < sizeof(zo.dialstr) - 1; ++offset) {
+		if (!*pos) {
+			break;
+		}
+		if (*pos == 'W') {
+			/* Convert 'W' to "ww" */
+			++pos;
+			if (offset >= sizeof(zo.dialstr) - 3) {
+				/* No room to expand */
+				break;
+			}
+			zo.dialstr[offset] = 'w';
+			++offset;
+			zo.dialstr[offset] = 'w';
+			continue;
+		}
+		zo.dialstr[offset] = *pos++;
+	}
+	/* The zo initialization has already terminated the dialstr. */
+
+	ast_debug(1, "Channel %d: Dial str '%s' expanded to '%s' sent to DAHDI_DIAL.\n",
+		pvt->channel, dial_str, zo.dialstr);
+	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo);
+	if (res) {
+		ast_log(LOG_WARNING, "Channel %d: Couldn't dial '%s': %s\n",
+			pvt->channel, dial_str, strerror(errno));
+	}
+
+	return res;
+}
+
 static enum analog_event dahdievent_to_analogevent(int event);
 static int bump_gains(struct dahdi_pvt *p);
 static int dahdi_setlinear(int dfd, int linear);
@@ -2792,19 +2846,13 @@ static void my_pri_ss7_open_media(void *p)
  */
 static void my_pri_dial_digits(void *p, const char *dial_string)
 {
-	struct dahdi_dialoperation zo = {
-		.op = DAHDI_DIAL_OP_APPEND,
-	};
+	char dial_str[DAHDI_MAX_DTMF_BUF];
 	struct dahdi_pvt *pvt = p;
 	int res;
 
-	snprintf(zo.dialstr, sizeof(zo.dialstr), "T%s", dial_string);
-	ast_debug(1, "Channel %d: Sending '%s' to DAHDI_DIAL.\n", pvt->channel, zo.dialstr);
-	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo);
-	if (res) {
-		ast_log(LOG_WARNING, "Channel %d: Couldn't dial '%s': %s\n",
-			pvt->channel, dial_string, strerror(errno));
-	} else {
+	snprintf(dial_str, sizeof(dial_str), "T%s", dial_string);
+	res = dahdi_dial_str(pvt, DAHDI_DIAL_OP_APPEND, dial_str);
+	if (!res) {
 		pvt->dialing = 1;
 	}
 }
@@ -3095,10 +3143,7 @@ static int my_start(void *pvt)
 
 static int my_dial_digits(void *pvt, enum analog_sub sub, struct analog_dialoperation *dop)
 {
-	int index = analogsub_to_dahdisub(sub);
-	int res;
 	struct dahdi_pvt *p = pvt;
-	struct dahdi_dialoperation ddop;
 
 	if (dop->op != ANALOG_DIAL_OP_REPLACE) {
 		ast_log(LOG_ERROR, "Fix the dial_digits callback!\n");
@@ -3111,17 +3156,7 @@ static int my_dial_digits(void *pvt, enum analog_sub sub, struct analog_dialoper
 		return -1;
 	}
 
-	ddop.op = DAHDI_DIAL_OP_REPLACE;
-	ast_copy_string(ddop.dialstr, dop->dialstr, sizeof(ddop.dialstr));
-
-	ast_debug(1, "Channel %d: Sending '%s' to DAHDI_DIAL.\n", p->channel, ddop.dialstr);
-
-	res = ioctl(p->subs[index].dfd, DAHDI_DIAL, &ddop);
-	if (res == -1) {
-		ast_debug(1, "DAHDI_DIAL ioctl failed on %s: %s\n", ast_channel_name(p->owner), strerror(errno));
-	}
-
-	return res;
+	return dahdi_dial_str(p, DAHDI_DIAL_OP_REPLACE, dop->dialstr);
 }
 
 static void dahdi_train_ec(struct dahdi_pvt *p);
@@ -4635,18 +4670,12 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		goto out;
 
 	if (pvt->pulse || ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SENDTONE, &dtmf)) {
-		struct dahdi_dialoperation zo = {
-			.op = DAHDI_DIAL_OP_APPEND,
-		};
+		char dial_str[] = { 'T', digit, '\0' };
 
-		zo.dialstr[0] = 'T';
-		zo.dialstr[1] = digit;
-		zo.dialstr[2] = '\0';
-		if ((res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Channel %s couldn't dial digit %c: %s\n",
-				ast_channel_name(chan), digit, strerror(errno));
-		else
+		res = dahdi_dial_str(pvt, DAHDI_DIAL_OP_APPEND, dial_str);
+		if (!res) {
 			pvt->dialing = 1;
+		}
 	} else {
 		ast_debug(1, "Channel %s started VLDTMF digit '%c'\n",
 			ast_channel_name(chan), digit);
@@ -8196,7 +8225,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				dahdi_train_ec(p);
 				ast_copy_string(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr));
 				p->dop.op = DAHDI_DIAL_OP_REPLACE;
-				res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
+				res = dahdi_dial_str(p, p->dop.op, p->dop.dialstr);
 				p->echobreak = 0;
 			} else {
 				p->dialing = 0;
@@ -8431,14 +8460,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 			} else
 				p->echobreak = 0;
-			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop)) {
-				int saveerr = errno;
-
+			if (dahdi_dial_str(p, p->dop.op, p->dop.dialstr)) {
 				x = DAHDI_ONHOOK;
 				ioctl(p->subs[SUB_REAL].dfd, DAHDI_HOOK, &x);
-				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 				return NULL;
-				}
+			}
 			p->dialing = 1;
 			return &p->subs[idx].f;
 		}
@@ -8470,9 +8496,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					p->subs[idx].f.subclass.integer = 0;
 				} else if (!ast_strlen_zero(p->dop.dialstr)) {
 					/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
-					res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
-					if (res < 0) {
-						ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+					res = dahdi_dial_str(p, p->dop.op, p->dop.dialstr);
+					if (res) {
 						p->dop.dialstr[0] = '\0';
 						return NULL;
 					} else {
@@ -8843,9 +8868,8 @@ winkflashdone:
 		case SIG_EMWINK:
 			/* FGD MF and EMWINK *Must* wait for wink */
 			if (!ast_strlen_zero(p->dop.dialstr)) {
-				res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+				res = dahdi_dial_str(p, p->dop.op, p->dop.dialstr);
+				if (res) {
 					p->dop.dialstr[0] = '\0';
 					return NULL;
 				} else
@@ -8873,9 +8897,8 @@ winkflashdone:
 		case SIG_SFWINK:
 		case SIG_SF_FEATD:
 			if (!ast_strlen_zero(p->dop.dialstr)) {
-				res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
+				res = dahdi_dial_str(p, p->dop.op, p->dop.dialstr);
+				if (res) {
 					p->dop.dialstr[0] = '\0';
 					return NULL;
 				} else
@@ -9473,9 +9496,8 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 						ast_dsp_set_features(p->dsp, p->dsp_features);
 						ast_debug(1, "Got 10 samples of dialtone!\n");
 						if (!ast_strlen_zero(p->dop.dialstr)) { /* Dial deferred digits */
-							res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
-							if (res < 0) {
-								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+							res = dahdi_dial_str(p, p->dop.op, p->dop.dialstr);
+							if (res) {
 								p->dop.dialstr[0] = '\0';
 								ast_mutex_unlock(&p->lock);
 								ast_frfree(f);

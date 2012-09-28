@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="digits" required="true">
 				<para>List of digits 0-9,*#,a-d,A-D to send also w for a half second pause,
-				and f or F for a flash-hook if the channel supports
+				W for a one second pause, and f or F for a flash-hook if the channel supports
 				flash-hook.</para>
 			</parameter>
 			<parameter name="timeout_ms" required="false">
