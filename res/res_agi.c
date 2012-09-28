@@ -598,7 +598,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Enables/Disables the music on hold generator. If <replaceable>class</replaceable>
 			is not specified, then the <literal>default</literal> music on hold class will be
-			used.</para>
+			used. This generator will be stopped automatically when playing a file.</para>
 			<para>Always returns <literal>0</literal>.</para>
 		</description>
 	</agi>
@@ -648,7 +648,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Send the given file, allowing playback to be interrupted by the given
 			digits, if any. Returns <literal>0</literal> if playback completes without a digit
 			being pressed, or the ASCII numerical value of the digit if one was pressed,
-			or <literal>-1</literal> on error or if the channel was disconnected.</para>
+			or <literal>-1</literal> on error or if the channel was disconnected. If
+			musiconhold is playing before calling stream file it will be automatically
+			stopped and will not be restarted after completion.</para>
 		</description>
 		<see-also>
 			<ref type="agi">control stream file</ref>
