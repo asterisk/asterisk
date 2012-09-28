@@ -315,7 +315,6 @@ static char *aji_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_show_buddies(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
 static int aji_reload(int reload);
@@ -387,7 +386,6 @@ static struct ast_cli_entry aji_cli[] = {
 	AST_CLI_DEFINE(aji_do_reload, "Reload Jabber configuration"),
 	AST_CLI_DEFINE(aji_show_clients, "Show state of clients and components"),
 	AST_CLI_DEFINE(aji_show_buddies, "Show buddy lists of our clients"),
-	AST_CLI_DEFINE(aji_test, "Shows roster, but is generally used for mog's debugging."),
 	AST_CLI_DEFINE(aji_cli_create_collection, "Creates a PubSub node collection."),
 	AST_CLI_DEFINE(aji_cli_list_pubsub_nodes, "Lists PubSub nodes"),
 	AST_CLI_DEFINE(aji_cli_create_leafnode, "Creates a PubSub leaf node"),
@@ -4241,69 +4239,6 @@ static char *aji_show_buddies(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		});
 		iterator = client;
 	});
-	return CLI_SUCCESS;
-}
-
-/*!
- * \internal
- * \brief Send test message for debugging.
- * \return CLI_SUCCESS,CLI_FAILURE.
- */
-static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct aji_client *client;
-	struct aji_resource *resource;
-	const char *name;
-	struct aji_message *tmp;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "jabber test";
-		e->usage =
-			"Usage: jabber test <connection>\n"
-			"       Sends test message for debugging purposes.  A specific client\n"
-			"       as configured in jabber.conf must be specified.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != 3) {
-		return CLI_SHOWUSAGE;
-	}
-	name = a->argv[2];
-
-	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
-		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
-		return CLI_FAILURE;
-	}
-
-	/* XXX Does Matt really want everyone to use his personal address for tests? */ /* XXX yes he does */
-	ast_aji_send_chat(client, "mogorman@astjab.org", "blahblah");
-	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
-		ASTOBJ_RDLOCK(iterator);
-		ast_verbose("User: %s\n", iterator->name);
-		for (resource = iterator->resources; resource; resource = resource->next) {
-			ast_verbose("Resource: %s\n", resource->resource);
-			if (resource->cap) {
-				ast_verbose("   client: %s\n", resource->cap->parent->node);
-				ast_verbose("   version: %s\n", resource->cap->version);
-				ast_verbose("   Jingle Capable: %d\n", resource->cap->jingle);
-			}
-			ast_verbose("	Priority: %d\n", resource->priority);
-			ast_verbose("	Status: %d\n", resource->status);
-			ast_verbose("	Message: %s\n", S_OR(resource->description, ""));
-		}
-		ASTOBJ_UNLOCK(iterator);
-	});
-	ast_verbose("\nOooh a working message stack!\n");
-	AST_LIST_LOCK(&client->messages);
-	AST_LIST_TRAVERSE(&client->messages, tmp, list) {
-		//ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, S_OR(tmp->id,""), ctime(&tmp->arrived), S_OR(tmp->message, ""));
-	}
-	AST_LIST_UNLOCK(&client->messages);
-	ASTOBJ_UNREF(client, ast_aji_client_destroy);
-
 	return CLI_SUCCESS;
 }
 
