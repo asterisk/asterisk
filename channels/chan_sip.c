@@ -12226,6 +12226,7 @@ static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a
 		}
 
 		ast_str_append(a_buf, 0, "\r\n");
+		ao2_ref(candidate, -1);
 	}
 
 	ao2_iterator_destroy(&i);
