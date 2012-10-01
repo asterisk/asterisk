@@ -271,7 +271,21 @@ int ast_db_put(const char *family, const char *keys, const char *value)
 	return res;
 }
 
-int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
+/*!
+ * \internal
+ * \brief Get key value specified by family/key.
+ *
+ * Gets the value associated with the specified \a family and \a keys, and
+ * stores it, either into the fixed sized buffer specified by \a buffer
+ * and \a bufferlen, or as a heap allocated string if \a bufferlen is -1.
+ *
+ * \note If \a bufferlen is -1, \a buffer points to heap allocated memory
+ *       and must be freed by calling ast_free().
+ *
+ * \retval -1 An error occurred
+ * \retval 0 Success
+ */
+static int db_get_common(const char *family, const char *keys, char **buffer, int bufferlen)
 {
 	char fullkey[MAX_DB_FIELD] = "";
 	DBT key, data;
@@ -286,7 +300,6 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	fullkeylen = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
-	memset(value, 0, valuelen);
 	key.data = fullkey;
 	key.size = fullkeylen + 1;
 
@@ -296,13 +309,16 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	if (res) {
 		ast_debug(1, "Unable to find key '%s' in family '%s'\n", keys, family);
 	} else {
-#if 0
-		printf("Got value of size %d\n", data.size);
-#endif
 		if (data.size) {
 			((char *)data.data)[data.size - 1] = '\0';
-			/* Make sure that we don't write too much to the dst pointer or we don't read too much from the source pointer */
-			ast_copy_string(value, data.data, (valuelen > data.size) ? data.size : valuelen);
+
+			if (bufferlen == -1) {
+				*buffer = ast_strdup(data.data);
+			} else {
+				/* Make sure that we don't write too much to the dst pointer or we don't
+				 * read too much from the source pointer */
+				ast_copy_string(*buffer, data.data, bufferlen > data.size ? data.size : bufferlen);
+			}
 		} else {
 			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
 		}
@@ -313,6 +329,23 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	ast_mutex_unlock(&dblock);
 
 	return res;
+}
+
+int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
+{
+	ast_assert(value != NULL);
+
+	/* Make sure we initialize */
+	value[0] = 0;
+
+	return db_get_common(family, keys, &value, valuelen);
+}
+
+int ast_db_get_allocated(const char *family, const char *keys, char **out)
+{
+	*out = NULL;
+
+	return db_get_common(family, keys, out, -1);
 }
 
 int ast_db_del(const char *family, const char *keys)

@@ -912,8 +912,6 @@ static char *app_ql = "QueueLog" ;
 
 /*! \brief Persistent Members astdb family */
 static const char * const pm_family = "Queue/PersistentMembers";
-/* The maximum length of each persistent member queue database entry */
-#define PM_MAX_LEN 8192
 
 /*! \brief queues.conf [general] option */
 static int queue_persistent_members = 0;
@@ -5222,15 +5220,18 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 static void dump_queue_members(struct call_queue *pm_queue)
 {
 	struct member *cur_member;
-	char value[PM_MAX_LEN];
-	int value_len = 0;
-	int res;
+	struct ast_str *value;
 	struct ao2_iterator mem_iter;
 
-	memset(value, 0, sizeof(value));
-
-	if (!pm_queue)
+	if (!pm_queue) {
 		return;
+	}
+
+	/* 4K is a reasonable default for most applications, but we grow to
+	 * accommodate more if necessary. */
+	if (!(value = ast_str_create(4096))) {
+		return;
+	}
 
 	mem_iter = ao2_iterator_init(pm_queue->members, 0);
 	while ((cur_member = ao2_iterator_next(&mem_iter))) {
@@ -5239,25 +5240,27 @@ static void dump_queue_members(struct call_queue *pm_queue)
 			continue;
 		}
 
-		res = snprintf(value + value_len, sizeof(value) - value_len, "%s%s;%d;%d;%s;%s",
-			value_len ? "|" : "", cur_member->interface, cur_member->penalty, cur_member->paused, cur_member->membername, cur_member->state_interface);
+		ast_str_append(&value, 0, "%s%s;%d;%d;%s;%s",
+			ast_str_strlen(value) ? "|" : "",
+			cur_member->interface,
+			cur_member->penalty,
+			cur_member->paused,
+			cur_member->membername,
+			cur_member->state_interface);
 
 		ao2_ref(cur_member, -1);
-
-		if (res != strlen(value + value_len)) {
-			ast_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
-			break;
-		}
-		value_len += res;
 	}
 	ao2_iterator_destroy(&mem_iter);
-	
-	if (value_len && !cur_member) {
-		if (ast_db_put(pm_family, pm_queue->name, value))
+
+	if (ast_str_strlen(value) && !cur_member) {
+		if (ast_db_put(pm_family, pm_queue->name, ast_str_buffer(value)))
 			ast_log(LOG_WARNING, "failed to create persistent dynamic entry!\n");
-	} else
+	} else {
 		/* Delete the entry if the queue is empty or there is an error */
 		ast_db_del(pm_family, pm_queue->name);
+	}
+
+	ast_free(value);
 }
 
 /*! \brief Remove member from queue 
@@ -5538,7 +5541,7 @@ static void reload_queue_members(void)
 	struct ast_db_entry *db_tree;
 	struct ast_db_entry *entry;
 	struct call_queue *cur_queue;
-	char queue_data[PM_MAX_LEN];
+	char *queue_data;
 
 	/* Each key in 'pm_family' is the name of a queue */
 	db_tree = ast_db_gettree(pm_family, NULL);
@@ -5564,7 +5567,7 @@ static void reload_queue_members(void)
 			continue;
 		} 
 
-		if (ast_db_get(pm_family, queue_name, queue_data, PM_MAX_LEN)) {
+		if (ast_db_get_allocated(pm_family, queue_name, &queue_data)) {
 			queue_t_unref(cur_queue, "Expire reload reference");
 			continue;
 		}
@@ -5608,6 +5611,7 @@ static void reload_queue_members(void)
 			}
 		}
 		queue_t_unref(cur_queue, "Expire reload reference");
+		ast_free(queue_data);
 	}
 
 	if (db_tree) {
