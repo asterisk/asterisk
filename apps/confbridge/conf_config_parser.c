@@ -1316,7 +1316,10 @@ int conf_load_config(int reload)
 
 	return 0;
 error:
-	conf_destroy_config();
+	/* On a reload, just keep the config we already have in place. */
+	if (!reload) {
+		conf_destroy_config();
+	}
 	return -1;
 }
 
