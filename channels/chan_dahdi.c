@@ -29,12 +29,18 @@
  * You need to install libraries before you attempt to compile
  * and install the DAHDI channel.
  *
- * \par See also
- * \arg \ref Config_dahdi
- *
  * \ingroup channel_drivers
  *
  * \todo Deprecate the "musiconhold" configuration option post 1.4
+ */
+
+/*!
+ * \li The channel chan_dahdi uses the configuration file \ref chan_dahdi.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page chan_dahdi.conf chan_dahdi.conf
+ * \verbinclude chan_dahdi.conf.sample
  */
 
 /*** MODULEINFO
@@ -19096,6 +19102,16 @@ static const struct ast_data_entry dahdi_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/channel/dahdi/version", &dahdi_version_data_provider)
 };
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int res;

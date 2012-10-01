@@ -31,6 +31,15 @@
  * \todo Fix native bridging.
  */
 
+/*!
+ * \li The channel chan_gtalk uses the configuration file \ref gtalk.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page gtalk.conf gtalk.conf
+ * \verbinclude gtalk.conf.sample
+ */
+
 /*** MODULEINFO
         <defaultenabled>no</defaultenabled>
 	<depend>iksemel</depend>
@@ -2297,7 +2306,16 @@ static int gtalk_load_config(void)
 	return 1;
 }
 
-/*! \brief Load module into PBX, register channel */
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	struct ast_sockaddr bindaddr_tmp;

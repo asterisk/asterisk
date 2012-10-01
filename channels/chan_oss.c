@@ -27,10 +27,16 @@
  * \author Mark Spencer <markster@digium.com>
  * \author Luigi Rizzo
  *
- * \par See also
- * \arg \ref Config_oss
- *
  * \ingroup channel_drivers
+ */
+
+/*!
+ * \li The channel chan_oss uses the configuration file \ref oss.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page oss.conf oss.conf
+ * \verbinclude oss.conf.sample
  */
 
 /*** MODULEINFO
@@ -1436,6 +1442,16 @@ error:
 #endif
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	struct ast_config *cfg = NULL;

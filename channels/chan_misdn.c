@@ -30,6 +30,15 @@
  */
 
 /*!
+ * \li The channel chan_misdn uses the configuration file \ref misdn.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page misdn.conf misdn.conf
+ * \verbinclude misdn.conf.sample
+ */
+
+/*!
  * \note
  * To use the CCBS/CCNR supplementary service feature and other
  * supplementary services using FACILITY messages requires a
@@ -11275,6 +11284,16 @@ static int unload_module(void)
 	return 0;
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int i, port;

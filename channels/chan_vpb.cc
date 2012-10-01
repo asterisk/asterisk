@@ -29,6 +29,15 @@
  * \ingroup channel_drivers
  */
 
+/*!
+ * \li The channel chan_vpb uses the configuration file \ref vpb.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page vpb.conf vpb.conf
+ * \verbinclude vpb.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>vpb</depend>
 	<defaultenabled>no</defaultenabled>
@@ -2648,6 +2657,16 @@ static int unload_module(void)
 	return 0;
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static enum ast_module_load_result load_module()
 {
 	struct ast_config *cfg;

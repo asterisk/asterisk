@@ -21,10 +21,16 @@
  *
  * \author Matthew Fredrickson <creslin@digium.com>
  *
- * \par See also
- * \arg Config_alsa
- *
  * \ingroup channel_drivers
+ */
+
+/*!
+ * \li The channel chan_alsa uses the configuration file \ref alsa.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page alsa.conf alsa.conf
+ * \verbinclude alsa.conf.sample
  */
 
 /*** MODULEINFO
@@ -925,6 +931,16 @@ static struct ast_cli_entry cli_alsa[] = {
 	AST_CLI_DEFINE(console_mute, "Disable/Enable mic input"),
 };
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	struct ast_config *cfg;

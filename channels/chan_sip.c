@@ -92,6 +92,19 @@
  * the sip_hangup() function
  */
 
+/*! 
+ * \li The channel chan_sip uses configuration files \ref sip.conf and \ref sip_notify.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page sip.conf sip.conf
+ * \verbinclude sip.conf.sample
+ */
+
+/*! \page sip_notify.conf sip_notify.conf
+ * \verbinclude sip_notify.conf.sample
+ */
+
 /*!
  * \page sip_tcp_tls SIP TCP and TLS support
  *
@@ -815,13 +828,15 @@ static unsigned char global_refer_addheaders; /*!< Add extra headers to outgoing
 static int can_parse_xml;
 
 /*! \name Object counters @{
- *  \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
- *  should be used to modify these values. */
+ *
+ * \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
+ * should be used to modify these values.
+ */
 static int speerobjs = 0;     /*!< Static peers */
 static int rpeerobjs = 0;     /*!< Realtime peers */
 static int apeerobjs = 0;     /*!< Autocreated peer objects */
 static int regobjs = 0;       /*!< Registry objects */
-/* }@ */
+/*! @} */
 
 static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
 static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
@@ -33306,7 +33321,16 @@ static const struct ast_data_entry sip_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/channel/sip/peers", &peers_data_provider),
 };
 
-/*! \brief PBX load module - initialization */
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	ast_verbose("SIP channel loading...\n");

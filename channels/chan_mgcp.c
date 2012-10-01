@@ -22,10 +22,16 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * \par See also
- * \arg \ref Config_mgcp
- *
  * \ingroup channel_drivers
+ */
+
+/*!
+ * \li The channel chan_mgcp uses the configuration file \ref mgcp.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page mgcp.conf mgcp.conf
+ * \verbinclude mgcp.conf.sample
  */
 
 /*** MODULEINFO
@@ -4794,7 +4800,16 @@ static int reload_config(int reload)
 	return 0;
 }
 
-/*! \brief  load_module: PBX load module - initialization ---*/
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	struct ast_format tmpfmt;
