@@ -232,11 +232,70 @@ AST_TEST_DEFINE(perftest)
 
 	return res;
 }
+
+AST_TEST_DEFINE(put_get_long)
+{
+	int res = AST_TEST_PASS;
+	struct ast_str *s;
+	int i, j;
+
+#define STR_FILL_32 "abcdefghijklmnopqrstuvwxyz123456"
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "put_get_long";
+		info->category = "/main/astdb/";
+		info->summary = "ast_db_(put|get_allocated) unit test";
+		info->description =
+			"Ensures that the ast_db_put and ast_db_get_allocated functions work";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(s = ast_str_create(4096))) {
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 1024; i <= 1024 * 1024 * 8; i *= 2) {
+		char *out = NULL;
+
+		ast_str_reset(s);
+
+		for (j = 0; j < i; j += sizeof(STR_FILL_32) - 1) {
+			ast_str_append(&s, 0, "%s", STR_FILL_32);
+		}
+
+		if (ast_db_put("astdbtest", "long", ast_str_buffer(s))) {
+			ast_test_status_update(test, "Failed to put value of %zu bytes\n", ast_str_strlen(s));
+			res = AST_TEST_FAIL;
+		} else if (ast_db_get_allocated("astdbtest", "long", &out)) {
+			ast_test_status_update(test, "Failed to get value of %zu bytes\n", ast_str_strlen(s));
+			res = AST_TEST_FAIL;
+		} else if (strcmp(ast_str_buffer(s), out)) {
+			ast_test_status_update(test, "Failed to match value of %zu bytes\n", ast_str_strlen(s));
+			res = AST_TEST_FAIL;
+		} else if (ast_db_del("astdbtest", "long")) {
+			ast_test_status_update(test, "Failed to delete astdbtest/long\n");
+			res = AST_TEST_FAIL;
+		}
+
+		if (out) {
+			ast_free(out);
+		}
+	}
+
+	ast_free(s);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(put_get_del);
 	AST_TEST_UNREGISTER(gettree_deltree);
 	AST_TEST_UNREGISTER(perftest);
+	AST_TEST_UNREGISTER(put_get_long);
 	return 0;
 }
 
@@ -245,6 +304,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(put_get_del);
 	AST_TEST_REGISTER(gettree_deltree);
 	AST_TEST_REGISTER(perftest);
+	AST_TEST_REGISTER(put_get_long);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

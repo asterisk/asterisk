@@ -36,6 +36,17 @@ struct ast_db_entry {
 /*!\brief Get key value specified by family/key */
 int ast_db_get(const char *family, const char *key, char *out, int outlen);
 
+/*!\brief Get key value specified by family/key as a heap allocated string.
+ *
+ * Given a \a family and \a key, sets \a out to a pointer to a heap
+ * allocated string.  In the event of an error, \a out will be set to
+ * NULL.  The string must be freed by calling ast_free().
+ *
+ * \retval -1 An error occurred
+ * \retval 0 Success
+ */
+int ast_db_get_allocated(const char *family, const char *key, char **out);
+
 /*!\brief Store value addressed by family/key */
 int ast_db_put(const char *family, const char *key, const char *value);
 
