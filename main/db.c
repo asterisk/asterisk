@@ -307,7 +307,21 @@ int ast_db_put(const char *family, const char *key, const char *value)
 	return res;
 }
 
-int ast_db_get(const char *family, const char *key, char *value, int valuelen)
+/*!
+ * \internal
+ * \brief Get key value specified by family/key.
+ *
+ * Gets the value associated with the specified \a family and \a key, and
+ * stores it, either into the fixed sized buffer specified by \a buffer
+ * and \a bufferlen, or as a heap allocated string if \a bufferlen is -1.
+ *
+ * \note If \a bufferlen is -1, \a buffer points to heap allocated memory
+ *       and must be freed by calling ast_free().
+ *
+ * \retval -1 An error occurred
+ * \retval 0 Success
+ */
+static int db_get_common(const char *family, const char *key, char **buffer, int bufferlen)
 {
 	const unsigned char *result;
 	char fullkey[MAX_DB_FIELD];
@@ -332,12 +346,35 @@ int ast_db_get(const char *family, const char *key, char *value, int valuelen)
 		ast_log(LOG_WARNING, "Couldn't get value\n");
 		res = -1;
 	} else {
-		ast_copy_string(value, (const char *) result, valuelen);
+		const char *value = (const char *) result;
+
+		if (bufferlen == -1) {
+			*buffer = ast_strdup(value);
+		} else {
+			ast_copy_string(*buffer, value, bufferlen);
+		}
 	}
 	sqlite3_reset(get_stmt);
 	ast_mutex_unlock(&dblock);
 
 	return res;
+}
+
+int ast_db_get(const char *family, const char *key, char *value, int valuelen)
+{
+	ast_assert(value != NULL);
+
+	/* Make sure we initialize */
+	value[0] = 0;
+
+	return db_get_common(family, key, &value, valuelen);
+}
+
+int ast_db_get_allocated(const char *family, const char *key, char **out)
+{
+	*out = NULL;
+
+	return db_get_common(family, key, out, -1);
 }
 
 int ast_db_del(const char *family, const char *key)
