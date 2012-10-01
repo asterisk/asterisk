@@ -28,13 +28,23 @@
  * \par See also
  * \arg \ref Config_vm
  * \note For information about voicemail IMAP storage, https://wiki.asterisk.org/wiki/display/AST/IMAP+Voicemail+Storage
-  * \ingroup applications
+ * \ingroup applications
  * \todo This module requires res_adsi to load. This needs to be optional
  * during compilation.
  *
  * \todo This file is now almost impossible to work with, due to all \#ifdefs.
  *       Feels like the database code before realtime. Someone - please come up
  *       with a plan to clean this up.
+ */
+
+/*! 
+ * \li The application app_voicemail uses configuration file \ref voicemail.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page voicemail.conf voicemail.conf
+ * \verbinclude voicemail.conf.sample
  */
 
 /*** MODULEINFO
@@ -14277,6 +14287,16 @@ static int unload_module(void)
 	return res;
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int res;

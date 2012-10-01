@@ -29,6 +29,16 @@
  * \ingroup applications
  */
 
+/*! 
+ * \li The application app_skel uses configuration file \ref app_skel.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page app_skel.conf app_skel.conf
+ * \verbinclude app_skel.conf.sample
+ */
+
 /*** MODULEINFO
 	<defaultenabled>no</defaultenabled>
 	<support_level>core</support_level>
@@ -651,10 +661,12 @@ static int unload_module(void)
 /*!
  * \brief Load the module
  *
- * \par The configuration file
- * 
- * The application app_skel uses a configuration file.
- * \verbinclude app_skel.conf.sample
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
 {

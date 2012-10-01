@@ -30,6 +30,16 @@
  * \ingroup applications
  */
 
+/*! 
+ * \li The application app_alarmreceiver uses the configuration file \ref alarmreceiver.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page alarmreceiver.conf alarmreceiver.conf
+ * \verbinclude alarmreceiver.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
@@ -724,11 +734,15 @@ static int unload_module(void)
 	return ast_unregister_application(app);
 }
 
-/**
- * \brief Register Alarm Receiver App
+/*!
+ * \brief Load the module
  *
- * \retval 0 success
- * \retval -1 failure
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
 {

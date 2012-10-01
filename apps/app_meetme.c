@@ -29,6 +29,16 @@
  * \ingroup applications
  */
 
+/*! 
+ * \li The application app_meetme uses configuration file \ref meetme.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page meetme.conf meetme.conf
+ * \verbinclude meetme.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>dahdi</depend>
 	<defaultenabled>no</defaultenabled>
@@ -7572,8 +7582,16 @@ static int unload_module(void)
 	return res;
 }
 
-
-
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int res = 0;

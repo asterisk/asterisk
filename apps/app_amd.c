@@ -24,6 +24,18 @@
  * \brief Answering machine detection
  *
  * \author Claude Klimos (claude.klimos@aheeva.com)
+ *
+ * \ingroup applications
+ */
+
+/*!
+ * \li The application app_amd uses the configuration file \ref amd.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page amd.conf amd.conf
+ * \verbinclude amd.conf.sample
  */
 
 /*** MODULEINFO
@@ -487,6 +499,16 @@ static int unload_module(void)
 	return ast_unregister_application(app);
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	if (load_config(0))
