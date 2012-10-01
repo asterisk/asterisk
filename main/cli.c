@@ -2191,7 +2191,8 @@ static char *help1(int fd, const char * const match[], int locked)
 			continue;
 		if (match && strncasecmp(matchstr, e->_full_cmd, len))
 			continue;
-		ast_cli(fd, "%30.30s %s\n", e->_full_cmd, S_OR(e->summary, "<no description available>"));
+		ast_cli(fd, "%-30s -- %s\n", e->_full_cmd,
+			S_OR(e->summary, "<no description available>"));
 		found++;
 	}
 	if (!locked)
