@@ -31,6 +31,16 @@
  * polling thread handle it.
  */
 
+/*!
+ * \li The resource res_smdi uses the configuration file \ref smdi.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page smdi.conf smdi.conf
+ * \verbinclude smdi.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
@@ -1396,6 +1406,16 @@ static struct ast_custom_function smdi_msg_function = {
 
 static int _unload_module(int fromload);
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int res;

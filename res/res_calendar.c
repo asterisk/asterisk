@@ -23,6 +23,16 @@
  * \todo Support writing attendees
  */
 
+/*!
+ * \li The resource res_calendar uses the configuration file \ref calendar.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page calendar.conf calendar.conf
+ * \verbinclude calendar.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
@@ -1830,6 +1840,16 @@ static int unload_module(void)
 	return 0;
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	if (!(calendars = ao2_container_alloc(CALENDAR_BUCKETS, calendar_hash_fn, calendar_cmp_fn))) {

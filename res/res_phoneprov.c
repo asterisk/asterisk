@@ -26,6 +26,16 @@
  * \author Terry Wilson <twilson@digium.com>
  */
 
+/*! 
+ * \li The resource res_phoneprov uses the configuration file \ref phoneprov.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page phoneprov.conf phoneprov.conf
+ * \verbinclude phoneprov.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
@@ -1270,6 +1280,16 @@ static struct ast_http_uri phoneprovuri = {
 	.key = __FILE__,
 };
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	profiles = ao2_container_alloc(MAX_PROFILE_BUCKETS, profile_hash_fn, profile_cmp_fn);

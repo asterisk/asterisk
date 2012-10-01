@@ -19,10 +19,18 @@
 /*! \file
  *
  * \brief Routines implementing music on hold
- *
- * \arg See also \ref Config_moh
  * 
  * \author Mark Spencer <markster@digium.com>
+ */
+
+/*!
+ * \li The resource res_musiconhold uses the configuration file \ref musiconhold.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page musiconhold.conf musiconhold.conf
+ * \verbinclude musiconhold.conf.sample
  */
 
 /*** MODULEINFO
@@ -1941,6 +1949,16 @@ static int moh_class_cmp(void *obj, void *arg, int flags)
 		CMP_MATCH | CMP_STOP;
 }
 
+/*!
+ * \brief Load the module
+ *
+ * Module loading including tests for configuration or dependencies.
+ * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
+ * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
+ * configuration file or other non-critical problem return 
+ * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ */
 static int load_module(void)
 {
 	int res;
