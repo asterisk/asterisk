@@ -329,10 +329,6 @@
  */
 
 /*! 
- * \page Config_ast Asterisk.conf
- */
-
-/*! 
  * \page Config_mod Modules configuration
  * All res_ resource modules are loaded with globals on, which means
  * that non-static functions are callable from other modules.
@@ -350,14 +346,7 @@
  * \verbinclude features.conf.sample
  */
 
-/*! 
- * \page Config_followme Followme: An application for simple follow-me calls
- * \section followmeconf Followme.conf
- * - See app_followme.c
- * \verbinclude followme.conf.sample
- */
-
-/*! 
+/*!
  * \page Config_ext Extensions.conf - the Dial Plan
  * \section dialplan Extensions.conf 
  * \verbinclude extensions.conf.sample
@@ -640,7 +629,7 @@
  * repository on svn.digium.com
  */
 
-/*! 
+/*!
  * \page AstHTTP AMI over HTTP support
  * The http.c file includes support for manager transactions over
  * http.
@@ -660,6 +649,9 @@
 
 /*
  * Doxygen Groups
+ */
+
+/*! \addtogroup configuration_file Configuration Files
  */
 
 /*! 

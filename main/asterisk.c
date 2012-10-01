@@ -28,8 +28,11 @@
  * examples, developer documentation, support information, and information
  * for upgrading.
  * 
- * 
- * 
+ * \section community Community
+ * Asterisk is a big project and has a busy community. Look at the
+ * resources for questions and stick around to help answer questions.
+ * \li \ref asterisk_community_resources
+ *
  * \par Developer Documentation for Asterisk
  *
  * This is the main developer documentation for Asterisk. It is
@@ -44,7 +47,7 @@
  * \par Additional documentation
  * \arg \ref Licensing
  * \arg \ref DevDoc
- * \arg \ref ConfigFiles
+ * \arg \ref configuration_file
  *
  * \section copyright Copyright and Author
  *
@@ -60,12 +63,83 @@
  * the project provides a web site, mailing lists, and IRC
  * channels for your use.
  *
- * \todo Add pages for mailinglists, IRC, etc...
+ */
+
+/*!
+ * \page asterisk_community_resources Asterisk Community Resources
+ * \par Websites
+ * \li http://www.asterisk.org Asterisk Homepage
+ * \li http://wiki.asterisk.org Asterisk Wiki
+ *
+ * \par Mailing Lists
+ * \par
+ * All lists: http://lists.digium.com/mailman/listinfo
+ * \li aadk-commits	SVN commits to the AADK repository
+ * \li asterisk-addons-commits	SVN commits to the Asterisk addons project
+ * \li asterisk-announce	[no description available]
+ * \li asterisk-biz	Commercial and Business-Oriented Asterisk Discussion
+ * \li Asterisk-BSD	Asterisk on BSD discussion
+ * \li asterisk-bugs	[no description available]
+ * \li asterisk-commits	SVN commits to the Asterisk project
+ * \li asterisk-dev	Asterisk Developers Mailing List
+ * \li asterisk-doc	Discussions regarding The Asterisk Documentation Project
+ * \li asterisk-embedded	Asterisk Embedded Development
+ * \li asterisk-gui	Asterisk GUI project discussion
+ * \li asterisk-gui-commits	SVN commits to the Asterisk-GUI project
+ * \li asterisk-ha-clustering	Asterisk High Availability and Clustering List - Non-Commercial Discussion
+ * \li Asterisk-i18n	Discussion of Asterisk internationalization
+ * \li asterisk-r2	[no description available]
+ * \li asterisk-scf-commits	Commits to the Asterisk SCF project code repositories
+ * \li asterisk-scf-committee	Asterisk SCF Steering Committee discussions
+ * \li asterisk-scf-dev	Asterisk SCF Developers Mailing List
+ * \li asterisk-scf-wiki-changes	Changes to the Asterisk SCF space on wiki.asterisk.org
+ * \li asterisk-security	Asterisk Security Discussion
+ * \li asterisk-speech-rec	Use of speech recognition in Asterisk
+ * \li asterisk-ss7	[no description available]
+ * \li asterisk-users	Asterisk Users Mailing List - Non-Commercial Discussion
+ * \li asterisk-video	Development discussion of video media support in Asterisk
+ * \li asterisk-wiki-changes	Changes to the Asterisk space on wiki.asterisk.org
+ * \li asterisknow	AsteriskNOW Discussion
+ * \li dahdi-commits	SVN commits to the DAHDI project
+ * \li digium-announce	Digium Product Announcements
+ * \li Dundi	Distributed Universal Number Discovery
+ * \li libiax2-commits	SVN commits to the libiax2 project
+ * \li libpri-commits	SVN commits to the libpri project
+ * \li libss7-commits	SVN commits to the libss7 project
+ * \li svn-commits	SVN commits to the Digium repositories
+ * \li Test-results	Results from automated testing
+ * \li thirdparty-commits	SVN commits to the Digium third-party software repository
+ * \li zaptel-commits	SVN commits to the Zaptel project
+ *
+ * \par Forums
+ * \li Forums are located at http://forums.asterisk.org/
+ *
+ * \par IRC
+ * \par
+ * Use http://www.freenode.net IRC server to connect with Asterisk
+ * developers and users in realtime.
+ * 
+ * \li \verbatim #asterisk \endverbatim Asterisk Users Room
+ * \li \verbatim #asterisk-dev \endverbatim Asterisk Developers Room
+ *
+ * \par More
+ * \par
+ * If you would like to add a resource to this list please create an issue
+ * on the issue tracker with a patch.
  */
 
 /*! \file
  * \brief Top level source file for Asterisk - the Open Source PBX.
  *	Implementation of PBX core functions and CLI interface.
+ */
+
+/*!
+ * \li The Asterisk core uses the configuration file \ref asterisk.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page asterisk.conf asterisk.conf
+ * \verbinclude asterisk.conf.sample
  */
 
 /*** MODULEINFO
