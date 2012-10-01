@@ -172,6 +172,12 @@ int ast_speech_change(struct ast_speech *speech, const char *name, const char *v
 	return (speech->engine->change ? speech->engine->change(speech, name, value) : -1);
 }
 
+/*! \brief Get an engine specific attribute */
+int ast_speech_get_setting(struct ast_speech *speech, const char *name, char *buf, size_t len)
+{
+	return (speech->engine->get_setting ? speech->engine->get_setting(speech, name, buf, len) : -1);
+}
+
 /*! \brief Create a new speech structure using the engine specified */
 struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_format_cap *cap)
 {

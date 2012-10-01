@@ -213,7 +213,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 	</function>
 	<function name="SPEECH_ENGINE" language="en_US">
 		<synopsis>
-			Change a speech engine specific attribute.
+			Get or change a speech engine specific attribute.
 		</synopsis>
 		<syntax>
 			<parameter name="name" required="true" />
@@ -401,7 +401,7 @@ static struct ast_custom_function speech_grammar_function = {
 	.write = NULL,
 };
 
-/*! \brief SPEECH_ENGINE() Dialplan Function */
+/*! \brief SPEECH_ENGINE() Dialplan Set Function */
 static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	struct ast_speech *speech = find_speech(chan);
@@ -415,9 +415,21 @@ static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *
 	return 0;
 }
 
+/*! \brief SPEECH_ENGINE() Dialplan Get Function */
+static int speech_engine_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_speech *speech = find_speech(chan);
+
+	if (!data || !speech) {
+		return -1;
+	}
+
+	return ast_speech_get_setting(speech, data, buf, len);
+}
+
 static struct ast_custom_function speech_engine_function = {
 	.name = "SPEECH_ENGINE",
-	.read = NULL,
+	.read = speech_engine_read,
 	.write = speech_engine_write,
 };
 

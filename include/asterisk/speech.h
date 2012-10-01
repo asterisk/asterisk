@@ -93,6 +93,8 @@ struct ast_speech_engine {
 	int (*start)(struct ast_speech *speech);
 	/*! Change an engine specific setting */
 	int (*change)(struct ast_speech *speech, const char *name, const char *value);
+	/*! Get an engine specific setting */
+	int (*get_setting)(struct ast_speech *speech, const char *name, char *buf, size_t len);
 	/*! Change the type of results we want back */
 	int (*change_results_type)(struct ast_speech *speech, enum ast_speech_results_type results_type);
 	/*! Try to get results */
@@ -140,6 +142,8 @@ int ast_speech_write(struct ast_speech *speech, void *data, int len);
 int ast_speech_dtmf(struct ast_speech *speech, const char *dtmf);
 /*! \brief Change an engine specific attribute */
 int ast_speech_change(struct ast_speech *speech, const char *name, const char *value);
+/*! \brief Get an engine specific attribute */
+int ast_speech_get_setting(struct ast_speech *speech, const char *name, char *buf, size_t len);
 /*! \brief Change the type of results we want */
 int ast_speech_change_results_type(struct ast_speech *speech, enum ast_speech_results_type results_type);
 /*! \brief Change state of a speech structure */
