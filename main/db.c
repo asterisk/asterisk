@@ -332,7 +332,7 @@ int ast_db_get(const char *family, const char *key, char *value, int valuelen)
 		ast_log(LOG_WARNING, "Couldn't get value\n");
 		res = -1;
 	} else {
-		strncpy(value, (const char *) result, valuelen);
+		ast_copy_string(value, (const char *) result, valuelen);
 	}
 	sqlite3_reset(get_stmt);
 	ast_mutex_unlock(&dblock);
