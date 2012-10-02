@@ -1499,11 +1499,7 @@ void ao2_iterator_destroy(struct ao2_iterator *iter)
 	ao2_iterator_restart(iter);
 
 	/* Release the iterated container reference. */
-#if defined(REF_DEBUG)
-	__ao2_ref_debug(iter->c, -1, "ao2_iterator_destroy", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-#else
-	ao2_ref(iter->c, -1);
-#endif
+	ao2_t_ref(iter->c, -1, "Unref iterator in ao2_iterator_destroy");
 	iter->c = NULL;
 
 	/* Free the malloced iterator. */
@@ -2017,12 +2013,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	struct hash_bucket_node *node;
 	int i;
 
-#if defined(REF_DEBUG)
-	node = __ao2_alloc_debug(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK,
-			"hash_ao2_new_node", __FILE__, __LINE__, __PRETTY_FUNCTION__, 1);
-#else
-	node = __ao2_alloc(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
-#endif
+	node = ao2_t_alloc_options(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, "Create hash node");
 	if (!node) {
 		return NULL;
 	}
