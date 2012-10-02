@@ -544,7 +544,14 @@ int __ao2_ref(void *user_data, int delta)
 	return internal_ao2_ref(user_data, delta, __FILE__, __LINE__, __FUNCTION__);
 }
 
-void ao2_cleanup(void *obj)
+void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *function)
+{
+	if (obj) {
+		__ao2_ref_debug(obj, -1, "ao2_cleanup", file, line, function);
+	}
+}
+
+void __ao2_cleanup(void *obj)
 {
 	if (obj) {
 		ao2_ref(obj, -1);
@@ -1347,7 +1354,11 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 				node->obj = NULL;
 
 				/* Unref the node from the container. */
-				__ao2_ref(node, -1);
+				if (tag) {
+					__ao2_ref_debug(node, -1, tag, file, line, func);
+				} else {
+					__ao2_ref(node, -1);
+				}
 			}
 		}
 
@@ -1488,7 +1499,11 @@ void ao2_iterator_destroy(struct ao2_iterator *iter)
 	ao2_iterator_restart(iter);
 
 	/* Release the iterated container reference. */
+#if defined(REF_DEBUG)
+	__ao2_ref_debug(iter->c, -1, "ao2_iterator_destroy", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+#else
 	ao2_ref(iter->c, -1);
+#endif
 	iter->c = NULL;
 
 	/* Free the malloced iterator. */
@@ -2002,7 +2017,12 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	struct hash_bucket_node *node;
 	int i;
 
+#if defined(REF_DEBUG)
+	node = __ao2_alloc_debug(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK,
+			"hash_ao2_new_node", __FILE__, __LINE__, __PRETTY_FUNCTION__, 1);
+#else
 	node = __ao2_alloc(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+#endif
 	if (!node) {
 		return NULL;
 	}
@@ -3366,12 +3386,22 @@ static struct ast_cli_entry cli_astobj2[] = {
 };
 #endif	/* defined(AO2_DEBUG) || defined(AST_DEVMODE) */
 
+#if defined(AST_DEVMODE)
+static void astobj2_cleanup(void)
+{
+	ao2_ref(reg_containers, -1);
+}
+#endif
 
 int astobj2_init(void)
 {
 #if defined(AST_DEVMODE)
 	reg_containers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, ao2_reg_sort_cb, NULL);
+	if (!reg_containers) {
+		return -1;
+	}
+	ast_register_atexit(astobj2_cleanup);
 #endif	/* defined(AST_DEVMODE) */
 #if defined(AO2_DEBUG) || defined(AST_DEVMODE)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));

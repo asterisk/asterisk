@@ -122,6 +122,12 @@ static struct ast_cli_entry taskprocessor_clis[] = {
 	AST_CLI_DEFINE(cli_tps_report, "List instantiated task processors and statistics"),
 };
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void tps_shutdown(void)
+{
+	ao2_t_ref(tps_singletons, -1, "Unref tps_singletons in shutdown");
+}
+
 /* initialize the taskprocessor container and register CLI operations */
 int ast_tps_init(void)
 {
@@ -133,6 +139,9 @@ int ast_tps_init(void)
 	ast_cond_init(&cli_ping_cond, NULL);
 
 	ast_cli_register_multiple(taskprocessor_clis, ARRAY_LEN(taskprocessor_clis));
+
+	ast_register_atexit(tps_shutdown);
+
 	return 0;
 }
 

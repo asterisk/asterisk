@@ -2590,12 +2590,15 @@ static int load_module(void)
 	ast_format_cap_add_all(agent_tech.capabilities);
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
+		agent_tech.capabilities = ast_format_cap_destroy(agent_tech.capabilities);
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	/* Read in the config */
-	if (!read_agent_config(0))
+	if (!read_agent_config(0)) {
+		agent_tech.capabilities = ast_format_cap_destroy(agent_tech.capabilities);
 		return AST_MODULE_LOAD_DECLINE;
+	}
 	/* Dialplan applications */
 	ast_register_application_xml(app, login_exec);
 	ast_register_application_xml(app3, agentmonitoroutgoing_exec);

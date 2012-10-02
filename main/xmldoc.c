@@ -2279,6 +2279,7 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 
 			if (item) {
 				ao2_link(docs, item);
+				ao2_t_ref(item, -1, "Dispose of creation ref");
 				item = NULL;
 			}
 		}

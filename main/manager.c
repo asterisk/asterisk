@@ -7225,6 +7225,66 @@ static void load_channelvars(struct ast_variable *var)
 	AST_RWLIST_UNLOCK(&channelvars);
 }
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void manager_shutdown(void)
+{
+	struct ast_manager_user *user;
+
+	if (registered) {
+		ast_manager_unregister("Ping");
+		ast_manager_unregister("Events");
+		ast_manager_unregister("Logoff");
+		ast_manager_unregister("Login");
+		ast_manager_unregister("Challenge");
+		ast_manager_unregister("Hangup");
+		ast_manager_unregister("Status");
+		ast_manager_unregister("Setvar");
+		ast_manager_unregister("Getvar");
+		ast_manager_unregister("GetConfig");
+		ast_manager_unregister("GetConfigJSON");
+		ast_manager_unregister("UpdateConfig");
+		ast_manager_unregister("CreateConfig");
+		ast_manager_unregister("ListCategories");
+		ast_manager_unregister("Redirect");
+		ast_manager_unregister("Atxfer");
+		ast_manager_unregister("Originate");
+		ast_manager_unregister("Command");
+		ast_manager_unregister("ExtensionState");
+		ast_manager_unregister("PresenceState");
+		ast_manager_unregister("AbsoluteTimeout");
+		ast_manager_unregister("MailboxStatus");
+		ast_manager_unregister("MailboxCount");
+		ast_manager_unregister("ListCommands");
+		ast_manager_unregister("SendText");
+		ast_manager_unregister("UserEvent");
+		ast_manager_unregister("WaitEvent");
+		ast_manager_unregister("CoreSettings");
+		ast_manager_unregister("CoreStatus");
+		ast_manager_unregister("Reload");
+		ast_manager_unregister("CoreShowChannels");
+		ast_manager_unregister("ModuleLoad");
+		ast_manager_unregister("ModuleCheck");
+		ast_manager_unregister("AOCMessage");
+		ast_manager_unregister("Filter");
+		ast_custom_function_unregister(&managerclient_function);
+	}
+
+#ifdef AST_XML_DOCS
+	ao2_t_global_obj_release(event_docs, "Dispose of event_docs");
+#endif
+
+	if (sessions) {
+		ao2_ref(sessions, -1);
+		sessions = NULL;
+	}
+
+	while ((user = AST_LIST_REMOVE_HEAD(&users, list))) {
+		ao2_ref(user->whitefilters, -1);
+		ao2_ref(user->blackfilters, -1);
+		ast_free(user);
+	}
+}
+
 static int __init_manager(int reload, int by_external_config)
 {
 	struct ast_config *ucfg = NULL, *cfg = NULL;
@@ -7295,12 +7355,12 @@ static int __init_manager(int reload, int by_external_config)
 #ifdef AST_XML_DOCS
 	temp_event_docs = ast_xmldoc_build_documentation("managerEvent");
 	if (temp_event_docs) {
-		temp_event_docs = ao2_global_obj_replace(event_docs, temp_event_docs);
-		if (temp_event_docs) {
-			ao2_ref(temp_event_docs, -1);
-		}
+		ao2_t_global_obj_replace_unref(event_docs, temp_event_docs, "Toss old event docs");
+		ao2_t_ref(temp_event_docs, -1, "Remove creation ref - container holds only ref now");
 	}
 #endif
+
+	ast_register_atexit(manager_shutdown);
 
 	if ((cfg = ast_config_load2("manager.conf", "manager", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
@@ -7700,6 +7760,7 @@ static int __init_manager(int reload, int by_external_config)
 	} else if (ast_ssl_setup(amis_desc.tls_cfg)) {
 		ast_tcptls_server_start(&amis_desc);
 	}
+
 	return 0;
 }
 

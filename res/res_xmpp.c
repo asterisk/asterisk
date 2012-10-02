@@ -4375,6 +4375,7 @@ static int load_module(void)
 	aco_option_register_custom(&cfg_info, "buddy", ACO_EXACT, client_options, NULL, client_buddy_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
+		aco_info_destroy(&cfg_info);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

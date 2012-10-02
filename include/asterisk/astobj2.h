@@ -1757,6 +1757,12 @@ void ao2_bt(void);	/* backtrace */
  * \note they must be able to handle NULL parameters because most of the
  * allocation/find functions can fail and we don't want to try to tear
  * down a NULL */
-void ao2_cleanup(void *obj);
+void __ao2_cleanup(void *obj);
+void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *function);
+#ifdef REF_DEBUG
+#define ao2_cleanup(obj) __ao2_cleanup_debug((obj), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
+#define ao2_cleanup(obj) __ao2_cleanup(obj)
+#endif
 void ao2_iterator_cleanup(struct ao2_iterator *iter);
 #endif /* _ASTERISK_ASTOBJ2_H */

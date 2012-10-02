@@ -1787,6 +1787,9 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	 * (if in batch mode). really_quit happens to call it again when running
 	 * the atexit handlers, otherwise this would be a bit early. */
 	ast_cdr_engine_term();
+
+	/* Shutdown the message queue for the technology agnostic message channel.
+	 * This has to occur before we pause shutdown pending ast_undestroyed_channels. */
 	ast_msg_shutdown();
 
 	if (niceness == SHUTDOWN_NORMAL) {

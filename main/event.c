@@ -1811,6 +1811,38 @@ static struct ast_cli_entry event_cli[] = {
 	AST_CLI_DEFINE(event_dump_cache, "Dump the internal event cache (for debugging)"),
 };
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void event_shutdown(void)
+{
+	struct ast_event_sub *sub;
+	int i;
+
+	if (event_dispatcher) {
+		event_dispatcher = ast_taskprocessor_unreference(event_dispatcher);
+	}
+
+	/* Remove any remaining subscriptions.  Note that we can't just call
+	 * unsubscribe, as it will attempt to lock the subscription list
+	 * as well */
+	for (i = 0; i < AST_EVENT_TOTAL; i++) {
+		AST_RWDLLIST_WRLOCK(&ast_event_subs[i]);
+		while ((sub = AST_RWDLLIST_REMOVE_HEAD(&ast_event_subs[i], entry))) {
+			ast_event_sub_destroy(sub);
+		}
+		AST_RWDLLIST_UNLOCK(&ast_event_subs[i]);
+		AST_RWDLLIST_HEAD_DESTROY(&ast_event_subs[i]);
+	}
+
+	for (i = 0; i < AST_EVENT_TOTAL; i++) {
+		if (!ast_event_cache[i].hash_fn) {
+			continue;
+		}
+		if (ast_event_cache[i].container) {
+			ao2_ref(ast_event_cache[i].container, -1);
+		}
+	}
+}
+
 int ast_event_init(void)
 {
 	int i;
@@ -1827,17 +1859,23 @@ int ast_event_init(void)
 
 		if (!(ast_event_cache[i].container = ao2_container_alloc(NUM_CACHE_BUCKETS,
 				ast_event_hash, ast_event_cmp))) {
-			return -1;
+			goto event_init_cleanup;
 		}
 	}
 
 	if (!(event_dispatcher = ast_taskprocessor_get("core_event_dispatcher", 0))) {
-		return -1;
+		goto event_init_cleanup;
 	}
 
 	ast_cli_register_multiple(event_cli, ARRAY_LEN(event_cli));
 
+	ast_register_atexit(event_shutdown);
+
 	return 0;
+
+event_init_cleanup:
+	event_shutdown();
+	return -1;
 }
 
 size_t ast_event_minimum_length(void)
