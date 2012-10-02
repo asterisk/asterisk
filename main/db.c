@@ -946,8 +946,14 @@ static void *db_sync_thread(void *data)
 	return NULL;
 }
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
 static void astdb_atexit(void)
 {
+	ast_manager_unregister("DBGet");
+	ast_manager_unregister("DBPut");
+	ast_manager_unregister("DBDel");
+	ast_manager_unregister("DBDelTree");
+
 	/* Set doexit to 1 to kill thread. db_sync must be called with
 	 * mutex held. */
 	doexit = 1;

@@ -158,6 +158,8 @@ static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
 			}
 			return -1;
 		}
+		/* The container should hold the only ref to opt */
+		ao2_ref(opt, -1);
 	}
 	return 0;
 }

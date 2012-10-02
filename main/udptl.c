@@ -1462,6 +1462,13 @@ int ast_udptl_reload(void)
 	return 0;
 }
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void udptl_shutdown(void)
+{
+	ao2_t_global_obj_release(globals, "Unref udptl global container in shutdown");
+	aco_info_destroy(&cfg_info);
+}
+
 void ast_udptl_init(void)
 {
 	if (aco_info_init(&cfg_info)) {
@@ -1496,4 +1503,6 @@ void ast_udptl_init(void)
 	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 
 	__ast_udptl_reload(0);
+
+	ast_register_atexit(udptl_shutdown);
 }

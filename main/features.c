@@ -7023,7 +7023,6 @@ static int load_config(int reload)
 			return -1;
 		}
 		ast_debug(1, "Configuration of default default parking lot done.\n");
-		parkinglot_addref(default_parkinglot);
 	}
 
 	cfg = ast_config_load2("features.conf", "features", config_flags);
@@ -8958,6 +8957,24 @@ static struct ast_custom_function featuremap_function = {
 	.write = featuremap_write
 };
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void features_shutdown(void)
+{
+	ast_devstate_prov_del("Park");
+	ast_custom_function_unregister(&featuremap_function);
+	ast_custom_function_unregister(&feature_function);
+	ast_manager_unregister("Bridge");
+	ast_manager_unregister("Park");
+	ast_manager_unregister("Parkinglots");
+	ast_manager_unregister("ParkedCalls");
+	ast_unregister_application(parkcall);
+	ast_unregister_application(parkedcall);
+	ast_unregister_application(app_bridge);
+
+	pthread_cancel(parking_thread);
+	ao2_ref(parkinglots, -1);
+}
+
 int ast_features_init(void)
 {
 	int res;
@@ -8992,6 +9009,8 @@ int ast_features_init(void)
 #if defined(TEST_FRAMEWORK)
 	res |= AST_TEST_REGISTER(features_test);
 #endif	/* defined(TEST_FRAMEWORK) */
+
+	ast_register_atexit(features_shutdown);
 
 	return res;
 }

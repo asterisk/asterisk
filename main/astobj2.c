@@ -1528,7 +1528,14 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 	return clone;
 }
 
-void ao2_cleanup(void *obj)
+void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *function)
+{
+	if (obj) {
+		__ao2_ref_debug(obj, -1, "ao2_cleanup", file, line, function);
+	}
+}
+
+void __ao2_cleanup(void *obj)
 {
 	if (obj) {
 		ao2_ref(obj, -1);
