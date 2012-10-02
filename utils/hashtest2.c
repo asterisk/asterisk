@@ -357,6 +357,12 @@ void ast_unregister_file_version(const char *file)
 
 }
 
+int ast_register_atexit(void (*func)(void));
+int ast_register_atexit(void (*func)(void))
+{
+	return 0;
+}
+
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
