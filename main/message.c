@@ -1302,7 +1302,7 @@ int ast_msg_tech_unregister(const struct ast_msg_tech *tech)
 	return 0;
 }
 
-void ast_msg_shutdown()
+void ast_msg_shutdown(void)
 {
 	if (msg_q_tp) {
 		msg_q_tp = ast_taskprocessor_unreference(msg_q_tp);
