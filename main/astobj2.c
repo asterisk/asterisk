@@ -2982,7 +2982,8 @@ struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 	num_buckets = hash_fn ? n_buckets : 1;
 	container_size = sizeof(struct ao2_container_hash) + num_buckets * sizeof(struct hash_bucket);
 
-	self = __ao2_alloc(container_size, container_destruct, ao2_options);
+	self = ao2_t_alloc_options(container_size, container_destruct, ao2_options,
+		"New hash container");
 	return hash_ao2_container_init(self, container_options, num_buckets,
 		hash_fn, sort_fn, cmp_fn);
 }
