@@ -1203,13 +1203,13 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 		 * is destroyed, the container will be automatically
 		 * destroyed as well.
 		 */
-		multi_container = __ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL,
-			NULL);
+		multi_container = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL,
+			NULL, "OBJ_MULTIPLE return container creation");
 		if (!multi_container) {
 			return NULL;
 		}
 		if (!(multi_iterator = ast_calloc(1, sizeof(*multi_iterator)))) {
-			ao2_ref(multi_container, -1);
+			ao2_t_ref(multi_container, -1, "OBJ_MULTIPLE interator creation failed.");
 			return NULL;
 		}
 	}
@@ -1308,7 +1308,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 						if (tag) {
 							__ao2_ref_debug(ret, 1, tag, file, line, func);
 						} else {
-							__ao2_ref(ret, 1);
+							ao2_t_ref(ret, 1, "Traversal found object");
 						}
 					}
 				}
@@ -1348,17 +1348,13 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 					if (tag) {
 						__ao2_ref_debug(node->obj, -1, tag, file, line, func);
 					} else {
-						__ao2_ref(node->obj, -1);
+						ao2_t_ref(node->obj, -1, "Unlink container obj reference.");
 					}
 				}
 				node->obj = NULL;
 
 				/* Unref the node from the container. */
-				if (tag) {
-					__ao2_ref_debug(node, -1, tag, file, line, func);
-				} else {
-					__ao2_ref(node, -1);
-				}
+				__ao2_ref(node, -1);
 			}
 		}
 
@@ -1385,7 +1381,8 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	if (multi_container) {
 		*multi_iterator = ao2_iterator_init(multi_container,
 			AO2_ITERATOR_UNLINK | AO2_ITERATOR_MALLOCD);
-		ao2_ref(multi_container, -1);
+		ao2_t_ref(multi_container, -1,
+			"OBJ_MULTIPLE for multiple objects traversal complete.");
 		return multi_iterator;
 	} else {
 		return ret;
@@ -1456,7 +1453,7 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 		.flags = flags
 	};
 
-	ao2_ref(c, +1);
+	ao2_t_ref(c, +1, "Init iterator with container.");
 
 	return a;
 }
@@ -1479,7 +1476,7 @@ void ao2_iterator_restart(struct ao2_iterator *iter)
 			ao2_rdlock(iter->c);
 		}
 
-		ao2_ref(iter->last_node, -1);
+		__ao2_ref(iter->last_node, -1);
 		iter->last_node = NULL;
 
 		if (iter->flags & AO2_ITERATOR_DONTLOCK) {
@@ -1581,7 +1578,7 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 			if (tag) {
 				__ao2_ref_debug(ret, +1, tag, file, line, func);
 			} else {
-				__ao2_ref(ret, +1);
+				ao2_t_ref(ret, +1, "Next iterator object.");
 			}
 
 			/* Bump the container's node ref for the iterator. */
@@ -1686,7 +1683,7 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
 	obj = __ao2_callback(src, OBJ_NOLOCK, dup_obj_cb, dest);
 	if (obj) {
 		/* Failed to put this obj into the dest container. */
-		__ao2_ref(obj, -1);
+		ao2_t_ref(obj, -1, "Failed to put this object into the dest container.");
 
 		/* Remove all items from the dest container. */
 		__ao2_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
@@ -1726,7 +1723,7 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 	}
 	if (failed) {
 		/* Object copy into the clone container failed. */
-		__ao2_ref(clone, -1);
+		ao2_t_ref(clone, -1, "Clone creation failed.");
 		clone = NULL;
 	}
 	return clone;
@@ -1760,7 +1757,7 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 		if (ref_debug) {
 			__ao2_ref_debug(clone, -1, tag, file, line, func);
 		} else {
-			__ao2_ref(clone, -1);
+			ao2_t_ref(clone, -1, "Clone creation failed.");
 		}
 		clone = NULL;
 	}
@@ -1901,8 +1898,8 @@ static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_has
 	}
 	ao2_options = orig_obj->priv_data.options;
 
-	return __ao2_container_alloc_hash(ao2_options, self->common.options, self->n_buckets,
-		self->hash_fn, self->common.sort_fn, self->common.cmp_fn);
+	return ao2_t_container_alloc_hash(ao2_options, self->common.options, self->n_buckets,
+		self->hash_fn, self->common.sort_fn, self->common.cmp_fn, "Clone hash container");
 }
 
 /*!
@@ -1988,7 +1985,7 @@ static void hash_ao2_node_destructor(void *v_doomed)
 	 * destroyed or the node had not been linked in yet.
 	 */
 	if (doomed->common.obj) {
-		ao2_ref(doomed->common.obj, -1);
+		ao2_t_ref(doomed->common.obj, -1, "Container node destruction");
 		doomed->common.obj = NULL;
 	}
 }
@@ -2013,7 +2010,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	struct hash_bucket_node *node;
 	int i;
 
-	node = ao2_t_alloc_options(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, "Create hash node");
+	node = __ao2_alloc(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!node) {
 		return NULL;
 	}
@@ -2024,7 +2021,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	if (tag) {
 		__ao2_ref_debug(obj_new, +1, tag, file, line, func);
 	} else {
-		__ao2_ref(obj_new, +1);
+		ao2_t_ref(obj_new, +1, "Container node creation");
 	}
 	node->common.obj = obj_new;
 	node->common.my_container = (struct ao2_container *) self;
@@ -3217,7 +3214,7 @@ static void ao2_reg_destructor(void *v_doomed)
 	struct ao2_reg_container *doomed = v_doomed;
 
 	if (doomed->registered) {
-		ao2_ref(doomed->registered, -1);
+		ao2_t_ref(doomed->registered, -1, "Releasing registered container.");
 	}
 }
 #endif	/* defined(AST_DEVMODE) */
@@ -3228,22 +3225,22 @@ int ao2_container_register(const char *name, struct ao2_container *self)
 #if defined(AST_DEVMODE)
 	struct ao2_reg_container *reg;
 
-	reg = ao2_alloc_options(sizeof(*reg) + strlen(name), ao2_reg_destructor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	reg = ao2_t_alloc_options(sizeof(*reg) + strlen(name), ao2_reg_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK, "Container registration object.");
 	if (!reg) {
 		return -1;
 	}
 
 	/* Fill in registered entry */
-	ao2_ref(self, +1);
+	ao2_t_ref(self, +1, "Registering container.");
 	reg->registered = self;
 	strcpy(reg->name, name);/* safe */
 
-	if (!ao2_link(reg_containers, reg)) {
+	if (!ao2_t_link(reg_containers, reg, "Save registration object.")) {
 		res = -1;
 	}
 
-	ao2_ref(reg, -1);
+	ao2_t_ref(reg, -1, "Done registering container.");
 #endif	/* defined(AST_DEVMODE) */
 	return res;
 }
@@ -3251,7 +3248,8 @@ int ao2_container_register(const char *name, struct ao2_container *self)
 void ao2_container_unregister(const char *name)
 {
 #if defined(AST_DEVMODE)
-	ao2_find(reg_containers, name, OBJ_UNLINK | OBJ_NODATA | OBJ_KEY);
+	ao2_t_find(reg_containers, name, OBJ_UNLINK | OBJ_NODATA | OBJ_KEY,
+		"Unregister container");
 #endif	/* defined(AST_DEVMODE) */
 }
 
@@ -3281,11 +3279,11 @@ static char *complete_container_names(struct ast_cli_args *a)
 	partial_key.name = a->word;
 	which.find_nth = a->n;
 	which.count = 0;
-	reg = ao2_callback_data(reg_containers, partial_key.len ? OBJ_PARTIAL_KEY : 0,
-		ao2_complete_reg_cb, &partial_key, &which);
+	reg = ao2_t_callback_data(reg_containers, partial_key.len ? OBJ_PARTIAL_KEY : 0,
+		ao2_complete_reg_cb, &partial_key, &which, "Find partial registered container");
 	if (reg) {
 		name = ast_strdup(reg->name);
-		ao2_ref(reg, -1);
+		ao2_t_ref(reg, -1, "Done with registered container object.");
 	} else {
 		name = NULL;
 	}
@@ -3316,10 +3314,10 @@ static char *handle_cli_astobj2_container_stats(struct ast_cli_entry *e, int cmd
 	}
 
 	name = a->argv[3];
-	reg = ao2_find(reg_containers, name, OBJ_KEY);
+	reg = ao2_t_find(reg_containers, name, OBJ_KEY, "Find registered container");
 	if (reg) {
 		ao2_container_stats(reg->registered, a->fd, ast_cli);
-		ao2_ref(reg, -1);
+		ao2_t_ref(reg, -1, "Done with registered container object.");
 	} else {
 		ast_cli(a->fd, "Container '%s' not found.\n", name);
 	}
@@ -3351,11 +3349,11 @@ static char *handle_cli_astobj2_container_check(struct ast_cli_entry *e, int cmd
 	}
 
 	name = a->argv[3];
-	reg = ao2_find(reg_containers, name, OBJ_KEY);
+	reg = ao2_t_find(reg_containers, name, OBJ_KEY, "Find registered container");
 	if (reg) {
 		ast_cli(a->fd, "Container check of '%s': %s.\n", name,
 			ao2_container_check(reg->registered, 0) ? "failed" : "OK");
-		ao2_ref(reg, -1);
+		ao2_t_ref(reg, -1, "Done with registered container object.");
 	} else {
 		ast_cli(a->fd, "Container '%s' not found.\n", name);
 	}
@@ -3380,15 +3378,17 @@ static struct ast_cli_entry cli_astobj2[] = {
 #if defined(AST_DEVMODE)
 static void astobj2_cleanup(void)
 {
-	ao2_ref(reg_containers, -1);
+	ao2_t_ref(reg_containers, -1, "Releasing container registration container");
+	reg_containers = NULL;
 }
 #endif
 
 int astobj2_init(void)
 {
 #if defined(AST_DEVMODE)
-	reg_containers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
-		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, ao2_reg_sort_cb, NULL);
+	reg_containers = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, ao2_reg_sort_cb, NULL,
+		"Container registration container.");
 	if (!reg_containers) {
 		return -1;
 	}
