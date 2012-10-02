@@ -1869,11 +1869,10 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			}
 		}
 	}
-	ast_verb(0, "Executing last minute cleanups\n");
-	ast_run_atexits();
-	/* Called on exit */
-	ast_verb(0, "Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
-	ast_debug(1, "Asterisk ending (%d).\n", num);
+	/* The manager event for shutdown must happen prior to ast_run_atexits, as
+	 * the manager interface will dispose of its sessions as part of its
+	 * shutdown.
+	 */
 	/*** DOCUMENTATION
 		<managerEventInstance>
 			<synopsis>Raised when Asterisk is shutdown or restarted.</synopsis>
@@ -1893,7 +1892,16 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			</syntax>
 		</managerEventInstance>
 	***/
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
+	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\n"
+		"Restart: %s\r\n",
+		ast_active_channels() ? "Uncleanly" : "Cleanly",
+		restart ? "True" : "False");
+
+	ast_verb(0, "Executing last minute cleanups\n");
+	ast_run_atexits();
+	/* Called on exit */
+	ast_verb(0, "Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
+	ast_debug(1, "Asterisk ending (%d).\n", num);
 	if (ast_socket > -1) {
 		pthread_cancel(lthread);
 		close(ast_socket);
