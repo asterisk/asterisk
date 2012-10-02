@@ -3282,6 +3282,14 @@ AST_TEST_DEFINE(test_data_get)
 
 #endif
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void data_shutdown(void)
+{
+	ast_manager_unregister("DataGet");
+	ao2_t_ref(root_data.container, -1, "Unref root_data.container in data_shutdown");
+	ast_rwlock_destroy(&root_data.lock);
+}
+
 int ast_data_init(void)
 {
 	int res = 0;
@@ -3300,6 +3308,8 @@ int ast_data_init(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_data_get);
 #endif
+
+	ast_register_atexit(data_shutdown);
 
 	return res;
 }

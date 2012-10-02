@@ -8062,6 +8062,15 @@ static const struct ast_data_entry channel_providers[] = {
 	AST_DATA_ENTRY("/asterisk/core/channeltypes", &channeltypes_provider),
 };
 
+static void channels_shutdown(void)
+{
+	ast_data_unregister(NULL);
+	if (channels) {
+		ao2_ref(channels, -1);
+		channels = NULL;
+	}
+}
+
 void ast_channels_init(void)
 {
 	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
@@ -8072,6 +8081,8 @@ void ast_channels_init(void)
 	ast_data_register_multiple_core(channel_providers, ARRAY_LEN(channel_providers));
 
 	ast_plc_reload();
+
+	ast_register_atexit(channels_shutdown);
 }
 
 /*! \brief Print call group and pickup group ---*/

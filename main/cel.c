@@ -711,6 +711,10 @@ static void ast_cel_engine_term(void)
 		ao2_ref(appset, -1);
 		appset = NULL;
 	}
+	if (linkedids) {
+		ao2_ref(linkedids, -1);
+		linkedids = NULL;
+	}
 }
 
 int ast_cel_engine_init(void)

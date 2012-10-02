@@ -4310,6 +4310,30 @@ static struct ast_cli_entry cc_cli[] = {
 	AST_CLI_DEFINE(handle_cc_kill, "Kill a CC transaction"),
 };
 
+static void cc_shutdown(void)
+{
+	ast_devstate_prov_del("ccss");
+	ast_cc_agent_unregister(&generic_agent_callbacks);
+	ast_cc_monitor_unregister(&generic_monitor_cbs);
+	ast_unregister_application(cccancel_app);
+	ast_unregister_application(ccreq_app);
+
+	if (cc_sched_thread) {
+		cc_sched_thread = ast_sched_thread_destroy(cc_sched_thread);
+	}
+	if (cc_core_taskprocessor) {
+		cc_core_taskprocessor = ast_taskprocessor_unreference(cc_core_taskprocessor);
+	}
+	if (generic_monitors) {
+		ao2_t_ref(generic_monitors, -1, "Unref generic_monitor container in cc_shutdown");
+		generic_monitors = NULL;
+	}
+	if (cc_core_instances) {
+		ao2_t_ref(cc_core_instances, -1, "Unref cc_core_instances container in cc_shutdown");
+		cc_core_instances = NULL;
+	}
+}
+
 int ast_cc_init(void)
 {
 	int res;
@@ -4338,5 +4362,6 @@ int ast_cc_init(void)
 	cc_logger_level = ast_logger_register_level(CC_LOGGER_LEVEL_NAME);
 	dialed_cc_interface_counter = 1;
 	initialize_cc_max_requests();
+	ast_register_atexit(cc_shutdown);
 	return res;
 }
