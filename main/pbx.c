@@ -10813,6 +10813,26 @@ static const struct ast_data_entry pbx_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/core/hints", &hints_data_provider),
 };
 
+/*! \internal \brief Clean up resources on Asterisk shutdown.
+ * \note Cleans up resources allocated in load_pbx */
+static void unload_pbx(void)
+{
+	int x;
+
+	if (device_state_sub) {
+		device_state_sub = ast_event_unsubscribe(device_state_sub);
+	}
+
+	/* Unregister builtin applications */
+	for (x = 0; x < ARRAY_LEN(builtins); x++) {
+		ast_unregister_application(builtins[x].name);
+	}
+	ast_manager_unregister("ShowDialPlan");
+	ast_custom_function_unregister(&exception_function);
+	ast_custom_function_unregister(&testtime_function);
+	ast_data_unregister(NULL);
+}
+
 int load_pbx(void)
 {
 	int x;
@@ -10851,6 +10871,7 @@ int load_pbx(void)
 		return -1;
 	}
 
+	ast_register_atexit(unload_pbx);
 	return 0;
 }
 
@@ -11211,11 +11232,26 @@ static int statecbs_cmp(void *obj, void *arg, int flags)
 	return (state_cb->change_cb == change_cb) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void pbx_shutdown(void)
+{
+	if (hints) {
+		ao2_ref(hints, -1);
+	}
+	if (hintdevices) {
+		ao2_ref(hintdevices, -1);
+	}
+	if (statecbs) {
+		ao2_ref(statecbs, -1);
+	}
+}
+
 int ast_pbx_init(void)
 {
 	hints = ao2_container_alloc(HASH_EXTENHINT_SIZE, hint_hash, hint_cmp);
 	hintdevices = ao2_container_alloc(HASH_EXTENHINT_SIZE, hintdevice_hash_cb, hintdevice_cmp_multiple);
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 
+	ast_register_atexit(pbx_shutdown);
 	return (hints && hintdevices && statecbs) ? 0 : -1;
 }

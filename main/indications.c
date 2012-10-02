@@ -1150,6 +1150,15 @@ int ast_tone_zone_data_add_structure(struct ast_data *tree, struct ast_tone_zone
 	return 0;
 }
 
+/*! \internal \brief Clean up resources on Asterisk shutdown */
+static void indications_shutdown(void)
+{
+	if (ast_tone_zones) {
+		ao2_ref(ast_tone_zones, -1);
+		ast_tone_zones = NULL;
+	}
+}
+
 /*! \brief Load indications module */
 int ast_indications_init(void)
 {
@@ -1164,6 +1173,7 @@ int ast_indications_init(void)
 
 	ast_cli_register_multiple(cli_indications, ARRAY_LEN(cli_indications));
 
+	ast_register_atexit(indications_shutdown);
 	return 0;
 }
 
