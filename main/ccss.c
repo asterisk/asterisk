@@ -4324,13 +4324,14 @@ static void cc_shutdown(void)
 	if (cc_core_taskprocessor) {
 		cc_core_taskprocessor = ast_taskprocessor_unreference(cc_core_taskprocessor);
 	}
-	if (generic_monitors) {
-		ao2_t_ref(generic_monitors, -1, "Unref generic_monitor container in cc_shutdown");
-		generic_monitors = NULL;
-	}
+	/* Note that cc_core_instances must be disposed of prior to generic_monitors */
 	if (cc_core_instances) {
 		ao2_t_ref(cc_core_instances, -1, "Unref cc_core_instances container in cc_shutdown");
 		cc_core_instances = NULL;
+	}
+	if (generic_monitors) {
+		ao2_t_ref(generic_monitors, -1, "Unref generic_monitor container in cc_shutdown");
+		generic_monitors = NULL;
 	}
 }
 
