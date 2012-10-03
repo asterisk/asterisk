@@ -1,3 +1,31 @@
+2012-10-03  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.9.0-rc2 Released.
+
+	* Fix an issue where Local channels dialed by app_queue are considered
+	  in use immediately.
+
+	  The chan_local channel driver returns a device state of in use even
+	  if a created Local channel has not yet been dialed.  This fix
+	  changes the logic to return a state of not in use until the channel
+	  itself has been dialed.
+
+	  (closes issue ASTERISK-20390)
+	  Reported by: time_ringenbach
+
+	* Fix a regression where direct media was not permitted for calls
+	  using SIP INFO DTMF
+
+	  A change was committed to fix direct media ACL support.  This change
+	  wrongly assumed that only a single channel technology structure
+	  exists for chan_sip.  This is in fact false as a second exists for
+	  calls using SIP INFO DTMF.  The code which performs direct media ACL
+	  checking now checks for both the non-INFO DTMF and INFO DTMF channel
+	  technology structures.
+
+	  (closes issue ASTERISK-20409)
+	  Reported by: michele ciciotti privatewave
+
 2012-09-13  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.9.0-rc1 Released.
