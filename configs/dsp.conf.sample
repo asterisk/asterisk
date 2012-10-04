@@ -36,3 +36,8 @@
 ;dtmf_reverse_twist=2.51
 ;relax_dtmf_normal_twist=6.31
 ;relax_dtmf_reverse_twist=3.98
+
+;successive number hits/misses of 12.75ms before a digit/nodigit is considered valid
+;dtmf_hits_to_begin=2
+;dtmf_misses_to_end=3
+
