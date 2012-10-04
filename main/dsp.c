@@ -146,7 +146,7 @@ enum gsamp_thresh {
 
 #define	MAX_DTMF_DIGITS		128
 
-/* Basic DTMF specs:
+/* Basic DTMF (AT&T) specs:
  *
  * Minimum tone on = 40ms
  * Minimum tone off = 50ms
@@ -161,12 +161,18 @@ enum gsamp_thresh {
 #define DTMF_THRESHOLD		8.0e7
 #define FAX_THRESHOLD		8.0e7
 #define FAX_2ND_HARMONIC	2.0     /* 4dB */
-#define DTMF_NORMAL_TWIST	6.3     /* 8dB */
+
+#define DEF_DTMF_NORMAL_TWIST		6.31	 /* 8.0dB */
+#define DEF_RELAX_DTMF_NORMAL_TWIST	6.31	 /* 8.0dB */
+
 #ifdef	RADIO_RELAX
-#define DTMF_REVERSE_TWIST          (relax ? 6.5 : 2.5)     /* 4dB normal */
+#define DEF_DTMF_REVERSE_TWIST		2.51	 /* 4.01dB */
+#define DEF_RELAX_DTMF_REVERSE_TWIST	6.61	 /* 8.2dB */
 #else
-#define DTMF_REVERSE_TWIST          (relax ? 4.0 : 2.5)     /* 4dB normal */
+#define DEF_DTMF_REVERSE_TWIST		2.51	 /* 4.01dB */
+#define DEF_RELAX_DTMF_REVERSE_TWIST	3.98	 /* 6.0dB */
 #endif
+
 #define DTMF_RELATIVE_PEAK_ROW	6.3     /* 8dB */
 #define DTMF_RELATIVE_PEAK_COL	6.3     /* 8dB */
 #define DTMF_2ND_HARMONIC_ROW       (relax ? 1.7 : 2.5)     /* 4dB normal */
@@ -306,6 +312,10 @@ static const float mf_tones[] = {
 static const char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 static const char bell_mf_positions[] = "1247C-358A--69*---0B----#";
 static int thresholds[THRESHOLD_MAX];
+static float dtmf_normal_twist;		/* AT&T = 8dB */
+static float dtmf_reverse_twist;	/* AT&T = 4dB */
+static float relax_dtmf_normal_twist;	/* AT&T = 8dB */
+static float relax_dtmf_reverse_twist;	/* AT&T = 6dB */
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
@@ -709,8 +719,8 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		/* Basic signal level test and the twist test */
 		if (row_energy[best_row] >= DTMF_THRESHOLD && 
 		    col_energy[best_col] >= DTMF_THRESHOLD &&
-		    col_energy[best_col] < row_energy[best_row] * DTMF_REVERSE_TWIST &&
-		    col_energy[best_col] * DTMF_NORMAL_TWIST > row_energy[best_row]) {
+		    col_energy[best_col] < row_energy[best_row] * (relax ? relax_dtmf_reverse_twist : dtmf_reverse_twist) &&
+		    row_energy[best_row] < col_energy[best_col] * (relax ? relax_dtmf_normal_twist : dtmf_normal_twist)) {
 			/* Relative peak test */
 			for (i = 0;  i < 4;  i++) {
 				if ((i != best_col &&
@@ -1738,12 +1748,17 @@ static int _dsp_init(int reload)
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int cfg_threshold;
+	float cfg_twist;
 
 	if ((cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	}
 
 	thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
+	dtmf_normal_twist = DEF_DTMF_NORMAL_TWIST;
+	dtmf_reverse_twist = DEF_DTMF_REVERSE_TWIST;
+	relax_dtmf_normal_twist = DEF_RELAX_DTMF_NORMAL_TWIST;
+	relax_dtmf_reverse_twist = DEF_RELAX_DTMF_REVERSE_TWIST;
 
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
@@ -1757,6 +1772,38 @@ static int _dsp_init(int reload)
 				ast_log(LOG_WARNING, "Invalid silence threshold '%d' specified, using default\n", cfg_threshold);
 			} else {
 				thresholds[THRESHOLD_SILENCE] = cfg_threshold;
+			}
+		} else if (!strcasecmp(v->name, "dtmf_normal_twist")) {
+			if (sscanf(v->value, "%30f", &cfg_twist) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if ((cfg_twist < 2.0) || (cfg_twist > 100.0)) {		/* < 3.0dB or > 20dB */
+				ast_log(LOG_WARNING, "Invalid dtmf_normal_twist value '%.2f' specified, using default of %.2f\n", cfg_twist, dtmf_normal_twist);
+			} else {
+				dtmf_normal_twist = cfg_twist;
+			}
+		} else if (!strcasecmp(v->name, "dtmf_reverse_twist")) {
+			if (sscanf(v->value, "%30f", &cfg_twist) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if ((cfg_twist < 2.0) || (cfg_twist > 100.0)) {		/* < 3.0dB or > 20dB */
+				ast_log(LOG_WARNING, "Invalid dtmf_reverse_twist value '%.2f' specified, using default of %.2f\n", cfg_twist, dtmf_reverse_twist);
+			} else {
+				dtmf_reverse_twist = cfg_twist;
+			}
+		} else if (!strcasecmp(v->name, "relax_dtmf_normal_twist")) {
+			if (sscanf(v->value, "%30f", &cfg_twist) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if ((cfg_twist < 2.0) || (cfg_twist > 100.0)) {		/* < 3.0dB or > 20dB */
+				ast_log(LOG_WARNING, "Invalid relax_dtmf_normal_twist value '%.2f' specified, using default of %.2f\n", cfg_twist, relax_dtmf_normal_twist);
+			} else {
+				relax_dtmf_normal_twist = cfg_twist;
+			}
+		} else if (!strcasecmp(v->name, "relax_dtmf_reverse_twist")) {
+			if (sscanf(v->value, "%30f", &cfg_twist) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if ((cfg_twist < 2.0) || (cfg_twist > 100.0)) {		/* < 3.0dB or > 20dB */
+				ast_log(LOG_WARNING, "Invalid relax_dtmf_reverse_twist value '%.2f' specified, using default of %.2f\n", cfg_twist, relax_dtmf_reverse_twist);
+			} else {
+				relax_dtmf_reverse_twist = cfg_twist;
 			}
 		}
 	}

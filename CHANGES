@@ -633,6 +633,8 @@ Miscellaneous
    rate changes during translation are now avoided unless absolutely necessary.
  * The addition of the res_stun_monitor module for monitoring and reacting to network
    changes while behind a NAT.
+ * The DTMF Normal and Reverse Twist acceptance values can be set in dsp.conf.
+   This allows support for any Administration. Default is AT&T values.
 
 CLI Changes
 -----------
