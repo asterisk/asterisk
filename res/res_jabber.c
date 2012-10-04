@@ -2004,6 +2004,12 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 	struct aji_resource *resource = NULL;
 	struct aji_buddy *buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 
+	if (!buddy) {
+		ast_log(LOG_NOTICE, "JABBER: Received client info from unknown buddy: %s.\n", pak->from->full);
+		ASTOBJ_UNREF(client, ast_aji_client_destroy);
+		return IKS_FILTER_EAT;
+	}
+
 	resource = aji_find_resource(buddy, pak->from->resource);
 	if (pak->subtype == IKS_TYPE_RESULT) {
 		if (!resource) {
@@ -2070,6 +2076,12 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 	char *node = NULL;
 	struct aji_resource *resource = NULL;
 	struct aji_buddy *buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
+
+	if (!buddy) {
+		ast_log(LOG_NOTICE, "JABBER: Received client info from unknown buddy: %s.\n", pak->from->full);
+		ASTOBJ_UNREF(client, ast_aji_client_destroy);
+		return IKS_FILTER_EAT;
+	}
 
 	if (pak->subtype == IKS_TYPE_ERROR) {
 		ast_log(LOG_WARNING, "Received error from a client, turn on jabber debug!\n");
