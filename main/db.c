@@ -589,7 +589,7 @@ static char *handle_cli_database_del(struct ast_cli_entry *e, int cmd, struct as
 
 static char *handle_cli_database_deltree(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int res;
+	int num_deleted;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -608,14 +608,16 @@ static char *handle_cli_database_deltree(struct ast_cli_entry *e, int cmd, struc
 	if ((a->argc < 3) || (a->argc > 4))
 		return CLI_SHOWUSAGE;
 	if (a->argc == 4) {
-		res = ast_db_deltree(a->argv[2], a->argv[3]);
+		num_deleted = ast_db_deltree(a->argv[2], a->argv[3]);
 	} else {
-		res = ast_db_deltree(a->argv[2], NULL);
+		num_deleted = ast_db_deltree(a->argv[2], NULL);
 	}
-	if (res < 0) {
+	if (num_deleted < 0) {
+		ast_cli(a->fd, "Database unavailable.\n");
+	} else if (num_deleted == 0) {
 		ast_cli(a->fd, "Database entries do not exist.\n");
 	} else {
-		ast_cli(a->fd, "%d database entries removed.\n",res);
+		ast_cli(a->fd, "%d database entries removed.\n",num_deleted);
 	}
 	return CLI_SUCCESS;
 }
@@ -873,22 +875,26 @@ static int manager_dbdeltree(struct mansession *s, const struct message *m)
 {
 	const char *family = astman_get_header(m, "Family");
 	const char *key = astman_get_header(m, "Key");
-	int res;
+	int num_deleted;
 
 	if (ast_strlen_zero(family)) {
 		astman_send_error(s, m, "No family specified.");
 		return 0;
 	}
 
-	if (!ast_strlen_zero(key))
-		res = ast_db_deltree(family, key);
-	else
-		res = ast_db_deltree(family, NULL);
+	if (!ast_strlen_zero(key)) {
+		num_deleted = ast_db_deltree(family, key);
+	} else {
+		num_deleted = ast_db_deltree(family, NULL);
+	}
 
-	if (res <= 0)
+	if (num_deleted < 0) {
+		astman_send_error(s, m, "Database unavailable");
+	} else if (num_deleted == 0) {
 		astman_send_error(s, m, "Database entry not found");
-	else
+	} else {
 		astman_send_ack(s, m, "Key tree deleted successfully");
+	}
 
 	return 0;
 }
