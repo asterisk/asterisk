@@ -210,10 +210,15 @@ enum gsamp_thresh {
 /* DTMF goertzel size */
 #define DTMF_GSIZE		102
 
-/* How many successive hits needed to consider begin of a digit */
-#define DTMF_HITS_TO_BEGIN	2
-/* How many successive misses needed to consider end of a digit */
-#define DTMF_MISSES_TO_END	3
+/* How many successive hits needed to consider begin of a digit
+ * IE. Override with dtmf_hits_to_begin=4 in dsp.conf
+ */
+#define DEF_DTMF_HITS_TO_BEGIN	2
+
+/* How many successive misses needed to consider end of a digit
+ * IE. Override with dtmf_misses_to_end=4 in dsp.conf
+ */
+#define DEF_DTMF_MISSES_TO_END	3
 
 /*!
  * \brief The default silence threshold we will use if an alternate
@@ -257,8 +262,6 @@ typedef struct
 {
 	goertzel_state_t row_out[4];
 	goertzel_state_t col_out[4];
-	int hits_to_begin;		/* How many successive hits needed to consider begin of a digit */
-	int misses_to_end;		/* How many successive misses needed to consider end of a digit */
 	int hits;			/* How many successive hits we have seen already */
 	int misses;			/* How many successive misses we have seen already */
 	int lasthit;
@@ -307,6 +310,8 @@ static float dtmf_normal_twist;		/* AT&T = 8dB */
 static float dtmf_reverse_twist;	/* AT&T = 4dB */
 static float relax_dtmf_normal_twist;	/* AT&T = 8dB */
 static float relax_dtmf_reverse_twist;	/* AT&T = 6dB */
+static int dtmf_hits_to_begin;		/* How many successive hits needed to consider begin of a digit */
+static int dtmf_misses_to_end;		/* How many successive misses needed to consider end of a digit */
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
@@ -500,9 +505,6 @@ static void ast_dtmf_detect_init(dtmf_detect_state_t *s, unsigned int sample_rat
 	s->current_sample = 0;
 	s->hits = 0;
 	s->misses = 0;
-
-	s->hits_to_begin = DTMF_HITS_TO_BEGIN;
-	s->misses_to_end = DTMF_MISSES_TO_END;
 }
 
 static void ast_mf_detect_init(mf_detect_state_t *s, unsigned int sample_rate)
@@ -793,7 +795,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			/* We are in the middle of a digit already */
 			if (hit != s->td.dtmf.current_hit) {
 				s->td.dtmf.misses++;
-				if (s->td.dtmf.misses == s->td.dtmf.misses_to_end) {
+				if (s->td.dtmf.misses == dtmf_misses_to_end) {
 					/* There were enough misses to consider digit ended */
 					s->td.dtmf.current_hit = 0;
 				}
@@ -814,9 +816,9 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		}
 		if (hit && hit != s->td.dtmf.current_hit) {
 			s->td.dtmf.hits++;
-			if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin) {
+			if (s->td.dtmf.hits == dtmf_hits_to_begin) {
 				store_digit(s, hit);
-				s->digitlen[s->current_digits - 1] = s->td.dtmf.hits_to_begin * DTMF_GSIZE;
+				s->digitlen[s->current_digits - 1] = dtmf_hits_to_begin * DTMF_GSIZE;
 				s->td.dtmf.current_hit = hit;
 				s->td.dtmf.misses = 0;
 			}
@@ -1850,6 +1852,8 @@ static int _dsp_init(int reload)
 	dtmf_reverse_twist = DEF_DTMF_REVERSE_TWIST;
 	relax_dtmf_normal_twist = DEF_RELAX_DTMF_NORMAL_TWIST;
 	relax_dtmf_reverse_twist = DEF_RELAX_DTMF_REVERSE_TWIST;
+        dtmf_hits_to_begin = DEF_DTMF_HITS_TO_BEGIN;
+        dtmf_misses_to_end = DEF_DTMF_MISSES_TO_END;
 
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
@@ -1895,6 +1899,22 @@ static int _dsp_init(int reload)
 				ast_log(LOG_WARNING, "Invalid relax_dtmf_reverse_twist value '%.2f' specified, using default of %.2f\n", cfg_twist, relax_dtmf_reverse_twist);
 			} else {
 				relax_dtmf_reverse_twist = cfg_twist;
+			}
+		} else if (!strcasecmp(v->name, "dtmf_hits_to_begin")) {
+			if (sscanf(v->value, "%30d", &cfg_threshold) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_threshold < 1) {		/* must be 1 or greater */
+				ast_log(LOG_WARNING, "Invalid dtmf_hits_to_begin value '%d' specified, using default of %d\n", cfg_threshold, dtmf_hits_to_begin);
+			} else {
+				dtmf_hits_to_begin = cfg_threshold;
+			}
+		} else if (!strcasecmp(v->name, "dtmf_misses_to_end")) {
+			if (sscanf(v->value, "%30d", &cfg_threshold) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_threshold < 1) {		/* must be 1 or greater */
+				ast_log(LOG_WARNING, "Invalid dtmf_misses_to_end value '%d' specified, using default of %d\n", cfg_threshold, dtmf_misses_to_end);
+			} else {
+				dtmf_misses_to_end = cfg_threshold;
 			}
 		}
 	}
