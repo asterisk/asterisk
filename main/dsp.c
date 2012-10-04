@@ -1734,33 +1734,34 @@ int ast_dsp_get_tcount(struct ast_dsp *dsp)
 
 static int _dsp_init(int reload)
 {
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	int cfg_threshold;
 
-	cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags);
+	if ((cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+		return 0;
+	}
+
+	thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
+
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_verb(5, "Can't find dsp config file %s. Assuming default silencethreshold of %d.\n", CONFIG_FILE_NAME, DEFAULT_SILENCE_THRESHOLD);
-		thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
 		return 0;
 	}
 
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		return 0;
-	}
-
-	if (cfg) {
-		const char *value;
-
-		value = ast_variable_retrieve(cfg, "default", "silencethreshold");
-		if (value && sscanf(value, "%30d", &thresholds[THRESHOLD_SILENCE]) != 1) {
-			ast_verb(5, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, value);
-			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
-		} else if (!value) {
-			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
+	for (v = ast_variable_browse(cfg, "default"); v; v = v->next) {
+		if (!strcasecmp(v->name, "silencethreshold")) {
+			if (sscanf(v->value, "%30d", &cfg_threshold) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_threshold < 0) {
+				ast_log(LOG_WARNING, "Invalid silence threshold '%d' specified, using default\n", cfg_threshold);
+			} else {
+				thresholds[THRESHOLD_SILENCE] = cfg_threshold;
+			}
 		}
-
-		ast_config_destroy(cfg);
 	}
+	ast_config_destroy(cfg);
+
 	return 0;
 }
 
@@ -1778,4 +1779,3 @@ int ast_dsp_reload(void)
 {
 	return _dsp_init(1);
 }
-
