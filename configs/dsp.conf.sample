@@ -5,3 +5,34 @@
 ; to talking.  [default=256]
 ;
 ;silencethreshold=256
+
+; DTMF Reverse Twist and Normal Twist is the difference in power between the row and column energies.
+;
+; Normal Twist is where the Column energy is greater than the Row energy
+; Reverse Twist is where the Row energy is greater.
+;
+; Power level difference between frequencies for different Administrations/RPOAs
+;		Power Gain		equiv
+;		normal	reverse		dB's
+; AT&T(default) 6.31	2.51		8dB(normal), 4dB(reverse)
+; NTT		3.16	3.16		Max. 5dB
+; Danish	3.98	3.98		Max. 6dB
+; Australian	10.0	10.0		Max. 10dB
+; Brazilian	7.94	7.94		Max. 9dB
+; ETSI		3.98	3.98		Max. 6dB
+
+;previous version compatible AT&T values
+; RADIO_RELAX disabled, and relaxdtmf=no
+;		6.30	2.50		7.99dB(normal), 3.98dB(reverse)
+; RADIO_RELAX disabled, and relaxdtmf=yes
+;		6.30	4.00		7.99dB(normal), 6.02dB(reverse)
+; RADIO_RELAX enabled, and relaxdtmf=no
+;		6.30	2.50		7.99dB(normal), 3.984dB(reverse)
+; RADIO_RELAX enabled, and relaxdtmf=yes
+;		6.30	6.50		7.99dB(normal), 8.13dB(reverse)
+
+;If you don't know what these mean, don't change them.
+;dtmf_normal_twist=6.31
+;dtmf_reverse_twist=2.51
+;relax_dtmf_normal_twist=6.31
+;relax_dtmf_reverse_twist=3.98
