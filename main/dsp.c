@@ -816,6 +816,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			s->td.dtmf.hits++;
 			if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin) {
 				store_digit(s, hit);
+				s->digitlen[s->current_digits - 1] = s->td.dtmf.hits_to_begin * DTMF_GSIZE;
 				s->td.dtmf.current_hit = hit;
 				s->td.dtmf.misses = 0;
 			}
