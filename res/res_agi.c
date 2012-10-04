@@ -2692,16 +2692,18 @@ static int handle_dbdel(struct ast_channel *chan, AGI *agi, int argc, const char
 
 static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	int res;
+	int num_deleted;
 
-	if ((argc < 3) || (argc > 4))
+	if ((argc < 3) || (argc > 4)) {
 		return RESULT_SHOWUSAGE;
-	if (argc == 4)
-		res = ast_db_deltree(argv[2], argv[3]);
-	else
-		res = ast_db_deltree(argv[2], NULL);
+	}
+	if (argc == 4) {
+		num_deleted = ast_db_deltree(argv[2], argv[3]);
+	} else {
+		num_deleted = ast_db_deltree(argv[2], NULL);
+	}
 
-	ast_agi_send(agi->fd, chan, "200 result=%c\n", res ? '0' : '1');
+	ast_agi_send(agi->fd, chan, "200 result=%c\n", num_deleted > 0 ? '0' : '1');
 	return RESULT_SUCCESS;
 }
 
