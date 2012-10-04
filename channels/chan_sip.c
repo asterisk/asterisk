@@ -29370,22 +29370,22 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	if (!(opp_chan = ast_bridged_channel(chan))) {
-		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
-		   (!(opp = opp_chan->tech_pvt))) {
+	if ((opp_chan = ast_bridged_channel(chan)) && (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+						       (!(opp = opp_chan->tech_pvt)))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
 	sip_pvt_lock(p);
-	while (sip_pvt_trylock(opp)) {
+	while (opp && sip_pvt_trylock(opp)) {
 		sip_pvt_unlock(p);
 		usleep(1);
 		sip_pvt_lock(p);
 	}
 
 	if (!(p->rtp)) {
-		sip_pvt_unlock(opp);
+		if (opp) {
+			sip_pvt_unlock(opp);
+		}
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -29395,7 +29395,7 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, opp, "audio")) {
+		if (opp && !apply_directmedia_ha(p, opp, "audio")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	} else if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
@@ -29404,7 +29404,9 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	sip_pvt_unlock(opp);
+	if (opp) {
+		sip_pvt_unlock(opp);
+	}
 
 	if (p->srtp) {
 		res = AST_RTP_GLUE_RESULT_FORBID;
@@ -29426,22 +29428,22 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	if (!(opp_chan = ast_bridged_channel(chan))) {
-		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
-		   (!(opp = opp_chan->tech_pvt))) {
+	if ((opp_chan = ast_bridged_channel(chan)) && (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+						       (!(opp = opp_chan->tech_pvt)))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
 	sip_pvt_lock(p);
-	while (sip_pvt_trylock(opp)) {
+	while (opp && sip_pvt_trylock(opp)) {
 		sip_pvt_unlock(p);
 		usleep(1);
 		sip_pvt_lock(p);
 	}
 
 	if (!(p->vrtp)) {
-		sip_pvt_unlock(opp);
+		if (opp) {
+			sip_pvt_unlock(opp);
+		}
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -29451,12 +29453,14 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, opp, "video")) {
+		if (opp && !apply_directmedia_ha(p, opp, "video")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	}
 
-	sip_pvt_unlock(opp);
+	if (opp) {
+		sip_pvt_unlock(opp);
+	}
 	sip_pvt_unlock(p);
 
 	return res;
@@ -29473,22 +29477,22 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	if (!(opp_chan = ast_bridged_channel(chan))) {
-		return AST_RTP_GLUE_RESULT_FORBID;
-	} else if (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
-		   (!(opp = opp_chan->tech_pvt))) {
+	if ((opp_chan = ast_bridged_channel(chan)) && (((opp_chan->tech != &sip_tech) && (opp_chan->tech != &sip_tech_info)) ||
+						       (!(opp = opp_chan->tech_pvt)))) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
 	sip_pvt_lock(p);
-	while (sip_pvt_trylock(opp)) {
+	while (opp && sip_pvt_trylock(opp)) {
 		sip_pvt_unlock(p);
 		usleep(1);
 		sip_pvt_lock(p);
 	}
 
 	if (!(p->trtp)) {
-		sip_pvt_unlock(opp);
+		if (opp) {
+			sip_pvt_unlock(opp);
+		}
 		sip_pvt_unlock(p);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
@@ -29498,12 +29502,14 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
-		if (!apply_directmedia_ha(p, opp, "text")) {
+		if (opp && !apply_directmedia_ha(p, opp, "text")) {
 			res = AST_RTP_GLUE_RESULT_FORBID;
 		}
 	}
 
-	sip_pvt_unlock(opp);
+	if (opp) {
+		sip_pvt_unlock(opp);
+	}
 	sip_pvt_unlock(p);
 
 	return res;
