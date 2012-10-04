@@ -509,10 +509,9 @@ struct ast_rtp_glue {
 	/*!
 	 * \brief Used to prevent two channels from remotely bridging audio rtp if the channel tech has a
 	 *        reason for prohibiting it based on qualities that need to be compared from both channels.
-	 * \note This function should only be called with two channels of the same technology
 	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, function this is not used.
 	 */
-	int (*allow_rtp_remote)(struct ast_channel *chan1, struct ast_channel *chan2);
+	int (*allow_rtp_remote)(struct ast_channel *chan1, struct ast_rtp_instance *instance);
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying video
 	 * \note This function increases the reference count on the returned RTP instance.
@@ -521,10 +520,9 @@ struct ast_rtp_glue {
 	/*!
 	 * \brief Used to prevent two channels from remotely bridging video rtp if the channel tech has a
 	 *        reason for prohibiting it based on qualities that need to be compared from both channels.
-	 * \note This function should only be called with two channels of the same technology
 	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
 	 */
-	int (*allow_vrtp_remote)(struct ast_channel *chan1, struct ast_channel *chan2);
+	int (*allow_vrtp_remote)(struct ast_channel *chan1, struct ast_rtp_instance *instance);
 
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying text

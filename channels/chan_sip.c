@@ -31867,25 +31867,6 @@ static int reload_config(enum channelreloadreason reason)
 	return 0;
 }
 
-static int apply_directmedia_acl(struct sip_pvt *p, struct ast_acl_list *directmediaacl, const char *op)
-{
-	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
-	int res = AST_SENSE_ALLOW;
-
-	ast_rtp_instance_get_remote_address(p->rtp, &them);
-	ast_rtp_instance_get_local_address(p->rtp, &us);
-
-	if ((res = ast_apply_acl(directmediaacl, &them, "SIP Direct Media ACL: ")) == AST_SENSE_DENY) {
-		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
-		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
-
-		ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
-			op, them_addr, us_addr);
-	}
-
-	return res;
-}
-
 static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
@@ -31947,72 +31928,56 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	return 0;
 }
 
-static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_channel *chan2, char *rtptype)
+static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_rtp_instance *instance, const char *rtptype)
 {
-	struct sip_pvt *p1 = NULL, *p2 = NULL;
-	struct ast_acl_list *p2_directmediaacl = NULL; /* opposed directmediaha for comparing against first channel host address */
-	struct ast_acl_list *p1_directmediaacl = NULL; /* opposed directmediaha for comparing against second channel host address */
+	struct sip_pvt *p;
+	struct ast_acl_list *acl = NULL;
 	int res = 1;
 
-	if (!(p1 = ast_channel_tech_pvt(chan1))) {
+	if (!(p = ast_channel_tech_pvt(chan1))) {
 		return 0;
 	}
 
-	if (!(p2 = ast_channel_tech_pvt(chan2))) {
-		return 0;
+	sip_pvt_lock(p);
+	if (p->relatedpeer && p->relatedpeer->directmediaacl) {
+		acl = ast_duplicate_acl_list(p->relatedpeer->directmediaacl);
+	}
+	sip_pvt_unlock(p);
+
+	if (!acl) {
+		return res;
 	}
 
-	sip_pvt_lock(p2);
-	if (p2->relatedpeer && p2->relatedpeer->directmediaacl) {
-		p2_directmediaacl = ast_duplicate_acl_list(p2->relatedpeer->directmediaacl);
-	}
-	sip_pvt_unlock(p2);
+	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+		struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
 
-	sip_pvt_lock(p1);
-	if (p1->relatedpeer && p1->relatedpeer->directmediaacl) {
-		p1_directmediaacl = ast_duplicate_acl_list(p1->relatedpeer->directmediaacl);
-	}
+		ast_rtp_instance_get_remote_address(instance, &them);
+		ast_rtp_instance_get_local_address(instance, &us);
 
-	if (p2_directmediaacl && ast_test_flag(&p1->flags[0], SIP_DIRECT_MEDIA)) {
-		if (!apply_directmedia_acl(p1, p2_directmediaacl, rtptype)) {
+		if (ast_apply_acl(acl, &them, "SIP Direct Media ACL: ") == AST_SENSE_DENY) {
+			const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
+			const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
+
+			ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
+				  rtptype, them_addr, us_addr);
+
 			res = 0;
 		}
 	}
-	sip_pvt_unlock(p1);
 
-	if (res == 0) {
-		goto allow_anyrtp_remote_end;
-	}
-
-	sip_pvt_lock(p2);
-	if (p1_directmediaacl && ast_test_flag(&p2->flags[0], SIP_DIRECT_MEDIA)) {
-		if (!apply_directmedia_acl(p2, p1_directmediaacl, rtptype)) {
-			res = 0;
-		}
-	}
-	sip_pvt_unlock(p2);
-
-allow_anyrtp_remote_end:
-
-	if (p2_directmediaacl) {
-		p2_directmediaacl = ast_free_acl_list(p2_directmediaacl);
-	}
-
-	if (p1_directmediaacl) {
-		p1_directmediaacl = ast_free_acl_list(p1_directmediaacl);
-	}
+	ast_free_acl_list(acl);
 
 	return res;
 }
 
-static int sip_allow_rtp_remote(struct ast_channel *chan1, struct ast_channel *chan2)
+static int sip_allow_rtp_remote(struct ast_channel *chan1, struct ast_rtp_instance *instance)
 {
-	return sip_allow_anyrtp_remote(chan1, chan2, "audio");
+	return sip_allow_anyrtp_remote(chan1, instance, "audio");
 }
 
-static int sip_allow_vrtp_remote(struct ast_channel *chan1, struct ast_channel *chan2)
+static int sip_allow_vrtp_remote(struct ast_channel *chan1, struct ast_rtp_instance *instance)
 {
-	return sip_allow_anyrtp_remote(chan1, chan2, "video");
+	return sip_allow_anyrtp_remote(chan1, instance, "video");
 }
 
 static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)

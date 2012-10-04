@@ -1484,19 +1484,21 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	audio_glue1_res = glue1->get_rtp_info(c1, &instance1);
 	video_glue1_res = glue1->get_vrtp_info ? glue1->get_vrtp_info(c1, &vinstance1) : AST_RTP_GLUE_RESULT_FORBID;
 
-	/* If the channels are of the same technology, they might have limitations on remote bridging */
-	if (ast_channel_tech(c0) == ast_channel_tech(c1)) {
-		if (audio_glue0_res == audio_glue1_res && audio_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) {
-			if (glue0->allow_rtp_remote && !(glue0->allow_rtp_remote(c0, c1))) {
-				/* If the allow_rtp_remote indicates that remote isn't allowed, revert to local bridge */
-				audio_glue0_res = audio_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
-			}
+	/* Apply any limitations on direct media bridging that may be present */
+	if (audio_glue0_res == audio_glue1_res && audio_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) {
+		if (glue0->allow_rtp_remote && !(glue0->allow_rtp_remote(c0, instance1))) {
+			/* If the allow_rtp_remote indicates that remote isn't allowed, revert to local bridge */
+			audio_glue0_res = audio_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
+		} else if (glue1->allow_rtp_remote && !(glue1->allow_rtp_remote(c1, instance0))) {
+			audio_glue0_res = audio_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
 		}
-		if (video_glue0_res == video_glue1_res && video_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) {
-			if (glue0->allow_vrtp_remote && !(glue0->allow_vrtp_remote(c0, c1))) {
-				/* if the allow_vrtp_remote indicates that remote isn't allowed, revert to local bridge */
-				video_glue0_res = video_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
-			}
+	}
+	if (video_glue0_res == video_glue1_res && video_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) {
+		if (glue0->allow_vrtp_remote && !(glue0->allow_vrtp_remote(c0, instance1))) {
+			/* if the allow_vrtp_remote indicates that remote isn't allowed, revert to local bridge */
+			video_glue0_res = video_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
+		} else if (glue1->allow_vrtp_remote && !(glue1->allow_vrtp_remote(c1, instance0))) {
+			video_glue0_res = video_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
 		}
 	}
 
