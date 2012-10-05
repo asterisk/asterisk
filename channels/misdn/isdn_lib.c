@@ -46,8 +46,6 @@ int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
 void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
 
-int queue_cleanup_bc(struct misdn_bchannel *bc) ;
-
 int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack *get_misdn_stack(void);
@@ -214,14 +212,12 @@ static enum global_states  global_state=MISDN_INITIALIZING;
 struct misdn_lib {
 	/*! \brief mISDN device handle returned by mISDN_open() */
 	int midev;
-	int midev_nt;	/* Not used */
 
 	pthread_t event_thread;
 	pthread_t event_handler_thread;
 
 	void *user_data;
 
-	msg_queue_t upqueue;
 	msg_queue_t activatequeue;
 
 	sem_t new_msg;
@@ -239,8 +235,6 @@ struct misdn_lib {
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len);
 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id);
-
-int setup_bc(struct misdn_bchannel *bc);
 
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg);
 
@@ -629,16 +623,9 @@ char *bc_state2str(enum bchannel_state state) {
 	} states[] = {
 		{"BCHAN_CLEANED", BCHAN_CLEANED },
 		{"BCHAN_EMPTY", BCHAN_EMPTY},
-		{"BCHAN_SETUP", BCHAN_SETUP},
-		{"BCHAN_SETUPED", BCHAN_SETUPED},
-		{"BCHAN_ACTIVE", BCHAN_ACTIVE},
 		{"BCHAN_ACTIVATED", BCHAN_ACTIVATED},
-		{"BCHAN_BRIDGE",  BCHAN_BRIDGE},
 		{"BCHAN_BRIDGED", BCHAN_BRIDGED},
 		{"BCHAN_RELEASE", BCHAN_RELEASE},
-		{"BCHAN_RELEASED", BCHAN_RELEASED},
-		{"BCHAN_CLEAN", BCHAN_CLEAN},
-		{"BCHAN_CLEAN_REQUEST", BCHAN_CLEAN_REQUEST},
 		{"BCHAN_ERROR", BCHAN_ERROR}
 	};
 
@@ -833,9 +820,8 @@ static int clean_up_bc(struct misdn_bchannel *bc)
 	unsigned char buff[32];
 	struct misdn_stack * stack;
 
-	cb_log(3, bc?bc->port:0, "$$$ CLEANUP CALLED pid:%d\n", bc?bc->pid:-1);
+	cb_log(3, bc->port, "$$$ CLEANUP CALLED pid:%d\n", bc->pid);
 
-	if (!bc  ) return -1;
 	stack=get_stack_by_bc(bc);
 
 	if (!stack) return -1;
@@ -1065,14 +1051,7 @@ static int create_process(int midev, struct misdn_bchannel *bc)
 }
 
 
-void misdn_lib_setup_bc(struct misdn_bchannel *bc)
-{
-	clean_up_bc(bc);
-	setup_bc(bc);
-}
-
-
-int setup_bc(struct misdn_bchannel *bc)
+static int setup_bc(struct misdn_bchannel *bc)
 {
 	unsigned char buff[1025];
 	int midev;
@@ -1259,9 +1238,9 @@ static int init_bc(struct misdn_stack *stack, struct misdn_bchannel *bc, int mid
 	pthread_mutex_init(&bc->send_lock->lock, NULL);
 
 	empty_bc(bc);
-	bc_state_change(bc, BCHAN_CLEANED);
 
 	bc->port=stack->port;
+	bc_state_change(bc, BCHAN_CLEANED);
 	bc->nt=stack->nt?1:0;
 	bc->pri=stack->pri;
 
@@ -1333,7 +1312,6 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 	stack->pri=0;
 
 	msg_queue_init(&stack->downqueue);
-	msg_queue_init(&stack->upqueue);
 
 	pthread_mutex_init(&stack->st_lock, NULL);
 
@@ -1354,11 +1332,11 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 
 	switch(stinf->pid.protocol[0] & ~ISDN_PID_FEATURE_MASK) {
 	case ISDN_PID_L0_TE_S0:
+		cb_log(8, port, "TE Stack\n");
 		stack->nt=0;
 		break;
 	case ISDN_PID_L0_NT_S0:
 		cb_log(8, port, "NT Stack\n");
-
 		stack->nt=1;
 		break;
 	case ISDN_PID_L0_TE_E1:
@@ -1367,10 +1345,9 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 		stack->pri=1;
 		break;
 	case ISDN_PID_L0_NT_E1:
-		cb_log(8, port, "TE S2M Stack\n");
+		cb_log(8, port, "NT S2M Stack\n");
 		stack->nt=1;
 		stack->pri=1;
-
 		break;
 	default:
 		cb_log(0, port, "this is a unknown port type 0x%08x\n", stinf->pid.protocol[0]);
@@ -1388,8 +1365,6 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 	{
 		int ret;
 		int nt=stack->nt;
-
-		cb_log(8, port, "Init. Stack.\n");
 
 		memset(&li, 0, sizeof(li));
 		{
@@ -1430,9 +1405,6 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 			cb_log(0, port, "%s: Cannot get layer(%d) id of this port.\n", __FUNCTION__, 2);
 			return(NULL);
 		}
-
-		cb_log(8, port, "NT Stacks upper_id %x\n",stack->upper_id);
-
 
 		/* create nst (nt-mode only) */
 		if (nt) {
@@ -1483,7 +1455,7 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 
 	}
 
-	cb_log(8,0,"stack_init: port:%d lowerId:%x  upperId:%x\n",stack->port,stack->lower_id, stack->upper_id);
+	cb_log(8, port, "stack_init: lowerId:%x upperId:%x\n", stack->lower_id, stack->upper_id);
 
 	return stack;
 }
@@ -1650,14 +1622,11 @@ static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 
 
 
-static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
+static int handle_event_te(struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
-	if (!stack->nt) {
-
-		switch (event) {
-
+	switch (event) {
 		case EVENT_CONNECT_ACKNOWLEDGE:
 			setup_bc(bc);
 
@@ -1734,7 +1703,9 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 				return -1;
 			}
 
-			setup_bc(bc);
+			if (event != EVENT_SETUP) {
+				setup_bc(bc);
+			}
 			break;
 		}
 
@@ -1743,9 +1714,6 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 			break;
 		default:
 			break;
-		}
-	} else {    /** NT MODE **/
-
 	}
 	return 0;
 }
@@ -2194,10 +2162,6 @@ static int handle_event_nt(void *dat, void *arg)
 			if (stack->l2upcnt>3) {
 				cb_log(0 , stack->port, "!!! Could not Get the L2 up after 3 Attempts!!!\n");
 			} else {
-#if 0
-				if (stack->nt)
-					misdn_lib_reinit_nt_stack(stack->port);
-#endif
 				if (stack->l1link) {
 					misdn_lib_get_l2_up(stack);
 					stack->l2upcnt++;
@@ -2490,43 +2454,6 @@ static int handle_bchan(msg_t *msg)
 	case MGR_SETSTACK| INDICATION:
 		cb_log(3, stack->port, "BCHAN: MGR_SETSTACK|IND pid:%d\n",bc->pid);
 	break;
-#if 0
-	AGAIN:
-		bc->addr = mISDN_get_layerid(stack->midev, bc->b_stid, bc->layer);
-		if (!bc->addr) {
-
-			if (errno == EAGAIN) {
-				usleep(1000);
-				goto AGAIN;
-			}
-
-			cb_log(0,stack->port,"$$$ Get Layer (%d) Id Error: %s\n",bc->layer,strerror(errno));
-
-			/* we kill the channel later, when we received some
-			   data. */
-			bc->addr= frm->addr;
-		} else if ( bc->addr < 0) {
-			cb_log(0, stack->port,"$$$ bc->addr <0 Error:%s\n",strerror(errno));
-			bc->addr=0;
-		}
-
-		cb_log(4, stack->port," --> Got Adr %x\n", bc->addr);
-
-		free_msg(msg);
-
-
-		switch(bc->bc_state) {
-		case BCHAN_SETUP:
-			bc_state_change(bc,BCHAN_SETUPED);
-		break;
-
-		case BCHAN_CLEAN_REQUEST:
-		default:
-			cb_log(0, stack->port," --> STATE WASN'T SETUP (but %s) in SETSTACK|IND pid:%d\n",bc_state2str(bc->bc_state), bc->pid);
-			clean_up_bc(bc);
-		}
-		return 1;
-#endif
 
 	case MGR_DELLAYER| INDICATION:
 		cb_log(3, stack->port, "BCHAN: MGR_DELLAYER|IND pid:%d\n",bc->pid);
@@ -2766,7 +2693,7 @@ static int handle_frm_nt(msg_t *msg)
 }
 
 
-static int handle_frm(msg_t *msg)
+static int handle_frm_te(msg_t *msg)
 {
 	struct misdn_bchannel dummybc;
 	struct misdn_bchannel *bc;
@@ -2785,11 +2712,11 @@ static int handle_frm(msg_t *msg)
 		return 0;
 	}
 
-	cb_log(4, stack ? stack->port : 0, "handle_frm: frm->addr:%x frm->prim:%x\n", frm->addr, frm->prim);
+	cb_log(4, stack->port, "handle_frm_te: frm->addr:%x frm->prim:%x\n", frm->addr, frm->prim);
 
 	ret = handle_cr(stack, frm);
 	if (ret < 0) {
-		cb_log(3, stack ? stack->port : 0, "handle_frm: handle_cr <0 prim:%x addr:%x\n", frm->prim, frm->addr);
+		cb_log(3, stack->port, "handle_frm_te: handle_cr <0 prim:%x addr:%x\n", frm->prim, frm->addr);
 	}
 	if (ret) {
 		free_msg(msg);
@@ -2828,7 +2755,7 @@ static int handle_frm(msg_t *msg)
 	isdn_msg_parse_event(msgs_g, msg, bc, 0);
 
 	/* Preprocess some Events */
-	ret = handle_event(bc, event, frm);
+	ret = handle_event_te(bc, event, frm);
 	if (ret < 0) {
 		cb_log(0, stack->port, "couldn't handle event\n");
 		free_msg(msg);
@@ -2852,24 +2779,21 @@ static int handle_frm(msg_t *msg)
 			cb_log(0, stack->port, "TOTALLY IGNORING SETUP\n");
 			break;
 		case RESPONSE_IGNORE_SETUP:
+			cb_log(0, stack->port, "GOT IGNORE SETUP\n");
 			/* I think we should send CC_RELEASE_CR, but am not sure*/
 			bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
 			/* fall through */
 		case RESPONSE_RELEASE_SETUP:
-			misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
-			if (bc->channel > 0) {
-				empty_chan_in_stack(stack, bc->channel);
+			if (response == RESPONSE_RELEASE_SETUP) {
+				cb_log(0, stack->port, "GOT RELEASE SETUP\n");
 			}
-			empty_bc(bc);
-			bc_state_change(bc, BCHAN_CLEANED);
-			bc->in_use = 0;
-
-			cb_log(0, stack->port, "GOT IGNORE SETUP\n");
+			misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 			break;
 		case RESPONSE_OK:
 			cb_log(4, stack->port, "GOT SETUP OK\n");
 			break;
 		default:
+			cb_log(0, stack->port, "GOT UNKNOWN SETUP RESPONSE\n");
 			break;
 		}
 		break;
@@ -3301,12 +3225,6 @@ static void prepare_bc(struct misdn_bchannel*bc, int channel)
 	if (++mypid>5000) mypid=1;
 	bc->pid=mypid;
 
-#if 0
-	bc->addr=0;
-	bc->b_stid=0;
-	bc->layer_id=0;
-#endif
-
 	bc->in_use = 1;
 }
 
@@ -3691,8 +3609,13 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_PROCEEDING:
 	case EVENT_SETUP_ACKNOWLEDGE:
 	case EVENT_CONNECT:
-		if (!stack->nt)
+		if (!stack->nt) {
+			if (stack->ptp) {
+				setup_bc(bc);
+			}
 			break;
+		}
+		/* fall through */
 
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 		if (stack->nt) {
@@ -3788,6 +3711,11 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			cb_log(0, bc->port, " --> we have already sent DISCONNECT\n");
 			RETURN(-1,OUT);
 		}
+		/* IE cause is mandatory for DISCONNECT, but optional for the answers to DISCONNECT.
+		 * We must initialize cause, so it is later correctly indicated to ast_channel
+		 * in case the answer does not include one!
+		 */
+		bc->cause = bc->out_cause;
 
 		bc->need_disconnect=0;
 		break;
@@ -3962,24 +3890,6 @@ static int handle_err(msg_t *msg)
 	return 0;
 }
 
-#if 0
-static int queue_l2l3(msg_t *msg)
-{
-	iframe_t *frm= (iframe_t*)msg->data;
-	struct misdn_stack *stack;
-	stack=find_stack_by_addr( frm->addr );
-
-
-	if (!stack) {
-		return 0;
-	}
-
-	msg_queue_tail(&stack->upqueue, msg);
-	sem_post(&glob_mgr->new_msg);
-	return 1;
-}
-#endif
-
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {
 
@@ -4004,7 +3914,7 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	}
 
 #ifdef RECV_FRM_SYSLOG_DEBUG
-	syslog(LOG_NOTICE,"mISDN recv: P(%02d): ADDR:%x PRIM:%x DINFO:%x\n",stack->port, frm->addr, frm->prim, frm->dinfo);
+	syslog(LOG_NOTICE,"mISDN recv: ADDR:%x PRIM:%x DINFO:%x\n", frm->addr, frm->prim, frm->dinfo);
 #endif
 
 	if (handle_timers(msg))
@@ -4025,7 +3935,7 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 		return 0;
 	}
 
-	if (handle_frm(msg)) {
+	if (handle_frm_te(msg)) {
 		return 0;
 	}
 
@@ -4070,32 +3980,6 @@ int misdn_lib_get_port_info(int port)
 
 
 	return 0;
-}
-
-
-int queue_cleanup_bc(struct misdn_bchannel *bc)
-{
-	msg_t *msg=alloc_msg(MAX_MSG_SIZE);
-	iframe_t *frm;
-	if (!msg) {
-		cb_log(0, bc->port, "queue_cleanup_bc: alloc_msg failed!\n");
-		return -1;
-	}
-	frm=(iframe_t*)msg->data;
-
-	/* activate bchannel */
-	frm->prim = MGR_CLEARSTACK| REQUEST;
-
-	frm->addr = bc->l3_id;
-
-	frm->dinfo = bc->port;
-	frm->len = 0;
-
-	msg_queue_tail(&glob_mgr->activatequeue, msg);
-	sem_post(&glob_mgr->new_msg);
-
-	return 0;
-
 }
 
 int misdn_lib_pid_restart(int pid)
@@ -4210,28 +4094,6 @@ static void manager_event_handler(void *arg)
 			iframe_t *frm =  (iframe_t*) msg->data ;
 
 			switch ( frm->prim) {
-
-			case MGR_CLEARSTACK | REQUEST:
-				/*a queued bchannel cleanup*/
-				{
-					struct misdn_stack *stack=find_stack_by_port(frm->dinfo);
-					struct misdn_bchannel *bc;
-					if (!stack) {
-						cb_log(0,0,"no stack found with port [%d]!! so we cannot cleanup the bc\n",frm->dinfo);
-						free_msg(msg);
-						break;
-					}
-
-					bc = find_bc_by_l3id(stack, frm->addr);
-					if (bc) {
-						cb_log(1,bc->port,"CLEARSTACK queued, cleaning up\n");
-						clean_up_bc(bc);
-					} else {
-						cb_log(0,stack->port,"bc could not be cleaned correctly !! addr [%x]\n",frm->addr);
-					}
-				}
-				free_msg(msg);
-				break;
 			case MGR_SETSTACK | REQUEST :
 				free_msg(msg);
 				break;
@@ -4244,18 +4106,6 @@ static void manager_event_handler(void *arg)
 		for (stack=glob_mgr->stack_list;
 		     stack;
 		     stack=stack->next ) {
-
-			while ( (msg=msg_dequeue(&stack->upqueue)) ) {
-				/** Handle L2/3 Signalling after bchans **/
-				if (!handle_frm_nt(msg)) {
-					/* Maybe it's TE */
-					if (!handle_frm(msg)) {
-						/* wow none! */
-						cb_log(0,stack->port,"Wow we've got a strange issue while dequeueing a Frame\n");
-					}
-				}
-			}
-
 			/* Here we should check if we really want to
 				send all the messages we've queued, lets
 				assume we've queued a Disconnect, but
@@ -4720,9 +4570,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 {
 	struct misdn_bchannel *help;
 
-	cb_log(4,stack?stack->port:0, "*HOLDER: find %lx\n",l3id);
-
-	if (!stack) return NULL;
+	cb_log(4, stack->port, "*HOLDER: find %lx\n",l3id);
 
 	for (help=stack->holding;
 	     help;

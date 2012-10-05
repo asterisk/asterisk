@@ -78,16 +78,9 @@ enum tone_e {
 enum bchannel_state {
 	BCHAN_CLEANED=0,
 	BCHAN_EMPTY,
-	BCHAN_SETUP,
-	BCHAN_SETUPED,
-	BCHAN_ACTIVE,
 	BCHAN_ACTIVATED,
-	BCHAN_BRIDGE,
 	BCHAN_BRIDGED,
 	BCHAN_RELEASE,
-	BCHAN_RELEASED,
-	BCHAN_CLEAN,
-	BCHAN_CLEAN_REQUEST,
 	BCHAN_ERROR
 };
 
@@ -813,8 +806,6 @@ void get_show_stack_details(int port, char *buf);
 void misdn_lib_tone_generator_start(struct misdn_bchannel *bc);
 void misdn_lib_tone_generator_stop(struct misdn_bchannel *bc);
 
-
-void misdn_lib_setup_bc(struct misdn_bchannel *bc);
 
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
