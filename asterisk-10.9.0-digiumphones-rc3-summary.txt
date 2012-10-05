@@ -1,0 +1,158 @@
+                                Release Summary
+
+                        asterisk-10.9.0-digiumphones-rc3
+
+                                Date: 2012-10-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.9.0-digiumphones-rc2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   6 root                   2 alecdavis              1 alecdavis              
+   2 bebuild                2 Byron Clark            1 kristoff               
+   2 Byron                  1 tbsky                  1 kwemheuer              
+   2 Karsten                                         1 tbsky                  
+                                                     1 ulugutz                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_disa
+
+   ASTERISK-17493: [patch] dsp.c sends multiple DTMF key events up to
+   applications
+   Revision: 374508
+   Reporter: alecdavis
+   Testers: alecdavis
+   Coders: root
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-20442: dtmf callerid regression
+   Revision: 374413
+   Reporter: tbsky
+   Testers: tbsky, alecdavis
+   Coders: root
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20511: Directrtpsetup does not wrk in SVN-branch-1.8-r374177
+   Revision: 374474
+   Reporter: kristoff
+   Coders: root
+
+  Category: Resources/res_jabber
+
+   ASTERISK-19532: Asterisk crashed after connecting with jabber server in
+   component mode
+   Revision: 374364
+   Reporter: kwemheuer
+   Testers: Byron Clark
+   Coders: Karsten, Byron
+
+   ASTERISK-19557: [Regression] Segfault in res_jabber.c
+   Revision: 374364
+   Reporter: ulugutz
+   Testers: Byron Clark
+   Coders: Karsten, Byron
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                              | Issues     |
+   |          |         |                                      | Referenced |
+   |----------+---------+--------------------------------------+------------|
+   |          |         | Destroy the generic_monitors         |            |
+   | 374315   | root    | container after the core_instances   |            |
+   |          |         | in ccss                              |            |
+   |----------+---------+--------------------------------------+------------|
+   | 374383   | root    | _dsp_init: bring inline with trunk   |            |
+   |----------+---------+--------------------------------------+------------|
+   | 374455   | root    | Fix DBDelTree error codes for AMI,   |            |
+   |          |         | CLI and AGI                          |            |
+   |----------+---------+--------------------------------------+------------|
+   | 374526   | bebuild | Create 10.9.0-digiumphones-rc3       |            |
+   |----------+---------+--------------------------------------+------------|
+   | 374529   | bebuild | Merge r374447 for ASTERISK-20511     |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                                      |    2
+ CHANGES                                       |    3
+ ChangeLog                                     |   21 +++
+ asterisk-10.9.0-digiumphones-rc2-summary.html |   61 -----------
+ asterisk-10.9.0-digiumphones-rc2-summary.txt  |   91 -----------------
+ channels/chan_sip.c                           |  108 +++++++++++---------
+ configs/dsp.conf.sample                       |   36 ++++++
+ main/ccss.c                                   |    9 -
+ main/db.c                                     |   30 +++--
+ main/dsp.c                                    |  138 +++++++++++++++++++-------
+ res/res_agi.c                                 |   16 +--
+ res/res_jabber.c                              |   12 ++
+ 12 files changed, 268 insertions(+), 259 deletions(-)
+
+     ----------------------------------------------------------------------
