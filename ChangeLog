@@ -1,3 +1,24 @@
+2012-10-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.17.0-rc3 Released.
+
+	* Fix a regression from direct media ACLs where the directrtpsetup
+	  option no longer works.
+
+	  A check was added for direct media ACLs that immediately forced
+	  remote bridging if there was no bridged channel.  This caused
+	  directrtpsetup to no longer function as it needs this information
+	  before bridging actually occurs.
+
+	  Logic has now been adjusted so if there is no bridged channel a
+	  remote bridge will still be attempted.
+
+	  (closes issue ASTERISK-20511)
+	  Reported by: kristoff
+	  Tested by: kristoff
+
+	  Review: https://reviewboard.asterisk.org/r/2146
+
 2012-10-03  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.17.0-rc2 Released.
