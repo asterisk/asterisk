@@ -1651,9 +1651,8 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
-	int name_len = 1;
-	int space_remaining;
-#define HSMC_FORMAT "  %-*.*s  %-*.*s\n"
+	struct ast_str *authority;
+#define HSMC_FORMAT "  %-15.15s  %-15.15s  %-55.55s\n"
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show commands";
@@ -1664,25 +1663,13 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_GENERATE:
 		return NULL;
 	}
+	authority = ast_str_alloca(80);
+	ast_cli(a->fd, HSMC_FORMAT, "Action", "Privilege", "Synopsis");
+	ast_cli(a->fd, HSMC_FORMAT, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		int incoming_len = strlen(cur->action);
-		if (incoming_len > name_len) {
-			name_len = incoming_len;
-		}
-	}
-
-	space_remaining = 85 - name_len;
-	if (space_remaining < 0) {
-		space_remaining = 0;
-	}
-
-	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "Action", space_remaining, space_remaining, "Synopsis");
-	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "------", space_remaining, space_remaining, "--------");
-
-	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, cur->action, space_remaining, space_remaining, cur->synopsis);
+		ast_cli(a->fd, HSMC_FORMAT, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
 	}
 	AST_RWLIST_UNLOCK(&actions);
 
