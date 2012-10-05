@@ -1129,6 +1129,11 @@ struct mansession_session {
 	AST_LIST_ENTRY(mansession_session) list;
 };
 
+enum mansession_message_parsing {
+	MESSAGE_OKAY,
+	MESSAGE_LINE_TOO_LONG
+};
+
 /*! \brief In case you didn't read that giant block of text above the mansession_session struct, the
  * \ref struct mansession is named this solely to keep the API the same in Asterisk. This structure really
  * represents data that is different from Manager action to Manager action. The mansession_session pointer
@@ -1139,6 +1144,7 @@ struct mansession {
 	struct ast_tcptls_session_instance *tcptls_session;
 	FILE *f;
 	int fd;
+	enum mansession_message_parsing parsing;
 	int write_error:1;
 	struct manager_custom_hook *hook;
 	ast_mutex_t lock;
@@ -5196,8 +5202,9 @@ static int get_input(struct mansession *s, char *output)
 	}
 	if (s->session->inlen >= maxlen) {
 		/* no crlf found, and buffer full - sorry, too long for us */
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_sockaddr_stringify_addr(&s->session->addr), src);
+		ast_log(LOG_WARNING, "Discarding message from %s. Line too long: %.25s...\n", ast_sockaddr_stringify_addr(&s->session->addr), src);
 		s->session->inlen = 0;
+		s->parsing = MESSAGE_LINE_TOO_LONG;
 	}
 	res = 0;
 	while (res == 0) {
@@ -5256,6 +5263,23 @@ static int get_input(struct mansession *s, char *output)
 
 /*!
  * \internal
+ * \brief Error handling for sending parse errors. This function handles locking, and clearing the
+ * parse error flag.
+ *
+ * \param s AMI session to process action request.
+ * \param m Message that's in error.
+ * \param error Error message to send.
+ */
+static void handle_parse_error(struct mansession *s, struct message *m, char *error)
+{
+	mansession_lock(s);
+	astman_send_error(s, m, error);
+	s->parsing = MESSAGE_OKAY;
+	mansession_unlock(s);
+}
+
+/*!
+ * \internal
  * \brief Read and process an AMI action request.
  *
  * \param s AMI session to process action request.
@@ -5307,7 +5331,15 @@ static int do_message(struct mansession *s)
 					mansession_unlock(s);
 					res = 0;
 				} else {
-					res = process_message(s, &m) ? -1 : 0;
+					switch (s->parsing) {
+					case MESSAGE_OKAY:
+						res = process_message(s, &m) ? -1 : 0;
+						break;
+					case MESSAGE_LINE_TOO_LONG:
+						handle_parse_error(s, &m, "Failed to parse message: line too long");
+						res = 0;
+						break;
+					}
 				}
 				break;
 			} else if (m.hdrcount < ARRAY_LEN(m.headers)) {
