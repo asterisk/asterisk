@@ -4177,7 +4177,7 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 #endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d\n",
-			help->ast->name,
+			ast ? ast->name : "",
 			help->l3id,
 			help->addr,
 			bc->addr,
@@ -4233,7 +4233,6 @@ static char *handle_cli_misdn_show_channels(struct ast_cli_entry *e, int cmd, st
 				continue;
 			}
 			ast_cli(a->fd, "bc with pid:%d has no Ast Leg\n", bc->pid);
-			continue;
 		}
 
 		if (misdn_debug[0] > 2) {
@@ -6923,7 +6922,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		return -1;
 	}
 
-	chan_misdn_log(5, p->bc->port, "* IND : Indication [%d] on %s\n\n", cond, ast->name);
+	chan_misdn_log(5, p->bc->port, "* IND : Indication [%d] on %s\n", cond, ast->name);
 
 	switch (cond) {
 	case AST_CONTROL_BUSY:
@@ -8134,7 +8133,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 
 	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", linkedid, 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
 	if (tmp) {
-		chan_misdn_log(2, 0, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
+		chan_misdn_log(2, port, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
 
 		tmp->nativeformats = prefformat;
 
@@ -8374,14 +8373,13 @@ static int pbx_start_chan(struct chan_list *ch)
 
 static void hangup_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 {
-	int port;
+	int port = bc->port;
 
 	if (!ch) {
-		cb_log(1, 0, "Cannot hangup chan, no ch\n");
+		cb_log(1, port, "Cannot hangup chan, no ch\n");
 		return;
 	}
 
-	port = bc->port;
 	cb_log(5, port, "hangup_chan called\n");
 
 	if (ch->need_hangup) {
@@ -10139,7 +10137,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch = chan_list_init(ORG_MISDN);
 		if (!ch) {
 			chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n");
-			return 0;
+			return RESPONSE_RELEASE_SETUP;
 		}
 
 		ch->bc = bc;
@@ -10149,9 +10147,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, AST_FORMAT_ALAW, NULL, bc->port, bc->channel);
 		if (!chan) {
 			chan_list_unref(ch, "Failed to create a new channel");
-			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n");
-			return 0;
+			ast_log(LOG_ERROR, "cb_events: misdn_new failed!\n");
+			return RESPONSE_RELEASE_SETUP;
 		}
 
 		if ((exceed = add_in_calls(bc->port))) {
@@ -10210,9 +10207,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 
-		/** queue new chan **/
-		cl_queue_chan(ch);
-
 		if (!strstr(ch->allowed_bearers, "all")) {
 			int i;
 
@@ -10232,14 +10226,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				/* We did not find the bearer capability */
 				chan_misdn_log(0, bc->port, "Bearer capability not allowed: %s(%d)\n",
 					bearer2str(bc->capability), bc->capability);
-				bc->out_cause = AST_CAUSE_INCOMPATIBLE_DESTINATION;
 
 				ch->state = MISDN_EXTCANTMATCH;
-				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 				chan_list_unref(ch, "BC not allowed, releasing call");
-				return RESPONSE_OK;
+				bc->out_cause = AST_CAUSE_INCOMPATIBLE_DESTINATION;
+				return RESPONSE_RELEASE_SETUP;
 			}
 		}
+
+		/** queue new chan **/
+		cl_queue_chan(ch);
 
 		if (bc->fac_in.Function != Fac_None) {
 			misdn_facility_ie_handler(event, bc, ch);
@@ -12633,7 +12629,7 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	char port_buf[8];
 
 	if (!(0 <= port && port <= max_ports)) {
-		ast_log(LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
+		ast_log(LOG_WARNING, "chan_misdn_log called with out-of-range port number! (%d)\n", port);
 		port = 0;
 		level = -1;
 	} else if (!(level == -1
