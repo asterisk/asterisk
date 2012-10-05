@@ -999,6 +999,11 @@ struct mansession_session {
 	AST_LIST_ENTRY(mansession_session) list;
 };
 
+enum mansession_message_parsing {
+	MESSAGE_OKAY,
+	MESSAGE_LINE_TOO_LONG
+};
+
 /* In case you didn't read that giant block of text above the mansession_session struct, the
  * 'mansession' struct is named this solely to keep the API the same in Asterisk. This structure really
  * represents data that is different from Manager action to Manager action. The mansession_session pointer
@@ -1009,6 +1014,7 @@ struct mansession {
 	struct ast_tcptls_session_instance *tcptls_session;
 	FILE *f;
 	int fd;
+	enum mansession_message_parsing parsing;
 	int write_error:1;
 	struct manager_custom_hook *hook;
 	ast_mutex_t lock;
@@ -1645,8 +1651,9 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
-	struct ast_str *authority;
-#define HSMC_FORMAT "  %-15.15s  %-15.15s  %-55.55s\n"
+	int name_len = 1;
+	int space_remaining;
+#define HSMC_FORMAT "  %-*.*s  %-*.*s\n"
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show commands";
@@ -1657,13 +1664,25 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_GENERATE:
 		return NULL;
 	}
-	authority = ast_str_alloca(80);
-	ast_cli(a->fd, HSMC_FORMAT, "Action", "Privilege", "Synopsis");
-	ast_cli(a->fd, HSMC_FORMAT, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		ast_cli(a->fd, HSMC_FORMAT, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
+		int incoming_len = strlen(cur->action);
+		if (incoming_len > name_len) {
+			name_len = incoming_len;
+		}
+	}
+
+	space_remaining = 85 - name_len;
+	if (space_remaining < 0) {
+		space_remaining = 0;
+	}
+
+	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "Action", space_remaining, space_remaining, "Synopsis");
+	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "------", space_remaining, space_remaining, "--------");
+
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
+		ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, cur->action, space_remaining, space_remaining, cur->synopsis);
 	}
 	AST_RWLIST_UNLOCK(&actions);
 
@@ -4793,8 +4812,9 @@ static int get_input(struct mansession *s, char *output)
 	}
 	if (s->session->inlen >= maxlen) {
 		/* no crlf found, and buffer full - sorry, too long for us */
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->session->sin.sin_addr), src);
+		ast_log(LOG_WARNING, "Discarding message from %s. Line too long: %.25s...\n", ast_inet_ntoa(s->session->sin.sin_addr), src);
 		s->session->inlen = 0;
+		s->parsing = MESSAGE_LINE_TOO_LONG;
 	}
 	res = 0;
 	while (res == 0) {
@@ -4853,6 +4873,23 @@ static int get_input(struct mansession *s, char *output)
 
 /*!
  * \internal
+ * \brief Error handling for sending parse errors. This function handles locking, and clearing the
+ * parse error flag.
+ *
+ * \param s AMI session to process action request.
+ * \param m Message that's in error.
+ * \param error Error message to send.
+ */
+static void handle_parse_error(struct mansession *s, struct message *m, char *error)
+{
+	mansession_lock(s);
+	astman_send_error(s, m, error);
+	s->parsing = MESSAGE_OKAY;
+	mansession_unlock(s);
+}
+
+/*!
+ * \internal
  * \brief Read and process an AMI action request.
  *
  * \param s AMI session to process action request.
@@ -4904,7 +4941,15 @@ static int do_message(struct mansession *s)
 					mansession_unlock(s);
 					res = 0;
 				} else {
-					res = process_message(s, &m) ? -1 : 0;
+					switch (s->parsing) {
+					case MESSAGE_OKAY:
+						res = process_message(s, &m) ? -1 : 0;
+						break;
+					case MESSAGE_LINE_TOO_LONG:
+						handle_parse_error(s, &m, "Failed to parse message: line too long");
+						res = 0;
+						break;
+					}
 				}
 				break;
 			} else if (m.hdrcount < ARRAY_LEN(m.headers)) {
