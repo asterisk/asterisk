@@ -484,9 +484,9 @@ static void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchann
 	{
 		int  protocol ;
 		dec_ie_useruser(setup->USER_USER, (Q931_info_t *)setup, &protocol, bc->uu, &bc->uulen, nt,bc);
-		if (bc->uulen) cb_log(1,bc->port,"USERUESRINFO:%s\n",bc->uu);
+		if (bc->uulen) cb_log(1, bc->port, "USERUSERINFO:%s\n", bc->uu);
 		else
-		cb_log(1,bc->port,"NO USERUESRINFO\n");
+		cb_log(1, bc->port, "NO USERUSERINFO\n");
 	}
 
 	dec_ie_progress(setup->PROGRESS, (Q931_info_t *)setup, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -618,7 +618,7 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 	if (bc->uulen) {
 		int  protocol=4;
 		enc_ie_useruser(&setup->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
-		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+		cb_log(1, bc->port, "ENCODING USERUSERINFO:%s\n", bc->uu);
 	}
 
 #if defined(AST_MISDN_ENHANCEMENTS)
@@ -1087,7 +1087,7 @@ static msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *b
 	if (bc->uulen) {
 		int  protocol=4;
 		enc_ie_useruser(&disconnect->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
-		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+		cb_log(1, bc->port, "ENCODING USERUSERINFO:%s\n", bc->uu);
 	}
 
 #ifdef DEBUG
@@ -1175,7 +1175,7 @@ static msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 	if (bc->uulen) {
 		int  protocol=4;
 		enc_ie_useruser(&release->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
-		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+		cb_log(1, bc->port, "ENCODING USERUSERINFO:%s\n", bc->uu);
 	}
 
 #ifdef DEBUG
@@ -1237,7 +1237,7 @@ static msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchan
 	if (bc->uulen) {
 		int  protocol=4;
 		enc_ie_useruser(&release_complete->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
-		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+		cb_log(1, bc->port, "ENCODING USERUSERINFO:%s\n", bc->uu);
 	}
 
 #ifdef DEBUG
