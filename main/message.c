@@ -129,6 +129,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>A From URI for the message if needed for the
 				message technology being used to send this message.</para>
 				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageFromInfo'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='XMPPMessageFromInfo'])" />
 			</parameter>
 		</syntax>
 		<description>
@@ -171,6 +172,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>A From URI for the message if needed for the
 				message technology being used to send this message.</para>
 				<xi:include xpointer="xpointer(/docs/info[@name='SIPMessageFromInfo'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='XMPPMessageFromInfo'])" />
 			</parameter>
 			<parameter name="Body">
 				<para>The message body text.  This must not contain any newlines as that

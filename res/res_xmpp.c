@@ -284,6 +284,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<para>Specifying a prefix of <literal>xmpp:</literal> will send the
 		message as an XMPP chat message.</para>
 	</info>
+	<info name="XMPPMessageFromInfo" language="en_US" tech="XMPP">
+		<para>Specifying a prefix of <literal>xmpp:</literal> will specify the
+		account defined in <literal>xmpp.conf</literal> to send the message from.
+		Note that this field is required for XMPP messages.</para>
+	</info>
 ***/
 
 /*! \brief Supported general configuration flags */
