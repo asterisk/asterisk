@@ -3157,8 +3157,13 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 		}
 
 		if ((node && strcmp(resource->caps.node, node)) || (ver && strcmp(resource->caps.version, ver))) {
-			ast_copy_string(resource->caps.node, node, sizeof(resource->caps.node));
-			ast_copy_string(resource->caps.version, ver, sizeof(resource->caps.version));
+			/* For interoperability reasons, proceed even if the resource fails to provide node or version */
+			if (node) {
+				ast_copy_string(resource->caps.node, node, sizeof(resource->caps.node));
+			}
+			if (ver) {
+				ast_copy_string(resource->caps.version, ver, sizeof(resource->caps.version));
+			}
 
 			/* Google Talk places the capabilities information directly in presence, so see if it is there */
 			if (iks_find_with_attrib(pak->x, "c", "node", "http://www.google.com/xmpp/client/caps") ||
