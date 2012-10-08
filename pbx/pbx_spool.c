@@ -103,36 +103,58 @@ struct outgoing {
 static void queue_file(const char *filename, time_t when);
 #endif
 
-static int init_outgoing(struct outgoing *o)
-{
-	struct ast_format tmpfmt;
-	o->priority = 1;
-	o->retrytime = 300;
-	o->waittime = 45;
-
-	if (!(o->capabilities = ast_format_cap_alloc_nolock())) {
-		return -1;
-	}
-	ast_format_cap_add(o->capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-
-	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
-	if (ast_string_field_init(o, 128)) {
-		return -1;
-	}
-	return 0;
-}
-
 static void free_outgoing(struct outgoing *o)
 {
 	if (o->vars) {
 		ast_variables_destroy(o->vars);
 	}
-	ast_string_field_free_memory(o);
 	o->capabilities = ast_format_cap_destroy(o->capabilities);
+	ast_string_field_free_memory(o);
 	ast_free(o);
 }
 
-static int apply_outgoing(struct outgoing *o, const char *fn, FILE *f)
+static struct outgoing *new_outgoing(const char *fn)
+{
+	struct outgoing *o;
+	struct ast_format tmpfmt;
+
+	o = ast_calloc(1, sizeof(*o));
+	if (!o) {
+		return NULL;
+	}
+
+	/* Initialize the new object. */
+	o->priority = 1;
+	o->retrytime = 300;
+	o->waittime = 45;
+	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
+	if (ast_string_field_init(o, 128)) {
+		/*
+		 * No need to call free_outgoing here since the failure was to
+		 * allocate string fields and no variables have been allocated
+		 * yet.
+		 */
+		ast_free(o);
+		return NULL;
+	}
+	ast_string_field_set(o, fn, fn);
+	if (ast_strlen_zero(o->fn)) {
+		/* String field set failed.  Since this string is important we must fail. */
+		free_outgoing(o);
+		return NULL;
+	}
+
+	o->capabilities = ast_format_cap_alloc_nolock();
+	if (!o->capabilities) {
+		free_outgoing(o);
+		return NULL;
+	}
+	ast_format_cap_add(o->capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+
+	return o;
+}
+
+static int apply_outgoing(struct outgoing *o, FILE *f)
 {
 	char buf[256];
 	char *c, *c2;
@@ -166,107 +188,105 @@ static int apply_outgoing(struct outgoing *o, const char *fn, FILE *f)
 		}
 
 		/* Trim trailing white space */
-		while(!ast_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
-			buf[strlen(buf) - 1] = '\0';
-		if (!ast_strlen_zero(buf)) {
-			c = strchr(buf, ':');
-			if (c) {
-				*c = '\0';
-				c++;
-				while ((*c) && (*c < 33))
-					c++;
+		ast_trim_blanks(buf);
+		if (ast_strlen_zero(buf)) {
+			continue;
+		}
+		c = strchr(buf, ':');
+		if (!c) {
+			ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, o->fn);
+			continue;
+		}
+		*c = '\0';
+		c = ast_skip_blanks(c + 1);
 #if 0
-				printf("'%s' is '%s' at line %d\n", buf, c, lineno);
+		printf("'%s' is '%s' at line %d\n", buf, c, lineno);
 #endif
-				if (!strcasecmp(buf, "channel")) {
-					if ((c2 = strchr(c, '/'))) {
-						*c2 = '\0';
-						c2++;
-						ast_string_field_set(o, tech, c);
-						ast_string_field_set(o, dest, c2);
+		if (!strcasecmp(buf, "channel")) {
+			if ((c2 = strchr(c, '/'))) {
+				*c2 = '\0';
+				c2++;
+				ast_string_field_set(o, tech, c);
+				ast_string_field_set(o, dest, c2);
+			} else {
+				ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, o->fn);
+			}
+		} else if (!strcasecmp(buf, "callerid")) {
+			char cid_name[80] = {0}, cid_num[80] = {0};
+			ast_callerid_split(c, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+			ast_string_field_set(o, cid_num, cid_num);
+			ast_string_field_set(o, cid_name, cid_name);
+		} else if (!strcasecmp(buf, "application")) {
+			ast_string_field_set(o, app, c);
+		} else if (!strcasecmp(buf, "data")) {
+			ast_string_field_set(o, data, c);
+		} else if (!strcasecmp(buf, "maxretries")) {
+			if (sscanf(c, "%30d", &o->maxretries) != 1) {
+				ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, o->fn);
+				o->maxretries = 0;
+			}
+		} else if (!strcasecmp(buf, "codecs")) {
+			ast_parse_allow_disallow(NULL, o->capabilities, c, 1);
+		} else if (!strcasecmp(buf, "context")) {
+			ast_string_field_set(o, context, c);
+		} else if (!strcasecmp(buf, "extension")) {
+			ast_string_field_set(o, exten, c);
+		} else if (!strcasecmp(buf, "priority")) {
+			if ((sscanf(c, "%30d", &o->priority) != 1) || (o->priority < 1)) {
+				ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, o->fn);
+				o->priority = 1;
+			}
+		} else if (!strcasecmp(buf, "retrytime")) {
+			if ((sscanf(c, "%30d", &o->retrytime) != 1) || (o->retrytime < 1)) {
+				ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, o->fn);
+				o->retrytime = 300;
+			}
+		} else if (!strcasecmp(buf, "waittime")) {
+			if ((sscanf(c, "%30d", &o->waittime) != 1) || (o->waittime < 1)) {
+				ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, o->fn);
+				o->waittime = 45;
+			}
+		} else if (!strcasecmp(buf, "retry")) {
+			o->retries++;
+		} else if (!strcasecmp(buf, "startretry")) {
+			if (sscanf(c, "%30ld", &o->callingpid) != 1) {
+				ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
+				o->callingpid = 0;
+			}
+		} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
+			o->callingpid = 0;
+			o->retries++;
+		} else if (!strcasecmp(buf, "delayedretry")) {
+		} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
+			c2 = c;
+			strsep(&c2, "=");
+			if (c2) {
+				var = ast_variable_new(c, c2, o->fn);
+				if (var) {
+					/* Always insert at the end, because some people want to treat the spool file as a script */
+					if (last) {
+						last->next = var;
 					} else {
-						ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
+						o->vars = var;
 					}
-				} else if (!strcasecmp(buf, "callerid")) {
-					char cid_name[80] = {0}, cid_num[80] = {0};
-					ast_callerid_split(c, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
-					ast_string_field_set(o, cid_num, cid_num);
-					ast_string_field_set(o, cid_name, cid_name);
-				} else if (!strcasecmp(buf, "application")) {
-					ast_string_field_set(o, app, c);
-				} else if (!strcasecmp(buf, "data")) {
-					ast_string_field_set(o, data, c);
-				} else if (!strcasecmp(buf, "maxretries")) {
-					if (sscanf(c, "%30d", &o->maxretries) != 1) {
-						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
-						o->maxretries = 0;
-					}
-				} else if (!strcasecmp(buf, "codecs")) {
-					ast_parse_allow_disallow(NULL, o->capabilities, c, 1);
-				} else if (!strcasecmp(buf, "context")) {
-					ast_string_field_set(o, context, c);
-				} else if (!strcasecmp(buf, "extension")) {
-					ast_string_field_set(o, exten, c);
-				} else if (!strcasecmp(buf, "priority")) {
-					if ((sscanf(c, "%30d", &o->priority) != 1) || (o->priority < 1)) {
-						ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
-						o->priority = 1;
-					}
-				} else if (!strcasecmp(buf, "retrytime")) {
-					if ((sscanf(c, "%30d", &o->retrytime) != 1) || (o->retrytime < 1)) {
-						ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
-						o->retrytime = 300;
-					}
-				} else if (!strcasecmp(buf, "waittime")) {
-					if ((sscanf(c, "%30d", &o->waittime) != 1) || (o->waittime < 1)) {
-						ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, fn);
-						o->waittime = 45;
-					}
-				} else if (!strcasecmp(buf, "retry")) {
-					o->retries++;
-				} else if (!strcasecmp(buf, "startretry")) {
-					if (sscanf(c, "%30ld", &o->callingpid) != 1) {
-						ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
-						o->callingpid = 0;
-					}
-				} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
-					o->callingpid = 0;
-					o->retries++;
-				} else if (!strcasecmp(buf, "delayedretry")) {
-				} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
-					c2 = c;
-					strsep(&c2, "=");
-					if (c2) {
-						var = ast_variable_new(c, c2, fn);
-						if (var) {
-							/* Always insert at the end, because some people want to treat the spool file as a script */
-							if (last) {
-								last->next = var;
-							} else {
-								o->vars = var;
-							}
-							last = var;
-						}
-					} else
-						ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
-				} else if (!strcasecmp(buf, "account")) {
-					ast_string_field_set(o, account, c);
-				} else if (!strcasecmp(buf, "alwaysdelete")) {
-					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
-				} else if (!strcasecmp(buf, "archive")) {
-					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
-				} else if (!strcasecmp(buf, "early_media")) {
-					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_EARLY_MEDIA);
-				} else {
-					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
+					last = var;
 				}
 			} else
-				ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
+				ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
+		} else if (!strcasecmp(buf, "account")) {
+			ast_string_field_set(o, account, c);
+		} else if (!strcasecmp(buf, "alwaysdelete")) {
+			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
+		} else if (!strcasecmp(buf, "archive")) {
+			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
+		} else if (!strcasecmp(buf, "early_media")) {
+			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_EARLY_MEDIA);
+		} else {
+			ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, o->fn);
 		}
 	}
-	ast_string_field_set(o, fn, fn);
 	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
-		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", fn);
+		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", o->fn);
 		return -1;
 	}
 	return 0;
@@ -330,7 +350,7 @@ static int remove_from_queue(struct outgoing *o, const char *status)
 	}
 
 	snprintf(newfn, sizeof(newfn), "%s/%s", qdonedir, bname);
-	/* a existing call file the archive dir is overwritten */
+	/* If there is already a call file with the name in the archive dir, it will be overwritten. */
 	unlink(newfn);
 	if (rename(o->fn, newfn) != 0) {
 		unlink(o->fn);
@@ -400,47 +420,46 @@ static void launch_service(struct outgoing *o)
 /* Called from scan_thread or queue_file */
 static int scan_service(const char *fn, time_t now)
 {
-	struct outgoing *o = NULL;
+	struct outgoing *o;
 	FILE *f;
-	int res = 0;
+	int res;
 
-	if (!(o = ast_calloc(1, sizeof(*o)))) {
-		ast_log(LOG_WARNING, "Out of memory ;(\n");
-		return -1;
-	}
-
-	if (init_outgoing(o)) {
-		/* No need to call free_outgoing here since we know the failure
-		 * was to allocate string fields and no variables have been allocated
-		 * yet.
-		 */
-		ast_free(o);
+	o = new_outgoing(fn);
+	if (!o) {
 		return -1;
 	}
 
 	/* Attempt to open the file */
-	if (!(f = fopen(fn, "r"))) {
+	f = fopen(o->fn, "r");
+	if (!f) {
+#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
+		/*!
+		 * \todo XXX There is some odd delayed duplicate servicing of
+		 * call files going on.  We need to suppress the error message
+		 * if the file does not exist as a result.
+		 */
+		if (errno != ENOENT)
+#endif
+		{
+			ast_log(LOG_WARNING, "Unable to open %s: '%s'(%d), deleting\n",
+				o->fn, strerror(errno), (int) errno);
+		}
 		remove_from_queue(o, "Failed");
 		free_outgoing(o);
-#if !defined(HAVE_INOTIFY) && !defined(HAVE_KQUEUE)
-		ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
-#endif
 		return -1;
 	}
 
 	/* Read in and verify the contents */
-	if (apply_outgoing(o, fn, f)) {
+	res = apply_outgoing(o, f);
+	fclose(f);
+	if (res) {
+		ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", o->fn);
 		remove_from_queue(o, "Failed");
 		free_outgoing(o);
-		ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
-		fclose(f);
 		return -1;
 	}
 
-#if 0
-	printf("Filename: %s, Retries: %d, max: %d\n", fn, o->retries, o->maxretries);
-#endif
-	fclose(f);
+	ast_debug(1, "Filename: %s, Retries: %d, max: %d\n", o->fn, o->retries, o->maxretries);
 	if (o->retries <= o->maxretries) {
 		now += o->retrytime;
 		if (o->callingpid && (o->callingpid == ast_mainpid)) {
@@ -458,14 +477,14 @@ static int scan_service(const char *fn, time_t now)
 			safe_append(o, now, "StartRetry");
 			launch_service(o);
 		}
-		res = now;
-	} else {
-		ast_log(LOG_NOTICE, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-		remove_from_queue(o, "Expired");
-		free_outgoing(o);
+		return now;
 	}
 
-	return res;
+	ast_log(LOG_NOTICE, "Queued call to %s/%s expired without completion after %d attempt%s\n",
+		o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+	remove_from_queue(o, "Expired");
+	free_outgoing(o);
+	return 0;
 }
 
 #if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
