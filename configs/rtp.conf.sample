@@ -33,8 +33,8 @@ rtpend=20000
 ; connected. This option is set to 4 by default.
 ; probation=8
 ;
-; Whether to enable or disable ICE support. This option is enabled by default.
-; icesupport=false
+; Whether to enable or disable ICE support. This option is disabled by default.
+; icesupport=true
 ;
 ; Hostname or address for the STUN server used when determining the external
 ; IP address and port an RTP session can be reached at. The port number is
