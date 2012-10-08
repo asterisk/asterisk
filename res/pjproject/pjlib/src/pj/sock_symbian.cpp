@@ -299,7 +299,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr inaddr)
  * numbers-and-dots notation into binary data and stores it in the structure
  * that inp points to. 
  */
-PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp)
+PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp)
 {
     enum { MAXIPLEN = PJ_INET_ADDRSTRLEN };
 

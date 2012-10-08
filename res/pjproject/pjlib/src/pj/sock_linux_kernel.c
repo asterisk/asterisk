@@ -147,7 +147,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr in)
  * numbers-and-dots notation into binary data and stores it in the structure
  * that inp points to. 
  */
-PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, struct pj_in_addr *addr)
+PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, pj_in_addr *addr)
 {
     pj_uint32_t val;
     int base, n;

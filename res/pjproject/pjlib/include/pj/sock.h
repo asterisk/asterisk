@@ -471,6 +471,7 @@ typedef enum pj_socket_sd_type
  */
 #define PJ_INVALID_SOCKET   (-1)
 
+#ifndef _ASTERISK_H
 /* Must undefine s_addr because of pj_in_addr below */
 #undef s_addr
 
@@ -482,6 +483,11 @@ typedef struct pj_in_addr
     pj_uint32_t	s_addr;		/**< The 32bit IP address.	    */
 } pj_in_addr;
 
+#else
+#include <sys/types.h>
+#include <netinet/in.h>
+typedef struct in_addr pj_in_addr;
+#endif
 
 /**
  * Maximum length of text representation of an IPv4 address.
@@ -675,7 +681,7 @@ PJ_DECL(char*) pj_inet_ntoa(pj_in_addr inaddr);
  *
  * @return	nonzero if the address is valid, zero if not.
  */
-PJ_DECL(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp);
+PJ_DECL(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp);
 
 /**
  * This function converts an address in its standard text presentation form
