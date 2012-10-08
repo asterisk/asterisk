@@ -28,6 +28,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_features.h"
+#include "conf_state.h"
 
 /* Maximum length of a conference bridge name */
 #define MAX_CONF_NAME 32
@@ -201,17 +202,28 @@ struct bridge_profile {
 /*! \brief The structure that represents a conference bridge */
 struct conference_bridge {
 	char name[MAX_CONF_NAME];                                         /*!< Name of the conference bridge */
+	struct conference_state *state;                                   /*!< Conference state information */
 	struct ast_bridge *bridge;                                        /*!< Bridge structure doing the mixing */
 	struct bridge_profile b_profile;                                  /*!< The Bridge Configuration Profile */
-	unsigned int users;                                               /*!< Number of users present */
+	unsigned int activeusers;                                         /*!< Number of active users present */
 	unsigned int markedusers;                                         /*!< Number of marked users present */
+	unsigned int waitingusers;                                        /*!< Number of waiting users present */
 	unsigned int locked:1;                                            /*!< Is this conference bridge locked? */
 	unsigned int muted:1;                                            /*!< Is this conference bridge muted? */
+	unsigned int record_state:2;                                      /*!< Whether recording is started, stopped, or should exit */
 	struct ast_channel *playback_chan;                                /*!< Channel used for playback into the conference bridge */
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
 	pthread_t record_thread;                                          /*!< The thread the recording chan lives in */
 	ast_mutex_t playback_lock;                                        /*!< Lock used for playback channel */
-	AST_LIST_HEAD_NOLOCK(, conference_bridge_user) users_list;        /*!< List of users participating in the conference bridge */
+	ast_mutex_t record_lock;                                          /*!< Lock used for the record thread */
+	ast_cond_t record_cond;                                           /*!< Recording condition variable */
+	AST_LIST_HEAD_NOLOCK(, conference_bridge_user) active_list;       /*!< List of users participating in the conference bridge */
+	AST_LIST_HEAD_NOLOCK(, conference_bridge_user) waiting_list;      /*!< List of users waiting to join the conference bridge */
+};
+
+struct post_join_action {
+	int (*func)(struct conference_bridge_user *);
+	AST_LIST_ENTRY(post_join_action) list;
 };
 
 /*! \brief The structure that represents a conference bridge user */
@@ -226,6 +238,7 @@ struct conference_bridge_user {
 	struct ast_bridge_tech_optimizations tech_args; /*!< Bridge technology optimizations for talk detection */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
 	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
+	AST_LIST_HEAD_NOLOCK(, post_join_action) post_join_list; /*!< List of sounds to play after joining */;
 	AST_LIST_ENTRY(conference_bridge_user) list; /*!< Linked list information */
 };
 
@@ -328,4 +341,103 @@ int conf_handle_dtmf(
 const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds *custom_sounds);
 
 int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data, const char *value);
+
+/*!
+ * \brief Play sound file into conference bridge
+ *
+ * \param conference_bridge The conference bridge to play sound file into
+ * \param filename Sound file to play
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int play_sound_file(struct conference_bridge *conference_bridge, const char *filename);
+
+/*! \brief Callback to be called when the conference has become empty
+ * \param conference_bridge The conference bridge
+ */
+void conf_ended(struct conference_bridge *conference_bridge);
+
+/*! \brief Attempt to mute/play MOH to the only user in the conference if they require it
+ * \param conference_bridge A conference bridge containing a single user
+ */
+void conf_mute_only_active(struct conference_bridge *conference_bridge);
+
+/*! \brief Callback to execute any time we transition from zero to one marked users
+ * \param cbu The first marked user joining the conference
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int conf_handle_first_marked_common(struct conference_bridge_user *cbu);
+
+/*! \brief Callback to execute any time we transition from zero to one active users
+ * \param conference_bridge The conference bridge with a single active user joined
+ * \retval 0 success
+ * \retval -1 failure
+ */
+void conf_handle_first_join(struct conference_bridge *conference_bridge);
+
+/*! \brief Handle actions every time a waitmarked user joins w/o a marked user present
+ * \param cbu The waitmarked user
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int conf_handle_inactive_waitmarked(struct conference_bridge_user *cbu);
+
+/*! \brief Handle actions whenever an unmarked user joins an inactive conference
+ * \note These actions seem like they could apply just as well to a marked user
+ * and possibly be made to happen any time transitioning to a single state.
+ *
+ * \param cbu The unmarked user
+ */
+int conf_handle_only_unmarked(struct conference_bridge_user *cbu);
+
+/*! \brief Handle when a conference moves to having more than one active participant
+ * \param conference_bridge The conference bridge with more than one active participant
+ */
+void conf_handle_second_active(struct conference_bridge *conference_bridge);
+
+/*! \brief Add a conference bridge user as an unmarked active user of the conference
+ * \param conference_bridge The conference bridge to add the user to
+ * \param cbu The conference bridge user to add to the conference
+ */
+void conf_add_user_active(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Add a conference bridge user as a marked active user of the conference
+ * \param conference_bridge The conference bridge to add the user to
+ * \param cbu The conference bridge user to add to the conference
+ */
+void conf_add_user_marked(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Add a conference bridge user as an waiting user of the conference
+ * \param conference_bridge The conference bridge to add the user to
+ * \param cbu The conference bridge user to add to the conference
+ */
+void conf_add_user_waiting(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Remove a conference bridge user from the unmarked active conference users in the conference
+ * \param conference_bridge The conference bridge to remove the user from
+ * \param cbu The conference bridge user to remove from the conference
+ */
+void conf_remove_user_active(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Remove a conference bridge user from the marked active conference users in the conference
+ * \param conference_bridge The conference bridge to remove the user from
+ * \param cbu The conference bridge user to remove from the conference
+ */
+void conf_remove_user_marked(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Remove a conference bridge user from the waiting conference users in the conference
+ * \param conference_bridge The conference bridge to remove the user from
+ * \param cbu The conference bridge user to remove from the conference
+ */
+void conf_remove_user_waiting(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu);
+
+/*! \brief Queue a function to run with the given conference bridge user as an argument once the state transition is complete
+ * \param cbu The conference bridge user to pass to the function
+ * \param func The function to queue
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int conf_add_post_join_action(struct conference_bridge_user *cbu, int (*func)(struct conference_bridge_user *cbu));
 #endif
