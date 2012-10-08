@@ -1,0 +1,661 @@
+                                Release Summary
+
+                               asterisk-1.8.17.0
+
+                                Date: 2012-10-08
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.16.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   18 kmoore                2 Michael L. Young       6 mjordan                
+   15 mmichelson            2 mjordan                3 wdoekes                
+   8 jrose                  1 Alan Frisch            2 jcovert                
+   6 bebuild                1 alecdavis              1 beagles                
+   6 mjordan                1 Alexandr Gordeev       1 berlic                 
+   5 rmudgett               1 Darren Sessions        1 bulkorok               
+   4 alecdavis              1 Etienne Lessard        1 cecco                  
+   4 may                    1 rmudgett               1 chip                   
+   2 Michael                                         1 dlee                   
+   1 Andrew                                          1 gareth                 
+   1 Clod                                            1 hexanol                
+   1 dlee                                            1 jpepper                
+   1 dsessions                                       1 jplord                 
+   1 Egor                                            1 junky                  
+   1 Etienne                                         1 lathama                
+   1 Filip                                           1 maha                   
+   1 Gareth                                          1 nbansal                
+   1 Italo                                           1 nik600                 
+   1 Jeremy                                          1 nmazzon                
+   1 Konstantin                                      1 phill                  
+   1 Nitesh                                          1 pracz                  
+   1 Peter                                           1 rgagnon                
+   1 schmidts                                        1 rmudgett               
+   1 twilson                                         1 slesru                 
+   1 Tzafrir                                         1 tzafrir                
+                                                     1 vmisha                 
+                                                     1 yarns                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/chan_ooh323
+
+   ASTERISK-19308: problem with transit calls ooh323-dahdi(pri)-panasonic 500
+   Revision: 371089
+   Reporter: slesru
+   Coders: may
+
+  Category: Addons/res_config_mysql
+
+   ASTERISK-19793: Only last realtime member of a queue is not actually
+   removed from queue when removed from database
+   Revision: 371306
+   Reporter: maha
+   Coders: mmichelson
+
+  Category: Applications/app_chanspy
+
+   ASTERISK-17515: groupcount or group doesn't "release" channels and group
+   shows channels which doesn't exists
+   Revision: 370952
+   Reporter: yarns
+   Testers: Alexandr Gordeev, Michael L. Young
+   Coders: Michael
+
+  Category: Applications/app_dial
+
+   ASTERISK-20287: Broken hangupcause passtrough
+   Revision: 371860
+   Reporter: berlic
+   Testers: rmudgett
+   Coders: Konstantin
+
+  Category: Applications/app_externalivr
+
+   ASTERISK-20132: Security Vulnerability: remote authenticated attacker can
+   execute arbitrary shell commands on system through app ExternalIVR
+   Revision: 371998
+   Reporter: mjordan
+   Coders: mjordan
+
+  Category: Applications/app_followme
+
+   ASTERISK-16879: [patch] FollowMe has a maximum of 90 chars for number
+   Revision: 372390
+   Reporter: junky
+   Testers: mjordan
+   Coders: Clod
+
+  Category: Applications/app_minivm
+
+   ASTERISK-17133: [patch] minivm: when sending mail and using volgain
+   Revision: 372554
+   Reporter: tzafrir
+   Coders: Tzafrir
+
+  Category: Applications/app_queue
+
+   ASTERISK-16115: [patch] problem with ringinuse=no, queue members receive
+   sometimes two calls
+   Revision: 372048
+   Reporter: nik600
+   Coders: Italo
+
+   ASTERISK-19793: Only last realtime member of a queue is not actually
+   removed from queue when removed from database
+   Revision: 371306
+   Reporter: maha
+   Coders: mmichelson
+
+   ASTERISK-20380: Bad ao2_unlock call in app_queue's try_calling
+   Revision: 372624
+   Reporter: jpepper
+   Coders: Jeremy
+
+  Category: Applications/app_voicemail/IMAP
+
+   ASTERISK-19155: Memory leak in app_voicemail.c when using IMAP
+   Revision: 372268
+   Reporter: phill
+   Coders: Filip
+
+  Category: CEL/cel_pgsql
+
+   ASTERISK-19991: Memory leak in cel_pgsql
+   Revision: 372158
+   Reporter: hexanol
+   Testers: Etienne Lessard
+   Coders: Etienne
+
+  Category: Channels/General
+
+   ASTERISK-20283: Files descriptors for dummy channels need to be set to -1
+   Revision: 371888
+   Reporter: gareth
+   Coders: Gareth
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-20186: Security Vulnerability: IAX2 peer's NEW message bypasses
+   ACL defined in realtime
+   Revision: 372015
+   Reporter: mjordan
+   Testers: mjordan, Alan Frisch
+   Coders: mjordan
+
+   ASTERISK-20338: iax2 debug only shows received packets when "iax2 set
+   debug peer xxx" is used
+   Revision: 372804
+   Reporter: jcovert
+   Coders: kmoore
+
+  Category: Channels/chan_sip/DatabaseSupport
+
+   ASTERISK-17222: [patch] Realtime Peers Cannot Register
+   Revision: 372498
+   Reporter: jcovert
+   Testers: Darren Sessions
+   Coders: dsessions
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-19154: huge number of sip OPTION on 'sip reload'
+   Revision: 370666
+   Reporter: nmazzon
+   Coders: schmidts
+
+   ASTERISK-19677: SIP dial string //IPorHost does not work like expected
+   Revision: 370769
+   Reporter: wdoekes
+   Coders: mmichelson
+
+   ASTERISK-19857: Explore directmedia re-INVITE improvements between
+   multiple Asterisk instances
+   Revision: 370618
+   Reporter: mjordan
+   Coders: mmichelson
+
+   ASTERISK-20119: Peer MWI subscriptions erroneously removed when another
+   SIP dialog is destroyed
+   Revision: 371270
+   Reporter: vmisha
+   Coders: kmoore
+
+   ASTERISK-20124: chan_sip retransmit timeout causes a
+   AST_CAUSE_PROTOCOL_ERROR, translates to 603 Declined
+   Revision: 371824
+   Reporter: wdoekes
+   Coders: jrose
+
+   ASTERISK-20357: T.38 offer for peer that does not support T.38 fails to
+   warn user on CLI
+   Revision: 372763
+   Reporter: cecco
+   Coders: kmoore
+
+  Category: Channels/chan_sip/T.38
+
+   ASTERISK-19373: Segmentation Fault in ast_udptl_write() due to bad
+   memcpy() call
+   Revision: 371544
+   Reporter: rgagnon
+   Coders: kmoore
+
+  Category: Core/AstMM
+
+   ASTERISK-20349: DEBUG_MALLOC version of ast_strndup() may cause buffer
+   overflow
+   Revision: 372655
+   Reporter: beagles
+   Coders: rmudgett
+
+  Category: Core/BuildSystem
+
+   ASTERISK-20392: OpenSSL headers not picked up when configured using
+   --with-ssl=
+   Revision: 372682
+   Reporter: dlee
+   Coders: dlee
+
+  Category: Core/Channels
+
+   ASTERISK-19610: dsp.c can no longer detect a quick DTMF sequence
+   Revision: 372239
+   Reporter: jplord
+   Testers: alecdavis
+   Coders: alecdavis
+
+  Category: Core/General
+
+   ASTERISK-20090: Crash when running 'core show locks' with
+   BETTER_BACKTRACES enabled
+   Revision: 371690
+   Reporter: mjordan
+   Coders: kmoore
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20132: Security Vulnerability: remote authenticated attacker can
+   execute arbitrary shell commands on system through app ExternalIVR
+   Revision: 371998
+   Reporter: mjordan
+   Coders: mjordan
+
+  Category: Core/Portability
+
+   ASTERISK-20240: Incorrect work of __ast_rwlock_timed[rd|wr]lock()
+   functions on OpenBSD
+   Revision: 371718
+   Reporter: chip
+   Coders: Egor
+
+  Category: Documentation
+
+   ASTERISK-20279: Add CODING-GUIDELINES back to SVN or at minimum a link to
+   the wiki
+   Revision: 371961
+   Reporter: lathama
+   Coders: Andrew
+
+  Category: Functions/func_groupcount
+
+   ASTERISK-17515: groupcount or group doesn't "release" channels and group
+   shows channels which doesn't exists
+   Revision: 370952
+   Reporter: yarns
+   Testers: Alexandr Gordeev, Michael L. Young
+   Coders: Michael
+
+  Category: General
+
+   ASTERISK-20135: Use of ast_asprintf and asprintf needs to be checked for
+   failure.
+   Revision: 371590
+   Reporter: rmudgett
+   Coders: mmichelson
+
+   ASTERISK-20408: constify astobj2's __ao2_ref_debug parameters
+   Revision: 372959
+   Reporter: mjordan
+   Coders: mjordan
+
+  Category: PBX/pbx_dundi
+
+   ASTERISK-19309: [patch] DUNDi message routing bug
+   Revision: 372417
+   Reporter: pracz
+   Coders: Peter
+
+  Category: Resources/res_fax
+
+   ASTERISK-19762: Segfault in ast_frdup when invalid data length specified
+   in duplicated frame
+   Revision: 371544
+   Reporter: bulkorok
+   Coders: kmoore
+
+  Category: Resources/res_rtp_asterisk
+
+   ASTERISK-20295: Asterisk is not incrementing the sequence numbers for the
+   retransmission of the DTMF end packets(RTPEvent packet with end bit set to
+   1)
+   Revision: 372185
+   Reporter: nbansal
+   Testers: Michael L. Young
+   Coders: Nitesh, Michael
+
+  Category: Tests/General
+
+   ASTERISK-20120: Unit test ast_parse_arg_test fails on 32-bit machines
+   Revision: 371392
+   Reporter: mjordan
+   Coders: twilson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                       | Issues         |
+   |          |            |                               | Referenced     |
+   |----------+------------+-------------------------------+----------------|
+   | 370697   | kmoore     | Revert alloca changes for     |                |
+   |          |            | utils                         |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370770   | mmichelson | Remove unused variable.       |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370771   | mmichelson | Seriously? Another            |                |
+   |          |            | compilation error fixed.      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370797   | mmichelson | Improve debug message for     |                |
+   |          |            | temporary outbound proxies.   |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370856   | kmoore     | Add missing AST_CAUSE_* ->    |                |
+   |          |            | text translations             |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix the analog dial *0        |                |
+   | 370900   | rmudgett   | flash-hook of bridged peer    |                |
+   |          |            | feature.                      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370923   | kmoore     | Do not define a cause that    |                |
+   |          |            | doesn't actually exist        |                |
+   |----------+------------+-------------------------------+----------------|
+   | 370985   | kmoore     | Correct documentation for the |                |
+   |          |            | MeetMe x flag                 |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | change opening h323 logfile   |                |
+   | 370988   | may        | with append mode instead of   |                |
+   |          |            | overwrite                     |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix to resend GRQ/RRQ if RRJ  |                |
+   | 371011   | may        | (registration reject) is      | ASTERISK-20094 |
+   |          |            | received                      |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Use better libss7 detection   |                |
+   | 371012   | rmudgett   | test and move libpri compile  |                |
+   |          |            | test.                         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Send re-register packets by   |                |
+   | 371060   | may        | GRQ (gatekeeper request)      | ASTERISK-20094 |
+   |          |            | interval                      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 371141   | mmichelson | Fix a couple of documentation |                |
+   |          |            | problems in app_queue.c       |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix problem where incorrect   |                |
+   | 371198   | mmichelson | pointer was checked for       |                |
+   |          |            | nullity.                      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 371201   | kmoore     | Add test instrumentation      |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | chan_sip: Trigger reinvite if |                |
+   | 371337   | jrose      | the SDP answer is included in |                |
+   |          |            | the SIP ACK                   |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | chan_sip: Use pvt             |                |
+   | 371357   | jrose      | outgoing_call variable to set |                |
+   |          |            | Remote-Party-ID Header        |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Add module reload             |                |
+   | 371393   | kmoore     | instrumentation for           |                |
+   |          |            | TEST_FRAMEWORK                |                |
+   |----------+------------+-------------------------------+----------------|
+   | 371436   | kmoore     | Add instrumentation to        |                |
+   |          |            | subsystem reloads             |                |
+   |----------+------------+-------------------------------+----------------|
+   | 371469   | mjordan    | Fix memory leak in XML        |                |
+   |          |            | documentation                 |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | mf_detect: incorrectly used   |                |
+   | 371662   | alecdavis  | DTMF_GSIZE instead of         |                |
+   |          |            | MF_GSIZE                      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 371747   | mmichelson | Fix incorrectly documented    |                |
+   |          |            | option in queues.conf         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix incorrect documentation   |                |
+   | 371782   | mmichelson | of the MailboxStatus manager  |                |
+   |          |            | command.                      |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix misleading documentation  |                |
+   | 371787   | mmichelson | in agents.conf.sample         |                |
+   |          |            | regarding ackcall usage.      |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | app_meetme: Adding test       |                |
+   | 371919   | jrose      | events for following activity |                |
+   |          |            | in MeetMe.                    |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Prevent crash on shutdown due |                |
+   | 372089   | mmichelson | to refcount error on queues   |                |
+   |          |            | container.                    |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | dsp.c: optimize goerztzel     |                |
+   | 372212   | alecdavis  | sample loops, in dtmf_detect, |                |
+   |          |            | mf_detect and tone_detect     |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Ensure counts generated in    |                |
+   | 372337   | kmoore     | manager_show_dialplan_helper  |                |
+   |          |            | are correct                   |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | dsp.c: in ast_mf_detect_init  |                |
+   | 372339   | alecdavis  | incorrectly sets goertzel     |                |
+   |          |            | samples to 160, should be     |                |
+   |          |            | MF_GSIZE                      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 372354   | kmoore     | Correct documentation for     |                |
+   |          |            | ModuleLoad AMI action         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Ensure "rules" is             |                |
+   | 372444   | kmoore     | tab-completable for "queue    |                |
+   |          |            | show"                         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | chan_sip: Note change in      |                |
+   | 372471   | jrose      | behavior to how               |                |
+   |          |            | directmediapermit/deny ACL    |                |
+   |          |            | works                         |                |
+   |----------+------------+-------------------------------+----------------|
+   | 372517   | kmoore     | Ensure listed queues are not  |                |
+   |          |            | offered for completion        |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Free ast_str objects when     |                |
+   | 372581   | mjordan    | temp file fails to be created | ASTERISK-17133 |
+   |          |            | in MiniVM                     |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix VoicemailUserEntry event  |                |
+   | 372620   | rmudgett   | headers ServerEmail and       |                |
+   |          |            | MailCommand reported values.  |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Remove annoying unconditional |                |
+   | 372628   | rmudgett   | debug message from INC/DEC    |                |
+   |          |            | functions.                    |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Only re-create an SRTP        |                |
+   | 372709   | mjordan    | session when needed; respond  | ASTERISK-20194 |
+   |          |            | with correct crypto policy    |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Masquerade: Retain parkinglot |                |
+   | 372736   | jrose      | settings made by CHANNEL      |                |
+   |          |            | function.                     |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | app_meetme: Document that 'p' |                |
+   | 372765   | jrose      | option will continue in       |                |
+   |          |            | dialplan.                     |                |
+   |----------+------------+-------------------------------+----------------|
+   | 372840   | mmichelson | Fix bad channel application   | ASTERISK-20335 |
+   |          |            | data reference.               |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | chan_local: Switch from using |                |
+   | 372902   | jrose      | a random 4 digit hex          | ASTERISK-20318 |
+   |          |            | identifier to unique id       |                |
+   |----------+------------+-------------------------------+----------------|
+   | 372932   | mmichelson | Add channel name to a warning |                |
+   |          |            | to make debugging easier.     |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374291   | bebuild    | Create 1.8.17.0-rc2           |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374294   | bebuild    | Merge changes for             |                |
+   |          |            | 1.8.17.0-rc2                  |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374297   | bebuild    | Importing release summary for |                |
+   |          |            | 1.8.17.0-rc2 release.         |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374524   | bebuild    | Create 1.8.17.0-rc3           |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374527   | bebuild    | Merge 374456 for              |                |
+   |          |            | ASTERISK-20511                |                |
+   |----------+------------+-------------------------------+----------------|
+   | 374530   | bebuild    | Importing release summary for |                |
+   |          |            | 1.8.17.0-rc3 release.         |                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                           |    2
+ ChangeLog                          |   21 +++
+ README-SERIOUSLY.bestpractices.txt |   51 +++++++++
+ UPGRADE.txt                        |    5
+ addons/app_mysql.c                 |    2
+ addons/chan_mobile.c               |    2
+ addons/chan_ooh323.c               |    2
+ addons/ooh323c/src/ooGkClient.c    |   39 +++++++
+ addons/ooh323c/src/ooh323ep.c      |    2
+ addons/res_config_mysql.c          |    4
+ apps/app_chanspy.c                 |    1
+ apps/app_dial.c                    |   10 -
+ apps/app_dictate.c                 |    2
+ apps/app_directed_pickup.c         |    2
+ apps/app_festival.c                |    4
+ apps/app_followme.c                |    4
+ apps/app_getcpeid.c                |    2
+ apps/app_macro.c                   |    3
+ apps/app_meetme.c                  |   32 ++++--
+ apps/app_minivm.c                  |   72 +++----------
+ apps/app_mixmonitor.c              |    2
+ apps/app_osplookup.c               |   20 ---
+ apps/app_queue.c                   |  160 +++++++++++++++++++++++++-----
+ apps/app_sms.c                     |    2
+ apps/app_stack.c                   |    6 -
+ apps/app_voicemail.c               |   48 ++++-----
+ apps/app_while.c                   |    6 -
+ asterisk-1.8.17.0-rc2-summary.html |   61 -----------
+ asterisk-1.8.17.0-rc2-summary.txt  |   90 -----------------
+ asterisk-1.8.17.0-rc3-summary.html |   60 +++++++++++
+ asterisk-1.8.17.0-rc3-summary.txt  |   89 ++++++++++++++++
+ cdr/cdr_pgsql.c                    |    4
+ cdr/cdr_tds.c                      |    4
+ cel/cel_pgsql.c                    |    1
+ channels/chan_alsa.c               |    4
+ channels/chan_dahdi.c              |  111 +++++++++++----------
+ channels/chan_gtalk.c              |   16 +--
+ channels/chan_iax2.c               |   42 +++----
+ channels/chan_jingle.c             |   15 +-
+ channels/chan_local.c              |    9 +
+ channels/chan_oss.c                |    4
+ channels/chan_sip.c                |  195 ++++++++++++++++++++++---------------
+ channels/sig_analog.c              |   14 +-
+ channels/sig_analog.h              |    1
+ channels/sig_pri.c                 |    2
+ channels/sig_ss7.c                 |    3
+ channels/sip/config_parser.c       |   25 +++-
+ channels/sip/include/sip.h         |    4
+ channels/sip/sdp_crypto.c          |   22 +++-
+ configs/agents.conf.sample         |    2
+ configs/queues.conf.sample         |    2
+ configs/res_ldap.conf.sample       |    2
+ configs/sip.conf.sample            |    7 +
+ configure.ac                       |    3
+ doc/CODING-GUIDELINES              |    2
+ funcs/func_channel.c               |    2
+ funcs/func_cut.c                   |    5
+ funcs/func_global.c                |    4
+ funcs/func_logic.c                 |   18 +--
+ funcs/func_math.c                  |    2
+ funcs/func_odbc.c                  |    8 -
+ funcs/func_strings.c               |   19 +--
+ include/asterisk/astobj2.h         |    2
+ include/asterisk/autoconfig.h.in   |   13 --
+ include/asterisk/strings.h         |    4
+ include/asterisk/utils.h           |   13 ++
+ main/Makefile                      |    4
+ main/app.c                         |   12 +-
+ main/asterisk.c                    |    2
+ main/astmm.c                       |   17 +--
+ main/astobj2.c                     |    2
+ main/callerid.c                    |    4
+ main/channel.c                     |   34 +++++-
+ main/config.c                      |   10 +
+ main/dsp.c                         |  172 +++++++++++++++++++++-----------
+ main/event.c                       |   10 -
+ main/features.c                    |   55 ++++++++--
+ main/file.c                        |   30 +++--
+ main/http.c                        |    8 -
+ main/loader.c                      |   18 ++-
+ main/lock.c                        |   12 +-
+ main/logger.c                      |    4
+ main/manager.c                     |   19 ++-
+ main/pbx.c                         |   21 +--
+ main/say.c                         |    4
+ main/strcompat.c                   |   32 ++----
+ main/tcptls.c                      |    2
+ main/threadstorage.c               |    2
+ main/udptl.c                       |   33 +++---
+ main/utils.c                       |   19 ++-
+ main/xmldoc.c                      |   40 +++++--
+ pbx/pbx_ael.c                      |    2
+ pbx/pbx_config.c                   |    6 -
+ pbx/pbx_dundi.c                    |  131 +++++++++++-------------
+ pbx/pbx_lua.c                      |    6 -
+ pbx/pbx_realtime.c                 |   90 ++++++++---------
+ pbx/pbx_spool.c                    |    2
+ res/ael/pval.c                     |    2
+ res/res_agi.c                      |    5
+ res/res_config_pgsql.c             |    6 -
+ res/res_config_sqlite.c            |    6 -
+ res/res_jabber.c                   |   11 --
+ res/res_rtp_asterisk.c             |   10 +
+ tests/test_linkedlists.c           |    2
+ 104 files changed, 1330 insertions(+), 905 deletions(-)
+
+     ----------------------------------------------------------------------
