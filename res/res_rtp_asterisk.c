@@ -111,7 +111,7 @@ enum strict_rtp_state {
 };
 
 #define DEFAULT_STRICT_RTP STRICT_RTP_CLOSED
-#define DEFAULT_ICESUPPORT 1
+#define DEFAULT_ICESUPPORT 0
 
 extern struct ast_srtp_res *res_srtp;
 extern struct ast_srtp_policy_res *res_srtp_policy;
