@@ -932,6 +932,33 @@ pickupgroup=1
 ;
 ;faxbuffers=>6,full
 ;
+; Configure the default number of DAHDI buffers and the transmit policy to use.
+; This can be used to eliminate data drops when scheduling jitter prevents
+; Asterisk from writing to a DAHDI channel regularly. Most users will probably
+; want "faxbuffers" instead of "buffers".
+;
+; The policies are:
+; immediate - DAHDI will immediately start sending the data to the hardware after
+;             Asterisk writes to the channel. This is the default mode. It
+;             introduces the least amount of latency but has an increased chance for
+;             hardware under runs if Asterisk is not able to keep the DAHDI write
+;             queue from going empty.
+; half      - DAHDI will wait until half of the configured buffers are full before
+;             starting to transmit. This adds latency to the audio but reduces
+;             the chance of under runs. Essentially, this is like an in-kernel jitter
+;             buffer.
+; full      - DAHDI will not start transmitting until all buffers are full.
+;             Introduces the most amount of latency and is susceptible to over
+;             runs from the Asterisk process.
+;
+; The receive policy is never changed. DAHDI will always pass up audio as soon
+; as possible.
+;
+; The default number of buffers is 4 (from jitterbuffers) and the default policy
+; is immediate.
+;
+;buffers=4,immediate
+;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
 ; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
