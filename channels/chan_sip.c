@@ -5534,6 +5534,8 @@ static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_
 	if (!(dtls = ast_rtp_instance_get_dtls(rtp)) ||
 	    dtls->set_configuration(rtp, &dialog->dtls_cfg) ||
 	    !(*srtp = sip_srtp_alloc())) {
+		ast_log(LOG_ERROR, "No DTLS-SRTP support present on engine for RTP instance '%p', was it compiled with support for it?\n",
+			instance);
 		return -1;
 	}
 
