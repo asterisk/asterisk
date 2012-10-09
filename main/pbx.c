@@ -5000,6 +5000,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		int invalid = 0;
 		int timeout = 0;
 
+		/* No digits pressed yet */
+		dst_exten[pos] = '\0';
+
 		/* loop on priorities in this context/exten */
 		while (!(res = ast_spawn_extension(c, c->context, c->exten, c->priority,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
