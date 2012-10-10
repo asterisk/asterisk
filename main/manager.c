@@ -4369,7 +4369,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 
 	/* Allocate requested channel variables */
 	vars = astman_get_variables(m);
-	if (s->session->chanvars) {
+	if (s->session && s->session->chanvars) {
 		struct ast_variable *v, *old;
 		old = vars;
 		vars = NULL;
