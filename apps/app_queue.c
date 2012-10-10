@@ -4405,13 +4405,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				return NULL;
 			}
 
-			/*!
-			 * \todo
-			 * XXX Queue like Dial really should send any connected line
-			 * updates (AST_CONTROL_CONNECTED_LINE) from the caller to each
-			 * ringing queue member.
-			 */
-
 			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
 				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
@@ -4425,6 +4418,40 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_frfree(f);
 				return NULL;
 			}
+
+			/* Send the frame from the in channel to all outgoing channels. */
+			for (o = start; o; o = o->call_next) {
+				if (!o->stillgoing || !o->chan) {
+					/* This outgoing channel has died so don't send the frame to it. */
+					continue;
+				}
+				switch (f->frametype) {
+				case AST_FRAME_CONTROL:
+					switch (f->subclass.integer) {
+					case AST_CONTROL_CONNECTED_LINE:
+						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
+							ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
+							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						}
+						break;
+					case AST_CONTROL_REDIRECTING:
+						if (ast_channel_redirecting_sub(in, o->chan, f, 1) &&
+							ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
+							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						}
+						break;
+					default:
+						/* We are not going to do anything with this frame. */
+						goto skip_frame;
+					}
+					break;
+				default:
+					/* We are not going to do anything with this frame. */
+					goto skip_frame;
+				}
+			}
+skip_frame:;
+
 			ast_frfree(f);
 		}
 		if (!*to) {
