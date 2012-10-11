@@ -25,6 +25,15 @@
  * provide and some other module related functions.
  */
 
+/*!
+ * \li The Modules library uses the configuration file \ref modules.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page modules.conf modules.conf
+ * \verbinclude modules.conf.sample
+ */
+
 #ifndef _ASTERISK_MODULE_H
 #define _ASTERISK_MODULE_H
 

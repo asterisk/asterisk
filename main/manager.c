@@ -36,10 +36,14 @@
  * \ref amiconf
  */
 
-/*! \addtogroup Group_AMI AMI functions
-*/
-/*! @{
- Doxygen group */
+/*!
+ * \li The core Manager uses the configuration file \ref manager.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page manager.conf manager.conf
+ * \verbinclude manager.conf.sample
+ */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
@@ -957,6 +961,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 	</manager>
  ***/
+
+/*! \addtogroup Group_AMI AMI functions
+*/
+/*! @{
+ Doxygen group */
 
 enum error_type {
 	UNKNOWN_ACTION = 1,
