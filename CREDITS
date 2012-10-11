@@ -1,255 +1,316 @@
 
 === DEVELOPMENT SUPPORT ===
-We'd like to thank the following companies for helping fund development of
-Asterisk:
 
-Pilosoft, Inc. - for supporting ADSI development in Asterisk
+ We'd like to thank the following companies for helping fund development of
+ Asterisk.
 
-Asterlink, Inc. - for supporting broad Asterisk development
+	* Pilosoft, Inc. - for supporting ADSI development in Asterisk
 
-GFS - for supporting ALSA development
+	* Asterlink, Inc. - for supporting broad Asterisk development
 
-Telesthetic - for supporting SIP development
+	* GFS - for supporting ALSA development
 
-Christos Ricudis - for substantial code contributions
+	* Telesthetic - for supporting SIP development
 
-nic.at - ENUM support in Asterisk
+	* Christos Ricudis - for substantial code contributions
 
-Paul Bagyenda, Digital Solutions - for initial Voicetronix driver development
+	* nic.at - ENUM support in Asterisk
 
-John Todd, TalkPlus, Inc.  and JR Richardson, Ntegrated Solutions. - for funding
-    the development of SIP Session Timers support.
+	* Paul Bagyenda, Digital Solutions - for initial Voicetronix driver
+		development.
 
-Omnitor AB, Gunnar Hellström, for funding work with videocaps, T.140 RED,
-originate with video/text and many more contributions.
+	* John Todd, TalkPlus, Inc.  and JR Richardson, Ntegrated Solutions. 
+		for funding the development of SIP Session Timers support.
 
-ClearIT AB for work with meetme, res_mutestream, RTCP, manager and tonezones
+	* Omnitor AB, Gunnar Hellström, for funding work with videocaps, 
+		T.140 RED, originate with video/text and many more 
+		contributions.
+
+	* ClearIT AB for work with meetme, res_mutestream, RTCP, manager and 
+		tonezones.
+
+	* NetNation Communications (www.netnation.com)
+		Kevin Lindsay <kevinl@netnation.com>
+		Persistent Dynamic Queue Members
+
+	* inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr)
+		Priorities in queues
+
+	* Voop AS, Nuvio Inc, Inotel S.A and Foniris Telecom A/S - funding for
+		rewrite of SIP transfers
+
 
 === WISHLIST CONTRIBUTERS ===
-Jeremy McNamara - SpeeX support
-Nick Seraphin - RDNIS support
-Gary - Phonejack ADSI (in progress)
-Wasim - Hangup detect
+
+ We'd like to thank the following for contributing to our wishlist
+
+	* Jeremy McNamara - SpeeX support
+
+	* Nick Seraphin - RDNIS support
+
+	* Gary - Phonejack ADSI (in progress)
+
+	* Wasim - Hangup detect
 
 === HARDWARE DONORS === 
-* Thanks to QuickNet Technologies for their donation of an Internet
-PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
-* Thanks to VoipSupply for their donation of Sipura ATAs to the project for
-T.38 testing. (http://www.voipsupply.com)
+ We'd like to thank the followwing for granting access to hardware for testing.
 
-* Thanks to Grandstream for their donation of ATAs to the project for
-T.38 testing. (http://www.grandstream.com)
+	* Thanks to QuickNet Technologies for their donation of an Internet
+		PhoneJack and Linejack card to the project.  
+		(http://www.quicknet.net)
+
+	* Thanks to VoipSupply for their donation of Sipura ATAs to the project
+		for T.38 testing. (http://www.voipsupply.com)
+
+
+	* Thanks to Grandstream for their donation of ATAs to the project for
+		T.38 testing. (http://www.grandstream.com)
 
 === MISCELLANEOUS PATCHES ===
-Jim Dixon - Zapata Telephony and app_rpt
-	http://www.zapatatelephony.org/app_rpt.html
 
-Russell Bryant - Asterisk release manager and countless enhancements and bug
-	fixes.
-	russell(AT)digium.com
+ We'd like to thank the flollowing for their patches
 
-Anthony Minessale II - Countless big and small fixes, and relentless forward
-	push. ChanSpy, ForkCDR, ControlPlayback, While/EndWhile, DumpChan, Dictate,
-	MacroIf, ExecIf, ExecIfTime, RetryDial, MixMonitor applications; many
-	realtime concepts and implementation pieces, including res_config_odbc;
-	format_slin; cdr_custom; several features in Dial including L(), G() and
-	enhancements to M() and D(); several CDR enhancements including CDR
-	variables; attended transfer; one touch record; native MOH; manager
-	eventmask; command line '-t' flag to allow recording/voicemail on nfs
-	shares; #exec command and multiline comments in config files; setvar in iax
-	and sip configs.
-	anthmct(AT)yahoo.com              http://www.asterlink.com
+	* Jim Dixon - Zapata Telephony and app_rpt
+		http://www.zapatatelephony.org/app_rpt.html
 
-James Golovich - Innumerable contributions, including SIP TCP and TLS support.
-	You can find him and asterisk-perl at http://asterisk.gnuinter.net
+	* Russell Bryant - Asterisk release manager and countless enhancements
+		and bug fixes. russell(AT)digium.com
 
-Andre Bierwirth - Extension hints and status
+	* Anthony Minessale II - Countless big and small fixes, and relentless
+		forward	push. ChanSpy, ForkCDR, ControlPlayback, While/EndWhile,
+		DumpChan, Dictate, MacroIf, ExecIf, ExecIfTime, RetryDial, 
+		MixMonitor applications; many realtime concepts and 
+		implementation pieces, including res_config_odbc; format_slin; 
+		cdr_custom; several features in Dial including L(), G() and 
+		enhancements to M() and D(); several CDR enhancements including
+		CDR variables; attended transfer; one touch record; native MOH;
+		manager eventmask; command line '-t' flag to allow 
+		recording/voicemail on nfs shares; #exec command and multiline 
+		comments in config files; setvar in iax and sip configs.
+		anthmct(AT)yahoo.com http://www.asterlink.com
 
-Jean-Denis Girard - Various contributions from the South Pacific Islands
-	jd-girard(AT)esoft.pf             http://www.esoft.pf
+	* James Golovich - Innumerable contributions, including SIP TCP and TLS
+		support. You can find him and asterisk-perl at 
+		http://asterisk.gnuinter.net
 
-William Jordan / Vonage - MySQL enhancements to Voicemail
-	wjordan(AT)vonage.com
+	* Andre Bierwirth - Extension hints and status
 
-Jac Kersing - Various fixes
+	* Jean-Denis Girard - Various contributions from the South Pacific
+		Islands jd-girard(AT)esoft.pf http://www.esoft.pf
 
-Steven Critchfield - Seek and Trunc functions for playback and recording
-	critch(AT)basesys.com
+	* William Jordan / Vonage - MySQL enhancements to Voicemail
+		wjordan(AT)vonage.com
 
-Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
+	* Jac Kersing - Various fixes
 
-Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
+	* Steven Critchfield - Seek and Trunc functions for playback and 
+		recording critch(AT)basesys.com
 
-Ross Finlayson - Dynamic RTP payload support
+	* Jefferson Noxon - app_lookupcidname, app_db, and various other
+		contributions
 
-Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
-	format, and various fixes. Can be contacted at mahmut(AT)oa.com.au
+	* Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
 
-James Dennis - Cisco SIP compatibility patches to work with SIP service
-	providers. Can be contacted at asterisk(AT)jdennis.net
+	* Ross Finlayson - Dynamic RTP payload support
 
-Tilghman Lesher - ast_localtime(); ast_say_date_with_format(); 
-	GotoIfTime, SayUnixTime, HasNewVoicemail applications;
-	CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, some QUEUE* functions;
-	func_odbc, cdr_adaptive_odbc, and other innumerable bug fixes.
-	tilghman(AT)digium.com            http://asterisk.drunkcoder.com/
+	* Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw
+		file format, and various fixes. Can be contacted at 
+		mahmut(AT)oa.com.au
 
-Jayson Vantuyl - Manager protocol changes, various other bugs.
-	jvantuyl(AT)computingedge.net
+	* James Dennis - Cisco SIP compatibility patches to work with SIP
+		service providers. Can be contacted at asterisk(AT)jdennis.net
 
-Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
-	dialplan include verification, route lookup on OpenBSD, SNMP agent
-	support (res_snmp), various other bugs. tholo(AT)sigmasoft.com
+	* Tilghman Lesher - ast_localtime(); ast_say_date_with_format(); 
+		GotoIfTime, SayUnixTime, HasNewVoicemail applications;
+		CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, some QUEUE* 
+		functions; func_odbc, cdr_adaptive_odbc, and other innumerable
+		bug fixes. tilghman(AT)digium.com 
+		http://asterisk.drunkcoder.com
 
-Josh Roberson - chan_zap reload support, Advanced Voicemail Features, & other
-	misc. patches. - josh(AT)asteriasgi.com, http://www.asteriasgi.com
+	* Jayson Vantuyl - Manager protocol changes, various other bugs.
+		jvantuyl(AT)computingedge.net
 
-William Waites - syslog support, SIP NAT traversal for SIP-UA. ww(AT)styx.org
+	* Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on
+		10.3, dialplan include verification, route lookup on OpenBSD,
+		SNMP agent support (res_snmp), various other bugs. 
+		tholo(AT)sigmasoft.com
 
-Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
-	rich(AT)whiteoaklabs.com  http://whiteoaklabs.com
+	* Josh Roberson - chan_zap reload support, Advanced Voicemail Features,
+		& other misc. patches. josh(AT)asteriasgi.com 
+		http://www.asteriasgi.com
 
-Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
-	simon(AT)slimey.org
+	* William Waites - syslog support, SIP NAT traversal for SIP-UA. 
+		ww(AT)styx.org
 
-Olle E. Johansson - SIP RFC compliance, documentation and testing, testing,
-	SIP outbound proxy support, Manager 1.1 update, SIP transfer support,
-	SIP presence support, SIP call state updates (dialog-info), 
-	QUEUE_EXISTS function, device state provider architecture,
-	multiparking (together with mvanbaak), meetme and parking device states,
-	MiniVM - the small voicemail system, many documentation
-	updates/corrections, and many bug fixes.
-	oej(AT)edvina.net, http://edvina.net
+	* Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
+		rich(AT)whiteoaklabs.com  http://whiteoaklabs.com
 
-Steve Kann - new jitter buffer for IAX2
-	stevek(AT)stevek.com
+	* Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
+		simon(AT)slimey.org
 
-Constantine Filin - major contributions to the Asterisk Realtime Architecture
+	* Olle E. Johansson - SIP RFC compliance, documentation and testing,
+		testing, SIP outbound proxy support, Manager 1.1 update, SIP 
+		transfer support, SIP presence support, SIP call state updates
+		(dialog-info), QUEUE_EXISTS function, device state provider
+		architecture, multiparking (together with mvanbaak), meetme and
+		parking device states, MiniVM - the small voicemail system,
+		many documentation updates/corrections, and many bug fixes.
+		oej(AT)edvina.net, http://edvina.net
 
-Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser upgrade.
-	murf(AT)digium.com
+	* Steve Kann - new jitter buffer for IAX2
+		stevek(AT)stevek.com
 
-Claude Patry - bug fixes, feature enhancements, and bug marshalling
-	cpatry(AT)gmail.com
+	* Constantine Filin - major contributions to the Asterisk Realtime
+		Architecture
 
-Miroslav Nachev, miro(AT)space-comm.com COSMOS Software Enterprises, Ltd.
-	- for Variable for No Answer Timeout for Attended Transfer
+	* Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser
+		upgrade. murf(AT)digium.com
 
-Slav Klenov & Vanheuverzwijn Joachim - development of the generic jitterbuffer
-	Securax Ltd. info(AT)securax.be
+	* Claude Patry - bug fixes, feature enhancements, and bug marshalling
+		cpatry(AT)gmail.com
 
-Roy Sigurd Karlsbakk - providing funding for generic jitterbuffer development
-	roy(AT)karlsbakk.net, Briiz Telecom AS
+	* Miroslav Nachev, miro(AT)space-comm.com 
+		COSMOS Software Enterprises, Ltd.
+		Variable for No Answer Timeout for Attended Transfer
 
-Voop AS, Nuvio Inc, Inotel S.A and Foniris Telecom A/S - funding for rewrite
-	of SIP transfers
+	* Slav Klenov & Vanheuverzwijn Joachim - development of the generic
+		jitterbuffer Securax Ltd. info(AT)securax.be
 
-Philippe Sultan - RADIUS CDR module, many fixes to res_jabber and gtalk/jingle
-	channel drivers.
-	INRIA, http://www.inria.fr/
+	* Roy Sigurd Karlsbakk - providing funding for generic jitterbuffer
+		development roy(AT)karlsbakk.net, Briiz Telecom AS
 
-John Martin, Aupix - Improved video support in the SIP channel
-	T.140 text support in RTP/SIP
+	* Voop AS, Nuvio Inc, Inotel S.A and Foniris Telecom A/S - rewrite
+		of SIP transfers
 
-Steve Underwood - Provided T.38 pass through support.
+	* Philippe Sultan - RADIUS CDR module, many fixes to res_jabber and 
+		gtalk/jingle channel drivers. INRIA, http://www.inria.fr/
 
-George Konstantoulakis - Support for Greek in voicemail added by InAccess
-	Networks (work funded by HOL, www.hol.gr) gkon(AT)inaccessnetworks.com
+	* John Martin, Aupix - Improved video support in the SIP channel
+		T.140 text support in RTP/SIP
 
-Daniel Nylander - Support for Swedish and Norwegian languages in voicemail.
-	http://www.danielnylander.se/
+	* Steve Underwood - Provided T.38 pass through support.
 
-Stojan Sljivic - An option for maximum number of messsages per mailbox in
-	voicemail.  Also an issue with voicemail synchronization has been fixed.
-	GDS Partners www.gdspartners.com .  stojan.sljivic(AT)gdspartners.com
+	* George Konstantoulakis - Support for Greek in voicemail added by 
+		InAccess Networks (work funded by HOL, www.hol.gr) 
+		gkon(AT)inaccessnetworks.com
 
-Bartosz Supczinski - Support for Polish added by DIR (www.dir.pl)
-	Bartosz.Supczinski(AT)dir.pl
+	* Daniel Nylander - Support for Swedish and Norwegian languages in
+		voicemail. http://www.danielnylander.se/
 
-James Rothenberger - Support for IMAP storage integration added by
-	OneBizTone LLC Work funded by University of Pennsylvania jar(AT)onebiztone.com
+	* Stojan Sljivic - An option for maximum number of messsages per
+		mailbox in voicemail.  Also an issue with voicemail 
+		synchronization has been fixed. GDS Partners 
+		www.gdspartners.com stojan.sljivic(AT)gdspartners.com
 
-Paul Cadach - Bringing chan_h323 up to date, bug fixes, and more!
+	* Bartosz Supczinski - Support for Polish added by DIR (www.dir.pl)
+		Bartosz.Supczinski(AT)dir.pl
 
-Voop AS - Financial support for a lot of work with the SIP driver and the IAX
-	trunk MTU patch
+	* James Rothenberger - Support for IMAP storage integration added by
+		OneBizTone LLC Work funded by University of Pennsylvania 
+		jar(AT)onebiztone.com
 
-Cedric Hans - Development of chan_unistim
-  cedric.hans(AT)mlkj.net
+	* Paul Cadach - Bringing chan_h323 up to date, bug fixes, and more!
 
-Takao Takahashi & Mina Naguib - chan_unistim improvements for smaller devices
+	* Voop AS - Financial support for a lot of work with the SIP driver 
+		and the IAX trunk MTU patch
 
-Sergio Fadda - console_video: video support for chan_oss and chan_alsa
+	* Cedric Hans - Development of chan_unistim cedric.hans(AT)mlkj.net
 
-Marta Carbone - console_video and the astobj2 framework
+	* Takao Takahashi & Mina Naguib - chan_unistim improvements for 
+		smaller devices
 
-Luigi Rizzo - astobj2, console_video, windows build, chan_oss cleanup,
-	and a bunch of infrastructure work (loader, new_cli, ...)
+	* Sergio Fadda - console_video: video support for chan_oss and 
+		chan_alsa
 
-Brett Bryant - digit option for musiconhold selection, ENUMQUERY and ENUMRESULT functions,
-	feature group configuration for features.conf, per-file CLI debug and verbose settings,
-	TCP and TLS support for SIP, and various bug fixes.
-	brettbryant(AT)gmail.com
+	* Marta Carbone - console_video and the astobj2 framework
 
-Sergey Tamkovich - Realtime support for MusicOnHold, store and destroy realtime methods and
-	implementations for odbc, sqlite, and pgsql realtime drivers, attended transfer updates,
-	multiple speeds for ControlPlayback, and multiple bug fixes
-	- See http://voip-info.org/users/view/sergee
-	serg(AT)voipsolutions.ru
+	* Luigi Rizzo - astobj2, console_video, windows build, chan_oss cleanup,
+		and a bunch of infrastructure work (loader, new_cli, ...)
 
-Klaus Darillon - the SIPremoveHeader function in chan_sip
+	* Brett Bryant - digit option for musiconhold selection, ENUMQUERY and 
+		ENUMRESULT functions, feature group configuration for 
+		features.conf, per-file CLI debug and verbose settings, TCP and
+		TLS support for SIP, and various bug fixes.
+		brettbryant(AT)gmail.com
 
-Moises Silva (moy) - for writing LibOpenR2, and providing support for it in chan_dahdi
-     moises.silva(AT)gmail.com
+	* Sergey Tamkovich - Realtime support for MusicOnHold, store and destroy
+		realtime methods and implementations for odbc, sqlite, and pgsql
+		realtime drivers, attended transfer updates, multiple speeds for
+		ControlPlayback, and multiple bug fixes See 
+		http://voip-info.org/users/view/sergee serg(AT)voipsolutions.ru
 
-Eliel C. Sardanons - XML documentation implementation, and various other contributions
-     eliels(AT)gmail.com
+	* Klaus Darillon - the SIPremoveHeader function in chan_sip
 
-Sean Bright - Snom call pickup, newt interface for menuselect, cdr_tds rewrite,
-	countless other improvements, fixes, and good ideas.
-	sean(AT)malleable.com
+	* Moises Silva (moy) - for writing LibOpenR2, and providing support for
+		it in chan_dahdi moises.silva(AT)gmail.com
 
-Jan Kaláb - Calendaring support for Exchange Server 2007+ via Exchange Web Services.
+	* Eliel C. Sardanons - XML documentation implementation, and various
+		other contributions eliels(AT)gmail.com
 
-University of Oslo (uio.no), Norway - SIP Max-Forwards setting support (developed by oej)
+	* Sean Bright - Snom call pickup, newt interface for menuselect,
+		cdr_tds rewrite, countless other improvements, fixes, and good
+		ideas. sean(AT)malleable.com
 
-FCCN, Lissabon, Portugal - SIP show channels CLI command (developed by oej)
+	* Jan Kaláb - Calendaring support for Exchange Server 2007+ via 
+		Exchange Web Services.
 
-Viagenie, Canada - IPv6 support in socket layers and SIP implementation
-	Developers: Marc Blanchet, Simon Perreault and Jean-Philippe Dionne
+	* University of Oslo (uio.no), Norway - SIP Max-Forwards setting 
+		support (developed by oej)
 
-ClearIT AB, Sweden - res_mutestream, queue_exists and various other patches (developed by oej)
+	* FCCN, Lissabon, Portugal - SIP show channels CLI command 
+		(developed by oej)
 
-Despegar.com, Argentina - AstData API implementation, also sponsored by Google as part of the
-	gsoc/2009 program (developed by Eliel)
+	* Viagenie, Canada - IPv6 support in socket layers and SIP 
+		implementation Developers: Marc Blanchet, Simon Perreault and 
+		Jean-Philippe Dionne
 
-Philippe Lindheimer - DEV_STATE additions to CCSS
+	* ClearIT AB, Sweden - res_mutestream, queue_exists and various other
+		patches (developed by oej)
+
+	* Despegar.com, Argentina - AstData API implementation, also sponsored
+		by Google as part of the gsoc/2009 program (developed by Eliel)
+
+	* Philippe Lindheimer - DEV_STATE additions to CCSS
 
 === OTHER CONTRIBUTIONS ===
-John Todd - Monkey sounds and associated teletorture prompt
-Michael Jerris - bug marshaling
-Leif Madsen, Jared Smith and Jim van Meggelen - the Asterisk book
-	available under a Creative Commons License at http://www.asteriskdocs.org
-Brian M. Clapper - poll.c emulation
-	This product includes software developed by Brian M. Clapper <bmc(AT)clapper.org>
+
+ We'd like to thank the following for their listed contributions.
+
+	* John Todd - Monkey sounds and associated teletorture prompt
+
+	* Michael Jerris - bug marshaling
+	
+	* Leif Madsen, Jared Smith and Jim van Meggelen - the Asterisk book
+		available under a Creative Commons License at
+		http://www.asteriskdocs.org
+
+	* Brian M. Clapper - poll.c emulation 
+		This product includes software developed by 
+		Brian M. Clapper <bmc(AT)clapper.org>
 
 === HOLD MUSIC ===
-Music provided by www.opsound.org
+
+ We'd like to thank the following for hold music
+
+	* Music provided by www.opsound.org
 
 === OTHER SOURCE CODE IN ASTERISK ===
-Asterisk uses libedit, the lightweight readline replacement from NetBSD.
-The cdr_radius module uses libradiusclient-ng, which is also from NetBSD.
-They are BSD-licensed and require the following statement:
 
-      This product includes software developed by the NetBSD
-      Foundation, Inc. and its contributors.
+ We'd like to thank the following for their code use
 
-Digium did not implement the codecs in Asterisk.  Here is the copyright on the
-GSM source:
+	* Asterisk uses libedit, the lightweight readline replacement from
+		NetBSD.
+	* The cdr_radius module uses libradiusclient-ng, which is also from
+		NetBSD.
+	* They are BSD-licensed and require the following statement:
+		This product includes software developed by the NetBSD
+		Foundation, Inc. and its contributors.
 
-Copyright 1992, 1993, 1994 by Jutta Degener and Carsten Bormann,
-Technische Universitaet Berlin
+	* Digium did not implement the codecs in Asterisk.
+		Here is the copyright on the GSM source:
+		Copyright 1992, 1993, 1994 by Jutta Degener and Carsten Bormann,
+		Technische Universitaet Berlin
 
 Any use of this software is permitted provided that this notice is not
 removed and that neither the authors nor the Technische Universitaet Berlin
