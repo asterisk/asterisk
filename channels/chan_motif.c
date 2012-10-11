@@ -1738,6 +1738,7 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 	struct jingle_session *session;
 	struct ast_channel *chan;
 	enum jingle_transport transport = JINGLE_TRANSPORT_NONE;
+	struct ast_rtp_engine_ice *ice;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(name);
 			     AST_APP_ARG(target);
@@ -1839,6 +1840,15 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 	/* If video was requested try to enable it on the session */
 	if (ast_format_cap_has_type(cap, AST_FORMAT_TYPE_VIDEO)) {
 		jingle_enable_video(session);
+	}
+
+	/* As this is outgoing set ourselves as controlling */
+	if (session->rtp && (ice = ast_rtp_instance_get_ice(session->rtp))) {
+		ice->ice_lite(session->rtp);
+	}
+
+	if (session->vrtp && (ice = ast_rtp_instance_get_ice(session->vrtp))) {
+		ice->ice_lite(session->vrtp);
 	}
 
 	/* We purposely don't decrement the session here as there is a reference on the channel */
@@ -1948,13 +1958,9 @@ static int jingle_interpret_ice_udp_transport(struct jingle_session *session, ik
 		return -1;
 	}
 
-	if (ast_strlen_zero(ufrag) || ast_strlen_zero(pwd)) {
-		jingle_queue_hangup_with_cause(session, AST_CAUSE_PROTOCOL_ERROR);
-		ast_log(LOG_ERROR, "Invalid ICE-UDP transport information received on session '%s', ufrag or pwd not present\n", session->sid);
-		return -1;
+	if (!ast_strlen_zero(ufrag) && !ast_strlen_zero(pwd)) {
+		ice->set_authentication(rtp, ufrag, pwd);
 	}
-
-	ice->set_authentication(rtp, ufrag, pwd);
 
 	for (candidate = iks_child(transport); candidate; candidate = iks_next(candidate)) {
 		char *component = iks_find_attrib(candidate, "component"), *foundation = iks_find_attrib(candidate, "foundation");
