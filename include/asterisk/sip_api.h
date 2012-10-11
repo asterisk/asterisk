@@ -26,6 +26,16 @@ extern "C" {
 #include "asterisk/optional_api.h"
 #include "asterisk/config.h"
 
+#define AST_SIP_API_VERSION 1
+
+struct ast_sip_api_tech {
+	const int version;
+	const char *name;
+	int (*sipinfo_send)(struct ast_channel *chan,
+			struct ast_variable *headers, const char *content_type,
+			const char *content, const char *useragent_filter);
+};
+
 /*!
  * \brief Send a customized SIP INFO request
  *
@@ -44,6 +54,23 @@ int ast_sipinfo_send(struct ast_channel *chan,
 		const char *content_type,
 		const char *content,
 		const char *useragent_filter);
+
+/*!
+ * \brief Register a SIP API provider
+ *
+ * This will fail if a provider has already registered or if the
+ * provider is using an incorrect version.
+ *
+ * \param provider The provider to register
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_api_provider_register(const struct ast_sip_api_tech *provider);
+
+/*!
+ * \brief Unregister a SIP API provider
+ */
+void ast_sip_api_provider_unregister(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

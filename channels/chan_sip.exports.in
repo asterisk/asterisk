@@ -1,6 +1,0 @@
-{
-	global:
-		LINKER_SYMBOL_PREFIX*ast_sipinfo_send;
-	local:
-		*;
-};

@@ -7342,7 +7342,8 @@ static int initialize_udptl(struct sip_pvt *p)
 	return 0;
 }
 
-int ast_sipinfo_send(
+
+static int sipinfo_send(
 		struct ast_channel *chan,
 		struct ast_variable *headers,
 		const char *content_type,
@@ -33298,6 +33299,12 @@ static const struct ast_data_entry sip_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/channel/sip/peers", &peers_data_provider),
 };
 
+static const struct ast_sip_api_tech chan_sip_api_provider = {
+	.version = AST_SIP_API_VERSION,
+	.name = "chan_sip",
+	.sipinfo_send = sipinfo_send,
+};
+
 /*!
  * \brief Load the module
  *
@@ -33313,6 +33320,10 @@ static int load_module(void)
 	ast_verbose("SIP channel loading...\n");
 
 	if (!(sip_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (ast_sip_api_provider_register(&chan_sip_api_provider)) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -33476,6 +33487,8 @@ static int unload_module(void)
 	struct ast_context *con;
 	struct ao2_iterator i;
 	int wait_count;
+
+	ast_sip_api_provider_unregister();
 
 	ast_websocket_remove_protocol("sip", sip_websocket_callback);
 
@@ -33652,7 +33665,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Session Initiation Protocol (SIP)",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Session Initiation Protocol (SIP)",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
