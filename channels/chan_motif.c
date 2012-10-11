@@ -2117,8 +2117,8 @@ static int jingle_interpret_content(struct jingle_session *session, ikspak *pak)
 		struct ast_rtp_instance *rtp = NULL;
 		iks *description, *transport;
 
-		if (strcmp(iks_name(content), "content") &&
-		    strcmp(iks_name(content), "jin:content")) {
+		/* Ignore specific parts if they are known not to be useful */
+		if (!strcmp(iks_name(content), "conference-info")) {
 			continue;
 		}
 
