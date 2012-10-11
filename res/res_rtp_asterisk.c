@@ -536,8 +536,6 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 
 	ao2_iterator_destroy(&i);
 
-	ast_log(LOG_NOTICE, "ufrag = %s password = %s\n", rtp->remote_ufrag, rtp->remote_passwd);
-
 	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->remote_candidates), &candidates[0]) == PJ_SUCCESS) {
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timerheap, NULL);
@@ -4434,7 +4432,7 @@ static int load_module(void)
 {
 	pj_lock_t *lock;
 
-//	pj_log_set_level(0);
+	pj_log_set_level(0);
 
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
