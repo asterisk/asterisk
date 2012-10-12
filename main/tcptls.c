@@ -141,6 +141,7 @@ HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_sessio
 static void session_instance_destructor(void *obj)
 {
 	struct ast_tcptls_session_instance *i = obj;
+	ast_free(i->overflow_buf);
 	ast_mutex_destroy(&i->lock);
 }
 
@@ -292,6 +293,7 @@ void *ast_tcptls_server_root(void *data)
 		}
 
 		ast_mutex_init(&tcptls_session->lock);
+		tcptls_session->overflow_buf = ast_str_create(128);
 
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
@@ -493,6 +495,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		goto error;
 
 	ast_mutex_init(&tcptls_session->lock);
+	tcptls_session->overflow_buf = ast_str_create(128);
 	tcptls_session->client = 1;
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;

@@ -149,6 +149,12 @@ struct ast_tcptls_session_instance {
 	struct ast_tcptls_session_args *parent;
 	/*! XXX Why do we still use this lock when this struct is allocated as an ao2 object which has its own lock? */
 	ast_mutex_t lock;
+	/* Sometimes, when an entity reads TCP data, multiple
+	 * logical messages might be read at the same time. In such
+	 * a circumstance, there needs to be a place to stash the
+	 * extra data.
+	 */
+	struct ast_str *overflow_buf;
 };
 
 #if defined(HAVE_FUNOPEN)
