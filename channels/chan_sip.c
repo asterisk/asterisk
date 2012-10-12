@@ -2500,12 +2500,363 @@ static int sip_check_authtimeout(time_t start)
 	return timeout;
 }
 
+/*!
+ * \brief Read a SIP request or response from a TLS connection
+ *
+ * Because TLS operations are hidden from view via a FILE handle, the
+ * logic for reading data is a bit complex, and we have to make periodic
+ * checks to be sure we aren't taking too long to perform the necessary
+ * action.
+ *
+ * \todo XXX This should be altered in the future not to use a FILE pointer
+ *
+ * \param req The request structure to fill in
+ * \param tcptls_session The TLS connection on which the data is being received
+ * \param authenticated A flag indicating whether authentication has occurred yet.
+ *        This is only relevant in a server role.
+ * \param start The time at which we started attempting to read data. Used in
+ *        determining if there has been a timeout.
+ * \param me Thread info. Used as a means of determining if the session needs to be stoppped.
+ * \retval -1 Failed to read data
+ * \retval 0 Succeeded in reading data
+ */
+static int sip_tls_read(struct sip_request *req, struct ast_tcptls_session_instance *tcptls_session, int authenticated, time_t start, struct sip_threadinfo *me)
+{
+	int res, content_length, after_poll = 1, need_poll = 1;
+	struct sip_request reqcpy = { 0, };
+	char buf[1024] = "";
+	int timeout = -1;
+
+	/* Read in headers one line at a time */
+	while (ast_str_strlen(req->data) < 4 || strncmp(REQ_OFFSET_TO_STR(req, data->used - 4), "\r\n\r\n", 4)) {
+		if (!tcptls_session->client && !authenticated) {
+			if ((timeout = sip_check_authtimeout(start)) < 0) {
+				ast_debug(2, "SIP SSL server failed to determine authentication timeout\n");
+				return -1;
+			}
+
+			if (timeout == 0) {
+				ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
+				return -1;
+			}
+		} else {
+			timeout = -1;
+		}
+
+		/* special polling behavior is required for TLS
+		 * sockets because of the buffering done in the
+		 * TLS layer */
+		if (need_poll) {
+			need_poll = 0;
+			after_poll = 1;
+			res = ast_wait_for_input(tcptls_session->fd, timeout);
+			if (res < 0) {
+				ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
+				return -1;
+			} else if (res == 0) {
+				/* timeout */
+				ast_debug(2, "SIP TCP server timed out\n");
+				return -1;
+			}
+		}
+
+		ast_mutex_lock(&tcptls_session->lock);
+		if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
+			ast_mutex_unlock(&tcptls_session->lock);
+			if (after_poll) {
+				return -1;
+			} else {
+				need_poll = 1;
+				continue;
+			}
+		}
+		ast_mutex_unlock(&tcptls_session->lock);
+		after_poll = 0;
+		if (me->stop) {
+			return -1;
+		}
+		ast_str_append(&req->data, 0, "%s", buf);
+	}
+	copy_request(&reqcpy, req);
+	parse_request(&reqcpy);
+	/* In order to know how much to read, we need the content-length header */
+	if (sscanf(get_header(&reqcpy, "Content-Length"), "%30d", &content_length)) {
+		while (content_length > 0) {
+			size_t bytes_read;
+			if (!tcptls_session->client && !authenticated) {
+				if ((timeout = sip_check_authtimeout(start)) < 0) {
+					return -1;
+				}
+
+				if (timeout == 0) {
+					ast_debug(2, "SIP SSL server timed out\n");
+					return -1;
+				}
+			} else {
+				timeout = -1;
+			}
+
+			if (need_poll) {
+				need_poll = 0;
+				after_poll = 1;
+				res = ast_wait_for_input(tcptls_session->fd, timeout);
+				if (res < 0) {
+					ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
+					return -1;
+				} else if (res == 0) {
+					/* timeout */
+					ast_debug(2, "SIP TCP server timed out\n");
+					return -1;
+				}
+			}
+
+			ast_mutex_lock(&tcptls_session->lock);
+			if (!(bytes_read = fread(buf, 1, MIN(sizeof(buf) - 1, content_length), tcptls_session->f))) {
+				ast_mutex_unlock(&tcptls_session->lock);
+				if (after_poll) {
+					return -1;
+				} else {
+					need_poll = 1;
+					continue;
+				}
+			}
+			buf[bytes_read] = '\0';
+			ast_mutex_unlock(&tcptls_session->lock);
+			after_poll = 0;
+			if (me->stop) {
+				return -1;
+			}
+			content_length -= strlen(buf);
+			ast_str_append(&req->data, 0, "%s", buf);
+		}
+	}
+	/*! \todo XXX If there's no Content-Length or if the content-length and what
+					we receive is not the same - we should generate an error */
+	return 0;
+}
+
+/*!
+ * \brief Indication of a TCP message's integrity
+ */
+enum message_integrity {
+	/*!
+	 * The message has an error in it with
+	 * regards to its Content-Length header
+	 */
+	MESSAGE_INVALID,
+	/*!
+	 * The message is incomplete
+	 */
+	MESSAGE_FRAGMENT,
+	/*!
+	 * The data contains a complete message
+	 * plus a fragment of another.
+	 */
+	MESSAGE_FRAGMENT_COMPLETE,
+	/*!
+	 * The message is complete
+	 */
+	MESSAGE_COMPLETE,
+};
+
+/*!
+ * \brief
+ * Get the content length from an unparsed SIP message
+ *
+ * \param message The unparsed SIP message headers
+ * \return The value of the Content-Length header or -1 if message is invalid
+ */
+static int read_raw_content_length(const char *message)
+{
+	char *end_of_line;
+	char *content_length_str;
+	char *l_str;
+	int content_length;
+	char *msg;
+
+	if (sip_cfg.pedanticsipchecking) {
+		struct ast_str *msg_copy = ast_str_create(strlen(message));
+		if (!msg_copy) {
+			return -1;
+		}
+		ast_str_set(&msg_copy, 0, "%s", message);
+		lws2sws(msg_copy);
+		msg = ast_strdupa(ast_str_buffer(msg_copy));
+		ast_free(msg_copy);
+	} else {
+		msg = ast_strdupa(message);
+	}
+
+	/* Let's find a Content-Length header */
+	content_length_str = strcasestr(msg, "\nContent-Length:");
+	if (!content_length_str && !(l_str = strcasestr(msg, "\nl:"))) {
+		/* RFC 3261 18.3
+		 * "In the case of stream-oriented transports such as TCP, the Content-
+		 *  Length header field indicates the size of the body.  The Content-
+		 *  Length header field MUST be used with stream oriented transports."
+		 */
+		return -1;
+	}
+	if (content_length_str) {
+		content_length_str += sizeof("\nContent-Length:");
+	} else if (l_str) {
+		content_length_str = l_str + sizeof("\nl:");
+	} else {
+		return -1;
+	}
+
+	end_of_line = strchr(content_length_str, '\n');
+
+	if (!end_of_line) {
+		return -1;
+	}
+
+	if (sscanf(content_length_str, "%30d", &content_length) == 1) {
+		return content_length;
+	}
+
+	return -1;
+}
+
+/*!
+ * \brief Check that a message received over TCP is a full message
+ *
+ * This will take the information read in and then determine if
+ * 1) The message is a full SIP request
+ * 2) The message is a partial SIP request
+ * 3) The message contains a full SIP request along with another partial request
+ * \param data The unparsed incoming SIP message.
+ * \param request The resulting request with extra fragments removed.
+ * \param overflow If the message contains more than a full request, this is the remainder of the message
+ * \return The resulting integrity of the message
+ */
+static enum message_integrity check_message_integrity(struct ast_str **request, struct ast_str **overflow)
+{
+	char *message = ast_strdupa(ast_str_buffer(*request));
+	char *body;
+	int content_length;
+	int body_len;
+	int message_len = strlen(message);
+
+	/* Important pieces to search for in a SIP request are \r\n\r\n. This
+	 * marks either
+	 * 1) The division between the headers and body
+	 * 2) The end of the SIP request
+	 */
+	body = strstr(message, "\r\n\r\n");
+	if (!body) {
+		/* This is clearly a partial message since we haven't reached an end
+		 * yet.
+		 */
+		return MESSAGE_FRAGMENT;
+	}
+	body += sizeof("\r\n\r\n") - 1;
+	body_len = strlen(body);
+
+	body[-1] = '\0';
+	content_length = read_raw_content_length(message);
+	body[-1] = '\n';
+
+	if (content_length < 0) {
+		return MESSAGE_INVALID;
+	} else if (content_length == 0) {
+		/* We've definitely received an entire message. We need
+		 * to check if there's also a fragment of another message
+		 * in addition.
+		 */
+		if (body_len == 0) {
+			return MESSAGE_COMPLETE;
+		} else {
+			ast_str_truncate(*request, message_len - body_len);
+			ast_str_append(overflow, 0, "%s", body);
+			return MESSAGE_FRAGMENT_COMPLETE;
+		}
+	}
+	/* Positive content length. Let's see what sort of
+	 * message body we're dealing with.
+	 */
+	if (body_len < content_length) {
+		/* We don't have the full message body yet */
+		return MESSAGE_FRAGMENT;
+	} else if (body_len > content_length) {
+		/* We have the full message plus a fragment of a further
+		 * message
+		 */
+		ast_str_truncate(*request, message_len - (body_len - content_length));
+		ast_str_append(overflow, 0, "%s", body + content_length);
+		return MESSAGE_FRAGMENT_COMPLETE;
+	} else {
+		/* Yay! Full message with no extra content */
+		return MESSAGE_COMPLETE;
+	}
+}
+
+/*!
+ * \brief Read SIP request or response from a TCP connection
+ *
+ * \param req The request structure to be filled in
+ * \param tcptls_session The TCP connection from which to read
+ * \retval -1 Failed to read data
+ * \retval 0 Successfully read data
+ */
+static int sip_tcp_read(struct sip_request *req, struct ast_tcptls_session_instance *tcptls_session,
+		int authenticated, time_t start)
+{
+	enum message_integrity message_integrity = MESSAGE_FRAGMENT;
+
+	while (message_integrity == MESSAGE_FRAGMENT) {
+		if (ast_str_strlen(tcptls_session->overflow_buf) == 0) {
+			char readbuf[4097];
+			int timeout;
+			int res;
+			if (!tcptls_session->client && !authenticated) {
+				if ((timeout = sip_check_authtimeout(start)) < 0) {
+					return -1;
+				}
+
+				if (timeout == 0) {
+					ast_debug(2, "SIP TCP server timed out\n");
+					return -1;
+				}
+			} else {
+				timeout = -1;
+			}
+			res = ast_wait_for_input(tcptls_session->fd, timeout);
+			if (res < 0) {
+				ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
+				return -1;
+			} else if (res == 0) {
+				ast_debug(2, "SIP TCP server timed out\n");
+				return -1;
+			}
+
+			res = recv(tcptls_session->fd, readbuf, sizeof(readbuf) - 1, 0);
+			if (res < 0) {
+				ast_debug(2, "SIP TCP server error when receiving data\n");
+				return -1;
+			} else if (res == 0) {
+				ast_debug(2, "SIP TCP server has shut down\n");
+				return -1;
+			}
+			readbuf[res] = '\0';
+			ast_str_append(&req->data, 0, "%s", readbuf);
+		} else {
+			ast_str_append(&req->data, 0, "%s", ast_str_buffer(tcptls_session->overflow_buf));
+			ast_str_reset(tcptls_session->overflow_buf);
+		}
+
+		message_integrity = check_message_integrity(&req->data, &tcptls_session->overflow_buf);
+	}
+
+	return 0;
+}
+
 /*! \brief SIP TCP thread management function
 	This function reads from the socket, parses the packet into a request
 */
 static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_session)
 {
-	int res, cl, timeout = -1, authenticated = 0, flags, after_poll = 0, need_poll = 1;
+	int res, timeout = -1, authenticated = 0, flags;
 	time_t start;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
 	struct sip_threadinfo *me = NULL;
@@ -2605,21 +2956,23 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			timeout = -1;
 		}
 
-		res = ast_poll(fds, 2, timeout); /* polls for both socket and alert_pipe */
-		if (res < 0) {
-			ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
-			goto cleanup;
-		} else if (res == 0) {
-			/* timeout */
-			ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
-			goto cleanup;
+		if (ast_str_strlen(tcptls_session->overflow_buf) == 0) {
+			res = ast_poll(fds, 2, timeout); /* polls for both socket and alert_pipe */
+			if (res < 0) {
+				ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
+				goto cleanup;
+			} else if (res == 0) {
+				/* timeout */
+				ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
+				goto cleanup;
+			}
 		}
 
-		/* handle the socket event, check for both reads from the socket fd,
-		 * and writes from alert_pipe fd */
-		if (fds[0].revents) { /* there is data on the socket to be read */
-			after_poll = 1;
-
+		/* 
+		 * handle the socket event, check for both reads from the socket fd or TCP overflow buffer,
+		 * and writes from alert_pipe fd.
+		 */
+		if (fds[0].revents || (ast_str_strlen(tcptls_session->overflow_buf) > 0)) { /* there is data on the socket to be read */
 			fds[0].revents = 0;
 
 			/* clear request structure */
@@ -2644,110 +2997,15 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			}
 			req.socket.fd = tcptls_session->fd;
 
-			/* Read in headers one line at a time */
-			while (ast_str_strlen(req.data) < 4 || strncmp(REQ_OFFSET_TO_STR(&req, data->used - 4), "\r\n\r\n", 4)) {
-				if (!tcptls_session->client && !authenticated ) {
-					if ((timeout = sip_check_authtimeout(start)) < 0) {
-						goto cleanup;
-					}
-
-					if (timeout == 0) {
-						ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
-						goto cleanup;
-					}
-				} else {
-					timeout = -1;
-				}
-
-				/* special polling behavior is required for TLS
-				 * sockets because of the buffering done in the
-				 * TLS layer */
-				if (!tcptls_session->ssl || need_poll) {
-					need_poll = 0;
-					after_poll = 1;
-					res = ast_wait_for_input(tcptls_session->fd, timeout);
-					if (res < 0) {
-						ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
-						goto cleanup;
-					} else if (res == 0) {
-						/* timeout */
-						ast_debug(2, "SIP TCP server timed out\n");
-						goto cleanup;
-					}
-				}
-
-				ast_mutex_lock(&tcptls_session->lock);
-				if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
-					ast_mutex_unlock(&tcptls_session->lock);
-					if (after_poll) {
-						goto cleanup;
-					} else {
-						need_poll = 1;
-						continue;
-					}
-				}
-				ast_mutex_unlock(&tcptls_session->lock);
-				after_poll = 0;
-				if (me->stop) {
-					 goto cleanup;
-				}
-				ast_str_append(&req.data, 0, "%s", buf);
+			if (tcptls_session->ssl) {
+				res = sip_tls_read(&req, tcptls_session, authenticated, start, me);
+			} else {
+				res = sip_tcp_read(&req, tcptls_session, authenticated, start);
 			}
-			copy_request(&reqcpy, &req);
-			parse_request(&reqcpy);
-			/* In order to know how much to read, we need the content-length header */
-			if (sscanf(get_header(&reqcpy, "Content-Length"), "%30d", &cl)) {
-				while (cl > 0) {
-					size_t bytes_read;
-					if (!tcptls_session->client && !authenticated ) {
-						if ((timeout = sip_check_authtimeout(start)) < 0) {
-							goto cleanup;
-						}
 
-						if (timeout == 0) {
-							ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
-							goto cleanup;
-						}
-					} else {
-						timeout = -1;
-					}
-
-					if (!tcptls_session->ssl || need_poll) {
-						need_poll = 0;
-						after_poll = 1;
-						res = ast_wait_for_input(tcptls_session->fd, timeout);
-						if (res < 0) {
-							ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
-							goto cleanup;
-						} else if (res == 0) {
-							/* timeout */
-							ast_debug(2, "SIP TCP server timed out\n");
-							goto cleanup;
-						}
-					}
-
-					ast_mutex_lock(&tcptls_session->lock);
-					if (!(bytes_read = fread(buf, 1, MIN(sizeof(buf) - 1, cl), tcptls_session->f))) {
-						ast_mutex_unlock(&tcptls_session->lock);
-						if (after_poll) {
-							goto cleanup;
-						} else {
-							need_poll = 1;
-							continue;
-						}
-					}
-					buf[bytes_read] = '\0';
-					ast_mutex_unlock(&tcptls_session->lock);
-					after_poll = 0;
-					if (me->stop) {
-						goto cleanup;
-					}
-					cl -= strlen(buf);
-					ast_str_append(&req.data, 0, "%s", buf);
-				}
+			if (res < 0) {
+				goto cleanup;
 			}
-			/*! \todo XXX If there's no Content-Length or if the content-length and what
-					we receive is not the same - we should generate an error */
 
 			req.socket.tcptls_session = tcptls_session;
 			handle_request_do(&req, &tcptls_session->remote_address);
@@ -30490,6 +30748,482 @@ AST_TEST_DEFINE(test_sip_peers_get)
 	return AST_TEST_PASS;
 }
 
+/*!
+ * \brief Imitation TCP reception loop
+ *
+ * This imitates the logic used by SIP's TCP code. Its purpose
+ * is to either
+ * 1) Combine fragments into a single message
+ * 2) Break up combined messages into single messages
+ *
+ * \param fragments The message fragments. This simulates the data received on a TCP socket.
+ * \param num_fragments This indicates the number of fragments to receive
+ * \param overflow This is a place to stash extra data if more than one message is received
+ *        in a single fragment
+ * \param[out] messages The parsed messages are placed in this array
+ * \param[out] num_messages The number of messages that were parsed
+ * \param test Used for printing messages
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+static int mock_tcp_loop(char *fragments[], size_t num_fragments,
+		struct ast_str **overflow, char **messages, int *num_messages, struct ast_test* test)
+{
+	struct ast_str *req_data;
+	int i = 0;
+	int res = 0;
+
+	req_data = ast_str_create(128);
+	ast_str_reset(*overflow);
+
+	while (i < num_fragments || ast_str_strlen(*overflow) > 0) {
+		enum message_integrity message_integrity = MESSAGE_FRAGMENT;
+		ast_str_reset(req_data);
+		while (message_integrity == MESSAGE_FRAGMENT) {
+			if (ast_str_strlen(*overflow) > 0) {
+				ast_str_append(&req_data, 0, "%s", ast_str_buffer(*overflow));
+				ast_str_reset(*overflow);
+			} else {
+				ast_str_append(&req_data, 0, "%s", fragments[i++]);
+			}
+			message_integrity = check_message_integrity(&req_data, overflow);
+		}
+		if (strcmp(ast_str_buffer(req_data), messages[*num_messages])) {
+			ast_test_status_update(test, "Mismatch in SIP messages.\n");
+			ast_test_status_update(test, "Expected message:\n%s", messages[*num_messages]);
+			ast_test_status_update(test, "Parsed message:\n%s", ast_str_buffer(req_data));
+			res = -1;
+			goto end;
+		} else {
+			ast_test_status_update(test, "Successfully read message:\n%s", ast_str_buffer(req_data));
+		}
+		(*num_messages)++;
+	}
+
+end:
+	ast_free(req_data);
+	return res;
+};
+
+AST_TEST_DEFINE(test_tcp_message_fragmentation)
+{
+	/* Normal single message in one fragment */
+	char *normal[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Single message in two fragments.
+	 * Fragments combine to make "normal"
+	 */
+	char *fragmented[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: ",
+
+		"70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+	/* Single message in two fragments, divided precisely at the body
+	 * Fragments combine to make "normal"
+	 */
+	char *fragmented_body[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n",
+
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Single message in three fragments
+	 * Fragments combine to make "normal"
+	 */
+	char *multi_fragment[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n",
+
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4",
+
+		" 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Two messages in a single fragment
+	 * Fragments split into "multi_message_divided"
+	 */
+	char *multi_message[] = {
+		"SIP/2.0 100 Trying\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+		"SIP/2.0 180 Ringing\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+	};
+	char *multi_message_divided[] = {
+		"SIP/2.0 100 Trying\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n",
+
+		"SIP/2.0 180 Ringing\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+	};
+	/* Two messages with bodies combined into one fragment
+	 * Fragments split into "multi_message_body_divided"
+	 */
+	char *multi_message_body[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 2 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+	char *multi_message_body_divided[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n",
+
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 2 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Two messages that appear in two fragments. Fragment
+	 * boundaries do not align with message boundaries.
+	 * Fragments combine to make "multi_message_divided"
+	 */
+	char *multi_message_in_fragments[] = {
+		"SIP/2.0 100 Trying\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVI",
+
+		"TE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+		"SIP/2.0 180 Ringing\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: <sip:bob@example.org:5060>\r\n"
+		"Content-Length: 0\r\n"
+		"\r\n"
+	};
+
+	/* Message with compact content-length header
+	 * Same as "normal" but with compact content-length header
+	 */
+	char *compact[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"l: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Message with faux content-length headers
+	 * Same as "normal" but with extra fake content-length headers
+	 */
+	char *faux[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"DisContent-Length: 0\r\n"
+		"MalContent-Length: 60\r\n"
+		"Content-Length: 130\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Message with folded Content-Length header
+	 * Message is "normal" with Content-Length spread across three lines
+	 *
+	 * This is the test that requires pedantic=yes in order to pass
+	 */
+	char *folded[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: \t\r\n"
+		"\t \r\n"
+		" 130\t \r\n"
+		"\r\n"
+		"v=0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	/* Message with compact Content-length header in message and
+	 * full Content-Length header in the body. Ensure that the header
+	 * in the message is read and that the one in the body is ignored
+	 */
+	char *cl_in_body[] = {
+		"INVITE sip:bob@example.org SIP/2.0\r\n"
+		"Via: SIP/2.0/TCP 127.0.0.1:5060;branch=[branch]\r\n"
+		"From: sipp <sip:127.0.0.1:5061>;tag=12345\r\n"
+		"To: <sip:bob@example.org:5060>\r\n"
+		"Call-ID: 12345\r\n"
+		"CSeq: 1 INVITE\r\n"
+		"Contact: sip:127.0.0.1:5061\r\n"
+		"Max-Forwards: 70\r\n"
+		"Content-Type: application/sdp\r\n"
+		"l: 149\r\n"
+		"\r\n"
+		"v=0\r\n"
+		"Content-Length: 0\r\n"
+		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
+		"s=-\r\n"
+		"c=IN IP4 127.0.0.1\r\n"
+		"t=0 0\r\n"
+		"m=audio 10000 RTP/AVP 0\r\n"
+		"a=rtpmap:0 PCMU/8000\r\n"
+	};
+
+	struct ast_str *overflow;
+	struct {
+		char **fragments;
+		char **expected;
+		int num_expected;
+		const char *description;
+	} tests[] = {
+		{ normal, normal, 1, "normal" },
+		{ fragmented, normal, 1, "fragmented" },
+		{ fragmented_body, normal, 1, "fragmented_body" },
+		{ multi_fragment, normal, 1, "multi_fragment" },
+		{ multi_message, multi_message_divided, 2, "multi_message" },
+		{ multi_message_body, multi_message_body_divided, 2, "multi_message_body" },
+		{ multi_message_in_fragments, multi_message_divided, 2, "multi_message_in_fragments" },
+		{ compact, compact, 1, "compact" },
+		{ faux, faux, 1, "faux" },
+		{ folded, folded, 1, "folded" },
+		{ cl_in_body, cl_in_body, 1, "cl_in_body" },
+	};
+	int i;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+		case TEST_INIT:
+			info->name = "sip_tcp_message_fragmentation";
+			info->category = "/main/sip/transport";
+			info->summary = "SIP TCP message fragmentation test";
+			info->description =
+				"Tests reception of different TCP messages that have been fragmented or"
+				"run together. This test mimicks the code that TCP reception uses.";
+			return AST_TEST_NOT_RUN;
+		case TEST_EXECUTE:
+			break;
+	}
+	if (!sip_cfg.pedanticsipchecking) {
+		ast_log(LOG_WARNING, "Not running test. Pedantic SIP checking is not enabled, so it is guaranteed to fail\n");
+		return AST_TEST_NOT_RUN;
+	}
+
+	overflow = ast_str_create(128);
+	if (!overflow) {
+		return AST_TEST_FAIL;
+	}
+	for (i = 0; i < ARRAY_LEN(tests); ++i) {
+		int num_messages = 0;
+		if (mock_tcp_loop(tests[i].fragments, ARRAY_LEN(tests[i].fragments),
+					&overflow, tests[i].expected, &num_messages, test)) {
+			ast_test_status_update(test, "Failed to parse message '%s'\n", tests[i].description);
+			res = AST_TEST_FAIL;
+			break;
+		}
+		if (num_messages != tests[i].num_expected) {
+			ast_test_status_update(test, "Did not receive the expected number of messages. "
+					"Expected %d but received %d\n", tests[i].num_expected, num_messages);
+			res = AST_TEST_FAIL;
+			break;
+		}
+	}
+	ast_free(overflow);
+	return res;
+}
+
 #endif
 
 #define DATA_EXPORT_SIP_PEER(MEMBER)				\
@@ -30712,6 +31446,7 @@ static int load_module(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_sip_peers_get);
 	AST_TEST_REGISTER(test_sip_mwi_subscribe_parse);
+	AST_TEST_REGISTER(test_tcp_message_fragmentation);
 #endif
 
 	/* Register AstData providers */
@@ -30824,6 +31559,7 @@ static int unload_module(void)
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_sip_peers_get);
 	AST_TEST_UNREGISTER(test_sip_mwi_subscribe_parse);
+	AST_TEST_UNREGISTER(test_tcp_message_fragmentation);
 #endif
 	/* Unregister all the AstData providers */
 	ast_data_unregister(NULL);
