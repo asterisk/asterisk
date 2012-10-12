@@ -155,6 +155,12 @@ struct ast_tcptls_session_instance {
 	int client;
 	struct ast_sockaddr remote_address;
 	struct ast_tcptls_session_args *parent;
+	/* Sometimes, when an entity reads TCP data, multiple
+	 * logical messages might be read at the same time. In such
+	 * a circumstance, there needs to be a place to stash the
+	 * extra data.
+	 */
+	struct ast_str *overflow_buf;
 };
 
 #if defined(HAVE_FUNOPEN)
