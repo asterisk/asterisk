@@ -747,7 +747,11 @@ else
 	@sed -i "/^HAVE_DOT/s/NO/YES/" contrib/asterisk-ng-doxygen
 endif
 	# Set Doxygen PROJECT_NUMBER variable
+ifneq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
 	@sed -i "/^PROJECT_NUMBER/s/PROJECT_NUMBER.*/PROJECT_NUMBER = "$(ASTERISKVERSION)"/" contrib/asterisk-ng-doxygen
+else
+	echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
+endif
 	# Validate Doxygen Configuration
 	@doxygen -u contrib/asterisk-ng-doxygen
 	# Run Doxygen
