@@ -97,7 +97,7 @@
 	* Andre Bierwirth - Extension hints and status
 
 	* Jean-Denis Girard - Various contributions from the South Pacific
-		Islands jd-girard(AT)esoft.pf http://www.esoft.pf
+		Islands jd-girard(AT)sysnux.pf http://www.sysnux.pf
 
 	* William Jordan / Vonage - MySQL enhancements to Voicemail
 		wjordan(AT)vonage.com
@@ -272,6 +272,9 @@
 		by Google as part of the gsoc/2009 program (developed by Eliel)
 
 	* Philippe Lindheimer - DEV_STATE additions to CCSS
+
+	* Andrew "lathama" Latham <lathama at gmail dot com>
+		Doxygen, HTTP-Static, Phoneprov, make update
 
 === OTHER CONTRIBUTIONS ===
 
