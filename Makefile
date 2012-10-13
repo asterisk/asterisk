@@ -292,13 +292,6 @@ else
 SUBMAKE:=$(MAKE) --quiet --no-print-directory
 endif
 
-# This is used when generating the doxygen documentation
-ifneq ($(DOT),:)
-  HAVEDOT=yes
-else
-  HAVEDOT=no
-endif
-
 # $(MAKE) is printed in several places, and we want it to be a
 # fixed size string. Define a variable whose name has also the
 # same size, so we can easily align text.
@@ -743,10 +736,25 @@ webvmail:
 	@echo " +-------------------------------------------+"
 
 progdocs:
-	doxygen -u contrib/asterisk-ng-doxygen
-	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
-	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen -
-	rm -f contrib/asterisk-ng-doxygen.bak
+	# Note, Makefile conditionals must not be tabbed out. Wasted hours with that.
+ifeq ($(DOXYGEN),:)
+	@echo "Doxygen is not installed.  Please install and re-run the configuration script."
+else
+ifeq ($(DOT),:)
+	@echo "DOT is not installed. Doxygen will not produce any diagrams. Please install and re-run the configuration script."
+else
+	# Enable DOT
+	@sed -i "/^HAVE_DOT/s/NO/YES/" contrib/asterisk-ng-doxygen
+endif
+	# Set Doxygen PROJECT_NUMBER variable
+	@sed -i "/^PROJECT_NUMBER/s/PROJECT_NUMBER.*/PROJECT_NUMBER = "$(ASTERISKVERSION)"/" contrib/asterisk-ng-doxygen
+	# Validate Doxygen Configuration
+	@doxygen -u contrib/asterisk-ng-doxygen
+	# Run Doxygen
+	@doxygen contrib/asterisk-ng-doxygen
+	# Remove configuration backup file
+	@rm -f contrib/asterisk-ng-doxygen.bak
+endif
 
 install-logrotate:
 	if [ ! -d "$(DESTDIR)$(ASTETCDIR)/../logrotate.d" ]; then \
