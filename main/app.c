@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/** \example app_skel.c
+ * This is an example of how to develop an app
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

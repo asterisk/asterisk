@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2008, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -1804,22 +1804,23 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 			if (ast_test_flag64(opts, OPT_SCREENING))
 				res2 = ast_play_and_wait(peer, "screen-callee-options");
 		}
+
 		/*! \page DialPrivacy Dial Privacy scripts
-		\par priv-callee-options script:
-			"Dial 1 if you wish this caller to reach you directly in the future,
-				and immediately connect to their incoming call
-			 Dial 2 if you wish to send this caller to voicemail now and
-				forevermore.
-			 Dial 3 to send this caller to the torture menus, now and forevermore.
-			 Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
-			 Dial 5 to allow this caller to come straight thru to you in the future,
-				but right now, just this once, send them to voicemail."
-		\par screen-callee-options script:
-			"Dial 1 if you wish to immediately connect to the incoming call
-			 Dial 2 if you wish to send this caller to voicemail.
-			 Dial 3 to send this caller to the torture menus.
-			 Dial 4 to send this caller to a simple "go away" menu.
-		*/
+		 * \par priv-callee-options script:
+		 * \li Dial 1 if you wish this caller to reach you directly in the future, 
+		 * 	and immediately connect to their incoming call.
+		 * \li Dial 2 if you wish to send this caller to voicemail now and forevermore.
+		 * \li Dial 3 to send this caller to the torture menus, now and forevermore.
+		 * \li Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
+		 * \li Dial 5 to allow this caller to come straight thru to you in the future,
+		 * 	but right now, just this once, send them to voicemail.
+		 *
+		 * \par screen-callee-options script:
+		 * \li Dial 1 if you wish to immediately connect to the incoming call
+		 * \li Dial 2 if you wish to send this caller to voicemail.
+		 * \li Dial 3 to send this caller to the torture menus.
+		 * \li Dial 4 to send this caller to a simple "go away" menu.
+		 */
 		if (valid_priv_reply(opts, res2))
 			break;
 		/* invalid option */
