@@ -31,8 +31,7 @@
  * \todo Fix native bridging.
  */
 
-/*!
- * \li The channel chan_gtalk uses the configuration file \ref gtalk.conf
+/*! \li \ref chan_gtalk.c uses the configuration file \ref gtalk.conf
  * \addtogroup configuration_file
  */
 

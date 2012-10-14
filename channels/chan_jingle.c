@@ -27,8 +27,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_jingle uses the configuration file \ref jingle.conf
+/*! \li \ref chan_jingle.c uses the configuration file \ref jingle.conf
  * \addtogroup configuration_file
  */
 

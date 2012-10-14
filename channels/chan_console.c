@@ -47,8 +47,7 @@
  * - console_video support
  */
 
-/*!
- * \li The channel chan_console uses the configuration file \ref console.conf
+/*! \li \ref chan_console.c uses the configuration file \ref console.conf
  * \addtogroup configuration_file
  */
 

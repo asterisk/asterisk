@@ -34,6 +34,14 @@
  * \ingroup channel_drivers
  */
 
+/*! \li \ref chan_h323.c uses the configuration file \ref h323.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page h323.conf h323.conf
+ * \verbinclude h323.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>openh323</depend>
 	<defaultenabled>no</defaultenabled>

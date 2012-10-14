@@ -25,8 +25,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_skinny uses the configuration file \ref skinny.conf
+/*! \li \ref chan_skinny.c uses the configuration file \ref skinny.conf
  * \addtogroup configuration_file
  */
 

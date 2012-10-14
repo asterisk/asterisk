@@ -30,8 +30,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_oss uses the configuration file \ref oss.conf
+/*! \li \ref chan_oss.c uses the configuration file \ref oss.conf
  * \addtogroup configuration_file
  */
 

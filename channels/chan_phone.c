@@ -25,6 +25,14 @@
  * \ingroup channel_drivers
  */
 
+/*! \li \ref chan_phone.c uses the configuration file \ref phone.conf
+ * \addtogroup configuration_file
+ */
+
+/*! \page phone.conf phone.conf
+ * \verbinclude phone.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>ixjuser</depend>
 	<support_level>extended</support_level>

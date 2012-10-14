@@ -92,8 +92,7 @@
  * the sip_hangup() function
  */
 
-/*! 
- * \li The channel chan_sip uses configuration files \ref sip.conf and \ref sip_notify.conf
+/*! \li \ref chan_sip.c uses configuration files \ref sip.conf and \ref sip_notify.conf
  * \addtogroup configuration_file
  */
 

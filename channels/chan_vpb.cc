@@ -29,8 +29,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_vpb uses the configuration file \ref vpb.conf
+/*! \li \ref chan_vpb.cc uses the configuration file \ref vpb.conf
  * \addtogroup configuration_file
  */
 

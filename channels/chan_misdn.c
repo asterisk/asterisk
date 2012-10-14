@@ -29,8 +29,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_misdn uses the configuration file \ref misdn.conf
+/*! \li \ref chan_misdn.c uses the configuration file \ref misdn.conf
  * \addtogroup configuration_file
  */
 

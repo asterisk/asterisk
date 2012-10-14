@@ -25,8 +25,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_mgcp uses the configuration file \ref mgcp.conf
+/*! \li \ref chan_mgcp.c uses the configuration file \ref mgcp.conf
  * \addtogroup configuration_file
  */
 

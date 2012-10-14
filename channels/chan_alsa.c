@@ -24,8 +24,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_alsa uses the configuration file \ref alsa.conf
+/*! \li \ref chan_alsa.c uses the configuration file \ref alsa.conf
  * \addtogroup configuration_file
  */
 

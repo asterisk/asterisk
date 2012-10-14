@@ -34,8 +34,7 @@
  * \todo Deprecate the "musiconhold" configuration option post 1.4
  */
 
-/*!
- * \li The channel chan_dahdi uses the configuration file \ref chan_dahdi.conf
+/*! \li \ref chan_dahdi.c uses the configuration file \ref chan_dahdi.conf
  * \addtogroup configuration_file
  */
 

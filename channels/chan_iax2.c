@@ -31,8 +31,7 @@
  * \todo Implement musicclass settings for IAX2 devices
  */
 
-/*!
- * \li The channel chan_iax uses the configuration file \ref iax.conf
+/*! \li \ref chan_iax2.c uses the configuration file \ref iax.conf
  * \addtogroup configuration_file
  */
 

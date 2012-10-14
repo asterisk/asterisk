@@ -27,8 +27,7 @@
  * \ingroup channel_drivers
  */
 
-/*!
- * \li The channel chan_motif uses the configuration file \ref motif.conf
+/*! \li \ref chan_motif.c uses the configuration file \ref motif.conf
  * \addtogroup configuration_file
  */
 
