@@ -30,6 +30,15 @@
  *
  */
 
+/*! \li \ref res_jabber.c uses the configuration file \ref jabber.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*! 
+ * \page jabber.conf jabber.conf
+ * \verbinclude jabber.conf.sample
+ */
+
 /*** MODULEINFO
         <defaultenabled>no</defaultenabled>
 	<depend>iksemel</depend>

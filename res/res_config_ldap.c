@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005, Oxymium sarl
  * Manuel Guesdon <mguesdon@oxymium.net> - LDAP RealTime Driver Author/Adaptor
@@ -31,8 +31,7 @@
  * OpenLDAP http://www.openldap.org
  */
 
-/*!
- * \li The resource res_config_ldap uses the configuration file \ref res_ldap.conf
+/*! \li \ref res_config_ldap.c uses the configuration file \ref res_ldap.conf
  * \addtogroup configuration_file Configuration Files
  */
 
@@ -1561,6 +1560,9 @@ static struct ast_config_engine ldap_engine = {
  * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
  * configuration file or other non-critical problem return 
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ *
+ * \todo Don't error or warn on a default install. If the config is
+ * default we should not attempt to connect to a server. -lathama
  */
 static int load_module(void)
 {

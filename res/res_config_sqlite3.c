@@ -29,8 +29,7 @@
  * \ingroup resources
  */
 
-/*!
- * \li The resource res_config_sqlite3 uses the configuration file \ref res_config_sqlite3.conf
+/*! \li \ref res_config_sqlite3.c uses the configuration file \ref res_config_sqlite3.conf
  * \addtogroup configuration_file Configuration Files
  */
 

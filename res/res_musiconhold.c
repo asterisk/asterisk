@@ -23,8 +23,7 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
-/*!
- * \li The resource res_musiconhold uses the configuration file \ref musiconhold.conf
+/*! \li \ref res_musiconhold.c uses the configuration file \ref musiconhold.conf
  * \addtogroup configuration_file Configuration Files
  */
 

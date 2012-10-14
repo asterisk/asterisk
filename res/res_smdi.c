@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005-2008, Digium, Inc.
  *
@@ -31,8 +31,7 @@
  * polling thread handle it.
  */
 
-/*!
- * \li The resource res_smdi uses the configuration file \ref smdi.conf
+/*! \li \ref res_smdi.c uses the configuration file \ref smdi.conf
  * \addtogroup configuration_file Configuration Files
  */
 

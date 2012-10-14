@@ -26,8 +26,7 @@
  * CLI commands.
  */
 
-/*!
- * \li The resource res_clialiases uses the configuration file \ref cli_aliases.conf
+/*! \li \ref res_clialiases.c uses the configuration file \ref cli_aliases.conf
  * \addtogroup configuration_file Configuration Files
  */
 

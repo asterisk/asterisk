@@ -54,8 +54,7 @@
  * \ingroup applications
  */
 
-/*!
- * \li The resource res_fax uses the configuration file \ref res_fax.conf
+/*! \li \ref res_fax.c uses the configuration file \ref res_fax.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -30,8 +30,7 @@
  * \arg See also: \ref cdr_odbc
  */
 
-/*! 
- * \li The resource res_odbc uses the configuration file \ref res_odbc.conf
+/*! \li \ref res_odbc.c uses the configuration file \ref res_odbc.conf
  * \addtogroup configuration_file Configuration Files
  */
 

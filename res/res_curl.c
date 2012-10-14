@@ -26,8 +26,7 @@
  * 
  */
 
-/*!
- * \li The resource res_curl uses the configuration file \ref res_curl.conf
+/*! \li \ref res_curl.c uses the configuration file \ref res_curl.conf
  * \addtogroup configuration_file Configuration Files
  */
 

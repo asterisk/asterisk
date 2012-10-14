@@ -23,8 +23,7 @@
  * \todo Support writing attendees
  */
 
-/*!
- * \li The resource res_calendar uses the configuration file \ref calendar.conf
+/*! \li \ref res_calendar.c uses the configuration file \ref calendar.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -17,8 +17,7 @@
  *	 http://net-snmp.sourceforge.net/
  */
 
-/*!
- * \li The resource res_snmp uses the configuration file \ref res_snmp.conf
+/*! \li \ref res_snmp.c uses the configuration file \ref res_snmp.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -71,8 +71,7 @@
  * \brief res_config_sqlite module.
  */
 
-/*! 
- * \li The resource res_config_sqlite uses the configuration file \ref res_config_sqlite.conf
+/*! \li \ref res_config_sqlite.c uses the configuration file \ref res_config_sqlite.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -31,8 +31,7 @@
  *
  */
 
-/*! 
- * \li The resource res_xmpp uses the configuration file \ref xmpp.conf
+/*! \li \ref res_xmpp.c uses the configuration file \ref xmpp.conf and \ref jabber.conf
  * \addtogroup configuration_file Configuration Files
  */
 

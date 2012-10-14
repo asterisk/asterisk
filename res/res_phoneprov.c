@@ -26,8 +26,7 @@
  * \author Terry Wilson <twilson@digium.com>
  */
 
-/*! 
- * \li The resource res_phoneprov uses the configuration file \ref phoneprov.conf
+/*! \li \ref res_phoneprov.c uses the configuration file \ref phoneprov.conf and \ref users.conf and \ref sip.conf
  * \addtogroup configuration_file Configuration Files
  */
 
