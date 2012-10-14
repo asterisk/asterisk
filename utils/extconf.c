@@ -17,11 +17,26 @@
  */
 
 
-/*
- *
+/*!
+ * \file extconf
  * A condensation of the pbx_config stuff, to read into exensions.conf, and provide an interface to the data there,
  * for operations outside of asterisk. A huge, awful hack.
  *
+ */
+
+/*!
+ * \li \ref extconf.c uses the configuration file \ref extconfig.conf and \ref extensions.conf and \ref asterisk.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page extconfig.conf extconfig.conf
+ * \verbinclude extconfig.conf.sample
+ */
+
+/*!
+ * \page extensions.conf extensions.conf
+ * \verbinclude extensions.conf.sample
  */
 
 /*** MODULEINFO

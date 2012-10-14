@@ -35,6 +35,15 @@
  *
  */
 
+/*! \li \ref muted.c uses the configuration file \ref muted.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page muted.conf muted.conf
+ * \verbinclude muted.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
