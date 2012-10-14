@@ -23,8 +23,7 @@
  * \ingroup applications
  */
 
-/*!
- * \li The application app_mysql uses the configuration file \ref app_mysql.conf
+/*! \li \ref app_mysql.c uses the configuration file \ref app_mysql.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -25,6 +25,15 @@
  * \ingroup channel_drivers
  */
 
+/*! \li \ref chan_mobile.c uses the configuration file \ref chan_mobile.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page chan_mobile.conf chan_mobile.conf
+ * \verbinclude chan_mobile.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>bluetooth</depend>
 	<defaultenabled>no</defaultenabled>
