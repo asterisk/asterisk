@@ -28,8 +28,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_confbridge uses the configuration file \ref confbridge.conf
+/*! \li \ref app_confbridge.c uses the configuration file \ref confbridge.conf
  * \addtogroup configuration_file Configuration Files
  */
 

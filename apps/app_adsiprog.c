@@ -25,8 +25,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_adsiprog uses the configuration file \ref adsi.conf
+/*! \li \ref app_adsiprog.c uses the configuration file \ref adsi.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -37,8 +37,7 @@
  *       with a plan to clean this up.
  */
 
-/*! 
- * \li The application app_voicemail uses configuration file \ref voicemail.conf
+/*! \li \ref app_voicemail.c uses configuration file \ref voicemail.conf
  * \addtogroup configuration_file Configuration Files
  */
 

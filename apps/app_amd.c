@@ -28,8 +28,7 @@
  * \ingroup applications
  */
 
-/*!
- * \li The application app_amd uses the configuration file \ref amd.conf
+/*! \li \ref app_amd.c uses the configuration file \ref amd.conf
  * \addtogroup configuration_file Configuration Files
  */
 

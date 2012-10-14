@@ -29,8 +29,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_meetme uses configuration file \ref meetme.conf
+/*! \li \ref app_meetme.c uses configuration file \ref meetme.conf
  * \addtogroup configuration_file Configuration Files
  */
 

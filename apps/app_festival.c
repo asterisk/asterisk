@@ -27,8 +27,7 @@
  * \ingroup applications
  */
 
-/*!
- * \li The application app_festival uses the configuration file \ref festival.conf
+/*! \li \ref app_festival.c uses the configuration file \ref festival.conf
  * \addtogroup configuration_file Configuration Files
  */
 

@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * A full-featured Find-Me/Follow-Me Application
  * 
@@ -26,8 +26,7 @@
  * \ingroup applications
  */
 
-/*!
- * \li The application app_followme uses the configuration file \ref followme.conf
+/*! \li \ref app_followme.c uses the configuration file \ref followme.conf
  * \addtogroup configuration_file Configuration Files
  */
 

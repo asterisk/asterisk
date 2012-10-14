@@ -54,8 +54,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_queues uses configuration file \ref queues.conf
+/*! \li \ref app_queues.c uses configuration file \ref queues.conf
  * \addtogroup configuration_file
  */
 

@@ -29,8 +29,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_skel uses configuration file \ref app_skel.conf
+/*! \li \ref app_skel.c uses configuration file \ref app_skel.conf
  * \addtogroup configuration_file Configuration Files
  */
 

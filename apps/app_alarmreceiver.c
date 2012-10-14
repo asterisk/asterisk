@@ -30,8 +30,7 @@
  * \ingroup applications
  */
 
-/*! 
- * \li The application app_alarmreceiver uses the configuration file \ref alarmreceiver.conf
+/*! \li \ref app_alarmreceiver.c uses the configuration file \ref alarmreceiver.conf
  * \addtogroup configuration_file Configuration Files
  */
 
