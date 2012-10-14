@@ -25,6 +25,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_manager.c uses the configuration file \ref cdr_manager.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_manager.conf cdr_manager.conf
+ * \verbinclude cdr_manager.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

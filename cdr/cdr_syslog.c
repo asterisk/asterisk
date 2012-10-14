@@ -27,6 +27,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_syslog.c uses the configuration file \ref cdr_syslog.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_syslog.conf cdr_syslog.conf
+ * \verbinclude cdr_syslog.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>syslog</depend>
 	<support_level>core</support_level>

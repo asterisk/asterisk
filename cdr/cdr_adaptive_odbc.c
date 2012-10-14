@@ -24,6 +24,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_adaptive_odbc.c uses the configuration file \ref cdr_adaptive_odbc.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_adaptive_odbc.conf cdr_adaptive_odbc.conf
+ * \verbinclude cdr_adaptive_odbc.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>res_odbc</depend>
 	<support_level>core</support_level>

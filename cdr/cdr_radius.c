@@ -28,6 +28,10 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_radius.c uses the configuration file \ref cdr.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
 /*** MODULEINFO
 	<depend>radius</depend>
 	<support_level>extended</support_level>

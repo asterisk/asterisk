@@ -30,6 +30,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_custom.c uses the configuration file \ref cdr_custom.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_custom.conf cdr_custom.conf
+ * \verbinclude cdr_custom.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

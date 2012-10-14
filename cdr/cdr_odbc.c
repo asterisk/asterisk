@@ -28,6 +28,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_odbc.c uses the configuration file \ref cdr_odbc.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_odbc.conf cdr_odbc.conf
+ * \verbinclude cdr_odbc.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>res_odbc</depend>
 	<support_level>extended</support_level>

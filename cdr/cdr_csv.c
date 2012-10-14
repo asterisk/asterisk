@@ -28,6 +28,10 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_csv.c uses the configuration file \ref cdr.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/

@@ -33,6 +33,15 @@
  * \ingroup cdr_drivers
  */
 
+/*! \li \ref cdr_pgsql.c uses the configuration file \ref cdr_pgsql.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr_pgsql.conf cdr_pgsql.conf
+ * \verbinclude cdr_pgsql.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>pgsql</depend>
 	<support_level>extended</support_level>
