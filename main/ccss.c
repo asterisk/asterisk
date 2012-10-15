@@ -3289,7 +3289,7 @@ struct ast_cc_monitor *ast_cc_get_monitor_by_recall_core_id(const int core_id, c
  * \param dialstring A new dialstring to add
  * \retval void
  */
-static void cc_unique_append(struct ast_str *str, const char *dialstring)
+static void cc_unique_append(struct ast_str **str, const char *dialstring)
 {
 	char dialstring_search[AST_CHANNEL_NAME];
 
@@ -3298,10 +3298,10 @@ static void cc_unique_append(struct ast_str *str, const char *dialstring)
 		return;
 	}
 	snprintf(dialstring_search, sizeof(dialstring_search), "%s%c", dialstring, '&');
-	if (strstr(ast_str_buffer(str), dialstring_search)) {
+	if (strstr(ast_str_buffer(*str), dialstring_search)) {
 		return;
 	}
-	ast_str_append(&str, 0, "%s", dialstring_search);
+	ast_str_append(str, 0, "%s", dialstring_search);
 }
 
 /*!
@@ -3319,7 +3319,7 @@ static void cc_unique_append(struct ast_str *str, const char *dialstring)
  * \param str Where we will store CC_INTERFACES
  * \retval void
  */
-static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, struct ast_str *str)
+static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, struct ast_str **str)
 {
 	struct extension_monitor_pvt *extension_pvt;
 	struct extension_child_dialstring *child_dialstring;
@@ -3328,7 +3328,7 @@ static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, s
 	size_t length;
 
 	/* Init to an empty string. */
-	ast_str_truncate(str, 0);
+	ast_str_truncate(*str, 0);
 
 	/* First we need to take all of the is_valid child_dialstrings from
 	 * the extension monitor we found and add them to the CC_INTERFACES
@@ -3351,9 +3351,9 @@ static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, s
 	/* str will have an extra '&' tacked onto the end of it, so we need
 	 * to get rid of that.
 	 */
-	length = ast_str_strlen(str);
+	length = ast_str_strlen(*str);
 	if (length) {
-		ast_str_truncate(str, length - 1);
+		ast_str_truncate(*str, length - 1);
 	}
 	if (length <= 1) {
 		/* Nothing to recall?  This should not happen. */
@@ -3388,7 +3388,7 @@ int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan)
 
 	AST_LIST_LOCK(interface_tree);
 	monitor = AST_LIST_FIRST(interface_tree);
-	build_cc_interfaces_chanvar(monitor, str);
+	build_cc_interfaces_chanvar(monitor, &str);
 	AST_LIST_UNLOCK(interface_tree);
 
 	pbx_builtin_setvar_helper(chan, "CC_INTERFACES", ast_str_buffer(str));
@@ -3440,7 +3440,7 @@ int ast_set_cc_interfaces_chanvar(struct ast_channel *chan, const char * const e
 		return -1;
 	}
 
-	build_cc_interfaces_chanvar(monitor_iter, str);
+	build_cc_interfaces_chanvar(monitor_iter, &str);
 	AST_LIST_UNLOCK(interface_tree);
 
 	pbx_builtin_setvar_helper(chan, "CC_INTERFACES", ast_str_buffer(str));
