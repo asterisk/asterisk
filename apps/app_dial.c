@@ -672,7 +672,7 @@ struct chanlist {
 	struct ast_aoc_decoded *aoc_s_rate_list;
 };
 
-static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode);
+static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str **featurecode);
 
 static void chanlist_free(struct chanlist *outgoing)
 {
@@ -1532,7 +1532,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 
 				if (ast_test_flag64(peerflags, OPT_CALLER_HANGUP) &&
-					detect_disconnect(in, f->subclass.integer, featurecode)) {
+					detect_disconnect(in, f->subclass.integer, &featurecode)) {
 					ast_verb(3, "User requested call disconnect.\n");
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
@@ -1645,18 +1645,18 @@ skip_frame:;
 	return peer;
 }
 
-static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode)
+static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str **featurecode)
 {
 	struct ast_flags features = { AST_FEATURE_DISCONNECT }; /* only concerned with disconnect feature */
 	struct ast_call_feature feature = { 0, };
 	int res;
 
-	ast_str_append(&featurecode, 1, "%c", code);
+	ast_str_append(featurecode, 1, "%c", code);
 
-	res = ast_feature_detect(chan, &features, ast_str_buffer(featurecode), &feature);
+	res = ast_feature_detect(chan, &features, ast_str_buffer(*featurecode), &feature);
 
 	if (res != AST_FEATURE_RETURN_STOREDIGITS) {
-		ast_str_reset(featurecode);
+		ast_str_reset(*featurecode);
 	}
 	if (feature.feature_mask & AST_FEATURE_DISCONNECT) {
 		return 1;
