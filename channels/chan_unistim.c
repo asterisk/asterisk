@@ -3297,7 +3297,7 @@ static void handle_key_fav(struct unistimsession *pte, char keycode)
 
 static void key_call(struct unistimsession *pte, char keycode)
 {
-	struct unistim_subchannel *sub = NULL;
+	struct unistim_subchannel *sub = get_sub(pte->device, SUB_REAL);
 	if ((keycode >= KEY_0) && (keycode <= KEY_SHARP)) {
 		if (keycode == KEY_SHARP) {
 			keycode = '#';
@@ -3311,15 +3311,19 @@ static void key_call(struct unistimsession *pte, char keycode)
 	}
 	switch (keycode) {
 	case KEY_FUNC1:
-		if (get_sub(pte->device, SUB_THREEWAY)) {
-			close_call(pte);
+		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
+			if (get_sub(pte->device, SUB_THREEWAY)) {
+				close_call(pte);
+			}
 		}
 		break;
 	case KEY_FUNC2:
-		if (get_sub(pte->device, SUB_THREEWAY)) {
-			transfer_cancel_step2(pte);
-		} else {
-			transfer_call_step1(pte);
+		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
+			if (get_sub(pte->device, SUB_THREEWAY)) {
+				transfer_cancel_step2(pte);
+			} else {
+				transfer_call_step1(pte);
+			}
 		}
 		break;
 	case KEY_HANGUP:
@@ -3351,7 +3355,6 @@ static void key_call(struct unistimsession *pte, char keycode)
 							 MUTE_OFF);
 		break;
 	case KEY_MUTE:
-		sub = get_sub(pte->device, SUB_REAL);
 		if (!sub || !sub->owner) {
 			ast_log(LOG_WARNING, "Unable to find subchannel for music on hold\n");
 			return;
@@ -3366,7 +3369,6 @@ static void key_call(struct unistimsession *pte, char keycode)
 		}
 		break;
 	case KEY_ONHOLD:
-		sub = get_sub(pte->device, SUB_REAL);
 		if (!sub) {
 			if(pte->device->ssub[pte->device->selected]) {
 				sub_hold(pte, pte->device->ssub[pte->device->selected]);
