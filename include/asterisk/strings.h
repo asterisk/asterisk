@@ -793,6 +793,12 @@ char *__ast_str_helper2(struct ast_str **buf, ssize_t max_len,
  *      ...
  * }
  * \endcode
+ *
+ * \note Care should be taken when using this function. The function can
+ * result in reallocating the ast_str. If a pointer to the ast_str is passed
+ * by value to a function that calls ast_str_set_va(), then the original ast_str
+ * pointer may be invalidated due to a reallocation.
+ *
  */
 AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct ast_str **buf, ssize_t max_len, const char *fmt, va_list ap),
 {
@@ -804,6 +810,11 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct a
  * \brief Append to a dynamic string using a va_list
  *
  * Same as ast_str_set_va(), but append to the current content.
+ *
+ * \note Care should be taken when using this function. The function can
+ * result in reallocating the ast_str. If a pointer to the ast_str is passed
+ * by value to a function that calls ast_str_append_va(), then the original ast_str
+ * pointer may be invalidated due to a reallocation.
  *
  * \param buf, max_len, fmt, ap
  */
@@ -844,6 +855,11 @@ AST_INLINE_API(char *ast_str_append_escapecommas(struct ast_str **buf, ssize_t m
 /*!
  * \brief Set a dynamic string using variable arguments
  *
+ * \note Care should be taken when using this function. The function can
+ * result in reallocating the ast_str. If a pointer to the ast_str is passed
+ * by value to a function that calls ast_str_set(), then the original ast_str
+ * pointer may be invalidated due to a reallocation.
+ *
  * \param buf This is the address of a pointer to a struct ast_str which should
  *      have been retrieved using ast_str_thread_get.  It will need to
  *      be updated in the case that the buffer has to be reallocated to
@@ -875,6 +891,11 @@ int __attribute__((format(printf, 3, 4))) ast_str_set(
 
 /*!
  * \brief Append to a thread local dynamic string
+ *
+ * \note Care should be taken when using this function. The function can
+ * result in reallocating the ast_str. If a pointer to the ast_str is passed
+ * by value to a function that calls ast_str_append(), then the original ast_str
+ * pointer may be invalidated due to a reallocation.
  *
  * The arguments, return values, and usage of this function are the same as
  * ast_str_set(), but the new data is appended to the current value.
