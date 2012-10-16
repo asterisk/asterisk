@@ -2668,54 +2668,50 @@ enum message_integrity {
  */
 static int read_raw_content_length(const char *message)
 {
-	char *end_of_line;
 	char *content_length_str;
-	char *l_str;
-	int content_length;
+	int content_length = -1;
+
+	struct ast_str *msg_copy;
 	char *msg;
 
+	/* Using a ast_str because lws2sws takes one of those */
+	if (!(msg_copy = ast_str_create(strlen(message) + 1))) {
+		return -1;
+	}
+	ast_str_set(&msg_copy, 0, "%s", message);
+
 	if (sip_cfg.pedanticsipchecking) {
-		struct ast_str *msg_copy = ast_str_create(strlen(message));
-		if (!msg_copy) {
-			return -1;
-		}
-		ast_str_set(&msg_copy, 0, "%s", message);
 		lws2sws(msg_copy);
-		msg = ast_strdupa(ast_str_buffer(msg_copy));
-		ast_free(msg_copy);
-	} else {
-		msg = ast_strdupa(message);
 	}
 
+	msg = ast_str_buffer(msg_copy);
+
 	/* Let's find a Content-Length header */
-	content_length_str = strcasestr(msg, "\nContent-Length:");
-	if (!content_length_str && !(l_str = strcasestr(msg, "\nl:"))) {
+	if ((content_length_str = strcasestr(msg, "\nContent-Length:"))) {
+		content_length_str += sizeof("\nContent-Length:") - 1;
+	} else if ((content_length_str = strcasestr(msg, "\nl:"))) {
+		content_length_str += sizeof("\nl:") - 1;
+	} else {
 		/* RFC 3261 18.3
 		 * "In the case of stream-oriented transports such as TCP, the Content-
 		 *  Length header field indicates the size of the body.  The Content-
 		 *  Length header field MUST be used with stream oriented transports."
 		 */
-		return -1;
-	}
-	if (content_length_str) {
-		content_length_str += sizeof("\nContent-Length:");
-	} else if (l_str) {
-		content_length_str = l_str + sizeof("\nl:");
-	} else {
-		return -1;
+		goto done;
 	}
 
-	end_of_line = strchr(content_length_str, '\n');
-
-	if (!end_of_line) {
-		return -1;
+	/* Double-check that this is a complete header */
+	if (!strchr(content_length_str, '\n')) {
+		goto done;
 	}
 
-	if (sscanf(content_length_str, "%30d", &content_length) == 1) {
-		return content_length;
+	if (sscanf(content_length_str, "%30d", &content_length) != 1) {
+		content_length = -1;
 	}
 
-	return -1;
+done:
+	ast_free(msg_copy);
+	return content_length;
 }
 
 /*!
@@ -2732,11 +2728,11 @@ static int read_raw_content_length(const char *message)
  */
 static enum message_integrity check_message_integrity(struct ast_str **request, struct ast_str **overflow)
 {
-	char *message = ast_strdupa(ast_str_buffer(*request));
+	char *message = ast_str_buffer(*request);
 	char *body;
 	int content_length;
+	int message_len = ast_str_strlen(*request);
 	int body_len;
-	int message_len = strlen(message);
 
 	/* Important pieces to search for in a SIP request are \r\n\r\n. This
 	 * marks either
@@ -2751,7 +2747,7 @@ static enum message_integrity check_message_integrity(struct ast_str **request, 
 		return MESSAGE_FRAGMENT;
 	}
 	body += sizeof("\r\n\r\n") - 1;
-	body_len = strlen(body);
+	body_len = message_len - (body - message);
 
 	body[-1] = '\0';
 	content_length = read_raw_content_length(message);
@@ -2767,8 +2763,8 @@ static enum message_integrity check_message_integrity(struct ast_str **request, 
 		if (body_len == 0) {
 			return MESSAGE_COMPLETE;
 		} else {
-			ast_str_truncate(*request, message_len - body_len);
 			ast_str_append(overflow, 0, "%s", body);
+			ast_str_truncate(*request, message_len - body_len);
 			return MESSAGE_FRAGMENT_COMPLETE;
 		}
 	}
@@ -2782,8 +2778,8 @@ static enum message_integrity check_message_integrity(struct ast_str **request, 
 		/* We have the full message plus a fragment of a further
 		 * message
 		 */
-		ast_str_truncate(*request, message_len - (body_len - content_length));
 		ast_str_append(overflow, 0, "%s", body + content_length);
+		ast_str_truncate(*request, message_len - (body_len - content_length));
 		return MESSAGE_FRAGMENT_COMPLETE;
 	} else {
 		/* Yay! Full message with no extra content */
@@ -31076,7 +31072,7 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 		"Contact: sip:127.0.0.1:5061\r\n"
 		"Max-Forwards: 70\r\n"
 		"Content-Type: application/sdp\r\n"
-		"l: 130\r\n"
+		"l:130\r\n" /* intentionally no space */
 		"\r\n"
 		"v=0\r\n"
 		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
@@ -31102,7 +31098,7 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 		"Content-Type: application/sdp\r\n"
 		"DisContent-Length: 0\r\n"
 		"MalContent-Length: 60\r\n"
-		"Content-Length: 130\r\n"
+		"Content-Length:130\r\n" /* intentionally no space */
 		"\r\n"
 		"v=0\r\n"
 		"o=user1 53655765 2353687637 IN IP4 127.0.0.1\r\n"
@@ -31192,7 +31188,7 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 	switch (cmd) {
 		case TEST_INIT:
 			info->name = "sip_tcp_message_fragmentation";
-			info->category = "/main/sip/transport";
+			info->category = "/main/sip/transport/";
 			info->summary = "SIP TCP message fragmentation test";
 			info->description =
 				"Tests reception of different TCP messages that have been fragmented or"
