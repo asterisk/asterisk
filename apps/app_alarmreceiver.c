@@ -171,6 +171,7 @@ static void database_increment(char *key)
  *
  * \param chan Asterisk Channel
  * \param digit_string Digits String
+ * \param buf_size The size of the Digits String buffer
  * \param length Length of the message we expect
  * \param fdto First Digit Timeout
  * \param sdto Other Digits Timeout
@@ -179,7 +180,7 @@ static void database_increment(char *key)
  * \retval 1 if a timeout occurred
  * \retval -1 if the caller hung up or on channel errors
  */
-static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int length, int fdto, int sdto)
+static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int buf_size, int length, int fdto, int sdto)
 {
 	int rtn = 0;
 	int i = 0;
@@ -188,7 +189,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 	struct timeval lastdigittime;
 
 	lastdigittime = ast_tvnow();
-	while (i < length && i < sizeof(digit_string) - 1) {
+	while (i < length && i < buf_size - 1) {
 		/* If timed out, leave */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > ((i > 0) ? sdto : fdto)) {
 			ast_verb(4, "AlarmReceiver: DTMF Digit Timeout on %s\n", ast_channel_name(chan));
@@ -464,7 +465,7 @@ static int receive_ademco_contact_id(struct ast_channel *chan, int fdto, int sdt
 			res = send_tone_burst(chan, "1400", 100, tldn, 0);
 			if (!res) {
 				ast_verb(4, "AlarmReceiver: Sending 2300Hz 100ms burst (ACK)\n");
-				res = send_tone_burst(chan, "2300", 100, tldn, 0);
+				res = send_tone_burst(chan, "2300", 100, tldn, 100);
 			}
 		}
 		if (res) {
@@ -476,7 +477,7 @@ static int receive_ademco_contact_id(struct ast_channel *chan, int fdto, int sdt
 			return 0;
 		}
 
-		res = receive_dtmf_digits(chan, event, sizeof(event) - 1, fdto, sdto);
+		res = receive_dtmf_digits(chan, event, sizeof(event), sizeof(event) - 1, fdto, sdto);
 		if (res < 0) {
 			if (events_received == 0) {
 				/* Hangup with no events received should be logged in the DB */
