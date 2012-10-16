@@ -11811,7 +11811,16 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	if (p->route &&
 			!(sipmethod == SIP_CANCEL ||
 				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
-		set_destination(p, p->route->hop);
+		if (p->socket.type != SIP_TRANSPORT_UDP && p->socket.tcptls_session) {
+			/* For TCP/TLS sockets that are connected we won't need
+			 * to do any hostname/IP lookups */
+		} else if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) {
+			/* For NATed traffic, we ignore the contact/route and
+			 * simply send to the received-from address. No need
+			 * for lookups. */
+		} else {
+			set_destination(p, p->route->hop);
+		}
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
 	add_max_forwards(p, req);
