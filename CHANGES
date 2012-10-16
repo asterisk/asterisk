@@ -23,6 +23,11 @@ AMI (Asterisk Manager Interface)
  * Added VoicemailRefresh action to allow an external entity to trigger mailbox
    updates when changes occur instead of requiring the use of pollmailboxes.
 
+ * CLI Command 'Manager Show Commands' no longer truncates command names longer
+   than 15 characters and no longer shows authorization requirement for commands.
+   'Manager Show Command' now displays the privileges needed for using a given
+   manager command instead.
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an

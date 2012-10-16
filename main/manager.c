@@ -89,6 +89,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
 
+#ifdef HAVE_CURSES
+#include <curses.h>
+#endif
+
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
 		<synopsis>
@@ -1036,6 +1040,8 @@ static int block_sockets;
 static int unauth_sessions = 0;
 static struct ast_event_sub *acl_change_event_subscription;
 
+#define MGR_SHOW_TERMINAL_WIDTH 80
+
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
  *
@@ -1595,7 +1601,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	int num, l, which;
 	char *ret = NULL;
 #ifdef AST_XML_DOCS
-	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
+	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64], privilege_title[64];
 #endif
 
 	switch (cmd) {
@@ -1630,15 +1636,18 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
 	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
 	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+	term_color(privilege_title, "[Privilege]\n", COLOR_MAGENTA, 0,40);
 #endif
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		for (num = 3; num < a->argc; num++) {
 			if (!strcasecmp(cur->action, a->argv[num])) {
+				authority_to_str(cur->authority, &authority);
+
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
-					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
+					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
 						syntax_title,
 						ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1),
 						synopsis_title,
@@ -1648,13 +1657,15 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						arguments_title,
 						ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1),
 						seealso_title,
-						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1));
+						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1),
+						privilege_title,
+						ast_xmldoc_printable(S_OR(authority->str, "Not available"), 1));
 				} else
 #endif
 				{
 					ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
 						cur->action, cur->synopsis,
-						authority_to_str(cur->authority, &authority),
+						authority->str,
 						S_OR(cur->description, ""));
 				}
 			}
@@ -1805,8 +1816,9 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
-	struct ast_str *authority;
-#define HSMC_FORMAT "  %-15.15s  %-15.15s  %-55.55s\n"
+	int name_len = 1;
+	int space_remaining;
+#define HSMC_FORMAT "  %-*.*s  %-.*s\n"
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show commands";
@@ -1817,13 +1829,29 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_GENERATE:
 		return NULL;
 	}
-	authority = ast_str_alloca(80);
-	ast_cli(a->fd, HSMC_FORMAT, "Action", "Privilege", "Synopsis");
-	ast_cli(a->fd, HSMC_FORMAT, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		ast_cli(a->fd, HSMC_FORMAT, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
+		int incoming_len = strlen(cur->action);
+		if (incoming_len > name_len) {
+			name_len = incoming_len;
+		}
+	}
+
+#ifdef HAVE_CURSES
+	space_remaining = COLS - name_len - 4;
+#else
+	space_remaining = MGR_SHOW_TERMINAL_WIDTH - name_len - 4;
+#endif
+	if (space_remaining < 0) {
+		space_remaining = 0;
+	}
+
+	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "Action", space_remaining, "Synopsis");
+	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "------", space_remaining, "--------");
+
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
+		ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, cur->action, space_remaining, cur->synopsis);
 	}
 	AST_RWLIST_UNLOCK(&actions);
 
