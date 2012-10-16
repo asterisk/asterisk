@@ -29429,13 +29429,18 @@ static int sip_devicestate(const char *data)
 /*! \brief PBX interface function -build SIP pvt structure
  *	SIP calls initiated by the PBX arrive here.
  *
- * \verbatim	
- * 	SIP Dial string syntax
- *		SIP/exten@host!dnid
- *	or	SIP/host/exten!dnid
- *	or	SIP/host!dnid
+ * \verbatim
+ *	SIP Dial string syntax:
+ *		SIP/devicename
+ *	or	SIP/username@domain (SIP uri)
+ *	or	SIP/username[:password[:md5secret[:authname[:transport]]]]@host[:port]
+ *	or	SIP/devicename/extension
+ *	or	SIP/devicename/extension/IPorHost
+ *	or	SIP/username@domain//IPorHost
+ *	and there is an optional [!dnid] argument you can append to alter the
+ *	To: header.
  * \endverbatim
-*/
+ */
 static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct sip_pvt *p;
