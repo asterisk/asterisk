@@ -33,7 +33,8 @@ NONINTERACTIVE=0
 # If a prefix is specified on command-line, add it.
 if (set -u; : $1) 2> /dev/null
 then
-  if [ $1 == "-h" ] || [ $1 == "--help" ]; then
+  case "$1" in
+  -h | --help)
     echo
     echo "Digium autosupport script"
     echo "Copyright (C) 2005-2010, Digium, Inc."
@@ -53,12 +54,15 @@ then
     echo "    XXXXXXXX_${TARBALL_OUTPUT_FILE}"
     echo
     exit
-  elif [ $1 == "-n" ] || [ $1 == "--non-interactive" ]; then
+    ;;
+  -n | --non-interactive)
     FILE_PREFIX=
     NONINTERACTIVE=1
-  else
+    ;;
+  *)
     FILE_PREFIX="${FILE_PREFIX}${1}_";
-  fi
+    ;;
+  esac
 fi
 
 MYUID=$(id -u);
