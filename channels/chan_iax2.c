@@ -1100,7 +1100,6 @@ static void iax_pvt_callid_new(int callno)
 	struct ast_callid *callid = ast_create_callid();
 	char buffer[AST_CALLID_BUFFER_LENGTH];
 	ast_callid_strnprint(buffer, sizeof(buffer), callid);
-	ast_log(LOG_NOTICE, "iax_pvt_callid_new created and set %s\n", buffer);
 	iax_pvt_callid_set(callno, callid);
 	ast_callid_unref(callid);
 }
