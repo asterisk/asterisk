@@ -198,11 +198,19 @@ static void *handle_tcptls_connection(void *data)
 				long res;
 				peer = SSL_get_peer_certificate(tcptls_session->ssl);
 				if (!peer) {
-					ast_log(LOG_WARNING, "No peer SSL certificate\n");
+					ast_log(LOG_ERROR, "No peer SSL certificate to verify\n");
+					ast_tcptls_close_session_file(tcptls_session);
+					ao2_ref(tcptls_session, -1);
+					return NULL;
 				}
+
 				res = SSL_get_verify_result(tcptls_session->ssl);
 				if (res != X509_V_OK) {
 					ast_log(LOG_ERROR, "Certificate did not verify: %s\n", X509_verify_cert_error_string(res));
+					X509_free(peer);
+					ast_tcptls_close_session_file(tcptls_session);
+					ao2_ref(tcptls_session, -1);
+					return NULL;
 				}
 				if (!ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_IGNORE_COMMON_NAME)) {
 					ASN1_STRING *str;
@@ -233,17 +241,13 @@ static void *handle_tcptls_connection(void *data)
 					}
 					if (!found) {
 						ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", tcptls_session->parent->hostname);
-						if (peer) {
-							X509_free(peer);
-						}
+						X509_free(peer);
 						ast_tcptls_close_session_file(tcptls_session);
 						ao2_ref(tcptls_session, -1);
 						return NULL;
 					}
 				}
-				if (peer) {
-					X509_free(peer);
-				}
+				X509_free(peer);
 			}
 		}
 		if (!tcptls_session->f) {	/* no success opening descriptor stacking */
