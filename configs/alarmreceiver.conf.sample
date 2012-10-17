@@ -60,6 +60,17 @@ fdtimeout = 2000
 sdtimeout = 200
 
 ;
+; Wait for the connection to settle post-answer. Adjustable from 500 msec. to 10000 msec.
+; The default is 1250 msec.
+;
+
+answait = 1250
+
+; When logging individual events it may be desirable to skip grouping of metadata
+
+;no_group_meta = yes
+
+;
 ; The loudness of the ACK and Kissoff tones is adjustable from 100 to 8192.
 ; The default is 8192. This shouldn't need to be messed with, but is included
 ; just in case there are problems with signal levels.
