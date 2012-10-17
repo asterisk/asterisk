@@ -94,7 +94,7 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		ast_verb(11, "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
+		ast_log(LOG_WARNING, "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
@@ -139,7 +139,7 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 	ODBC_res = SQLExecDirect(stmt, (unsigned char *)sqlcmd, SQL_NTS);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		ast_verb(11, "cdr_odbc: Error in ExecDirect: %d\n", ODBC_res);
+		ast_log(LOG_WARNING, "cdr_odbc: Error in ExecDirect: %d, query is: %s\n", ODBC_res, sqlcmd);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}

@@ -10032,7 +10032,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				sprintf(offer->decline_m_line, "m=audio 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring audio media offer because port number is zero\n");
+					ast_debug(1, "Ignoring audio media offer because port number is zero\n");
 					continue;
 				}
 
@@ -10114,7 +10114,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				sprintf(offer->decline_m_line, "m=video 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring video stream offer because port number is zero\n");
+					ast_debug(1, "Ignoring video stream offer because port number is zero\n");
 					continue;
 				}
 
@@ -10192,7 +10192,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				sprintf(offer->decline_m_line, "m=text 0 %s %s", protocol, codecs);
 
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring text stream offer because port number is zero\n");
+					ast_debug(1, "Ignoring text stream offer because port number is zero\n");
 					continue;
 				}
 
@@ -10255,7 +10255,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				strcpy(offer->decline_m_line, "m=image 0 udptl t38");
 
 				if (x == 0) {
-					ast_log(LOG_WARNING, "Ignoring image stream offer because port number is zero\n");
+					ast_debug(1, "Ignoring image stream offer because port number is zero\n");
 					continue;
 				}
 
@@ -10600,7 +10600,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			ast_sockaddr_set_port(isa, udptlportno);
 			ast_udptl_set_peer(p->udptl, isa);
 			if (debug)
-				ast_debug(1,"Peer T.38 UDPTL is at port %s\n", ast_sockaddr_stringify(isa));
+				ast_debug(1, "Peer T.38 UDPTL is at port %s\n", ast_sockaddr_stringify(isa));
 
 			/* verify the far max ifp can be calculated. this requires far max datagram to be set. */
 			if (!ast_udptl_get_far_max_datagram(p->udptl)) {
@@ -21269,7 +21269,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		}
 		/* Send the feature code to the PBX as DTMF, just like the handset had sent it */
 		f.len = 100;
-		for (j=0; j < strlen(feat->exten); j++) {
+		for (j = 0; j < strlen(feat->exten); j++) {
 			f.subclass.integer = feat->exten[j];
 			ast_queue_frame(p->owner, &f);
 			if (sipdebug) {
@@ -21360,7 +21360,7 @@ static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			ast_cli(a->fd, "SIP Debugging Disabled\n");
 			return CLI_SUCCESS;
 		}
-	} else if (a->argc == e->args +1) {/* ip/peer */
+	} else if (a->argc == e->args + 1) { /* ip/peer */
 		if (!strcasecmp(what, "ip"))
 			return sip_do_debug_ip(a->fd, a->argv[e->args]);
 		else if (!strcasecmp(what, "peer"))
@@ -27559,11 +27559,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		accept = __get_header(req, "Accept", &start);
 		while (!found_supported && !ast_strlen_zero(accept)) {
 			found_supported = strcmp(accept, "application/simple-message-summary") ? 0 : 1;
-			if (!found_supported && (option_debug > 2)) {
-				ast_debug(1, "Received SIP mailbox subscription for unknown format: %s\n", accept);
+			if (!found_supported) {
+				ast_debug(3, "Received SIP mailbox subscription for unknown format: %s\n", accept);
 			}
 			accept = __get_header(req, "Accept", &start);
 		}
+		/* If !start, there is no Accept header at all */
 		if (start && !found_supported) {
 			/* Format requested that we do not support */
 			transmit_response(p, "406 Not Acceptable", req);
@@ -32823,7 +32824,7 @@ static void sip_send_all_mwi_subscriptions(void)
 static int setup_srtp(struct sip_srtp **srtp)
 {
 	if (!ast_rtp_engine_srtp_is_registered()) {
-		ast_log(LOG_ERROR, "No SRTP module loaded, can't setup SRTP session.\n");
+		ast_debug(1, "No SRTP module loaded, can't setup SRTP session.\n");
 		return -1;
 	}
 

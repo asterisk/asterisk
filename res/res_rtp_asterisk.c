@@ -3467,7 +3467,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* Make sure the data that was read in is actually enough to make up an RTP packet */
 	if (res < hdrlen) {
-		ast_log(LOG_WARNING, "RTP Read too short\n");
+		/* If this is a keepalive containing only nulls, don't bother with a warning */
+		int i;
+		for (i = 0; i < res; ++i) {
+			if (rtp->rawdata[AST_FRIENDLY_OFFSET + i] != '\0') {
+				ast_log(LOG_WARNING, "RTP Read too short\n");
+				return &ast_null_frame;
+			}
+		}
 		return &ast_null_frame;
 	}
 
