@@ -1,3 +1,73 @@
+2012-10-17  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.0.0-rc2 Released.
+
+	* [r374792] Fix segfault regression from r370681
+
+	  Due to usage of ast_hook_send_action, AMI action handling code should
+	  be able to handle a NULL mansession->session.  This would cause a
+	  crash	on NULL dereference if action_originate was called from
+	  ast_hook_send_action.
+
+  	  (closes issue ASTERISK-20544)
+
+	* [r374842] Don't make chan_sip export global symbols.
+
+	  During testing, it was discovered that having chan_sip export global
+	  symbols was problematic.
+
+	  The biggest problem was that load order was affected.
+	  Trying to use realtime could be problematic since in
+	  all likelihood the necessary realtime driver(s) would
+	  not be loaded before chan_sip.
+
+	  In addition, it was found that it was impossible to
+	  use the Digium Phone Module for Asterisk since it
+	  must be loaded before chan_sip since it must hook
+	  into chan_sip's configuration parsing.
+
+	  The solution is to use a virtual table in the same
+	  manner that other modules in Asterisk do, like
+	  app_voicemail.
+
+	  (closes issue ASTERISK-20545)
+	  Reported by: kmoore
+
+	* [r374850] Fix an issue where outgoing calls would fail to establish
+	  audio due to ICE negotiation failures.
+
+	  This change removes the requirement for ufrag and pwd in the transport
+	  stanza and also makes us the controlling agent.
+
+	  (closes issue ASTERISK-20554)
+	  Reported by: mmichelson
+
+	* [r374851] Remove code that should not have gotten in (r374850)
+
+	  (issue ASTERISK-20554)
+
+	* [r374877] Fix a bug where audio on Google Voice would not work due to
+	  ignoring candidates.
+
+	  Instead of ignoring parts of the message that are not known just
+	  ignore the ones we know may be present and that would cause a problem.
+
+	* [r375148] Ensure Asterisk fails TCP/TLS SIP calls when certificate
+	  checking fails
+
+	  When placing a call to a TCP/TLS SIP endpoint whose certificate is not
+	  signed by a configured CA certificate, Asterisk would issue a warning
+	  and continue to process the call as if there was not an issue with the
+	  certificate.  Asterisk now properly fails the call if the certificate
+	  fails verification or if the certificate does not exist when
+	  certificate checking is enabled (the default behavior).
+
+	  (closes issue ASTERISK-20559)
+	  Review: https://reviewboard.asterisk.org/r/2163/
+
+	* [r375051] Remove a log message that was left in accidentally from
+	  call-id logging development.
+
 2012-10-08  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.0.0-rc1 Released.
