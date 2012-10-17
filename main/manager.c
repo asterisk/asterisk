@@ -89,10 +89,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
 
-#ifdef HAVE_CURSES
-#include <curses.h>
-#endif
-
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
 		<synopsis>
@@ -1838,11 +1834,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 		}
 	}
 
-#ifdef HAVE_CURSES
-	space_remaining = COLS - name_len - 4;
-#else
 	space_remaining = MGR_SHOW_TERMINAL_WIDTH - name_len - 4;
-#endif
 	if (space_remaining < 0) {
 		space_remaining = 0;
 	}
