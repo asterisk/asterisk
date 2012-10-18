@@ -263,6 +263,7 @@ AC_PATH_PROG([CATDVI], [catdvi], :)
 AC_PATH_PROG([KPATHSEA], [kpsewhich], :)
 AC_PATH_PROG([XMLLINT], [xmllint], :)
 AC_PATH_PROG([XMLSTARLET], [xmlstarlet], :)
+AC_PATH_PROG([GIT], [git], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
 else if test "${CURL}" != ":" ; then
