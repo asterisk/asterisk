@@ -23,8 +23,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
-/** \example app_skel.c
- * This is an example of how to develop an app
+/** \example
+ * \par This is an example of how to develop an app.
+ * Application Skeleton is an example of creating an application for Asterisk.
+ * \verbinclude app_skel.c
  */
 
 /*** MODULEINFO

@@ -27,6 +27,15 @@
  *       as expected.
  */
 
+/*! \li \ref cel.c uses the configuration file \ref cel.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cel.conf cel.conf
+ * \verbinclude cel.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

@@ -21,6 +21,15 @@
  * \brief Distributed Universal Number Discovery (DUNDi)
  */
 
+/*! \li \ref pbx_dundi.c uses configuration file \ref dundi.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page dundi.conf dundi.conf
+ * \verbinclude dundi.conf.sample
+ */
+
 /*** MODULEINFO
 	<depend>zlib</depend>
 	<use type="external">crypto</use>

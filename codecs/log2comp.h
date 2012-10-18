@@ -1,7 +1,7 @@
 /*! \file 
  * \brief log2comp.h - various base 2 log computation versions
  * 
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * \author Alex Volkov <codepro@usa.net>
  *

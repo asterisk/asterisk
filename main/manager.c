@@ -36,13 +36,16 @@
  * \ref amiconf
  */
 
-/*!
- * \li The core Manager uses the configuration file \ref manager.conf
+/*! \li \ref manager.c uses the configuration file \ref manager.conf and \ref users.conf
  * \addtogroup configuration_file
  */
 
 /*! \page manager.conf manager.conf
  * \verbinclude manager.conf.sample
+ */
+
+/*! \page users.conf users.conf
+ * \verbinclude users.conf.sample
  */
 
 /*** MODULEINFO

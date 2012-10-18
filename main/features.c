@@ -24,6 +24,15 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/*! \li \ref features.c uses the configuration file \ref features.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page features.conf features.conf
+ * \verbinclude features.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

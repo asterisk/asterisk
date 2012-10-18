@@ -24,7 +24,6 @@
 /*!
 \page AsteriskArchitecture Asterisk Architecture Overview
 \author Russell Bryant <russell@digium.com>
-\AsteriskTrunkWarning
 
 <hr>
 

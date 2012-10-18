@@ -21,6 +21,15 @@
  * \author Mark Michelson <mmichelson@digium.com>
  */
 
+/*! \li \ref ccss.c uses the configuration file \ref ccss.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page ccss.conf ccss.conf
+ * \verbinclude ccss.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

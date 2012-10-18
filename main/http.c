@@ -30,8 +30,7 @@
  * \ref AstHTTP - AMI over the http protocol
  */
 
-/*!
- * \li The core module http uses the configuration file \ref http.conf
+/*! \li \ref http.c uses the configuration file \ref http.conf
  * \addtogroup configuration_file
  */
 

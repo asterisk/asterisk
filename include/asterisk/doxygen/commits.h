@@ -21,8 +21,6 @@
 /*!
  * \page CommitMessages Guidelines for Commit Messages
  *
- * \AsteriskTrunkWarning
- *
  * <hr>
  *
  * \section CommitMsgFormatting Commit Message Formatting
@@ -114,5 +112,3 @@
  * see the following page on %asterisk.org:
  * \arg http://www.asterisk.org/developers/svn-branching-merging
  */
-
-

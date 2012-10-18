@@ -23,6 +23,15 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/*! \li \ref cli.c uses the configuration file \ref cli_permissions.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cli_permissions.conf cli_permissions.conf
+ * \verbinclude cli_permissions.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

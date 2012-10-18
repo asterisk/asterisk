@@ -28,6 +28,17 @@
  * thread is in the middle of updating it to the new address.
  */
 
+
+/*! \li \ref dnsmgr.c uses the configuration file \ref dnsmgr.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page dnsmgr.conf dnsmgr.conf
+ * \verbinclude dnsmgr.conf.sample
+ */
+
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

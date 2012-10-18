@@ -21,8 +21,6 @@
 /*!
  * \page Reviewboard Reviewboard Usage and Guidelines
  *
- * \AsteriskTrunkWarning
- *
  * <hr>
  *
  * \section ReviewboardGuidelines Usage Guidelines

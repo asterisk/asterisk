@@ -48,6 +48,8 @@
  * \arg \ref Licensing
  * \arg \ref DevDoc
  * \arg \ref configuration_file
+ * \arg \ref channel_drivers
+ * \arg \ref applications
  *
  * \section copyright Copyright and Author
  *
@@ -133,8 +135,7 @@
  *	Implementation of PBX core functions and CLI interface.
  */
 
-/*!
- * \li The Asterisk core uses the configuration file \ref asterisk.conf
+/*! \li \ref asterisk.c uses the configuration file \ref asterisk.conf
  * \addtogroup configuration_file
  */
 

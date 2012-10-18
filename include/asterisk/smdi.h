@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005-2008, Digium, Inc.
  *

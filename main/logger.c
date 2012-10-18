@@ -25,6 +25,15 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/*! \li \ref logger.c uses the configuration file \ref logger.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page logger.conf logger.conf
+ * \verbinclude logger.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

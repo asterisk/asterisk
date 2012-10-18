@@ -21,8 +21,6 @@
 /*!
  * \page ReleaseStatus Asterisk Release Status
  *
- * @AsteriskTrunkWarning
- *
  * \section warranty Warranty
  * The following warranty applies to all open source releases of Asterisk:
  *
@@ -123,8 +121,6 @@
 
 /*!
  * \page ReleasePolicies Asterisk Release and Commit Policies
- *
- * \AsteriskTrunkWarning
  *
  * \section releasestatus Asterisk Release Status
  *

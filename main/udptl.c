@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
  * UDPTL support for T.38
  *
@@ -46,6 +46,15 @@
  * - chan_sip.c
  * - udptl.c
  * - app_fax.c
+ */
+
+/*! \li \ref udptl.c uses the configuration file \ref udptl.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page udptl.conf udptl.conf
+ * \verbinclude udptl.conf.sample
  */
 
 /*** MODULEINFO

@@ -25,8 +25,7 @@
  * provide and some other module related functions.
  */
 
-/*!
- * \li The Modules library uses the configuration file \ref modules.conf
+/*! \li \ref module.h uses the configuration file \ref modules.conf
  * \addtogroup configuration_file
  */
 

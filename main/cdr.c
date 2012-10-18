@@ -30,6 +30,14 @@
  * isn't properly generated and posted.
  */
 
+/*! \li \ref cdr.c uses the configuration file \ref cdr.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page cdr.conf cdr.conf
+ * \verbinclude cdr.conf.sample
+ */
 
 /*** MODULEINFO
 	<support_level>core</support_level>

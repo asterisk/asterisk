@@ -27,6 +27,15 @@
  * \author Steve Underwood <steveu@coppice.org>
  */
 
+/*! \li \ref dsp.c uses the configuration file \ref dsp.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page dsp.conf dsp.conf
+ * \verbinclude dsp.conf.sample
+ */
+
 /* Some routines from tone_detect.c by Steven Underwood as published under the zapata library */
 /*
 	tone_detect.c - General telephony tone detection, and specific

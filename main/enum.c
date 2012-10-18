@@ -45,6 +45,15 @@
  * \todo The service type selection needs to be redone.
  */
 
+/*! \li \ref enum.c uses the configuration file \ref enum.conf
+ * \addtogroup configuration_file Configuration Files
+ */
+
+/*!
+ * \page enum.conf enum.conf
+ * \verbinclude enum.conf.sample
+ */
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/

@@ -22,7 +22,7 @@
  * \page Licensing Asterisk Licensing Information
  *
  * \section license Asterisk License
- * \verbinclude LICENSE
+ * \note See the LICENSE file for up to date info
  *
  * \section otherlicenses Licensing of 3rd Party Code
  *

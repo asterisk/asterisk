@@ -21,8 +21,6 @@
 /*!
  * \page AsteriskGitHowto How to setup a local GIT mirror of the Asterisk SVN repository
  *
- * \AsteriskTrunkWarning
- *
  * <hr>
  *
  * \section Introduction Introduction
