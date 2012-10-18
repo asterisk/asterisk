@@ -20,6 +20,13 @@
 ===
 ===========================================================
 
+From 11.0 to 11.1:
+
+Queues:
+ - Queue strategy rrmemory now has a predictable order similar to strategy
+   rrordered. Members will be called in the order that they are added to the
+   queue.
+
 From 10 to 11:
 
 Voicemail:
