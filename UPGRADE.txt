@@ -31,6 +31,9 @@ AMI:
 Queue:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
    performed on is a member of at least one queue.
+ - Queue strategy rrmemory now has a predictable order similar to strategy
+   rrordered. Members will be called in the order that they are added to the
+   queue.
 
 Dial:
  - Now recognizes 'W' to pause sending DTMF for one second in addition to
