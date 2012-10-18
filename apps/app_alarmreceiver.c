@@ -161,18 +161,18 @@ static const char app[] = "AlarmReceiver";
 			acknowledgement tones.</para>
 			<note><para>Few Ademco DTMF signalling formats are detected automaticaly: Contact ID, Express 4+1,
 			Express 4+2, High Speed and Super Fast.</para></note>
+			<para>The application is affected by the following variables:</para>
+			<variablelist>
+				<variable name="ALARMRECEIVER_CALL_LIMIT">
+					<para>Maximum call time, in milliseconds.</para>
+					<para>If set, this variable causes application to exit after the specified time.</para>
+				</variable>
+				<variable name="ALARMRECEIVER_RETRIES_LIMIT">
+					<para>Maximum number of retries per call.</para>
+					<para>If set, this variable causes application to exit after the specified number of messages.</para>
+				</variable>
+			</variablelist>
 		</description>
-		<para>The application is affected by the following variables:</para>
-		<variablelist>
-			<variable name="ALARMRECEIVER_CALL_LIMIT">
-				<para>Maximum call time, in milliseconds.</para>
-				<para>If set, this variable causes application to exit after the specified time.</para>
-			</variable>
-			<variable name="ALARMRECEIVER_RETRIES_LIMIT">
-				<para>Maximum number of retries per call.</para>
-				<para>If set, this variable causes application to exit after the specified number of messages.</para>
-			</variable>
-		</variablelist>
 		<see-also>
 			<ref type="filename">alarmreceiver.conf</ref>
 		</see-also>
