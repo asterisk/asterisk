@@ -1562,6 +1562,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 
 	if (!ast_strlen_zero(category) && regcomp(&regexbuf_category, category, REG_EXTENDED | REG_NOSUB)) {
 		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", category);
+		regfree(&regexbuf_group);
 		return 0;
 	}
 
