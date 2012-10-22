@@ -58,10 +58,11 @@ void Gsm_Coder P8((S,s,LARc,Nc,bc,Mc,xmaxc,xMc),
 	word	* dp  = S->dp0 + 120;	/* [ -120...-1 ] */
 	word	* dpp = dp;		/* [ 0...39 ]	 */
 
-	static word e[50];
+	word	e[50];
 
 	word	so[160];
 
+	memset(e,0,sizeof e);
 	Gsm_Preprocess			(S, s, so);
 	Gsm_LPC_Analysis		(S, so, LARc);
 	Gsm_Short_Term_Analysis_Filter	(S, LARc, so);
