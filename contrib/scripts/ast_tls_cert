@@ -30,20 +30,45 @@ EOF
 }
 
 create_ca () {
-	echo "Creating ${CAKEY}"
+	echo "Creating CA key ${CAKEY}"
 	openssl genrsa -des3 -out ${CAKEY} 4096 > /dev/null
-	echo "Creating ${CACERT}"
+	if [ $? -ne 0 ];
+	then
+		echo "Failed"
+		exit 1
+	fi
+	echo "Creating CA certificate ${CACERT}"
 	openssl req -new -config ${CACFG} -x509 -days 365 -key ${CAKEY} -out ${CACERT} > /dev/null
+	if [ $? -ne 0 ];
+	then
+		echo "Failed"
+		exit 1
+	fi
 }
 
 create_cert () {
 	local base=${OUTPUT_DIR}/${OUTPUT_BASE}
-	echo "Creating ${base}.key"
+	echo "Creating certificate ${base}.key"
 	openssl genrsa -out ${base}.key 1024 > /dev/null
-	echo "Creating signing request"
+	if [ $? -ne 0 ];
+	then
+		echo "Failed"
+		exit 1
+	fi
+	echo "Creating signing request ${base}.csr"
 	openssl req -batch -new -config ${CONFIG_FILE} -key ${base}.key -out ${base}.csr > /dev/null
-	echo "Creating ${base}.crt"
+	if [ $? -ne 0 ];
+	then
+		echo "Failed"
+		exit 1
+	fi
+	echo "Creating certificate ${base}.crt"
 	openssl x509 -req -days 365 -in ${base}.csr -CA ${CACERT} -CAkey ${CAKEY} -set_serial 01 -out ${base}.crt > /dev/null
+	if [ $? -ne 0 ];
+	then
+		echo "Failed"
+		exit 1
+	fi
 	echo "Combining key and crt into ${base}.pem"
 	cat ${base}.key > ${base}.pem
 	cat ${base}.crt >> ${base}.pem
@@ -181,6 +206,12 @@ then
 	CACFG=${OUTPUT_DIR}/ca.cfg
 	create_config ca "${CACFG}" "${DEFAULT_CA_CN}" "${DEFAULT_CA_ORG}"
 	create_ca
+else
+	if [ -z ${CAKEY} ]
+	then
+		echo "-k must be specified if -c is"
+		exit 1
+	fi
 fi
 
 create_cert
