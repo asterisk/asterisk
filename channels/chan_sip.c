@@ -6256,28 +6256,28 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 
 	/* Check whether there is vxml_url, distinctive ring variables */
-	headp=ast_channel_varshead(ast);
+	headp = ast_channel_varshead(ast);
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		/* Check whether there is a VXML_URL variable */
-		if (!p->options->vxml_url && !strcasecmp(ast_var_name(current), "VXML_URL")) {
+		if (!p->options->vxml_url && !strcmp(ast_var_name(current), "VXML_URL")) {
 			p->options->vxml_url = ast_var_value(current);
-		} else if (!p->options->uri_options && !strcasecmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
+		} else if (!p->options->uri_options && !strcmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
 			p->options->uri_options = ast_var_value(current);
-		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
+		} else if (!p->options->addsipheaders && !strncmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
-		} else if (!strcasecmp(ast_var_name(current), "SIPFROMDOMAIN")) {
+		} else if (!strcmp(ast_var_name(current), "SIPFROMDOMAIN")) {
 			ast_string_field_set(p, fromdomain, ast_var_value(current));
-		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER")) {
+		} else if (!strcmp(ast_var_name(current), "SIPTRANSFER")) {
 			/* This is a transfered call */
 			p->options->transfer = 1;
-		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REFERER")) {
+		} else if (!strcmp(ast_var_name(current), "SIPTRANSFER_REFERER")) {
 			/* This is the referrer */
 			referer = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REPLACES")) {
+		} else if (!strcmp(ast_var_name(current), "SIPTRANSFER_REPLACES")) {
 			/* We're replacing a call. */
 			p->options->replaces = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "SIP_MAX_FORWARDS")) {
+		} else if (!strcmp(ast_var_name(current), "SIP_MAX_FORWARDS")) {
 			if (sscanf(ast_var_value(current), "%30d", &(p->maxforwards)) != 1) {
 				ast_log(LOG_WARNING, "The SIP_MAX_FORWARDS channel variable is not a valid integer.\n");
 			}
@@ -14025,7 +14025,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 			const struct ast_var_t *current;
 			AST_LIST_TRAVERSE(headp, current, entries) {
 				/* SIPADDHEADER: Add SIP header to outgoing call */
-				if (!strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
+				if (!strncmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 					char *content, *end;
 					const char *header = ast_var_value(current);
 					char *headdup = ast_strdupa(header);
@@ -32615,7 +32615,7 @@ static int sip_removeheader(struct ast_channel *chan, const char *data)
 
 	headp=ast_channel_varshead(chan);
 	AST_LIST_TRAVERSE_SAFE_BEGIN (headp, newvariable, entries) {
-		if (strncasecmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
+		if (strncmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
 			if (removeall || (!strncasecmp(ast_var_value(newvariable),inbuf,strlen(inbuf)))) {
 				if (sipdebug) {
 					ast_debug(1,"removing SIP Header \"%s\" as %s\n",

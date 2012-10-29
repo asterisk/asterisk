@@ -4425,7 +4425,7 @@ static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 
 	AST_LIST_TRAVERSE(ast_channel_varshead(ast), current, entries) {
-		if (!(strcasecmp(ast_var_name(current),"SKINNY_AUTOANSWER"))) {
+		if (!(strcmp(ast_var_name(current), "SKINNY_AUTOANSWER"))) {
 			if (d->hookstate == SKINNY_ONHOOK && !sub->aa_sched) {
 				char buf[24];
 				int aatime;

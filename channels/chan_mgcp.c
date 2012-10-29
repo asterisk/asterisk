@@ -842,20 +842,11 @@ static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout)
 	struct mgcp_endpoint *p;
 	struct mgcp_subchannel *sub;
 	char tone[50] = "";
-	const char *distinctive_ring = NULL;
-	struct varshead *headp;
-	struct ast_var_t *current;
+	const char *distinctive_ring = pbx_builtin_getvar_helper(ast, "ALERT_INFO");
 
 	ast_debug(3, "MGCP mgcp_call(%s)\n", ast_channel_name(ast));
 	sub = ast_channel_tech_pvt(ast);
 	p = sub->parent;
-	headp = ast_channel_varshead(ast);
-	AST_LIST_TRAVERSE(headp,current,entries) {
-		/* Check whether there is an ALERT_INFO variable */
-		if (strcasecmp(ast_var_name(current),"ALERT_INFO") == 0) {
-			distinctive_ring = ast_var_value(current);
-		}
-	}
 
 	ast_mutex_lock(&sub->lock);
 	switch (p->hookstate) {

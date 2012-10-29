@@ -3398,7 +3398,7 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 		if (places[i] == &globals)
 			ast_rwlock_rdlock(&globalslock);
 		AST_LIST_TRAVERSE(places[i], variables, entries) {
-			if (!strcasecmp(ast_var_name(variables), var)) {
+			if (!strcmp(ast_var_name(variables), var)) {
 				s = ast_var_value(variables);
 				break;
 			}

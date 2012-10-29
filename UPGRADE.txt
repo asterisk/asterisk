@@ -56,6 +56,12 @@ chan_dahdi:
    between 'w' and 'W'.  The 'w' pauses dialing for half a second.  The 'W'
    pauses dialing for one second.
 
+Dialplan:
+ - All channel and global variable names are evaluated in a case-sensitive manner.
+   In previous versions of Asterisk, variables created and evaluated in the
+   dialplan were evaluated case-insensitively, but built-in variables and variable
+   evaluation done internally within Asterisk was done case-sensitively.
+
 From 10 to 11:
 
 Voicemail:
