@@ -30445,7 +30445,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
-					if (!found || !peer->host_dynamic) {
+					if ((!found && !realtime) || !peer->host_dynamic) {
 						/* Initialize stuff if this is a new peer, or if it used to
 						 * not be dynamic before the reload. */
 						ast_sockaddr_setnull(&peer->addr);
