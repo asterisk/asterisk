@@ -3520,10 +3520,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	/* on entry here, we know that tmp->chan == NULL */
 	if (tmp->member->paused) {
 		ast_debug(1, "%s paused, can't receive call\n", tmp->interface);
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 
@@ -3531,9 +3529,6 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		(!tmp->lastqueue && qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))) {
 		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
 				(tmp->lastqueue ? tmp->lastqueue->name : qe->parent->name), tmp->interface);
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
 		tmp->stillgoing = 0;
 		(*busies)++;
 		return 0;
@@ -3550,19 +3545,14 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
 			ast_debug(1, "%s in use, can't receive call\n", tmp->interface);
-			if (ast_channel_cdr(qe->chan)) {
-				ast_cdr_busy(ast_channel_cdr(qe->chan));
-			}
 			tmp->stillgoing = 0;
+			(*busies)++;
 			return 0;
 		}
 	}
 
 	if (use_weight && compare_weight(qe->parent,tmp->member)) {
 		ast_debug(1, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
 		tmp->stillgoing = 0;
 		(*busies)++;
 		return 0;
@@ -4077,7 +4067,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		}
 	}
 #endif
-	
+
 	while (*to && !peer) {
 		int numlines, retry, pos = 1;
 		struct ast_channel *watchers[AST_MAX_WATCHERS];
@@ -4115,8 +4105,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		if (pos == 1 /* not found */) {
 			if (numlines == (numbusies + numnochan)) {
 				ast_debug(1, "Everyone is busy at this time\n");
+				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
+					ast_cdr_busy(ast_channel_cdr(in));
+				}
 			} else {
 				ast_debug(3, "No one is answering queue '%s' (%d numlines / %d busies / %d failed channels)\n", queue, numlines, numbusies, numnochan);
+				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
+					ast_cdr_failed(ast_channel_cdr(in));
+				}
 			}
 			*to = 0;
 			return NULL;
@@ -4358,7 +4354,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						case AST_CONTROL_CONGESTION:
 							ast_verb(3, "%s is circuit-busy\n", ochan_name);
 							if (ast_channel_cdr(in)) {
-								ast_cdr_busy(ast_channel_cdr(in));
+								ast_cdr_failed(ast_channel_cdr(in));
 							}
 							endtime = (long) time(NULL);
 							endtime -= starttime;
@@ -4491,6 +4487,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
 				ast_frfree(f);
+				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
+					ast_cdr_noanswer(ast_channel_cdr(in));
+				}
 				return NULL;
 			}
 			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass.integer)) {
@@ -4498,6 +4497,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				*to = 0;
 				*digit = f->subclass.integer;
 				ast_frfree(f);
+				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
+					ast_cdr_noanswer(ast_channel_cdr(in));
+				}
 				return NULL;
 			}
 
@@ -4540,6 +4542,12 @@ skip_frame:;
 			for (o = start; o; o = o->call_next) {
 				rna(orig, qe, o->interface, o->member->membername, 1);
 			}
+		}
+
+		if (ast_channel_cdr(in)
+			&& ast_channel_state(in) != AST_STATE_UP
+			&& (!*to || ast_check_hangup(in))) {
+			ast_cdr_noanswer(ast_channel_cdr(in));
 		}
 	}
 

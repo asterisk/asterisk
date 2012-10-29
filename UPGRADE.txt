@@ -28,12 +28,16 @@ AMI:
    a peer once a peer has been found to qualify.  Once the qualify has been
    completed it will now issue a SIPqualifypeerdone event.
 
-Queue:
+Queues:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
    performed on is a member of at least one queue.
  - Queue strategy rrmemory now has a predictable order similar to strategy
    rrordered. Members will be called in the order that they are added to the
    queue.
+ - CDR behavior in app_queue has been modified slightly.  The CDR record will
+   now only record a disposition of BUSY if all Queue members were actually
+   busy on a call or some Queue members were busy or paused.  Previously, any
+   Queue member being paused would result in a disposition of BUSY.
 
 Dial:
  - Now recognizes 'W' to pause sending DTMF for one second in addition to
