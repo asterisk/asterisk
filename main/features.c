@@ -1817,10 +1817,15 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 	if (peer == chan) { /* pu->notquiteyet = 1 */
 		/* Wake up parking thread if we're really done */
-		pu->hold_method = AST_CONTROL_HOLD;
-		ast_indicate_data(chan, AST_CONTROL_HOLD,
-			S_OR(pu->parkinglot->cfg.mohclass, NULL),
-			!ast_strlen_zero(pu->parkinglot->cfg.mohclass) ? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0);
+		if (ast_test_flag(args, AST_PARK_OPT_RINGING)) {
+			pu->hold_method = AST_CONTROL_RINGING;
+			ast_indicate(chan, AST_CONTROL_RINGING);
+		} else {
+			pu->hold_method = AST_CONTROL_HOLD;
+			ast_indicate_data(chan, AST_CONTROL_HOLD,
+				S_OR(pu->parkinglot->cfg.mohclass, NULL),
+				!ast_strlen_zero(pu->parkinglot->cfg.mohclass) ? strlen(pu->parkinglot->cfg.mohclass) + 1 : 0);
+		}
 		pu->notquiteyet = 0;
 		pthread_kill(parking_thread, SIGURG);
 	}
