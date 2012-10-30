@@ -3118,6 +3118,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 
@@ -3126,6 +3127,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 	if (use_weight && compare_weight(qe->parent,tmp->member)) {
