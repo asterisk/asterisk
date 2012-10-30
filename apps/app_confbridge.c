@@ -2273,7 +2273,7 @@ static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd
 		ast_copy_string(bridge->b_profile.rec_file, rec_file, sizeof(bridge->b_profile.rec_file));
 	}
 
-	if (conf_start_record(bridge)) {
+	if (start_conf_record_thread(bridge)) {
 		ast_cli(a->fd, "Could not start recording due to internal error.\n");
 		ao2_unlock(bridge);
 		ao2_ref(bridge, -1);
@@ -2611,7 +2611,7 @@ static int action_confbridgestartrecord(struct mansession *s, const struct messa
 		ast_copy_string(bridge->b_profile.rec_file, recordfile, sizeof(bridge->b_profile.rec_file));
 	}
 
-	if (conf_start_record(bridge)) {
+	if (start_conf_record_thread(bridge)) {
 		astman_send_error(s, m, "Internal error starting conference recording.");
 		ao2_unlock(bridge);
 		ao2_ref(bridge, -1);
