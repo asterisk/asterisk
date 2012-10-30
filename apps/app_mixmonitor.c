@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/mod_format.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -689,6 +690,13 @@ static void *mixmonitor_thread(void *obj)
 
 		ast_audiohook_lock(&mixmonitor->audiohook);
 	}
+
+	/* Test Event */
+	ast_test_suite_event_notify("MIXMONITOR_END", "Channel: %s\r\n"
+									"File: %s\r\n",
+									ast_channel_name(mixmonitor->autochan->chan),
+									mixmonitor->filename);
+
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 
 	ast_autochan_destroy(mixmonitor->autochan);
