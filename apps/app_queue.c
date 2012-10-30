@@ -3170,6 +3170,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			ast_cdr_busy(qe->chan->cdr);
 		}
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 
@@ -3200,6 +3201,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 				ast_cdr_busy(qe->chan->cdr);
 			}
 			tmp->stillgoing = 0;
+			(*busies)++;
 			return 0;
 		}
 	}
