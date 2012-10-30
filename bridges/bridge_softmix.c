@@ -297,7 +297,10 @@ static void softmix_translate_helper_cleanup(struct softmix_translate_helper *tr
 static void softmix_bridge_data_destroy(void *obj)
 {
 	struct softmix_bridge_data *softmix_data = obj;
-	ast_timer_close(softmix_data->timer);
+
+	if (softmix_data->timer) {
+		ast_timer_close(softmix_data->timer);
+	}
 }
 
 /*! \brief Function called when a bridge is created */
