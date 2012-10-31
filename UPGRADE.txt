@@ -17,6 +17,10 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
+from 1.8.18 to 1.8.19:
+* Queue strategy rrmemory now has a predictable order similar to strategy
+  rrordered. Members will be called in the order that they are added to the
+  queue.
 
 From 1.6.2 to 1.8:
 
