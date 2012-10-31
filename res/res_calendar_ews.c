@@ -80,7 +80,9 @@ struct xml_context {
 
 /* Important states of XML parsing */
 enum {
+	XML_EVENT_CALENDAR_ITEM = 9,
 	XML_EVENT_NAME = 10,
+	XML_EVENT_DESCRIPTION,
 	XML_EVENT_START,
 	XML_EVENT_END,
 	XML_EVENT_BUSY,
@@ -180,7 +182,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 
 	/* Nodes needed for traversing until CalendarItem is found */
 	if (!strcmp(name, "Envelope") ||
-		!strcmp(name, "Body") ||
+		(!strcmp(name, "Body") && parent != XML_EVENT_CALENDAR_ITEM) ||
 		!strcmp(name, "FindItemResponse") ||
 		!strcmp(name, "GetItemResponse") ||
 		!strcmp(name, "CreateItemResponse") ||
@@ -228,7 +230,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 			return NE_XML_ABORT;
 		}
 
-		return 1;
+		return XML_EVENT_CALENDAR_ITEM;
 	} else if (!strcmp(name, "ItemId")) {
 		/* Event UID */
 		if (ctx->op == XML_OP_FIND) {
@@ -255,6 +257,13 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 		}
 		ast_str_reset(ctx->cdata);
 		return XML_EVENT_NAME;
+	} else if (!strcmp(name, "Body") && parent == XML_EVENT_CALENDAR_ITEM) {
+		/* Event body/description */
+		if (!ctx->cdata) {
+			return NE_XML_ABORT;
+		}
+		ast_str_reset(ctx->cdata);
+		return XML_EVENT_DESCRIPTION;
 	} else if (!strcmp(name, "Start")) {
 		/* Event start time */
 		return XML_EVENT_START;
@@ -386,6 +395,11 @@ static int endelm(void *userdata, int state, const char *nspace, const char *nam
 		/* Event name end*/
 		ast_string_field_set(ctx->event, summary, ast_str_buffer(ctx->cdata));
 		ast_debug(3, "EWS: XML: Summary: %s\n", ctx->event->summary);
+		ast_str_reset(ctx->cdata);
+	} else if (!strcmp(name, "Body") && state == XML_EVENT_DESCRIPTION) {
+		/* Event body/description end */
+		ast_string_field_set(ctx->event, description, ast_str_buffer(ctx->cdata));
+		ast_debug(3, "EWS: XML: Description: %s\n", ctx->event->description);
 		ast_str_reset(ctx->cdata);
 	} else if (!strcmp(name, "Organizer")) {
 		/* Event organizer end */
