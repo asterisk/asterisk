@@ -1,0 +1,147 @@
+                                Release Summary
+
+                        certified-asterisk-1.8.11-cert8
+
+                                Date: 2012-10-31
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, certified-asterisk-1.8.11-cert7.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   4 mjordan                2 Dan Delaney            1 drdelaney              
+   3 rmudgett               2 Julian Yap             1 one47                  
+   2 kmoore                 2 Steve Davies           1 themsley               
+   1 Mark                   2 Terry Wilson           
+                            1 Thomas Arimont         
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-19923: Asterisk crashing due to memory corruptions in
+   chan_sip/voicemail
+   Revision: 375568
+   Reporter: drdelaney
+   Testers: Steve Davies, Terry Wilson, Dan Delaney, Julian Yap
+   Coders: kmoore
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-19992: SIP re-INVITEs have no transaction timeout
+   Revision: 375568
+   Reporter: one47
+   Testers: Steve Davies, Terry Wilson, Dan Delaney, Julian Yap
+   Coders: kmoore
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author   | Summary                             | Issues     |
+   |          |          |                                     | Referenced |
+   |----------+----------+-------------------------------------+------------|
+   | 374540   | rmudgett | Multiple revisions 370563,374536    |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | app_queue: Made pass connected line |            |
+   | 374806   | rmudgett | updates from the caller to ringing  |            |
+   |          |          | queue members.                      |            |
+   |----------+----------+-------------------------------------+------------|
+   | 374832   | rmudgett | Fix compiler warnings.              |            |
+   |----------+----------+-------------------------------------+------------|
+   | 374847   | mjordan  | Fix incorrect billing duration      |            |
+   |          |          | reported when batch mode is enabled |            |
+   |----------+----------+-------------------------------------+------------|
+   | 375024   | mjordan  | Properly handle UAC/UAS roles for   |            |
+   |          |          | SIP session timers                  |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | app_queue: Make ordering of         |            |
+   | 375569   | mjordan  | rrmemory/rrordered persist over     |            |
+   |          |          | add/remove members                  |            |
+   |----------+----------+-------------------------------------+------------|
+   | 375570   | mjordan  | Multiple revisions 375242,375244    |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ UPGRADE.txt                      |    4
+ apps/app_queue.c                 |  159 ++++++++++++++++++++++++++--
+ apps/app_voicemail.c             |   83 ++++++++++----
+ channels/chan_misdn.c            |   34 ++----
+ channels/chan_sip.c              |  186 ++++++++++++++++++++------------
+ channels/misdn/isdn_lib.c        |  220 ++++++---------------------------------
+ channels/misdn/isdn_lib.h        |    9 -
+ channels/misdn/isdn_msg_parser.c |   12 +-
+ channels/sip/include/sip.h       |   26 +++-
+ configs/sip.conf.sample          |   11 +
+ funcs/func_math.c                |    2
+ include/asterisk/tcptls.h        |   17 +++
+ main/cdr.c                       |    6 -
+ main/cel.c                       |    7 -
+ main/ssl.c                       |    2
+ main/tcptls.c                    |   35 +++++-
+ 16 files changed, 465 insertions(+), 348 deletions(-)
+
+     ----------------------------------------------------------------------
