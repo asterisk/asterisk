@@ -421,8 +421,6 @@ static int crement_function_read(struct ast_channel *chan, const char *cmd,
 		modify_orig = 1;
 	}
 
-	ast_log(LOG_NOTICE, "The value is now: %d\n", int_value);
-
 	if (snprintf(returnvar, sizeof(returnvar), "%d", int_value) > 0) {
 		pbx_builtin_setvar_helper(chan, data, returnvar);
 		if (modify_orig) {
