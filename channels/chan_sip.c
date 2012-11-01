@@ -30934,7 +30934,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 static int peer_markall_func(void *device, void *arg, int flags)
 {
 	struct sip_peer *peer = device;
-	if (!peer->selfdestruct || sip_cfg.autocreatepeer != AUTOPEERS_PERSIST) {
+	if (!peer->selfdestruct) {
+		peer->the_mark = 1;
+	}
+	return 0;
+}
+
+static int peer_markall_autopeers_func(void *device, void *arg, int flags)
+{
+	struct sip_peer *peer = device;
+	if (peer->selfdestruct) {
 		peer->the_mark = 1;
 	}
 	return 0;
@@ -31076,6 +31085,11 @@ static int reload_config(enum channelreloadreason reason)
 		ast_mutex_unlock(&authl_lock);
 
 		cleanup_all_regs();
+
+		/* Then, actually destroy users and registry */
+		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+		ast_debug(4, "--------------- Done destroying registry list\n");
+		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
 
 	/* Reset certificate handling for TLS sessions */
@@ -31802,11 +31816,8 @@ static int reload_config(enum channelreloadreason reason)
 		max_subexpiry = max_expiry;
 	}
 
-	if (reason != CHANNEL_MODULE_LOAD) {
-		/* Then, actually destroy users and registry */
-		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-		ast_debug(4, "--------------- Done destroying registry list\n");
-		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
+	if (reason != CHANNEL_MODULE_LOAD && sip_cfg.autocreatepeer != AUTOPEERS_PERSIST) {
+		ao2_t_callback(peers, OBJ_NODATA, peer_markall_autopeers_func, NULL, "callback to mark autopeers for destruction");
 	}
 
 	if (subscribe_network_change) {

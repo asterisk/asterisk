@@ -510,14 +510,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;refer_addheaders=yes	; on by default
 
-;autocreatepeers=no             ; Allow any not exsplicitly defined here UAC to register
-                                ; WITHOUT AUTHENTICATION. Enabling this options poses a high
-                                ; potential security risk and should be avoided unless the 
-                                ; server is behind a trusted firewall. 
-                                ; When enabled by setting to "yes", the autocreated peers are
-                                ; pruned immediately when the "sip reload" command is issued
-                                ; through CLI. When enabled by setting to "persist", the auto-
-                                ; created peers survive the "sip reload" command.
+;autocreatepeer=no             ; Allow any UAC not explicitly defined to register
+                               ; WITHOUT AUTHENTICATION. Enabling this options poses a high
+                               ; potential security risk and should be avoided unless the
+                               ; server is behind a trusted firewall.
+                               ; If set to "yes", then peers created in this fashion
+                               ; are purged during SIP reloads.
+                               ; When set to "persist", the peers created in this fashion
+                               ; are not purged during SIP reloads.
 
 ;
 ;------------------------ TLS settings ------------------------------------------------------------
