@@ -683,7 +683,7 @@ static void ast_chan_trace_destroy_cb(void *data)
 }
 
 /*! \brief Datastore to put the linked list of ast_chan_trace and trace status */
-static const const struct ast_datastore_info ast_chan_trace_datastore_info = {
+static const struct ast_datastore_info ast_chan_trace_datastore_info = {
 	.type = "ChanTrace",
 	.destroy = ast_chan_trace_destroy_cb
 };
@@ -2577,7 +2577,7 @@ static void ast_dummy_channel_destructor(void *obj)
 	ast_string_field_free_memory(chan);
 }
 
-struct ast_datastore *ast_channel_datastore_alloc(const const struct ast_datastore_info *info, const char *uid)
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
 {
 	return ast_datastore_alloc(info, uid);
 }
@@ -2618,7 +2618,7 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
 	return AST_LIST_REMOVE(&chan->datastores, datastore, entry) ? 0 : -1;
 }
 
-struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const const struct ast_datastore_info *info, const char *uid)
+struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid)
 {
 	struct ast_datastore *datastore = NULL;
 	
@@ -6313,7 +6313,7 @@ static void xfer_ds_destroy(void *data)
 	ast_free(ds);
 }
 
-static const const struct ast_datastore_info xfer_ds_info = {
+static const struct ast_datastore_info xfer_ds_info = {
 	.type = "xfer_colp",
 	.destroy = xfer_ds_destroy,
 };
@@ -9772,7 +9772,7 @@ static void channel_cc_params_destroy(void *data)
 	ast_cc_config_params_destroy(cc_params);
 }
 
-static const const struct ast_datastore_info cc_channel_datastore_info = {
+static const struct ast_datastore_info cc_channel_datastore_info = {
 	.type = "Call Completion",
 	.duplicate = channel_cc_params_copy,
 	.destroy = channel_cc_params_destroy,

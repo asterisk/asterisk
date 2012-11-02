@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right)
 {
 	size_t f_len;
-	const const struct ast_format_list *f_list = ast_format_list_get(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 	int x, differential = (int) 'A', mem;
 	char *from, *to;
 
@@ -120,7 +120,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, struct ast_format *forma
 	struct ast_codec_pref oldorder;
 	int x, y = 0;
 	size_t f_len = 0;
-	const const struct ast_format_list *f_list;
+	const struct ast_format_list *f_list;
 
 	if (!pref->order[0]) {
 		return;
