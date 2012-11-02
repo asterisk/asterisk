@@ -9216,8 +9216,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			/* If we end up receiving SDP that doesn't actually modify the session we don't want to treat this as a fatal
 			 * error. We just want to ignore the SDP and let the rest of the packet be handled as normal.
 			 */
-			if (!process_sdp_o(value, p))
+			if (!process_sdp_o(value, p)) {
 				return (p->session_modify == FALSE) ? 0 : -1;
+			}
+			processed = TRUE;
 			break;
 		case 'c':
 			if (process_sdp_c(value, &sessionsa)) {
