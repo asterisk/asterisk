@@ -8918,11 +8918,20 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		CHANNEL_DEADLOCK_AVOIDANCE(ast);
 
 		/*
-		 * For PRI channels, we must refresh the private pointer because
-		 * the call could move to another B channel while the Asterisk
-		 * channel is unlocked.
+		 * Check to see if the channel is still associated with the same
+		 * private structure.  While the Asterisk channel was unlocked
+		 * the following events may have occured:
+		 *
+		 * 1) A masquerade may have associated the channel with another
+		 * technology or private structure.
+		 *
+		 * 2) For PRI calls, call signaling could change the channel
+		 * association to another B channel (private structure).
 		 */
-		p = ast->tech_pvt;
+		if (ast->tech_pvt != p) {
+			/* The channel is no longer associated.  Quit gracefully. */
+			return &ast_null_frame;
+		}
 	}
 
 	idx = dahdi_get_index(ast, p, 0);
