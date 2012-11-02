@@ -9937,6 +9937,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				res = (p->session_modify == FALSE) ? 0 : -1;
 				goto process_sdp_cleanup;
 			}
+			processed = TRUE;
 			break;
 		case 'c':
 			if (process_sdp_c(value, &sessionsa)) {
