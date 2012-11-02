@@ -4242,6 +4242,22 @@ static void start_rtp(struct skinny_subchannel *sub)
 	ast_mutex_unlock(&sub->lock);
 }
 
+static void destroy_rtp(struct skinny_subchannel *sub)
+{
+	if (sub->rtp) {
+		SKINNY_DEBUG(DEBUG_AUDIO, 3, "Sub %d - Destroying RTP\n", sub->callid);
+		ast_rtp_instance_stop(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
+		sub->rtp = NULL;
+	}
+	if (sub->vrtp) {
+		SKINNY_DEBUG(DEBUG_AUDIO, 3, "Sub %d - Destroying VRTP\n", sub->callid);
+		ast_rtp_instance_stop(sub->vrtp);
+		ast_rtp_instance_destroy(sub->vrtp);
+		sub->vrtp = NULL;
+	}
+}
+
 static void *skinny_newcall(void *data)
 {
 	struct ast_channel *c = data;
@@ -4475,10 +4491,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	ast_mutex_lock(&sub->lock);
 	sub->owner = NULL;
 	ast_channel_tech_pvt_set(ast, NULL);
-	if (sub->rtp) {
-		ast_rtp_instance_destroy(sub->rtp);
-		sub->rtp = NULL;
-	}
+	destroy_rtp(sub);
 	ast_mutex_unlock(&sub->lock);
 	ast_free(sub);
 	ast_module_unref(ast_module_info->self);
@@ -5090,20 +5103,17 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 				transmit_closereceivechannel(d, sub);
 				transmit_stopmediatransmission(d, sub);
 			}
-			
+
 			if (subline->callid) {
 				transmit_stop_tone(d, l->instance, sub->callid);
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
 				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE);
 				transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
 			}
-			
-			sub->cxmode = SKINNY_CX_RECVONLY;	
+
+			sub->cxmode = SKINNY_CX_RECVONLY;
 			sub->substate = SUBSTATE_ONHOOK;
-			if (sub->rtp) {
-				ast_rtp_instance_destroy(sub->rtp);
-				sub->rtp = NULL;
-			}
+			destroy_rtp(sub);
 			sub->substate = SUBSTATE_ONHOOK;
 			if (sub->owner) {
 				ast_queue_hangup(sub->owner);
@@ -5211,12 +5221,9 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_clearpromptmessage(d, l->instance, sub->callid);
 		}
 
-		sub->cxmode = SKINNY_CX_RECVONLY;	
+		sub->cxmode = SKINNY_CX_RECVONLY;
 		sub->substate = SUBSTATE_ONHOOK;
-		if (sub->rtp) {
-			ast_rtp_instance_destroy(sub->rtp);
-			sub->rtp = NULL;
-		}
+		destroy_rtp(sub);
 		if (sub->owner) {
 			ast_queue_hangup(sub->owner);
 		}
