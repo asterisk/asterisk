@@ -1043,6 +1043,7 @@ struct member {
 	int realtime;                        /*!< Is this member realtime? */
 	int status;                          /*!< Status of queue member */
 	int paused;                          /*!< Are we paused (not accepting calls)? */
+	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
@@ -1260,6 +1261,60 @@ static int queue_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct call_queue *q = obj, *q2 = arg;
 	return !strcasecmp(q->name, q2->name) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/*! \internal
+ * \brief ao2_callback, Decreases queuepos of all followers with a queuepos greater than arg.
+ * \param obj the member being acted on
+ * \param arg pointer to an integer containing the position value that was removed and requires reduction for anything above
+ */
+static int queue_member_decrement_followers(void *obj, void *arg, int flag)
+{
+	struct member *mem = obj;
+	int *decrement_followers_after = arg;
+
+	if (mem->queuepos > *decrement_followers_after) {
+		mem->queuepos--;
+	}
+
+	return 0;
+}
+
+/*! \internal
+ * \brief ao2_callback, finds members in a queue marked for deletion and in a cascading fashion runs queue_member_decrement_followers
+ *        on them. This callback should always be ran before performing mass unlinking of delmarked members from queues.
+ * \param obj member being acted on
+ * \param arg pointer to the queue members are being removed from
+ */
+static int queue_delme_members_decrement_followers(void *obj, void *arg, int flag)
+{
+	struct member *mem = obj;
+	struct call_queue *queue = arg;
+	int rrpos = mem->queuepos;
+
+	if (mem->delme) {
+		ao2_callback(queue->members, OBJ_NODATA | OBJ_MULTIPLE, queue_member_decrement_followers, &rrpos);
+	}
+
+	return 0;
+}
+
+/*! \internal
+ * \brief Use this to decrement followers during removal of a member
+ * \param queue which queue the member is being removed from
+ * \param mem which member is being removed from the queue
+ */
+static void queue_member_follower_removal(struct call_queue *queue, struct member *mem)
+{
+	int pos = mem->queuepos;
+
+	/* If the position being removed is less than the current place in the queue, reduce the queue position by one so that we don't skip the member
+	 * who would have been next otherwise. */
+	if (pos < queue->rrpos) {
+		queue->rrpos--;
+	}
+
+	ao2_callback(queue->members, OBJ_NODATA | OBJ_MULTIPLE, queue_member_decrement_followers, &pos);
 }
 
 #ifdef REF_DEBUG_ONLY_QUEUES
@@ -2086,6 +2141,34 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	}
 }
 
+/*! \internal
+ * \brief If adding a single new member to a queue, use this function instead of ao2_linking.
+ *        This adds round robin queue position data for a fresh member as well as links it.
+ * \param queue Which queue the member is being added to
+ * \param mem Which member is being added to the queue
+ */
+static void member_add_to_queue(struct call_queue *queue, struct member *mem)
+{
+	ao2_lock(queue->members);
+	mem->queuepos = ao2_container_count(queue->members);
+	ao2_link(queue->members, mem);
+	ao2_unlock(queue->members);
+}
+
+/*! \internal
+ * \brief If removing a single member from a queue, use this function instead of ao2_unlinking.
+ *        This will perform round robin queue position reordering for the remaining members.
+ * \param queue Which queue the member is being removed from
+ * \param member Which member is being removed from the queue
+ */
+static void member_remove_from_queue(struct call_queue *queue, struct member *mem)
+{
+	ao2_lock(queue->members);
+	queue_member_follower_removal(queue, mem);
+	ao2_unlink(queue->members, mem);
+	ao2_unlock(queue->members);
+}
+
 /*!
  * \brief Find rt member record to update otherwise create one.
  *
@@ -2144,7 +2227,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			m->realtime = 1;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
-			ao2_link(q->members, m);
+			member_add_to_queue(q, m);
 			ao2_ref(m, -1);
 			m = NULL;
 		}
@@ -2160,7 +2243,7 @@ static void free_members(struct call_queue *q, int all)
 
 	while ((cur = ao2_iterator_next(&mem_iter))) {
 		if (all || !cur->dynamic) {
-			ao2_unlink(q->members, cur);
+			member_remove_from_queue(q, cur);
 		}
 		ao2_ref(cur, -1);
 	}
@@ -2325,7 +2408,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	while ((m = ao2_iterator_next(&mem_iter))) {
 		if (m->dead) {
 			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
-			ao2_unlink(q->members, m);
+			member_remove_from_queue(q, m);
 		}
 		ao2_ref(m, -1);
 	}
@@ -2414,7 +2497,17 @@ static void update_realtime_members(struct call_queue *q)
 	struct ao2_iterator mem_iter;
 
 	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , SENTINEL))) {
-		/*This queue doesn't have realtime members*/
+		/* This queue doesn't have realtime members. If the queue still has any realtime
+		 * members in memory, they need to be removed.
+		 */
+		ao2_lock(q);
+		mem_iter = ao2_iterator_init(q->members, 0);
+		while ((m = ao2_iterator_next(&mem_iter))) {
+			if (m->realtime) {
+				member_remove_from_queue(q, m);
+			}
+			ao2_ref(m, -1);
+		}
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
 		return;
 	}
@@ -2444,7 +2537,7 @@ static void update_realtime_members(struct call_queue *q)
 	while ((m = ao2_iterator_next(&mem_iter))) {
 		if (m->dead) {
 			ast_queue_log(q->name, "REALTIME", m->interface, "REMOVEMEMBER", "%s", "");
-			ao2_unlink(q->members, m);
+			member_remove_from_queue(q, m);
 		}
 		ao2_ref(m, -1);
 	}
@@ -4171,6 +4264,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		break;
 	case QUEUE_STRATEGY_RRORDERED:
 	case QUEUE_STRATEGY_RRMEMORY:
+		pos = mem->queuepos;
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
 		} else {
@@ -5303,7 +5397,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				"Location: %s\r\n"
 				"MemberName: %s\r\n",
 				q->name, mem->interface, mem->membername);
-			ao2_unlink(q->members, mem);
+			member_remove_from_queue(q, mem);
 			ao2_ref(mem, -1);
 
 			if (queue_persistent_members)
@@ -5342,7 +5436,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	if ((old_member = interface_exists(q, interface)) == NULL) {
 		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface))) {
 			new_member->dynamic = 1;
-			ao2_link(q->members, new_member);
+			member_add_to_queue(q, new_member);
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -6700,9 +6794,20 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 
 	/* Find the old position in the list */
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
-	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
+	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER);
+
 	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface))) {
-		ao2_link(q->members, newm);
+		if (cur) {
+			/* Round Robin Queue Position must be copied if this is replacing an existing member */
+			ao2_lock(q->members);
+			newm->queuepos = cur->queuepos;
+			ao2_link(q->members, newm);
+			ao2_unlink(q->members, cur);
+			ao2_unlock(q->members);
+		} else {
+			/* Otherwise we need to add using the function that will apply a round robin queue position manually. */
+			member_add_to_queue(q, newm);
+		}
 		ao2_ref(newm, -1);
 	}
 	newm = NULL;
@@ -6828,7 +6933,10 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 
 	/* Free remaining members marked as delme */
 	if (member_reload) {
+		ao2_lock(q->members);
+		ao2_callback(q->members, OBJ_NODATA | OBJ_MULTIPLE, queue_delme_members_decrement_followers, q);
 		ao2_callback(q->members, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, kill_dead_members, q);
+		ao2_unlock(q->members);
 	}
 
 	if (new) {

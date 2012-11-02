@@ -17,6 +17,10 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
+from 1.8.17 to 1.8.18:
+* Queue strategy rrmemory now has a predictable order similar to strategy
+  rrordered. Members will be called in the order that they are added to the
+  queue.
 
 From 1.8.11 to 1.8.12:
 * In AEL dialplans, the "h" extension will now be inherited from prior
