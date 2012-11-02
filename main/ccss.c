@@ -1856,7 +1856,7 @@ static void *dialed_cc_interfaces_duplicate(void *data)
  * more information regarding the actual structure of the tree, see
  * the documentation provided in include/asterisk/ccss.h
  */
-static const const struct ast_datastore_info dialed_cc_interfaces_info = {
+static const struct ast_datastore_info dialed_cc_interfaces_info = {
 	.type = "Dial CC Interfaces",
 	.duplicate = dialed_cc_interfaces_duplicate,
 	.destroy = dialed_cc_interfaces_destroy,

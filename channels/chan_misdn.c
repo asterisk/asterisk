@@ -2742,7 +2742,7 @@ static void print_facility_IntResult(unsigned Level, const struct FacForwardingR
 }
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
-static void print_facility(const struct FacParm *fac, const const struct misdn_bchannel *bc)
+static void print_facility(const struct FacParm *fac, const struct misdn_bchannel *bc)
 {
 #if defined(AST_MISDN_ENHANCEMENTS)
 	unsigned Index;
