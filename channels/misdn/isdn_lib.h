@@ -520,9 +520,6 @@ struct misdn_bchannel {
 	/*! \brief TRUE if AOCDtype and AOCD data are ready to export to Asterisk */
 	int AOCD_need_export;
 
-	/*! \brief Event waiting for Layer 1 to come up */
-	enum event_e evq;
-
 	/*** CRYPTING STUFF ***/
 	int crypt;		/* Initialized, Not used */
 	int curprx;		/* Initialized, Not used */
