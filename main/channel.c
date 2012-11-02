@@ -2499,6 +2499,13 @@ static void ast_dummy_channel_destructor(void *obj)
 	struct ast_channel *chan = obj;
 	struct ast_var_t *vardata;
 	struct varshead *headp;
+	struct ast_datastore *datastore;
+
+	/* Get rid of each of the data stores on the channel */
+	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry))) {
+		/* Free the data store */
+		ast_datastore_free(datastore);
+	}
 
 	headp = &chan->varshead;
 
