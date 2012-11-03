@@ -68,7 +68,7 @@
  * \arg \b Main:  Asterisk Developer's website http://www.asterisk.org/developers/
  * \arg \b Bugs: The Issue Tracker https://issues.asterisk.org
  * \arg \b Lists: List Server http://lists.digium.com
- * \arg \b Wiki: The Asterisk Wiki 	http://www.voip-info.org
+ * \arg \b Wiki: The Asterisk Wiki 	http://wiki.asterisk..org
  * \arg \b Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
  * \arg \b Digium: The Asterisk Company http://www.digium.com
  */
@@ -93,7 +93,21 @@
  * \arg \ref AstDataRetrieval
  *
  * \subsection model_txt Generic Model
- * \verbinclude model.txt
+ * Description of call model:
+ * Incoming Call:
+ * 	Channel backend waits for a RING or equivalent on some sort of
+ * interface. Typically this is done in its own thread.  When a RING is
+ * detected, the backend should create a channel structure and then call
+ * ast_pbx_start() on that channel, which will create a thread to monitor
+ * that interface.  At this point, the PBX and/or applications it launches
+ * will manage the interface, and it need not be monitored by the
+ * aforementioned thread.  When the applications are finished, the requisite
+ * hangup function will be called, at which the channel can be considered to
+ * be no longer valid, and the thread that controls it will imminently be
+ * terminated. 
+ *
+ *
+ * \todo Link to wiki content
  * \subsection channel_txt Channels
  * \arg See \ref Def_Channel
  */
@@ -135,19 +149,25 @@
 /*! 
  * \page AstDebug Debugging
  * \section debug Debugging
- * \verbinclude backtrace.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Getting+a+Backtrace
+ * for more information
  */
 
 /*!
  * \page AstSpeech The Generic Speech Recognition API
  * \section debug The Generic Speech Recognition API
- * \verbinclude speechrec.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Speech+Recognition+API
+ * for more information
  */
 
 /*! 
  * \page DataStores Channel Data Stores
  * \section debug Channel Data Stores
- * \verbinclude datastores.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Asterisk+Channel+Data+Stores
+ * for more information
  */
 
 /*! 
@@ -155,7 +175,9 @@
  * \section ami AMI - The manager Interface
  * \arg \link Config_ami Configuration file \endlink
  * \arg \ref manager.c
- * \verbinclude manager.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Asterisk+Manager+Interface+%28AMI%29
+ * for more information
  */
 
 /*!
@@ -163,8 +185,7 @@
  * \section realtime ARA - a generic API to storage and retrieval
  * Implemented in \ref config.c 
  * Implemented in \ref pbx_realtime.c 
- * \verbinclude realtime.txt
- * \verbinclude extconfig.txt
+ * https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
  */
 
 /*! 
@@ -182,7 +203,7 @@
  * \par References
  * \arg DUNDi is documented at http://www.dundi.com
  * \arg Implemented in \ref pbx_dundi.c and \ref dundi-parser.c
- * \arg Configuration in \link Config_dun dundi.conf \endlink
+ * \arg Configuration in \ref dundi.conf
  */
 
 /*! 
@@ -193,7 +214,9 @@
  * \arg \ref cdr_drivers
  * \arg \ref Config_cdr CDR configuration files
  *
- * \verbinclude cdrdriver.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/CDR+Storage+Backends
+ * for more information
  */
 
 /*! 
@@ -209,7 +232,9 @@
 /*! 
  * \page AstVideo Video support in Asterisk
  * \section sectAstVideo Video support in Asterisk
- * \verbinclude video.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Video+Telephony
+ * for more information
  */
 
 /*! 
@@ -224,7 +249,9 @@
  * - \ref pbx_retrieve_variable()
  * - \ref AstChanVar
  *
- *  \verbinclude channelvariables.tex
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Channel+Variables
+ * for more information
  */
 
 /*! 
@@ -281,7 +308,9 @@
  * \arg \ref enum.c
  * \arg \ref func_enum.c
  *
- * \verbinclude enum.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/The+ENUMLOOKUP+Dialplan+Function
+ * for more information
  */
 
 /*! 
@@ -372,12 +401,16 @@
  * \page Config_iax IAX2 configuration
  * IAX2 is implemented in \ref chan_iax2.c
  * \arg \link Config_iax iax.conf Configuration file example \endlink
- * \section iaxreadme IAX readme file
- * \verbinclude iax.txt
+ * \section iaxreadme IAX2
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/Inter-Asterisk+eXchange+protocol%2C+version+2+%28IAX2%29
+ * for more information
  * \section Config_iax IAX Configuration example
  * \verbinclude iax.conf.sample
  * \section iaxjitter IAX Jitterbuffer information
- * \verbinclude jitterbuffer.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/IAX2+Jitterbuffer
+ * for more information
  */
 
 /*! 
@@ -409,7 +442,9 @@
  * \page README_misdn MISDN documentation
  * \arg See \ref Config_misdn
  * \section mISDN configuration
- * \verbinclude misdn.txt
+ * Please see the documentation on the wiki at
+ * https://wiki.asterisk.org/wiki/display/AST/mISDN
+ * for more information
  */
 
 /*! 
@@ -728,7 +763,7 @@
  * \arg Configuration file:
  * \verbinclude res_config_sqlite.conf
  * \arg SQL tables:
- * \verbinclude res_config_sqlite.txt
+ * https://wiki.asterisk.org/wiki/display/AST/SQLite+Tables
  * \arg See also:
  * http://www.sqlite.org
  */
