@@ -5512,6 +5512,10 @@ static void purge_sessions(int n_max)
 	time_t now = time(NULL);
 	struct ao2_iterator i;
 
+	if (!sessions) {
+		return;
+	}
+
 	i = ao2_iterator_init(sessions, 0);
 	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
 		ao2_lock(session);
