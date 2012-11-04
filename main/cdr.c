@@ -1424,11 +1424,13 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 	newtail->cdr = cdr;
 	batch->tail = newtail;
 	curr = batch->size++;
-	ast_mutex_unlock(&cdr_batch_lock);
 
 	/* if we have enough stuff to post, then do it */
-	if (curr >= (batchsize - 1))
+	if (curr >= (batchsize - 1)) {
 		submit_unscheduled_batch();
+	}
+
+	ast_mutex_unlock(&cdr_batch_lock);
 }
 
 static void *do_cdr(void *data)
