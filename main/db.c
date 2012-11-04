@@ -141,6 +141,36 @@ static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
 	return 0;
 }
 
+/*! \internal
+ * \brief Clean up the prepared SQLite3 statement
+ * \note dblock should already be locked prior to calling this method
+ */
+static int clean_stmt(sqlite3_stmt *stmt, const char *sql)
+{
+	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+		ast_log(LOG_WARNING, "Couldn't finalize statement '%s': %s\n", sql, sqlite3_errmsg(astdb));
+		return -1;
+	}
+	return 0;
+}
+
+/*! \internal
+ * \brief Clean up all prepared SQLite3 statements
+ * \note dblock should already be locked prior to calling this method
+ */
+static void clean_statements(void)
+{
+	clean_stmt(get_stmt, get_stmt_sql);
+	clean_stmt(del_stmt, del_stmt_sql);
+	clean_stmt(deltree_stmt, deltree_stmt_sql);
+	clean_stmt(deltree_all_stmt, deltree_all_stmt_sql);
+	clean_stmt(gettree_stmt, gettree_stmt_sql);
+	clean_stmt(gettree_all_stmt, gettree_all_stmt_sql);
+	clean_stmt(showkey_stmt, showkey_stmt_sql);
+	clean_stmt(put_stmt, put_stmt_sql);
+	clean_stmt(create_astdb_stmt, create_astdb_stmt_sql);
+}
+
 static int init_statements(void)
 {
 	/* Don't initialize create_astdb_statment here as the astdb table needs to exist
@@ -955,6 +985,7 @@ static void *db_sync_thread(void *data)
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void astdb_atexit(void)
 {
+	ast_cli_unregister_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_unregister("DBGet");
 	ast_manager_unregister("DBPut");
 	ast_manager_unregister("DBDel");
@@ -969,7 +1000,10 @@ static void astdb_atexit(void)
 
 	pthread_join(syncthread, NULL);
 	ast_mutex_lock(&dblock);
-	sqlite3_close(astdb);
+	clean_statements();
+	if (sqlite3_close(astdb) == SQLITE_OK) {
+		astdb = NULL;
+	}
 	ast_mutex_unlock(&dblock);
 }
 
