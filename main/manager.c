@@ -6616,6 +6616,23 @@ static void load_channelvars(struct ast_variable *var)
 	AST_RWLIST_UNLOCK(&channelvars);
 }
 
+/*! \internal \brief Free a user record.  Should already be removed from the list */
+static void manager_free_user(struct ast_manager_user *user)
+{
+	if (user->a1_hash) {
+		ast_free(user->a1_hash);
+	}
+	if (user->secret) {
+		ast_free(user->secret);
+	}
+	ao2_t_callback(user->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
+	ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
+	ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
+	ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
+	ast_free_ha(user->ha);
+	ast_free(user);
+}
+
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void manager_shutdown(void)
 {
@@ -6656,6 +6673,23 @@ static void manager_shutdown(void)
 		ast_manager_unregister("ModuleCheck");
 		ast_manager_unregister("AOCMessage");
 		ast_manager_unregister("Filter");
+		ast_cli_unregister_multiple(cli_manager, ARRAY_LEN(cli_manager));
+	}
+
+	ast_tcptls_server_stop(&ami_desc);
+	ast_tcptls_server_stop(&amis_desc);
+
+	if (ami_tls_cfg.certfile) {
+		ast_free(ami_tls_cfg.certfile);
+		ami_tls_cfg.certfile = NULL;
+	}
+	if (ami_tls_cfg.pvtfile) {
+		ast_free(ami_tls_cfg.pvtfile);
+		ami_tls_cfg.pvtfile = NULL;
+	}
+	if (ami_tls_cfg.cipher) {
+		ast_free(ami_tls_cfg.cipher);
+		ami_tls_cfg.cipher = NULL;
 	}
 
 	if (sessions) {
@@ -6664,12 +6698,9 @@ static void manager_shutdown(void)
 	}
 
 	while ((user = AST_LIST_REMOVE_HEAD(&users, list))) {
-		ao2_ref(user->whitefilters, -1);
-		ao2_ref(user->blackfilters, -1);
-		ast_free(user);
+		manager_free_user(user);
 	}
 }
-
 
 static int __init_manager(int reload)
 {
@@ -7047,19 +7078,7 @@ static int __init_manager(int reload)
 		/* We do not need to keep this user so take them out of the list */
 		AST_RWLIST_REMOVE_CURRENT(list);
 		ast_debug(4, "Pruning user '%s'\n", user->username);
-		/* Free their memory now */
-		if (user->a1_hash) {
-			ast_free(user->a1_hash);
-		}
-		if (user->secret) {
-			ast_free(user->secret);
-		}
-		ao2_t_callback(user->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
-		ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
-		ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
-		ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
-		ast_free_ha(user->ha);
-		ast_free(user);
+		manager_free_user(user);
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
