@@ -2251,6 +2251,9 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 				continue;
 			}
 			name = ast_xml_get_attribute(node, "name");
+			if (!name) {
+				continue;
+			}
 
 			switch (xmldoc_get_syntax_type(type)) {
 			case MANAGER_EVENT_SYNTAX:
@@ -2276,6 +2279,7 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 			default:
 				item = xmldoc_build_documentation_item(node, name, type);
 			}
+			ast_xml_free_attr(name);
 
 			if (item) {
 				ao2_link(docs, item);
@@ -2335,12 +2339,13 @@ static int xml_pathmatch(char *xmlpattern, int xmlpattern_maxlen, glob_t *globbu
 /*! \brief Close and unload XML documentation. */
 static void xmldoc_unload_documentation(void)
 {
-        struct documentation_tree *doctree;
+	struct documentation_tree *doctree;
 
 	AST_RWLIST_WRLOCK(&xmldoc_tree);
 	while ((doctree = AST_RWLIST_REMOVE_HEAD(&xmldoc_tree, entry))) {
 		ast_free(doctree->filename);
 		ast_xml_close(doctree->doc);
+		ast_free(doctree);
 	}
 	AST_RWLIST_UNLOCK(&xmldoc_tree);
 
