@@ -1944,6 +1944,7 @@ static void xmldoc_unload_documentation(void)
 	while ((doctree = AST_RWLIST_REMOVE_HEAD(&xmldoc_tree, entry))) {
 		ast_free(doctree->filename);
 		ast_xml_close(doctree->doc);
+		ast_free(doctree);
 	}
 	AST_RWLIST_UNLOCK(&xmldoc_tree);
 
