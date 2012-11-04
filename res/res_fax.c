@@ -2583,7 +2583,9 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	}
 	/* release the reference for the reserved session and replace it with
 	 * the real session */
-	ao2_ref(gateway->s, -1);
+	if (gateway->s) {
+		ao2_ref(gateway->s, -1);
+	}
 	gateway->s = s;
 	gateway->token = NULL;
 
