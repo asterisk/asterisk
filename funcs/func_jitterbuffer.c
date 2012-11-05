@@ -219,7 +219,10 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	}
 
 	if (ast_channel_fdno(chan) == AST_JITTERBUFFER_FD && framedata->timer) {
-		ast_timer_ack(framedata->timer, 1);
+		if (ast_timer_ack(framedata->timer, 1) < 0) {
+			ast_log(LOG_ERROR, "Failed to acknowledge timer in jitter buffer\n");
+			return frame;
+		}
 	}
 
 	if (!frame) {

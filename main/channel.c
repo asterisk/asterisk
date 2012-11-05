@@ -2431,6 +2431,7 @@ static void ast_channel_destructor(void *obj)
 	ast_channel_internal_alertpipe_close(chan);
 	if (ast_channel_timer(chan)) {
 		ast_timer_close(ast_channel_timer(chan));
+		ast_channel_timer_set(chan, NULL);
 	}
 #ifdef HAVE_EPOLL
 	for (i = 0; i < AST_MAX_FDS; i++) {
@@ -3940,7 +3941,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 		switch (res) {
 		case AST_TIMING_EVENT_EXPIRED:
-			ast_timer_ack(ast_channel_timer(chan), 1);
+			if (ast_timer_ack(ast_channel_timer(chan), 1) < 0) {
+				ast_log(LOG_ERROR, "Failed to acknoweldge timer in ast_read\n");
+				goto done;
+			}
 
 			if (ast_channel_timingfunc(chan)) {
 				/* save a copy of func/data before unlocking the channel */

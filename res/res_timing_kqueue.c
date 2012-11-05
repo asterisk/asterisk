@@ -51,7 +51,7 @@ static void *timing_funcs_handle;
 static int kqueue_timer_open(void);
 static void kqueue_timer_close(int handle);
 static int kqueue_timer_set_rate(int handle, unsigned int rate);
-static void kqueue_timer_ack(int handle, unsigned int quantity);
+static int kqueue_timer_ack(int handle, unsigned int quantity);
 static int kqueue_timer_enable_continuous(int handle);
 static int kqueue_timer_disable_continuous(int handle);
 static enum ast_timer_event kqueue_timer_get_event(int handle);
@@ -197,20 +197,25 @@ static int kqueue_timer_set_rate(int handle, unsigned int rate)
 	return 0;
 }
 
-static void kqueue_timer_ack(int handle, unsigned int quantity)
+static int kqueue_timer_ack(int handle, unsigned int quantity)
 {
 	struct kqueue_timer *our_timer;
 
 	if (!(our_timer = lookup_timer(handle))) {
-		return;
+		return -1;
 	}
 
 	if (our_timer->unacked < quantity) {
 		ast_debug(1, "Acking more events than have expired?!!\n");
 		our_timer->unacked = 0;
+		ao2_ref(our_timer, -1);
+		return -1;
 	} else {
 		our_timer->unacked -= quantity;
 	}
+
+	ao2_ref(our_timer, -1);
+	return 0;
 }
 
 static int kqueue_timer_enable_continuous(int handle)

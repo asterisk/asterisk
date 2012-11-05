@@ -150,6 +150,7 @@ struct ast_timer *ast_timer_open(void)
 void ast_timer_close(struct ast_timer *handle)
 {
 	handle->holder->iface->timer_close(handle->fd);
+	handle->fd = -1;
 	ast_module_unref(handle->holder->mod);
 	ast_free(handle);
 }
@@ -168,9 +169,13 @@ int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate)
 	return res;
 }
 
-void ast_timer_ack(const struct ast_timer *handle, unsigned int quantity)
+int ast_timer_ack(const struct ast_timer *handle, unsigned int quantity)
 {
-	handle->holder->iface->timer_ack(handle->fd, quantity);
+	int res = -1;
+
+	res = handle->holder->iface->timer_ack(handle->fd, quantity);
+
+	return res;
 }
 
 int ast_timer_enable_continuous(const struct ast_timer *handle)
@@ -269,7 +274,11 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 		if (res == 1) {
 			count++;
-			ast_timer_ack(timer, 1);
+			if (ast_timer_ack(timer, 1) < 0) {
+				ast_cli(a->fd, "Timer failed to acknowledge.\n");
+				ast_timer_close(timer);
+				return CLI_FAILURE;
+			}
 		} else if (!res) {
 			ast_cli(a->fd, "poll() timed out!  This is bad.\n");
 		} else if (errno != EAGAIN && errno != EINTR) {
@@ -278,6 +287,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	}
 
 	ast_timer_close(timer);
+	timer = NULL;
 
 	ast_cli(a->fd, "It has been %" PRIi64 " milliseconds, and we got %d timer ticks\n",
 		ast_tvdiff_ms(end, start), count);

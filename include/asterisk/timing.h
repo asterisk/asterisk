@@ -74,7 +74,7 @@ struct ast_timing_interface {
 	int (*timer_open)(void);
 	void (*timer_close)(int handle);
 	int (*timer_set_rate)(int handle, unsigned int rate);
-	void (*timer_ack)(int handle, unsigned int quantity);
+	int (*timer_ack)(int handle, unsigned int quantity);
 	int (*timer_enable_continuous)(int handle);
 	int (*timer_disable_continuous)(int handle);
 	enum ast_timer_event (*timer_get_event)(int handle);
@@ -163,10 +163,11 @@ int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate);
  * \note This function should only be called if timer_get_event()
  *       returned AST_TIMING_EVENT_EXPIRED.
  *
- * \return nothing
- * \since 1.6.1
+ * \retval -1 failure, with errno set
+ * \retval 0 success
+ * \since 10.5.2
  */
-void ast_timer_ack(const struct ast_timer *handle, unsigned int quantity);
+int ast_timer_ack(const struct ast_timer *handle, unsigned int quantity);
 
 /*!
  * \brief Enable continuous mode

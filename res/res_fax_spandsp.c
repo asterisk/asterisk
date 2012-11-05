@@ -181,7 +181,7 @@ static void session_destroy(struct spandsp_pvt *p)
 	p->isdone = 1;
 
 	ast_timer_close(p->timer);
-
+	p->timer = NULL;
 	fax_release(&p->fax_state);
 	t38_terminal_release(&p->t38_state);
 
@@ -611,7 +611,10 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 	struct ast_frame *f = &fax_frame;
 	ast_format_set(&fax_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 
-	ast_timer_ack(p->timer, 1);
+	if (ast_timer_ack(p->timer, 1) < 0) {
+		ast_log(LOG_ERROR, "Failed to acknowledge timer for FAX session '%d'\n", s->id);
+		return NULL;
+	}
 
 	/* XXX do we need to lock here? */
 	if (p->isdone) {

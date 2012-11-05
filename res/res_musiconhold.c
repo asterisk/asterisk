@@ -699,7 +699,10 @@ static void *monmp3thread(void *data)
 #endif
 			/* Pause some amount of time */
 			if (ast_poll(&pfd, 1, -1) > 0) {
-				ast_timer_ack(class->timer, 1);
+				if (ast_timer_ack(class->timer, 1) < 0) {
+					ast_log(LOG_ERROR, "Failed to acknowledge timer for mp3player\n");
+					return NULL;
+				}
 				res = 320;
 			} else {
 				ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
