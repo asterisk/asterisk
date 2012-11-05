@@ -48,7 +48,7 @@ static void *timing_funcs_handle;
 static int dahdi_timer_open(void);
 static void dahdi_timer_close(int handle);
 static int dahdi_timer_set_rate(int handle, unsigned int rate);
-static void dahdi_timer_ack(int handle, unsigned int quantity);
+static int dahdi_timer_ack(int handle, unsigned int quantity);
 static int dahdi_timer_enable_continuous(int handle);
 static int dahdi_timer_disable_continuous(int handle);
 static enum ast_timer_event dahdi_timer_get_event(int handle);
@@ -94,9 +94,9 @@ static int dahdi_timer_set_rate(int handle, unsigned int rate)
 	return 0;
 }
 
-static void dahdi_timer_ack(int handle, unsigned int quantity)
+static int dahdi_timer_ack(int handle, unsigned int quantity)
 {
-	ioctl(handle, DAHDI_TIMERACK, &quantity);
+	return ioctl(handle, DAHDI_TIMERACK, &quantity) ? -1 : 0;
 }
 
 static int dahdi_timer_enable_continuous(int handle)
