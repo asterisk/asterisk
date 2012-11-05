@@ -1,3 +1,13 @@
+2012-11-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.10.0-rc2 Released.
+
+	* Fix a bug which made ConfBridge not record the conference when
+	  the recording was initiated from an AMI/CLI command
+
+	  (closes issue ASTERISK-20601)
+	  Reported by: Vilius
+
 2012-10-08  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.10.0-rc1 Released.
