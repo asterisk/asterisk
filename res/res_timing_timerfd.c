@@ -44,7 +44,7 @@ static void *timing_funcs_handle;
 static int timerfd_timer_open(void);
 static void timerfd_timer_close(int handle);
 static int timerfd_timer_set_rate(int handle, unsigned int rate);
-static void timerfd_timer_ack(int handle, unsigned int quantity);
+static int timerfd_timer_ack(int handle, unsigned int quantity);
 static int timerfd_timer_enable_continuous(int handle);
 static int timerfd_timer_disable_continuous(int handle);
 static enum ast_timer_event timerfd_timer_get_event(int handle);
@@ -91,6 +91,7 @@ static void timer_destroy(void *obj)
 {
 	struct timerfd_timer *timer = obj;
 	close(timer->handle);
+	timer->handle = -1;
 }
 
 static int timerfd_timer_open(void)
@@ -121,6 +122,11 @@ static void timerfd_timer_close(int handle)
 		.handle = handle,
 	};
 
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to close timerfd handle -1");
+		return;
+	}
+
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return;
@@ -136,6 +142,11 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 		.handle = handle,
 	};
 	int res = 0;
+
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to set rate on timerfd handle -1");
+		return -1;
+	}
 
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
@@ -158,17 +169,23 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 	return res;
 }
 
-static void timerfd_timer_ack(int handle, unsigned int quantity)
+static int timerfd_timer_ack(int handle, unsigned int quantity)
 {
 	uint64_t expirations;
 	int read_result = 0;
+	int res = 0;
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
 	};
 
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to ack timerfd handle -1");
+		return -1;
+	}
+
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find a timer with handle %d\n", handle);
-		return;
+		return -1;
 	}
 
 	ao2_lock(our_timer);
@@ -177,8 +194,9 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 		struct itimerspec timer_status;
 
 		if (timerfd_gettime(handle, &timer_status)) {
-			ast_log(LOG_ERROR, "Call to timerfd_gettime() error: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "Call to timerfd_gettime() using handle %d error: %s\n", handle, strerror(errno));
 			expirations = 0;
+			res = -1;
 			break;
 		}
 
@@ -194,6 +212,7 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 				continue;
 			} else {
 				ast_log(LOG_ERROR, "Read error: %s\n", strerror(errno));
+				res = -1;
 				break;
 			}
 		}
@@ -205,6 +224,7 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 	if (expirations != quantity) {
 		ast_debug(2, "Expected to acknowledge %u ticks but got %llu instead\n", quantity, (unsigned long long) expirations);
 	}
+	return res;
 }
 
 static int timerfd_timer_enable_continuous(int handle)
@@ -216,6 +236,11 @@ static int timerfd_timer_enable_continuous(int handle)
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
 	};
+
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to enable timerfd handle -1");
+		return -1;
+	}
 
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
@@ -246,13 +271,18 @@ static int timerfd_timer_disable_continuous(int handle)
 		.handle = handle,
 	};
 
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to disable timerfd handle -1");
+		return -1;
+	}
+
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
 	ao2_lock(our_timer);
 
-	if(!our_timer->is_continuous) {
+	if (!our_timer->is_continuous) {
 		/* No reason to do anything if we're not
 		 * in continuous mode
 		 */
@@ -275,6 +305,11 @@ static enum ast_timer_event timerfd_timer_get_event(int handle)
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
 	};
+
+	if (handle == -1) {
+		ast_log(LOG_ERROR, "Attempting to get event from timerfd handle -1");
+		return -1;
+	}
 
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
