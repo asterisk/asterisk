@@ -300,6 +300,7 @@ static void softmix_bridge_data_destroy(void *obj)
 
 	if (softmix_data->timer) {
 		ast_timer_close(softmix_data->timer);
+		softmix_data->timer = NULL;
 	}
 }
 
@@ -885,7 +886,11 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 		softmix_translate_helper_cleanup(&trans_helper);
 		/* Wait for the timing source to tell us to wake up and get things done */
 		ast_waitfor_n_fd(&timingfd, 1, &timeout, NULL);
-		ast_timer_ack(timer, 1);
+		if (ast_timer_ack(timer, 1) < 0) {
+			ast_log(LOG_ERROR, "Failed to acknowledge timer in softmix bridge\n");
+			ao2_lock(bridge);
+			goto softmix_cleanup;
+		}
 		ao2_lock(bridge);
 
 		/* make sure to detect mixing interval changes if they occur. */
