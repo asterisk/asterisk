@@ -2,6 +2,12 @@
 
 	* Asterisk 11.0.1 Released.
 
+	* Fix a bug which made ConfBridge not record conferences when the
+	  record command was initiated from AMI/CLI commands
+
+	  (closes issue ASTERISK-20601)
+	  Reported by: Vilius
+
 	* Fix a bug causing SIP reloads to remove all entries from the registry
 
 	  (closes issue ASTERISK-20611)
