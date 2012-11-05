@@ -210,13 +210,14 @@ void ast_module_unregister(const struct ast_module_info *info)
 	}
 }
 
-struct ast_module_user *__ast_module_user_add(struct ast_module *mod,
-					      struct ast_channel *chan)
+struct ast_module_user *__ast_module_user_add(struct ast_module *mod, struct ast_channel *chan)
 {
-	struct ast_module_user *u = ast_calloc(1, sizeof(*u));
+	struct ast_module_user *u;
 
-	if (!u)
+	u = ast_calloc(1, sizeof(*u));
+	if (!u) {
 		return NULL;
+	}
 
 	u->chan = chan;
 
@@ -233,6 +234,9 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *mod,
 
 void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 {
+	if (!u) {
+		return;
+	}
 	AST_LIST_LOCK(&mod->users);
 	AST_LIST_REMOVE(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
