@@ -47,7 +47,7 @@ static void *timing_funcs_handle;
 static int pthread_timer_open(void);
 static void pthread_timer_close(int handle);
 static int pthread_timer_set_rate(int handle, unsigned int rate);
-static void pthread_timer_ack(int handle, unsigned int quantity);
+static int pthread_timer_ack(int handle, unsigned int quantity);
 static int pthread_timer_enable_continuous(int handle);
 static int pthread_timer_disable_continuous(int handle);
 static enum ast_timer_event pthread_timer_get_event(int handle);
@@ -97,7 +97,7 @@ struct pthread_timer {
 static void pthread_timer_destructor(void *obj);
 static struct pthread_timer *find_timer(int handle, int unlinkobj);
 static void write_byte(struct pthread_timer *timer);
-static void read_pipe(struct pthread_timer *timer, unsigned int num);
+static int read_pipe(struct pthread_timer *timer, unsigned int num);
 
 /*!
  * \brief Data for the timing thread
@@ -190,21 +190,24 @@ static int pthread_timer_set_rate(int handle, unsigned int rate)
 	return 0;
 }
 
-static void pthread_timer_ack(int handle, unsigned int quantity)
+static int pthread_timer_ack(int handle, unsigned int quantity)
 {
 	struct pthread_timer *timer;
+	int res;
 
 	ast_assert(quantity > 0);
 
 	if (!(timer = find_timer(handle, 0))) {
-		return;
+		return -1;
 	}
 
 	ao2_lock(timer);
-	read_pipe(timer, quantity);
+	res = read_pipe(timer, quantity);
 	ao2_unlock(timer);
 
 	ao2_ref(timer, -1);
+
+	return res;
 }
 
 static int pthread_timer_enable_continuous(int handle)
@@ -240,7 +243,12 @@ static int pthread_timer_disable_continuous(int handle)
 	ao2_lock(timer);
 	if (timer->continuous) {
 		timer->continuous = 0;
-		read_pipe(timer, 1);
+		if (read_pipe(timer, 1) != 0) {
+			/* Let the errno from read_pipe propagate up */
+			ao2_unlock(timer);
+			ao2_ref(timer, -1);
+			return -1;
+		}
 	}
 	ao2_unlock(timer);
 
@@ -358,8 +366,10 @@ static int check_timer(struct pthread_timer *timer)
 /*!
  * \internal
  * \pre timer is locked
+ * \retval 0 if nothing to read or read success
+ * \retval -1 on error
  */
-static void read_pipe(struct pthread_timer *timer, unsigned int quantity)
+static int read_pipe(struct pthread_timer *timer, unsigned int quantity)
 {
 	int rd_fd = timer->pipe[PIPE_READ];
 	int pending_ticks = timer->pending_ticks;
@@ -375,7 +385,7 @@ static void read_pipe(struct pthread_timer *timer, unsigned int quantity)
 	}
 
 	if (!quantity) {
-		return;
+		return 0;
 	}
 
 	do {
@@ -389,7 +399,7 @@ static void read_pipe(struct pthread_timer *timer, unsigned int quantity)
 		if (ast_poll(&pfd, 1, 0) != 1) {
 			ast_debug(1, "Reading not available on timing pipe, "
 					"quantity: %u\n", quantity);
-			break;
+			return -1;
 		}
 
 		res = read(rd_fd, buf,
@@ -401,12 +411,14 @@ static void read_pipe(struct pthread_timer *timer, unsigned int quantity)
 			}
 			ast_log(LOG_ERROR, "read failed on timing pipe: %s\n",
 					strerror(errno));
-			break;
+			return -1;
 		}
 
 		quantity -= res;
 		timer->pending_ticks -= res;
 	} while (quantity);
+
+	return 0;
 }
 
 /*!

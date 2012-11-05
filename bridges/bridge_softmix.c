@@ -107,7 +107,7 @@ static int softmix_bridge_destroy(struct ast_bridge *bridge)
 		return -1;
 	}
 	ast_timer_close((struct ast_timer *) bridge->bridge_pvt);
-
+	bridge->bridge_pvt = NULL;
 	return 0;
 }
 
@@ -274,7 +274,11 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 		/* Wait for the timing source to tell us to wake up and get things done */
 		ast_waitfor_n_fd(&timingfd, 1, &timeout, NULL);
 
-		ast_timer_ack(timer, 1);
+		if (ast_timer_ack(timer, 1) < 0) {
+			ast_log(LOG_ERROR, "Failed to acknowledge timer in softmix bridge\n");
+			ao2_lock(bridge);
+			break;
+		}
 
 		ao2_lock(bridge);
 	}
