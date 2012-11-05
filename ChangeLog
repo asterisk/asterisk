@@ -1,3 +1,25 @@
+2012-11-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.0.1 Released.
+
+	* Fix a bug causing SIP reloads to remove all entries from the registry
+
+	  (closes issue ASTERISK-20611)
+	  Reported by: Alisher
+
+	* Fix an issue with res_http_websocket where the chan_sip WebSocket
+	  handler could not be registered.
+
+	  On some systems the optional API support uses the GCC compiler
+	  attribute "weakref" to provide its functionality. This code changes
+	  the function names and prefixes "__" to the front. The
+	  res_http_websocket exports file did not take this into account,
+	  thereby not allowing those functions to be global and ultimately
+	  found.
+
+	  (closes issue ASTERISK-20631)
+	  Reported by: danjenkins
+
 2012-10-25  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.0.0 Released.
