@@ -783,6 +783,7 @@ static int jingle_add_ice_udp_candidates_to_transport(struct ast_rtp_instance *r
 		snprintf(tmp, sizeof(tmp), "%d", ast_str_hash(candidate->foundation));
 		iks_insert_attrib(local_candidate, "foundation", tmp);
 		iks_insert_attrib(local_candidate, "generation", "0");
+		iks_insert_attrib(local_candidate, "network", "0");
 		snprintf(tmp, sizeof(tmp), "%04lx", ast_random() & 0xffff);
 		iks_insert_attrib(local_candidate, "id", tmp);
 		iks_insert_attrib(local_candidate, "ip", ast_sockaddr_stringify_host(&candidate->address));
@@ -1964,16 +1965,16 @@ static int jingle_interpret_ice_udp_transport(struct jingle_session *session, ik
 	for (candidate = iks_child(transport); candidate; candidate = iks_next(candidate)) {
 		char *component = iks_find_attrib(candidate, "component"), *foundation = iks_find_attrib(candidate, "foundation");
 		char *generation = iks_find_attrib(candidate, "generation"), *id = iks_find_attrib(candidate, "id");
-		char *ip = iks_find_attrib(candidate, "ip"), *network = iks_find_attrib(candidate, "network");
-		char *port = iks_find_attrib(candidate, "port"), *priority = iks_find_attrib(candidate, "priority");
-		char *protocol = iks_find_attrib(candidate, "protocol"), *type = iks_find_attrib(candidate, "type");
+		char *ip = iks_find_attrib(candidate, "ip"), *port = iks_find_attrib(candidate, "port");
+		char *priority = iks_find_attrib(candidate, "priority"), *protocol = iks_find_attrib(candidate, "protocol");
+		char *type = iks_find_attrib(candidate, "type");
 		struct ast_rtp_engine_ice_candidate local_candidate = { 0, };
 		int real_port;
 		struct ast_sockaddr remote_address = { { 0, } };
 
 		/* If this candidate is incomplete skip it */
 		if (ast_strlen_zero(component) || ast_strlen_zero(foundation) || ast_strlen_zero(generation) || ast_strlen_zero(id) ||
-		    ast_strlen_zero(ip) || ast_strlen_zero(network) || ast_strlen_zero(port) || ast_strlen_zero(priority) ||
+		    ast_strlen_zero(ip) || ast_strlen_zero(port) || ast_strlen_zero(priority) ||
 		    ast_strlen_zero(protocol) || ast_strlen_zero(type)) {
 			jingle_queue_hangup_with_cause(session, AST_CAUSE_PROTOCOL_ERROR);
 			ast_log(LOG_ERROR, "Incomplete ICE-UDP candidate received on session '%s'\n", session->sid);
