@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/data.h"
+#include "asterisk/features.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -4740,6 +4741,11 @@ int ast_senddigit_begin(struct ast_channel *chan, char digit)
 	if (!chan->tech->send_digit_begin)
 		return 0;
 
+	ast_channel_lock(chan);
+	chan->sending_dtmf_digit = digit;
+	chan->sending_dtmf_tv = ast_tvnow();
+	ast_channel_unlock(chan);
+
 	if (!chan->tech->send_digit_begin(chan, digit))
 		return 0;
 
@@ -4762,6 +4768,12 @@ int ast_senddigit_begin(struct ast_channel *chan, char digit)
 int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duration)
 {
 	int res = -1;
+
+	ast_channel_lock(chan);
+	if (chan->sending_dtmf_digit == digit) {
+		chan->sending_dtmf_digit = 0;
+	}
+	ast_channel_unlock(chan);
 
 	if (chan->tech->send_digit_end)
 		res = chan->tech->send_digit_end(chan, digit, duration);
@@ -6711,6 +6723,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	char orig[AST_CHANNEL_NAME];
 	char masqn[AST_CHANNEL_NAME];
 	char zombn[AST_CHANNEL_NAME];
+	char clone_sending_dtmf_digit;
+	struct timeval clone_sending_dtmf_tv;
 
 	/* XXX This operation is a bit odd.  We're essentially putting the guts of
 	 * the clone channel into the original channel.  Start by killing off the
@@ -6819,6 +6833,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_format_copy(&wformat, &original->writeformat);
 	free_translation(clonechan);
 	free_translation(original);
+
+	/* Save the current DTMF digit being sent if any. */
+	clone_sending_dtmf_digit = clonechan->sending_dtmf_digit;
+	clone_sending_dtmf_tv = clonechan->sending_dtmf_tv;
 
 	/* Save the original name */
 	ast_copy_string(orig, original->name, sizeof(orig));
@@ -7063,6 +7081,15 @@ int ast_do_masquerade(struct ast_channel *original)
 	}
 
 	ast_channel_unlock(clonechan);
+
+	if (clone_sending_dtmf_digit) {
+		/*
+		 * The clonechan was sending a DTMF digit that was not completed
+		 * before the masquerade.
+		 */
+		ast_bridge_end_dtmf(original, clone_sending_dtmf_digit, clone_sending_dtmf_tv,
+			"masquerade");
+	}
 
 	/*
 	 * If an indication is currently playing, maintain it on the
