@@ -193,6 +193,8 @@ struct ast_channel {
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
+	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
+	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
 };
 
 /* AST_DATA definitions, which will probably have to be re-thought since the channel will be opaque */
@@ -523,6 +525,25 @@ void ast_channel_dtmf_digit_to_emulate_set(struct ast_channel *chan, char value)
 {
 	chan->dtmf_digit_to_emulate = value;
 }
+
+char ast_channel_sending_dtmf_digit(const struct ast_channel *chan)
+{
+	return chan->sending_dtmf_digit;
+}
+void ast_channel_sending_dtmf_digit_set(struct ast_channel *chan, char value)
+{
+	chan->sending_dtmf_digit = value;
+}
+
+struct timeval ast_channel_sending_dtmf_tv(const struct ast_channel *chan)
+{
+	return chan->sending_dtmf_tv;
+}
+void ast_channel_sending_dtmf_tv_set(struct ast_channel *chan, struct timeval value)
+{
+	chan->sending_dtmf_tv = value;
+}
+
 int ast_channel_amaflags(const struct ast_channel *chan)
 {
 	return chan->amaflags;

@@ -4249,6 +4249,24 @@ static void clear_dialed_interfaces(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
+void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why)
+{
+	int dead;
+	long duration;
+
+	ast_channel_lock(chan);
+	dead = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan);
+	ast_channel_unlock(chan);
+	if (dead) {
+		return;
+	}
+
+	duration = ast_tvdiff_ms(ast_tvnow(), start);
+	ast_senddigit_end(chan, digit, duration);
+	ast_log(LOG_DTMF, "DTMF end '%c' simulated on %s due to %s, duration %ld ms\n",
+		digit, ast_channel_name(chan), why, duration);
+}
+
 /*!
  * \brief bridge the call and set CDR
  *
@@ -4698,6 +4716,15 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	ast_cel_report_event(chan, AST_CEL_BRIDGE_END, NULL, NULL, peer);
 
 before_you_go:
+	if (ast_channel_sending_dtmf_digit(chan)) {
+		ast_bridge_end_dtmf(chan, ast_channel_sending_dtmf_digit(chan),
+			ast_channel_sending_dtmf_tv(chan), "bridge end");
+	}
+	if (ast_channel_sending_dtmf_digit(peer)) {
+		ast_bridge_end_dtmf(peer, ast_channel_sending_dtmf_digit(peer),
+			ast_channel_sending_dtmf_tv(peer), "bridge end");
+	}
+
 	/* Just in case something weird happened and we didn't clean up the silence generator... */
 	if (silgen) {
 		ast_channel_stop_silence_generator(who == chan ? peer : chan, silgen);

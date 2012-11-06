@@ -3835,6 +3835,10 @@ void ast_channel_macroexten_set(struct ast_channel *chan, const char *value);
 
 char ast_channel_dtmf_digit_to_emulate(const struct ast_channel *chan);
 void ast_channel_dtmf_digit_to_emulate_set(struct ast_channel *chan, char value);
+char ast_channel_sending_dtmf_digit(const struct ast_channel *chan);
+void ast_channel_sending_dtmf_digit_set(struct ast_channel *chan, char value);
+struct timeval ast_channel_sending_dtmf_tv(const struct ast_channel *chan);
+void ast_channel_sending_dtmf_tv_set(struct ast_channel *chan, struct timeval value);
 int ast_channel_amaflags(const struct ast_channel *chan);
 void ast_channel_amaflags_set(struct ast_channel *chan, int value);
 int ast_channel_epfd(const struct ast_channel *chan);
