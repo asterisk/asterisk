@@ -1,5 +1,9 @@
 2012-11-05  Asterisk Development Team <asteriskteam@digium.com>
 
+	* Asterisk 10.10.0 Released.
+
+2012-11-05  Asterisk Development Team <asteriskteam@digium.com>
+
 	* Asterisk 10.10.0-rc2 Released.
 
 	* Fix a bug which made ConfBridge not record the conference when
