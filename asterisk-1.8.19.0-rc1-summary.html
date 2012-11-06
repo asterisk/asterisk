@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.19.0-rc1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.19.0-rc1</h3>
+<h3 align="center">Date: 2012-11-06</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.18.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+6 rmudgett<br/>
+5 mjordan<br/>
+4 jrose<br/>
+2 JoshE<br/>
+2 mmichelson<br/>
+2 Richard Miller<br/>
+2 sruffell<br/>
+2 tzafrir<br/>
+2 wdoekes<br/>
+1 Bryan Walters<br/>
+1 Corey Farrell<br/>
+1 Daniel O'Connor<br/>
+1 David Chappell<br/>
+1 elguero<br/>
+1 Guenther Kelleter<br/>
+1 jbigelow<br/>
+1 kmoore<br/>
+1 lathama<br/>
+1 twilson<br/>
+</td>
+<td>
+1 Dmitry Burilov<br/>
+1 rmudgett<br/>
+1 Thomas Arimont<br/>
+</td>
+<td>
+2 tomaso<br/>
+2 ulogic<br/>
+1 chappell<br/>
+1 coreyfarrell<br/>
+1 daren<br/>
+1 darius<br/>
+1 gamegamer43<br/>
+1 gkelleter<br/>
+1 jbigelow<br/>
+1 kmoore<br/>
+1 n8ideas<br/>
+1 netaskd<br/>
+1 pciccone<br/>
+1 sruffell<br/>
+1 stocksy<br/>
+1 tblancher<br/>
+1 tzafrir<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20623">ASTERISK-20623</a>: App_queue doesn't increment number of busy agent in certain situations<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375450">375450</a><br/>
+Reporter: gamegamer43<br/>
+Coders: Bryan Walters<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18203">ASTERISK-18203</a>: Problems with NAT on realtime peers (and maybe static ones)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375415">375415</a><br/>
+Reporter: daren<br/>
+Coders: JoshE<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20572">ASTERISK-20572</a>: Realtime Peers behind NAT are Set to RFC1918 private address after sip reload<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375415">375415</a><br/>
+Reporter: n8ideas<br/>
+Coders: JoshE<br/>
+<br/>
+<h3>Category: Channels/chan_sip/TCP-TLS</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20212">ASTERISK-20212</a>: Deadlock / TCP SIP Stack<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=374905">374905</a><br/>
+Reporter: pciccone<br/>
+Coders: mmichelson<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20559">ASTERISK-20559</a>: SIP TCP/TLS: When checking the CA certificate fails, the call still goes through<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375146">375146</a><br/>
+Reporter: kmoore<br/>
+Coders: kmoore<br/>
+<br/>
+<h3>Category: Codecs/codec_gsm</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20457">ASTERISK-20457</a>: GSM encoding is not thread safe<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375272">375272</a><br/>
+Reporter: ulogic<br/>
+Coders: Richard Miller<br/>
+<br/>
+<h3>Category: Contrib/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20260">ASTERISK-20260</a>: Increase robustness of ast_tls_cert<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375325">375325</a><br/>
+Reporter: darius<br/>
+Coders: Daniel O'Connor<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20483">ASTERISK-20483</a>: Allow Asterisk to report git SHAs in version string.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375189">375189</a><br/>
+Reporter: sruffell<br/>
+Coders: sruffell<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20646">ASTERISK-20646</a>: [patch] - manager_shutdown fails to completely shutdown AMI and leaks memory<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375793">375793</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: Corey Farrell<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20455">ASTERISK-20455</a>: dialplan fails to run the invalid "i" extension due to an uninitialized variable dat_exten in main/pbx.c<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=374758">374758</a><br/>
+Reporter: ulogic<br/>
+Coders: Richard Miller<br/>
+<br/>
+<h3>Category: Documentation</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-14435">ASTERISK-14435</a>: [patch] Add option and description to chan_dahdi.conf.sample<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=374727">374727</a><br/>
+Reporter: jbigelow<br/>
+Coders: jbigelow, sruffell<br/>
+<br/>
+<h3>Category: Features/Parking</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19382">ASTERISK-19382</a>: Park() ignores 'r' option, plays default MOH instead.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375388">375388</a><br/>
+Reporter: stocksy<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20567">ASTERISK-20567</a>: bashism in autosupport<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375059">375059</a><br/>
+Reporter: tzafrir<br/>
+Coders: tzafrir<br/>
+<br/>
+<h3>Category: PBX/pbx_realtime</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18203">ASTERISK-18203</a>: Problems with NAT on realtime peers (and maybe static ones)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375415">375415</a><br/>
+Reporter: daren<br/>
+Coders: JoshE<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20572">ASTERISK-20572</a>: Realtime Peers behind NAT are Set to RFC1918 private address after sip reload<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375415">375415</a><br/>
+Reporter: n8ideas<br/>
+Coders: JoshE<br/>
+<br/>
+<h3>Category: PBX/pbx_spool</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-17231">ASTERISK-17231</a>: [patch] unopenable spool files not deleted<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=374686">374686</a><br/>
+Reporter: chappell<br/>
+Coders: David Chappell<br/>
+<br/>
+<h3>Category: Resources/res_calendar_ews</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19738">ASTERISK-19738</a>: Calendar EWS does not attempt to extract the Body element in a CalendarItem and populate the description event field<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375528">375528</a><br/>
+Reporter: netaskd<br/>
+Testers: Dmitry Burilov<br/>
+Coders: twilson<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=374977">374977</a></td><td>tzafrir</td><td>Update config.guess and config.sub: 2012-10-10</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375025">375025</a></td><td>mmichelson</td><td>Fix some potential misuses of ast_str in the code.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375074">375074</a></td><td>wdoekes</td><td>Update sip_request_call SIP dial string documentation.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375111">375111</a></td><td>wdoekes</td><td>Fixes to the fd-oriented SIP TCP reads.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375216">375216</a></td><td>jrose</td><td>app_queue: Make ordering of rrmemory/rrordered persist over add/remove members</td>
+<td><a href="https://issues.asterisk.org/jira/browse/AST-989">AST-989</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375242">375242</a></td><td>jrose</td><td>app_queue: add upgrade notes for 375216</td>
+<td><a href="https://issues.asterisk.org/jira/browse/AST-989">AST-989</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375244">375244</a></td><td>jrose</td><td>Correct version number in Upgrade.txt release notes pertaining to queue order</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375484">375484</a></td><td>jrose</td><td>mixmonitor: Add a test event</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375594">375594</a></td><td>elguero</td><td>Fix Wrong Result In Debug Message For SDP Origin Processing</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375625">375625</a></td><td>rmudgett</td><td>Multiple revisions 375519-375524</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375658">375658</a></td><td>rmudgett</td><td>Things don't need to be that const.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375698">375698</a></td><td>lathama</td><td>Doxygen Updates</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20259">ASTERISK-20259</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375727">375727</a></td><td>mjordan</td><td>Prevent multiple CDR batches from conflicting when scheduling the CDR write</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375758">375758</a></td><td>mjordan</td><td>Fix memory leak when unloading XML documentation</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20648">ASTERISK-20648</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375800">375800</a></td><td>mjordan</td><td>Don't attempt to purge sessions when no sessions exist</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375862">375862</a></td><td>rmudgett</td><td>Add safety NULL pointer check in module user references.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=375893">375893</a></td><td>mjordan</td><td>Refactor ast_timer_ack to return an error and handle the error in timer users</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20032">ASTERISK-20032</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+Makefile                       |    2
+README                         |    2
+UPGRADE.txt                    |    4
+apps/app_dial.c                |   12
+apps/app_mixmonitor.c          |    8
+apps/app_queue.c               |  157 +++++-
+bridges/bridge_softmix.c       |    8
+build_tools/make_version       |  106 ++++
+channels/chan_dahdi.c          |   17
+channels/chan_iax2.c           |   35 -
+channels/chan_misdn.c          |    2
+channels/chan_sip.c            |  985 +++++++++++++++++++++++++++++++++++------
+channels/misdn/isdn_lib.c      |  218 +++------
+channels/misdn/isdn_lib.h      |    3
+codecs/gsm/src/code.c          |    3
+config.guess                   |  279 ++++++-----
+config.sub                     |  236 ++++++---
+configs/chan_dahdi.conf.sample |   27 +
+configure.ac                   |    1
+contrib/scripts/ast_tls_cert   |   41 +
+contrib/scripts/autosupport    |   12
+include/asterisk/doxyref.h     |   71 ++
+include/asterisk/strings.h     |   22
+include/asterisk/tcptls.h      |    6
+include/asterisk/timing.h      |    9
+main/app.c                     |    1
+main/ccss.c                    |   20
+main/cdr.c                     |   12
+main/channel.c                 |   16
+main/features.c                |   13
+main/loader.c                  |   12
+main/manager.c                 |   57 +-
+main/pbx.c                     |    3
+main/tcptls.c                  |   26 -
+main/timing.c                  |   16
+main/xmldoc.c                  |    1
+makeopts.in                    |    1
+pbx/pbx_spool.c                |  284 ++++++-----
+res/res_calendar_ews.c         |   18
+res/res_fax_spandsp.c          |    7
+res/res_musiconhold.c          |    5
+res/res_timing_dahdi.c         |    6
+res/res_timing_kqueue.c        |   11
+res/res_timing_pthread.c       |   32 -
+res/res_timing_timerfd.c       |   45 +
+45 files changed, 2112 insertions(+), 740 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
