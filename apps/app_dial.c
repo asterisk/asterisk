@@ -1055,6 +1055,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int is_cc_recall;
 	int cc_frame_received = 0;
 	int num_ringing = 0;
+	struct timeval start = ast_tvnow();
 
 	ast_party_connected_line_init(&connected_caller);
 	if (single) {
@@ -1095,7 +1096,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		ast_poll_channel_add(in, epollo->chan);
 #endif
 
-	while (*to && !peer) {
+	while ((*to = ast_remaining_ms(start, orig)) && !peer) {
 		struct chanlist *o;
 		int pos = 0; /* how many channels do we handle */
 		int numlines = prestart;
@@ -1626,10 +1627,13 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 skip_frame:;
 			ast_frfree(f);
 		}
-		if (!*to)
-			ast_verb(3, "Nobody picked up in %d ms\n", orig);
-		if (!*to || ast_check_hangup(in))
-			ast_cdr_noanswer(in->cdr);
+	}
+
+	if (!*to) {
+		ast_verb(3, "Nobody picked up in %d ms\n", orig);
+	}
+	if (!*to || ast_check_hangup(in)) {
+		ast_cdr_noanswer(in->cdr);
 	}
 
 #ifdef HAVE_EPOLL

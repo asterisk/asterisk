@@ -8721,13 +8721,15 @@ static void *async_wait(void *data)
 	int res;
 	struct ast_frame *f;
 	struct ast_app *app;
+	struct timeval start = ast_tvnow();
+	int ms;
 
-	while (timeout && (chan->_state != AST_STATE_UP)) {
-		res = ast_waitfor(chan, timeout);
+	while ((ms = ast_remaining_ms(start, timeout)) &&
+			chan->_state != AST_STATE_UP) {
+		res = ast_waitfor(chan, ms);
 		if (res < 1)
 			break;
-		if (timeout > -1)
-			timeout = res;
+
 		f = ast_read(chan);
 		if (!f)
 			break;

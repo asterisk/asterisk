@@ -1837,11 +1837,13 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 }
 
 /*! \brief Wait, look for hangups and condition arg */
-int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data)
+int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*cond)(void*), void *data)
 {
 	struct ast_frame *f;
 	struct ast_silence_generator *silgen = NULL;
 	int res = 0;
+	struct timeval start;
+	int ms;
 	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 
 	AST_LIST_HEAD_INIT_NOLOCK(&deferred_frames);
@@ -1851,8 +1853,10 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
 		silgen = ast_channel_start_silence_generator(chan);
 	}
 
-	while (ms > 0) {
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
 		struct ast_frame *dup_f = NULL;
+
 		if (cond && ((*cond)(data) == 0)) {
 			break;
 		}
@@ -2989,12 +2993,15 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 		do {
 			AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
 			struct ast_frame *cur, *new;
-			int ms = MAX(delay, 500);
+			int timeout_ms = MAX(delay, 500);
 			unsigned int done = 0;
+			struct timeval start;
 
 			AST_LIST_HEAD_INIT_NOLOCK(&frames);
 
+			start = ast_tvnow();
 			for (;;) {
+				int ms = ast_remaining_ms(start, timeout_ms);
 				ms = ast_waitfor(chan, ms);
 				if (ms < 0) {
 					ast_log(LOG_WARNING, "Error condition occurred when polling channel %s for a voice frame: %s\n", chan->name, strerror(errno));
@@ -3509,11 +3516,14 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 
 int ast_waitfor(struct ast_channel *c, int ms)
 {
-	int oldms = ms;	/* -1 if no timeout */
-
-	ast_waitfor_nandfds(&c, 1, NULL, 0, NULL, NULL, &ms);
-	if ((ms < 0) && (oldms < 0))
-		ms = 0;
+	if (ms < 0) {
+		do {
+			ms = 100000;
+			ast_waitfor_nandfds(&c, 1, NULL, 0, NULL, NULL, &ms);
+		} while (!ms);
+	} else {
+		ast_waitfor_nandfds(&c, 1, NULL, 0, NULL, NULL, &ms);
+	}
 	return ms;
 }
 
@@ -3568,6 +3578,7 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, int cmdfd)
 {
 	struct timeval start = ast_tvnow();
+	int ms;
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
@@ -3579,19 +3590,9 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 	/* Wait for a digit, no more than timeout_ms milliseconds total.
 	 * Or, wait indefinitely if timeout_ms is <0.
 	 */
-	while (ast_tvdiff_ms(ast_tvnow(), start) < timeout_ms || timeout_ms < 0) {
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
 		struct ast_channel *rchan;
-		int outfd=-1;
-		int ms;
-
-		if (timeout_ms < 0) {
-			ms = timeout_ms;
-		} else {
-			ms = timeout_ms - ast_tvdiff_ms(ast_tvnow(), start);
-			if (ms < 0) {
-				ms = 0;
-			}
-		}
+		int outfd = -1;
 
 		errno = 0;
 		/* While ast_waitfor_nandfds tries to help by reducing the timeout by how much was waited,
@@ -4597,25 +4598,32 @@ int ast_recvchar(struct ast_channel *chan, int timeout)
 
 char *ast_recvtext(struct ast_channel *chan, int timeout)
 {
-	int res, done = 0;
+	int res;
 	char *buf = NULL;
-	
-	while (!done) {
+	struct timeval start = ast_tvnow();
+	int ms;
+
+	while ((ms = ast_remaining_ms(start, timeout))) {
 		struct ast_frame *f;
-		if (ast_check_hangup(chan))
+
+		if (ast_check_hangup(chan)) {
 			break;
-		res = ast_waitfor(chan, timeout);
-		if (res <= 0) /* timeout or error */
+		}
+		res = ast_waitfor(chan, ms);
+		if (res <= 0)  {/* timeout or error */
 			break;
-		timeout = res;	/* update timeout */
+		}
 		f = ast_read(chan);
-		if (f == NULL)
+		if (f == NULL) {
 			break; /* no frame */
-		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP)
-			done = 1;	/* force a break */
-		else if (f->frametype == AST_FRAME_TEXT) {		/* what we want */
+		}
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
+			ast_frfree(f);
+			break;
+		} else if (f->frametype == AST_FRAME_TEXT) {		/* what we want */
 			buf = ast_strndup((char *) f->data.ptr, f->datalen);	/* dup and break */
-			done = 1;
+			ast_frfree(f);
+			break;
 		}
 		ast_frfree(f);
 	}
@@ -5466,18 +5474,19 @@ struct ast_channel *__ast_request_and_dial(const char *type, format_t format, co
 	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	} else {
+		struct timeval start = ast_tvnow();
 		res = 1;	/* mark success in case chan->_state is already AST_STATE_UP */
 		while (timeout && chan->_state != AST_STATE_UP) {
 			struct ast_frame *f;
-			res = ast_waitfor(chan, timeout);
+			int ms = ast_remaining_ms(start, timeout);
+
+			res = ast_waitfor(chan, ms);
 			if (res == 0) { /* timeout, treat it like ringing */
 				*outstate = AST_CONTROL_RINGING;
 				break;
 			}
 			if (res < 0) /* error or done */
 				break;
-			if (timeout > -1)
-				timeout = res;
 			if (!ast_strlen_zero(chan->call_forward)) {
 				if (!(chan = ast_call_forward(NULL, chan, NULL, format, oh, outstate))) {
 					return NULL;

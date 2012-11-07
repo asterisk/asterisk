@@ -6062,6 +6062,7 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 		if (res == 0) {
 			continue;
 		}
+		res = 0;
 		f = ast_read(chan);
 		if (!f) {
 			ast_log(LOG_DEBUG, "No frame read on channel %s, going out ...\n", chan->name);
@@ -7233,6 +7234,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 	int priority = 0;
 	struct ast_channel *oc0, *oc1;
 	enum ast_bridge_result res;
+	struct timeval start = ast_tvnow();
 #ifdef PRI_2BCT
 	int triedtopribridge = 0;
 	q931_call *q931c0;
@@ -7454,6 +7456,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 	for (;;) {
 		struct ast_channel *c0_priority[2] = {c0, c1};
 		struct ast_channel *c1_priority[2] = {c1, c0};
+		int ms;
 
 		/* Here's our main loop...  Start by locking things, looking for private parts,
 		   and then balking if anything is wrong */
@@ -7473,8 +7476,8 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
-
-		if (!timeoutms ||
+		ms = ast_remaining_ms(start, timeoutms);
+		if (!ms ||
 			(op0 != p0) ||
 			(op1 != p1) ||
 			(ofd0 != c0->fds[0]) ||
@@ -7522,7 +7525,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		}
 #endif
 
-		who = ast_waitfor_n(priority ? c0_priority : c1_priority, 2, &timeoutms);
+		who = ast_waitfor_n(priority ? c0_priority : c1_priority, 2, &ms);
 		if (!who) {
 			ast_debug(1, "Ooh, empty read...\n");
 			continue;
@@ -10509,6 +10512,9 @@ static void *analog_ss_thread(void *data)
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int k = 0;
+				int off_ms;
+				struct timeval start = ast_tvnow();
+				int ms;
 				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on channel %s\n", chan->name);
 				dahdi_setlinear(p->subs[idx].dfd, 0);
@@ -10519,10 +10525,12 @@ static void *analog_ss_thread(void *data)
 				 * can drop some of them.
 				 */
 				ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
-				res = 4000;/* This is a typical OFF time between rings. */
+				off_ms = 4000;/* This is a typical OFF time between rings. */
 				for (;;) {
 					struct ast_frame *f;
-					res = ast_waitfor(chan, res);
+
+					ms = ast_remaining_ms(start, off_ms);
+					res = ast_waitfor(chan, ms);
 					if (res <= 0) {
 						/*
 						 * We do not need to restore the dahdi_setlinear()
@@ -10542,7 +10550,7 @@ static void *analog_ss_thread(void *data)
 							dtmfbuf[k++] = f->subclass.integer;
 						}
 						ast_debug(1, "CID got digit '%c'\n", f->subclass.integer);
-						res = 4000;/* This is a typical OFF time between rings. */
+						start = ast_tvnow();
 					}
 					ast_frfree(f);
 					if (chan->_state == AST_STATE_RING ||
@@ -10565,6 +10573,9 @@ static void *analog_ss_thread(void *data)
 			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
 				cs = callerid_new(p->cid_signalling);
 				if (cs) {
+					int off_ms;
+					struct timeval start;
+					int ms;
 					samples = 0;
 #if 1
 					bump_gains(p);
@@ -10641,10 +10652,13 @@ static void *analog_ss_thread(void *data)
 					}
 
 					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */
-					res = 4000;/* This is a typical OFF time between rings. */
+					start = ast_tvnow();
+					off_ms = 4000;/* This is a typical OFF time between rings. */
 					for (;;) {
 						struct ast_frame *f;
-						res = ast_waitfor(chan, res);
+
+						ms = ast_remaining_ms(start, off_ms);
+						res = ast_waitfor(chan, ms);
 						if (res <= 0) {
 							ast_log(LOG_WARNING, "CID timed out waiting for ring. "
 								"Exiting simple switch\n");
@@ -10772,12 +10786,18 @@ static void *analog_ss_thread(void *data)
 		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int k = 0;
+				int off_ms;
+				struct timeval start;
+				int ms;
 				cs = NULL;
 				dahdi_setlinear(p->subs[idx].dfd, 0);
-				res = 2000;
+				off_ms = 2000;
+				start = ast_tvnow();
 				for (;;) {
 					struct ast_frame *f;
-					res = ast_waitfor(chan, res);
+
+					ms = ast_remaining_ms(start, off_ms);
+					res = ast_waitfor(chan, ms);
 					if (res <= 0) {
 						ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
 							"Exiting simple switch\n");
@@ -10793,7 +10813,7 @@ static void *analog_ss_thread(void *data)
 					if (f->frametype == AST_FRAME_DTMF) {
 						dtmfbuf[k++] = f->subclass.integer;
 						ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass.integer);
-						res = 2000;
+						start = ast_tvnow();
 					}
 					ast_frfree(f);
 

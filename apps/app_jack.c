@@ -768,7 +768,9 @@ static int jack_exec(struct ast_channel *chan, const char *data)
 	while (!jack_data->stop) {
 		struct ast_frame *f;
 
-		ast_waitfor(chan, -1);
+		if (ast_waitfor(chan, -1) < 0) {
+			break;
+		}
 
 		f = ast_read(chan);
 		if (!f) {

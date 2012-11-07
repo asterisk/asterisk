@@ -810,6 +810,7 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = { NULL, };
 	struct ast_frame *fr = NULL;
+	struct timeval start;
 
 	/* Start locally bridging both instances */
 	if (instance0->engine->local_bridge && instance0->engine->local_bridge(instance0, instance1)) {
@@ -840,7 +841,9 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
+	start = ast_tvnow();
 	for (;;) {
+		int ms;
 		/* If the underlying formats have changed force this bridge to break */
 		if ((c0->rawreadformat != c1->rawwriteformat) || (c1->rawreadformat != c0->rawwriteformat)) {
 			ast_debug(1, "rtp-engine-local-bridge: Oooh, formats changed, backing out\n");
@@ -865,8 +868,9 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			break;
 		}
 		/* Wait on a channel to feed us a frame */
-		if (!(who = ast_waitfor_n(cs, 2, &timeoutms))) {
-			if (!timeoutms) {
+		ms = ast_remaining_ms(start, timeoutms);
+		if (!(who = ast_waitfor_n(cs, 2, &ms))) {
+			if (!ms) {
 				res = AST_BRIDGE_RETRY;
 				break;
 			}
@@ -985,6 +989,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 	struct ast_sockaddr ac1 = {{0,}}, vac1 = {{0,}}, tac1 = {{0,}}, ac0 = {{0,}}, vac0 = {{0,}}, tac0 = {{0,}};
 	struct ast_sockaddr t1 = {{0,}}, vt1 = {{0,}}, tt1 = {{0,}}, t0 = {{0,}}, vt0 = {{0,}}, tt0 = {{0,}};
 	struct ast_frame *fr = NULL;
+	struct timeval start;
 
 	/* Test the first channel */
 	if (!(glue0->update_peer(c0, instance1, vinstance1, tinstance1, codec1, 0))) {
@@ -1024,7 +1029,9 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
+	start = ast_tvnow();
 	for (;;) {
+		int ms;
 		/* Check if anything changed */
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
@@ -1115,9 +1122,10 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 			oldcodec0 = codec0;
 		}
 
+		ms = ast_remaining_ms(start, timeoutms);
 		/* Wait for frame to come in on the channels */
-		if (!(who = ast_waitfor_n(cs, 2, &timeoutms))) {
-			if (!timeoutms) {
+		if (!(who = ast_waitfor_n(cs, 2, &ms))) {
+			if (!ms) {
 				res = AST_BRIDGE_RETRY;
 				break;
 			}

@@ -5859,6 +5859,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	const char *referer = NULL;   /* SIP referrer */
 	int cc_core_id;
 	char uri[SIPBUFSIZE] = "";
+	char capabilities[SIPBUFSIZE];
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
@@ -5965,6 +5966,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	p->callingpres = ast_party_id_presentation(&ast->caller.id);
 	p->jointcapability = ast_rtp_instance_available_formats(p->rtp, p->capability, p->prefcodec);
 	p->jointnoncodeccapability = p->noncodeccapability;
+
+	ast_log(LOG_NOTICE, "jointcapability is %s\n", ast_getformatname_multiple(capabilities, SIPBUFSIZE, p->jointcapability));
 
 	/* If there are no audio formats left to offer, punt */
 	if (!(p->jointcapability & AST_FORMAT_AUDIO_MASK)) {

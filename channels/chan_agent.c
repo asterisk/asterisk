@@ -1045,6 +1045,8 @@ static int agent_ack_sleep(void *data)
 	int res=0;
 	int to = 1000;
 	struct ast_frame *f;
+	struct timeval start = ast_tvnow();
+	int ms;
 
 	/* Wait a second and look for something */
 
@@ -1052,12 +1054,14 @@ static int agent_ack_sleep(void *data)
 	if (!p->chan) 
 		return -1;
 
-	for(;;) {
-		to = ast_waitfor(p->chan, to);
-		if (to < 0) 
+	while ((ms = ast_remaining_ms(start, to))) {
+		ms = ast_waitfor(p->chan, ms);
+		if (ms < 0) {
 			return -1;
-		if (!to) 
+		}
+		if (ms == 0) {
 			return 0;
+		}
 		f = ast_read(p->chan);
 		if (!f) 
 			return -1;
@@ -1077,7 +1081,7 @@ static int agent_ack_sleep(void *data)
 		ast_mutex_unlock(&p->lock);
 		res = 0;
 	}
-	return res;
+	return 0;
 }
 
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
