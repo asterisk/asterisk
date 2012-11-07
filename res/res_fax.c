@@ -1253,9 +1253,11 @@ static int set_fax_t38_caps(struct ast_channel *chan, struct ast_fax_session_det
 
 static int disable_t38(struct ast_channel *chan)
 {
-	int ms;
+	int timeout_ms;
 	struct ast_frame *frame = NULL;
 	struct ast_control_t38_parameters t38_parameters = { .request_response = AST_T38_REQUEST_TERMINATE, };
+	struct timeval start;
+	int ms;
 
 	ast_debug(1, "Shutting down T.38 on %s\n", ast_channel_name(chan));
 	if (ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) != 0) {
@@ -1264,18 +1266,17 @@ static int disable_t38(struct ast_channel *chan)
 	}
 
 	/* wait up to five seconds for negotiation to complete */
-	ms = 5000;
-
-	while (ms > 0) {
+	timeout_ms = 5000;
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
 		ms = ast_waitfor(chan, ms);
+
+		if (ms == 0) {
+			break;
+		}
 		if (ms < 0) {
 			ast_debug(1, "error while disabling T.38 on channel '%s'\n", ast_channel_name(chan));
 			return -1;
-		}
-
-		if (ms == 0) { /* all done, nothing happened */
-			ast_debug(1, "channel '%s' timed-out during T.38 shutdown\n", ast_channel_name(chan));
-			break;
 		}
 
 		if (!(frame = ast_read(chan))) {
@@ -1305,6 +1306,10 @@ static int disable_t38(struct ast_channel *chan)
 		ast_frfree(frame);
 	}
 
+	if (ms == 0) { /* all done, nothing happened */
+		ast_debug(1, "channel '%s' timed-out during T.38 shutdown\n", ast_channel_name(chan));
+	}
+
 	return 0;
 }
 
@@ -1313,7 +1318,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 {
 	int ms;
 	int timeout = RES_FAX_TIMEOUT;
-	int res = 0, chancount;
+	int res, chancount;
 	unsigned int expected_frametype = -1;
 	union ast_frame_subclass expected_framesubclass = { .integer = -1 };
 	unsigned int t38negotiated = (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED);
@@ -1324,6 +1329,8 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	struct ast_channel *c = chan;
 	struct ast_format orig_write_format;
 	struct ast_format orig_read_format;
+	int remaining_time;
+	struct timeval start;
 
 	ast_format_clear(&orig_write_format);
 	ast_format_clear(&orig_read_format);
@@ -1404,8 +1411,9 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	ast_debug(5, "channel %s will wait on FAX fd %d\n", ast_channel_name(chan), fax->fd);
 
 	/* handle frames for the session */
-	ms = 1000;
-	while ((res > -1) && (ms > -1) && (timeout > 0)) {
+	remaining_time = timeout;
+	start = ast_tvnow();
+	while (remaining_time > 0) {
 		struct ast_channel *ready_chan;
 		int ofd, exception;
 
@@ -1422,7 +1430,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 				GENERIC_FAX_EXEC_SET_VARS(fax, chan, "HANGUP", "remote channel hungup");
 				c = NULL;
 				chancount = 0;
-				timeout -= (1000 - ms);
+				remaining_time = ast_remaining_ms(start, timeout);
 				fax->tech->cancel_session(fax);
 				if (fax->tech->generate_silence) {
 					fax->tech->generate_silence(fax);
@@ -1491,7 +1499,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					fax->tech->write(fax, frame);
 					fax->frames_received++;
 				}
-				timeout = RES_FAX_TIMEOUT;
+				start = ast_tvnow();
 			}
 			ast_frfree(frame);
 		} else if (ofd == fax->fd) {
@@ -1508,36 +1516,30 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			ast_write(chan, frame);
 			fax->frames_sent++;
 			ast_frfree(frame);
-			timeout = RES_FAX_TIMEOUT;
+			start = ast_tvnow();
 		} else {
 			if (ms && (ofd < 0)) {
 				if ((errno == 0) || (errno == EINTR)) {
-					timeout -= (1000 - ms);
-					if (timeout <= 0)
+					remaining_time = ast_remaining_ms(start, timeout);
+					if (remaining_time <= 0)
 						GENERIC_FAX_EXEC_ERROR(fax, chan, "TIMEOUT", "fax session timed-out");
 					continue;
 				} else {
 					ast_log(LOG_WARNING, "something bad happened while channel '%s' was polling.\n", ast_channel_name(chan));
 					GENERIC_FAX_EXEC_ERROR(fax, chan, "UNKNOWN", "error polling data");
-					res = ms;
 					break;
 				}
 			} else {
 				/* nothing happened */
-				if (timeout > 0) {
-					timeout -= 1000;
-					if (timeout <= 0)
-						GENERIC_FAX_EXEC_ERROR(fax, chan, "TIMEOUT", "fax session timed-out");
-					continue;
-				} else {
-					ast_log(LOG_WARNING, "channel '%s' timed-out during the FAX transmission.\n", ast_channel_name(chan));
+				remaining_time = ast_remaining_ms(start, timeout);
+				if (remaining_time <= 0) {
 					GENERIC_FAX_EXEC_ERROR(fax, chan, "TIMEOUT", "fax session timed-out");
 					break;
 				}
 			}
 		}
 	}
-	ast_debug(3, "channel '%s' - event loop stopped { timeout: %d, ms: %d, res: %d }\n", ast_channel_name(chan), timeout, ms, res);
+	ast_debug(3, "channel '%s' - event loop stopped { timeout: %d, remaining_time: %d }\n", ast_channel_name(chan), timeout, remaining_time);
 
 	set_channel_variables(chan, details);
 
@@ -1571,9 +1573,11 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
-	int ms;
+	int timeout_ms;
 	struct ast_frame *frame = NULL;
 	struct ast_control_t38_parameters t38_parameters;
+	struct timeval start;
+	int ms;
 
 	/* don't send any audio if we've already received a T.38 reinvite */
 	if (ast_channel_get_t38_state(chan) != T38_STATE_NEGOTIATING) {
@@ -1583,9 +1587,11 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 			return -1;
 		}
 
-		ms = 3000;
-		while (ms > 0) {
+		timeout_ms = 3000;
+		start = ast_tvnow();
+		while ((ms = ast_remaining_ms(start, timeout_ms))) {
 			ms = ast_waitfor(chan, ms);
+
 			if (ms < 0) {
 				ast_log(LOG_ERROR, "error while generating CED tone on %s\n", ast_channel_name(chan));
 				ast_playtones_stop(chan);
@@ -1642,7 +1648,7 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 	ast_debug(1, "Negotiating T.38 for receive on %s\n", ast_channel_name(chan));
 
 	/* wait up to five seconds for negotiation to complete */
-	ms = 5000;
+	timeout_ms = 5000;
 
 	/* set parameters based on the session's parameters */
 	t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
@@ -1651,13 +1657,15 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 		return -1;
 	}
 
-	while (ms > 0) {
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
+		int break_loop = 0;
+
 		ms = ast_waitfor(chan, ms);
 		if (ms < 0) {
 			ast_log(LOG_WARNING, "error on '%s' while waiting for T.38 negotiation.\n", ast_channel_name(chan));
 			return -1;
 		}
-
 		if (ms == 0) { /* all done, nothing happened */
 			ast_log(LOG_WARNING, "channel '%s' timed-out during the T.38 negotiation.\n", ast_channel_name(chan));
 			details->caps &= ~AST_FAX_TECH_T38;
@@ -1685,21 +1693,24 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 				t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 				details->caps &= ~AST_FAX_TECH_AUDIO;
 				report_fax_status(chan, details, "T.38 Negotiated");
-				ms = 0;
+				break_loop = 1;
 				break;
 			case AST_T38_REFUSED:
 				ast_log(LOG_WARNING, "channel '%s' refused to negotiate T.38\n", ast_channel_name(chan));
 				details->caps &= ~AST_FAX_TECH_T38;
-				ms = 0;
+				break_loop = 1;
 				break;
 			default:
 				ast_log(LOG_ERROR, "channel '%s' failed to negotiate T.38\n", ast_channel_name(chan));
 				details->caps &= ~AST_FAX_TECH_T38;
-				ms = 0;
+				break_loop = 1;
 				break;
 			}
 		}
 		ast_frfree(frame);
+		if (break_loop) {
+			break;
+		}
 	}
 
 	/* if T.38 was negotiated, we are done initializing */
@@ -1967,9 +1978,11 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 
 static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
-	int ms;
+	int timeout_ms;
 	struct ast_frame *frame = NULL;
 	struct ast_control_t38_parameters t38_parameters;
+	struct timeval start;
+	int ms;
 
 	/* send CNG tone while listening for the receiver to initiate a switch
 	 * to T.38 mode; if they do, stop sending the CNG tone and proceed with
@@ -1977,7 +1990,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 	 *
 	 * 10500 is enough time for 3 CNG tones
 	 */
-	ms = 10500;
+	timeout_ms = 10500;
 
 	/* don't send any audio if we've already received a T.38 reinvite */
 	if (ast_channel_get_t38_state(chan) != T38_STATE_NEGOTIATING) {
@@ -1987,8 +2000,11 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 		}
 	}
 
-	while (ms > 0) {
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
+		int break_loop = 0;
 		ms = ast_waitfor(chan, ms);
+
 		if (ms < 0) {
 			ast_log(LOG_ERROR, "error while generating CNG tone on %s\n", ast_channel_name(chan));
 			ast_playtones_stop(chan);
@@ -2025,13 +2041,16 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 				t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 				details->caps &= ~AST_FAX_TECH_AUDIO;
 				report_fax_status(chan, details, "T.38 Negotiated");
-				ms = 0;
+				break_loop = 1;
 				break;
 			default:
 				break;
 			}
 		}
 		ast_frfree(frame);
+		if (break_loop) {
+			break;
+		}
 	}
 
 	ast_playtones_stop(chan);
@@ -2045,7 +2064,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 		ast_debug(1, "Negotiating T.38 for send on %s\n", ast_channel_name(chan));
 
 		/* wait up to five seconds for negotiation to complete */
-		ms = 5000;
+		timeout_ms = 5000;
 
 		/* set parameters based on the session's parameters */
 		t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
@@ -2054,13 +2073,15 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 			return -1;
 		}
 
-		while (ms > 0) {
+		start = ast_tvnow();
+		while ((ms = ast_remaining_ms(start, timeout_ms))) {
+			int break_loop = 0;
+
 			ms = ast_waitfor(chan, ms);
 			if (ms < 0) {
 				ast_log(LOG_WARNING, "error on '%s' while waiting for T.38 negotiation.\n", ast_channel_name(chan));
 				return -1;
 			}
-
 			if (ms == 0) { /* all done, nothing happened */
 				ast_log(LOG_WARNING, "channel '%s' timed-out during the T.38 negotiation.\n", ast_channel_name(chan));
 				details->caps &= ~AST_FAX_TECH_T38;
@@ -2088,21 +2109,24 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 					t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 					details->caps &= ~AST_FAX_TECH_AUDIO;
 					report_fax_status(chan, details, "T.38 Negotiated");
-					ms = 0;
+					break_loop = 1;
 					break;
 				case AST_T38_REFUSED:
 					ast_log(LOG_WARNING, "channel '%s' refused to negotiate T.38\n", ast_channel_name(chan));
 					details->caps &= ~AST_FAX_TECH_T38;
-					ms = 0;
+					break_loop = 1;
 					break;
 				default:
 					ast_log(LOG_ERROR, "channel '%s' failed to negotiate T.38\n", ast_channel_name(chan));
 					details->caps &= ~AST_FAX_TECH_T38;
-					ms = 0;
+					break_loop = 1;
 					break;
 				}
 			}
 			ast_frfree(frame);
+			if (break_loop) {
+				break;
+			}
 		}
 
 		/* if T.38 was negotiated, we are done initializing */
@@ -2118,15 +2142,17 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 				return -1;
 			}
 
-			ms = 3500;
-			while (ms > 0) {
+			timeout_ms = 3500;
+			start = ast_tvnow();
+			while ((ms = ast_remaining_ms(start, timeout_ms))) {
+				int break_loop = 0;
+
 				ms = ast_waitfor(chan, ms);
 				if (ms < 0) {
 					ast_log(LOG_ERROR, "error while generating second CNG tone on %s\n", ast_channel_name(chan));
 					ast_playtones_stop(chan);
 					return -1;
 				}
-
 				if (ms == 0) { /* all done, nothing happened */
 					break;
 				}
@@ -2157,13 +2183,16 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 						t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 						details->caps &= ~AST_FAX_TECH_AUDIO;
 						report_fax_status(chan, details, "T.38 Negotiated");
-						ms = 0;
+						break_loop = 1;
 						break;
 					default:
 						break;
 					}
 				}
 				ast_frfree(frame);
+				if (break_loop) {
+					break;
+				}
 			}
 
 			ast_playtones_stop(chan);

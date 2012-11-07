@@ -949,6 +949,7 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = { NULL, };
 	struct ast_frame *fr = NULL;
+	struct timeval start;
 
 	/* Start locally bridging both instances */
 	if (instance0->engine->local_bridge && instance0->engine->local_bridge(instance0, instance1)) {
@@ -979,7 +980,9 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
+	start = ast_tvnow();
 	for (;;) {
+		int ms;
 		/* If the underlying formats have changed force this bridge to break */
 		if ((ast_format_cmp(ast_channel_rawreadformat(c0), ast_channel_rawwriteformat(c1)) == AST_FORMAT_CMP_NOT_EQUAL) ||
 			(ast_format_cmp(ast_channel_rawreadformat(c1), ast_channel_rawwriteformat(c0)) == AST_FORMAT_CMP_NOT_EQUAL)) {
@@ -1005,8 +1008,9 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			break;
 		}
 		/* Wait on a channel to feed us a frame */
-		if (!(who = ast_waitfor_n(cs, 2, &timeoutms))) {
-			if (!timeoutms) {
+		ms = ast_remaining_ms(start, timeoutms);
+		if (!(who = ast_waitfor_n(cs, 2, &ms))) {
+			if (!ms) {
 				res = AST_BRIDGE_RETRY;
 				break;
 			}
@@ -1145,6 +1149,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 	struct ast_sockaddr ac1 = {{0,}}, vac1 = {{0,}}, tac1 = {{0,}}, ac0 = {{0,}}, vac0 = {{0,}}, tac0 = {{0,}};
 	struct ast_sockaddr t1 = {{0,}}, vt1 = {{0,}}, tt1 = {{0,}}, t0 = {{0,}}, vt0 = {{0,}}, tt0 = {{0,}};
 	struct ast_frame *fr = NULL;
+	struct timeval start;
 
 	if (!oldcap0 || !oldcap1) {
 		ast_channel_unlock(c0);
@@ -1189,7 +1194,9 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
+	start = ast_tvnow();
 	for (;;) {
+		int ms;
 		/* Check if anything changed */
 		if ((ast_channel_tech_pvt(c0) != pvt0) ||
 		    (ast_channel_tech_pvt(c1) != pvt1) ||
@@ -1284,9 +1291,10 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 			ast_format_cap_copy(oldcap0, cap0);
 		}
 
+		ms = ast_remaining_ms(start, timeoutms);
 		/* Wait for frame to come in on the channels */
-		if (!(who = ast_waitfor_n(cs, 2, &timeoutms))) {
-			if (!timeoutms) {
+		if (!(who = ast_waitfor_n(cs, 2, &ms))) {
+			if (!ms) {
 				res = AST_BRIDGE_RETRY;
 				break;
 			}

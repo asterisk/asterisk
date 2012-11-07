@@ -9766,6 +9766,8 @@ static void *async_wait(void *data)
 	struct ast_frame *f;
 	struct ast_app *app;
 	int have_early_media = 0;
+	struct timeval start = ast_tvnow();
+	int ms;
 
 	if (chan) {
 		struct ast_callid *callid = ast_channel_callid(chan);
@@ -9775,12 +9777,12 @@ static void *async_wait(void *data)
 		}
 	}
 
-	while (timeout && (ast_channel_state(chan) != AST_STATE_UP)) {
-		res = ast_waitfor(chan, timeout);
+	while ((ms = ast_remaining_ms(start, timeout)) &&
+			ast_channel_state(chan) != AST_STATE_UP) {
+		res = ast_waitfor(chan, ms);
 		if (res < 1)
 			break;
-		if (timeout > -1)
-			timeout = res;
+
 		f = ast_read(chan);
 		if (!f)
 			break;
