@@ -1833,7 +1833,9 @@ static void *do_idle_thread(void *v_pvt)
 	struct ast_frame *f;
 	char ex[80];
 	/* Wait up to 30 seconds for an answer */
-	int newms, ms = 30000;
+	int timeout_ms = 30000;
+	int ms;
+	struct timeval start;
 
 	ast_verb(3, "Initiating idle call on channel %s\n", chan->name);
 	snprintf(ex, sizeof(ex), "%d/%s", pvt->channel, pvt->pri->idledial);
@@ -1842,7 +1844,12 @@ static void *do_idle_thread(void *v_pvt)
 		ast_hangup(chan);
 		return NULL;
 	}
-	while ((newms = ast_waitfor(chan, ms)) > 0) {
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
+		if (ast_waitfor(chan, ms) <= 0) {
+			break;
+		}
+
 		f = ast_read(chan);
 		if (!f) {
 			/* Got hangup */
@@ -1868,7 +1875,6 @@ static void *do_idle_thread(void *v_pvt)
 			};
 		}
 		ast_frfree(f);
-		ms = newms;
 	}
 	/* Hangup the channel since nothing happend */
 	ast_hangup(chan);

@@ -63,10 +63,17 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 	struct ast_silence_generator *silgen = NULL;
 	int res = 0;
 	double s;
+	int timeout_ms;
 	int ms;
+	struct timeval start = ast_tvnow();
 
 	if (!data || (sscanf(data, "%30lg", &s) != 1)) {
 		ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
+		return 0;
+	}
+
+	if (s < 0.0) {
+		ast_log(LOG_WARNING, "Invalid timeout provided for WaitForRing (%lg)\n", s);
 		return 0;
 	}
 
@@ -74,11 +81,11 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 		silgen = ast_channel_start_silence_generator(chan);
 	}
 
-	ms = s * 1000.0;
-	while (ms > 0) {
+	timeout_ms = s * 1000.0;
+	while ((ms = ast_remaining_ms(start, timeout_ms))) {
 		ms = ast_waitfor(chan, ms);
 		if (ms < 0) {
-			res = ms;
+			res = -1;
 			break;
 		}
 		if (ms > 0) {
@@ -95,14 +102,12 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 	}
 	/* Now we're really ready for the ring */
 	if (!res) {
-		ms = 99999999;
-		while(ms > 0) {
-			ms = ast_waitfor(chan, ms);
-			if (ms < 0) {
-				res = ms;
+		for (;;) {
+			int wait_res = ast_waitfor(chan, -1);
+			if (wait_res < 0) {
+				res = -1;
 				break;
-			}
-			if (ms > 0) {
+			} else {
 				f = ast_read(chan);
 				if (!f) {
 					res = -1;
