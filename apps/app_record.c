@@ -160,7 +160,6 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	int terminator = '#';
 	struct ast_format rfmt;
 	int ioflags;
-	int waitres;
 	struct ast_silence_generator *silgen = NULL;
 	struct ast_flags flags = { 0, };
 	AST_DECLARE_APP_ARGS(args,
@@ -169,8 +168,11 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(maxduration);
 		AST_APP_ARG(options);
 	);
+	int ms;
+	struct timeval start;
 
 	ast_format_clear(&rfmt);
+
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
@@ -331,14 +333,15 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	if (maxduration <= 0)
 		maxduration = -1;
 
-	while ((waitres = ast_waitfor(chan, maxduration)) > -1) {
-		if (maxduration > 0) {
-			if (waitres == 0) {
-				gottimeout = 1;
-				pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "TIMEOUT");
-				break;
-			}
-			maxduration = waitres;
+	start = ast_tvnow();
+	while ((ms = ast_remaining_ms(start, maxduration))) {
+		ms = ast_waitfor(chan, ms);
+		if (ms < 0) {
+			break;
+		}
+
+		if (maxduration > 0 && ms == 0) {
+			break;
 		}
 
 		f = ast_read(chan);
@@ -390,6 +393,12 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		}
 		ast_frfree(f);
 	}
+
+	if (maxduration > 0 && !ms) {
+		gottimeout = 1;
+		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "TIMEOUT");
+	}
+
 	if (!f) {
 		ast_debug(1, "Got hangup\n");
 		res = -1;

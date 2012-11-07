@@ -1680,7 +1680,7 @@ int ast_is_deferrable_frame(const struct ast_frame *frame);
 /*!
  * \brief Wait for a specified amount of time, looking for hangups
  * \param chan channel to wait for
- * \param ms length of time in milliseconds to sleep
+ * \param ms length of time in milliseconds to sleep. This should never be less than zero.
  * \details
  * Waits for a specified amount of time, servicing the channel as required.
  * \return returns -1 on hangup, otherwise 0.
@@ -1690,7 +1690,7 @@ int ast_safe_sleep(struct ast_channel *chan, int ms);
 /*!
  * \brief Wait for a specified amount of time, looking for hangups and a condition argument
  * \param chan channel to wait for
- * \param ms length of time in milliseconds to sleep
+ * \param ms length of time in milliseconds to sleep.
  * \param cond a function pointer for testing continue condition
  * \param data argument to be passed to the condition test function
  * \return returns -1 on hangup, otherwise 0.

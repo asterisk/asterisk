@@ -2391,6 +2391,9 @@ static void *__analog_ss_thread(void *data)
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int k = 0;
 				int oldlinearity; 
+				int timeout_ms;
+				int ms;
+				struct timeval start = ast_tvnow();
 				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on channel %s\n", ast_channel_name(chan));
 
@@ -2403,10 +2406,12 @@ static void *__analog_ss_thread(void *data)
 				 * can drop some of them.
 				 */
 				ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
-				res = 4000;/* This is a typical OFF time between rings. */
+				timeout_ms = 4000;/* This is a typical OFF time between rings. */
 				for (;;) {
 					struct ast_frame *f;
-					res = ast_waitfor(chan, res);
+
+					ms = ast_remaining_ms(start, timeout_ms);
+					res = ast_waitfor(chan, ms);
 					if (res <= 0) {
 						/*
 						 * We do not need to restore the analog_set_linear_mode()
@@ -2427,7 +2432,7 @@ static void *__analog_ss_thread(void *data)
 							dtmfbuf[k++] = f->subclass.integer;
 						}
 						ast_debug(1, "CID got digit '%c'\n", f->subclass.integer);
-						res = 4000;/* This is a typical OFF time between rings. */
+						start = ast_tvnow();
 					}
 					ast_frfree(f);
 					if (ast_channel_state(chan) == AST_STATE_RING ||
@@ -2461,6 +2466,9 @@ static void *__analog_ss_thread(void *data)
 				numbuf[0] = 0;
 
 				if (!analog_start_cid_detect(p, p->cid_signalling)) {
+					int off_ms;
+					int ms;
+					struct timeval off_start;
 					while (1) {
 						res = analog_get_callerid(p, namebuf, numbuf, &ev, timeout - ast_tvdiff_ms(ast_tvnow(), start));
 
@@ -2498,10 +2506,12 @@ static void *__analog_ss_thread(void *data)
 					}
 
 					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */
-					res = 4000;/* This is a typical OFF time between rings. */
-					for (;;) {
+					off_start = ast_tvnow();
+					off_ms = 4000;/* This is a typical OFF time between rings. */
+					while ((ms = ast_remaining_ms(off_start, off_ms))) {
 						struct ast_frame *f;
-						res = ast_waitfor(chan, res);
+
+						res = ast_waitfor(chan, ms);
 						if (res <= 0) {
 							ast_log(LOG_WARNING, "CID timed out waiting for ring. "
 								"Exiting simple switch\n");

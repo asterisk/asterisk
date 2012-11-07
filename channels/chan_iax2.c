@@ -5627,6 +5627,11 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		}
 		to = 1000;
 		who = ast_waitfor_n(cs, 2, &to);
+		/* XXX This will need to be updated to calculate
+		 * timeout correctly once timeoutms is allowed to be
+		 * > 0. Right now, this can go badly if the waitfor
+		 * times out in less than a millisecond
+		 */
 		if (timeoutms > -1) {
 			timeoutms -= (1000 - to);
 			if (timeoutms < 0)
@@ -13893,6 +13898,8 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 
 	/* By here we must have a dp */
 	if (dp->flags & CACHE_FLAG_PENDING) {
+		struct timeval start;
+		int ms;
 		/* Okay, here it starts to get nasty.  We need a pipe now to wait
 		   for a reply to come back so long as it's pending */
 		for (x = 0; x < ARRAY_LEN(dp->waiters); x++) {
@@ -13917,8 +13924,9 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		if (chan)
 			old = ast_channel_defer_dtmf(chan);
 		doabort = 0;
-		while(timeout) {
-			c = ast_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &timeout);
+		start = ast_tvnow();
+		while ((ms = ast_remaining_ms(start, timeout))) {
+			c = ast_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &ms);
 			if (outfd > -1)
 				break;
 			if (!c)
@@ -13929,7 +13937,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			}
 			ast_frfree(f);
 		}
-		if (!timeout) {
+		if (!ms) {
 			ast_log(LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
 		}
 		AST_LIST_LOCK(&dpcache);

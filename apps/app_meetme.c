@@ -1917,7 +1917,7 @@ static void conf_flush(int fd, struct ast_channel *chan)
 		/* when no frames are available, this will wait
 		   for 1 millisecond maximum
 		*/
-		while (ast_waitfor(chan, 1)) {
+		while (ast_waitfor(chan, 1) > 0) {
 			f = ast_read(chan);
 			if (f)
 				ast_frfree(f);
