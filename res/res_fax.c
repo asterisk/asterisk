@@ -1215,7 +1215,6 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 #define GENERIC_FAX_EXEC_ERROR_QUIET(fax, chan, errorstr, reason) \
 	do {	\
 		GENERIC_FAX_EXEC_SET_VARS(fax, chan, errorstr, reason); \
-		res = ms = -1; \
 	} while (0)
 
 #define GENERIC_FAX_EXEC_ERROR(fax, chan, errorstr, reason)	\
@@ -1327,7 +1326,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 {
 	int ms;
 	int timeout = RES_FAX_TIMEOUT;
-	int res, chancount;
+	int chancount;
 	unsigned int expected_frametype = -1;
 	union ast_frame_subclass expected_framesubclass = { .integer = -1 };
 	unsigned int t38negotiated = (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED);
