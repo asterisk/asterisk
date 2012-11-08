@@ -60,6 +60,21 @@ enum ast_tps_options {
 	TPS_REF_IF_EXISTS = (1 << 0),
 };
 
+struct ast_taskprocessor_listener;
+
+struct ast_taskprocessor_listener_callbacks {
+	/*! Indicates a task was pushed to the processor */
+	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
+	/*! Indicates the task processor has become empty */
+	void (*emptied)(struct ast_taskprocessor_listener *listener);
+};
+
+struct ast_taskprocessor_listener {
+	struct ast_taskprocessor_listener_callbacks *callbacks;
+	struct ast_taskprocessor *tps;
+	void *private_data;
+};
+
 /*!
  * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
  *
@@ -73,6 +88,16 @@ enum ast_tps_options {
  * \since 1.6.1
  */
 struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create);
+
+/*!
+ * \brief Create a taskprocessor with a custom listener
+ *
+ * \param name The name of the taskprocessor to create
+ * \param listener The listener for operations on this taskprocessor
+ * \retval NULL Failure
+ * \reval non-NULL success
+ */
+struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener);
 
 /*!
  * \brief Unreference the specified taskprocessor and its reference count will decrement.
@@ -95,6 +120,14 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
  * \since 1.6.1
  */
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
+
+/*!
+ * \brief Pop a task off the taskprocessor and execute it.
+ * \param tps The taskprocessor from which to execute.
+ * \retval 0 There is no further work to be done.
+ * \retval 1 Tasks still remain in the taskprocessor queue.
+ */
+int ast_taskprocessor_execute(struct ast_taskprocessor *tps);
 
 /*!
  * \brief Return the name of the taskprocessor singleton
