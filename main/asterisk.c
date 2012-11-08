@@ -3545,6 +3545,10 @@ int main(int argc, char *argv[])
 	int moduleresult;         /*!< Result from the module load subsystem */
 	struct rlimit l;
 
+#if defined(__AST_DEBUG_MALLOC)
+	__ast_mm_init_phase_1();
+#endif	/* defined(__AST_DEBUG_MALLOC) */
+
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
 		fprintf(stderr, "Truncating argument size to %d\n", (int)ARRAY_LEN(_argv) - 1);
@@ -4231,9 +4235,9 @@ int main(int argc, char *argv[])
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
-#ifdef __AST_DEBUG_MALLOC
-	__ast_mm_init();
-#endif
+#if defined(__AST_DEBUG_MALLOC)
+	__ast_mm_init_phase_2();
+#endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));

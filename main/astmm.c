@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -21,6 +21,7 @@
  * \brief Memory Management
  *
  * \author Mark Spencer <markster@digium.com>
+ * \author Richard Mudgett <rmudgett@digium.com>
  */
 
 /*** MODULEINFO
@@ -29,7 +30,7 @@
 
 #include "asterisk.h"
 
-#ifdef __AST_DEBUG_MALLOC
+#if defined(__AST_DEBUG_MALLOC)
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -64,36 +65,63 @@ enum func_type {
 #undef vasprintf
 #undef asprintf
 
-#define FENCE_MAGIC 0xdeadbeef
+#define FENCE_MAGIC		0xdeadbeef	/*!< Allocated memory high/low fence overwrite check. */
+#define FREED_MAGIC		0xdeaddead	/*!< Freed memory wipe filler. */
+#define MALLOC_FILLER	0x55		/*!< Malloced memory filler.  Must not be zero. */
 
 static FILE *mmlog;
 
-/* NOTE: Be EXTREMELY careful with modifying this structure; the total size of this structure
-   must result in 'automatic' alignment so that the 'fence' field lands exactly at the end of
-   the structure in memory (and thus immediately before the allocated region the fence is
-   supposed to be used to monitor). In other words, we cannot allow the compiler to insert
-   any padding between this structure and anything following it, so add up the sizes of all the
-   fields and compare to sizeof(struct ast_region)... if they don't match, then the compiler
-   is padding the structure and either the fields need to be rearranged to eliminate internal
-   padding, or a dummy field will need to be inserted before the 'fence' field to push it to
-   the end of the actual space it will consume. Note that this must be checked for both 32-bit
-   and 64-bit platforms, as the sizes of pointers and 'size_t' differ on these platforms.
-*/
-
-static struct ast_region {
+struct ast_region {
 	struct ast_region *next;
 	size_t len;
-	char file[64];
-	char func[40];
+	unsigned int cache;		/* region was allocated as part of a cache pool */
 	unsigned int lineno;
 	enum func_type which;
-	unsigned int cache;		/* region was allocated as part of a cache pool */
-	unsigned int fence;
-	unsigned char data[0];
-} *regions[SOME_PRIME];
+	char file[64];
+	char func[40];
 
-#define HASH(a) \
-	(((unsigned long)(a)) % SOME_PRIME)
+	/*!
+	 * \brief Lower guard fence.
+	 *
+	 * \note Must be right before data[].
+	 *
+	 * \note Padding between fence and data[] is irrelevent because
+	 * data[] is used to fill in the lower fence check value and not
+	 * the fence member.  The fence member is to ensure that there
+	 * is space reserved for the fence check value.
+	 */
+	unsigned int fence;
+	/*!
+	 * \brief Location of the requested malloc block to return.
+	 *
+	 * \note Must have the same alignment that malloc returns.
+	 * i.e., It is suitably aligned for any kind of varible.
+	 */
+	unsigned char data[0] __attribute__((aligned));
+};
+
+/*! Hash table of lists of active allocated memory regions. */
+static struct ast_region *regions[SOME_PRIME];
+
+/*! Number of freed regions to keep around to delay actually freeing them. */
+#define FREED_MAX_COUNT		1500
+
+/*! Maximum size of a minnow block */
+#define MINNOWS_MAX_SIZE	50
+
+struct ast_freed_regions {
+	/*! Memory regions that have been freed. */
+	struct ast_region *regions[FREED_MAX_COUNT];
+	/*! Next index into freed regions[] to use. */
+	int index;
+};
+
+/*! Large memory blocks that have been freed. */
+static struct ast_freed_regions whales;
+/*! Small memory blocks that have been freed. */
+static struct ast_freed_regions minnows;
+
+#define HASH(a)		(((unsigned long)(a)) % ARRAY_LEN(regions))
 
 /*! Tracking this mutex will cause infinite recursion, as the mutex tracking
  *  code allocates memory */
@@ -108,95 +136,265 @@ AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 		}                                    \
 	} while (0)
 
-static inline void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func, unsigned int cache)
+/*!
+ * \internal
+ *
+ * \note If DO_CRASH is not defined then the function returns.
+ *
+ * \return Nothing
+ */
+static void my_do_crash(void)
+{
+	/*
+	 * Give the logger a chance to get the message out, just in case
+	 * we abort(), or Asterisk crashes due to whatever problem just
+	 * happened.
+	 */
+	usleep(1);
+	ast_do_crash();
+}
+
+static void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func, unsigned int cache)
 {
 	struct ast_region *reg;
-	void *ptr = NULL;
 	unsigned int *fence;
 	int hash;
 
 	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
-		astmm_log("Memory Allocation Failure - '%d' bytes in function %s "
-			  "at line %d of %s\n", (int) size, func, lineno, file);
+		astmm_log("Memory Allocation Failure - '%d' bytes at %s %s() line %d\n",
+			(int) size, file, func, lineno);
 		return NULL;
 	}
 
+	reg->len = size;
+	reg->cache = cache;
+	reg->lineno = lineno;
+	reg->which = which;
 	ast_copy_string(reg->file, file, sizeof(reg->file));
 	ast_copy_string(reg->func, func, sizeof(reg->func));
-	reg->lineno = lineno;
-	reg->len = size;
-	reg->which = which;
-	reg->cache = cache;
-	ptr = reg->data;
-	hash = HASH(ptr);
-	reg->fence = FENCE_MAGIC;
-	fence = (ptr + reg->len);
+
+	/*
+	 * Init lower fence.
+	 *
+	 * We use the bytes just preceeding reg->data and not reg->fence
+	 * because there is likely to be padding between reg->fence and
+	 * reg->data for reg->data alignment.
+	 */
+	fence = (unsigned int *) (reg->data - sizeof(*fence));
+	*fence = FENCE_MAGIC;
+
+	/* Init higher fence. */
+	fence = (unsigned int *) (reg->data + reg->len);
 	put_unaligned_uint32(fence, FENCE_MAGIC);
 
+	hash = HASH(reg->data);
 	ast_mutex_lock(&reglock);
 	reg->next = regions[hash];
 	regions[hash] = reg;
 	ast_mutex_unlock(&reglock);
 
-	return ptr;
+	return reg->data;
 }
 
-static inline size_t __ast_sizeof_region(void *ptr)
+/*!
+ * \internal
+ * \brief Wipe the region payload data with a known value.
+ *
+ * \param reg Region block to be wiped.
+ *
+ * \return Nothing
+ */
+static void region_data_wipe(struct ast_region *reg)
 {
-	int hash = HASH(ptr);
-	struct ast_region *reg;
-	size_t len = 0;
+	void *end;
+	unsigned int *pos;
 
-	ast_mutex_lock(&reglock);
-	for (reg = regions[hash]; reg; reg = reg->next) {
-		if (reg->data == ptr) {
-			len = reg->len;
+	/*
+	 * Wipe the lower fence, the payload, and whatever amount of the
+	 * higher fence that falls into alignment with the payload.
+	 */
+	end = reg->data + reg->len;
+	for (pos = &reg->fence; (void *) pos <= end; ++pos) {
+		*pos = FREED_MAGIC;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Check the region payload data for memory corruption.
+ *
+ * \param reg Region block to be checked.
+ *
+ * \return Nothing
+ */
+static void region_data_check(struct ast_region *reg)
+{
+	void *end;
+	unsigned int *pos;
+
+	/*
+	 * Check the lower fence, the payload, and whatever amount of
+	 * the higher fence that falls into alignment with the payload.
+	 */
+	end = reg->data + reg->len;
+	for (pos = &reg->fence; (void *) pos <= end; ++pos) {
+		if (*pos != FREED_MAGIC) {
+			astmm_log("WARNING: Memory corrupted after free of %p allocated at %s %s() line %d\n",
+				reg->data, reg->file, reg->func, reg->lineno);
+			my_do_crash();
 			break;
 		}
 	}
-	ast_mutex_unlock(&reglock);
-
-	return len;
 }
 
-static void __ast_free_region(void *ptr, const char *file, int lineno, const char *func)
+/*!
+ * \internal
+ * \brief Flush the circular array of freed regions.
+ *
+ * \param freed Already freed region blocks storage.
+ *
+ * \return Nothing
+ */
+static void freed_regions_flush(struct ast_freed_regions *freed)
+{
+	int idx;
+	struct ast_region *old;
+
+	ast_mutex_lock(&reglock);
+	for (idx = 0; idx < ARRAY_LEN(freed->regions); ++idx) {
+		old = freed->regions[idx];
+		freed->regions[idx] = NULL;
+		if (old) {
+			region_data_check(old);
+			free(old);
+		}
+	}
+	freed->index = 0;
+	ast_mutex_unlock(&reglock);
+}
+
+/*!
+ * \internal
+ * \brief Delay freeing a region block.
+ *
+ * \param freed Already freed region blocks storage.
+ * \param reg Region block to be freed.
+ *
+ * \return Nothing
+ */
+static void region_free(struct ast_freed_regions *freed, struct ast_region *reg)
+{
+	struct ast_region *old;
+
+	region_data_wipe(reg);
+
+	ast_mutex_lock(&reglock);
+	old = freed->regions[freed->index];
+	freed->regions[freed->index] = reg;
+
+	++freed->index;
+	if (ARRAY_LEN(freed->regions) <= freed->index) {
+		freed->index = 0;
+	}
+	ast_mutex_unlock(&reglock);
+
+	if (old) {
+		region_data_check(old);
+		free(old);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Remove a region from the active regions.
+ *
+ * \param ptr Region payload data pointer.
+ *
+ * \retval region on success.
+ * \retval NULL if not found.
+ */
+static struct ast_region *region_remove(void *ptr)
 {
 	int hash;
-	struct ast_region *reg, *prev = NULL;
-	unsigned int *fence;
-
-	if (!ptr)
-		return;
+	struct ast_region *reg;
+	struct ast_region *prev = NULL;
 
 	hash = HASH(ptr);
 
 	ast_mutex_lock(&reglock);
 	for (reg = regions[hash]; reg; reg = reg->next) {
 		if (reg->data == ptr) {
-			if (prev)
+			if (prev) {
 				prev->next = reg->next;
-			else
+			} else {
 				regions[hash] = reg->next;
+			}
 			break;
 		}
 		prev = reg;
 	}
 	ast_mutex_unlock(&reglock);
 
+	return reg;
+}
+
+/*!
+ * \internal
+ * \brief Check the fences of a region.
+ *
+ * \param reg Region block to check.
+ *
+ * \return Nothing
+ */
+static void region_check_fences(struct ast_region *reg)
+{
+	unsigned int *fence;
+
+	/*
+	 * We use the bytes just preceeding reg->data and not reg->fence
+	 * because there is likely to be padding between reg->fence and
+	 * reg->data for reg->data alignment.
+	 */
+	fence = (unsigned int *) (reg->data - sizeof(*fence));
+	if (*fence != FENCE_MAGIC) {
+		astmm_log("WARNING: Low fence violation of %p allocated at %s %s() line %d\n",
+			reg->data, reg->file, reg->func, reg->lineno);
+		my_do_crash();
+	}
+	fence = (unsigned int *) (reg->data + reg->len);
+	if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
+		astmm_log("WARNING: High fence violation of %p allocated at %s %s() line %d\n",
+			reg->data, reg->file, reg->func, reg->lineno);
+		my_do_crash();
+	}
+}
+
+static void __ast_free_region(void *ptr, const char *file, int lineno, const char *func)
+{
+	struct ast_region *reg;
+
+	if (!ptr) {
+		return;
+	}
+
+	reg = region_remove(ptr);
 	if (reg) {
-		fence = (unsigned int *)(reg->data + reg->len);
-		if (reg->fence != FENCE_MAGIC) {
-			astmm_log("WARNING: Low fence violation at %p, in %s of %s, "
-				"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
+		region_check_fences(reg);
+
+		if (reg->len <= MINNOWS_MAX_SIZE) {
+			region_free(&minnows, reg);
+		} else {
+			region_free(&whales, reg);
 		}
-		if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
-			astmm_log("WARNING: High fence violation at %p, in %s of %s, "
-				"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-		}
-		free(reg);
 	} else {
-		astmm_log("WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",
-			ptr, func, file, lineno);
+		/*
+		 * This memory region is not registered.  It could be because of
+		 * a double free or the memory block was not allocated by the
+		 * malloc debug code.
+		 */
+		astmm_log("WARNING: Freeing unregistered memory %p by %s %s() line %d\n",
+			ptr, file, func, lineno);
+		my_do_crash();
 	}
 }
 
@@ -204,8 +402,10 @@ void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, cons
 {
 	void *ptr;
 
-	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 0)))
+	ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 0);
+	if (ptr) {
 		memset(ptr, 0, size * nmemb);
+	}
 
 	return ptr;
 }
@@ -214,15 +414,25 @@ void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno
 {
 	void *ptr;
 
-	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 1)))
+	ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 1);
+	if (ptr) {
 		memset(ptr, 0, size * nmemb);
+	}
 
 	return ptr;
 }
 
 void *__ast_malloc(size_t size, const char *file, int lineno, const char *func)
 {
-	return __ast_alloc_region(size, FUNC_MALLOC, file, lineno, func, 0);
+	void *ptr;
+
+	ptr = __ast_alloc_region(size, FUNC_MALLOC, file, lineno, func, 0);
+	if (ptr) {
+		/* Make sure that the malloced memory is not zero. */
+		memset(ptr, MALLOC_FILLER, size);
+	}
+
+	return ptr;
 }
 
 void __ast_free(void *ptr, const char *file, int lineno, const char *func)
@@ -230,28 +440,71 @@ void __ast_free(void *ptr, const char *file, int lineno, const char *func)
 	__ast_free_region(ptr, file, lineno, func);
 }
 
+/*!
+ * \note reglock must be locked before calling.
+ */
+static struct ast_region *region_find(void *ptr)
+{
+	int hash;
+	struct ast_region *reg;
+
+	hash = HASH(ptr);
+	for (reg = regions[hash]; reg; reg = reg->next) {
+		if (reg->data == ptr) {
+			break;
+		}
+	}
+
+	return reg;
+}
+
 void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
 {
-	void *tmp;
-	size_t len = 0;
+	size_t len;
+	struct ast_region *found;
+	void *new_mem;
 
-	if (ptr && !(len = __ast_sizeof_region(ptr))) {
-		astmm_log("WARNING: Realloc of unalloced memory at %p, in %s of %s, "
-			"line %d\n", ptr, func, file, lineno);
-		return NULL;
-	}
-
-	if (!(tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func, 0)))
-		return NULL;
-
-	if (len > size)
-		len = size;
 	if (ptr) {
-		memcpy(tmp, ptr, len);
-		__ast_free_region(ptr, file, lineno, func);
+		ast_mutex_lock(&reglock);
+		found = region_find(ptr);
+		if (!found) {
+			ast_mutex_unlock(&reglock);
+			astmm_log("WARNING: Realloc of unregistered memory %p by %s %s() line %d\n",
+				ptr, file, func, lineno);
+			my_do_crash();
+			return NULL;
+		}
+		len = found->len;
+		ast_mutex_unlock(&reglock);
+	} else {
+		found = NULL;
+		len = 0;
 	}
 
-	return tmp;
+	if (!size) {
+		__ast_free_region(ptr, file, lineno, func);
+		return NULL;
+	}
+
+	new_mem = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func, 0);
+	if (new_mem) {
+		if (found) {
+			/* Copy the old data to the new malloced memory. */
+			if (size <= len) {
+				memcpy(new_mem, ptr, size);
+			} else {
+				memcpy(new_mem, ptr, len);
+				/* Make sure that the added memory is not zero. */
+				memset(new_mem + len, MALLOC_FILLER, size - len);
+			}
+			__ast_free_region(ptr, file, lineno, func);
+		} else {
+			/* Make sure that the malloced memory is not zero. */
+			memset(new_mem, MALLOC_FILLER, size);
+		}
+	}
+
+	return new_mem;
 }
 
 char *__ast_strdup(const char *s, const char *file, int lineno, const char *func)
@@ -335,15 +588,16 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 	unsigned int len = 0;
 	unsigned int cache_len = 0;
 	unsigned int count = 0;
-	unsigned int *fence;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "memory show allocations";
 		e->usage =
-			"Usage: memory show allocations [<file>]\n"
-			"       Dumps a list of all segments of allocated memory, optionally\n"
-			"       limited to those from a specific file\n";
+			"Usage: memory show allocations [<file>|anomolies]\n"
+			"       Dumps a list of segments of allocated memory.\n"
+			"       Defaults to listing all memory allocations.\n"
+			"       <file> - Restricts output to memory allocated by the file.\n"
+			"       anomolies - Only check for fence violations.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -354,19 +608,10 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 		fn = a->argv[3];
 
 	ast_mutex_lock(&reglock);
-	for (x = 0; x < SOME_PRIME; x++) {
+	for (x = 0; x < ARRAY_LEN(regions); x++) {
 		for (reg = regions[x]; reg; reg = reg->next) {
 			if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
-				fence = (unsigned int *)(reg->data + reg->len);
-				if (reg->fence != FENCE_MAGIC) {
-					astmm_log("WARNING: Low fence violation at %p, "
-						"in %s of %s, line %d\n", reg->data,
-						reg->func, reg->file, reg->lineno);
-				}
-				if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
-					astmm_log("WARNING: High fence violation at %p, in %s of %s, "
-						"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-				}
+				region_check_fences(reg);
 			}
 			if (!fn || !strcasecmp(fn, reg->file)) {
 				ast_cli(a->fd, "%10d bytes allocated%s in %20s at line %5d of %s\n",
@@ -411,7 +656,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: memory show summary [<file>]\n"
 			"       Summarizes heap memory allocations by file, or optionally\n"
-			"by function, if a file is specified\n";
+			"       by function, if a file is specified.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -421,7 +666,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		fn = a->argv[3];
 
 	ast_mutex_lock(&reglock);
-	for (x = 0; x < SOME_PRIME; x++) {
+	for (x = 0; x < ARRAY_LEN(regions); x++) {
 		for (reg = regions[x]; reg; reg = reg->next) {
 			if (fn && strcasecmp(fn, reg->file))
 				continue;
@@ -483,14 +728,55 @@ static struct ast_cli_entry cli_memory[] = {
 	AST_CLI_DEFINE(handle_memory_show_summary, "Summarize outstanding memory allocations"),
 };
 
-void __ast_mm_init(void)
+/*!
+ * \internal
+ * \return Nothing
+ */
+static void mm_atexit_final(void)
+{
+	FILE *log;
+
+	/* Flush all delayed memory free circular arrays. */
+	freed_regions_flush(&whales);
+	freed_regions_flush(&minnows);
+
+	/* Close the log file. */
+	log = mmlog;
+	mmlog = NULL;
+	if (log) {
+		fclose(log);
+	}
+}
+
+/*!
+ * \brief Initialize malloc debug phase 1.
+ *
+ * \note Must be called first thing in main().
+ *
+ * \return Nothing
+ */
+void __ast_mm_init_phase_1(void)
+{
+	atexit(mm_atexit_final);
+}
+
+/*!
+ * \internal
+ * \return Nothing
+ */
+static void mm_atexit_ast(void)
+{
+	ast_cli_unregister_multiple(cli_memory, ARRAY_LEN(cli_memory));
+}
+
+/*!
+ * \brief Initialize malloc debug phase 2.
+ *
+ * \return Nothing
+ */
+void __ast_mm_init_phase_2(void)
 {
 	char filename[PATH_MAX];
-	size_t pad = sizeof(struct ast_region) - offsetof(struct ast_region, data);
-
-	if (pad) {
-		ast_log(LOG_ERROR, "struct ast_region has %d bytes of padding! This must be eliminated for low-fence checking to work properly!\n", (int) pad);
-	}
 
 	ast_cli_register_multiple(cli_memory, ARRAY_LEN(cli_memory));
 
@@ -498,10 +784,15 @@ void __ast_mm_init(void)
 
 	ast_verb(1, "Asterisk Malloc Debugger Started (see %s))\n", filename);
 
-	if ((mmlog = fopen(filename, "a+"))) {
-		fprintf(mmlog, "%ld - New session\n", (long)time(NULL));
+	mmlog = fopen(filename, "a+");
+	if (mmlog) {
+		fprintf(mmlog, "%ld - New session\n", (long) time(NULL));
 		fflush(mmlog);
+	} else {
+		ast_log(LOG_ERROR, "Could not open malloc debug log file: %s\n", filename);
 	}
+
+	ast_register_atexit(mm_atexit_ast);
 }
 
-#endif
+#endif	/* defined(__AST_DEBUG_MALLOC) */

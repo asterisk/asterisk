@@ -729,31 +729,26 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 
 
 #ifdef AST_DEVMODE
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-static void force_inline _ast_assert(int condition, const char *condition_str,
-	const char *file, int line, const char *function)
+static void force_inline _ast_assert(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
 	if (__builtin_expect(!condition, 1)) {
-		/* Attempt to put it into the logger, but hope that at least someone saw the
-		 * message on stderr ... */
-		ast_log(__LOG_ERROR, file, line, function, "FRACK!, Failed assertion %s (%d)\n",
-			condition_str, condition);
-		fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
-			condition_str, condition, line, function, file);
-		/* Give the logger a chance to get the message out, just in case we abort(), or
-		 * Asterisk crashes due to whatever problem just happened after we exit ast_assert(). */
-		usleep(1);
-#ifdef DO_CRASH
-		abort();
-		/* Just in case abort() doesn't work or something else super silly,
-		 * and for Qwell's amusement. */
-		*((int*)0)=0;
-#endif
+		__ast_assert_failed(condition, condition_str, file, line, function);
 	}
 }
 #else
 #define ast_assert(a)
 #endif
+
+/*!
+ * \brief Force a crash if DO_CRASH is defined.
+ *
+ * \note If DO_CRASH is not defined then the function returns.
+ *
+ * \return Nothing
+ */
+void ast_do_crash(void);
 
 #include "asterisk/strings.h"
 
