@@ -65,7 +65,8 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	__attribute__((format(printf, 5, 6)));
 int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
 	__attribute__((format(printf, 2, 0)));
-void __ast_mm_init(void);
+void __ast_mm_init_phase_1(void);
+void __ast_mm_init_phase_2(void);
 
 
 /* Provide our own definitions */
