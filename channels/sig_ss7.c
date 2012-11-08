@@ -293,6 +293,24 @@ static void sig_ss7_handle_link_exception(struct sig_ss7_linkset *linkset, int w
 
 /*!
  * \internal
+ * \brief Determine if a private channel structure is available.
+ *
+ * \param pvt Channel to determine if available.
+ *
+ * \return TRUE if the channel is available.
+ */
+static int sig_ss7_is_chan_available(struct sig_ss7_chan *pvt)
+{
+	if (!pvt->inalarm && !pvt->owner && !pvt->ss7call
+		&& pvt->call_level == SIG_SS7_CALL_LEVEL_IDLE
+		&& !pvt->locallyblocked && !pvt->remotelyblocked) {
+		return 1;
+	}
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief Obtain the sig_ss7 owner channel lock if the owner exists.
  * \since 1.8
  *
@@ -589,7 +607,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 		ast_mutex_lock(&linkset->lock);
 		sig_ss7_lock_private(p);
-		isup_rel(linkset->ss7, p->ss7call, -1);
+		isup_rel(linkset->ss7, p->ss7call, AST_CAUSE_SWITCH_CONGESTION);
 		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 		p->alreadyhungup = 1;
 		ast_callid_threadstorage_auto_clean(callid, callid_created);
@@ -975,12 +993,12 @@ void *ss7_linkset(void *data)
 						 * We have not sent our IAM yet and we never will at this point.
 						 */
 						p->alreadyhungup = 1;
-						isup_rel(ss7, e->iam.call, -1);
+						isup_rel(ss7, e->iam.call, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
 					}
 					p->call_level = SIG_SS7_CALL_LEVEL_GLARE;
 					if (p->owner) {
-						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)", AST_CAUSE_NORMAL_CLEARING);
-						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
+						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)", AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
 						ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 						ast_channel_unlock(p->owner);
 					}
@@ -992,6 +1010,13 @@ void *ss7_linkset(void *data)
 				 * are in the process of creating an owner for it.
 				 */
 				ast_assert(!p->owner);
+
+				if (!sig_ss7_is_chan_available(p)) {
+					/* Circuit is likely blocked or in alarm. */
+					isup_rel(ss7, e->iam.call, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+					sig_ss7_unlock_private(p);
+					break;
+				}
 
 				/* Mark channel as in use so no outgoing call will steal it. */
 				p->call_level = SIG_SS7_CALL_LEVEL_ALLOCATED;
@@ -1440,24 +1465,6 @@ int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type,
 
 	ss7_set_adjpc(linkset->ss7, linkset->fds[which], adjpointcode);
 
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Determine if a private channel structure is available.
- *
- * \param pvt Channel to determine if available.
- *
- * \return TRUE if the channel is available.
- */
-static int sig_ss7_is_chan_available(struct sig_ss7_chan *pvt)
-{
-	if (!pvt->inalarm && !pvt->owner && !pvt->ss7call
-		&& pvt->call_level == SIG_SS7_CALL_LEVEL_IDLE
-		&& !pvt->locallyblocked && !pvt->remotelyblocked) {
-		return 1;
-	}
 	return 0;
 }
 
