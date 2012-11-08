@@ -2219,3 +2219,35 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size)
 	return NULL;
 }
 
+void ast_do_crash(void)
+{
+#if defined(DO_CRASH)
+	abort();
+	/*
+	 * Just in case abort() doesn't work or something else super
+	 * silly, and for Qwell's amusement.
+	 */
+	*((int *) 0) = 0;
+#endif	/* defined(DO_CRASH) */
+}
+
+#if defined(AST_DEVMODE)
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
+{
+	/*
+	 * Attempt to put it into the logger, but hope that at least
+	 * someone saw the message on stderr ...
+	 */
+	ast_log(__LOG_ERROR, file, line, function, "FRACK!, Failed assertion %s (%d)\n",
+		condition_str, condition);
+	fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
+		condition_str, condition, line, function, file);
+	/*
+	 * Give the logger a chance to get the message out, just in case
+	 * we abort(), or Asterisk crashes due to whatever problem just
+	 * happened after we exit ast_assert().
+	 */
+	usleep(1);
+	ast_do_crash();
+}
+#endif	/* defined(AST_DEVMODE) */
