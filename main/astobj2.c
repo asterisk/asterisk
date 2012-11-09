@@ -431,6 +431,7 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	int ret;
 
 	if (obj == NULL) {
+		ast_backtrace();
 		ast_assert(0);
 		return -1;
 	}

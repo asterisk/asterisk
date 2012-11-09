@@ -63,10 +63,14 @@ enum ast_tps_options {
 struct ast_taskprocessor_listener;
 
 struct ast_taskprocessor_listener_callbacks {
+	/*! Allocate the listener's private data */
+	void *(*alloc)(struct ast_taskprocessor_listener *listener);
 	/*! Indicates a task was pushed to the processor */
 	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
 	/*! Indicates the task processor has become empty */
 	void (*emptied)(struct ast_taskprocessor_listener *listener);
+	/*! Destroy the listener's private data */
+	void (*destroy)(void *private_data);
 };
 
 struct ast_taskprocessor_listener {
@@ -74,6 +78,9 @@ struct ast_taskprocessor_listener {
 	struct ast_taskprocessor *tps;
 	void *private_data;
 };
+
+struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(struct ast_taskprocessor *tps,
+		struct ast_taskprocessor_listener_callbacks *callbacks);
 
 /*!
  * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
