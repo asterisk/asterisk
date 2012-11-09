@@ -210,7 +210,7 @@ static void default_emptied(struct ast_taskprocessor_listener *listener)
 	/* No-op */
 }
 
-static struct ast_taskprocessor_listener_callbacks default_listener_callbacks = {
+static const struct ast_taskprocessor_listener_callbacks default_listener_callbacks = {
 	.alloc = default_listener_alloc,
 	.task_pushed = default_task_pushed,
 	.emptied = default_emptied,
@@ -457,8 +457,7 @@ const char *ast_taskprocessor_name(struct ast_taskprocessor *tps)
 	return tps->name;
 }
 
-struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(struct ast_taskprocessor *tps,
-		struct ast_taskprocessor_listener_callbacks *callbacks)
+struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks)
 {
 	RAII_VAR(struct ast_taskprocessor_listener *, listener,
 			ao2_alloc(sizeof(*listener), listener_destroy), ao2_cleanup);
@@ -498,7 +497,7 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 		return NULL;
 	}
 	/* Create a new taskprocessor. Start by creating a default listener */
-	listener = ast_taskprocessor_listener_alloc(p, &default_listener_callbacks);
+	listener = ast_taskprocessor_listener_alloc(&default_listener_callbacks);
 	if (!listener) {
 		return NULL;
 	}

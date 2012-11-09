@@ -63,24 +63,70 @@ enum ast_tps_options {
 struct ast_taskprocessor_listener;
 
 struct ast_taskprocessor_listener_callbacks {
-	/*! Allocate the listener's private data */
+	/*! 
+	 * \brief Allocate the listener's private data
+	 *
+	 * It is not necessary to assign the private data to the listener.
+	 *
+	 * \param listener The listener to which the private data belongs
+	 * \retval NULL Error while attempting to initialize private data
+	 * \retval non-NULL Allocated private data
+	 */
 	void *(*alloc)(struct ast_taskprocessor_listener *listener);
-	/*! Indicates a task was pushed to the processor */
+	/*! 
+	 * \brief Indicates a task was pushed to the processor
+	 *
+	 * \param listener The listener
+	 * \param was_empty If non-zero, the taskprocessor was empty prior to the task being pushed
+	 */
 	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
-	/*! Indicates the task processor has become empty */
+	/*! 
+	 * \brief Indicates the task processor has become empty
+	 *
+	 * \param listener The listener
+	 */
 	void (*emptied)(struct ast_taskprocessor_listener *listener);
-	/*! Destroy the listener's private data */
+	/*! 
+	 * \brief Destroy the listener's private data
+	 *
+	 * It is required that you free the private data in this callback
+	 * in addition to the private data's individual fields.
+	 *
+	 * \param private_data The listener's private data
+	 */
 	void (*destroy)(void *private_data);
 };
 
+/*!
+ * \brief A listener for taskprocessors
+ *
+ * When a taskprocessor's state changes, the listener
+ * is notified of the change. This allows for tasks
+ * to be addressed in whatever way is appropriate for
+ * the module using the taskprocessor.
+ */
 struct ast_taskprocessor_listener {
-	struct ast_taskprocessor_listener_callbacks *callbacks;
+	/*! The callbacks the taskprocessor calls into to notify of state changes */
+	const struct ast_taskprocessor_listener_callbacks *callbacks;
+	/*! The taskprocessor that the listener is listening to */
 	struct ast_taskprocessor *tps;
+	/*! Data private to the listener */
 	void *private_data;
 };
 
-struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(struct ast_taskprocessor *tps,
-		struct ast_taskprocessor_listener_callbacks *callbacks);
+/*!
+ * Allocate a taskprocessor listener
+ *
+ * This will result in the listener being allocated with the specified
+ * callbacks. The listener's alloc() callback will be called to allocate
+ * private data for the listener. The private data will be assigned to the
+ * listener when the listener's alloc() function returns.
+ *
+ * \param callbacks The callbacks to assign to the listener
+ * \retval NULL Failure
+ * \retval non-NULL The newly allocated taskprocessor listener
+ */
+struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks);
 
 /*!
  * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
