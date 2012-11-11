@@ -12927,9 +12927,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	struct ast_str *m_video = ast_str_alloca(256);  /* Media declaration line for video */
 	struct ast_str *m_text = ast_str_alloca(256);   /* Media declaration line for text */
 	struct ast_str *m_modem = ast_str_alloca(256);  /* Media declaration line for modem */
-	struct ast_str *a_audio = ast_str_alloca(1024); /* Attributes for audio */
-	struct ast_str *a_video = ast_str_alloca(1024); /* Attributes for video */
-	struct ast_str *a_text = ast_str_alloca(1024);  /* Attributes for text */
+	struct ast_str *a_audio = ast_str_create(256); /* Attributes for audio */
+	struct ast_str *a_video = ast_str_create(256); /* Attributes for video */
+	struct ast_str *a_text = ast_str_create(256);  /* Attributes for text */
 	struct ast_str *a_modem = ast_str_alloca(1024); /* Attributes for modem */
 	const char *a_crypto = NULL;
 	const char *v_a_crypto = NULL;
@@ -13193,11 +13193,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 			add_dtls_to_sdp(p->rtp, &a_audio);
 		}
-
-		if (m_audio->len - m_audio->used < 2 || m_video->len - m_video->used < 2 ||
-		    m_text->len - m_text->used < 2 || a_text->len - a_text->used < 2 ||
-		    a_audio->len - a_audio->used < 2 || a_video->len - a_video->used < 2)
-			ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	}
 
 	if (add_t38) {
@@ -13376,6 +13371,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, tmpcap));
 
 add_sdp_cleanup:
+	ast_free(a_text);
+	ast_free(a_video);
+	ast_free(a_audio);
 	alreadysent = ast_format_cap_destroy(alreadysent);
 	tmpcap = ast_format_cap_destroy(tmpcap);
 
@@ -31227,7 +31225,6 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);    /*!< Default DTMF setting: RFC2833 */
 	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA);    /*!< Allow re-invites */
 	ast_set_flag(&global_flags[2], SIP_PAGE3_NAT_AUTO_RPORT); /*!< Default to nat=auto_force_rport */
-	ast_set_flag(&global_flags[2], SIP_PAGE3_ICE_SUPPORT); /*!< Default to enabling ICE support */
 	ast_copy_string(default_engine, DEFAULT_ENGINE, sizeof(default_engine));
 	ast_copy_string(default_parkinglot, DEFAULT_PARKINGLOT, sizeof(default_parkinglot));
 
