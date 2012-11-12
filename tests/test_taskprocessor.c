@@ -102,6 +102,7 @@ test_end:
 struct test_listener_pvt {
 	int num_pushed;
 	int num_emptied;
+	int num_was_empty;
 };
 
 static void *test_alloc(struct ast_taskprocessor_listener *listener)
@@ -116,6 +117,9 @@ static void test_task_pushed(struct ast_taskprocessor_listener *listener, int wa
 {
 	struct test_listener_pvt *pvt = listener->private_data;
 	++pvt->num_pushed;
+	if (was_empty) {
+		++pvt->num_was_empty;
+	}
 }
 
 static void test_emptied(struct ast_taskprocessor_listener *listener)
@@ -139,6 +143,29 @@ static const struct ast_taskprocessor_listener_callbacks test_callbacks = {
 
 static int listener_test_task(void *ignore)
 {
+	return 0;
+}
+
+static int check_stats(struct ast_test *test, const struct test_listener_pvt *pvt, int num_pushed, int num_emptied, int num_was_empty)
+{
+	if (pvt->num_pushed != num_pushed) {
+		ast_test_status_update(test, "Unexpected number of tasks pushed. Expected %d but got %d\n",
+				num_pushed, pvt->num_pushed);
+		return -1;
+	}
+
+	if (pvt->num_emptied != num_emptied) {
+		ast_test_status_update(test, "Unexpected number of empties. Expected %d but got %d\n",
+				num_emptied, pvt->num_emptied);
+		return -1;
+	}
+
+	if (pvt->num_was_empty != num_was_empty) {
+		ast_test_status_update(test, "Unexpected number of empties. Expected %d but got %d\n",
+				num_was_empty, pvt->num_emptied);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -174,23 +201,32 @@ AST_TEST_DEFINE(taskprocessor_listener)
 		goto test_exit;
 	}
 
-	ast_taskprocessor_push(tps, listener_test_task, NULL);
-	ast_taskprocessor_push(tps, listener_test_task, NULL);
-
-	ast_taskprocessor_execute(tps);
-	ast_taskprocessor_execute(tps);
-
 	pvt = listener->private_data;
-	if (pvt->num_pushed != 2) {
-		ast_test_status_update(test, "Unexpected number of tasks pushed. Expected %d but got %d\n",
-				2, pvt->num_pushed);
+
+	ast_taskprocessor_push(tps, listener_test_task, NULL);
+
+	if (check_stats(test, pvt, 1, 0, 1) < 0) {
 		res = AST_TEST_FAIL;
 		goto test_exit;
 	}
 
-	if (pvt->num_emptied != 1) {
-		ast_test_status_update(test, "Unexpected number of empties. Expected %d but got %d\n",
-				1, pvt->num_emptied);
+	ast_taskprocessor_push(tps, listener_test_task, NULL);
+
+	if (check_stats(test, pvt, 2, 0, 1) < 0) {
+		res = AST_TEST_FAIL;
+		goto test_exit;
+	}
+
+	ast_taskprocessor_execute(tps);
+
+	if (check_stats(test, pvt, 2, 0, 1) < 0) {
+		res = AST_TEST_FAIL;
+		goto test_exit;
+	}
+
+	ast_taskprocessor_execute(tps);
+
+	if (check_stats(test, pvt, 2, 1, 1) < 0) {
 		res = AST_TEST_FAIL;
 		goto test_exit;
 	}
