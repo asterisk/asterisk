@@ -7891,22 +7891,26 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 
 	manager_show_dialplan_helper(s, m, idtext, context, exten, &counters, NULL);
 
-	if (context && !counters.context_existence) {
+	if (!ast_strlen_zero(context) && !counters.context_existence) {
 		char errorbuf[BUFSIZ];
 
 		snprintf(errorbuf, sizeof(errorbuf), "Did not find context %s", context);
 		astman_send_error(s, m, errorbuf);
 		return 0;
 	}
-	if (exten && !counters.extension_existence) {
+	if (!ast_strlen_zero(exten) && !counters.extension_existence) {
 		char errorbuf[BUFSIZ];
 
-		if (context)
+		if (!ast_strlen_zero(context))
 			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s@%s", exten, context);
 		else
 			snprintf(errorbuf, sizeof(errorbuf), "Did not find extension %s in any context", exten);
 		astman_send_error(s, m, errorbuf);
 		return 0;
+	}
+
+	if (!counters.total_items) {
+		manager_dpsendack(s, m);
 	}
 
 	astman_append(s, "Event: ShowDialPlanComplete\r\n"
@@ -9566,7 +9570,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	}
 
 	/* If we are adding a hint evalulate in variables and global variables */
-	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
+	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
 		struct ast_channel *c = ast_dummy_channel_alloc();
 
 		if (c) {
