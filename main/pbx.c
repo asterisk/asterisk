@@ -9566,7 +9566,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	}
 
 	/* If we are adding a hint evalulate in variables and global variables */
-	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
+	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
 		struct ast_channel *c = ast_dummy_channel_alloc();
 
 		if (c) {
