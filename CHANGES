@@ -13,6 +13,9 @@
 
 AMI (Asterisk Manager Interface)
 ------------------
+ * The SIPshowpeer action will now include a 'SubscribeContext' field for a peer
+   in its response if the peer has a subscribe context set.
+
  * The SIPqualifypeer action now acknowledges the request once it has established
    that the request is against a known peer. It also issues a new event,
    'SIPqualifypeerdone', once the qualify action has been completed.

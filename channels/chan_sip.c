@@ -19876,6 +19876,9 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "RemoteSecretExist: %s\r\n", ast_strlen_zero(peer->remotesecret)?"N":"Y");
 		astman_append(s, "MD5SecretExist: %s\r\n", ast_strlen_zero(peer->md5secret)?"N":"Y");
 		astman_append(s, "Context: %s\r\n", peer->context);
+		if (!ast_strlen_zero(peer->subscribecontext)) {
+			astman_append(s, "SubscribeContext: %s\r\n", peer->subscribecontext);
+		}
 		astman_append(s, "Language: %s\r\n", peer->language);
 		astman_append(s, "ToneZone: %s\r\n", peer->zone[0] != '\0' ? peer->zone : "<Not set>");
 		if (!ast_strlen_zero(peer->accountcode))
