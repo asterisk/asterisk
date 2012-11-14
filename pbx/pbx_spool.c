@@ -509,7 +509,7 @@ static void queue_file(const char *filename, time_t when)
 	int res;
 	time_t now = time(NULL);
 
-	if (filename[0] != '/') {
+	if (!strchr(filename, '/')) {
 		char *fn = ast_alloca(strlen(qdir) + strlen(filename) + 2);
 		sprintf(fn, "%s/%s", qdir, filename); /* SAFE */
 		filename = fn;
