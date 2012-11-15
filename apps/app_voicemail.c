@@ -14748,7 +14748,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					strcpy(flag, "Urgent");
 				} else if (flag) {
 					ast_verb(3, "UNmarking message as Urgent\n");
-					res = ast_play_and_wait(chan, "vm-urgent-removed");
+					res = ast_play_and_wait(chan, "vm-marked-nonurgent");
 					strcpy(flag, "");
 				} else {
 					ast_play_and_wait(chan, "vm-sorry");
