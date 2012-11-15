@@ -3209,6 +3209,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				break;
 			}
 
+			/* Perform a hangup check here since ast_waitfor_nandfds will not always be able to get a channel after a hangup has occurred */
+			if (ast_check_hangup(chan)) {
+				break;
+			}
+
 			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 
 			if (c) {
@@ -3293,12 +3298,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					}
 
 					if (musiconhold) {
-			   			ast_moh_stop(chan);
+						ast_moh_stop(chan);
 					}
 					if (menu8_active) {
 						/* *8 Submenu */
 						dtmf = f->subclass.integer;
-						if (dtmf) {
+						if (dtmf > 0) {
 							int keepplaying;
 							int playednamerec;
 							struct ao2_iterator user_iter;
@@ -3457,7 +3462,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						} else {
 							dtmf = f->subclass.integer;
 						}
-						if (dtmf) {
+						if (dtmf > 0) {
 							switch(dtmf) {
 							case '1': /* Un/Mute */
 								menu_active = 0;
@@ -3564,7 +3569,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						} else {
 							dtmf = f->subclass.integer;
 						}
-						if (dtmf) {
+						if (dtmf > 0) {
 							switch (dtmf) {
 							case '1': /* Un/Mute */
 								menu_active = 0;
