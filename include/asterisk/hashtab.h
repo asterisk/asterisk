@@ -23,6 +23,9 @@
  * \brief Generic (perhaps overly so) hashtable implementation
  * \ref AstHash
  */
+
+#include "asterisk/lock.h"
+
 /*! \page AstHash Hash Table support in Asterisk
 
 A hash table is a structure that allows for an exact-match search

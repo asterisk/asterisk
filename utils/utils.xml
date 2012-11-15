@@ -32,14 +32,6 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
   </member>
-  <member name="hashtest">
-	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
-  </member>
-  <member name="hashtest2">
-	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
-  </member>
   <member name="muted">
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
