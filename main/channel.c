@@ -3144,7 +3144,11 @@ static int generator_force(const void *data)
 
 	res = generate(chan, tmp, 0, ast_format_rate(ast_channel_writeformat(chan)) / 50);
 
-	ast_channel_generatordata_set(chan, tmp);
+	ast_channel_lock(chan);
+	if (ast_channel_generator(chan) && generate == ast_channel_generator(chan)->generate) {
+		ast_channel_generatordata_set(chan, tmp);
+	}
+	ast_channel_unlock(chan);
 
 	if (res) {
 		ast_debug(1, "Auto-deactivating generator\n");
@@ -8774,18 +8778,45 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
 	return state;
 }
 
+static int internal_deactivate_generator(struct ast_channel *chan, void* generator)
+{
+	ast_channel_lock(chan);
+
+	if (!ast_channel_generatordata(chan)) {
+		ast_debug(1, "Trying to stop silence generator when there is no "
+		    "generator on '%s'\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return 0;
+	}
+	if (ast_channel_generator(chan) != generator) {
+		ast_debug(1, "Trying to stop silence generator when it is not the current "
+		    "generator on '%s'\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return 0;
+	}
+	if (ast_channel_generator(chan) && ast_channel_generator(chan)->release) {
+		ast_channel_generator(chan)->release(chan, ast_channel_generatordata(chan));
+	}
+	ast_channel_generatordata_set(chan, NULL);
+	ast_channel_generator_set(chan, NULL);
+	ast_channel_set_fd(chan, AST_GENERATOR_FD, -1);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT);
+	ast_settimeout(chan, 0, NULL, NULL);
+	ast_channel_unlock(chan);
+
+	return 1;
+}
+
 void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_silence_generator *state)
 {
 	if (!state)
 		return;
 
-	ast_deactivate_generator(chan);
-
-	ast_debug(1, "Stopped silence generator on '%s'\n", ast_channel_name(chan));
-
-	if (ast_set_write_format(chan, &state->old_write_format) < 0)
-		ast_log(LOG_ERROR, "Could not return write format to its original state\n");
-
+	if (internal_deactivate_generator(chan, &silence_generator)) {
+		ast_debug(1, "Stopped silence generator on '%s'\n", ast_channel_name(chan));
+		if (ast_set_write_format(chan, &state->old_write_format) < 0)
+			ast_log(LOG_ERROR, "Could not return write format to its original state\n");
+	}
 	ast_free(state);
 }
 
