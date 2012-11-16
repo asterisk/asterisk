@@ -168,6 +168,7 @@ void ast_console_puts(const char *string);
 #define LOG_DTMF    __LOG_DTMF, _A_
 
 /* lock.h */
+#define _ASTERISK_LOCK_H /* A small indication that this is horribly wrong. */
 
 #ifndef	HAVE_MTX_PROFILE
 #define	__MTX_PROF(a)	return pthread_mutex_lock((a))
