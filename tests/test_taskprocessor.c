@@ -103,6 +103,7 @@ struct test_listener_pvt {
 	int num_pushed;
 	int num_emptied;
 	int num_was_empty;
+	int shutdown;
 };
 
 static void *test_alloc(struct ast_taskprocessor_listener *listener)
@@ -128,6 +129,12 @@ static void test_emptied(struct ast_taskprocessor_listener *listener)
 	++pvt->num_emptied;
 }
 
+static void test_shutdown(struct ast_taskprocessor_listener *listener)
+{
+	struct test_listener_pvt *pvt = listener->private_data;
+	pvt->shutdown = 1;
+}
+
 static void test_destroy(void *private_data)
 {
 	struct test_listener_pvt *pvt = private_data;
@@ -138,6 +145,7 @@ static const struct ast_taskprocessor_listener_callbacks test_callbacks = {
 	.alloc = test_alloc,
 	.task_pushed = test_task_pushed,
 	.emptied = test_emptied,
+	.shutdown = test_shutdown,
 	.destroy = test_destroy,
 };
 

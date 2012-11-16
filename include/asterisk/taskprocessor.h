@@ -86,6 +86,18 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \param listener The listener
 	 */
 	void (*emptied)(struct ast_taskprocessor_listener *listener);
+	/*!
+	 * \brief Indicates the taskprocessor wishes to die.
+	 *
+	 * All operations on the task processor must to be stopped in
+	 * this callback.
+	 *
+	 * After this callback returns, it is NOT safe to operate on the
+	 * listener's reference to the taskprocessor.
+	 *
+	 * \param listener The listener
+	 */
+	void (*shutdown)(struct ast_taskprocessor_listener *listener);
 	/*! 
 	 * \brief Destroy the listener's private data
 	 *

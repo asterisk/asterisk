@@ -136,7 +136,11 @@ static void listener_destroy(void *obj)
 	struct ast_taskprocessor_listener *listener = obj;
 
 	listener->callbacks->destroy(listener->private_data);
+}
 
+static void listener_shutdown(struct ast_taskprocessor_listener *listener)
+{
+	listener->callbacks->shutdown(listener);
 	ao2_ref(listener->tps, -1);
 	listener->tps = NULL;
 }
@@ -184,13 +188,17 @@ static void *default_listener_alloc(struct ast_taskprocessor_listener *listener)
 	return pvt;
 }
 
-static void default_listener_destroy(void *obj)
+static void default_listener_shutdown(struct ast_taskprocessor_listener *listener)
 {
-	struct default_taskprocessor_listener_pvt *pvt = obj;
-
+	struct default_taskprocessor_listener_pvt *pvt = listener->private_data;
 	default_tps_wake_up(pvt, 1);
 	pthread_join(pvt->poll_thread, NULL);
 	pvt->poll_thread = AST_PTHREADT_NULL;
+}
+
+static void default_listener_destroy(void *obj)
+{
+	struct default_taskprocessor_listener_pvt *pvt = obj;
 	ast_mutex_destroy(&pvt->lock);
 	ast_cond_destroy(&pvt->cond);
 	ast_free(pvt);
@@ -214,6 +222,7 @@ static const struct ast_taskprocessor_listener_callbacks default_listener_callba
 	.alloc = default_listener_alloc,
 	.task_pushed = default_task_pushed,
 	.emptied = default_emptied,
+	.shutdown = default_listener_shutdown,
 	.destroy = default_listener_destroy,
 };
 
@@ -571,6 +580,7 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 	ao2_unlink(tps_singletons, tps);
 	listener = tps->listener;
 	tps->listener = NULL;
+	listener_shutdown(listener);
 	ao2_ref(listener, -1);
 	return NULL;
 }
@@ -601,7 +611,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 {
 	struct tps_task *t;
 	int size;
-
+	
 	if (!(t = tps_taskprocessor_pop(tps))) {
 		return 0;
 	}
