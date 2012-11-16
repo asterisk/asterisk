@@ -565,6 +565,7 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 {
 	struct ast_taskprocessor_listener *listener;
+
 	if (!tps) {
 		return NULL;
 	}

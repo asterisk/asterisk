@@ -239,8 +239,16 @@ AST_TEST_DEFINE(taskprocessor_listener)
 		goto test_exit;
 	}
 
+	tps = ast_taskprocessor_unreference(tps);
+
+	if (!pvt->shutdown) {
+		res = AST_TEST_FAIL;
+		goto test_exit;
+	}
+
 test_exit:
 	ao2_ref(listener, -1);
+	/* This is safe even if tps is NULL */
 	ast_taskprocessor_unreference(tps);
 	return res;
 }
