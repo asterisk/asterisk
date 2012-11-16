@@ -451,24 +451,28 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 		}
 
 		if (ast_channel_monitor(chan)->filename_changed && !ast_strlen_zero(ast_channel_monitor(chan)->filename_base)) {
-			if (ast_fileexists(ast_channel_monitor(chan)->read_filename,NULL,NULL) > 0) {
-				snprintf(filename, FILENAME_MAX, "%s-in", ast_channel_monitor(chan)->filename_base);
-				if (ast_fileexists(filename, NULL, NULL) > 0) {
-					ast_filedelete(filename, NULL);
+			if (ast_channel_monitor(chan)->read_stream) {
+				if (ast_fileexists(ast_channel_monitor(chan)->read_filename,NULL,NULL) > 0) {
+					snprintf(filename, FILENAME_MAX, "%s-in", ast_channel_monitor(chan)->filename_base);
+					if (ast_fileexists(filename, NULL, NULL) > 0) {
+						ast_filedelete(filename, NULL);
+					}
+					ast_filerename(ast_channel_monitor(chan)->read_filename, filename, ast_channel_monitor(chan)->format);
+				} else {
+					ast_log(LOG_WARNING, "File %s not found\n", ast_channel_monitor(chan)->read_filename);
 				}
-				ast_filerename(ast_channel_monitor(chan)->read_filename, filename, ast_channel_monitor(chan)->format);
-			} else {
-				ast_log(LOG_WARNING, "File %s not found\n", ast_channel_monitor(chan)->read_filename);
 			}
 
-			if (ast_fileexists(ast_channel_monitor(chan)->write_filename,NULL,NULL) > 0) {
-				snprintf(filename, FILENAME_MAX, "%s-out", ast_channel_monitor(chan)->filename_base);
-				if (ast_fileexists(filename, NULL, NULL) > 0) {
-					ast_filedelete(filename, NULL);
+			if (ast_channel_monitor(chan)->write_stream) {
+				if (ast_fileexists(ast_channel_monitor(chan)->write_filename,NULL,NULL) > 0) {
+					snprintf(filename, FILENAME_MAX, "%s-out", ast_channel_monitor(chan)->filename_base);
+					if (ast_fileexists(filename, NULL, NULL) > 0) {
+						ast_filedelete(filename, NULL);
+					}
+					ast_filerename(ast_channel_monitor(chan)->write_filename, filename, ast_channel_monitor(chan)->format);
+				} else {
+					ast_log(LOG_WARNING, "File %s not found\n", ast_channel_monitor(chan)->write_filename);
 				}
-				ast_filerename(ast_channel_monitor(chan)->write_filename, filename, ast_channel_monitor(chan)->format);
-			} else {
-				ast_log(LOG_WARNING, "File %s not found\n", ast_channel_monitor(chan)->write_filename);
 			}
 		}
 
