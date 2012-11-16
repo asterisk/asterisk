@@ -88,7 +88,7 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
+	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c refcounter
 	rm -f db1-ast/.*.d
 	@$(MAKE) -C db1-ast clean
 
@@ -175,11 +175,6 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
-hashtest2.o: _ASTCFLAGS+=-O0
-hashtest2: hashtest2.o md5.o lock.o utils.o strings.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
-
-hashtest: hashtest.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
-hashtest.o: _ASTCFLAGS+=-O0
 
 refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 refcounter.o: _ASTCFLAGS+=-O0
