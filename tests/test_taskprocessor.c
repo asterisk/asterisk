@@ -110,6 +110,71 @@ test_end:
 	return res;
 }
 
+AST_TEST_DEFINE(default_taskprocessor_load)
+{
+	static const int NUM_TASKS = 20000;
+	struct ast_taskprocessor *tps;
+	struct task_data task_data;
+	struct timeval start;
+	struct timespec ts;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int timedwait_res;
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "default_taskprocessor_load";
+		info->category = "/main/taskprocessor/";
+		info->summary = "Load test of default taskproccesor";
+		info->description =
+			"Ensure that many queued tasks are executed.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	tps = ast_taskprocessor_get("test", TPS_REF_DEFAULT);
+
+	if (!tps) {
+		ast_test_status_update(test, "Unable to create test taskprocessor\n");
+		return AST_TEST_FAIL;
+	}
+
+	start = ast_tvnow();
+
+	ts.tv_sec = start.tv_sec + 60;
+	ts.tv_nsec = start.tv_usec * 1000;
+
+	ast_cond_init(&task_data.cond, NULL);
+	ast_mutex_init(&task_data.lock);
+	task_data.task_complete = 0;
+
+	for (i = 0; i < NUM_TASKS; ++i) {
+		ast_taskprocessor_push(tps, task, &task_data);
+	}
+
+	ast_mutex_lock(&task_data.lock);
+	while (task_data.task_complete < NUM_TASKS) {
+		timedwait_res = ast_cond_timedwait(&task_data.cond, &task_data.lock, &ts);
+		if (timedwait_res == ETIMEDOUT) {
+			break;
+		}
+	}
+
+	if (task_data.task_complete != NUM_TASKS) {
+		ast_test_status_update(test, "Unexpected number of tasks executed. Expected %d but got %d\n",
+				NUM_TASKS, task_data.task_complete);
+		res = AST_TEST_FAIL;
+		goto test_end;
+	}
+
+test_end:
+	tps = ast_taskprocessor_unreference(tps);
+	ast_mutex_destroy(&task_data.lock);
+	ast_cond_destroy(&task_data.cond);
+	return res;
+}
+
 struct test_listener_pvt {
 	int num_pushed;
 	int num_emptied;
@@ -267,6 +332,7 @@ test_exit:
 static int unload_module(void)
 {
 	ast_test_unregister(default_taskprocessor);
+	ast_test_unregister(default_taskprocessor_load);
 	ast_test_unregister(taskprocessor_listener);
 	return 0;
 }
@@ -274,6 +340,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_test_register(default_taskprocessor);
+	ast_test_register(default_taskprocessor_load);
 	ast_test_register(taskprocessor_listener);
 	return AST_MODULE_LOAD_SUCCESS;
 }
