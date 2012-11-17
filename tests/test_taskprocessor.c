@@ -46,7 +46,7 @@ static int task(void *data)
 {
 	struct task_data *task_data = data;
 	SCOPED_MUTEX(lock, &task_data->lock);
-	task_data->task_complete = 1;
+	++task_data->task_complete;
 	ast_cond_signal(&task_data->cond);
 	return 0;
 }
@@ -55,7 +55,10 @@ AST_TEST_DEFINE(default_taskprocessor)
 {
 	struct ast_taskprocessor *tps;
 	struct task_data task_data;
+	struct timeval start;
+	struct timespec ts;
 	enum ast_test_result_state res = AST_TEST_PASS;
+	int timedwait_res;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -76,6 +79,11 @@ AST_TEST_DEFINE(default_taskprocessor)
 		return AST_TEST_FAIL;
 	}
 
+	start = ast_tvnow();
+
+	ts.tv_sec = start.tv_sec + 30;
+	ts.tv_nsec = start.tv_usec * 1000;
+
 	ast_cond_init(&task_data.cond, NULL);
 	ast_mutex_init(&task_data.lock);
 	task_data.task_complete = 0;
@@ -83,7 +91,10 @@ AST_TEST_DEFINE(default_taskprocessor)
 	ast_taskprocessor_push(tps, task, &task_data);
 	ast_mutex_lock(&task_data.lock);
 	while (!task_data.task_complete) {
-		ast_cond_wait(&task_data.cond, &task_data.lock);
+		timedwait_res = ast_cond_timedwait(&task_data.cond, &task_data.lock, &ts);
+		if (timedwait_res == ETIMEDOUT) {
+			break;
+		}
 	}
 
 	if (!task_data.task_complete) {
