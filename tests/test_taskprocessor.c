@@ -46,7 +46,7 @@ static int task(void *data)
 {
 	struct task_data *task_data = data;
 	SCOPED_MUTEX(lock, &task_data->lock);
-	++task_data->task_complete;
+	task_data->task_complete = 1;
 	ast_cond_signal(&task_data->cond);
 	return 0;
 }
@@ -110,16 +110,33 @@ test_end:
 	return res;
 }
 
+#define NUM_TASKS 20000
+
+static struct load_task_data {
+	ast_cond_t cond;
+	ast_mutex_t lock;
+	int tasks_completed;
+	int task_rand[NUM_TASKS];
+} load_task_results;
+
+static int load_task(void *data)
+{
+	int *randdata = data;
+	SCOPED_MUTEX(lock, &load_task_results.lock);
+	load_task_results.task_rand[load_task_results.tasks_completed++] = *randdata;
+	ast_cond_signal(&load_task_results.cond);
+	return 0;
+}
+
 AST_TEST_DEFINE(default_taskprocessor_load)
 {
-	static const int NUM_TASKS = 20000;
 	struct ast_taskprocessor *tps;
-	struct task_data task_data;
 	struct timeval start;
 	struct timespec ts;
 	enum ast_test_result_state res = AST_TEST_PASS;
 	int timedwait_res;
 	int i;
+	int rand_data[NUM_TASKS];
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -145,33 +162,42 @@ AST_TEST_DEFINE(default_taskprocessor_load)
 	ts.tv_sec = start.tv_sec + 60;
 	ts.tv_nsec = start.tv_usec * 1000;
 
-	ast_cond_init(&task_data.cond, NULL);
-	ast_mutex_init(&task_data.lock);
-	task_data.task_complete = 0;
+	ast_cond_init(&load_task_results.cond, NULL);
+	ast_mutex_init(&load_task_results.lock);
+	load_task_results.tasks_completed = 0;
 
 	for (i = 0; i < NUM_TASKS; ++i) {
-		ast_taskprocessor_push(tps, task, &task_data);
+		rand_data[i] = ast_random();
+		ast_taskprocessor_push(tps, load_task, &rand_data[i]);
 	}
 
-	ast_mutex_lock(&task_data.lock);
-	while (task_data.task_complete < NUM_TASKS) {
-		timedwait_res = ast_cond_timedwait(&task_data.cond, &task_data.lock, &ts);
+	ast_mutex_lock(&load_task_results.lock);
+	while (load_task_results.tasks_completed < NUM_TASKS) {
+		timedwait_res = ast_cond_timedwait(&load_task_results.cond, &load_task_results.lock, &ts);
 		if (timedwait_res == ETIMEDOUT) {
 			break;
 		}
 	}
 
-	if (task_data.task_complete != NUM_TASKS) {
+	if (load_task_results.tasks_completed != NUM_TASKS) {
 		ast_test_status_update(test, "Unexpected number of tasks executed. Expected %d but got %d\n",
-				NUM_TASKS, task_data.task_complete);
+				NUM_TASKS, load_task_results.tasks_completed);
 		res = AST_TEST_FAIL;
 		goto test_end;
 	}
 
+	for (i = 0; i < NUM_TASKS; ++i) {
+		if (rand_data[i] != load_task_results.task_rand[i]) {
+			ast_test_status_update(test, "Queued tasks did not execute in order\n");
+			res = AST_TEST_FAIL;
+			goto test_end;
+		}
+	}
+
 test_end:
 	tps = ast_taskprocessor_unreference(tps);
-	ast_mutex_destroy(&task_data.lock);
-	ast_cond_destroy(&task_data.cond);
+	ast_mutex_destroy(&load_task_results.lock);
+	ast_cond_destroy(&load_task_results.cond);
 	return res;
 }
 
