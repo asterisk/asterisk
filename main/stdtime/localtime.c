@@ -707,7 +707,14 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 			return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
 			return -1;
-		add_notify(sp, name);
+		if (ast_fully_booted) {
+			/* If we don't wait until Asterisk is fully booted, it's possible
+			 * that the watcher thread gets started in the parent process,
+			 * before daemon(3) is called, and the thread won't propagate to
+			 * the child.  Given that bootup only takes a few seconds, it's
+			 * reasonable to only start the watcher later. */
+			add_notify(sp, name);
+		}
 	}
 	nread = read(fid, u.buf, sizeof u.buf);
 	if (close(fid) < 0 || nread <= 0)
