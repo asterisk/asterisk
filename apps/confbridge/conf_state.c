@@ -38,6 +38,7 @@
 #include "asterisk.h"
 
 #include "asterisk/logger.h"
+#include "asterisk/test.h"
 #include "include/conf_state.h"
 #include "include/confbridge.h"
 
@@ -60,6 +61,10 @@ void conf_default_leave_waitmarked(struct conference_bridge_user *cbu)
 void conf_change_state(struct conference_bridge_user *cbu, struct conference_state *newstate)
 {
 	ast_debug(1, "Changing conference '%s' state from %s to %s\n", cbu->conference_bridge->name, cbu->conference_bridge->state->name, newstate->name);
+	ast_test_suite_event_notify("CONF_CHANGE_STATE", "Conference: %s\r\nOldState: %s\r\nNewState: %s\r\n",
+			cbu->conference_bridge->name,
+			cbu->conference_bridge->state->name,
+			newstate->name);
 	if (cbu->conference_bridge->state->exit) {
 		cbu->conference_bridge->state->exit(cbu);
 	}
