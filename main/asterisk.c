@@ -395,6 +395,7 @@ static pthread_t consolethread = AST_PTHREADT_NULL;
 static pthread_t mon_sig_flags;
 static int canary_pid = 0;
 static char canary_filename[128];
+static int multi_thread_safe;
 
 static char randompool[256];
 
@@ -502,6 +503,8 @@ void ast_register_thread(char *name)
 
 	if (!new)
 		return;
+
+	ast_assert(multi_thread_safe);
 	new->id = pthread_self();
 	new->lwp = ast_get_tid();
 	new->name = name; /* steal the allocated memory for the thread name */
@@ -1605,7 +1608,7 @@ static int ast_tryconnect(void)
 	int res;
 	ast_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ast_consock < 0) {
-		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
 		return 0;
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
@@ -2439,7 +2442,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				break;
 			if (errno == EINTR)
 				continue;
-			ast_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
+			fprintf(stderr, "poll failed: %s\n", strerror(errno));
 			break;
 		}
 
@@ -3184,10 +3187,12 @@ static void ast_readconfig(void)
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
-		if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
-			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
-	} else
+		if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+			fprintf(stderr, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
+		}
+	} else {
 		cfg = ast_config_load2(config, "" /* core, can't reload */, config_flags);
+	}
 
 	/* init with buildtime config */
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
@@ -3412,7 +3417,7 @@ static void ast_readconfig(void)
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
 		float version;
 		if (sscanf(v->value, "%30f", &version) != 1) {
-			ast_log(LOG_WARNING, "Compatibility version for option '%s' is not a number: '%s'\n", v->name, v->value);
+			fprintf(stderr, "Compatibility version for option '%s' is not a number: '%s'\n", v->name, v->value);
 			continue;
 		}
 		if (!strcasecmp(v->name, "app_set")) {
@@ -3527,6 +3532,23 @@ static void env_init(void)
 	setenv("AST_VERSION", ast_get_version(), 1);
 }
 
+static void print_intro_message(const char *runuser, const char *rungroup)
+{
+	if (ast_opt_console || option_verbose) {
+		if (ast_register_verbose(console_verboser)) {
+			fprintf(stderr, "Unable to register console verboser?\n");
+			return;
+		}
+		WELCOME_MESSAGE;
+		if (runuser) {
+			ast_verbose("Running as user '%s'\n", runuser);
+		}
+		if (rungroup) {
+			ast_verbose("Running under group '%s'\n", rungroup);
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int c;
@@ -3544,10 +3566,6 @@ int main(int argc, char *argv[])
 	char *remotesock = NULL;
 	int moduleresult;         /*!< Result from the module load subsystem */
 	struct rlimit l;
-
-#if defined(__AST_DEBUG_MALLOC)
-	__ast_mm_init_phase_1();
-#endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
@@ -3568,15 +3586,6 @@ int main(int argc, char *argv[])
 	if (gethostname(hostname, sizeof(hostname)-1))
 		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	ast_mainpid = getpid();
-	ast_ulaw_init();
-	ast_alaw_init();
-	callerid_init();
-	ast_builtins_init();
-	ast_utils_init();
-	tdd_init();
-	ast_tps_init();
-	ast_fd_init();
-	ast_pbx_init();
 
 	if (getenv("HOME"))
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
@@ -3700,16 +3709,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
-		if (ast_register_verbose(console_verboser)) {
-			ast_log(LOG_WARNING, "Unable to register console verboser?\n");
-		}
-		WELCOME_MESSAGE;
-	}
-
-	if (ast_opt_console && !option_verbose)
-		ast_verbose("[ Booting...\n");
-
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
 	 * the main asterisk process has died yet). */
@@ -3720,21 +3719,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (ast_opt_console && !option_verbose) {
-		ast_verbose("[ Reading Master Configuration ]\n");
-	}
-
 	ast_readconfig();
 	env_init();
 
 	if (ast_opt_remote && remotesock != NULL)
 		ast_copy_string((char *) cfg_paths.socket_path, remotesock, sizeof(cfg_paths.socket_path));
 
-	if (!ast_language_is_prefix && !ast_opt_remote)
-		ast_log(LOG_WARNING, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
+	if (!ast_language_is_prefix && !ast_opt_remote) {
+		fprintf(stderr, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
+	}
 
 	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
-		ast_log(LOG_WARNING, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
+		fprintf(stderr, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
 		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
 	}
 
@@ -3743,12 +3739,12 @@ int main(int argc, char *argv[])
 		l.rlim_cur = RLIM_INFINITY;
 		l.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &l)) {
-			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+			fprintf(stderr, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
 
 	if (getrlimit(RLIMIT_NOFILE, &l)) {
-		ast_log(LOG_WARNING, "Unable to check file descriptor limit: %s\n", strerror(errno));
+		fprintf(stderr, "Unable to check file descriptor limit: %s\n", strerror(errno));
 	}
 
 #if !defined(CONFIGURE_RAN_AS_ROOT)
@@ -3765,13 +3761,13 @@ int main(int argc, char *argv[])
 		}
 
 		if (!(fd = open("/dev/null", O_RDONLY))) {
-			ast_log(LOG_ERROR, "Cannot open a file descriptor at boot? %s\n", strerror(errno));
+			fprintf(stderr, "Cannot open a file descriptor at boot? %s\n", strerror(errno));
 			break; /* XXX Should we exit() here? XXX */
 		}
 
 		fd2 = ((l.rlim_cur > sizeof(readers) * 8) ? sizeof(readers) * 8 : l.rlim_cur) - 1;
 		if (dup2(fd, fd2) < 0) {
-			ast_log(LOG_WARNING, "Cannot open maximum file descriptor %d at boot? %s\n", fd2, strerror(errno));
+			fprintf(stderr, "Cannot open maximum file descriptor %d at boot? %s\n", fd2, strerror(errno));
 			close(fd);
 			break;
 		}
@@ -3779,7 +3775,7 @@ int main(int argc, char *argv[])
 		FD_ZERO(&readers);
 		FD_SET(fd2, &readers);
 		if (ast_select(fd2 + 1, &readers, NULL, NULL, &tv) < 0) {
-			ast_log(LOG_WARNING, "Maximum select()able file descriptor is %d\n", FD_SETSIZE);
+			fprintf(stderr, "Maximum select()able file descriptor is %d\n", FD_SETSIZE);
 		}
 		ast_FD_SETSIZE = l.rlim_cur > ast_FDMAX ? ast_FDMAX : l.rlim_cur;
 		close(fd);
@@ -3805,7 +3801,7 @@ int main(int argc, char *argv[])
 		if (errno == EEXIST) {
 			rundir_exists = 1;
 		} else {
-			ast_log(LOG_WARNING, "Unable to create socket file directory.  Remote consoles will not be able to connect! (%s)\n", strerror(x));
+			fprintf(stderr, "Unable to create socket file directory.  Remote consoles will not be able to connect! (%s)\n", strerror(x));
 		}
 	}
 
@@ -3819,21 +3815,20 @@ int main(int argc, char *argv[])
 		struct group *gr;
 		gr = getgrnam(rungroup);
 		if (!gr) {
-			ast_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
+			fprintf(stderr, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
 		if (!rundir_exists && chown(ast_config_AST_RUN_DIR, -1, gr->gr_gid)) {
-			ast_log(LOG_WARNING, "Unable to chgrp run directory to %d (%s)\n", (int) gr->gr_gid, rungroup);
+			fprintf(stderr, "Unable to chgrp run directory to %d (%s)\n", (int) gr->gr_gid, rungroup);
 		}
 		if (setgid(gr->gr_gid)) {
-			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", (int)gr->gr_gid, rungroup);
+			fprintf(stderr, "Unable to setgid to %d (%s)\n", (int)gr->gr_gid, rungroup);
 			exit(1);
 		}
 		if (setgroups(0, NULL)) {
-			ast_log(LOG_WARNING, "Unable to drop unneeded groups\n");
+			fprintf(stderr, "Unable to drop unneeded groups\n");
 			exit(1);
 		}
-		ast_verb(1, "Running as group '%s'\n", rungroup);
 	}
 
 	if (runuser && !ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)) {
@@ -3843,11 +3838,11 @@ int main(int argc, char *argv[])
 		struct passwd *pw;
 		pw = getpwnam(runuser);
 		if (!pw) {
-			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
+			fprintf(stderr, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
 		if (chown(ast_config_AST_RUN_DIR, pw->pw_uid, -1)) {
-			ast_log(LOG_WARNING, "Unable to chown run directory to %d (%s)\n", (int) pw->pw_uid, runuser);
+			fprintf(stderr, "Unable to chown run directory to %d (%s)\n", (int) pw->pw_uid, runuser);
 		}
 #ifdef HAVE_CAP
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0)) {
@@ -3856,35 +3851,35 @@ int main(int argc, char *argv[])
 		}
 #endif /* HAVE_CAP */
 		if (!isroot && pw->pw_uid != geteuid()) {
-			ast_log(LOG_ERROR, "Asterisk started as nonroot, but runuser '%s' requested.\n", runuser);
+			fprintf(stderr, "Asterisk started as nonroot, but runuser '%s' requested.\n", runuser);
 			exit(1);
 		}
 		if (!rungroup) {
 			if (setgid(pw->pw_gid)) {
-				ast_log(LOG_WARNING, "Unable to setgid to %d!\n", (int)pw->pw_gid);
+				fprintf(stderr, "Unable to setgid to %d!\n", (int)pw->pw_gid);
 				exit(1);
 			}
 			if (isroot && initgroups(pw->pw_name, pw->pw_gid)) {
-				ast_log(LOG_WARNING, "Unable to init groups for '%s'\n", runuser);
+				fprintf(stderr, "Unable to init groups for '%s'\n", runuser);
 				exit(1);
 			}
 		}
 		if (setuid(pw->pw_uid)) {
-			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", (int)pw->pw_uid, runuser);
+			fprintf(stderr, "Unable to setuid to %d (%s)\n", (int)pw->pw_uid, runuser);
 			exit(1);
 		}
-		ast_verb(1, "Running as user '%s'\n", runuser);
 #ifdef HAVE_CAP
 		if (has_cap) {
 			cap_t cap;
 
 			cap = cap_from_text("cap_net_admin=eip");
 
-			if (cap_set_proc(cap))
-				ast_log(LOG_WARNING, "Unable to install capabilities.\n");
-
-			if (cap_free(cap))
-				ast_log(LOG_WARNING, "Unable to drop capabilities.\n");
+			if (cap_set_proc(cap)) {
+				fprintf(stderr, "Unable to install capabilities.\n");
+			}
+			if (cap_free(cap)) {
+				fprintf(stderr, "Unable to drop capabilities.\n");
+			}
 		}
 #endif /* HAVE_CAP */
 	}
@@ -3894,7 +3889,7 @@ int main(int argc, char *argv[])
 #ifdef linux
 	if (geteuid() && ast_opt_dump_core) {
 		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0) {
-			ast_log(LOG_WARNING, "Unable to set the process for core dumps after changing to a non-root user. %s\n", strerror(errno));
+			fprintf(stderr, "Unable to set the process for core dumps after changing to a non-root user. %s\n", strerror(errno));
 		}
 	}
 #endif
@@ -3906,93 +3901,69 @@ int main(int argc, char *argv[])
 #endif
 		char dir[PATH_MAX];
 		if (!getcwd(dir, sizeof(dir)) || eaccess(dir, R_OK | X_OK | F_OK)) {
-			ast_log(LOG_ERROR, "Unable to access the running directory (%s).  Changing to '/' for compatibility.\n", strerror(errno));
+			fprintf(stderr, "Unable to access the running directory (%s).  Changing to '/' for compatibility.\n", strerror(errno));
 			/* If we cannot access the CWD, then we couldn't dump core anyway,
 			 * so chdir("/") won't break anything. */
 			if (chdir("/")) {
 				/* chdir(/) should never fail, so this ends up being a no-op */
-				ast_log(LOG_ERROR, "chdir(\"/\") failed?!! %s\n", strerror(errno));
+				fprintf(stderr, "chdir(\"/\") failed?!! %s\n", strerror(errno));
 			}
 		} else
 #endif /* defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS) */
 		if (!ast_opt_no_fork && !ast_opt_dump_core) {
 			/* Backgrounding, but no cores, so chdir won't break anything. */
 			if (chdir("/")) {
-				ast_log(LOG_ERROR, "Unable to chdir(\"/\") ?!! %s\n", strerror(errno));
+				fprintf(stderr, "Unable to chdir(\"/\") ?!! %s\n", strerror(errno));
 			}
 		}
-	}
-
-	ast_term_init();
-	printf("%s", term_end());
-	fflush(stdout);
-
-	if (ast_opt_console && !option_verbose) {
-		ast_verbose("[ Initializing Custom Configuration Options ]\n");
-	}
-	/* custom config setup */
-	register_config_cli();
-	read_config_maps();
-
-	if (ast_opt_console) {
-		if (el_hist == NULL || el == NULL)
-			ast_el_initialize();
-
-		if (!ast_strlen_zero(filename))
-			ast_el_read_history(filename);
 	}
 
 	if (ast_tryconnect()) {
 		/* One is already running */
 		if (ast_opt_remote) {
+			multi_thread_safe = 1;
 			if (ast_opt_exec) {
 				ast_remotecontrol(xarg);
 				quit_handler(0, SHUTDOWN_FAST, 0);
 				exit(0);
 			}
+			print_intro_message(runuser, rungroup);
 			printf("%s", term_quit());
 			ast_remotecontrol(NULL);
 			quit_handler(0, SHUTDOWN_FAST, 0);
 			exit(0);
 		} else {
-			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
+			fprintf(stderr, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
 			printf("%s", term_quit());
 			exit(1);
 		}
 	} else if (ast_opt_remote || ast_opt_exec) {
-		ast_log(LOG_ERROR, "Unable to connect to remote asterisk (does %s exist?)\n", ast_config_AST_SOCKET);
+		fprintf(stderr, "Unable to connect to remote asterisk (does %s exist?)\n", ast_config_AST_SOCKET);
 		printf("%s", term_quit());
 		exit(1);
 	}
-	/* Blindly write pid file since we couldn't connect */
-	unlink(ast_config_AST_PID);
-	f = fopen(ast_config_AST_PID, "w");
-	if (f) {
-		fprintf(f, "%ld\n", (long)getpid());
-		fclose(f);
-	} else
-		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 
+	/* This needs to remain as high up in the initial start up as possible.
+	 * daemon causes a fork to occur, which has all sorts of unintended
+	 * consequences for things that interact with threads.  This call *must*
+	 * occur before anything in Asterisk spawns or manipulates thread related
+	 * primitives. */
 #if HAVE_WORKING_FORK
 	if (ast_opt_always_fork || !ast_opt_no_fork) {
 #ifndef HAVE_SBIN_LAUNCHD
 		if (daemon(1, 0) < 0) {
-			ast_log(LOG_ERROR, "daemon() failed: %s\n", strerror(errno));
+			fprintf(stderr, "daemon() failed: %s\n", strerror(errno));
 		}
-		ast_mainpid = getpid();
-		/* Blindly re-write pid file since we are forking */
-		unlink(ast_config_AST_PID);
-		f = fopen(ast_config_AST_PID, "w");
-		if (f) {
-			fprintf(f, "%ld\n", (long)ast_mainpid);
-			fclose(f);
-		} else
-			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 #else
-		ast_log(LOG_WARNING, "Mac OS X detected.  Use 'launchctl load /Library/LaunchDaemon/org.asterisk.asterisk.plist'.\n");
+		fprintf(stderr, "Mac OS X detected.  Use 'launchctl load /Library/LaunchDaemon/org.asterisk.asterisk.plist'.\n");
 #endif
 	}
 #endif
+
+	/* At this point everything has been forked successfully,
+	 * we have determined that we aren't attempting to connect to
+	 * an Asterisk instance, and that there isn't one already running. */
+	multi_thread_safe = 1;
 
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
 	if (isroot && ast_opt_high_priority) {
@@ -4026,6 +3997,71 @@ int main(int argc, char *argv[])
 
 		/* Kill the canary when we exit */
 		ast_register_atexit(canary_exit);
+	}
+
+	/* Blindly write the PID file. */
+	ast_mainpid = getpid();
+	unlink(ast_config_AST_PID);
+	f = fopen(ast_config_AST_PID, "w");
+	if (f) {
+		fprintf(f, "%ld\n", (long)getpid());
+		fclose(f);
+	} else {
+		fprintf(stderr, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
+	}
+
+	/* Initialize the terminal.  Since all processes have been forked,
+	 * we can now start using the standard log messages.
+	 */
+	ast_term_init();
+	printf("%s", term_end());
+	fflush(stdout);
+
+	print_intro_message(runuser, rungroup);
+
+	if (ast_opt_console && !option_verbose) {
+		ast_verbose("[ Initializing Custom Configuration Options ]\n");
+	}
+	/* custom config setup */
+	register_config_cli();
+	read_config_maps();
+
+	if (ast_opt_console) {
+		if (el_hist == NULL || el == NULL)
+			ast_el_initialize();
+
+		if (!ast_strlen_zero(filename))
+			ast_el_read_history(filename);
+	}
+
+#if defined(__AST_DEBUG_MALLOC)
+	__ast_mm_init_phase_1();
+#endif	/* defined(__AST_DEBUG_MALLOC) */
+
+	ast_ulaw_init();
+	ast_alaw_init();
+	tdd_init();
+	callerid_init();
+	ast_builtins_init();
+
+	if (ast_utils_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_tps_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_fd_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_pbx_init()) {
+		printf("%s", term_quit());
+		exit(1);
 	}
 
 	if (ast_event_init()) {
@@ -4235,9 +4271,9 @@ int main(int argc, char *argv[])
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
-#if defined(__AST_DEBUG_MALLOC)
+#ifdef __AST_DEBUG_MALLOC
 	__ast_mm_init_phase_2();
-#endif	/* defined(__AST_DEBUG_MALLOC) */
+#endif
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));

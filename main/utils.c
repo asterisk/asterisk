@@ -999,18 +999,7 @@ static void *dummy_start(void *data)
 #ifdef DEBUG_THREADS
 	struct thr_lock_info *lock_info;
 	pthread_mutexattr_t mutex_attr;
-#endif
 
-	/* note that even though data->name is a pointer to allocated memory,
-	   we are not freeing it here because ast_register_thread is going to
-	   keep a copy of the pointer and then ast_unregister_thread will
-	   free the memory
-	*/
-	ast_free(data);
-	ast_register_thread(a.name);
-	pthread_cleanup_push(ast_unregister_thread, (void *) pthread_self());
-
-#ifdef DEBUG_THREADS
 	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
 		return NULL;
 
@@ -1026,6 +1015,15 @@ static void *dummy_start(void *data)
 	AST_LIST_INSERT_TAIL(&lock_infos, lock_info, entry);
 	pthread_mutex_unlock(&lock_infos_lock.mutex); /* Intentionally not the wrapper */
 #endif /* DEBUG_THREADS */
+
+	/* note that even though data->name is a pointer to allocated memory,
+	   we are not freeing it here because ast_register_thread is going to
+	   keep a copy of the pointer and then ast_unregister_thread will
+	   free the memory
+	*/
+	ast_free(data);
+	ast_register_thread(a.name);
+	pthread_cleanup_push(ast_unregister_thread, (void *) pthread_self());
 
 	ret = a.start_routine(a.data);
 
