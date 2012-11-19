@@ -128,7 +128,7 @@ struct default_taskprocessor_listener_pvt {
 
 static void default_tps_wake_up(struct default_taskprocessor_listener_pvt *pvt, int should_die)
 {
-	SCOPED_MUTEX(lock, &pvt->lock); 
+	SCOPED_MUTEX(lock, &pvt->lock);
 	pvt->wake_up = 1;
 	pvt->dead = should_die;
 	ast_cond_signal(&pvt->cond);
@@ -472,7 +472,7 @@ struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct
 {
 	RAII_VAR(struct ast_taskprocessor_listener *, listener,
 			ao2_alloc(sizeof(*listener), listener_destroy), ao2_cleanup);
-	
+
 	if (!listener) {
 		return NULL;
 	}
@@ -614,7 +614,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 {
 	struct tps_task *t;
 	int size;
-	
+
 	if (!(t = tps_taskprocessor_pop(tps))) {
 		return 0;
 	}

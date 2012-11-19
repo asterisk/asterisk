@@ -31,7 +31,7 @@
  * in the task queue occur.
  *
  * A task is a wrapper around a task-handling function pointer and a data
- * pointer.  A task is pushed into a taskprocessor queue using the 
+ * pointer.  A task is pushed into a taskprocessor queue using the
  * ast_taskprocessor_push(taskprocessor, taskhandler, taskdata) function and freed by the
  * taskprocessor after the task handling function returns.  A module releases its
  * reference to a taskprocessor using the ast_taskprocessor_unreference() function which
@@ -59,9 +59,9 @@ struct ast_taskprocessor;
 /*!
  * \brief ast_tps_options for specification of taskprocessor options
  *
- * Specify whether a taskprocessor should be created via ast_taskprocessor_get() if the taskprocessor 
- * does not already exist.  The default behavior is to create a taskprocessor if it does not already exist 
- * and provide its reference to the calling function.  To only return a reference to a taskprocessor if 
+ * Specify whether a taskprocessor should be created via ast_taskprocessor_get() if the taskprocessor
+ * does not already exist.  The default behavior is to create a taskprocessor if it does not already exist
+ * and provide its reference to the calling function.  To only return a reference to a taskprocessor if
  * and only if it exists, use the TPS_REF_IF_EXISTS option in ast_taskprocessor_get().
  */
 enum ast_tps_options {
@@ -74,7 +74,7 @@ enum ast_tps_options {
 struct ast_taskprocessor_listener;
 
 struct ast_taskprocessor_listener_callbacks {
-	/*! 
+	/*!
 	 * \brief Allocate the listener's private data
 	 *
 	 * It is not necessary to assign the private data to the listener.
@@ -84,14 +84,14 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \retval non-NULL Allocated private data
 	 */
 	void *(*alloc)(struct ast_taskprocessor_listener *listener);
-	/*! 
+	/*!
 	 * \brief Indicates a task was pushed to the processor
 	 *
 	 * \param listener The listener
 	 * \param was_empty If non-zero, the taskprocessor was empty prior to the task being pushed
 	 */
 	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
-	/*! 
+	/*!
 	 * \brief Indicates the task processor has become empty
 	 *
 	 * \param listener The listener
@@ -109,7 +109,7 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \param listener The listener
 	 */
 	void (*shutdown)(struct ast_taskprocessor_listener *listener);
-	/*! 
+	/*!
 	 * \brief Destroy the listener's private data
 	 *
 	 * It is required that you free the private data in this callback
@@ -157,7 +157,7 @@ struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct
  * The default behavior of instantiating a taskprocessor if one does not already exist can be
  * disabled by specifying the TPS_REF_IF_EXISTS ast_tps_options as the second argument to ast_taskprocessor_get().
  * \param name The name of the taskprocessor
- * \param create Use 0 by default or specify TPS_REF_IF_EXISTS to return NULL if the taskprocessor does 
+ * \param create Use 0 by default or specify TPS_REF_IF_EXISTS to return NULL if the taskprocessor does
  * not already exist
  * return A pointer to a reference counted taskprocessor under normal conditions, or NULL if the
  * TPS_REF_IF_EXISTS reference type is specified and the taskprocessor does not exist
