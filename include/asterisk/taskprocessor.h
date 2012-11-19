@@ -22,28 +22,33 @@
  *
  * \author Dwayne M. Hubbard <dhubbard@digium.com>
  *
- * \note A taskprocessor is a named singleton containing a task queue that serializes tasks pushed
- * into it by [a] module(s) that reference the taskprocessor. A taskprocessor is created the first
- * time its name is requested via the ast_taskprocessor_get() function and destroyed when the
- * taskprocessor reference count reaches zero. A taskprocessor also contains an accompanying
- * listener that is told when changes in the task queue occur.
+ * \note A taskprocessor is a named singleton containing a task queue that
+ * serializes tasks pushed into it by [a] module(s) that reference the taskprocessor.
+ * A taskprocessor is created the first time its name is requested via the
+ * ast_taskprocessor_get() function or the ast_taskprocessor_create_with_listener()
+ * function and destroyed when the taskprocessor reference count reaches zero. A
+ * taskprocessor also contains an accompanying listener that is notified when changes
+ * in the task queue occur.
  *
  * A task is a wrapper around a task-handling function pointer and a data
  * pointer.  A task is pushed into a taskprocessor queue using the 
  * ast_taskprocessor_push(taskprocessor, taskhandler, taskdata) function and freed by the
- * taskprocessor after the task handling function returns.  A module releases its reference to a
- * taskprocessor using the ast_taskprocessor_unreference() function which may result in the
- * destruction of the taskprocessor if the taskprocessor's reference count reaches zero.  Tasks waiting
- * to be processed in the taskprocessor queue when the taskprocessor reference count reaches zero
- * will be purged and released from the taskprocessor queue without being processed.
+ * taskprocessor after the task handling function returns.  A module releases its
+ * reference to a taskprocessor using the ast_taskprocessor_unreference() function which
+ * may result in the destruction of the taskprocessor if the taskprocessor's reference
+ * count reaches zero. When the taskprocessor's reference count reaches zero, its
+ * listener's shutdown() callback will be called. Any further attempts to execute tasks
+ * will be denied.
  *
- * The taskprocessor listener has the flexibility of doling out tasks to best fit the module's
- * needs. For instance, a taskprocessor listener may have a single dispatch thread that handles
- * all tasks, or it may dispatch tasks to a thread pool.
+ * The taskprocessor listener has the flexibility of doling out tasks to best fit the
+ * module's needs. For instance, a taskprocessor listener may have a single dispatch
+ * thread that handles all tasks, or it may dispatch tasks to a thread pool.
  *
- * There is a default taskprocessor listener that will be used if a taskprocessor is created without
- * a listener. This default listener runs tasks sequentially in a single thread. The listener will
- * execute tasks as long as there are tasks to be processed.
+ * There is a default taskprocessor listener that will be used if a taskprocessor is
+ * created without any explicit listener. This default listener runs tasks sequentially
+ * in a single thread. The listener will execute tasks as long as there are tasks to be
+ * processed. When the taskprocessor is shut down, the default listener will stop
+ * processing tasks and join its execution thread.
  */
 
 #ifndef __AST_TASKPROCESSOR_H__

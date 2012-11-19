@@ -76,6 +76,8 @@ struct ast_taskprocessor {
 	/*! \brief Taskprocessor singleton list entry */
 	AST_LIST_ENTRY(ast_taskprocessor) list;
 	struct ast_taskprocessor_listener *listener;
+	/*! Indicates if the taskprocessor is in the process of shuting down */
+	unsigned int shutting_down:1;
 };
 #define TPS_MAX_BUCKETS 7
 /*! \brief tps_singletons is the astobj2 container for taskprocessor singletons */
@@ -123,26 +125,13 @@ struct default_taskprocessor_listener_pvt {
 	int dead;
 };
 
+
 static void default_tps_wake_up(struct default_taskprocessor_listener_pvt *pvt, int should_die)
 {
 	SCOPED_MUTEX(lock, &pvt->lock); 
 	pvt->wake_up = 1;
 	pvt->dead = should_die;
 	ast_cond_signal(&pvt->cond);
-}
-
-static void listener_destroy(void *obj)
-{
-	struct ast_taskprocessor_listener *listener = obj;
-
-	listener->callbacks->destroy(listener->private_data);
-}
-
-static void listener_shutdown(struct ast_taskprocessor_listener *listener)
-{
-	listener->callbacks->shutdown(listener);
-	ao2_ref(listener->tps, -1);
-	listener->tps = NULL;
 }
 
 static int default_tps_idle(struct default_taskprocessor_listener_pvt *pvt)
@@ -188,6 +177,20 @@ static void *default_listener_alloc(struct ast_taskprocessor_listener *listener)
 	return pvt;
 }
 
+static void default_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
+{
+	struct default_taskprocessor_listener_pvt *pvt = listener->private_data;
+
+	if (was_empty) {
+		default_tps_wake_up(pvt, 0);
+	}
+}
+
+static void default_emptied(struct ast_taskprocessor_listener *listener)
+{
+	/* No-op */
+}
+
 static void default_listener_shutdown(struct ast_taskprocessor_listener *listener)
 {
 	struct default_taskprocessor_listener_pvt *pvt = listener->private_data;
@@ -202,20 +205,6 @@ static void default_listener_destroy(void *obj)
 	ast_mutex_destroy(&pvt->lock);
 	ast_cond_destroy(&pvt->cond);
 	ast_free(pvt);
-}
-
-static void default_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
-{
-	struct default_taskprocessor_listener_pvt *pvt = listener->private_data;
-
-	if (was_empty) {
-		default_tps_wake_up(pvt, 0);
-	}
-}
-
-static void default_emptied(struct ast_taskprocessor_listener *listener)
-{
-	/* No-op */
 }
 
 static const struct ast_taskprocessor_listener_callbacks default_listener_callbacks = {
@@ -438,16 +427,15 @@ static void tps_taskprocessor_destroy(void *tps)
 static struct tps_task *tps_taskprocessor_pop(struct ast_taskprocessor *tps)
 {
 	struct tps_task *task;
+	SCOPED_AO2LOCK(lock, tps);
 
-	if (!tps) {
-		ast_log(LOG_ERROR, "missing taskprocessor\n");
+	if (tps->shutting_down) {
 		return NULL;
 	}
-	ao2_lock(tps);
+
 	if ((task = AST_LIST_REMOVE_HEAD(&tps->tps_queue, list))) {
 		tps->tps_queue_size--;
 	}
-	ao2_unlock(tps);
 	return task;
 }
 
@@ -464,6 +452,20 @@ const char *ast_taskprocessor_name(struct ast_taskprocessor *tps)
 		return NULL;
 	}
 	return tps->name;
+}
+
+static void listener_destroy(void *obj)
+{
+	struct ast_taskprocessor_listener *listener = obj;
+
+	listener->callbacks->destroy(listener->private_data);
+}
+
+static void listener_shutdown(struct ast_taskprocessor_listener *listener)
+{
+	listener->callbacks->shutdown(listener);
+	ao2_ref(listener->tps, -1);
+	listener->tps = NULL;
 }
 
 struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks)
