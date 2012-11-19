@@ -873,7 +873,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 					(j == tz->nrringcadence - 1) ? "" : ",");
 		}
 		ast_str_append(&buf, 0, "\n");
-		ast_cli(a->fd, "%s", buf->str);
+		ast_cli(a->fd, "%s", ast_str_buffer(buf));
 
 		AST_LIST_TRAVERSE(&tz->tones, ts, entry) {
 			ast_cli(a->fd, "%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
