@@ -491,7 +491,7 @@ static struct ast_event *alloc_event(const struct ast_security_event_common *sec
 	return ast_event_new(AST_EVENT_SECURITY,
 		AST_EVENT_IE_SECURITY_EVENT, AST_EVENT_IE_PLTYPE_UINT, sec->event_type,
 		AST_EVENT_IE_EVENT_VERSION, AST_EVENT_IE_PLTYPE_UINT, sec->version,
-		AST_EVENT_IE_EVENT_TV, AST_EVENT_IE_PLTYPE_STR, str->str,
+		AST_EVENT_IE_EVENT_TV, AST_EVENT_IE_PLTYPE_STR, ast_str_buffer(str),
 		AST_EVENT_IE_SERVICE, AST_EVENT_IE_PLTYPE_STR, sec->service,
 		AST_EVENT_IE_SEVERITY, AST_EVENT_IE_PLTYPE_STR, severity_str,
 		AST_EVENT_IE_END);
