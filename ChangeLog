@@ -1,3 +1,34 @@
+2012-11-19   Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.15-cert1-rc2 Released.
+
+	* Fix SendDTMF crash and channel reference leak using channel name
+	  parameter.
+
+	  The SendDTMF channel name parameter has two issues.
+	  1) Crashes if the channel name does not exist.
+	  2) Leaks a channel reference if the channel is the current channel.
+	  Problem introduced by ASTERISK-15956.
+
+	  * Updated SendDTMF documentation.
+
+	  * Renamed app to senddtmf_name and tweaked the type.
+
+	* Fix Incrementing Sequence Number For Retransmitted DTMF End Packets
+
+	  In Asterisk 1.4+, a fix was put in place to increment the sequence
+	  number for retransmitted DTMF end packets.  With the introduction
+	  of the RTP engine API in 1.8, the sequence number was no longer being
+	  incremented.  This patch fixes this regression as well as cleans up a
+	  few lines that were not doing anything.
+
+	* app_queue: Fix a lock that was being held forever caused by a merging
+	  mistake
+
+    	  r375591 merged with conflicts and an oversight resulted in an unlock
+	  being missed which resulted in a deadlock when updating realtime
+	  members in queues.  This patch adds that unlock back in.
+
 2012-11-02  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.15-cert1-rc1 Released.
