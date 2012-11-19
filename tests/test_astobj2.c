@@ -424,7 +424,7 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 	struct ao2_iterator *mult_it;
 	struct test_obj *obj;
 	ao2_callback_fn *cmp_fn;
-	int n_buckets;
+	int n_buckets = 0;
 	int increment = 0;
 	int destructor_count = 0;
 	int count;
