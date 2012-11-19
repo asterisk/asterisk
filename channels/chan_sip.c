@@ -3879,18 +3879,18 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data)
 	int res = 0;
 	const struct ast_sockaddr *dst = sip_real_dst(p);
 
-	ast_debug(2, "Trying to put '%.11s' onto %s socket destined for %s\n", data->str, get_transport_pvt(p), ast_sockaddr_stringify(dst));
+	ast_debug(2, "Trying to put '%.11s' onto %s socket destined for %s\n", ast_str_buffer(data), get_transport_pvt(p), ast_sockaddr_stringify(dst));
 
 	if (sip_prepare_socket(p) < 0) {
 		return XMIT_ERROR;
 	}
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
-		res = ast_sendto(p->socket.fd, data->str, ast_str_strlen(data), 0, dst);
+		res = ast_sendto(p->socket.fd, ast_str_buffer(data), ast_str_strlen(data), 0, dst);
 	} else if (p->socket.tcptls_session) {
-		res = sip_tcptls_write(p->socket.tcptls_session, data->str, ast_str_strlen(data));
+		res = sip_tcptls_write(p->socket.tcptls_session, ast_str_buffer(data), ast_str_strlen(data));
 	} else if (p->socket.ws_session) {
-		if (!(res = ast_websocket_write(p->socket.ws_session, AST_WEBSOCKET_OPCODE_TEXT, data->str, ast_str_strlen(data)))) {
+		if (!(res = ast_websocket_write(p->socket.ws_session, AST_WEBSOCKET_OPCODE_TEXT, ast_str_buffer(data), ast_str_strlen(data)))) {
 			/* The WebSocket API just returns 0 on success and -1 on failure, while this code expects the payload length to be returned */
 			res = ast_str_strlen(data);
 		}
@@ -4151,10 +4151,10 @@ static int retrans_pkt(const void *data)
 			ast_verbose("Retransmitting #%d (%s) to %s:\n%s\n---\n",
 				pkt->retrans, sip_nat_mode(pkt->owner),
 				ast_sockaddr_stringify(dst),
-				pkt->data->str);
+				ast_str_buffer(pkt->data));
 		}
 
-		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
+		append_history(pkt->owner, "ReTx", "%d %s", reschedule, ast_str_buffer(pkt->data));
 		xmitres = __sip_xmit(pkt->owner, pkt->data);
 
 		/* If there was no error during the network transmission, schedule the next retransmission,
@@ -4312,7 +4312,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 		ast_free(pkt);
 		return AST_FAILURE;
 	}
-	ast_str_set(&pkt->data, 0, "%s%s", data->str, "\0");
+	ast_str_set(&pkt->data, 0, "%s%s", ast_str_buffer(data), "\0");
 	/* copy other parameters from the caller */
 	pkt->method = sipmethod;
 	pkt->seqno = seqno;
@@ -4588,7 +4588,7 @@ void __sip_pretend_ack(struct sip_pvt *p)
 			return;
 		}
 		cur = p->packets;
-		method = (cur->method) ? cur->method : find_sip_method(cur->data->str);
+		method = (cur->method) ? cur->method : find_sip_method(ast_str_buffer(cur->data));
 		__sip_ack(p, cur->seqno, cur->is_resp, method);
 	}
 }
@@ -4601,7 +4601,7 @@ int __sip_semi_ack(struct sip_pvt *p, uint32_t seqno, int resp, int sipmethod)
 
 	for (cur = p->packets; cur; cur = cur->next) {
 		if (cur->seqno == seqno && cur->is_resp == resp &&
-			(cur->is_resp || method_match(sipmethod, cur->data->str))) {
+			(cur->is_resp || method_match(sipmethod, ast_str_buffer(cur->data)))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
 				if (sipdebug)
@@ -4717,12 +4717,12 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		ast_verbose("\n<--- %sTransmitting (%s) to %s --->\n%s\n<------------>\n",
 			reliable ? "Reliably " : "", sip_nat_mode(p),
 			ast_sockaddr_stringify(dst),
-			req->data->str);
+			ast_str_buffer(req->data));
 	}
 	if (p->do_history) {
 		struct sip_request tmp = { .rlpart1 = 0, };
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data->str, sip_get_header(&tmp, "CSeq"),
+		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", ast_str_buffer(tmp.data), sip_get_header(&tmp, "CSeq"),
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? REQ_OFFSET_TO_STR(&tmp, rlpart2) : sip_methods[tmp.method].text);
 		deinit_req(&tmp);
 	}
@@ -4762,15 +4762,15 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) {
-			ast_verbose("%sTransmitting (NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->recv), req->data->str);
+			ast_verbose("%sTransmitting (NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->recv), ast_str_buffer(req->data));
 		} else {
-			ast_verbose("%sTransmitting (no NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->sa), req->data->str);
+			ast_verbose("%sTransmitting (no NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->sa), ast_str_buffer(req->data));
 		}
 	}
 	if (p->do_history) {
 		struct sip_request tmp = { .rlpart1 = 0, };
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data->str, sip_get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
+		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", ast_str_buffer(tmp.data), sip_get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
 		deinit_req(&tmp);
 	}
 	res = (reliable) ?
@@ -7081,7 +7081,7 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	/* Start the process if it's not already started */
-	if (!p->alreadygone && p->initreq.data && !ast_strlen_zero(p->initreq.data->str)) {
+	if (!p->alreadygone && p->initreq.data && ast_str_strlen(p->initreq.data)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* if we can't send right now, mark it pending */
@@ -7095,7 +7095,7 @@ static int sip_hangup(struct ast_channel *ast)
 					struct sip_pkt *cur;
 
 					for (cur = p->packets; cur; cur = cur->next) {
-						__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data->str));
+						__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(ast_str_buffer(cur->data)));
 					}
 					p->invitestate = INV_CANCELLED;
 					/* Send a new request: CANCEL */
@@ -9537,8 +9537,8 @@ static int parse_request(struct sip_request *req)
 			*c = '\0';
 		} else if (*c == '\n') { 	/* end of this line */
 			*c = '\0';
-			current_header_offset = (c + 1) - req->data->str;
-			previous_header = req->data->str + dst[i];
+			current_header_offset = (c + 1) - ast_str_buffer(req->data);
+			previous_header = ast_str_buffer(req->data) + dst[i];
 			if (skipping_headers) {
 				/* check to see if this line is blank; if so, turn off
 				   the skipping flag, so the next line will be processed
@@ -9584,7 +9584,7 @@ static int parse_request(struct sip_request *req)
 	   if we've already reached the maximum number of lines for portion of the message
 	   we were parsing, we can't accept any more, so just ignore it.
 	*/
-	previous_header = req->data->str + dst[i];
+	previous_header = ast_str_buffer(req->data) + dst[i];
 	if ((i < lim) && !ast_strlen_zero(previous_header)) {
 		if (sipdebug) {
 			ast_debug(4, "%7s %2d [%3d]: %s\n",
@@ -9725,7 +9725,7 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 			      holdstate ? "On" : "Off",
 			      ast_channel_name(dialog->owner),
 			      ast_channel_uniqueid(dialog->owner));
-	append_history(dialog, holdstate ? "Hold" : "Unhold", "%s", req->data->str);
+	append_history(dialog, holdstate ? "Hold" : "Unhold", "%s", ast_str_buffer(req->data));
 	if (!holdstate) {	/* Put off remote hold */
 		ast_clear_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
 		return;
@@ -13277,8 +13277,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			switch (offer->type) {
 			case SDP_AUDIO:
 				if (needaudio) {
-					add_content(resp, m_audio->str);
-					add_content(resp, a_audio->str);
+					add_content(resp, ast_str_buffer(m_audio));
+					add_content(resp, ast_str_buffer(a_audio));
 					add_content(resp, hold);
 					if (a_crypto) {
 						add_content(resp, a_crypto);
@@ -13289,8 +13289,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				break;
 			case SDP_VIDEO:
 				if (needvideo) { /* only if video response is appropriate */
-					add_content(resp, m_video->str);
-					add_content(resp, a_video->str);
+					add_content(resp, ast_str_buffer(m_video));
+					add_content(resp, ast_str_buffer(a_video));
 					add_content(resp, hold);	/* Repeat hold for the video stream */
 					if (v_a_crypto) {
 						add_content(resp, v_a_crypto);
@@ -13301,8 +13301,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				break;
 			case SDP_TEXT:
 				if (needtext) { /* only if text response is appropriate */
-					add_content(resp, m_text->str);
-					add_content(resp, a_text->str);
+					add_content(resp, ast_str_buffer(m_text));
+					add_content(resp, ast_str_buffer(a_text));
 					add_content(resp, hold);	/* Repeat hold for the text stream */
 					if (t_a_crypto) {
 						add_content(resp, t_a_crypto);
@@ -13313,8 +13313,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				break;
 			case SDP_IMAGE:
 				if (add_t38) {
-					add_content(resp, m_modem->str);
-					add_content(resp, a_modem->str);
+					add_content(resp, ast_str_buffer(m_modem));
+					add_content(resp, ast_str_buffer(a_modem));
 				} else {
 					add_content(resp, offer->decline_m_line);
 				}
@@ -13327,32 +13327,32 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	} else {
 		/* generate new SDP from scratch, no offers */
 		if (needaudio) {
-			add_content(resp, m_audio->str);
-			add_content(resp, a_audio->str);
+			add_content(resp, ast_str_buffer(m_audio));
+			add_content(resp, ast_str_buffer(a_audio));
 			add_content(resp, hold);
 			if (a_crypto) {
 				add_content(resp, a_crypto);
 			}
 		}
 		if (needvideo) { /* only if video response is appropriate */
-			add_content(resp, m_video->str);
-			add_content(resp, a_video->str);
+			add_content(resp, ast_str_buffer(m_video));
+			add_content(resp, ast_str_buffer(a_video));
 			add_content(resp, hold);	/* Repeat hold for the video stream */
 			if (v_a_crypto) {
 				add_content(resp, v_a_crypto);
 			}
 		}
 		if (needtext) { /* only if text response is appropriate */
-			add_content(resp, m_text->str);
-			add_content(resp, a_text->str);
+			add_content(resp, ast_str_buffer(m_text));
+			add_content(resp, ast_str_buffer(a_text));
 			add_content(resp, hold);	/* Repeat hold for the text stream */
 			if (t_a_crypto) {
 				add_content(resp, t_a_crypto);
 			}
 		}
 		if (add_t38) {
-			add_content(resp, m_modem->str);
-			add_content(resp, a_modem->str);
+			add_content(resp, ast_str_buffer(m_modem));
+			add_content(resp, ast_str_buffer(a_modem));
 		}
 	}
 
@@ -13787,7 +13787,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  	/* This is the request URI, which is the next hop of the call
  		which may or may not be the destination of the call
  	*/
-	ast_string_field_set(p, uri, invite->str);
+	ast_string_field_set(p, uri, ast_str_buffer(invite));
 
  	if (!ast_strlen_zero(p->todnid)) {
  		/*! \todo Need to add back the VXML URL here at some point, possibly use build_string for all this junk */
@@ -14638,7 +14638,7 @@ static int transmit_state_notify(struct sip_pvt *p, struct state_notify_data *da
 		break;
 	}
 
-	add_content(&req, tmp->str);
+	add_content(&req, ast_str_buffer(tmp));
 
 	p->pendinginvite = p->ocseq;	/* Remember that we have a pending NOTIFY in order not to confuse the NOTIFY subsystem */
 
@@ -14694,7 +14694,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 		}
 	}
 
-	add_content(&req, out->str);
+	add_content(&req, ast_str_buffer(out));
 
 	if (!p->initreq.headers) {
 		initialize_initreq(p, &req);
@@ -19776,7 +19776,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		print_named_groups(fd, peer->named_pickupgroups, 0);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_cli(fd, "  MOH Suggest  : %s\n", peer->mohsuggest);
-		ast_cli(fd, "  Mailbox      : %s\n", mailbox_str->str);
+		ast_cli(fd, "  Mailbox      : %s\n", ast_str_buffer(mailbox_str));
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d/%d\n", (peer->lastmsgssent & 0x7fff0000) >> 16, peer->lastmsgssent & 0xffff);
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
@@ -19901,7 +19901,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_str_reset(tmp_str);
 		astman_append(s, "MOHSuggest: %s\r\n", peer->mohsuggest);
 		peer_mailboxes_to_str(&tmp_str, peer);
-		astman_append(s, "VoiceMailbox: %s\r\n", tmp_str->str);
+		astman_append(s, "VoiceMailbox: %s\r\n", ast_str_buffer(tmp_str));
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Maxforwards: %d\r\n", peer->maxforwards);
@@ -20141,7 +20141,7 @@ static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	ast_cli(a->fd, "\n");
 	ast_sched_report(sched, &cbuf, &cbnames);
-	ast_cli(a->fd, "%s", cbuf->str);
+	ast_cli(a->fd, "%s", ast_str_buffer(cbuf));
 
 	return CLI_SUCCESS;
 }
@@ -20682,7 +20682,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->subscribeuri,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate),
 				subscription_type2str(cur->subscribed),
-				cur->subscribed == MWI_NOTIFICATION ? S_OR(mailbox_str->str, "<none>") : "<none>",
+				cur->subscribed == MWI_NOTIFICATION ? S_OR(ast_str_buffer(mailbox_str), "<none>") : "<none>",
 				cur->expiry
 			);
 		arg->numchans++;
@@ -21853,7 +21853,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "mailbox")) {
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
-		ast_copy_string(buf, mailbox_str->str, len);
+		ast_copy_string(buf, ast_str_buffer(mailbox_str), len);
 	} else  if (!strcasecmp(colname, "context")) {
 		ast_copy_string(buf, peer->context, len);
 	} else  if (!strcasecmp(colname, "expire")) {
@@ -24693,12 +24693,12 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 
 	ast_str_set(&str, 0, "%s@%s", extension, sip_cfg.notifycid == IGNORE_CONTEXT ? "PICKUPMARK" : context);
 
-	ast_debug(2, "About to call Pickup(%s)\n", str->str);
+	ast_debug(2, "About to call Pickup(%s)\n", ast_str_buffer(str));
 
 	/* There is no point in capturing the return value since pickup_exec
 	   doesn't return anything meaningful unless the passed data is an empty
 	   string (which in our case it will not be) */
-	pbx_exec(channel, pickup, str->str);
+	pbx_exec(channel, pickup, ast_str_buffer(str));
 
 	return 0;
 }
@@ -28204,7 +28204,7 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 		lws2sws(req->data);	/* Fix multiline headers */
 	if (req->debug) {
 		ast_verbose("\n<--- SIP read from %s:%s --->\n%s\n<------------->\n",
-			sip_get_transport(req->socket.type), ast_sockaddr_stringify(addr), req->data->str);
+			sip_get_transport(req->socket.type), ast_sockaddr_stringify(addr), ast_str_buffer(req->data));
 	}
 
 	if (parse_request(req) == -1) { /* Bad packet, can't parse */
@@ -28247,7 +28247,7 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	}
 
 	if (p->do_history) /* This is a request or response, note what it was for */
-		append_history(p, "Rx", "%s / %s / %s", req->data->str, sip_get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlpart2));
+		append_history(p, "Rx", "%s / %s / %s", ast_str_buffer(req->data), sip_get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlpart2));
 
 	if (handle_incoming(p, req, addr, &recount, &nounlock) == -1) {
 		/* Request failed */
@@ -28539,17 +28539,17 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		/* if there is no mailbox do nothing */
-		if (ast_strlen_zero(mailbox_str->str)) {
+		if (!ast_str_strlen(mailbox_str)) {
 			ao2_unlock(peer);
 			return -1;
 		}
 		ao2_unlock(peer);
 		/* If there is no mailbox do nothing */
-		if (ast_strlen_zero(mailbox_str->str)) {
+		if (!ast_str_strlen(mailbox_str)) {
 			update_peer_lastmsgssent(peer, -1, 0);
 			return 0;
 		}
-		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
+		ast_app_inboxcount(ast_str_buffer(mailbox_str), &newmsgs, &oldmsgs);
 		ao2_lock(peer);
 	}
 
@@ -30701,7 +30701,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_str_reset(fullcontact);
 			}
 			/* Reconstruct field, because realtime separates our value at the ';' */
-			if (fullcontact->used > 0) {
+			if (ast_str_strlen(fullcontact) > 0) {
 				ast_str_append(&fullcontact, 0, ";%s", v->value);
 			} else {
 				ast_str_set(&fullcontact, 0, "%s", v->value);
@@ -30810,7 +30810,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
 		if (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) || ast_sockaddr_isnull(&peer->addr)) {
-			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+			__set_address_from_contact(ast_str_buffer(fullcontact), &peer->addr, 0);
 		}
 	}
 
