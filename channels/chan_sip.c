@@ -4704,6 +4704,34 @@ static void update_provisional_keepalive(struct sip_pvt *pvt, int with_sdp)
 		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive, dialog_ref(pvt, "Increment refcount to pass dialog pointer to sched callback"));
 }
 
+static void add_required_respheader(struct sip_request *req)
+{
+	struct ast_str *str;
+	int i;
+
+	if (!req->reqsipoptions) {
+		return;
+	}
+
+	str = ast_str_create(32);
+
+	for (i = 0; i < ARRAY_LEN(sip_options); ++i) {
+		if (!(req->reqsipoptions & sip_options[i].id)) {
+			continue;
+		}
+		if (ast_str_strlen(str) > 0) {
+			ast_str_append(&str, 0, ", ");
+		}
+		ast_str_append(&str, 0, "%s", sip_options[i].text);
+	}
+
+	if (ast_str_strlen(str) > 0) {
+		add_header(req, "Require", ast_str_buffer(str));
+	}
+
+	ast_free(str);
+}
+
 /*! \brief Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, uint32_t seqno)
 {
@@ -11693,11 +11721,26 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	add_supported(p, resp);
 
 	/* If this is an invite, add Session-Timers related headers if the feature is active for this session */
-	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
+	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE) {
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
 			p->stimer->st_ref == SESSION_TIMER_REFRESHER_US ? "uas" : "uac");
 		add_header(resp, "Session-Expires", se_hdr);
+		/* RFC 2048, Section 9
+		 * If the refresher parameter in the Session-Expires header field in the
+		 * 2xx response has a value of 'uac', the UAS MUST place a Require
+		 * header field into the response with the value 'timer'.
+		 * ...
+		 * If the refresher parameter in
+		 * the 2xx response has a value of 'uas' and the Supported header field
+		 * in the request contained the value 'timer', the UAS SHOULD place a
+		 * Require header field into the response with the value 'timer'
+		 */
+		if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_THEM ||
+				(p->stimer->st_ref == SESSION_TIMER_REFRESHER_US &&
+				 p->stimer->st_active_peer_ua == TRUE)) {
+			resp->reqsipoptions |= SIP_OPT_TIMER;
+		}
 	}
 
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER || p->method == SIP_PUBLISH)) {
@@ -13496,6 +13539,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 	if (reliable && !p->pendinginvite)
 		p->pendinginvite = seqno;		/* Buggy clients sends ACK on RINGING too */
+	add_required_respheader(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
 
@@ -25444,7 +25488,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			st_active = TRUE;
 			st_interval = st_get_se(p, TRUE);
 			tmp_st_ref = SESSION_TIMER_REFRESHER_US;
-			p->stimer->st_active_peer_ua = FALSE;
+			p->stimer->st_active_peer_ua = (p->sipoptions & SIP_OPT_TIMER) ? TRUE : FALSE;
 			break;
 
 		default:

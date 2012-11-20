@@ -827,6 +827,7 @@ struct sip_request {
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;          /*!< The socket used for this request */
 	AST_LIST_ENTRY(sip_request) next;
+	unsigned int reqsipoptions; /*!< Items needed for Required header in responses */
 };
 
 /* \brief given a sip_request and an offset, return the char * that resides there
