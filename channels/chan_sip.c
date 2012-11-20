@@ -16498,8 +16498,11 @@ static int extensionstate_update(const char *context, const char *exten, struct 
 			ast_set_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
 		}
 	}
-	ast_verb(2, "Extension Changed %s[%s] new state %s for Notify User %s %s\n", exten, context, ast_extension_state2str(data->state), p->username,
-			ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE) ? "(queued)" : "");
+
+	if (!force) {
+		ast_verb(2, "Extension Changed %s[%s] new state %s for Notify User %s %s\n", exten, context, ast_extension_state2str(data->state), p->username,
+				ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE) ? "(queued)" : "");
+	}
 
 	sip_pvt_unlock(p);
 
