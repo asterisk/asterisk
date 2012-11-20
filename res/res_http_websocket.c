@@ -503,12 +503,12 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 
 	/* If this is not a websocket upgrade abort */
 	if (!upgrade || strcasecmp(upgrade, "websocket")) {
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - did not request WebSocket",
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - did not request WebSocket\n",
 			ast_sockaddr_stringify(&ser->remote_address));
 		ast_http_error(ser, 426, "Upgrade Required", NULL);
 		return -1;
 	} else if (ast_strlen_zero(requested_protocols)) {
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols requested",
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols requested\n",
 			ast_sockaddr_stringify(&ser->remote_address));
 		fputs("HTTP/1.1 400 Bad Request\r\n"
 		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
@@ -516,7 +516,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 	} else if (key1 && key2) {
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76 and
 		 * http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00 -- not currently supported*/
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '00/76' chosen",
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '00/76' chosen\n",
 			ast_sockaddr_stringify(&ser->remote_address));
 		fputs("HTTP/1.1 400 Bad Request\r\n"
 		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
@@ -548,7 +548,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 		uint8_t sha[20];
 
 		if (!(session = ao2_alloc(sizeof(*session), session_destroy_fn))) {
-			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted",
+			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted\n",
 				ast_sockaddr_stringify(&ser->remote_address));
 			fputs("HTTP/1.1 400 Bad Request\r\n"
 			      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
@@ -571,7 +571,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 	} else {
 
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 or completely unknown */
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '%d' chosen",
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '%d' chosen\n",
 			ast_sockaddr_stringify(&ser->remote_address), version ? version : 75);
 		fputs("HTTP/1.1 400 Bad Request\r\n"
 		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
@@ -581,7 +581,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 
 	/* Enable keepalive on all sessions so the underlying user does not have to */
 	if (setsockopt(ser->fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to enable keepalive",
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to enable keepalive\n",
 			ast_sockaddr_stringify(&ser->remote_address));
 		fputs("HTTP/1.1 400 Bad Request\r\n"
 		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
