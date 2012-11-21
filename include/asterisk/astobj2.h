@@ -872,6 +872,10 @@ enum search_flags {
 	 * not found in the starting bucket defined by the hash value on
 	 * the argument.
 	 *
+	 * For rbtree containers, if the search key is not in the
+	 * container, the search will start either at the first item
+	 * before the search key or the first item after the search key.
+	 *
 	 * \note The supplied ao2_callback_fn is called for every node
 	 * in the container from the starting point.
 	 */
@@ -932,6 +936,24 @@ enum search_flags {
 	OBJ_ORDER_ASCENDING = (0 << 8),
 	/*! \brief Traverse in descending order (Last to first container object) */
 	OBJ_ORDER_DESCENDING = (1 << 8),
+	/*!
+	 * \brief Traverse in pre-order (Node then children, for tree container)
+	 *
+	 * \note For non-tree containers, it is up to the container type
+	 * to make the best interpretation of the order.  For list and
+	 * hash containers, this also means ascending order because a
+	 * binary tree can degenerate into a list.
+	 */
+	OBJ_ORDER_PRE = (2 << 8),
+	/*!
+	 * \brief Traverse in post-order (Children then node, for tree container)
+	 *
+	 * \note For non-tree containers, it is up to the container type
+	 * to make the best interpretation of the order.  For list and
+	 * hash containers, this also means descending order because a
+	 * binary tree can degenerate into a list.
+	 */
+	OBJ_ORDER_POST = (3 << 8),
 };
 
 /*!
@@ -1184,6 +1206,49 @@ struct ao2_container *__ao2_container_alloc_list_debug(unsigned int ao2_options,
 	unsigned int container_options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
 	const char *tag, const char *file, int line, const char *func, int ref_debug);
 
+/*!
+ * \brief Allocate and initialize a red-black tree container.
+ *
+ * \param ao2_options Container ao2 object options (See enum ao2_alloc_opts)
+ * \param container_options Container behaviour options (See enum ao2_container_opts)
+ * \param sort_fn Pointer to a sort function.
+ * \param cmp_fn Pointer to a compare function used by ao2_find. (NULL to match everything)
+ * \param tag used for debugging.
+ *
+ * \return A pointer to a struct container.
+ *
+ * \note Destructor is set implicitly.
+ */
+
+#if defined(REF_DEBUG)
+
+#define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
+	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_container_alloc_rbtree(ao2_options, container_options, , sort_fn, cmp_fn) \
+	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
+#elif defined(__AST_DEBUG_MALLOC)
+
+#define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
+	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn) \
+	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+
+#else
+
+#define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
+	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn))
+#define ao2_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn) \
+	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn))
+
+#endif
+
+struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
+	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn);
+struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_options, unsigned int container_options,
+	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
+	const char *tag, const char *file, int line, const char *func, int ref_debug);
+
 /*! \brief
  * Returns the number of elements in a container.
  */
@@ -1242,6 +1307,58 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 #endif
 
 /*!
+ * \brief Print output.
+ * \since 12.0.0
+ *
+ * \param where User data pointer needed to determine where to put output.
+ * \param fmt printf type format string.
+ *
+ * \return Nothing
+ */
+typedef void (ao2_prnt_fn)(void *where, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
+/*!
+ * \brief Print object key.
+ * \since 12.0.0
+ *
+ * \param v_obj A pointer to the object we want the key printed.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \return Nothing
+ */
+typedef void (ao2_prnt_obj_fn)(void *v_obj, void *where, ao2_prnt_fn *prnt);
+
+/*!
+ * \brief Display contents of the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to dump.
+ * \param flags OBJ_NOLOCK if a lock is already held on the container.
+ * \param name Container name.  (NULL if anonymous)
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
+ *
+ * \return Nothing
+ */
+void ao2_container_dump(struct ao2_container *self, enum search_flags flags, const char *name, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj);
+
+/*!
+ * \brief Display statistics of the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to display statistics.
+ * \param flags OBJ_NOLOCK if a lock is already held on the container.
+ * \param name Container name.  (NULL if anonymous)
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \return Nothing
+ */
+void ao2_container_stats(struct ao2_container *self, enum search_flags flags, const char *name, void *where, ao2_prnt_fn *prnt);
+
+/*!
  * \brief Perform an integrity check on the specified container.
  * \since 12.0.0
  *
@@ -1259,11 +1376,12 @@ int ao2_container_check(struct ao2_container *self, enum search_flags flags);
  *
  * \param name Name to register the container under.
  * \param self Container to register.
+ * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
  *
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int ao2_container_register(const char *name, struct ao2_container *self);
+int ao2_container_register(const char *name, struct ao2_container *self, ao2_prnt_obj_fn *prnt_obj);
 
 /*!
  * \brief Unregister a container for CLI stats and integrity check.

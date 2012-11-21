@@ -8596,6 +8596,27 @@ static const struct ast_data_entry channel_providers[] = {
 	AST_DATA_ENTRY("/asterisk/core/channeltypes", &channeltypes_provider),
 };
 
+/*!
+ * \internal
+ * \brief Print channel object key (name).
+ * \since 12.0.0
+ *
+ * \param v_obj A pointer to the object we want the key printed.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \return Nothing
+ */
+static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct ast_channel *chan = v_obj;
+
+	if (!chan) {
+		return;
+	}
+	prnt(where, "%s", ast_channel_name(chan));
+}
+
 static void channels_shutdown(void)
 {
 	ast_data_unregister(NULL);
@@ -8610,7 +8631,7 @@ void ast_channels_init(void)
 	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
 			ast_channel_hash_cb, ast_channel_cmp_cb);
 	if (channels) {
-		ao2_container_register("channels", channels);
+		ao2_container_register("channels", channels, prnt_channel_key);
 	}
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));

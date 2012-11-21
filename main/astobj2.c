@@ -96,6 +96,12 @@ struct astobj2_rwlock {
 	void *user_data[0];
 };
 
+#if defined(AST_DEVMODE)
+#define AO2_DEVMODE_STAT(stat)	stat
+#else
+#define AO2_DEVMODE_STAT(stat)
+#endif	/* defined(AST_DEVMODE) */
+
 #ifdef AO2_DEBUG
 struct ao2_stats {
 	volatile int total_objects;
@@ -765,6 +771,8 @@ enum ao2_container_insert {
 enum ao2_container_rtti {
 	/*! This is a hash container */
 	AO2_CONTAINER_RTTI_HASH,
+	/*! This is a red-black tree container */
+	AO2_CONTAINER_RTTI_RBTREE,
 };
 
 /*!
@@ -892,17 +900,29 @@ typedef void (*ao2_container_find_cleanup_fn)(void *v_state);
 typedef struct ao2_container_node *(*ao2_iterator_next_fn)(struct ao2_container *self, struct ao2_container_node *prev, enum ao2_iterator_flags flags);
 
 /*!
+ * \brief Display contents of the specified container.
+ *
+ * \param self Container to dump.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
+ *
+ * \return Nothing
+ */
+typedef void (*ao2_container_display)(struct ao2_container *self, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj);
+
+/*!
  * \brief Display statistics of the specified container.
  *
  * \param self Container to display statistics.
- * \param fd File descriptor to send output.
+ * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
  *
  * \note The container is already locked for reading.
  *
  * \return Nothing
  */
-typedef void (*ao2_container_statistics)(struct ao2_container *self, int fd, void (*prnt)(int fd, const char *fmt, ...) __attribute__((format(printf, 2, 3))));
+typedef void (*ao2_container_statistics)(struct ao2_container *self, void *where, ao2_prnt_fn *prnt);
 
 /*!
  * \brief Perform an integrity check on the specified container.
@@ -939,6 +959,8 @@ struct ao2_container_methods {
 	/*! Find the next iteration element in the container. */
 	ao2_iterator_next_fn iterator_next;
 #if defined(AST_DEVMODE)
+	/*! Display container contents. (Method for debug purposes) */
+	ao2_container_display dump;
 	/*! Display container debug statistics. (Method for debug purposes) */
 	ao2_container_statistics stats;
 	/*! Perform an integrity check on the container. (Method for debug purposes) */
@@ -1041,16 +1063,37 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 	res = 0;
 	node = self->v_table->new_node(self, obj_new, tag, file, line, func);
 	if (node) {
+#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+		switch (self->v_table->type) {
+		case AO2_CONTAINER_RTTI_HASH:
+			if (!self->sort_fn) {
+				/*
+				 * XXX chan_iax2 plays games with the hash function so we cannot
+				 * routinely do an integrity check on this type of container.
+				 * chan_iax2 should be changed to not abuse the hash function.
+				 */
+				break;
+			}
+			/* Fall through. */
+		case AO2_CONTAINER_RTTI_RBTREE:
+			if (ao2_container_check(self, OBJ_NOLOCK)) {
+				ast_log(LOG_ERROR, "Container integrity failed before insert.\n");
+			}
+			break;
+		}
+#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
 		/* Insert the new node. */
 		switch (self->v_table->insert(self, node)) {
 		case AO2_CONTAINER_INSERT_NODE_INSERTED:
 			node->is_linked = 1;
 			ast_atomic_fetchadd_int(&self->elements, 1);
 #if defined(AST_DEVMODE)
-			++self->nodes;
+			AO2_DEVMODE_STAT(++self->nodes);
 			switch (self->v_table->type) {
 			case AO2_CONTAINER_RTTI_HASH:
 				hash_ao2_link_node_stat(self, node);
+				break;
+			case AO2_CONTAINER_RTTI_RBTREE:
 				break;
 			}
 #endif	/* defined(AST_DEVMODE) */
@@ -1064,6 +1107,27 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 			__ao2_ref(node, -1);
 			break;
 		}
+#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+		if (res) {
+			switch (self->v_table->type) {
+			case AO2_CONTAINER_RTTI_HASH:
+				if (!self->sort_fn) {
+					/*
+					 * XXX chan_iax2 plays games with the hash function so we cannot
+					 * routinely do an integrity check on this type of container.
+					 * chan_iax2 should be changed to not abuse the hash function.
+					 */
+					break;
+				}
+				/* Fall through. */
+			case AO2_CONTAINER_RTTI_RBTREE:
+				if (ao2_container_check(self, OBJ_NOLOCK)) {
+					ast_log(LOG_ERROR, "Container integrity failed after insert.\n");
+				}
+				break;
+			}
+		}
+#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
 	}
 
 	if (flags & OBJ_NOLOCK) {
@@ -1329,6 +1393,8 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 				case AO2_CONTAINER_RTTI_HASH:
 					hash_ao2_unlink_node_stat(self, node);
 					break;
+				case AO2_CONTAINER_RTTI_RBTREE:
+					break;
 				}
 #endif	/* defined(AST_DEVMODE) */
 
@@ -1566,6 +1632,8 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 			case AO2_CONTAINER_RTTI_HASH:
 				hash_ao2_unlink_node_stat(iter->c, node);
 				break;
+			case AO2_CONTAINER_RTTI_RBTREE:
+				break;
 			}
 #endif	/* defined(AST_DEVMODE) */
 
@@ -1764,30 +1832,51 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 	return clone;
 }
 
-#if defined(AST_DEVMODE)
-/*!
- * \internal
- * \brief Display statistics of the specified container.
- * \since 12.0.0
- *
- * \param self Container to display statistics.
- * \param fd File descriptor to send output.
- * \param prnt Print output callback function to use.
- *
- * \return Nothing
- */
-static void ao2_container_stats(struct ao2_container *self, int fd, void (*prnt)(int fd, const char *fmt, ...) __attribute__((format(printf, 2, 3))))
+void ao2_container_dump(struct ao2_container *self, enum search_flags flags, const char *name, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj)
 {
 	if (!INTERNAL_OBJ(self) || !self->v_table) {
-		prnt(fd, "Invalid container\n");
+		prnt(where, "Invalid container\n");
 		ast_assert(0);
 		return;
 	}
 
-	ao2_rdlock(self);
-	prnt(fd, "Number of objects: %d\n", self->elements);
-	prnt(fd, "Number of nodes: %d\n", self->nodes);
-	prnt(fd, "Number of empty nodes: %d\n", self->nodes - self->elements);
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_rdlock(self);
+	}
+	if (name) {
+		prnt(where, "Container name: %s\n", name);
+	}
+#if defined(AST_DEVMODE)
+	if (self->v_table->dump) {
+		self->v_table->dump(self, where, prnt, prnt_obj);
+	} else
+#endif	/* defined(AST_DEVMODE) */
+	{
+		prnt(where, "Container dump not available.\n");
+	}
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(self);
+	}
+}
+
+void ao2_container_stats(struct ao2_container *self, enum search_flags flags, const char *name, void *where, ao2_prnt_fn *prnt)
+{
+	if (!INTERNAL_OBJ(self) || !self->v_table) {
+		prnt(where, "Invalid container\n");
+		ast_assert(0);
+		return;
+	}
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_rdlock(self);
+	}
+	if (name) {
+		prnt(where, "Container name: %s\n", name);
+	}
+	prnt(where, "Number of objects: %d\n", self->elements);
+#if defined(AST_DEVMODE)
+	prnt(where, "Number of nodes: %d\n", self->nodes);
+	prnt(where, "Number of empty nodes: %d\n", self->nodes - self->elements);
 	/*
 	 * XXX
 	 * If the max_empty_nodes count gets out of single digits you
@@ -1797,13 +1886,15 @@ static void ao2_container_stats(struct ao2_container *self, int fd, void (*prnt)
 	 * Empty nodes do not harm the container but they do make
 	 * container operations less efficient.
 	 */
-	prnt(fd, "Maximum empty nodes: %d\n", self->max_empty_nodes);
+	prnt(where, "Maximum empty nodes: %d\n", self->max_empty_nodes);
 	if (self->v_table->stats) {
-		self->v_table->stats(self, fd, prnt);
+		self->v_table->stats(self, where, prnt);
 	}
-	ao2_unlock(self);
-}
 #endif	/* defined(AST_DEVMODE) */
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(self);
+	}
+}
 
 int ao2_container_check(struct ao2_container *self, enum search_flags flags)
 {
@@ -1946,6 +2037,9 @@ static struct ao2_container *hash_ao2_alloc_empty_clone_debug(struct ao2_contain
  * of its destruction.  The node must be destroyed while the
  * container is already locked.
  *
+ * \note The container must be locked when the node is
+ * unreferenced.
+ *
  * \return Nothing
  */
 static void hash_ao2_node_destructor(void *v_doomed)
@@ -1972,12 +2066,21 @@ static void hash_ao2_node_destructor(void *v_doomed)
 		my_container = (struct ao2_container_hash *) doomed->common.my_container;
 		adjust_lock(my_container, AO2_LOCK_REQ_WRLOCK, 1);
 
+#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+		/*
+		 * XXX chan_iax2 plays games with the hash function so we cannot
+		 * routinely do an integrity check on this type of container.
+		 * chan_iax2 should be changed to not abuse the hash function.
+		 */
+		if (!my_container->common.destroying
+			&& my_container->common.sort_fn
+			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
+			ast_log(LOG_ERROR, "Container integrity failed before node deletion.\n");
+		}
+#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
 		bucket = &my_container->buckets[doomed->my_bucket];
 		AST_DLLIST_REMOVE(&bucket->list, doomed, links);
-
-#if defined(AST_DEVMODE)
-		--my_container->common.nodes;
-#endif	/* defined(AST_DEVMODE) */
+		AO2_DEVMODE_STAT(--my_container->common.nodes);
 	}
 
 	/*
@@ -2173,9 +2276,11 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 
 	/* Determine traversal order. */
 	switch (flags & OBJ_ORDER_MASK) {
+	case OBJ_ORDER_POST:
 	case OBJ_ORDER_DESCENDING:
 		state->descending = 1;
 		break;
+	case OBJ_ORDER_PRE:
 	case OBJ_ORDER_ASCENDING:
 	default:
 		break;
@@ -2711,18 +2816,72 @@ static void hash_ao2_destroy(struct ao2_container_hash *self)
 #if defined(AST_DEVMODE)
 /*!
  * \internal
+ * \brief Display contents of the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to dump.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
+ *
+ * \return Nothing
+ */
+static void hash_ao2_dump(struct ao2_container_hash *self, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj)
+{
+#define FORMAT  "%6s, %16s, %16s, %16s, %16s, %s\n"
+#define FORMAT2 "%6d, %16p, %16p, %16p, %16p, "
+
+	int bucket;
+	int suppressed_buckets = 0;
+	struct hash_bucket_node *node;
+
+	prnt(where, "Number of buckets: %d\n\n", self->n_buckets);
+
+	prnt(where, FORMAT, "Bucket", "Node", "Prev", "Next", "Obj", "Key");
+	for (bucket = 0; bucket < self->n_buckets; ++bucket) {
+		node = AST_DLLIST_FIRST(&self->buckets[bucket].list);
+		if (node) {
+			suppressed_buckets = 0;
+			do {
+				prnt(where, FORMAT2,
+					bucket,
+					node,
+					AST_DLLIST_PREV(node, links),
+					AST_DLLIST_NEXT(node, links),
+					node->common.obj);
+				if (node->common.obj && prnt_obj) {
+					prnt_obj(node->common.obj, where, prnt);
+				}
+				prnt(where, "\n");
+
+				node = AST_DLLIST_NEXT(node, links);
+			} while (node);
+		} else if (!suppressed_buckets) {
+			suppressed_buckets = 1;
+			prnt(where, "...\n");
+		}
+	}
+
+#undef FORMAT
+#undef FORMAT2
+}
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
+/*!
+ * \internal
  * \brief Display statistics of the specified container.
  * \since 12.0.0
  *
  * \param self Container to display statistics.
- * \param fd File descriptor to send output.
+ * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
  *
  * \note The container is already locked for reading.
  *
  * \return Nothing
  */
-static void hash_ao2_stats(struct ao2_container_hash *self, int fd, void (*prnt)(int fd, const char *fmt, ...) __attribute__((format(printf, 2, 3))))
+static void hash_ao2_stats(struct ao2_container_hash *self, void *where, ao2_prnt_fn *prnt)
 {
 #define FORMAT  "%10.10s %10.10s %10.10s\n"
 #define FORMAT2 "%10d %10d %10d\n"
@@ -2730,17 +2889,17 @@ static void hash_ao2_stats(struct ao2_container_hash *self, int fd, void (*prnt)
 	int bucket;
 	int suppressed_buckets = 0;
 
-	prnt(fd, "Number of buckets: %d\n\n", self->n_buckets);
+	prnt(where, "Number of buckets: %d\n\n", self->n_buckets);
 
-	prnt(fd, FORMAT, "Bucket", "Objects", "Max");
+	prnt(where, FORMAT, "Bucket", "Objects", "Max");
 	for (bucket = 0; bucket < self->n_buckets; ++bucket) {
 		if (self->buckets[bucket].max_elements) {
-			prnt(fd, FORMAT2, bucket, self->buckets[bucket].elements,
-				self->buckets[bucket].max_elements);
 			suppressed_buckets = 0;
+			prnt(where, FORMAT2, bucket, self->buckets[bucket].elements,
+				self->buckets[bucket].max_elements);
 		} else if (!suppressed_buckets) {
 			suppressed_buckets = 1;
-			prnt(fd, "...\n");
+			prnt(where, "...\n");
 		}
 	}
 
@@ -2815,6 +2974,11 @@ static int hash_ao2_integrity(struct ao2_container_hash *self)
 			/* Check backward link. */
 			prev = AST_DLLIST_PREV(node, links);
 			if (prev) {
+				if (prev == node) {
+					ast_log(LOG_ERROR, "Bucket %d list node's prev pointer points to itself!\n",
+						bucket);
+					return -1;
+				}
 				if (node != AST_DLLIST_NEXT(prev, links)) {
 					ast_log(LOG_ERROR, "Bucket %d list node's prev node does not link back!\n",
 						bucket);
@@ -2829,6 +2993,11 @@ static int hash_ao2_integrity(struct ao2_container_hash *self)
 			/* Check forward link. */
 			next = AST_DLLIST_NEXT(node, links);
 			if (next) {
+				if (next == node) {
+					ast_log(LOG_ERROR, "Bucket %d list node's next pointer points to itself!\n",
+						bucket);
+					return -1;
+				}
 				if (node != AST_DLLIST_PREV(next, links)) {
 					ast_log(LOG_ERROR, "Bucket %d list node's next node does not link back!\n",
 						bucket);
@@ -2918,6 +3087,7 @@ static const struct ao2_container_methods v_table_hash = {
 	.iterator_next = (ao2_iterator_next_fn) hash_ao2_iterator_next,
 	.destroy = (ao2_container_destroy_fn) hash_ao2_destroy,
 #if defined(AST_DEVMODE)
+	.dump = (ao2_container_display) hash_ao2_dump,
 	.stats = (ao2_container_statistics) hash_ao2_stats,
 	.integrity = (ao2_container_integrity) hash_ao2_integrity,
 #endif	/* defined(AST_DEVMODE) */
@@ -3021,6 +3191,2072 @@ struct ao2_container *__ao2_container_alloc_list_debug(unsigned int ao2_options,
 		sort_fn, cmp_fn, tag, file, line, func, ref_debug);
 }
 
+/*!
+ * A structure to hold the object held by the container and
+ * where it is located in it.
+ *
+ * A red-black tree has the following properties:
+ *
+ * 1) Every node is either black or red.
+ *
+ * 2) The root is black.
+ *
+ * 3) If a node has a NULL child, that "child" is considered
+ * black.
+ *
+ * 4) If a node is red, then both of its children are black.
+ *
+ * 5) Every path from a node to a descendant NULL child has the
+ * same number of black nodes.  (Including the black NULL
+ * child.)
+ */
+struct rbtree_node {
+	/*!
+	 * \brief Items common to all container nodes.
+	 * \note Must be first in the specific node struct.
+	 */
+	struct ao2_container_node common;
+	/*! Parent node of this node. NULL if this is the root node. */
+	struct rbtree_node *parent;
+	/*! Left child node of this node.  NULL if does not have this child. */
+	struct rbtree_node *left;
+	/*! Right child node of this node.  NULL if does not have this child. */
+	struct rbtree_node *right;
+	/*! TRUE if the node is red. */
+	unsigned int is_red:1;
+};
+
+/*!
+ * A rbtree container in addition to values common to all
+ * container types, stores the pointer to the root node of the
+ * tree.
+ */
+struct ao2_container_rbtree {
+	/*!
+	 * \brief Items common to all containers.
+	 * \note Must be first in the specific container struct.
+	 */
+	struct ao2_container common;
+	/*! Root node of the tree.  NULL if the tree is empty. */
+	struct rbtree_node *root;
+#if defined(AST_DEVMODE)
+	struct {
+		/*! Fixup insert left cases 1-3 */
+		int fixup_insert_left[3];
+		/*! Fixup insert right cases 1-3 */
+		int fixup_insert_right[3];
+		/*! Fixup delete left cases 1-4 */
+		int fixup_delete_left[4];
+		/*! Fixup delete right cases 1-4 */
+		int fixup_delete_right[4];
+		/*! Deletion of node with number of children (0-2). */
+		int delete_children[3];
+	} stats;
+#endif	/* defined(AST_DEVMODE) */
+};
+
+/*!
+ * \internal
+ * \brief Get the most left node in the tree.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the most left node.
+ *
+ * \return Left most node.  Never NULL.
+ */
+static struct rbtree_node *rb_node_most_left(struct rbtree_node *node)
+{
+	while (node->left) {
+		node = node->left;
+	}
+
+	return node;
+}
+
+/*!
+ * \internal
+ * \brief Get the most right node in the tree.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the most right node.
+ *
+ * \return Right most node.  Never NULL.
+ */
+static struct rbtree_node *rb_node_most_right(struct rbtree_node *node)
+{
+	while (node->right) {
+		node = node->right;
+	}
+
+	return node;
+}
+
+/*!
+ * \internal
+ * \brief Get the next node in ascending sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the next node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_next(struct rbtree_node *node)
+{
+	if (node->right) {
+		return rb_node_most_left(node->right);
+	}
+
+	/* Find the parent that the node is a left child of. */
+	while (node->parent) {
+		if (node->parent->left == node) {
+			/* We are the left child.  The parent is the next node. */
+			return node->parent;
+		}
+		node = node->parent;
+	}
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Get the next node in descending sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the previous node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_prev(struct rbtree_node *node)
+{
+	if (node->left) {
+		return rb_node_most_right(node->left);
+	}
+
+	/* Find the parent that the node is a right child of. */
+	while (node->parent) {
+		if (node->parent->right == node) {
+			/* We are the right child.  The parent is the previous node. */
+			return node->parent;
+		}
+		node = node->parent;
+	}
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Get the next node in pre-order sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the next node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_pre(struct rbtree_node *node)
+{
+	/* Visit the children if the node has any. */
+	if (node->left) {
+		return node->left;
+	}
+	if (node->right) {
+		return node->right;
+	}
+
+	/* Time to go back up. */
+	for (;;) {
+		if (!node->parent) {
+			return NULL;
+		}
+		if (node->parent->left == node && node->parent->right) {
+			/*
+			 * We came up the left child and there's a right child.  Visit
+			 * it.
+			 */
+			return node->parent->right;
+		}
+		node = node->parent;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Get the next node in post-order sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the next node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_post(struct rbtree_node *node)
+{
+	/* This node's children have already been visited. */
+	for (;;) {
+		if (!node->parent) {
+			return NULL;
+		}
+		if (node->parent->left == node) {
+			/* We came up the left child. */
+			node = node->parent;
+
+			/*
+			 * Find the right child's left most childless node.
+			 */
+			while (node->right) {
+				node = rb_node_most_left(node->right);
+			}
+
+			/*
+			 * This node's left child has already been visited or it doesn't
+			 * have any children.
+			 */
+			return node;
+		}
+
+		/*
+		 * We came up the right child.
+		 *
+		 * This node's children have already been visited.  Time to
+		 * visit the parent.
+		 */
+		return node->parent;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Get the next non-empty node in ascending sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the next node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_next_full(struct rbtree_node *node)
+{
+	for (;;) {
+		node = rb_node_next(node);
+		if (!node || node->common.obj) {
+			return node;
+		}
+	}
+}
+
+/*!
+ * \internal
+ * \brief Get the next non-empty node in descending sequence.
+ * \since 12.0.0
+ *
+ * \param node Starting node to find the previous node.
+ *
+ * \retval node on success.
+ * \retval NULL if no node.
+ */
+static struct rbtree_node *rb_node_prev_full(struct rbtree_node *node)
+{
+	for (;;) {
+		node = rb_node_prev(node);
+		if (!node || node->common.obj) {
+			return node;
+		}
+	}
+}
+
+enum empty_node_direction {
+	GO_LEFT,
+	GO_RIGHT,
+};
+
+/*!
+ * \internal
+ * \brief Determine which way to go from an empty node.
+ * \since 12.0.0
+ *
+ * \param empty Empty node to determine which side obj_right goes on.
+ * \param sort_fn Sort comparison function for non-empty nodes.
+ * \param obj_right pointer to the (user-defined part) of an object.
+ * \param flags flags from ao2_callback()
+ *   OBJ_POINTER - if set, 'obj_right', is an object.
+ *   OBJ_KEY - if set, 'obj_right', is a search key item that is not an object.
+ *   OBJ_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
+ *
+ * \return enum empty_node_direction to proceed.
+ */
+static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *empty, ao2_sort_fn *sort_fn, void *obj_right, enum search_flags flags)
+{
+	int cmp;
+	struct rbtree_node *cur;
+	struct rbtree_node *right_most;
+
+	/* Try for a quick definite go left. */
+	if (!empty->left) {
+		/* The empty node has no left child. */
+		return GO_RIGHT;
+	}
+	right_most = rb_node_most_right(empty->left);
+	if (right_most->common.obj) {
+		cmp = sort_fn(right_most->common.obj, obj_right, flags);
+		if (cmp < 0) {
+			return GO_RIGHT;
+		}
+		return GO_LEFT;
+	}
+
+	/* Try for a quick definite go right. */
+	if (!empty->right) {
+		/* The empty node has no right child. */
+		return GO_LEFT;
+	}
+	cur = rb_node_most_left(empty->right);
+	if (cur->common.obj) {
+		cmp = sort_fn(cur->common.obj, obj_right, flags);
+		if (cmp <= 0) {
+			return GO_RIGHT;
+		}
+		return GO_LEFT;
+	}
+
+	/*
+	 * Have to scan the previous nodes from the right_most node of
+	 * the left subtree for the first non-empty node to determine
+	 * direction.
+	 */
+	cur = right_most;
+	for (;;) {
+		/* Find previous node. */
+		if (cur->left) {
+			cur = rb_node_most_right(cur->left);
+		} else {
+			/* Find the parent that the node is a right child of. */
+			for (;;) {
+				if (cur->parent == empty) {
+					/* The left side of the empty node is all empty nodes. */
+					return GO_RIGHT;
+				}
+				if (cur->parent->right == cur) {
+					/* We are the right child.  The parent is the previous node. */
+					cur = cur->parent;
+					break;
+				}
+				cur = cur->parent;
+			}
+		}
+
+		if (cur->common.obj) {
+			cmp = sort_fn(cur->common.obj, obj_right, flags);
+			if (cmp < 0) {
+				return GO_RIGHT;
+			}
+			return GO_LEFT;
+		}
+	}
+}
+
+/*!
+ * \internal
+ * \brief Tree node rotation left.
+ * \since 12.0.0
+ *
+ * \param self Container holding node.
+ * \param node Node to perform a left rotation with.
+ *
+ *        p                         p
+ *        |     Left rotation       |
+ *        N        --->             Ch
+ *       / \                       / \
+ *      a  Ch                     N   c
+ *        / \                    / \
+ *       b   c                  a   b
+ *
+ * N = node
+ * Ch = child
+ * p = parent
+ * a,b,c = other nodes that are unaffected by the rotation.
+ *
+ * \note It is assumed that the node's right child exists.
+ *
+ * \return Nothing
+ */
+static void rb_rotate_left(struct ao2_container_rbtree *self, struct rbtree_node *node)
+{
+	struct rbtree_node *child;	/*!< Node's right child. */
+
+	child = node->right;
+
+	/* Link the node's parent to the child. */
+	if (!node->parent) {
+		/* Node is the root so we get a new root node. */
+		self->root = child;
+	} else if (node->parent->left == node) {
+		/* Node is a left child. */
+		node->parent->left = child;
+	} else {
+		/* Node is a right child. */
+		node->parent->right = child;
+	}
+	child->parent = node->parent;
+
+	/* Link node's right subtree to the child's left subtree. */
+	node->right = child->left;
+	if (node->right) {
+		node->right->parent = node;
+	}
+
+	/* Link the node to the child's left. */
+	node->parent = child;
+	child->left = node;
+}
+
+/*!
+ * \internal
+ * \brief Tree node rotation right.
+ * \since 12.0.0
+ *
+ * \param self Container holding node.
+ * \param node Node to perform a right rotation with.
+ *
+ *        p                         p
+ *        |     Right rotation      |
+ *        Ch                        N
+ *       / \       <---            / \
+ *      a  N                      Ch  c
+ *        / \                    / \
+ *       b   c                  a   b
+ *
+ * N = node
+ * Ch = child
+ * p = parent
+ * a,b,c = other nodes that are unaffected by the rotation.
+ *
+ * \note It is assumed that the node's left child exists.
+ *
+ * \return Nothing
+ */
+static void rb_rotate_right(struct ao2_container_rbtree *self, struct rbtree_node *node)
+{
+	struct rbtree_node *child;	/*!< Node's left child. */
+
+	child = node->left;
+
+	/* Link the node's parent to the child. */
+	if (!node->parent) {
+		/* Node is the root so we get a new root node. */
+		self->root = child;
+	} else if (node->parent->right == node) {
+		/* Node is a right child. */
+		node->parent->right = child;
+	} else {
+		/* Node is a left child. */
+		node->parent->left = child;
+	}
+	child->parent = node->parent;
+
+	/* Link node's left subtree to the child's right subtree. */
+	node->left = child->right;
+	if (node->left) {
+		node->left->parent = node;
+	}
+
+	/* Link the node to the child's right. */
+	node->parent = child;
+	child->right = node;
+}
+
+/*!
+ * \internal
+ * \brief Create an empty copy of this container.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ *
+ * \retval empty-clone-container on success.
+ * \retval NULL on error.
+ */
+static struct ao2_container *rb_ao2_alloc_empty_clone(struct ao2_container_rbtree *self)
+{
+	struct astobj2 *orig_obj;
+	unsigned int ao2_options;
+
+	/* Get container ao2 options. */
+	orig_obj = INTERNAL_OBJ(self);
+	if (!orig_obj) {
+		return NULL;
+	}
+	ao2_options = orig_obj->priv_data.options;
+
+	return ao2_t_container_alloc_rbtree(ao2_options, self->common.options,
+		self->common.sort_fn, self->common.cmp_fn, "Clone rbtree container");
+}
+
+/*!
+ * \internal
+ * \brief Create an empty copy of this container. (Debug version)
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param tag used for debugging.
+ * \param file Debug file name invoked from
+ * \param line Debug line invoked from
+ * \param func Debug function name invoked from
+ * \param ref_debug TRUE if to output a debug reference message.
+ *
+ * \retval empty-clone-container on success.
+ * \retval NULL on error.
+ */
+static struct ao2_container *rb_ao2_alloc_empty_clone_debug(struct ao2_container_rbtree *self, const char *tag, const char *file, int line, const char *func, int ref_debug)
+{
+	struct astobj2 *orig_obj;
+	unsigned int ao2_options;
+
+	/* Get container ao2 options. */
+	orig_obj = INTERNAL_OBJ(self);
+	if (!orig_obj) {
+		return NULL;
+	}
+	ao2_options = orig_obj->priv_data.options;
+
+	return __ao2_container_alloc_rbtree_debug(ao2_options, self->common.options,
+		self->common.sort_fn, self->common.cmp_fn, tag, file, line, func, ref_debug);
+}
+
+/*!
+ * \internal
+ * \brief Fixup the rbtree after deleting a node.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param child Child of the node just deleted from the container.
+ *
+ * \note The child must be a dummy black node if there really
+ * was no child of the deleted node.  Otherwise, the caller must
+ * pass in the parent node and which child was deleted.  In
+ * addition, the fixup routine would be more complicated.
+ *
+ * \return Nothing
+ */
+static void rb_delete_fixup(struct ao2_container_rbtree *self, struct rbtree_node *child)
+{
+	struct rbtree_node *sibling;
+
+	while (self->root != child && !child->is_red) {
+		if (child->parent->left == child) {
+			/* Child is a left child. */
+			sibling = child->parent->right;
+			ast_assert(sibling != NULL);
+			if (sibling->is_red) {
+				/* Case 1: The child's sibling is red. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_left[0]);
+				sibling->is_red = 0;
+				child->parent->is_red = 1;
+				rb_rotate_left(self, child->parent);
+				sibling = child->parent->right;
+				ast_assert(sibling != NULL);
+			}
+			/*
+			 * The sibling is black.  A black node must have two children,
+			 * or one red child, or no children.
+			 */
+			if ((!sibling->left || !sibling->left->is_red)
+				&& (!sibling->right || !sibling->right->is_red)) {
+				/*
+				 * Case 2: The sibling is black and both of its children are black.
+				 *
+				 * This case handles the two black children or no children
+				 * possibilities of a black node.
+				 */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_left[1]);
+				sibling->is_red = 1;
+				child = child->parent;
+			} else {
+				/* At this point the sibling has at least one red child. */
+				if (!sibling->right || !sibling->right->is_red) {
+					/*
+					 * Case 3: The sibling is black, its left child is red, and its
+					 * right child is black.
+					 */
+					AO2_DEVMODE_STAT(++self->stats.fixup_delete_left[2]);
+					ast_assert(sibling->left != NULL);
+					ast_assert(sibling->left->is_red);
+					sibling->left->is_red = 0;
+					sibling->is_red = 1;
+					rb_rotate_right(self, sibling);
+					sibling = child->parent->right;
+					ast_assert(sibling != NULL);
+				}
+				/* Case 4: The sibling is black and its right child is red. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_left[3]);
+				sibling->is_red = child->parent->is_red;
+				child->parent->is_red = 0;
+				if (sibling->right) {
+					sibling->right->is_red = 0;
+				}
+				rb_rotate_left(self, child->parent);
+				child = self->root;
+			}
+		} else {
+			/* Child is a right child. */
+			sibling = child->parent->left;
+			ast_assert(sibling != NULL);
+			if (sibling->is_red) {
+				/* Case 1: The child's sibling is red. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_right[0]);
+				sibling->is_red = 0;
+				child->parent->is_red = 1;
+				rb_rotate_right(self, child->parent);
+				sibling = child->parent->left;
+				ast_assert(sibling != NULL);
+			}
+			/*
+			 * The sibling is black.  A black node must have two children,
+			 * or one red child, or no children.
+			 */
+			if ((!sibling->right || !sibling->right->is_red)
+				&& (!sibling->left || !sibling->left->is_red)) {
+				/*
+				 * Case 2: The sibling is black and both of its children are black.
+				 *
+				 * This case handles the two black children or no children
+				 * possibilities of a black node.
+				 */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_right[1]);
+				sibling->is_red = 1;
+				child = child->parent;
+			} else {
+				/* At this point the sibling has at least one red child. */
+				if (!sibling->left || !sibling->left->is_red) {
+					/*
+					 * Case 3: The sibling is black, its right child is red, and its
+					 * left child is black.
+					 */
+					AO2_DEVMODE_STAT(++self->stats.fixup_delete_right[2]);
+					ast_assert(sibling->right != NULL);
+					ast_assert(sibling->right->is_red);
+					sibling->right->is_red = 0;
+					sibling->is_red = 1;
+					rb_rotate_left(self, sibling);
+					sibling = child->parent->left;
+					ast_assert(sibling != NULL);
+				}
+				/* Case 4: The sibling is black and its left child is red. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_delete_right[3]);
+				sibling->is_red = child->parent->is_red;
+				child->parent->is_red = 0;
+				if (sibling->left) {
+					sibling->left->is_red = 0;
+				}
+				rb_rotate_right(self, child->parent);
+				child = self->root;
+			}
+		}
+	}
+
+	/*
+	 * Case 2 could leave the child node red and it needs to leave
+	 * with it black.
+	 *
+	 * Case 4 sets the child node to the root which of course must
+	 * be black.
+	 */
+	child->is_red = 0;
+}
+
+/*!
+ * \internal
+ * \brief Delete the doomed node from this container.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param doomed Container node to delete from the container.
+ *
+ * \return Nothing
+ */
+static void rb_delete_node(struct ao2_container_rbtree *self, struct rbtree_node *doomed)
+{
+	struct rbtree_node *child;
+	int need_fixup;
+
+	if (doomed->left && doomed->right) {
+		struct rbtree_node *next;
+		int is_red;
+
+		/*
+		 * The doomed node has two children.
+		 *
+		 * Find the next child node and swap it with the doomed node in
+		 * the tree.
+		 */
+		AO2_DEVMODE_STAT(++self->stats.delete_children[2]);
+		next = rb_node_most_left(doomed->right);
+		SWAP(doomed->parent, next->parent);
+		SWAP(doomed->left, next->left);
+		SWAP(doomed->right, next->right);
+		is_red = doomed->is_red;
+		doomed->is_red = next->is_red;
+		next->is_red = is_red;
+
+		/* Link back in the next node. */
+		if (!next->parent) {
+			/* Doomed was the root so we get a new root node. */
+			self->root = next;
+		} else if (next->parent->left == doomed) {
+			/* Doomed was the left child. */
+			next->parent->left = next;
+		} else {
+			/* Doomed was the right child. */
+			next->parent->right = next;
+		}
+		next->left->parent = next;
+		if (next->right == next) {
+			/* The next node was the right child of doomed. */
+			next->right = doomed;
+			doomed->parent = next;
+		} else {
+			next->right->parent = next;
+			doomed->parent->left = doomed;
+		}
+
+		/* The doomed node has no left child now. */
+		ast_assert(doomed->left == NULL);
+
+		/*
+		 * We don't have to link the right child back in with doomed
+		 * since we are going to link it with doomed's parent anyway.
+		 */
+		child = doomed->right;
+	} else {
+		/* Doomed has at most one child. */
+		child = doomed->left;
+		if (!child) {
+			child = doomed->right;
+		}
+	}
+	if (child) {
+		AO2_DEVMODE_STAT(++self->stats.delete_children[1]);
+	} else {
+		AO2_DEVMODE_STAT(++self->stats.delete_children[0]);
+	}
+
+	need_fixup = (!doomed->is_red && !self->common.destroying);
+	if (need_fixup && !child) {
+		/*
+		 * Use the doomed node as a place holder node for the
+		 * nonexistent child so we also don't have to pass to the fixup
+		 * routine the parent and which child the deleted node came
+		 * from.
+		 */
+		rb_delete_fixup(self, doomed);
+		ast_assert(doomed->left == NULL);
+		ast_assert(doomed->right == NULL);
+		ast_assert(!doomed->is_red);
+	}
+
+	/* Link the child in place of doomed. */
+	if (!doomed->parent) {
+		/* Doomed was the root so we get a new root node. */
+		self->root = child;
+	} else if (doomed->parent->left == doomed) {
+		/* Doomed was the left child. */
+		doomed->parent->left = child;
+	} else {
+		/* Doomed was the right child. */
+		doomed->parent->right = child;
+	}
+	if (child) {
+		child->parent = doomed->parent;
+		if (need_fixup) {
+			rb_delete_fixup(self, child);
+		}
+	}
+
+	AO2_DEVMODE_STAT(--self->common.nodes);
+}
+
+/*!
+ * \internal
+ * \brief Destroy a rbtree container node.
+ * \since 12.0.0
+ *
+ * \param v_doomed Container node to destroy.
+ *
+ * \details
+ * The container node unlinks itself from the container as part
+ * of its destruction.  The node must be destroyed while the
+ * container is already locked.
+ *
+ * \note The container must be locked when the node is
+ * unreferenced.
+ *
+ * \return Nothing
+ */
+static void rb_ao2_node_destructor(void *v_doomed)
+{
+	struct rbtree_node *doomed = v_doomed;
+
+	if (doomed->common.is_linked) {
+		struct ao2_container_rbtree *my_container;
+
+		/*
+		 * Promote to write lock if not already there.  Since
+		 * adjust_lock() can potentially release and block waiting for a
+		 * write lock, care must be taken to ensure that node references
+		 * are released before releasing the container references.
+		 *
+		 * Node references held by an iterator can only be held while
+		 * the iterator also holds a reference to the container.  These
+		 * node references must be unreferenced before the container can
+		 * be unreferenced to ensure that the node will not get a
+		 * negative reference and the destructor called twice for the
+		 * same node.
+		 */
+		my_container = (struct ao2_container_rbtree *) doomed->common.my_container;
+		adjust_lock(my_container, AO2_LOCK_REQ_WRLOCK, 1);
+
+#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+		if (!my_container->common.destroying
+			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
+			ast_log(LOG_ERROR, "Container integrity failed before node deletion.\n");
+		}
+#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+		rb_delete_node(my_container, doomed);
+#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+		if (!my_container->common.destroying
+			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
+			ast_log(LOG_ERROR, "Container integrity failed after node deletion.\n");
+		}
+#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+	}
+
+	/*
+	 * We could have an object in the node if the container is being
+	 * destroyed or the node had not been linked in yet.
+	 */
+	if (doomed->common.obj) {
+		ao2_t_ref(doomed->common.obj, -1, "Container node destruction");
+		doomed->common.obj = NULL;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Create a new container node.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param obj_new Object to put into the node.
+ * \param tag used for debugging.
+ * \param file Debug file name invoked from
+ * \param line Debug line invoked from
+ * \param func Debug function name invoked from
+ *
+ * \retval initialized-node on success.
+ * \retval NULL on error.
+ */
+static struct rbtree_node *rb_ao2_new_node(struct ao2_container_rbtree *self, void *obj_new, const char *tag, const char *file, int line, const char *func)
+{
+	struct rbtree_node *node;
+
+	node = __ao2_alloc(sizeof(*node), rb_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!node) {
+		return NULL;
+	}
+
+	if (tag) {
+		__ao2_ref_debug(obj_new, +1, tag, file, line, func);
+	} else {
+		ao2_t_ref(obj_new, +1, "Container node creation");
+	}
+	node->common.obj = obj_new;
+	node->common.my_container = (struct ao2_container *) self;
+
+	return node;
+}
+
+/*!
+ * \internal
+ * \brief Fixup the rbtree after inserting a node.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param node Container node just inserted into the container.
+ *
+ * \note The just inserted node is red.
+ *
+ * \return Nothing
+ */
+static void rb_insert_fixup(struct ao2_container_rbtree *self, struct rbtree_node *node)
+{
+	struct rbtree_node *g_parent;	/* Grand parent node. */
+
+	while (node->parent && node->parent->is_red) {
+		g_parent = node->parent->parent;
+
+		/* The grand parent must exist if the parent is red. */
+		ast_assert(g_parent != NULL);
+
+		if (node->parent == g_parent->left) {
+			/* The parent is a left child. */
+			if (g_parent->right && g_parent->right->is_red) {
+				/* Case 1: Push the black down from the grand parent node. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_insert_left[0]);
+				g_parent->right->is_red = 0;
+				g_parent->left->is_red = 0;
+				g_parent->is_red = 1;
+
+				node = g_parent;
+			} else {
+				/* The uncle node is black. */
+				if (node->parent->right == node) {
+					/*
+					 * Case 2: The node is a right child.
+					 *
+					 * Which node is the grand parent does not change.
+					 */
+					AO2_DEVMODE_STAT(++self->stats.fixup_insert_left[1]);
+					node = node->parent;
+					rb_rotate_left(self, node);
+				}
+				/* Case 3: The node is a left child. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_insert_left[2]);
+				node->parent->is_red = 0;
+				g_parent->is_red = 1;
+				rb_rotate_right(self, g_parent);
+			}
+		} else {
+			/* The parent is a right child. */
+			if (g_parent->left && g_parent->left->is_red) {
+				/* Case 1: Push the black down from the grand parent node. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_insert_right[0]);
+				g_parent->left->is_red = 0;
+				g_parent->right->is_red = 0;
+				g_parent->is_red = 1;
+
+				node = g_parent;
+			} else {
+				/* The uncle node is black. */
+				if (node->parent->left == node) {
+					/*
+					 * Case 2: The node is a left child.
+					 *
+					 * Which node is the grand parent does not change.
+					 */
+					AO2_DEVMODE_STAT(++self->stats.fixup_insert_right[1]);
+					node = node->parent;
+					rb_rotate_right(self, node);
+				}
+				/* Case 3: The node is a right child. */
+				AO2_DEVMODE_STAT(++self->stats.fixup_insert_right[2]);
+				node->parent->is_red = 0;
+				g_parent->is_red = 1;
+				rb_rotate_left(self, g_parent);
+			}
+		}
+	}
+
+	/*
+	 * The root could be red here because:
+	 * 1) We just inserted the root node in an empty tree.
+	 *
+	 * 2) Case 1 could leave the root red if the grand parent were
+	 * the root.
+	 */
+	self->root->is_red = 0;
+}
+
+/*!
+ * \internal
+ * \brief Insert a node into this container.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param node Container node to insert into the container.
+ *
+ * \return enum ao2_container_insert value.
+ */
+static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree *self, struct rbtree_node *node)
+{
+	int cmp;
+	struct rbtree_node *cur;
+	struct rbtree_node *next;
+	ao2_sort_fn *sort_fn;
+	uint32_t options;
+
+	if (!self->root) {
+		/* The tree is empty. */
+		self->root = node;
+		return AO2_CONTAINER_INSERT_NODE_INSERTED;
+	}
+
+	sort_fn = self->common.sort_fn;
+	options = self->common.options;
+
+	/*
+	 * New nodes are always colored red when initially inserted into
+	 * the tree.  (Except for the root which is always black.)
+	 */
+	node->is_red = 1;
+
+	/* Find node where normal insert would put a new node. */
+	cur = self->root;
+	for (;;) {
+		if (!cur->common.obj) {
+			/* Which direction do we go to insert this node? */
+			if (rb_find_empty_direction(cur, sort_fn, node->common.obj, OBJ_POINTER)
+				== GO_LEFT) {
+				if (cur->left) {
+					cur = cur->left;
+					continue;
+				}
+
+				/* Node becomes a left child */
+				cur->left = node;
+				node->parent = cur;
+				rb_insert_fixup(self, node);
+				return AO2_CONTAINER_INSERT_NODE_INSERTED;
+			}
+			if (cur->right) {
+				cur = cur->right;
+				continue;
+			}
+
+			/* Node becomes a right child */
+			cur->right = node;
+			node->parent = cur;
+			rb_insert_fixup(self, node);
+			return AO2_CONTAINER_INSERT_NODE_INSERTED;
+		}
+		cmp = sort_fn(cur->common.obj, node->common.obj, OBJ_POINTER);
+		if (cmp > 0) {
+			if (cur->left) {
+				cur = cur->left;
+				continue;
+			}
+
+			/* Node becomes a left child */
+			cur->left = node;
+			node->parent = cur;
+			rb_insert_fixup(self, node);
+			return AO2_CONTAINER_INSERT_NODE_INSERTED;
+		} else if (cmp < 0) {
+			if (cur->right) {
+				cur = cur->right;
+				continue;
+			}
+
+			/* Node becomes a right child */
+			cur->right = node;
+			node->parent = cur;
+			rb_insert_fixup(self, node);
+			return AO2_CONTAINER_INSERT_NODE_INSERTED;
+		}
+
+		break;
+	}
+
+	/* Node is a dupliate */
+	switch (options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+	default:
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
+		if (options & AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN) {
+			/* Find first duplicate node. */
+			for (;;) {
+				next = rb_node_prev_full(cur);
+				if (!next) {
+					break;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+				cur = next;
+			}
+			if (!cur->left) {
+				/* Node becomes a left child */
+				cur->left = node;
+			} else {
+				/* Node becomes a right child */
+				cur = rb_node_most_right(cur->left);
+				cur->right = node;
+			}
+		} else {
+			/* Find last duplicate node. */
+			for (;;) {
+				next = rb_node_next_full(cur);
+				if (!next) {
+					break;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+				cur = next;
+			}
+			if (!cur->right) {
+				/* Node becomes a right child */
+				cur->right = node;
+			} else {
+				/* Node becomes a left child */
+				cur = rb_node_most_left(cur->right);
+				cur->left = node;
+			}
+		}
+		break;
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+		/* Reject all objects with the same key. */
+		return AO2_CONTAINER_INSERT_NODE_REJECTED;
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
+		if (cur->common.obj == node->common.obj) {
+			/* Reject inserting the same object */
+			return AO2_CONTAINER_INSERT_NODE_REJECTED;
+		}
+		next = cur;
+		if (options & AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN) {
+			/* Search to end of duplicates for the same object. */
+			for (;;) {
+				next = rb_node_next_full(next);
+				if (!next) {
+					break;
+				}
+				if (next->common.obj == node->common.obj) {
+					/* Reject inserting the same object */
+					return AO2_CONTAINER_INSERT_NODE_REJECTED;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+			}
+
+			/* Find first duplicate node. */
+			for (;;) {
+				next = rb_node_prev_full(cur);
+				if (!next) {
+					break;
+				}
+				if (next->common.obj == node->common.obj) {
+					/* Reject inserting the same object */
+					return AO2_CONTAINER_INSERT_NODE_REJECTED;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+				cur = next;
+			}
+			if (!cur->left) {
+				/* Node becomes a left child */
+				cur->left = node;
+			} else {
+				/* Node becomes a right child */
+				cur = rb_node_most_right(cur->left);
+				cur->right = node;
+			}
+		} else {
+			/* Search to beginning of duplicates for the same object. */
+			for (;;) {
+				next = rb_node_prev_full(next);
+				if (!next) {
+					break;
+				}
+				if (next->common.obj == node->common.obj) {
+					/* Reject inserting the same object */
+					return AO2_CONTAINER_INSERT_NODE_REJECTED;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+			}
+
+			/* Find last duplicate node. */
+			for (;;) {
+				next = rb_node_next_full(cur);
+				if (!next) {
+					break;
+				}
+				if (next->common.obj == node->common.obj) {
+					/* Reject inserting the same object */
+					return AO2_CONTAINER_INSERT_NODE_REJECTED;
+				}
+				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
+				if (cmp) {
+					break;
+				}
+				cur = next;
+			}
+			if (!cur->right) {
+				/* Node becomes a right child */
+				cur->right = node;
+			} else {
+				/* Node becomes a left child */
+				cur = rb_node_most_left(cur->right);
+				cur->left = node;
+			}
+		}
+		break;
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+		SWAP(cur->common.obj, node->common.obj);
+		return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
+	}
+
+	/* Complete inserting duplicate node. */
+	node->parent = cur;
+	rb_insert_fixup(self, node);
+	return AO2_CONTAINER_INSERT_NODE_INSERTED;
+}
+
+/*! Traversal state to restart a rbtree container traversal. */
+struct rbtree_traversal_state {
+	/*! Active sort function in the traversal if not NULL. */
+	ao2_sort_fn *sort_fn;
+	/*! First node returned if OBJ_CONTINUE flag set. (Reffed) */
+	struct rbtree_node *first_node;
+	/*! Saved comparison callback arg pointer. */
+	void *arg;
+	/*! Saved search flags to control traversing the container. */
+	enum search_flags flags;
+};
+
+struct rbtree_traversal_state_check {
+	/*
+	 * If we have a division by zero compile error here then there
+	 * is not enough room for the state.  Increase AO2_TRAVERSAL_STATE_SIZE.
+	 */
+	char check[1 / (AO2_TRAVERSAL_STATE_SIZE / sizeof(struct rbtree_traversal_state))];
+};
+
+/*!
+ * \internal
+ * \brief Find the next rbtree container node in a traversal.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param state Traversal state to restart rbtree container traversal.
+ * \param prev Previous node returned by the traversal search functions.
+ *    The ref ownership is passed back to this function.
+ *
+ * \retval node-ptr of found node (Reffed).
+ * \retval NULL when no node found.
+ */
+static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, struct rbtree_traversal_state *state, struct rbtree_node *prev)
+{
+	struct rbtree_node *node;
+	void *arg;
+	enum search_flags flags;
+	int cmp;
+
+	arg = state->arg;
+	flags = state->flags;
+
+	node = prev;
+	for (;;) {
+		/* Find next node in traversal order. */
+		switch (flags & OBJ_ORDER_MASK) {
+		default:
+		case OBJ_ORDER_ASCENDING:
+			node = rb_node_next(node);
+			if (!node) {
+				if (!state->first_node) {
+					break;
+				}
+				/* Wrap around to the beginning. */
+				node = rb_node_most_left(self->root);
+			}
+			if (node == state->first_node) {
+				/* We have wrapped back to the starting point. */
+				node = NULL;
+			}
+			break;
+		case OBJ_ORDER_DESCENDING:
+			node = rb_node_prev(node);
+			if (!node) {
+				if (!state->first_node) {
+					break;
+				}
+				/* Wrap around to the end. */
+				node = rb_node_most_right(self->root);
+			}
+			if (node == state->first_node) {
+				/* We have wrapped back to the starting point. */
+				node = NULL;
+			}
+			break;
+		case OBJ_ORDER_PRE:
+			node = rb_node_pre(node);
+			break;
+		case OBJ_ORDER_POST:
+			node = rb_node_post(node);
+			break;
+		}
+		if (!node) {
+			/* No more nodes left to traverse. */
+			break;
+		}
+		if (!node->common.obj) {
+			/* Node is empty */
+			continue;
+		}
+
+		if (state->sort_fn) {
+			/* Filter node through the sort_fn */
+			cmp = state->sort_fn(node->common.obj, arg,
+				flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY));
+			if (cmp) {
+				/* No more nodes in this container are possible to match. */
+				break;
+			}
+		}
+
+		/* We have the next traversal node */
+		__ao2_ref(node, +1);
+
+		/*
+		 * Dereferencing the prev node may result in our next node
+		 * object being removed by another thread.  This could happen if
+		 * the container uses RW locks and the container was read
+		 * locked.
+		 */
+		__ao2_ref(prev, -1);
+		if (node->common.obj) {
+			return node;
+		}
+		prev = node;
+	}
+
+	/* No more nodes in the container left to traverse. */
+	__ao2_ref(prev, -1);
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Find an initial matching node.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param obj_right pointer to the (user-defined part) of an object.
+ * \param flags flags from ao2_callback()
+ *   OBJ_POINTER - if set, 'obj_right', is an object.
+ *   OBJ_KEY - if set, 'obj_right', is a search key item that is not an object.
+ *   OBJ_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
+ *   OBJ_CONTINUE - if set, return node right before or right after search key if not a match.
+ *
+ * \retval node on success.
+ * \retval NULL if not found.
+ */
+static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, void *obj_right, enum search_flags flags)
+{
+	int cmp;
+	enum search_flags sort_flags;
+	struct rbtree_node *node;
+	struct rbtree_node *next;
+	ao2_sort_fn *sort_fn;
+
+	sort_flags = flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY);
+	sort_fn = self->common.sort_fn;
+
+	/* Find node where normal search would find it. */
+	node = self->root;
+	if (!node) {
+		return NULL;
+	}
+	for (;;) {
+		if (!node->common.obj) {
+			/* Which direction do we go to find the node? */
+			if (rb_find_empty_direction(node, sort_fn, obj_right, sort_flags)
+				== GO_LEFT) {
+				next = node->left;
+			} else {
+				next = node->right;
+			}
+			if (!next) {
+				/* No match found. */
+				if (flags & OBJ_CONTINUE) {
+					next = rb_node_next_full(node);
+					if (!next) {
+						next = rb_node_prev_full(node);
+					}
+				}
+				return next;
+			}
+		} else {
+			cmp = sort_fn(node->common.obj, obj_right, sort_flags);
+			if (cmp > 0) {
+				next = node->left;
+			} else if (cmp < 0) {
+				next = node->right;
+			} else {
+				return node;
+			}
+			if (!next) {
+				/* No match found. */
+				if (flags & OBJ_CONTINUE) {
+					return node;
+				}
+				return NULL;
+			}
+		}
+		node = next;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Find the first rbtree container node in a traversal.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param flags search_flags to control traversing the container
+ * \param arg Comparison callback arg parameter.
+ * \param state Traversal state to restart rbtree container traversal.
+ *
+ * \retval node-ptr of found node (Reffed).
+ * \retval NULL when no node found.
+ */
+static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, enum search_flags flags, void *arg, struct rbtree_traversal_state *state)
+{
+	struct rbtree_node *next;
+	struct rbtree_node *node;
+	int cmp;
+
+	if (self->common.destroying) {
+		/* Force traversal to be post order for tree destruction. */
+		flags = OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE | OBJ_ORDER_POST;
+	}
+
+	memset(state, 0, sizeof(*state));
+	state->arg = arg;
+	state->flags = flags;
+
+	if (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+		/* We are asked to do a directed search. */
+		state->sort_fn = self->common.sort_fn;
+	} else {
+		/* Don't know, let's visit all nodes */
+		state->sort_fn = NULL;
+	}
+
+	if (!self->root) {
+		/* Tree is empty. */
+		return NULL;
+	}
+
+	/* Find first traversal node. */
+	switch (flags & OBJ_ORDER_MASK) {
+	default:
+	case OBJ_ORDER_ASCENDING:
+		if (!state->sort_fn) {
+			/* Find left most child. */
+			node = rb_node_most_left(self->root);
+			if (!node->common.obj) {
+				node = rb_node_next_full(node);
+				if (!node) {
+					return NULL;
+				}
+			}
+			break;
+		}
+
+		/* Search for initial node. */
+		node = rb_find_initial(self, arg, flags);
+		if (!node) {
+			return NULL;
+		}
+		switch (self->common.options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+		default:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
+			/* Find first duplicate node. */
+			for (;;) {
+				next = rb_node_prev_full(node);
+				if (!next) {
+					break;
+				}
+				cmp = state->sort_fn(next->common.obj, arg,
+					flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY));
+				if (cmp) {
+					break;
+				}
+				node = next;
+			}
+			break;
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+			/* There are no duplicates allowed. */
+			break;
+		}
+		break;
+	case OBJ_ORDER_DESCENDING:
+		if (!state->sort_fn) {
+			/* Find right most child. */
+			node = rb_node_most_right(self->root);
+			if (!node->common.obj) {
+				node = rb_node_prev_full(node);
+				if (!node) {
+					return NULL;
+				}
+			}
+			break;
+		}
+
+		/* Search for initial node. */
+		node = rb_find_initial(self, arg, flags);
+		if (!node) {
+			return NULL;
+		}
+		switch (self->common.options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+		default:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
+			/* Find last duplicate node. */
+			for (;;) {
+				next = rb_node_next_full(node);
+				if (!next) {
+					break;
+				}
+				cmp = state->sort_fn(next->common.obj, arg,
+					flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY));
+				if (cmp) {
+					break;
+				}
+				node = next;
+			}
+			break;
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+			/* There are no duplicates allowed. */
+			break;
+		}
+		break;
+	case OBJ_ORDER_PRE:
+		/* This is a tree structure traversal so we must visit all nodes. */
+		state->sort_fn = NULL;
+
+		node = self->root;
+
+		/* Find a non-empty node. */
+		while (!node->common.obj) {
+			node = rb_node_pre(node);
+			if (!node) {
+				return NULL;
+			}
+		}
+		break;
+	case OBJ_ORDER_POST:
+		/* This is a tree structure traversal so we must visit all nodes. */
+		state->sort_fn = NULL;
+
+		/* Find the left most childless node. */
+		node = self->root;
+		for (;;) {
+			node = rb_node_most_left(node);
+			if (!node->right) {
+				/* This node has no children. */
+				break;
+			}
+			node = node->right;
+		}
+
+		/* Find a non-empty node. */
+		while (!node->common.obj) {
+			node = rb_node_post(node);
+			if (!node) {
+				return NULL;
+			}
+		}
+		break;
+	}
+
+	if (state->sort_fn && (flags & OBJ_CONTINUE)) {
+		/* Remember first node when we wrap around. */
+		__ao2_ref(node, +1);
+		state->first_node = node;
+
+		/* From now on all nodes are matching */
+		state->sort_fn = NULL;
+	}
+
+	/* We have the first traversal node */
+	__ao2_ref(node, +1);
+	return node;
+}
+
+/*!
+ * \internal
+ * \brief Cleanup the rbtree container traversal state.
+ * \since 12.0.0
+ *
+ * \param state Traversal state to cleanup.
+ *
+ * \return Nothing
+ */
+static void rb_ao2_find_cleanup(struct rbtree_traversal_state *state)
+{
+	if (state->first_node) {
+		__ao2_ref(state->first_node, -1);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Find the next non-empty iteration node in the container.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ * \param node Previous node returned by the iterator.
+ * \param flags search_flags to control iterating the container.
+ *   Only AO2_ITERATOR_DESCENDING is useful by the method.
+ *
+ * \note The container is already locked.
+ *
+ * \retval node on success.
+ * \retval NULL on error or no more nodes in the container.
+ */
+static struct rbtree_node *rb_ao2_iterator_next(struct ao2_container_rbtree *self, struct rbtree_node *node, enum ao2_iterator_flags flags)
+{
+	if (flags & AO2_ITERATOR_DESCENDING) {
+		if (!node) {
+			/* Find right most node. */
+			if (!self->root) {
+				return NULL;
+			}
+			node = rb_node_most_right(self->root);
+			if (node->common.obj) {
+				/* Found a non-empty node. */
+				return node;
+			}
+		}
+		/* Find next non-empty node. */
+		node = rb_node_prev_full(node);
+	} else {
+		if (!node) {
+			/* Find left most node. */
+			if (!self->root) {
+				return NULL;
+			}
+			node = rb_node_most_left(self->root);
+			if (node->common.obj) {
+				/* Found a non-empty node. */
+				return node;
+			}
+		}
+		/* Find next non-empty node. */
+		node = rb_node_next_full(node);
+	}
+
+	return node;
+}
+
+/*!
+ * \internal
+ *
+ * \brief Destroy this container.
+ * \since 12.0.0
+ *
+ * \param self Container to operate upon.
+ *
+ * \return Nothing
+ */
+static void rb_ao2_destroy(struct ao2_container_rbtree *self)
+{
+	/* Check that the container no longer has any nodes */
+	if (self->root) {
+		ast_log(LOG_ERROR, "Node ref leak.  Red-Black tree container still has nodes!\n");
+		ast_assert(0);
+	}
+}
+
+#if defined(AST_DEVMODE)
+/*!
+ * \internal
+ * \brief Display contents of the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to dump.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ * \param prnt_obj Callback function to print the given object's key. (NULL if not available)
+ *
+ * \return Nothing
+ */
+static void rb_ao2_dump(struct ao2_container_rbtree *self, void *where, ao2_prnt_fn *prnt, ao2_prnt_obj_fn *prnt_obj)
+{
+#define FORMAT  "%16s, %16s, %16s, %16s, %5s, %16s, %s\n"
+#define FORMAT2 "%16p, %16p, %16p, %16p, %5s, %16p, "
+
+	struct rbtree_node *node;
+
+	prnt(where, FORMAT, "Node", "Parent", "Left", "Right", "Color", "Obj", "Key");
+	for (node = self->root; node; node = rb_node_pre(node)) {
+		prnt(where, FORMAT2,
+			node,
+			node->parent,
+			node->left,
+			node->right,
+			node->is_red ? "Red" : "Black",
+			node->common.obj);
+		if (node->common.obj && prnt_obj) {
+			prnt_obj(node->common.obj, where, prnt);
+		}
+		prnt(where, "\n");
+	}
+
+#undef FORMAT
+#undef FORMAT2
+}
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
+/*!
+ * \internal
+ * \brief Display statistics of the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to display statistics.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \note The container is already locked for reading.
+ *
+ * \return Nothing
+ */
+static void rb_ao2_stats(struct ao2_container_rbtree *self, void *where, ao2_prnt_fn *prnt)
+{
+	int idx;
+
+	for (idx = 0; idx < ARRAY_LEN(self->stats.fixup_insert_left); ++idx) {
+		prnt(where, "Number of left insert fixups case %d: %d\n", idx + 1,
+			self->stats.fixup_insert_left[idx]);
+	}
+	for (idx = 0; idx < ARRAY_LEN(self->stats.fixup_insert_right); ++idx) {
+		prnt(where, "Number of right insert fixups case %d: %d\n", idx + 1,
+			self->stats.fixup_insert_right[idx]);
+	}
+
+	for (idx = 0; idx < ARRAY_LEN(self->stats.delete_children); ++idx) {
+		prnt(where, "Number of nodes deleted with %d children: %d\n", idx,
+			self->stats.delete_children[idx]);
+	}
+	for (idx = 0; idx < ARRAY_LEN(self->stats.fixup_delete_left); ++idx) {
+		prnt(where, "Number of left delete fixups case %d: %d\n", idx + 1,
+			self->stats.fixup_delete_left[idx]);
+	}
+	for (idx = 0; idx < ARRAY_LEN(self->stats.fixup_delete_right); ++idx) {
+		prnt(where, "Number of right delete fixups case %d: %d\n", idx + 1,
+			self->stats.fixup_delete_right[idx]);
+	}
+}
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
+/*!
+ * \internal
+ * \brief Check the black height of the given node.
+ * \since 12.0.0
+ *
+ * \param node Node to check black height.
+ *
+ * \retval black-height of node on success.
+ * \retval -1 on error.  Node black height did not balance.
+ */
+static int rb_check_black_height(struct rbtree_node *node)
+{
+	int height_left;
+	int height_right;
+
+	if (!node) {
+		/* A NULL child is a black node. */
+		return 0;
+	}
+
+	height_left = rb_check_black_height(node->left);
+	if (height_left < 0) {
+		return -1;
+	}
+	height_right = rb_check_black_height(node->right);
+	if (height_right < 0) {
+		return -1;
+	}
+	if (height_left != height_right) {
+		ast_log(LOG_ERROR,
+			"Tree node black height of children does not match! L:%d != R:%d\n",
+			height_left, height_right);
+		return -1;
+	}
+	if (!node->is_red) {
+		/* The node itself is black. */
+		++height_left;
+	}
+	return height_left;
+}
+
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
+/*!
+ * \internal
+ * \brief Perform an integrity check on the specified container.
+ * \since 12.0.0
+ *
+ * \param self Container to check integrity.
+ *
+ * \note The container is already locked for reading.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int rb_ao2_integrity(struct ao2_container_rbtree *self)
+{
+	int res;
+	int count_node;
+	int count_obj;
+	void *obj_last;
+	struct rbtree_node *node;
+
+	res = 0;
+
+	count_node = 0;
+	count_obj = 0;
+
+	/*
+	 * See the properties listed at struct rbtree_node definition.
+	 *
+	 * The rbtree properties 1 and 3 are not testable.
+	 *
+	 * Property 1 is not testable because we are not rebalancing at
+	 * this time so all nodes are either red or black.
+	 *
+	 * Property 3 is not testable because it is the definition of a
+	 * NULL child.
+	 */
+	if (self->root) {
+		/* Check tree links. */
+		if (self->root->parent) {
+			if (self->root->parent == self->root) {
+				ast_log(LOG_ERROR, "Tree root parent pointer points to itself!\n");
+			} else {
+				ast_log(LOG_ERROR, "Tree root is not a root node!\n");
+			}
+			return -1;
+		}
+		if (self->root->is_red) {
+			/* Violation rbtree property 2. */
+			ast_log(LOG_ERROR, "Tree root is red!\n");
+			res = -1;
+		}
+		node = self->root;
+		do {
+			if (node->left) {
+				if (node->left == node) {
+					ast_log(LOG_ERROR, "Tree node's left pointer points to itself!\n");
+					return -1;
+				}
+				if (node->left->parent != node) {
+					ast_log(LOG_ERROR, "Tree node's left child does not link back!\n");
+					return -1;
+				}
+			}
+			if (node->right) {
+				if (node->right == node) {
+					ast_log(LOG_ERROR, "Tree node's right pointer points to itself!\n");
+					return -1;
+				}
+				if (node->right->parent != node) {
+					ast_log(LOG_ERROR, "Tree node's right child does not link back!\n");
+					return -1;
+				}
+			}
+
+			/* Check red/black node flags. */
+			if (node->is_red) {
+				/* A red node must have two black children or no children. */
+				if (node->left && node->right) {
+					/* Node has two children. */
+					if (node->left->is_red) {
+						/* Violation rbtree property 4. */
+						ast_log(LOG_ERROR, "Tree node is red and its left child is red!\n");
+						res = -1;
+					}
+					if (node->right->is_red) {
+						/* Violation rbtree property 4. */
+						ast_log(LOG_ERROR, "Tree node is red and its right child is red!\n");
+						res = -1;
+					}
+				} else if (node->left || node->right) {
+					/*
+					 * Violation rbtree property 4 if the child is red.
+					 * Violation rbtree property 5 if the child is black.
+					 */
+					ast_log(LOG_ERROR, "Tree node is red and it only has one child!\n");
+					res = -1;
+				}
+			} else {
+				/*
+				 * A black node must have two children, or one red child, or no
+				 * children.  If the black node has two children and only one of
+				 * them is red, that red child must have two children.
+				 */
+				if (node->left && node->right) {
+					/* Node has two children. */
+					if (node->left->is_red != node->right->is_red) {
+						/* The children are not the same color. */
+						struct rbtree_node *red;
+
+						if (node->left->is_red) {
+							red = node->left;
+						} else {
+							red = node->right;
+						}
+						if (!red->left || !red->right) {
+							/* Violation rbtree property 5. */
+							ast_log(LOG_ERROR,
+								"Tree node is black and the red child does not have two children!\n");
+							res = -1;
+						}
+					}
+				} else if ((node->left && !node->left->is_red)
+					|| (node->right && !node->right->is_red)) {
+					/* Violation rbtree property 5. */
+					ast_log(LOG_ERROR, "Tree node is black and its only child is black!\n");
+					res = -1;
+				}
+			}
+
+			/* Count nodes and objects. */
+			++count_node;
+			if (node->common.obj) {
+				++count_obj;
+			}
+
+			node = rb_node_pre(node);
+		} while (node);
+
+		/* Check node key sort order. */
+		obj_last = NULL;
+		for (node = rb_node_most_left(self->root); node; node = rb_node_next(node)) {
+			if (!node->common.obj) {
+				/* Node is empty. */
+				continue;
+			}
+
+			if (obj_last) {
+				if (self->common.sort_fn(obj_last, node->common.obj, OBJ_POINTER) > 0) {
+					ast_log(LOG_ERROR, "Tree nodes are out of sorted order!\n");
+					return -1;
+				}
+			}
+			obj_last = node->common.obj;
+		}
+
+		/* Completely check property 5 */
+		if (!res && rb_check_black_height(self->root) < 0) {
+			/* Violation rbtree property 5. */
+			res = -1;
+		}
+	}
+
+	/* Check total obj count. */
+	if (count_obj != ao2_container_count(&self->common)) {
+		ast_log(LOG_ERROR, "Total object count does not match ao2_container_count()!\n");
+		return -1;
+	}
+
+	/* Check total node count. */
+	if (count_node != self->common.nodes) {
+		ast_log(LOG_ERROR, "Total node count of %d does not match stat of %d!\n",
+			count_node, self->common.nodes);
+		return -1;
+	}
+
+	return res;
+}
+#endif	/* defined(AST_DEVMODE) */
+
+/*! rbtree container virtual method table. */
+static const struct ao2_container_methods v_table_rbtree = {
+	.type = AO2_CONTAINER_RTTI_RBTREE,
+	.alloc_empty_clone = (ao2_container_alloc_empty_clone_fn) rb_ao2_alloc_empty_clone,
+	.alloc_empty_clone_debug =
+		(ao2_container_alloc_empty_clone_debug_fn) rb_ao2_alloc_empty_clone_debug,
+	.new_node = (ao2_container_new_node_fn) rb_ao2_new_node,
+	.insert = (ao2_container_insert_fn) rb_ao2_insert_node,
+	.traverse_first = (ao2_container_find_first_fn) rb_ao2_find_first,
+	.traverse_next = (ao2_container_find_next_fn) rb_ao2_find_next,
+	.traverse_cleanup = (ao2_container_find_cleanup_fn) rb_ao2_find_cleanup,
+	.iterator_next = (ao2_iterator_next_fn) rb_ao2_iterator_next,
+	.destroy = (ao2_container_destroy_fn) rb_ao2_destroy,
+#if defined(AST_DEVMODE)
+	.dump = (ao2_container_display) rb_ao2_dump,
+	.stats = (ao2_container_statistics) rb_ao2_stats,
+	.integrity = (ao2_container_integrity) rb_ao2_integrity,
+#endif	/* defined(AST_DEVMODE) */
+};
+
+/*!
+ * \brief Initialize a rbtree container.
+ *
+ * \param self Container to initialize.
+ * \param options Container behaviour options (See enum ao2_container_opts)
+ * \param sort_fn Pointer to a sort function.
+ * \param cmp_fn Pointer to a compare function used by ao2_find.
+ *
+ * \return A pointer to a struct container.
+ */
+static struct ao2_container *rb_ao2_container_init(struct ao2_container_rbtree *self,
+	unsigned int options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn)
+{
+	if (!self) {
+		return NULL;
+	}
+
+	self->common.v_table = &v_table_rbtree;
+	self->common.sort_fn = sort_fn;
+	self->common.cmp_fn = cmp_fn;
+	self->common.options = options;
+
+#ifdef AO2_DEBUG
+	ast_atomic_fetchadd_int(&ao2.total_containers, 1);
+#endif
+
+	return (struct ao2_container *) self;
+}
+
+struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
+	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn)
+{
+	struct ao2_container_rbtree *self;
+
+	if (!sort_fn) {
+		/* Sanity checks. */
+		ast_log(LOG_ERROR, "Missing sort_fn()!\n");
+		return NULL;
+	}
+
+	self = ao2_t_alloc_options(sizeof(*self), container_destruct, ao2_options,
+		"New rbtree container");
+	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
+}
+
+struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_options, unsigned int container_options,
+	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
+	const char *tag, const char *file, int line, const char *func, int ref_debug)
+{
+	struct ao2_container_rbtree *self;
+
+	if (!sort_fn) {
+		/* Sanity checks. */
+		ast_log(__LOG_ERROR, file, line, func, "Missing sort_fn()!\n");
+		return NULL;
+	}
+
+	self = __ao2_alloc_debug(sizeof(*self), container_destruct_debug, ao2_options,
+		tag, file, line, func, ref_debug);
+	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
+}
+
 #ifdef AO2_DEBUG
 static int print_cb(void *obj, void *arg, int flag)
 {
@@ -3080,8 +5316,9 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		return CLI_SHOWUSAGE;
 	}
 
-	if (prof_id == -1)
+	if (prof_id == -1) {
 		prof_id = ast_add_profile("ao2_alloc", 0);
+	}
 
 	ast_cli(a->fd, "argc %d argv %s %s %s\n", a->argc, a->argv[0], a->argv[1], a->argv[2]);
 	lim = atoi(a->argv[2]);
@@ -3167,6 +5404,8 @@ static struct ao2_container *reg_containers;
 struct ao2_reg_container {
 	/*! Registered container pointer. */
 	struct ao2_container *registered;
+	/*! Callback function to print the given object's key. (NULL if not available) */
+	ao2_prnt_obj_fn *prnt_obj;
 	/*! Name container registered under. */
 	char name[1];
 };
@@ -3220,7 +5459,7 @@ static void ao2_reg_destructor(void *v_doomed)
 }
 #endif	/* defined(AST_DEVMODE) */
 
-int ao2_container_register(const char *name, struct ao2_container *self)
+int ao2_container_register(const char *name, struct ao2_container *self, ao2_prnt_obj_fn *prnt_obj)
 {
 	int res = 0;
 #if defined(AST_DEVMODE)
@@ -3235,6 +5474,7 @@ int ao2_container_register(const char *name, struct ao2_container *self)
 	/* Fill in registered entry */
 	ao2_t_ref(self, +1, "Registering container.");
 	reg->registered = self;
+	reg->prnt_obj = prnt_obj;
 	strcpy(reg->name, name);/* safe */
 
 	if (!ao2_t_link(reg_containers, reg, "Save registration object.")) {
@@ -3293,6 +5533,76 @@ static char *complete_container_names(struct ast_cli_args *a)
 #endif	/* defined(AST_DEVMODE) */
 
 #if defined(AST_DEVMODE)
+AST_THREADSTORAGE(ao2_out_buf);
+
+/*!
+ * \brief Print CLI output.
+ * \since 12.0.0
+ *
+ * \param where User data pointer needed to determine where to put output.
+ * \param fmt printf type format string.
+ *
+ * \return Nothing
+ */
+static void cli_output(void *where, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+static void cli_output(void *where, const char *fmt, ...)
+{
+	int res;
+	struct ast_str *buf;
+	va_list ap;
+
+	buf = ast_str_thread_get(&ao2_out_buf, 256);
+	if (!buf) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
+	va_end(ap);
+
+	if (res != AST_DYNSTR_BUILD_FAILED) {
+		ast_cli(*(int *) where, "%s", ast_str_buffer(buf));
+	}
+}
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
+/*! \brief Show container contents - CLI command */
+static char *handle_cli_astobj2_container_dump(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *name;
+	struct ao2_reg_container *reg;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "astobj2 container dump";
+		e->usage =
+			"Usage: astobj2 container dump <name>\n"
+			"	Show contents of the container <name>.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_container_names(a);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	name = a->argv[3];
+	reg = ao2_t_find(reg_containers, name, OBJ_KEY, "Find registered container");
+	if (reg) {
+		ao2_container_dump(reg->registered, 0, name, (void *) &a->fd, cli_output,
+			reg->prnt_obj);
+		ao2_t_ref(reg, -1, "Done with registered container object.");
+	} else {
+		ast_cli(a->fd, "Container '%s' not found.\n", name);
+	}
+
+	return CLI_SUCCESS;
+}
+#endif	/* defined(AST_DEVMODE) */
+
+#if defined(AST_DEVMODE)
 /*! \brief Show container statistics - CLI command */
 static char *handle_cli_astobj2_container_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -3317,7 +5627,7 @@ static char *handle_cli_astobj2_container_stats(struct ast_cli_entry *e, int cmd
 	name = a->argv[3];
 	reg = ao2_t_find(reg_containers, name, OBJ_KEY, "Find registered container");
 	if (reg) {
-		ao2_container_stats(reg->registered, a->fd, ast_cli);
+		ao2_container_stats(reg->registered, 0, name, (void *) &a->fd, cli_output);
 		ao2_t_ref(reg, -1, "Done with registered container object.");
 	} else {
 		ast_cli(a->fd, "Container '%s' not found.\n", name);
@@ -3370,6 +5680,7 @@ static struct ast_cli_entry cli_astobj2[] = {
 	AST_CLI_DEFINE(handle_astobj2_test, "Test astobj2"),
 #endif /* defined(AO2_DEBUG) */
 #if defined(AST_DEVMODE)
+	AST_CLI_DEFINE(handle_cli_astobj2_container_dump, "Show container contents"),
 	AST_CLI_DEFINE(handle_cli_astobj2_container_stats, "Show container statistics"),
 	AST_CLI_DEFINE(handle_cli_astobj2_container_check, "Perform a container integrity check"),
 #endif	/* defined(AST_DEVMODE) */
