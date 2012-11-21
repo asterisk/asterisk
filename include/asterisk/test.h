@@ -127,6 +127,7 @@
 #define AST_TEST_REGISTER(cb)
 #define AST_TEST_UNREGISTER(cb)
 #define ast_test_status_update(a,b,c...)
+#define ast_test_debug(test, fmt, ...)	ast_cli		/* Dummy function that should not be called. */
 
 #endif
 
@@ -254,6 +255,17 @@ int ast_test_unregister(ast_test_cb_t *cb);
  * \retval -1 failure
  */
 int ast_test_register(ast_test_cb_t *cb);
+
+/*!
+ * \brief Unit test debug output.
+ * \since 12.0.0
+ *
+ * \param test Unit test control structure.
+ * \param fmt printf type format string.
+ *
+ * \return Nothing
+ */
+void ast_test_debug(struct ast_test *test, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
 /*!
  * \brief update test's status during testing.

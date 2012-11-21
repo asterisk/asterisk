@@ -2774,6 +2774,10 @@ static int replace_callno(const void *obj)
 
 static int callno_hash(const void *obj, const int flags)
 {
+	/*
+	 * XXX A hash function should always return the same value for
+	 * the same inputs.
+	 */
 	return abs(ast_random());
 }
 
@@ -2781,6 +2785,15 @@ static int create_callno_pools(void)
 {
 	uint16_t i;
 
+	/*!
+	 * \todo XXX A different method of randomly picking an available
+	 * IAX2 callno needs to be devised.
+	 *
+	 * A hash function should always return the same value for the
+	 * same inputs.  This game with the hash function prevents
+	 * astob2.c from generically checking the integrity of hash
+	 * containers while the system runs.
+	 */
 	if (!(callno_pool = ao2_container_alloc(CALLNO_POOL_BUCKETS, callno_hash, NULL))) {
 		return -1;
 	}

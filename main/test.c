@@ -100,6 +100,27 @@ static int test_insert(struct ast_test *test);
 static struct ast_test *test_remove(ast_test_cb_t *cb);
 static int test_cat_cmp(const char *cat1, const char *cat2);
 
+void ast_test_debug(struct ast_test *test, const char *fmt, ...)
+{
+	struct ast_str *buf = NULL;
+	va_list ap;
+
+	buf = ast_str_create(128);
+	if (!buf) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	ast_str_set_va(&buf, 0, fmt, ap);
+	va_end(ap);
+
+	if (test->cli) {
+		ast_cli(test->cli->fd, "%s", ast_str_buffer(buf));
+	}
+
+	ast_free(buf);
+}
+
 int __ast_test_status_update(const char *file, const char *func, int line,
 		struct ast_test *test, const char *fmt, ...)
 {

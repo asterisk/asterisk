@@ -37,9 +37,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/astobj2.h"
 
+/* Uncomment the following line to dump the container contents during tests. */
+//#define TEST_CONTAINER_DEBUG_DUMP		1
+
 enum test_container_type {
 	TEST_CONTAINER_LIST,
 	TEST_CONTAINER_HASH,
+	TEST_CONTAINER_RBTREE,
 };
 
 /*!
@@ -62,6 +66,9 @@ static const char *test_container2str(enum test_container_type type)
 		break;
 	case TEST_CONTAINER_HASH:
 		c_type = "Hash";
+		break;
+	case TEST_CONTAINER_RBTREE:
+		c_type = "RBTree";
 		break;
 	}
 	return c_type;
@@ -198,6 +205,29 @@ static int test_sort_cb(const void *obj_left, const void *obj_right, int flags)
 		return test_left->i - test_right->i;
 	}
 }
+
+#if defined(TEST_CONTAINER_DEBUG_DUMP)
+/*!
+ * \internal
+ * \brief Print test object key.
+ * \since 12.0.0
+ *
+ * \param v_obj A pointer to the object we want the key printed.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \return Nothing
+ */
+static void test_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct test_obj *obj = v_obj;
+
+	if (!obj) {
+		return;
+	}
+	prnt(where, "%6d-%d", obj->i, obj->dup_number);
+}
+#endif	/* defined(TEST_CONTAINER_DEBUG_DUMP) */
 
 /*!
  * \internal
@@ -457,6 +487,12 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 		c1 = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, n_buckets,
 			test_hash_cb, use_sort ? test_sort_cb : NULL, test_cmp_cb, "test");
 		break;
+	case TEST_CONTAINER_RBTREE:
+		/* RBTrees just have one bucket. */
+		n_buckets = 1;
+		c1 = ao2_t_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			test_sort_cb, test_cmp_cb, "test");
+		break;
 	}
 	c2 = ao2_t_container_alloc(1, NULL, NULL, "test");
 
@@ -467,26 +503,26 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 	}
 
 	/* Create objects and link into container */
-	destructor_count = lim;
 	for (num = 0; num < lim; ++num) {
 		if (!(obj = ao2_t_alloc(sizeof(struct test_obj), test_obj_destructor, "making zombies"))) {
 			ast_test_status_update(test, "ao2_alloc failed.\n");
 			res = AST_TEST_FAIL;
 			goto cleanup;
 		}
+		++destructor_count;
 		obj->destructor_count = &destructor_count;
 		obj->i = num;
 		ao2_link(c1, obj);
 		ao2_t_ref(obj, -1, "test");
+		if (ao2_container_check(c1, 0)) {
+			ast_test_status_update(test, "container integrity check failed linking obj num:%d\n", num);
+			res = AST_TEST_FAIL;
+			goto cleanup;
+		}
 		if (ao2_container_count(c1) != num + 1) {
 			ast_test_status_update(test, "container did not link correctly\n");
 			res = AST_TEST_FAIL;
 		}
-	}
-	if (ao2_container_check(c1, 0)) {
-		ast_test_status_update(test, "container integrity check failed\n");
-		res = AST_TEST_FAIL;
-		goto cleanup;
 	}
 
 	ast_test_status_update(test, "%s container created: buckets: %d, items: %d\n",
@@ -721,6 +757,10 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 		ast_test_status_update(test, "container integrity check failed\n");
 		res = AST_TEST_FAIL;
 	}
+#if defined(TEST_CONTAINER_DEBUG_DUMP)
+	ao2_container_dump(c1, 0, "test_1 c1", (void *) test, (ao2_prnt_fn *) ast_test_debug, test_prnt_obj);
+	ao2_container_stats(c1, 0, "test_1 c1", (void *) test, (ao2_prnt_fn *) ast_test_debug);
+#endif	/* defined(TEST_CONTAINER_DEBUG_DUMP) */
 
 cleanup:
 	/* destroy containers */
@@ -774,6 +814,10 @@ AST_TEST_DEFINE(astobj2_test_1)
 	}
 
 	if ((res = astobj2_test_1_helper(4, TEST_CONTAINER_HASH, 1, 1000, test)) == AST_TEST_FAIL) {
+		return res;
+	}
+
+	if ((res = astobj2_test_1_helper(4, TEST_CONTAINER_RBTREE, 1, 1000, test)) == AST_TEST_FAIL) {
 		return res;
 	}
 
@@ -1071,6 +1115,9 @@ static struct ao2_container *test_make_nonsorted(enum test_container_type type, 
 		container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, options, 5,
 			test_hash_cb, NULL, test_cmp_cb);
 		break;
+	case TEST_CONTAINER_RBTREE:
+		/* Container type must be sorted. */
+		break;
 	}
 
 	return container;
@@ -1100,6 +1147,10 @@ static struct ao2_container *test_make_sorted(enum test_container_type type, int
 	case TEST_CONTAINER_HASH:
 		container = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, options, 5,
 			test_hash_cb, test_sort_cb, test_cmp_cb, "test");
+		break;
+	case TEST_CONTAINER_RBTREE:
+		container = ao2_t_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_MUTEX, options,
+			test_sort_cb, test_cmp_cb, "test");
 		break;
 	}
 
@@ -1142,6 +1193,11 @@ static int insert_test_vector(struct ao2_container *container, int *destroy_coun
 		obj->i = vector[idx];
 		ao2_link(container, obj);
 		ao2_t_ref(obj, -1, "test");
+		if (ao2_container_check(container, 0)) {
+			ast_test_status_update(test, "%s: Container integrity check failed linking vector[%d]:%d\n",
+				prefix, idx, vector[idx]);
+			return -1;
+		}
 
 		if (ao2_container_count(container) != idx + 1) {
 			ast_test_status_update(test,
@@ -1149,10 +1205,6 @@ static int insert_test_vector(struct ao2_container *container, int *destroy_coun
 				prefix, idx + 1, ao2_container_count(container));
 			return -1;
 		}
-	}
-	if (ao2_container_check(container, 0)) {
-		ast_test_status_update(test, "%s: Container integrity check failed\n", prefix);
-		return -1;
 	}
 
 	return 0;
@@ -1214,6 +1266,15 @@ static int insert_test_duplicates(struct ao2_container *container, int *destroy_
 		} else {
 			ao2_t_ref(obj, -1, "test");
 		}
+
+		if (ao2_container_check(container, 0)) {
+			ast_test_status_update(test, "%s: Container integrity check failed linking num:%d dup:%d\n",
+				prefix, number, count);
+			if (obj_dup) {
+				ao2_t_ref(obj_dup, -1, "test");
+			}
+			return -1;
+		}
 	}
 
 	/* Add the duplicate object. */
@@ -1221,7 +1282,8 @@ static int insert_test_duplicates(struct ao2_container *container, int *destroy_
 	ao2_t_ref(obj_dup, -1, "test");
 
 	if (ao2_container_check(container, 0)) {
-		ast_test_status_update(test, "%s: Container integrity check failed\n", prefix);
+		ast_test_status_update(test, "%s: Container integrity check failed linking obj_dup\n",
+			prefix);
 		return -1;
 	}
 
@@ -1469,6 +1531,7 @@ static int test_traversal_nonsorted(int res, int tst_num, enum test_container_ty
 	/* Create container that inserts objects at the end. */
 	c1 = test_make_nonsorted(type, 0);
 	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1480,6 +1543,7 @@ static int test_traversal_nonsorted(int res, int tst_num, enum test_container_ty
 	/* Create container that inserts objects at the beginning. */
 	c2 = test_make_nonsorted(type, AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN);
 	if (!c2) {
+		ast_test_status_update(test, "Container c2 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1520,6 +1584,8 @@ static int test_traversal_nonsorted(int res, int tst_num, enum test_container_ty
 			test_hash_begin_backward, ARRAY_LEN(test_hash_begin_backward),
 			"Iteration (descending, insert begin)", test);
 		break;
+	case TEST_CONTAINER_RBTREE:
+		break;
 	}
 
 	/* Check container traversal directions */
@@ -1554,6 +1620,8 @@ static int test_traversal_nonsorted(int res, int tst_num, enum test_container_ty
 			test_hash_begin_backward, ARRAY_LEN(test_hash_begin_backward),
 			"Traversal (descending, insert begin)", test);
 		break;
+	case TEST_CONTAINER_RBTREE:
+		break;
 	}
 
 	/* Check traversal with OBJ_PARTIAL_KEY search range. */
@@ -1579,6 +1647,8 @@ static int test_traversal_nonsorted(int res, int tst_num, enum test_container_ty
 			test_cmp_cb, &partial,
 			test_hash_partial_backward, ARRAY_LEN(test_hash_partial_backward),
 			"Traversal OBJ_PARTIAL_KEY (descending)", test);
+		break;
+	case TEST_CONTAINER_RBTREE:
 		break;
 	}
 
@@ -1687,6 +1757,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	/* Create container that inserts duplicate objects after matching objects. */
 	c1 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW);
 	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1698,6 +1769,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	/* Create container that inserts duplicate objects before matching objects. */
 	c2 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN | AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW);
 	if (!c2) {
+		ast_test_status_update(test, "Container c2 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1706,8 +1778,16 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 		goto test_cleanup;
 	}
 
+#if defined(TEST_CONTAINER_DEBUG_DUMP)
+	ao2_container_dump(c1, 0, "c1(DUPS_ALLOW)", (void *) test, (ao2_prnt_fn *) ast_test_debug, test_prnt_obj);
+	ao2_container_stats(c1, 0, "c1(DUPS_ALLOW)", (void *) test, (ao2_prnt_fn *) ast_test_debug);
+	ao2_container_dump(c2, 0, "c2(DUPS_ALLOW)", (void *) test, (ao2_prnt_fn *) ast_test_debug, test_prnt_obj);
+	ao2_container_stats(c2, 0, "c2(DUPS_ALLOW)", (void *) test, (ao2_prnt_fn *) ast_test_debug);
+#endif	/* defined(TEST_CONTAINER_DEBUG_DUMP) */
+
 	/* Check container iteration directions */
 	switch (type) {
+	case TEST_CONTAINER_RBTREE:
 	case TEST_CONTAINER_LIST:
 		res = test_ao2_iteration(res, c1, 0,
 			test_forward, ARRAY_LEN(test_forward),
@@ -1728,6 +1808,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 
 	/* Check container traversal directions */
 	switch (type) {
+	case TEST_CONTAINER_RBTREE:
 	case TEST_CONTAINER_LIST:
 		res = test_ao2_callback_traversal(res, c1, OBJ_ORDER_ASCENDING, NULL, NULL,
 			test_forward, ARRAY_LEN(test_forward),
@@ -1750,6 +1831,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	partial = 6;
 	partial_key_match_range = 1;
 	switch (type) {
+	case TEST_CONTAINER_RBTREE:
 	case TEST_CONTAINER_LIST:
 		res = test_ao2_callback_traversal(res, c1, OBJ_PARTIAL_KEY | OBJ_ORDER_ASCENDING,
 			test_cmp_cb, &partial,
@@ -1782,6 +1864,13 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 		goto test_cleanup;
 	}
 
+#if defined(TEST_CONTAINER_DEBUG_DUMP)
+	ao2_container_dump(c1, 0, "c1(DUPS_ALLOW) w/ dups", (void *) test, (ao2_prnt_fn *) ast_test_debug, test_prnt_obj);
+	ao2_container_stats(c1, 0, "c1(DUPS_ALLOW) w/ dups", (void *) test, (ao2_prnt_fn *) ast_test_debug);
+	ao2_container_dump(c2, 0, "c2(DUPS_ALLOW) w/ dups", (void *) test, (ao2_prnt_fn *) ast_test_debug, test_prnt_obj);
+	ao2_container_stats(c2, 0, "c2(DUPS_ALLOW) w/ dups", (void *) test, (ao2_prnt_fn *) ast_test_debug);
+#endif	/* defined(TEST_CONTAINER_DEBUG_DUMP) */
+
 	/* Check duplicates in containers that allow duplicates. */
 	res = test_expected_duplicates(res, c1, OBJ_ORDER_ASCENDING, duplicate_number,
 		test_dup_allow_forward, ARRAY_LEN(test_dup_allow_forward),
@@ -1798,6 +1887,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	/* Create containers that reject duplicate keyed objects. */
 	c1 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT);
 	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1811,6 +1901,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	}
 	c2 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN | AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT);
 	if (!c2) {
+		ast_test_status_update(test, "Container c2 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1839,6 +1930,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	/* Create containers that reject duplicate objects. */
 	c1 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT);
 	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1852,6 +1944,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	}
 	c2 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN | AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT);
 	if (!c2) {
+		ast_test_status_update(test, "Container c2 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1880,6 +1973,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	/* Create container that replaces duplicate keyed objects. */
 	c1 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE);
 	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1893,6 +1987,7 @@ static int test_traversal_sorted(int res, int tst_num, enum test_container_type 
 	}
 	c2 = test_make_sorted(type, AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN | AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE);
 	if (!c2) {
+		ast_test_status_update(test, "Container c2 creation failed.\n");
 		res = AST_TEST_FAIL;
 		goto test_cleanup;
 	}
@@ -1959,6 +2054,7 @@ AST_TEST_DEFINE(astobj2_test_4)
 
 	res = test_traversal_sorted(res, 3, TEST_CONTAINER_LIST, test);
 	res = test_traversal_sorted(res, 4, TEST_CONTAINER_HASH, test);
+	res = test_traversal_sorted(res, 5, TEST_CONTAINER_RBTREE, test);
 
 	return res;
 }
