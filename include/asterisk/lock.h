@@ -428,12 +428,24 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 
 static inline void ast_reentrancy_lock(struct ast_lock_track *lt)
 {
-	pthread_mutex_lock(&lt->reentr_mutex);
+	int res;
+	if ((res = pthread_mutex_lock(&lt->reentr_mutex))) {
+		fprintf(stderr, "ast_reentrancy_lock failed: '%s' (%d)\n", strerror(res), res);
+#if defined(DO_CRASH) || defined(THREAD_CRASH)
+		abort();
+#endif
+	}
 }
 
 static inline void ast_reentrancy_unlock(struct ast_lock_track *lt)
 {
-	pthread_mutex_unlock(&lt->reentr_mutex);
+	int res;
+	if ((res = pthread_mutex_unlock(&lt->reentr_mutex))) {
+		fprintf(stderr, "ast_reentrancy_unlock failed: '%s' (%d)\n", strerror(res), res);
+#if defined(DO_CRASH) || defined(THREAD_CRASH)
+		abort();
+#endif
+	}
 }
 
 static inline void ast_reentrancy_init(struct ast_lock_track **plt)
