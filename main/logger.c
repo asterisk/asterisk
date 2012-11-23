@@ -1226,8 +1226,17 @@ int init_logger(void)
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	sigaction(SIGXFSZ, &handle_SIGXFSZ, NULL);
 
-	/* start logger thread */
+	/* Re-initialize the logmsgs mutex.  The recursive mutex can be accessed prior
+ 	 * to Asterisk being forked into the background, which can cause the thread
+ 	 * ID tracked by the underlying pthread mutex to be different than the ID of
+ 	 * the thread that unlocks the mutex.  Since init_logger is called after the
+ 	 * fork, it is safe to initialize the mutex here for future accesses.
+ 	 */
+	ast_mutex_destroy(&logmsgs.lock);
+	ast_mutex_init(&logmsgs.lock);
 	ast_cond_init(&logcond, NULL);
+
+	/* start logger thread */
 	if (ast_pthread_create(&logthread, NULL, logger_thread, NULL) < 0) {
 		ast_cond_destroy(&logcond);
 		return -1;
