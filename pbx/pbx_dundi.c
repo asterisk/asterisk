@@ -4078,7 +4078,6 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 {
 	int results;
 	int x;
-	struct ast_module_user *u;
 	struct dundi_result dr[MAX_RESULTS];
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(number);
@@ -4094,8 +4093,6 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 		ast_log(LOG_WARNING, "DUNDILOOKUP requires an argument (number)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(num);
 
@@ -4118,8 +4115,6 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 			}
 		}
 	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -4159,7 +4154,6 @@ static const struct ast_datastore_info dundi_result_datastore_info = {
 
 static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(number);
 		AST_APP_ARG(context);
@@ -4170,17 +4164,13 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 	struct dundi_result_datastore *drds;
 	struct ast_datastore *datastore;
 
-	u = ast_module_user_add(chan);
-
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DUNDIQUERY requires an argument (number)\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
 	if (!chan) {
 		ast_log(LOG_ERROR, "DUNDIQUERY can not be used without a channel!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -4195,7 +4185,6 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 		args.context = "e164";
 
 	if (!(drds = ast_calloc(1, sizeof(*drds)))) {
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -4204,7 +4193,6 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 
 	if (!(datastore = ast_datastore_alloc(&dundi_result_datastore_info, buf))) {
 		drds_destroy(drds);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -4220,8 +4208,6 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 	ast_channel_datastore_add(chan, datastore);
 	ast_channel_unlock(chan);
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
@@ -4232,7 +4218,6 @@ static struct ast_custom_function dundi_query_function = {
 
 static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(id);
 		AST_APP_ARG(resultnum);
@@ -4242,8 +4227,6 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 	struct dundi_result_datastore *drds;
 	struct ast_datastore *datastore;
 	int res = -1;
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DUNDIRESULT requires an argument (id and resultnum)\n");
@@ -4299,8 +4282,6 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 		ast_log(LOG_WARNING, "Result number %u is not valid for DUNDi query results for ID %s!\n", num, args.id);
 
 finish:
-	ast_module_user_remove(u);
-
 	return res;
 }
 
@@ -4968,7 +4949,12 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 static int unload_module(void)
 {
 	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid, previous_clearcachethreadid = clearcachethreadid;
-	ast_module_user_hangup_all();
+
+	ast_cli_unregister_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
+	ast_unregister_switch(&dundi_switch);
+	ast_custom_function_unregister(&dundi_function);
+	ast_custom_function_unregister(&dundi_query_function);
+	ast_custom_function_unregister(&dundi_result_function);
 
 	/* Stop all currently running threads */
 	dundi_shutdown = 1;
@@ -4985,11 +4971,6 @@ static int unload_module(void)
  		pthread_join(previous_clearcachethreadid, NULL);
  	}
 
-	ast_cli_unregister_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
-	ast_unregister_switch(&dundi_switch);
-	ast_custom_function_unregister(&dundi_function);
-	ast_custom_function_unregister(&dundi_query_function);
-	ast_custom_function_unregister(&dundi_result_function);
 	close(netsocket);
 	io_context_destroy(io);
 	ast_sched_context_destroy(sched);

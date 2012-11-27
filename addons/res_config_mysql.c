@@ -1393,9 +1393,6 @@ static int unload_module(void)
 	ast_config_engine_deregister(&mysql_engine);
 	ast_verb(2, "MySQL RealTime unloaded.\n");
 
-	ast_module_user_hangup_all();
-
-	usleep(1);
 	AST_RWLIST_WRLOCK(&databases);
 	while ((cur = AST_RWLIST_REMOVE_HEAD(&databases, list))) {
 		mysql_close(&cur->handle);
