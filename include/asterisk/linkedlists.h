@@ -848,34 +848,38 @@ struct {								\
  * \param elm This is a pointer to the entry to be removed.
  * \param field This is the name of the field (declared using AST_LIST_ENTRY())
  * used to link entries of this list together.
- * \warning The removed entry is \b not freed nor modified in any way.
+ * \retval elm if elm was in the list.
+ * \retval NULL if elm was not in the list or elm was NULL.
+ * \warning The removed entry is \b not freed.
  */
-#define AST_LIST_REMOVE(head, elm, field) ({			        \
-	__typeof(elm) __res = NULL; \
-	__typeof(elm) __tmp = elm; \
-	if (!__tmp) { \
-		__res = NULL; \
-	} else if ((head)->first == (elm)) {					\
-		__res = (head)->first;                      \
-		(head)->first = (elm)->field.next;			\
-		if ((head)->last == (elm))			\
-			(head)->last = NULL;			\
-	} else {								\
-		typeof(elm) curelm = (head)->first;			\
-		while (curelm && (curelm->field.next != (elm)))			\
-			curelm = curelm->field.next;			\
-		if (curelm) { \
-			__res = (elm); \
-			curelm->field.next = (elm)->field.next;			\
-			if ((head)->last == (elm))				\
-				(head)->last = curelm;				\
-		} \
-	}								\
-	if (__res) { \
-		(__res)->field.next = NULL; \
-	} \
-	(__res); \
-})
+#define AST_LIST_REMOVE(head, elm, field)						\
+	({															\
+		__typeof(elm) __elm = (elm);							\
+		if (__elm) {											\
+			if ((head)->first == __elm) {						\
+				(head)->first = __elm->field.next;				\
+				__elm->field.next = NULL;						\
+				if ((head)->last == __elm) {					\
+					(head)->last = NULL;						\
+				}												\
+			} else {											\
+				typeof(elm) __prev = (head)->first;				\
+				while (__prev && __prev->field.next != __elm) {	\
+					__prev = __prev->field.next;				\
+				}												\
+				if (__prev) {									\
+					__prev->field.next = __elm->field.next;		\
+					__elm->field.next = NULL;					\
+					if ((head)->last == __elm) {				\
+						(head)->last = __prev;					\
+					}											\
+				} else {										\
+					__elm = NULL;								\
+				}												\
+			}													\
+		}														\
+		__elm;													\
+	})
 
 #define AST_RWLIST_REMOVE AST_LIST_REMOVE
 
