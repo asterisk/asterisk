@@ -17,6 +17,11 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
+from 1.8.19 to 1.8.20:
+* Asterisk has always had code to ignore dash '-' characters that are not
+  part of a character set in the dialplan extensions.  The code now
+  consistently ignores these characters when matching dialplan extensions.
+
 from 1.8.18 to 1.8.19:
 * Queue strategy rrmemory now has a predictable order similar to strategy
   rrordered. Members will be called in the order that they are added to the
