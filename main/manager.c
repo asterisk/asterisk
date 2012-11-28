@@ -5127,7 +5127,7 @@ static int process_message(struct mansession *s, const struct message *m)
 			|| !strcasecmp(action, "Challenge"))) {
 		user = astman_get_header(m, "Username");
 
-		if (check_manager_session_inuse(user)) {
+		if (!ast_strlen_zero(user) && check_manager_session_inuse(user)) {
 			report_session_limit(s);
 			sleep(1);
 			mansession_lock(s);
