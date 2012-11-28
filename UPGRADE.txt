@@ -61,6 +61,9 @@ Dialplan:
    In previous versions of Asterisk, variables created and evaluated in the
    dialplan were evaluated case-insensitively, but built-in variables and variable
    evaluation done internally within Asterisk was done case-sensitively.
+ - Asterisk has always had code to ignore dash '-' characters that are not
+   part of a character set in the dialplan extensions.  The code now
+   consistently ignores these characters when matching dialplan extensions.
 
 From 10 to 11:
 
