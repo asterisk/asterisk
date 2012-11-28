@@ -20,6 +20,12 @@
 ===
 ===========================================================
 
+From 11.1 to 11.2:
+
+* Asterisk has always had code to ignore dash '-' characters that are not
+  part of a character set in the dialplan extensions.  The code now
+  consistently ignores these characters when matching dialplan extensions.
+
 From 11.0 to 11.1:
 
 Queues:
