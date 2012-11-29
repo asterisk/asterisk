@@ -3965,6 +3965,10 @@ int main(int argc, char *argv[])
 	 * an Asterisk instance, and that there isn't one already running. */
 	multi_thread_safe = 1;
 
+#if defined(__AST_DEBUG_MALLOC)
+	__ast_mm_init_phase_1();
+#endif	/* defined(__AST_DEBUG_MALLOC) */
+
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
 	if (isroot && ast_opt_high_priority) {
 		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
@@ -4033,10 +4037,6 @@ int main(int argc, char *argv[])
 		if (!ast_strlen_zero(filename))
 			ast_el_read_history(filename);
 	}
-
-#if defined(__AST_DEBUG_MALLOC)
-	__ast_mm_init_phase_1();
-#endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	ast_ulaw_init();
 	ast_alaw_init();
@@ -4271,9 +4271,9 @@ int main(int argc, char *argv[])
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
-#ifdef __AST_DEBUG_MALLOC
+#if defined(__AST_DEBUG_MALLOC)
 	__ast_mm_init_phase_2();
-#endif
+#endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
