@@ -17896,10 +17896,13 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 
 		if (ast_sockaddr_resolve_first(&tmp, c, 0)) {
 			ast_log(LOG_WARNING, "Could not resolve socket address for '%s'\n", c);
+			port = STANDARD_SIP_PORT;
+		} else if (!(port = ast_sockaddr_port(&tmp)) {
+			port = STANDARD_SIP_PORT;
+			ast_sockaddr_set_port(&tmp, port);
 		}
-		port = ast_sockaddr_port(&tmp);
-		ast_sockaddr_set_port(&p->sa,
-				      port != 0 ? port : STANDARD_SIP_PORT);
+
+		ast_sockaddr_set_port(&p->sa, port);
 
 		/* Check and see if the requesting UA is likely to be behind a NAT. If they are, set the
 		 * natdetected flag so that later, peers with nat=auto_* can use the value. Also
