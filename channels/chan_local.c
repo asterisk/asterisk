@@ -311,15 +311,20 @@ static int local_devicestate(const char *data)
 	res = AST_DEVICE_NOT_INUSE;
 
 	it = ao2_iterator_init(locals, 0);
-	while ((lp = ao2_iterator_next(&it)) && (res == AST_DEVICE_NOT_INUSE)) {
-		if (!strcmp(exten, lp->exten) && !strcmp(context, lp->context) && lp->owner) {
-			ao2_lock(lp);
-			if (ast_test_flag(lp, LOCAL_LAUNCHED_PBX)) {
-				res = AST_DEVICE_INUSE;
-			}
-			ao2_unlock(lp);
+	for (; (lp = ao2_iterator_next(&it)); ao2_ref(lp, -1)) {
+		int is_inuse;
+
+		ao2_lock(lp);
+		is_inuse = !strcmp(exten, lp->exten)
+			&& !strcmp(context, lp->context)
+			&& lp->owner
+			&& ast_test_flag(lp, LOCAL_LAUNCHED_PBX);
+		ao2_unlock(lp);
+		if (is_inuse) {
+			res = AST_DEVICE_INUSE;
+			ao2_ref(lp, -1);
+			break;
 		}
-		ao2_ref(lp, -1);
 	}
 	ao2_iterator_destroy(&it);
 
