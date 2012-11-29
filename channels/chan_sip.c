@@ -16806,10 +16806,12 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 
 		if (ast_sockaddr_resolve_first(&tmp, c, 0)) {
 			ast_log(LOG_WARNING, "Could not resolve socket address for '%s'\n", c);
+			port = STANDARD_SIP_PORT;
+		} else if (!(port = ast_sockaddr_port(&tmp)) {
+			port = STANDARD_SIP_PORT;
 		}
-		port = ast_sockaddr_port(&tmp);
-		ast_sockaddr_set_port(&p->sa,
-				      port != 0 ? port : STANDARD_SIP_PORT);
+
+		ast_sockaddr_set_port(&p->sa, port);
 
 		if (sip_debug_test_pvt(p)) {
 			ast_verbose("Sending to %s (%s)\n",
