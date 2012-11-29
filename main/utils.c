@@ -1487,9 +1487,6 @@ int ast_remaining_ms(struct timeval start, int max_ms)
 
 #undef ONE_MILLION
 
-/*! \brief glibc puts a lock inside random(3), so that the results are thread-safe.
- * BSD libc (and others) do not. */
-
 #ifndef linux
 AST_MUTEX_DEFINE_STATIC(randomlock);
 #endif
@@ -1508,6 +1505,13 @@ long int ast_random(void)
 		}
 	}
 #endif
+	/* XXX - Thread safety really depends on the libc, not the OS.
+	 *
+	 * But... popular Linux libc's (uClibc, glibc, eglibc), all have a
+	 * somewhat thread safe random(3) (results are random, but not
+	 * reproducible). The libc's for other systems (BSD, et al.), not so
+	 * much.
+	 */
 #ifdef linux
 	res = random();
 #else
