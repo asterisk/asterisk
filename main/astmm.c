@@ -588,67 +588,84 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 	unsigned int len = 0;
 	unsigned int cache_len = 0;
 	unsigned int count = 0;
+	int check_anomalies;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "memory show allocations";
 		e->usage =
-			"Usage: memory show allocations [<file>|anomolies]\n"
+			"Usage: memory show allocations [<file>|anomalies]\n"
 			"       Dumps a list of segments of allocated memory.\n"
 			"       Defaults to listing all memory allocations.\n"
 			"       <file> - Restricts output to memory allocated by the file.\n"
-			"       anomolies - Only check for fence violations.\n";
+			"       anomalies - Only check for fence violations.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-
-	if (a->argc > 3)
+	if (a->argc == 4) {
 		fn = a->argv[3];
+	} else if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Look for historical misspelled option as well. */
+	check_anomalies = fn && (!strcasecmp(fn, "anomalies") || !strcasecmp(fn, "anomolies"));
 
 	ast_mutex_lock(&reglock);
 	for (x = 0; x < ARRAY_LEN(regions); x++) {
 		for (reg = regions[x]; reg; reg = reg->next) {
-			if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
+			if (check_anomalies) {
 				region_check_fences(reg);
-			}
-			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(a->fd, "%10d bytes allocated%s in %20s at line %5d of %s\n",
-					(int) reg->len, reg->cache ? " (cache)" : "",
+			} else if (!fn || !strcasecmp(fn, reg->file)) {
+				region_check_fences(reg);
+
+				ast_cli(a->fd, "%10u bytes allocated%s by %20s() line %5u of %s\n",
+					(unsigned int) reg->len, reg->cache ? " (cache)" : "",
 					reg->func, reg->lineno, reg->file);
+
 				len += reg->len;
-				if (reg->cache)
+				if (reg->cache) {
 					cache_len += reg->len;
+				}
 				count++;
 			}
 		}
 	}
 	ast_mutex_unlock(&reglock);
 
-	if (cache_len)
-		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
-	else
-		ast_cli(a->fd, "%d bytes allocated in %d allocations\n", len, count);
+	if (check_anomalies) {
+		ast_cli(a->fd, "Anomaly check complete.\n");
+	} else if (cache_len) {
+		ast_cli(a->fd, "%u bytes allocated (%u in caches) in %u allocations\n",
+			len, cache_len, count);
+	} else {
+		ast_cli(a->fd, "%u bytes allocated in %u allocations\n", len, count);
+	}
 
 	return CLI_SUCCESS;
 }
 
 static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+#define my_max(a, b) ((a) >= (b) ? (a) : (b))
+
 	const char *fn = NULL;
-	int x;
+	int idx;
+	int cmp;
 	struct ast_region *reg;
 	unsigned int len = 0;
 	unsigned int cache_len = 0;
-	int count = 0;
+	unsigned int count = 0;
 	struct file_summary {
-		char fn[80];
-		int len;
-		int cache_len;
-		int count;
 		struct file_summary *next;
-	} *list = NULL, *cur;
+		unsigned int len;
+		unsigned int cache_len;
+		unsigned int count;
+		unsigned int lineno;
+		char name[my_max(sizeof(reg->file), sizeof(reg->func))];
+	} *list = NULL, *cur, **prev;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -656,37 +673,77 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: memory show summary [<file>]\n"
 			"       Summarizes heap memory allocations by file, or optionally\n"
-			"       by function, if a file is specified.\n";
+			"       by line, if a file is specified.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc > 3)
+	if (a->argc == 4) {
 		fn = a->argv[3];
+	} else if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
 
 	ast_mutex_lock(&reglock);
-	for (x = 0; x < ARRAY_LEN(regions); x++) {
-		for (reg = regions[x]; reg; reg = reg->next) {
-			if (fn && strcasecmp(fn, reg->file))
-				continue;
+	for (idx = 0; idx < ARRAY_LEN(regions); ++idx) {
+		for (reg = regions[idx]; reg; reg = reg->next) {
+			if (fn) {
+				if (strcasecmp(fn, reg->file)) {
+					continue;
+				}
 
-			for (cur = list; cur; cur = cur->next) {
-				if ((!fn && !strcmp(cur->fn, reg->file)) || (fn && !strcmp(cur->fn, reg->func)))
+				/* Sort list by func/lineno.  Find existing or place to insert. */
+				for (prev = &list; (cur = *prev); prev = &cur->next) {
+					cmp = strcmp(cur->name, reg->func);
+					if (cmp < 0) {
+						continue;
+					}
+					if (cmp > 0) {
+						/* Insert before current */
+						cur = NULL;
+						break;
+					}
+					cmp = cur->lineno - reg->lineno;
+					if (cmp < 0) {
+						continue;
+					}
+					if (cmp > 0) {
+						/* Insert before current */
+						cur = NULL;
+					}
 					break;
+				}
+			} else {
+				/* Sort list by filename.  Find existing or place to insert. */
+				for (prev = &list; (cur = *prev); prev = &cur->next) {
+					cmp = strcmp(cur->name, reg->file);
+					if (cmp < 0) {
+						continue;
+					}
+					if (cmp > 0) {
+						/* Insert before current */
+						cur = NULL;
+					}
+					break;
+				}
 			}
+
 			if (!cur) {
 				cur = ast_alloca(sizeof(*cur));
 				memset(cur, 0, sizeof(*cur));
-				ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
-				cur->next = list;
-				list = cur;
+				cur->lineno = reg->lineno;
+				ast_copy_string(cur->name, fn ? reg->func : reg->file, sizeof(cur->name));
+
+				cur->next = *prev;
+				*prev = cur;
 			}
 
 			cur->len += reg->len;
-			if (reg->cache)
+			if (reg->cache) {
 				cur->cache_len += reg->len;
-			cur->count++;
+			}
+			++cur->count;
 		}
 	}
 	ast_mutex_unlock(&reglock);
@@ -698,27 +755,29 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		count += cur->count;
 		if (cur->cache_len) {
 			if (fn) {
-				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n",
-					cur->len, cur->cache_len, cur->count, cur->fn, fn);
+				ast_cli(a->fd, "%10u bytes (%10u cache) in %10u allocations by %20s() line %5u of %s\n",
+					cur->len, cur->cache_len, cur->count, cur->name, cur->lineno, fn);
 			} else {
-				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n",
-					cur->len, cur->cache_len, cur->count, cur->fn);
+				ast_cli(a->fd, "%10u bytes (%10u cache) in %10u allocations in file %s\n",
+					cur->len, cur->cache_len, cur->count, cur->name);
 			}
 		} else {
 			if (fn) {
-				ast_cli(a->fd, "%10d bytes in %d allocations in function '%s' of '%s'\n",
-					cur->len, cur->count, cur->fn, fn);
+				ast_cli(a->fd, "%10u bytes in %10u allocations by %20s() line %5u of %s\n",
+					cur->len, cur->count, cur->name, cur->lineno, fn);
 			} else {
-				ast_cli(a->fd, "%10d bytes in %d allocations in file '%s'\n",
-					cur->len, cur->count, cur->fn);
+				ast_cli(a->fd, "%10u bytes in %10u allocations in file %s\n",
+					cur->len, cur->count, cur->name);
 			}
 		}
 	}
 
-	if (cache_len)
-		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
-	else
-		ast_cli(a->fd, "%d bytes allocated in %d allocations\n", len, count);
+	if (cache_len) {
+		ast_cli(a->fd, "%u bytes allocated (%u in caches) in %u allocations\n",
+			len, cache_len, count);
+	} else {
+		ast_cli(a->fd, "%u bytes allocated in %u allocations\n", len, count);
+	}
 
 	return CLI_SUCCESS;
 }
