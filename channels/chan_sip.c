@@ -2635,7 +2635,7 @@ static void sip_websocket_callback(struct ast_websocket *session, struct ast_var
 		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
 			struct sip_request req = { 0, };
 
-			if (!(req.data = ast_str_create(payload_len))) {
+			if (!(req.data = ast_str_create(payload_len + 1))) {
 				goto end;
 			}
 
