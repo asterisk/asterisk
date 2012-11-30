@@ -24386,8 +24386,11 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	}
 
 	/* We have a channel, find the bridge */
-	target.chan1 = targetcall_pvt->owner;				/* Transferer to Asterisk */
+	target.chan1 = ast_channel_ref(targetcall_pvt->owner);				/* Transferer to Asterisk */
 	target.chan2 = ast_bridged_channel(targetcall_pvt->owner);	/* Asterisk to target */
+	if (target.chan2) {
+		ast_channel_ref(target.chan2);
+	}
 
 	if (!target.chan2 || !(target.chan2->_state == AST_STATE_UP || target.chan2->_state == AST_STATE_RINGING) ) {
 		/* Wrong state of new channel */
@@ -24526,6 +24529,10 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	/* at this point if the transfer is successful only the transferer pvt should be locked. */
 	ast_party_connected_line_free(&connected_to_target);
 	ast_party_connected_line_free(&connected_to_transferee);
+	ast_channel_unref(target.chan1);
+	if (target.chan2) {
+		ast_channel_unref(target.chan2);
+	}
 	if (targetcall_pvt)
 		ao2_t_ref(targetcall_pvt, -1, "drop targetcall_pvt");
 	return 1;
