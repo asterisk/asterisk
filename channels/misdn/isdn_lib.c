@@ -2700,6 +2700,10 @@ static int handle_frm_te(msg_t *msg)
 			dummybc.l3_id = frm->dinfo;
 			bc = &dummybc;
 
+			/* set a reasonable cause */
+			bc->out_cause = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
+			/* if we want to send something the flag must be set! */
+			bc->need_release_complete = 1;
 			misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 
 			free_msg(msg);
@@ -4066,14 +4070,19 @@ static void manager_event_handler(void *arg)
 					if (bc)
 						send_msg(glob_mgr->midev, bc, msg);
 					else  {
+						struct misdn_bchannel dummybc;
+
+						misdn_make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
 						if (frm->dinfo == MISDN_ID_GLOBAL || frm->dinfo == MISDN_ID_DUMMY ) {
-							struct misdn_bchannel dummybc;
 							cb_log(5,0," --> GLOBAL/DUMMY\n");
-							misdn_make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
-							send_msg(glob_mgr->midev, &dummybc, msg);
 						} else {
-							cb_log(0,0,"No bc for Message\n");
+							/*
+							 * We need to be able to at least answer with RELEASE_COMPLETE
+							 * on SETUP|INDICATION errors so use a dummy bc.
+							 */
+							cb_log(0,0,"No bc for Message.  Using dummy_bc\n");
 						}
+						send_msg(glob_mgr->midev, &dummybc, msg);
 					}
 				}
 			}
