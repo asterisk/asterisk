@@ -49,6 +49,11 @@
 ;
 ; The only supported method for DTMF is RFC2833. This is always enabled on audio streams and negotiated if possible.
 
+; Incoming Calls
+;
+; Incoming calls will first look for the extension matching the name of the endpoint in the configured context. If
+; no such extension exists the call will automatically fall back to the "s" extension.
+
 ; CallerID
 ;
 ; The incoming caller id number is populated with the username of the caller and the name is populated with the full
