@@ -686,7 +686,11 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 	}
 
 	ast_channel_context_set(chan, endpoint->context);
-	ast_channel_exten_set(chan, "s");
+	if (ast_exists_extension(NULL, endpoint->context, endpoint->name, 1, NULL)) {
+		ast_channel_exten_set(chan, endpoint->name);
+	} else {
+		ast_channel_exten_set(chan, "s");
+	}
 	ast_channel_priority_set(chan, 1);
 
 	ao2_unlock(endpoint);
