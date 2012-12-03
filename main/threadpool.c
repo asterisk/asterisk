@@ -89,7 +89,6 @@ static struct worker_thread *worker_thread_alloc(struct ast_threadpool *pool)
 {
 	struct worker_thread *worker = ao2_alloc(sizeof(*worker), worker_thread_destroy);
 	if (!worker) {
-		/* XXX Dangit! */
 		return NULL;
 	}
 	worker->id = ast_atomic_fetchadd_int(&id_counter, 1);
@@ -99,7 +98,7 @@ static struct worker_thread *worker_thread_alloc(struct ast_threadpool *pool)
 	worker->thread = AST_PTHREADT_NULL;
 	worker->state = ALIVE;
 	if (ast_pthread_create(&worker->thread, NULL, worker_start, worker) < 0) {
-		/* XXX Poop! */
+		ast_log(LOG_ERROR, "Unable to start worker thread!\n");
 		ao2_ref(worker, -1);
 		return NULL;
 	}
@@ -127,12 +126,11 @@ static void thread_worker_pair_destructor(void *obj)
 	ao2_ref(pair->worker, -1);
 }
 
-static struct thread_worker_pair *thread_worker_pair_init(struct ast_threadpool *pool,
+static struct thread_worker_pair *thread_worker_pair_alloc(struct ast_threadpool *pool,
 		struct worker_thread *worker)
 {
 	struct thread_worker_pair *pair = ao2_alloc(sizeof(*pair), thread_worker_pair_destructor);
 	if (!pair) {
-		/*XXX Crap */
 		return NULL;
 	}
 	ao2_ref(pool, +1);
@@ -158,9 +156,8 @@ static int queued_active_thread_idle(void *data)
 static void threadpool_active_thread_idle(struct ast_threadpool *pool,
 		struct worker_thread *worker)
 {
-	struct thread_worker_pair *pair = thread_worker_pair_init(pool, worker);
+	struct thread_worker_pair *pair = thread_worker_pair_alloc(pool, worker);
 	if (!pair) {
-		/*XXX Crap */
 		return;
 	}
 	ast_taskprocessor_push(pool->control_tps, queued_active_thread_idle, pair);
@@ -180,9 +177,8 @@ static int queued_zombie_thread_dead(void *data)
 static void threadpool_zombie_thread_dead(struct ast_threadpool *pool,
 		struct worker_thread *worker)
 {
-	struct thread_worker_pair *pair = thread_worker_pair_init(pool, worker);
+	struct thread_worker_pair *pair = thread_worker_pair_alloc(pool, worker);
 	if (!pair) {
-		/* XXX Crap */
 		return;
 	}
 	ast_taskprocessor_push(pool->control_tps, queued_zombie_thread_dead, pair);
@@ -251,7 +247,7 @@ static int worker_shutdown(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static void threadpool_tps_listener_destroy(void *private_data)
+static void threadpool_destructor(void *private_data)
 {
 	struct ast_threadpool *pool = private_data;
 	/* XXX Probably should let the listener know we're being destroyed? */
@@ -259,17 +255,16 @@ static void threadpool_tps_listener_destroy(void *private_data)
 	/* Threads should all be shut down by now, so this should be a painless
 	 * operation
 	 */
-	ao2_ref(pool->active_threads, -1);
-	ao2_ref(pool->idle_threads, -1);
-	ao2_ref(pool->zombie_threads, -1);
-	ao2_ref(pool->listener, -1);
-	ao2_ref(pool, -1);
+	ao2_cleanup(pool->active_threads);
+	ao2_cleanup(pool->idle_threads);
+	ao2_cleanup(pool->zombie_threads);
+	ao2_cleanup(pool->listener);
 }
 
-static void *threadpool_tps_listener_alloc(struct ast_taskprocessor_listener *listener)
+static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
 {
 	RAII_VAR(struct ast_threadpool *, pool,
-			ao2_alloc(sizeof(*pool), threadpool_tps_listener_destroy), ao2_cleanup);
+			ao2_alloc(sizeof(*pool), threadpool_destructor), ao2_cleanup);
 
 	pool->control_tps = ast_taskprocessor_get("CHANGE THIS", TPS_REF_DEFAULT);
 	if (!pool->control_tps) {
@@ -349,7 +344,6 @@ static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listen
 	struct task_pushed_data *tpd = task_pushed_data_alloc(pool, was_empty);
 
 	if (!tpd) {
-		/* XXX Drat! */
 		return;
 	}
 
@@ -395,12 +389,18 @@ static void threadpool_tps_shutdown(struct ast_taskprocessor_listener *listener)
 	ao2_callback(pool->zombie_threads, 0, worker_shutdown, NULL);
 }
 
+static void threadpool_destroy(void *private_data)
+{
+	struct ast_threadpool *pool = private_data;
+	ao2_cleanup(pool);
+}
+
 static struct ast_taskprocessor_listener_callbacks threadpool_tps_listener_callbacks = {
-	.alloc = threadpool_tps_listener_alloc,
+	.alloc = threadpool_alloc,
 	.task_pushed = threadpool_tps_task_pushed,
 	.emptied = threadpool_tps_emptied,
 	.shutdown = threadpool_tps_shutdown,
-	.destroy = threadpool_tps_listener_destroy,
+	.destroy = threadpool_destroy,
 };
 
 static void grow(struct ast_threadpool *pool, int delta)
@@ -409,7 +409,6 @@ static void grow(struct ast_threadpool *pool, int delta)
 	for (i = 0; i < delta; ++i) {
 		struct worker_thread *worker = worker_thread_alloc(pool);
 		if (!worker) {
-			/* XXX Abandon */
 			return;
 		}
 		ao2_link(pool->active_threads, worker);
@@ -464,7 +463,7 @@ static void shrink(struct ast_threadpool *pool, int delta)
 
 struct set_size_data {
 	struct ast_threadpool *pool;
-	int size;
+	unsigned int size;
 };
 
 static void set_size_data_destroy(void *obj)
@@ -474,11 +473,10 @@ static void set_size_data_destroy(void *obj)
 }
 
 static struct set_size_data *set_size_data_alloc(struct ast_threadpool *pool,
-		int size)
+		unsigned int size)
 {
 	struct set_size_data *ssd = ao2_alloc(sizeof(*ssd), set_size_data_destroy);
 	if (!ssd) {
-		/* XXX Crap */
 		return NULL;
 	}
 
@@ -492,13 +490,15 @@ static int queued_set_size(void *data)
 {
 	struct set_size_data *ssd = data;
 	struct ast_threadpool *pool = ssd->pool;
-	int num_threads = ssd->size;
+	unsigned int num_threads = ssd->size;
 
 	/* We don't count zombie threads as being "live when potentially resizing */
-	int current_size = ao2_container_count(pool->active_threads) +
+	unsigned int current_size = ao2_container_count(pool->active_threads) +
 		ao2_container_count(pool->idle_threads);
 
 	if (current_size == num_threads) {
+		ast_log(LOG_NOTICE, "Not changing threadpool size since new size %u is the same as current %u\n",
+				num_threads, current_size);
 		return 0;
 	}
 
@@ -519,7 +519,6 @@ void ast_threadpool_set_size(struct ast_threadpool *pool, unsigned int size)
 
 	ssd = set_size_data_alloc(pool, size);
 	if (!ssd) {
-		/* XXX *groan* */
 		return;
 	}
 
