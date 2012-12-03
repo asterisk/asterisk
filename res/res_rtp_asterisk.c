@@ -671,8 +671,9 @@ static char *generate_random_string(char *buf, size_t size)
         long val[4];
         int x;
 
-        for (x=0; x<4; x++)
+        for (x=0; x<4; x++) {
                 val[x] = ast_random();
+	}
         snprintf(buf, size, "%08lx%08lx%08lx%08lx", val[0], val[1], val[2], val[3]);
 
         return buf;
@@ -2164,8 +2165,9 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	double rxlost_current;
 	struct ast_sockaddr remote_address = { {0,} };
 
-	if (!rtp || !rtp->rtcp)
+	if (!rtp || !rtp->rtcp) {
 		return 0;
+	}
 
 	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {
 		/*
@@ -2183,25 +2185,31 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	rtp->rtcp->received_prior = rtp->rxcount;
 	lost_interval = expected_interval - received_interval;
 
-	if (lost_interval <= 0)
+	if (lost_interval <= 0) {
 		rtp->rtcp->rxlost = 0;
-	else rtp->rtcp->rxlost = rtp->rtcp->rxlost;
-	if (rtp->rtcp->rxlost_count == 0)
+	} else {
+		rtp->rtcp->rxlost = rtp->rtcp->rxlost;
+	}
+	if (rtp->rtcp->rxlost_count == 0) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
-	if (lost_interval < rtp->rtcp->minrxlost)
+	}
+	if (lost_interval < rtp->rtcp->minrxlost) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
-	if (lost_interval > rtp->rtcp->maxrxlost)
+	}
+	if (lost_interval > rtp->rtcp->maxrxlost) {
 		rtp->rtcp->maxrxlost = rtp->rtcp->rxlost;
+	}
 
 	rxlost_current = normdev_compute(rtp->rtcp->normdev_rxlost, rtp->rtcp->rxlost, rtp->rtcp->rxlost_count);
 	rtp->rtcp->stdev_rxlost = stddev_compute(rtp->rtcp->stdev_rxlost, rtp->rtcp->rxlost, rtp->rtcp->normdev_rxlost, rxlost_current, rtp->rtcp->rxlost_count);
 	rtp->rtcp->normdev_rxlost = rxlost_current;
 	rtp->rtcp->rxlost_count++;
 
-	if (expected_interval == 0 || lost_interval <= 0)
+	if (expected_interval == 0 || lost_interval <= 0) {
 		fraction = 0;
-	else
+	} else {
 		fraction = (lost_interval << 8) / expected_interval;
+	}
 	gettimeofday(&now, NULL);
 	timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
 	rtcpheader = (unsigned int *)bdata;
@@ -2274,8 +2282,9 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	int ice;
 	struct ast_sockaddr remote_address = { {0,} };
 
-	if (!rtp || !rtp->rtcp)
+	if (!rtp || !rtp->rtcp) {
 		return 0;
+	}
 
 	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {  /* This'll stop rtcp for this rtp session */
 		/*
@@ -2297,18 +2306,20 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 
 	extended = rtp->cycles + rtp->lastrxseqno;
 	expected = extended - rtp->seedrxseqno + 1;
-	if (rtp->rxcount > expected)
+	if (rtp->rxcount > expected) {
 		expected += rtp->rxcount - expected;
+	}
 	lost = expected - rtp->rxcount;
 	expected_interval = expected - rtp->rtcp->expected_prior;
 	rtp->rtcp->expected_prior = expected;
 	received_interval = rtp->rxcount - rtp->rtcp->received_prior;
 	rtp->rtcp->received_prior = rtp->rxcount;
 	lost_interval = expected_interval - received_interval;
-	if (expected_interval == 0 || lost_interval <= 0)
+	if (expected_interval == 0 || lost_interval <= 0) {
 		fraction = 0;
-	else
+	} else {
 		fraction = (lost_interval << 8) / expected_interval;
+	}
 	timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
 	rtcpheader[7] = htonl(rtp->themssrc);
 	rtcpheader[8] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
@@ -2567,16 +2578,18 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
 
 	/* write each generation length in red header */
 	len = red->hdrlen;
-	for (i = 0; i < red->num_gen; i++)
+	for (i = 0; i < red->num_gen; i++) {
 		len += data[i*4+3] = red->len[i];
+	}
 
 	/* add primary data to buffer */
 	memcpy(&data[len], red->t140.data.ptr, red->t140.datalen);
 	red->t140red.datalen = len + red->t140.datalen;
 
 	/* no primary data and no generations to send */
-	if (len == red->hdrlen && !red->t140.datalen)
+	if (len == red->hdrlen && !red->t140.datalen) {
 		return NULL;
+	}
 
 	/* reset t.140 buffer */
 	red->t140.datalen = 0;
@@ -2735,8 +2748,9 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 	transit = current_time - dtv;
 	d = transit - rtp->rxtransit;
 	rtp->rxtransit = transit;
-	if (d<0)
+	if (d<0) {
 		d=-d;
+	}
 	rtp->rxjitter += (1./16.) * (d - rtp->rxjitter);
 
 	if (rtp->rtcp) {
