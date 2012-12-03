@@ -909,17 +909,6 @@ static const struct {
 	[AST_CC_CCNL] = { AST_CC_CCNL, "NL" },
 };
 
-static enum ast_cc_service_type service_string_to_service_type(const char * const service_string)
-{
-	enum ast_cc_service_type service;
-	for (service = AST_CC_CCBS; service <= AST_CC_CCNL; ++service) {
-		if (!strcasecmp(service_string, sip_cc_service_map[service].service_string)) {
-			return service;
-		}
-	}
-	return AST_CC_NONE;
-}
-
 static const struct {
 	enum sip_cc_notify_state state;
 	const char *state_string;
@@ -930,80 +919,6 @@ static const struct {
 
 AST_LIST_HEAD_STATIC(epa_static_data_list, epa_backend);
 
-static int sip_epa_register(const struct epa_static_data *static_data)
-{
-	struct epa_backend *backend = ast_calloc(1, sizeof(*backend));
-
-	if (!backend) {
-		return -1;
-	}
-
-	backend->static_data = static_data;
-
-	AST_LIST_LOCK(&epa_static_data_list);
-	AST_LIST_INSERT_TAIL(&epa_static_data_list, backend, next);
-	AST_LIST_UNLOCK(&epa_static_data_list);
-	return 0;
-}
-
-static void sip_epa_unregister_all(void)
-{
-	struct epa_backend *backend;
-
-	AST_LIST_LOCK(&epa_static_data_list);
-	while ((backend = AST_LIST_REMOVE_HEAD(&epa_static_data_list, next))) {
-		ast_free(backend);
-	}
-	AST_LIST_UNLOCK(&epa_static_data_list);
-}
-
-static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct sip_request *req, struct sip_epa_entry *epa_entry);
-
-static void cc_epa_destructor(void *data)
-{
-	struct sip_epa_entry *epa_entry = data;
-	struct cc_epa_entry *cc_entry = epa_entry->instance_data;
-	ast_free(cc_entry);
-}
-
-static const struct epa_static_data cc_epa_static_data  = {
-	.event = CALL_COMPLETION,
-	.name = "call-completion",
-	.handle_error = cc_handle_publish_error,
-	.destructor = cc_epa_destructor,
-};
-
-static const struct epa_static_data *find_static_data(const char * const event_package)
-{
-	const struct epa_backend *backend = NULL;
-
-	AST_LIST_LOCK(&epa_static_data_list);
-	AST_LIST_TRAVERSE(&epa_static_data_list, backend, next) {
-		if (!strcmp(backend->static_data->name, event_package)) {
-			break;
-		}
-	}
-	AST_LIST_UNLOCK(&epa_static_data_list);
-	return backend ? backend->static_data : NULL;
-}
-
-static struct sip_epa_entry *create_epa_entry (const char * const event_package, const char * const destination)
-{
-	struct sip_epa_entry *epa_entry;
-	const struct epa_static_data *static_data;
-
-	if (!(static_data = find_static_data(event_package))) {
-		return NULL;
-	}
-
-	if (!(epa_entry = ao2_t_alloc(sizeof(*epa_entry), static_data->destructor, "Allocate new EPA entry"))) {
-		return NULL;
-	}
-
-	epa_entry->static_data = static_data;
-	ast_copy_string(epa_entry->destination, destination, sizeof(epa_entry->destination));
-	return epa_entry;
-}
 
 /*!
  * Used to create new entity IDs by ESCs.
@@ -1043,118 +958,6 @@ static struct event_state_compositor {
 #endif
 };
 
-static const int ESC_MAX_BUCKETS = 37;
-
-static void esc_entry_destructor(void *obj)
-{
-	struct sip_esc_entry *esc_entry = obj;
-	if (esc_entry->sched_id > -1) {
-		AST_SCHED_DEL(sched, esc_entry->sched_id);
-	}
-}
-
-static int esc_hash_fn(const void *obj, const int flags)
-{
-	const struct sip_esc_entry *entry = obj;
-	return ast_str_hash(entry->entity_tag);
-}
-
-static int esc_cmp_fn(void *obj, void *arg, int flags)
-{
-	struct sip_esc_entry *entry1 = obj;
-	struct sip_esc_entry *entry2 = arg;
-
-	return (!strcmp(entry1->entity_tag, entry2->entity_tag)) ? (CMP_MATCH | CMP_STOP) : 0;
-}
-
-static struct event_state_compositor *get_esc(const char * const event_package) {
-	int i;
-	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		if (!strcasecmp(event_package, event_state_compositors[i].name)) {
-			return &event_state_compositors[i];
-		}
-	}
-	return NULL;
-}
-
-static struct sip_esc_entry *get_esc_entry(const char * entity_tag, struct event_state_compositor *esc) {
-	struct sip_esc_entry *entry;
-	struct sip_esc_entry finder;
-
-	ast_copy_string(finder.entity_tag, entity_tag, sizeof(finder.entity_tag));
-
-	entry = ao2_find(esc->compositor, &finder, OBJ_POINTER);
-
-	return entry;
-}
-
-static int publish_expire(const void *data)
-{
-	struct sip_esc_entry *esc_entry = (struct sip_esc_entry *) data;
-	struct event_state_compositor *esc = get_esc(esc_entry->event);
-
-	ast_assert(esc != NULL);
-
-	ao2_unlink(esc->compositor, esc_entry);
-	ao2_ref(esc_entry, -1);
-	return 0;
-}
-
-static void create_new_sip_etag(struct sip_esc_entry *esc_entry, int is_linked)
-{
-	int new_etag = ast_atomic_fetchadd_int(&esc_etag_counter, +1);
-	struct event_state_compositor *esc = get_esc(esc_entry->event);
-
-	ast_assert(esc != NULL);
-	if (is_linked) {
-		ao2_unlink(esc->compositor, esc_entry);
-	}
-	snprintf(esc_entry->entity_tag, sizeof(esc_entry->entity_tag), "%d", new_etag);
-	ao2_link(esc->compositor, esc_entry);
-}
-
-static struct sip_esc_entry *create_esc_entry(struct event_state_compositor *esc, struct sip_request *req, const int expires)
-{
-	struct sip_esc_entry *esc_entry;
-	int expires_ms;
-
-	if (!(esc_entry = ao2_alloc(sizeof(*esc_entry), esc_entry_destructor))) {
-		return NULL;
-	}
-
-	esc_entry->event = esc->name;
-
-	expires_ms = expires * 1000;
-	/* Bump refcount for scheduler */
-	ao2_ref(esc_entry, +1);
-	esc_entry->sched_id = ast_sched_add(sched, expires_ms, publish_expire, esc_entry);
-
-	/* Note: This links the esc_entry into the ESC properly */
-	create_new_sip_etag(esc_entry, 0);
-
-	return esc_entry;
-}
-
-static int initialize_escs(void)
-{
-	int i, res = 0;
-	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		if (!((event_state_compositors[i].compositor) =
-					ao2_container_alloc(ESC_MAX_BUCKETS, esc_hash_fn, esc_cmp_fn))) {
-			res = -1;
-		}
-	}
-	return res;
-}
-
-static void destroy_escs(void)
-{
-	int i;
-	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		ao2_ref(event_state_compositors[i].compositor, -1);
-	}
-}
-
 struct state_notify_data {
 	int state;
 	struct ao2_container *device_state_info;
@@ -1162,6 +965,9 @@ struct state_notify_data {
 	const char *presence_subtype;
 	const char *presence_message;
 };
+
+
+static const int ESC_MAX_BUCKETS = 37;
 
 /*!
  * \details
@@ -1301,6 +1107,8 @@ static struct ast_config *notify_types = NULL;    /*!< The list of manual NOTIFY
 	else					\
 		(head) = (element)->next;	\
 	} while (0)
+
+struct ao2_container *sip_monitor_instances;
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /* Note: This is added to help splitting up chan_sip.c into several files
@@ -1758,6 +1566,208 @@ static struct ast_cc_agent_callbacks sip_cc_agent_callbacks = {
 	.destructor = sip_cc_agent_destructor,
 };
 
+/* -------- End of declarations of structures, constants and forward declarations of functions
+   Below starts actual code 
+   ------------------------
+*/
+
+static int sip_epa_register(const struct epa_static_data *static_data)
+{
+	struct epa_backend *backend = ast_calloc(1, sizeof(*backend));
+
+	if (!backend) {
+		return -1;
+	}
+
+	backend->static_data = static_data;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	AST_LIST_INSERT_TAIL(&epa_static_data_list, backend, next);
+	AST_LIST_UNLOCK(&epa_static_data_list);
+	return 0;
+}
+
+static void sip_epa_unregister_all(void)
+{
+	struct epa_backend *backend;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	while ((backend = AST_LIST_REMOVE_HEAD(&epa_static_data_list, next))) {
+		ast_free(backend);
+	}
+	AST_LIST_UNLOCK(&epa_static_data_list);
+}
+
+static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct sip_request *req, struct sip_epa_entry *epa_entry);
+
+static void cc_epa_destructor(void *data)
+{
+	struct sip_epa_entry *epa_entry = data;
+	struct cc_epa_entry *cc_entry = epa_entry->instance_data;
+	ast_free(cc_entry);
+}
+
+static const struct epa_static_data cc_epa_static_data  = {
+	.event = CALL_COMPLETION,
+	.name = "call-completion",
+	.handle_error = cc_handle_publish_error,
+	.destructor = cc_epa_destructor,
+};
+
+static const struct epa_static_data *find_static_data(const char * const event_package)
+{
+	const struct epa_backend *backend = NULL;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	AST_LIST_TRAVERSE(&epa_static_data_list, backend, next) {
+		if (!strcmp(backend->static_data->name, event_package)) {
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&epa_static_data_list);
+	return backend ? backend->static_data : NULL;
+}
+
+static struct sip_epa_entry *create_epa_entry (const char * const event_package, const char * const destination)
+{
+	struct sip_epa_entry *epa_entry;
+	const struct epa_static_data *static_data;
+
+	if (!(static_data = find_static_data(event_package))) {
+		return NULL;
+	}
+
+	if (!(epa_entry = ao2_t_alloc(sizeof(*epa_entry), static_data->destructor, "Allocate new EPA entry"))) {
+		return NULL;
+	}
+
+	epa_entry->static_data = static_data;
+	ast_copy_string(epa_entry->destination, destination, sizeof(epa_entry->destination));
+	return epa_entry;
+}
+static enum ast_cc_service_type service_string_to_service_type(const char * const service_string)
+{
+	enum ast_cc_service_type service;
+	for (service = AST_CC_CCBS; service <= AST_CC_CCNL; ++service) {
+		if (!strcasecmp(service_string, sip_cc_service_map[service].service_string)) {
+			return service;
+		}
+	}
+	return AST_CC_NONE;
+}
+
+/* Even state compositors code */
+static void esc_entry_destructor(void *obj)
+{
+	struct sip_esc_entry *esc_entry = obj;
+	if (esc_entry->sched_id > -1) {
+		AST_SCHED_DEL(sched, esc_entry->sched_id);
+	}
+}
+
+static int esc_hash_fn(const void *obj, const int flags)
+{
+	const struct sip_esc_entry *entry = obj;
+	return ast_str_hash(entry->entity_tag);
+}
+
+static int esc_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct sip_esc_entry *entry1 = obj;
+	struct sip_esc_entry *entry2 = arg;
+
+	return (!strcmp(entry1->entity_tag, entry2->entity_tag)) ? (CMP_MATCH | CMP_STOP) : 0;
+}
+
+static struct event_state_compositor *get_esc(const char * const event_package) {
+	int i;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		if (!strcasecmp(event_package, event_state_compositors[i].name)) {
+			return &event_state_compositors[i];
+		}
+	}
+	return NULL;
+}
+
+static struct sip_esc_entry *get_esc_entry(const char * entity_tag, struct event_state_compositor *esc) {
+	struct sip_esc_entry *entry;
+	struct sip_esc_entry finder;
+
+	ast_copy_string(finder.entity_tag, entity_tag, sizeof(finder.entity_tag));
+
+	entry = ao2_find(esc->compositor, &finder, OBJ_POINTER);
+
+	return entry;
+}
+
+static int publish_expire(const void *data)
+{
+	struct sip_esc_entry *esc_entry = (struct sip_esc_entry *) data;
+	struct event_state_compositor *esc = get_esc(esc_entry->event);
+
+	ast_assert(esc != NULL);
+
+	ao2_unlink(esc->compositor, esc_entry);
+	ao2_ref(esc_entry, -1);
+	return 0;
+}
+
+static void create_new_sip_etag(struct sip_esc_entry *esc_entry, int is_linked)
+{
+	int new_etag = ast_atomic_fetchadd_int(&esc_etag_counter, +1);
+	struct event_state_compositor *esc = get_esc(esc_entry->event);
+
+	ast_assert(esc != NULL);
+	if (is_linked) {
+		ao2_unlink(esc->compositor, esc_entry);
+	}
+	snprintf(esc_entry->entity_tag, sizeof(esc_entry->entity_tag), "%d", new_etag);
+	ao2_link(esc->compositor, esc_entry);
+}
+
+static struct sip_esc_entry *create_esc_entry(struct event_state_compositor *esc, struct sip_request *req, const int expires)
+{
+	struct sip_esc_entry *esc_entry;
+	int expires_ms;
+
+	if (!(esc_entry = ao2_alloc(sizeof(*esc_entry), esc_entry_destructor))) {
+		return NULL;
+	}
+
+	esc_entry->event = esc->name;
+
+	expires_ms = expires * 1000;
+	/* Bump refcount for scheduler */
+	ao2_ref(esc_entry, +1);
+	esc_entry->sched_id = ast_sched_add(sched, expires_ms, publish_expire, esc_entry);
+
+	/* Note: This links the esc_entry into the ESC properly */
+	create_new_sip_etag(esc_entry, 0);
+
+	return esc_entry;
+}
+
+static int initialize_escs(void)
+{
+	int i, res = 0;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		if (!((event_state_compositors[i].compositor) =
+					ao2_container_alloc(ESC_MAX_BUCKETS, esc_hash_fn, esc_cmp_fn))) {
+			res = -1;
+		}
+	}
+	return res;
+}
+
+static void destroy_escs(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		ao2_ref(event_state_compositors[i].compositor, -1);
+	}
+}
+
+
 static int find_by_notify_uri_helper(void *obj, void *arg, int flags)
 {
 	struct ast_cc_agent *agent = obj;
@@ -1940,7 +1950,6 @@ static void sip_cc_agent_destructor(struct ast_cc_agent *agent)
 	ast_free(agent_pvt);
 }
 
-struct ao2_container *sip_monitor_instances;
 
 static int sip_monitor_instance_hash_fn(const void *obj, const int flags)
 {
