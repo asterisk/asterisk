@@ -434,10 +434,12 @@ static void jingle_session_destructor(void *obj)
 	}
 
 	if (session->rtp) {
+		ast_rtp_instance_stop(session->rtp);
 		ast_rtp_instance_destroy(session->rtp);
 	}
 
 	if (session->vrtp) {
+		ast_rtp_instance_stop(session->vrtp);
 		ast_rtp_instance_destroy(session->vrtp);
 	}
 
