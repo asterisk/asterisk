@@ -72,15 +72,15 @@ struct ast_threadpool_listener {
 /*!
  * \brief Create a new threadpool
  *
- * This function creates a threadpool and returns a taskprocessor. Tasks pushed
- * to this taskprocessor will be handled by the threadpool and will be reported
- * on the threadpool's listener.
+ * This function creates a threadpool. Tasks may be pushed onto this thread pool
+ * in and will be automatically acted upon by threads within the pool.
  *
  * \param listener The listener the threadpool will notify of changes
+ * \param initial_size The number of threads for the pool to start with
  * \retval NULL Failed to create the threadpool
- * \retval non-NULL The associated taskprocessor
+ * \retval non-NULL The newly-created threadpool
  */
-struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener);
+struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener, int initial_size);
 
 /*!
  * \brief Set the number of threads for the thread pool
@@ -93,4 +93,10 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
  */
 void ast_threadpool_set_size(struct ast_threadpool *threadpool, unsigned int size);
 
+/*!
+ * \brief Shut down a threadpool and destroy it
+ *
+ * \param pool The pool to shut down
+ */
+void ast_threadpool_shutdown(struct ast_threadpool *pool);
 #endif /* ASTERISK_THREADPOOL_H */
