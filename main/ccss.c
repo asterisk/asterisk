@@ -4317,6 +4317,8 @@ static void cc_shutdown(void)
 	ast_cc_monitor_unregister(&generic_monitor_cbs);
 	ast_unregister_application(cccancel_app);
 	ast_unregister_application(ccreq_app);
+	ast_logger_unregister_level(CC_LOGGER_LEVEL_NAME);
+	ast_cli_unregister_multiple(cc_cli, ARRAY_LEN(cc_cli));
 
 	if (cc_sched_thread) {
 		cc_sched_thread = ast_sched_thread_destroy(cc_sched_thread);
