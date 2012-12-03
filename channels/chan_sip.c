@@ -6078,41 +6078,49 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 			}
 		}
 	}
-	if (!ast_strlen_zero(peer->fromuser))
+	if (!ast_strlen_zero(peer->fromuser)) {
 		ast_string_field_set(dialog, fromuser, peer->fromuser);
-	if (!ast_strlen_zero(peer->language))
+	}
+	if (!ast_strlen_zero(peer->language)) {
 		ast_string_field_set(dialog, language, peer->language);
+	}
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
 	/* If there is a maxms and lastms from a qualify use that over a manual T1
 	   value. Otherwise, use the peer's T1 value. */
-	if (peer->maxms && peer->lastms)
+	if (peer->maxms && peer->lastms) {
 		dialog->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
-	else
+	} else {
 		dialog->timer_t1 = peer->timer_t1;
+	}
 
 	/* Set timer B to control transaction timeouts, the peer setting is the default and overrides
 	   the known timer */
-	if (peer->timer_b)
+	if (peer->timer_b) {
 		dialog->timer_b = peer->timer_b;
-	else
+	} else {
 		dialog->timer_b = 64 * dialog->timer_t1;
+	}
 
 	if ((ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
-	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
+	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
 		dialog->noncodeccapability |= AST_RTP_DTMF;
-	else
+	} else {
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
+	}
 
 	dialog->directmediaacl = ast_duplicate_acl_list(peer->directmediaacl);
 
-	if (peer->call_limit)
+	if (peer->call_limit) {
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
-	if (!dialog->portinuri)
+	}
+	if (!dialog->portinuri) {
 		dialog->portinuri = peer->portinuri;
+	}
 	dialog->chanvars = copy_vars(peer->chanvars);
-	if (peer->fromdomainport)
+	if (peer->fromdomainport) {
 		dialog->fromdomainport = peer->fromdomainport;
+	}
 
 	return 0;
 }
