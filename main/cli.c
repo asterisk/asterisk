@@ -1897,10 +1897,16 @@ int ast_cli_perms_init(int reload)
 	return 0;
 }
 
+static void cli_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_cli, ARRAY_LEN(cli_cli));
+}
+
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
 	ast_cli_register_multiple(cli_cli, ARRAY_LEN(cli_cli));
+	ast_register_atexit(cli_shutdown);
 }
 
 /*!
@@ -2065,6 +2071,18 @@ static char *find_best(const char *argv[])
 	return cmdline;
 }
 
+static int cli_is_registered(struct ast_cli_entry *e)
+{
+	struct ast_cli_entry *cur = NULL;
+
+	while ((cur = cli_next(cur))) {
+		if (cur == e) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 {
 	if (e->inuse) {
@@ -2096,6 +2114,15 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	char **dst = (char **)e->cmda;	/* need to cast as the entry is readonly */
 	char *s;
 
+	AST_RWLIST_WRLOCK(&helpers);
+
+	if (cli_is_registered(e)) {
+		ast_log(LOG_WARNING, "Command '%s' already registered (the same ast_cli_entry)\n",
+			S_OR(e->_full_cmd, e->command));
+		ret = 0;  /* report success */
+		goto done;
+	}
+
 	memset(&a, '\0', sizeof(a));
 	e->handler(e, CLI_INIT, &a);
 	/* XXX check that usage and command are filled up */
@@ -2111,14 +2138,16 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	}
 	*dst++ = NULL;
 
-	AST_RWLIST_WRLOCK(&helpers);
-
 	if (find_cli(e->cmda, 1)) {
-		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", S_OR(e->_full_cmd, e->command));
+		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n",
+			S_OR(e->_full_cmd, e->command));
 		goto done;
 	}
-	if (set_full_cmd(e))
+	if (set_full_cmd(e)) {
+		ast_log(LOG_WARNING, "Error registering CLI Command '%s'\n",
+			S_OR(e->_full_cmd, e->command));
 		goto done;
+	}
 
 	lf = e->cmdlen;
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
@@ -2138,6 +2167,10 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 
 done:
 	AST_RWLIST_UNLOCK(&helpers);
+	if (ret) {
+		ast_free(e->command);
+		e->command = NULL;
+	}
 
 	return ret;
 }
