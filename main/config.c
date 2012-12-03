@@ -3131,9 +3131,23 @@ static struct ast_cli_entry cli_config[] = {
 	AST_CLI_DEFINE(handle_cli_config_list, "Show all files that have loaded a configuration file"),
 };
 
+static void config_shutdown(void)
+{
+	struct cache_file_mtime *cfmtime;
+
+	AST_LIST_LOCK(&cfmtime_head);
+	while ((cfmtime = AST_LIST_REMOVE_HEAD(&cfmtime_head, list))) {
+		ast_free(cfmtime);
+	}
+	AST_LIST_UNLOCK(&cfmtime_head);
+
+	ast_cli_unregister_multiple(cli_config, ARRAY_LEN(cli_config));
+}
+
 int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
+	ast_register_atexit(config_shutdown);
 	return 0;
 }
 
