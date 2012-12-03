@@ -308,10 +308,10 @@ struct console {
 
 struct ast_atexit {
 	void (*func)(void);
-	AST_RWLIST_ENTRY(ast_atexit) list;
+	AST_LIST_ENTRY(ast_atexit) list;
 };
 
-static AST_RWLIST_HEAD_STATIC(atexits, ast_atexit);
+static AST_LIST_HEAD_STATIC(atexits, ast_atexit);
 
 struct timeval ast_startuptime;
 struct timeval ast_lastreloadtime;
@@ -1047,39 +1047,57 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 
 #endif /* ! LOW_MEMORY */
 
+static void ast_run_atexits(void)
+{
+	struct ast_atexit *ae;
+
+	AST_LIST_LOCK(&atexits);
+	while ((ae = AST_LIST_REMOVE_HEAD(&atexits, list))) {
+		if (ae->func) {
+			ae->func();
+		}
+		ast_free(ae);
+	}
+	AST_LIST_UNLOCK(&atexits);
+}
+
+static void __ast_unregister_atexit(void (*func)(void))
+{
+	struct ast_atexit *ae;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
+		if (ae->func == func) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(ae);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 int ast_register_atexit(void (*func)(void))
 {
 	struct ast_atexit *ae;
 
-	if (!(ae = ast_calloc(1, sizeof(*ae))))
+	ae = ast_calloc(1, sizeof(*ae));
+	if (!ae) {
 		return -1;
-
+	}
 	ae->func = func;
 
-	ast_unregister_atexit(func);
-
-	AST_RWLIST_WRLOCK(&atexits);
-	AST_RWLIST_INSERT_HEAD(&atexits, ae, list);
-	AST_RWLIST_UNLOCK(&atexits);
+	AST_LIST_LOCK(&atexits);
+	__ast_unregister_atexit(func);
+	AST_LIST_INSERT_HEAD(&atexits, ae, list);
+	AST_LIST_UNLOCK(&atexits);
 
 	return 0;
 }
 
 void ast_unregister_atexit(void (*func)(void))
 {
-	struct ast_atexit *ae = NULL;
-
-	AST_RWLIST_WRLOCK(&atexits);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
-		if (ae->func == func) {
-			AST_RWLIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&atexits);
-
-	free(ae);
+	AST_LIST_LOCK(&atexits);
+	__ast_unregister_atexit(func);
+	AST_LIST_UNLOCK(&atexits);
 }
 
 /* Sending commands from consoles back to the daemon requires a terminating NULL */
@@ -1751,17 +1769,6 @@ int ast_set_priority(int pri)
 	return 0;
 }
 
-static void ast_run_atexits(void)
-{
-	struct ast_atexit *ae;
-	AST_RWLIST_RDLOCK(&atexits);
-	AST_RWLIST_TRAVERSE(&atexits, ae, list) {
-		if (ae->func)
-			ae->func();
-	}
-	AST_RWLIST_UNLOCK(&atexits);
-}
-
 static int can_safely_quit(shutdown_nice_t niceness, int restart);
 static void really_quit(int num, shutdown_nice_t niceness, int restart);
 
@@ -1845,6 +1852,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	return 1;
 }
 
+/*! Called when exiting is certain. */
 static void really_quit(int num, shutdown_nice_t niceness, int restart)
 {
 	int active_channels;
@@ -1903,11 +1911,12 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		"Restart: %s\r\n",
 		active_channels ? "Uncleanly" : "Cleanly",
 		restart ? "True" : "False");
+	ast_verb(0, "Asterisk %s ending (%d).\n",
+		active_channels ? "uncleanly" : "cleanly", num);
 
 	ast_verb(0, "Executing last minute cleanups\n");
 	ast_run_atexits();
-	/* Called on exit */
-	ast_verb(0, "Asterisk %s ending (%d).\n", active_channels ? "uncleanly" : "cleanly", num);
+
 	ast_debug(1, "Asterisk ending (%d).\n", num);
 	if (ast_socket > -1) {
 		pthread_cancel(lthread);
