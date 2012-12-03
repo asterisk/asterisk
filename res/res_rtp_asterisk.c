@@ -2995,8 +2995,9 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 		f = create_dtmf_frame(instance, AST_FRAME_DTMF_END, ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE));
 		f->samples = rtp->dtmfsamples * (rtp->lastrxformat.id ? (rtp_get_rate(&rtp->lastrxformat) / 1000) : 8);
 		rtp->resp = 0;
-	} else if (rtp->resp == resp)
+	} else if (rtp->resp == resp) {
 		rtp->dtmfsamples += 20 * (rtp->lastrxformat.id ? (rtp_get_rate(&rtp->lastrxformat) / 1000) : 8);
+	}
 
 	rtp->dtmf_timeout = 0;
 
@@ -3010,8 +3011,9 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
-	if (rtpdebug)
+	if (rtpdebug) {
 		ast_debug(0, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", (int) rtp->lastrxformat.id, len);
+	}
 
 	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
 		struct ast_sockaddr remote_address = { {0,} };
@@ -3024,8 +3026,9 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	}
 
 	/* Must have at least one byte */
-	if (!len)
+	if (!len) {
 		return NULL;
+	}
 	if (len < 24) {
 		rtp->f.data.ptr = rtp->rawdata + AST_FRIENDLY_OFFSET;
 		rtp->f.datalen = len - 1;
@@ -3099,9 +3102,10 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		/* Send to whoever sent to us */
 		if (ast_sockaddr_cmp(&rtp->rtcp->them, &addr)) {
 			ast_sockaddr_copy(&rtp->rtcp->them, &addr);
-			if (rtpdebug)
+			if (rtpdebug) {
 				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
 					  ast_sockaddr_stringify(&rtp->rtcp->them));
+			}
 		}
 	}
 
@@ -3121,8 +3125,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		length &= 0xffff;
 
 		if ((i + length) > packetwords) {
-			if (rtpdebug)
+			if (rtpdebug) {
 				ast_debug(1, "RTCP Read too short\n");
+			}
 			return &ast_null_frame;
 		}
 
@@ -3153,8 +3158,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 				ast_verbose("SPC: %lu\tSOC: %lu\n", (unsigned long) ntohl(rtcpheader[i + 3]), (unsigned long) ntohl(rtcpheader[i + 4]));
 			}
 			i += 5;
-			if (rc < 1)
+			if (rc < 1) {
 				break;
+			}
 			/* Intentional fall through */
 		case RTCP_PT_RR:
 			/* Don't handle multiple reception reports (rc > 1) yet */
@@ -3182,13 +3188,16 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 				if (comp - dlsr >= lsr) {
 					rtp->rtcp->accumulated_transit += rttsec;
 
-					if (rtp->rtcp->rtt_count == 0)
+					if (rtp->rtcp->rtt_count == 0) {
 						rtp->rtcp->minrtt = rttsec;
+					}
 
-					if (rtp->rtcp->maxrtt<rttsec)
+					if (rtp->rtcp->maxrtt<rttsec) {
 						rtp->rtcp->maxrtt = rttsec;
-					if (rtp->rtcp->minrtt>rttsec)
+					}
+					if (rtp->rtcp->minrtt>rttsec) {
 						rtp->rtcp->minrtt = rttsec;
+					}
 
 					normdevrtt_current = normdev_compute(rtp->rtcp->normdevrtt, rttsec, rtp->rtcp->rtt_count);
 
@@ -3210,14 +3219,17 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			rtp->rtcp->reported_jitter = ntohl(rtcpheader[i + 3]);
 			reported_jitter = (double) rtp->rtcp->reported_jitter;
 
-			if (rtp->rtcp->reported_jitter_count == 0)
+			if (rtp->rtcp->reported_jitter_count == 0) {
 				rtp->rtcp->reported_minjitter = reported_jitter;
+			}
 
-			if (reported_jitter < rtp->rtcp->reported_minjitter)
+			if (reported_jitter < rtp->rtcp->reported_minjitter) {
 				rtp->rtcp->reported_minjitter = reported_jitter;
+			}
 
-			if (reported_jitter > rtp->rtcp->reported_maxjitter)
+			if (reported_jitter > rtp->rtcp->reported_maxjitter) {
 				rtp->rtcp->reported_maxjitter = reported_jitter;
+			}
 
 			reported_normdev_jitter_current = normdev_compute(rtp->rtcp->reported_normdev_jitter, reported_jitter, rtp->rtcp->reported_jitter_count);
 
@@ -3230,14 +3242,17 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			reported_lost = (double) rtp->rtcp->reported_lost;
 
 			/* using same counter as for jitter */
-			if (rtp->rtcp->reported_jitter_count == 0)
+			if (rtp->rtcp->reported_jitter_count == 0) {
 				rtp->rtcp->reported_minlost = reported_lost;
+			}
 
-			if (reported_lost < rtp->rtcp->reported_minlost)
+			if (reported_lost < rtp->rtcp->reported_minlost) {
 				rtp->rtcp->reported_minlost = reported_lost;
+			}
 
-			if (reported_lost > rtp->rtcp->reported_maxlost)
+			if (reported_lost > rtp->rtcp->reported_maxlost) {
 				rtp->rtcp->reported_maxlost = reported_lost;
+			}
 			reported_normdev_lost_current = normdev_compute(rtp->rtcp->reported_normdev_lost, reported_lost, rtp->rtcp->reported_jitter_count);
 
 			rtp->rtcp->reported_stdev_lost = stddev_compute(rtp->rtcp->reported_stdev_lost, reported_lost, rtp->rtcp->reported_normdev_lost, reported_normdev_lost_current, rtp->rtcp->reported_jitter_count);
@@ -3254,8 +3269,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 				ast_verbose("  Interarrival jitter: %u\n", rtp->rtcp->reported_jitter);
 				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
 				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
-				if (rtt)
+				if (rtt) {
 					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
+				}
 			}
 			if (rtt) {
 				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From: %s\r\n"
@@ -3309,8 +3325,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			}
 			break;
 		case RTCP_PT_FUR:
-			if (rtcp_debug_test_addr(&addr))
+			if (rtcp_debug_test_addr(&addr)) {
 				ast_verbose("Received an RTCP Fast Update Request\n");
+			}
 			rtp->f.frametype = AST_FRAME_CONTROL;
 			rtp->f.subclass.integer = AST_CONTROL_VIDUPDATE;
 			rtp->f.datalen = 0;
@@ -3320,14 +3337,16 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			f = &rtp->f;
 			break;
 		case RTCP_PT_SDES:
-			if (rtcp_debug_test_addr(&addr))
+			if (rtcp_debug_test_addr(&addr)) {
 				ast_verbose("Received an SDES from %s\n",
 					    ast_sockaddr_stringify(&rtp->rtcp->them));
+			}
 			break;
 		case RTCP_PT_BYE:
-			if (rtcp_debug_test_addr(&addr))
+			if (rtcp_debug_test_addr(&addr)) {
 				ast_verbose("Received a BYE from %s\n",
 					    ast_sockaddr_stringify(&rtp->rtcp->them));
+			}
 			break;
 		default:
 			ast_debug(1, "Unknown RTCP packet (pt=%d) received from %s\n",
@@ -3401,12 +3420,13 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 				ast_sockaddr_stringify(&remote_address),
 				strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
-			if (option_debug || rtpdebug)
+			if (option_debug || rtpdebug) {
 				ast_log(LOG_WARNING,
 					"RTP NAT: Can't write RTP to private "
 					"address %s, waiting for other end to "
 					"send audio...\n",
 					ast_sockaddr_stringify(&remote_address));
+			}
 			ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
 		}
 		return 0;
