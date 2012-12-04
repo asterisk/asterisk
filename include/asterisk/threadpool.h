@@ -31,12 +31,10 @@ struct ast_threadpool_listener_callbacks {
 	 * \param listener The threadpool listener
 	 * \param active_threads The number of active threads in the pool
 	 * \param idle_threads The number of idle threads in the pool
-	 * \param zombie_threads The number of zombie threads in the pool
 	 */
 	void (*state_changed)(struct ast_threadpool_listener *listener,
 			int active_threads,
-			int idle_threads,
-			int zombie_threads);
+			int idle_threads);
 	/*!
 	 * \brief Indicates that a task was pushed to the threadpool's taskprocessor
 	 *
