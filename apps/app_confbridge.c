@@ -69,34 +69,48 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 
 /*** DOCUMENTATION
-    <application name="ConfBridge" language="en_US">
-            <synopsis>
-                    Conference bridge application.
-            </synopsis>
-            <syntax>
-                    <parameter name="confno">
-                            <para>The conference number</para>
-                    </parameter>
-                    <parameter name="bridge_profile">
-                            <para>The bridge profile name from confbridge.conf.  When left blank, a dynamically built bridge profile created by the CONFBRIDGE dialplan function is searched for on the channel and used.  If no dynamic profile is present, the 'default_bridge' profile found in confbridge.conf is used. </para>
-                            <para>It is important to note that while user profiles may be unique for each participant, mixing bridge profiles on a single conference is _NOT_ recommended and will produce undefined results.</para>
-                    </parameter>
-                    <parameter name="user_profile">
-                            <para>The user profile name from confbridge.conf.  When left blank, a dynamically built user profile created by the CONFBRIDGE dialplan function is searched for on the channel and used.  If no dynamic profile is present, the 'default_user' profile found in confbridge.conf is used.</para>
-                    </parameter>
-                    <parameter name="menu">
-                            <para>The name of the DTMF menu in confbridge.conf to be applied to this channel.  No menu is applied by default if this option is left blank.</para>
-                    </parameter>
-            </syntax>
-            <description>
-                    <para>Enters the user into a specified conference bridge. The user can exit the conference by hangup or DTMF menu option.</para>
-            </description>
-			<see-also>
-				<ref type="application">ConfBridge</ref>
-				<ref type="function">CONFBRIDGE</ref>
-				<ref type="function">CONFBRIDGE_INFO</ref>
-			</see-also>
-    </application>
+	<application name="ConfBridge" language="en_US">
+		<synopsis>
+			Conference bridge application.
+		</synopsis>
+		<syntax>
+			<parameter name="conference" required="true">
+				<para>Name of the conference bridge.  You are not limited to just
+				numbers.</para>
+			</parameter>
+			<parameter name="bridge_profile">
+				<para>The bridge profile name from confbridge.conf.  When left blank,
+				a dynamically built bridge profile created by the CONFBRIDGE dialplan
+				function is searched for on the channel and used.  If no dynamic
+				profile is present, the 'default_bridge' profile found in
+				confbridge.conf is used. </para>
+				<para>It is important to note that while user profiles may be unique
+				for each participant, mixing bridge profiles on a single conference
+				is _NOT_ recommended and will produce undefined results.</para>
+			</parameter>
+			<parameter name="user_profile">
+				<para>The user profile name from confbridge.conf.  When left blank,
+				a dynamically built user profile created by the CONFBRIDGE dialplan
+				function is searched for on the channel and used.  If no dynamic
+				profile is present, the 'default_user' profile found in
+				confbridge.conf is used.</para>
+			</parameter>
+			<parameter name="menu">
+				<para>The name of the DTMF menu in confbridge.conf to be applied to
+				this channel.  No menu is applied by default if this option is left
+				blank.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Enters the user into a specified conference bridge.  The user can
+			exit the conference by hangup or DTMF menu option.</para>
+		</description>
+		<see-also>
+			<ref type="application">ConfBridge</ref>
+			<ref type="function">CONFBRIDGE</ref>
+			<ref type="function">CONFBRIDGE_INFO</ref>
+		</see-also>
+	</application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
 			Set a custom dynamic bridge and user profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
@@ -105,7 +119,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="type" required="true">
 				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal> or <literal>user</literal>.</para>
 			</parameter>
-            <parameter name="option" required="true">
+			<parameter name="option" required="true">
 				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel.</para>
 			</parameter>
 		</syntax>
