@@ -94,6 +94,19 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 void ast_threadpool_set_size(struct ast_threadpool *threadpool, unsigned int size);
 
 /*!
+ * \brief Push a task to the threadpool
+ *
+ * Tasks pushed into the threadpool will be automatically taken by
+ * one of the threads within
+ * \param pool The threadpool to add the task to
+ * \param task The task to add
+ * \param data The parameter for the task
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data);
+
+/*!
  * \brief Shut down a threadpool and destroy it
  *
  * \param pool The pool to shut down
