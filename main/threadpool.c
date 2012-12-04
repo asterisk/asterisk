@@ -161,7 +161,6 @@ struct thread_worker_pair {
 static void thread_worker_pair_destructor(void *obj)
 {
 	struct thread_worker_pair *pair = obj;
-	ao2_ref(pair->pool, -1);
 	ao2_ref(pair->worker, -1);
 }
 
@@ -177,7 +176,6 @@ static struct thread_worker_pair *thread_worker_pair_alloc(struct ast_threadpool
 	if (!pair) {
 		return NULL;
 	}
-	ao2_ref(pool, +1);
 	pair->pool = pool;
 	ao2_ref(worker, +1);
 	pair->worker = worker;
@@ -346,15 +344,6 @@ struct task_pushed_data {
 };
 
 /*!
- * \brief Destructor for task_pushed_data
- */
-static void task_pushed_data_destroy(void *obj)
-{
-	struct task_pushed_data *tpd = obj;
-	ao2_ref(tpd->pool, -1);
-}
-
-/*!
  * \brief Allocate and initialize a task_pushed_data
  * \param pool The threadpool to set in the task_pushed_data
  * \param was_empty The was_empty value to set in the task_pushed_data
@@ -364,13 +353,11 @@ static void task_pushed_data_destroy(void *obj)
 static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *pool,
 		int was_empty)
 {
-	struct task_pushed_data *tpd = ao2_alloc(sizeof(*tpd),
-			task_pushed_data_destroy);
+	struct task_pushed_data *tpd = ao2_alloc(sizeof(*tpd), NULL);
 
 	if (!tpd) {
 		return NULL;
 	}
-	ao2_ref(pool, +1);
 	tpd->pool = pool;
 	tpd->was_empty = was_empty;
 	return tpd;
@@ -454,7 +441,6 @@ static int handle_emptied(void *data)
 	struct ast_threadpool *pool = data;
 
 	pool->listener->callbacks->emptied(pool->listener);
-	ao2_ref(pool, -1);
 	return 0;
 }
 
@@ -469,7 +455,6 @@ static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
 {
 	struct ast_threadpool *pool = listener->private_data;
 
-	ao2_ref(pool, +1);
 	ast_taskprocessor_push(pool->control_tps, handle_emptied, pool);
 }
 
@@ -637,16 +622,6 @@ struct set_size_data {
 };
 
 /*!
- * \brief Destructor for set_size_data
- * \param obj The set_size_data to destroy
- */
-static void set_size_data_destroy(void *obj)
-{
-	struct set_size_data *ssd = obj;
-	ao2_ref(ssd->pool, -1);
-}
-
-/*!
  * \brief Allocate and initialize a set_size_data
  * \param pool The pool for the set_size_data
  * \param size The size to store in the set_size_data
@@ -659,7 +634,6 @@ static struct set_size_data *set_size_data_alloc(struct ast_threadpool *pool,
 		return NULL;
 	}
 
-	ao2_ref(pool, +1);
 	ssd->pool = pool;
 	ssd->size = size;
 	return ssd;
