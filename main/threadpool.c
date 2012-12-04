@@ -123,7 +123,7 @@ static void threadpool_send_state_changed(struct ast_threadpool *pool)
 	int active_size = ao2_container_count(pool->active_threads);
 	int idle_size = ao2_container_count(pool->idle_threads);
 
-	pool->listener->callbacks->state_changed(pool->listener, active_size, idle_size);
+	pool->listener->callbacks->state_changed(pool, pool->listener, active_size, idle_size);
 }
 
 /*!
@@ -232,11 +232,6 @@ static int threadpool_execute(struct ast_threadpool *pool)
 static void threadpool_destructor(void *obj)
 {
 	struct ast_threadpool *pool = obj;
-	/* XXX Probably should let the listener know we're being destroyed? */
-
-	/* Threads should all be shut down by now, so this should be a painless
-	 * operation
-	 */
 	ao2_cleanup(pool->listener);
 }
 
@@ -342,7 +337,7 @@ static int handle_task_pushed(void *data)
 	struct ast_threadpool *pool = tpd->pool;
 	int was_empty = tpd->was_empty;
 
-	pool->listener->callbacks->tps_task_pushed(pool->listener, was_empty);
+	pool->listener->callbacks->task_pushed(pool, pool->listener, was_empty);
 	ao2_callback(pool->idle_threads, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
 			activate_threads, pool);
 	ao2_ref(tpd, -1);
@@ -382,7 +377,7 @@ static int handle_emptied(void *data)
 {
 	struct ast_threadpool *pool = data;
 
-	pool->listener->callbacks->emptied(pool->listener);
+	pool->listener->callbacks->emptied(pool, pool->listener);
 	return 0;
 }
 
@@ -585,6 +580,29 @@ void ast_threadpool_set_size(struct ast_threadpool *pool, unsigned int size)
 	}
 
 	ast_taskprocessor_push(pool->control_tps, queued_set_size, ssd);
+}
+
+static void listener_destructor(void *obj)
+{
+	struct ast_threadpool_listener *listener = obj;
+
+	listener->callbacks->destroy(listener->private_data);
+}
+
+struct ast_threadpool_listener *ast_threadpool_listener_alloc(
+		const struct ast_threadpool_listener_callbacks *callbacks)
+{
+	struct ast_threadpool_listener *listener = ao2_alloc(sizeof(*listener), listener_destructor);
+	if (!listener) {
+		return NULL;
+	}
+	listener->callbacks = callbacks;
+	listener->private_data = listener->callbacks->alloc(listener);
+	if (!listener->private_data) {
+		ao2_ref(listener, -1);
+		return NULL;
+	}
+	return listener;
 }
 
 struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener, int initial_size)

@@ -26,29 +26,46 @@ struct ast_threadpool_listener;
 
 struct ast_threadpool_listener_callbacks {
 	/*!
+	 * \brief Allocate the listener's private data
+	 *
+	 * It is not necessary to assign the private data to the listener.
+	 * \param listener The listener the private data will belong to
+	 * \retval NULL Failure to allocate private data
+	 * \retval non-NULL The newly allocated private data
+	 */
+	void *(*alloc)(struct ast_threadpool_listener *listener);
+	/*!
 	 * \brief Indicates that the state of threads in the pool has changed
 	 *
 	 * \param listener The threadpool listener
 	 * \param active_threads The number of active threads in the pool
 	 * \param idle_threads The number of idle threads in the pool
 	 */
-	void (*state_changed)(struct ast_threadpool_listener *listener,
+	void (*state_changed)(struct ast_threadpool *pool,
+			struct ast_threadpool_listener *listener,
 			int active_threads,
 			int idle_threads);
 	/*!
-	 * \brief Indicates that a task was pushed to the threadpool's taskprocessor
+	 * \brief Indicates that a task was pushed to the threadpool
 	 *
 	 * \param listener The threadpool listener
-	 * \param was_empty Indicates whether the taskprocessor was empty prior to adding the task
+	 * \param was_empty Indicates whether there were any tasks prior to adding the new one.
 	 */
-	void (*tps_task_pushed)(struct ast_threadpool_listener *listener,
+	void (*task_pushed)(struct ast_threadpool *pool,
+			struct ast_threadpool_listener *listener,
 			int was_empty);
 	/*!
 	 * \brief Indicates the threadpoo's taskprocessor has become empty
 	 * 
 	 * \param listener The threadpool's listener
 	 */
-	void (*emptied)(struct ast_threadpool_listener *listener);
+	void (*emptied)(struct ast_threadpool *pool, struct ast_threadpool_listener *listener);
+
+	/*!
+	 * \brief Free the listener's private data
+	 * \param private_data The private data to destroy
+	 */
+	void (*destroy)(void *private_data);
 };
 
 /*!
@@ -60,12 +77,23 @@ struct ast_threadpool_listener_callbacks {
  */
 struct ast_threadpool_listener {
 	/*! Callbacks called by the threadpool */
-	struct ast_threadpool_listener_callbacks *callbacks;
-	/*! Handle to the threadpool */
-	struct ast_threadpool *threadpool;
+	const struct ast_threadpool_listener_callbacks *callbacks;
 	/*! User data for the listener */
 	void *private_data;
 };
+
+/*!
+ * \brief Allocate a threadpool listener
+ *
+ * This function will call back into the alloc callback for the
+ * listener.
+ *
+ * \param callbacks Listener callbacks to assign to the listener
+ * \retval NULL Failed to allocate the listener
+ * \retval non-NULL The newly-created threadpool listener
+ */
+struct ast_threadpool_listener *ast_threadpool_listener_alloc(
+		const struct ast_threadpool_listener_callbacks *callbacks);
 
 /*!
  * \brief Create a new threadpool
