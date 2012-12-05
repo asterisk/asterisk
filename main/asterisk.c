@@ -4251,11 +4251,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (init_framer()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 	if (ast_enum_init()) {
 		printf("%s", term_quit());
 		exit(1);

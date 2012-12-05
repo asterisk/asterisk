@@ -909,10 +909,6 @@ static struct ast_cli_entry my_clis[] = {
 	AST_CLI_DEFINE(show_codecs, "Displays a list of codecs"),
 	AST_CLI_DEFINE(show_codec_n, "Shows a specific codec"),
 };
-int init_framer(void)
-{
-	return 0;
-}
 
 static int format_list_add_custom(struct ast_format_list *new)
 {
