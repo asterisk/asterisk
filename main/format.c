@@ -909,11 +909,6 @@ static struct ast_cli_entry my_clis[] = {
 	AST_CLI_DEFINE(show_codecs, "Displays a list of codecs"),
 	AST_CLI_DEFINE(show_codec_n, "Shows a specific codec"),
 };
-int init_framer(void)
-{
-	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
-	return 0;
-}
 
 static int format_list_add_custom(struct ast_format_list *new)
 {
@@ -1113,6 +1108,7 @@ init_list_cleanup:
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void format_attr_shutdown(void)
 {
+	ast_cli_unregister_multiple(my_clis, ARRAY_LEN(my_clis));
 	if (interfaces) {
 		ao2_ref(interfaces, -1);
 		interfaces = NULL;
@@ -1121,13 +1117,13 @@ static void format_attr_shutdown(void)
 
 int ast_format_attr_init(void)
 {
-	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
-
 	interfaces = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK,
 		283, interface_hash_cb, interface_cmp_cb);
 	if (!interfaces) {
 		return -1;
 	}
+
+	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
 	ast_register_atexit(format_attr_shutdown);
 	return 0;
 }
