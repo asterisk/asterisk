@@ -1,3 +1,23 @@
+2012-12-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.1.0-rc2 Released.
+
+	* Fix a SIP request memory leak with TLS connections.
+
+	During the TLS re-work in chan_sip some TLS specific code was moved
+	into a separate function. This function operates on a copy of the
+	incoming SIP request. This copy was never deinitialized causing a
+	memory leak for each request processed.
+
+	This function is now given a SIP request structure which it can use
+	to copy the incoming request into. This reduces the amount of memory
+	allocations done since the internal allocated components are reused
+	between packets and also ensures the SIP request structure is
+	deinitialized when the TLS connection is torn down.
+
+	(closes issue ASTERISK-20763)
+	Reported by: deti
+
 2012-11-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.1.0-rc1 Released.
