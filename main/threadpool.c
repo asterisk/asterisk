@@ -623,6 +623,8 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 
 	pool = tps_listener->private_data;
 	pool->tps = tps;
+	ao2_ref(listener, +1);
+	pool->listener = listener;
 	ast_threadpool_set_size(pool, initial_size);
 	return pool;
 }
