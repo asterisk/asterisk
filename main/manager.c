@@ -7117,7 +7117,7 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 
 static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ao2_container *events;
+	RAII_VAR(struct ao2_container *, events, NULL, ao2_cleanup);
 	struct ao2_iterator it_events;
 	struct ast_xml_doc_item *item, *temp;
 	int length;
@@ -7152,7 +7152,6 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 			ao2_ref(item, -1);
 		}
 		ao2_iterator_destroy(&it_events);
-		ao2_ref(events, -1);
 		return match;
 	}
 
@@ -7162,7 +7161,6 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 
 	if (!(item = ao2_find(events, a->argv[3], OBJ_KEY))) {
 		ast_cli(a->fd, "Could not find event '%s'\n", a->argv[3]);
-		ao2_ref(events, -1);
 		return CLI_SUCCESS;
 	}
 
@@ -7202,7 +7200,6 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 	}
 
 	ao2_ref(item, -1);
-	ao2_ref(events, -1);
 	return CLI_SUCCESS;
 }
 
