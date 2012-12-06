@@ -177,7 +177,7 @@ static void destroy_named_acl(void *obj)
  * \retval NULL failure
  *\retval non-NULL successfully allocated named ACL
  */
-void *named_acl_alloc(const char *cat)
+static void *named_acl_alloc(const char *cat)
 {
 	struct named_acl *named_acl;
 
@@ -198,7 +198,7 @@ void *named_acl_alloc(const char *cat)
  * \param cat name of the ACL wanted to be found
  * \retval pointer to the named ACL if available. Null if not found.
  */
-void *named_acl_find(struct ao2_container *container, const char *cat)
+static void *named_acl_find(struct ao2_container *container, const char *cat)
 {
 	struct named_acl tmp;
 	ast_copy_string(tmp.name, cat, sizeof(tmp.name));
@@ -309,7 +309,8 @@ static struct named_acl *named_acl_find_realtime(const char *name)
 	return acl;
 }
 
-struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_undefined) {
+struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_undefined)
+{
 	struct ast_ha *ha = NULL;
 
 	RAII_VAR(struct named_acl_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
