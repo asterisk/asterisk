@@ -503,6 +503,13 @@ static void cli_display_named_acl_list(int fd)
 /* \brief ACL command show <name> */
 static char *handle_show_named_acl_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	RAII_VAR(struct named_acl_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
+	int length;
+	int which;
+	struct ao2_iterator i;
+	struct named_acl *named_acl;
+	char *match = NULL;
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "acl show";
@@ -511,7 +518,23 @@ static char *handle_show_named_acl_cmd(struct ast_cli_entry *e, int cmd, struct 
 			"   Shows a list of named ACLs or lists all entries in a given named ACL.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return NULL;
+		if (!cfg) {
+			return NULL;
+		}
+		length = strlen(a->word);
+		which = 0;
+		i = ao2_iterator_init(cfg->named_acl_list, 0);
+		while ((named_acl = ao2_iterator_next(&i))) {
+			if (!strncasecmp(a->word, named_acl->name, length) && ++which > a->n) {
+				match = ast_strdup(named_acl->name);
+				ao2_ref(named_acl, -1);
+				break;
+			}
+			ao2_ref(named_acl, -1);
+		}
+		ao2_iterator_destroy(&i);
+		return match;
+
 	}
 
 	if (a->argc == 2) {
