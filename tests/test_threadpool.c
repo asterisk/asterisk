@@ -1,0 +1,261 @@
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2012, Digium, Inc.
+ *
+ * Mark Michelson <mmichelson@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*!
+ * \file
+ * \brief threadpool unit tests
+ *
+ * \author Mark Michelson <mmichelson@digium.com>
+ *
+ */
+
+/*** MODULEINFO
+	<depend>TEST_FRAMEWORK</depend>
+	<support_level>core</support_level>
+ ***/
+
+#include "asterisk.h"
+
+#include "asterisk/test.h"
+#include "asterisk/threadpool.h"
+#include "asterisk/module.h"
+#include "asterisk/lock.h"
+#include "asterisk/astobj2.h"
+
+struct test_listener_data {
+	int num_active;
+	int num_idle;
+	int task_pushed;
+	int num_tasks;
+	int empty_notice;
+	int was_empty;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+};
+
+static void *test_alloc(struct ast_threadpool_listener *listener)
+{
+	struct test_listener_data *tld = ast_calloc(1, sizeof(*tld));
+	if (!tld) {
+		return NULL;
+	}
+	ast_mutex_init(&tld->lock);
+	ast_cond_init(&tld->cond, NULL);
+	return tld;
+}
+
+static void test_state_changed(struct ast_threadpool *pool,
+		struct ast_threadpool_listener *listener,
+		int active_threads,
+		int idle_threads)
+{
+	struct test_listener_data *tld = listener->private_data;
+	SCOPED_MUTEX(lock, &tld->lock);
+	tld->num_active = active_threads;
+	tld->num_idle = idle_threads;
+	ast_cond_signal(&tld->cond);
+}
+
+static void test_task_pushed(struct ast_threadpool *pool,
+		struct ast_threadpool_listener *listener,
+		int was_empty)
+{
+	struct test_listener_data *tld = listener->private_data;
+	SCOPED_MUTEX(lock, &tld->lock);
+	tld->task_pushed = 1;
+	++tld->num_tasks;
+	tld->was_empty = was_empty;
+	ast_cond_signal(&tld->cond);
+}
+
+static void test_emptied(struct ast_threadpool *pool,
+		struct ast_threadpool_listener *listener)
+{
+	struct test_listener_data *tld = listener->private_data;
+	SCOPED_MUTEX(lock, &tld->lock);
+	tld->empty_notice = 1;
+	ast_cond_signal(&tld->cond);
+}
+
+static void test_destroy(void *private_data)
+{
+	struct test_listener_data *tld = private_data;
+	ast_cond_destroy(&tld->cond);
+	ast_mutex_destroy(&tld->lock);
+	ast_free(tld);
+}
+
+static const struct ast_threadpool_listener_callbacks test_callbacks = {
+	.alloc = test_alloc,
+	.state_changed = test_state_changed,
+	.task_pushed = test_task_pushed,
+	.emptied = test_emptied,
+	.destroy = test_destroy,
+};
+
+struct simple_task_data {
+	int task_executed;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+};
+
+static struct simple_task_data *simple_task_data_alloc(void)
+{
+	struct simple_task_data *std = ast_calloc(1, sizeof(*std));
+
+	if (!std) {
+		return NULL;
+	}
+	ast_mutex_init(&std->lock);
+	ast_cond_init(&std->cond, NULL);
+	return std;
+}
+
+static int simple_task(void *data)
+{
+	struct simple_task_data *std = data;
+	SCOPED_MUTEX(lock, &std->lock);
+	std->task_executed = 1;
+	ast_cond_signal(&std->cond);
+	return 0;
+}
+
+static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
+{
+	struct test_listener_data *tld = listener->private_data;
+	struct timeval start = ast_tvnow();
+	struct timespec end = {
+		.tv_sec = start.tv_sec + 5,
+		.tv_nsec = start.tv_usec * 1000
+	};
+	SCOPED_MUTEX(lock, &tld->lock);
+
+	while (!tld->task_pushed) {
+		ast_cond_timedwait(&tld->cond, lock, &end);
+	}
+}
+
+static enum ast_test_result_state listener_check(
+		struct ast_test *test,
+		struct ast_threadpool_listener *listener,
+		int task_pushed,
+		int was_empty,
+		int num_tasks,
+		int num_active,
+		int num_idle,
+		int empty_notice)
+{
+	struct test_listener_data *tld = listener->private_data;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	if (tld->task_pushed != task_pushed) {
+		ast_test_status_update(test, "Expected task %sto be pushed, but it was%s\n",
+				task_pushed ? "" : "not ", tld->task_pushed ? "" : " not");
+		res = AST_TEST_FAIL;
+	}
+	if (tld->was_empty != was_empty) {
+		ast_test_status_update(test, "Expected %sto be empty, but it was%s\n",
+				was_empty ? "" : "not ", tld->task_pushed ? "" : " not");
+		res = AST_TEST_FAIL;
+	}
+	if (tld->num_tasks!= num_tasks) {
+		ast_test_status_update(test, "Expected %d tasks to be pushed, but got %d\n",
+				num_tasks, tld->num_tasks);
+		res = AST_TEST_FAIL;
+	}
+	if (tld->num_active != num_active) {
+		ast_test_status_update(test, "Expected %d active threads, but got %d\n",
+				num_active, tld->num_active);
+		res = AST_TEST_FAIL;
+	}
+	if (tld->num_idle != num_idle) {
+		ast_test_status_update(test, "Expected %d idle threads, but got %d\n",
+				num_idle, tld->num_idle);
+		res = AST_TEST_FAIL;
+	}
+	if (tld->empty_notice != empty_notice) {
+		ast_test_status_update(test, "Expected %s empty notice, but got %s\n",
+				was_empty ? "an" : "no", tld->task_pushed ? "one" : "none");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(threadpool_push)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_push";
+		info->category = "/main/threadpool_push/";
+		info->summary = "Test task";
+		info->description =
+			"Basic threadpool test";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	std = simple_task_data_alloc();
+	if (!std) {
+		goto end;
+	}
+
+	ast_threadpool_push(pool, simple_task, std);
+
+	wait_for_task_pushed(listener);
+
+	res = listener_check(test, listener, 1, 1, 1, 0, 0, 0);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	ast_free(std);
+	return res;
+}
+
+static int unload_module(void)
+{
+	ast_test_unregister(threadpool_push);
+	return 0;
+}
+
+static int load_module(void)
+{
+	ast_test_register(threadpool_push);
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "threadpool test module");

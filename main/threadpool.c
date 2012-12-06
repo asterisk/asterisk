@@ -264,8 +264,6 @@ static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
 		return NULL;
 	}
 
-	pool->tps = listener->tps;
-
 	ao2_ref(pool, +1);
 	return pool;
 }
@@ -624,6 +622,7 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 	}
 
 	pool = tps_listener->private_data;
+	pool->tps = tps;
 	ast_threadpool_set_size(pool, initial_size);
 	return pool;
 }
