@@ -394,7 +394,7 @@ static void dahdi_destroy(struct ast_trans_pvt *pvt)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	switch (dahdip->fmts.dstfmt) {
+	switch (ast_format_id_from_old_bitfield(dahdip->fmts.dstfmt)) {
 	case AST_FORMAT_G729A:
 	case AST_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, -1);
