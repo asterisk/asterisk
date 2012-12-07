@@ -182,6 +182,27 @@ static enum ast_test_result_state wait_for_completion(struct simple_task_data *s
 	return res;
 }
 
+static enum ast_test_result_state wait_for_empty_notice(struct test_listener_data *tld)
+{
+	struct timeval start = ast_tvnow();
+	struct timespec end = {
+		.tv_sec = start.tv_sec + 5,
+		.tv_nsec = start.tv_usec * 1000
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	SCOPED_MUTEX(lock, &tld->lock);
+
+	while (!tld->empty_notice) {
+		ast_cond_timedwait(&tld->cond, lock, &end);
+	}
+
+	if (!tld->empty_notice) {
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
 static enum ast_test_result_state listener_check(
 		struct ast_test *test,
 		struct ast_threadpool_listener *listener,
@@ -392,7 +413,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 		info->category = "/main/threadpool/";
 		info->summary = "Test a single task with a single thread";
 		info->description =
-			"Ensure that a thread executes the added task";
+			"Push a task into an empty threadpool, then add a thread to the pool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -423,7 +444,82 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	 * the waiting task.
 	 */
 	res = wait_for_completion(std);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
+	res = wait_for_empty_notice(tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	
+	/* After completing the task, the thread should go idle */
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	ast_free(std);
+	return res;
+
+}
+
+AST_TEST_DEFINE(threadpool_one_thread_one_task)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_one_thread_one_task";
+		info->category = "/main/threadpool/";
+		info->summary = "Test a single thread with a single task";
+		info->description =
+			"Add a thread to the pool and then push a task to it.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	std = simple_task_data_alloc();
+	if (!std) {
+		goto end;
+	}
+
+	ast_threadpool_set_size(pool, 1);
+
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	ast_threadpool_push(pool, simple_task, std);
+
+	/* Threads added to the pool are active when they start,
+	 * so the newly-created thread should immediately execute
+	 * the waiting task.
+	 */
+	res = wait_for_completion(std);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -449,6 +545,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_thread_creation);
 	ast_test_unregister(threadpool_thread_destruction);
 	ast_test_unregister(threadpool_one_task_one_thread);
+	ast_test_unregister(threadpool_one_thread_one_task);
 	return 0;
 }
 
@@ -458,6 +555,7 @@ static int load_module(void)
 	ast_test_register(threadpool_thread_creation);
 	ast_test_register(threadpool_thread_destruction);
 	ast_test_register(threadpool_one_task_one_thread);
+	ast_test_register(threadpool_one_thread_one_task);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
