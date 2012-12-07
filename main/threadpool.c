@@ -268,6 +268,11 @@ static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
 	return pool;
 }
 
+static int threadpool_tps_start(struct ast_taskprocessor_listener *listener)
+{
+	return 0;
+}
+
 /*!
  * \brief helper used for queued task when tasks are pushed
  */
@@ -431,6 +436,7 @@ static void threadpool_destroy(void *private_data)
  */
 static struct ast_taskprocessor_listener_callbacks threadpool_tps_listener_callbacks = {
 	.alloc = threadpool_alloc,
+	.start = threadpool_tps_start,
 	.task_pushed = threadpool_tps_task_pushed,
 	.emptied = threadpool_tps_emptied,
 	.shutdown = threadpool_tps_shutdown,
@@ -623,6 +629,7 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 
 	pool = tps_listener->private_data;
 	pool->tps = tps;
+	ast_log(LOG_NOTICE, "The taskprocessor I've created is located at %p\n", pool->tps);
 	ao2_ref(listener, +1);
 	pool->listener = listener;
 	ast_threadpool_set_size(pool, initial_size);

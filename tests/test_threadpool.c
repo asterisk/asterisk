@@ -36,6 +36,7 @@
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/logger.h"
 
 struct test_listener_data {
 	int num_active;
@@ -66,6 +67,7 @@ static void test_state_changed(struct ast_threadpool *pool,
 {
 	struct test_listener_data *tld = listener->private_data;
 	SCOPED_MUTEX(lock, &tld->lock);
+	ast_log(LOG_NOTICE, "State changed: num_active: %d, num_idle: %d\n", active_threads, idle_threads);
 	tld->num_active = active_threads;
 	tld->num_idle = idle_threads;
 	ast_cond_signal(&tld->cond);
@@ -95,6 +97,7 @@ static void test_emptied(struct ast_threadpool *pool,
 static void test_destroy(void *private_data)
 {
 	struct test_listener_data *tld = private_data;
+	ast_debug(1, "Poop\n");
 	ast_cond_destroy(&tld->cond);
 	ast_mutex_destroy(&tld->lock);
 	ast_free(tld);
@@ -134,6 +137,15 @@ static int simple_task(void *data)
 	ast_cond_signal(&std->cond);
 	return 0;
 }
+
+#define WAIT_WHILE(tld, condition) \
+{\
+	ast_mutex_lock(&tld->lock);\
+	while ((condition)) {\
+		ast_cond_wait(&tld->cond, &tld->lock);\
+	}\
+	ast_mutex_unlock(&tld->lock);\
+}\
 
 static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 {
@@ -246,15 +258,64 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(threadpool_thread_creation)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_thread_creation";
+		info->category = "/main/threadpool_thread_creation/";
+		info->summary = "Test threadpool thread creation";
+		info->description =
+			"Ensure that threads can be added to a threadpool";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	/* Now let's create a thread. It should start active, then go
+	 * idle immediately
+	 */
+	ast_threadpool_set_size(pool, 1);
+
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	res = listener_check(test, listener, 0, 0, 0, 0, 1, 0);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	return res;
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
+	ast_test_unregister(threadpool_thread_creation);
 	return 0;
 }
 
 static int load_module(void)
 {
 	ast_test_register(threadpool_push);
+	ast_test_register(threadpool_thread_creation);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

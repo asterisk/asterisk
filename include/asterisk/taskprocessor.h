@@ -85,6 +85,15 @@ struct ast_taskprocessor_listener_callbacks {
 	 */
 	void *(*alloc)(struct ast_taskprocessor_listener *listener);
 	/*!
+	 * \brief The taskprocessor has started completely
+	 *
+	 * This indicates that the taskprocessor is fully set up and the listener
+	 * can now start interacting with it.
+	 *
+	 * \param listener The listener to start
+	 */
+	int (*start)(struct ast_taskprocessor_listener *listener);
+	/*!
 	 * \brief Indicates a task was pushed to the processor
 	 *
 	 * \param listener The listener

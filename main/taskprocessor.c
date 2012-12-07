@@ -171,10 +171,18 @@ static void *default_listener_alloc(struct ast_taskprocessor_listener *listener)
 	ast_cond_init(&pvt->cond, NULL);
 	ast_mutex_init(&pvt->lock);
 	pvt->poll_thread = AST_PTHREADT_NULL;
-	if (ast_pthread_create(&pvt->poll_thread, NULL, tps_processing_function, listener) < 0) {
-		return NULL;
-	}
 	return pvt;
+}
+
+static int default_listener_start(struct ast_taskprocessor_listener *listener)
+{
+	struct default_taskprocessor_listener_pvt *pvt = listener->private_data;
+
+	if (ast_pthread_create(&pvt->poll_thread, NULL, tps_processing_function, listener)) {
+		return -1;
+	}
+
+	return 0;
 }
 
 static void default_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
@@ -209,6 +217,7 @@ static void default_listener_destroy(void *obj)
 
 static const struct ast_taskprocessor_listener_callbacks default_listener_callbacks = {
 	.alloc = default_listener_alloc,
+	.start = default_listener_start,
 	.task_pushed = default_task_pushed,
 	.emptied = default_emptied,
 	.shutdown = default_listener_shutdown,
@@ -553,6 +562,12 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 
 	if (!(ao2_link(tps_singletons, p))) {
 		ast_log(LOG_ERROR, "Failed to add taskprocessor '%s' to container\n", p->name);
+		return NULL;
+	}
+
+	if (p->listener->callbacks->start(p->listener)) {
+		ast_log(LOG_ERROR, "Unable to start taskprocessor listener for taskprocessor %s\n", p->name);
+		ast_taskprocessor_unreference(p);
 		return NULL;
 	}
 

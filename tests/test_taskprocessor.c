@@ -116,6 +116,7 @@ AST_TEST_DEFINE(default_taskprocessor)
 			break;
 		}
 	}
+	ast_mutex_unlock(&task_data.lock);
 
 	if (!task_data.task_complete) {
 		ast_test_status_update(test, "Queued task did not execute!\n");
@@ -218,6 +219,7 @@ AST_TEST_DEFINE(default_taskprocessor_load)
 			break;
 		}
 	}
+	ast_mutex_unlock(&load_task_results.lock);
 
 	if (load_task_results.tasks_completed != NUM_TASKS) {
 		ast_test_status_update(test, "Unexpected number of tasks executed. Expected %d but got %d\n",
@@ -267,6 +269,14 @@ static void *test_alloc(struct ast_taskprocessor_listener *listener)
 }
 
 /*!
+ * \brief test taskprocessor listener's start callback
+ */
+static int test_start(struct ast_taskprocessor_listener *listener)
+{
+	return 0;
+}
+
+/*!
  * \brief test taskprocessor listener's task_pushed callback
  *
  * Adjusts private data's stats as indicated by the parameters.
@@ -309,6 +319,7 @@ static void test_destroy(void *private_data)
 
 static const struct ast_taskprocessor_listener_callbacks test_callbacks = {
 	.alloc = test_alloc,
+	.start = test_start,
 	.task_pushed = test_task_pushed,
 	.emptied = test_emptied,
 	.shutdown = test_shutdown,
