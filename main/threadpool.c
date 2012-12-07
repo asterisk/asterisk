@@ -784,7 +784,7 @@ static void worker_active(struct worker_thread *worker)
 {
 	int alive = 1;
 	while (alive) {
-		if (threadpool_execute(worker->pool)) {
+		if (threadpool_execute(worker->pool) == 0) {
 			alive = worker_idle(worker);
 		}
 	}

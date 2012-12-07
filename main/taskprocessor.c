@@ -581,8 +581,6 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 /* decrement the taskprocessor reference count and unlink from the container if necessary */
 void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 {
-	struct ast_taskprocessor_listener *listener;
-
 	if (!tps) {
 		return NULL;
 	}
@@ -596,10 +594,7 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 	 * 3. The listener
 	 */
 	ao2_unlink(tps_singletons, tps);
-	listener = tps->listener;
-	tps->listener = NULL;
-	listener_shutdown(listener);
-	ao2_ref(listener, -1);
+	listener_shutdown(tps->listener);
 	return NULL;
 }
 
