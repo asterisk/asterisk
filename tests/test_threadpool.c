@@ -223,7 +223,7 @@ static enum ast_test_result_state listener_check(
 	}
 	if (tld->was_empty != was_empty) {
 		ast_test_status_update(test, "Expected %sto be empty, but it was%s\n",
-				was_empty ? "" : "not ", tld->task_pushed ? "" : " not");
+				was_empty ? "" : "not ", tld->was_empty ? "" : " not");
 		res = AST_TEST_FAIL;
 	}
 	if (tld->num_tasks!= num_tasks) {
@@ -510,10 +510,6 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 
 	ast_threadpool_push(pool, simple_task, std);
 
-	/* Threads added to the pool are active when they start,
-	 * so the newly-created thread should immediately execute
-	 * the waiting task.
-	 */
 	res = wait_for_completion(std);
 	if (res == AST_TEST_FAIL) {
 		goto end;
@@ -539,6 +535,88 @@ end:
 
 }
 
+AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std1 = NULL;
+	struct simple_task_data *std2 = NULL;
+	struct simple_task_data *std3 = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_one_thread_multiple_tasks";
+		info->category = "/main/threadpool/";
+		info->summary = "Test a single thread with multiple tasks";
+		info->description =
+			"Add a thread to the pool and then push three tasks to it.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	std1 = simple_task_data_alloc();
+	std2 = simple_task_data_alloc();
+	std3 = simple_task_data_alloc();
+	if (!std1 || !std2 || !std3) {
+		goto end;
+	}
+
+	ast_threadpool_set_size(pool, 1);
+
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	ast_threadpool_push(pool, simple_task, std1);
+	ast_threadpool_push(pool, simple_task, std2);
+	ast_threadpool_push(pool, simple_task, std3);
+
+	res = wait_for_completion(std1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	res = wait_for_completion(std2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	res = wait_for_completion(std3);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	res = listener_check(test, listener, 1, 0, 3, 0, 1, 1);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	ast_free(std1);
+	ast_free(std2);
+	ast_free(std3);
+	return res;
+
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
@@ -546,6 +624,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_thread_destruction);
 	ast_test_unregister(threadpool_one_task_one_thread);
 	ast_test_unregister(threadpool_one_thread_one_task);
+	ast_test_unregister(threadpool_one_thread_multiple_tasks);
 	return 0;
 }
 
@@ -556,6 +635,7 @@ static int load_module(void)
 	ast_test_register(threadpool_thread_destruction);
 	ast_test_register(threadpool_one_task_one_thread);
 	ast_test_register(threadpool_one_thread_one_task);
+	ast_test_register(threadpool_one_thread_multiple_tasks);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
