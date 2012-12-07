@@ -305,10 +305,64 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(threadpool_thread_destruction)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_thread_destruction";
+		info->category = "/main/threadpool/";
+		info->summary = "Test threadpool thread destruction";
+		info->description =
+			"Ensure that threads are properly destroyed in a threadpool";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	ast_threadpool_set_size(pool, 3);
+
+	WAIT_WHILE(tld, tld->num_idle < 3);
+
+	res = listener_check(test, listener, 0, 0, 0, 0, 3, 0);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	ast_threadpool_set_size(pool, 2);
+
+	WAIT_WHILE(tld, tld->num_idle > 2);
+
+	res = listener_check(test, listener, 0, 0, 0, 0, 2, 0);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	return res;
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
 	ast_test_unregister(threadpool_thread_creation);
+	ast_test_unregister(threadpool_thread_destruction);
 	return 0;
 }
 
@@ -316,6 +370,7 @@ static int load_module(void)
 {
 	ast_test_register(threadpool_push);
 	ast_test_register(threadpool_thread_creation);
+	ast_test_register(threadpool_thread_destruction);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
