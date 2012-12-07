@@ -474,7 +474,6 @@ static void listener_shutdown(struct ast_taskprocessor_listener *listener)
 {
 	listener->callbacks->shutdown(listener);
 	ao2_ref(listener->tps, -1);
-	listener->tps = NULL;
 }
 
 struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks)
