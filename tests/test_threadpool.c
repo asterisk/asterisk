@@ -219,7 +219,7 @@ AST_TEST_DEFINE(threadpool_push)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "threadpool_push";
-		info->category = "/main/threadpool_push/";
+		info->category = "/main/threadpool/";
 		info->summary = "Test task";
 		info->description =
 			"Basic threadpool test";
@@ -268,7 +268,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "threadpool_thread_creation";
-		info->category = "/main/threadpool_thread_creation/";
+		info->category = "/main/threadpool/";
 		info->summary = "Test threadpool thread creation";
 		info->description =
 			"Ensure that threads can be added to a threadpool";
