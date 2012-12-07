@@ -1394,7 +1394,7 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 
 void conf_bridge_profile_copy(struct bridge_profile *dst, struct bridge_profile *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	*dst = *src;
 	if (src->sounds) {
 		ao2_ref(src->sounds, +1);
 	}
