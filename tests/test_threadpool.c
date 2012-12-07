@@ -617,6 +617,92 @@ end:
 
 }
 
+AST_TEST_DEFINE(threadpool_reactivation)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std1 = NULL;
+	struct simple_task_data *std2 = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "threadpool_reactivation";
+		info->category = "/main/threadpool/";
+		info->summary = "Test that a threadpool reactivates when work is added";
+		info->description =
+			"Push a task into a threadpool. Make sure the task executes and the\n"
+			"thread goes idle. Then push a second task and ensure that the thread\n"
+			"awakens and executes the second task.\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(listener, 0);
+	if (!pool) {
+		goto end;
+	}
+
+	std1 = simple_task_data_alloc();
+	std2 = simple_task_data_alloc();
+	if (!std1 || !std2) {
+		goto end;
+	}
+
+	ast_threadpool_push(pool, simple_task, std1);
+
+	ast_threadpool_set_size(pool, 1);
+
+	res = wait_for_completion(std1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
+
+	/* Now make sure the threadpool reactivates when we add a second task */
+	ast_threadpool_push(pool, simple_task, std2);
+
+	res = wait_for_completion(std2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	
+	WAIT_WHILE(tld, tld->num_idle == 0);
+
+	res = listener_check(test, listener, 1, 1, 2, 0, 1, 1);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	ast_free(std1);
+	ast_free(std2);
+	return res;
+
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
@@ -625,6 +711,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_one_task_one_thread);
 	ast_test_unregister(threadpool_one_thread_one_task);
 	ast_test_unregister(threadpool_one_thread_multiple_tasks);
+	ast_test_unregister(threadpool_reactivation);
 	return 0;
 }
 
@@ -636,6 +723,7 @@ static int load_module(void)
 	ast_test_register(threadpool_one_task_one_thread);
 	ast_test_register(threadpool_one_thread_one_task);
 	ast_test_register(threadpool_one_thread_multiple_tasks);
+	ast_test_register(threadpool_reactivation);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
