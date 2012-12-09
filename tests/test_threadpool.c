@@ -67,7 +67,6 @@ static void test_state_changed(struct ast_threadpool *pool,
 {
 	struct test_listener_data *tld = listener->private_data;
 	SCOPED_MUTEX(lock, &tld->lock);
-	ast_log(LOG_NOTICE, "State changed: num_active: %d, num_idle: %d\n", active_threads, idle_threads);
 	tld->num_active = active_threads;
 	tld->num_idle = idle_threads;
 	ast_cond_signal(&tld->cond);
@@ -97,7 +96,6 @@ static void test_emptied(struct ast_threadpool *pool,
 static void test_destroy(void *private_data)
 {
 	struct test_listener_data *tld = private_data;
-	ast_debug(1, "Poop\n");
 	ast_cond_destroy(&tld->cond);
 	ast_mutex_destroy(&tld->lock);
 	ast_free(tld);
@@ -162,7 +160,7 @@ static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 	}
 }
 
-static enum ast_test_result_state wait_for_completion(struct simple_task_data *std)
+static enum ast_test_result_state wait_for_completion(struct ast_test *test, struct simple_task_data *std)
 {
 	struct timeval start = ast_tvnow();
 	struct timespec end = {
@@ -177,12 +175,13 @@ static enum ast_test_result_state wait_for_completion(struct simple_task_data *s
 	}
 
 	if (!std->task_executed) {
+		ast_test_status_update(test, "Task execution did not occur\n");
 		res = AST_TEST_FAIL;
 	}
 	return res;
 }
 
-static enum ast_test_result_state wait_for_empty_notice(struct test_listener_data *tld)
+static enum ast_test_result_state wait_for_empty_notice(struct ast_test *test, struct test_listener_data *tld)
 {
 	struct timeval start = ast_tvnow();
 	struct timespec end = {
@@ -197,6 +196,7 @@ static enum ast_test_result_state wait_for_empty_notice(struct test_listener_dat
 	}
 
 	if (!tld->empty_notice) {
+		ast_test_status_update(test, "Test listener never told that threadpool is empty\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -443,12 +443,12 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	 * so the newly-created thread should immediately execute
 	 * the waiting task.
 	 */
-	res = wait_for_completion(std);
+	res = wait_for_completion(test, std);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	res = wait_for_empty_notice(tld);
+	res = wait_for_empty_notice(test, tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -510,12 +510,12 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 
 	ast_threadpool_push(pool, simple_task, std);
 
-	res = wait_for_completion(std);
+	res = wait_for_completion(test, std);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	res = wait_for_empty_notice(tld);
+	res = wait_for_empty_notice(test, tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -583,20 +583,20 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 	ast_threadpool_push(pool, simple_task, std2);
 	ast_threadpool_push(pool, simple_task, std3);
 
-	res = wait_for_completion(std1);
+	res = wait_for_completion(test, std1);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	res = wait_for_completion(std2);
+	res = wait_for_completion(test, std2);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	res = wait_for_completion(std3);
+	res = wait_for_completion(test, std3);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	res = wait_for_empty_notice(tld);
+	res = wait_for_empty_notice(test, tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -661,12 +661,12 @@ AST_TEST_DEFINE(threadpool_reactivation)
 
 	ast_threadpool_set_size(pool, 1);
 
-	res = wait_for_completion(std1);
+	res = wait_for_completion(test, std1);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	res = wait_for_empty_notice(tld);
+	res = wait_for_empty_notice(test, tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -678,12 +678,12 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	/* Now make sure the threadpool reactivates when we add a second task */
 	ast_threadpool_push(pool, simple_task, std2);
 
-	res = wait_for_completion(std2);
+	res = wait_for_completion(test, std2);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	res = wait_for_empty_notice(tld);
+	res = wait_for_empty_notice(test, tld);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
