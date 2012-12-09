@@ -511,6 +511,9 @@ static struct ast_taskprocessor_listener_callbacks threadpool_tps_listener_callb
 static void grow(struct ast_threadpool *pool, int delta)
 {
 	int i;
+
+	ast_debug(1, "Going to increase threadpool size by %d\n", delta);
+
 	for (i = 0; i < delta; ++i) {
 		struct worker_thread *worker = worker_thread_alloc(pool);
 		if (!worker) {
@@ -537,11 +540,8 @@ static int kill_threads(void *obj, void *arg, int flags)
 {
 	int *num_to_kill = arg;
 
-	ast_log(LOG_NOTICE, "num to kill is %d\n", *num_to_kill);
-
 	if (*num_to_kill > 0) {
 		--(*num_to_kill);
-		ast_log(LOG_NOTICE, "Should be killing a thread\n");
 		return CMP_MATCH;
 	} else {
 		return CMP_STOP;
@@ -574,7 +574,6 @@ static int zombify_threads(void *obj, void *arg, void *data, int flags)
 	int *num_to_zombify = data;
 
 	if ((*num_to_zombify)-- > 0) {
-		ast_log(LOG_NOTICE, "Should be zombifying a thread\n");
 		ao2_link(pool->zombie_threads, worker);
 		worker_set_state(worker, ZOMBIE);
 		return CMP_MATCH;
@@ -606,9 +605,12 @@ static void shrink(struct ast_threadpool *pool, int delta)
 	int idle_threads_to_kill = MIN(delta, idle_threads);
 	int active_threads_to_zombify = delta - idle_threads_to_kill;
 
-	ast_log(LOG_NOTICE, "Going to kill off %d idle threads\n", idle_threads_to_kill);
+	ast_debug(1, "Going to kill off %d idle threads\n", idle_threads_to_kill);
+
 	ao2_callback(pool->idle_threads, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
 			kill_threads, &idle_threads_to_kill);
+
+	ast_debug(1, "Goign to kill off %d active threads\n", active_threads_to_zombify);
 
 	ao2_callback_data(pool->active_threads, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
 			zombify_threads, pool, &active_threads_to_zombify);
@@ -735,7 +737,6 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 
 	pool = tps_listener->private_data;
 	pool->tps = tps;
-	ast_log(LOG_NOTICE, "The taskprocessor I've created is located at %p\n", pool->tps);
 	ao2_ref(listener, +1);
 	pool->listener = listener;
 	ast_threadpool_set_size(pool, initial_size);
