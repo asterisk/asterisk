@@ -1871,6 +1871,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	ast_verb(3, "Channel '%s' receiving FAX '%s'\n", ast_channel_name(chan), args.filename);
 
 	details->caps = AST_FAX_TECH_RECEIVE;
+	details->option.send_ced = AST_FAX_OPTFLAG_TRUE;
 
 	/* check for debug */
 	if (ast_test_flag(&opts, OPT_DEBUG) || global_fax_debug) {
@@ -1935,8 +1936,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", ast_channel_name(chan));
 			return -1;
 		}
-	} else {
-		details->option.send_ced = 1;
 	}
 
 	if ((channel_alive = generic_fax_exec(chan, details, s, token)) < 0) {
