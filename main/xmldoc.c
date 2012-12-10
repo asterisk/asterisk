@@ -358,7 +358,13 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
 
 			/* Setup color */
 			if (withcolors) {
-				ast_term_color_code(&colorized, colorized_tags[c].colorfg, 0);
+				if (ast_opt_light_background) {
+					/* Turn off *bright* colors */
+					ast_term_color_code(&colorized, colorized_tags[c].colorfg & 0x7f, 0);
+				} else {
+					/* Turn on *bright* colors */
+					ast_term_color_code(&colorized, colorized_tags[c].colorfg | 0x80, 0);
+				}
 				if (!colorized) {
 					return NULL;
 				}
