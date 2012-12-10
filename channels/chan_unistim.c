@@ -3859,6 +3859,7 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 	char line[TEXT_LENGTH_MAX + 1], status[STATUS_LENGTH_MAX + 1], func1[10], func2[10],
 		func3[10];
 
+	/* Display date/time and call status */
 	if (fread(line, TEXT_LENGTH_MAX, 1, *f) != 1) {
 		display_last_error("Can't read history date entry");
 		fclose(*f);
@@ -3872,6 +3873,7 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 	} else {
 		send_text(TEXT_LINE0, TEXT_NORMAL, pte, line);
 	}
+	/* Display number */
 	if (fread(line, TEXT_LENGTH_MAX, 1, *f) != 1) {
 		display_last_error("Can't read callerid entry");
 		fclose(*f);
@@ -3879,6 +3881,7 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 	}
 	line[sizeof(line) - 1] = '\0';
 	ast_copy_string(pte->device->lst_cid, line, sizeof(pte->device->lst_cid));
+	ast_trim_blanks(pte->device->lst_cid);
 	if (pte->device->height == 1) {
 		if (pte->buff_entry[3] == 2) {
 			send_text(TEXT_LINE0, TEXT_NORMAL, pte, line);
@@ -3886,6 +3889,7 @@ static void show_entry_history(struct unistimsession *pte, FILE ** f)
 	} else {
 		send_text(TEXT_LINE1, TEXT_NORMAL, pte, line);
 	}
+	/* Display name */
 	if (fread(line, TEXT_LENGTH_MAX, 1, *f) != 1) {
 		display_last_error("Can't read callername entry");
 		fclose(*f);
