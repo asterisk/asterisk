@@ -82,6 +82,18 @@ struct ast_threadpool_listener {
 	void *private_data;
 };
 
+struct ast_threadpool_options {
+#define AST_THREADPOOL_OPTIONS_VERSION 1
+	/*! Version of thradpool options in use */
+	int version;
+	/* !
+	 * \brief Time limit in seconds for idle threads
+	 *
+	 * A time of 0 or less will mean an infinite timeout.
+	 */
+	int idle_timeout;
+};
+
 /*!
  * \brief Allocate a threadpool listener
  *
@@ -106,7 +118,8 @@ struct ast_threadpool_listener *ast_threadpool_listener_alloc(
  * \retval NULL Failed to create the threadpool
  * \retval non-NULL The newly-created threadpool
  */
-struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener, int initial_size);
+struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener,
+		int initial_size, const struct ast_threadpool_options *options);
 
 /*!
  * \brief Set the number of threads for the thread pool
