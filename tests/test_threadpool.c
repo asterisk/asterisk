@@ -157,7 +157,9 @@ static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 	SCOPED_MUTEX(lock, &tld->lock);
 
 	while (!tld->task_pushed) {
-		ast_cond_timedwait(&tld->cond, lock, &end);
+		if (ast_cond_timedwait(&tld->cond, lock, &end) == ETIMEDOUT) {
+			break;
+		}
 	}
 }
 
@@ -172,7 +174,9 @@ static enum ast_test_result_state wait_for_completion(struct ast_test *test, str
 	SCOPED_MUTEX(lock, &std->lock);
 
 	while (!std->task_executed) {
-		ast_cond_timedwait(&std->cond, lock, &end);
+		if (ast_cond_timedwait(&std->cond, lock, &end) == ETIMEDOUT) {
+			break;
+		}
 	}
 
 	if (!std->task_executed) {
@@ -193,7 +197,9 @@ static enum ast_test_result_state wait_for_empty_notice(struct ast_test *test, s
 	SCOPED_MUTEX(lock, &tld->lock);
 
 	while (!tld->empty_notice) {
-		ast_cond_timedwait(&tld->cond, lock, &end);
+		if (ast_cond_timedwait(&tld->cond, lock, &end) == ETIMEDOUT) {
+			break;
+		}
 	}
 
 	if (!tld->empty_notice) {
@@ -840,7 +846,9 @@ static enum ast_test_result_state wait_for_complex_completion(struct complex_tas
 	SCOPED_MUTEX(lock, &ctd->lock);
 
 	while (!ctd->task_executed) {
-		ast_cond_timedwait(&ctd->done_cond, lock, &end);
+		if (ast_cond_timedwait(&ctd->done_cond, lock, &end) == ETIMEDOUT) {
+			break;
+		}
 	}
 
 	if (!ctd->task_executed) {
