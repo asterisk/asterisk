@@ -446,6 +446,7 @@ static struct unistimsession {
 	int size_buff_entry;	    /*!< size of the buffer used to enter datas */
 	char buff_entry[16];	    /*!< Buffer for temporary datas */
 	char macaddr[18];		       /*!< mac adress of the phone (not always available) */
+	char firmware[8];		       /*!< firmware of the phone (not always available) */
 	struct wsabuf wsabufsend[MAX_BUF_NUMBER];      /*!< Size of each paquet stored in the buffer array & pointer to this buffer */
 	unsigned char buf[MAX_BUF_NUMBER][MAX_BUF_SIZE];	/*!< Buffer array used to keep the lastest non-acked paquets */
 	struct unistim_device *device;
@@ -4320,6 +4321,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		if (unistimdebug) {
 			ast_verb(0, "Got the firmware version : '%s'\n", buf + 13);
 		}
+		ast_copy_string(pte->firmware, (char *) (buf + 13), sizeof(pte->firmware));
 		init_phone_step2(pte);
 		return;
 	}
@@ -5932,12 +5934,13 @@ static char *unistim_show_devices(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, "%-20.20s %-20.20s %-15.15s %s\n", "Name/username", "MAC", "Host", "Status");
+	ast_cli(a->fd, "%-20.20s %-20.20s %-15.15s %-15.15s %s\n", "Name/username", "MAC", "Host", "Firmware", "Status");
 	ast_mutex_lock(&devicelock);
 	while (device) {
-		ast_cli(a->fd, "%-20.20s %-20.20s %-15.15s %s\n",
+		ast_cli(a->fd, "%-20.20s %-20.20s %-15.15s %-15.15s %s\n",
 			device->name, device->id,
 			(!device->session) ? "(Unspecified)" : ast_inet_ntoa(device->session->sin.sin_addr),
+			(!device->session) ? "(Unspecified)" : device->session->firmware,
 			(!device->session) ? "UNKNOWN" : "OK");
 		device = device->next;
 	}
