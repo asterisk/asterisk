@@ -1,0 +1,364 @@
+                                Release Summary
+
+                         asterisk-10.11.0-digiumphones
+
+                                Date: 2012-12-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.10.0-digiumphones.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   19 root                  1 Dmitry Burilov         2 coreyfarrell           
+   4 bebuild                1 mjordan                2 tomaso                 
+   2 Corey Farrell          1 rmudgett               2 ulogic                 
+   2 JoshE                  1 Thomas Arimont         1 chappell               
+   2 Richard Miller                                  1 daren                  
+   2 sruffell                                        1 darius                 
+   1 Bryan Walters                                   1 deniz                  
+   1 Daniel O'Connor                                 1 feyfre                 
+   1 David Chappell                                  1 gamegamer43            
+   1 feyfre                                          1 gkelleter              
+   1 Guenther Kelleter                               1 jbigelow               
+   1 jbigelow                                        1 kmoore                 
+   1 jrose                                           1 n8ideas                
+   1 kmoore                                          1 netaskd                
+   1 rmudgett                                        1 pciccone               
+   1 twilson                                         1 sruffell               
+                                                     1 stocksy                
+                                                     1 tblancher              
+                                                     1 tzafrir                
+                                                     1 vilius365              
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-19448: ConfBridge crashes Asterisk when no timing module loaded.
+   Revision: 375510
+   Reporter: feyfre
+   Coders: feyfre
+
+   ASTERISK-20601: Confbridge recording does not work
+   Revision: 375481
+   Reporter: vilius365
+   Coders: jrose
+
+  Category: Applications/app_queue
+
+   ASTERISK-20623: App_queue doesn't increment number of busy agent in
+   certain situations
+   Revision: 375468
+   Reporter: gamegamer43
+   Coders: Bryan Walters
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-18203: Problems with NAT on realtime peers (and maybe static
+   ones)
+   Revision: 375441
+   Reporter: daren
+   Coders: JoshE
+
+   ASTERISK-20561: Asterisk 1.8 allows the # character in SIP URI, 10 and
+   higher versions do not - need to document in UPGRADE.txt possibly other
+   places?
+   Revision: 375858
+   Reporter: deniz
+   Coders: root
+
+   ASTERISK-20572: Realtime Peers behind NAT are Set to RFC1918 private
+   address after sip reload
+   Revision: 375441
+   Reporter: n8ideas
+   Coders: JoshE
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-20212: Deadlock / TCP SIP Stack
+   Revision: 374923
+   Reporter: pciccone
+   Coders: root
+
+   ASTERISK-20559: SIP TCP/TLS: When checking the CA certificate fails, the
+   call still goes through
+   Revision: 375173
+   Reporter: kmoore
+   Coders: root
+
+  Category: Codecs/codec_gsm
+
+   ASTERISK-20457: GSM encoding is not thread safe
+   Revision: 375290
+   Reporter: ulogic
+   Coders: Richard Miller
+
+  Category: Contrib/General
+
+   ASTERISK-20260: Increase robustness of ast_tls_cert
+   Revision: 375350
+   Reporter: darius
+   Coders: Daniel O'Connor
+
+  Category: Core/AstDB
+
+   ASTERISK-20647: [patch] Failure to cleanup SQLite3 statements during exit
+   causes call to sqlite3_close to fail; leaks memory
+   Revision: 375788
+   Reporter: coreyfarrell
+   Testers: mjordan
+   Coders: Corey Farrell
+
+  Category: Core/BuildSystem
+
+   ASTERISK-20483: Allow Asterisk to report git SHAs in version string.
+   Revision: 375214
+   Reporter: sruffell
+   Coders: sruffell
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20646: [patch] - manager_shutdown fails to completely shutdown
+   AMI and leaks memory
+   Revision: 375828
+   Reporter: coreyfarrell
+   Coders: Corey Farrell
+
+  Category: Core/PBX
+
+   ASTERISK-20455: dialplan fails to run the invalid "i" extension due to an
+   uninitialized variable dat_exten in main/pbx.c
+   Revision: 374783
+   Reporter: ulogic
+   Coders: Richard Miller
+
+  Category: Documentation
+
+   ASTERISK-14435: [patch] Add option and description to
+   chan_dahdi.conf.sample
+   Revision: 374753
+   Reporter: jbigelow
+   Coders: jbigelow, sruffell
+
+  Category: Features/Parking
+
+   ASTERISK-19382: Park() ignores 'r' option, plays default MOH instead.
+   Revision: 375414
+   Reporter: stocksy
+   Coders: root
+
+  Category: General
+
+   ASTERISK-20567: bashism in autosupport
+   Revision: 375077
+   Reporter: tzafrir
+   Coders: root
+
+  Category: PBX/pbx_realtime
+
+   ASTERISK-18203: Problems with NAT on realtime peers (and maybe static
+   ones)
+   Revision: 375441
+   Reporter: daren
+   Coders: JoshE
+
+   ASTERISK-20572: Realtime Peers behind NAT are Set to RFC1918 private
+   address after sip reload
+   Revision: 375441
+   Reporter: n8ideas
+   Coders: JoshE
+
+  Category: PBX/pbx_spool
+
+   ASTERISK-17231: [patch] unopenable spool files not deleted
+   Revision: 374720
+   Reporter: chappell
+   Coders: David Chappell
+
+  Category: Resources/res_calendar_ews
+
+   ASTERISK-19738: Calendar EWS does not attempt to extract the Body element
+   in a CalendarItem and populate the description event field
+   Revision: 375558
+   Reporter: netaskd
+   Testers: Dmitry Burilov
+   Coders: twilson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                          | Issues         |
+   |          |         |                                  | Referenced     |
+   |----------+---------+----------------------------------+----------------|
+   | 374931   | kmoore  | Avoid a segfault on invalid      |                |
+   |          |         | format names                     |                |
+   |----------+---------+----------------------------------+----------------|
+   | 374994   | root    | Update config.guess and          |                |
+   |          |         | config.sub: 2012-10-10           |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375043   | root    | Fix some potential misuses of    |                |
+   |          |         | ast_str in the code.             |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375102   | root    | Update sip_request_call SIP dial |                |
+   |          |         | string documentation.            |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375136   | root    | Fixes to the fd-oriented SIP TCP |                |
+   |          |         | reads.                           |                |
+   |----------+---------+----------------------------------+----------------|
+   |          |         | app_queue: Make ordering of      |                |
+   | 375241   | root    | rrmemory/rrordered persist over  | AST-989        |
+   |          |         | add/remove members               |                |
+   |----------+---------+----------------------------------+----------------|
+   |          |         | Fix Wrong Result In Debug        |                |
+   | 375612   | root    | Message For SDP Origin           |                |
+   |          |         | Processing                       |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375657   | root    | Multiple revisions 375519-375524 |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375688   | root    | Things don't need to be that     |                |
+   |          |         | const.                           |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375719   | root    | Doxygen Updates                  | ASTERISK-20259 |
+   |----------+---------+----------------------------------+----------------|
+   |          |         | Prevent multiple CDR batches     |                |
+   | 375755   | root    | from conflicting when scheduling |                |
+   |          |         | the CDR write                    |                |
+   |----------+---------+----------------------------------+----------------|
+   | 375892   | root    | Add safety NULL pointer check in |                |
+   |          |         | module user references.          |                |
+   |----------+---------+----------------------------------+----------------|
+   |          |         | Refactor ast_timer_ack to return |                |
+   | 375921   | root    | an error and handle the error in | ASTERISK-20032 |
+   |          |         | timer users                      |                |
+   |----------+---------+----------------------------------+----------------|
+   | 377292   | bebuild | Create 10.11.0-digiumphones-rc2  |                |
+   |----------+---------+----------------------------------+----------------|
+   | 377296   | bebuild | Merge r377258 for                |                |
+   |          |         | 10.11.0-digiumphones-rc2         |                |
+   |----------+---------+----------------------------------+----------------|
+   | 377297   | bebuild | Remove the pesky summaries       |                |
+   |----------+---------+----------------------------------+----------------|
+   |          |         | Importing release summary for    |                |
+   | 377301   | bebuild | 10.11.0-digiumphones-rc2         |                |
+   |          |         | release.                         |                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                       |    2
+ README                         |    2
+ UPGRADE.txt                    |   14
+ apps/app_confbridge.c          |    4
+ apps/app_dial.c                |   12
+ apps/app_mixmonitor.c          |    8
+ apps/app_queue.c               |  157 +++++-
+ apps/app_voicemail.c           |    5
+ bridges/bridge_softmix.c       |   12
+ build_tools/make_version       |  106 ++++
+ channels/chan_dahdi.c          |   17
+ channels/chan_iax2.c           |   35 -
+ channels/chan_misdn.c          |    2
+ channels/chan_sip.c            |  982 +++++++++++++++++++++++++++++++++++------
+ channels/misdn/isdn_lib.c      |  218 ++++-----
+ channels/misdn/isdn_lib.h      |    3
+ codecs/gsm/src/code.c          |    3
+ config.guess                   |  279 ++++++-----
+ config.sub                     |  236 ++++++---
+ configs/chan_dahdi.conf.sample |   27 +
+ configure.ac                   |    1
+ contrib/scripts/ast_tls_cert   |   41 +
+ contrib/scripts/autosupport    |   12
+ funcs/func_jitterbuffer.c      |    5
+ include/asterisk/doxyref.h     |   71 ++
+ include/asterisk/strings.h     |   22
+ include/asterisk/tcptls.h      |    6
+ include/asterisk/timing.h      |    9
+ main/app.c                     |    1
+ main/ccss.c                    |   20
+ main/cdr.c                     |   12
+ main/channel.c                 |   16
+ main/db.c                      |   36 +
+ main/features.c                |   13
+ main/format_pref.c             |    4
+ main/loader.c                  |   12
+ main/manager.c                 |   57 +-
+ main/pbx.c                     |    3
+ main/tcptls.c                  |   26 -
+ main/timing.c                  |   16
+ main/xmldoc.c                  |    1
+ makeopts.in                    |    1
+ pbx/pbx_spool.c                |  297 ++++++------
+ res/res_calendar_ews.c         |   18
+ res/res_fax.c                  |    4
+ res/res_fax_spandsp.c          |    7
+ res/res_musiconhold.c          |    5
+ res/res_timing_dahdi.c         |    6
+ res/res_timing_kqueue.c        |   11
+ res/res_timing_pthread.c       |   32 -
+ res/res_timing_timerfd.c       |   45 +
+ 51 files changed, 2180 insertions(+), 754 deletions(-)
+
+     ----------------------------------------------------------------------
