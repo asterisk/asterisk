@@ -1,0 +1,526 @@
+                                Release Summary
+
+                              asterisk-11.2.0-rc1
+
+                                Date: 2012-12-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.1.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   22 rmudgett              3 rmudgett               4 mjordan                
+   4 jcolp                  1 alecdavis              1 alecdavis              
+   4 jrose                  1 elguero                1 andrel                 
+   4 mjordan                1 Jared Smith            1 chewi                  
+   4 mmichelson             1 mjordan                1 coopvr                 
+   3 dlee                   1 Rusty Newton           1 deti                   
+   2 elguero                1 Steven T. Wheeler      1 dlee                   
+   2 russell                                         1 eabad                  
+   2 tilghman                                        1 elguero                
+   1 alecdavis                                       1 ibc                    
+   1 Andre Luis                                      1 jgowdy                 
+   1 beagles                                         1 jkroon                 
+   1 file                                            1 joshoa                 
+   1 James Le Cuirot                                 1 jrose                  
+   1 Jeremiah Gowdy                                  1 jsmith                 
+   1 jkroon                                          1 mcargile               
+   1 kmoore                                          1 p_lindheimer           
+   1 pkiefer                                         1 rmudgett               
+   1 Rusty Newton                                    1 sruffell               
+   1 seanbright                                      1 supertle               
+   1 wdoekes                                         1 swheeler               
+                                                     1 tomo1657               
+                                                     1 tootai                 
+                                                     1 vldmr                  
+                                                     1 wimpy                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-20655: Cannot reset pin with CONFBRIDGE(user,pin)
+   Revision: 377228
+   Reporter: wimpy
+   Coders: rmudgett
+
+  Category: Applications/app_meetme
+
+   ASTERISK-20486: MeetMe Unable to write frame to channel after SIP channel
+   hangs up.
+   Revision: 376310
+   Reporter: mcargile
+   Coders: jrose
+
+  Category: Applications/app_queue
+
+   ASTERISK-19918: MoH (Music on Hold) is stopped after call in a queue is
+   terminated
+   Revision: 376217
+   Reporter: eabad
+   Coders: beagles
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-20280: In app_voicemail we attempt to play the sound
+   "vm-urgent-removed", which should be "vm-marked-nonurgent"
+   Revision: 376264
+   Reporter: tomo1657
+   Testers: Rusty Newton
+   Coders: Rusty Newton
+
+  Category: Channels/General
+
+   ASTERISK-20414: Timeout antipattern using ast_waitfor_nandfds
+   Revision: 376014
+   Reporter: dlee
+   Coders: mmichelson
+
+  Category: Channels/chan_bridge
+
+   ASTERISK-20492: Stuck DTMF when using ChannelRedirect to split a two
+   channel bridge
+   Revision: 375966
+   Reporter: jgowdy
+   Testers: rmudgett
+   Coders: Jeremiah Gowdy, rmudgett
+
+  Category: Channels/chan_dahdi/SS7
+
+   ASTERISK-20204: Asterisk not rejecting call setup on CIC that is down
+   Revision: 376060
+   Reporter: supertle
+   Coders: rmudgett
+
+  Category: Channels/chan_local
+
+   ASTERISK-20769: Memory leak of local_pvt in chan_local.
+   Revision: 376870
+   Reporter: rmudgett
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_motif
+
+   ASTERISK-20671: Add Who Hung Up support to the Motif channel driver
+   Revision: 377462
+   Reporter: mjordan
+   Coders: jcolp
+
+   ASTERISK-20751: chan_motif leaves UDP ports open
+   Revision: 377021
+   Reporter: joshoa
+   Coders: jcolp
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20226: Segfault in chan_sip while performing connected line
+   update
+   Revision: 376917
+   Reporter: jsmith
+   Testers: Jared Smith
+   Coders: mmichelson
+
+   ASTERISK-20486: MeetMe Unable to write frame to channel after SIP channel
+   hangs up.
+   Revision: 376310
+   Reporter: mcargile
+   Coders: jrose
+
+   ASTERISK-20570: Asterisk, when acting as the UAS in Session Timer
+   negotiation, fails to add required header in 200 response ("Require:
+   timer")
+   Revision: 376550
+   Reporter: mjordan
+   Coders: mmichelson
+
+   ASTERISK-20643: SIP ICE support - remove hardcoded limitation on SDP size,
+   make ICE support disabled by default in SIP, maybe provide a better
+   warning message
+   Revision: 376130
+   Reporter: coopvr
+   Coders: jcolp
+
+   ASTERISK-20724: Fix natdetected flag being set when VIA doesn't include
+   port in address
+   Revision: 376836
+   Reporter: elguero
+   Coders: elguero
+
+  Category: Channels/chan_sip/SRTP
+
+   ASTERISK-20499: Crash in libsrtp srtp_unprotect_rtcp when SIP channel is
+   bridged with non-optimizing Local channel
+   Revision: 377262
+   Reporter: tootai
+   Coders: jrose
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-20763: Memory Leak in chan_sip with TLS enabled clients
+   Revision: 377259
+   Reporter: deti
+   Coders: jcolp
+
+  Category: Channels/chan_sip/WebSocket
+
+   ASTERISK-20745: In MESSAGE received over WebSocket, the body last char is
+   cut
+   Revision: 376822
+   Reporter: ibc
+   Coders: pkiefer
+
+  Category: Codecs/codec_dahdi
+
+   ASTERISK-19921: codec_dahdi: Wrong number of encoder/decoder channels.
+   Revision: 377383
+   Reporter: sruffell
+   Coders: kmoore
+
+  Category: Contrib/General
+
+   ASTERISK-20756: Asterisk sippeers.sql columns place error cause peer to be
+   without codecs when setting disallow=all under MySQL
+   Revision: 377433
+   Reporter: andrel
+   Coders: Andre Luis
+
+  Category: Core/Channels
+
+   ASTERISK-20492: Stuck DTMF when using ChannelRedirect to split a two
+   channel bridge
+   Revision: 375966
+   Reporter: jgowdy
+   Testers: rmudgett
+   Coders: Jeremiah Gowdy, rmudgett
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20677: Action Challenge not working with allowmultiplelogin=no
+   Revision: 376727
+   Reporter: vldmr
+   Coders: jrose
+
+  Category: Core/PBX
+
+   ASTERISK-19205: Most Unique pattern matching broken when trailing "-" is
+   part of extension
+   Revision: 376690
+   Reporter: p_lindheimer
+   Testers: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-20639: Dynamic hints are not properly initialized when the
+   extension contains an underscore.
+   Revision: 376144
+   Reporter: swheeler
+   Testers: Steven T. Wheeler, elguero
+   Coders: elguero
+
+  Category: General
+
+   ASTERISK-19463: Asterisk deadlocks during startup with mutex errors
+   Revision: 376441
+   Reporter: mjordan
+   Testers: mjordan
+   Coders: mjordan
+
+   ASTERISK-20226: Segfault in chan_sip while performing connected line
+   update
+   Revision: 376917
+   Reporter: jsmith
+   Testers: Jared Smith
+   Coders: mmichelson
+
+  Category: PBX/General
+
+   ASTERISK-20628: [patch] - main/pbx.c - ShowDialPlan generates with error
+   if no Exten: was presented and there are no exten => lines present
+   Revision: 376168
+   Reporter: jkroon
+   Coders: jkroon
+
+  Category: PBX/pbx_spool
+
+   ASTERISK-20593: [patch] Future-dated call files are ignored when
+   astspooldir is relative
+   Revision: 376234
+   Reporter: chewi
+   Coders: James Le Cuirot
+
+  Category: Resources/res_monitor
+
+   ASTERISK-20641: Erroneous error messages from Monitor when using options
+   'i' and 'o'
+   Revision: 376391
+   Reporter: jrose
+   Coders: jrose
+
+  Category: Tests/testsuite
+
+   ASTERISK-19463: Asterisk deadlocks during startup with mutex errors
+   Revision: 376441
+   Reporter: mjordan
+   Testers: mjordan
+   Coders: mjordan
+
+  Category: Utilities/General
+
+   ASTERISK-20505: Migrate hashtest/hashtest2 to be unit tests
+   Revision: 376339
+   Reporter: mjordan
+   Coders: dlee
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   | 376048   | rmudgett   | Add MALLOC_DEBUG           |                   |
+   |          |            | enhancements.              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376089   | mmichelson | Fix a "set but not used"   |                   |
+   |          |            | warning on newer gccs.     |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376343   | dlee       | Fixed extconf.c breakage   |                   |
+   |          |            | introduced in r376306.     |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Add a test event that      |                   |
+   | 376415   | mjordan    | reports changes in         |                   |
+   |          |            | ConfBridge state           |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376471   | wdoekes    | Fix most leftover          |                   |
+   |          |            | non-opaque ast_str uses.   |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376561   | dlee       | Added missing newlines to  |                   |
+   |          |            | websocket ast_logs.        |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Re-initialize logmsgs      |                   |
+   | 376588   | mjordan    | mutex upon logger          | ASTERISK-19463    |
+   |          |            | initialization to prevent  |                   |
+   |          |            | lock errors                |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Made AST_LIST_REMOVE()     |                   |
+   | 376629   | rmudgett   | simpler and use better     |                   |
+   |          |            | names.                     |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376659   | rmudgett   | Remove unnecessary channel |                   |
+   |          |            | module references.         |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376760   | rmudgett   | Enhance MALLOC_DEBUG CLI   |                   |
+   |          |            | commands.                  |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Add MALLOC_DEBUG atexit    |                   |
+   | 376790   | rmudgett   | unreleased malloc memory   |                   |
+   |          |            | summary.                   |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 376866   | rmudgett   | Fix compile error.         | ASTERISK-20724    |
+   |----------+------------+----------------------------+-------------------|
+   | 376921   | seanbright | Minor spelling fix to the  |                   |
+   |          |            | VOLUME documentation.      |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | chan_misdn: Fix sending    |                   |
+   | 376952   | rmudgett   | RELEASE_COMPLETE in        |                   |
+   |          |            | response to SETUP.         |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Tweak extension used for   |                   |
+   | 376983   | file       | incoming calls received on |                   |
+   |          |            | Motif.                     |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix CCSS CLI commands and  |                   |
+   | 377039   | rmudgett   | logger level not           | ASTERISK-20649    |
+   |          |            | unregistered.              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377071   | rmudgett   | Cleanup CDR resources on   | ASTERISK-20649    |
+   |          |            | exit.                      |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Cleanup CLI resources on   |                   |
+   | 377075   | rmudgett   | exit and CLI command       | ASTERISK-20649    |
+   |          |            | registration errors.       |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377106   | rmudgett   | Cleanup config cache on    | ASTERISK-20649    |
+   |          |            | exit.                      |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377137   | rmudgett   | Cleanup core main on exit. | ASTERISK-20649    |
+   |----------+------------+----------------------------+-------------------|
+   | 377167   | rmudgett   | Cleanup ast_run_atexits()  | ASTERISK-20649    |
+   |          |            | atexits list.              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377195   | russell    | Add libuuid to             |                   |
+   |          |            | install_prereq for Fedora. |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377213   | rmudgett   | confbridge: Update online  |                   |
+   |          |            | XML documentation.         |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix registering core show  |                   |
+   | 377244   | rmudgett   | codecs/codec CLI commands  |                   |
+   |          |            | twice.                     |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix memory leak in         |                   |
+   | 377319   | mjordan    | 'manager show event' when  |                   |
+   |          |            | command entered            |                   |
+   |          |            | incorrectly                |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 377340   | russell    | Add CLI tab completion to  |                   |
+   |          |            | 'acl show'.                |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | confbridge: Fix some       |                   |
+   | 377355   | rmudgett   | resource leaks on          |                   |
+   |          |            | conference teardown.       |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | MALLOC_DEBUG: Only wait if |                   |
+   | 377401   | rmudgett   | we want atexit allocation  |                   |
+   |          |            | dumps.                     |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Remove some dead code and  |                   |
+   | 377505   | tilghman   | additionally handle a case |                   |
+   |          |            | that wasn't handled.       |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Improve documentation by   |                   |
+   | 377511   | tilghman   | making all of the colors   |                   |
+   |          |            | used readable,             |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ UPGRADE.txt                          |    6
+ addons/cdr_mysql.c                   |   11
+ addons/res_config_mysql.c            |    3
+ apps/app_celgenuserevent.c           |    9
+ apps/app_confbridge.c                |  148 ++--
+ apps/app_dial.c                      |   14
+ apps/app_jack.c                      |    4
+ apps/app_meetme.c                    |   15
+ apps/app_queue.c                     |   26
+ apps/app_record.c                    |   27
+ apps/app_voicemail.c                 |    2
+ apps/app_waitforring.c               |   25
+ apps/confbridge/conf_config_parser.c |  126 ++-
+ apps/confbridge/conf_state.c         |    5
+ channels/chan_agent.c                |   14
+ channels/chan_dahdi.c                |   42 -
+ channels/chan_iax2.c                 |   14
+ channels/chan_local.c                |   21
+ channels/chan_motif.c                |   27
+ channels/chan_sip.c                  |  208 +++--
+ channels/misdn/isdn_lib.c            |   17
+ channels/sig_analog.c                |   22
+ channels/sig_pri.c                   |   12
+ channels/sig_ss7.c                   |   51 -
+ channels/sip/include/sip.h           |    1
+ codecs/codec_dahdi.c                 |    2
+ configs/motif.conf.sample            |    5
+ configs/sip.conf.sample              |    5
+ contrib/realtime/mysql/sippeers.sql  |    2
+ contrib/scripts/install_prereq       |    2
+ funcs/func_volume.c                  |    2
+ include/asterisk/_private.h          |    1
+ include/asterisk/astmm.h             |    3
+ include/asterisk/channel.h           |    8
+ include/asterisk/features.h          |   12
+ include/asterisk/hashtab.h           |    3
+ include/asterisk/linkedlists.h       |   58 -
+ include/asterisk/lock.h              |   16
+ include/asterisk/time.h              |   14
+ include/asterisk/utils.h             |   29
+ main/asterisk.c                      |  352 ++++++----
+ main/astmm.c                         | 1223 ++++++++++++++++++++++++++++++-----
+ main/ccss.c                          |    2
+ main/cdr.c                           |   46 -
+ main/channel.c                       |  150 +++-
+ main/channel_internal_api.c          |   21
+ main/cli.c                           |   41 +
+ main/config.c                        |   14
+ main/features.c                      |   27
+ main/format.c                        |    6
+ main/indications.c                   |    2
+ main/lock.c                          |    2
+ main/logger.c                        |   11
+ main/manager.c                       |    7
+ main/named_acl.c                     |   25
+ main/pbx.c                           |  532 +++++++++++----
+ main/rtp_engine.c                    |   16
+ main/security_events.c               |    2
+ main/stdtime/localtime.c             |   14
+ main/utils.c                         |   69 +
+ main/xmldoc.c                        |    8
+ pbx/pbx_dundi.c                      |   31
+ pbx/pbx_spool.c                      |    2
+ res/res_fax.c                        |  128 ++-
+ res/res_http_websocket.c             |   12
+ res/res_monitor.c                    |   32
+ res/res_rtp_asterisk.c               |    2
+ res/res_srtp.c                       |    4
+ tests/test_astobj2_thrash.c          |  353 ++++++++++
+ tests/test_hashtab_thrash.c          |  321 +++++++++
+ utils/Makefile                       |    7
+ utils/extconf.c                      |    1
+ utils/hashtest.c                     |  410 -----------
+ utils/hashtest2.c                    |  418 -----------
+ utils/utils.xml                      |    8
+ 75 files changed, 3469 insertions(+), 1842 deletions(-)
+
+     ----------------------------------------------------------------------
