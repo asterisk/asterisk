@@ -287,7 +287,7 @@ AST_TEST_DEFINE(threadpool_push)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_push";
+		info->name = "push";
 		info->category = "/main/threadpool/";
 		info->summary = "Test task";
 		info->description =
@@ -302,7 +302,7 @@ AST_TEST_DEFINE(threadpool_push)
 		return AST_TEST_FAIL;
 	}
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -340,7 +340,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_thread_creation";
+		info->name = "thread_creation";
 		info->category = "/main/threadpool/";
 		info->summary = "Test threadpool thread creation";
 		info->description =
@@ -356,7 +356,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -389,7 +389,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_thread_destruction";
+		info->name = "thread_destruction";
 		info->category = "/main/threadpool/";
 		info->summary = "Test threadpool thread destruction";
 		info->description =
@@ -405,7 +405,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -447,7 +447,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_thread_timeout";
+		info->name = "thread_timeout";
 		info->category = "/main/threadpool/";
 		info->summary = "Test threadpool thread timeout";
 		info->description =
@@ -463,7 +463,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -509,7 +509,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_one_task_one_thread";
+		info->name = "one_task_one_thread";
 		info->category = "/main/threadpool/";
 		info->summary = "Test a single task with a single thread";
 		info->description =
@@ -525,7 +525,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -585,7 +585,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_one_thread_one_task";
+		info->name = "one_thread_one_task";
 		info->category = "/main/threadpool/";
 		info->summary = "Test a single thread with a single task";
 		info->description =
@@ -601,7 +601,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -664,7 +664,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_one_thread_multiple_tasks";
+		info->name = "one_thread_multiple_tasks";
 		info->category = "/main/threadpool/";
 		info->summary = "Test a single thread with multiple tasks";
 		info->description =
@@ -680,7 +680,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -755,7 +755,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_reactivation";
+		info->name = "reactivation";
 		info->category = "/main/threadpool/";
 		info->summary = "Test that a threadpool reactivates when work is added";
 		info->description =
@@ -773,7 +773,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -917,7 +917,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_task_distribution";
+		info->name = "task_distribution";
 		info->category = "/main/threadpool/";
 		info->summary = "Test that tasks are evenly distributed to threads";
 		info->description =
@@ -934,7 +934,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -1005,7 +1005,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "threadpool_more_destruction";
+		info->name = "more_destruction";
 		info->category = "/main/threadpool/";
 		info->summary = "Test that threads are destroyed as expected";
 		info->description =
@@ -1024,7 +1024,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 	}
 	tld = listener->private_data;
 
-	pool = ast_threadpool_create(listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
 		goto end;
 	}

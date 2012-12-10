@@ -349,8 +349,15 @@ static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
 {
 	RAII_VAR(struct ast_threadpool *, pool,
 			ao2_alloc(sizeof(*pool), threadpool_destructor), ao2_cleanup);
+	struct ast_str *name = ast_str_create(64);
 
-	pool->control_tps = ast_taskprocessor_get("CHANGE THIS", TPS_REF_DEFAULT);
+	if (!name) {
+		return NULL;
+	}
+
+	ast_str_set(&name, 0, "%s-control", ast_taskprocessor_name(listener->tps));
+
+	pool->control_tps = ast_taskprocessor_get(ast_str_buffer(name), TPS_REF_DEFAULT);
 	if (!pool->control_tps) {
 		return NULL;
 	}
@@ -782,7 +789,8 @@ struct pool_options_pair {
 	struct ast_threadpool_options options;
 };
 
-struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener,
+struct ast_threadpool *ast_threadpool_create(const char *name,
+		struct ast_threadpool_listener *listener,
 		int initial_size, const struct ast_threadpool_options *options)
 {
 	struct ast_threadpool *pool;
@@ -795,7 +803,7 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 		return NULL;
 	}
 
-	tps = ast_taskprocessor_create_with_listener("XXX CHANGE THIS XXX", tps_listener);
+	tps = ast_taskprocessor_create_with_listener(name, tps_listener);
 
 	if (!tps) {
 		return NULL;

@@ -113,12 +113,14 @@ struct ast_threadpool_listener *ast_threadpool_listener_alloc(
  * This function creates a threadpool. Tasks may be pushed onto this thread pool
  * in and will be automatically acted upon by threads within the pool.
  *
+ * \param name The name for the threadpool
  * \param listener The listener the threadpool will notify of changes
  * \param initial_size The number of threads for the pool to start with
  * \retval NULL Failed to create the threadpool
  * \retval non-NULL The newly-created threadpool
  */
-struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *listener,
+struct ast_threadpool *ast_threadpool_create(const char *name,
+		struct ast_threadpool_listener *listener,
 		int initial_size, const struct ast_threadpool_options *options);
 
 /*!

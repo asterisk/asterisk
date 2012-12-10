@@ -485,10 +485,6 @@ struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct
 		return NULL;
 	}
 	listener->callbacks = callbacks;
-	listener->private_data = listener->callbacks->alloc(listener);
-	if (!listener->private_data) {
-		return NULL;
-	}
 
 	ao2_ref(listener, +1);
 	return listener;
@@ -558,6 +554,11 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 
 	ao2_ref(p, +1);
 	listener->tps = p;
+
+	listener->private_data = listener->callbacks->alloc(listener);
+	if (!listener->private_data) {
+		return NULL;
+	}
 
 	if (!(ao2_link(tps_singletons, p))) {
 		ast_log(LOG_ERROR, "Failed to add taskprocessor '%s' to container\n", p->name);
