@@ -93,6 +93,8 @@ struct ast_threadpool {
 	 * that the threadpool had its state change.
 	 */
 	struct ast_taskprocessor *control_tps;
+	/*! True if the threadpool is in the processof shutting down */
+	int shutting_down;
 };
 
 /*!
@@ -266,7 +268,10 @@ static void threadpool_zombie_thread_dead(struct ast_threadpool *pool,
  */
 static int threadpool_execute(struct ast_threadpool *pool)
 {
-	return ast_taskprocessor_execute(pool->tps);
+	if (!pool->shutting_down) {
+		return ast_taskprocessor_execute(pool->tps);
+	}
+	return 0;
 }
 
 /*!
@@ -745,7 +750,10 @@ struct ast_threadpool *ast_threadpool_create(struct ast_threadpool_listener *lis
 
 int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
 {
-	return ast_taskprocessor_push(pool->tps, task, data);
+	if (!pool->shutting_down) {
+		return ast_taskprocessor_push(pool->tps, task, data);
+	}
+	return 0;
 }
 
 void ast_threadpool_shutdown(struct ast_threadpool *pool)
@@ -753,6 +761,7 @@ void ast_threadpool_shutdown(struct ast_threadpool *pool)
 	/* Shut down the taskprocessors and everything else just
 	 * takes care of itself via the taskprocessor callbacks
 	 */
+	ast_atomic_fetchadd_int(&pool->shutting_down, +1);
 	ast_taskprocessor_unreference(pool->control_tps);
 	ast_taskprocessor_unreference(pool->tps);
 }
