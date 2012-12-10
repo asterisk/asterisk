@@ -22784,6 +22784,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				rtn = parse_session_expires(p_hdrval, &tmp_st_interval, &st_ref_param);
 				if (rtn != 0) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+				} else if (tmp_st_interval < st_get_se(p, FALSE)) {
+					ast_log(LOG_WARNING, "Got Session-Expires less than local Min-SE in 200 OK, tearing down call\n");
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 				}
 				if (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) {
 				   p->stimer->st_ref = SESSION_TIMER_REFRESHER_US;
