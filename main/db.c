@@ -109,19 +109,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);
 static ast_cond_t dbcond;
+static pthread_t syncthread;
+static int doexit;
 typedef int (*process_keys_cb)(DBT *key, DBT *value, const char *filter, void *data);
 
 static void db_sync(void);
 
 static int dbinit(void) 
 {
+	if (doexit) {
+		return -1;
+	}
 	if (!astdb && !(astdb = dbopen(ast_config_AST_DB, O_CREAT | O_RDWR, AST_FILE_MODE, DB_BTREE, NULL))) {
 		ast_log(LOG_WARNING, "Unable to open Asterisk database '%s': %s\n", ast_config_AST_DB, strerror(errno));
 		return -1;
 	}
 	return 0;
 }
-
 
 static inline int keymatch(const char *key, const char *prefix)
 {
@@ -813,31 +817,84 @@ static void *db_sync_thread(void *data)
 	ast_mutex_lock(&dblock);
 	for (;;) {
 		ast_cond_wait(&dbcond, &dblock);
+		if (doexit) {
+			/*
+			 * We were likely awakened just to exit.  Sync anyway just in
+			 * case.
+			 */
+			if (astdb) {
+				astdb->sync(astdb, 0);
+			}
+			ast_mutex_unlock(&dblock);
+			break;
+		}
+
 		ast_mutex_unlock(&dblock);
+		/*
+		 * Sleep so if we have a bunch of db puts in a row, they won't
+		 * get written one at a time to the db but in a batch.
+		 */
 		sleep(1);
 		ast_mutex_lock(&dblock);
+
+		/* The db should be successfully opened to get here. */
+		ast_assert(astdb != NULL);
 		astdb->sync(astdb, 0);
+
+		if (doexit) {
+			/* We were asked to exit while sleeping. */
+			ast_mutex_unlock(&dblock);
+			break;
+		}
 	}
 
 	return NULL;
 }
 
+static void astdb_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_database, ARRAY_LEN(cli_database));
+	ast_manager_unregister("DBGet");
+	ast_manager_unregister("DBPut");
+	ast_manager_unregister("DBDel");
+	ast_manager_unregister("DBDelTree");
+
+	ast_mutex_lock(&dblock);
+	doexit = 1;
+	db_sync();
+	ast_mutex_unlock(&dblock);
+
+	pthread_join(syncthread, NULL);
+
+#if defined(DEBUG_FD_LEAKS) && defined(close)
+/* DEBUG_FD_LEAKS causes conflicting define of close() in asterisk.h */
+#undef close
+#endif
+
+	if (astdb) {
+		astdb->close(astdb);
+		astdb = NULL;
+	}
+}
+
 int astdb_init(void)
 {
-	pthread_t dont_care;
-
 	ast_cond_init(&dbcond, NULL);
-	if (ast_pthread_create_background(&dont_care, NULL, db_sync_thread, NULL)) {
+	if (ast_pthread_create_background(&syncthread, NULL, db_sync_thread, NULL)) {
 		return -1;
 	}
 
+	ast_mutex_lock(&dblock);
 	/* Ignore check_return warning from Coverity for dbinit below */
 	dbinit();
+	ast_mutex_unlock(&dblock);
 
 	ast_cli_register_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_register_xml("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget);
 	ast_manager_register_xml("DBPut", EVENT_FLAG_SYSTEM, manager_dbput);
 	ast_manager_register_xml("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel);
 	ast_manager_register_xml("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree);
+
+	ast_register_atexit(astdb_shutdown);
 	return 0;
 }
