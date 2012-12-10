@@ -137,14 +137,31 @@ static int simple_task(void *data)
 	return 0;
 }
 
-#define WAIT_WHILE(tld, condition) \
-{\
-	ast_mutex_lock(&tld->lock);\
-	while ((condition)) {\
-		ast_cond_wait(&tld->cond, &tld->lock);\
-	}\
-	ast_mutex_unlock(&tld->lock);\
-}\
+static enum ast_test_result_state wait_until_thread_state(struct ast_test *test, struct test_listener_data *tld, int num_active, int num_idle)
+{
+	struct timeval start = ast_tvnow();
+	struct timespec end = {
+		.tv_sec = start.tv_sec + 5,
+		.tv_nsec = start.tv_usec * 1000
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+	SCOPED_MUTEX(lock, &tld->lock);
+
+	while (!(tld->num_active == num_active && tld->num_idle == num_idle)) {
+		if (ast_cond_timedwait(&tld->cond, &tld->lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+
+	if (tld->num_active != num_active && tld->num_idle != num_idle) {
+		ast_test_status_update(test, "Number of active threads and idle threads not what was expected.\n");
+		ast_test_status_update(test, "Expected %d active threads but got %d\n", num_active, tld->num_active);
+		ast_test_status_update(test, "Expected %d idle threads but got %d\n", num_idle, tld->num_idle);
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
 
 static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 {
@@ -349,9 +366,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	 */
 	ast_threadpool_set_size(pool, 1);
 
-	WAIT_WHILE(tld, tld->num_idle == 0);
-
-	res = listener_check(test, listener, 0, 0, 0, 0, 1, 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
 
 end:
 	if (pool) {
@@ -397,7 +412,10 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 
 	ast_threadpool_set_size(pool, 3);
 
-	WAIT_WHILE(tld, tld->num_idle < 3);
+	res = wait_until_thread_state(test, tld, 0, 3);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 0, 0, 0, 0, 3, 0);
 	if (res == AST_TEST_FAIL) {
@@ -406,9 +424,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 
 	ast_threadpool_set_size(pool, 2);
 
-	WAIT_WHILE(tld, tld->num_idle > 2);
-
-	res = listener_check(test, listener, 0, 0, 0, 0, 2, 0);
+	res = wait_until_thread_state(test, tld, 0, 2);
 
 end:
 	if (pool) {
@@ -426,7 +442,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 	struct test_listener_data *tld;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
-		.idle_timeout = 5,
+		.idle_timeout = 2,
 	};
 
 	switch (cmd) {
@@ -435,7 +451,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 		info->category = "/main/threadpool/";
 		info->summary = "Test threadpool thread timeout";
 		info->description =
-			"Ensure that a thread with a five second timeout dies as expected.";
+			"Ensure that a thread with a two second timeout dies as expected.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -454,15 +470,20 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 
 	ast_threadpool_set_size(pool, 1);
 
-	WAIT_WHILE(tld, tld->num_idle < 1);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 0, 0, 0, 0, 1, 0);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
 
-	/* The thread should time out after 5 seconds */
-	WAIT_WHILE(tld, tld->num_idle > 0);
+	res = wait_until_thread_state(test, tld, 0, 0);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 0, 0, 0, 0, 0, 0);
 
@@ -533,7 +554,10 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	}
 	
 	/* After completing the task, the thread should go idle */
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
 
@@ -589,7 +613,10 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 
 	ast_threadpool_set_size(pool, 1);
 
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	ast_threadpool_push(pool, simple_task, std);
 
@@ -604,7 +631,10 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 	}
 
 	/* After completing the task, the thread should go idle */
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
 
@@ -664,7 +694,10 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 
 	ast_threadpool_set_size(pool, 1);
 
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	ast_threadpool_push(pool, simple_task, std1);
 	ast_threadpool_push(pool, simple_task, std2);
@@ -688,7 +721,10 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 		goto end;
 	}
 
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 3, 0, 1, 1);
 
@@ -762,9 +798,15 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		goto end;
 	}
 	
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	/* Now make sure the threadpool reactivates when we add a second task */
 	ast_threadpool_push(pool, simple_task, std2);
@@ -779,7 +821,10 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		goto end;
 	}
 	
-	WAIT_WHILE(tld, tld->num_idle == 0);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 1, 2, 0, 1, 1);
 
@@ -905,7 +950,10 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 
 	ast_threadpool_set_size(pool, 2);
 
-	WAIT_WHILE(tld, tld->num_active < 2);
+	res = wait_until_thread_state(test, tld, 2, 0);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 2, 2, 0, 0);
 	if (res == AST_TEST_FAIL) {
@@ -925,7 +973,10 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		goto end;
 	}
 
-	WAIT_WHILE(tld, tld->num_idle < 2);
+	res = wait_until_thread_state(test, tld, 0, 2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 2, 0, 2, 1);
 
@@ -989,7 +1040,10 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 
 	ast_threadpool_set_size(pool, 4);
 
-	WAIT_WHILE(tld, tld->num_idle < 2);
+	res = wait_until_thread_state(test, tld, 2, 2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 2, 2, 2, 0);
 	if (res == AST_TEST_FAIL) {
@@ -1001,7 +1055,10 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 	/* Shrinking the threadpool should kill off the two idle threads
 	 * and one of the active threads.
 	 */
-	WAIT_WHILE(tld, tld->num_idle > 0 || tld->num_active > 1);
+	res = wait_until_thread_state(test, tld, 1, 0);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 2, 1, 0, 0);
 	if (res == AST_TEST_FAIL) {
@@ -1021,7 +1078,10 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		goto end;
 	}
 
-	WAIT_WHILE(tld, tld->num_idle < 1);
+	res = wait_until_thread_state(test, tld, 0, 1);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
 
 	res = listener_check(test, listener, 1, 0, 2, 0, 1, 1);
 
