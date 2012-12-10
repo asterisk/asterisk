@@ -2666,9 +2666,9 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
 			buffsend[20] = (us.sin_port & 0xff00) >> 8;
 			buffsend[19] = (us.sin_port & 0x00ff);
-			buffsend[11] = codec;
 		}
-		buffsend[12] = codec;
+		buffsend[11] = codec; /* rx */
+		buffsend[12] = codec; /* tx */
 		send_client(SIZE_HEADER + sizeof(packet_send_open_audio_stream_tx), buffsend, pte);
 
 		if (unistimdebug) {
@@ -2697,9 +2697,9 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
 			buffsend[20] = (us.sin_port & 0xff00) >> 8;
 			buffsend[19] = (us.sin_port & 0x00ff);
-			buffsend[12] = codec;
 		}
-		buffsend[11] = codec;
+		buffsend[11] = codec; /* rx */
+		buffsend[12] = codec; /* tx */
 		send_client(SIZE_HEADER + sizeof(packet_send_open_audio_stream_rx), buffsend, pte);
 	} else {
 		uint16_t rtcpsin_port = htons(us.sin_port) + 1; /* RTCP port is RTP + 1 */
