@@ -69,6 +69,7 @@ static void test_state_changed(struct ast_threadpool *pool,
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->num_active = active_threads;
 	tld->num_idle = idle_threads;
+	ast_log(LOG_NOTICE, "Thread state: %d active, %d idle\n", tld->num_active, tld->num_idle);
 	ast_cond_signal(&tld->cond);
 }
 
