@@ -238,6 +238,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/rtp_engine.h"
 #include "asterisk/format.h"
 #include "asterisk/aoc.h"
+#include "asterisk/uuid.h"
 
 #include "../defaults.h"
 
@@ -4112,6 +4113,7 @@ int main(int argc, char *argv[])
 	}
 
 	ast_aoc_cli_init();
+	ast_uuid_init();
 
 	ast_makesocket();
 	sigemptyset(&sigs);
