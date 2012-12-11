@@ -810,6 +810,11 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 		return NULL;
 	}
 
+	if (options->version != AST_THREADPOOL_OPTIONS_VERSION) {
+		ast_log(LOG_WARNING, "Incompatible version of threadpool options in use.\n");
+		return NULL;
+	}
+
 	tps = ast_taskprocessor_create_with_listener(name, tps_listener);
 
 	if (!tps) {
