@@ -77,6 +77,7 @@ struct ast_taskprocessor_listener_callbacks {
 	/*!
 	 * \brief Allocate the listener's private data
 	 *
+	 * This is called during taskprocesor creation.
 	 * It is not necessary to assign the private data to the listener.
 	 *
 	 * \param listener The listener to which the private data belongs
@@ -150,9 +151,7 @@ struct ast_taskprocessor_listener {
  * Allocate a taskprocessor listener
  *
  * This will result in the listener being allocated with the specified
- * callbacks. The listener's alloc() callback will be called to allocate
- * private data for the listener. The private data will be assigned to the
- * listener when the listener's alloc() function returns.
+ * callbacks.
  *
  * \param callbacks The callbacks to assign to the listener
  * \retval NULL Failure
@@ -176,6 +175,8 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 
 /*!
  * \brief Create a taskprocessor with a custom listener
+ *
+ * The listener's alloc() and start() callbacks will be called during this function.
  *
  * \param name The name of the taskprocessor to create
  * \param listener The listener for operations on this taskprocessor

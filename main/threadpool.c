@@ -436,7 +436,7 @@ static int activate_threads(void *obj, void *arg, int flags)
 }
 
 /*!
- * \brief Queue task called when tasks are pushed into the threadpool
+ * \brief Queued task called when tasks are pushed into the threadpool
  *
  * This function first calls into the threadpool's listener to let it know
  * that a task has been pushed. It then wakes up all idle threads and moves
@@ -444,7 +444,7 @@ static int activate_threads(void *obj, void *arg, int flags)
  * \param data A task_pushed_data
  * \return 0
  */
-static int handle_task_pushed(void *data)
+static int queued_task_pushed(void *data)
 {
 	struct task_pushed_data *tpd = data;
 	struct ast_threadpool *pool = tpd->pool;
@@ -481,7 +481,7 @@ static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listen
 		return;
 	}
 
-	ast_taskprocessor_push(pool->control_tps, handle_task_pushed, tpd);
+	ast_taskprocessor_push(pool->control_tps, queued_task_pushed, tpd);
 }
 
 /*!
@@ -491,7 +491,7 @@ static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listen
  * \param data The pool that has become empty
  * \return 0
  */
-static int handle_emptied(void *data)
+static int queued_emptied(void *data)
 {
 	struct ast_threadpool *pool = data;
 
@@ -515,7 +515,7 @@ static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
 		return;
 	}
 
-	ast_taskprocessor_push(pool->control_tps, handle_emptied, pool);
+	ast_taskprocessor_push(pool->control_tps, queued_emptied, pool);
 }
 
 /*!
