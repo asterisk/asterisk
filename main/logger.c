@@ -1257,6 +1257,9 @@ int init_logger(void)
 void close_logger(void)
 {
 	struct logchannel *f = NULL;
+	struct verb *cur = NULL;
+
+	ast_cli_unregister_multiple(cli_logger, ARRAY_LEN(cli_logger));
 
 	logger_initialized = 0;
 
@@ -1269,6 +1272,12 @@ void close_logger(void)
 	if (logthread != AST_PTHREADT_NULL)
 		pthread_join(logthread, NULL);
 
+	AST_RWLIST_WRLOCK(&verbosers);
+	while ((cur = AST_LIST_REMOVE_HEAD(&verbosers, list))) {
+		ast_free(cur);
+	}
+	AST_RWLIST_UNLOCK(&verbosers);
+
 	AST_RWLIST_WRLOCK(&logchannels);
 
 	if (qlog) {
@@ -1276,11 +1285,12 @@ void close_logger(void)
 		qlog = NULL;
 	}
 
-	AST_RWLIST_TRAVERSE(&logchannels, f, list) {
+	while ((f = AST_LIST_REMOVE_HEAD(&logchannels, list))) {
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
 			fclose(f->fileptr);
 			f->fileptr = NULL;
 		}
+		ast_free(f);
 	}
 
 	closelog(); /* syslog */
