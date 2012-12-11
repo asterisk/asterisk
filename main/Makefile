@@ -43,7 +43,7 @@ ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi kfre
   ifneq (x$(CAP_LIB),x)
     AST_LIBS+=$(CAP_LIB)
   endif
-  AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv
+  AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv -luuid
 else
   AST_LIBS+=$(EDITLINE_LIB) -lm
 endif

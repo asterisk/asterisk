@@ -489,11 +489,12 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/event.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h])
 
-# Any one of these 4 packages support a mandatory requirement, so we want to check on them as early as possible.
+# Any one of these 5 packages support a mandatory requirement, so we want to check on them as early as possible.
 AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid.h], [-luuid])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then

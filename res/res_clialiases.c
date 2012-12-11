@@ -218,10 +218,7 @@ static void load_config(int reload)
 			alias->cli_entry.command = alias->alias;
 			alias->cli_entry.usage = "Aliased CLI Command\n";
 
-			if (ast_cli_register(&alias->cli_entry)) {
-				ao2_ref(alias, -1);
-				continue;
-			}
+			ast_cli_register(&alias->cli_entry);
 			ao2_link(cli_aliases, alias);
 			ast_verb(2, "Aliased CLI command '%s' to '%s'\n", v1->name, v1->value);
 			ao2_ref(alias, -1);
