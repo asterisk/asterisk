@@ -1471,9 +1471,13 @@ int ast_udptl_reload(void)
 	return 0;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void udptl_shutdown(void)
 {
+	ast_cli_unregister_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 	ao2_t_global_obj_release(globals, "Unref udptl global container in shutdown");
 	aco_info_destroy(&cfg_info);
 }
@@ -1509,9 +1513,9 @@ void ast_udptl_init(void)
 	aco_option_register_custom(&cfg_info, "t38faxudpec", ACO_EXACT, general_options, NULL, removed_options_handler, 0);
 	aco_option_register_custom(&cfg_info, "t38faxmaxdatagram", ACO_EXACT, general_options, NULL, removed_options_handler, 0);
 
-	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
-
 	__ast_udptl_reload(0);
+
+	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 
 	ast_register_atexit(udptl_shutdown);
 }
