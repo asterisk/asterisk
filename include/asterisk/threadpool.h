@@ -89,7 +89,7 @@ struct ast_threadpool_options {
 	/*!
 	 * \brief Time limit in seconds for idle threads
 	 *
-	 * A time of 0 or less will mean an infinite timeout.
+	 * A time of 0 or less will mean no timeout.
 	 */
 	int idle_timeout;
 	/*!
