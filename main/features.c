@@ -3616,6 +3616,10 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 				res = AST_FEATURE_RETURN_SUCCESS; /* We found something */
 			} else if (operation == FEATURE_INTERPRET_DO) {
 				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
+				ast_test_suite_event_notify("FEATURE_DETECTION",
+						"Result: success\r\n"
+						"Feature: %s",
+						builtin_features[x].sname);
 			}
 			if (feature) {
 				memcpy(feature, &builtin_features[x], sizeof(*feature));
@@ -3628,6 +3632,12 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 			}
 		}
 	}
+
+	if (operation == FEATURE_INTERPRET_CHECK && x == FEATURES_COUNT) {
+		ast_test_suite_event_notify("FEATURE_DETECTION",
+				"Result: fail");
+	}
+
 	ast_rwlock_unlock(&features_lock);
 
 	if (ast_strlen_zero(dynamic_features_buf) || feature_detected) {
