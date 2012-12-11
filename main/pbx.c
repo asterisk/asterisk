@@ -10557,12 +10557,17 @@ static void unload_pbx(void)
 	if (device_state_sub) {
 		device_state_sub = ast_event_unsubscribe(device_state_sub);
 	}
+	if (device_state_tps) {
+		ast_taskprocessor_unreference(device_state_tps);
+		device_state_tps = NULL;
+	}
 
 	/* Unregister builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
 		ast_unregister_application(builtins[x].name);
 	}
 	ast_manager_unregister("ShowDialPlan");
+	ast_cli_unregister_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	ast_custom_function_unregister(&exception_function);
 	ast_custom_function_unregister(&testtime_function);
 	ast_data_unregister(NULL);
@@ -10571,6 +10576,8 @@ static void unload_pbx(void)
 int load_pbx(void)
 {
 	int x;
+
+	ast_register_atexit(unload_pbx);
 
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");
@@ -10601,7 +10608,6 @@ int load_pbx(void)
 		return -1;
 	}
 
-	ast_register_atexit(unload_pbx);
 	return 0;
 }
 
@@ -10962,10 +10968,24 @@ static int statecbs_cmp(void *obj, void *arg, int flags)
 	return (state_cb->change_cb == change_cb) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+static void pbx_shutdown(void)
+{
+	if (hints) {
+		ao2_ref(hints, -1);
+		hints = NULL;
+	}
+	if (statecbs) {
+		ao2_ref(statecbs, -1);
+		statecbs = NULL;
+	}
+}
+
 int ast_pbx_init(void)
 {
 	hints = ao2_container_alloc(HASH_EXTENHINT_SIZE, hint_hash, hint_cmp);
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
+
+	ast_register_atexit(pbx_shutdown);
 
 	return (hints && statecbs) ? 0 : -1;
 }
