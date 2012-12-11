@@ -1203,11 +1203,17 @@ static struct ast_cli_entry cli_http[] = {
 	AST_CLI_DEFINE(handle_show_http, "Display HTTP server status"),
 };
 
+static void http_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_http, ARRAY_LEN(cli_http));
+}
+
 int ast_http_init(void)
 {
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
+	ast_register_atexit(http_shutdown);
 
 	return __ast_http_load(0);
 }

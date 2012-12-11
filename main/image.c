@@ -206,8 +206,14 @@ static struct ast_cli_entry cli_image[] = {
 	AST_CLI_DEFINE(handle_core_show_image_formats, "Displays image formats")
 };
 
+static void image_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_image, ARRAY_LEN(cli_image));
+}
+
 int ast_image_init(void)
 {
 	ast_cli_register_multiple(cli_image, ARRAY_LEN(cli_image));
+	ast_register_atexit(image_shutdown);
 	return 0;
 }

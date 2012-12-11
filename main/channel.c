@@ -8620,9 +8620,11 @@ static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 static void channels_shutdown(void)
 {
 	ast_data_unregister(NULL);
+	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
 		ao2_container_unregister("channels");
 		ao2_ref(channels, -1);
+		channels = NULL;
 	}
 }
 

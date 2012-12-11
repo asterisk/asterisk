@@ -504,8 +504,14 @@ static struct ast_cli_entry cli_stun[] = {
 	AST_CLI_DEFINE(handle_cli_stun_set_debug, "Enable/Disable STUN debugging"),
 };
 
+static void stun_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_stun, sizeof(cli_stun) / sizeof(struct ast_cli_entry));
+}
+
 /*! \brief Initialize the STUN system in Asterisk */
 void ast_stun_init(void)
 {
 	ast_cli_register_multiple(cli_stun, sizeof(cli_stun) / sizeof(struct ast_cli_entry));
+	ast_register_atexit(stun_shutdown);
 }

@@ -729,6 +729,7 @@ static void ast_cel_engine_term(void)
 		ao2_ref(linkedids, -1);
 		linkedids = NULL;
 	}
+	ast_cli_unregister(&cli_status);
 }
 
 int ast_cel_engine_init(void)
