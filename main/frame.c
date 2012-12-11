@@ -987,9 +987,15 @@ static struct ast_cli_entry my_clis[] = {
 	AST_CLI_DEFINE(show_codec_n, "Shows a specific codec"),
 };
 
+static void framer_shutdown(void)
+{
+	ast_cli_unregister_multiple(my_clis, ARRAY_LEN(my_clis));
+}
+
 int init_framer(void)
 {
 	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
+	ast_register_atexit(framer_shutdown);
 	return 0;	
 }
 
