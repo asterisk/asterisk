@@ -1583,8 +1583,14 @@ static struct ast_cli_entry cli_file[] = {
 	AST_CLI_DEFINE(handle_cli_core_show_file_formats, "Displays file formats")
 };
 
+static void file_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_file, ARRAY_LEN(cli_file));
+}
+
 int ast_file_init(void)
 {
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
+	ast_register_atexit(file_shutdown);
 	return 0;
 }

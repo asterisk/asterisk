@@ -8551,8 +8551,10 @@ static const struct ast_data_entry channel_providers[] = {
 static void channels_shutdown(void)
 {
 	ast_data_unregister(NULL);
+	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
 		ao2_ref(channels, -1);
+		channels = NULL;
 	}
 }
 
