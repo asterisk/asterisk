@@ -560,19 +560,19 @@ static int ast_unregister_indication_country(const char *country)
 
 	ast_copy_string(zone_arg.country, country, sizeof(zone_arg.country));
 
-	if (!(tz = ao2_find(ast_tone_zones, &zone_arg, OBJ_POINTER))) {
+	ao2_lock(ast_tone_zones);
+	tz = ao2_find(ast_tone_zones, &zone_arg, OBJ_POINTER | OBJ_UNLINK);
+	if (!tz) {
+		ao2_unlock(ast_tone_zones);
 		return -1;
 	}
 
-	ao2_lock(ast_tone_zones);
 	if (default_tone_zone == tz) {
 		ast_tone_zone_unref(default_tone_zone);
 		/* Get a new default, punt to the first one we find */
 		default_tone_zone = ao2_callback(ast_tone_zones, 0, NULL, NULL);
 	}
 	ao2_unlock(ast_tone_zones);
-
-	ao2_unlink(ast_tone_zones, tz);
 
 	tz = ast_tone_zone_unref(tz);
 
@@ -939,7 +939,6 @@ static void store_config_tone_zone(struct ast_tone_zone *zone, const char *var,
 
 	CV_STR("description", zone->description);
 	CV_F("ringcadence", store_tone_zone_ring_cadence(zone, value));
-	CV_F("ringcadance", store_tone_zone_ring_cadence(zone, value));
 
 	ast_register_indication(zone, var, value);
 
@@ -1153,6 +1152,11 @@ int ast_tone_zone_data_add_structure(struct ast_data *tree, struct ast_tone_zone
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void indications_shutdown(void)
 {
+	ast_cli_unregister_multiple(cli_indications, ARRAY_LEN(cli_indications));
+	if (default_tone_zone) {
+		ast_tone_zone_unref(default_tone_zone);
+		default_tone_zone = NULL;
+	}
 	if (ast_tone_zones) {
 		ao2_ref(ast_tone_zones, -1);
 		ast_tone_zones = NULL;
@@ -1168,6 +1172,7 @@ int ast_indications_init(void)
 	}
 
 	if (load_indications(0)) {
+		indications_shutdown();
 		return -1;
 	}
 
