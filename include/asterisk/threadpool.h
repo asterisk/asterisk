@@ -86,12 +86,23 @@ struct ast_threadpool_options {
 #define AST_THREADPOOL_OPTIONS_VERSION 1
 	/*! Version of thradpool options in use */
 	int version;
-	/* !
+	/*!
 	 * \brief Time limit in seconds for idle threads
 	 *
 	 * A time of 0 or less will mean an infinite timeout.
 	 */
 	int idle_timeout;
+	/*!
+	 * \brief Number of threads to increment pool by
+	 *
+	 * If a task is added into a pool and no idle thread is
+	 * available to activate, then the pool can automatically
+	 * grow by the given amount.
+	 *
+	 * Zero is a perfectly valid value to give here if you want
+	 * to control threadpool growth yourself via your listener.
+	 */
+	int auto_increment;
 };
 
 /*!

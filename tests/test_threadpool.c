@@ -220,7 +220,7 @@ static enum ast_test_result_state wait_for_empty_notice(struct ast_test *test, s
 	}
 
 	if (!tld->empty_notice) {
-		ast_test_status_update(test, "Test listener never told that threadpool is empty\n");
+		ast_test_status_update(test, "Test listener not notified that threadpool is empty\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -283,6 +283,7 @@ AST_TEST_DEFINE(threadpool_push)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -336,6 +337,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -385,6 +387,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -443,6 +446,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 2,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -505,6 +509,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -581,6 +586,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -645,7 +651,6 @@ end:
 	ao2_cleanup(listener);
 	ast_free(std);
 	return res;
-
 }
 
 AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
@@ -660,6 +665,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -737,7 +743,80 @@ end:
 	ast_free(std2);
 	ast_free(std3);
 	return res;
+}
 
+AST_TEST_DEFINE(threadpool_auto_increment)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 3,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "auto_increment";
+		info->category = "/main/threadpool/";
+		info->summary = "Test that the threadpool grows as tasks are added";
+		info->description =
+			"Create an empty threadpool and push a task to it. Once the task is\n"
+			"pushed, the threadpool should add three threads and be able to\n"
+			"handle the task. The threads should then go idle\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	std = simple_task_data_alloc();
+	if (!std) {
+		goto end;
+	}
+
+	ast_threadpool_push(pool, simple_task, std);
+
+	/* Pushing the task should result in the threadpool growing
+	 * by three threads. This will allow the task to actually execute
+	 */
+	res = wait_for_completion(test, std);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(test, tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_until_thread_state(test, tld, 0, 3);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = listener_check(test, listener, 1, 1, 1, 0, 3, 1);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	ast_free(std);
+	return res;
 }
 
 AST_TEST_DEFINE(threadpool_reactivation)
@@ -751,6 +830,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -913,6 +993,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -1001,6 +1082,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
+		.auto_increment = 0,
 	};
 
 	switch (cmd) {
@@ -1104,6 +1186,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_one_task_one_thread);
 	ast_test_unregister(threadpool_one_thread_one_task);
 	ast_test_unregister(threadpool_one_thread_multiple_tasks);
+	ast_test_unregister(threadpool_auto_increment);
 	ast_test_unregister(threadpool_reactivation);
 	ast_test_unregister(threadpool_task_distribution);
 	ast_test_unregister(threadpool_more_destruction);
@@ -1119,6 +1202,7 @@ static int load_module(void)
 	ast_test_register(threadpool_one_task_one_thread);
 	ast_test_register(threadpool_one_thread_one_task);
 	ast_test_register(threadpool_one_thread_multiple_tasks);
+	ast_test_register(threadpool_auto_increment);
 	ast_test_register(threadpool_reactivation);
 	ast_test_register(threadpool_task_distribution);
 	ast_test_register(threadpool_more_destruction);

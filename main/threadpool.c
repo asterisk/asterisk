@@ -416,7 +416,7 @@ static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *po
 /*!
  * \brief Activate idle threads
  *
- * This function always returns CMP_MATCH because all threads that this
+ * This function always returns CMP_MATCH because all workers that this
  * function acts on need to be seen as matches so they are unlinked from the
  * list of idle threads.
  *
@@ -425,7 +425,7 @@ static struct task_pushed_data *task_pushed_data_alloc(struct ast_threadpool *po
  * \param arg The pool where the worker belongs
  * \retval CMP_MATCH
  */
-static int activate_threads(void *obj, void *arg, int flags)
+static int activate_thread(void *obj, void *arg, int flags)
 {
 	struct worker_thread *worker = obj;
 	struct ast_threadpool *pool = arg;
@@ -434,6 +434,8 @@ static int activate_threads(void *obj, void *arg, int flags)
 	worker_set_state(worker, ALIVE);
 	return CMP_MATCH;
 }
+
+static void grow(struct ast_threadpool *pool, int delta);
 
 /*!
  * \brief Queued task called when tasks are pushed into the threadpool
@@ -451,8 +453,13 @@ static int queued_task_pushed(void *data)
 	int was_empty = tpd->was_empty;
 
 	pool->listener->callbacks->task_pushed(pool, pool->listener, was_empty);
-	ao2_callback(pool->idle_threads, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
-			activate_threads, pool);
+	if (ao2_container_count(pool->idle_threads) == 0 && pool->options.auto_increment > 0) {
+		grow(pool, pool->options.auto_increment);
+	} else {
+		ao2_callback(pool->idle_threads, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA,
+				activate_thread, pool);
+	}	
+	threadpool_send_state_changed(pool);
 	ao2_ref(tpd, -1);
 	return 0;
 }
