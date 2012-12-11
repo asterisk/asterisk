@@ -408,6 +408,26 @@ static struct ast_cli_entry cli_reload = AST_CLI_DEFINE(handle_cli_reload, "Relo
 static struct ast_cli_entry cli_refresh = AST_CLI_DEFINE(handle_cli_refresh, "Performs an immediate refresh");
 static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Display the DNS manager status");
 
+static void dnsmgr_shutdown(void)
+{
+	ast_cli_unregister(&cli_reload);
+	ast_cli_unregister(&cli_status);
+	ast_cli_unregister(&cli_refresh);
+
+	/* Destroy refresh thread. */
+	ast_mutex_lock(&refresh_lock);
+	if (refresh_thread != AST_PTHREADT_NULL) {
+		/* wake up the thread so it will exit */
+		pthread_cancel(refresh_thread);
+		pthread_kill(refresh_thread, SIGURG);
+		pthread_join(refresh_thread, NULL);
+		refresh_thread = AST_PTHREADT_NULL;
+	}
+	ast_mutex_unlock(&refresh_lock);
+
+	ast_sched_context_destroy(sched);
+}
+
 int dnsmgr_init(void)
 {
 	if (!(sched = ast_sched_context_create())) {
@@ -417,6 +437,9 @@ int dnsmgr_init(void)
 	ast_cli_register(&cli_reload);
 	ast_cli_register(&cli_status);
 	ast_cli_register(&cli_refresh);
+
+	ast_register_atexit(dnsmgr_shutdown);
+
 	return do_reload(1);
 }
 

@@ -1817,6 +1817,8 @@ static void event_shutdown(void)
 	struct ast_event_sub *sub;
 	int i;
 
+	ast_cli_unregister_multiple(event_cli, ARRAY_LEN(event_cli));
+
 	if (event_dispatcher) {
 		event_dispatcher = ast_taskprocessor_unreference(event_dispatcher);
 	}
