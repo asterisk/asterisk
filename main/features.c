@@ -3581,7 +3581,7 @@ static int remap_feature(const char *name, const char *value)
  * \retval -1 on failure.
  */
 static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel *peer,
-	struct ast_bridge_config *config, const char *code, int sense, char *dynamic_features_buf,
+	struct ast_bridge_config *config, const char *code, int sense, const struct ast_str *dynamic_features_buf,
 	struct ast_flags *features, feature_interpret_op operation, struct ast_call_feature *feature)
 {
 	int x;
@@ -3640,11 +3640,13 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 
 	ast_rwlock_unlock(&features_lock);
 
-	if (ast_strlen_zero(dynamic_features_buf) || feature_detected) {
+	ast_assert(dynamic_features_buf != NULL);
+
+	if (!ast_str_strlen(dynamic_features_buf) || feature_detected) {
 		return res;
 	}
 
-	tmp = dynamic_features_buf;
+	tmp = ast_str_buffer(dynamic_features_buf);
 
 	while ((tok = strsep(&tmp, "#"))) {
 		AST_RWLIST_RDLOCK(&feature_groups);
@@ -3717,10 +3719,12 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
  */
 static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense) {
 
-	char dynamic_features_buf[128];
+	struct ast_str *dynamic_features_buf;
 	const char *peer_dynamic_features, *chan_dynamic_features;
 	struct ast_flags features;
 	struct ast_call_feature feature;
+	int res;
+
 	if (sense == FEATURE_SENSE_CHAN) {
 		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
@@ -3738,11 +3742,19 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 	chan_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
 	ast_channel_unlock(chan);
 
-	snprintf(dynamic_features_buf, sizeof(dynamic_features_buf), "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
+	if (!(dynamic_features_buf = ast_str_create(128))) {
+		return AST_FEATURE_RETURN_PASSDIGITS;
+	}
 
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", ast_channel_name(chan), ast_channel_name(peer), code, sense, features.flags, dynamic_features_buf);
+	ast_str_set(&dynamic_features_buf, 0, "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
 
-	return feature_interpret_helper(chan, peer, config, code, sense, dynamic_features_buf, &features, FEATURE_INTERPRET_DO, &feature);
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", ast_channel_name(chan), ast_channel_name(peer), code, sense, features.flags, ast_str_buffer(dynamic_features_buf));
+
+	res = feature_interpret_helper(chan, peer, config, code, sense, dynamic_features_buf, &features, FEATURE_INTERPRET_DO, &feature);
+
+	ast_free(dynamic_features_buf);
+
+	return res;
 }
 
 
@@ -3753,12 +3765,21 @@ int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, con
 
 /*! \brief Check if a feature exists */
 static int feature_check(struct ast_channel *chan, struct ast_flags *features, char *code) {
-	char *chan_dynamic_features;
+	struct ast_str *chan_dynamic_features;
+	int res;
+
+	if (!(chan_dynamic_features = ast_str_create(128))) {
+		return AST_FEATURE_RETURN_PASSDIGITS;
+	}
 	ast_channel_lock(chan);
-	chan_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
+	ast_str_set(&chan_dynamic_features, 0, "%s", S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
 	ast_channel_unlock(chan);
 
-	return feature_interpret_helper(chan, NULL, NULL, code, 0, chan_dynamic_features, features, FEATURE_INTERPRET_CHECK, NULL);
+	res = feature_interpret_helper(chan, NULL, NULL, code, 0, chan_dynamic_features, features, FEATURE_INTERPRET_CHECK, NULL);
+
+	ast_free(chan_dynamic_features);
+
+	return res;
 }
 
 static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config *config)
