@@ -510,6 +510,10 @@ else
 fi
 AC_SUBST(EDITLINE_LIB)
 
+if test "x$UUID_LIB" == "x"; then
+  AC_MSG_ERROR([*** uuid support not found (this typically means the uuid development package is missing)])
+fi
+
 # Another mandatory item (unless it's explicitly disabled)
 AC_ARG_ENABLE([xmldoc],
 	[AS_HELP_STRING([--disable-xmldoc],
