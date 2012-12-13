@@ -246,7 +246,8 @@ static struct ast_str *generate_exchange_uuid(struct ast_str *uid)
 	struct ast_uuid *uuid = ast_uuid_generate();
 
 	if (!uuid) {
-		return NULL;
+		ast_str_set(&uid, 0, "%s", "");
+		return uid;
 	}
 
 	ast_str_set(&uid, 0, "%s", ast_uuid_to_str(uuid, buffer, AST_UUID_STR_LEN));
