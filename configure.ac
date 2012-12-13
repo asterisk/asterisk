@@ -494,7 +494,7 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
-AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid.h], [-luuid])
+AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [-luuid])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
