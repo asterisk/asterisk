@@ -3318,9 +3318,9 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "skinny debug [show|{off|all|packet|sub|audio|template|lock}]";
+		e->command = "skinny debug {audio|hint|lock|off|packet|show|sub|template|thread}";
 		e->usage =
-			"Usage: skinny debug [show|{off|on|packet|sub|audio|template|lock}]\n"
+			"Usage: skinny debug {audio|hint|lock|off|packet|show|sub|template|thread}\n"
 			"       Enables/Disables various Skinny debugging messages\n";
 		return NULL;
 	case CLI_GENERATE:
