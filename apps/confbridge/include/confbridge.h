@@ -236,6 +236,7 @@ struct conference_bridge_user {
 	struct ast_channel *chan;                    /*!< Asterisk channel participating */
 	struct ast_bridge_features features;         /*!< Bridge features structure */
 	struct ast_bridge_tech_optimizations tech_args; /*!< Bridge technology optimizations for talk detection */
+	unsigned int suspended_moh;                  /*!< Count of active suspended MOH actions. */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
 	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
 	AST_LIST_HEAD_NOLOCK(, post_join_action) post_join_list; /*!< List of sounds to play after joining */;
@@ -357,6 +358,24 @@ int play_sound_file(struct conference_bridge *conference_bridge, const char *fil
  * \param conference_bridge The conference bridge
  */
 void conf_ended(struct conference_bridge *conference_bridge);
+
+/*!
+ * \brief Stop MOH for the conference user.
+ *
+ * \param user Conference user to stop MOH on.
+ *
+ * \return Nothing
+ */
+void conf_moh_stop(struct conference_bridge_user *user);
+
+/*!
+ * \brief Start MOH for the conference user.
+ *
+ * \param user Conference user to start MOH on.
+ *
+ * \return Nothing
+ */
+void conf_moh_start(struct conference_bridge_user *user);
 
 /*! \brief Attempt to mute/play MOH to the only user in the conference if they require it
  * \param conference_bridge A conference bridge containing a single user
