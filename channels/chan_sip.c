@@ -14052,7 +14052,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	}
 
 	/* Add Session-Timers related headers */
-	if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE) {
+	if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE
+		|| (st_get_mode(p, 0) == SESSION_TIMER_MODE_ACCEPT
+			&& st_get_se(p, FALSE) != DEFAULT_MIN_SE)) {
 		char i2astr[10];
 
 		if (!p->stimer->st_interval) {
@@ -14060,9 +14062,11 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 		}
 
 		p->stimer->st_active = TRUE;
-		
-		snprintf(i2astr, sizeof(i2astr), "%d", p->stimer->st_interval);
-		add_header(&req, "Session-Expires", i2astr);
+		if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE) {	
+			snprintf(i2astr, sizeof(i2astr), "%d", p->stimer->st_interval);
+			add_header(&req, "Session-Expires", i2astr);
+		}
+
 		snprintf(i2astr, sizeof(i2astr), "%d", st_get_se(p, FALSE));
 		add_header(&req, "Min-SE", i2astr);
 	}
@@ -29147,7 +29151,10 @@ static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp)
 		ast_log(LOG_WARNING, "Parsing of Min-SE header failed %s\n", p_hdrval);
 		return;
 	}
-	p->stimer->st_interval = minse;
+	p->stimer->st_cached_min_se = minse;
+	if (p->stimer->st_interval < minse) {
+		p->stimer->st_interval = minse;
+	}
 	transmit_invite(p, SIP_INVITE, 1, 2, NULL);
 }
 
@@ -30730,8 +30737,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
 					peer->stimer.st_min_se = global_min_se;
 				}
-				if (peer->stimer.st_min_se < 90) {
-					ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+				if (peer->stimer.st_min_se < DEFAULT_MIN_SE) {
+					ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < %d secs\n", v->value, v->lineno, config, DEFAULT_MIN_SE);
 					peer->stimer.st_min_se = global_min_se;
 				}
 			} else if (!strcasecmp(v->name, "session-refresher")) {
@@ -31826,8 +31833,8 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
 				global_min_se = DEFAULT_MIN_SE;
 			}
-			if (global_min_se < 90) {
-				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+			if (global_min_se < DEFAULT_MIN_SE) {
+				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < %d secs\n", v->value, v->lineno, config, DEFAULT_MIN_SE);
 				global_min_se = DEFAULT_MIN_SE;
 			}
 		} else if (!strcasecmp(v->name, "session-refresher")) {
