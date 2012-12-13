@@ -719,11 +719,6 @@ AC_DEFINE([HAVE_SYS_ENDIAN_BSWAP16], 1, [Define to 1 if your sys/endian.h header
 AC_MSG_RESULT(no)
 )
 
-if test "${cross_compiling}" = "no";
-then
-  AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
-fi
-
 AC_MSG_CHECKING(for locale_t in locale.h)
 AC_LINK_IFELSE(
 [AC_LANG_PROGRAM([#include <locale.h>], [locale_t lt = NULL])],

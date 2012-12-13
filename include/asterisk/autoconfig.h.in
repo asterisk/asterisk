@@ -173,9 +173,6 @@
 /* Define DAHDI headers version */
 #undef HAVE_DAHDI_VERSION
 
-/* Define to 1 if your system has /dev/urandom. */
-#undef HAVE_DEV_URANDOM
-
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
@@ -1222,11 +1219,6 @@
 
 /* Define to 1 if running on Darwin. */
 #undef _DARWIN_UNLIMITED_SELECT
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
