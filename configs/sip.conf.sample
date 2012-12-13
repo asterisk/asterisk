@@ -1259,6 +1259,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; dtlscafile
 ; dtlscapath
 ; dtlssetup
+; ignore_requested_pref ; Ignore the requested codec and determine the preferred codec
+;						; from the peer's configuration.
 ;
 
 ;------------------------------------------------------------------------------

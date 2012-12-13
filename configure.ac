@@ -494,7 +494,7 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
-AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid.h], [-luuid])
+AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [-luuid])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
@@ -718,11 +718,6 @@ AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_SYS_ENDIAN_BSWAP16], 1, [Define to 1 if your sys/endian.h header file provides the bswap16 macro.]),
 AC_MSG_RESULT(no)
 )
-
-if test "${cross_compiling}" = "no";
-then
-  AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
-fi
 
 AC_MSG_CHECKING(for locale_t in locale.h)
 AC_LINK_IFELSE(

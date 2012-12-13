@@ -35,9 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <sys/stat.h>
 
-#ifdef HAVE_DEV_URANDOM
 #include <fcntl.h>
-#endif
 
 #include <sys/syscall.h>
 #if defined(__APPLE__)
@@ -496,9 +494,7 @@ const char *ast_inet_ntoa(struct in_addr ia)
 	return inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 }
 
-#ifdef HAVE_DEV_URANDOM
 static int dev_urandom_fd;
-#endif
 
 #ifndef __linux__
 #undef pthread_create /* For ast_pthread_create function only */
@@ -1494,7 +1490,7 @@ AST_MUTEX_DEFINE_STATIC(randomlock);
 long int ast_random(void)
 {
 	long int res;
-#ifdef HAVE_DEV_URANDOM
+
 	if (dev_urandom_fd >= 0) {
 		int read_res = read(dev_urandom_fd, &res, sizeof(res));
 		if (read_res > 0) {
@@ -1504,7 +1500,7 @@ long int ast_random(void)
 			return res % rm;
 		}
 	}
-#endif
+
 	/* XXX - Thread safety really depends on the libc, not the OS.
 	 *
 	 * But... popular Linux libc's (uClibc, glibc, eglibc), all have a
@@ -2035,9 +2031,7 @@ int ast_mkdir(const char *path, int mode)
 
 int ast_utils_init(void)
 {
-#ifdef HAVE_DEV_URANDOM
 	dev_urandom_fd = open("/dev/urandom", O_RDONLY);
-#endif
 	base64_init();
 #ifdef DEBUG_THREADS
 #if !defined(LOW_MEMORY)

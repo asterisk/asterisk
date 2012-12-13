@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/config.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/uuid.h"
 
 static void *exchangecal_load_calendar(void *data);
 static void *unref_exchangecal(void *obj);
@@ -241,36 +242,30 @@ static void *unref_exchangecal(void *obj)
 /* It is very important to use the return value of this function as a realloc could occur */
 static struct ast_str *generate_exchange_uuid(struct ast_str *uid)
 {
-	unsigned short val[8];
-	int x;
+	char buffer[AST_UUID_STR_LEN];
+	struct ast_uuid *uuid = ast_uuid_generate();
 
-	for (x = 0; x < 8; x++) {
-		val[x] = ast_random();
+	if (!uuid) {
+		return NULL;
 	}
-	ast_str_set(&uid, 0, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+
+	ast_str_set(&uid, 0, "%s", ast_uuid_to_str(uuid, buffer, AST_UUID_STR_LEN));
+
+	ast_free(uuid);
 
 	return uid;
 }
 
 static int is_valid_uuid(struct ast_str *uid)
 {
-	int i;
+	struct ast_uuid *uuid = ast_str_to_uuid(ast_str_buffer(uid));
 
-	if (ast_str_strlen(uid) != 36) {
-		return 0;
+	if (uuid) {
+		ast_free(uuid);
+		return 1;
 	}
 
-	for (i = 0; i < ast_str_strlen(uid); i++) {
-		if (i == 8 || i == 13 || i == 18 || i == 23) {
-			if (ast_str_buffer(uid)[i] != '-') {
-				return 0;
-			}
-		} else if (!((ast_str_buffer(uid)[i] > 47 && ast_str_buffer(uid)[i] < 58) || (ast_str_buffer(uid)[i] > 96 && ast_str_buffer(uid)[i] < 103))) {
-			return 0;
-		}
-	}
-
-	return 1;
+	return 0;
 }
 
 static struct ast_str *xml_encode_str(struct ast_str *dst, const char *src)
