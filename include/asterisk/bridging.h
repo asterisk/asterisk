@@ -271,6 +271,32 @@ struct ast_bridge {
  */
 struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags);
 
+/*!
+ * \brief Lock the bridge.
+ *
+ * \param bridge Bridge to lock
+ *
+ * \return Nothing
+ */
+#define ast_bridge_lock(bridge)	_ast_bridge_lock(bridge, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge)
+static inline void _ast_bridge_lock(struct ast_bridge *bridge, const char *file, const char *function, int line, const char *var)
+{
+	__ao2_lock(bridge, AO2_LOCK_REQ_MUTEX, file, function, line, var);
+}
+
+/*!
+ * \brief Unlock the bridge.
+ *
+ * \param bridge Bridge to unlock
+ *
+ * \return Nothing
+ */
+#define ast_bridge_unlock(bridge)	_ast_bridge_unlock(bridge, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge)
+static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *file, const char *function, int line, const char *var)
+{
+	__ao2_unlock(bridge, file, function, line, var);
+}
+
 /*! \brief See if it is possible to create a bridge
  *
  * \param capabilities The capabilities that the bridge will use

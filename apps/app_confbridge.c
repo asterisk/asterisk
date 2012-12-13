@@ -909,6 +909,94 @@ static int handle_conf_user_leave(struct conference_bridge_user *cbu)
 	return 0;
 }
 
+void conf_moh_stop(struct conference_bridge_user *user)
+{
+	user->playing_moh = 0;
+	if (!user->suspended_moh) {
+		int in_bridge;
+
+		/*
+		 * Locking the ast_bridge here is the only way to hold off the
+		 * call to ast_bridge_join() in confbridge_exec() from
+		 * interfering with the bridge and MOH operations here.
+		 */
+		ast_bridge_lock(user->conference_bridge->bridge);
+
+		/*
+		 * Temporarily suspend the user from the bridge so we have
+		 * control to stop MOH if needed.
+		 */
+		in_bridge = !ast_bridge_suspend(user->conference_bridge->bridge, user->chan);
+		ast_moh_stop(user->chan);
+		if (in_bridge) {
+			ast_bridge_unsuspend(user->conference_bridge->bridge, user->chan);
+		}
+
+		ast_bridge_unlock(user->conference_bridge->bridge);
+	}
+}
+
+void conf_moh_start(struct conference_bridge_user *user)
+{
+	user->playing_moh = 1;
+	if (!user->suspended_moh) {
+		int in_bridge;
+
+		/*
+		 * Locking the ast_bridge here is the only way to hold off the
+		 * call to ast_bridge_join() in confbridge_exec() from
+		 * interfering with the bridge and MOH operations here.
+		 */
+		ast_bridge_lock(user->conference_bridge->bridge);
+
+		/*
+		 * Temporarily suspend the user from the bridge so we have
+		 * control to start MOH if needed.
+		 */
+		in_bridge = !ast_bridge_suspend(user->conference_bridge->bridge, user->chan);
+		ast_moh_start(user->chan, user->u_profile.moh_class, NULL);
+		if (in_bridge) {
+			ast_bridge_unsuspend(user->conference_bridge->bridge, user->chan);
+		}
+
+		ast_bridge_unlock(user->conference_bridge->bridge);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Unsuspend MOH for the conference user.
+ *
+ * \param user Conference user to unsuspend MOH on.
+ *
+ * \return Nothing
+ */
+static void conf_moh_unsuspend(struct conference_bridge_user *user)
+{
+	ao2_lock(user->conference_bridge);
+	if (--user->suspended_moh == 0 && user->playing_moh) {
+		ast_moh_start(user->chan, user->u_profile.moh_class, NULL);
+	}
+	ao2_unlock(user->conference_bridge);
+}
+
+/*!
+ * \internal
+ * \brief Suspend MOH for the conference user.
+ *
+ * \param user Conference user to suspend MOH on.
+ *
+ * \return Nothing
+ */
+static void conf_moh_suspend(struct conference_bridge_user *user)
+{
+	ao2_lock(user->conference_bridge);
+	if (user->suspended_moh++ == 0 && user->playing_moh) {
+		ast_moh_stop(user->chan);
+	}
+	ao2_unlock(user->conference_bridge);
+}
+
 int conf_handle_first_marked_common(struct conference_bridge_user *cbu)
 {
 	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET) && play_prompt_to_user(cbu, conf_get_sound(CONF_SOUND_PLACE_IN_CONF, cbu->b_profile.sounds))) {
@@ -919,18 +1007,11 @@ int conf_handle_first_marked_common(struct conference_bridge_user *cbu)
 
 int conf_handle_inactive_waitmarked(struct conference_bridge_user *cbu)
 {
-	/* Be sure we are muted so we can't talk to anybody else waiting */
-	cbu->features.mute = 1;
 	/* If we have not been quieted play back that they are waiting for the leader */
 	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET) && play_prompt_to_user(cbu,
 			conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, cbu->b_profile.sounds))) {
 		/* user hungup while the sound was playing */
 		return -1;
-	}
-	/* Start music on hold if needed */
-	if (ast_test_flag(&cbu->u_profile, USER_OPT_MUSICONHOLD)) {
-		ast_moh_start(cbu->chan, cbu->u_profile.moh_class, NULL);
-		cbu->playing_moh = 1;
 	}
 	return 0;
 }
@@ -970,11 +1051,8 @@ void conf_handle_second_active(struct conference_bridge *conference_bridge)
 	/* If we are the second participant we may need to stop music on hold on the first */
 	struct conference_bridge_user *first_participant = AST_LIST_FIRST(&conference_bridge->active_list);
 
-	/* Temporarily suspend the above participant from the bridge so we have control to stop MOH if needed */
-	if (ast_test_flag(&first_participant->u_profile, USER_OPT_MUSICONHOLD) && !ast_bridge_suspend(conference_bridge->bridge, first_participant->chan)) {
-		first_participant->playing_moh = 0;
-		ast_moh_stop(first_participant->chan);
-		ast_bridge_unsuspend(conference_bridge->bridge, first_participant->chan);
+	if (ast_test_flag(&first_participant->u_profile, USER_OPT_MUSICONHOLD)) {
+		conf_moh_stop(first_participant);
 	}
 	if (!ast_test_flag(&first_participant->u_profile, USER_OPT_STARTMUTED)) {
 		first_participant->features.mute = 0;
@@ -1098,6 +1176,13 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 	conference_bridge_user->conference_bridge = conference_bridge;
 
 	ao2_lock(conference_bridge);
+
+	/*
+	 * Suspend any MOH until the user actually joins the bridge of
+	 * the conference.  This way any pre-join file playback does not
+	 * need to worry about MOH.
+	 */
+	conference_bridge_user->suspended_moh = 1;
 
 	if (handle_conf_user_join(conference_bridge_user)) {
 		/* Invalid event, nothing was done, so we don't want to process a leave. */
@@ -1530,20 +1615,17 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	/* Play the Join sound to both the conference and the user entering. */
 	if (!quiet) {
 		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, conference_bridge_user.b_profile.sounds);
-		if (conference_bridge_user.playing_moh) {
-			ast_moh_stop(chan);
-		}
+
 		ast_stream_and_wait(chan, join_sound, "");
 		ast_autoservice_start(chan);
 		play_sound_file(conference_bridge, join_sound);
 		ast_autoservice_stop(chan);
-		if (conference_bridge_user.playing_moh) {
-			ast_moh_start(chan, conference_bridge_user.u_profile.moh_class, NULL);
-		}
 	}
 
 	/* See if we need to automatically set this user as a video source or not */
 	handle_video_on_join(conference_bridge, conference_bridge_user.chan, ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_MARKEDUSER));
+
+	conf_moh_unsuspend(&conference_bridge_user);
 
 	/* Join our conference bridge for real */
 	send_join_event(conference_bridge_user.chan, conference_bridge->name);
@@ -1925,25 +2007,14 @@ int conf_handle_dtmf(struct ast_bridge_channel *bridge_channel,
 	struct conf_menu_entry *menu_entry,
 	struct conf_menu *menu)
 {
-	struct conference_bridge *conference_bridge = conference_bridge_user->conference_bridge;
-
 	/* See if music on hold is playing */
-	ao2_lock(conference_bridge);
-	if (conference_bridge_user->playing_moh) {
-		/* MOH is going, let's stop it */
-		ast_moh_stop(bridge_channel->chan);
-	}
-	ao2_unlock(conference_bridge);
+	conf_moh_suspend(conference_bridge_user);
 
 	/* execute the list of actions associated with this menu entry */
-	execute_menu_entry(conference_bridge, conference_bridge_user, bridge_channel, menu_entry, menu);
+	execute_menu_entry(conference_bridge_user->conference_bridge, conference_bridge_user, bridge_channel, menu_entry, menu);
 
 	/* See if music on hold needs to be started back up again */
-	ao2_lock(conference_bridge);
-	if (conference_bridge_user->playing_moh) {
-		ast_moh_start(bridge_channel->chan, conference_bridge_user->u_profile.moh_class, NULL);
-	}
-	ao2_unlock(conference_bridge);
+	conf_moh_unsuspend(conference_bridge_user);
 
 	return 0;
 }
@@ -2835,13 +2906,7 @@ void conf_mute_only_active(struct conference_bridge *conference_bridge)
 	/* Turn on MOH/mute if the single participant is set up for it */
 	if (ast_test_flag(&only_participant->u_profile, USER_OPT_MUSICONHOLD)) {
 		only_participant->features.mute = 1;
-		if (!ast_channel_internal_bridge(only_participant->chan) || !ast_bridge_suspend(conference_bridge->bridge, only_participant->chan)) {
-			ast_moh_start(only_participant->chan, only_participant->u_profile.moh_class, NULL);
-			only_participant->playing_moh = 1;
-			if (ast_channel_internal_bridge(only_participant->chan)) {
-				ast_bridge_unsuspend(conference_bridge->bridge, only_participant->chan);
-			}
-		}
+		conf_moh_start(only_participant);
 	}
 }
 
