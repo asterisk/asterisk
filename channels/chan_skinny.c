@@ -671,7 +671,6 @@ struct close_receive_channel_message {
 };
 
 #define SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
-
 struct soft_key_template_definition {
 	char softKeyLabel[16];
 	uint32_t softKeyEvent;
@@ -2190,7 +2189,7 @@ static char *callstate2str(int ind)
 	char *tmp;
 
 	switch (ind) {
-	case SUBSTATE_OFFHOOK:
+	case SKINNY_OFFHOOK:
 		return "SKINNY_OFFHOOK";
 	case SKINNY_ONHOOK:
 		return "SKINNY_ONHOOK";
@@ -3362,13 +3361,13 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 			bitmask = DEBUG_PACKET;
 		} else if (!strncasecmp(arg, "audio", 5)) {
 			bitmask = DEBUG_AUDIO;
-		} else if (!strncasecmp(arg, "lock", 6)) {
+		} else if (!strncasecmp(arg, "lock", 4)) {
 			bitmask = DEBUG_LOCK;
 		} else if (!strncasecmp(arg, "template", 8)) {
 			bitmask = DEBUG_TEMPLATE;
 		} else if (!strncasecmp(arg, "thread", 6)) {
 			bitmask = DEBUG_THREAD;
-		} else if (!strncasecmp(arg, "hint", 6)) {
+		} else if (!strncasecmp(arg, "hint", 4)) {
 			bitmask = DEBUG_HINT;
 		} else {
 			ast_cli(a->fd, "Skinny Debugging - option '%s' unknown\n", a->argv[i]);
