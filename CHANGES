@@ -31,6 +31,16 @@ AMI (Asterisk Manager Interface)
    'Manager Show Command' now displays the privileges needed for using a given
    manager command instead.
 
+Features
+-------------------
+ * The BRIDGE_FEATURES channel variable would previously only set features for
+   the calling party and would set this feature regardless of whether the
+   feature was in caps or in lowercase. Use of a caps feature for a letter
+   will now apply the feature to the calling party while use of a lowercase
+   letter will apply that feature to the called party.
+
+ * Add support for automixmonitor to the BRIDGE_FEATURES channel variable.
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an

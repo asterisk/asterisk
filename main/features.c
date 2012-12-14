@@ -4227,22 +4227,32 @@ static void set_bridge_features_on_config(struct ast_bridge_config *config, cons
 	}
 
 	for (feature = features; *feature; feature++) {
-		switch (*feature) {
-		case 'T' :
+		struct ast_flags *party;
+		char this_feature;
+
+		if (isupper(*feature)) {
+			party = &(config->features_caller);
+		} else {
+			party = &(config->features_callee);
+		}
+
+		this_feature = tolower(*feature);
+
+		switch (this_feature) {
 		case 't' :
-			ast_set_flag(&(config->features_caller), AST_FEATURE_REDIRECT);
+			ast_set_flag(party, AST_FEATURE_REDIRECT);
 			break;
-		case 'K' :
 		case 'k' :
-			ast_set_flag(&(config->features_caller), AST_FEATURE_PARKCALL);
+			ast_set_flag(party, AST_FEATURE_PARKCALL);
 			break;
-		case 'H' :
 		case 'h' :
-			ast_set_flag(&(config->features_caller), AST_FEATURE_DISCONNECT);
+			ast_set_flag(party, AST_FEATURE_DISCONNECT);
 			break;
-		case 'W' :
 		case 'w' :
-			ast_set_flag(&(config->features_caller), AST_FEATURE_AUTOMON);
+			ast_set_flag(party, AST_FEATURE_AUTOMON);
+			break;
+		case 'x' :
+			ast_set_flag(party, AST_FEATURE_AUTOMIXMON);
 			break;
 		default :
 			ast_log(LOG_WARNING, "Skipping unknown feature code '%c'\n", *feature);
