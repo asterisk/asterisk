@@ -1630,12 +1630,12 @@ struct statechange {
  * Lock interface list find sc, iterate through each queues queue_member list for member to
  * update state inside queues
 */
-static int update_status(struct call_queue *q, struct member *m, const int status)
+static void update_status(struct call_queue *q, struct member *m, const int status)
 {
 	m->status = status;
 
 	if (q->maskmemberstatus) {
-		return 0;
+		return;
 	}
 
 	/*** DOCUMENTATION
@@ -1707,8 +1707,6 @@ static int update_status(struct call_queue *q, struct member *m, const int statu
 		q->name, m->interface, m->membername, m->state_interface, m->dynamic ? "dynamic" : m->realtime ? "realtime" : "static",
 		m->penalty, m->calls, (int)m->lastcall, m->status, m->paused
 	);
-
-	return 0;
 }
 
 /*!
