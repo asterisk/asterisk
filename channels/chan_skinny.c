@@ -175,6 +175,7 @@ static struct ast_codec_pref default_prefs;
 enum skinny_codecs {
 	SKINNY_CODEC_ALAW = 2,
 	SKINNY_CODEC_ULAW = 4,
+	SKINNY_CODEC_G722 = 6,
 	SKINNY_CODEC_G723_1 = 9,
 	SKINNY_CODEC_G729A = 12,
 	SKINNY_CODEC_G726_32 = 82, /* XXX Which packing order does this translate to? */
@@ -1939,6 +1940,8 @@ static struct ast_format *codec_skinny2ast(enum skinny_codecs skinnycodec, struc
 		return ast_format_set(result, AST_FORMAT_ALAW, 0);
 	case SKINNY_CODEC_ULAW:
 		return ast_format_set(result, AST_FORMAT_ULAW, 0);
+	case SKINNY_CODEC_G722:
+		return ast_format_set(result, AST_FORMAT_G722, 0);
 	case SKINNY_CODEC_G723_1:
 		return ast_format_set(result, AST_FORMAT_G723_1, 0);
 	case SKINNY_CODEC_G729A:
@@ -1962,6 +1965,8 @@ static int codec_ast2skinny(const struct ast_format *astcodec)
 		return SKINNY_CODEC_ALAW;
 	case AST_FORMAT_ULAW:
 		return SKINNY_CODEC_ULAW;
+	case AST_FORMAT_G722:
+		return SKINNY_CODEC_G722;
 	case AST_FORMAT_G723_1:
 		return SKINNY_CODEC_G723_1;
 	case AST_FORMAT_G729A:
