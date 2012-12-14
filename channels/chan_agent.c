@@ -1442,8 +1442,9 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-			if (p->chan)
+			if (p->chan) {
 				hasagent++;
+			}
 			now = ast_tvnow();
 			if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
 				p->lastdisc = ast_tv(0, 0);
@@ -1459,30 +1460,6 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 			}
 		}
 		ast_mutex_unlock(&p->lock);
-	}
-	if (!p) {
-		AST_LIST_TRAVERSE(&agents, p, list) {
-			ast_mutex_lock(&p->lock);
-			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-				if (p->chan) {
-					hasagent++;
-				}
-				now = ast_tvnow();
-				if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
-					p->lastdisc = ast_tv(0, 0);
-					/* Agent must be registered, but not have any active call, and not be in a waiting state */
-					if (!p->owner && p->chan) {
-						/* Could still get a fixed agent */
-						chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, callid);
-					}
-					if (chan) {
-						ast_mutex_unlock(&p->lock);
-						break;
-					}
-				}
-			}
-			ast_mutex_unlock(&p->lock);
-		}
 	}
 
 	if (!chan && waitforagent) {
