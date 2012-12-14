@@ -64,6 +64,9 @@ Dialplan:
  - Asterisk has always had code to ignore dash '-' characters that are not
    part of a character set in the dialplan extensions.  The code now
    consistently ignores these characters when matching dialplan extensions.
+ - BRIDGE_FEATURES channel variable is now casesensitive for feature letter codes.
+   Uppercase variants apply them to the calling party while lowercase variants
+   apply them to the called party.
 
 From 10 to 11:
 
