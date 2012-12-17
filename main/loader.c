@@ -237,9 +237,18 @@ void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 	if (!u) {
 		return;
 	}
+
 	AST_LIST_LOCK(&mod->users);
-	AST_LIST_REMOVE(&mod->users, u, entry);
+	u = AST_LIST_REMOVE(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
+	if (!u) {
+		/*
+		 * Was not in the list.  Either a bad pointer or
+		 * __ast_module_user_hangup_all() has been called.
+		 */
+		return;
+	}
+
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_free(u);
 
@@ -559,15 +568,26 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	}
 
 	if (!error) {
+		/* Request any channels attached to the module to hangup. */
 		__ast_module_user_hangup_all(mod);
-		res = mod->info->unload();
 
+		res = mod->info->unload();
 		if (res) {
 			ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
-			if (force <= AST_FORCE_FIRM)
+			if (force <= AST_FORCE_FIRM) {
 				error = 1;
-			else
+			} else {
 				ast_log(LOG_WARNING, "** Dangerous **: Unloading resource anyway, at user request\n");
+			}
+		}
+
+		if (!error) {
+			/*
+			 * Request hangup on any channels that managed to get attached
+			 * while we called the module unload function.
+			 */
+			__ast_module_user_hangup_all(mod);
+			sched_yield();
 		}
 	}
 
