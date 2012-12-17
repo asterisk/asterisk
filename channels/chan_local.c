@@ -282,27 +282,31 @@ setoption_cleanup:
 static int local_devicestate(const char *data)
 {
 	char *exten = ast_strdupa(data);
-	char *context = NULL, *opts = NULL;
+	char *context;
+	char *opts;
 	int res;
 	struct local_pvt *lp;
 	struct ao2_iterator it;
 
-	if (!(context = strchr(exten, '@'))) {
-		ast_log(LOG_WARNING, "Someone used Local/%s somewhere without a @context. This is bad.\n", exten);
-		return AST_DEVICE_INVALID;
+	/* Strip options if they exist */
+	opts = strchr(exten, '/');
+	if (opts) {
+		*opts = '\0';
 	}
 
+	context = strchr(exten, '@');
+	if (!context) {
+		ast_log(LOG_WARNING,
+			"Someone used Local/%s somewhere without a @context. This is bad.\n", data);
+		return AST_DEVICE_INVALID;	
+	}
 	*context++ = '\0';
 
-	/* Strip options if they exist */
-	if ((opts = strchr(context, '/')))
-		*opts = '\0';
-
 	ast_debug(3, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
-
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
-	if (!res)
+	if (!res) {
 		return AST_DEVICE_INVALID;
+	}
 
 	res = AST_DEVICE_NOT_INUSE;
 
@@ -1147,7 +1151,9 @@ static void local_destroy(void *obj)
 static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *cap)
 {
 	struct local_pvt *tmp = NULL;
-	char *c = NULL, *opts = NULL;
+	char *parse;
+	char *c = NULL;
+	char *opts = NULL;
 
 	if (!(tmp = ao2_alloc(sizeof(*tmp), local_destroy))) {
 		return NULL;
@@ -1158,12 +1164,12 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 	}
 
 	/* Initialize private structure information */
-	ast_copy_string(tmp->exten, data, sizeof(tmp->exten));
+	parse = ast_strdupa(data);
 
 	memcpy(&tmp->jb_conf, &g_jb_conf, sizeof(tmp->jb_conf));
 
 	/* Look for options */
-	if ((opts = strchr(tmp->exten, '/'))) {
+	if ((opts = strchr(parse, '/'))) {
 		*opts++ = '\0';
 		if (strchr(opts, 'n'))
 			ast_set_flag(tmp, LOCAL_NO_OPTIMIZATION);
@@ -1184,24 +1190,16 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 	}
 
 	/* Look for a context */
-	if ((c = strchr(tmp->exten, '@')))
+	if ((c = strchr(parse, '@'))) {
 		*c++ = '\0';
+	}
 
 	ast_copy_string(tmp->context, c ? c : "default", sizeof(tmp->context));
-#if 0
-	/* We can't do this check here, because we don't know the CallerID yet, and
-	 * the CallerID could potentially affect what step is actually taken (or
-	 * even if that step exists). */
-	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
-		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
-		tmp = local_pvt_destroy(tmp);
-	} else {
-#endif
-		/* Add to list */
-		ao2_link(locals, tmp);
-#if 0
-	}
-#endif
+	ast_copy_string(tmp->exten, parse, sizeof(tmp->exten));
+
+	/* Add to list */
+	ao2_link(locals, tmp);
+
 	return tmp; /* this is returned with a ref */
 }
 
