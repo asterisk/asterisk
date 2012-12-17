@@ -151,8 +151,6 @@ struct local_pvt {
 	struct ast_jb_conf jb_conf;     /*!< jitterbuffer configuration for this local channel */
 	struct ast_channel *owner;      /*!< Master Channel - Bridging happens here */
 	struct ast_channel *chan;       /*!< Outbound channel - PBX is run here */
-	struct ast_module_user *u_owner;/*!< reference to keep the module loaded while in use */
-	struct ast_module_user *u_chan; /*!< reference to keep the module loaded while in use */
 };
 
 #define LOCAL_ALREADY_MASQED  (1 << 0) /*!< Already masqueraded */
@@ -676,7 +674,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	ao2_lock(p);
 
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
-		ast_log(LOG_WARNING, "Old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
+		ast_log(LOG_WARNING, "Old channel %p wasn't %p or %p\n", oldchan, p->owner, p->chan);
 		ao2_unlock(p);
 		return -1;
 	}
@@ -1085,16 +1083,15 @@ static int local_hangup(struct ast_channel *ast)
 
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
-		if ((status) && (p->owner)) {
+
+		if (status && p->owner) {
 			ast_channel_hangupcause_set(p->owner, ast_channel_hangupcause(p->chan));
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		}
 
 		ast_clear_flag(p, LOCAL_LAUNCHED_PBX);
-		ast_module_user_remove(p->u_chan);
 		p->chan = NULL;
 	} else {
-		ast_module_user_remove(p->u_owner);
 		if (p->chan) {
 			ast_queue_hangup(p->chan);
 		}
@@ -1105,6 +1102,7 @@ static int local_hangup(struct ast_channel *ast)
 
 	if (!p->owner && !p->chan) {
 		ao2_unlock(p);
+
 		/* Remove from list */
 		ao2_unlink(locals, p);
 		ao2_ref(p, -1);
@@ -1124,6 +1122,10 @@ local_hangup_cleanup:
 		ao2_unlock(p);
 		ao2_ref(p, -1);
 	}
+	if (owner) {
+		ast_channel_unlock(owner);
+		owner = ast_channel_unref(owner);
+	}
 	if (chan) {
 		ast_channel_unlock(chan);
 		if (hangup_chan) {
@@ -1131,20 +1133,27 @@ local_hangup_cleanup:
 		}
 		chan = ast_channel_unref(chan);
 	}
-	if (owner) {
-		ast_channel_unlock(owner);
-		owner = ast_channel_unref(owner);
-	}
 
 	/* leave with the same stupid channel locked that came in */
 	ast_channel_lock(ast);
 	return res;
 }
 
-static void local_destroy(void *obj)
+/*!
+ * \internal
+ * \brief struct local_pvt destructor.
+ *
+ * \param vdoomed Void local_pvt to destroy.
+ *
+ * \return Nothing
+ */
+static void local_pvt_destructor(void *vdoomed)
 {
-	struct local_pvt *pvt = obj;
-	pvt->reqcap = ast_format_cap_destroy(pvt->reqcap);
+	struct local_pvt *doomed = vdoomed;
+
+	doomed->reqcap = ast_format_cap_destroy(doomed->reqcap);
+
+	ast_module_unref(ast_module_info->self);
 }
 
 /*! \brief Create a call structure */
@@ -1153,13 +1162,15 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 	struct local_pvt *tmp = NULL;
 	char *c = NULL, *opts = NULL;
 
-	if (!(tmp = ao2_alloc(sizeof(*tmp), local_destroy))) {
+	if (!(tmp = ao2_alloc(sizeof(*tmp), local_pvt_destructor))) {
 		return NULL;
 	}
 	if (!(tmp->reqcap = ast_format_cap_dup(cap))) {
 		ao2_ref(tmp, -1);
 		return NULL;
 	}
+
+	ast_module_ref(ast_module_info->self);
 
 	/* Initialize private structure information */
 	ast_copy_string(tmp->exten, data, sizeof(tmp->exten));
@@ -1268,8 +1279,6 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 
 	p->owner = tmp;
 	p->chan = tmp2;
-	p->u_owner = ast_module_user_add(p->owner);
-	p->u_chan = ast_module_user_add(p->chan);
 
 	ast_channel_context_set(tmp, p->context);
 	ast_channel_context_set(tmp2, p->context);
@@ -1301,9 +1310,7 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 	} else if (ast_channel_cc_params_init(chan, requestor ? ast_channel_get_cc_config_params((struct ast_channel *)requestor) : NULL)) {
 		ao2_unlink(locals, p);
 		p->owner = ast_channel_release(p->owner);
-		ast_module_user_remove(p->u_owner);
 		p->chan = ast_channel_release(p->chan);
-		ast_module_user_remove(p->u_chan);
 		chan = NULL;
 	}
 	ao2_ref(p, -1); /* kill the ref from the alloc */
