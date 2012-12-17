@@ -161,7 +161,7 @@ struct local_pvt {
 #define LOCAL_BRIDGE          (1 << 3) /*!< Report back the "true" channel as being bridged to */
 #define LOCAL_MOH_PASSTHRU    (1 << 4) /*!< Pass through music on hold start/stop frames */
 
-/* 
+/*!
  * \brief Send a pvt in with no locks held and get all locks
  *
  * \note NO locks should be held prior to calling this function
@@ -175,8 +175,8 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 	struct ast_channel *chan = NULL;
 	struct ast_channel *owner = NULL;
 
+	ao2_lock(p);
 	for (;;) {
-		ao2_lock(p);
 		if (p->chan) {
 			chan = p->chan;
 			ast_channel_ref(chan);
@@ -194,12 +194,11 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 			} else if(chan) {
 				ast_channel_lock(chan);
 			}
-			ao2_lock(p);
 		} else {
 			/* lock both channels first, then get the pvt lock */
 			ast_channel_lock_both(chan, owner);
-			ao2_lock(p);
 		}
+		ao2_lock(p);
 
 		/* Now that we have all the locks, validate that nothing changed */
 		if (p->owner != owner || p->chan != chan) {
@@ -211,7 +210,6 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 				ast_channel_unlock(chan);
 				chan = ast_channel_unref(chan);
 			}
-			ao2_unlock(p);
 			continue;
 		}
 
@@ -225,7 +223,7 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 static int local_setoption(struct ast_channel *ast, int option, void * data, int datalen)
 {
 	int res = 0;
-	struct local_pvt *p = NULL;
+	struct local_pvt *p;
 	struct ast_channel *otherchan = NULL;
 	ast_chan_write_info_t *write_info;
 
@@ -272,9 +270,7 @@ static int local_setoption(struct ast_channel *ast, int option, void * data, int
 	ast_channel_unlock(otherchan);
 
 setoption_cleanup:
-	if (p) {
-		ao2_ref(p, -1);
-	}
+	ao2_ref(p, -1);
 	if (otherchan) {
 		ast_channel_unref(otherchan);
 	}
@@ -468,8 +464,8 @@ static int local_answer(struct ast_channel *ast)
 		return -1;
 	}
 
-	ao2_lock(p);
 	ao2_ref(p, 1);
+	ao2_lock(p);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
@@ -839,8 +835,8 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 		return -1;
 	}
 
-	ao2_lock(p);
 	ao2_ref(p, 1); /* ref for local_queue_frame */
+	ao2_lock(p);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.data.ptr = (char *) text;
 	f.datalen = strlen(text) + 1;
@@ -861,8 +857,8 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 		return -1;
 	}
 
-	ao2_lock(p);
 	ao2_ref(p, 1); /* ref for local_queue_frame */
+	ao2_lock(p);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass.integer = subclass;
 	f.data.ptr = (char *)data;
