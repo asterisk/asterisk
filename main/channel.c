@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/data.h"
 #include "asterisk/features.h"
+#include "asterisk/test.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -3263,6 +3264,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 				now = ast_tvnow();
 			diff = ast_tvsub(c[x]->whentohangup, now);
 			if (diff.tv_sec < 0 || ast_tvzero(diff)) {
+				ast_test_suite_event_notify("HANGUP_TIME", "Channel: %s", c[x]->name);
 				/* Should already be hungup */
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				ast_channel_unlock(c[x]);
@@ -3331,6 +3333,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		now = ast_tvnow();
 		for (x = 0; x < n; x++) {
 			if (!ast_tvzero(c[x]->whentohangup) && ast_tvcmp(c[x]->whentohangup, now) <= 0) {
+				ast_test_suite_event_notify("HANGUP_TIME", "Channel: %s", c[x]->name);
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				if (winner == NULL)
 					winner = c[x];
@@ -7765,6 +7768,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
 				res = 0;
+				ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s\r\nChannel2: %s", c0->name, c1->name);
 				break;
 			}
 
