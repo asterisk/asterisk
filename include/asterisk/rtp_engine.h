@@ -374,7 +374,7 @@ struct ast_rtp_engine {
 	/*! Callback to request that the RTP engine send a STUN BIND request */
 	void (*stun_request)(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 	/*! Callback to get the transcodeable formats supported */
-	int (*available_formats)(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
+	format_t (*available_formats)(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
 	/*! Callback to send CNG */
 	int (*sendcng)(struct ast_rtp_instance *instance, int level);
 	/*! Linked list information */
