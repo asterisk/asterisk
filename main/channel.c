@@ -156,11 +156,13 @@ static struct ao2_container *channels;
  *
  * \ref causes.h
 */
-static const struct {
+struct causes_map {
 	int cause;
 	const char *name;
 	const char *desc;
-} causes[] = {
+};
+
+static const struct causes_map causes[] = {
 	{ AST_CAUSE_UNALLOCATED, "UNALLOCATED", "Unallocated (unassigned) number" },
 	{ AST_CAUSE_NO_ROUTE_TRANSIT_NET, "NO_ROUTE_TRANSIT_NET", "No route to specified transmit network" },
 	{ AST_CAUSE_NO_ROUTE_DESTINATION, "NO_ROUTE_DESTINATION", "No route to destination" },
