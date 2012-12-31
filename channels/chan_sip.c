@@ -10378,6 +10378,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				  type, value,
 				  (processed == TRUE)? "OK." : "UNSUPPORTED OR FAILED.");
 		}
+
+		/* Ensure crypto lines are provided where necessary */
+		if (audio && secure_audio && !processed_crypto) {
+			ast_log(LOG_WARNING, "Rejecting secure audio stream without encryption details: %s\n", m);
+			return -1;
+		} else if (video && secure_video && !processed_crypto) {
+			ast_log(LOG_WARNING, "Rejecting secure video stream without encryption details: %s\n", m);
+			return -1;
+		}
 	}
 
 	/* Sanity checks */
