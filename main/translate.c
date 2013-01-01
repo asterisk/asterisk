@@ -283,12 +283,6 @@ static void *newpvt(struct ast_translator *t, const struct ast_format *explicit_
 	int len;
 	char *ofs;
 
-	/* If we don't have a local init routine, don't bother building the
-	   ast_trans_pvt  */
-	if (!t->newpvt) {
-		return NULL;
-	}
-
 	/*
 	 * compute the required size adding private descriptor,
 	 * buffer, AST_FRIENDLY_OFFSET.
@@ -315,7 +309,7 @@ static void *newpvt(struct ast_translator *t, const struct ast_format *explicit_
 		ast_format_copy(&pvt->explicit_dst, explicit_dst);
 	}
 	/* call local init routine, if present */
-	if (t->newpvt(pvt)) {
+	if (t->newpvt && t->newpvt(pvt)) {
 		ast_free(pvt);
 		return NULL;
 	}
