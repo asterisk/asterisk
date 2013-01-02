@@ -1248,7 +1248,7 @@ static void notify_metermaids(const char *exten, char *context, enum ast_device_
 	ast_debug(4, "Notification of state change to metermaids %s@%s\n to state '%s'",
 		exten, context, ast_devstate2str(state));
 
-	ast_devstate_changed(state, "park:%s@%s", exten, context);
+	ast_devstate_changed(state, AST_DEVSTATE_CACHABLE, "park:%s@%s", exten, context);
 }
 
 /*! \brief metermaids callback from devicestate.c */

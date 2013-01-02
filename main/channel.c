@@ -2434,7 +2434,7 @@ static void ast_channel_destructor(void *obj)
 		 * instance is dead, we don't know the state of all other possible
 		 * instances.
 		 */
-		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), device_name);
 	}
 
 	ast_channel_nativeformats_set(chan, ast_format_cap_destroy(ast_channel_nativeformats(chan)));
@@ -7353,7 +7353,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
 	 * for this channel is using the callback method for device state. If we pass in an actual state here
 	 * we override what they are saying the state is and things go amuck. */
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
 	/* setstate used to conditionally report Newchannel; this is no more */
 	/*** DOCUMENTATION

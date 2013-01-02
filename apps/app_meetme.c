@@ -2696,7 +2696,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
-		ast_devstate_changed(AST_DEVICE_INUSE, "meetme:%s", conf->confno);
+		ast_devstate_changed(AST_DEVICE_INUSE, (conf->isdynamic ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), "meetme:%s", conf->confno);
 
 	ast_mutex_unlock(&conf->playlock);
 
@@ -4087,7 +4087,7 @@ bailoutandtrynormal:
 
 		/* Change any states */
 		if (!conf->users) {
-			ast_devstate_changed(AST_DEVICE_NOT_INUSE, "meetme:%s", conf->confno);
+			ast_devstate_changed(AST_DEVICE_NOT_INUSE, (conf->isdynamic ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), "meetme:%s", conf->confno);
 		}
 
  		/* This flag is meant to kill a conference with only one participant remaining.  */
@@ -5582,8 +5582,8 @@ static void sla_change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk
 				|| trunk_ref == exclude)
 				continue;
 			trunk_ref->state = state;
-			ast_devstate_changed(sla_state_to_devstate(state), 
-				"SLA:%s_%s", station->name, trunk->name);
+			ast_devstate_changed(sla_state_to_devstate(state), AST_DEVSTATE_CACHABLE,
+					     "SLA:%s_%s", station->name, trunk->name);
 			break;
 		}
 	}
@@ -6081,8 +6081,8 @@ static void sla_handle_hold_event(struct sla_event *event)
 {
 	ast_atomic_fetchadd_int((int *) &event->trunk_ref->trunk->hold_stations, 1);
 	event->trunk_ref->state = SLA_TRUNK_STATE_ONHOLD_BYME;
-	ast_devstate_changed(AST_DEVICE_ONHOLD, "SLA:%s_%s", 
-		event->station->name, event->trunk_ref->trunk->name);
+	ast_devstate_changed(AST_DEVICE_ONHOLD, AST_DEVSTATE_CACHABLE, "SLA:%s_%s",
+			     event->station->name, event->trunk_ref->trunk->name);
 	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 
 		INACTIVE_TRUNK_REFS, event->trunk_ref);
 
@@ -6591,8 +6591,8 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 		else {
 			trunk_ref->state = SLA_TRUNK_STATE_UP;
-			ast_devstate_changed(AST_DEVICE_INUSE, 
-				"SLA:%s_%s", station->name, trunk_ref->trunk->name);
+			ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE,
+					     "SLA:%s_%s", station->name, trunk_ref->trunk->name);
 		}
 	} else if (trunk_ref->state == SLA_TRUNK_STATE_RINGING) {
 		struct sla_ringing_trunk *ringing_trunk;

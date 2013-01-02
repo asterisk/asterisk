@@ -3438,7 +3438,7 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 	}
 	if (pri->congestion_devstate != new_state) {
 		pri->congestion_devstate = new_state;
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "DAHDI/I%d/congestion", pri->span);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_NOT_CACHABLE, "DAHDI/I%d/congestion", pri->span);
 	}
 #if defined(THRESHOLD_DEVSTATE_PLACEHOLDER)
 	/* Update the span threshold device state and report any change. */
@@ -3454,7 +3454,7 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 	}
 	if (pri->threshold_devstate != new_state) {
 		pri->threshold_devstate = new_state;
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "DAHDI/I%d/threshold", pri->span);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_NOT_CACHABLE, "DAHDI/I%d/threshold", pri->span);
 	}
 #endif	/* defined(THRESHOLD_DEVSTATE_PLACEHOLDER) */
 }
@@ -10010,7 +10010,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (dashptr) {
 		*dashptr = '\0';
 	}
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
+	ast_set_flag(ast_channel_flags(tmp), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_NOT_CACHABLE, device_name);
 
 	for (v = i->vars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);

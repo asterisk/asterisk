@@ -1034,7 +1034,7 @@ int conf_add_post_join_action(struct conference_bridge_user *cbu, int (*func)(st
 
 void conf_handle_first_join(struct conference_bridge *conference_bridge)
 {
-	ast_devstate_changed(AST_DEVICE_INUSE, "confbridge:%s", conference_bridge->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", conference_bridge->name);
 }
 
 void conf_handle_second_active(struct conference_bridge *conference_bridge)

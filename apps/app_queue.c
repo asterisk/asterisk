@@ -1787,9 +1787,9 @@ static int handle_statechange(void *datap)
 		if (found_member) {
 			found = 1;
 			if (avail) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 			} else {
-				ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+				ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 			}
 		}
 
@@ -2079,7 +2079,7 @@ static void init_queue(struct call_queue *q)
 	 * AST_DEVICE_INUSE indicates no members are available.
 	 * AST_DEVICE_NOT_INUSE indicates a member is available.
 	 */
-	ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 }
 
 static void clear_queue(struct call_queue *q)
@@ -2959,7 +2959,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		ast_copy_string(qe->context, q->context, sizeof(qe->context));
 		q->count++;
 		if (q->count == 1) {
-			ast_devstate_changed(AST_DEVICE_RINGING, "Queue:%s", q->name);
+			ast_devstate_changed(AST_DEVICE_RINGING, AST_DEVSTATE_CACHABLE, "Queue:%s", q->name);
 		}
 
 		res = 0;
@@ -3267,7 +3267,7 @@ static void leave_queue(struct queue_ent *qe)
 			char posstr[20];
 			q->count--;
 			if (!q->count) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s", q->name);
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s", q->name);
 			}
 
 			/* Take us out of the queue */
@@ -3540,7 +3540,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			if (newstate != tmp->member->status) {
 				ast_log(LOG_WARNING, "Found a channel matching iterface %s while status was %s changed to %s\n",
 					tmp->member->interface, ast_devstate2str(tmp->member->status), ast_devstate2str(newstate));
-				ast_devstate_changed_literal(newstate, tmp->member->interface);
+				ast_devstate_changed_literal(newstate, AST_DEVSTATE_CACHABLE, tmp->member->interface);
 			}
 		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
@@ -6016,7 +6016,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			}
 
 			if (!num_available_members(q)) {
-				ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+				ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 			}
 
 			res = RES_OKAY;
@@ -6093,7 +6093,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 				new_member->status, new_member->paused);
 
 			if (is_member_available(new_member)) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 			}
 
 			ao2_ref(new_member, -1);
@@ -6159,9 +6159,9 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				}
 
 				if (is_member_available(mem)) {
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Queue:%s_avail", q->name);
+					ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 				} else if (!num_available_members(q)) {
-					ast_devstate_changed(AST_DEVICE_INUSE, "Queue:%s_avail", q->name);
+					ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 				}
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));

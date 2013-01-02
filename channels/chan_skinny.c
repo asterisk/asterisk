@@ -2132,7 +2132,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				AST_LIST_TRAVERSE(&l->sublines, subline, list) {
 					ast_extension_state_add(subline->context, subline->exten, skinny_extensionstate_cb, subline->container);
 				}
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 				--instance;
 			}
 			break;
@@ -2167,7 +2167,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				l->instance = 0;
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
-				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Skinny/%s", l->name);
+				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 			}
 		}
 	}
@@ -5934,7 +5934,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			event, d->name, instance, callreference);
 		break;
 	}
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "Skinny/%s", l->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 
 	return 1;
 }
@@ -5974,7 +5974,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	d->hookstate = SKINNY_OFFHOOK;
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s", l->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 
 	if (sub && sub->substate == SUBSTATE_HOLD) {
 		return 1;
@@ -6041,7 +6041,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		return 0;
 	}
 	
-	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
+	ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 	
 	dumpsub(sub, 0);
 
@@ -6377,7 +6377,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		return 0;
 	}
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s", l->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 
 	switch(event) {
 	case SOFTKEY_NONE:
@@ -6531,8 +6531,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			return 0;
 		}
 	
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
-	
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
+
 		if (sub) {
 			dumpsub(sub, 1);
 		} else { /* No sub, maybe an SLA call */
