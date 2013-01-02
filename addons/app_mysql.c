@@ -292,16 +292,17 @@ static int safe_scan_int(char **data, char *delim, int def)
 	return res;
 }
 
-static int aMYSQL_set(struct ast_channel *chan, char *data)
+static int aMYSQL_set(struct ast_channel *chan, const char *data)
 {
-	char *var, *tmp;
+	char *var, *tmp, *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(set);
 		AST_APP_ARG(variable);
 		AST_APP_ARG(value);
 	);
 
-	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
+	parse = ast_strdupa(data);
+	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
 
 	if (args.argc == 3) {
 		var = ast_alloca(6 + strlen(args.variable) + 1);
@@ -317,7 +318,7 @@ static int aMYSQL_set(struct ast_channel *chan, char *data)
 }
 
 /* MYSQL operations */
-static int aMYSQL_connect(struct ast_channel *chan, char *data)
+static int aMYSQL_connect(struct ast_channel *chan, const char *data)
 {
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(connect);
@@ -333,8 +334,9 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 	const char *ctimeout;
 	unsigned int port = 0;
 	char *port_str;
-
-	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
+	char *parse = ast_strdupa(data);
+ 
+	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
 
 	if (args.argc < 6) {
 		ast_log(LOG_WARNING, "MYSQL_connect is missing some arguments\n");
@@ -385,7 +387,7 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 	return 0;
 }
 
-static int aMYSQL_query(struct ast_channel *chan, char *data)
+static int aMYSQL_query(struct ast_channel *chan, const char *data)
 {
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(query);
@@ -397,8 +399,9 @@ static int aMYSQL_query(struct ast_channel *chan, char *data)
 	MYSQL_RES   *mysqlres;
 	int connid;
 	int mysql_query_res;
+	char *parse = ast_strdupa(data);
 
-	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
+	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
 
 	if (args.argc != 4 || (connid = atoi(args.connid)) == 0) {
 		ast_log(LOG_WARNING, "missing some arguments\n");
@@ -426,7 +429,7 @@ static int aMYSQL_query(struct ast_channel *chan, char *data)
 	return -1;
 }
 
-static int aMYSQL_nextresult(struct ast_channel *chan, char *data)
+static int aMYSQL_nextresult(struct ast_channel *chan, const char *data)
 {
 	MYSQL       *mysql;
 	MYSQL_RES   *mysqlres;
@@ -436,8 +439,9 @@ static int aMYSQL_nextresult(struct ast_channel *chan, char *data)
 		AST_APP_ARG(connid);
 	);
 	int connid = -1;
+	char *parse = ast_strdupa(data);
 
-	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
+	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
 	sscanf(args.connid, "%30d", &connid);
 
 	if (args.argc != 3 || connid <= 0) {
@@ -466,7 +470,7 @@ static int aMYSQL_nextresult(struct ast_channel *chan, char *data)
 }
 
 
-static int aMYSQL_fetch(struct ast_channel *chan, char *data)
+static int aMYSQL_fetch(struct ast_channel *chan, const char *data)
 {
 	MYSQL_RES *mysqlres;
 	MYSQL_ROW mysqlrow;
@@ -518,13 +522,14 @@ static int aMYSQL_fetch(struct ast_channel *chan, char *data)
 	return -1;
 }
 
-static int aMYSQL_clear(struct ast_channel *chan, char *data)
+static int aMYSQL_clear(struct ast_channel *chan, const char *data)
 {
 	MYSQL_RES *mysqlres;
 
 	int id;
-	strsep(&data, " "); /* eat the first token, we already know it :P */
-	id = safe_scan_int(&data, " \n", -1);
+	char *parse = ast_strdupa(data);
+	strsep(&parse, " "); /* eat the first token, we already know it :P */
+	id = safe_scan_int(&parse, " \n", -1);
 	if ((mysqlres = find_identifier(id, AST_MYSQL_ID_RESID)) == NULL) {
 		ast_log(LOG_WARNING, "Invalid result identifier %d passed in aMYSQL_clear\n", id);
 	} else {
@@ -535,13 +540,14 @@ static int aMYSQL_clear(struct ast_channel *chan, char *data)
 	return 0;
 }
 
-static int aMYSQL_disconnect(struct ast_channel *chan, char *data)
+static int aMYSQL_disconnect(struct ast_channel *chan, const char *data)
 {
 	MYSQL *mysql;
 	int id;
-	strsep(&data, " "); /* eat the first token, we already know it :P */
+	char *parse = ast_strdupa(data);
+	strsep(&parse, " "); /* eat the first token, we already know it :P */
 
-	id = safe_scan_int(&data, " \n", -1);
+	id = safe_scan_int(&parse, " \n", -1);
 	if ((mysql = find_identifier(id, AST_MYSQL_ID_CONNID)) == NULL) {
 		ast_log(LOG_WARNING, "Invalid connection identifier %d passed in aMYSQL_disconnect\n", id);
 	} else {
@@ -584,19 +590,19 @@ static int MYSQL_exec(struct ast_channel *chan, const char *data)
 	ast_mutex_lock(&_mysql_mutex);
 
 	if (strncasecmp("connect", data, strlen("connect")) == 0) {
-		result = aMYSQL_connect(chan, ast_strdupa(data));
+		result = aMYSQL_connect(chan, data);
 	} else if (strncasecmp("query", data, strlen("query")) == 0) {
-		result = aMYSQL_query(chan, ast_strdupa(data));
+		result = aMYSQL_query(chan, data);
 	} else if (strncasecmp("nextresult", data, strlen("nextresult")) == 0) {
-		result = aMYSQL_nextresult(chan, ast_strdupa(data));
+		result = aMYSQL_nextresult(chan, data);
 	} else if (strncasecmp("fetch", data, strlen("fetch")) == 0) {
-		result = aMYSQL_fetch(chan, ast_strdupa(data));
+		result = aMYSQL_fetch(chan, data);
 	} else if (strncasecmp("clear", data, strlen("clear")) == 0) {
-		result = aMYSQL_clear(chan, ast_strdupa(data));
+		result = aMYSQL_clear(chan, data);
 	} else if (strncasecmp("disconnect", data, strlen("disconnect")) == 0) {
-		result = aMYSQL_disconnect(chan, ast_strdupa(data));
+		result = aMYSQL_disconnect(chan, data);
 	} else if (strncasecmp("set", data, 3) == 0) {
-		result = aMYSQL_set(chan, ast_strdupa(data));
+		result = aMYSQL_set(chan, data);
 	} else {
 		ast_log(LOG_WARNING, "Unknown argument to MYSQL application : %s\n", data);
 		result = -1;
