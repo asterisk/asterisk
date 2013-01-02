@@ -1,3 +1,46 @@
+2013-01-02  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.11.1 Released.
+
+	* AST-2012-015: Resolve crashes due to large stack allocations when
+	  using TCP
+
+	  Asterisk had several places where messages received over various
+	  network transports may be copied in a single stack allocation. In
+	  the case of TCP, since multiple packets in a stream may be
+	  concatenated together, this can lead to large allocations that
+	  overflow the stack.
+
+	  This patch modifies those portions of Asterisk using TCP to either
+	  favor heap allocations or use an upper bound to ensure that the
+	  stack will not overflow:
+	   * For SIP, the allocation now has an upper limit
+	   * For HTTP, the allocation is now a heap allocation instead of a
+	     stack allocation
+	   * For XMPP (in res_jabber), the allocation has been eliminated
+	     since it was unnecesary.
+
+	* AST-2012-014: Prevent exhaustion of system resources through
+	  exploitation of event cache
+
+	  Asterisk maintains an internal cache for devices in the event
+	  subsystem. The device state cache holds the state of each device
+	  known to Asterisk, such that consumers of device state information
+	  can query for the last known state for a particular device, even if
+	  it is not part of an active call. The concept of a device in Asterisk
+	  can include entities that do not have a physical representation. One
+	  way that this occurred was when anonymous calls are allowed in
+	  Asterisk. A device was automatically created and stored in the cache
+	  for each anonymous call that occurred; this was possible in the SIP
+	  and IAX2 channel drivers and through channel drivers that utilized
+	  the res_jabber/res_xmpp resource modules (Gtalk, Jingle, and Motif).
+	  These devices are never removed from the system, allowing anonymous
+	  calls to potentially exhaust a system's resources.
+
+	  This patch changes the event cache subsystem and device state
+	  management to no longer cache devices that are not associated with a
+	  physical entity.
+
 2012-12-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.11.0 Released.
