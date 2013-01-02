@@ -279,7 +279,7 @@ static const struct ie_map {
 	[AST_EVENT_IE_RECEIVED_HASH]       = { AST_EVENT_IE_PLTYPE_STR,  "ReceivedHash" },
 	[AST_EVENT_IE_USING_PASSWORD]      = { AST_EVENT_IE_PLTYPE_UINT, "UsingPassword" },
 	[AST_EVENT_IE_ATTEMPTED_TRANSPORT] = { AST_EVENT_IE_PLTYPE_STR,  "AttemptedTransport" },
-
+	[AST_EVENT_IE_CACHABLE]            = { AST_EVENT_IE_PLTYPE_UINT,  "Cachable" },
 };
 
 const char *ast_event_get_type_name(const struct ast_event *event)
