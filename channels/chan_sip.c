@@ -6115,7 +6115,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	}
 
 	if (p) {
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", p->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", p->name);
 		unref_peer(p, "update_call_counter: unref_peer from call counter");
 	}
 	return 0;
@@ -7359,6 +7359,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 
+	if (!i->relatedpeer) {
+		tmp->flags |= AST_FLAG_DISABLE_DEVSTATE_CACHE;
+	}
 	/* Set channel variables for this call from configuration */
 	for (v = i->chanvars ; v ; v = v->next) {
 		char valuebuf[1024];
@@ -14006,7 +14009,7 @@ static int expire_register(const void *data)
 
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 
 	/* Do we need to release this peer from memory?
 		Only for realtime peers and autocreated peers
@@ -14788,8 +14791,9 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	ast_atomic_fetchadd_int(&p->relatedpeer->onHold, (hold ? +1 : -1));
 
 	/* Request device state update */
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", p->relatedpeer->name);
-	
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, (p->owner->flags & AST_FLAG_DISABLE_DEVSTATE_CACHE ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE),
+			     "SIP/%s", p->relatedpeer->name);
+
 	return;
 }
 
@@ -15226,7 +15230,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		} else {
 			update_peer_lastmsgssent(peer, -1, 0);
 		}
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
 		switch (res) {
@@ -21356,7 +21360,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
 			peer->name, s, pingtime, peer->maxms);
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 		if (sip_cfg.peer_rtupdate) {
 			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", str_lastms, SENTINEL);
 		}
@@ -26947,7 +26951,7 @@ static int sip_poke_noanswer(const void *data)
 	/* Don't send a devstate change if nothing changed. */
 	if (peer->lastms > -1) {
 		peer->lastms = -1;
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 	}
 
 	/* Try again quickly */
