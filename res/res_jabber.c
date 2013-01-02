@@ -352,7 +352,7 @@ static char *aji_cli_create_leafnode(struct ast_cli_entry *e, int cmd,
 static void aji_create_affiliations(struct aji_client *client, const char *node);
 static iks* aji_pubsub_iq_create(struct aji_client *client, const char *type);
 static void aji_publish_device_state(struct aji_client *client, const char * device,
-	const char *device_state);
+				     const char *device_state, unsigned int cachable);
 static int aji_handle_pubsub_error(void *data, ikspak *pak);
 static int aji_handle_pubsub_event(void *data, ikspak *pak);
 static void aji_pubsub_subscribe(struct aji_client *client, const char *node);
@@ -366,7 +366,7 @@ static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
 static void aji_devstate_cb(const struct ast_event *ast_event, void *data);
 static void aji_mwi_cb(const struct ast_event *ast_event, void *data);
 static iks* aji_build_publish_skeleton(struct aji_client *client, const char *node,
-	const char *event_type);
+				       const char *event_type, unsigned int cachable);
 /* No transports in this version */
 /*
 static int aji_create_transport(char *label, struct aji_client *client);
@@ -3266,6 +3266,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 {
 	const char *device;
 	const char *device_state;
+	unsigned int cachable;
 	struct aji_client *client;
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
 	{
@@ -3277,7 +3278,8 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 	client = ASTOBJ_REF((struct aji_client *) data);
 	device = ast_event_get_ie_str(ast_event, AST_EVENT_IE_DEVICE);
 	device_state = ast_devstate_str(ast_event_get_ie_uint(ast_event, AST_EVENT_IE_STATE));
-	aji_publish_device_state(client, device, device_state);
+	cachable = ast_event_get_ie_uint(ast_event, AST_EVENT_IE_CACHABLE);
+	aji_publish_device_state(client, device, device_state, cachable);
 	ASTOBJ_UNREF(client, ast_aji_client_destroy);
 }
 
@@ -3317,11 +3319,13 @@ static void aji_init_event_distribution(struct aji_client *client)
  */
 static int aji_handle_pubsub_event(void *data, ikspak *pak)
 {
-	char *item_id, *device_state, *context;
+	char *item_id, *device_state, *context, *cachable_str;
 	int oldmsgs, newmsgs;
 	iks *item, *item_content;
 	struct ast_eid pubsub_eid;
 	struct ast_event *event;
+	unsigned int cachable = AST_DEVSTATE_CACHABLE;
+
 	item = iks_find(iks_find(iks_find(pak->x, "event"), "items"), "item");
 	if (!item) {
 		ast_log(LOG_ERROR, "Could not parse incoming PubSub event\n");
@@ -3336,11 +3340,14 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
 		device_state = iks_find_cdata(item, "state");
+		if ((cachable_str = iks_find_cdata(item, "cachable"))) {
+			sscanf(cachable_str, "%30d", &cachable);
+		}
 		if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
-			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_STATE,
-			AST_EVENT_IE_PLTYPE_UINT, ast_devstate_val(device_state), AST_EVENT_IE_EID,
-			AST_EVENT_IE_PLTYPE_RAW, &pubsub_eid, sizeof(pubsub_eid),
-			AST_EVENT_IE_END))) {
+					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_STATE,
+					    AST_EVENT_IE_PLTYPE_UINT, ast_devstate_val(device_state), AST_EVENT_IE_EID,
+					    AST_EVENT_IE_PLTYPE_RAW, &pubsub_eid, sizeof(pubsub_eid),
+					    AST_EVENT_IE_END))) {
 			return IKS_FILTER_EAT;
 		}
 	} else if (!strcasecmp(iks_name(item_content), "mailbox")) {
@@ -3360,7 +3367,13 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 			iks_name(item_content));
 		return IKS_FILTER_EAT;
 	}
-	ast_event_queue_and_cache(event);
+
+	if (cachable == AST_DEVSTATE_CACHABLE) {
+		ast_event_queue_and_cache(event);
+	} else {
+		ast_event_queue(event);
+	}
+
 	return IKS_FILTER_EAT;
 }
 
@@ -3435,7 +3448,7 @@ static void aji_pubsub_subscribe(struct aji_client *client, const char *node)
  * \return iks *
  */
 static iks* aji_build_publish_skeleton(struct aji_client *client, const char *node,
-	const char *event_type)
+				       const char *event_type, unsigned int cachable)
 {
 	iks *request = aji_pubsub_iq_create(client, "set");
 	iks *pubsub, *publish, *item;
@@ -3449,8 +3462,24 @@ static iks* aji_build_publish_skeleton(struct aji_client *client, const char *no
 	}
 	item = iks_insert(publish, "item");
 	iks_insert_attrib(item, "id", node);
-	return item;
 
+	if (cachable == AST_DEVSTATE_NOT_CACHABLE) {
+		iks *options, *x, *field_form_type, *field_persist;
+
+		options = iks_insert(pubsub, "publish-options");
+		x = iks_insert(options, "x");
+		iks_insert_attrib(x, "xmlns", "jabber:x:data");
+		iks_insert_attrib(x, "type", "submit");
+		field_form_type = iks_insert(x, "field");
+		iks_insert_attrib(field_form_type, "var", "FORM_TYPE");
+		iks_insert_attrib(field_form_type, "type", "hidden");
+		iks_insert_cdata(iks_insert(field_form_type, "value"), "http://jabber.org/protocol/pubsub#publish-options", 0);
+		field_persist = iks_insert(x, "field");
+		iks_insert_attrib(field_persist, "var", "pubsub#persist_items");
+		iks_insert_cdata(iks_insert(field_persist, "value"), "0", 1);
+	}
+
+	return item;
 }
 
 /*!
@@ -3461,11 +3490,11 @@ static iks* aji_build_publish_skeleton(struct aji_client *client, const char *no
  * \return void
  */
 static void aji_publish_device_state(struct aji_client *client, const char *device,
-	const char *device_state)
+				     const char *device_state, unsigned int cachable)
 {
-	iks *request = aji_build_publish_skeleton(client, device, "device_state");
+	iks *request = aji_build_publish_skeleton(client, device, "device_state", cachable);
 	iks *state;
-	char eid_str[20];
+	char eid_str[20], cachable_str[2];
 	if (ast_test_flag(&pubsubflags, AJI_PUBSUB_AUTOCREATE)) {
 		if (ast_test_flag(&pubsubflags, AJI_XEP0248)) {
 			aji_create_pubsub_node(client, "leaf", device, "device_state");
@@ -3477,6 +3506,8 @@ static void aji_publish_device_state(struct aji_client *client, const char *devi
 	state = iks_insert(request, "state");
 	iks_insert_attrib(state, "xmlns", "http://asterisk.org");
 	iks_insert_attrib(state, "eid", eid_str);
+	snprintf(cachable_str, sizeof(cachable_str), "%u", cachable);
+	iks_insert_attrib(state, "cachable", cachable_str);
 	iks_insert_cdata(state, device_state, strlen(device_state));
 	ast_aji_send(client, iks_root(request));
 	iks_delete(request);
@@ -3496,7 +3527,7 @@ static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
 	char eid_str[20];
 	iks *mailbox_node, *request;
 	snprintf(full_mailbox, sizeof(full_mailbox), "%s@%s", mailbox, context);
-	request = aji_build_publish_skeleton(client, full_mailbox, "message_waiting");
+	request = aji_build_publish_skeleton(client, full_mailbox, "message_waiting", 1);
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 	mailbox_node = iks_insert(request, "mailbox");
 	iks_insert_attrib(mailbox_node, "xmlns", "http://asterisk.org");

@@ -290,8 +290,14 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_PRESENCE_STATE      = 0x0036,
 	AST_EVENT_IE_PRESENCE_SUBTYPE    = 0x0037,
 	AST_EVENT_IE_PRESENCE_MESSAGE    = 0x0038,
+	/*!
+	 * \brief Event non-cachability flag
+	 * Used by: All events
+	 * Payload type: UINT
+	 */
+	AST_EVENT_IE_CACHABLE            = 0x0039,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x0039,
+	AST_EVENT_IE_TOTAL               = 0x003a,
 };
 
 /*!
