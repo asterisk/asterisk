@@ -3186,7 +3186,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			if (newstate != tmp->member->status) {
 				ast_log(LOG_WARNING, "Found a channel matching iterface %s while status was %s changed to %s\n",
 					tmp->member->interface, ast_devstate2str(tmp->member->status), ast_devstate2str(newstate));
-				ast_devstate_changed_literal(newstate, tmp->member->interface);
+				ast_devstate_changed_literal(newstate, AST_DEVSTATE_CACHABLE, tmp->member->interface);
 			}
 		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
