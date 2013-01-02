@@ -219,6 +219,13 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	/* add space for delimiters and final '\0' */
 	resultslen += n * (strlen(args.delim1) + strlen(args.delim2)) + 1;
 
+	if (resultslen > len) {
+		ast_log(LOG_WARNING, "Failed to fetch. Realtime data is too large: need %zu, have %zu.\n", resultslen, len);
+		return -1;
+	}
+
+	/* len is going to be sensible, so we don't need to check for stack
+	 * overflows here. */
 	out = ast_str_alloca(resultslen);
 	for (var = head; var; var = var->next)
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
@@ -439,6 +446,16 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	/* add space for delimiters and final '\0' */
 	resultslen += n * (strlen(args.delim1) + strlen(args.delim2)) + 1;
 
+	if (resultslen > len) {
+		/* Unfortunately this does mean that we cannot destroy the row
+		 * anymore. But OTOH, we're not destroying someones data without
+		 * giving him the chance to look at it. */
+		ast_log(LOG_WARNING, "Failed to fetch/destroy. Realtime data is too large: need %zu, have %zu.\n", resultslen, len);
+		return -1;
+	}
+
+	/* len is going to be sensible, so we don't need to check for stack
+	 * overflows here. */
 	out = ast_str_alloca(resultslen);
 	for (var = head; var; var = var->next) {
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
