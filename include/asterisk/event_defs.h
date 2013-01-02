@@ -283,8 +283,14 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_CHALLENGE           = 0x0032,
 	AST_EVENT_IE_RESPONSE            = 0x0033,
 	AST_EVENT_IE_EXPECTED_RESPONSE   = 0x0034,
+	/*!
+	 * \brief Event non-cachability flag
+	 * Used by: All events
+	 * Payload type: UINT
+	 */
+	AST_EVENT_IE_CACHABLE            = 0x0035,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x0035,
+	AST_EVENT_IE_TOTAL               = 0x0036,
 };
 
 /*!

@@ -61,6 +61,14 @@ enum ast_device_state {
 	AST_DEVICE_TOTAL,        /*/ Total num of device states, used for testing */
 };
 
+/*! \brief Device State Cachability
+ *  \note This is used to define the cachability of a device state when set.
+ */
+enum ast_devstate_cache {
+	AST_DEVSTATE_NOT_CACHABLE,  /*!< This device state is not cachable */
+	AST_DEVSTATE_CACHABLE,      /*!< This device state is cachable */
+};
+
 /*! \brief Devicestate provider call back */
 typedef enum ast_device_state (*ast_devstate_prov_cb_type)(const char *data);
 
@@ -129,6 +137,7 @@ enum ast_device_state ast_device_state(const char *device);
  * \brief Tells Asterisk the State for Device is changed
  *
  * \param state the new state of the device
+ * \param cachable whether this device state is cachable
  * \param fmt device name like a dial string with format parameters
  *
  * The new state of the device will be sent off to any subscribers
@@ -138,13 +147,14 @@ enum ast_device_state ast_device_state(const char *device);
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
-	__attribute__((format(printf, 2, 3)));
+int ast_devstate_changed(enum ast_device_state state, enum ast_devstate_cache cachable, const char *fmt, ...)
+	__attribute__((format(printf, 3, 4)));
 
 /*!
  * \brief Tells Asterisk the State for Device is changed
  *
  * \param state the new state of the device
+ * \param cachable whether this device state is cachable
  * \param device device name like a dial string with format parameters
  *
  * The new state of the device will be sent off to any subscribers
@@ -154,7 +164,7 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_devstate_changed_literal(enum ast_device_state state, const char *device);
+int ast_devstate_changed_literal(enum ast_device_state state, enum ast_devstate_cache cachable, const char *device);
 
 /*!
  * \brief Tells Asterisk the State for Device is changed.

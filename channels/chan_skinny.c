@@ -1925,7 +1925,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					register_exten(l);
 					/* initialize MWI on line and device */
 					mwi_event_cb(0, l);
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+					ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 				}
 				--instance;
 			}
@@ -1963,7 +1963,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				l->instance = 0;
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
-				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Skinny/%s@%s", l->name, d->name);
+				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 			}
 		}
 	}
@@ -5321,7 +5321,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "RECEIVED UNKNOWN STIMULUS:  %d(%d/%d)\n", event, instance, callreference);
 		break;
 	}
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 
 	return 1;
 }
@@ -5372,7 +5372,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	l->hookstate = SKINNY_OFFHOOK;
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 
 	if (sub && sub->onhold) {
 		return 1;
@@ -5448,7 +5448,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		return 0;
 	}
 
-	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 
 	if (sub->onhold) {
 		return 0;
@@ -5834,7 +5834,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		return 0;
 	}
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 
 	switch(event) {
 	case SOFTKEY_NONE:
@@ -6049,7 +6049,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				transmit_callstate(d, l->instance, sub->callid, l->hookstate);
 			}
 
-			ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+			ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 			if (skinnydebug)
 				ast_verb(1, "Skinny %s@%s went on hook\n", l->name, d->name);
 			if (l->transfer && sub->xferor && sub->owner->_state >= AST_STATE_RING) {
@@ -6073,7 +6073,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				}
 			}
 			if ((l->hookstate == SKINNY_ONHOOK) && (AST_LIST_NEXT(sub, list) && !AST_LIST_NEXT(sub, list)->rtp)) {
-				ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s@%s", l->name, d->name);
 			}
 		}
 		break;
