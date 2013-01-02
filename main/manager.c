@@ -3677,6 +3677,7 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 /*! \brief  action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, const struct message *m)
 {
+	char buf[256];
 	const char *name = astman_get_header(m, "Channel");
 	const char *name2 = astman_get_header(m, "ExtraChannel");
 	const char *exten = astman_get_header(m, "Exten");
@@ -3685,8 +3686,10 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	const char *context2 = astman_get_header(m, "ExtraContext");
 	const char *priority = astman_get_header(m, "Priority");
 	const char *priority2 = astman_get_header(m, "ExtraPriority");
-	struct ast_channel *chan, *chan2 = NULL;
-	int pi, pi2 = 0;
+	struct ast_channel *chan;
+	struct ast_channel *chan2;
+	int pi = 0;
+	int pi2 = 0;
 	int res;
 
 	if (ast_strlen_zero(name)) {
@@ -3694,84 +3697,134 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
-		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
-			astman_send_error(s, m, "Invalid priority");
+	if (ast_strlen_zero(context)) {
+		astman_send_error(s, m, "Context not specified");
+		return 0;
+	}
+	if (ast_strlen_zero(exten)) {
+		astman_send_error(s, m, "Exten not specified");
+		return 0;
+	}
+	if (ast_strlen_zero(priority)) {
+		astman_send_error(s, m, "Priority not specified");
+		return 0;
+	}
+	if (sscanf(priority, "%30d", &pi) != 1) {
+		pi = ast_findlabel_extension(NULL, context, exten, priority, NULL);
+	}
+	if (pi < 1) {
+		astman_send_error(s, m, "Priority is invalid");
+		return 0;
+	}
+
+	if (!ast_strlen_zero(name2) && !ast_strlen_zero(context2)) {
+		/* We have an ExtraChannel and an ExtraContext */
+		if (ast_strlen_zero(exten2)) {
+			astman_send_error(s, m, "ExtraExten not specified");
+			return 0;
+		}
+		if (ast_strlen_zero(priority2)) {
+			astman_send_error(s, m, "ExtraPriority not specified");
+			return 0;
+		}
+		if (sscanf(priority2, "%30d", &pi2) != 1) {
+			pi2 = ast_findlabel_extension(NULL, context2, exten2, priority2, NULL);
+		}
+		if (pi2 < 1) {
+			astman_send_error(s, m, "ExtraPriority is invalid");
 			return 0;
 		}
 	}
 
-	if (!ast_strlen_zero(priority2) && (sscanf(priority2, "%30d", &pi2) != 1)) {
-		if ((pi2 = ast_findlabel_extension(NULL, context2, exten2, priority2, NULL)) < 1) {
-			astman_send_error(s, m, "Invalid ExtraPriority");
-			return 0;
-		}
-	}
-
-	if (!(chan = ast_channel_get_by_name(name))) {
-		char buf[256];
+	chan = ast_channel_get_by_name(name);
+	if (!chan) {
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
 		return 0;
 	}
-
 	if (ast_check_hangup_locked(chan)) {
 		astman_send_error(s, m, "Redirect failed, channel not up.");
 		chan = ast_channel_unref(chan);
 		return 0;
 	}
 
-	if (!ast_strlen_zero(name2)) {
-		chan2 = ast_channel_get_by_name(name2);
-	}
-
-	if (chan2 && ast_check_hangup_locked(chan2)) {
-		astman_send_error(s, m, "Redirect failed, extra channel not up.");
+	if (ast_strlen_zero(name2)) {
+		/* Single channel redirect in progress. */
+		if (ast_channel_pbx(chan)) {
+			ast_channel_lock(chan);
+			/* don't let the after-bridge code run the h-exten */
+			ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT);
+			ast_channel_unlock(chan);
+		}
+		res = ast_async_goto(chan, context, exten, pi);
+		if (!res) {
+			astman_send_ack(s, m, "Redirect successful");
+		} else {
+			astman_send_error(s, m, "Redirect failed");
+		}
 		chan = ast_channel_unref(chan);
-		chan2 = ast_channel_unref(chan2);
 		return 0;
 	}
 
-	if (ast_channel_pbx(chan)) {
-		ast_channel_lock(chan);
-		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
-		ast_channel_unlock(chan);
+	chan2 = ast_channel_get_by_name(name2);
+	if (!chan2) {
+		snprintf(buf, sizeof(buf), "ExtraChannel does not exist: %s", name2);
+		astman_send_error(s, m, buf);
+		chan = ast_channel_unref(chan);
+		return 0;
+	}
+	if (ast_check_hangup_locked(chan2)) {
+		astman_send_error(s, m, "Redirect failed, extra channel not up.");
+		chan2 = ast_channel_unref(chan2);
+		chan = ast_channel_unref(chan);
+		return 0;
 	}
 
+	/* Dual channel redirect in progress. */
+	if (ast_channel_pbx(chan)) {
+		ast_channel_lock(chan);
+		/* don't let the after-bridge code run the h-exten */
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT
+			| AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_channel_unlock(chan);
+	}
+	if (ast_channel_pbx(chan2)) {
+		ast_channel_lock(chan2);
+		/* don't let the after-bridge code run the h-exten */
+		ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_HANGUP_DONT
+			| AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_channel_unlock(chan2);
+	}
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
-		if (!ast_strlen_zero(name2)) {
-			if (chan2) {
-				if (ast_channel_pbx(chan2)) {
-					ast_channel_lock(chan2);
-					ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
-					ast_channel_unlock(chan2);
-				}
-				if (!ast_strlen_zero(context2)) {
-					res = ast_async_goto(chan2, context2, exten2, pi2);
-				} else {
-					res = ast_async_goto(chan2, context, exten, pi);
-				}
-			} else {
-				res = -1;
-			}
-			if (!res) {
-				astman_send_ack(s, m, "Dual Redirect successful");
-			} else {
-				astman_send_error(s, m, "Secondary redirect failed");
-			}
+		if (!ast_strlen_zero(context2)) {
+			res = ast_async_goto(chan2, context2, exten2, pi2);
 		} else {
-			astman_send_ack(s, m, "Redirect successful");
+			res = ast_async_goto(chan2, context, exten, pi);
+		}
+		if (!res) {
+			astman_send_ack(s, m, "Dual Redirect successful");
+		} else {
+			astman_send_error(s, m, "Secondary redirect failed");
 		}
 	} else {
 		astman_send_error(s, m, "Redirect failed");
 	}
 
-	chan = ast_channel_unref(chan);
-	if (chan2) {
-		chan2 = ast_channel_unref(chan2);
+	/* Release the bridge wait. */
+	if (ast_channel_pbx(chan)) {
+		ast_channel_lock(chan);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_channel_unlock(chan);
+	}
+	if (ast_channel_pbx(chan2)) {
+		ast_channel_lock(chan2);
+		ast_clear_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_channel_unlock(chan2);
 	}
 
+	chan2 = ast_channel_unref(chan2);
+	chan = ast_channel_unref(chan);
 	return 0;
 }
 

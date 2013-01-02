@@ -888,12 +888,19 @@ enum {
 	 *  some non-traditional dialplans (like AGI) to continue to function.
 	 */
 	AST_FLAG_DISABLE_WORKAROUNDS = (1 << 20),
-	/*! Disable device state event caching.  This allows allows channel
-	 * drivers to selectively prevent device state events from being cached
-	 * by certain channels such as anonymous calls which have no persistent
-	 * represenatation that can be tracked.
+	/*!
+	 * Disable device state event caching.  This allows channel
+	 * drivers to selectively prevent device state events from being
+	 * cached by certain channels such as anonymous calls which have
+	 * no persistent represenatation that can be tracked.
 	 */
 	AST_FLAG_DISABLE_DEVSTATE_CACHE = (1 << 21),
+	/*!
+	 * This flag indicates that a dual channel redirect is in
+	 * progress.  The bridge needs to wait until the flag is cleared
+	 * to continue.
+	 */
+	AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT = (1 << 22),
 };
 
 /*! \brief ast_bridge_config flags */
