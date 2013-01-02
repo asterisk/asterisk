@@ -776,7 +776,7 @@ static struct ast_custom_function jabberstatus_function = {
  */
 static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, char *data, char *buf, size_t buflen)
 {
-	char *aux = NULL, *parse = NULL;
+	char *parse = NULL;
 	int timeout;
 	int jidlen, resourcelen;
 	struct timeval start;
@@ -893,7 +893,7 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 				continue;
 			}
 			found = 1;
-			aux = ast_strdupa(tmp->message);
+			ast_copy_string(buf, tmp->message, buflen);
 			AST_LIST_REMOVE_CURRENT(list);
 			aji_message_destroy(tmp);
 			break;
@@ -918,7 +918,6 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 		ast_log(LOG_NOTICE, "Timed out : no message received from %s\n", args.jid);
 		return -1;
 	}
-	ast_copy_string(buf, aux, buflen);
 
 	return 0;
 }
