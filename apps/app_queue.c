@@ -5808,7 +5808,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 
 		time(&callstart);
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
-		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
+		bridge = ast_bridge_call(qe->chan, peer, &bridge_config);
 
 		/* If the queue member did an attended transfer, then the TRANSFER already was logged in the queue_log
 		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary, except for
@@ -5824,7 +5824,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 					ast_channel_exten(qe->chan), ast_channel_context(qe->chan), (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart), qe->opos);
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
-			} else if (ast_check_hangup(qe->chan)) {
+			} else if (ast_check_hangup(qe->chan) && !ast_check_hangup(peer)) {
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);
