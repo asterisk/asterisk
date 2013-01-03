@@ -812,6 +812,7 @@ int ast_check_hangup(struct ast_channel *chan)
 	if (ast_tvdiff_ms(chan->whentohangup, ast_tvnow()) > 0) 	/* no if hangup time has not come yet. */
 		return 0;
 	ast_debug(4, "Hangup time has come: %" PRIi64 "\n", ast_tvdiff_ms(chan->whentohangup, ast_tvnow()));
+	ast_test_suite_event_notify("HANGUP_TIME", "Channel: %s", chan->name);
 	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;	/* record event */
 	return 1;
 }
