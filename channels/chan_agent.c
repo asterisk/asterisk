@@ -1022,42 +1022,38 @@ static int agent_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-static int agent_cont_sleep( void *data )
+static int agent_cont_sleep(void *data)
 {
 	struct agent_pvt *p;
 	int res;
 
-	p = (struct agent_pvt *)data;
+	p = (struct agent_pvt *) data;
 
 	ast_mutex_lock(&p->lock);
 	res = p->app_sleep_cond;
-	if (p->lastdisc.tv_sec) {
-		if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) 
-			res = 1;
+	if (res && p->lastdisc.tv_sec) {
+		if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) {
+			res = 0;
+		}
 	}
 	ast_mutex_unlock(&p->lock);
 
-	if (!res)
-		ast_debug(5, "agent_cont_sleep() returning %d\n", res );
+	if (!res) {
+		ast_debug(5, "agent_cont_sleep() returning %d\n", res);
+	}
 
 	return res;
 }
 
-static int agent_ack_sleep(void *data)
+static int agent_ack_sleep(struct agent_pvt *p)
 {
-	struct agent_pvt *p;
-	int res=0;
+	int digit;
 	int to = 1000;
 	struct ast_frame *f;
 	struct timeval start = ast_tvnow();
 	int ms;
 
 	/* Wait a second and look for something */
-
-	p = (struct agent_pvt *) data;
-	if (!p->chan) 
-		return -1;
-
 	while ((ms = ast_remaining_ms(start, to))) {
 		ms = ast_waitfor(p->chan, ms);
 		if (ms < 0) {
@@ -1067,23 +1063,31 @@ static int agent_ack_sleep(void *data)
 			return 0;
 		}
 		f = ast_read(p->chan);
-		if (!f) 
+		if (!f) {
 			return -1;
-		if (f->frametype == AST_FRAME_DTMF)
-			res = f->subclass.integer;
-		else
-			res = 0;
+		}
+		if (f->frametype == AST_FRAME_DTMF) {
+			digit = f->subclass.integer;
+		} else {
+			digit = 0;
+		}
 		ast_frfree(f);
 		ast_mutex_lock(&p->lock);
 		if (!p->app_sleep_cond) {
 			ast_mutex_unlock(&p->lock);
 			return 0;
-		} else if (res == p->acceptdtmf) {
+		}
+		if (digit == p->acceptdtmf) {
 			ast_mutex_unlock(&p->lock);
 			return 1;
 		}
+		if (p->lastdisc.tv_sec) {
+			if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) {
+				ast_mutex_unlock(&p->lock);
+				return 0;
+			}
+		}
 		ast_mutex_unlock(&p->lock);
-		res = 0;
 	}
 	return 0;
 }
