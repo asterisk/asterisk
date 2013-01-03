@@ -272,12 +272,11 @@ struct agent_pvt {
 	int app_lock_flag;
 	ast_cond_t app_complete_cond;
 	ast_cond_t login_wait_cond;
-	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
-	struct ast_channel *owner;     /**< Agent */
-	char logincallerid[80];        /**< Caller ID they had when they logged in */
-	struct ast_channel *chan;      /**< Channel we use */
-	unsigned int flags;            /**< Flags show if settings were applied with channel vars */
-	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
+	int app_sleep_cond;            /*!< Non-zero if the login app should sleep. */
+	struct ast_channel *owner;     /*!< Agent */
+	struct ast_channel *chan;      /*!< Channel we use */
+	unsigned int flags;            /*!< Flags show if settings were applied with channel vars */
+	AST_LIST_ENTRY(agent_pvt) list;/*!< Next Agent in the linked list. */
 };
 
 #define DATA_EXPORT_AGENT(MEMBER)				\
@@ -288,8 +287,7 @@ struct agent_pvt {
 	MEMBER(agent_pvt, acknowledged, AST_DATA_BOOLEAN)	\
 	MEMBER(agent_pvt, name, AST_DATA_STRING)		\
 	MEMBER(agent_pvt, password, AST_DATA_PASSWORD)		\
-	MEMBER(agent_pvt, acceptdtmf, AST_DATA_CHARACTER)	\
-	MEMBER(agent_pvt, logincallerid, AST_DATA_STRING)
+	MEMBER(agent_pvt, acceptdtmf, AST_DATA_CHARACTER)
 
 AST_DATA_STRUCTURE(agent_pvt, DATA_EXPORT_AGENT);
 
@@ -411,6 +409,22 @@ static struct ast_channel *agent_lock_owner(struct agent_pvt *pvt)
 }
 
 /*!
+ * \internal
+ * \brief Destroy an agent pvt struct.
+ *
+ * \param doomed Agent pvt to destroy.
+ *
+ * \return Nothing
+ */
+static void agent_pvt_destroy(struct agent_pvt *doomed)
+{
+	ast_mutex_destroy(&doomed->lock);
+	ast_cond_destroy(&doomed->app_complete_cond);
+	ast_cond_destroy(&doomed->login_wait_cond);
+	ast_free(doomed);
+}
+
+/*!
  * Adds an agent to the global list of agents.
  *
  * \param agent A string with the username, password and real name of an agent. As defined in agents.conf. Example: "13,169,John Smith"
@@ -455,11 +469,16 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 		name = args.name;
 		while (*name && *name < 33) name++;
 	}
-	
-	/* Are we searching for the agent here ? To see if it exists already ? */
-	AST_LIST_TRAVERSE(&agents, p, list) {
-		if (!pending && !strcmp(p->agent, agt))
-			break;
+
+	if (!pending) {
+		/* Are we searching for the agent here ? To see if it exists already ? */
+		AST_LIST_TRAVERSE(&agents, p, list) {
+			if (!strcmp(p->agent, agt)) {
+				break;
+			}
+		}
+	} else {
+		p = NULL;
 	}
 	if (!p) {
 		// Build the agent.
@@ -541,17 +560,12 @@ static int agent_cleanup(struct agent_pvt *p)
 	}
 	if (p->dead) {
 		ast_mutex_unlock(&p->lock);
-		ast_mutex_destroy(&p->lock);
-		ast_cond_destroy(&p->app_complete_cond);
-		ast_cond_destroy(&p->login_wait_cond);
-		ast_free(p);
+		agent_pvt_destroy(p);
 	} else {
 		ast_mutex_unlock(&p->lock);
 	}
 	return 0;
 }
-
-static int check_availability(struct agent_pvt *newlyavailable, int needlock);
 
 static int agent_answer(struct ast_channel *ast)
 {
@@ -709,8 +723,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	if (p->chan && !p->chan->_bridge) {
 		if (strcasecmp(p->chan->tech->type, "Local")) {
 			p->chan->_bridge = ast;
-			if (p->chan)
-				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
+			ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
 		}
 	}
 	ast_mutex_unlock(&p->lock);
@@ -890,7 +903,6 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 				agent_start_monitoring(ast, 0);
 			p->acknowledged = 1;
 		}
-		res = 0;
 	}
 	CLEANUP(ast, p);
 	ast_mutex_unlock(&p->lock);
@@ -902,7 +914,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 /*! \brief return the channel or base channel if one exists.  This function assumes the channel it is called on is already locked */
 struct ast_channel* agent_get_base_channel(struct ast_channel *chan)
 {
-	struct agent_pvt *p = NULL;
+	struct agent_pvt *p;
 	struct ast_channel *base = chan;
 
 	/* chan is locked by the calling function */
@@ -963,10 +975,7 @@ static int agent_hangup(struct ast_channel *ast)
 	 */
 
 	ast_debug(1, "Hangup called for state %s\n", ast_state2str(ast->_state));
-	if (p->start && (ast->_state != AST_STATE_UP)) {
-		p->start = 0;
-	} else
-		p->start = 0;
+	p->start = 0;
 	if (p->chan) {
 		p->chan->_bridge = NULL;
 		/* If they're dead, go ahead and hang up on the agent now */
@@ -987,9 +996,7 @@ static int agent_hangup(struct ast_channel *ast)
 	}
 
 	/* Only register a device state change if the agent is still logged in */
-	if (!p->loginstart) {
-		p->logincallerid[0] = '\0';
-	} else {
+	if (p->loginstart) {
 		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 	}
 
@@ -998,10 +1005,7 @@ static int agent_hangup(struct ast_channel *ast)
 		   kill it later */
 		p->abouttograb = 0;
 	} else if (p->dead) {
-		ast_mutex_destroy(&p->lock);
-		ast_cond_destroy(&p->app_complete_cond);
-		ast_cond_destroy(&p->login_wait_cond);
-		ast_free(p);
+		agent_pvt_destroy(p);
 	} else {
 		if (p->chan) {
 			/* Not dead -- check availability now */
@@ -1290,10 +1294,7 @@ static int read_agent_config(int reload)
 			/* Destroy if  appropriate */
 			if (!p->owner) {
 				if (!p->chan) {
-					ast_mutex_destroy(&p->lock);
-					ast_cond_destroy(&p->app_complete_cond);
-					ast_cond_destroy(&p->login_wait_cond);
-					ast_free(p);
+					agent_pvt_destroy(p);
 				} else {
 					/* Cause them to hang up */
 					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
@@ -1432,8 +1433,9 @@ static struct ast_channel *agent_request(const char *type, format_t format, cons
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-			if (p->chan)
+			if (p->chan) {
 				hasagent++;
+			}
 			now = ast_tvnow();
 			if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
 				p->lastdisc = ast_tv(0, 0);
@@ -1450,30 +1452,6 @@ static struct ast_channel *agent_request(const char *type, format_t format, cons
 		}
 		ast_mutex_unlock(&p->lock);
 	}
-	if (!p) {
-		AST_LIST_TRAVERSE(&agents, p, list) {
-			ast_mutex_lock(&p->lock);
-			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-				if (p->chan) {
-					hasagent++;
-				}
-				now = ast_tvnow();
-				if (!p->lastdisc.tv_sec || (now.tv_sec >= p->lastdisc.tv_sec)) {
-					p->lastdisc = ast_tv(0, 0);
-					/* Agent must be registered, but not have any active call, and not be in a waiting state */
-					if (!p->owner && p->chan) {
-						/* Could still get a fixed agent */
-						chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
-					}
-					if (chan) {
-						ast_mutex_unlock(&p->lock);
-						break;
-					}
-				}
-			}
-			ast_mutex_unlock(&p->lock);
-		}
-	}
 
 	if (!chan && waitforagent) {
 		/* No agent available -- but we're requesting to wait for one.
@@ -1481,10 +1459,14 @@ static struct ast_channel *agent_request(const char *type, format_t format, cons
 		if (hasagent) {
 			ast_debug(1, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
-			p->group = groupmatch;
-			chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
-			if (!chan) 
-				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
+			if (p) {
+				p->group = groupmatch;
+				chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+				if (!chan) {
+					AST_LIST_REMOVE(&agents, p, list);
+					agent_pvt_destroy(p);
+				}
+			}
 		} else {
 			ast_debug(1, "Not creating place holder for '%s' since nobody logged in\n", s);
 		}
@@ -1934,7 +1916,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 	int tries = 0;
 	int max_login_tries = maxlogintries;
 	struct agent_pvt *p;
-	struct ast_module_user *u;
 	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
 	char agent[AST_MAX_AGENT] = "";
@@ -1951,8 +1932,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
-
-	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -2085,7 +2064,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 					long logintime;
 					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 
-					p->logincallerid[0] = '\0';
 					p->acknowledged = 0;
 					
 					ast_mutex_unlock(&p->lock);
@@ -2217,10 +2195,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 						/* If there is no owner, go ahead and kill it now */
 						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 						if (p->dead && !p->owner) {
-							ast_mutex_destroy(&p->lock);
-							ast_cond_destroy(&p->app_complete_cond);
-							ast_cond_destroy(&p->login_wait_cond);
-							ast_free(p);
+							agent_pvt_destroy(p);
 						}
 					}
 					else {
@@ -2250,8 +2225,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 	if (!res)
 		res = ast_safe_sleep(chan, 500);
 
-	ast_module_user_remove(u);
-	
  	return -1;
 }
 
