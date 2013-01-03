@@ -919,7 +919,7 @@ static iks* xmpp_pubsub_iq_create(struct ast_xmpp_client *client, const char *ty
  * \return iks *
  */
 static iks* xmpp_pubsub_build_publish_skeleton(struct ast_xmpp_client *client, const char *node,
-					       const char *event_type)
+					       const char *event_type, unsigned int cachable)
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	iks *request, *pubsub, *publish, *item;
@@ -934,6 +934,22 @@ static iks* xmpp_pubsub_build_publish_skeleton(struct ast_xmpp_client *client, c
 	iks_insert_attrib(publish, "node", ast_test_flag(&cfg->global->pubsub, XMPP_XEP0248) ? node : event_type);
 	item = iks_insert(publish, "item");
 	iks_insert_attrib(item, "id", node);
+
+	if (cachable == AST_DEVSTATE_NOT_CACHABLE) {
+		iks *options, *x, *field_form_type, *field_persist;
+
+		options = iks_insert(pubsub, "publish-options");
+		x = iks_insert(options, "x");
+		iks_insert_attrib(x, "xmlns", "jabber:x:data");
+		iks_insert_attrib(x, "type", "submit");
+		field_form_type = iks_insert(x, "field");
+		iks_insert_attrib(field_form_type, "var", "FORM_TYPE");
+		iks_insert_attrib(field_form_type, "type", "hidden");
+		iks_insert_cdata(iks_insert(field_form_type, "value"), "http://jabber.org/protocol/pubsub#publish-options", 0);
+		field_persist = iks_insert(x, "field");
+		iks_insert_attrib(field_persist, "var", "pubsub#persist_items");
+		iks_insert_cdata(iks_insert(field_persist, "value"), "0", 1);
+	}
 
 	return item;
 
@@ -1107,7 +1123,7 @@ static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *
 
 	snprintf(full_mailbox, sizeof(full_mailbox), "%s@%s", mailbox, context);
 
-	if (!(request = xmpp_pubsub_build_publish_skeleton(client, full_mailbox, "message_waiting"))) {
+	if (!(request = xmpp_pubsub_build_publish_skeleton(client, full_mailbox, "message_waiting", AST_DEVSTATE_CACHABLE))) {
 		return;
 	}
 
@@ -1131,13 +1147,13 @@ static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *
  * \return void
  */
 static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, const char *device,
-					     const char *device_state)
+					     const char *device_state, unsigned int cachable)
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	iks *request, *state;
-	char eid_str[20];
+	char eid_str[20], cachable_str[2];
 
-	if (!cfg || !cfg->global || !(request = xmpp_pubsub_build_publish_skeleton(client, device, "device_state"))) {
+	if (!cfg || !cfg->global || !(request = xmpp_pubsub_build_publish_skeleton(client, device, "device_state", cachable))) {
 		return;
 	}
 
@@ -1153,6 +1169,8 @@ static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, con
 	state = iks_insert(request, "state");
 	iks_insert_attrib(state, "xmlns", "http://asterisk.org");
 	iks_insert_attrib(state, "eid", eid_str);
+	snprintf(cachable_str, sizeof(cachable_str), "%u", cachable);
+	iks_insert_attrib(state, "cachable", cachable_str);
 	iks_insert_cdata(state, device_state, strlen(device_state));
 	ast_xmpp_client_send(client, iks_root(request));
 	iks_delete(request);
@@ -1195,6 +1213,7 @@ static void xmpp_pubsub_devstate_cb(const struct ast_event *ast_event, void *dat
 {
 	struct ast_xmpp_client *client = data;
 	const char *device, *device_state;
+	unsigned int cachable;
 
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID))) {
 		/* If the event didn't originate from this server, don't send it back out. */
@@ -1204,7 +1223,8 @@ static void xmpp_pubsub_devstate_cb(const struct ast_event *ast_event, void *dat
 
 	device = ast_event_get_ie_str(ast_event, AST_EVENT_IE_DEVICE);
 	device_state = ast_devstate_str(ast_event_get_ie_uint(ast_event, AST_EVENT_IE_STATE));
-	xmpp_pubsub_publish_device_state(client, device, device_state);
+	cachable = ast_event_get_ie_uint(ast_event, AST_EVENT_IE_CACHABLE);
+	xmpp_pubsub_publish_device_state(client, device, device_state, cachable);
 }
 
 /*!
@@ -1287,11 +1307,12 @@ static void xmpp_pubsub_subscribe(struct ast_xmpp_client *client, const char *no
  */
 static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 {
-	char *item_id, *device_state, *context;
+	char *item_id, *device_state, *context, *cachable_str;
 	int oldmsgs, newmsgs;
 	iks *item, *item_content;
 	struct ast_eid pubsub_eid;
 	struct ast_event *event;
+	unsigned int cachable = AST_DEVSTATE_CACHABLE;
 	item = iks_find(iks_find(iks_find(pak->x, "event"), "items"), "item");
 	if (!item) {
 		ast_log(LOG_ERROR, "Could not parse incoming PubSub event\n");
@@ -1306,6 +1327,9 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
 		device_state = iks_find_cdata(item, "state");
+		if ((cachable_str = iks_find_cdata(item, "cachable"))) {
+			sscanf(cachable_str, "%30d", &cachable);
+		}
 		if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
 					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_STATE,
 					    AST_EVENT_IE_PLTYPE_UINT, ast_devstate_val(device_state), AST_EVENT_IE_EID,
@@ -1330,7 +1354,13 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 			  iks_name(item_content));
 		return IKS_FILTER_EAT;
 	}
-	ast_event_queue_and_cache(event);
+
+	if (cachable == AST_DEVSTATE_CACHABLE) {
+		ast_event_queue_and_cache(event);
+	} else {
+		ast_event_queue(event);
+	}
+
 	return IKS_FILTER_EAT;
 }
 
