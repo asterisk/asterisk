@@ -1832,7 +1832,7 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
-	char *aux = NULL, *parse = NULL;
+	char *parse = NULL;
 	int timeout, jidlen, resourcelen, found = 0;
 	struct timeval start;
 	long diff = 0;
@@ -1946,7 +1946,7 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 				continue;
 			}
 			found = 1;
-			aux = ast_strdupa(message->message);
+			ast_copy_string(buf, message->message, buflen);
 			AST_LIST_REMOVE_CURRENT(list);
 			xmpp_message_destroy(message);
 			break;
@@ -1970,7 +1970,6 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 		ast_log(LOG_NOTICE, "Timed out : no message received from %s\n", args.jid);
 		return -1;
 	}
-	ast_copy_string(buf, aux, buflen);
 
 	return 0;
 }
