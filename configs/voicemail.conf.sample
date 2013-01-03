@@ -282,6 +282,10 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			;     This is intended for use with users who wish to receive their
 			;     voicemail ONLY by email. Note:  "deletevoicemail" is provided as an
 			;     equivalent option for Realtime configuration.
+; alias=Bongo       ; Use this additional string for comparison while looking
+                    ; for a match in the Directory application.  This option
+                    ; may be specified multiple times to specify additional
+                    ; strings [per-mailbox only]
 ; volgain=0.0		; Emails bearing the voicemail may arrive in a volume too
 			;     quiet to be heard.  This parameter allows you to specify how
 			;     much gain to add to the message when sending a voicemail.

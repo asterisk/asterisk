@@ -10,6 +10,8 @@ CREATE TABLE voicemail (
 	password CHAR(80) NOT NULL,
 	-- Used in email and for Directory app
 	fullname CHAR(80),
+    -- Used for Directory app
+	alias CHAR(80),
 	-- Email address (will get sound file if attach=yes)
 	email CHAR(80),
 	-- Email address (won't get sound file)

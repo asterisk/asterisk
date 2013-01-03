@@ -87,6 +87,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						argument will be used for the number of characters the user should enter.</para>
 						<argument name="n" required="true" />
 					</option>
+					<option name="a">
+						<para>Allow the caller to additionally enter an alias for a user in the
+						directory.  This option must be specified in addition to the
+						<literal>f</literal>, <literal>l</literal>, or <literal>b</literal>
+						option.</para>
+					</option>
 					<option name="m">
 						<para>Instead of reading each name sequentially and asking for
 						confirmation, create a menu of up to 8 names.</para>
@@ -135,6 +141,7 @@ enum {
 	OPT_LISTBYEITHER =    OPT_LISTBYFIRSTNAME | OPT_LISTBYLASTNAME,
 	OPT_PAUSE =           (1 << 5),
 	OPT_NOANSWER =        (1 << 6),
+	OPT_ALIAS =           (1 << 7),
 };
 
 enum {
@@ -164,6 +171,7 @@ AST_APP_OPTIONS(directory_app_options, {
 	AST_APP_OPTION('v', OPT_FROMVOICEMAIL),
 	AST_APP_OPTION('m', OPT_SELECTFROMMENU),
 	AST_APP_OPTION('n', OPT_NOANSWER),
+	AST_APP_OPTION('a', OPT_ALIAS),
 });
 
 static int compare(const char *text, const char *template)
@@ -427,6 +435,8 @@ static int select_item_menu(struct ast_channel *chan, struct directory_item **it
 	return 0;
 }
 
+AST_THREADSTORAGE(commonbuf);
+
 static struct ast_config *realtime_directory(char *context)
 {
 	struct ast_config *cfg;
@@ -436,8 +446,12 @@ static struct ast_config *realtime_directory(char *context)
 	char *mailbox;
 	const char *fullname;
 	const char *hidefromdir, *searchcontexts = NULL;
-	char tmp[100];
 	struct ast_flags config_flags = { 0 };
+	struct ast_str *tmp = ast_str_thread_get(&commonbuf, 100);
+
+	if (!tmp) {
+		return NULL;
+	}
 
 	/* Load flat file config. */
 	cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
@@ -472,6 +486,7 @@ static struct ast_config *realtime_directory(char *context)
 
 	mailbox = NULL;
 	while ( (mailbox = ast_category_browse(rtdata, mailbox)) ) {
+		struct ast_variable *alias;
 		const char *ctx = ast_variable_retrieve(rtdata, mailbox, "context");
 
 		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
@@ -480,7 +495,14 @@ static struct ast_config *realtime_directory(char *context)
 			/* Skip hidden */
 			continue;
 		}
-		snprintf(tmp, sizeof(tmp), "no-password,%s", S_OR(fullname, ""));
+		ast_str_set(&tmp, 0, "no-password,%s", S_OR(fullname, ""));
+		if (ast_variable_retrieve(rtdata, mailbox, "alias")) {
+			for (alias = ast_variable_browse(rtdata, mailbox); alias; alias = alias->next) {
+				if (!strcasecmp(alias->name, "alias")) {
+					ast_str_append(&tmp, 0, "|alias=%s", alias->value);
+				}
+			}
+		}
 
 		/* Does the context exist within the config file? If not, make one */
 		if (!(cat = ast_category_get(cfg, ctx))) {
@@ -495,7 +517,7 @@ static struct ast_config *realtime_directory(char *context)
 			ast_category_append(cfg, cat);
 		}
 
-		if ((var = ast_variable_new(mailbox, tmp, ""))) {
+		if ((var = ast_variable_new(mailbox, ast_str_buffer(tmp), ""))) {
 			ast_variable_append(cat, var);
 		} else {
 			ast_log(LOG_WARNING, "Out of memory adding mailbox '%s'\n", mailbox);
@@ -556,20 +578,26 @@ typedef AST_LIST_HEAD_NOLOCK(, directory_item) itemlist;
 static int search_directory_sub(const char *context, struct ast_config *vmcfg, struct ast_config *ucfg, const char *ext, struct ast_flags flags, itemlist *alist)
 {
 	struct ast_variable *v;
-	char buf[AST_MAX_EXTENSION + 1], *pos, *bufptr, *cat;
+	struct ast_str *buf = ast_str_thread_get(&commonbuf, 100);
+	char *pos, *bufptr, *cat, *alias;
 	struct directory_item *item;
 	int res;
+
+	if (!buf) {
+		return -1;
+	}
 
 	ast_debug(2, "Pattern: %s\n", ext);
 
 	for (v = ast_variable_browse(vmcfg, context); v; v = v->next) {
 
 		/* Ignore hidden */
-		if (strcasestr(v->value, "hidefromdir=yes"))
+		if (strcasestr(v->value, "hidefromdir=yes")) {
 			continue;
+		}
 
-		ast_copy_string(buf, v->value, sizeof(buf));
-		bufptr = buf;
+		ast_str_set(&buf, 0, "%s", v->value);
+		bufptr = ast_str_buffer(buf);
 
 		/* password,Full Name,email,pager,options */
 		strsep(&bufptr, ",");
@@ -587,11 +615,23 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 		if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
 			res = check_match(&item, context, pos, v->name, ext, 1 /* use_first_name */);
 		}
+		if (!res && ast_test_flag(&flags, OPT_ALIAS) && (alias = strcasestr(bufptr, "alias="))) {
+			char *a;
+			ast_debug(1, "Found alias: %s\n", alias);
+			while ((a = strsep(&alias, "|"))) {
+				if (!strncasecmp(a, "alias=", 6)) {
+					if ((res = check_match(&item, context, a + 6, v->name, ext, 1))) {
+						break;
+					}
+				}
+			}
+		}
 
-		if (!res)
+		if (!res) {
 			continue;
-		else if (res < 0)
+		} else if (res < 0) {
 			return -1;
+		}
 
 		AST_LIST_INSERT_TAIL(alist, item, entry);
 	}
@@ -599,15 +639,18 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 	if (ucfg) {
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			const char *position;
-			if (!strcasecmp(cat, "general"))
+
+			if (!strcasecmp(cat, "general")) {
 				continue;
-			if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
+			}
+			if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory"))) {
 				continue;
+			}
 
 			/* Find all candidate extensions */
-			position = ast_variable_retrieve(ucfg, cat, "fullname");
-			if (!position)
+			if (!(position = ast_variable_retrieve(ucfg, cat, "fullname"))) {
 				continue;
+			}
 
 			res = 0;
 			if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
@@ -616,11 +659,20 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 			if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
 				res = check_match(&item, context, position, cat, ext, 1 /* use_first_name */);
 			}
+			if (!res && ast_test_flag(&flags, OPT_ALIAS)) {
+				struct ast_variable *alias;
+				for (alias = ast_variable_browse(ucfg, cat); alias; alias = alias->next) {
+					if (!strcasecmp(v->name, "alias") && (res = check_match(&item, context, v->value, cat, ext, 1))) {
+						break;
+					}
+				}
+			}
 
-			if (!res)
+			if (!res) {
 				continue;
-			else if (res < 0)
+			} else if (res < 0) {
 				return -1;
+			}
 
 			AST_LIST_INSERT_TAIL(alist, item, entry);
 		}
