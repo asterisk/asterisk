@@ -1,3 +1,21 @@
+2013-01-03  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.1.2 Released.
+
+	* Prevent crashes in res_xmpp when receiving large messages
+
+	  Similar to r378287, res_xmpp was marshaling data read from an
+	  external source onto the stack. For a sufficiently large message,
+	  this could cause a stack overflow. This patch modifies res_xmpp in a
+	  similar fashion to res_jabber by removing the stack allocation, as
+	  it was unnecessary.
+
+	* Prevent exhaustion of system resources through exploitation of event
+	  cache
+
+	  This patch changes res_xmpp to no longer cache events under certain
+	  circumstances.
+
 2013-01-02  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.1.1 Released.
