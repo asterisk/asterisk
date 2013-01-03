@@ -784,22 +784,21 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 {
 	struct agent_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
+
 	ast_mutex_lock(&p->lock);
 	if (p->chan && !ast_check_hangup(p->chan)) {
-		while (ast_channel_trylock(p->chan)) {
-			if ((res = ast_channel_unlock(ast))) {
-				ast_log(LOG_ERROR, "chan_agent bug! Channel was not locked upon entry to agent_indicate: %s\n", res > 0 ? strerror(res) : "Bad ao2obj data");
-				ast_mutex_unlock(&p->lock);
-				return -1;
-			}
-			usleep(1);
-			ast_channel_lock(ast);
-		}
-  		res = ast_channel_tech(p->chan)->indicate ? ast_channel_tech(p->chan)->indicate(p->chan, condition, data, datalen) : -1;
+		ast_channel_unlock(ast);
+		ast_channel_lock(p->chan);
+		res = ast_channel_tech(p->chan)->indicate
+			? ast_channel_tech(p->chan)->indicate(p->chan, condition, data, datalen)
+			: -1;
 		ast_channel_unlock(p->chan);
-	} else
+		ast_mutex_unlock(&p->lock);
+		ast_channel_lock(ast);
+	} else {
+		ast_mutex_unlock(&p->lock);
 		res = 0;
-	ast_mutex_unlock(&p->lock);
+	}
 	return res;
 }
 
