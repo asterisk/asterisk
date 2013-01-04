@@ -366,7 +366,8 @@ tryagain:
 
 			ast_debug(5, "SRTP try to re-create\n");
 			if (policy) {
-				if (srtp_create(&srtp->session, &policy->sp) == err_status_ok) {
+				int res_srtp_create = srtp_create(&srtp->session, &policy->sp);
+				if (res_srtp_create == err_status_ok) {
 					ast_debug(5, "SRTP re-created with first policy\n");
 					ao2_t_ref(policy, -1, "Unreffing first policy for re-creating srtp session");
 
@@ -383,13 +384,21 @@ tryagain:
 					retry++;
 					ao2_iterator_destroy(&it);
 					goto tryagain;
-				} else {
-					srtp->session = NULL;
 				}
+				ast_log(LOG_ERROR, "SRTP session could not be re-created after unprotect failure: %s\n", srtp_errstr(res_srtp_create));
+
+				/* If srtp_create() fails with a previously alloced session, it will have been dealloced before returning. */
+				srtp->session = NULL;
+
 				ao2_t_ref(policy, -1, "Unreffing first policy after srtp_create failed");
 			}
 			ao2_iterator_destroy(&it);
 		}
+	}
+
+	if (!srtp->session) {
+		errno = EINVAL;
+		return -1;
 	}
 
 	if (res != err_status_ok && res != err_status_replay_fail ) {
