@@ -7997,6 +7997,7 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 static void change_callid_pvt(struct sip_pvt *pvt, const char *callid)
 {
 	int in_dialog_container;
+	char *oldid = ast_strdupa(pvt->callid);
 
 	ao2_lock(dialogs);
 	in_dialog_container = CONTAINER_UNLINK(dialogs, pvt,
@@ -8010,6 +8011,10 @@ static void change_callid_pvt(struct sip_pvt *pvt, const char *callid)
 		ao2_t_link(dialogs, pvt, "New dialog callid -- inserted back into table");
 	}
 	ao2_unlock(dialogs);
+
+	if (strcmp(oldid, pvt->callid)) {
+		ast_debug(1, "SIP call-id changed from '%s' to '%s'\n", oldid, pvt->callid);
+	}
 }
 
 /*! \brief Build SIP Call-ID value for a REGISTER transaction */
@@ -19616,7 +19621,12 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			}
 		}
 
-		/* Recalculate our side, and recalculate Call ID */
+		/* Now that we have the peer's address, set our ip and change callid */
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
+		build_via(p);
+
+		change_callid_pvt(p, NULL);
+
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n", a->argv[2], a->argv[i]);
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
