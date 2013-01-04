@@ -360,12 +360,13 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	int len;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
+	char *in = buf;
 
 	if ((len = ast_recvfrom(rtcp ? rtp->rtcp->s : rtp->s, buf, size, flags, sa)) < 0) {
 	   return len;
 	}
 
-	if (res_srtp && srtp && res_srtp->unprotect(srtp, buf, &len, rtcp) < 0) {
+	if ((*in > 1) && res_srtp && srtp && res_srtp->unprotect(srtp, buf, &len, rtcp) < 0) {
 	   return -1;
 	}
 
