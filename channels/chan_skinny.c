@@ -668,6 +668,12 @@ struct soft_key_template_definition {
 	uint32_t softKeyEvent;
 };
 
+#define BKSP_REQ_MESSAGE 0x0119
+struct bksp_req_message {
+	uint32_t instance;
+	uint32_t callreference;
+};
+
 #define KEYDEF_ONHOOK 0
 #define KEYDEF_CONNECTED 1
 #define KEYDEF_ONHOLD 2
@@ -1086,6 +1092,7 @@ union skinny_data {
 	struct soft_key_event_message softkeyeventmessage;
 	struct enbloc_call_message enbloccallmessage;
 	struct forward_stat_message forwardstat;
+	struct bksp_req_message bkspmessage;
 };
 
 /* packet composition */
@@ -1275,6 +1282,7 @@ struct skinny_subchannel {
 	int aa_sched;
 	int aa_beep;
 	int aa_mute;
+	int dialer_sched;
 
 	AST_LIST_ENTRY(skinny_subchannel) list;
 	struct skinny_subchannel *related;
@@ -1492,6 +1500,7 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
+static int skinny_dialer_cb(const void *data);
 static int skinny_reload(void);
 
 static void setsubstate(struct skinny_subchannel *sub, int state);
@@ -1847,14 +1856,20 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 	return list;
 }
 
-static int skinny_sched_del(int sched_id)
+static int skinny_sched_del(int sched_id, struct skinny_subchannel *sub)
 {
+	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Deleting SCHED %d\n",
+		sub->callid, sched_id);
 	return ast_sched_del(sched, sched_id);
 }
 
-static int skinny_sched_add(int when, ast_sched_cb callback, const void *data)
+static int skinny_sched_add(int when, ast_sched_cb callback, struct skinny_subchannel *sub)
 {
-	return ast_sched_add(sched, when, callback, data);
+	int ret;
+	ret = ast_sched_add(sched, when, callback, sub);
+	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Added SCHED %d\n",
+		sub->callid, ret);
+	return ret;
 }
 
 /* It's quicker/easier to find the subchannel when we know the instance number too */
@@ -2945,6 +2960,21 @@ static void transmit_capabilitiesreq(struct skinny_device *d)
 		return;
 
 	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting CAPABILITIES_REQ_MESSAGE to %s\n", d->name);
+	transmit_response(d, req);
+}
+
+static void transmit_backspace(struct skinny_device *d, int instance, unsigned callid)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct bksp_req_message), BKSP_REQ_MESSAGE)))
+		return;
+
+	req->data.bkspmessage.instance = htolel(instance);
+	req->data.bkspmessage.callreference = htolel(callid);
+
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting BKSP_REQ_MESSAGE to %s, inst %d, callid %d \n",
+		d->name, instance, callid);
 	transmit_response(d, req);
 }
 
@@ -4282,113 +4312,42 @@ static void *skinny_newcall(void *data)
 	return NULL;
 }
 
-static void *skinny_ss(void *data)
+static void skinny_dialer(struct skinny_subchannel *sub, int timedout)
 {
-	struct ast_channel *c = data;
-	struct skinny_subchannel *sub = ast_channel_tech_pvt(c);
+	struct ast_channel *c = sub->owner;
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	int len = 0;
-	int timeout = firstdigittimeout;
-	int res = 0;
-	int loop_pause = 100;
 
-	if (!d->session) {
-		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
-		return NULL;
-	}
-
-	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
-
-	len = strlen(sub->exten);
-
-	while (len < AST_MAX_EXTENSION-1) {
-		res = 1;  /* Assume that we will get a digit */
-		while (strlen(sub->exten) == len){
-			ast_safe_sleep(c, loop_pause);
-			timeout -= loop_pause;
-			if ( (timeout -= loop_pause) <= 0){
-				 res = 0;
-				 break;
-			}
-		res = 1;
-		}
-		
-		if (sub != l->activesub) {
-			break;
-		}
-
-		timeout = 0;
-		len = strlen(sub->exten);
-
-		if (!ast_ignore_pattern(ast_channel_context(c), sub->exten)) {
-			transmit_stop_tone(d, l->instance, sub->callid);
-		}
+	if (timedout || !ast_matchmore_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Force dialing '%s'\n", sub->callid, sub->exten);
 		if (ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
-			if (!res || !ast_matchmore_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
-				if (l->getforward) {
-					/* Record this as the forwarding extension */
-					set_callforwards(l, sub->exten, l->getforward);
-					ast_verb(3, "Setting call forward (%d) to '%s' on channel %s\n",
-							l->cfwdtype, sub->exten, ast_channel_name(c));
-					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-					transmit_lamp_indication(d, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
-					transmit_displaynotify(d, "CFwd enabled", 10);
-					transmit_cfwdstate(d, l);
-					ast_safe_sleep(c, 500);
-					ast_indicate(c, -1);
-					ast_safe_sleep(c, 1000);
-					len = 0;
-					l->getforward = 0;
-					if (sub->owner && ast_channel_state(sub->owner) != AST_STATE_UP) {
-						ast_indicate(c, -1);
-						ast_hangup(c);
-					}
-					return NULL;
-				} else {
-					if (sub->substate == SUBSTATE_OFFHOOK) {
-						dialandactivatesub(sub, sub->exten);
-					}
-					return NULL;
-				}
-			} else {
-				/* It's a match, but they just typed a digit, and there is an ambiguous match,
-				   so just set the timeout to matchdigittimeout and wait some more */
-				timeout = matchdigittimeout;
+			if (sub->substate == SUBSTATE_OFFHOOK) {
+				dialandactivatesub(sub, sub->exten);
 			}
-		} else if (res == 0) {
-			ast_debug(1, "Not enough digits (%s) (and no ambiguous match)...\n", sub->exten);
+		} else {
 			if (d->hookstate == SKINNY_OFFHOOK) {
+				// FIXME: redundant because below will onhook before the sound plays, but it correct to send it.
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
 			}
-			if (sub->owner && ast_channel_state(sub->owner) != AST_STATE_UP) {
-				ast_indicate(c, -1);
-				ast_hangup(c);
-			}
-			return NULL;
-		} else if (!ast_canmatch_extension(c, ast_channel_context(c), sub->exten, 1,
-			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL))
-			&& ((sub->exten[0] != '*') || (!ast_strlen_zero(sub->exten) > 2))) {
-			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", sub->exten,
-				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<Unknown Caller>"),
-				ast_channel_context(c));
-			if (d->hookstate == SKINNY_OFFHOOK) {
-				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
-				/* hang out for 3 seconds to let congestion play */
-				ast_safe_sleep(c, 3000);
-			}
-			break;
+			dumpsub(sub, 0);
 		}
-		if (!timeout) {
-			timeout = gendigittimeout;
-		}
-		if (len && !ast_ignore_pattern(ast_channel_context(c), sub->exten)) {
-			ast_indicate(c, -1);
+	} else {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Wait for more digits\n", sub->callid);
+		if (ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
+			sub->dialer_sched = skinny_sched_add(matchdigittimeout, skinny_dialer_cb, sub);
+		} else {
+			sub->dialer_sched = skinny_sched_add(gendigittimeout, skinny_dialer_cb, sub);
 		}
 	}
-	if (c)
-		ast_hangup(c);
-	return NULL;
+}
+
+static int skinny_dialer_cb(const void *data)
+{
+	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
+	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Dialer called from SCHED %d\n", sub->callid, sub->dialer_sched);
+	sub->dialer_sched = 0;
+	skinny_dialer(sub, 1);
+	return 0;
 }
 
 static int skinny_autoanswer_cb(const void *data)
@@ -4895,6 +4854,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			sub->xferor = 0;
 			sub->related = NULL;
 			sub->calldirection = direction;
+			sub->aa_sched = 0;
+			sub->dialer_sched = 0;
 
 			if (subline) {
 				sub->subline = subline;
@@ -5033,13 +4994,18 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		return;
 	}
 
+	if (sub->dialer_sched) {
+		skinny_sched_del(sub->dialer_sched, sub);
+		sub->dialer_sched = 0;
+	}
+
 	if (state != SUBSTATE_RINGIN && sub->aa_sched) {
-		skinny_sched_del(sub->aa_sched);
+		skinny_sched_del(sub->aa_sched, sub);
 		sub->aa_sched = 0;
 		sub->aa_beep = 0;
 		sub->aa_mute = 0;
 	}
-	
+
 	if ((state == SUBSTATE_RINGIN) && ((d->hookstate == SKINNY_OFFHOOK) || (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)))) {
 		actualstate = SUBSTATE_CALLWAIT;
 	}
@@ -5183,12 +5149,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_displaypromptstatus(d, "Enter number", 0, l->instance, sub->callid);
 
 		sub->substate = SUBSTATE_OFFHOOK;
-	
-		/* start the switch thread */
-		if (ast_pthread_create(&t, NULL, skinny_ss, sub->owner)) {
-			ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-			ast_hangup(sub->owner);
-		}
+		sub->dialer_sched = skinny_sched_add(firstdigittimeout, skinny_dialer_cb, sub);
 		break;
 	case SUBSTATE_ONHOOK:
 		AST_LIST_REMOVE(&l->sub, sub, list);
@@ -5213,10 +5174,17 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 
 		sub->cxmode = SKINNY_CX_RECVONLY;
-		sub->substate = SUBSTATE_ONHOOK;
 		destroy_rtp(sub);
 		if (sub->owner) {
-			ast_queue_hangup(sub->owner);
+			if (sub->substate == SUBSTATE_OFFHOOK) {
+				sub->substate = SUBSTATE_ONHOOK;
+				ast_hangup(sub->owner);
+			} else {
+				sub->substate = SUBSTATE_ONHOOK;
+				ast_queue_hangup(sub->owner);
+			}
+		} else {
+			sub->substate = SUBSTATE_ONHOOK;
 		}
 		break;
 	case SUBSTATE_DIALING:
@@ -5487,9 +5455,27 @@ static void activatesub(struct skinny_subchannel *sub, int state)
 
 static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
 {
-	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Dial %s and Activate\n", sub->callid, exten);
-	ast_copy_string(sub->exten, exten, sizeof(sub->exten));
-	activatesub(sub, SUBSTATE_DIALING);
+	if (sub->line->getforward) {
+		struct skinny_line *l = sub->line;
+		struct skinny_device *d = l->device;
+
+		// FIXME: needs some love and remove sleeps
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Set callforward to %s\n", sub->callid, exten);
+		set_callforwards(l, sub->exten, l->getforward);
+		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
+		transmit_lamp_indication(d, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
+		transmit_displaynotify(d, "CFwd enabled", 10);
+		transmit_cfwdstate(d, l);
+		ast_safe_sleep(sub->owner, 500);
+		ast_indicate(sub->owner, -1);
+		ast_safe_sleep(sub->owner, 1000);
+		l->getforward = 0;
+		dumpsub(sub, 0);
+	} else {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Dial %s and Activate\n", sub->callid, exten);
+		ast_copy_string(sub->exten, exten, sizeof(sub->exten));
+		activatesub(sub, SUBSTATE_DIALING);
+	}
 }
 
 static int handle_hold_button(struct skinny_subchannel *sub)
@@ -5625,10 +5611,22 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 	int digit;
 	int lineInstance;
 	int callReference;
+	size_t len;
 
 	digit = letohl(req->data.keypad.button);
 	lineInstance = letohl(req->data.keypad.lineInstance);
 	callReference = letohl(req->data.keypad.callReference);
+
+	if (lineInstance && callReference) {
+		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
+	} else {
+		sub = d->activeline->activesub;
+	}
+
+	if (!sub)
+		return 0;
+
+	l = sub->line;
 
 	if (digit == 14) {
 		dgt = '*';
@@ -5648,39 +5646,53 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 		ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 	}
 
-	f.subclass.integer = dgt;
-
-	f.src = "skinny";
-
-	if (lineInstance && callReference)
-		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
-	else
-		sub = d->activeline->activesub;
-		//sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
-
-	if (!sub)
-		return 0;
-
-	l = sub->line;
-	if (sub->owner) {
-		if (ast_channel_state(sub->owner) == 0) {
-			f.frametype = AST_FRAME_DTMF_BEGIN;
-			ast_queue_frame(sub->owner, &f);
-		}
-		/* XXX MUST queue this frame to all lines in threeway call if threeway call is active */
-		f.frametype = AST_FRAME_DTMF_END;
-		ast_queue_frame(sub->owner, &f);
-		/* XXX This seriously needs to be fixed */
-		if (AST_LIST_NEXT(sub, list) && AST_LIST_NEXT(sub, list)->owner) {
-			if (ast_channel_state(sub->owner) == 0) {
-				f.frametype = AST_FRAME_DTMF_BEGIN;
-				ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
+	if ((sub->owner && ast_channel_state(sub->owner) <  AST_STATE_UP)) {
+		if (sub->dialer_sched &&	!skinny_sched_del(sub->dialer_sched, sub)) {
+			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Got a digit and not timed out, so try dialing\n", sub->callid);
+			sub->dialer_sched = 0;
+			len = strlen(sub->exten);
+			if (len == 0) {
+				transmit_stop_tone(d, l->instance, sub->callid);
+				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_DADFD);
 			}
-			f.frametype = AST_FRAME_DTMF_END;
-			ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
+			if (len < sizeof(sub->exten) - 1) {
+				sub->exten[len] = dgt;
+				sub->exten[len + 1] = '\0';
+			}
+			if (len == sizeof(sub->exten) - 1) {
+				skinny_dialer(sub, 1);
+			} else {
+				skinny_dialer(sub, 0);
+			}
+		} else {
+			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d  Got a digit already timedout, ignore\n", sub->callid);
+			/* Timed out so the call is being progressed elsewhere, to late for digits */
+			return 0;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Got digit on %s, but not associated with channel\n", l->name);
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Got a digit and sending as DTMF\n", sub->callid);
+		f.subclass.integer = dgt;
+		f.src = "skinny";
+		if (sub->owner) {
+			if (ast_channel_state(sub->owner) == 0) {
+				f.frametype = AST_FRAME_DTMF_BEGIN;
+				ast_queue_frame(sub->owner, &f);
+			}
+			/* XXX MUST queue this frame to all lines in threeway call if threeway call is active */
+			f.frametype = AST_FRAME_DTMF_END;
+			ast_queue_frame(sub->owner, &f);
+			/* XXX This seriously needs to be fixed */
+			if (AST_LIST_NEXT(sub, list) && AST_LIST_NEXT(sub, list)->owner) {
+				if (ast_channel_state(sub->owner) == 0) {
+					f.frametype = AST_FRAME_DTMF_BEGIN;
+					ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
+				}
+				f.frametype = AST_FRAME_DTMF_END;
+				ast_queue_frame(AST_LIST_NEXT(sub, list)->owner, &f);
+			}
+		} else {
+			ast_log(LOG_WARNING, "Got digit on %s, but not associated with channel\n", l->name);
+		}
 	}
 	return 1;
 }
@@ -6519,6 +6531,20 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_BKSPC:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_BKSPC from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
+		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
+			size_t len;
+			sub->dialer_sched = 0;
+			len = strlen(sub->exten);
+			if (len > 0) {
+				sub->exten[len-1] = '\0';
+				if (len == 1) {
+					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
+					transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
+				}
+				transmit_backspace(d, l->instance, sub->callid);
+			}
+			sub->dialer_sched = skinny_sched_add(gendigittimeout, skinny_dialer_cb, sub);
+		}
 		break;
 	case SOFTKEY_ENDCALL:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_ENDCALL from %s, inst %d, callref %d\n",
@@ -6658,7 +6684,6 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	int res = 0;
 	struct skinny_speeddial *sd;
 	struct skinny_device *d = s->device;
-	size_t len;
 
 	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
@@ -6689,55 +6714,9 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		res = handle_ip_port_message(req, s);
 		break;
 	case KEYPAD_BUTTON_MESSAGE:
-	    {
-		struct skinny_subchannel *sub;
-		int lineInstance;
-		int callReference;
-
-		lineInstance = letohl(req->data.keypad.lineInstance);
-		callReference = letohl(req->data.keypad.callReference);
-
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received KEYPAD_BUTTON_MESSAGE from %s, digit %d, inst %d, callref %d\n",
-			d->name, letohl(req->data.keypad.button), lineInstance, callReference);
-
-		if (lineInstance) {
-			sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
-		} else {
-			sub = d->activeline->activesub;
-		}
-
-		if (sub && ((sub->owner && ast_channel_state(sub->owner) <  AST_STATE_UP) || sub->substate == SUBSTATE_HOLD)) {
-			char dgt;
-			int digit = letohl(req->data.keypad.button);
-
-			if (digit == 14) {
-				dgt = '*';
-			} else if (digit == 15) {
-				dgt = '#';
-			} else if (digit >= 0 && digit <= 9) {
-				dgt = '0' + digit;
-			} else {
-				/* digit=10-13 (A,B,C,D ?), or
-				* digit is bad value
-				*
-				* probably should not end up here, but set
-				* value for backward compatibility, and log
-				* a warning.
-				*/
-				dgt = '0' + digit;
-				ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
-			}
-
-			len = strlen(sub->exten);
-			if (len < sizeof(sub->exten) - 1) {
-				sub->exten[len] = dgt;
-				sub->exten[len + 1] = '\0';
-			} else {
-				ast_log(AST_LOG_WARNING, "Dropping digit with value %d because digit queue is full\n", dgt);
-			}
-		} else
-			res = handle_keypad_button_message(req, s);
-		}
+			d->name, letohl(req->data.keypad.button), letohl(req->data.keypad.lineInstance), letohl(req->data.keypad.callReference));
+		res = handle_keypad_button_message(req, s);
 		break;
 	case ENBLOC_CALL_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received ENBLOC_CALL_MESSAGE from %s, calledParty %s\n",
