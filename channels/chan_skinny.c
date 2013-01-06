@@ -888,8 +888,8 @@ static const uint8_t soft_key_default_onhook[] = {
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
 	SOFTKEY_DND,
-	/*SOFTKEY_GPICKUP,
-	SOFTKEY_CONFRN,*/
+	SOFTKEY_GPICKUP,
+	/*SOFTKEY_CONFRN,*/
 };
 
 static const uint8_t soft_key_default_connected[] = {
@@ -919,7 +919,7 @@ static const uint8_t soft_key_default_offhook[] = {
 	SOFTKEY_ENDCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
-	/*SOFTKEY_GPICKUP,*/
+	SOFTKEY_GPICKUP,
 };
 
 static const uint8_t soft_key_default_connwithtrans[] = {
@@ -1325,6 +1325,8 @@ struct skinny_subchannel {
 	char dialoutcontext[AST_MAX_CONTEXT];		\
 	ast_group_t callgroup;				\
 	ast_group_t pickupgroup;			\
+	struct ast_namedgroups *named_callgroups;	\
+	struct ast_namedgroups *named_pickupgroups;	\
 	int callwaiting;				\
 	int transfer;					\
 	int threewaycalling;				\
@@ -1559,6 +1561,8 @@ static struct skinny_line *skinny_line_destroy(struct skinny_line *l)
 {
 	l->cap = ast_format_cap_destroy(l->cap);
 	l->confcap = ast_format_cap_destroy(l->confcap);
+	l->named_callgroups = ast_unref_namedgroups(l->named_callgroups);
+	l->named_pickupgroups = ast_unref_namedgroups(l->named_pickupgroups);
 	ast_free(l->container);
 	ast_free(l);
 	return NULL;
@@ -4029,6 +4033,8 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 			continue;
 		}
 		AST_LIST_TRAVERSE(&d->lines, l, list) {
+			struct ast_str *tmp_str = ast_str_alloca(512);
+
 			if (strcasecmp(argv[3], l->name)) {
 				continue;
 			}
@@ -4040,6 +4046,10 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				ast_cli(fd, "Context:          %s\n", l->context);
 				ast_cli(fd, "CallGroup:        %s\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
 				ast_cli(fd, "PickupGroup:      %s\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
+				ast_cli(fd, "NamedCallGroup:   %s\n", ast_print_namedgroups(&tmp_str, l->named_callgroups));
+				ast_str_reset(tmp_str);
+				ast_cli(fd, "NamedPickupGroup: %s\n", ast_print_namedgroups(&tmp_str, l->named_pickupgroups));
+				ast_str_reset(tmp_str);
 				ast_cli(fd, "Language:         %s\n", S_OR(l->language, "<not set>"));
 				ast_cli(fd, "Accountcode:      %s\n", S_OR(l->accountcode, "<not set>"));
 				ast_cli(fd, "AmaFlag:          %s\n", ast_cdr_flags2str(l->amaflags));
@@ -4093,6 +4103,10 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				astman_append(s, "Context: %s\r\n", l->context);
 				astman_append(s, "CallGroup: %s\r\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
 				astman_append(s, "PickupGroup: %s\r\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
+				astman_append(s, "NamedCallGroup: %s\r\n", ast_print_namedgroups(&tmp_str, l->named_callgroups));
+				ast_str_reset(tmp_str);
+				astman_append(s, "NamedPickupGroup: %s\r\n", ast_print_namedgroups(&tmp_str, l->named_pickupgroups));
+				ast_str_reset(tmp_str);
 				astman_append(s, "Language: %s\r\n", S_OR(l->language, "<not set>"));
 				astman_append(s, "Accountcode: %s\r\n", S_OR(l->accountcode, "<not set>"));
 				astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(l->amaflags));
@@ -4914,6 +4928,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		ast_module_ref(ast_module_info->self);
 		ast_channel_callgroup_set(tmp, l->callgroup);
 		ast_channel_pickupgroup_set(tmp, l->pickupgroup);
+
+		ast_channel_named_callgroups_set(tmp, l->named_callgroups);
+		ast_channel_named_pickupgroups_set(tmp, l->named_pickupgroups);
 
 		/* XXX Need to figure out how to handle CFwdNoAnswer */
 		if (l->cfwdtype & SKINNY_CFWD_ALL) {
@@ -6682,6 +6699,22 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_GPICKUP:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_GPICKUP from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_INCOMING);
+		} else {
+			c = sub->owner;
+		}
+
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
+			ast_channel_ref(c);
+			sub = ast_channel_tech_pvt(c);
+			ast_pickup_call(c);
+			ast_hangup(c);
+			setsubstate(sub, SUBSTATE_CONNECTED);
+			ast_channel_unref(c);
+		}
 		break;
 	default:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_UNKNOWN(%d) from %s, inst %d, callref %d\n",
@@ -7344,6 +7377,16 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
  				CLINE_OPTS->pickupgroup = ast_get_group(v->value);
  				continue;
  			}
+		} else if (!strcasecmp(v->name, "namedcallgroup")) {
+			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
+				CLINE_OPTS->named_callgroups = ast_get_namedgroups(v->value);
+				continue;
+			}
+		} else if (!strcasecmp(v->name, "namedpickupgroup")) {
+			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
+				CLINE_OPTS->named_pickupgroups = ast_get_namedgroups(v->value);
+				continue;
+			}
  		} else if (!strcasecmp(v->name, "immediate")) {
  			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE | TYPE_DEF_LINE | TYPE_LINE)) {
  				CLINE_OPTS->immediate = ast_true(v->value);
