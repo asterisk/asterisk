@@ -417,6 +417,7 @@ static int tps_cmp_cb(void *obj, void *arg, int flags)
 static void tps_taskprocessor_destroy(void *tps)
 {
 	struct ast_taskprocessor *t = tps;
+	struct tps_task *task;
 
 	if (!tps) {
 		ast_log(LOG_ERROR, "missing taskprocessor\n");
@@ -436,6 +437,9 @@ static void tps_taskprocessor_destroy(void *tps)
 		 */
 		ao2_ref(t->listener, -1);
 		t->listener = NULL;
+	}
+	while ((task = AST_LIST_REMOVE_HEAD(&t->tps_queue, list))) {
+		tps_task_free(task);
 	}
 }
 
