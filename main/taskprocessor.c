@@ -143,7 +143,10 @@ static int default_tps_idle(struct default_taskprocessor_listener_pvt *pvt)
 	return pvt->dead;
 }
 
-/* this is the task processing worker function */
+/*!
+ * \brief Function that processes tasks in the taskprocessor
+ * \internal
+ */
 static void *tps_processing_function(void *data)
 {
 	struct ast_taskprocessor_listener *listener = data;
@@ -508,7 +511,6 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 	}
 	p = ao2_find(tps_singletons, name, OBJ_KEY);
 	if (p) {
-		ao2_unlock(tps_singletons);
 		return p;
 	}
 	if (create & TPS_REF_IF_EXISTS) {
