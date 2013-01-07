@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/taskprocessor.h"
 
-
 /*!
  * \brief tps_task structure is queued to a taskprocessor
  *
@@ -560,6 +559,9 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 	ao2_ref(p, +1);
 	listener->tps = p;
 
+	/* Allocation of private data must come after setting taskprocessor parameters
+	 * so that listeners who rely on taskprocessor data will have access to it.
+	 */
 	listener->private_data = listener->callbacks->alloc(listener);
 	if (!listener->private_data) {
 		return NULL;

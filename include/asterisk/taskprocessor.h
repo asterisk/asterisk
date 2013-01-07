@@ -133,6 +133,8 @@ struct ast_taskprocessor_listener_callbacks {
 /*!
  * \brief A listener for taskprocessors
  *
+ * \since 12.0.0
+ *
  * When a taskprocessor's state changes, the listener
  * is notified of the change. This allows for tasks
  * to be addressed in whatever way is appropriate for
@@ -148,7 +150,9 @@ struct ast_taskprocessor_listener {
 };
 
 /*!
- * Allocate a taskprocessor listener
+ * \brief Allocate a taskprocessor listener
+ *
+ * \since 12.0.0
  *
  * This will result in the listener being allocated with the specified
  * callbacks.
@@ -175,6 +179,8 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 
 /*!
  * \brief Create a taskprocessor with a custom listener
+ *
+ * \since 12.0.0
  *
  * The listener's alloc() and start() callbacks will be called during this function.
  *
@@ -209,6 +215,9 @@ int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *
 
 /*!
  * \brief Pop a task off the taskprocessor and execute it.
+ *
+ * \since 12.0.0
+ *
  * \param tps The taskprocessor from which to execute.
  * \retval 0 There is no further work to be done.
  * \retval 1 Tasks still remain in the taskprocessor queue.

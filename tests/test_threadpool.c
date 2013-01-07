@@ -328,6 +328,53 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(threadpool_initial_threads)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 0,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "initial_threads";
+		info->category = "/main/threadpool/";
+		info->summary = "Test threadpool initialization state";
+		info->description =
+			"Ensure that a threadpool created with a specific size contains the\n"
+			"proper number of idle threads.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks);
+	if (!listener) {
+		return AST_TEST_FAIL;
+	}
+	tld = listener->private_data;
+
+	pool = ast_threadpool_create(info->name, listener, 3, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	res = wait_until_thread_state(test, tld, 0, 3);
+
+end:
+	if (pool) {
+		ast_threadpool_shutdown(pool);
+	}
+	ao2_cleanup(listener);
+	return res;
+}
+
+
 AST_TEST_DEFINE(threadpool_thread_creation)
 {
 	struct ast_threadpool *pool = NULL;
@@ -557,7 +604,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	
+
 	/* After completing the task, the thread should go idle */
 	res = wait_until_thread_state(test, tld, 0, 1);
 	if (res == AST_TEST_FAIL) {
@@ -749,7 +796,10 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 {
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
-	struct simple_task_data *std = NULL;
+	struct simple_task_data *std1 = NULL;
+	struct simple_task_data *std2 = NULL;
+	struct simple_task_data *std3 = NULL;
+	struct simple_task_data *std4 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
 	struct test_listener_data *tld;
 	struct ast_threadpool_options options = {
@@ -783,17 +833,20 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		goto end;
 	}
 
-	std = simple_task_data_alloc();
-	if (!std) {
+	std1 = simple_task_data_alloc();
+	std2 = simple_task_data_alloc();
+	std3 = simple_task_data_alloc();
+	std4 = simple_task_data_alloc();
+	if (!std1 || !std2 || !std3 || !std4) {
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std);
+	ast_threadpool_push(pool, simple_task, std1);
 
 	/* Pushing the task should result in the threadpool growing
 	 * by three threads. This will allow the task to actually execute
 	 */
-	res = wait_for_completion(test, std);
+	res = wait_for_completion(test, std1);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
@@ -808,14 +861,46 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		goto end;
 	}
 
-	res = listener_check(test, listener, 1, 1, 1, 0, 3, 1);
+	/* Now push three tasks into the pool and ensure the pool does not
+	 * grow.
+	 */
+	ast_threadpool_push(pool, simple_task, std2);
+	ast_threadpool_push(pool, simple_task, std3);
+	ast_threadpool_push(pool, simple_task, std4);
+
+	res = wait_for_completion(test, std2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	res = wait_for_completion(test, std3);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	res = wait_for_completion(test, std4);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_for_empty_notice(test, tld);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_until_thread_state(test, tld, 0, 3);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+	res = listener_check(test, listener, 1, 0, 4, 0, 3, 1);
 
 end:
 	if (pool) {
 		ast_threadpool_shutdown(pool);
 	}
 	ao2_cleanup(listener);
-	ast_free(std);
+	ast_free(std1);
+	ast_free(std2);
+	ast_free(std3);
+	ast_free(std4);
 	return res;
 }
 
@@ -877,7 +962,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	
+
 	res = wait_until_thread_state(test, tld, 0, 1);
 	if (res == AST_TEST_FAIL) {
 		goto end;
@@ -900,7 +985,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	
+
 	res = wait_until_thread_state(test, tld, 0, 1);
 	if (res == AST_TEST_FAIL) {
 		goto end;
@@ -1180,6 +1265,7 @@ end:
 static int unload_module(void)
 {
 	ast_test_unregister(threadpool_push);
+	ast_test_unregister(threadpool_initial_threads);
 	ast_test_unregister(threadpool_thread_creation);
 	ast_test_unregister(threadpool_thread_destruction);
 	ast_test_unregister(threadpool_thread_timeout);
@@ -1196,6 +1282,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_test_register(threadpool_push);
+	ast_test_register(threadpool_initial_threads);
 	ast_test_register(threadpool_thread_creation);
 	ast_test_register(threadpool_thread_destruction);
 	ast_test_register(threadpool_thread_timeout);

@@ -55,8 +55,8 @@ struct ast_threadpool_listener_callbacks {
 			struct ast_threadpool_listener *listener,
 			int was_empty);
 	/*!
-	 * \brief Indicates the threadpoo's taskprocessor has become empty
-	 * 
+	 * \brief Indicates the threadpool's taskprocessor has become empty
+	 *
 	 * \param listener The threadpool's listener
 	 */
 	void (*emptied)(struct ast_threadpool *pool, struct ast_threadpool_listener *listener);
@@ -139,7 +139,7 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
  *
  * This number may be more or less than the current number of
  * threads in the threadpool.
- * 
+ *
  * \param threadpool The threadpool to adjust
  * \param size The new desired size of the threadpool
  */
