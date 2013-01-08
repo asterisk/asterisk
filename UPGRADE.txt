@@ -38,6 +38,8 @@ Queues:
    now only record a disposition of BUSY if all Queue members were actually
    busy on a call or some Queue members were busy or paused.  Previously, any
    Queue member being paused would result in a disposition of BUSY.
+ - Removed the queues.conf check_state_unknown option.  It is no longer
+   necessary.
 
 Dial:
  - Now recognizes 'W' to pause sending DTMF for one second in addition to
