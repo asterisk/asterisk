@@ -1042,9 +1042,6 @@ static int negative_penalty_invalid = 0;
 /*! \brief queues.conf [general] option */
 static int log_membername_as_agent = 0;
 
-/*! \brief queues.conf [general] option */
-static int check_state_unknown = 0;
-
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
 
@@ -1160,6 +1157,7 @@ struct member {
 	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
+	unsigned int call_pending:1;         /*!< TRUE if the Q is attempting to place a call to the member. */
 	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
 	unsigned int ringinuse:1;            /*!< Flag to ring queue members even if their status is 'inuse' */
 };
@@ -3488,6 +3486,112 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 	return vars;
 }
 
+/*!
+ * \internal
+ * \brief Check if the member status is available.
+ *
+ * \param status Member status to check if available.
+ *
+ * \retval non-zero if the member status is available.
+ */
+static int member_status_available(int status)
+{
+	return status == AST_DEVICE_NOT_INUSE || status == AST_DEVICE_UNKNOWN;
+}
+
+/*!
+ * \internal
+ * \brief Clear the member call pending flag.
+ *
+ * \param mem Queue member.
+ *
+ * \return Nothing
+ */
+static void member_call_pending_clear(struct member *mem)
+{
+	ao2_lock(mem);
+	mem->call_pending = 0;
+	ao2_unlock(mem);
+}
+
+/*!
+ * \internal
+ * \brief Set the member call pending flag.
+ *
+ * \param mem Queue member.
+ *
+ * \retval non-zero if call pending flag was already set.
+ */
+static int member_call_pending_set(struct member *mem)
+{
+	int old_pending;
+
+	ao2_lock(mem);
+	old_pending = mem->call_pending;
+	mem->call_pending = 1;
+	ao2_unlock(mem);
+
+	return old_pending;
+}
+
+/*!
+ * \internal
+ * \brief Determine if can ring a queue entry.
+ *
+ * \param qe Queue entry to check.
+ * \param call Member call attempt.
+ *
+ * \retval non-zero if an entry can be called.
+ */
+static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
+{
+	if (call->member->paused) {
+		ast_debug(1, "%s paused, can't receive call\n", call->interface);
+		return 0;
+	}
+
+	if (!call->member->ringinuse && !member_status_available(call->member->status)) {
+		ast_debug(1, "%s not available, can't receive call\n", call->interface);
+		return 0;
+	}
+
+	if ((call->lastqueue && call->lastqueue->wrapuptime && (time(NULL) - call->lastcall < call->lastqueue->wrapuptime))
+		|| (!call->lastqueue && qe->parent->wrapuptime && (time(NULL) - call->lastcall < qe->parent->wrapuptime))) {
+		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
+			(call->lastqueue ? call->lastqueue->name : qe->parent->name),
+			call->interface);
+		return 0;
+	}
+
+	if (use_weight && compare_weight(qe->parent, call->member)) {
+		ast_debug(1, "Priority queue delaying call to %s:%s\n",
+			qe->parent->name, call->interface);
+		return 0;
+	}
+
+	if (!call->member->ringinuse) {
+		if (member_call_pending_set(call->member)) {
+			ast_debug(1, "%s has another call pending, can't receive call\n",
+				call->interface);
+			return 0;
+		}
+
+		/*
+		 * The queue member is available.  Get current status to be sure
+		 * because the device state and extension state callbacks may
+		 * not have updated the status yet.
+		 */
+		if (!member_status_available(get_queue_member_status(call->member))) {
+			ast_debug(1, "%s actually not available, can't receive call\n",
+				call->interface);
+			member_call_pending_clear(call->member);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 /*! 
  * \brief Part 2 of ring_one
  *
@@ -3509,60 +3613,17 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char tech[256];
 	char *location;
 	const char *macrocontext, *macroexten;
-	enum ast_device_state newstate;
 
 	/* on entry here, we know that tmp->chan == NULL */
-	if (tmp->member->paused) {
-		ast_debug(1, "%s paused, can't receive call\n", tmp->interface);
+	if (!can_ring_entry(qe, tmp)) {
 		if (ast_channel_cdr(qe->chan)) {
 			ast_cdr_busy(ast_channel_cdr(qe->chan));
 		}
 		tmp->stillgoing = 0;
-		(*busies)++;
+		++*busies;
 		return 0;
 	}
-
-	if ((tmp->lastqueue && tmp->lastqueue->wrapuptime && (time(NULL) - tmp->lastcall < tmp->lastqueue->wrapuptime)) ||
-		(!tmp->lastqueue && qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))) {
-		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
-				(tmp->lastqueue ? tmp->lastqueue->name : qe->parent->name), tmp->interface);
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
-		tmp->stillgoing = 0;
-		(*busies)++;
-		return 0;
-	}
-
-	if (!tmp->member->ringinuse) {
-		if (check_state_unknown && (tmp->member->status == AST_DEVICE_UNKNOWN)) {
-			newstate = ast_device_state(tmp->member->interface);
-			if (newstate != tmp->member->status) {
-				ast_log(LOG_WARNING, "Found a channel matching iterface %s while status was %s changed to %s\n",
-					tmp->member->interface, ast_devstate2str(tmp->member->status), ast_devstate2str(newstate));
-				ast_devstate_changed_literal(newstate, AST_DEVSTATE_CACHABLE, tmp->member->interface);
-			}
-		}
-		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
-			ast_debug(1, "%s in use, can't receive call\n", tmp->interface);
-			if (ast_channel_cdr(qe->chan)) {
-				ast_cdr_busy(ast_channel_cdr(qe->chan));
-			}
-			tmp->stillgoing = 0;
-			(*busies)++;
-			return 0;
-		}
-	}
-
-	if (use_weight && compare_weight(qe->parent,tmp->member)) {
-		ast_debug(1, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
-		tmp->stillgoing = 0;
-		(*busies)++;
-		return 0;
-	}
+	ast_assert(qe->parent->ringinuse || tmp->member->call_pending);
 
 	ast_copy_string(tech, tmp->interface, sizeof(tech));
 	if ((location = strchr(tech, '/'))) {
@@ -3574,18 +3635,18 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	/* Request the peer */
 	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), qe->chan, location, &status);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
-		if (ast_channel_cdr(qe->chan)) {
-			ast_cdr_busy(ast_channel_cdr(qe->chan));
-		}
-		tmp->stillgoing = 0;
-
 		ao2_lock(qe->parent);
-		update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
 		qe->parent->rrpos++;
 		qe->linpos++;
 		ao2_unlock(qe->parent);
 
-		(*busies)++;
+		member_call_pending_clear(tmp->member);
+
+		if (ast_channel_cdr(qe->chan)) {
+			ast_cdr_busy(ast_channel_cdr(qe->chan));
+		}
+		tmp->stillgoing = 0;
+		++*busies;
 		return 0;
 	}
 
@@ -3661,10 +3722,12 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		/* Again, keep going even if there's an error */
 		ast_verb(3, "Couldn't call %s\n", tmp->interface);
 		do_hang(tmp);
-		(*busies)++;
-		update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
+		member_call_pending_clear(tmp->member);
+		++*busies;
 		return 0;
-	} else if (qe->parent->eventwhencalled) {
+	}
+
+	if (qe->parent->eventwhencalled) {
 		char vars[2048];
 
 		ast_channel_lock_both(tmp->chan, qe->chan);
@@ -3720,7 +3783,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		ast_verb(3, "Called %s\n", tmp->interface);
 	}
 
-	update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
+	member_call_pending_clear(tmp->member);
 	return 1;
 }
 
@@ -7714,10 +7777,6 @@ static void queue_set_global_params(struct ast_config *cfg)
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log_membername_as_agent"))) {
 		log_membername_as_agent = ast_true(general_val);
 	}
-	check_state_unknown = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "check_state_unknown"))) {
-		check_state_unknown = ast_true(general_val);
-	}
 }
 
 /*! \brief reload information pertaining to a single member
@@ -8495,7 +8554,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 			while ((mem = ao2_iterator_next(&mem_iter))) {
 				if ((mem->status != AST_DEVICE_UNAVAILABLE) && (mem->status != AST_DEVICE_INVALID)) {
 					++qmemcount;
-					if (((mem->status == AST_DEVICE_NOT_INUSE) || (mem->status == AST_DEVICE_UNKNOWN)) && !(mem->paused)) {
+					if (member_status_available(mem->status) && !mem->paused) {
 						++qmemavail;
 					}
 				}
