@@ -2561,10 +2561,10 @@ static int sip_check_authtimeout(time_t start)
  * \retval -1 Failed to read data
  * \retval 0 Succeeded in reading data
  */
-static int sip_tls_read(struct sip_request *req, struct ast_tcptls_session_instance *tcptls_session, int authenticated, time_t start, struct sip_threadinfo *me)
+static int sip_tls_read(struct sip_request *req, struct sip_request *reqcpy, struct ast_tcptls_session_instance *tcptls_session,
+			int authenticated, time_t start, struct sip_threadinfo *me)
 {
 	int res, content_length, after_poll = 1, need_poll = 1;
-	struct sip_request reqcpy = { 0, };
 	char buf[1024] = "";
 	int timeout = -1;
 
@@ -2618,10 +2618,10 @@ static int sip_tls_read(struct sip_request *req, struct ast_tcptls_session_insta
 		}
 		ast_str_append(&req->data, 0, "%s", buf);
 	}
-	copy_request(&reqcpy, req);
-	parse_request(&reqcpy);
+	copy_request(reqcpy, req);
+	parse_request(reqcpy);
 	/* In order to know how much to read, we need the content-length header */
-	if (sscanf(sip_get_header(&reqcpy, "Content-Length"), "%30d", &content_length)) {
+	if (sscanf(sip_get_header(reqcpy, "Content-Length"), "%30d", &content_length)) {
 		while (content_length > 0) {
 			size_t bytes_read;
 			if (!tcptls_session->client && !authenticated) {
@@ -3035,7 +3035,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			req.socket.fd = tcptls_session->fd;
 
 			if (tcptls_session->ssl) {
-				res = sip_tls_read(&req, tcptls_session, authenticated, start, me);
+				res = sip_tls_read(&req, &reqcpy, tcptls_session, authenticated, start, me);
 			} else {
 				res = sip_tcp_read(&req, tcptls_session, authenticated, start);
 			}
@@ -21560,6 +21560,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				rtn = parse_session_expires(p_hdrval, &tmp_st_interval, &st_ref_param);
 				if (rtn != 0) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+				} else if (tmp_st_interval < st_get_se(p, FALSE)) {
+					ast_log(LOG_WARNING, "Got Session-Expires less than local Min-SE in 200 OK, tearing down call\n");
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 				}
 				if (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) {
 				   p->stimer->st_ref = SESSION_TIMER_REFRESHER_US;

@@ -383,6 +383,8 @@ tryagain:
 					retry++;
 					ao2_iterator_destroy(&it);
 					goto tryagain;
+				} else {
+					srtp->session = NULL;
 				}
 				ao2_t_ref(policy, -1, "Unreffing first policy after srtp_create failed");
 			}
@@ -437,6 +439,8 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 
 	/* Any failures after this point can use ast_srtp_destroy to destroy the instance */
 	if (srtp_create(&temp->session, &policy->sp) != err_status_ok) {
+		/* Session either wasn't created or was created and dealloced. */
+		temp->session = NULL;
 		ast_srtp_destroy(temp);
 		return -1;
 	}

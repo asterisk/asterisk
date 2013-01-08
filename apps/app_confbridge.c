@@ -60,34 +60,48 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 
 /*** DOCUMENTATION
-    <application name="ConfBridge" language="en_US">
-            <synopsis>
-                    Conference bridge application.
-            </synopsis>
-            <syntax>
-                    <parameter name="confno">
-                            <para>The conference number</para>
-                    </parameter>
-                    <parameter name="bridge_profile">
-                            <para>The bridge profile name from confbridge.conf.  When left blank, a dynamically built bridge profile created by the CONFBRIDGE dialplan function is searched for on the channel and used.  If no dynamic profile is present, the 'default_bridge' profile found in confbridge.conf is used. </para>
-                            <para>It is important to note that while user profiles may be unique for each participant, mixing bridge profiles on a single conference is _NOT_ recommended and will produce undefined results.</para>
-                    </parameter>
-                    <parameter name="user_profile">
-                            <para>The user profile name from confbridge.conf.  When left blank, a dynamically built user profile created by the CONFBRIDGE dialplan function is searched for on the channel and used.  If no dynamic profile is present, the 'default_user' profile found in confbridge.conf is used.</para>
-                    </parameter>
-                    <parameter name="menu">
-                            <para>The name of the DTMF menu in confbridge.conf to be applied to this channel.  No menu is applied by default if this option is left blank.</para>
-                    </parameter>
-            </syntax>
-            <description>
-                    <para>Enters the user into a specified conference bridge. The user can exit the conference by hangup or DTMF menu option.</para>
-            </description>
-			<see-also>
-				<ref type="application">ConfBridge</ref>
-				<ref type="function">CONFBRIDGE</ref>
-				<ref type="function">CONFBRIDGE_INFO</ref>
-			</see-also>
-    </application>
+	<application name="ConfBridge" language="en_US">
+		<synopsis>
+			Conference bridge application.
+		</synopsis>
+		<syntax>
+			<parameter name="conference" required="true">
+				<para>Name of the conference bridge.  You are not limited to just
+				numbers.</para>
+			</parameter>
+			<parameter name="bridge_profile">
+				<para>The bridge profile name from confbridge.conf.  When left blank,
+				a dynamically built bridge profile created by the CONFBRIDGE dialplan
+				function is searched for on the channel and used.  If no dynamic
+				profile is present, the 'default_bridge' profile found in
+				confbridge.conf is used. </para>
+				<para>It is important to note that while user profiles may be unique
+				for each participant, mixing bridge profiles on a single conference
+				is _NOT_ recommended and will produce undefined results.</para>
+			</parameter>
+			<parameter name="user_profile">
+				<para>The user profile name from confbridge.conf.  When left blank,
+				a dynamically built user profile created by the CONFBRIDGE dialplan
+				function is searched for on the channel and used.  If no dynamic
+				profile is present, the 'default_user' profile found in
+				confbridge.conf is used.</para>
+			</parameter>
+			<parameter name="menu">
+				<para>The name of the DTMF menu in confbridge.conf to be applied to
+				this channel.  No menu is applied by default if this option is left
+				blank.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Enters the user into a specified conference bridge.  The user can
+			exit the conference by hangup or DTMF menu option.</para>
+		</description>
+		<see-also>
+			<ref type="application">ConfBridge</ref>
+			<ref type="function">CONFBRIDGE</ref>
+			<ref type="function">CONFBRIDGE_INFO</ref>
+		</see-also>
+	</application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
 			Set a custom dynamic bridge and user profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
@@ -96,7 +110,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="type" required="true">
 				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal> or <literal>user</literal>.</para>
 			</parameter>
-            <parameter name="option" required="true">
+			<parameter name="option" required="true">
 				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel.</para>
 			</parameter>
 		</syntax>
@@ -282,7 +296,7 @@ enum {
 /*! \brief Container to hold all conference bridges in progress */
 static struct ao2_container *conference_bridges;
 
-static void leave_conference_bridge(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user);
+static void leave_conference(struct conference_bridge_user *user);
 static int play_sound_number(struct conference_bridge *conference_bridge, int say_number);
 static int execute_menu_entry(struct conference_bridge *conference_bridge,
 	struct conference_bridge_user *conference_bridge_user,
@@ -546,9 +560,7 @@ static int start_conf_record_thread(struct conference_bridge *conference_bridge)
 {
 	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
 
-	ao2_lock(conference_bridge);
 	conf_start_record(conference_bridge);
-	ao2_unlock(conference_bridge);
 
 	if (ast_pthread_create_background(&conference_bridge->record_thread, NULL, record_thread, conference_bridge)) {
 		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference_bridge->name);
@@ -754,8 +766,6 @@ static void destroy_conference_bridge(void *obj)
 
 	ast_debug(1, "Destroying conference bridge '%s'\n", conference_bridge->name);
 
-	ast_mutex_destroy(&conference_bridge->playback_lock);
-
 	if (conference_bridge->playback_chan) {
 		struct ast_channel *underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
 		if (underlying_channel) {
@@ -770,7 +780,11 @@ static void destroy_conference_bridge(void *obj)
 		ast_bridge_destroy(conference_bridge->bridge);
 		conference_bridge->bridge = NULL;
 	}
+
 	conf_bridge_profile_destroy(&conference_bridge->b_profile);
+	ast_cond_destroy(&conference_bridge->record_cond);
+	ast_mutex_destroy(&conference_bridge->record_lock);
+	ast_mutex_destroy(&conference_bridge->playback_lock);
 }
 
 /*! \brief Call the proper join event handler for the user for the conference bridge's current state
@@ -947,7 +961,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 	if (conference_bridge && (max_members_reached || conference_bridge->locked) && !ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ADMIN)) {
 		ao2_unlock(conference_bridges);
 		ao2_ref(conference_bridge, -1);
-		ast_debug(1, "Conference bridge '%s' is locked and caller is not an admin\n", name);
+		ast_debug(1, "Conference '%s' is locked and caller is not an admin\n", name);
 		ast_stream_and_wait(conference_bridge_user->chan,
 				conf_get_sound(CONF_SOUND_LOCKED, conference_bridge_user->b_profile.sounds),
 				"");
@@ -959,9 +973,16 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 		/* Try to allocate memory for a new conference bridge, if we fail... this won't end well. */
 		if (!(conference_bridge = ao2_alloc(sizeof(*conference_bridge), destroy_conference_bridge))) {
 			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Conference bridge '%s' does not exist.\n", name);
+			ast_log(LOG_ERROR, "Conference '%s' could not be created.\n", name);
 			return NULL;
 		}
+
+		/* Setup lock for playback channel */
+		ast_mutex_init(&conference_bridge->playback_lock);
+
+		/* Setup lock for the record channel */
+		ast_mutex_init(&conference_bridge->record_lock);
+		ast_cond_init(&conference_bridge->record_cond, NULL);
 
 		/* Setup conference bridge parameters */
 		conference_bridge->record_thread = AST_PTHREADT_NULL;
@@ -973,7 +994,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 			ao2_ref(conference_bridge, -1);
 			conference_bridge = NULL;
 			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Conference bridge '%s' could not be created.\n", name);
+			ast_log(LOG_ERROR, "Conference '%s' mixing bridge could not be created.\n", name);
 			return NULL;
 		}
 
@@ -986,15 +1007,15 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 			ast_bridge_set_talker_src_video_mode(conference_bridge->bridge);
 		}
 
-		/* Setup lock for playback channel */
-		ast_mutex_init(&conference_bridge->playback_lock);
-
-		/* Setup lock for the record channel */
-		ast_mutex_init(&conference_bridge->record_lock);
-		ast_cond_init(&conference_bridge->record_cond, NULL);
-
 		/* Link it into the conference bridges container */
-		ao2_link(conference_bridges, conference_bridge);
+		if (!ao2_link(conference_bridges, conference_bridge)) {
+			ao2_ref(conference_bridge, -1);
+			conference_bridge = NULL;
+			ao2_unlock(conference_bridges);
+			ast_log(LOG_ERROR,
+				"Conference '%s' could not be added to the conferences list.\n", name);
+			return NULL;
+		}
 
 		/* Set the initial state to EMPTY */
 		conference_bridge->state = CONF_STATE_EMPTY;
@@ -1007,7 +1028,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 		}
 
 		send_conf_start_event(conference_bridge->name);
-		ast_debug(1, "Created conference bridge '%s' and linked to container '%p'\n", name, conference_bridges);
+		ast_debug(1, "Created conference '%s' and linked to container.\n", name);
 	}
 
 	ao2_unlock(conference_bridges);
@@ -1026,7 +1047,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 
 	if (ast_check_hangup(conference_bridge_user->chan)) {
 		ao2_unlock(conference_bridge);
-		leave_conference_bridge(conference_bridge, conference_bridge_user);
+		leave_conference(conference_bridge_user);
 		return NULL;
 	}
 
@@ -1035,7 +1056,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 	/* Announce number of users if need be */
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
 		if (announce_user_count(conference_bridge, conference_bridge_user)) {
-			leave_conference_bridge(conference_bridge, conference_bridge_user);
+			leave_conference(conference_bridge_user);
 			return NULL;
 		}
 	}
@@ -1043,7 +1064,7 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNTALL) &&
 		(conference_bridge->activeusers > conference_bridge_user->u_profile.announce_user_count_all_after)) {
 		if (announce_user_count(conference_bridge, NULL)) {
-			leave_conference_bridge(conference_bridge, conference_bridge_user);
+			leave_conference(conference_bridge_user);
 			return NULL;
 		}
 	}
@@ -1058,21 +1079,26 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 }
 
 /*!
- * \brief Leave a conference bridge
+ * \brief Leave a conference
  *
- * \param conference_bridge The conference bridge to leave
- * \param conference_bridge_user The conference bridge user structure
- *
+ * \param user The conference user
  */
-static void leave_conference_bridge(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+static void leave_conference(struct conference_bridge_user *user)
 {
-	ao2_lock(conference_bridge);
+	struct post_join_action *action;
 
-	handle_conf_user_leave(conference_bridge_user);
+	ao2_lock(user->conference_bridge);
+	handle_conf_user_leave(user);
+	ao2_unlock(user->conference_bridge);
 
-	/* Done mucking with the conference bridge, huzzah */
-	ao2_unlock(conference_bridge);
-	ao2_ref(conference_bridge, -1);
+	/* Discard any post-join actions */
+	while ((action = AST_LIST_REMOVE_HEAD(&user->post_join_list, list))) {
+		ast_free(action);
+	}
+
+	/* Done mucking with the conference, huzzah */
+	ao2_ref(user->conference_bridge, -1);
+	user->conference_bridge = NULL;
 }
 
 /*!
@@ -1455,7 +1481,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* if we're shutting down, don't attempt to do further processing */
 	if (ast_shutting_down()) {
-		leave_conference_bridge(conference_bridge, &conference_bridge_user);
+		leave_conference(&conference_bridge_user);
 		conference_bridge = NULL;
 		goto confbridge_cleanup;
 	}
@@ -1481,7 +1507,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Easy as pie, depart this channel from the conference bridge */
-	leave_conference_bridge(conference_bridge, &conference_bridge_user);
+	leave_conference(&conference_bridge_user);
 	conference_bridge = NULL;
 
 	/* If the user was kicked from the conference play back the audio prompt for it */

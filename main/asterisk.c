@@ -213,10 +213,10 @@ struct console {
 
 struct ast_atexit {
 	void (*func)(void);
-	AST_RWLIST_ENTRY(ast_atexit) list;
+	AST_LIST_ENTRY(ast_atexit) list;
 };
 
-static AST_RWLIST_HEAD_STATIC(atexits, ast_atexit);
+static AST_LIST_HEAD_STATIC(atexits, ast_atexit);
 
 struct timeval ast_startuptime;
 struct timeval ast_lastreloadtime;
@@ -953,39 +953,57 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 
 #endif /* ! LOW_MEMORY */
 
+static void ast_run_atexits(void)
+{
+	struct ast_atexit *ae;
+
+	AST_LIST_LOCK(&atexits);
+	while ((ae = AST_LIST_REMOVE_HEAD(&atexits, list))) {
+		if (ae->func) {
+			ae->func();
+		}
+		ast_free(ae);
+	}
+	AST_LIST_UNLOCK(&atexits);
+}
+
+static void __ast_unregister_atexit(void (*func)(void))
+{
+	struct ast_atexit *ae;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
+		if (ae->func == func) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(ae);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 int ast_register_atexit(void (*func)(void))
 {
 	struct ast_atexit *ae;
 
-	if (!(ae = ast_calloc(1, sizeof(*ae))))
+	ae = ast_calloc(1, sizeof(*ae));
+	if (!ae) {
 		return -1;
-
+	}
 	ae->func = func;
 
-	ast_unregister_atexit(func);	
-
-	AST_RWLIST_WRLOCK(&atexits);
-	AST_RWLIST_INSERT_HEAD(&atexits, ae, list);
-	AST_RWLIST_UNLOCK(&atexits);
+	AST_LIST_LOCK(&atexits);
+	__ast_unregister_atexit(func);
+	AST_LIST_INSERT_HEAD(&atexits, ae, list);
+	AST_LIST_UNLOCK(&atexits);
 
 	return 0;
 }
 
 void ast_unregister_atexit(void (*func)(void))
 {
-	struct ast_atexit *ae = NULL;
-
-	AST_RWLIST_WRLOCK(&atexits);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
-		if (ae->func == func) {
-			AST_RWLIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&atexits);
-
-	free(ae);
+	AST_LIST_LOCK(&atexits);
+	__ast_unregister_atexit(func);
+	AST_LIST_UNLOCK(&atexits);
 }
 
 /* Sending commands from consoles back to the daemon requires a terminating NULL */
@@ -1657,17 +1675,6 @@ int ast_set_priority(int pri)
 	return 0;
 }
 
-static void ast_run_atexits(void)
-{
-	struct ast_atexit *ae;
-	AST_RWLIST_RDLOCK(&atexits);
-	AST_RWLIST_TRAVERSE(&atexits, ae, list) {
-		if (ae->func) 
-			ae->func();
-	}
-	AST_RWLIST_UNLOCK(&atexits);
-}
-
 static int can_safely_quit(shutdown_nice_t niceness, int restart);
 static void really_quit(int num, shutdown_nice_t niceness, int restart);
 
@@ -1750,8 +1757,11 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	return 1;
 }
 
+/*! Called when exiting is certain. */
 static void really_quit(int num, shutdown_nice_t niceness, int restart)
 {
+	int active_channels;
+
 	if (niceness >= SHUTDOWN_NICE) {
 		ast_module_shutdown();
 	}
@@ -1778,21 +1788,24 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			}
 		}
 	}
+	active_channels = ast_active_channels();
 	/* The manager event for shutdown must happen prior to ast_run_atexits, as
 	 * the manager interface will dispose of its sessions as part of its
 	 * shutdown.
 	 */
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\n"
 			"Restart: %s\r\n",
-			ast_active_channels() ? "Uncleanly" : "Cleanly",
+			active_channels ? "Uncleanly" : "Cleanly",
 			restart ? "True" : "False");
+	if (option_verbose && ast_opt_console) {
+		ast_verbose("Asterisk %s ending (%d).\n",
+			active_channels ? "uncleanly" : "cleanly", num);
+	}
 
 	if (option_verbose)
 		ast_verbose("Executing last minute cleanups\n");
 	ast_run_atexits();
-	/* Called on exit */
-	if (option_verbose && ast_opt_console)
-		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
+
 	ast_debug(1, "Asterisk ending (%d).\n", num);
 	if (ast_socket > -1) {
 		pthread_cancel(lthread);
@@ -1819,6 +1832,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 
 		/* close logger */
 		close_logger();
+		clean_time_zones();
 
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
@@ -1832,6 +1846,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 	} else {
 		/* close logger */
 		close_logger();
+		clean_time_zones();
 	}
 
 	exit(0);
@@ -2230,14 +2245,25 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
-static struct ast_cli_entry cli_asterisk[] = {
-	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown"),
+/*!
+ * \brief Shutdown Asterisk CLI commands.
+ *
+ * \note These CLI commands cannot be unregistered at shutdown
+ * because one of them is likely the reason for the shutdown.
+ * The CLI generates a warning if a command is in-use when it is
+ * unregistered.
+ */
+static struct ast_cli_entry cli_asterisk_shutdown[] = {
 	AST_CLI_DEFINE(handle_stop_now, "Shut down Asterisk immediately"),
 	AST_CLI_DEFINE(handle_stop_gracefully, "Gracefully shut down Asterisk"),
 	AST_CLI_DEFINE(handle_stop_when_convenient, "Shut down Asterisk at empty call volume"),
 	AST_CLI_DEFINE(handle_restart_now, "Restart Asterisk immediately"), 
 	AST_CLI_DEFINE(handle_restart_gracefully, "Restart Asterisk gracefully"),
 	AST_CLI_DEFINE(handle_restart_when_convenient, "Restart Asterisk at empty call volume"),
+};
+
+static struct ast_cli_entry cli_asterisk[] = {
+	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown"),
 	AST_CLI_DEFINE(show_warranty, "Show the warranty (if any) for this copy of Asterisk"),
 	AST_CLI_DEFINE(show_license, "Show the license(s) for this copy of Asterisk"),
 	AST_CLI_DEFINE(handle_version, "Display version info"),
@@ -3357,6 +3383,11 @@ static void print_intro_message(const char *runuser, const char *rungroup)
 	}
 }
 
+static void main_atexit(void)
+{
+	ast_cli_unregister_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
+}
+
 int main(int argc, char *argv[])
 {
 	int c;
@@ -4072,7 +4103,9 @@ int main(int argc, char *argv[])
 #endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
+	ast_cli_register_multiple(cli_asterisk_shutdown, ARRAY_LEN(cli_asterisk_shutdown));
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
+	ast_register_atexit(main_atexit);
 
 	run_startup_commands();
 

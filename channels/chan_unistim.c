@@ -1956,20 +1956,6 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 		   ast_quiet_chan(peerc);
 		   ast_quiet_chan(peerd); */
 
-		if (peera->cdr && peerb->cdr) {
-			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
-		} else if (peera->cdr) {
-			peerb->cdr = peera->cdr;
-		}
-		peera->cdr = NULL;
-
-		if (peerb->cdr && peerc->cdr) {
-			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
-		} else if (peerc->cdr) {
-			peerb->cdr = peerc->cdr;
-		}
-		peerc->cdr = NULL;
-
 		if (ast_channel_masquerade(peerb, peerc)) {
 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name,
 					peerc->name);
@@ -2197,9 +2183,9 @@ static void start_rtp(struct unistim_subchannel *sub)
 			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
 			buffsend[20] = (us.sin_port & 0xff00) >> 8;
 			buffsend[19] = (us.sin_port & 0x00ff);
-			buffsend[11] = codec;
 		}
-		buffsend[12] = codec;
+		buffsend[11] = codec; /* rx */
+		buffsend[12] = codec; /* tx */
 		send_client(SIZE_HEADER + sizeof(packet_send_open_audio_stream_tx), buffsend,
 				   sub->parent->parent->session);
 
@@ -2227,9 +2213,9 @@ static void start_rtp(struct unistim_subchannel *sub)
 			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
 			buffsend[20] = (us.sin_port & 0xff00) >> 8;
 			buffsend[19] = (us.sin_port & 0x00ff);
-			buffsend[12] = codec;
 		}
-		buffsend[11] = codec;
+		buffsend[11] = codec; /* rx */
+		buffsend[12] = codec; /* tx */
 		send_client(SIZE_HEADER + sizeof(packet_send_open_audio_stream_rx), buffsend,
 				   sub->parent->parent->session);
 	} else {

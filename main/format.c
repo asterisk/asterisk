@@ -881,7 +881,6 @@ static struct ast_cli_entry my_clis[] = {
 };
 int init_framer(void)
 {
-	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
 	return 0;
 }
 
@@ -1083,30 +1082,27 @@ init_list_cleanup:
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void format_attr_shutdown(void)
 {
+	ast_cli_unregister_multiple(my_clis, ARRAY_LEN(my_clis));
 	if (interfaces) {
 		ao2_ref(interfaces, -1);
 		interfaces = NULL;
 	}
+	ast_rwlock_destroy(&ilock);
 }
 
 int ast_format_attr_init(void)
 {
-	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
 	if (ast_rwlock_init(&ilock)) {
 		return -1;
 	}
-
 	if (!(interfaces = ao2_container_alloc(283, interface_hash_cb, interface_cmp_cb))) {
-		goto init_cleanup;
+		ast_rwlock_destroy(&ilock);
+		return -1;
 	}
-	return 0;
 
-init_cleanup:
-	ast_rwlock_destroy(&ilock);
-	if (interfaces) {
-		ao2_ref(interfaces, -1);
-	}
-	return -1;
+	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
+	ast_register_atexit(format_attr_shutdown);
+	return 0;
 }
 
 static int custom_celt_format(struct ast_format_list *entry, unsigned int maxbitrate, unsigned int framesize)
@@ -1200,7 +1196,6 @@ static int conf_process_format_name(const char *name, enum ast_format_id *id)
 		*id = 0;
 		return -1;
 	}
-	ast_register_atexit(format_attr_shutdown);
 	return 0;
 }
 
