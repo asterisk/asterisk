@@ -509,7 +509,8 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 			last_slash = strrchr(filename, '/');
 
 			if ((*ext = strrchr(filename, '.')) && (*ext > last_slash)) {
-				**(ext++) = '\0';
+				**ext = '\0';
+				*ext += 1;
 			} else {
 				*ext = "raw";
 			}
