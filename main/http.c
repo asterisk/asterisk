@@ -603,6 +603,7 @@ struct ast_variable *ast_http_get_post_vars(
 	int content_length = 0;
 	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
 	char *buf, *var, *val;
+	int res;
 
 	for (v = headers; v; v = v->next) {
 		if (!strcasecmp(v->name, "Content-Type")) {
@@ -615,19 +616,27 @@ struct ast_variable *ast_http_get_post_vars(
 
 	for (v = headers; v; v = v->next) {
 		if (!strcasecmp(v->name, "Content-Length")) {
-			content_length = atoi(v->value) + 1;
+			content_length = atoi(v->value);
 			break;
 		}
 	}
 
-	if (!content_length) {
+	if (content_length <= 0) {
 		return NULL;
 	}
 
-	buf = ast_alloca(content_length);
-	if (!fgets(buf, content_length, ser->f)) {
+	buf = ast_malloc(content_length + 1);
+	if (!buf) {
 		return NULL;
 	}
+
+	res = fread(buf, 1, content_length, ser->f);
+	if (res < content_length) {
+		/* Error, distinguishable by ferror() or feof(), but neither
+		 * is good. */
+		goto done;
+	}
+	buf[content_length] = '\0';
 
 	while ((val = strsep(&buf, "&"))) {
 		var = strsep(&val, "=");
@@ -646,6 +655,9 @@ struct ast_variable *ast_http_get_post_vars(
 			prev = v;
 		}
 	}
+	
+done:
+	ast_free(buf);
 	return post_vars;
 }
 
@@ -1195,11 +1207,17 @@ static struct ast_cli_entry cli_http[] = {
 	AST_CLI_DEFINE(handle_show_http, "Display HTTP server status"),
 };
 
+static void http_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_http, ARRAY_LEN(cli_http));
+}
+
 int ast_http_init(void)
 {
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
+	ast_register_atexit(http_shutdown);
 
 	return __ast_http_load(0);
 }

@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/data.h"
 #include "asterisk/features.h"
+#include "asterisk/test.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -296,6 +297,7 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_RUN", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN));
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_DONT", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT));
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS));
+	ast_data_add_bool(tree, "DISABLE_DEVSTATE_CACHE", ast_test_flag(chan, AST_FLAG_DISABLE_DEVSTATE_CACHE));
 }
 
 #if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
@@ -2542,7 +2544,7 @@ static void ast_channel_destructor(void *obj)
 		 * instance is dead, we don't know the state of all other possible
 		 * instances.
 		 */
-		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (chan->flags & AST_FLAG_DISABLE_DEVSTATE_CACHE ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), device_name);
 	}
 
 	chan->nativeformats = ast_format_cap_destroy(chan->nativeformats);
@@ -3263,6 +3265,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 				now = ast_tvnow();
 			diff = ast_tvsub(c[x]->whentohangup, now);
 			if (diff.tv_sec < 0 || ast_tvzero(diff)) {
+				ast_test_suite_event_notify("HANGUP_TIME", "Channel: %s", c[x]->name);
 				/* Should already be hungup */
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				ast_channel_unlock(c[x]);
@@ -3331,6 +3334,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		now = ast_tvnow();
 		for (x = 0; x < n; x++) {
 			if (!ast_tvzero(c[x]->whentohangup) && ast_tvcmp(c[x]->whentohangup, now) <= 0) {
+				ast_test_suite_event_notify("HANGUP_TIME", "Channel: %s", c[x]->name);
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 				if (winner == NULL)
 					winner = c[x];
@@ -7271,7 +7275,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
 	 * for this channel is using the callback method for device state. If we pass in an actual state here
 	 * we override what they are saying the state is and things go amuck. */
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (chan->flags & AST_FLAG_DISABLE_DEVSTATE_CACHE ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
 	/* setstate used to conditionally report Newchannel; this is no more */
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
@@ -7767,6 +7771,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
 				res = 0;
+				ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s\r\nChannel2: %s", c0->name, c1->name);
 				break;
 			}
 
@@ -8331,6 +8336,7 @@ static const struct ast_data_entry channel_providers[] = {
 static void channels_shutdown(void)
 {
 	ast_data_unregister(NULL);
+	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
 		ao2_ref(channels, -1);
 		channels = NULL;
