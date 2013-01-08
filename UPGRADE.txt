@@ -25,6 +25,9 @@ From 10.11 to 10.12:
   part of a character set in the dialplan extensions.  The code now
   consistently ignores these characters when matching dialplan extensions.
 
+* Removed the queues.conf check_state_unknown option.  It is no longer
+  necessary.
+
 From 10.9 to 10.10:
 
 * Queue strategy rrmemory now has a predictable order similar to strategy
