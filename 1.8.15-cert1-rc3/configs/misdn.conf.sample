@@ -1,0 +1,530 @@
+;
+; chan_misdn sample config
+;
+
+; general section:
+;
+; for debugging and general setup, things that are not bound to port groups
+;
+
+[general]
+;
+; Sets the Path to the misdn-init.conf (for nt_ptp mode checking)
+;
+misdn_init=/etc/misdn-init.conf
+
+; set debugging flag:
+;   0 - No Debug
+;   1 - mISDN Messages and * - Messages, and * - State changes
+;   2 - Messages + Message specific Informations (e.g. bearer capability)
+;   3 - very Verbose, the above + lots of Driver specific infos
+;   4 - even more Verbose than 3
+;
+; default value: 0
+;
+debug=0
+
+
+
+; set debugging file and flags for mISDNuser (NT-Stack)
+;
+; flags can be or'ed with the following values:
+;
+; DBGM_NET        0x00000001
+; DBGM_MSG        0x00000002
+; DBGM_FSM        0x00000004
+; DBGM_TEI        0x00000010
+; DBGM_L2         0x00000020
+; DBGM_L3         0x00000040
+; DBGM_L3DATA     0x00000080
+; DBGM_BC         0x00000100
+; DBGM_TONE       0x00000200
+; DBGM_BCDATA     0x00000400
+; DBGM_MAN        0x00001000
+; DBGM_APPL       0x00002000
+; DBGM_ISDN       0x00004000
+; DBGM_SOCK       0x00010000
+; DBGM_CONN       0x00020000
+; DBGM_CDATA      0x00040000
+; DBGM_DDATA      0x00080000
+; DBGM_SOUND      0x00100000
+; DBGM_SDATA      0x00200000
+; DBGM_TOPLEVEL   0x40000000
+; DBGM_ALL        0xffffffff
+;
+
+ntdebugflags=0
+ntdebugfile=/var/log/misdn-nt.log
+
+
+; some pbx systems do cut the L1 for some milliseconds, to avoid
+; dropping running calls, we can set this flag to yes and tell
+; mISDNuser not to drop the calls on L2_RELEASE
+ntkeepcalls=no
+
+; the big trace
+;
+; default value: [not set]
+;
+;tracefile=/var/log/asterisk/misdn.log
+
+
+; set to yes if you want mISDN_dsp to bridge the calls in HW
+;
+; default value: yes
+;
+bridging=no
+
+
+; stops dialtone after getting first digit on nt Port
+;
+; default value: yes
+;
+stop_tone_after_first_digit=yes
+
+; whether to append overlapdialed Digits to Extension or not
+;
+; default value: yes
+;
+append_digits2exten=yes
+
+;;; CRYPTION STUFF
+
+; Whether to look for dynamic crypting attempt
+;
+; default value: no
+;
+dynamic_crypt=no
+
+; crypt_prefix, what is used for crypting Protocol
+;
+; default value: [not set]
+;
+crypt_prefix=**
+
+; Keys for cryption, you reference them in the dialplan
+; later also in dynamic encr.
+;
+; default value: [not set]
+;
+crypt_keys=test,muh
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; SIP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The SIP channel can accept jitter,
+                              ; thus a jitterbuffer on the receive SIP side will be used only
+                              ; if it is forced and enabled.
+
+; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a SIP
+                              ; channel. Defaults to "no".
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmaxsize) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+; users sections:
+;
+; name your sections as you wish but not "general" or "default" !
+; the sections are Groups, you can dial out in extensions.conf
+; with Dial(mISDN/g:extern/101) where extern is a section name,
+; chan_misdn tries every port in this section to find a
+; new free channel
+;
+; The default section is not a group section, it just contains config elements
+; which are inherited by group sections.
+;
+[default]
+
+; define your default context here
+;
+; default value: default
+;
+context=misdn
+
+; language
+;
+; default value: en
+;
+language=en
+
+;
+; This option specifies a default music on hold class to
+; use when put on hold if the channel's moh class was not
+; explicitly set with Set(CHANNEL(musicclass)=whatever) and
+; the peer channel did not suggest a class to use.
+;
+musicclass=default
+
+;
+; Either if we should produce DTMF Tones ourselves
+;
+senddtmf=yes
+
+;
+; If we should generate Ringing for chan_sip and others
+;
+far_alerting=no
+
+
+;
+; Here you can list which bearer capabilities should be allowed:
+;   all                  - allow any bearer capability
+;   speech               - allow speech
+;   3_1khz               - allow 3.1KHz audio
+;   digital_unrestricted - allow unrestricted digital
+;   digital_restricted   - allow restricted digital
+;   video                - allow video
+;
+; Example:
+; allowed_bearers=speech,3_1khz
+;
+allowed_bearers=all
+
+; Incoming number prefixes for the indicated Type-Of-Number.  These are
+; inserted before any number (caller, dialed, connected, redirecting,
+; redirection) received from the ISDN link if that number has the
+; corresponding Type-Of-Number.
+; See the dialplan options.
+;
+; default values:
+;    unknownprefix=
+;    internationalprefix=00
+;    nationalprefix=0
+;    netspecificprefix=
+;    subscriberprefix=
+;    abbreviatedprefix=
+;
+;unknownprefix=
+internationalprefix=00
+nationalprefix=0
+;netspecificprefix=
+;subscriberprefix=
+;abbreviatedprefix=
+
+; set rx/tx gains between -8 and 8 to change the RX/TX Gain
+;
+; default values: rxgain: 0
+;                 txgain: 0
+;
+rxgain=0
+txgain=0
+
+; some telcos especially in NL seem to need this set to yes, also in
+; switzerland this seems to be important
+;
+; default value: no
+;
+te_choose_channel=no
+
+
+
+;
+; Monitors L1 of the port.  If L1 is down it tries
+; to bring it up.  The polling timeout is given in seconds.
+; Setting the value to 0 disables monitoring L1 of the port.
+;
+; default value: 0
+;
+; This option is only read at chan_misdn loading time.
+; You need to unload and load chan_misdn to change the
+; value.  An asterisk restart will also do the trick.
+;
+l1watcher_timeout=0
+
+;
+; This option defines, if chan_misdn should check the L1 on  a PMP
+; before making a group call on it. The L1 may go down for PMP Ports
+; so we might need this.
+; But be aware! a broken or plugged off cable might be used for a group call
+; as well, since chan_misdn has no chance to distinguish if the L1 is down
+; because of a lost Link or because the Provider shut it down...
+;
+; default: no
+;
+pmp_l1_check=no
+
+
+;
+; in PMP this option defines which cause should be sent out to
+; the 3. caller. chan_misdn does not support callwaiting on TE
+; PMP side. This allows to modify the RELEASE_COMPLETE cause
+; at least.
+;
+reject_cause=16
+
+
+;
+; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING),
+; this requests additional Infos, so we can waitfordigits
+; without much issues. This works only for PTP Ports
+;
+; default value: no
+;
+need_more_infos=no
+
+
+;
+; set this to yes if you want to disconnect calls when a timeout occurs
+; for example during the overlapdial phase
+;
+nttimeout=no
+
+; Set the method to use for channel selection:
+;   standard     - Use the first free channel starting from the lowest number.
+;   standard_dec - Use the first free channel starting from the highest number.
+;   round_robin  - Use the round robin algorithm to select a channel. Use this
+;                  if you want to balance your load.
+;
+; default value: standard
+;
+method=standard
+
+
+; specify if chan_misdn should collect digits before going into the
+; dialplan, you can choose yes=4 Seconds, no, or specify the amount
+; of seconds you need;
+;
+overlapdial=yes
+
+;
+; dialplan means Type Of Number in ISDN Terms
+; There are different types of the dialplan:
+;
+; dialplan -> for outgoing call's dialed number
+; localdialplan -> for outgoing call's callerid
+;       (if -1 is set use the value from the asterisk channel)
+; cpndialplan -> for incoming call's connected party number sent to caller
+;       (if -1 is set use the value from the asterisk channel)
+;
+; dialplan options:
+;
+; 0 - unknown
+; 1 - International
+; 2 - National
+; 3 - Network-Specific
+; 4 - Subscriber
+; 5 - Abbreviated
+;
+; default value: 0
+;
+dialplan=0
+localdialplan=0
+cpndialplan=0
+
+
+
+;
+; turn this to no if you don't mind correct handling of Progress Indicators
+;
+early_bconnect=yes
+
+
+;
+; turn this on if you like to send Tone Indications to a Incoming
+; isdn channel on a TE Port. Rarely used, only if the Telco allows
+; you to send indications by yourself, normally the Telco sends the
+; indications to the remote party.
+;
+; default: no
+;
+incoming_early_audio=no
+
+; uncomment the following to get into s extension at extension conf
+; there you can use DigitTimeout if you can't or don't want to use
+; isdn overlap dial.
+; note: This will jump into the s exten for every exten!
+;
+; default value: no
+;
+;always_immediate=no
+
+;
+; set this to yes if you want to generate your own dialtone
+; with always_immediate=yes, else chan_misdn generates the dialtone
+;
+; default value: no
+;
+nodialtone=no
+
+
+; uncomment the following if you want callers which called exactly the
+; base number (so no extension is set) jump to the s extension.
+; if the user dials something more it jumps to the correct extension
+; instead
+;
+; default value: no
+;
+;immediate=no
+
+; uncomment the following to have hold and retrieve support
+;
+; default value: no
+;
+;hold_allowed=yes
+
+; Pickup and Callgroup
+;
+; default values: not set = 0
+; range: 0-63
+;
+;callgroup=1
+;pickupgroup=1
+
+; Set the outgoing caller id to the value.
+;callerid="name" <number>
+
+;
+; these are the exact isdn screening and presentation indicators
+; if -1 is given for either value the presentation indicators are used
+; from asterisks CALLERPRES function.
+; s=0, p=0 -> callerid presented
+; s=1, p=1 -> callerid restricted (the remote end does not see it!)
+;
+; default values s=-1, p=-1
+presentation=-1
+screen=-1
+
+; Incoming calls will have a caller ID tag set to this value
+;
+;incoming_cid_tag = "asterisk"
+
+; With this set, you can automatically append the MSN of a party
+; to the cid_tag. Incoming calls have the dialed number appended
+; to the tag, and outgoing calls have the caller number appended
+; to the tag. An '_' is used to separate the tag from the
+; MSN.
+; Default is no.
+;
+;append_msn_to_cid_tag = no
+
+; Select what to do with outgoing COLP information on this port.
+;
+; 0 - Send out COLP information unaltered. (default)
+; 1 - Force COLP to restricted on all outgoing COLP information.
+; 2 - Do not send COLP information.
+outgoing_colp=0
+
+; Put a display ie in the CONNECT message containing the following
+; information if it is available (nt port only):
+;
+; 0 - Do not put the connected line information in the display ie.
+; 1 - Put the available connected line name in the display ie.
+; 2 - Put the available connected line number in the display ie.
+; 3 - Put the available connected line name and number in the display ie.
+;
+display_connected=0
+
+; Put a display ie in the SETUP message containing the following
+; information if it is available (nt port only):
+;
+; 0 - Do not put the caller information in the display ie.
+; 1 - Put the available caller name in the display ie.
+; 2 - Put the available caller number in the display ie.
+; 3 - Put the available caller name and number in the display ie.
+;
+display_setup=0
+
+; This enables echo cancellation with the given number of taps.
+; Be aware: Move this setting only to outgoing portgroups!
+; A value of zero turns echo cancellation off.
+;
+; possible values are: 0,32,64,128,256,yes(=128),no(=0)
+;
+; default value: no
+;
+;echocancel=no
+
+;
+; chan_misdns jitterbuffer, default 4000
+;
+jitterbuffer=4000
+
+;
+; change this threshold to enable dejitter functionality
+;
+jitterbuffer_upper_threshold=0
+
+
+;
+; change this to yes, if you want to bridge a mISDN data channel to
+; another channel type or to an application.
+;
+hdlc=no
+
+
+;
+; defines the maximum amount of incoming calls per port for
+; this group. Calls which exceed the maximum will be marked with
+; the channel variable MAX_OVERFLOW. It will contain the amount of
+; overflowed calls
+;
+max_incoming=-1
+
+;
+; defines the maximum amount of outgoing calls per port for this group
+; exceeding calls will be rejected
+;
+max_outgoing=-1
+
+;
+; Enable/disable the call-completion retention option support (ptp only).
+;
+; Note: To use the CCBS/CCNR supplementary service feature and other
+; supplementary services using FACILITY messages requires a
+; modified version of mISDN from:
+; http://svn.digium.com/svn/thirdparty/mISDN/trunk
+; http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
+;
+cc_request_retention=yes
+
+[intern]
+; define your ports, e.g. 1,2 (depends on mISDN-driver loading order)
+ports=1,2
+; context where to go to when incoming Call on one of the above ports
+context=Intern
+
+[internPP]
+;
+; adding the postfix 'ptp' to a port number is obsolete now, chan_misdn
+; parses /etc/misdn-init.conf and sets the ptp mode to the corresponding
+; configs. For backwards compatibility you can still set ptp here.
+;
+ports=3
+
+[first_extern]
+; again port defs
+ports=4
+; again a context for incoming calls
+context=Extern1
+; msns for te ports, listen on those numbers on the above ports, and
+; indicate the incoming calls to asterisk
+; here you can give a comma separated list or simply an '*' for
+; any msn.
+msns=*
+
+; here an example with given msns
+[second_extern]
+ports=5
+context=Extern2
+callerid="Asterisk" <1234>
+msns=102,144,101,104

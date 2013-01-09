@@ -1,0 +1,498 @@
+=========================================================
+===
+=== Information for upgrading from Asterisk 1.2 to 1.4
+===
+=== These files document all the changes that MUST be taken
+=== into account when upgrading between the Asterisk
+=== versions listed below. These changes may require that
+=== you modify your configuration files, dialplan or (in
+=== some cases) source code if you have your own Asterisk
+=== modules or patches. These files also includes advance
+=== notice of any functionality that has been marked as
+=== 'deprecated' and may be removed in a future release,
+=== along with the suggested replacement functionality.
+===
+=== UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
+===
+=========================================================
+
+Build Process (configure script):
+
+Asterisk now uses an autoconf-generated configuration script to learn how it
+should build itself for your system. As it is a standard script, running:
+
+$ ./configure --help
+
+will show you all the options available. This script can be used to tell the
+build process what libraries you have on your system (if it cannot find them
+automatically), which libraries you wish to have ignored even though they may
+be present, etc.
+
+You must run the configure script before Asterisk will build, although it will
+attempt to automatically run it for you with no options specified; for most
+users, that will result in a similar build to what they would have had before
+the configure script was added to the build process (except for having to run
+'make' again after the configure script is run). Note that the configure script
+does NOT need to be re-run just to rebuild Asterisk; you only need to re-run it
+when your system configuration changes or you wish to build Asterisk with 
+different options.
+
+Build Process (module selection):
+
+The Asterisk source tree now includes a basic module selection and build option
+selection tool called 'menuselect'. Run 'make menuselect' to make your choices.
+In this tool, you can disable building of modules that you don't care about,
+turn on/off global options for the build and see which modules will not 
+(and cannot) be built because your system does not have the required external
+dependencies installed.
+
+The resulting file from menuselect is called 'menuselect.makeopts'. Note that
+the resulting menuselect.makeopts file generally contains which modules *not*
+to build. The modules listed in this file indicate which modules have unmet
+dependencies, a present conflict, or have been disabled by the user in the
+menuselect interface. Compiler Flags can also be set in the menuselect
+interface.  In this case, the resulting file contains which CFLAGS are in use,
+not which ones are not in use.
+
+If you would like to save your choices and have them applied against all
+builds, the file can be copied to '~/.asterisk.makeopts' or 
+'/etc/asterisk.makeopts'.
+
+Build Process (Makefile targets):
+
+The 'valgrind' and 'dont-optimize' targets have been removed; their functionality
+is available by enabling the DONT_OPTIMIZE setting in the 'Compiler Flags' menu
+in the menuselect tool.
+
+It is now possible to run most make targets against a single subdirectory; from
+the top level directory, for example, 'make channels' will run 'make all' in the
+'channels' subdirectory. This also is true for 'clean', 'distclean' and 'depend'.
+
+Sound (prompt) and Music On Hold files:
+
+Beginning with Asterisk 1.4, the sound files and music on hold files supplied for
+use with Asterisk have been replaced with new versions produced from high quality
+master recordings, and are available in three languages (English, French and
+Spanish) and in five formats (WAV (uncompressed), mu-Law, a-Law, GSM and G.729).
+In addition, the music on hold files provided by opsound.org Music are now available
+in the same five formats, but no longer available in MP3 format.
+
+The Asterisk 1.4 tarball packages will only include English prompts in GSM format,
+(as were supplied with previous releases) and the opsound.org MOH files in WAV format.
+All of the other variations can be installed by running 'make menuselect' and
+selecting the packages you wish to install; when you run 'make install', those
+packages will be downloaded and installed along with the standard files included
+in the tarball.
+
+If for some reason you expect to not have Internet access at the time you will be
+running 'make install', you can make your package selections using menuselect and
+then run 'make sounds' to download (only) the sound packages; this will leave the
+sound packages in the 'sounds' subdirectory to be used later during installation.
+
+WARNING: Asterisk 1.4 supports a new layout for sound files in multiple languages;
+instead of the alternate-language files being stored in subdirectories underneath
+the existing files (for French, that would be digits/fr, letters/fr, phonetic/fr,
+etc.) the new layout creates one directory under /var/lib/asterisk/sounds for the
+language itself, then places all the sound files for that language under that
+directory and its subdirectories. This is the layout that will be created if you
+select non-English languages to be installed via menuselect, HOWEVER Asterisk does
+not default to this layout and will not find the files in the places it expects them
+to be. If you wish to use this layout, make sure you put 'languageprefix=yes' in your
+/etc/asterisk/asterisk.conf file, so that Asterisk will know how the files were
+installed.
+
+PBX Core:
+
+* The (very old and undocumented) ability to use BYEXTENSION for dialing
+  instead of ${EXTEN} has been removed.
+  
+* Builtin (res_features) transfer functionality attempts to use the context
+  defined in TRANSFER_CONTEXT variable of the transferer channel first. If
+  not set, it uses the transferee variable. If not set in any channel, it will 
+  attempt to use the last non macro context. If not possible, it will default
+  to the current context.
+
+* The autofallthrough setting introduced in Asterisk 1.2 now defaults to 'yes';
+  if your dialplan relies on the ability to 'run off the end' of an extension
+  and wait for a new extension without using WaitExten() to accomplish that,
+  you will need set autofallthrough to 'no' in your extensions.conf file.
+ 
+Command Line Interface:
+
+* 'show channels concise', designed to be used by applications that will parse
+  its output, previously used ':' characters to separate fields. However, some
+  of those fields can easily contain that character, making the output not
+  parseable. The delimiter has been changed to '!'.
+
+Applications:
+
+* In previous Asterisk releases, many applications would jump to priority n+101
+  to indicate some kind of status or error condition.  This functionality was
+  marked deprecated in Asterisk 1.2.  An option to disable it was provided with
+  the default value set to 'on'.  The default value for the global priority
+  jumping option is now 'off'.
+
+* The applications Cut, Sort, DBGet, DBPut, SetCIDNum, SetCIDName, SetRDNIS,
+  AbsoluteTimeout, DigitTimeout, ResponseTimeout, SetLanguage, GetGroupCount,
+  and GetGroupMatchCount were all deprecated in version 1.2, and therefore have
+  been removed in this version.  You should use the equivalent dialplan
+  function in places where you have previously used one of these applications.
+
+* The application SetGlobalVar has been deprecated.  You should replace uses
+  of this application with the following combination of Set and GLOBAL():
+  Set(GLOBAL(name)=value).  You may also access global variables exclusively by
+  using the GLOBAL() dialplan function, instead of relying on variable
+  interpolation falling back to globals when no channel variable is set.
+
+* The application SetVar has been renamed to Set.  The syntax SetVar was marked
+  deprecated in version 1.2 and is no longer recognized in this version.  The
+  use of Set with multiple argument pairs has also been deprecated.  Please
+  separate each name/value pair into its own dialplan line.
+
+* app_read has been updated to use the newer options codes, using "skip" or
+  "noanswer" will not work.  Use s or n.  Also there is a new feature i, for
+  using indication tones, so typing in skip would give you unexpected results.
+
+* OSPAuth is added to authenticate OSP tokens in in_bound call setup messages.
+
+* The CONNECT event in the queue_log from app_queue now has a second field 
+  in addition to the holdtime field. It contains the unique ID of the 
+  queue member channel that is taking the call. This is useful when trying 
+  to link recording filenames back to a particular call from the queue.  
+
+* The old/current behavior of app_queue has a serial type behavior
+  in that the queue will make all waiting callers wait in the queue
+  even if there is more than one available member ready to take
+  calls until the head caller is connected with the member they
+  were trying to get to. The next waiting caller in line then
+  becomes the head caller, and they are then connected with the
+  next available member and all available members and waiting callers
+  waits while this happens. This cycle continues until there are
+  no more available members or waiting callers, whichever comes first.
+  The new behavior, enabled by setting autofill=yes in queues.conf
+  either at the [general] level to default for all queues or 
+  to set on a per-queue level, makes sure that when the waiting 
+  callers are connecting with available members in a parallel fashion 
+  until there are no more available members or no more waiting callers,
+  whichever comes first. This is probably more along the lines of how
+  one would expect a queue should work and in most cases, you will want 
+  to enable this new behavior. If you do not specify or comment out this 
+  option, it will default to "no" to keep backward compatability with the old 
+  behavior.
+
+* Queues depend on the channel driver reporting the proper state
+  for each member of the queue. To get proper signalling on
+  queue members that use the SIP channel driver, you need to
+  enable a call limit (could be set to a high value so it
+  is not put into action) and also make sure that both inbound
+  and outbound calls are accounted for.
+
+  Example:
+
+       [general]
+       limitonpeer = yes
+
+       [peername]
+       type=friend
+       call-limit=10
+
+
+* The app_queue application now has the ability to use MixMonitor to 
+  record conversations queue members are having with queue callers. Please
+  see configs/queues.conf.sample for more information on this option.
+
+* The app_queue application strategy called 'roundrobin' has been deprecated
+  for this release. Users are encouraged to use 'rrmemory' instead, since it
+  provides more 'true' round-robin call delivery. For the Asterisk 1.6 release,
+  'rrmemory' will be renamed 'roundrobin'.
+
+* The app_queue application option called 'monitor-join' has been deprecated
+  for this release. Users are encouraged to use 'monitor-type=mixmonitor' instead,
+  since it provides the same functionality but is not dependent on soxmix or some
+  other external program in order to mix the audio.
+
+* app_meetme: The 'm' option (monitor) is renamed to 'l' (listen only), and
+  the 'm' option now provides the functionality of "initially muted". 
+  In practice, most existing dialplans using the 'm' flag should not notice
+  any difference, unless the keypad menu is enabled, allowing the user 
+  to unmute themsleves.
+
+* ast_play_and_record would attempt to cancel the recording if a DTMF
+  '0' was received.  This behavior was not documented in most of the
+  applications that used ast_play_and_record and the return codes from
+  ast_play_and_record weren't checked for properly.
+  ast_play_and_record has been changed so that '0' no longer cancels a
+  recording.  If you want to allow DTMF digits to cancel an
+  in-progress recording use ast_play_and_record_full which allows you
+  to specify which DTMF digits can be used to accept a recording and
+  which digits can be used to cancel a recording.
+
+* ast_app_messagecount has been renamed to ast_app_inboxcount.  There is now a
+  new ast_app_messagecount function which takes a single context/mailbox/folder
+  mailbox specification and returns the message count for that folder only.
+  This addresses the deficiency of not being able to count the number of
+  messages in folders other than INBOX and Old.
+
+* The exit behavior of the AGI applications has changed. Previously, when
+  a connection to an AGI server failed, the application would cause the channel
+  to immediately stop dialplan execution and hangup. Now, the only time that
+  the AGI applications will cause the channel to stop dialplan execution is
+  when the channel itself requests hangup. The AGI applications now set an
+  AGISTATUS variable which will allow you to find out whether running the AGI
+  was successful or not.
+
+  Previously, there was no way to handle the case where Asterisk was unable to
+  locally execute an AGI script for some reason. In this case, dialplan
+  execution will continue as it did before, but the AGISTATUS variable will be
+  set to "FAILURE".
+
+  A locally executed AGI script can now exit with a non-zero exit code and this
+  failure will be detected by Asterisk. If an AGI script exits with a non-zero
+  exit code, the AGISTATUS variable will be set to "FAILURE" as opposed to
+  "SUCCESS".
+
+* app_voicemail: The ODBC_STORAGE capability now requires the extended table format
+  previously used only by EXTENDED_ODBC_STORAGE. This means that you will need to update
+  your table format using the schema provided in doc/odbcstorage.txt
+
+* app_waitforsilence: Fixes have been made to this application which changes the 
+  default behavior with how quickly it returns. You can maintain "old-style" behavior
+  with the addition/use of a third "timeout" parameter.
+  Please consult the application documentation and make changes to your dialplan 
+  if appropriate.
+
+Manager:
+
+* After executing the 'status' manager action, the "Status" manager events
+  included the header "CallerID:" which was actually only the CallerID number,
+  and not the full CallerID string.  This header has been renamed to
+  "CallerIDNum".  For compatibility purposes, the CallerID parameter will remain
+  until after the release of 1.4, when it will be removed.  Please use the time
+  during the 1.4 release to make this transition.
+
+* The AgentConnect event now has an additional field called "BridgedChannel" 
+  which contains the unique ID of the queue member channel that is taking the 
+  call. This is useful when trying to link recording filenames back to 
+  a particular call from the queue.
+
+* app_userevent has been modified to always send Event: UserEvent with the
+  additional header UserEvent: <userspec>.  Also, the Channel and UniqueID
+  headers are not automatically sent, unless you specify them as separate
+  arguments.  Please see the application help for the new syntax.
+
+* app_meetme: Mute and Unmute events are now reported via the Manager API.
+  Native Manager API commands MeetMeMute and MeetMeUnmute are provided, which
+  are easier to use than "Action Command:". The MeetMeStopTalking event has
+  also been deprecated in favor of the already existing MeetmeTalking event
+  with a "Status" of "on" or "off" added.
+
+* OriginateFailure and OriginateSuccess events were replaced by event
+  OriginateResponse with a header named "Response" to indicate success or
+  failure
+
+Variables:
+
+* The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
+  ${CALLERANI}, ${DNID}, ${RDNIS}, ${DATETIME}, ${TIMESTAMP}, ${ACCOUNTCODE},
+  and ${LANGUAGE} have all been deprecated in favor of their related dialplan
+  functions.  You are encouraged to move towards the associated dialplan
+  function, as these variables will be removed in a future release.
+
+* The CDR-CSV variables uniqueid, userfield, and basing time on GMT are now 
+  adjustable from cdr.conf, instead of recompiling.
+
+* OSP applications exports several new variables, ${OSPINHANDLE},
+  ${OSPOUTHANDLE}, ${OSPINTOKEN}, ${OSPOUTTOKEN}, ${OSPCALLING},
+  ${OSPINTIMELIMIT}, and ${OSPOUTTIMELIMIT}
+  
+* Builtin transfer functionality sets the variable ${TRANSFERERNAME} in the new
+  created channel. This variables holds the channel name of the transferer.
+
+* The dial plan variable PRI_CAUSE will be removed from future versions 
+  of Asterisk.
+  It is replaced by adding a cause value to the hangup() application.
+
+Functions:
+
+* The function ${CHECK_MD5()} has been deprecated in favor of using an
+  expression: $[${MD5(<string>)} = ${saved_md5}].
+
+* The 'builtin' functions that used to be combined in pbx_functions.so are
+  now built as separate modules. If you are not using 'autoload=yes' in your
+  modules.conf file then you will need to explicitly load the modules that
+  contain the functions you want to use.
+
+* The ENUMLOOKUP() function with the 'c' option (for counting the number of 
+  records), but the lookup fails to match any records, the returned value will 
+  now be "0" instead of blank.
+
+* The REALTIME() function is now available in version 1.4 and app_realtime has
+  been deprecated in favor of the new function. app_realtime will be removed
+  completely with the version 1.6 release so please take the time between
+  releases to make any necessary changes
+
+* The QUEUEAGENTCOUNT() function has been deprecated in favor of
+  QUEUE_MEMBER_COUNT().
+
+The IAX2 channel:
+
+* It is possible that previous configurations depended on the order in which
+  peers and users were specified in iax.conf for forcing the order in which
+  chan_iax2 matched against them.  This behavior is going away and is considered
+  deprecated in this version.  Avoid having ambiguous peer and user entries and
+  to make things easy on yourself, always set the "username" option for users
+  so that the remote end can match on that exactly instead of trying to infer
+  which user you want based on host.
+
+  If you would like to go ahead and use the new behavior which doesn't use the
+  order in the config file to influence matching order, then change the 
+  MAX_PEER_BUCKETS define in chan_iax2.c to a value greater than one.  An
+  example is provided there.  By changing this, you will get *much* better
+  performance on systems that do a lot of peer and user lookups as they will be
+  stored in memory in a much more efficient manner.
+
+* The "mailboxdetail" option has been deprecated.  Previously, if this option
+  was not enabled, the 2 byte MSGCOUNT information element would be set to all
+  1's to indicate there there is some number of messages waiting.  With this
+  option enabled, the number of new messages were placed in one byte and the
+  number of old messages are placed in the other.  This is now the default
+  (and the only) behavior.
+
+The SIP channel:
+
+* The "incominglimit" setting is replaced by the "call-limit" setting in 
+  sip.conf.
+
+* OSP support code is removed from SIP channel to OSP applications. ospauth 
+  option in sip.conf is removed to osp.conf as authpolicy. allowguest option
+  in sip.conf cannot be set as osp anymore. 
+
+* The Asterisk RTP stack has been changed in regards to RFC2833 reception
+  and transmission. Packets will now be sent with proper duration instead of all
+  at once. If you are receiving calls from a pre-1.4 Asterisk installation you
+  will want to turn on the rfc2833compensate option. Without this option your
+  DTMF reception may act poorly.
+
+* The $SIPUSERAGENT dialplan variable is deprecated and will be removed
+  in coming versions of Asterisk. Please use the dialplan function
+  SIPCHANINFO(useragent) instead.
+
+* The ALERT_INFO dialplan variable is deprecated and will be removed
+  in coming versions of Asterisk. Please use the dialplan application
+  sipaddheader() to add the "Alert-Info" header to the outbound invite.
+
+* The "canreinvite" option has changed. canreinvite=yes used to disable
+  re-invites if you had NAT=yes. In 1.4, you need to set canreinvite=nonat
+  to disable re-invites when NAT=yes. This is propably what you want.
+  The settings are now: "yes", "no", "nonat", "update". Please consult
+  sip.conf.sample for detailed information.
+
+The Zap channel:
+
+* Support for MFC/R2 has been removed, as it has not been functional for some
+  time and it has no maintainer.
+
+The Agent channel:
+
+* Callback mode (AgentCallbackLogin) is now deprecated, since the entire function
+  it provided can be done using dialplan logic, without requiring additional
+  channel and module locks (which frequently caused deadlocks). An example of
+  how to do this using AEL dialplan is in doc/queues-with-callback-members.txt.
+
+The G726-32 codec:
+
+* It has been determined that previous versions of Asterisk used the wrong codeword
+  packing order for G726-32 data. This version supports both available packing orders,
+  and can transcode between them. It also now selects the proper order when
+  negotiating with a SIP peer based on the codec name supplied in the SDP. However,
+  there are existing devices that improperly request one order and then use another;
+  Sipura and Grandstream ATAs are known to do this, and there may be others. To
+  be able to continue to use these devices with this version of Asterisk and the
+  G726-32 codec, a configuration parameter called 'g726nonstandard' has been added
+  to sip.conf, so that Asterisk can use the packing order expected by the device (even
+  though it requested a different order). In addition, the internal format number for
+  G726-32 has been changed, and the old number is now assigned to AAL2-G726-32. The
+  result of this is that this version of Asterisk will be able to interoperate over
+  IAX2 with older versions of Asterisk, as long as this version is told to allow
+  'g726aal2' instead of 'g726' as the codec for the call.
+
+Installation:
+
+* On BSD systems, the installation directories have changed to more "FreeBSDish"
+  directories. On startup, Asterisk will look for the main configuration in 
+  /usr/local/etc/asterisk/asterisk.conf
+  If you have an old installation, you might want to remove the binaries and 
+  move the configuration files to the new locations. The following directories 
+  are now default:
+	ASTLIBDIR	/usr/local/lib/asterisk
+	ASTVARLIBDIR	/usr/local/share/asterisk
+	ASTETCDIR	/usr/local/etc/asterisk
+	ASTBINDIR	/usr/local/bin/asterisk
+	ASTSBINDIR	/usr/local/sbin/asterisk
+
+Music on Hold:
+
+* The music on hold handling has been changed in some significant ways in hopes
+  to make it work in a way that is much less confusing to users. Behavior will
+  not change if the same configuration is used from older versions of Asterisk.
+  However, there are some new configuration options that will make things work
+  in a way that makes more sense.
+
+  Previously, many of the channel drivers had an option called "musicclass" or
+  something similar. This option set what music on hold class this channel
+  would *hear* when put on hold. Some people expected (with good reason) that
+  this option was to configure what music on hold class to play when putting
+  the bridged channel on hold. This option has now been deprecated.
+
+  Two new music on hold related configuration options for channel drivers have
+  been introduced. Some channel drivers support both options, some just one,
+  and some support neither of them. Check the sample configuration files to see
+  which options apply to which channel driver.
+
+  The "mohsuggest" option specifies which music on hold class to suggest to the
+  bridged channel when putting them on hold. The only way that this class can
+  be overridden is if the bridged channel has a specific music class set that
+  was done in the dialplan using Set(CHANNEL(musicclass)=something).
+
+  The "mohinterpret" option is similar to the old "musicclass" option. It
+  specifies which music on hold class this channel would like to listen to when
+  put on hold. This music class is only effective if this channel has no music
+  class set on it from the dialplan and the bridged channel putting this one on
+  hold had no "mohsuggest" setting.
+
+  The IAX2 and Zap channel drivers have an additional feature for the
+  "mohinterpret" option. If this option is set to "passthrough", then these
+  channel drivers will pass through the HOLD message in signalling instead of
+  starting music on hold on the channel. An example for how this would be
+  useful is in an enterprise network of Asterisk servers. When one phone on one
+  server puts a phone on a different server on hold, the remote server will be
+  responsible for playing the hold music to its local phone that was put on
+  hold instead of the far end server across the network playing the music.
+
+CDR Records:
+
+* The behavior of the "clid" field of the CDR has always been that it will
+  contain the callerid ANI if it is set, or the callerid number if ANI was not
+  set.  When using the "callerid" option for various channel drivers, some
+  would set ANI and some would not.  This has been cleared up so that all
+  channel drivers set ANI.  If you would like to change the callerid number
+  on the channel from the dialplan and have that change also show up in the 
+  CDR, then you *must* set CALLERID(ANI) as well as CALLERID(num).
+
+API:
+
+* There are some API functions that were not previously prefixed with the 'ast_'
+  prefix but now are; these include the ADSI, ODBC and AGI interfaces. If you
+  have a module that uses the services provided by res_adsi, res_odbc, or
+  res_agi, you will need to add ast_ prefixes to the functions that you call
+  from those modules.
+
+Formats:
+
+* format_wav: The GAIN preprocessor definition has been changed from 2 to 0
+  in Asterisk 1.4.  This change was made in response to user complaints of
+  choppiness or the clipping of loud signal peaks.  The GAIN preprocessor
+  definition will be retained in Asterisk 1.4, but will be removed in a 
+  future release.  The use of GAIN for the increasing of voicemail message
+  volume should use the 'volgain' option in voicemail.conf
+

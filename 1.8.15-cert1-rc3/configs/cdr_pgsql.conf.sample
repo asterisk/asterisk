@@ -1,0 +1,15 @@
+; Sample Asterisk config file for CDR logging to PostgresSQL
+;
+; Note that you can use TLS connections to your database server.
+; This is configured for your PostgreSQL client installation
+; on this system (check for pgsessions.conf)
+
+[global]
+;hostname=localhost
+;port=5432
+;dbname=asterisk
+;password=password
+;user=postgres
+;table=cdr		;SQL table where CDRs will be inserted
+;encoding=LATIN9	; Encoding of logged characters in Asterisk
+;timezone=UTC		; Uncomment if you want datetime fields in UTC/GMT

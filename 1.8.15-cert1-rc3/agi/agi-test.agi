@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+use strict;
+
+$|=1;
+
+# Setup some variables
+my %AGI; my $tests = 0; my $fail = 0; my $pass = 0;
+
+while(<STDIN>) {
+	chomp;
+	last unless length($_);
+	if (/^agi_(\w+)\:\s+(.*)$/) {
+		$AGI{$1} = $2;
+	}
+}
+
+print STDERR "AGI Environment Dump:\n";
+foreach my $i (sort keys %AGI) {
+	print STDERR " -- $i = $AGI{$i}\n";
+}
+
+sub checkresult {
+	my ($res) = @_;
+	my $retval;
+	$tests++;
+	chomp $res;
+	if ($res =~ /^200/) {
+		$res =~ /result=(-?\d+)/;
+		if (!length($1)) {
+			print STDERR "FAIL ($res)\n";
+			$fail++;
+		} else {
+			print STDERR "PASS ($1)\n";
+			$pass++;
+		}
+	} else {
+		print STDERR "FAIL (unexpected result '$res')\n";
+		$fail++;
+	}
+}
+
+print STDERR "1.  Testing 'sendfile'...";
+print "STREAM FILE beep \"\"\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "2.  Testing 'sendtext'...";
+print "SEND TEXT \"hello world\"\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "3.  Testing 'sendimage'...";
+print "SEND IMAGE asterisk-image\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "4.  Testing 'saynumber'...";
+print "SAY NUMBER 192837465 \"\"\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "5.  Testing 'waitdtmf'...";
+print "WAIT FOR DIGIT 1000\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "6.  Testing 'record'...";
+print "RECORD FILE testagi gsm 1234 3000\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "6a.  Testing 'record' playback...";
+print "STREAM FILE testagi \"\"\n";
+my $result = <STDIN>;
+&checkresult($result);
+
+print STDERR "================== Complete ======================\n";
+print STDERR "$tests tests completed, $pass passed, $fail failed\n";
+print STDERR "==================================================\n";

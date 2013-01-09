@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.asterisk.asterisk</string>
+	<key>Disabled</key>
+	<false/><!-- Change this to '<true/>' to disable Asterisk -->
+	<key>UserName</key>
+	<string>asterisk</string>
+	<key>GroupName</key>
+	<string>asterisk</string>
+	<key>OnDemand</key><!-- For 10.4 (deprecated in 10.5 and above) -->
+	<false/>
+	<key>KeepAlive</key><!-- For 10.5 and above -->
+	<true/>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>Umask</key>
+	<integer>7</integer><!-- 0007 -->
+	<key>Program</key>
+	<string>__ASTERISK_SBIN_DIR__/asterisk</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__ASTERISK_SBIN_DIR__/asterisk</string>
+		<string>-f</string><!-- Don't fork.  This option is mandatory when running with launchd. -->
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>TERM</key>
+		<string>xterm-color</string>
+	</dict>
+	<key>SoftResourceLimits</key>
+	<dict>
+		<key>NumberOfFiles</key>
+		<integer>1024</integer>
+		<key>Core</key>
+		<integer>0</integer>
+	</dict>
+	<key>StandardInPath</key>
+	<string>/dev/null</string>
+	<key>StandardOutPath</key>
+	<string>/dev/null</string>
+	<key>StandardErrorPath</key>
+	<string>/dev/null</string>
+</dict>
+</plist>

@@ -1,0 +1,39 @@
+#
+# Sample muted configuration file
+#
+# Copyright (C) 2004 Digium, Inc.
+#
+# First you have the host, username, and password
+# we use to connect to the asterisk system
+#
+# What is this? Well, haven't you ever wished you could automatically
+# turn down the volume on your stereo, CDPlayer, etc, when a call comes in,
+# and then return it to normal when the call ends? Well, this is a possible
+# mechanism to make this happen!
+# You have to fire up the new utils/muted, which runs as a daemon in the
+# background. This daemon connects to asterisk via a manager interface, and
+# also reads this config file from /etc/muted.conf. when the channels mentioned
+# are activated, it tweaks the sound levels on the sound card(s).
+# So, depending on the sound card, you may be able to run all your sound
+# generating devices thru your sound card, and use this mechanism to quiet
+# them down while you are on the phone. If anyone figures out how to make
+# this work with kids, please inform!!
+#
+host localhost
+user user
+pass pass
+#
+# List each channel we're supposed to watch
+#
+channel DAHDI/1
+channel DAHDI/2
+channel SIP/mark
+#
+# Mute level is the percentage of the current volume we should
+# lower the music to.
+#
+mutelevel 20
+#
+# Smooth fade makes the fadein/fadeout nicer sounding
+#
+smoothfade

@@ -1,0 +1,83 @@
+;
+; Asterisk Call Detail Records (CDR) - Syslog Backend
+;
+
+; The cdr_syslog module writes CDRs using the facilities provided by syslog.
+;
+; Not only must you configure cdr_syslog from this file (cdr_syslog.conf) but
+; you will also need to make changes to your /etc/syslog.conf before CDRs will
+; be written to syslog.
+;
+; As an example, you can add the following to /etc/syslog.conf:
+;
+;    local4.info        /var/log/asterisk-cdr.log
+;
+; And then instruct syslogd to re-read the configuration file by sending it a
+; HUP signal.  On Linux this can be done like this:
+;
+;    kill -HUP `cat /var/run/syslogd.pid`
+;
+; Finally, you will need to uncomment the [cdr-simple] section below, and restart
+; Asterisk.  When calls are placed, you should start seeing records appear in
+; /var/log/asterisk-cdr.log.
+
+[general]
+; Facility
+;
+; The 'facility' keyword specifies the syslog facility to use when writing out
+; CDRs.
+;
+; Accepted values: One of the following:
+;                  user, local0, local1, local2, local3, local4, local5, local6
+;                  and local7.
+;
+;                  Note: Depending on your platform, the following may also be
+;                        available:
+;                        auth, authpriv, cron, daemon, ftp, kern, lpr, mail,
+;                        news, syslog, and uucp.
+;
+; Default value:   local4
+
+;facility=local0
+
+; Priority
+;
+; Use the 'priority' keyword to select which of the syslog priority levels to
+; use when logging CDRs.
+;
+; Accepted values: One of the following:
+;                  alert, crit, debug, emerg, err, info, notice, warning
+; Default value:   info
+
+;priority=warn
+
+; Note: The settings for 'facility' and 'priority' in the [general] section
+;       define the default values for all of the logging locations created
+;       below in separate sections.
+
+;[cdr-master]
+;facility = local5
+;priority = debug
+
+; Template
+;
+; The 'template' value allows you to specify a custom format for messages
+; written to syslog.  This is similar to how cdr_custom is configured.
+;
+; Allowed values: A diaplan style string.
+; Default value:  None, this is required field.
+;
+; Note: Because of the way substitution is done, the only meaningful values
+;       available when the record is logged are those available via the CDR()
+;       dialplan function.  All other channel variables will be unavailable.
+
+;template = "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
+
+; High Resolution Time for billsec and duration fields
+;template = "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration,f)}","${CDR(billsec,f)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
+;[cdr-simple]
+
+; Since we don't specify a facility or priority for this logging location, the
+; records will use the defaults specified in the [general] section.
+
+;template = "We received a call from ${CDR(src)}"

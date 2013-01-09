@@ -1,0 +1,70 @@
+#!/bin/sh
+# $Id$
+# lame quickie script to snarf a core of a hung asterisk process.
+# bugs to ast_grab_core, blinky-lights.org  (derrick daugherty)
+
+# we have found that gcore doesn't yield as useful a core file
+# as that yielded by a signal-caused core dump. So we are going to change
+# the strategy to sending a SEGV signal to the asterisk process,
+# and have it 'burn to the ground', leaving behind a core file.
+# the main difference is that you cannot control where the
+# core file will end up. We will assume that safe_asterisk was
+# used to start asterisk, and the core file should therefore end
+# up in /tmp (because safe_asterisk cd's there before starting asterisk).
+# if this is not the case, set DUMPDIR to the place where the core
+# file can be found.
+
+DATE=`date +%Y%m%d%H%M`
+DUMPDIR=/tmp
+HOSTNAME=`hostname`
+ADMINEMAIL="root@localhost"
+
+#the following should be improved
+if [ -e /etc/asterisk/asterisk.conf ]; then
+	RUNDIR=`awk -F"=>" '/astrundir/ {print $2}' /etc/asterisk/asterisk.conf`
+	PID=`cat ${RUNDIR}/asterisk.pid`
+elif [ -e /var/run/asterisk.pid ] ; then 
+	PID=`cat /var/run/asterisk.pid`
+else 
+	echo Could not find an asterisk.conf definition for astrundir,  using \'ps\'
+	echo to try and determine process ID.  This is not reliable.
+	PID=`ps auxwf|grep asterisk|grep vv|head -1|awk '{print $2}'`
+fi
+
+echo Snarfing asterisk core, this could take a few seconds depending
+echo on how much memory is in use.
+echo
+echo \*\*\* WARNING \*\*\*  If the system is not already locked this will cause the 
+echo \*\*\* WARNING \*\*\*  process to STOP while memory is dumped to disk.
+echo
+
+/bin/kill -11 ${PID}
+
+echo Snarfed!  ${DUMPDIR}/core.${PID}
+echo
+
+
+echo Trying for a backtrace of the captured core.
+/usr/bin/gdb /usr/sbin/asterisk ${DUMPDIR}/core.${PID} > ${DUMPDIR}/gdb_dump.${PID}.txt 2> /dev/null << EOF
+set prompt \n
+set print pretty\n
+echo --------------------------------------------------------------------------------\n
+echo INFO THREAD
+info thread
+echo --------------------------------------------------------------------------------\n
+echo THREAD APPLY ALL BT
+thread apply all bt
+echo --------------------------------------------------------------------------------\n
+echo THREAD APPLY ALL BT FULL
+thread apply all bt full
+quit
+EOF
+echo Done trying for a bt.
+
+
+echo Notifying admins of the core.
+/usr/bin/mail -s "${HOSTNAME} core dumped at ${DUMPDIR}/core.${PID}" ${ADMINEMAIL} < ${DUMPDIR}/gdb_dump.${PID}.txt
+echo Done.
+echo
+echo Reproducible deadlocks should be posted with a full backtrace and instructions
+echo to reproduce the issue at https://issues.asterisk.org/    Thanks!

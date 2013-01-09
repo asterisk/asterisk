@@ -1,0 +1,69 @@
+;
+; chan_mobile.conf
+; configuration file for chan_mobile
+;
+
+[general]
+interval=30		; Number of seconds between trying to connect to devices. 
+
+; The following is a list of adapters we use.
+; id must be unique and address is the bdaddr of the adapter from hciconfig.
+; Each adapter may only have one device (headset or phone) connected at a time.
+; Add an [adapter] entry for each adapter you have.
+
+[adapter]
+id=blue
+address=00:09:DD:60:01:A3
+;forcemaster=yes	; attempt to force adapter into master mode. default is no.
+;alignmentdetection=yes ; enable this if you sometimes get 'white noise' on asterisk side of the call
+			; its a bug in the bluetooth adapter firmware, enabling this will compensate for it.
+			; default is no.
+
+[adapter]
+id=dlink
+address=00:80:C8:35:52:78
+
+; The following is a list of the devices we deal with.
+; Every device listed below will be available for calls in and out of Asterisk. 
+; Each device needs an adapter=xxxx entry which determines which bluetooth adapter is used.
+; Use the CLI command 'mobile search' to discover devices.
+; Use the CLI command 'mobile show devices' to see device status.
+;
+; To place a call out through a mobile phone use Dial(Mobile/[device]/NNN.....) or Dial(Mobile/gn/NNN......) in your dialplan.
+; To call a headset use Dial(Mobile/[device]).
+
+[LGTU550]
+address=00:E0:91:7F:46:44	; the address of the phone
+port=4				; the rfcomm port number (from mobile search)
+context=incoming-mobile		; dialplan context for incoming calls
+adapter=dlink			; adapter to use
+group=1				; this phone is in channel group 1
+;sms=no				; support SMS, defaults to yes
+;nocallsetup=yes		; set this only if your phone reports that it supports call progress notification, but does not do it. Motorola L6 for example.
+
+[blackberry]
+address=00:60:57:32:7E:B2
+port=2
+context=incoming-mobile
+adapter=dlink
+group=1
+;blackberry=yes			; set this if you are using a blackberry device
+
+[6310i]
+address=00:60:57:32:7E:B1
+port=13
+context=incoming-mobile
+adapter=dlink
+group=1				; this phone is in channel group 1 also.
+
+[headset]
+address=00:0B:9E:11:AE:C6
+port=1
+type=headset			; This is a headset, not a Phone !
+adapter=blue
+
+[headset1]
+address=00:0B:9E:11:74:A5
+port=1
+type=headset
+adapter=dlink

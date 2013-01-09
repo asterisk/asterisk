@@ -1,0 +1,37 @@
+# asterisk
+#
+# Upstart control file for the Asterisk PBX
+#
+# To install, rename this file to 'asterisk' and copy it to /etc/event.d/
+#
+# To start asterisk manually:
+#     sudo start asterisk
+#
+# To stop asterisk manually:
+#     sudo stop asterisk
+
+description "Asterisk PBX"
+version     "1.8"
+
+start on runlevel 2
+start on runlevel 3
+start on runlevel 4
+start on runlevel 5
+
+stop on runlevel 0
+stop on runlevel 1
+stop on runlevel 6
+
+pre-start script
+  # Since Ubuntu clears /var/run on reboot, create this before we try to start
+  mkdir -p /var/run/asterisk
+end script
+
+console output
+respawn
+exec /usr/sbin/asterisk -vvvvvvvg -cf
+
+post-stop script
+  # Might as well clean up after ourselves, too.
+  rm -rf /var/run/asterisk
+end script

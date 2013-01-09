@@ -1,0 +1,219 @@
+<script src="prototype.js"></script>
+<script src="astman.js"></script>
+<link href="astman.css" media="all" rel="Stylesheet" type="text/css" />
+
+<script>
+	var logins = new Object;
+	var logoffs = new Object;
+	var channels = new Object;
+	var pongs = new Object;
+	var loggedon = -1;
+	var selectedchan = null;
+	var hungupchan = "";
+	var transferedchan = "";
+	
+	var demo = new Object;
+	
+	function loggedOn() {
+		if (loggedon == 1)
+			return;
+		loggedon = 1;
+		updateButtons();
+		$('statusbar').innerHTML = "<i>Retrieving channel status...</i>";
+		astmanEngine.pollEvents();
+		astmanEngine.sendRequest('action=status', demo.channels);
+	}
+	
+	function clearChannelList() {
+		$('channellist').innerHTML = "<i class='light'>Not connected</i>";
+	}
+
+	function loggedOff() {
+		if (loggedon == 0)
+			return;
+		loggedon = 0;
+		selectedchan = null;
+		updateButtons();
+		astmanEngine.channelClear();
+	 	clearChannelList();
+	}
+	
+	function updateButtons()
+	{
+		if ($(selectedchan)) {
+			$('transfer').disabled = 0;
+			$('hangup').disabled = 0;
+		} else {
+			$('transfer').disabled = 1;
+			$('hangup').disabled = 1;
+			selectedchan = null;
+		}
+		if (loggedon) {
+			$('username').disabled = 1;
+			$('secret').disabled = 1;
+			$('logoff').disabled = 0;
+			$('login').disabled = 1;
+			$('refresh').disabled = 0;
+		} else {
+			$('username').disabled = 0;
+			$('secret').disabled = 0;
+			$('logoff').disabled = 1;
+			$('login').disabled = 0;
+			$('refresh').disabled = 1;
+		}
+	}
+	
+	demo.channelCallback = function(target) {
+		selectedchan = target;
+		updateButtons();
+	}
+	
+	demo.channels = function(msgs) {
+		resp = msgs[0].headers['response'];
+		if (resp == "Success") {
+			loggedOn();
+		} else
+			loggedOff();
+
+		for (i=1;i<msgs.length - 1;i++) 
+			astmanEngine.channelUpdate(msgs[i]);
+		$('channellist').innerHTML = astmanEngine.channelTable(demo.channelCallback);
+		$('statusbar').innerHTML = "Ready";
+	}
+
+	demo.logins = function(msgs) {
+		$('statusbar').innerHTML = msgs[0].headers['message'];
+		resp = msgs[0].headers['response'];
+		if (resp == "Success")
+			loggedOn();
+		else
+			loggedOff();
+	};
+	
+	
+	demo.logoffs = function(msgs) {
+		$('statusbar').innerHTML = msgs[0].headers['message'];
+		loggedOff();
+	};
+
+	demo.hungup = function(msgs) {
+		$('statusbar').innerHTML = "Hungup " + hungupchan;
+	}
+	
+	demo.transferred = function(msgs) {
+		$('statusbar').innerHTML = "Transferred " + transferredchan;
+	}
+
+	function doHangup() {
+		hungupchan = selectedchan;
+		astmanEngine.sendRequest('action=hangup&channel=' + selectedchan, demo.hungup);
+	}
+
+	function doStatus() {
+		$('statusbar').innerHTML = "<i>Updating channel status...</i>";
+		astmanEngine.channelClear();
+		astmanEngine.sendRequest('action=status', demo.channels);
+	}	
+		
+	function doLogin() {
+		$('statusbar').innerHTML = "<i>Logging in...</i>";
+		astmanEngine.sendRequest('action=login&username=' + $('username').value + "&secret=" + $('secret').value, demo.logins);
+	}
+	
+	function doTransfer() {
+		var channel = astmanEngine.channelInfo(selectedchan);
+		var exten = prompt("Enter new extension for " + selectedchan);
+		var altchan;
+		if (exten) {
+			if (channel.link) {
+				if (confirm("Transfer " + channel.link + " too?"))
+					altchan = channel.link;
+			}
+			if (altchan) {
+				transferredchan = selectedchan + " and " + altchan + " to " + exten;
+				astmanEngine.sendRequest('action=redirect&channel=' + selectedchan + "&priority=1&extrachannel=" + altchan + "&exten=" + exten, demo.transferred);
+			} else {
+				transferredchan = selectedchan + " to " + exten;
+				astmanEngine.sendRequest('action=redirect&channel=' + selectedchan + "&priority=1&exten=" + exten, demo.transferred);
+			}
+		}
+	}
+	
+	function doLogoff() {
+		$('statusbar').innerHTML = "<i>Logging off...</i>";
+		astmanEngine.sendRequest('action=logoff', demo.logoffs);
+	}
+	
+	demo.pongs  = function(msgs) {
+		resp = msgs[0].headers['response'];
+		if (resp == "Pong") {
+			$('statusbar').innerHTML = "<i>Already connected...</i>";
+			loggedOn();
+		} else {
+			$('statusbar').innerHTML = "<i>Please login...</i>";
+			loggedOff();
+		}
+	}
+	
+	demo.eventcb = function(msgs) {
+		var x;
+		if (loggedon) {
+			for (i=1;i<msgs.length - 1;i++) {
+				astmanEngine.channelUpdate(msgs[i]);
+			}
+			$('channellist').innerHTML = astmanEngine.channelTable(demo.channelCallback);
+			astmanEngine.pollEvents();
+		}
+		updateButtons();
+	}
+	
+	function localajaminit() {
+		astmanEngine.setURL('../rawman');
+		astmanEngine.setEventCallback(demo.eventcb);
+		//astmanEngine.setDebug($('ditto'));
+		clearChannelList();
+		astmanEngine.sendRequest('action=ping', demo.pongs);
+	}
+</script>
+
+<title>Asterisk&trade; AJAM Demo</title>
+<body onload="localajaminit()">
+<table align="center" width=600>
+<tr valign="top"><td>
+<table align="left">
+<tr><td colspan="2"><h2>Asterisk&trade; AJAM Demo</h2></td>
+<tr><td>Username:</td><td><input id="username"></td></tr>
+<tr><td>Secret:</td><td><input type="password" id="secret"></td></tr>
+	<tr><td colspan=2 align="center">
+	  <div id="statusbar">
+		<span style="margin-left: 4px;font-weight:bold">&nbsp;</span>
+	  </div>
+	</td></tr>
+
+	<tr><td><input type="submit" id="login" value="Login" onClick="doLogin()"></td>
+	<td><input type="submit" id="logoff" value="Logoff" disabled=1 onClick="doLogoff()"></td></tr>
+</table>
+</td><td valign='bottom'>
+<table>
+<div style="margin-left:10;margin-right:50;margin-top:10;margin-bottom:20">
+<i>This is a demo of the Asynchronous Javascript Asterisk Manager interface.  You can login with a
+valid, appropriately permissioned manager username and secret.</i>
+</div>
+<tr>
+	<td><input type="submit" onClick="doStatus()" id="refresh" value="Refresh"></td>
+	<td><input type="submit" onClick="doTransfer()" id="transfer" value="Transfer..."></td>
+	<td><input type="submit" onClick="doHangup()" id="hangup" value="Hangup"></td>
+</tr>
+</table>
+</td></tr>
+<tr><td colspan=2>
+		<div id="channellist" class="chanlist">
+		</div>
+	</td></tr>
+<tr><td align="center" colspan=2>
+	<font size=-1><i>
+		Copyright (C) 2006 Digium, Inc.  Asterisk and Digium are trademarks of Digium, Inc.
+	</i></font>
+</td></tr>
+</table>
+</body>

@@ -1,0 +1,10 @@
+<HTML>
+    <HEAD>
+      <TITLE>Asterisk.org: Developer Documentation ($date)</TITLE>
+      <LINK HREF="doxygen.css" REL="stylesheet" TYPE="text/css">
+    </HEAD>
+    <BODY BGCOLOR="#FFFFFF">
+<div><font size="2" align="right">$datetime</font></div>
+
+<h2>Asterisk developer's documentation</h2>
+<hr/>

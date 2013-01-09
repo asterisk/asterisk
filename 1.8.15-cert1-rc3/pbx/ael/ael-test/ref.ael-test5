@@ -1,0 +1,14 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:122 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:135 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:673 func: check_macro_returns  Warning: file ./extensions.ael, line 130-183: The macro stdexten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:673 func: check_macro_returns  Warning: file ./extensions.ael, line 185-192: The macro uvm does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:673 func: check_macro_returns  Warning: file ./extensions.ael, line 194-201: The macro bvm does not end with a return; I will insert one.
+LOG: lev:2 file:pbx_ael.c  line:138 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:145 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:150 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:153 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:516 func: main  38 contexts, 91 extensions, 495 priorities

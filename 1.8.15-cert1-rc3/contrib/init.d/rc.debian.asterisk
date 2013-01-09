@@ -1,0 +1,143 @@
+#! /bin/sh
+# $Id$
+#
+# Mon Jun 04 2007 Iñaki Baz Castillo <ibc@in.ilimit.es>
+# - Eliminated SAFE_ASTERISK since it doesn't work as LSB script (it could require a independent "safe_asterisk" init script).
+# - Load and use the standar "/lib/lsb/init-functions".
+# - Added "--oknodo" to "start-stop-daemon" for compatibility with LSB:
+#   http://www.linux-foundation.org/spec/refspecs/LSB_3.0.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
+#
+# Thu Nov 17 2005 Gregory Boehnlein <damin@nacs.net>
+# - Reversed behavior of LD_ASSUME_KERNEL=2.4.1
+# - Added detailed failure messages
+#
+# Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
+# - Added test for safe_asterisk
+# - Changed "stop gracefully" to "stop now"
+# - Added support for -U and -G command line options
+# - Modified "reload" to call asterisk -rx 'reload' 
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=asterisk
+DESC="Asterisk PBX"
+# Full path to asterisk binary
+DAEMON=__ASTERISK_SBIN_DIR__/asterisk
+ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
+ASTETCDIR=__ASTERISK_ETC_DIR__
+TRUE=/bin/true
+
+### BEGIN INIT INFO
+# Provides:		asterisk
+# Required-Start:    $network $syslog $named $local_fs $remote_fs
+# Required-Stop:     $network $syslog $named $local_fs $remote_fs
+# Should-Start:      dahdi misdn lcr wanrouter mysql postgresql
+# Should-Stop:       dahdi misdn lcr wanrouter mysql postgresql
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Asterisk PBX
+# Description:		the Asterisk Open Source PBX
+### END INIT INFO
+
+set -e
+
+if ! [ -x $DAEMON ] ; then
+        echo "ERROR: $DAEMON not found"
+        exit 0
+fi
+
+if ! [ -d $ASTETCDIR ] ; then
+        echo "ERROR: $ASTETCDIR directory not found"
+        exit 0
+fi
+
+# Use the LSB standard functions for services management
+. /lib/lsb/init-functions
+
+# Allow configuration overrides in /etc/default/asterisk
+CONFIG0=`readlink $0 || :` # readlink returns 1 when something isn't a symlink
+if [ "$CONFIG0" = "" ]; then
+	CONFIGFILE=/etc/default/`basename $0`
+else
+	CONFIGFILE=/etc/default/`basename $CONFIG0`
+fi
+[ -r $CONFIGFILE ] && . $CONFIGFILE
+
+case "$1" in
+  start)
+	# Check if Asterisk is already running.  If it is, then bug out, because
+	# starting up Asterisk when Asterisk is already running is very bad.
+	VERSION=`${DAEMON} -rx 'core show version' || ${TRUE}`
+	if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
+		echo "Asterisk is already running.  $0 will exit now."
+		exit 0
+	fi
+
+	log_begin_msg "Starting $DESC: $NAME"
+	if [ ! -d $ASTVARRUNDIR ]; then
+		mkdir -p $ASTVARRUNDIR
+	fi
+	if [ $AST_USER ] ; then
+		ASTARGS="-U $AST_USER"
+		chown $AST_USER $ASTVARRUNDIR
+	fi
+	if [ $AST_GROUP ] ; then
+		ASTARGS="$ASTARGS -G $AST_GROUP"
+		chgrp $AST_GROUP $ASTVARRUNDIR
+	fi
+	if [ $ALTCONF ]; then
+		ASTARGS="$ASTARGS -C \"$ALTCONF\""
+	fi
+	if [ "x$COREDUMP" = "xyes" ]; then
+		ASTARGS="$ASTARGS -g"
+	fi
+	if [ "0$MAXLOAD" -gt "0" ]; then
+		ASTARGS="$ASTARGS -L $MAXLOAD"
+	fi
+	if [ "0$MAXCALLS" -gt "0" ]; then
+		ASTARGS="$ASTARGS -M $MAXCALLS"
+	fi
+	if [ "0$VERBOSITY" -gt "0" ]; then
+		for i in `seq 1 $VERBOSITY`; do
+			ASTARGS="$ASTARGS -v"
+		done
+		# -v implies -f, so we override that implicit specification here
+		ASTARGS="$ASTARGS -F"
+	fi
+	if [ "x$INTERNALTIMING" = "xyes" ]; then
+		ASTARGS="$ASTARGS -I"
+	fi
+	if [ "x$TEMPRECORDINGLOCATION" = "xyes" -o "x$TMPRECORDINGLOCATION" = "xyes" ]; then
+		ASTARGS="$ASTARGS -t"
+	fi
+	if test "x$COLOR" = "xno" ; then
+		ASTARGS="$ASTARGS -n"
+	fi
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
+	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
+	log_end_msg $?
+	;;
+  stop)
+	log_begin_msg "Stopping $DESC: $NAME"
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already stopped (as LSB expects):
+	start-stop-daemon --stop --oknodo --exec $DAEMON
+	log_end_msg $?
+	;;
+  reload)
+	echo "Reloading $DESC configuration files."
+	$DAEMON -rx 'module reload' > /dev/null 2> /dev/null
+	;;
+  restart|force-reload)
+	$0 stop
+	sleep 2  # It needs some time to really be stopped.
+	$0 start
+	# "restart|force-reload" starts Asterisk and returns 0 even if Asterisk was stopped (as LSB expects).
+	;;
+  status)
+       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+       ;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload|status}" >&2
+	exit 1
+	;;
+esac

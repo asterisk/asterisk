@@ -1,0 +1,70 @@
+
+
+[dialextens]
+exten => _10X,1,Dial(Zap/${EXTEN:2},30,tw)
+exten => _1ZX,1,Dial(Zap/${EXTEN:1},30,tw)
+
+
+[dialthrus]
+exten => _3XX,1,Dial(Zap/${EXTEN:1},30,tw)
+
+
+[t1incoming]
+include => dialextens
+include => parkedcalls
+exten => s,1,Answer()
+exten => s,2,Background(welcome-to-test-machine)
+
+
+[incoming]
+include => dialextens
+include => parkedcalls
+exten => s,1,Answer()
+exten => s,2,Background(welcome-to-test-machine)
+
+
+[extension]
+include => dialextens
+include => dialthrus
+exten => 5,1,Record(recording:gsm)
+exten => 5,2,Background(recording)
+exten => 81,1,Set(iterations=$[1000000])
+exten => 81,2,Set(time1=${EPOCH})
+exten => 81,3,Set(i=$[1])
+exten => 81,4,GotoIf($[${i}<${iterations}]?5:8)
+exten => 81,5,NoOp(Hello)
+exten => 81,6,Set(i=$[${i}+1])
+exten => 81,7,Goto(4)
+exten => 81,8,NoOp(Finish for_extension_1)
+exten => 81,9,Set(time2=${EPOCH})
+exten => 81,10,Verbose(The time diff is $[${time2} - ${time1} ] seconds)
+exten => 81,11,Verbose(Which means that the priorities/sec = $[4* ${iterations} / (${time2} - ${time1}) ])
+exten => 81,12,SayNumber($[4 * ${iterations} / (${time2} - ${time1}) ])
+exten => 82,1,Gosub(ndeep,~~s~~,1(100000))
+exten => 82,2,Verbose(Finished 100000 levels deep call!)
+exten => 83,1,Set(~~EXTEN~~=${EXTEN})
+exten => 83,2,Goto(sw_2_${~~EXTEN~~},10)
+exten => 83,3,NoOp(Finish switch_extension_2)
+exten => _sw_2_.,10,Goto(83,3)
+exten => sw_2_,10,Goto(sw_2_.,10)
+exten => _sw_2_[4-7]X,10,Verbose(and this too!)
+exten => _sw_2_[4-7]X,11,Goto(sw_2_.,10)
+exten => _sw_2_9X,10,Verbose(handle both 8x and 9x calls)
+exten => _sw_2_9X,11,Goto(sw_2_49,10)
+exten => _sw_2_8X,10,Verbose(do something to prepare it)
+exten => _sw_2_8X,11,Goto(sw_2_99,10)
+
+
+[ndeep]
+exten => ~~s~~,1,Set(LOCAL(level)=${ARG1})
+exten => ~~s~~,2,GotoIf($[${level} == 0]?3:5)
+exten => ~~s~~,3,Verbose(2|Got to Level 0)
+exten => ~~s~~,4,Return()
+exten => ~~s~~,5,NoOp(Finish if_ndeep_3)
+exten => ~~s~~,6,Gosub(ndeep,~~s~~,1($[${level}-1]))
+exten => ~~s~~,7,Return()
+
+
+[t1extension]
+include => dialextens
+include => dialthrus

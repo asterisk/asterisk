@@ -1,0 +1,22 @@
+;
+; Configuration file for res_snmp
+;---------------------------------
+;
+; Res_snmp can run as a subagent or standalone SNMP agent. The standalone snmp
+; agent is based on net-snmp and will read a configuration file called
+; asterisk.conf in the net-snmp configuration file path, starting with
+; /etc/snmp on many systems.
+;
+; If you use the subagent model, you need to enable agentx in snmpd.conf
+; Note that you can only run one Asterisk on the system in this case.
+;
+; See https://wiki.asterisk.org/wiki/display/AST/Simple+Network+Management+Protocol+(SNMP)+Support 
+; to get more information about
+; snmp support in Asterisk
+
+[general]
+; We run as a subagent per default -- to run as a full agent
+; we must run as root (to be able to bind to port 161)
+;subagent = yes
+; SNMP must be explicitly enabled to be active
+;enabled = yes

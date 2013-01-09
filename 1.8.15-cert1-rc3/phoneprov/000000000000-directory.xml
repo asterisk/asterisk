@@ -1,0 +1,6 @@
+<?xml version="1.0" standalone="yes"?>
+<directory>
+	<item_list>
+		${PP_EACH_USER(<item><fn>%{DISPLAY_NAME}</fn><ct>%{CALLERID}</ct><bw>1</bw></item>,${MAC})}
+	</item_list>
+</directory>

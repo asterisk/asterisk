@@ -1,0 +1,142 @@
+;
+; MGCP Configuration for Asterisk
+;
+[general]
+;port = 2427
+;bindaddr = 0.0.0.0
+
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
+;tos=cs3		; Sets TOS for signaling packets.
+;tos_audio=ef		; Sets TOS for RTP audio packets.
+;cos=3			; Sets 802.1p priority for signaling packets.
+;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
+
+;---------------------- DIGIT TIMEOUTS ----------------------------
+firstdigittimeout = 30000 ; default 16000 = 16s
+gendigittimeout = 10000   ; default  8000 = 8s 
+matchdigittimeout = 5000  ; defaults 3000 = 3s
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; MGCP channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The MGCP channel can accept jitter,
+                              ; thus an enabled jitterbuffer on the receive MGCP side will only
+                              ; be used if the sending side can create jitter and jbforce is
+                              ; also set to yes.
+
+; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a MGCP
+                              ; channel. Defaults to "no".
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a MGCP
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+;[dlinkgw]
+;host = 192.168.0.64
+;context = default
+;directmedia = no
+;line => aaln/2
+;line => aaln/1
+
+;; The MGCP channel supports the following service codes:
+;; # - Transfer
+;; *67 - Calling Number Delivery Blocking 
+;; *70 - Cancel Call Waiting 
+;; *72 - Call Forwarding Activation 
+;; *73 - Call Forwarding Deactivation 
+;; *78 - Do Not Disturb Activation 
+;; *79 - Do Not Disturb Deactivation 
+;; *8 - Call pick-up
+;
+; known to work with Swissvoice IP10s 
+;[192.168.1.20] 
+;context=local 
+;host=192.168.1.20 
+;callerid = "John Doe" <123> 
+;callgroup=0      ; in the range from 0 to 63
+;pickupgroup=0    ; in the range from 0 to 63
+;nat=no 
+;threewaycalling=yes 
+;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to transfer
+;callwaiting=yes  ; this might be a cause of trouble for ip10s
+;cancallforward=yes 
+;line => aaln/1 
+;
+
+;[dph100]
+;
+; Supporting the DPH100M requires defining DLINK_BUGGY_FIRMWARE in
+; chan_mgcp.c in addition to enabling the slowsequence mode due to
+; bugs in the D-Link firmware
+;
+;context=local
+;host=dynamic
+;dtmfmode=none		; DTMF Mode can be 'none', 'rfc2833', or 'inband' or
+			; 'hybrid' which starts in none and moves to inband.  Default is none.
+;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
+;line => aaln/1
+
+; known to work with wave7optics FTTH LMGs
+;[192.168.1.20]
+;accountcode	= 1000		; record this in cdr as account identification for billing
+;amaflags	= billing	; record this in cdr as flagged for 'billing',
+				; 'documentation', or 'omit'
+;context	= local
+;host		= 192.168.1.20
+;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' 
+				; another common format is '*'
+;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
+;callwaiting	= no
+;callreturn	= yes
+;cancallforward = yes
+;directmedia	= no
+;transfer	= no
+;dtmfmode	= inband
+;setvar=one=1           ; Set channel variables associated with this incoming line
+;setvar=two=2
+;line => aaln/1			; now lets save this config to line1 aka aaln/1
+;clearvars=all          ; Reset list of variables back to none
+;callerid 	= "Duane Cox" <456>	; now lets setup line 2
+;callwaiting	= no
+;callreturn	= yes
+;cancallforward = yes
+;directmedia	= no
+;transfer	= no
+;dtmfmode	= inband
+;line => aaln/2			; now lets save this config to line2 aka aaln/2
+
+; PacketCable
+;[sbv5121e-mta.test.local]
+;host        = 10.0.1.3
+;callwaiting = 1
+;canreinvite = 1
+;dtmfmode    = rfc2833
+;amaflags    = BILLING
+;ncs         = yes ; Use NCS 1.0 signalling
+;pktcgatealloc = yes ; Allocate DQOS gate on CMTS
+;hangupongateremove = yes ; Hangup the channel if the CMTS close the gate
+;callerid    = 3622622225
+;accountcode = test-3622622225
+;line        = aaln/1
+;callerid    = 3622622226
+;accountcode = test-3622622226
+;line        = aaln/2

@@ -1,0 +1,14 @@
+{
+	*ast_adsi_*;
+	*ast_agi_*;
+	*ast_pktccops_*;
+	*ast_smdi_*;
+	*ast_monitor_*;
+	*ast_key_get;
+	*ast_check_signature;
+	*ast_check_signature_bin;
+	*ast_sign;
+	*ast_sign_bin;
+	*ast_encrypt_bin;
+	*ast_decrypt_bin;
+};

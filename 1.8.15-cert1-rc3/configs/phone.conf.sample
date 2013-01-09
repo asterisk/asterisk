@@ -1,0 +1,51 @@
+;
+; Linux Telephony Interface
+;
+; Configuration file
+;
+[interfaces]
+;
+; Select a mode, either the phone jack provides dialtone, reads digits,
+; then starts PBX with the given extension (dialtone mode), or
+; immediately provides the PBX without reading any digits or providing
+; any dialtone (this is the immediate mode, the default).  Also, you
+; can set the mode to "fxo" if you have a linejack to make it operate
+; properly. If you are using a Sigma Designs board you may set this to
+; "sig".
+;
+mode=immediate
+;mode=dialtone
+;mode=fxo
+;mode=sig
+;
+; You can decide which format to use by default, "g723.1", "g729", or "slinear".
+; Note that g729 is only supported for Sigma Designs boards.
+; XXX Be careful, sometimes the card causes kernel panics when running
+; in signed linear mode for some reason... XXX
+;
+format=slinear
+;format=g723.1
+;format=g729
+;
+; And set the echo cancellation to "off", "low", "medium", and "high".
+; This is not supported on all phones.
+;
+echocancel=medium
+;
+; You can optionally use VAD/CNG silence suppression
+;
+;silencesupression=yes
+;
+; List all devices we can use.  Contexts may also be specified
+;
+;context=local
+;
+; You can set txgain and rxgain for each device in the same way as context.
+; If you want to change default gain value (1.0 =~ 100%) for device, simple
+; add txgain or rxgain line before device line. But remember, if you change
+; volume all cards listed below will be affected by these values. You can
+; use float values (1.0, 0.5, 2.0) or percentage values (100%, 150%, 50%).
+;
+;txgain=100%
+;rxgain=1.0
+;device => /dev/phone0

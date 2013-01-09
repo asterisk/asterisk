@@ -1,0 +1,116 @@
+context dialextens
+{
+	/* 
+		101 thru 123, 149 thru 152
+        */
+	_10X => Dial(Zap/${EXTEN:2},30,tw);
+	_1ZX => Dial(Zap/${EXTEN:1},30,tw);
+}
+/* 
+    Due to extenal wiring:
+
+  dialing 125 will ring 101
+  dialing 126 will ring 102
+   and so on until
+  dialing 147 will ring 123
+
+We can dial out on zap 69 thru 72; and 25-47
+
+*/
+
+context dialthrus
+{
+	/*  369-372; 325-347 */
+	_3XX => Dial(Zap/${EXTEN:1},30,tw);
+}
+
+context t1incoming
+{
+	includes
+	{
+		dialextens;
+		parkedcalls;
+	}
+	s => {
+		Answer();
+		Background(welcome-to-test-machine);
+	}
+
+}
+
+context t1extension
+{
+	includes
+	{
+		dialextens;
+		dialthrus;
+	}
+
+}
+
+context incoming
+{
+	includes
+	{
+		dialextens;
+		parkedcalls;
+	}
+	s => {
+		Answer();
+		Background(welcome-to-test-machine);
+	}
+}
+
+context extension
+{
+	includes
+	{
+		dialextens;
+		dialthrus;
+	}
+	5 => {
+		Record(recording:gsm);
+		Background(recording);
+	}
+
+	81 => {
+		iterations=1000000;
+		Set(time1=${EPOCH});
+		for(i=1; ${i}<${iterations}; i=${i}+1)
+		{
+			NoOp(Hello);
+		}
+		Set(time2=${EPOCH});
+		Verbose(The time diff is $[${time2} - ${time1} ] seconds);
+		Verbose(Which means that the priorities/sec = $[4* ${iterations} / (${time2} - ${time1}) ]);
+		SayNumber($[4 * ${iterations} / (${time2} - ${time1}) ]);
+	}
+	82 => {
+			&ndeep(100000);
+			Verbose(Finished 100000 levels deep call!);
+		}
+	83 => {
+		switch (${EXTEN}) 
+		{
+		pattern 8X:
+    			Verbose(do something to prepare it);
+		pattern 9X:
+    			Verbose(handle both 8x and 9x calls);
+		pattern [4-7]X:
+			Verbose(and this too!);
+
+		}
+
+	}
+}
+
+macro ndeep(level)
+{
+        if( ${level} == 0)
+        {
+                Verbose(2|Got to Level 0);
+                return;
+        }
+        &ndeep($[${level}-1]);
+        return;
+}

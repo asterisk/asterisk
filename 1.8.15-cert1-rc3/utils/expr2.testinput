@@ -1,0 +1,134 @@
+2 + 2
+      2     +       2            
+
+2 - 4
+4 - 2
+-4 - -2
+4 + 2 * 8
+(4 + 2) * 8
+4 + (2 * 8)
+4 + (2 * 8) ? 3 :: 6
+4 + 8 / 2
+4 + 8 / 3
+(4+8) / 3
+4 + 8 % 3
+4 + 9 % 3
+(4+9) %3
+(4+8) %3
+(4+9) %3
+(4+8) %3
+(4+9) % 3
+(4+8) % 3
+(4+9) % 3
+(4+8) % 3
+(4+9)% 3
+(4+8)% 3
+(4+9)% 3
+(4+8)% 3
+4 & 4
+0 & 4
+0 & 0
+2 | 0
+2 | 4
+0 | 0
+!0 | 0
+!4 | 0
+4 | !0
+!4 | !0
+3 < 4
+4 < 3
+3 > 4
+4 > 3
+3 = 3
+3 = 4
+3 != 3
+3 != 4
+3 >= 4
+3 >= 3
+4 >= 3
+3 <= 4
+4 <= 3
+4 <= 4
+3 > 4 & 4 < 3
+4 > 3 & 3 < 4
+x = x
+y = x
+x != y
+x != x
+"Something interesting" =~ interesting
+"Something interesting" =~ Something
+"Something interesting" : Something
+"Something interesting" : interesting
+"Something interesting" =~ "interesting"
+"Something interesting" =~ "Something"
+"Something interesting" : "Something"
+"Something interesting" : "interesting"
+"Something interesting" =~ (interesting)
+"Something interesting" =~ (Something)
+"Something interesting" : (Something)
+"Something interesting" : (interesting)
+"Something interesting" =~ "\(interesting\)"
+"Something interesting" =~ "\(Something\)"
+"Something interesting" : "\(Something\)"
+"Something interesting" : "\(interesting\)"
+"011043567857575" : "011\(..\)"
+"9011043567857575" : "011\(..\)"
+"011043567857575" =~ "011\(..\)"
+"9011043567857575" =~ "011\(..\)"
+"Something interesting" =~ (interesting)
+"Something interesting" =~ (Something)
+"Something interesting" : (Something)
+"Something interesting" : (interesting)
+"Something interesting" =~ "(interesting)"
+"Something interesting" =~ "(Something)"
+"Something interesting" : "(Something)"
+"Something interesting" : "(interesting)"
+"011043567857575" : "011(..)"
+"9011043567857575" : "011(..)"
+"011043567857575" =~ "011(..)"
+"9011043567857575" =~ "011(..)"
+3
+something
+043
+2.1+4.2
+1.500003+1.4999999999999898989898989898989898989889898
+1/4
+2.3 + COS(3.141592653)
+REMAINDER(13,3)
+2.3 + SIN(3.1415823)
+TAN(45) + 2.3
+POW(10.0,4.0)
+SQRT(4)
+SQRT(2)
+FLOOR(2.4)
+FLOOR(2.6)
+CEIL(2.4)
+CEIL(2.6)
+ROUND(2.4)
+ROUND(2.5)
+ROUND(2.6)
+RINT(2.4)
+RINT(2.5)
+RINT(2.6)
+TRUNC(2.4)
+TRUNC(2.5)
+TRUNC(2.6)
+EXP(1.0)
+EXP2(1.0)
+LOG(10)
+LOG2(10)
+LOG10(10)
+ATAN2(4,5)
+ACOS(12)
+ASIN(1)
+ATAN(10)
+SQRT(2)*SQRT(2)
+ATAN(12) + TRUNC(2.4) *ASIN(14.3) *ACOS(1.2)
+ATAN(.912)
+TRUNC(2.4)
+ASIN(0.705)
+ACOS(.12)
+ATAN(.912) + TRUNC(2.4) - ASIN(0.705) + ACOS(.12)
+MATH(3*9)
+${GLOBAL(ULKOPREFIX)}9${x}
+512059${x}

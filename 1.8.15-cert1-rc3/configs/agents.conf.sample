@@ -1,0 +1,102 @@
+;
+; Agent configuration
+;
+
+[general]
+
+[agents]
+;
+; Define maxlogintries to allow agent to try max logins before
+; failed.
+; default to 3
+;
+;maxlogintries=5
+;
+;
+; Define autologoff times if appropriate.  This is how long
+; the phone has to ring with no answer before the agent is
+; automatically logged off (in seconds)
+;
+;autologoff=15
+;
+; Define autologoffunavail to have agents automatically logged
+; out when the extension that they are at returns a CHANUNAVAIL
+; status when a call is attempted to be sent there.
+; Default is "no".
+;
+;autologoffunavail=yes
+;
+; Define ackcall to require a DTMF acknowledgement when
+; a logged-in agent receives a call.  Default is "no".
+; Use the acceptdtmf option to configure what DTMF key
+; press should be used to acknowledge the call. The
+; default is '#'.
+;
+;ackcall=no
+;acceptdtmf=#
+;
+; Define endcall to allow an agent to hangup a call with a
+; DTMF keypress. Default is "yes". Use the enddtmf option to
+; configure which DTMF key will end a call. The default is
+; '*'.
+;
+;endcall=yes
+;enddtmf=*
+;
+; Define wrapuptime.  This is the minimum amount of time when
+; after disconnecting before the caller can receive a new call
+; note this is in milliseconds.
+;
+;wrapuptime=5000
+;
+; Define the default musiconhold for agents
+; musiconhold => music_class
+;
+;musiconhold => default
+;
+; Define the default good bye sound file for agents
+; default to vm-goodbye
+;
+;goodbye => goodbye_file
+;
+; Define updatecdr. This is whether or not to change the source
+; channel in the CDR record for this call to agent/agent_id so
+; that we know which agent generates the call
+;
+;updatecdr=no
+;
+; Group memberships for agents (may change in mid-file)
+;
+;group=3
+;group=1,2
+;group=
+;
+; --------------------------------------------------
+; This section is devoted to recording agent's calls
+; The keywords are global to the chan_agent channel driver
+;
+; Enable recording calls addressed to agents. It's turned off by default.
+;recordagentcalls=yes
+;
+; The format to be used to record the calls: wav, gsm, wav49.
+; By default its "wav".
+;recordformat=gsm
+;
+; The text to be added to the name of the recording. Allows forming a url link.
+;urlprefix=http://localhost/calls/
+;
+; The optional directory to save the conversations in. The default is
+; /var/spool/asterisk/monitor
+;savecallsin=/var/calls
+;
+; An optional custom beep sound file to play to always-connected agents.
+;custom_beep=beep
+;
+; --------------------------------------------------
+;
+; This section contains the agent definitions, in the form:
+;
+; agent => agentid,agentpassword,name
+;
+;agent => 1001,4321,Mark Spencer
+;agent => 1002,4321,Will Meadows

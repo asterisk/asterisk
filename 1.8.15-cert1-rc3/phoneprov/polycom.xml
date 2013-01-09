@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<phone1>
+   <reg ${PP_EACH_EXTENSION(${MAC},polycom_line.xml)} />
+   <call>
+      <donotdisturb call.donotdisturb.perReg="1" />
+      <autoOffHook call.autoOffHook.1.enabled="0" call.autoOffHook.1.contact="" call.autoOffHook.2.enabled="0" call.autoOffHook.2.contact="" call.autoOffHook.3.enabled="0" call.autoOffHook.3.contact="" call.autoOffHook.4.enabled="0" call.autoOffHook.4.contact="" call.autoOffHook.5.enabled="0" call.autoOffHook.5.contact="" call.autoOffHook.6.enabled="0" call.autoOffHook.6.contact=""/>
+      <serverMissedCall call.serverMissedCall.1.enabled="0" call.serverMissedCall.2.enabled="0" call.serverMissedCall.3.enabled="0" call.serverMissedCall.4.enabled="0" call.serverMissedCall.5.enabled="0" call.serverMissedCall.6.enabled="0"/>
+   </call>
+   <divert divert.1.contact="" divert.1.autoOnSpecificCaller="1" divert.1.sharedDisabled="1" divert.2.contact="" divert.2.autoOnSpecificCaller="1" divert.2.sharedDisabled="1" divert.3.contact="" divert.3.autoOnSpecificCaller="1" divert.3.sharedDisabled="1" divert.4.contact="" divert.4.autoOnSpecificCaller="1" divert.4.sharedDisabled="1" divert.5.contact="" divert.5.autoOnSpecificCaller="1" divert.5.sharedDisabled="1" divert.6.contact="" divert.6.autoOnSpecificCaller="1" divert.6.sharedDisabled="1">
+      <fwd divert.fwd.1.enabled="1" divert.fwd.2.enabled="1" divert.fwd.3.enabled="1" divert.fwd.4.enabled="1" divert.fwd.5.enabled="1" divert.fwd.6.enabled="1"/>
+      <busy divert.busy.1.enabled="1" divert.busy.1.contact="" divert.busy.2.enabled="1" divert.busy.2.contact="" divert.busy.3.enabled="1" divert.busy.3.contact="" divert.busy.4.enabled="1" divert.busy.4.contact="" divert.busy.5.enabled="1" divert.busy.5.contact="" divert.busy.6.enabled="1" divert.busy.6.contact=""/>
+      <noanswer divert.noanswer.1.enabled="1" divert.noanswer.1.timeout="60" divert.noanswer.1.contact="" divert.noanswer.2.enabled="1" divert.noanswer.2.timeout="60" divert.noanswer.2.contact="" divert.noanswer.3.enabled="1" divert.noanswer.3.timeout="60" divert.noanswer.3.contact="" divert.noanswer.4.enabled="1" divert.noanswer.4.timeout="60" divert.noanswer.4.contact="" divert.noanswer.5.enabled="1" divert.noanswer.5.timeout="60" divert.noanswer.5.contact="" divert.noanswer.6.enabled="1" divert.noanswer.6.timeout="60" divert.noanswer.6.contact=""/>
+      <dnd divert.dnd.1.enabled="0" divert.dnd.1.contact="" divert.dnd.2.enabled="0" divert.dnd.2.contact="" divert.dnd.3.enabled="0" divert.dnd.3.contact="" divert.dnd.4.enabled="0" divert.dnd.4.contact="" divert.dnd.5.enabled="0" divert.dnd.5.contact="" divert.dnd.6.enabled="0" divert.dnd.6.contact=""/>
+   </divert>
+   <dialplan
+        dialplan.1.impossibleMatchHandling="2" dialplan.1.removeEndOfDial="0"
+   />
+   <digitmap
+        dialplan.1.digitmap="" dialplan.1.digitmap.timeOut="3"
+   />
+      <routing>
+	 <server dialplan.1.routing.server.1.address="" dialplan.1.routing.server.1.port="" dialplan.2.routing.server.1.address="" dialplan.2.routing.server.1.port="" dialplan.3.routing.server.1.address="" dialplan.3.routing.server.1.port="" dialplan.4.routing.server.1.address="" dialplan.4.routing.server.1.port="" dialplan.5.routing.server.1.address="" dialplan.5.routing.server.1.port="" dialplan.6.routing.server.1.address="" dialplan.6.routing.server.1.port=""/>
+         <emergency dialplan.1.routing.emergency.1.value="" dialplan.1.routing.emergency.1.server.1="" dialplan.2.routing.emergency.1.value="" dialplan.2.routing.emergency.1.server.1="" dialplan.3.routing.emergency.1.value="" dialplan.3.routing.emergency.1.server.1="" dialplan.4.routing.emergency.1.value="" dialplan.4.routing.emergency.1.server.1="" dialplan.5.routing.emergency.1.value="" dialplan.5.routing.emergency.1.server.1="" dialplan.6.routing.emergency.1.value="" dialplan.6.routing.emergency.1.server.1=""/>
+      </routing>
+   <msg msg.bypassInstantMessage="1">
+      <mwi msg.mwi.1.callBackMode="contact" msg.mwi.1.callBack="${VOICEMAIL_EXTEN}" />
+   </msg>
+   <nat nat.ip="" nat.signalPort="" nat.mediaPortStart=""/>
+   <user_preferences up.oneTouchVoiceMail="1" up.welcomeSoundEnabled="0" up.mwiVisible="1" />
+   <volume voice.volume.persist.handset="1" voice.volume.persist.headset="1" />
+   <SNTP tcpIpApp.sntp.address="time" tcpIpApp.sntp.gmtOffset="${TZOFFSET}" tcpIpApp.sntp.daylightSavings.enable="${DST_ENABLE}" tcpIpApp.sntp.daylightSavings.fixedDayEnable="0" tcpIpApp.sntp.daylightSavings.start.month="${DST_START_MONTH}" tcpIpApp.sntp.daylightSavings.start.date="${DST_START_MDAY}" tcpIpApp.sntp.daylightSavings.start.hour="${DST_START_HOUR}" tcpIpApp.sntp.daylightSavings.stop.month="${DST_END_MONTH}" tcpIpApp.sntp.daylightSavings.stop.date="${DST_END_MDAY}" tcpIpApp.sntp.daylightSavings.stop.hour="${DST_END_HOUR}" />
+   <HTTPD httpd.enabled="1" />
+   <feature
+        feature.1.name="presence" feature.1.enabled="1"
+        feature.8.name="calllist-missed" feature.8.enabled="1"
+   />
+</phone1>

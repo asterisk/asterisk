@@ -1,0 +1,26 @@
+;
+; UDPTL Configuration (UDPTL is one of the transports for T.38)
+;
+[general]
+;
+; UDPTL start and UDPTL end configure start and end addresses
+;
+udptlstart=4000
+udptlend=4999
+;
+; Whether to enable or disable UDP checksums on UDPTL traffic
+;
+;udptlchecksums=no
+;
+; The number of error correction entries in a UDPTL packet
+;
+udptlfecentries = 3
+;
+; The span over which parity is calculated for FEC in a UDPTL packet
+;
+udptlfecspan = 3
+;
+; Some VoIP providers will only accept an offer with an even-numbered
+; UDPTL port. Set this option so that Asterisk will only attempt to use
+; even-numbered ports when negotiating T.38. Default is no.
+use_even_ports = no

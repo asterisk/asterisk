@@ -1,0 +1,5 @@
+#!/bin/sh
+
+test -f ${1}.exports.in && ${AWK} "{sub(\"LINKER_SYMBOL_PREFIX\", \"${2}\"); print;}" ${1}.exports.in > ${1}.exports && exit 0
+test -f ${1}.exports.in || rm -f ${1}.exports && cp ${3}/default.exports ${1}.exports && exit 0
+

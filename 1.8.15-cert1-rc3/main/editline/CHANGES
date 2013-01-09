@@ -1,0 +1,42 @@
+2002-02-25 : Christos Zoulas <christos@netbsd.org>
+	* Bring in constification fixes from NetBSD tree.
+	* Use NetBSD's vis, fgetln
+
+2002-02-10 : Jason Evans <jasone@freebsd.org>
+
+	* Makefile.in : Append "" arguments to for loops, to avoid syntax errors
+          with some shells that occur if there are no arguments to the for
+          loops.
+
+2002-02-09 : Jason Evans <jasone@freebsd.org>
+
+	* Install man pages in @prefix@/man/, rather than @prefix@/share/man.
+
+	* Fix the Darwin -install_name S_LDFLAGS argument to default to a prefix
+          of /usr/local if --prefix is not specified.
+
+2002-02-05 : Jason Evans <jasone@freebsd.org>
+
+	* Convert to using an autoconf-generated config.h, rather than passing
+	  -D_HAVE_<foo>=1 definitions on the command line.  Include sys.h in
+	  config.h, and include config.h in .c files rather than sys.h.
+
+	* Mangle function names for implementations in the np directory in order
+          to avoid namespace collisions with other code that may provide copies
+          of the same unimplemented functions.  For example:
+
+		#define	fgetln libedit_fgetln
+
+2002-02-03 : Jason Evans <jasone@freebsd.org>
+
+	* Add autoconf infrastructure, plus a generic Makefile that works with
+          at least BSD make, GNU make and Sun make.
+
+	* Port and/or test on FreeBSD 4.5, FreeBSD-current, NetBSD 1.5 (sparc64
+          and arm32), Apple OS X 10.1.2, Solaris 2.6, and Red Hat Linux 2.6.
+          Add the np directory, which contains implementations of non-portable
+          functions.
+
+	* Add the LIBEDIT_MAJOR and LIBEDIT_MINOR macros to histedit.h, since
+          there is otherwise no straightforward method of programmatically
+          detecting the library version.

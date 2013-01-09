@@ -1,0 +1,14 @@
+globals {
+        AXLHAFT=wow-to-the-tenth-power;
+        JibberWorthy=zinger3;
+        OFFICE_CODE=503;
+}
+
+context from-enum {
+
+  _${OFFICE_CODE}XXXX => {
+        Answer();
+        goto ${EXTEN:3}|1;
+  }
+}
+

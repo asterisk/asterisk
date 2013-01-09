@@ -1,0 +1,218 @@
+;
+; Mini-Voicemail Configuration
+; for the MiniVM set of applications
+;
+; MiniVM consists of the following dialplan applications
+;   MinivmGreet       Play personal prompts for busy/unavailable/temporary messages or default prompts
+;   MinivmRecord      Record voice prompts to account directory or default directory
+;   MinivmNotify      Notify via e-mail or pager - with or without attachment
+;   MinivmDelete      Delete voice prompt (filename as argument or channel variable set by MinivmRecord)
+;
+; MiniVM works without accounts (just give e-mail address as argument) or with accounts in
+; this configuration file or realtime. The idea is to build voicemail as building blocks so that
+; a complete and adaptive voicemail system can be built in the dialplan
+;
+;------------------------------ Variables to use in subject, from and message body ------------------
+; Change the from, body and/or subject, variables:
+;     MVM_NAME, MVM_DUR, MVM_MSGNUM, VM_MAILBOX, MVM_CALLERID, MVM_CIDNUM,
+;     MVM_CIDNAME, MVM_DATE
+;
+; In addition to these, you can set the MVM_COUNTER channel variable in the
+; dial plan and use that as a counter. It will also be used in the file name
+; of the media file attached to the message
+;
+; Note: The emailbody config row can only be up to 512 characters due to a
+;       limitation in the Asterisk configuration subsystem.
+;	To create longer mails, use the templatefile option when creating the template
+;----------------------------------------------------------------------------------------------------
+
+[general]
+; Default format for storing and sending voicemail
+; (only one format. Can also be set on a per-mailbox level)
+format=wav49
+;format=gsm
+;
+;Turn on logfile with the following syntax. One line per voicemail received
+;with minivmRecord()
+; Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode
+;logfile=/var/log/asterisk/minivm.log
+; Who the e-mail notification should appear to come from
+serveremail=asterisk
+;serveremail=asterisk@asterisk.example.com
+; Minimum length of a voicemail message in seconds for the message to be kept
+; The default is no minimum.
+;minmessage=3
+; How many seconds of silence before we end the recording
+maxsilence=10
+; Silence threshold (what we consider silence: the lower, the more sensitive)
+silencethreshold=128
+; How long greeting messages (busy/unavailable/temp/name) are allowed to be, in seconds
+;maxgreet=120
+; If you need to have an external program, i.e. /usr/bin/myapp called when a
+; voicemail is received by the server. The arguments are
+;
+; 	<app> <username@domain> <callerid-number> <callerid-name>
+;
+;externnotify=/usr/bin/myapp
+; The character set for voicemail messages can be specified here
+;charset=ISO-8859-1
+; Skip the "[PBX]:" string from the message title
+;pbxskip=yes
+; Change the From: string
+
+; You can override the default program to send e-mail if you wish, too
+; This is used both for e-mail and pager messages
+;mailcmd=/usr/sbin/sendmail -t
+;
+;--------------Default e-mail message template (used if no templates are used) ------
+;fromstring=The Asterisk PBX
+;
+
+;emailsubject=[PBX]: New message ${MVM_COUNER} in mailbox ${VM_MAILBOX}
+; The following definition is very close to the default, but the default shows
+; just the CIDNAME, if it is not null, otherwise just the CIDNUM, or "an unknown
+; caller", if they are both null.
+;emailbody=Dear ${MVM_NAME}:\n\n\tjust wanted to let you know you were just left a ${MVM_DUR} long message (number ${MVM_COUNTER})\nin mailbox ${MVM_MAILBOX} from ${MVM_CALLERID}, on ${MVM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+;
+; Set the date format on outgoing mails. Valid arguments can be found on the
+; strftime(3) man page
+;
+; Default
+emaildateformat=%A, %B %d, %Y at %r
+; 24h date format
+;emaildateformat=%A, %d %B %Y at %H:%M:%S
+;
+;--------------Default pager message template (used if no templates are used) ------
+; You can also change the Pager From: string, the pager body and/or subject.
+; The above defined variables also can be used here
+;pagerfromstring=The Asterisk PBX
+;pagersubject=New VM ${MVM_COUNTER}
+;pagerbody=New ${MVM_DUR} long msg in box ${MVM_MAILBOX}\nfrom ${MVM_CALLERID}, on ${MVM_DATE}
+;
+;
+;--------------Timezone definitions (used in voicemail accounts) -------------------
+;
+; Users may be located in different timezones, or may have different
+; message announcements for their introductory message when they enter
+; the voicemail system. Set the message and the timezone each user
+; hears here. Set the user into one of these zones with the tz= attribute
+; in the options field of the mailbox. Of course, language substitution
+; still applies here so you may have several directory trees that have
+; alternate language choices.
+;
+; Look in /usr/share/zoneinfo/ for names of timezones.
+; Look at the manual page for strftime for a quick tutorial on how the
+; variable substitution is done on the values below.
+;
+; Supported values:
+; 'filename'    filename of a soundfile (single ticks around the filename
+;               required)
+; ${VAR}        variable substitution
+; A or a        Day of week (Saturday, Sunday, ...)
+; B or b or h   Month name (January, February, ...)
+; d or e        numeric day of month (first, second, ..., thirty-first)
+; Y             Year
+; I or l        Hour, 12 hour clock
+; H             Hour, 24 hour clock (single digit hours preceded by "oh")
+; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh")
+; M             Minute, with 00 pronounced as "o'clock"
+; N             Minute, with 00 pronounced as "hundred" (US military time)
+; P or p        AM or PM
+; Q             "today", "yesterday" or ABdY
+;               (*note: not standard strftime value)
+; q             "" (for today), "yesterday", weekday, or ABdY
+;               (*note: not standard strftime value)
+; R             24 hour time, including minute
+;
+; The message here is not used in mini-voicemail, but stays for
+; backwards compatibility
+
+[zonemessages]
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp
+central=America/Chicago|'vm-received' Q 'digits/at' IMp
+central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
+military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
+
+;----------------------- Message body templates---------------------
+; [template-name]	; "template-" is a verbatim marker
+; fromaddress = Your Friendly Asterisk Server
+; fromemail = asteriskvm@digium.com
+; subject = <string>
+; attachmedia = yes | no	; Add media file as attachment?
+; dateformat = <formatstring>   ; See above
+; charset = <charset>		; Mime charset definition for e-mail messages
+; locale = <locale>		; Locale for LC_TIME - to get weekdays in local language
+;				; See your O/S documentation for proper settings for setlocale()
+; templatefile = <filename>	; File name (relative to Asterisk configuration directory,
+				; or absolute
+; messagebody = Format		; Message body definition with variables
+;
+[template-sv_SE_email]
+messagebody=Hej ${MVM_NAME}:\n\n\tDu har fått ett röstbrevlåde-meddelande från ${MVM_CALLERID}.\nLängd: ${MVM_DUR}\nMailbox ${MVM_MAILBOX}\nDatum:  ${MVM_DATE}. \nMeddelandet bifogas det här brevet. Om du inte kan läsa det, kontakta intern support. \nHälsningar\n\n\t\t\t\t--Asterisk\n
+subject = Du har fått röstmeddelande (se bilaga)
+fromemail = swedish-voicemail-service@stockholm.example.com
+fromaddress = Asterisk Röstbrevlåda
+charset=iso-8859-1
+attachmedia=yes
+dateformat=%A, %d %B %Y at %H:%M:%S
+locale=sv_SE
+
+[template-en_US_email]
+messagebody=Dear ${MVM_NAME}:\n\n\tjust wanted to let you know you were just left a ${MVM_DUR} long message \nin mailbox ${MVM_MAILBOX} from ${MVM_CALLERID}, on ${MVM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+subject = New voicemail
+charset=ascii
+attachmedia=yes
+dateformat=%A, %B %d, %Y at %r
+
+;[template-sv_SE_pager]
+;templatefile = templates/pager_sv_se.txt
+;subject = Du har fått voicemail
+;charset=iso-8859-1
+;attachmedia=no
+;locale=sv_SE
+
+;[template-nb_NO_email]
+;templatefile = templates/email_nb_NO.txt
+;subject = Du har fått voicemail
+;charset=iso-8859-1
+;locale=nb_NO
+
+;[template-en_US_email_southern]
+;templatefile = templates/email_en_US.txt
+;subject = Y'all got voicemail, honey!
+;charset=ascii
+
+;[template-en_UK_email]
+;templatefile = templates/email_en_us.txt
+;subject = Dear old chap, you've got an electronic communique
+;charset=ascii
+
+;----------------------- Mailbox accounts --------------------------
+;Template for mailbox definition - all options
+;
+;	[username@domain]		; Has to be unique within domain (MWM_USERNAME, MWM_DOMAIN)
+;	etemplate = sv_SE		; Email template from [templates]
+;	ptemplate = en_US		; Pager template from [templates]
+;	email = userpart@domain		; Extra e-mail address (overrides mailbox name)
+;	pager = pageremail@domain	; E-mail address for pager messages
+;	fullname = Mark Spencer		; Full name  (MWM_NAME)
+;	options =			; E-mail options, se below
+;       accountcode =			; Account code (read in dialplan function MINIVMACCOUNT)
+;       pincode =			; Numeric pin code (read in dialplan function MINIVMACCOUNT)
+;	timezone=se			; Time zone
+;	serveremail = asterisk@digium.com	; Who to send email from (overrides template if set)
+;	externnotify = <application>	; External application for this account
+;	volgain =			; Volume gain setting (requires "sox")
+;	setvar=SERVICENAME=Voop.com Networks ; Extra variables to use in template
+
+; Remember that you can use Asterisk Configuration Templates (ACT)
+
+;	[template@example.com](!)		; Declare template
+;	setvar=customerdomain=example.com
+;	setvar=customerclass=gold
+;	etemplate = sv_se_email
+; 	serveremail = voicemail@example.com
+
+;	[user2@example.com](template@example.com)	; Declare user2 account using template
+;	fullname = Olle E. Johansson
+;					; User inherits everything from template

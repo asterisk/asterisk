@@ -1,0 +1,53 @@
+=========================================================
+=== Information for upgrading from Zaptel to DAHDI    ===
+=========================================================
+
+As announced in early 2008, Digium is renaming the Zaptel telephony
+interface project to DAHDI (Digium Asterisk Hardware Device Interface)
+to accommodate the desires of the owner of the Zaptel trademark for
+telephony purposes.
+
+This version of Asterisk can only be built using DAHDI, and as a
+result there are number of changes that will be visible to previous
+users of Asterisk with Zaptel.
+
+First, the modules that directly use services from DAHDI have been
+renamed; the new names are:
+
+  chan_zap.so -> chan_dahdi.so
+  app_zapbarge.so -> app_dahdibarge.so
+  app_zapras.so -> app_dahdiras.so
+  app_zapscan.so -> app_dahdiscan.so
+  codec_zap.so -> codec_dahdi.so
+
+Second, the behavior of many modules has changed due to the switch to
+DAHDI; the changes are listed below.
+
+chan_dahdi.so:
+
+  Incoming and outgoing channels managed by this module will be
+  'DAHDI' channels instead of 'Zap' channels.
+
+  All CLI commands that began with 'zap' have been renamed to 'dahdi'
+  commands.
+
+  All Asterisk Manager Interface (AMI) actions that began with 'Zap'
+  have changed to 'DAHDI' prefixes.
+
+  The ZapSendKeypadFacility dialplan application has been renamed to
+  DAHDISendKeypadFacility.
+
+  The configuration for the channel driver will be read from
+  /etc/asterisk/chan_dahdi.conf instead of /etc/asterisk/zapata.conf.
+
+app_dahdibarge.so:
+
+  The ZapBarge application has been renamed to DAHDIBarge.
+
+app_dahdiras.so:
+
+  The ZapRAS application has been renamed to DAHDIRAS.
+
+app_dahdiscan.so:
+
+  The ZapScan application has been renamed to DAHDIScan.

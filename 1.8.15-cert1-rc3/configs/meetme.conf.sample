@@ -1,0 +1,45 @@
+;
+; Configuration file for MeetMe simple conference rooms for Asterisk of course.
+;
+; This configuration file is read every time you call app meetme()
+
+[general]
+;audiobuffers=32	; The number of 20ms audio buffers to be used
+			; when feeding audio frames from non-DAHDI channels
+			; into the conference; larger numbers will allow
+			; for the conference to 'de-jitter' audio that arrives
+			; at different timing than the conference's timing
+			; source, but can also allow for latency in hearing
+			; the audio from the speaker. Minimum value is 2,
+			; maximum value is 32.
+;
+; Conferences may be scheduled from realtime?
+;schedule=yes
+;
+; Update realtime when members login/out of the conference
+;logmembercount=no
+;
+; How much earlier than the start time should we allow participants to
+; join the conference (in seconds)?
+;fuzzystart=300
+;
+; If the participants join too early, how much time should we allow
+; to tell them that they've joined too early, rather than telling them
+; the conference simply doesn't exist (in seconds)?
+;earlyalert=3600
+;
+; How many seconds before the scheduled end of the conference should
+; the participants be warned?
+;endalert=120
+;
+[rooms]
+;
+; Usage is conf => confno[,pin][,adminpin]
+;
+; Note that once a participant has called the conference, a change to the pin
+; number done in this file will not take effect until there are no more users
+; in the conference and it goes away.  When it is created again, it will have
+; the new pin number.
+;
+;conf => 1234
+;conf => 2345,9938

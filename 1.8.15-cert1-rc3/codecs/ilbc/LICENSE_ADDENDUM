@@ -1,0 +1,55 @@
+
+INTRODUCTION
+Google Inc. acquired Global IP Solutions, Inc. (GIPS) in 2011, and GIPS is now
+a subsidiary of Google. Google Inc. and its subsidiaries and affiliates
+("Google") would like to update and clarify their position with respect to any
+patents and patent applications it may own that cover the iLBC (internet low
+bit-rate) codec technology that is the subject of IETF RFC 3951 and RFC 3952.
+This notice is provided in accordance with RFC 3979 and RFC 4879 covering IPR
+in the IETF.
+
+DECLARATION
+
+"iLBC Specification" means IETF RFC 3951 and RFC 3952.
+
+Google hereby grants to you a perpetual, worldwide, non-exclusive, no-charge,
+irrevocable (except as stated in this section) patent license to make, have
+made, use, offer to sell, sell, import, transfer, and otherwise run, modify
+and propagate implementations of the iLBC Specification, where such license
+applies only to those patent claims, both currently owned by Google and
+acquired in the future, licensable by Google that must necessarily be
+infringed because of what is specifically required by the normative portions
+of the iLBC Specification. This license is offered on the condition that
+you grant a reciprocal license under the same terms as this license to all
+parties for implementations of the iLBC Specification under those patent
+claims, both currently owned by you and acquired in the future, licensable
+by you that must necessarily be infringed because of what is specifically
+required by the normative portions of the iLBC Specification. If you or
+your agent or exclusive licensee institute or order or agree to the
+institution of patent litigation against any entity (including a cross-claim
+or counterclaim in a lawsuit) alleging that any implementation of the iLBC
+Specification constitutes direct or contributory patent infringement, or
+inducement of patent infringement, then any patent rights granted to you
+under this license shall terminate as of the date such litigation is filed.
+
+In addition to the license above relating to what is required by the
+specification, the following license relating to the reference implementation
+is offered.
+
+"The iLBC reference implementation" means the c-code reference implementation
+in Appendix A of IETF RFC 3951.
+
+Google hereby grants to you a perpetual, worldwide, non-exclusive, no-charge,
+irrevocable (except as stated in this section) patent license to make, have
+made, use, offer to sell, sell, import, transfer, and otherwise run, modify
+and propagate the iLBC reference implementation, where such license applies
+only to those patent claims, both currently owned by Google and acquired in
+the future, licensable by Google that are necessarily infringed by the iLBC
+reference implementation. This grant does not include claims that would be
+infringed only as a consequence of further modification of the iLBC reference
+implementation. If you or your agent or exclusive licensee institute or order
+or agree to the institution of patent litigation against any entity (including
+a cross-claim or counterclaim in a lawsuit) alleging that the iLBC reference
+implementation constitutes direct or contributory patent infringement, or
+inducement of patent infringement, then any patent rights granted to you
+under this License shall terminate as of the date such litigation is filed.

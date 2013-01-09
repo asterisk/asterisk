@@ -1,0 +1,87 @@
+[directories](!)
+astetcdir => /etc/asterisk
+astmoddir => /usr/lib/asterisk/modules
+astvarlibdir => /var/lib/asterisk
+astdbdir => /var/lib/asterisk
+astkeydir => /var/lib/asterisk
+astdatadir => /var/lib/asterisk
+astagidir => /var/lib/asterisk/agi-bin
+astspooldir => /var/spool/asterisk
+astrundir => /var/run/asterisk
+astlogdir => /var/log/asterisk
+
+[options]
+;verbose = 3
+;debug = 3
+;alwaysfork = yes		; Same as -F at startup.
+;nofork = yes			; Same as -f at startup.
+;quiet = yes			; Same as -q at startup.
+;timestamp = yes		; Same as -T at startup.
+;execincludes = yes		; Support #exec in config files.
+;console = yes			; Run as console (same as -c at startup).
+;highpriority = yes		; Run realtime priority (same as -p at
+				; startup).
+;initcrypto = yes		; Initialize crypto keys (same as -i at
+				; startup).
+;nocolor = yes			; Disable console colors.
+;dontwarn = yes			; Disable some warnings.
+;dumpcore = yes			; Dump core on crash (same as -g at startup).
+;languageprefix = yes		; Use the new sound prefix path syntax.
+;internal_timing = yes
+;systemname = my_system_name	; Prefix uniqueid with a system name for
+				; Global uniqueness issues.
+;autosystemname = yes		; Automatically set systemname to hostname,
+				; uses 'localhost' on failure, or systemname if
+				; set.
+;maxcalls = 10			; Maximum amount of calls allowed.
+;maxload = 0.9			; Asterisk stops accepting new calls if the
+				; load average exceed this limit.
+;maxfiles = 1000		; Maximum amount of openfiles.
+;minmemfree = 1			; In MBs, Asterisk stops accepting new calls if
+				; the amount of free memory falls below this
+				; watermark.
+;cache_record_files = yes	; Cache recorded sound files to another
+				; directory during recording.
+;record_cache_dir = /tmp	; Specify cache directory (used in conjunction
+				; with cache_record_files).
+;transmit_silence = yes		; Transmit silence while a channel is in a
+				; waiting state, a recording only state, or
+				; when DTMF is being generated.  Note that the
+				; silence internally is generated in raw signed
+				; linear format. This means that it must be
+				; transcoded into the native format of the
+				; channel before it can be sent to the device.
+				; It is for this reason that this is optional,
+				; as it may result in requiring a temporary
+				; codec translation path for a channel that may
+				; not otherwise require one.
+;transcode_via_sln = yes	; Build transcode paths via SLINEAR, instead of
+				; directly.
+;runuser = asterisk		; The user to run as.
+;rungroup = asterisk		; The group to run as.
+;lightbackground = yes		; If your terminal is set for a light-colored
+				; background.
+;forceblackbackground = yes     ; Force the background of the terminal to be 
+                                ; black, in order for terminal colors to show
+                                ; up properly.
+;defaultlanguage = en           ; Default language
+documentation_language = en_US	; Set the language you want documentation
+				; displayed in. Value is in the same format as
+				; locale names.
+;hideconnect = yes		; Hide messages displayed when a remote console
+				; connects and disconnects.
+;lockconfdir = no		; Protect the directory containing the
+				; configuration files (/etc/asterisk) with a
+				; lock.
+
+; Changing the following lines may compromise your security.
+;[files]
+;astctlpermissions = 0660
+;astctlowner = root
+;astctlgroup = apache
+;astctl = asterisk.ctl
+
+[compat]
+pbx_realtime=1.6
+res_agi=1.6
+app_set=1.6

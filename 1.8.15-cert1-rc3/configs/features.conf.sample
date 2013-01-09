@@ -1,0 +1,202 @@
+;
+; Sample Call Features (parking, transfer, etc) configuration
+;
+
+[general]
+parkext => 700                  ; What extension to dial to park.  Set per parking lot.
+;parkext_exclusive=yes          ; Specify that the parkext created for this parking lot
+                                ; will only access this parking lot. (default is no)
+parkpos => 701-720              ; What extensions to park calls on. (defafult parking lot)
+                                ; These need to be numeric, as Asterisk starts from the start position
+                                ; and increments with one for the next parked call.
+                                ; Set per parking lot.
+context => parkedcalls          ; Which context parked calls are in (default parking lot)
+                                ; Set per parking lot.
+;parkinghints = no              ; Add hints priorities automatically for parking slots (default is no).
+                                ; Set per parking lot.
+;parkingtime => 45              ; Number of seconds a call can be parked before returning.
+                                ; Set per parking lot. (default is 45 seconds)
+
+;comebacktoorigin = yes         ; Setting this option configures the behavior of call parking when the
+                                ; parked call times out (See the parkingtime option).  The default value is 'yes'.
+                                ; Operates on all parking lots.
+                                ;
+                                ; 'yes' - When the parked call times out, attempt to send the call back to the peer
+                                ;         that parked this call.  This is done by saving off the name of the channel
+                                ;         that parked the call.
+                                ;
+                                ; 'no'  - This option is useful for performing custom dialplan functionality prior to
+                                ;         sending the call back to the extension that initially parked the call, or to
+                                ;         an entirely different destination.
+                                ;
+                                ;         When the parked call times out, send it back to the dialplan.  The location
+                                ;         will be the 'parkedcallstimeout' context.  The extension will be built from
+                                ;         the saved channel name that parked the call.  For example, if a SIP peer named
+                                ;         '0004F2040001' parked this call, the extension will be 'SIP_0004F2040001'.
+                                ;         (Note that an underscore is used here because the '/' character has a special
+                                ;         meaning in extension names for CallerID matching.)  If this extension does not
+                                ;         exist, the call will be sent to the 's' extension, instead.  Finally, if the 's'
+                                ;         extension of 'parkedcallstimeout' does not exist, the call will fall back to the
+                                ;         's' extension of the 'default' context.
+                                ;
+                                ;         Additionally, in this example an extension of 'SIP_0004F2040001' will be
+                                ;         created in the 'park-dial' context.  This extension will be set up to do a
+                                ;         Dial() to 'SIP/0004F2040001'.
+                                ;
+                                ;         During the timeout procedure, the following variable is set
+                                ;         PARKINGSLOT - extension that the call was parked in prior to timing out
+
+;courtesytone = beep            ; Sound file to play to when someone picks up a parked call
+                                ; and also when the Touch Monitor is activated/deactivated.
+                                ; Default is no tone.
+;parkedplay = caller            ; Who to play courtesytone to when picking up a parked call.
+                                ; One of: parked, caller, both  (default is caller)
+                                ; Operates on all parking lots.
+;parkedcalltransfers = caller   ; Enables or disables DTMF based transfers when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
+;parkedcallreparking = caller   ; Enables or disables DTMF based parking when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
+;parkedcallhangup = caller      ; Enables or disables DTMF based hangups when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
+;parkedcallrecording = caller   ; Enables or disables DTMF based one-touch recording when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+                                ; Set per parking lot.
+;parkeddynamic = yes            ; Enables dynamically created parkinglots. (default is no)
+                                ; Operates on all parking lots.
+;adsipark = yes                 ; if you want ADSI parking announcements
+                                ; Operates on all parking lots.
+;findslot => next               ; Continue to the 'next' free parking space.
+                                ; Defaults to 'first' available
+                                ; Set per parking lot.
+;parkedmusicclass=default       ; This is the MOH class to use for the parked channel
+                                ; as long as the class is not set on the channel directly
+                                ; using Set(CHANNEL(musicclass)=whatever) in the dialplan
+                                ; Set per parking lot.
+
+;transferdigittimeout => 3      ; Number of seconds to wait between digits when transferring a call
+                                ; (default is 3 seconds)
+;xfersound = beep               ; to indicate an attended transfer is complete
+;xferfailsound = beeperr        ; to indicate a failed transfer
+;pickupexten = *8               ; Configure the pickup extension. (default is *8)
+;pickupsound = beep             ; to indicate a successful pickup (default: no sound)
+;pickupfailsound = beeperr      ; to indicate that the pickup failed (default: no sound)
+;featuredigittimeout = 1000     ; Max time (ms) between digits for
+                                ; feature activation  (default is 1000 ms)
+;atxfernoanswertimeout = 15     ; Timeout for answer on attended transfer default is 15 seconds.
+;atxferdropcall = no            ; If someone does an attended transfer, then hangs up before the transferred
+                                ; caller is connected, then by default, the system will try to call back the
+                                ; person that did the transfer.  If this is set to "yes", the callback will
+                                ; not be attempted and the transfer will just fail.
+                                ; For atxferdropcall=no to work properly, you also need to
+                                ; define ATXFER_NULL_TECH in main/features.c.  The reason the
+                                ; code is not enabled by default is spelled out in the comment
+                                ; block near the top of main/features.c describing ATXFER_NULL_TECH.
+;atxferloopdelay = 10           ; Number of seconds to sleep between retries (if atxferdropcall = no)
+;atxfercallbackretries = 2      ; Number of times to attempt to send the call back to the transferer.
+                                ; By default, this is 2.
+
+;
+;*** Define another parking lot
+;
+; You can set parkinglot with the CHANNEL dialplan function
+; or by setting 'parkinglot' directly in the channel configuration file.
+;
+; (Note: Leading '0's and any non-numerical characters on parkpos extensions
+;  will be ignored.  Parkext on the other hand can be any string.)
+;
+;[parkinglot_edvina]
+;context => edvinapark
+;parkext => 799
+;parkpos => 800-850
+;findslot => next
+
+; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
+; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
+; chan_local in combination with Answer to accomplish it.
+
+
+[featuremap]
+;blindxfer => #1                ; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
+;disconnect => *0               ; Disconnect  (default is *) -- Make sure to set the H and/or h option in the Dial() or Queue() app call!
+;automon => *1                  ; One Touch Record a.k.a. Touch Monitor -- Make sure to set the W and/or w option in the Dial() or Queue() app call!
+;atxfer => *2                   ; Attended transfer  -- Make sure to set the T and/or t option in the Dial() or Queue()  app call!
+;parkcall => #72                ; Park call (one step parking)  -- Make sure to set the K and/or k option in the Dial() app call!
+;automixmon => *3               ; One Touch Record a.k.a. Touch MixMonitor -- Make sure to set the X and/or x option in the Dial() or Queue() app call!
+
+[applicationmap]
+; Note that the DYNAMIC_FEATURES channel variable must be set to use the features
+; defined here.  The value of DYNAMIC_FEATURES should be the names of the features
+; to allow the channel to use separated by '#'.  For example:
+;
+;    Set(__DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
+;
+; (Note: The two leading underscores allow these feature settings to be set on
+;  on the outbound channels, as well.  Otherwise, only the original channel
+;  will have access to these features.)
+;
+; The syntax for declaring a dynamic feature is any of the following:
+;
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,<AppArguments>[,MOH_Class]]
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,"<AppArguments>"[,MOH_Class]]
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>([<AppArguments>])[,MOH_Class]
+
+;
+;  FeatureName   -> This is the name of the feature used when setting the
+;                   DYNAMIC_FEATURES variable to enable usage of this feature.
+;  DTMF_sequence -> This is the key sequence used to activate this feature.
+;  ActivateOn    -> This is the channel of the call that the application will be executed
+;                   on. Valid values are "self" and "peer". "self" means run the
+;                   application on the same channel that activated the feature. "peer"
+;                   means run the application on the opposite channel from the one that
+;                   has activated the feature.
+;  ActivatedBy   -> This is which channel is allowed to activate this feature. Valid
+;                   values are "caller", "callee", and "both". "both" is the default.
+;                   The "caller" is the channel that executed the Dial application, while
+;                   the "callee" is the channel called by the Dial application.
+;  Application   -> This is the application to execute.
+;  AppArguments  -> These are the arguments to be passed into the application.  If you need
+;                   commas in your arguments, you should use either the second or third
+;                   syntax, above.
+;  MOH_Class     -> This is the music on hold class to play while the idle
+;                   channel waits for the feature to complete. If left blank,
+;                   no music will be played.
+;
+
+;
+; IMPORTANT NOTE: The applicationmap is not intended to be used for all Asterisk
+;   applications. When applications are used in extensions.conf, they are executed
+;   by the PBX core. In this case, these applications are executed outside of the
+;   PBX core, so it does *not* make sense to use any application which has any
+;   concept of dialplan flow. Examples of this would be things like Macro, Goto,
+;   Background, WaitExten, and many more.
+;
+; Enabling these features means that the PBX needs to stay in the media flow and
+; media will not be re-directed if DTMF is sent in the media stream.
+;
+; Example Usage:
+;
+;testfeature => #9,peer,Playback,tt-monkeys  ;Allow both the caller and callee to play
+;                                            ;tt-monkeys to the opposite channel
+;
+; Set arbitrary channel variables, based upon CALLERID number (Note that the application
+; argument contains commas)
+;retrieveinfo => #8,peer,Set(ARRAY(CDR(mark),CDR(name))=${ODBC_FOO(${CALLERID(num)})})
+;
+;pauseMonitor   => #1,self/callee,Pausemonitor     ;Allow the callee to pause monitoring
+;                                                  ;on their channel
+;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
+;                                                  ;on their channel
+
+; Dynamic Feature Groups:
+;   Dynamic feature groups are groupings of features defined in [applicationmap]
+;   that can have their own custom key mappings.  To give a channel access to a dynamic
+;   feature group, add the group name to the value of the DYNAMIC_FEATURES variable.
+;
+; example:
+; [myGroupName]         ; defines the group named myGroupName
+; testfeature => #9     ; associates testfeature with the group and the keycode '#9'.
+; pauseMonitor =>       ; associates pauseMonitor with the group and uses the keycode specified
+;                       ; in the [applicationmap].

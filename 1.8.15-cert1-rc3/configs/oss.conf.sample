@@ -1,0 +1,153 @@
+;
+; Automatically generated from ../channels/chan_oss.c
+;
+
+[general]
+    ; General config options, with default values shown.
+    ; You should use one section per device, with [general] being used
+    ; for the first device and also as a template for other devices.
+    ;
+    ; All but 'debug' can go also in the device-specific sections.
+    ;
+    ; debug = 0x0		; misc debug flags, default is 0
+
+    ; Set the device to use for I/O
+    ; device = /dev/dsp
+
+    ; Optional mixer command to run upon startup (e.g. to set
+    ; volume levels, mutes, etc.
+    ; mixer =
+
+    ; Software mic volume booster (or attenuator), useful for sound
+    ; cards or microphones with poor sensitivity. The volume level
+    ; is in dB, ranging from -20.0 to +20.0
+    ; boost = n			; mic volume boost in dB
+
+    ; Set the callerid for outgoing calls
+    ; callerid = John Doe <555-1234>
+
+    ; autoanswer = no		; no autoanswer on call
+    ; autohangup = yes		; hangup when other party closes
+    ; extension = s		; default extension to call
+    ; context = default		; default context for outgoing calls
+    ; language = ""		; default language
+
+    ; If you set overridecontext to 'yes', then the whole dial string
+    ; will be interpreted as an extension, which is extremely useful
+    ; to dial SIP, IAX and other extensions which use the '@' character.
+    ; The default is 'no' just for backward compatibility, but the
+    ; suggestion is to change it.
+    ; overridecontext = no	; if 'no', the last @ will start the context
+				; if 'yes' the whole string is an extension.
+
+    ; low level device parameters in case you have problems with the
+    ; device driver on your operating system. You should not touch these
+    ; unless you know what you are doing.
+    ; queuesize = 10		; frames in device driver
+    ; frags = 8			; argument to SETFRAGMENT
+
+    ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+    ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
+                                  ; OSS channel. Defaults to "no". An enabled jitterbuffer will
+                                  ; be used only if the sending side can create and the receiving
+                                  ; side can not accept jitter. The OSS channel can't accept jitter,
+                                  ; thus an enabled jitterbuffer on the receive OSS side will always
+                                  ; be used if the sending side can create jitter.
+
+    ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+    ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                                  ; resynchronized. Useful to improve the quality of the voice, with
+                                  ; big jumps in/broken timestamps, usually sent from exotic devices
+                                  ; and programs. Defaults to 1000.
+
+    ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of an OSS
+                                  ; channel. Two implementations are currently available - "fixed"
+                                  ; (with size always equals to jbmax-size) and "adaptive" (with
+                                  ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+    ; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                                  ; The option represents the number of milliseconds by which the new
+                                  ; jitter buffer will pad its size. the default is 40, so without
+                                  ; modification, the new jitter buffer will set its size to the jitter
+                                  ; value plus 40 milliseconds. increasing this value may help if your
+                                  ; network normally has low jitter, but occasionally has spikes.
+
+    ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+    ;-----------------------------------------------------------------------------------
+
+; below is an entry for a second console channel
+; [card1]
+    ; device = /dev/dsp1	; alternate device
+
+; Below are the settings to support video. You can include them
+; in your general configuration as [general](+,video)
+; The parameters are all available through the CLI as "console name value"
+; Section names used here are only examples.
+
+[my_video](!)      ; you can just include in your config
+    videodevice = /dev/video0	; uses your V4L webcam as video source
+    videodevice = X11		; X11 grabber. Dragging on the local display moves the origin.
+    videocodec = h263		; also h261, h263p, h264, mpeg4, ...
+
+    ; video_size is the geometry used by the encoder.
+    ; Depending on the codec your choice is restricted.
+    video_size = 352x288	; the format WIDTHxHEIGHT is also ok
+    video_size = cif		; sqcif, qcif, cif, qvga, vga, ...
+
+    ; You can also set the geometry used for the camera, local display and remote display.
+    ; The local window is on the right, the remote window is on the left.
+    ; Right clicking with the mouse on a video window increases the size,
+    ; center-clicking reduces the size.
+    camera_size = cif
+    remote_size = cif
+    local_size = qcif
+
+    bitrate = 60000             ; rate told to ffmpeg.
+    fps = 5                     ; frames per second from the source.
+    ; qmin = 3                  ; quantizer value passed to the encoder.
+
+; The keypad is made of an image (in any format supported by SDL_image)
+; and some configuration entries indicating the location and function of buttons.
+; These entries can also be contained in the comment field of the image,
+; which is a lot more convenient to manage.
+; E.g. for jpeg you can write them with wrjpgcom (part of libjpeg).
+; The format to define keys is
+;	region = <event> <shape> x0 y0 x1 y1 h
+; where <event> is the event to be generated (a digit, pickup, hangup,...)
+; <shape> is the shape of the region (currently 'rect' and 'circle' are
+; supported, the latter is really an ellipse),  x0 y0 x1 y1 are the
+; coordinates of the base of the rectangle or main diameter of the ellipse,
+; (they can be rotated) while h is the height of the rectangle or the other
+; diameter of the ellipse.
+;
+[my_skin](!)
+    keypad = /tmp/keypad.jpg
+    region = 1 rect   19  18    67  18  28
+    region = 2 rect   84  18   133  18  28
+    region = 3 rect  152  18   201  18  28
+    region = 4 rect   19  60    67  60  28
+    region = 5 rect   84  60   133  60  28
+    region = 6 rect  152  60   201  60  28
+    region = 7 rect   19 103    67 103  28
+    region = 8 rect   84 103   133 103  28
+    region = 9 rect  152 103   201 103  28
+    region = * rect   19 146    67 146  28
+    region = 0 rect   84 146   133 146  28
+    region = # rect  152 146   201 146  28
+    region = pickup rect  229 15  267 15 40
+    region = hangup rect  230 66  270 64 40
+    region = mute circle  232 141 264 141 33
+    region = sendvideo circle  235 185 266 185 33
+    region = autoanswer rect 228 212 275 212 50
+
+; another skin with entries for the keypad and a small font
+; to write to the message boards in the skin.
+[skin2](!)
+    keypad = /tmp/kpad2.jpg
+    keypad_font = /tmp/font.png
+
+; to add video support, uncomment this and remember to install
+; the keypad and keypad_font files to the right place
+; [general](+,my_video,skin2)
+

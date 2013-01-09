@@ -1,0 +1,35 @@
+#
+# Configuration file for dbsep.cgi
+#
+# The purpose of this file is to provide realtime access to a database,
+# possibly through ODBC, without needing to load the ODBC drivers into
+# Asterisk, since there are several backend drivers which are rather
+# buggy.
+#
+# We accomplish this separation by using the res_config_curl realtime
+# driver to connect to a server running dbsep.cgi (or another, which
+# implements the same protocol).
+#
+# This file contains the information necessary to configure dbsep.cgi.
+#
+#
+# Once installed to a web server, you'll need to preload func_curl.so
+# and res_config_curl.so in modules.conf and configure extconfig.conf:
+#
+# voicemail => curl,http://server/path/to/dbsep.cgi/voicemail
+# sippeers => curl,http://server/path/to/dbsep.cgi/sippeers
+#
+
+# The Data Source Name, as specified by the Perl DBI module.
+# Typically, this will be along the lines of 'DBI:mysql:astdbname[:dbhostname]' or 'DBI:Pg:dbname=astdbname;hostname=dbhostname'
+dsn=somedsn
+
+# Connected database user
+dbuser=someuser
+
+# And its password
+dbpass=password
+
+# For most databases, this is fine.  Set to 'no' for Sybase or MS SQL Server.
+backslash_is_escape=yes
+

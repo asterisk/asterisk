@@ -1,0 +1,163 @@
+#! /bin/sh
+#
+# $Id$
+#
+
+# install_prereq: a script to install distribution-specific
+# prerequirements
+
+set -e
+
+usage() {
+  echo "$0: a script to install distribution-specific prerequirement"
+  echo 'Revision: $Id$'
+  echo ""
+  echo "Usage: $0:                    Shows this message."
+  echo "Usage: $0 test                Prints commands it is about to run."
+  echo "Usage: $0 install             Really install."
+  echo "Usage: $0 install-unpackaged  Really install unpackaged requirements."
+}
+
+# Basic build system:
+PACKAGES_DEBIAN="build-essential"
+# Asterisk: basic requirements:
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libncurses-dev libz-dev libssl-dev libxml2-dev libsqlite3-dev"
+# Asterisk: for addons:
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libmysqlclient15-dev libneon27-dev libgmime-dev libusb-dev liblua5.1-0-dev lua5.1"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libopenais-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev"
+PACKAGES_RH="automake gcc gcc-c++ ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
+PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel openais-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
+PACKAGES_RH="$PACKAGES_RH libsqlite3x-devel radiusclient-ng-devel portaudio-devel postgresql-devel libresample-devel neon-devel libical-devel"
+PACKAGES_RH="$PACKAGES_RH openldap-devel gmime22-devel sqlite2-devel mysql-devel bluez-libs-devel jack-audio-connection-kit-devel"
+
+PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack"
+
+KVERS=`uname -r`
+
+case "$1" in
+test)    testcmd=echo ;;
+install) testcmd='' ;;
+install-unpackaged) unpackaged="yes" ;;
+'') usage; exit 0 ;;
+*) usage; exit 1 ;;
+esac
+
+in_test_mode() {
+  test "$testcmd" != ''
+}
+
+check_installed_debs() {
+	aptitude -F '%c %p' search "$@" 2>/dev/null \
+	| awk '/^p/{print $2}'
+}
+
+# parsing the output of yum is close to impossible.
+# We'll use rpm and hope for the best:
+check_installed_rpms() {
+	for pack in "$@"
+	do
+		if ! rpm -q $pack >/dev/null 2>/dev/null
+		then echo $pack
+		fi
+	done
+}
+
+check_installed_pkgs() {
+	for pack in "$@"
+	do
+		if [ `pkg_info -a | grep $pack | wc -l` = 0 ]; then
+		echo $pack
+		fi
+	done
+}
+
+handle_debian() {
+	# echo "# Distribution is Debian or compatible"
+	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
+	$testcmd aptitude install -y $extra_packs
+}
+
+handle_rh() {
+	# echo "# Distribution is RedHat-based or compatible"
+	extra_packs=`check_installed_rpms $PACKAGES_RH`
+        # FIXME: is there yum with RHEL 4?
+	$testcmd yum install -y $extra_packs
+}
+
+handle_obsd() {
+	# echo "# Distribution is OpenBSD or compatible"
+	extra_packs=`check_installed_pkgs $PACKAGES_OBSD`
+	$testcmd pkg_add $extra_packs
+}
+
+install_unpackaged() {
+	echo "*** Installing NBS (Network Broadcast Sound) ***"
+	svn co http://svn.digium.com/svn/nbs/trunk nbs-trunk
+	cd nbs-trunk
+	make && make install
+	cd ..
+
+	echo "*** Installing libresample ***"
+	svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
+	cd libresample-trunk
+	./configure && make && make install
+	cd ..
+}
+
+if in_test_mode; then
+	echo "#############################################"
+	echo "## $1: test mode."
+	echo "## Use the commands here to install your system."
+	echo "#############################################"
+elif test "${unpackaged}" = "yes" ; then
+	install_unpackaged
+	exit 0
+fi
+
+OS=`uname -s`
+unsupported_distro=''
+
+# A number of distributions we don't (yet?) support.
+if [ "$OS" != 'Linux' -a "$OS" != 'OpenBSD' ]; then
+  echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
+  exit 1
+fi
+
+if [ -f /etc/gentoo-release ]; then
+  unsupported_distro='Gentoo'
+fi
+
+if [ -f /etc/mandrake-release ]; then
+  unsupported_distro='Mandriva'
+fi
+
+if [ -f /etc/SuSE-release ]; then
+  unsupported_distro='SUSE'
+fi
+
+if [ -f /etc/slackware-version ]; then
+  unsupported_distro='Slackware'
+fi
+
+if [ "$unsupported_distro" != '' ]; then
+  echo >&2 "$0: Your distribution ($unsupported_distro) is currently not supported. Aborting."
+  exit 1
+fi
+
+# The distributions we do support:
+if [ -r /etc/debian_version ]; then
+  handle_debian
+elif [ -r /etc/redhat-release ]; then
+  handle_rh
+elif [ "$OS" = 'OpenBSD' ]; then
+  handle_obsd
+fi
+
+if ! in_test_mode; then
+  echo "#############################################"
+  echo "## $1 completed successfully"
+  echo "#############################################"
+fi

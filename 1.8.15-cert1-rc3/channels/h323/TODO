@@ -1,0 +1,9 @@
+The NuFone Network's Open H.323 Channel Driver for Asterisk 
+	     
+	TODO:
+
+		- H.323 Native Bridging
+
+		- Gatekeeping support (started)
+	
+		- Acutally implement the options for broken H.323 stacks

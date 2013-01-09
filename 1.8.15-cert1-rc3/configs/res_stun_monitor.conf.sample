@@ -1,0 +1,27 @@
+;
+; Configuration file for the res_stun_monitor module
+;
+; The res_stun_monitor module sends STUN requests to a configured STUN server
+; periodically.  If the monitor detects a change in the external IP address or port
+; provided by the STUN server an event is sent out internally within Asterisk
+; to alert all listeners to that event of the change.
+
+; The current default listeners for the network change event include chan_sip
+; and chan_iax.  Both of these channel drivers by default react to this event
+; by renewing all outbound registrations.  This allows the endpoints Asterisk
+; is registering with to become aware of the address change and know the new
+; location.
+;
+[general]
+;
+; ---- STUN Server configuration ---
+;  Setting the 'stunaddr' option to a valid address enables the STUN monitor.
+;
+;stunaddr = mystunserver.com    ; Address of the STUN server to query.
+                                ; Valid form:
+                                ;   [(hostname | IP-address) [':' port]]
+                                ; The port defaults to the standard STUN port (3478).
+                                ; Set to an empty value to disable STUN monitoring.
+                                ;   Default is disabled.
+;stunrefresh = 30               ; Number of seconds between STUN refreshes.
+                                ;   Default is 30.

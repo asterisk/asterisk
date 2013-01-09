@@ -1,0 +1,78 @@
+;
+; Open Sound System Console Driver Configuration File
+;
+[general]
+;
+; Automatically answer incoming calls on the console?  Choose yes if
+; for example you want to use this as an intercom.
+;
+autoanswer=yes
+;
+; Default context (is overridden with @context syntax)
+;
+context=local
+;
+; Default extension to call
+;
+extension=s
+;
+; Default language
+;
+;language=en
+;
+; Default Music on Hold class to use when this channel is placed on hold in
+; the case that the music class is not set on the channel with
+; Set(CHANNEL(musicclass)=whatever) in the dialplan and the peer channel
+; putting this one on hold did not suggest a class to use.
+;
+;mohinterpret=default
+;
+; Silence suppression can be enabled when sound is over a certain threshold.
+; The value for the threshold should probably be between 500 and 2000 or so,
+; but your mileage may vary.  Use the echo test to evaluate the best setting.
+;silencesuppression = yes
+;silencethreshold = 1000
+;
+; To set which ALSA device to use, change this parameter
+;input_device=hw:0,0
+;output_device=hw:0,0
+
+;
+; Default mute state (can also be toggled via CLI)
+;mute=true
+
+;
+; If enabled, no audio capture device will be opened.  This is useful on
+; systems where there will be no return audio path, such as overhead pagers.
+;noaudiocapture=true
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
+                              ; ALSA channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The ALSA channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive ALSA side will always
+                              ; be used if the sending side can create jitter.
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+

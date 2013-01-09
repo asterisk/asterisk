@@ -1,0 +1,12 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_fax_tech_register;
+		LINKER_SYMBOL_PREFIXast_fax_tech_unregister;
+		LINKER_SYMBOL_PREFIXast_fax_session_unreference;
+		LINKER_SYMBOL_PREFIXast_fax_minrate;
+		LINKER_SYMBOL_PREFIXast_fax_maxrate;
+		LINKER_SYMBOL_PREFIXast_fax_state_to_str;
+		LINKER_SYMBOL_PREFIXast_fax_log;
+	local:
+		*;
+};

@@ -1,0 +1,8 @@
+context test11 {
+        841 => {
+                &test234("testing", ${CUT(EXTEN,,3)});
+                jump ${DB(uri/${uri_string})};
+                Set(line=${DB(uri/${uri_string})});
+                jump ${line};
+        }
+}
