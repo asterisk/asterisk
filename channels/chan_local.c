@@ -1266,6 +1266,9 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 	ast_channel_tech_pvt_set(tmp, p);
 	ast_channel_tech_pvt_set(tmp2, p);
 
+	ast_set_flag(ast_channel_flags(tmp), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+	ast_set_flag(ast_channel_flags(tmp2), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+
 	p->owner = tmp;
 	p->chan = tmp2;
 	p->u_owner = ast_module_user_add(p->owner);

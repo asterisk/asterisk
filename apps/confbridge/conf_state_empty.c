@@ -81,6 +81,6 @@ static void join_marked(struct conference_bridge_user *cbu)
 static void transition_to_empty(struct conference_bridge_user *cbu)
 {
 	/* Set device state to "not in use" */
-	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "confbridge:%s", cbu->conference_bridge->name);
+	ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", cbu->conference_bridge->name);
 	conf_ended(cbu->conference_bridge);
 }

@@ -71,13 +71,6 @@ monitor-type = MixMonitor
 ;
 ;log_membername_as_agent = no
 ;
-; app_queue allows calls to members in a "Unknown" state to be treated as available
-; setting check_state_unknown = yes will cause app_queue to query the channel driver
-; to better determine the state this only applies to queues with ringinuse set
-; appropriately.
-;
-;check_state_unknown = no
-;
 ;[markq]
 ;
 ; A sample call queue

@@ -1,3 +1,78 @@
+2013-01-09  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.2.0-rc2 Released.
+
+	* Fix pjproject compilation in certain circumstances.
+
+	  On a fresh checkout of Asterisk 11, running make before ./configure
+	  could cause the pjproject subdirectory to get in an odd state that
+	  would prevent compilation. This patch by Tilghman prevents that from
+	  occurring.
+
+	  (closes issue ASTERISK-20681)
+	  Patch-by: Tilghman Lesher
+
+	* AST-2012-014: Resolve crashes due to large stack allocations when
+	  using TCP
+
+	  Asterisk had several places where messages received over various
+	  network transports may be copied in a single stack allocation. In
+	  the case of TCP, since multiple packets in a stream may be
+	  concatenated together, this can lead to large allocations that
+	  overflow the stack.
+
+	  This patch modifies those portions of Asterisk using TCP to either
+	  favor heap allocations or use an upper bound to ensure that the
+	  stack will not overflow:
+	  * For SIP, the allocation now has an upper limit
+	  * For HTTP, the allocation is now a heap allocation instead of a
+	    stack allocation
+	  * For XMPP, the allocation has been eliminated since it was
+	    unnecessary.
+
+	  This patch contains the fix for both res_jabber and res_xmpp.
+
+	* AST-2012-015: Prevent exhaustion of system resources through
+	  exploitation of event cache 
+
+	  Asterisk maintains an internal cache for devices in the event
+	  subsystem. The device state cache holds the state of each device
+	  known to Asterisk, such that consumers of device state information
+	  can query for the last known state for a particular device, even if
+	  it is not part of an active call. The concept of a device in
+	  Asterisk can include entities that do not have a physical
+	  representation. One way that this occurred was when anonymous calls
+	  are allowed in Asterisk. A device was automatically created and
+	  stored in the cache for each anonymous call that occurred; this was
+	  possible in the SIP and IAX2 channel drivers and through channel
+	  drivers that utilized the res_jabber/res_xmpp resource modules (Gtalk,
+	  Jingle, and Motif). These devices are never removed from the system,
+	  allowing anonymous call to potentially exhaust a system's resources.
+
+	  This patch changes the event cache subsystem and device state
+	  management to no longer cache devices that are not associated with a
+	  physical entity.
+
+	* Revert bad ringinuse=no patch.
+
+	  With the option ringinuse=no set, the patch committed previous for
+	  ASTERISK-16115 causes non-SIP queue members to never be called
+	  because the device state is checked after a channel is created to
+	  determine if the member is busy. These queue members always get the
+	  "Member %s is busy, cannot dial" message.
+
+	  Most channel drivers other than chan_sip use the default device
+	  state handling. The default device state is considered in use or
+	  unknown if the channel exists or not, respectively.
+
+	* Fix multiple calls to a queue member that is only in queue.
+
+	  When ringinuse=no queue members can receive more than one call if
+	  these calls happen at nearly the same time. This patch fixes it so a
+	  queu member does not receive more than one call from a queue. note
+	  that this fix does not prevent multiple calls to a member if hte
+	  member is in more than one queue (see ASTERISK-16115).
+
 2012-12-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.2.0-rc1 Released.

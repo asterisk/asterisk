@@ -888,6 +888,12 @@ enum {
 	 *  some non-traditional dialplans (like AGI) to continue to function.
 	 */
 	AST_FLAG_DISABLE_WORKAROUNDS = (1 << 20),
+	/*! Disable device state event caching.  This allows allows channel
+	 * drivers to selectively prevent device state events from being cached
+	 * by certain channels such as anonymous calls which have no persistent
+	 * represenatation that can be tracked.
+	 */
+	AST_FLAG_DISABLE_DEVSTATE_CACHE = (1 << 21),
 };
 
 /*! \brief ast_bridge_config flags */

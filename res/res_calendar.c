@@ -611,9 +611,9 @@ static struct ast_calendar_event *destroy_event(struct ast_calendar_event *event
 	 * but haven't hit the end event yet, go ahead and set the devicestate to the current busy status */
 	if (event->bs_start_sched < 0 && event->bs_end_sched >= 0) {
 		if (!calendar_is_busy(event->owner)) {
-			ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Calendar:%s", event->owner->name);
+			ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Calendar:%s", event->owner->name);
 		} else {
-			ast_devstate_changed(AST_DEVICE_BUSY, "Calendar:%s", event->owner->name);
+			ast_devstate_changed(AST_DEVICE_BUSY, AST_DEVSTATE_CACHABLE, "Calendar:%s", event->owner->name);
 		}
 	}
 
@@ -871,9 +871,9 @@ static int calendar_devstate_change(const void *data)
 	/* We can have overlapping events, so ignore the event->busy_state and check busy state
 	 * based on all events in the calendar */
 	if (!calendar_is_busy(event->owner)) {
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Calendar:%s", event->owner->name);
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Calendar:%s", event->owner->name);
 	} else {
-		ast_devstate_changed(AST_DEVICE_BUSY, "Calendar:%s", event->owner->name);
+		ast_devstate_changed(AST_DEVICE_BUSY, AST_DEVSTATE_CACHABLE, "Calendar:%s", event->owner->name);
 	}
 
 	event = ast_calendar_unref_event(event);

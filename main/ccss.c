@@ -638,7 +638,7 @@ static void ccss_notify_device_state_change(const char *device, enum cc_state st
 		"Notification of CCSS state change to '%s', device state '%s' for device '%s'\n",
 		cc_state_to_string(state), ast_devstate2str(devstate), device);
 
-	ast_devstate_changed(devstate, "ccss:%s", device);
+	ast_devstate_changed(devstate, AST_DEVSTATE_CACHABLE, "ccss:%s", device);
 }
 
 #define CC_OFFER_TIMER_DEFAULT			20		/* Seconds */

@@ -2401,7 +2401,7 @@ test -n "$target_alias" &&
   program_prefix=${target_alias}-
 ac_config_headers="$ac_config_headers pjlib/include/pj/compat/os_auto.h pjlib/include/pj/compat/m_auto.h pjmedia/include/pjmedia/config_auto.h pjmedia/include/pjmedia-codec/config_auto.h pjsip/include/pjsip/sip_autoconf.h"
 
-ac_config_files="$ac_config_files build.mak build/os-auto.mak build/cc-auto.mak pjlib/build/os-auto.mak pjlib-util/build/os-auto.mak pjmedia/build/os-auto.mak pjsip/build/os-auto.mak third_party/build/os-auto.mak third_party/build/portaudio/os-auto.mak"
+ac_config_files="$ac_config_files build.mak build/os-auto.mak pjlib/build/os-auto.mak pjlib-util/build/os-auto.mak pjmedia/build/os-auto.mak pjsip/build/os-auto.mak third_party/build/os-auto.mak third_party/build/portaudio/os-auto.mak"
 
 
 
@@ -7799,7 +7799,6 @@ do
     "pjsip/include/pjsip/sip_autoconf.h") CONFIG_HEADERS="$CONFIG_HEADERS pjsip/include/pjsip/sip_autoconf.h" ;;
     "build.mak") CONFIG_FILES="$CONFIG_FILES build.mak" ;;
     "build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES build/os-auto.mak" ;;
-    "build/cc-auto.mak") CONFIG_FILES="$CONFIG_FILES build/cc-auto.mak" ;;
     "pjlib/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES pjlib/build/os-auto.mak" ;;
     "pjlib-util/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES pjlib-util/build/os-auto.mak" ;;
     "pjmedia/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES pjmedia/build/os-auto.mak" ;;

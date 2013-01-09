@@ -618,7 +618,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		if (p->chan) {
 			ast_channel_internal_bridged_channel_set(p->chan, NULL);
 			p->chan = NULL;
-			ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
+			ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 			p->acknowledged = 0;
 		}
 	} else {
@@ -875,7 +875,7 @@ static int agent_call(struct ast_channel *ast, const char *dest, int timeout)
 	} else {
 		/* Agent hung-up */
 		p->chan = NULL;
-		ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
+		ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 	}
 
 	if (!res) {
@@ -995,7 +995,7 @@ static int agent_hangup(struct ast_channel *ast)
 	if (!p->loginstart) {
 		p->logincallerid[0] = '\0';
 	} else {
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Agent/%s", p->agent);
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 	}
 
 	if (p->abouttograb) {
@@ -2166,7 +2166,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 						}
 						ast_mutex_unlock(&p->lock);
 						AST_LIST_UNLOCK(&agents);
-						ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Agent/%s", p->agent);
+						ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 						while (res >= 0) {
 							ast_mutex_lock(&p->lock);
 							if (p->deferlogoff && p->chan) {
@@ -2187,7 +2187,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 								if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) {
 									ast_debug(1, "Wrapup time for %s expired!\n", p->agent);
 									p->lastdisc = ast_tv(0, 0);
-									ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Agent/%s", p->agent);
+									ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 									if (p->ackcall) {
 										check_beep(p, 0);
 									} else {
@@ -2258,7 +2258,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 						ast_queue_log("NONE", ast_channel_uniqueid(chan), agent, "AGENTLOGOFF", "%s|%ld", ast_channel_name(chan), logintime);
 						ast_verb(2, "Agent '%s' logged out\n", p->agent);
 						/* If there is no owner, go ahead and kill it now */
-						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
+						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Agent/%s", p->agent);
 						if (p->dead && !p->owner) {
 							ast_mutex_destroy(&p->lock);
 							ast_cond_destroy(&p->app_complete_cond);

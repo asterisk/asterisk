@@ -174,6 +174,7 @@ static AST_RWLIST_HEAD_STATIC(devstate_provs, devstate_prov);
 
 struct state_change {
 	AST_LIST_ENTRY(state_change) list;
+	enum ast_devstate_cache cachable;
 	char device[1];
 };
 
@@ -191,6 +192,7 @@ struct devstate_change {
 	AST_LIST_ENTRY(devstate_change) entry;
 	uint32_t state;
 	struct ast_eid eid;
+	enum ast_devstate_cache cachable;
 	char device[1];
 };
 
@@ -424,7 +426,7 @@ static int getproviderstate(const char *provider, const char *address)
 	return res;
 }
 
-static void devstate_event(const char *device, enum ast_device_state state)
+static void devstate_event(const char *device, enum ast_device_state state, int cachable)
 {
 	struct ast_event *event;
 	enum ast_event_type event_type;
@@ -440,18 +442,23 @@ static void devstate_event(const char *device, enum ast_device_state state)
 	ast_debug(3, "device '%s' state '%d'\n", device, state);
 
 	if (!(event = ast_event_new(event_type,
-			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
-			AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, state,
-			AST_EVENT_IE_END))) {
+				    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
+				    AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, state,
+				    AST_EVENT_IE_CACHABLE, AST_EVENT_IE_PLTYPE_UINT, cachable,
+				    AST_EVENT_IE_END))) {
 		return;
 	}
 
-	ast_event_queue_and_cache(event);
+	if (cachable) {
+		ast_event_queue_and_cache(event);
+	} else {
+		ast_event_queue(event);
+	}
 }
 
 /*! Called by the state change thread to find out what the state is, and then
  *  to queue up the state change event */
-static void do_state_change(const char *device)
+static void do_state_change(const char *device, int cachable)
 {
 	enum ast_device_state state;
 
@@ -459,10 +466,10 @@ static void do_state_change(const char *device)
 
 	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, ast_devstate2str(state));
 
-	devstate_event(device, state);
+	devstate_event(device, state, cachable);
 }
 
-int ast_devstate_changed_literal(enum ast_device_state state, const char *device)
+int ast_devstate_changed_literal(enum ast_device_state state, enum ast_devstate_cache cachable, const char *device)
 {
 	struct state_change *change;
 
@@ -483,14 +490,15 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
 	 */
 
 	if (state != AST_DEVICE_UNKNOWN) {
-		devstate_event(device, state);
+		devstate_event(device, state, cachable);
 	} else if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
 		/* there is no background thread, so process the change now */
-		do_state_change(device);
+		do_state_change(device, cachable);
 	} else {
 		/* queue the change */
 		strcpy(change->device, device);
+		change->cachable = cachable;
 		AST_LIST_LOCK(&state_changes);
 		AST_LIST_INSERT_TAIL(&state_changes, change, list);
 		ast_cond_signal(&change_pending);
@@ -502,10 +510,10 @@ int ast_devstate_changed_literal(enum ast_device_state state, const char *device
 
 int ast_device_state_changed_literal(const char *dev)
 {
-	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, dev);
+	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, dev);
 }
 
-int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
+int ast_devstate_changed(enum ast_device_state state, enum ast_devstate_cache cachable, const char *fmt, ...)
 {
 	char buf[AST_MAX_EXTENSION];
 	va_list ap;
@@ -514,7 +522,7 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return ast_devstate_changed_literal(state, buf);
+	return ast_devstate_changed_literal(state, cachable, buf);
 }
 
 int ast_device_state_changed(const char *fmt, ...)
@@ -526,7 +534,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf);
+	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, buf);
 }
 
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */
@@ -546,7 +554,7 @@ static void *do_devstate_changes(void *data)
 		/* Process each state change */
 		while ((current = next)) {
 			next = AST_LIST_NEXT(current, list);
-			do_state_change(current->device);
+			do_state_change(current->device, current->cachable);
 			ast_free(current);
 		}
 	}
@@ -590,7 +598,7 @@ static void devstate_cache_cb(const struct ast_event *event, void *data)
 	collection->num_states++;
 }
 
-static void process_collection(const char *device, struct change_collection *collection)
+static void process_collection(const char *device, enum ast_devstate_cache cachable, struct change_collection *collection)
 {
 	int i;
 	struct ast_devstate_aggregate agg;
@@ -641,7 +649,11 @@ static void process_collection(const char *device, struct change_collection *col
 		return;
 	}
 
-	ast_event_queue_and_cache(event);
+	if (cachable) {
+		ast_event_queue_and_cache(event);
+	} else {
+		ast_event_queue(event);
+	}
 }
 
 static void handle_devstate_change(struct devstate_change *sc)
@@ -667,7 +679,7 @@ static void handle_devstate_change(struct devstate_change *sc)
 	/* Populate the collection of device states from the cache */
 	ast_event_dump_cache(tmp_sub);
 
-	process_collection(sc->device, &collection);
+	process_collection(sc->device, sc->cachable, &collection);
 
 	ast_event_sub_destroy(tmp_sub);
 }
@@ -696,10 +708,12 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 	const char *device;
 	const struct ast_eid *eid;
 	uint32_t state;
+	enum ast_devstate_cache cachable = AST_DEVSTATE_CACHABLE;
 
 	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
 	eid = ast_event_get_ie_raw(event, AST_EVENT_IE_EID);
 	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
+	cachable = ast_event_get_ie_uint(event, AST_EVENT_IE_CACHABLE);
 
 	if (ast_strlen_zero(device) || !eid) {
 		ast_log(LOG_ERROR, "Invalid device state change event received\n");
@@ -712,6 +726,7 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 	strcpy(sc->device, device);
 	sc->eid = *eid;
 	sc->state = state;
+	sc->cachable = cachable;
 
 	ast_mutex_lock(&devstate_collector.lock);
 	AST_LIST_INSERT_TAIL(&devstate_collector.devstate_change_q, sc, entry);

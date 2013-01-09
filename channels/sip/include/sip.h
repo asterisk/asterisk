@@ -101,6 +101,7 @@
 
 #define SIP_MAX_HEADERS           64     /*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES             256    /*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_PACKET_SIZE       20480  /*!< Max SIP packet size */
 #define SIP_MIN_PACKET            4096   /*!< Initialize size of memory to allocate for packets */
 #define MAX_HISTORY_ENTRIES		  50	 /*!< Max entires in the history list for a sip_pvt */
 
