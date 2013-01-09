@@ -6502,7 +6502,11 @@ static void __ast_change_name_nolink(struct ast_channel *chan, const char *newna
 			<synopsis>Raised when the name of a channel is changed.</synopsis>
 		</managerEventInstance>
 	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", ast_channel_name(chan), newname, ast_channel_uniqueid(chan));
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename",
+		"Channel: %s\r\n"
+		"Newname: %s\r\n"
+		"Uniqueid: %s\r\n",
+		ast_channel_name(chan), newname, ast_channel_uniqueid(chan));
 	ast_channel_name_set(chan, newname);
 }
 
@@ -7461,22 +7465,26 @@ struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 
 static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, const char *sound, int remain)
 {
-	int min = 0, sec = 0, check;
+	int check;
 
 	check = ast_autoservice_start(peer);
-	if (check)
+	if (check) {
 		return;
-
-	if (remain > 0) {
-		if (remain / 60 > 1) {
-			min = remain / 60;
-			sec = remain % 60;
-		} else {
-			sec = remain;
-		}
 	}
 
-	if (!strcmp(sound,"timeleft")) {	/* Queue support */
+	if (!strcmp(sound, "timeleft")) {	/* Queue support */
+		int min = 0;
+		int sec = 0;
+
+		if (remain > 0) {
+			if (remain / 60 > 1) {
+				min = remain / 60;
+				sec = remain % 60;
+			} else {
+				sec = remain;
+			}
+		}
+
 		ast_stream_and_wait(chan, "vm-youhave", "");
 		if (min) {
 			ast_say_number(chan, min, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
@@ -7761,40 +7769,41 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 		S_COR(ast_channel_caller(c1)->id.number.valid, ast_channel_caller(c1)->id.number.str, ""));
 }
 
+static void update_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid)
+{
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "BRIDGEPEER"))) {
+		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", name);
+	}
+	if (pvtid) {
+		pbx_builtin_setvar_helper(chan, "BRIDGEPVTCALLID", pvtid);
+	}
+}
+
 static void update_bridge_vars(struct ast_channel *c0, struct ast_channel *c1)
 {
 	const char *c0_name;
 	const char *c1_name;
 	const char *c0_pvtid = NULL;
 	const char *c1_pvtid = NULL;
+#define UPDATE_BRIDGE_VARS_GET(chan, name, pvtid)									\
+	do {																			\
+		name = ast_strdupa(ast_channel_name(chan));									\
+		if (ast_channel_tech(chan)->get_pvt_uniqueid) {								\
+			pvtid = ast_strdupa(ast_channel_tech(chan)->get_pvt_uniqueid(chan));	\
+		}																			\
+	} while (0)
 
 	ast_channel_lock(c1);
-	c1_name = ast_strdupa(ast_channel_name(c1));
-	if (ast_channel_tech(c1)->get_pvt_uniqueid) {
-		c1_pvtid = ast_strdupa(ast_channel_tech(c1)->get_pvt_uniqueid(c1));
-	}
+	UPDATE_BRIDGE_VARS_GET(c1, c1_name, c1_pvtid);
 	ast_channel_unlock(c1);
 
 	ast_channel_lock(c0);
-	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER"))) {
-		pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1_name);
-	}
-	if (c1_pvtid) {
-		pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1_pvtid);
-	}
-	c0_name = ast_strdupa(ast_channel_name(c0));
-	if (ast_channel_tech(c0)->get_pvt_uniqueid) {
-		c0_pvtid = ast_strdupa(ast_channel_tech(c0)->get_pvt_uniqueid(c0));
-	}
+	update_bridge_vars_set(c0, c1_name, c1_pvtid);
+	UPDATE_BRIDGE_VARS_GET(c0, c0_name, c0_pvtid);
 	ast_channel_unlock(c0);
 
 	ast_channel_lock(c1);
-	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER"))) {
-		pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0_name);
-	}
-	if (c0_pvtid) {
-		pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0_pvtid);
-	}
+	update_bridge_vars_set(c1, c0_name, c0_pvtid);
 	ast_channel_unlock(c1);
 }
 
