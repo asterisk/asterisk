@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-10.12.0-digiumphones-rc2</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-10.12.0-digiumphones-rc2</h3>
+<h3 align="center">Date: 2013-01-09</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-10.12.0-digiumphones-rc1.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+9 Corey Farrell<br/>
+7 Andre Luis<br/>
+3 mmichelson<br/>
+3 qwell<br/>
+2 jcolp<br/>
+2 rmudgett<br/>
+2 root<br/>
+2 wdoekes<br/>
+</td>
+<td>
+2 kmoore<br/>
+2 mmichelson<br/>
+2 rmudgett<br/>
+2 wdoekes<br/>
+</td>
+<td>
+1 andrel<br/>
+1 deti<br/>
+1 eleo<br/>
+1 kmoore<br/>
+1 rmudgett<br/>
+1 rudolfasd<br/>
+1 sruffell<br/>
+1 tootai<br/>
+1 wimpy<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_confbridge</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20606">ASTERISK-20606</a>: Wrong confbridge behavior when participants enter simultaneously<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378661">378661</a><br/>
+Reporter: eleo<br/>
+Testers: rmudgett, mmichelson, wdoekes, kmoore<br/>
+Coders: Corey Farrell, rmudgett, mmichelson, wdoekes, jcolp<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20655">ASTERISK-20655</a>: Cannot reset pin with CONFBRIDGE(user,pin)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: wimpy<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20801">ASTERISK-20801</a>: Non-SIP queue members get no calls when ringinuse=no.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378661">378661</a><br/>
+Reporter: rmudgett<br/>
+Testers: rmudgett, mmichelson, wdoekes, kmoore<br/>
+Coders: Corey Farrell, rmudgett, mmichelson, wdoekes, jcolp<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20653">ASTERISK-20653</a>: Asterisk allows Session-Expires below 90 in a 200 OK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: kmoore<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Channels/chan_sip/SRTP</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20499">ASTERISK-20499</a>: Crash in libsrtp srtp_unprotect_rtcp when SIP channel is bridged with non-optimizing Local channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: tootai<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Channels/chan_sip/TCP-TLS</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20763">ASTERISK-20763</a>: Memory Leak in chan_sip with TLS enabled clients<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: deti<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Channels/chan_unistim</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20417">ASTERISK-20417</a>: Nortel transfer problem<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: rudolfasd<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Codecs/codec_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19921">ASTERISK-19921</a>: codec_dahdi: Wrong number of encoder/decoder channels.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: sruffell<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<h3>Category: Contrib/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20756">ASTERISK-20756</a>: Asterisk sippeers.sql columns place error cause peer to be without codecs when setting disallow=all under MySQL<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378659">378659</a><br/>
+Reporter: andrel<br/>
+Coders: Corey Farrell, Andre Luis<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378655">378655</a></td><td>mmichelson</td><td>Fix incorrect pointer manipulation that caused mixmonitor recording to fail.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378658">378658</a></td><td>qwell</td><td>Cleanup config cache on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378660">378660</a></td><td>qwell</td><td>Cleanup pbx on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378662">378662</a></td><td>qwell</td><td>Re-enable automerge.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378686">378686</a></td><td>root</td><td>app_queue: Fix multiple calls to a queue member that is in only one queue.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16115">ASTERISK-16115</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10-digiumphones?view=revision&revision=378705">378705</a></td><td>root</td><td>app_queue: Fix incorrect assertion.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16115">ASTERISK-16115</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+CHANGES                                   |    2
+UPGRADE.txt                               |    3
+addons/cdr_mysql.c                        |   11 -
+apps/app_confbridge.c                     |  293 +++++++++++++++++++-----------
+apps/app_meetme.c                         |   16 -
+apps/app_mixmonitor.c                     |    3
+apps/app_queue.c                          |  204 +++++++++++++-------
+apps/confbridge/conf_config_parser.c      |  133 ++++++++-----
+apps/confbridge/conf_state.c              |   19 +
+apps/confbridge/conf_state_empty.c        |    2
+apps/confbridge/conf_state_multi_marked.c |   14 -
+apps/confbridge/include/confbridge.h      |   19 +
+channels/chan_agent.c                     |   12 -
+channels/chan_dahdi.c                     |    7
+channels/chan_iax2.c                      |   31 +--
+channels/chan_local.c                     |   47 ++--
+channels/chan_sip.c                       |  125 ++++++++----
+channels/chan_skinny.c                    |   16 -
+channels/chan_unistim.c                   |   22 --
+channels/sip/include/sip.h                |    1
+codecs/codec_dahdi.c                      |    2
+configs/queues.conf.sample                |    7
+contrib/realtime/mysql/sippeers.sql       |    2
+funcs/func_devstate.c                     |    6
+include/asterisk/_private.h               |    1
+include/asterisk/bridging.h               |   26 ++
+include/asterisk/channel.h                |    6
+include/asterisk/devicestate.h            |   16 +
+include/asterisk/event_defs.h             |    8
+main/aoc.c                                |    5
+main/asterisk.c                           |  111 +++++++----
+main/astmm.c                              |    7
+main/ccss.c                               |    2
+main/cel.c                                |    1
+main/channel.c                            |   10 -
+main/config.c                             |   14 +
+main/data.c                               |    2
+main/devicestate.c                        |   51 +++--
+main/dnsmgr.c                             |   23 ++
+main/event.c                              |   46 ++++
+main/features.c                           |    2
+main/file.c                               |    6
+main/format.c                             |   19 -
+main/http.c                               |   26 ++
+main/image.c                              |    6
+main/indications.c                        |   15 +
+main/loader.c                             |   28 ++
+main/logger.c                             |   12 +
+main/pbx.c                                |   17 +
+main/stdtime/localtime.c                  |   14 +
+main/stun.c                               |    6
+main/taskprocessor.c                      |   14 +
+main/timing.c                             |   10 +
+main/udptl.c                              |   14 +
+main/xmldoc.c                             |    8
+res/res_calendar.c                        |    8
+res/res_clialiases.c                      |    5
+res/res_fax.c                             |    3
+res/res_jabber.c                          |   66 ++++--
+res/res_srtp.c                            |    4
+sounds/Makefile                           |    2
+61 files changed, 1111 insertions(+), 500 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

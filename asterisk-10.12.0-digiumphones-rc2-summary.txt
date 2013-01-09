@@ -1,0 +1,243 @@
+                                Release Summary
+
+                       asterisk-10.12.0-digiumphones-rc2
+
+                                Date: 2013-01-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.12.0-digiumphones-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   9 Corey Farrell          2 kmoore                 1 andrel                 
+   7 Andre Luis             2 mmichelson             1 deti                   
+   3 mmichelson             2 rmudgett               1 eleo                   
+   3 qwell                  2 wdoekes                1 kmoore                 
+   2 jcolp                                           1 rmudgett               
+   2 rmudgett                                        1 rudolfasd              
+   2 root                                            1 sruffell               
+   2 wdoekes                                         1 tootai                 
+                                                     1 wimpy                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-20606: Wrong confbridge behavior when participants enter
+   simultaneously
+   Revision: 378661
+   Reporter: eleo
+   Testers: rmudgett, mmichelson, wdoekes, kmoore
+   Coders: Corey Farrell, rmudgett, mmichelson, wdoekes, jcolp
+
+   ASTERISK-20655: Cannot reset pin with CONFBRIDGE(user,pin)
+   Revision: 378659
+   Reporter: wimpy
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Applications/app_queue
+
+   ASTERISK-20801: Non-SIP queue members get no calls when ringinuse=no.
+   Revision: 378661
+   Reporter: rmudgett
+   Testers: rmudgett, mmichelson, wdoekes, kmoore
+   Coders: Corey Farrell, rmudgett, mmichelson, wdoekes, jcolp
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20653: Asterisk allows Session-Expires below 90 in a 200 OK
+   Revision: 378659
+   Reporter: kmoore
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Channels/chan_sip/SRTP
+
+   ASTERISK-20499: Crash in libsrtp srtp_unprotect_rtcp when SIP channel is
+   bridged with non-optimizing Local channel
+   Revision: 378659
+   Reporter: tootai
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-20763: Memory Leak in chan_sip with TLS enabled clients
+   Revision: 378659
+   Reporter: deti
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Channels/chan_unistim
+
+   ASTERISK-20417: Nortel transfer problem
+   Revision: 378659
+   Reporter: rudolfasd
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Codecs/codec_dahdi
+
+   ASTERISK-19921: codec_dahdi: Wrong number of encoder/decoder channels.
+   Revision: 378659
+   Reporter: sruffell
+   Coders: Corey Farrell, Andre Luis
+
+  Category: Contrib/General
+
+   ASTERISK-20756: Asterisk sippeers.sql columns place error cause peer to be
+   without codecs when setting disallow=all under MySQL
+   Revision: 378659
+   Reporter: andrel
+   Coders: Corey Farrell, Andre Luis
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix incorrect pointer      |                   |
+   | 378655   | mmichelson | manipulation that caused   |                   |
+   |          |            | mixmonitor recording to    |                   |
+   |          |            | fail.                      |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 378658   | qwell      | Cleanup config cache on    | ASTERISK-20649    |
+   |          |            | exit.                      |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 378660   | qwell      | Cleanup pbx on exit.       | ASTERISK-20649    |
+   |----------+------------+----------------------------+-------------------|
+   | 378662   | qwell      | Re-enable automerge.       |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | app_queue: Fix multiple    |                   |
+   | 378686   | root       | calls to a queue member    | ASTERISK-16115    |
+   |          |            | that is in only one queue. |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 378705   | root       | app_queue: Fix incorrect   | ASTERISK-16115    |
+   |          |            | assertion.                 |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                   |    2
+ UPGRADE.txt                               |    3
+ addons/cdr_mysql.c                        |   11 -
+ apps/app_confbridge.c                     |  293 +++++++++++++++++++-----------
+ apps/app_meetme.c                         |   16 -
+ apps/app_mixmonitor.c                     |    3
+ apps/app_queue.c                          |  204 +++++++++++++-------
+ apps/confbridge/conf_config_parser.c      |  133 ++++++++-----
+ apps/confbridge/conf_state.c              |   19 +
+ apps/confbridge/conf_state_empty.c        |    2
+ apps/confbridge/conf_state_multi_marked.c |   14 -
+ apps/confbridge/include/confbridge.h      |   19 +
+ channels/chan_agent.c                     |   12 -
+ channels/chan_dahdi.c                     |    7
+ channels/chan_iax2.c                      |   31 +--
+ channels/chan_local.c                     |   47 ++--
+ channels/chan_sip.c                       |  125 ++++++++----
+ channels/chan_skinny.c                    |   16 -
+ channels/chan_unistim.c                   |   22 --
+ channels/sip/include/sip.h                |    1
+ codecs/codec_dahdi.c                      |    2
+ configs/queues.conf.sample                |    7
+ contrib/realtime/mysql/sippeers.sql       |    2
+ funcs/func_devstate.c                     |    6
+ include/asterisk/_private.h               |    1
+ include/asterisk/bridging.h               |   26 ++
+ include/asterisk/channel.h                |    6
+ include/asterisk/devicestate.h            |   16 +
+ include/asterisk/event_defs.h             |    8
+ main/aoc.c                                |    5
+ main/asterisk.c                           |  111 +++++++----
+ main/astmm.c                              |    7
+ main/ccss.c                               |    2
+ main/cel.c                                |    1
+ main/channel.c                            |   10 -
+ main/config.c                             |   14 +
+ main/data.c                               |    2
+ main/devicestate.c                        |   51 +++--
+ main/dnsmgr.c                             |   23 ++
+ main/event.c                              |   46 ++++
+ main/features.c                           |    2
+ main/file.c                               |    6
+ main/format.c                             |   19 -
+ main/http.c                               |   26 ++
+ main/image.c                              |    6
+ main/indications.c                        |   15 +
+ main/loader.c                             |   28 ++
+ main/logger.c                             |   12 +
+ main/pbx.c                                |   17 +
+ main/stdtime/localtime.c                  |   14 +
+ main/stun.c                               |    6
+ main/taskprocessor.c                      |   14 +
+ main/timing.c                             |   10 +
+ main/udptl.c                              |   14 +
+ main/xmldoc.c                             |    8
+ res/res_calendar.c                        |    8
+ res/res_clialiases.c                      |    5
+ res/res_fax.c                             |    3
+ res/res_jabber.c                          |   66 ++++--
+ res/res_srtp.c                            |    4
+ sounds/Makefile                           |    2
+ 61 files changed, 1111 insertions(+), 500 deletions(-)
+
+     ----------------------------------------------------------------------
