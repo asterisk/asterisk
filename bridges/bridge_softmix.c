@@ -750,7 +750,7 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 	struct softmix_bridge_data *softmix_data = bridge->bridge_pvt;
 	struct ast_timer *timer;
 	struct softmix_translate_helper trans_helper;
-	int16_t buf[MAX_DATALEN] = { 0, };
+	int16_t buf[MAX_DATALEN];
 	unsigned int stat_iteration_counter = 0; /* counts down, gather stats at zero and reset. */
 	int timingfd;
 	int update_all_rates = 0; /* set this when the internal sample rate has changed */
