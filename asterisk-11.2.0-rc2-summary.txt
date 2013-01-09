@@ -48,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   2 bebuild                
+   3 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -62,11 +62,14 @@
    numbers are listed here, as well.
 
    +------------------------------------------------------------------------+
-   | Revision  | Author  | Summary                      | Issues Referenced |
-   |-----------+---------+------------------------------+-------------------|
-   | 378722    | bebuild | Create 11.2.0-rc2            |                   |
-   |-----------+---------+------------------------------+-------------------|
-   | 378785    | bebuild | Merge changes for 11.2.0-rc2 |                   |
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 378722   | bebuild | Create 11.2.0-rc2             |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 378785   | bebuild | Merge changes for 11.2.0-rc2  |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 378788   | bebuild | Importing release summary for |                   |
+   |          |         | 11.2.0-rc2 release.           |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -88,6 +91,8 @@
  apps/confbridge/conf_state_empty.c |    2
  asterisk-11.2.0-rc1-summary.html   |  403 ----------------------------
  asterisk-11.2.0-rc1-summary.txt    |  526 -------------------------------------
+ asterisk-11.2.0-rc2-summary.html   |   90 ++++++
+ asterisk-11.2.0-rc2-summary.txt    |  118 ++++++++
  channels/chan_agent.c              |   12
  channels/chan_dahdi.c              |    7
  channels/chan_iax2.c               |   32 +-
@@ -113,6 +118,6 @@
  res/res_calendar.c                 |    8
  res/res_jabber.c                   |   66 +++-
  res/res_xmpp.c                     |   51 ++-
- 35 files changed, 494 insertions(+), 1168 deletions(-)
+ 37 files changed, 702 insertions(+), 1168 deletions(-)
 
      ----------------------------------------------------------------------
