@@ -35,7 +35,7 @@
 #include "asterisk/strings.h"
 #endif
 
-/*! 
+/*!
 
 \page AstUnitTestAPI Asterisk Unit Test API
 
@@ -57,7 +57,7 @@
 
 \code
    AST_TEST_DEFINE(sample_test_cb) \\The name of the callback function
-   {                               \\The the function's body 
+   {                               \\The the function's body
       switch (cmd) {
       case TEST_INIT:
           info->name = "sample_test";
@@ -86,7 +86,7 @@
       Details of the test execution, especially failure details, should be provided
       by using the ast_test_status_update() function.
 
-\subsection RegisterTest Register a Test 
+\subsection RegisterTest Register a Test
 
    Register the test using the AST_TEST_REGISTER macro.
 
@@ -148,9 +148,8 @@
  * \returns 0 on success
  * \returns any other value on failure
  */
-int __ast_test_suite_event_notify(const char *file, const char *func, int line,
-		const char *state, const char *fmt, ...)
-		__attribute__((format(printf, 5, 6)));
+int __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
+	__attribute__((format(printf, 5, 6)));
 
 /*!
  * \brief Notifies the test suite of a failed assert on an expression
@@ -165,8 +164,7 @@ int __ast_test_suite_event_notify(const char *file, const char *func, int line,
  * \returns 0 on success
  * \returns any other value on failure
  */
-int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
-		const char *exp);
+int __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp);
 
 /*!
  * \ref __ast_test_suite_event_notify()
@@ -234,7 +232,7 @@ struct ast_test_info {
  * \retval AST_TEST_FAIL for failure
  */
 typedef enum ast_test_result_state (ast_test_cb_t)(struct ast_test_info *info,
-		enum ast_test_command cmd, struct ast_test *test);
+	enum ast_test_command cmd, struct ast_test *test);
 
 /*!
  * \brief unregisters a test with the test framework
@@ -275,9 +273,8 @@ void ast_test_debug(struct ast_test *test, const char *fmt, ...) __attribute__((
  * \retval 0 success
  * \retval -1 failure
  */
-int __ast_test_status_update(const char *file, const char *func, int line,
-		struct ast_test *test, const char *fmt, ...)
-		__attribute__((format(printf, 5, 6)));
+int __ast_test_status_update(const char *file, const char *func, int line, struct ast_test *test, const char *fmt, ...)
+	__attribute__((format(printf, 5, 6)));
 
 /*!
  * \ref __ast_test_status_update()

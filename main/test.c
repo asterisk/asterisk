@@ -121,8 +121,7 @@ void ast_test_debug(struct ast_test *test, const char *fmt, ...)
 	ast_free(buf);
 }
 
-int __ast_test_status_update(const char *file, const char *func, int line,
-		struct ast_test *test, const char *fmt, ...)
+int __ast_test_status_update(const char *file, const char *func, int line, struct ast_test *test, const char *fmt, ...)
 {
 	struct ast_str *buf = NULL;
 	va_list ap;
@@ -911,8 +910,7 @@ static struct ast_cli_entry test_cli[] = {
 	AST_CLI_DEFINE(test_cli_generate_results,          "generate test results to file"),
 };
 
-int __ast_test_suite_event_notify(const char *file, const char *func, int line,
-		const char *state, const char *fmt, ...)
+int __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
 {
 	struct ast_str *buf = NULL;
 	va_list ap;
@@ -930,7 +928,8 @@ int __ast_test_suite_event_notify(const char *file, const char *func, int line,
 		"State: %s\r\n"
 		"AppFile: %s\r\n"
 		"AppFunction: %s\r\n"
-		"AppLine: %d\r\n%s\r\n",
+		"AppLine: %d\r\n"
+		"%s\r\n",
 		state, file, func, line, ast_str_buffer(buf));
 
 	ast_free(buf);
@@ -938,8 +937,7 @@ int __ast_test_suite_event_notify(const char *file, const char *func, int line,
 	return 0;
 }
 
-int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
-		const char *exp)
+int __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp)
 {
 	manager_event(EVENT_FLAG_TEST, "TestEvent",
 		"Type: Assert\r\n"
@@ -954,7 +952,7 @@ int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
 
 #endif /* TEST_FRAMEWORK */
 
-int ast_test_init()
+int ast_test_init(void)
 {
 #ifdef TEST_FRAMEWORK
 	/* Register cli commands */
