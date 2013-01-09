@@ -711,7 +711,7 @@ char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const format_t capabili
 
 	ast_str_append(&buf, 0, "0x%llx (", (unsigned long long) capability);
 
-	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
+	for (format = 1; format <= AST_RTP_MAX; format <<= 1) {
 		if (capability & format) {
 			const char *name = ast_rtp_lookup_mime_subtype2(asterisk_format, format, options);
 			ast_str_append(&buf, 0, "%s|", name);
