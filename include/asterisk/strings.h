@@ -253,21 +253,6 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
 int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap) __attribute__((format(printf, 3, 0)));
 
 /*!
- * \brief Given a string regex_string in the form of "/regex/", convert it into the form of "regex"
- *
- * This function will trim one leading / and one trailing / from a given input string
- * ast_str regex_pattern must be preallocated before calling this function
- *
- * \return 0 on success, non-zero on failure.
- * \return 1 if we only stripped a leading /
- * \return 2 if we only stripped a trailing /
- * \return 3 if we did not strip any / characters
- * \param regex_string  the string containing /regex/
- * \param regex_pattern the destination ast_str which will contain "regex" after execution
- */
-int ast_regex_string_to_regex_pattern(const char *regex_string, struct ast_str **regex_pattern);
-
-/*!
  * \brief Make sure something is true.
  * Determine if a string containing a boolean value is "true".
  * This function checks to see whether a string passed to it is an indication of an "true" value.
@@ -385,6 +370,21 @@ struct ast_str {
 #define DS_STATIC	((struct ast_threadstorage *)3)	/* not supported yet */
 	char __AST_STR_STR[0];			/*!< The string buffer */
 };
+
+/*!
+ * \brief Given a string regex_string in the form of "/regex/", convert it into the form of "regex"
+ *
+ * This function will trim one leading / and one trailing / from a given input string
+ * ast_str regex_pattern must be preallocated before calling this function
+ *
+ * \return 0 on success, non-zero on failure.
+ * \return 1 if we only stripped a leading /
+ * \return 2 if we only stripped a trailing /
+ * \return 3 if we did not strip any / characters
+ * \param regex_string  the string containing /regex/
+ * \param regex_pattern the destination ast_str which will contain "regex" after execution
+ */
+int ast_regex_string_to_regex_pattern(const char *regex_string, struct ast_str **regex_pattern);
 
 /*!
  * \brief Create a malloc'ed dynamic length string
