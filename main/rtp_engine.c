@@ -849,7 +849,7 @@ char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, struct ast_format_cap *
 	} else {
 		int x;
 		ast_str_append(&buf, 0, "0x%x (", (unsigned int) rtp_capability);
-		for (x = 1; x < AST_RTP_MAX; x <<= 1) {
+		for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
 			if (rtp_capability & x) {
 				name = ast_rtp_lookup_mime_subtype2(asterisk_format, NULL, x, options);
 				ast_str_append(&buf, 0, "%s|", name);
