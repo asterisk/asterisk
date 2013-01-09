@@ -1467,12 +1467,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	}
 
 	/* Lock both channels so we can look for the glue that binds them together */
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
-		usleep(1);
-		ast_channel_lock(c0);
-	}
+	ast_channel_lock_both(c0, c1);
 
 	/* Ensure neither channel got hungup during lock avoidance */
 	if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
@@ -1548,7 +1543,9 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	}
 
 	/* If we have gotten to a local bridge make sure that both sides have the same local bridge callback and that they are DTMF compatible */
-	if ((audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) && ((instance0->engine->local_bridge != instance1->engine->local_bridge) || (instance0->engine->dtmf_compatible && !instance0->engine->dtmf_compatible(c0, instance0, c1, instance1)))) {
+	if ((audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL)
+		&& (instance0->engine->local_bridge != instance1->engine->local_bridge
+			|| (instance0->engine->dtmf_compatible && !instance0->engine->dtmf_compatible(c0, instance0, c1, instance1)))) {
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
 	}
@@ -1712,26 +1709,16 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	struct ast_format_cap *cap0 = ast_format_cap_alloc_nolock();
 	struct ast_format_cap *cap1 = ast_format_cap_alloc_nolock();
-	int res = 0;
 
 	/* If there is no second channel just immediately bail out, we are of no use in that scenario */
-	if (!c1) {
+	if (!c1 || !cap1 || !cap0) {
 		ast_format_cap_destroy(cap0);
 		ast_format_cap_destroy(cap1);
 		return -1;
 	}
 
 	/* Lock both channels so we can look for the glue that binds them together */
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
-		usleep(1);
-		ast_channel_lock(c0);
-	}
-
-	if (!cap1 || !cap0) {
-		goto done;
-	}
+	ast_channel_lock_both(c0, c1);
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) || !(glue1 = ast_rtp_instance_get_glue(ast_channel_tech(c1)->type))) {
@@ -1774,8 +1761,6 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
 	}
 
-	res = 0;
-
 done:
 	ast_channel_unlock(c0);
 	ast_channel_unlock(c1);
@@ -1790,11 +1775,9 @@ done:
 	unref_instance_cond(&tinstance0);
 	unref_instance_cond(&tinstance1);
 
-	if (!res) {
-		ast_debug(1, "Setting early bridge SDP of '%s' with that of '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
-	}
+	ast_debug(1, "Setting early bridge SDP of '%s' with that of '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
 
-	return res;
+	return 0;
 }
 
 int ast_rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations)

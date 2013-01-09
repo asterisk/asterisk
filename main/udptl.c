@@ -1206,12 +1206,7 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	void *pvt1;
 	int to;
 
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
-		usleep(1);
-		ast_channel_lock(c0);
-	}
+	ast_channel_lock_both(c0, c1);
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
