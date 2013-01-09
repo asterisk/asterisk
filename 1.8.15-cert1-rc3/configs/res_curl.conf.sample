@@ -1,8 +1,0 @@
-;
-; CURLOPT global settings (mostly set for realtime)
-;
-[globals]
-;proxy=myproxy.example.com
-proxytype=http
-proxyport=8001
-;proxyuserpwd=asterisk:asteriskrocks

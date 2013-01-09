@@ -1,3 +1,0 @@
-	NoOp(Hello, this is included from include1.ael2);
-	#include "include2.ael2"
-

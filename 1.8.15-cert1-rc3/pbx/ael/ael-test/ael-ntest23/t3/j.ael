@@ -1,6 +1,0 @@
-
-
-context j
-{
-	567 => NoOp(hi there, j);
-}
