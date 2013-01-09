@@ -430,6 +430,9 @@ static int my_load_module(int reload)
 	int res;
 	struct ast_config *cfg;
 	struct ast_variable *var;
+	/* CONFIG_STATUS_FILEUNCHANGED is impossible when config_flags is always 0,
+	 * and it has to be zero, so a reload can be sent to tell the driver to
+	 * rescan the table layout. */
 	struct ast_flags config_flags = { 0 };
 	struct column *entry;
 	char *temp;
@@ -445,11 +448,13 @@ static int my_load_module(int reload)
 	 * have changed, which is not detectable by config file change detection,
 	 * but should still cause the configuration to be re-parsed. */
 	cfg = ast_config_load(config, config_flags);
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEMISSING) {
 		ast_log(LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
 		return AST_MODULE_LOAD_SUCCESS;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return AST_MODULE_LOAD_SUCCESS;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Unable to load configuration file '%s'\n", config);
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	if (reload) {
 		AST_RWLIST_WRLOCK(&columns);

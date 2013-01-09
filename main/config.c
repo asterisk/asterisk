@@ -3072,8 +3072,22 @@ int ast_config_hook_register(const char *name,
 }
 
 
+static void config_shutdown(void)
+{
+	struct cache_file_mtime *cfmtime;
+
+	AST_LIST_LOCK(&cfmtime_head);
+	while ((cfmtime = AST_LIST_REMOVE_HEAD(&cfmtime_head, list))) {
+		ast_free(cfmtime);
+	}
+	AST_LIST_UNLOCK(&cfmtime_head);
+
+	ast_cli_unregister_multiple(cli_config, ARRAY_LEN(cli_config));
+}
+
 int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
+	ast_register_atexit(config_shutdown);
 	return 0;
 }

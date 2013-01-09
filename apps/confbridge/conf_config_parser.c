@@ -286,7 +286,6 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		case 80:
 			break;
 		default:
-			ast_log(LOG_WARNING, "invalid mixing interval %u\n", b_profile->mix_interval);
 			b_profile->mix_interval = 0;
 			return -1;
 		}
@@ -294,11 +293,30 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		ast_set2_flag(b_profile, ast_true(value), BRIDGE_OPT_RECORD_CONFERENCE);
 	} else if (!strcasecmp(name, "video_mode")) {
 		if (!strcasecmp(value, "first_marked")) {
-			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED);
+			ast_set_flags_to(b_profile,
+				BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED);
 		} else if (!strcasecmp(value, "last_marked")) {
-			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED);
+			ast_set_flags_to(b_profile,
+				BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				BRIDGE_OPT_VIDEO_SRC_LAST_MARKED);
 		} else if (!strcasecmp(value, "follow_talker")) {
-			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+			ast_set_flags_to(b_profile,
+				BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+		} else if (!strcasecmp(value, "none")) {
+			ast_clear_flag(b_profile,
+				BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+					| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+		} else {
+			return -1;
 		}
 	} else if (!strcasecmp(name, "max_members")) {
 		if (sscanf(value, "%30u", &b_profile->max_members) != 1) {
@@ -346,7 +364,7 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		ast_string_field_set(sounds, leave, tmp->sounds->leave);
 
 		ao2_ref(tmp->sounds, -1); /* sounds struct copied over to it from the template by reference only. */
-		ao2_ref(oldsounds,-1);    /* original sounds struct we don't need anymore */
+		ao2_ref(oldsounds, -1);    /* original sounds struct we don't need anymore */
 		tmp->sounds = sounds;     /* the new sounds struct that is a deep copy of the one from the template. */
 	} else {
 		return -1;
@@ -374,17 +392,16 @@ static const struct ast_datastore_info confbridge_datastore = {
 };
 int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_datastore *datastore = NULL;
-	struct func_confbridge_data *b_data = NULL;
-	char *parse = NULL;
-	int new = 0;
+	struct ast_datastore *datastore;
+	struct func_confbridge_data *b_data;
+	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(type);
 		AST_APP_ARG(option);
 	);
 
 	/* parse all the required arguments and make sure they exist. */
-	if (ast_strlen_zero(data) || ast_strlen_zero(value)) {
+	if (ast_strlen_zero(data)) {
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -394,50 +411,51 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 	}
 
 	ast_channel_lock(chan);
-	if (!(datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL))) {
-		ast_channel_unlock(chan);
-
-		if (!(datastore = ast_datastore_alloc(&confbridge_datastore, NULL))) {
+	datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
+	if (!datastore) {
+		datastore = ast_datastore_alloc(&confbridge_datastore, NULL);
+		if (!datastore) {
+			ast_channel_unlock(chan);
 			return 0;
 		}
-		if (!(b_data = ast_calloc(1, sizeof(*b_data)))) {
+		b_data = ast_calloc(1, sizeof(*b_data));
+		if (!b_data) {
+			ast_channel_unlock(chan);
 			ast_datastore_free(datastore);
 			return 0;
 		}
-		if (!(b_data->b_profile.sounds = bridge_profile_sounds_alloc())) {
+		b_data->b_profile.sounds = bridge_profile_sounds_alloc();
+		if (!b_data->b_profile.sounds) {
+			ast_channel_unlock(chan);
 			ast_datastore_free(datastore);
 			ast_free(b_data);
 			return 0;
 		}
 		datastore->data = b_data;
-		new = 1;
+		ast_channel_datastore_add(chan, datastore);
 	} else {
-		ast_channel_unlock(chan);
 		b_data = datastore->data;
 	}
+	ast_channel_unlock(chan);
 
 	/* SET(CONFBRIDGE(type,option)=value) */
-	if (!strcasecmp(args.type, "bridge") && !set_bridge_option(args.option, value, &b_data->b_profile)) {
-		b_data->b_usable = 1;
-	} else if (!strcasecmp(args.type, "user") && !set_user_option(args.option, value, &b_data->u_profile)) {
-		b_data->u_usable = 1;
-	} else {
-		ast_log(LOG_WARNING, "Profile type \"%s\" can not be set in CONFBRIDGE function with option \"%s\" and value \"%s\"\n",
-			args.type, args.option, value);
-		goto cleanup_error;
+	if (!value) {
+		value = "";
 	}
-	if (new) {
-		ast_channel_lock(chan);
-		ast_channel_datastore_add(chan, datastore);
-		ast_channel_unlock(chan);
+	if (!strcasecmp(args.type, "bridge")) {
+		if (!set_bridge_option(args.option, value, &b_data->b_profile)) {
+			b_data->b_usable = 1;
+			return 0;
+		}
+	} else if (!strcasecmp(args.type, "user")) {
+		if (!set_user_option(args.option, value, &b_data->u_profile)) {
+			b_data->u_usable = 1;
+			return 0;
+		}
 	}
-	return 0;
 
-cleanup_error:
-	ast_log(LOG_ERROR, "Invalid argument provided to the %s function\n", cmd);
-	if (new) {
-		ast_datastore_free(datastore);
-	}
+	ast_log(LOG_WARNING, "%s(%s,%s) cannot be set to '%s'. Invalid type, option, or value.\n",
+		cmd, args.type, args.option, value);
 	return -1;
 }
 
@@ -486,7 +504,7 @@ static int parse_bridge(const char *cat, struct ast_config *cfg)
 			continue;
 		} else if (set_bridge_option(var->name, var->value, b_profile)) {
 			ast_log(LOG_WARNING, "Invalid: '%s' at line %d of %s is not supported.\n",
-				var->name, var->lineno, CONFBRIDGE_CONFIG);
+				var->name, var->lineno, var->file);
 		}
 	}
 	ao2_unlock(b_profile);
@@ -524,7 +542,7 @@ static int parse_user(const char *cat, struct ast_config *cfg)
 			continue;
 		} else if (set_user_option(var->name, var->value, u_profile)) {
 			ast_log(LOG_WARNING, "Invalid option '%s' at line %d of %s is not supported.\n",
-				var->name, var->lineno, CONFBRIDGE_CONFIG);
+				var->name, var->lineno, var->file);
 		}
 	}
 	ao2_unlock(u_profile);
@@ -755,7 +773,7 @@ static int parse_menu(const char *cat, struct ast_config *cfg)
 			continue;
 		} else if (add_menu_entry(menu, var->name, var->value)) {
 			ast_log(LOG_WARNING, "Unknown option '%s' at line %d of %s is not supported.\n",
-				var->name, var->lineno, CONFBRIDGE_CONFIG);
+				var->name, var->lineno, var->file);
 		}
 	}
 	ao2_unlock(menu);
@@ -1009,14 +1027,25 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		ast_cli(a->fd,"Max Members:          No Limit\n");
 	}
 
-	if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_LAST_MARKED) {
+	switch (b_profile.flags
+		& (BRIDGE_OPT_VIDEO_SRC_LAST_MARKED | BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+			| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
+	case BRIDGE_OPT_VIDEO_SRC_LAST_MARKED:
 		ast_cli(a->fd, "Video Mode:           last_marked\n");
-	} else if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED) {
+		break;
+	case BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED:
 		ast_cli(a->fd, "Video Mode:           first_marked\n");
-	} else if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER) {
+		break;
+	case BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER:
 		ast_cli(a->fd, "Video Mode:           follow_talker\n");
-	} else {
+		break;
+	case 0:
 		ast_cli(a->fd, "Video Mode:           no video\n");
+		break;
+	default:
+		/* Opps.  We have more than one video mode flag set. */
+		ast_assert(0);
+		break;
 	}
 
 	ast_cli(a->fd,"sound_join:           %s\n", conf_get_sound(CONF_SOUND_JOIN, b_profile.sounds));
@@ -1229,7 +1258,7 @@ static int conf_parse_init(void)
 	return 0;
 }
 
-void conf_destroy_config()
+void conf_destroy_config(void)
 {
 	if (user_profiles) {
 		ao2_ref(user_profiles, -1);
@@ -1316,15 +1345,14 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 
 	if (chan) {
 		ast_channel_lock(chan);
-		if ((datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL))) {
-			ast_channel_unlock(chan);
+		datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
+		ast_channel_unlock(chan);
+		if (datastore) {
 			b_data = datastore->data;
 			if (b_data->u_usable) {
 				conf_user_profile_copy(result, &b_data->u_profile);
 				return result;
 			}
-		} else {
-			ast_channel_unlock(chan);
 		}
 	}
 
@@ -1344,7 +1372,7 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 
 void conf_bridge_profile_copy(struct bridge_profile *dst, struct bridge_profile *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	*dst = *src;
 	if (src->sounds) {
 		ao2_ref(src->sounds, +1);
 	}
@@ -1367,15 +1395,14 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 
 	if (chan) {
 		ast_channel_lock(chan);
-		if ((datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL))) {
-			ast_channel_unlock(chan);
+		datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
+		ast_channel_unlock(chan);
+		if (datastore) {
 			b_data = datastore->data;
 			if (b_data->b_usable) {
 				conf_bridge_profile_copy(result, &b_data->b_profile);
 				return result;
 			}
-		} else {
-			ast_channel_unlock(chan);
 		}
 	}
 	if (ast_strlen_zero(bridge_profile_name)) {

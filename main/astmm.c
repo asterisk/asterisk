@@ -1333,8 +1333,11 @@ static void mm_atexit_final(void)
 {
 	FILE *log;
 
-	fprintf(stderr, "Waiting 10 seconds to let other threads die.\n");
-	sleep(10);
+	/* Only wait if we want atexit allocation dumps. */
+	if (atexit_list || atexit_summary) {
+		fprintf(stderr, "Waiting 10 seconds to let other threads die.\n");
+		sleep(10);
+	}
 
 	regions_check_all_fences();
 
