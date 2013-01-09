@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - certified-asterisk-1.8.15-cert1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">certified-asterisk-1.8.15-cert1</h3>
+<h3 align="center">Date: 2013-01-09</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes new features.  For a list of new features that have been included with this release, please see the CHANGES file inside the source package.  Since this is new major release, users are encouraged to do extended testing before upgrading to this version in a production environment.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, certified-asterisk-1.8.15.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+15 mjordan<br/>
+8 mmichelson<br/>
+6 rmudgett<br/>
+4 Konstantin Suvorov<br/>
+3 kmoore<br/>
+3 qwell<br/>
+2 dlee<br/>
+2 jrose<br/>
+1 elguero<br/>
+1 Guenther Kelleter<br/>
+1 jcolp<br/>
+1 Nitesh Bansal<br/>
+</td>
+<td>
+5 rmudgett<br/>
+3 Nicolo Mazzon<br/>
+2 Alan Frisch<br/>
+2 mjordan<br/>
+2 Thomas Arimont<br/>
+1 elguero<br/>
+1 Jason Parker<br/>
+</td>
+<td>
+8 tomaso<br/>
+6 spitts<br/>
+3 jbigelow<br/>
+3 mjordan<br/>
+2 gkelleter<br/>
+1 ahoemig<br/>
+1 berlic<br/>
+1 jparker<br/>
+1 kristoff<br/>
+1 michele cicciotti privatewave<br/>
+1 nbansal<br/>
+1 tblancher<br/>
+1 wdoekes<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_dial</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20287">ASTERISK-20287</a>: Broken hangupcause passtrough<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375589">375589</a><br/>
+Reporter: berlic<br/>
+Testers: rmudgett<br/>
+Coders: Konstantin Suvorov<br/>
+<br/>
+<h3>Category: Applications/app_externalivr</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20132">ASTERISK-20132</a>: Security Vulnerability: remote authenticated attacker can execute arbitrary shell commands on system through app ExternalIVR<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=372052">372052</a><br/>
+Reporter: mjordan<br/>
+Testers: mjordan, Alan Frisch<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20186">ASTERISK-20186</a>: Security Vulnerability: IAX2 peer's NEW message bypasses ACL defined in realtime<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=372052">372052</a><br/>
+Reporter: mjordan<br/>
+Testers: mjordan, Alan Frisch<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19677">ASTERISK-19677</a>: SIP dial string //IPorHost does not work like expected<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=370844">370844</a><br/>
+Reporter: wdoekes<br/>
+Coders: mmichelson<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-19857">ASTERISK-19857</a>: Explore directmedia re-INVITE improvements between multiple Asterisk instances<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375585">375585</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20409">ASTERISK-20409</a>: sip_tech_info channels cannot be bridged, not even with themselves<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375590">375590</a><br/>
+Reporter: michele cicciotti privatewave<br/>
+Testers: Nicolo Mazzon<br/>
+Coders: mjordan<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20511">ASTERISK-20511</a>: Directrtpsetup does not wrk in SVN-branch-1.8-r374177<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375590">375590</a><br/>
+Reporter: kristoff<br/>
+Testers: Nicolo Mazzon<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20132">ASTERISK-20132</a>: Security Vulnerability: remote authenticated attacker can execute arbitrary shell commands on system through app ExternalIVR<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=372052">372052</a><br/>
+Reporter: mjordan<br/>
+Testers: mjordan, Alan Frisch<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Documentation and Manuals</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/AST-949">AST-949</a>: Core show application removequeuemember RQMSTATUS documentation incomplete<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371145">371145</a><br/>
+Reporter: spitts<br/>
+Coders: mmichelson<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/AST-954">AST-954</a>: RemoveQueueMember app cli documentation indicates an options field in arguments, but there are apparently no options <br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371145">371145</a><br/>
+Reporter: spitts<br/>
+Coders: mmichelson<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/AST-962">AST-962</a>: Definition of Agents.conf ackcall parameter is incorrect<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371788">371788</a><br/>
+Reporter: spitts<br/>
+Coders: mmichelson<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/AST-979">AST-979</a>: shared_lastcall defaults to no which conflicts with documentation in queues.samples.conf<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371752">371752</a><br/>
+Reporter: spitts<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20295">ASTERISK-20295</a>: Asterisk is not incrementing the sequence numbers for the retransmission of the DTMF end packets(RTPEvent packet with end bit set to 1) <br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=376409">376409</a><br/>
+Reporter: nbansal<br/>
+Testers: elguero<br/>
+Coders: Nitesh Bansal, elguero<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=370665">370665</a></td><td>qwell</td><td>Create branch for Certified Asterisk 1.8.15.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=370667">370667</a></td><td>qwell</td><td>Merge changes for Digium phone support, and default module building.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=370840">370840</a></td><td>qwell</td><td>Fix merge prop</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371229">371229</a></td><td>kmoore</td><td>Add test instrumentation</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371397">371397</a></td><td>kmoore</td><td>Add module reload instrumentation for TEST_FRAMEWORK</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371440">371440</a></td><td>kmoore</td><td>Add instrumentation to subsystem reloads</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371786">371786</a></td><td>mmichelson</td><td>Fix incorrect documentation of the MailboxStatus manager command.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=371948">371948</a></td><td>jrose</td><td>app_meetme: Adding test events for following activity in MeetMe.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=374541">374541</a></td><td>rmudgett</td><td>Multiple revisions 370563,374536</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375591">375591</a></td><td>mjordan</td><td>Multiple revisions 375216,375242</td>
+<td><a href="https://issues.asterisk.org/jira/browse/AST-989">AST-989</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375630">375630</a></td><td>rmudgett</td><td>Multiple revisions 375519-375524</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=375631">375631</a></td><td>rmudgett</td><td>Fix compiler warnings.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=376501">376501</a></td><td>mjordan</td><td>Fix SendDTMF crash and channel reference leak using channel name parameter.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=376955">376955</a></td><td>rmudgett</td><td>chan_misdn: Fix sending RELEASE_COMPLETE in response to SETUP.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=378290">378290</a></td><td>mjordan</td><td>Resolve crashes due to large stack allocations when using TCP</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20658">ASTERISK-20658</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/1.8.15?view=revision&revision=378333">378333</a></td><td>mjordan</td><td>Prevent exhaustion of system resources through exploitation of event cache</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20175">ASTERISK-20175</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+0 files changed
+</pre><br/>
+<hr/>
+</body>
+</html>

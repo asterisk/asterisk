@@ -1,0 +1,251 @@
+                                Release Summary
+
+                        certified-asterisk-1.8.15-cert1
+
+                                Date: 2013-01-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes new features. For a list of new features that have
+   been included with this release, please see the CHANGES file inside the
+   source package. Since this is new major release, users are encouraged to
+   do extended testing before upgrading to this version in a production
+   environment.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, certified-asterisk-1.8.15.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                  Testers            Reporters                     
+   15 mjordan              5 rmudgett         8 tomaso                        
+   8 mmichelson            3 Nicolo Mazzon    6 spitts                        
+   6 rmudgett              2 Alan Frisch      3 jbigelow                      
+   4 Konstantin Suvorov    2 mjordan          3 mjordan                       
+   3 kmoore                2 Thomas Arimont   2 gkelleter                     
+   3 qwell                 1 elguero          1 ahoemig                       
+   2 dlee                  1 Jason Parker     1 berlic                        
+   2 jrose                                    1 jparker                       
+   1 elguero                                  1 kristoff                      
+   1 Guenther Kelleter                        1 michele cicciotti privatewave 
+   1 jcolp                                    1 nbansal                       
+   1 Nitesh Bansal                            1 tblancher                     
+                                              1 wdoekes                       
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   ASTERISK-20287: Broken hangupcause passtrough
+   Revision: 375589
+   Reporter: berlic
+   Testers: rmudgett
+   Coders: Konstantin Suvorov
+
+  Category: Applications/app_externalivr
+
+   ASTERISK-20132: Security Vulnerability: remote authenticated attacker can
+   execute arbitrary shell commands on system through app ExternalIVR
+   Revision: 372052
+   Reporter: mjordan
+   Testers: mjordan, Alan Frisch
+   Coders: mjordan
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-20186: Security Vulnerability: IAX2 peer's NEW message bypasses
+   ACL defined in realtime
+   Revision: 372052
+   Reporter: mjordan
+   Testers: mjordan, Alan Frisch
+   Coders: mjordan
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-19677: SIP dial string //IPorHost does not work like expected
+   Revision: 370844
+   Reporter: wdoekes
+   Coders: mmichelson
+
+   ASTERISK-19857: Explore directmedia re-INVITE improvements between
+   multiple Asterisk instances
+   Revision: 375585
+   Reporter: mjordan
+   Coders: mjordan
+
+   ASTERISK-20409: sip_tech_info channels cannot be bridged, not even with
+   themselves
+   Revision: 375590
+   Reporter: michele cicciotti privatewave
+   Testers: Nicolo Mazzon
+   Coders: mjordan
+
+   ASTERISK-20511: Directrtpsetup does not wrk in SVN-branch-1.8-r374177
+   Revision: 375590
+   Reporter: kristoff
+   Testers: Nicolo Mazzon
+   Coders: mjordan
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20132: Security Vulnerability: remote authenticated attacker can
+   execute arbitrary shell commands on system through app ExternalIVR
+   Revision: 372052
+   Reporter: mjordan
+   Testers: mjordan, Alan Frisch
+   Coders: mjordan
+
+  Category: Documentation and Manuals
+
+   AST-949: Core show application removequeuemember RQMSTATUS documentation
+   incomplete
+   Revision: 371145
+   Reporter: spitts
+   Coders: mmichelson
+
+   AST-954: RemoveQueueMember app cli documentation indicates an options
+   field in arguments, but there are apparently no options
+   Revision: 371145
+   Reporter: spitts
+   Coders: mmichelson
+
+   AST-962: Definition of Agents.conf ackcall parameter is incorrect
+   Revision: 371788
+   Reporter: spitts
+   Coders: mmichelson
+
+   AST-979: shared_lastcall defaults to no which conflicts with documentation
+   in queues.samples.conf
+   Revision: 371752
+   Reporter: spitts
+   Coders: mmichelson
+
+  Category: Resources/res_rtp_asterisk
+
+   ASTERISK-20295: Asterisk is not incrementing the sequence numbers for the
+   retransmission of the DTMF end packets(RTPEvent packet with end bit set to
+   1)
+   Revision: 376409
+   Reporter: nbansal
+   Testers: elguero
+   Coders: Nitesh Bansal, elguero
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   | 370665   | qwell      | Create branch for          |                   |
+   |          |            | Certified Asterisk 1.8.15. |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Merge changes for Digium   |                   |
+   | 370667   | qwell      | phone support, and default |                   |
+   |          |            | module building.           |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 370840   | qwell      | Fix merge prop             |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 371229   | kmoore     | Add test instrumentation   |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Add module reload          |                   |
+   | 371397   | kmoore     | instrumentation for        |                   |
+   |          |            | TEST_FRAMEWORK             |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 371440   | kmoore     | Add instrumentation to     |                   |
+   |          |            | subsystem reloads          |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix incorrect              |                   |
+   | 371786   | mmichelson | documentation of the       |                   |
+   |          |            | MailboxStatus manager      |                   |
+   |          |            | command.                   |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | app_meetme: Adding test    |                   |
+   | 371948   | jrose      | events for following       |                   |
+   |          |            | activity in MeetMe.        |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 374541   | rmudgett   | Multiple revisions         |                   |
+   |          |            | 370563,374536              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 375591   | mjordan    | Multiple revisions         | AST-989           |
+   |          |            | 375216,375242              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 375630   | rmudgett   | Multiple revisions         |                   |
+   |          |            | 375519-375524              |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 375631   | rmudgett   | Fix compiler warnings.     |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix SendDTMF crash and     |                   |
+   | 376501   | mjordan    | channel reference leak     |                   |
+   |          |            | using channel name         |                   |
+   |          |            | parameter.                 |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | chan_misdn: Fix sending    |                   |
+   | 376955   | rmudgett   | RELEASE_COMPLETE in        |                   |
+   |          |            | response to SETUP.         |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Resolve crashes due to     |                   |
+   | 378290   | mjordan    | large stack allocations    | ASTERISK-20658    |
+   |          |            | when using TCP             |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Prevent exhaustion of      |                   |
+   | 378333   | mjordan    | system resources through   | ASTERISK-20175    |
+   |          |            | exploitation of event      |                   |
+   |          |            | cache                      |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ 0 files changed
+
+     ----------------------------------------------------------------------
