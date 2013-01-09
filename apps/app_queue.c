@@ -3623,7 +3623,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		++*busies;
 		return 0;
 	}
-	ast_assert(qe->parent->ringinuse || tmp->member->call_pending);
+	ast_assert(tmp->member->ringinuse || tmp->member->call_pending);
 
 	ast_copy_string(tech, tmp->interface, sizeof(tech));
 	if ((location = strchr(tech, '/'))) {
