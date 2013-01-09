@@ -107,12 +107,8 @@ static void leave_marked(struct conference_bridge_user *cbu)
 				cbu_iter->conference_bridge->waitingusers++;
 				/* Handle muting/moh of cbu_iter if necessary */
 				if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_MUSICONHOLD)) {
-				   cbu_iter->features.mute = 1;
-					if (!ast_bridge_suspend(cbu_iter->conference_bridge->bridge, cbu_iter->chan)) {
-						ast_moh_start(cbu_iter->chan, cbu_iter->u_profile.moh_class, NULL);
-						cbu_iter->playing_moh = 1;
-						ast_bridge_unsuspend(cbu_iter->conference_bridge->bridge, cbu_iter->chan);
-					}
+					cbu_iter->features.mute = 1;
+					conf_moh_start(cbu_iter);
 				}
 			}
 		}
@@ -173,10 +169,8 @@ static void transition_to_marked(struct conference_bridge_user *cbu)
 		cbu->conference_bridge->waitingusers--;
 		AST_LIST_INSERT_TAIL(&cbu->conference_bridge->active_list, cbu_iter, list);
 		cbu->conference_bridge->activeusers++;
-		if (cbu_iter->playing_moh && !ast_bridge_suspend(cbu->conference_bridge->bridge, cbu_iter->chan)) {
-			cbu_iter->playing_moh = 0;
-			ast_moh_stop(cbu_iter->chan);
-			ast_bridge_unsuspend(cbu->conference_bridge->bridge, cbu_iter->chan);
+		if (cbu_iter->playing_moh) {
+			conf_moh_stop(cbu_iter);
 		}
 		/* only unmute them if they are not supposed to start muted */
 		if (!ast_test_flag(&cbu_iter->u_profile, USER_OPT_STARTMUTED)) {

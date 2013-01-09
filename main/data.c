@@ -3318,7 +3318,9 @@ AST_TEST_DEFINE(test_data_get)
 static void data_shutdown(void)
 {
 	ast_manager_unregister("DataGet");
+	ast_cli_unregister_multiple(cli_data, ARRAY_LEN(cli_data));
 	ao2_t_ref(root_data.container, -1, "Unref root_data.container in data_shutdown");
+	root_data.container = NULL;
 	ast_rwlock_destroy(&root_data.lock);
 }
 

@@ -288,8 +288,14 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_USING_PASSWORD      = 0x0037,
 	AST_EVENT_IE_ATTEMPTED_TRANSPORT = 0x0038,
 
+	/*!
+	 * \brief Event non-cachability flag
+	 * Used by: All events
+	 * Payload type: UINT
+	 */
+	AST_EVENT_IE_CACHABLE            = 0x0039,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x0039,
+	AST_EVENT_IE_TOTAL               = 0x003a,
 };
 
 /*!

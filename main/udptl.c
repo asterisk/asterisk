@@ -1421,8 +1421,20 @@ int ast_udptl_reload(void)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
+static void udptl_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
+}
+
 void ast_udptl_init(void)
 {
-	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 	__ast_udptl_reload(0);
+
+	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
+
+	ast_register_atexit(udptl_shutdown);
 }

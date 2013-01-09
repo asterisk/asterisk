@@ -47,9 +47,28 @@ void conf_invalid_event_fn(struct conference_bridge_user *cbu)
 	ast_log(LOG_ERROR, "Invalid event for confbridge user '%s'\n", cbu->u_profile.name);
 }
 
+/*!
+ * \internal
+ * \brief Mute the user and play MOH if the user requires it.
+ *
+ * \param user Conference user to mute and optionally start MOH on.
+ *
+ * \return Nothing
+ */
+static void conf_mute_moh_inactive_waitmarked(struct conference_bridge_user *user)
+{
+	/* Be sure we are muted so we can't talk to anybody else waiting */
+	user->features.mute = 1;
+	/* Start music on hold if needed */
+	if (ast_test_flag(&user->u_profile, USER_OPT_MUSICONHOLD)) {
+		conf_moh_start(user);
+	}
+}
+
 void conf_default_join_waitmarked(struct conference_bridge_user *cbu)
 {
 	conf_add_user_waiting(cbu->conference_bridge, cbu);
+	conf_mute_moh_inactive_waitmarked(cbu);
 	conf_add_post_join_action(cbu, conf_handle_inactive_waitmarked);
 }
 

@@ -1605,7 +1605,12 @@ static struct ast_cli_entry aoc_cli[] = {
 	AST_CLI_DEFINE(aoc_cli_debug_enable, "enable cli debugging of AOC messages"),
 };
 
+static void aoc_shutdown(void)
+{
+	ast_cli_unregister_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
+}
 int ast_aoc_cli_init(void)
 {
+	ast_register_atexit(aoc_shutdown);
 	return ast_cli_register_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
 }
