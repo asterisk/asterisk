@@ -44,8 +44,9 @@ enum ast_bridge_builtin_feature {
 	AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER,
 	/*! DTMF Based Hangup Feature */
 	AST_BRIDGE_BUILTIN_HANGUP,
+
 	/*! End terminator for list of built in features. Must remain last. */
-	AST_BRIDGE_BUILTIN_END,
+	AST_BRIDGE_BUILTIN_END
 };
 
 struct ast_bridge;

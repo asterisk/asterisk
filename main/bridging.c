@@ -130,8 +130,6 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
 		ast_cond_signal(&bridge_channel->cond);
 		ao2_unlock(bridge_channel);
 	}
-
-	return;
 }
 
 /*! \brief Helper function to poke the bridge thread */
@@ -141,8 +139,6 @@ static void bridge_poke(struct ast_bridge *bridge)
 	if (bridge->thread != AST_PTHREADT_NULL && bridge->thread != AST_PTHREADT_STOP) {
 		pthread_kill(bridge->thread, SIGURG);
 	}
-
-	return;
 }
 
 /*! \brief Helper function to add a channel to the bridge array
@@ -172,8 +168,6 @@ static void bridge_array_add(struct ast_bridge *bridge, struct ast_channel *chan
 		bridge->array = tmp;
 		bridge->array_size += BRIDGE_ARRAY_GROW;
 	}
-
-	return;
 }
 
 /*! \brief Helper function to remove a channel from the bridge array
@@ -199,8 +193,6 @@ static void bridge_array_remove(struct ast_bridge *bridge, struct ast_channel *c
 			break;
 		}
 	}
-
-	return;
 }
 
 /*! \brief Helper function to find a bridge channel given a channel */
@@ -233,8 +225,6 @@ static void bridge_check_dissolve(struct ast_bridge *bridge, struct ast_bridge_c
 			ast_bridge_change_state(bridge_channel2, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 		}
 	}
-
-	return;
 }
 
 /*! \brief Internal function to handle DTMF from a channel */
@@ -333,8 +323,6 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
 		bridge->technology->poke(bridge, bridge_channel);
 		return;
 	}
-
-	return;
 }
 
 /*! \brief Generic thread loop, TODO: Rethink this/improve it */
@@ -384,10 +372,14 @@ static void *bridge_thread(void *data)
 		/* In case the refresh bit was set simply set it back to off */
 		bridge->refresh = 0;
 
-		ast_debug(1, "Launching bridge thread function %p for bridge %p\n", (bridge->technology->thread ? bridge->technology->thread : &generic_thread_loop), bridge);
+		ast_debug(1, "Launching bridge thread function %p for bridge %p\n",
+			bridge->technology->thread ? bridge->technology->thread : generic_thread_loop,
+			bridge);
 
 		/* Execute the appropriate thread function. If the technology does not provide one we use the generic one */
-		res = (bridge->technology->thread ? bridge->technology->thread(bridge) : generic_thread_loop(bridge));
+		res = bridge->technology->thread
+			? bridge->technology->thread(bridge)
+			: generic_thread_loop(bridge);
 	}
 
 	ast_debug(1, "Ending bridge thread for %p\n", bridge);
@@ -425,9 +417,7 @@ static struct ast_bridge_technology *find_best_technology(uint32_t capabilities)
 
 	if (best) {
 		/* Increment it's module reference count if present so it does not get unloaded while in use */
-		if (best->mod) {
-			ast_module_ref(best->mod);
-		}
+		ast_module_ref(best->mod);
 		ast_debug(1, "Chose bridge technology %s\n", best->name);
 	}
 
@@ -451,9 +441,7 @@ static void destroy_bridge(void *obj)
 	}
 
 	/* We are no longer using the bridge technology so decrement the module reference count on it */
-	if (bridge->technology->mod) {
-		ast_module_unref(bridge->technology->mod);
-	}
+	ast_module_unref(bridge->technology->mod);
 
 	/* Last but not least clean up the features configuration */
 	ast_bridge_features_cleanup(&bridge->features);
@@ -462,8 +450,6 @@ static void destroy_bridge(void *obj)
 	ast_free(bridge->array);
 
 	cleanup_video_mode(bridge);
-
-	return;
 }
 
 struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
@@ -484,7 +470,9 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 
 	/* If capabilities were provided use our helper function to find the "best" bridge technology, otherwise we can
 	 * just look for the most basic capability needed, single 1to1 mixing. */
-	bridge_technology = (capabilities ? find_best_technology(capabilities) : find_best_technology(AST_BRIDGE_CAPABILITY_1TO1MIX));
+	bridge_technology = capabilities
+		? find_best_technology(capabilities)
+		: find_best_technology(AST_BRIDGE_CAPABILITY_1TO1MIX);
 
 	/* If no bridge technology was found we can't possibly do bridging so fail creation of the bridge */
 	if (!bridge_technology) {
@@ -710,7 +698,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 			}
 		}
 
-		/* Fourth we tell them to wake up so they become aware that they above has happened */
+		/* Fourth we tell them to wake up so they become aware that the above has happened */
 		pthread_kill(bridge_channel2->thread, SIGURG);
 		ao2_lock(bridge_channel2);
 		ast_cond_signal(&bridge_channel2->cond);
@@ -726,9 +714,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 	}
 
 	/* Finally if the old technology has module referencing remove our reference, we are no longer going to use it */
-	if (old_technology->mod) {
-		ast_module_unref(old_technology->mod);
-	}
+	ast_module_unref(old_technology->mod);
 
 	return 0;
 }
@@ -737,7 +723,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 static enum ast_bridge_channel_state bridge_channel_join_multithreaded(struct ast_bridge_channel *bridge_channel)
 {
 	int fds[4] = { -1, }, nfds = 0, i = 0, outfd = -1, ms = -1;
-	struct ast_channel *chan = NULL;
+	struct ast_channel *chan;
 
 	/* Add any file descriptors we may want to monitor */
 	if (bridge_channel->bridge->technology->fd) {
@@ -760,6 +746,7 @@ static enum ast_bridge_channel_state bridge_channel_join_multithreaded(struct as
 		ast_debug(10, "Going into a multithreaded signal wait for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
 		ast_cond_wait(&bridge_channel->cond, ao2_object_get_lockaddr(bridge_channel));
 		ao2_unlock(bridge_channel);
+		chan = NULL;
 	}
 
 	ao2_lock(bridge_channel->bridge);
@@ -797,8 +784,6 @@ static void bridge_channel_suspend(struct ast_bridge *bridge, struct ast_bridge_
 	if (bridge->technology->suspend) {
 		bridge->technology->suspend(bridge, bridge_channel);
 	}
-
-	return;
 }
 
 /*! \brief Internal function that unsuspends a channel from a bridge */
@@ -813,10 +798,6 @@ static void bridge_channel_unsuspend(struct ast_bridge *bridge, struct ast_bridg
 	if (bridge->technology->unsuspend) {
 		bridge->technology->unsuspend(bridge, bridge_channel);
 	}
-
-
-
-	return;
 }
 
 /*!
@@ -896,8 +877,6 @@ static void bridge_channel_feature(struct ast_bridge *bridge, struct ast_bridge_
 	if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_FEATURE) {
 		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 	}
-
-	return;
 }
 
 static void bridge_channel_talking(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
@@ -922,8 +901,6 @@ static void bridge_channel_dtmf_stream(struct ast_bridge *bridge, struct ast_bri
 	ast_dtmf_stream(bridge_channel->chan, NULL, dtmf_q, 250, 0);
 
 	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
-
-	return;
 }
 
 /*! \brief Join a channel to a bridge and handle anything the bridge may want us to do */
@@ -998,7 +975,9 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 			}
 		}
 		/* Execute the threading model */
-		state = (bridge_channel->bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_MULTITHREADED ? bridge_channel_join_multithreaded(bridge_channel) : bridge_channel_join_singlethreaded(bridge_channel));
+		state = (bridge_channel->bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_MULTITHREADED)
+			? bridge_channel_join_multithreaded(bridge_channel)
+			: bridge_channel_join_singlethreaded(bridge_channel);
 		/* Depending on the above state see what we need to do */
 		switch (state) {
 		case AST_BRIDGE_CHANNEL_STATE_FEATURE:
@@ -1238,7 +1217,9 @@ int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1)
 	ao2_lock(bridge1);
 
 	/* If the first bridge currently has 2 channels and is not capable of becoming a multimixing bridge we can not merge */
-	if ((bridge0->num + bridge1->num) > 2 && (!(bridge0->technology->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) && !ast_test_flag(&bridge0->feature_flags, AST_BRIDGE_FLAG_SMART))) {
+	if (bridge0->num + bridge1->num > 2
+		&& !(bridge0->technology->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX)
+		&& !ast_test_flag(&bridge0->feature_flags, AST_BRIDGE_FLAG_SMART)) {
 		ao2_unlock(bridge1);
 		ao2_unlock(bridge0);
 		ast_debug(1, "Can't merge bridge %p into bridge %p, multimix is needed and it could not be acquired.\n", bridge1, bridge0);
@@ -1350,18 +1331,17 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan)
 void ast_bridge_technology_suspend(struct ast_bridge_technology *technology)
 {
 	technology->suspended = 1;
-	return;
 }
 
 void ast_bridge_technology_unsuspend(struct ast_bridge_technology *technology)
 {
 	technology->suspended = 0;
-	return;
 }
 
 int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_bridge_features_hook_callback callback, const char *dtmf)
 {
-	if (builtin_features_handlers[feature]) {
+	if (ARRAY_LEN(builtin_features_handlers) <= feature
+		|| !builtin_features_handlers[feature]) {
 		return -1;
 	}
 
@@ -1376,7 +1356,8 @@ int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_br
 
 int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature)
 {
-	if (!builtin_features_handlers[feature]) {
+	if (ARRAY_LEN(builtin_features_handlers) <= feature
+		|| !builtin_features_handlers[feature]) {
 		return -1;
 	}
 
@@ -1424,6 +1405,11 @@ int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
 
 int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_bridge_builtin_feature feature, const char *dtmf, void *config)
 {
+	if (ARRAY_LEN(builtin_features_handlers) <= feature
+		|| !builtin_features_handlers[feature]) {
+		return -1;
+	}
+
 	/* If no alternate DTMF stream was provided use the default one */
 	if (ast_strlen_zero(dtmf)) {
 		dtmf = builtin_features_dtmf[feature];
@@ -1432,10 +1418,6 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
 			ast_debug(1, "Failed to enable built in feature %d on %p, no DTMF string is available for it.\n", feature, features);
 			return -1;
 		}
-	}
-
-	if (!builtin_features_handlers[feature]) {
-		return -1;
 	}
 
 	/* The rest is basically pretty easy. We create another hook using the built in feature's callback and DTMF, easy as pie. */

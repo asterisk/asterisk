@@ -90,8 +90,6 @@ static void destroy_multiplexed_thread(void *obj)
 	if (multiplexed_thread->pipe[1] > -1) {
 		close(multiplexed_thread->pipe[1]);
 	}
-
-	return;
 }
 
 /*! \brief Create function which finds/reserves/references a multiplexed thread structure */
@@ -173,8 +171,6 @@ static void multiplexed_nudge(struct multiplexed_thread *multiplexed_thread)
 	while (multiplexed_thread->waiting) {
 		sched_yield();
 	}
-
-	return;
 }
 
 /*! \brief Destroy function which unreserves/unreferences/removes a multiplexed thread structure */
@@ -308,8 +304,6 @@ static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thr
 	if (thread != AST_PTHREADT_NULL) {
 		pthread_join(thread, NULL);
 	}
-
-	return;
 }
 
 /*! \brief Join function which actually adds the channel into the array to be monitored */
@@ -356,8 +350,6 @@ static void multiplexed_bridge_suspend(struct ast_bridge *bridge, struct ast_bri
 	ast_debug(1, "Suspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 0);
-
-	return;
 }
 
 /*! \brief Unsuspend function which means control of the channel is coming back to us */
@@ -368,8 +360,6 @@ static void multiplexed_bridge_unsuspend(struct ast_bridge *bridge, struct ast_b
 	ast_debug(1, "Unsuspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 1);
-
-	return;
 }
 
 /*! \brief Write function for writing frames into the bridge */
@@ -377,14 +367,17 @@ static enum ast_bridge_write_result multiplexed_bridge_write(struct ast_bridge *
 {
 	struct ast_bridge_channel *other;
 
+	/* If this is the only channel in this bridge then immediately exit */
 	if (AST_LIST_FIRST(&bridge->channels) == AST_LIST_LAST(&bridge->channels)) {
 		return AST_BRIDGE_WRITE_FAILED;
 	}
 
+	/* Find the channel we actually want to write to */
 	if (!(other = (AST_LIST_FIRST(&bridge->channels) == bridge_channel ? AST_LIST_LAST(&bridge->channels) : AST_LIST_FIRST(&bridge->channels)))) {
 		return AST_BRIDGE_WRITE_FAILED;
 	}
 
+	/* Write the frame out if they are in the waiting state... don't worry about freeing it, the bridging core will take care of it */
 	if (other->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 		ast_write(other->chan, frame);
 	}

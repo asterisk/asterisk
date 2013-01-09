@@ -67,7 +67,7 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 
 static enum ast_bridge_write_result simple_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
-	struct ast_bridge_channel *other = NULL;
+	struct ast_bridge_channel *other;
 
 	/* If this is the only channel in this bridge then immediately exit */
 	if (AST_LIST_FIRST(&bridge->channels) == AST_LIST_LAST(&bridge->channels)) {
