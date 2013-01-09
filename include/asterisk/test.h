@@ -145,10 +145,9 @@
  * \param state		The state the application has changed to
  * \param fmt		The message with format parameters to add to the manager event
  *
- * \returns 0 on success
- * \returns any other value on failure
+ * \return Nothing
  */
-int __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
+void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
 
 /*!
@@ -161,10 +160,9 @@ int __ast_test_suite_event_notify(const char *file, const char *func, int line, 
  *
  * \param exp	The expression to evaluate
  *
- * \returns 0 on success
- * \returns any other value on failure
+ * \return Nothing
  */
-int __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp);
+void __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp);
 
 /*!
  * \ref __ast_test_suite_event_notify()
@@ -175,13 +173,17 @@ int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
 /*!
  * \ref __ast_test_suite_assert_notify()
  */
-#define ast_test_suite_assert(exp) \
-	( (exp) ? (void)0 : __ast_test_suite_assert_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, #exp))
+#define ast_test_suite_assert(exp)				\
+	do {										\
+		if (__builtin_expect(!(exp), 1)) {		\
+			__ast_test_suite_assert_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, #exp); \
+		}										\
+	} while (0)
 
 #else
 
-#define ast_test_suite_event_notify(s, f, ...) (void)0;
-#define ast_test_suite_assert(exp) (void)0;
+#define ast_test_suite_event_notify(s, f, ...)
+#define ast_test_suite_assert(exp)
 
 #endif
 
