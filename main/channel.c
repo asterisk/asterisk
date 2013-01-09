@@ -296,6 +296,7 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_RUN", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN));
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_DONT", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT));
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS));
+	ast_data_add_bool(tree, "DISABLE_DEVSTATE_CACHE", ast_test_flag(chan, AST_FLAG_DISABLE_DEVSTATE_CACHE));
 }
 
 #if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
@@ -2516,7 +2517,7 @@ static void ast_channel_destructor(void *obj)
 		 * instance is dead, we don't know the state of all other possible
 		 * instances.
 		 */
-		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (chan->flags & AST_FLAG_DISABLE_DEVSTATE_CACHE ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), device_name);
 	}
 	ast_atomic_fetchadd_int(&chancount, -1);
 }
@@ -7053,7 +7054,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
 	 * for this channel is using the callback method for device state. If we pass in an actual state here
 	 * we override what they are saying the state is and things go amuck. */
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (chan->flags & AST_FLAG_DISABLE_DEVSTATE_CACHE ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
 	/* setstate used to conditionally report Newchannel; this is no more */
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
