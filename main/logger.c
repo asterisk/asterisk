@@ -1355,7 +1355,7 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 	return 0;
 }
 
-int ast_callid_threadassoc_remove()
+int ast_callid_threadassoc_remove(void)
 {
 	struct ast_callid **pointing;
 	pointing = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));

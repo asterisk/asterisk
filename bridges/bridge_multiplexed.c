@@ -290,7 +290,8 @@ static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thr
 		ao2_ref(multiplexed_thread, +1);
 		if (ast_pthread_create(&multiplexed_thread->thread, NULL, multiplexed_thread_function, multiplexed_thread)) {
 			ao2_ref(multiplexed_thread, -1);
-			ast_debug(1, "Failed to create an actual thread for multiplexed thread '%p', trying next time\n", multiplexed_thread);
+			ast_log(LOG_WARNING, "Failed to create the bridge thread for multiplexed thread '%p', trying next time\n",
+				multiplexed_thread);
 		}
 	} else if (!multiplexed_thread->service_count && multiplexed_thread->thread != AST_PTHREADT_NULL) {
 		thread = multiplexed_thread->thread;
