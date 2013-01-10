@@ -7978,8 +7978,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			}
 			ast_channel_internal_bridged_channel_set(c0, c1);
 			ast_channel_internal_bridged_channel_set(c1, c0);
-			ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
-			continue;
 		}
 
 		/* Stop if we're a zombie or need a soft hangup */
@@ -8009,28 +8007,21 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    ast_framehook_list_is_empty(ast_channel_framehooks(c0)) && ast_framehook_list_is_empty(ast_channel_framehooks(c1)) &&
 		    !ast_channel_masq(c0) && !ast_channel_masqr(c0) && !ast_channel_masq(c1) && !ast_channel_masqr(c1)) {
 			int timeoutms = to - 1000 > 0 ? to - 1000 : to;
+
 			/* Looks like they share a bridge method and nothing else is in the way */
 			ast_set_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
 			ast_set_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
-			if ((res = ast_channel_tech(c0)->bridge(c0, c1, config->flags, fo, rc, timeoutms)) == AST_BRIDGE_COMPLETE) {
-				manager_bridge_event(0, 1, c0, c1);
+			res = ast_channel_tech(c0)->bridge(c0, c1, config->flags, fo, rc, timeoutms);
+			ast_clear_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
+			ast_clear_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
+			if (res == AST_BRIDGE_COMPLETE) {
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", ast_channel_name(c0), ast_channel_name(c1));
 
-				ast_clear_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
-				ast_clear_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
-
 				if ((ast_channel_softhangup_internal_flag(c0) | ast_channel_softhangup_internal_flag(c1)) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+					ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
 					continue;
 				}
-
-				ast_channel_internal_bridged_channel_set(c0, NULL);
-				ast_channel_internal_bridged_channel_set(c1, NULL);
-				ast_format_cap_destroy(o0nativeformats);
-				ast_format_cap_destroy(o1nativeformats);
-				return res;
-			} else {
-				ast_clear_flag(ast_channel_flags(c0), AST_FLAG_NBRIDGE);
-				ast_clear_flag(ast_channel_flags(c1), AST_FLAG_NBRIDGE);
+				break;
 			}
 			switch (res) {
 			case AST_BRIDGE_RETRY:
@@ -8053,10 +8044,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    !(ast_channel_generator(c0) || ast_channel_generator(c1))) {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", ast_channel_name(c0), ast_channel_name(c1));
-				manager_bridge_event(0, 1, c0, c1);
-				ast_format_cap_destroy(o0nativeformats);
-				ast_format_cap_destroy(o1nativeformats);
-				return AST_BRIDGE_FAILED;
+				res = AST_BRIDGE_FAILED;
+				break;
 			}
 
 			ast_format_cap_copy(o0nativeformats, ast_channel_nativeformats(c0));
