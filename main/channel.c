@@ -7559,16 +7559,18 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
-		if (config->nexteventts.tv_sec) {
+		if (!ast_tvzero(config->nexteventts)) {
 			to = ast_tvdiff_ms(config->nexteventts, ast_tvnow());
 			if (to <= 0) {
-				if (config->timelimit && !config->feature_timer && !ast_test_flag(config, AST_FEATURE_WARNING_ACTIVE)) {
-					res = AST_BRIDGE_RETRY;
-					/* generic bridge ending to play warning */
-					ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
-				} else if (config->feature_timer) {
+				if (config->feature_timer) {
 					/* feature timer expired - make sure we do not play warning */
 					ast_clear_flag(config, AST_FEATURE_WARNING_ACTIVE);
+					/* Indicate a feature timeout. */
+					res = AST_BRIDGE_RETRY;
+				} else if (config->timelimit
+					&& !ast_test_flag(config, AST_FEATURE_WARNING_ACTIVE)) {
+					/* generic bridge ending to play warning */
+					ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
 					res = AST_BRIDGE_RETRY;
 				} else {
 					res = AST_BRIDGE_COMPLETE;
@@ -7576,17 +7578,6 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				break;
 			}
 		} else {
-			/* If a feature has been started and the bridge is configured to
-			 * to not break, leave the channel bridge when the feature timer
-			 * time has elapsed so the DTMF will be sent to the other side.
-			 */
-			if (!ast_tvzero(config->nexteventts)) {
-				int diff = ast_tvdiff_ms(config->nexteventts, ast_tvnow());
-				if (diff <= 0) {
-					res = AST_BRIDGE_RETRY;
-					break;
-				}
-			}
 			to = -1;
 		}
 		/* Calculate the appropriate max sleep interval - in general, this is the time,
@@ -7838,7 +7829,7 @@ static void bridge_play_sounds(struct ast_channel *c0, struct ast_channel *c1)
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
-	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
+	enum ast_bridge_result res;
 	struct ast_format_cap *o0nativeformats;
 	struct ast_format_cap *o1nativeformats;
 	long time_left_ms=0;
@@ -7850,18 +7841,18 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	if (ast_channel_internal_bridged_channel(c0)) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n",
 			ast_channel_name(c0), ast_channel_name(ast_channel_internal_bridged_channel(c0)));
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 	if (ast_channel_internal_bridged_channel(c1)) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n",
 			ast_channel_name(c1), ast_channel_name(ast_channel_internal_bridged_channel(c1)));
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
 	    ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1))
-		return -1;
+		return AST_BRIDGE_FAILED;
 
 	o0nativeformats = ast_format_cap_dup(ast_channel_nativeformats(c0));
 	o1nativeformats = ast_format_cap_dup(ast_channel_nativeformats(c1));
@@ -7869,7 +7860,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		ast_format_cap_destroy(o0nativeformats);
 		ast_format_cap_destroy(o1nativeformats);
 		ast_log(LOG_WARNING, "failed to copy native formats\n");
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 
 	caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
@@ -7910,8 +7901,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			config->nexteventts = ast_tvsub(config->nexteventts, ast_samp2tv(next_warn, 1000));
 		}
 	} else {
-		config->nexteventts.tv_sec = 0;
-		config->nexteventts.tv_usec = 0;
+		config->nexteventts = ast_tv(0, 0);
 	}
 
 	if (!ast_channel_tech(c0)->send_digit_begin)
@@ -7928,8 +7918,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		struct timeval now = { 0, };
 		int to;
 
-		to = -1;
-
 		if (!ast_tvzero(config->nexteventts)) {
 			now = ast_tvnow();
 			to = ast_tvdiff_ms(config->nexteventts, now);
@@ -7940,6 +7928,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				}
 				to = 0;
 			}
+		} else {
+			to = -1;
 		}
 
 		if (config->timelimit) {
@@ -7953,8 +7943,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				if (callee_warning && config->end_sound)
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
-				res = 0;
-				ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s\r\nChannel2: %s", ast_channel_name(c0), ast_channel_name(c1));
+				res = AST_BRIDGE_COMPLETE;
+				ast_test_suite_event_notify("BRIDGE_TIMELIMIT",
+					"Channel1: %s\r\n"
+					"Channel2: %s",
+					ast_channel_name(c0), ast_channel_name(c1));
 				break;
 			}
 
@@ -7993,7 +7986,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		if (ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
 		    ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
-			res = 0;
+			res = AST_BRIDGE_COMPLETE;
 			ast_debug(1, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
 				ast_channel_name(c0), ast_channel_name(c1),
 				ast_test_flag(ast_channel_flags(c0), AST_FLAG_ZOMBIE) ? "Yes" : "No",
