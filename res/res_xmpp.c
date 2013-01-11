@@ -440,6 +440,10 @@ static void xmpp_client_destructor(void *obj)
 
 	ast_xmpp_client_disconnect(client);
 
+	if (client->filter) {
+		iks_filter_delete(client->filter);
+	}
+
 	if (client->stack) {
 		iks_stack_delete(client->stack);
 	}
@@ -3406,12 +3410,6 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 
 	if (client->parser) {
 		iks_disconnect(client->parser);
-	}
-
-	/* Disconnecting the parser and going back to a disconnected state means any hooks should no longer be present */
-	if (client->filter) {
-		iks_filter_delete(client->filter);
-		client->filter = NULL;
 	}
 
 	client->state = XMPP_STATE_DISCONNECTED;
