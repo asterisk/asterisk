@@ -406,6 +406,7 @@ AST_EXT_LIB_SETUP([INOTIFY], [inotify support], [inotify])
 AST_EXT_LIB_SETUP([IODBC], [iODBC], [iodbc])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
+AST_EXT_LIB_SETUP([JANSSON], [Jansson JSON library], [jansson])
 AST_EXT_LIB_SETUP([KQUEUE], [kqueue support], [kqueue])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
@@ -1845,6 +1846,8 @@ AST_EXT_LIB_CHECK([IODBC], [iodbc], [SQLConnect], [sql.h], [${PTHREAD_LIBS}], [$
 AST_EXT_LIB_CHECK([INOTIFY], [c], [inotify_init], [sys/inotify.h])
 
 AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
+
+AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 # BSD (and OS X) equivalent of inotify
 AST_EXT_LIB_CHECK([KQUEUE], [c], [kqueue], [sys/event.h])

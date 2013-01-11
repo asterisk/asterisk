@@ -35,6 +35,7 @@ AST_LIBS+=$(BKTR_LIB)
 AST_LIBS+=$(LIBXML2_LIB)
 AST_LIBS+=$(SQLITE3_LIB)
 AST_LIBS+=$(ASTSSL_LIBS)
+AST_LIBS+=$(JANSSON_LIB)
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi kfreebsd-gnu linux-gnueabihf),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
