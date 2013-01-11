@@ -364,6 +364,9 @@
 /* Define to 1 if you have the Jack Audio Connection Kit library. */
 #undef HAVE_JACK
 
+/* Define to 1 if you have the Jansson JSON library library. */
+#undef HAVE_JANSSON
+
 /* Define to 1 if you have the `kevent64' function. */
 #undef HAVE_KEVENT64
 

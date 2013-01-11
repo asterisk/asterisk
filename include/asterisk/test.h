@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009-2010, Digium, Inc.
+ * Copyright (C) 2009-2013, Digium, Inc.
  *
  * David Vossel <dvossel@digium.com>
  * Russell Bryant <russell@digium.com>
@@ -282,6 +282,32 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
  * \ref __ast_test_status_update()
  */
 #define ast_test_status_update(t, f, ...) __ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (t), (f), ## __VA_ARGS__)
+
+/*!
+ * \brief Check a test condition, failing the test if it's not true.
+ *
+ * \since 12.0.0
+ *
+ * This macro evaluates \a condition. If the condition evaluates to true (non-zero),
+ * nothing happens. If it evaluates to false (zero), then the failure is printed
+ * using \ref ast_test_status_update, and the current test is ended with AST_TEST_FAIL.
+ *
+ * Sadly, the name 'ast_test_assert' was already taken.
+ *
+ * Note that since this macro returns from the current test, there must not be any
+ * cleanup work to be done before returning. Use \ref RAII_VAR for test cleanup.
+ *
+ * \param \a test Currently executing test
+ * \param \a condition Boolean condition to check.
+ */
+#define ast_test_validate(test, condition)				\
+	do {								\
+		if (!(condition)) {					\
+			__ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (test), "Condition failed: %s\n", #condition); \
+			return AST_TEST_FAIL;				\
+		}							\
+	} while(0)
+
 
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */
