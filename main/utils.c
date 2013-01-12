@@ -485,6 +485,69 @@ char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
 
 	return outbuf;
 }
+int ast_xml_escape(const char *string, char * const outbuf, const size_t buflen)
+{
+	char *dst = outbuf;
+	char *end = outbuf + buflen - 1; /* save one for the null terminator */
+
+	/* Handle the case for the empty output buffer */
+	if (buflen == 0) {
+		return -1;
+	}
+
+	/* Escaping rules from http://www.w3.org/TR/REC-xml/#syntax */
+	/* This also prevents partial entities at the end of a string */
+	while (*string && dst < end) {
+		const char *entity = NULL;
+		int len = 0;
+
+		switch (*string) {
+		case '<':
+			entity = "&lt;";
+			len = 4;
+			break;
+		case '&':
+			entity = "&amp;";
+			len = 5;
+			break;
+		case '>':
+			/* necessary if ]]> is in the string; easier to escape them all */
+			entity = "&gt;";
+			len = 4;
+			break;
+		case '\'':
+			/* necessary in single-quoted strings; easier to escape them all */
+			entity = "&apos;";
+			len = 6;
+			break;
+		case '"':
+			/* necessary in double-quoted strings; easier to escape them all */
+			entity = "&quot;";
+			len = 6;
+			break;
+		default:
+			*dst++ = *string++;
+			break;
+		}
+
+		if (entity) {
+			ast_assert(len == strlen(entity));
+			if (end - dst < len) {
+				/* no room for the entity; stop */
+				break;
+			}
+			/* just checked for length; strcpy is fine */
+			strcpy(dst, entity);
+			dst += len;
+			++string;
+		}
+	}
+	/* Write null terminator */
+	*dst = '\0';
+	/* If any chars are left in string, return failure */
+	return *string == '\0' ? 0 : -1;
+}
+
 /*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(struct in_addr ia)
 {
