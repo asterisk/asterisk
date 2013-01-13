@@ -3583,6 +3583,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		f = ast_frisolate(&srcupdate);
 		AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+
+		rtp->last_seqno = 0;
+		rtp->last_end_timestamp = 0;
 	}
 
 	rtp->rxssrc = ssrc;
