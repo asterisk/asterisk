@@ -297,8 +297,8 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
  * Note that since this macro returns from the current test, there must not be any
  * cleanup work to be done before returning. Use \ref RAII_VAR for test cleanup.
  *
- * \param \a test Currently executing test
- * \param \a condition Boolean condition to check.
+ * \param test Currently executing test
+ * \param condition Boolean condition to check.
  */
 #define ast_test_validate(test, condition)				\
 	do {								\
