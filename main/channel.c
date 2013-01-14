@@ -6865,10 +6865,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	struct ast_format rformat;
 	struct ast_format wformat;
 	struct ast_format tmp_format;
-	char newn[AST_CHANNEL_NAME];
-	char orig[AST_CHANNEL_NAME];
-	char masqn[AST_CHANNEL_NAME];
-	char zombn[AST_CHANNEL_NAME];
+	char tmp_name[AST_CHANNEL_NAME];
+	const char *tmp_id;
 	char clone_sending_dtmf_digit;
 	struct timeval clone_sending_dtmf_tv;
 
@@ -6971,11 +6969,17 @@ int ast_do_masquerade(struct ast_channel *original)
 				<parameter name="Clone">
 					<para>The name of the channel whose information will be going into the Original channel.</para>
 				</parameter>
+				<parameter name="CloneUniqueid">
+					<para>The uniqueid of the channel whose information will be going into the Original channel.</para>
+				</parameter>
 				<parameter name="CloneState">
 					<para>The current state of the clone channel.</para>
 				</parameter>
 				<parameter name="Original">
 					<para>The name of the channel whose information will be replaced by the Clone channel's information.</para>
+				</parameter>
+				<parameter name="OriginalUniqueid">
+					<para>The uniqueid of the channel whose information will be replaced by the Clone channel's information.</para>
 				</parameter>
 				<parameter name="OriginalState">
 					<para>The current state of the original channel.</para>
@@ -6985,10 +6989,12 @@ int ast_do_masquerade(struct ast_channel *original)
 	***/
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans,
 		"Clone: %s\r\n"
+		"CloneUniqueid: %s\r\n"
 		"CloneState: %s\r\n"
 		"Original: %s\r\n"
+		"OriginalUniqueid: %s\r\n"
 		"OriginalState: %s\r\n",
-		ast_channel_name(clonechan), ast_state2str(ast_channel_state(clonechan)), ast_channel_name(original), ast_state2str(ast_channel_state(original)));
+		ast_channel_name(clonechan), ast_channel_uniqueid(clonechan), ast_state2str(ast_channel_state(clonechan)), ast_channel_name(original), ast_channel_uniqueid(original), ast_state2str(ast_channel_state(original)));
 
 	/*
 	 * Remember the original read/write formats.  We turn off any
@@ -7003,18 +7009,23 @@ int ast_do_masquerade(struct ast_channel *original)
 	clone_sending_dtmf_digit = ast_channel_sending_dtmf_digit(clonechan);
 	clone_sending_dtmf_tv = ast_channel_sending_dtmf_tv(clonechan);
 
-	/* Save the original name */
-	ast_copy_string(orig, ast_channel_name(original), sizeof(orig));
-	/* Save the new name */
-	ast_copy_string(newn, ast_channel_name(clonechan), sizeof(newn));
-	/* Create the masq name */
-	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
+	/* Swap uniqueid's of the channels. This needs to happen before channel renames,
+	 * so rename events get the proper id's.
+	 */
+	tmp_id = ast_strdupa(ast_channel_uniqueid(clonechan));
+	ast_channel_uniqueid_set(clonechan, ast_channel_uniqueid(original));
+	ast_channel_uniqueid_set(original, tmp_id);
 
-	/* Mangle the name of the clone channel */
-	__ast_change_name_nolink(clonechan, masqn);
+	/* Swap channel names. This uses ast_channel_name_set directly, so we
+	 * don't get any spurious rename events.
+	 */
+	ast_copy_string(tmp_name, ast_channel_name(clonechan), sizeof(tmp_name));
+	ast_channel_name_set(clonechan, ast_channel_name(original));
+	ast_channel_name_set(original, tmp_name);
 
-	/* Copy the name from the clone channel */
-	__ast_change_name_nolink(original, newn);
+	/* Now zombify the clonechan. This gets a real rename event. */
+	snprintf(tmp_name, sizeof(tmp_name), "%s<ZOMBIE>", ast_channel_name(clonechan)); /* quick, hide the brains! */
+	__ast_change_name_nolink(clonechan, tmp_name);
 
 	/* share linked id's */
 	ast_channel_set_linkgroup(original, clonechan);
@@ -7080,10 +7091,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	origstate = ast_channel_state(original);
 	ast_channel_state_set(original, ast_channel_state(clonechan));
 	ast_channel_state_set(clonechan, origstate);
-
-	/* Mangle the name of the clone channel */
-	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig); /* quick, hide the brains! */
-	__ast_change_name_nolink(clonechan, zombn);
 
 	/* Update the type. */
 	t_pvt = ast_channel_monitor(original);
