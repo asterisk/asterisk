@@ -1,0 +1,254 @@
+                                Release Summary
+
+                                asterisk-10.12.0
+
+                                Date: 2013-01-14
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.11.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   14 rmudgett              1 rmudgett               1 eleo                   
+   5 kmoore                                          1 kmoore                 
+   4 bebuild                                         1 rmudgett               
+   2 igorg                                           1 rudolfasd              
+   2 mjordan                
+   1 mmichelson             
+   1 newtonr                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-20606: Wrong confbridge behavior when participants enter
+   simultaneously
+   Revision: 377992
+   Reporter: eleo
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Applications/app_queue
+
+   ASTERISK-20801: Non-SIP queue members get no calls when ringinuse=no.
+   Revision: 378037
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20653: Asterisk allows Session-Expires below 90 in a 200 OK
+   Revision: 377624
+   Reporter: kmoore
+   Coders: kmoore
+
+  Category: Channels/chan_unistim
+
+   ASTERISK-20417: Nortel transfer problem
+   Revision: 377558
+   Reporter: rudolfasd
+   Coders: igorg
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                       | Issues         |
+   |          |            |                               | Referenced     |
+   |----------+------------+-------------------------------+----------------|
+   | 377592   | igorg      | Fix codec mismatch            | ASTERISK-20183 |
+   |----------+------------+-------------------------------+----------------|
+   | 377656   | kmoore     | Ensure ReceiveFax provides a  |                |
+   |          |            | CED tone via T.38             |                |
+   |----------+------------+-------------------------------+----------------|
+   | 377705   | rmudgett   | Cleanup dnsmgr on exit.       | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377709   | rmudgett   | Cleanup event on exit.        | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377741   | rmudgett   | Cleanup indications on exit.  | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377772   | rmudgett   | Cleanup logger on exit.       | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377807   | rmudgett   | Cleanup pbx on exit.          | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377838   | rmudgett   | Cleanup taskprocessor on      | ASTERISK-20649 |
+   |          |            | exit.                         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Fix crash that can occur if   |                |
+   | 377842   | mmichelson | CLI registration fails for an |                |
+   |          |            | aliased command.              |                |
+   |----------+------------+-------------------------------+----------------|
+   | 377848   | rmudgett   | Cleanup udptl on exit.        | ASTERISK-20649 |
+   |----------+------------+-------------------------------+----------------|
+   | 377882   | rmudgett   | Cleanup CLI commands on exit  | ASTERISK-20649 |
+   |          |            | for several files.            |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Incremented                   |                |
+   | 377923   | newtonr    | EXTRA_SOUNDS_VERSION in       |                |
+   |          |            | sounds/Makefile to 1.4.12 for |                |
+   |          |            | new Extra Sounds releases     |                |
+   |----------+------------+-------------------------------+----------------|
+   | 377947   | kmoore     | Ensure Min-SE is included in  |                |
+   |          |            | outbound INVITEs              |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Make chan_local module        |                |
+   | 378089   | rmudgett   | references tied to local_pvt  |                |
+   |          |            | lifetime.                     |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378093   | rmudgett   | Fix potential double free     |                |
+   |          |            | when unloading a module.      |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378120   | kmoore     | Add test events for time      |                |
+   |          |            | limit-related hangups         |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Ensure chan_sip rejects       |                |
+   | 378218   | kmoore     | encrypted streams without     |                |
+   |          |            | crypto info                   |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Resolve crashes due to large  |                |
+   | 378286   | mjordan    | stack allocations when using  | ASTERISK-20658 |
+   |          |            | TCP                           |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | Prevent exhaustion of system  |                |
+   | 378320   | mjordan    | resources through             | ASTERISK-20175 |
+   |          |            | exploitation of event cache   |                |
+   |----------+------------+-------------------------------+----------------|
+   |          |            | app_queue: Fix multiple calls |                |
+   | 378683   | rmudgett   | to a queue member that is in  | ASTERISK-16115 |
+   |          |            | only one queue.               |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378689   | rmudgett   | app_queue: Fix incorrect      | ASTERISK-16115 |
+   |          |            | assertion.                    |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378736   | bebuild    | Creating tag for the release  |                |
+   |          |            | of asterisk-10.12.0-rc2       |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378737   | bebuild    | Importing files for           |                |
+   |          |            | 10.12.0-rc2 release.          |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378738   | bebuild    | Importing release summary for |                |
+   |          |            | 10.12.0-rc2 release.          |                |
+   |----------+------------+-------------------------------+----------------|
+   | 378739   | bebuild    | Use autotagged externals      |                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                |    1
+ .version                                  |    1
+ CHANGES                                   |    2
+ ChangeLog                                 |29212 ++++++++++++++++++++++++++++++
+ UPGRADE.txt                               |    3
+ apps/app_confbridge.c                     |  145
+ apps/app_meetme.c                         |   16
+ apps/app_queue.c                          |  204
+ apps/confbridge/conf_state.c              |   19
+ apps/confbridge/conf_state_empty.c        |    2
+ apps/confbridge/conf_state_multi_marked.c |   14
+ apps/confbridge/include/confbridge.h      |   19
+ asterisk-10.12.0-rc2-summary.html         |  161
+ asterisk-10.12.0-rc2-summary.txt          |  237
+ channels/chan_agent.c                     |   12
+ channels/chan_dahdi.c                     |    7
+ channels/chan_iax2.c                      |   31
+ channels/chan_local.c                     |   47
+ channels/chan_sip.c                       |  113
+ channels/chan_skinny.c                    |   16
+ channels/chan_unistim.c                   |   22
+ channels/sip/include/sip.h                |    1
+ configs/queues.conf.sample                |    7
+ funcs/func_devstate.c                     |    6
+ include/asterisk/bridging.h               |   26
+ include/asterisk/channel.h                |    6
+ include/asterisk/devicestate.h            |   16
+ include/asterisk/event_defs.h             |    8
+ main/aoc.c                                |    5
+ main/ccss.c                               |    2
+ main/cel.c                                |    1
+ main/channel.c                            |   10
+ main/data.c                               |    2
+ main/devicestate.c                        |   51
+ main/dnsmgr.c                             |   23
+ main/event.c                              |   46
+ main/features.c                           |    2
+ main/file.c                               |    6
+ main/http.c                               |   26
+ main/image.c                              |    6
+ main/indications.c                        |   15
+ main/loader.c                             |   28
+ main/logger.c                             |   12
+ main/pbx.c                                |   17
+ main/stun.c                               |    6
+ main/taskprocessor.c                      |   14
+ main/timing.c                             |   10
+ main/udptl.c                              |   14
+ res/res_calendar.c                        |    8
+ res/res_clialiases.c                      |    5
+ res/res_fax.c                             |    3
+ res/res_jabber.c                          |   66
+ sounds/Makefile                           |    2
+ 53 files changed, 30415 insertions(+), 319 deletions(-)
+
+     ----------------------------------------------------------------------

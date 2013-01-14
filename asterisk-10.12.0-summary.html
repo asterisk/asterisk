@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-10.12.0</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-10.12.0</h3>
+<h3 align="center">Date: 2013-01-14</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-10.11.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+14 rmudgett<br/>
+5 kmoore<br/>
+4 bebuild<br/>
+2 igorg<br/>
+2 mjordan<br/>
+1 mmichelson<br/>
+1 newtonr<br/>
+</td>
+<td>
+1 rmudgett<br/>
+</td>
+<td>
+1 eleo<br/>
+1 kmoore<br/>
+1 rmudgett<br/>
+1 rudolfasd<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_confbridge</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20606">ASTERISK-20606</a>: Wrong confbridge behavior when participants enter simultaneously<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377992">377992</a><br/>
+Reporter: eleo<br/>
+Testers: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20801">ASTERISK-20801</a>: Non-SIP queue members get no calls when ringinuse=no.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378037">378037</a><br/>
+Reporter: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20653">ASTERISK-20653</a>: Asterisk allows Session-Expires below 90 in a 200 OK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377624">377624</a><br/>
+Reporter: kmoore<br/>
+Coders: kmoore<br/>
+<br/>
+<h3>Category: Channels/chan_unistim</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20417">ASTERISK-20417</a>: Nortel transfer problem<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377558">377558</a><br/>
+Reporter: rudolfasd<br/>
+Coders: igorg<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377592">377592</a></td><td>igorg</td><td>Fix codec mismatch</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20183">ASTERISK-20183</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377656">377656</a></td><td>kmoore</td><td>Ensure ReceiveFax provides a CED tone via T.38</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377705">377705</a></td><td>rmudgett</td><td>Cleanup dnsmgr on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377709">377709</a></td><td>rmudgett</td><td>Cleanup event on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377741">377741</a></td><td>rmudgett</td><td>Cleanup indications on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377772">377772</a></td><td>rmudgett</td><td>Cleanup logger on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377807">377807</a></td><td>rmudgett</td><td>Cleanup pbx on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377838">377838</a></td><td>rmudgett</td><td>Cleanup taskprocessor on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377842">377842</a></td><td>mmichelson</td><td>Fix crash that can occur if CLI registration fails for an aliased command.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377848">377848</a></td><td>rmudgett</td><td>Cleanup udptl on exit.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377882">377882</a></td><td>rmudgett</td><td>Cleanup CLI commands on exit for several files.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20649">ASTERISK-20649</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377923">377923</a></td><td>newtonr</td><td>Incremented EXTRA_SOUNDS_VERSION in sounds/Makefile to 1.4.12 for new Extra Sounds releases</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=377947">377947</a></td><td>kmoore</td><td>Ensure Min-SE is included in outbound INVITEs</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378089">378089</a></td><td>rmudgett</td><td>Make chan_local module references tied to local_pvt lifetime.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378093">378093</a></td><td>rmudgett</td><td>Fix potential double free when unloading a module.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378120">378120</a></td><td>kmoore</td><td>Add test events for time limit-related hangups</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378218">378218</a></td><td>kmoore</td><td>Ensure chan_sip rejects encrypted streams without crypto info</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378286">378286</a></td><td>mjordan</td><td>Resolve crashes due to large stack allocations when using TCP</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20658">ASTERISK-20658</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378320">378320</a></td><td>mjordan</td><td>Prevent exhaustion of system resources through exploitation of event cache</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20175">ASTERISK-20175</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378683">378683</a></td><td>rmudgett</td><td>app_queue: Fix multiple calls to a queue member that is in only one queue.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16115">ASTERISK-16115</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378689">378689</a></td><td>rmudgett</td><td>app_queue: Fix incorrect assertion.</td>
+<td><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16115">ASTERISK-16115</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378736">378736</a></td><td>bebuild</td><td>Creating tag for the release of asterisk-10.12.0-rc2</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378737">378737</a></td><td>bebuild</td><td>Importing files for 10.12.0-rc2 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378738">378738</a></td><td>bebuild</td><td>Importing release summary for 10.12.0-rc2 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/10?view=revision&revision=378739">378739</a></td><td>bebuild</td><td>Use autotagged externals</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.lastclean                                |    1
+.version                                  |    1
+CHANGES                                   |    2
+ChangeLog                                 |29212 ++++++++++++++++++++++++++++++
+UPGRADE.txt                               |    3
+apps/app_confbridge.c                     |  145
+apps/app_meetme.c                         |   16
+apps/app_queue.c                          |  204
+apps/confbridge/conf_state.c              |   19
+apps/confbridge/conf_state_empty.c        |    2
+apps/confbridge/conf_state_multi_marked.c |   14
+apps/confbridge/include/confbridge.h      |   19
+asterisk-10.12.0-rc2-summary.html         |  161
+asterisk-10.12.0-rc2-summary.txt          |  237
+channels/chan_agent.c                     |   12
+channels/chan_dahdi.c                     |    7
+channels/chan_iax2.c                      |   31
+channels/chan_local.c                     |   47
+channels/chan_sip.c                       |  113
+channels/chan_skinny.c                    |   16
+channels/chan_unistim.c                   |   22
+channels/sip/include/sip.h                |    1
+configs/queues.conf.sample                |    7
+funcs/func_devstate.c                     |    6
+include/asterisk/bridging.h               |   26
+include/asterisk/channel.h                |    6
+include/asterisk/devicestate.h            |   16
+include/asterisk/event_defs.h             |    8
+main/aoc.c                                |    5
+main/ccss.c                               |    2
+main/cel.c                                |    1
+main/channel.c                            |   10
+main/data.c                               |    2
+main/devicestate.c                        |   51
+main/dnsmgr.c                             |   23
+main/event.c                              |   46
+main/features.c                           |    2
+main/file.c                               |    6
+main/http.c                               |   26
+main/image.c                              |    6
+main/indications.c                        |   15
+main/loader.c                             |   28
+main/logger.c                             |   12
+main/pbx.c                                |   17
+main/stun.c                               |    6
+main/taskprocessor.c                      |   14
+main/timing.c                             |   10
+main/udptl.c                              |   14
+res/res_calendar.c                        |    8
+res/res_clialiases.c                      |    5
+res/res_fax.c                             |    3
+res/res_jabber.c                          |   66
+sounds/Makefile                           |    2
+53 files changed, 30415 insertions(+), 319 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
