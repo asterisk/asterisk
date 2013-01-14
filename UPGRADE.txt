@@ -27,6 +27,17 @@ AMI:
  - The SIP SIPqualifypeer action now sends a response indicating it will qualify
    a peer once a peer has been found to qualify.  Once the qualify has been
    completed it will now issue a SIPqualifypeerdone event.
+ - Version 1.4 - The details of what happens to a channel when a masquerade
+   happens (transfers, parking, etc) have changed.
+   - The Masquerade event now includes the Uniqueid's of the clone and original
+     channels.
+   - Channels no longer swap Uniqueid's as a result of the masquerade.
+   - Instead of a shell game of renames, there's now a single rename, appending
+     <ZOMBIE> to the name of the original channel.
+
+CEL:
+ - The Uniqueid field for a channel is now a stable identifier, and will not
+   change due to transfers, parking, etc.
 
 Queues:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
