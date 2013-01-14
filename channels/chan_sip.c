@@ -13116,8 +13116,8 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
 			/* Twice the extension length should be enough for XML encoding */
 			char local_display[AST_MAX_EXTENSION * 2];
+			char remote_display[AST_MAX_EXTENSION * 2];
 			char *local_target = ast_strdupa(mto);
-			const char *remote_display = exten;
 			/* It may seem odd to base the remote_target on the To header here,
 			 * but testing by reporters on issue ASTERISK-16735 found that basing
 			 * on the From header would cause ringing state hints to not work
@@ -13129,6 +13129,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 			char *remote_target = ast_strdupa(mto);
 
 			ast_xml_escape(exten, local_display, sizeof(local_display));
+			ast_xml_escape(exten, remote_display, sizeof(remote_display));
 
 			/* There are some limitations to how this works.  The primary one is that the
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
@@ -13148,8 +13149,9 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 					remote_target = ast_alloca(need);
 					snprintf(remote_target, need, "sip:%s@%s", cid_num, p->fromdomain);
 
-					remote_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
-						caller->caller.id.name.str, ""));
+					ast_xml_escape(S_COR(caller->caller.id.name.valid,
+							     caller->caller.id.name.str, ""),
+						       remote_display, sizeof(remote_display));
 
 					connected_num = S_COR(caller->connected.id.number.valid,
 						caller->connected.id.number.str, "");
