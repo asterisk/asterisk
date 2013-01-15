@@ -1341,7 +1341,7 @@ void ast_bridge_technology_unsuspend(struct ast_bridge_technology *technology)
 int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_bridge_features_hook_callback callback, const char *dtmf)
 {
 	if (ARRAY_LEN(builtin_features_handlers) <= feature
-		|| !builtin_features_handlers[feature]) {
+		|| builtin_features_handlers[feature]) {
 		return -1;
 	}
 
