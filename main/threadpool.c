@@ -100,6 +100,20 @@ struct ast_threadpool {
 };
 
 /*!
+ * \brief listener for a threadpool
+ *
+ * The listener is notified of changes in a threadpool. It can
+ * react by doing things like increasing the number of threads
+ * in the pool
+ */
+struct ast_threadpool_listener {
+	/*! Callbacks called by the threadpool */
+	const struct ast_threadpool_listener_callbacks *callbacks;
+	/*! User data for the listener */
+	void *user_data;
+};
+
+/*!
  * \brief states for worker threads
  */
 enum worker_state {
@@ -821,6 +835,11 @@ struct ast_threadpool_listener *ast_threadpool_listener_alloc(
 	listener->callbacks = callbacks;
 	listener->user_data = user_data;
 	return listener;
+}
+
+void *ast_threadpool_listener_get_user_data(const struct ast_threadpool_listener *listener)
+{
+	return listener->user_data;
 }
 
 struct pool_options_pair {

@@ -65,7 +65,7 @@ static void test_state_changed(struct ast_threadpool *pool,
 		int active_threads,
 		int idle_threads)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->num_active = active_threads;
 	tld->num_idle = idle_threads;
@@ -77,7 +77,7 @@ static void test_task_pushed(struct ast_threadpool *pool,
 		struct ast_threadpool_listener *listener,
 		int was_empty)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->task_pushed = 1;
 	++tld->num_tasks;
@@ -88,7 +88,7 @@ static void test_task_pushed(struct ast_threadpool *pool,
 static void test_emptied(struct ast_threadpool *pool,
 		struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->empty_notice = 1;
 	ast_cond_signal(&tld->cond);
@@ -96,7 +96,7 @@ static void test_emptied(struct ast_threadpool *pool,
 
 static void test_shutdown(struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	ast_cond_destroy(&tld->cond);
 	ast_mutex_destroy(&tld->lock);
 }
@@ -163,7 +163,7 @@ static enum ast_test_result_state wait_until_thread_state(struct ast_test *test,
 
 static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	struct timeval start = ast_tvnow();
 	struct timespec end = {
 		.tv_sec = start.tv_sec + 5,
@@ -235,7 +235,7 @@ static enum ast_test_result_state listener_check(
 		int num_idle,
 		int empty_notice)
 {
-	struct test_listener_data *tld = listener->user_data;
+	struct test_listener_data *tld = ast_threadpool_listener_get_user_data(listener);
 	enum ast_test_result_state res = AST_TEST_PASS;
 
 	if (tld->task_pushed != task_pushed) {

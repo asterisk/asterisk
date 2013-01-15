@@ -67,20 +67,6 @@ struct ast_threadpool_listener_callbacks {
 	void (*shutdown)(struct ast_threadpool_listener *listener);
 };
 
-/*!
- * \brief listener for a threadpool
- *
- * The listener is notified of changes in a threadpool. It can
- * react by doing things like increasing the number of threads
- * in the pool
- */
-struct ast_threadpool_listener {
-	/*! Callbacks called by the threadpool */
-	const struct ast_threadpool_listener_callbacks *callbacks;
-	/*! User data for the listener */
-	void *user_data;
-};
-
 struct ast_threadpool_options {
 #define AST_THREADPOOL_OPTIONS_VERSION 1
 	/*! Version of thradpool options in use */
@@ -127,6 +113,8 @@ struct ast_threadpool_options {
  */
 struct ast_threadpool_listener *ast_threadpool_listener_alloc(
 		const struct ast_threadpool_listener_callbacks *callbacks, void *user_data);
+
+void *ast_threadpool_listener_get_user_data(const struct ast_threadpool_listener *listener);
 
 /*!
  * \brief Create a new threadpool
