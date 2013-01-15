@@ -365,23 +365,25 @@ static void threadpool_destructor(void *obj)
  * is because the threadpool exists as the private data on a taskprocessor
  * listener.
  *
- * \param listener The taskprocessor listener where the threadpool will live.
+ * \param name The name of the threadpool.
+ * \param options The options the threadpool uses.
  * \retval NULL Could not initialize threadpool properly
  * \retval non-NULL The newly-allocated threadpool
  */
-static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
+static void *threadpool_alloc(const char *name, const struct ast_threadpool_options *options)
 {
 	RAII_VAR(struct ast_threadpool *, pool,
 			ao2_alloc(sizeof(*pool), threadpool_destructor), ao2_cleanup);
-	struct ast_str *name = ast_str_create(64);
+	struct ast_str *control_tps_name = ast_str_create(64);
 
-	if (!name) {
+	if (!control_tps_name) {
 		return NULL;
 	}
 
-	ast_str_set(&name, 0, "%s-control", ast_taskprocessor_name(listener->tps));
+	ast_str_set(&control_tps_name, 0, "%s-control", name);
 
-	pool->control_tps = ast_taskprocessor_get(ast_str_buffer(name), TPS_REF_DEFAULT);
+	pool->control_tps = ast_taskprocessor_get(ast_str_buffer(control_tps_name), TPS_REF_DEFAULT);
+	ast_free(control_tps_name);
 	if (!pool->control_tps) {
 		return NULL;
 	}
@@ -397,6 +399,7 @@ static void *threadpool_alloc(struct ast_taskprocessor_listener *listener)
 	if (!pool->zombie_threads) {
 		return NULL;
 	}
+	pool->options = *options;
 
 	ao2_ref(pool, +1);
 	return pool;
@@ -545,7 +548,7 @@ static int queued_task_pushed(void *data)
 static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listener,
 		int was_empty)
 {
-	struct ast_threadpool *pool = listener->private_data;
+	struct ast_threadpool *pool = listener->user_data;
 	struct task_pushed_data *tpd;
 	SCOPED_AO2LOCK(lock, pool);
 
@@ -585,7 +588,7 @@ static int queued_emptied(void *data)
  */
 static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
 {
-	struct ast_threadpool *pool = listener->private_data;
+	struct ast_threadpool *pool = listener->user_data;
 	SCOPED_AO2LOCK(lock, pool);
 
 	if (pool->shutting_down) {
@@ -608,26 +611,11 @@ static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
  */
 static void threadpool_tps_shutdown(struct ast_taskprocessor_listener *listener)
 {
-	struct ast_threadpool *pool = listener->private_data;
+	struct ast_threadpool *pool = listener->user_data;
 
 	ao2_cleanup(pool->active_threads);
 	ao2_cleanup(pool->idle_threads);
 	ao2_cleanup(pool->zombie_threads);
-}
-
-/*!
- * \brief Taskprocessor listener destroy callback
- *
- * Since the threadpool is an ao2 object, all that is necessary is to
- * decrease the refcount. Since the control taskprocessor should already
- * be destroyed by this point, this should be the final reference to the
- * threadpool.
- *
- * \param private_data The threadpool to destroy
- */
-static void threadpool_destroy(void *private_data)
-{
-	struct ast_threadpool *pool = private_data;
 	ao2_cleanup(pool);
 }
 
@@ -635,12 +623,10 @@ static void threadpool_destroy(void *private_data)
  * \brief Table of taskprocessor listener callbacks for threadpool's main taskprocessor
  */
 static struct ast_taskprocessor_listener_callbacks threadpool_tps_listener_callbacks = {
-	.alloc = threadpool_alloc,
 	.start = threadpool_tps_start,
 	.task_pushed = threadpool_tps_task_pushed,
 	.emptied = threadpool_tps_emptied,
 	.shutdown = threadpool_tps_shutdown,
-	.destroy = threadpool_destroy,
 };
 
 /*!
@@ -854,12 +840,15 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 		struct ast_threadpool_listener *listener,
 		int initial_size, const struct ast_threadpool_options *options)
 {
-	struct ast_threadpool *pool;
 	struct ast_taskprocessor *tps;
-	RAII_VAR(struct ast_taskprocessor_listener *, tps_listener,
-			ast_taskprocessor_listener_alloc(&threadpool_tps_listener_callbacks),
-			ao2_cleanup);
+	RAII_VAR(struct ast_taskprocessor_listener *, tps_listener, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_threadpool *, pool, threadpool_alloc(name, options), ao2_cleanup);
 
+	if (!pool) {
+		return NULL;
+	}
+	
+	tps_listener = ast_taskprocessor_listener_alloc(&threadpool_tps_listener_callbacks, pool);
 	if (!tps_listener) {
 		return NULL;
 	}
@@ -870,19 +859,17 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 	}
 
 	tps = ast_taskprocessor_create_with_listener(name, tps_listener);
-
 	if (!tps) {
 		return NULL;
 	}
 
-	pool = tps_listener->private_data;
 	pool->tps = tps;
 	if (listener) {
 		ao2_ref(listener, +1);
 		pool->listener = listener;
 	}
-	pool->options = *options;
 	ast_threadpool_set_size(pool, initial_size);
+	ao2_ref(pool, +1);
 	return pool;
 }
 

@@ -260,7 +260,7 @@ struct test_listener_pvt {
 /*!
  * \brief test taskprocessor listener's alloc callback
  */
-static void *test_alloc(struct ast_taskprocessor_listener *listener)
+static void *test_listener_pvt_alloc(void)
 {
 	struct test_listener_pvt *pvt;
 
@@ -283,7 +283,7 @@ static int test_start(struct ast_taskprocessor_listener *listener)
  */
 static void test_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
 {
-	struct test_listener_pvt *pvt = listener->private_data;
+	struct test_listener_pvt *pvt = listener->user_data;
 	++pvt->num_pushed;
 	if (was_empty) {
 		++pvt->num_was_empty;
@@ -295,7 +295,7 @@ static void test_task_pushed(struct ast_taskprocessor_listener *listener, int wa
  */
 static void test_emptied(struct ast_taskprocessor_listener *listener)
 {
-	struct test_listener_pvt *pvt = listener->private_data;
+	struct test_listener_pvt *pvt = listener->user_data;
 	++pvt->num_emptied;
 }
 
@@ -304,26 +304,15 @@ static void test_emptied(struct ast_taskprocessor_listener *listener)
  */
 static void test_shutdown(struct ast_taskprocessor_listener *listener)
 {
-	struct test_listener_pvt *pvt = listener->private_data;
+	struct test_listener_pvt *pvt = listener->user_data;
 	pvt->shutdown = 1;
 }
 
-/*!
- * \brief test taskprocessor listener's destroy callback.
- */
-static void test_destroy(void *private_data)
-{
-	struct test_listener_pvt *pvt = private_data;
-	ast_free(pvt);
-}
-
 static const struct ast_taskprocessor_listener_callbacks test_callbacks = {
-	.alloc = test_alloc,
 	.start = test_start,
 	.task_pushed = test_task_pushed,
 	.emptied = test_emptied,
 	.shutdown = test_shutdown,
-	.destroy = test_destroy,
 };
 
 /*!
@@ -381,9 +370,9 @@ static int check_stats(struct ast_test *test, const struct test_listener_pvt *pv
  */
 AST_TEST_DEFINE(taskprocessor_listener)
 {
-	struct ast_taskprocessor *tps;
-	struct ast_taskprocessor_listener *listener;
-	struct test_listener_pvt *pvt;
+	struct ast_taskprocessor *tps = NULL;
+	struct ast_taskprocessor_listener *listener = NULL;
+	struct test_listener_pvt *pvt = NULL;
 	enum ast_test_result_state res = AST_TEST_PASS;
 
 	switch (cmd) {
@@ -398,10 +387,17 @@ AST_TEST_DEFINE(taskprocessor_listener)
 		break;
 	}
 
-	listener = ast_taskprocessor_listener_alloc(&test_callbacks);
+	pvt = test_listener_pvt_alloc();
+	if (!pvt) {
+		ast_test_status_update(test, "Unable to allocate test taskprocessor listener user data\n");
+		return AST_TEST_FAIL;
+	}
+
+	listener = ast_taskprocessor_listener_alloc(&test_callbacks, pvt);
 	if (!listener) {
 		ast_test_status_update(test, "Unable to allocate test taskprocessor listener\n");
-		return AST_TEST_FAIL;
+		res = AST_TEST_FAIL;
+		goto test_exit;
 	}
 
 	tps = ast_taskprocessor_create_with_listener("test_listener", listener);
@@ -410,8 +406,6 @@ AST_TEST_DEFINE(taskprocessor_listener)
 		res = AST_TEST_FAIL;
 		goto test_exit;
 	}
-
-	pvt = listener->private_data;
 
 	ast_taskprocessor_push(tps, listener_test_task, NULL);
 
@@ -449,9 +443,10 @@ AST_TEST_DEFINE(taskprocessor_listener)
 	}
 
 test_exit:
-	ao2_ref(listener, -1);
+	ao2_cleanup(listener);
 	/* This is safe even if tps is NULL */
 	ast_taskprocessor_unreference(tps);
+	ast_free(pvt);
 	return res;
 }
 

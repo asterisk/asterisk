@@ -75,17 +75,6 @@ struct ast_taskprocessor_listener;
 
 struct ast_taskprocessor_listener_callbacks {
 	/*!
-	 * \brief Allocate the listener's private data
-	 *
-	 * This is called during taskprocesor creation.
-	 * It is not necessary to assign the private data to the listener.
-	 *
-	 * \param listener The listener to which the private data belongs
-	 * \retval NULL Error while attempting to initialize private data
-	 * \retval non-NULL Allocated private data
-	 */
-	void *(*alloc)(struct ast_taskprocessor_listener *listener);
-	/*!
 	 * \brief The taskprocessor has started completely
 	 *
 	 * This indicates that the taskprocessor is fully set up and the listener
@@ -111,7 +100,8 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \brief Indicates the taskprocessor wishes to die.
 	 *
 	 * All operations on the task processor must to be stopped in
-	 * this callback.
+	 * this callback. This is an opportune time to free the listener's
+	 * user data if it is not going to be used anywhere else.
 	 *
 	 * After this callback returns, it is NOT safe to operate on the
 	 * listener's reference to the taskprocessor.
@@ -119,15 +109,6 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \param listener The listener
 	 */
 	void (*shutdown)(struct ast_taskprocessor_listener *listener);
-	/*!
-	 * \brief Destroy the listener's private data
-	 *
-	 * It is required that you free the private data in this callback
-	 * in addition to the private data's individual fields.
-	 *
-	 * \param private_data The listener's private data
-	 */
-	void (*destroy)(void *private_data);
 };
 
 /*!
@@ -146,7 +127,7 @@ struct ast_taskprocessor_listener {
 	/*! The taskprocessor that the listener is listening to */
 	struct ast_taskprocessor *tps;
 	/*! Data private to the listener */
-	void *private_data;
+	void *user_data;
 };
 
 /*!
@@ -158,10 +139,11 @@ struct ast_taskprocessor_listener {
  * callbacks.
  *
  * \param callbacks The callbacks to assign to the listener
+ * \param user_data The user data for the listener
  * \retval NULL Failure
  * \retval non-NULL The newly allocated taskprocessor listener
  */
-struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks);
+struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks, void *user_data);
 
 /*!
  * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
