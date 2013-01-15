@@ -613,7 +613,9 @@ static void threadpool_tps_shutdown(struct ast_taskprocessor_listener *listener)
 {
 	struct ast_threadpool *pool = listener->user_data;
 
-	pool->listener->callbacks->shutdown(pool->listener);
+	if (pool->listener && pool->listener->callbacks->shutdown) {
+		pool->listener->callbacks->shutdown(pool->listener);
+	}
 	ao2_cleanup(pool->active_threads);
 	ao2_cleanup(pool->idle_threads);
 	ao2_cleanup(pool->zombie_threads);

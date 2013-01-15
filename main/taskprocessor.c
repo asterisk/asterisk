@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007-2008, Digium, Inc.
+ * Copyright (C) 2007-2013, Digium, Inc.
  *
  * Dwayne M. Hubbard <dhubbard@digium.com>
  *
@@ -487,56 +487,10 @@ static void *default_listener_pvt_alloc(void)
 	return pvt;
 }
 
-/* Provide a reference to a taskprocessor.  Create the taskprocessor if necessary, but don't
- * create the taskprocessor if we were told via ast_tps_options to return a reference only
- * if it already exists */
-struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create)
-{
-	struct ast_taskprocessor *p;
-	struct ast_taskprocessor_listener *listener;
-	struct default_taskprocessor_listener_pvt *pvt;
-
-	if (ast_strlen_zero(name)) {
-		ast_log(LOG_ERROR, "requesting a nameless taskprocessor!!!\n");
-		return NULL;
-	}
-	p = ao2_find(tps_singletons, name, OBJ_KEY);
-	if (p) {
-		return p;
-	}
-	if (create & TPS_REF_IF_EXISTS) {
-		/* calling function does not want a new taskprocessor to be created if it doesn't already exist */
-		return NULL;
-	}
-	/* Create a new taskprocessor. Start by creating a default listener */
-	pvt = default_listener_pvt_alloc();
-	if (!pvt) {
-		return NULL;
-	}
-	listener = ast_taskprocessor_listener_alloc(&default_listener_callbacks, pvt);
-	if (!listener) {
-		default_listener_pvt_destroy(pvt);
-		return NULL;
-	}
-
-	p = ast_taskprocessor_create_with_listener(name, listener);
-	if (!p) {
-		default_listener_pvt_destroy(pvt);
-		ao2_ref(listener, -1);
-		return NULL;
-	}
-
-	/* Unref listener here since the taskprocessor has gained a reference to the listener */
-	ao2_ref(listener, -1);
-	return p;
-
-}
-
-struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener)
+static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, struct ast_taskprocessor_listener *listener)
 {
 	RAII_VAR(struct ast_taskprocessor *, p,
-			ao2_alloc(sizeof(*p), tps_taskprocessor_destroy),
-			ao2_cleanup);
+			ao2_alloc(sizeof(*p), tps_taskprocessor_destroy), ao2_cleanup);
 
 	if (!p) {
 		ast_log(LOG_WARNING, "failed to create taskprocessor '%s'\n", name);
@@ -574,6 +528,63 @@ struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *nam
 	 */
 	ao2_ref(p, +1);
 	return p;
+
+}
+
+/* Provide a reference to a taskprocessor.  Create the taskprocessor if necessary, but don't
+ * create the taskprocessor if we were told via ast_tps_options to return a reference only
+ * if it already exists */
+struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create)
+{
+	struct ast_taskprocessor *p;
+	struct ast_taskprocessor_listener *listener;
+	struct default_taskprocessor_listener_pvt *pvt;
+
+	if (ast_strlen_zero(name)) {
+		ast_log(LOG_ERROR, "requesting a nameless taskprocessor!!!\n");
+		return NULL;
+	}
+	p = ao2_find(tps_singletons, name, OBJ_KEY);
+	if (p) {
+		return p;
+	}
+	if (create & TPS_REF_IF_EXISTS) {
+		/* calling function does not want a new taskprocessor to be created if it doesn't already exist */
+		return NULL;
+	}
+	/* Create a new taskprocessor. Start by creating a default listener */
+	pvt = default_listener_pvt_alloc();
+	if (!pvt) {
+		return NULL;
+	}
+	listener = ast_taskprocessor_listener_alloc(&default_listener_callbacks, pvt);
+	if (!listener) {
+		default_listener_pvt_destroy(pvt);
+		return NULL;
+	}
+
+	p = __allocate_taskprocessor(name, listener);
+	if (!p) {
+		default_listener_pvt_destroy(pvt);
+		ao2_ref(listener, -1);
+		return NULL;
+	}
+
+	/* Unref listener here since the taskprocessor has gained a reference to the listener */
+	ao2_ref(listener, -1);
+	return p;
+
+}
+
+struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener)
+{
+	struct ast_taskprocessor *p = ao2_find(tps_singletons, name, OBJ_KEY);
+
+	if (p) {
+		ast_taskprocessor_unreference(p);
+		return NULL;
+	}
+	return __allocate_taskprocessor(name, listener);
 }
 
 /* decrement the taskprocessor reference count and unlink from the container if necessary */

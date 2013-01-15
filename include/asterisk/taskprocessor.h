@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007-2008, Digium, Inc.
+ * Copyright (C) 2007-2013, Digium, Inc.
  *
  * Dwayne M. Hubbard <dhubbard@digium.com>
  *
@@ -22,7 +22,7 @@
  *
  * \author Dwayne M. Hubbard <dhubbard@digium.com>
  *
- * \note A taskprocessor is a named singleton containing a task queue that
+ * \note A taskprocessor is a named object containing a task queue that
  * serializes tasks pushed into it by [a] module(s) that reference the taskprocessor.
  * A taskprocessor is created the first time its name is requested via the
  * ast_taskprocessor_get() function or the ast_taskprocessor_create_with_listener()

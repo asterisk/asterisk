@@ -135,7 +135,7 @@ struct ast_threadpool_listener *ast_threadpool_listener_alloc(
  * in and will be automatically acted upon by threads within the pool.
  *
  * \param name The name for the threadpool
- * \param listener The listener the threadpool will notify of changes
+ * \param listener The listener the threadpool will notify of changes. Can be NULL.
  * \param options The behavioral options for this threadpool
  * \retval NULL Failed to create the threadpool
  * \retval non-NULL The newly-created threadpool
