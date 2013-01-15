@@ -613,6 +613,7 @@ static void threadpool_tps_shutdown(struct ast_taskprocessor_listener *listener)
 {
 	struct ast_threadpool *pool = listener->user_data;
 
+	pool->listener->callbacks->shutdown(pool->listener);
 	ao2_cleanup(pool->active_threads);
 	ao2_cleanup(pool->idle_threads);
 	ao2_cleanup(pool->zombie_threads);
@@ -808,26 +809,15 @@ void ast_threadpool_set_size(struct ast_threadpool *pool, unsigned int size)
 	ast_taskprocessor_push(pool->control_tps, queued_set_size, ssd);
 }
 
-static void listener_destructor(void *obj)
-{
-	struct ast_threadpool_listener *listener = obj;
-
-	listener->callbacks->destroy(listener->private_data);
-}
-
 struct ast_threadpool_listener *ast_threadpool_listener_alloc(
-		const struct ast_threadpool_listener_callbacks *callbacks)
+		const struct ast_threadpool_listener_callbacks *callbacks, void *user_data)
 {
-	struct ast_threadpool_listener *listener = ao2_alloc(sizeof(*listener), listener_destructor);
+	struct ast_threadpool_listener *listener = ao2_alloc(sizeof(*listener), NULL);
 	if (!listener) {
 		return NULL;
 	}
 	listener->callbacks = callbacks;
-	listener->private_data = listener->callbacks->alloc(listener);
-	if (!listener->private_data) {
-		ao2_ref(listener, -1);
-		return NULL;
-	}
+	listener->user_data = user_data;
 	return listener;
 }
 

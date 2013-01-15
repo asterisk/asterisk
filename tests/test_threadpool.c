@@ -49,7 +49,7 @@ struct test_listener_data {
 	ast_cond_t cond;
 };
 
-static void *test_alloc(struct ast_threadpool_listener *listener)
+static struct test_listener_data *test_alloc(void)
 {
 	struct test_listener_data *tld = ast_calloc(1, sizeof(*tld));
 	if (!tld) {
@@ -65,7 +65,7 @@ static void test_state_changed(struct ast_threadpool *pool,
 		int active_threads,
 		int idle_threads)
 {
-	struct test_listener_data *tld = listener->private_data;
+	struct test_listener_data *tld = listener->user_data;
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->num_active = active_threads;
 	tld->num_idle = idle_threads;
@@ -77,7 +77,7 @@ static void test_task_pushed(struct ast_threadpool *pool,
 		struct ast_threadpool_listener *listener,
 		int was_empty)
 {
-	struct test_listener_data *tld = listener->private_data;
+	struct test_listener_data *tld = listener->user_data;
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->task_pushed = 1;
 	++tld->num_tasks;
@@ -88,26 +88,24 @@ static void test_task_pushed(struct ast_threadpool *pool,
 static void test_emptied(struct ast_threadpool *pool,
 		struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = listener->private_data;
+	struct test_listener_data *tld = listener->user_data;
 	SCOPED_MUTEX(lock, &tld->lock);
 	tld->empty_notice = 1;
 	ast_cond_signal(&tld->cond);
 }
 
-static void test_destroy(void *private_data)
+static void test_shutdown(struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = private_data;
+	struct test_listener_data *tld = listener->user_data;
 	ast_cond_destroy(&tld->cond);
 	ast_mutex_destroy(&tld->lock);
-	ast_free(tld);
 }
 
 static const struct ast_threadpool_listener_callbacks test_callbacks = {
-	.alloc = test_alloc,
 	.state_changed = test_state_changed,
 	.task_pushed = test_task_pushed,
 	.emptied = test_emptied,
-	.destroy = test_destroy,
+	.shutdown = test_shutdown,
 };
 
 struct simple_task_data {
@@ -165,7 +163,7 @@ static enum ast_test_result_state wait_until_thread_state(struct ast_test *test,
 
 static void wait_for_task_pushed(struct ast_threadpool_listener *listener)
 {
-	struct test_listener_data *tld = listener->private_data;
+	struct test_listener_data *tld = listener->user_data;
 	struct timeval start = ast_tvnow();
 	struct timespec end = {
 		.tv_sec = start.tv_sec + 5,
@@ -237,7 +235,7 @@ static enum ast_test_result_state listener_check(
 		int num_idle,
 		int empty_notice)
 {
-	struct test_listener_data *tld = listener->private_data;
+	struct test_listener_data *tld = listener->user_data;
 	enum ast_test_result_state res = AST_TEST_PASS;
 
 	if (tld->task_pushed != task_pushed) {
@@ -279,6 +277,7 @@ AST_TEST_DEFINE(threadpool_push)
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
 	struct simple_task_data *std = NULL;
+	struct test_listener_data *tld = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
@@ -297,10 +296,14 @@ AST_TEST_DEFINE(threadpool_push)
 	case TEST_EXECUTE:
 		break;
 	}
-
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
 	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
@@ -325,6 +328,7 @@ end:
 	}
 	ao2_cleanup(listener);
 	ast_free(std);
+	ast_free(tld);
 	return res;
 }
 
@@ -353,11 +357,15 @@ AST_TEST_DEFINE(threadpool_initial_threads)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 3, &options);
 	if (!pool) {
@@ -371,6 +379,7 @@ end:
 		ast_threadpool_shutdown(pool);
 	}
 	ao2_cleanup(listener);
+	ast_free(tld);
 	return res;
 }
 
@@ -399,11 +408,15 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -422,6 +435,7 @@ end:
 		ast_threadpool_shutdown(pool);
 	}
 	ao2_cleanup(listener);
+	ast_free(tld);
 	return res;
 }
 
@@ -449,11 +463,15 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -481,6 +499,7 @@ end:
 		ast_threadpool_shutdown(pool);
 	}
 	ao2_cleanup(listener);
+	ast_free(tld);
 	return res;
 }
 
@@ -508,11 +527,15 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -543,6 +566,7 @@ end:
 		ast_threadpool_shutdown(pool);
 	}
 	ao2_cleanup(listener);
+	ast_free(tld);
 	return res;
 }
 
@@ -571,11 +595,15 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -619,6 +647,7 @@ end:
 	}
 	ao2_cleanup(listener);
 	ast_free(std);
+	ast_free(tld);
 	return res;
 
 }
@@ -648,11 +677,15 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -697,6 +730,7 @@ end:
 	}
 	ao2_cleanup(listener);
 	ast_free(std);
+	ast_free(tld);
 	return res;
 }
 
@@ -727,11 +761,15 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -789,6 +827,7 @@ end:
 	ast_free(std1);
 	ast_free(std2);
 	ast_free(std3);
+	ast_free(tld);
 	return res;
 }
 
@@ -822,11 +861,15 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -901,6 +944,7 @@ end:
 	ast_free(std2);
 	ast_free(std3);
 	ast_free(std4);
+	ast_free(tld);
 	return res;
 }
 
@@ -932,11 +976,15 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -1000,6 +1048,7 @@ end:
 	ao2_cleanup(listener);
 	ast_free(std1);
 	ast_free(std2);
+	ast_free(tld);
 	return res;
 
 }
@@ -1094,11 +1143,15 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -1153,6 +1206,7 @@ end:
 	ao2_cleanup(listener);
 	ast_free(ctd1);
 	ast_free(ctd2);
+	ast_free(tld);
 	return res;
 }
 
@@ -1185,11 +1239,15 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		break;
 	}
 
-	listener = ast_threadpool_listener_alloc(&test_callbacks);
-	if (!listener) {
+	tld = test_alloc();
+	if (!tld) {
 		return AST_TEST_FAIL;
 	}
-	tld = listener->private_data;
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
 
 	pool = ast_threadpool_create(info->name, listener, 0, &options);
 	if (!pool) {
@@ -1259,6 +1317,7 @@ end:
 	ao2_cleanup(listener);
 	ast_free(ctd1);
 	ast_free(ctd2);
+	ast_free(tld);
 	return res;
 }
 
