@@ -828,7 +828,7 @@ struct pool_options_pair {
 
 struct ast_threadpool *ast_threadpool_create(const char *name,
 		struct ast_threadpool_listener *listener,
-		int initial_size, const struct ast_threadpool_options *options)
+		const struct ast_threadpool_options *options)
 {
 	struct ast_taskprocessor *tps;
 	RAII_VAR(struct ast_taskprocessor_listener *, tps_listener, NULL, ao2_cleanup);
@@ -858,7 +858,7 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 		ao2_ref(listener, +1);
 		pool->listener = listener;
 	}
-	ast_threadpool_set_size(pool, initial_size);
+	ast_threadpool_set_size(pool, pool->options.initial_size);
 	ao2_ref(pool, +1);
 	return pool;
 }

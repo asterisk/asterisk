@@ -102,6 +102,16 @@ struct ast_threadpool_options {
 	 * to control threadpool growth yourself via your listener.
 	 */
 	int auto_increment;
+	/*!
+	 * \brief Number of threads the pool will start with
+	 *
+	 * When the threadpool is allocated, it will immediately size
+	 * itself to have this number of threads in it.
+	 *
+	 * Zero is a valid value if the threadpool should start
+	 * without any threads allocated.
+	 */
+	int initial_size;
 };
 
 /*!
@@ -126,13 +136,13 @@ struct ast_threadpool_listener *ast_threadpool_listener_alloc(
  *
  * \param name The name for the threadpool
  * \param listener The listener the threadpool will notify of changes
- * \param initial_size The number of threads for the pool to start with
+ * \param options The behavioral options for this threadpool
  * \retval NULL Failed to create the threadpool
  * \retval non-NULL The newly-created threadpool
  */
 struct ast_threadpool *ast_threadpool_create(const char *name,
 		struct ast_threadpool_listener *listener,
-		int initial_size, const struct ast_threadpool_options *options);
+		const struct ast_threadpool_options *options);
 
 /*!
  * \brief Set the number of threads for the thread pool

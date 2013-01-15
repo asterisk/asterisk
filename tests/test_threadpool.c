@@ -283,6 +283,7 @@ AST_TEST_DEFINE(threadpool_push)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -306,7 +307,7 @@ AST_TEST_DEFINE(threadpool_push)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -342,6 +343,7 @@ AST_TEST_DEFINE(threadpool_initial_threads)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 3,
 	};
 
 	switch (cmd) {
@@ -367,7 +369,7 @@ AST_TEST_DEFINE(threadpool_initial_threads)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 3, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -394,6 +396,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -418,7 +421,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -449,6 +452,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -473,7 +477,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -513,6 +517,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 2,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -537,7 +542,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -581,6 +586,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -605,7 +611,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -663,6 +669,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -687,7 +694,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -747,6 +754,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -771,7 +779,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -845,6 +853,7 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 3,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -871,7 +880,7 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -960,6 +969,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -986,7 +996,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -1128,6 +1138,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -1153,7 +1164,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
@@ -1222,6 +1233,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
+		.initial_size = 0,
 	};
 
 	switch (cmd) {
@@ -1249,7 +1261,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		goto end;
 	}
 
-	pool = ast_threadpool_create(info->name, listener, 0, &options);
+	pool = ast_threadpool_create(info->name, listener, &options);
 	if (!pool) {
 		goto end;
 	}
