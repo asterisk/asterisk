@@ -114,6 +114,11 @@ struct ast_threadpool_options {
 struct ast_threadpool_listener *ast_threadpool_listener_alloc(
 		const struct ast_threadpool_listener_callbacks *callbacks, void *user_data);
 
+/*!
+ * \brief Get the threadpool listener's user data
+ * \param listener The threadpool listener
+ * \return The user data
+ */
 void *ast_threadpool_listener_get_user_data(const struct ast_threadpool_listener *listener);
 
 /*!

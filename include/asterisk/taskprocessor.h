@@ -111,7 +111,22 @@ struct ast_taskprocessor_listener_callbacks {
 	void (*shutdown)(struct ast_taskprocessor_listener *listener);
 };
 
+/*!
+ * \brief Get a reference to the listener's taskprocessor
+ *
+ * This will return the taskprocessor with its reference count increased. Release
+ * the reference to this object by using ast_taskprocessor_unreference()
+ *
+ * \param listener The listener that has the taskprocessor
+ * \return The taskprocessor
+ */
 struct ast_taskprocessor *ast_taskprocessor_listener_get_tps(const struct ast_taskprocessor_listener *listener);
+
+/*!
+ * \brief Get the user data from the listener
+ * \param listener The taskprocessor listener
+ * \return The listener's user data
+ */
 void *ast_taskprocessor_listener_get_user_data(const struct ast_taskprocessor_listener *listener);
 
 /*!

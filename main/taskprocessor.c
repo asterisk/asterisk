@@ -495,6 +495,7 @@ struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct
 
 struct ast_taskprocessor *ast_taskprocessor_listener_get_tps(const struct ast_taskprocessor_listener *listener)
 {
+	ao2_ref(listener->tps, +1);
 	return listener->tps;
 }
 
