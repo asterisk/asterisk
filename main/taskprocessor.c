@@ -78,6 +78,26 @@ struct ast_taskprocessor {
 	/*! Indicates if the taskprocessor is in the process of shuting down */
 	unsigned int shutting_down:1;
 };
+
+/*!
+ * \brief A listener for taskprocessors
+ *
+ * \since 12.0.0
+ *
+ * When a taskprocessor's state changes, the listener
+ * is notified of the change. This allows for tasks
+ * to be addressed in whatever way is appropriate for
+ * the module using the taskprocessor.
+ */
+struct ast_taskprocessor_listener {
+	/*! The callbacks the taskprocessor calls into to notify of state changes */
+	const struct ast_taskprocessor_listener_callbacks *callbacks;
+	/*! The taskprocessor that the listener is listening to */
+	struct ast_taskprocessor *tps;
+	/*! Data private to the listener */
+	void *user_data;
+};
+
 #define TPS_MAX_BUCKETS 7
 /*! \brief tps_singletons is the astobj2 container for taskprocessor singletons */
 static struct ao2_container *tps_singletons;
@@ -471,6 +491,16 @@ struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct
 
 	ao2_ref(listener, +1);
 	return listener;
+}
+
+struct ast_taskprocessor *ast_taskprocessor_listener_get_tps(const struct ast_taskprocessor_listener *listener)
+{
+	return listener->tps;
+}
+
+void *ast_taskprocessor_listener_get_user_data(const struct ast_taskprocessor_listener *listener)
+{
+	return listener->user_data;
 }
 
 static void *default_listener_pvt_alloc(void)

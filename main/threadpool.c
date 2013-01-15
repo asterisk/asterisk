@@ -548,7 +548,7 @@ static int queued_task_pushed(void *data)
 static void threadpool_tps_task_pushed(struct ast_taskprocessor_listener *listener,
 		int was_empty)
 {
-	struct ast_threadpool *pool = listener->user_data;
+	struct ast_threadpool *pool = ast_taskprocessor_listener_get_user_data(listener);
 	struct task_pushed_data *tpd;
 	SCOPED_AO2LOCK(lock, pool);
 
@@ -588,7 +588,7 @@ static int queued_emptied(void *data)
  */
 static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
 {
-	struct ast_threadpool *pool = listener->user_data;
+	struct ast_threadpool *pool = ast_taskprocessor_listener_get_user_data(listener);
 	SCOPED_AO2LOCK(lock, pool);
 
 	if (pool->shutting_down) {
@@ -611,7 +611,7 @@ static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
  */
 static void threadpool_tps_shutdown(struct ast_taskprocessor_listener *listener)
 {
-	struct ast_threadpool *pool = listener->user_data;
+	struct ast_threadpool *pool = ast_taskprocessor_listener_get_user_data(listener);
 
 	if (pool->listener && pool->listener->callbacks->shutdown) {
 		pool->listener->callbacks->shutdown(pool->listener);

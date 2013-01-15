@@ -283,7 +283,7 @@ static int test_start(struct ast_taskprocessor_listener *listener)
  */
 static void test_task_pushed(struct ast_taskprocessor_listener *listener, int was_empty)
 {
-	struct test_listener_pvt *pvt = listener->user_data;
+	struct test_listener_pvt *pvt = ast_taskprocessor_listener_get_user_data(listener);
 	++pvt->num_pushed;
 	if (was_empty) {
 		++pvt->num_was_empty;
@@ -295,7 +295,7 @@ static void test_task_pushed(struct ast_taskprocessor_listener *listener, int wa
  */
 static void test_emptied(struct ast_taskprocessor_listener *listener)
 {
-	struct test_listener_pvt *pvt = listener->user_data;
+	struct test_listener_pvt *pvt = ast_taskprocessor_listener_get_user_data(listener);
 	++pvt->num_emptied;
 }
 
@@ -304,7 +304,7 @@ static void test_emptied(struct ast_taskprocessor_listener *listener)
  */
 static void test_shutdown(struct ast_taskprocessor_listener *listener)
 {
-	struct test_listener_pvt *pvt = listener->user_data;
+	struct test_listener_pvt *pvt = ast_taskprocessor_listener_get_user_data(listener);
 	pvt->shutdown = 1;
 }
 
