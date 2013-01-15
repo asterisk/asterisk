@@ -149,6 +149,11 @@ static int softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_cha
 {
 	struct softmix_channel *sc = bridge_channel->bridge_pvt;
 
+	if (!(bridge_channel->bridge_pvt)) {
+		return 0;
+	}
+	bridge_channel->bridge_pvt = NULL;
+
 	/* Drop mutex lock */
 	ast_mutex_destroy(&sc->lock);
 
