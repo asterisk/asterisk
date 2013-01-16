@@ -48,6 +48,7 @@
 
   <!ELEMENT ref (#PCDATA)>
   <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|manager|managerEvent) #REQUIRED>
+  <!ATTLIST ref module CDATA #IMPLIED>
 
   <!ELEMENT synopsis (#PCDATA)>
 
