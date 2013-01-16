@@ -588,7 +588,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Checks a voicemail account for status.</para>
-			<para>Returns number of messages.</para>
+			<para>Returns whether there are messages waiting.</para>
 			<para>Message: Mailbox Status.</para>
 			<para>Mailbox: <replaceable>mailboxid</replaceable>.</para>
 			<para>Waiting: <literal>0</literal> if messages waiting, <literal>1</literal>
