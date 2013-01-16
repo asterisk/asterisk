@@ -55,7 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config_options.h"
 
 /*** DOCUMENTATION
-	<application name="JabberSend" language="en_US">
+	<application name="JabberSend" language="en_US" module="res_xmpp">
 		<synopsis>
 			Sends an XMPP message to a buddy.
 		</synopsis>
@@ -85,7 +85,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">JABBER_RECEIVE</ref>
 		</see-also>
 	</application>
-	<function name="JABBER_RECEIVE" language="en_US">
+	<function name="JABBER_RECEIVE" language="en_US" module="res_xmpp">
 		<synopsis>
 			Reads XMPP messages.
 		</synopsis>
@@ -114,7 +114,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">JabberSend</ref>
 		</see-also>
 	</function>
-	<function name="JABBER_STATUS" language="en_US">
+	<function name="JABBER_STATUS" language="en_US" module="res_xmpp">
 		<synopsis>
 			Retrieves a buddy's status.
 		</synopsis>
@@ -144,7 +144,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">JabberSend</ref>
 		</see-also>
 	</function>
-	<application name="JabberSendGroup" language="en_US">
+	<application name="JabberSendGroup" language="en_US" module="res_xmpp">
 		<synopsis>
 			Send a Jabber Message to a specified chat room
 		</synopsis>
@@ -167,7 +167,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<note><para>To be able to send messages to a chat room, a user must have previously joined it. Use the <replaceable>JabberJoin</replaceable> function to do so.</para></note>
 		</description>
 	</application>
-	<application name="JabberJoin" language="en_US">
+	<application name="JabberJoin" language="en_US" module="res_xmpp">
 		<synopsis>
 			Join a chat room
 		</synopsis>
@@ -187,7 +187,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Allows Asterisk to join a chat room.</para>
 		</description>
 	</application>
-	<application name="JabberLeave" language="en_US">
+	<application name="JabberLeave" language="en_US" module="res_xmpp">
 		<synopsis>
 			Leave a chat room
 		</synopsis>
@@ -206,7 +206,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Allows Asterisk to leave a chat room.</para>
 		</description>
 	</application>
-	<application name="JabberStatus" language="en_US">
+	<application name="JabberStatus" language="en_US" module="res_xmpp">
 		<synopsis>
 			Retrieve the status of a jabber list member
 		</synopsis>
@@ -250,7 +250,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</enumlist>
 		</description>
 	</application>
-	<manager name="JabberSend" language="en_US">
+	<manager name="JabberSend" language="en_US" module="res_xmpp">
 		<synopsis>
 			Sends a message to a Jabber Client.
 		</synopsis>
