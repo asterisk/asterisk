@@ -90,8 +90,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<replaceable>asterisk</replaceable>, configured in xmpp.conf.</para>
 		</description>
 		<see-also>
-			<ref type="function">JABBER_STATUS</ref>
-			<ref type="function">JABBER_RECEIVE</ref>
+			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
+			<ref type="function" module="res_xmpp">JABBER_RECEIVE</ref>
 		</see-also>
 	</application>
 	<function name="JABBER_RECEIVE" language="en_US" module="res_xmpp">
@@ -119,8 +119,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			the <replaceable>asterisk</replaceable> XMPP account configured in xmpp.conf.</para>
 		</description>
 		<see-also>
-			<ref type="function">JABBER_STATUS</ref>
-			<ref type="application">JabberSend</ref>
+			<ref type="function" module="res_xmpp">JABBER_STATUS</ref>
+			<ref type="application" module="res_xmpp">JabberSend</ref>
 		</see-also>
 	</function>
 	<function name="JABBER_STATUS" language="en_US" module="res_xmpp">
@@ -149,8 +149,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			the associated XMPP account configured in xmpp.conf.</para>
 		</description>
 		<see-also>
-			<ref type="function">JABBER_RECEIVE</ref>
-			<ref type="application">JabberSend</ref>
+			<ref type="function" module="res_xmpp">JABBER_RECEIVE</ref>
+			<ref type="application" module="res_xmpp">JabberSend</ref>
 		</see-also>
 	</function>
 	<application name="JabberSendGroup" language="en_US" module="res_xmpp">
