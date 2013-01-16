@@ -10033,7 +10033,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					ast_log(LOG_WARNING,
 						"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
 						bc->dialed.number, ch->context, bc->port);
-					pbx_builtin_setvar_helper(ch->ast, "INVALID_EXTEN", bc->dad);
+					pbx_builtin_setvar_helper(ch->ast, "INVALID_EXTEN", bc->dialed.number);
 					strcpy(ch->ast->exten, "i");
 					ch->state = MISDN_DIALING;
 					start_pbx(ch, bc, ch->ast);
@@ -10282,7 +10282,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ast_log(LOG_WARNING,
 					"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
 					bc->dialed.number, ch->context, bc->port);
-				pbx_builtin_setvar_helper(ch->ast, "INVALID_EXTEN", bc->dad);
+				pbx_builtin_setvar_helper(ch->ast, "INVALID_EXTEN", bc->dialed.number);
 				strcpy(ch->ast->exten, "i");
 				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);
 				ch->state = MISDN_DIALING;
