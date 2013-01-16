@@ -24,14 +24,17 @@
   <!ELEMENT agi (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST agi name CDATA #REQUIRED>
   <!ATTLIST agi language CDATA #REQUIRED>
+  <!ATTLIST agi module CDATA #IMPLIED>
 
   <!ELEMENT manager (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST manager name CDATA #REQUIRED>
   <!ATTLIST manager language CDATA #REQUIRED>
+  <!ATTLIST manager module CDATA #IMPLIED>
 
   <!ELEMENT managerEvent (managerEventInstance+)>
   <!ATTLIST managerEvent name CDATA #REQUIRED>
   <!ATTLIST managerEvent language CDATA #REQUIRED>
+  <!ATTLIST managerEvent module CDATA #IMPLIED>
 
   <!ELEMENT managerEventInstance (synopsis?,syntax?,description?,see-also?)*>
   <!ATTLIST managerEventInstance class CDATA #REQUIRED>
