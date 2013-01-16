@@ -1291,16 +1291,14 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *c
 struct ast_callid *ast_create_callid(void)
 {
 	struct ast_callid *call;
-	int using;
 
-	if (!(call = ao2_alloc(sizeof(struct ast_callid), NULL))) {
+	call = ao2_alloc_options(sizeof(struct ast_callid), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!call) {
 		ast_log(LOG_ERROR, "Could not allocate callid struct.\n");
 		return NULL;
 	}
 
-	using = ast_atomic_fetchadd_int(&next_unique_callid, +1);
-
-	call->call_identifier = using;
+	call->call_identifier = ast_atomic_fetchadd_int(&next_unique_callid, +1);
 	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", call->call_identifier);
 	return call;
 }
