@@ -11,6 +11,7 @@
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------
 
+
 AMI (Asterisk Manager Interface)
 ------------------
  * The SIPshowpeer action will now include a 'SubscribeContext' field for a peer
@@ -30,6 +31,16 @@ AMI (Asterisk Manager Interface)
    than 15 characters and no longer shows authorization requirement for commands.
    'Manager Show Command' now displays the privileges needed for using a given
    manager command instead.
+
+Channel Drivers
+------------------
+
+chan_mobile
+------------------
+ * Added general support for busy detection.
+
+ * Added ECAM command support for Sony Ericsson phones.
+
 
 Features
 -------------------

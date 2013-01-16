@@ -147,6 +147,7 @@ struct mbl_pvt {
 	int ring_sched_id;
 	struct ast_dsp *dsp;
 	struct ast_sched_context *sched;
+	int hangupcause;
 
 	/* flags */
 	unsigned int outgoing:1;	/*!< outgoing call */
@@ -172,6 +173,9 @@ static int handle_response_ring(struct mbl_pvt *pvt, char *buf);
 static int handle_response_cmti(struct mbl_pvt *pvt, char *buf);
 static int handle_response_cmgr(struct mbl_pvt *pvt, char *buf);
 static int handle_response_cusd(struct mbl_pvt *pvt, char *buf);
+static int handle_response_busy(struct mbl_pvt *pvt);
+static int handle_response_no_dialtone(struct mbl_pvt *pvt, char *buf);
+static int handle_response_no_carrier(struct mbl_pvt *pvt, char *buf);
 static int handle_sms_prompt(struct mbl_pvt *pvt, char *buf);
 
 /* CLI stuff */
@@ -341,6 +345,7 @@ struct hfp_pvt {
 	struct hfp_cind cind_map;	/*!< the cind name to index mapping for this AG */
 	int rsock;			/*!< our rfcomm socket */
 	int rport;			/*!< our rfcomm port */
+	int sent_alerting;		/*!< have we sent alerting? */
 };
 
 
@@ -435,6 +440,10 @@ typedef enum {
 	AT_CMER,
 	AT_CIND_TEST,
 	AT_CUSD,
+	AT_BUSY,
+	AT_NO_DIALTONE,
+	AT_NO_CARRIER,
+	AT_ECAM,
 } at_message_t;
 
 static int at_match_prefix(char *buf, char *prefix);
@@ -981,6 +990,7 @@ static int mbl_call(struct ast_channel *ast, const char *dest, int timeout)
 			ast_log(LOG_ERROR, "error sending ATD command on %s\n", pvt->id);
 			return -1;
 		}
+		pvt->hangupcause = 0;
 		pvt->needchup = 1;
 		msg_queue_push(pvt, AT_OK, AT_D);
 	} else {
@@ -1314,6 +1324,9 @@ static int mbl_queue_hangup(struct mbl_pvt *pvt)
 			if (ast_channel_trylock(pvt->owner)) {
 				DEADLOCK_AVOIDANCE(&pvt->lock);
 			} else {
+				if (pvt->hangupcause != 0) {
+					ast_channel_hangupcause_set(pvt->owner, pvt->hangupcause);
+				}
 				ast_queue_hangup(pvt->owner);
 				ast_channel_unlock(pvt->owner);
 				break;
@@ -2030,6 +2043,14 @@ static at_message_t at_read_full(int rsock, char *buf, size_t count)
 		return AT_VGS;
 	} else if (at_match_prefix(buf, "+CUSD:")) {
 		return AT_CUSD;
+	} else if (at_match_prefix(buf, "BUSY")) {
+		return AT_BUSY;
+	} else if (at_match_prefix(buf, "NO DIALTONE")) {
+		return AT_NO_DIALTONE;
+	} else if (at_match_prefix(buf, "NO CARRIER")) {
+		return AT_NO_CARRIER;
+	} else if (at_match_prefix(buf, "*ECAV:")) {
+		return AT_ECAM;
 	} else {
 		return AT_UNKNOWN;
 	}
@@ -2074,6 +2095,12 @@ static inline const char *at_msg2str(at_message_t msg)
 		return "SMS PROMPT";
 	case AT_CMS_ERROR:
 		return "+CMS ERROR";
+	case AT_BUSY:
+		return "BUSY";
+	case AT_NO_DIALTONE:
+		return "NO DIALTONE";
+	case AT_NO_CARRIER:
+		return "NO CARRIER";
 	/* at commands */
 	case AT_A:
 		return "ATA";
@@ -2101,6 +2128,8 @@ static inline const char *at_msg2str(at_message_t msg)
 		return "AT+CIND=?";
 	case AT_CUSD:
 		return "AT+CUSD";
+	case AT_ECAM:
+		return "AT*ECAM";
 	}
 }
 
@@ -2108,6 +2137,40 @@ static inline const char *at_msg2str(at_message_t msg)
 /*
  * bluetooth handsfree profile helpers
  */
+
+ /*!
+ * \brief Parse a ECAV event.
+ * \param hfp an hfp_pvt struct
+ * \param buf the buffer to parse (null terminated)
+ * \return -1 on error (parse error) or a ECAM value on success
+ *
+ * Example string: *ECAV: <ccid>,<ccstatus>,<calltype>[,<processid>]
+ * [,exitcause][,<number>,<type>]
+ *
+ * Example indicating busy: *ECAV: 1,7,1
+ */
+static int hfp_parse_ecav(struct hfp_pvt *hfp, char *buf)
+{
+	int ccid = 0;
+	int ccstatus = 0;
+	int calltype = 0;
+
+	if (!sscanf(buf, "*ECAV: %2d,%2d,%2d", &ccid, &ccstatus, &calltype)) {
+		ast_debug(1, "[%s] error parsing ECAV event '%s'\n", hfp->owner->id, buf);
+		return -1;
+	}
+
+	return ccstatus;
+}
+
+/*!
+ * \brief Enable Sony Erricson extensions / indications.
+ * \param hfp an hfp_pvt struct
+ */
+static int hfp_send_ecam(struct hfp_pvt *hfp)
+{
+	return rfcomm_write(hfp->rsock, "AT*ECAM=1\r");
+}
 
 /*!
  * \brief Parse a CIEV event.
@@ -3214,6 +3277,14 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 			break;
 		case AT_CLIP:
 			ast_debug(1, "[%s] caling line indication enabled\n", pvt->id);
+			if (hfp_send_ecam(pvt->hfp) || msg_queue_push(pvt, AT_OK, AT_ECAM)) {
+				ast_debug(1, "[%s] error enabling Sony Ericsson call monitoring extensions\n", pvt->id);
+				goto e_return;
+			}
+
+			break;
+		case AT_ECAM:
+			ast_debug(1, "[%s] Sony Ericsson call monitoring is active on device\n", pvt->id);
 			if (hfp_send_vgs(pvt->hfp, 15) || msg_queue_push(pvt, AT_OK, AT_VGS)) {
 				ast_debug(1, "[%s] error synchronizing gain settings\n", pvt->id);
 				goto e_return;
@@ -3345,6 +3416,21 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			ast_debug(1, "[%s] error setting CNMI\n", pvt->id);
 			ast_debug(1, "[%s] no SMS support\n", pvt->id);
 			break;
+		case AT_ECAM:
+			ast_debug(1, "[%s] Mobile does not support Sony Ericsson extensions\n", pvt->id);
+
+			/* this is not a fatal error, let's continue with the initialization */
+
+			if (hfp_send_vgs(pvt->hfp, 15) || msg_queue_push(pvt, AT_OK, AT_VGS)) {
+				ast_debug(1, "[%s] error synchronizing gain settings\n", pvt->id);
+				goto e_return;
+			}
+
+			pvt->timeout = -1;
+			pvt->hfp->initialized = 1;
+			ast_verb(3, "Bluetooth Device %s initialized and ready.\n", pvt->id);
+
+			break;
 		/* end initialization stuff */
 
 		case AT_A:
@@ -3440,6 +3526,9 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 		case HFP_CIND_CALLSETUP_NONE:
 			if (pvt->hfp->cind_state[pvt->hfp->cind_map.call] != HFP_CIND_CALL_ACTIVE) {
 				if (pvt->owner) {
+					if (pvt->hfp->sent_alerting == 1) {
+						handle_response_busy(pvt);
+					}
 					if (mbl_queue_hangup(pvt)) {
 						ast_log(LOG_ERROR, "[%s] error queueing hangup, disconnectiong...\n", pvt->id);
 						return -1;
@@ -3458,6 +3547,7 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 			break;
 		case HFP_CIND_CALLSETUP_OUTGOING:
 			if (pvt->outgoing) {
+				pvt->hfp->sent_alerting = 0;
 				ast_debug(1, "[%s] outgoing call\n", pvt->id);
 			} else {
 				ast_verb(3, "[%s] user dialed from handset, disconnecting\n", pvt->id);
@@ -3468,6 +3558,7 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
 			if (pvt->outgoing) {
 				ast_debug(1, "[%s] remote alerting\n", pvt->id);
 				mbl_queue_control(pvt, AST_CONTROL_RINGING);
+				pvt->hfp->sent_alerting = 1;
 			}
 			break;
 		}
@@ -3662,6 +3753,50 @@ static int handle_response_cusd(struct mbl_pvt *pvt, char *buf)
 	return 0;
 }
 
+/*!
+ * \brief Handle BUSY messages.
+ * \param pvt a mbl_pvt structure
+ * \retval 0 success
+ * \retval -1 error
+ */
+static int handle_response_busy(struct mbl_pvt *pvt)
+{
+	pvt->hangupcause = AST_CAUSE_USER_BUSY;
+	pvt->needchup = 1;
+	mbl_queue_control(pvt, AST_CONTROL_BUSY);
+	return 0;
+}
+
+/*!
+ * \brief Handle NO DIALTONE messages.
+ * \param pvt a mbl_pvt structure
+ * \param buf a null terminated buffer containing an AT message
+ * \retval 0 success
+ * \retval -1 error
+ */
+static int handle_response_no_dialtone(struct mbl_pvt *pvt, char *buf)
+{
+	ast_verb(1, "[%s] mobile reports NO DIALTONE\n", pvt->id);
+	pvt->needchup = 1;
+	mbl_queue_control(pvt, AST_CONTROL_CONGESTION);
+	return 0;
+}
+
+/*!
+ * \brief Handle NO CARRIER messages.
+ * \param pvt a mbl_pvt structure
+ * \param buf a null terminated buffer containing an AT message
+ * \retval 0 success
+ * \retval -1 error
+ */
+static int handle_response_no_carrier(struct mbl_pvt *pvt, char *buf)
+{
+	ast_verb(1, "[%s] mobile reports NO CARRIER\n", pvt->id);
+	pvt->needchup = 1;
+	mbl_queue_control(pvt, AST_CONTROL_CONGESTION);
+	return 0;
+}
+
 
 static void *do_monitor_phone(void *data)
 {
@@ -3817,6 +3952,40 @@ static void *do_monitor_phone(void *data)
 			if (handle_response_cusd(pvt, buf)) {
 				ast_mutex_unlock(&pvt->lock);
 				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_BUSY:
+			ast_mutex_lock(&pvt->lock);
+			if (handle_response_busy(pvt)) {
+				ast_mutex_unlock(&pvt->lock);
+				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_NO_DIALTONE:
+			ast_mutex_lock(&pvt->lock);
+			if (handle_response_no_dialtone(pvt, buf)) {
+				ast_mutex_unlock(&pvt->lock);
+				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_NO_CARRIER:
+			ast_mutex_lock(&pvt->lock);
+			if (handle_response_no_carrier(pvt, buf)) {
+				ast_mutex_unlock(&pvt->lock);
+				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_ECAM:
+			ast_mutex_lock(&pvt->lock);
+			if (hfp_parse_ecav(hfp, buf) == 7) {
+				if (handle_response_busy(pvt)) {
+					ast_mutex_unlock(&pvt->lock);
+					goto e_cleanup;
+				}
 			}
 			ast_mutex_unlock(&pvt->lock);
 			break;
