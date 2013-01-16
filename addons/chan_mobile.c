@@ -2229,6 +2229,7 @@ static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, ch
 			if (buf[i] == '"') {
 				state++;
 			}
+			break;
 		case 2: /* mark the start of the number */
 			if (from_number) {
 				*from_number = &buf[i];
