@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2012, Digium, Inc.
+ * Copyright (C) 2012-2013, Digium, Inc.
  *
  * Mark Michelson <mmmichelson@digium.com>
  *
@@ -69,7 +69,7 @@ struct ast_threadpool_listener_callbacks {
 
 struct ast_threadpool_options {
 #define AST_THREADPOOL_OPTIONS_VERSION 1
-	/*! Version of thradpool options in use */
+	/*! Version of threadpool options in use */
 	int version;
 	/*!
 	 * \brief Time limit in seconds for idle threads
@@ -98,6 +98,13 @@ struct ast_threadpool_options {
 	 * without any threads allocated.
 	 */
 	int initial_size;
+	/*!
+	 * \brief Maximum number of threads a pool may have
+	 *
+	 * When the threadpool's size increases, it can never increase
+	 * beyond this number of threads.
+	 */
+	int max_size;
 };
 
 /*!
@@ -127,7 +134,10 @@ void *ast_threadpool_listener_get_user_data(const struct ast_threadpool_listener
  * This function creates a threadpool. Tasks may be pushed onto this thread pool
  * in and will be automatically acted upon by threads within the pool.
  *
- * \param name The name for the threadpool
+ * Only a single threadpool with a given name may exist. This function will fail
+ * if a threadpool with the given name already exists.
+ *
+ * \param name The unique name for the threadpool
  * \param listener The listener the threadpool will notify of changes. Can be NULL.
  * \param options The behavioral options for this threadpool
  * \retval NULL Failed to create the threadpool

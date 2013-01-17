@@ -163,7 +163,9 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
  *
  * \since 12.0.0
  *
- * The listener's alloc() and start() callbacks will be called during this function.
+ * Note that when a taskprocessor is created in this way, it does not create
+ * any threads to execute the tasks. This job is left up to the listener.
+ * The listener's start() callback will be called during this function.
  *
  * \param name The name of the taskprocessor to create
  * \param listener The listener for operations on this taskprocessor

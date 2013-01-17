@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2012, Digium, Inc.
+ * Copyright (C) 2012-2013, Digium, Inc.
  *
  * Mark Michelson <mmmichelson@digium.com>
  *
@@ -24,6 +24,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
 
+/* Needs to stay prime if increased */
 #define THREAD_BUCKETS 89
 
 /*!
@@ -494,6 +495,13 @@ static void grow(struct ast_threadpool *pool, int delta)
 {
 	int i;
 
+	int current_size = ao2_container_count(pool->active_threads) +
+		ao2_container_count(pool->idle_threads);
+
+	if (pool->options.max_size && current_size + delta > pool->options.max_size) {
+		delta = pool->options.max_size - current_size;
+	}
+
 	ast_debug(3, "Increasing threadpool %s's size by %d\n",
 			ast_taskprocessor_name(pool->tps), delta);
 
@@ -788,7 +796,7 @@ static int queued_set_size(void *data)
 	struct ast_threadpool *pool = ssd->pool;
 	unsigned int num_threads = ssd->size;
 
-	/* We don't count zombie threads as being "live when potentially resizing */
+	/* We don't count zombie threads as being "live" when potentially resizing */
 	unsigned int current_size = ao2_container_count(pool->active_threads) +
 		ao2_container_count(pool->idle_threads);
 
@@ -895,6 +903,9 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
 
 void ast_threadpool_shutdown(struct ast_threadpool *pool)
 {
+	if (!pool) {
+		return;
+	}
 	/* Shut down the taskprocessors and everything else just
 	 * takes care of itself via the taskprocessor callbacks
 	 */

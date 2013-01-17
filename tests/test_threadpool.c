@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2012, Digium, Inc.
+ * Copyright (C) 2012-2013, Digium, Inc.
  *
  * Mark Michelson <mmichelson@digium.com>
  *
@@ -284,6 +284,7 @@ AST_TEST_DEFINE(threadpool_push)
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -324,9 +325,7 @@ AST_TEST_DEFINE(threadpool_push)
 	res = listener_check(test, listener, 1, 1, 1, 0, 0, 0);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std);
 	ast_free(tld);
@@ -338,12 +337,13 @@ AST_TEST_DEFINE(threadpool_initial_threads)
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 3,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -377,9 +377,7 @@ AST_TEST_DEFINE(threadpool_initial_threads)
 	res = wait_until_thread_state(test, tld, 0, 3);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(tld);
 	return res;
@@ -391,12 +389,13 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -434,9 +433,7 @@ AST_TEST_DEFINE(threadpool_thread_creation)
 	res = wait_until_thread_state(test, tld, 0, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(tld);
 	return res;
@@ -447,12 +444,13 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -499,9 +497,7 @@ AST_TEST_DEFINE(threadpool_thread_destruction)
 	res = wait_until_thread_state(test, tld, 0, 2);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(tld);
 	return res;
@@ -512,12 +508,13 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 	struct ast_threadpool *pool = NULL;
 	struct ast_threadpool_listener *listener = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 2,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -567,9 +564,7 @@ AST_TEST_DEFINE(threadpool_thread_timeout)
 	res = listener_check(test, listener, 0, 0, 0, 0, 0, 0);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(tld);
 	return res;
@@ -581,12 +576,13 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	struct ast_threadpool_listener *listener = NULL;
 	struct simple_task_data *std = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -648,9 +644,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std);
 	ast_free(tld);
@@ -664,12 +658,13 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 	struct ast_threadpool_listener *listener = NULL;
 	struct simple_task_data *std = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -732,9 +727,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 	res = listener_check(test, listener, 1, 1, 1, 0, 1, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std);
 	ast_free(tld);
@@ -749,12 +742,13 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 	struct simple_task_data *std2 = NULL;
 	struct simple_task_data *std3 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -828,9 +822,7 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 	res = listener_check(test, listener, 1, 0, 3, 0, 1, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std1);
 	ast_free(std2);
@@ -848,12 +840,13 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 	struct simple_task_data *std3 = NULL;
 	struct simple_task_data *std4 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 3,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -945,14 +938,82 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 	res = listener_check(test, listener, 1, 0, 4, 0, 3, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std1);
 	ast_free(std2);
 	ast_free(std3);
 	ast_free(std4);
+	ast_free(tld);
+	return res;
+}
+
+AST_TEST_DEFINE(threadpool_max_size)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	struct simple_task_data *std = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld = NULL;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 0,
+		.auto_increment = 3,
+		.initial_size = 0,
+		.max_size = 2,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "max_size";
+		info->category = "/main/threadpool/";
+		info->summary = "Test that the threadpool does not exceed its maximum size restriction";
+		info->description =
+			"Create an empty threadpool and push a task to it. Once the task is\n"
+			"pushed, the threadpool should attempt to grow by three threads, but the\n"
+			"pool's restrictions should only allow two threads to be added.\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	tld = test_alloc();
+	if (!tld) {
+		return AST_TEST_FAIL;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
+
+	pool = ast_threadpool_create(info->name, listener, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	std = simple_task_data_alloc();
+	if (!std) {
+		goto end;
+	}
+
+	ast_threadpool_push(pool, simple_task, std);
+
+	res = wait_for_completion(test, std);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = wait_until_thread_state(test, tld, 0, 2);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = listener_check(test, listener, 1, 1, 1, 0, 2, 1);
+end:
+	ast_threadpool_shutdown(pool);
+	ao2_cleanup(listener);
+	ast_free(std);
 	ast_free(tld);
 	return res;
 }
@@ -964,12 +1025,13 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	struct simple_task_data *std1 = NULL;
 	struct simple_task_data *std2 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -1052,9 +1114,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	res = listener_check(test, listener, 1, 1, 2, 0, 1, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(std1);
 	ast_free(std2);
@@ -1133,12 +1193,13 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 	struct complex_task_data *ctd1 = NULL;
 	struct complex_task_data *ctd2 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -1211,9 +1272,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 	res = listener_check(test, listener, 1, 0, 2, 0, 2, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(ctd1);
 	ast_free(ctd2);
@@ -1228,12 +1287,13 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 	struct complex_task_data *ctd1 = NULL;
 	struct complex_task_data *ctd2 = NULL;
 	enum ast_test_result_state res = AST_TEST_FAIL;
-	struct test_listener_data *tld;
+	struct test_listener_data *tld = NULL;
 	struct ast_threadpool_options options = {
 		.version = AST_THREADPOOL_OPTIONS_VERSION,
 		.idle_timeout = 0,
 		.auto_increment = 0,
 		.initial_size = 0,
+		.max_size = 0,
 	};
 
 	switch (cmd) {
@@ -1244,7 +1304,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		info->description =
 			"Push two tasks into a threadpool. Set the threadpool size to 4\n"
 			"Ensure that there are 2 active and 2 idle threads. Then shrink the\n"
-			"threadpool down to 1 thread. Ensure that the thread leftove is active\n"
+			"threadpool down to 1 thread. Ensure that the thread leftover is active\n"
 			"and ensure that both tasks complete.\n";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
@@ -1323,9 +1383,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 	res = listener_check(test, listener, 1, 0, 2, 0, 1, 1);
 
 end:
-	if (pool) {
-		ast_threadpool_shutdown(pool);
-	}
+	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
 	ast_free(ctd1);
 	ast_free(ctd2);
@@ -1344,6 +1402,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_one_thread_one_task);
 	ast_test_unregister(threadpool_one_thread_multiple_tasks);
 	ast_test_unregister(threadpool_auto_increment);
+	ast_test_unregister(threadpool_max_size);
 	ast_test_unregister(threadpool_reactivation);
 	ast_test_unregister(threadpool_task_distribution);
 	ast_test_unregister(threadpool_more_destruction);
@@ -1361,6 +1420,7 @@ static int load_module(void)
 	ast_test_register(threadpool_one_thread_one_task);
 	ast_test_register(threadpool_one_thread_multiple_tasks);
 	ast_test_register(threadpool_auto_increment);
+	ast_test_register(threadpool_max_size);
 	ast_test_register(threadpool_reactivation);
 	ast_test_register(threadpool_task_distribution);
 	ast_test_register(threadpool_more_destruction);
