@@ -1367,7 +1367,7 @@ static int rfcomm_connect(bdaddr_t src, bdaddr_t dst, int remote_channel)
 	memset(&addr, 0, sizeof(addr));
 	addr.rc_family = AF_BLUETOOTH;
 	bacpy(&addr.rc_bdaddr, &src);
-	addr.rc_channel = (uint8_t) 1;
+	addr.rc_channel = (uint8_t) 0;
 	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		ast_debug(1, "bind() failed (%d).\n", errno);
 		close(s);
