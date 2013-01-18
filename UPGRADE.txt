@@ -20,6 +20,14 @@
 ===
 ===========================================================
 
+From 11.2 to 11.3:
+
+* Now by default, when Asterisk is installed in a path other than /usr, the
+  Asterisk binary will search for shared libraries in ${libdir} in addition to
+  searching system libraries. This allows Asterisk to find its shared
+  libraries without having to specify LD_LIBRARY_PATH. This can be disabled by
+  passing --disable-rpath to configure.
+
 From 11.1 to 11.2:
 
 * Asterisk has always had code to ignore dash '-' characters that are not

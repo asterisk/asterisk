@@ -1052,6 +1052,38 @@ AC_COMPILE_IFELSE(
 )
 AC_SUBST(AST_NESTED_FUNCTIONS)
 
+dnl Check to see if rpath should be set in LDFLAGS
+AC_ARG_ENABLE(rpath,
+	[AC_HELP_STRING([--disable-rpath],
+			[Disables rpath linker option checking])],
+	[case "${enableval}" in
+		y|ye|yes) check_rpath=yes ;;
+		n|no) check_rpath=no ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --disable-rpath) ;;
+	esac], [check_rpath=yes])
+
+AC_MSG_CHECKING(whether to use rpath)
+AST_RPATH=
+if test "${check_rpath}" != yes; then
+	AC_MSG_RESULT(skipped)
+elif test "${prefix}" = /usr || test "${prefix}" = NONE; then
+	AC_MSG_RESULT(not needed)
+else
+	case "${host_os}" in
+		darwin*)
+			AC_MSG_RESULT(not supported)
+			# We set macosx_version_min to 10.4, which doesn't
+			# support rpath. However, we set install_name on our
+			# dylibs, so it's not strictly necessary.
+			;;
+		*)
+			AC_MSG_RESULT(required)
+			AST_RPATH="-Wl,-rpath,${libdir}"
+			;;
+	esac
+fi
+AC_SUBST(AST_RPATH)
+
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
         [AC_LANG_PROGRAM([#include <sys/sysinfo.h>],

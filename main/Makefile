@@ -225,6 +225,9 @@ $(ASTSSL_LIB): $(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
 else # Darwin
 ASTSSL_LIB:=libasteriskssl.dylib
 
+# -install_name allows library to be found if installed somewhere other than
+# /lib or /usr/lib
+$(ASTSSL_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTSSL_LIB)
 $(ASTSSL_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\"
 $(ASTSSL_LIB): LIBS+=$(ASTSSL_LIBS)
 $(ASTSSL_LIB): SOLINK=$(DYLINK)
