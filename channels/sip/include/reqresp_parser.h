@@ -90,6 +90,17 @@ int get_name_and_number(const char *hdr, char **name, char **number);
  */
 char *get_in_brackets(char *tmp);
 
+/*! \brief Get text in brackets on a const without copy
+ *
+ * \param src String to search
+ * \param[out] start Set to first character inside left bracket.
+ * \param[out] length Set to lenght of string inside brackets
+ * \retval 0 success
+ * \retval -1 failure
+ * \retval 1 no brackets so got all
+ */
+int get_in_brackets_const(const char *src,const char **start,int *length);
+
 /*! \brief Get text in brackets and any trailing residue
  *
  * \retval 0 success
