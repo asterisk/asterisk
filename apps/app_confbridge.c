@@ -2083,6 +2083,16 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct conference_bridge_user *participant)
+{
+	ast_cli(a->fd, "%-29s ", ast_channel_name(participant->chan));
+	ast_cli(a->fd, "%-17s", participant->u_profile.name);
+	ast_cli(a->fd, "%-17s", participant->b_profile.name);
+	ast_cli(a->fd, "%-17s", participant->menu_name);
+	ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"));
+	ast_cli(a->fd, "\n");
+}
+
 static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_iterator i;
@@ -2109,7 +2119,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "================================ ====== ====== ========\n");
 		i = ao2_iterator_init(conference_bridges, 0);
 		while ((bridge = ao2_iterator_next(&i))) {
-			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->activeusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
+			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->activeusers + bridge->waitingusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
 			ao2_ref(bridge, -1);
 		}
 		ao2_iterator_destroy(&i);
@@ -2127,12 +2137,10 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "============================= ================ ================ ================ ================\n");
 		ao2_lock(bridge);
 		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-			ast_cli(a->fd, "%-29s ", ast_channel_name(participant->chan));
-			ast_cli(a->fd, "%-17s", participant->u_profile.name);
-			ast_cli(a->fd, "%-17s", participant->b_profile.name);
-			ast_cli(a->fd, "%-17s", participant->menu_name);
-			ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"));
-			ast_cli(a->fd, "\n");
+			handle_cli_confbridge_list_item(a, participant);
+		}
+		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+			handle_cli_confbridge_list_item(a, participant);
 		}
 		ao2_unlock(bridge);
 		ao2_ref(bridge, -1);
@@ -2431,6 +2439,27 @@ static struct ast_custom_function confbridge_info_function = {
 	.read = func_confbridge_info,
 };
 
+static void action_confbridgelist_item(struct mansession *s, const char *id_text, struct conference_bridge *bridge, struct conference_bridge_user *participant)
+{
+	astman_append(s,
+		"Event: ConfbridgeList\r\n"
+		"%s"
+		"Conference: %s\r\n"
+		"CallerIDNum: %s\r\n"
+		"CallerIDName: %s\r\n"
+		"Channel: %s\r\n"
+		"Admin: %s\r\n"
+		"MarkedUser: %s\r\n"
+		"\r\n",
+		id_text,
+		bridge->name,
+		S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(participant->chan)->id.name.valid, ast_channel_caller(participant->chan)->id.name.str, "<no name>"),
+		ast_channel_name(participant->chan),
+		ast_test_flag(&participant->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
+		ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No");
+}
+
 static int action_confbridgelist(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
@@ -2464,23 +2493,11 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
 		total++;
-		astman_append(s,
-			"Event: ConfbridgeList\r\n"
-			"%s"
-			"Conference: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Channel: %s\r\n"
-			"Admin: %s\r\n"
-			"MarkedUser: %s\r\n"
-			"\r\n",
-			id_text,
-			bridge->name,
-			S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"),
-			S_COR(ast_channel_caller(participant->chan)->id.name.valid, ast_channel_caller(participant->chan)->id.name.str, "<no name>"),
-			ast_channel_name(participant->chan),
-			ast_test_flag(&participant->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
-			ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No");
+		action_confbridgelist_item(s, id_text, bridge, participant);
+	}
+	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+		total++;
+		action_confbridgelist_item(s, id_text, bridge, participant);
 	}
 	ao2_unlock(bridge);
 	ao2_ref(bridge, -1);
@@ -2530,7 +2547,7 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		"\r\n",
 		id_text,
 		bridge->name,
-		bridge->activeusers,
+		bridge->activeusers + bridge->waitingusers,
 		bridge->markedusers,
 		bridge->locked ? "Yes" : "No"); 
 		ao2_unlock(bridge);
