@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007-2008, Digium, Inc.
+ * Copyright (C) 2007-2013, Digium, Inc.
  *
  * Dwayne M. Hubbard <dhubbard@digium.com>
  *
@@ -22,22 +22,33 @@
  *
  * \author Dwayne M. Hubbard <dhubbard@digium.com>
  *
- * \note A taskprocessor is a named singleton containing a processing thread and
- * a task queue that serializes tasks pushed into it by [a] module(s) that reference the taskprocessor.  
- * A taskprocessor is created the first time its name is requested via the ast_taskprocessor_get()
- * function and destroyed when the taskprocessor reference count reaches zero.
+ * \note A taskprocessor is a named object containing a task queue that
+ * serializes tasks pushed into it by [a] module(s) that reference the taskprocessor.
+ * A taskprocessor is created the first time its name is requested via the
+ * ast_taskprocessor_get() function or the ast_taskprocessor_create_with_listener()
+ * function and destroyed when the taskprocessor reference count reaches zero. A
+ * taskprocessor also contains an accompanying listener that is notified when changes
+ * in the task queue occur.
  *
- * Modules that obtain a reference to a taskprocessor can queue tasks into the taskprocessor
- * to be processed by the singleton processing thread when the task is popped off the front 
- * of the queue.  A task is a wrapper around a task-handling function pointer and a data
- * pointer.  It is the responsibility of the task handling function to free memory allocated for
- * the task data pointer.  A task is pushed into a taskprocessor queue using the 
+ * A task is a wrapper around a task-handling function pointer and a data
+ * pointer.  A task is pushed into a taskprocessor queue using the
  * ast_taskprocessor_push(taskprocessor, taskhandler, taskdata) function and freed by the
- * taskprocessor after the task handling function returns.  A module releases its reference to a
- * taskprocessor using the ast_taskprocessor_unreference() function which may result in the
- * destruction of the taskprocessor if the taskprocessor's reference count reaches zero.  Tasks waiting
- * to be processed in the taskprocessor queue when the taskprocessor reference count reaches zero
- * will be purged and released from the taskprocessor queue without being processed.
+ * taskprocessor after the task handling function returns.  A module releases its
+ * reference to a taskprocessor using the ast_taskprocessor_unreference() function which
+ * may result in the destruction of the taskprocessor if the taskprocessor's reference
+ * count reaches zero. When the taskprocessor's reference count reaches zero, its
+ * listener's shutdown() callback will be called. Any further attempts to execute tasks
+ * will be denied.
+ *
+ * The taskprocessor listener has the flexibility of doling out tasks to best fit the
+ * module's needs. For instance, a taskprocessor listener may have a single dispatch
+ * thread that handles all tasks, or it may dispatch tasks to a thread pool.
+ *
+ * There is a default taskprocessor listener that will be used if a taskprocessor is
+ * created without any explicit listener. This default listener runs tasks sequentially
+ * in a single thread. The listener will execute tasks as long as there are tasks to be
+ * processed. When the taskprocessor is shut down, the default listener will stop
+ * processing tasks and join its execution thread.
  */
 
 #ifndef __AST_TASKPROCESSOR_H__
@@ -48,9 +59,9 @@ struct ast_taskprocessor;
 /*!
  * \brief ast_tps_options for specification of taskprocessor options
  *
- * Specify whether a taskprocessor should be created via ast_taskprocessor_get() if the taskprocessor 
- * does not already exist.  The default behavior is to create a taskprocessor if it does not already exist 
- * and provide its reference to the calling function.  To only return a reference to a taskprocessor if 
+ * Specify whether a taskprocessor should be created via ast_taskprocessor_get() if the taskprocessor
+ * does not already exist.  The default behavior is to create a taskprocessor if it does not already exist
+ * and provide its reference to the calling function.  To only return a reference to a taskprocessor if
  * and only if it exists, use the TPS_REF_IF_EXISTS option in ast_taskprocessor_get().
  */
 enum ast_tps_options {
@@ -60,19 +71,108 @@ enum ast_tps_options {
 	TPS_REF_IF_EXISTS = (1 << 0),
 };
 
+struct ast_taskprocessor_listener;
+
+struct ast_taskprocessor_listener_callbacks {
+	/*!
+	 * \brief The taskprocessor has started completely
+	 *
+	 * This indicates that the taskprocessor is fully set up and the listener
+	 * can now start interacting with it.
+	 *
+	 * \param listener The listener to start
+	 */
+	int (*start)(struct ast_taskprocessor_listener *listener);
+	/*!
+	 * \brief Indicates a task was pushed to the processor
+	 *
+	 * \param listener The listener
+	 * \param was_empty If non-zero, the taskprocessor was empty prior to the task being pushed
+	 */
+	void (*task_pushed)(struct ast_taskprocessor_listener *listener, int was_empty);
+	/*!
+	 * \brief Indicates the task processor has become empty
+	 *
+	 * \param listener The listener
+	 */
+	void (*emptied)(struct ast_taskprocessor_listener *listener);
+	/*!
+	 * \brief Indicates the taskprocessor wishes to die.
+	 *
+	 * All operations on the task processor must to be stopped in
+	 * this callback. This is an opportune time to free the listener's
+	 * user data if it is not going to be used anywhere else.
+	 *
+	 * After this callback returns, it is NOT safe to operate on the
+	 * listener's reference to the taskprocessor.
+	 *
+	 * \param listener The listener
+	 */
+	void (*shutdown)(struct ast_taskprocessor_listener *listener);
+};
+
+/*!
+ * \brief Get a reference to the listener's taskprocessor
+ *
+ * This will return the taskprocessor with its reference count increased. Release
+ * the reference to this object by using ast_taskprocessor_unreference()
+ *
+ * \param listener The listener that has the taskprocessor
+ * \return The taskprocessor
+ */
+struct ast_taskprocessor *ast_taskprocessor_listener_get_tps(const struct ast_taskprocessor_listener *listener);
+
+/*!
+ * \brief Get the user data from the listener
+ * \param listener The taskprocessor listener
+ * \return The listener's user data
+ */
+void *ast_taskprocessor_listener_get_user_data(const struct ast_taskprocessor_listener *listener);
+
+/*!
+ * \brief Allocate a taskprocessor listener
+ *
+ * \since 12.0.0
+ *
+ * This will result in the listener being allocated with the specified
+ * callbacks.
+ *
+ * \param callbacks The callbacks to assign to the listener
+ * \param user_data The user data for the listener
+ * \retval NULL Failure
+ * \retval non-NULL The newly allocated taskprocessor listener
+ */
+struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks, void *user_data);
+
 /*!
  * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
  *
  * The default behavior of instantiating a taskprocessor if one does not already exist can be
  * disabled by specifying the TPS_REF_IF_EXISTS ast_tps_options as the second argument to ast_taskprocessor_get().
  * \param name The name of the taskprocessor
- * \param create Use 0 by default or specify TPS_REF_IF_EXISTS to return NULL if the taskprocessor does 
+ * \param create Use 0 by default or specify TPS_REF_IF_EXISTS to return NULL if the taskprocessor does
  * not already exist
  * return A pointer to a reference counted taskprocessor under normal conditions, or NULL if the
  * TPS_REF_IF_EXISTS reference type is specified and the taskprocessor does not exist
  * \since 1.6.1
  */
 struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create);
+
+/*!
+ * \brief Create a taskprocessor with a custom listener
+ *
+ * \since 12.0.0
+ *
+ * Note that when a taskprocessor is created in this way, it does not create
+ * any threads to execute the tasks. This job is left up to the listener.
+ * The listener's start() callback will be called during this function.
+ *
+ * \param name The name of the taskprocessor to create
+ * \param listener The listener for operations on this taskprocessor
+ * \retval NULL Failure
+ * \reval non-NULL success
+ */
+struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener);
 
 /*!
  * \brief Unreference the specified taskprocessor and its reference count will decrement.
@@ -95,6 +195,17 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
  * \since 1.6.1
  */
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
+
+/*!
+ * \brief Pop a task off the taskprocessor and execute it.
+ *
+ * \since 12.0.0
+ *
+ * \param tps The taskprocessor from which to execute.
+ * \retval 0 There is no further work to be done.
+ * \retval 1 Tasks still remain in the taskprocessor queue.
+ */
+int ast_taskprocessor_execute(struct ast_taskprocessor *tps);
 
 /*!
  * \brief Return the name of the taskprocessor singleton
