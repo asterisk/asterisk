@@ -1071,18 +1071,7 @@ if test "${check_rpath}" != yes; then
 elif test "${prefix}" = /usr || test "${prefix}" = NONE; then
 	AC_MSG_RESULT(not needed)
 else
-	case "${host_os}" in
-		darwin*)
-			AC_MSG_RESULT(not supported)
-			# We set macosx_version_min to 10.4, which doesn't
-			# support rpath. However, we set install_name on our
-			# dylibs, so it's not strictly necessary.
-			;;
-		*)
-			AC_MSG_RESULT(required)
-			AST_RPATH="-Wl,-rpath,${libdir}"
-			;;
-	esac
+	AST_RPATH="-Wl,-rpath,${libdir}"
 fi
 AC_SUBST(AST_RPATH)
 
