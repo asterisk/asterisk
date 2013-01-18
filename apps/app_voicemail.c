@@ -3530,6 +3530,16 @@ static int vm_lock_path(const char *path)
 	}
 }
 
+#define MSG_ID_LEN 256
+
+/* Used to attach a unique identifier to an msg_id */
+static int msg_id_incrementor;
+
+/*!
+ * \brief Sets the destination string to a uniquely identifying msg_id string
+ * \param dst pointer to a character buffer that should contain MSG_ID_LEN characters.
+ */
+static void generate_msg_id(char *dst);
 
 #ifdef ODBC_STORAGE
 struct generic_prepare_struct {
@@ -3559,6 +3569,33 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 		SQLBindParameter(stmt, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(gps->argv[i]), 0, gps->argv[i], 0, NULL);
 
 	return stmt;
+}
+
+static void odbc_update_msg_id(char *dir, int msg_num, char *msg_id)
+{
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	struct odbc_obj *obj;
+	char msg_num_str[20];
+	char *argv[] = { msg_id, dir, msg_num_str };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 3, .argv = argv };
+
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (!obj) {
+		ast_log(LOG_WARNING, "Unable to update message ID for message %d in %s\n", msg_num, dir);
+		return;
+	}
+
+	snprintf(msg_num_str, sizeof(msg_num_str), "%d", msg_num);
+	snprintf(sql, sizeof(sql), "UPDATE %s SET msg_id=? WHERE dir=? AND msgnum=?", odbc_table);
+	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+	if (!stmt) {
+		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+	} else {
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	}
+	ast_odbc_release_obj(obj);
+	return;
 }
 
 /*!
@@ -3709,7 +3746,12 @@ static int retrieve_file(char *dir, int msgnum)
 				}
 			} else {
 				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				if ((res == SQL_NULL_DATA) && (!strcasecmp(coltitle, "msg_id"))) {
+					char msg_id[MSG_ID_LEN];
+					generate_msg_id(msg_id);
+					snprintf(rowdata, sizeof(rowdata), "%s", msg_id);
+					odbc_update_msg_id(dir, msgnum, msg_id);
+				} else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 					ast_log(AST_LOG_WARNING, "SQL Get Data error! coltitle=%s\n[%s]\n\n", coltitle, sql);
 					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 					ast_odbc_release_obj(obj);
@@ -3956,16 +3998,18 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 	char sql[512];
 	char msgnums[20];
 	char msgnumd[20];
+	char msg_id[MSG_ID_LEN];
 	struct odbc_obj *obj;
-	char *argv[] = { ddir, msgnumd, dmailboxuser, dmailboxcontext, sdir, msgnums };
-	struct generic_prepare_struct gps = { .sql = sql, .argc = 6, .argv = argv };
+	char *argv[] = { ddir, msgnumd, msg_id, dmailboxuser, dmailboxcontext, sdir, msgnums };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 7, .argv = argv };
 
+	generate_msg_id(msg_id);
 	delete_file(ddir, dmsg);
 	obj = ast_odbc_request_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
-		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, flag, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,flag,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
+		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, msg_id, context, macrocontext, callerid, origtime, duration, recording, flag, mailboxuser, mailboxcontext) SELECT ?,?,?,context,macrocontext,callerid,origtime,duration,recording,flag,?,? FROM %s WHERE dir=? AND msgnum=?", odbc_table, odbc_table);
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt)
 			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
@@ -4156,33 +4200,6 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 	if (fd > -1)
 		close(fd);
 	return res;
-}
-
-static void odbc_update_msg_id(char *dir, int msg_num, char *msg_id)
-{
-	SQLHSTMT stmt;
-	char sql[PATH_MAX];
-	struct odbc_obj *obj;
-	char msg_num_str[20];
-	char *argv[] = { msg_id, dir, msg_num_str };
-	struct generic_prepare_struct gps = { .sql = sql, .argc = 3, .argv = argv };
-
-	obj = ast_odbc_request_obj(odbc_database, 0);
-	if (!obj) {
-		ast_log(LOG_WARNING, "Unable to update message ID for message %d in %s\n", msg_num, dir);
-		return;
-	}
-
-	snprintf(msg_num_str, sizeof(msg_num_str), "%d", msg_num);
-	snprintf(sql, sizeof(sql), "UPDATE %s SET msg_id=? WHERE dir=? AND msgnum=?", odbc_table);
-	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-	if (!stmt) {
-		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-	} else {
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	}
-	ast_odbc_release_obj(obj);
-	return;
 }
 
 /*!
@@ -5903,6 +5920,16 @@ struct leave_vm_options {
 	char *exitcontext;
 };
 
+static void generate_msg_id(char *dst)
+{
+	/* msg id is time of msg_id generation plus an incrementing value
+	 * called each time a new msg_id is generated. This should achieve uniqueness,
+	 * but only in single system solutions.
+	 */
+	int unique_counter = ast_atomic_fetchadd_int(&msg_id_incrementor, +1);
+	snprintf(dst, MSG_ID_LEN, "%ld-%08x", (long) time(NULL), unique_counter);
+}
+
 /*!
  * \internal
  * \brief Creates a voicemail based on a specified file to a mailbox.
@@ -5952,7 +5979,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	/* We aren't currently doing anything with category, since it comes from a channel variable and
 	 * this function doesn't use channels, but this function could add that as an argument later. */
 	const char *category = NULL; /* pointless for now */
-	char msg_id[256];
+	char msg_id[MSG_ID_LEN];
 
 	/* Start by checking to see if the file actually exists... */
 	if (!(ast_fileexists(recdata->recording_file, recdata->recording_ext, NULL))) {
@@ -6005,15 +6032,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	/* Store information */
 	txt = fdopen(txtdes, "w+");
 	if (txt) {
-		char msg_id_hash[256];
-
-		/* Every voicemail msg gets its own unique msg id.  The msg id is the originate time
-		 * plus a hash of the extension, context, and callerid of the channel leaving the msg */
-
-		snprintf(msg_id_hash, sizeof(msg_id_hash), "%s%s%s", recdata->call_extension, 
-			recdata->call_context, recdata->call_callerid);
-		snprintf(msg_id, sizeof(msg_id), "%ld-%d", (long) time(NULL), ast_str_hash(msg_id_hash));
-
+		generate_msg_id(msg_id);
 		get_date(date, sizeof(date));
 		fprintf(txt,
 			";\n"
@@ -6481,7 +6500,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	/* The meat of recording the message...  All the announcements and beeps have been played*/
 	ast_copy_string(fmt, vmfmts, sizeof(fmt));
 	if (!ast_strlen_zero(fmt)) {
-		char msg_id[256] = "";
+		char msg_id[MSG_ID_LEN] = "";
 		msgnum = 0;
 
 #ifdef IMAP_STORAGE
@@ -6574,13 +6593,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* Store information */
 		txt = fdopen(txtdes, "w+");
 		if (txt) {
-			char msg_id_hash[256] = "";
-
-			/* Every voicemail msg gets its own unique msg id.  The msg id is the originate time
-			 * plus a hash of the extension, context, and callerid of the channel leaving the msg */
-			snprintf(msg_id_hash, sizeof(msg_id_hash), "%s%s%s", ast_channel_exten(chan), ast_channel_context(chan), callerid);
-			snprintf(msg_id, sizeof(msg_id), "%ld-%d", (long) time(NULL), ast_str_hash(msg_id_hash));
-
+			generate_msg_id(msg_id);
 			get_date(date, sizeof(date));
 			ast_callerid_merge(callerid, sizeof(callerid),
 				S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL),
@@ -11584,21 +11597,11 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static void generate_random_string(char *buf, size_t size)
-{
-	long val[4];
-	int x;
-
-	for (x=0; x<4; x++)
-		val[x] = ast_random();
-	snprintf(buf, size, "%08lx%08lx%08lx%08lx", val[0], val[1], val[2], val[3]);
-}
-
 static int add_message_id(struct ast_config *msg_cfg, char *dir, int msg, char *filename, char *id, size_t id_size, struct ast_vm_user *vmu, int folder)
 {
 	struct ast_variable *var;
 	struct ast_category *cat;
-	generate_random_string(id, id_size);
+	generate_msg_id(id);
 
 	var = ast_variable_new("msg_id", id, "");
 	if (!var) {
@@ -14884,7 +14887,7 @@ static int vm_msg_snapshot_create(struct ast_vm_user *vmu,
 			 * message ID. Add one to the message config
 			 * if it does not already exist
 			 */
-			char id[33];
+			char id[MSG_ID_LEN];
 			if (!(add_message_id(msg_cfg, vms->curdir, vms->curmsg,
 							filename, id, sizeof(id), vmu, mailbox_index))) {
 				ast_string_field_set(msg_snapshot, msg_id, id);
