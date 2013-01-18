@@ -16084,21 +16084,25 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	/* 1st we pass through all the hops in any Record-Route headers */
 	for (;;) {
 		/* Each Record-Route header */
-		char rr_copy[256];
-		char *rr_copy_ptr;
-		char *rr_iter;
+		int len = 0;
+		const char *uri;
 		rr = __get_header(req, "Record-Route", &start);
 		if (*rr == '\0') {
 			break;
 		}
-		ast_copy_string(rr_copy, rr, sizeof(rr_copy));
-		rr_copy_ptr = rr_copy;
-		while ((rr_iter = strsep(&rr_copy_ptr, ","))) { /* Each route entry */
-			char *uri = get_in_brackets(rr_iter);
-			len = strlen(uri) + 1;
-			/* Make a struct route */
+		while (!get_in_brackets_const(rr, &uri, &len)) {
+			len++;
+			rr = strchr(rr, ',');
+			if(rr >= uri && rr < (uri + len)) {
+				/* comma inside brackets*/
+				const char *next_br = strchr(rr, '<');
+				if (next_br && next_br < (uri + len)) {
+					rr++;
+					continue;
+				}
+				continue;
+			}
 			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
-				/* ast_calloc is not needed because all fields are initialized in this block */
 				ast_copy_string(thishop->hop, uri, len);
 				ast_debug(2, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
@@ -16121,6 +16125,13 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 					tail = thishop;
 				}
 			}
+			rr = strchr(uri + len, ',');
+			if (rr == NULL) {
+				/* No more field-values, we're done with this header */
+				break;
+			}
+			/* Advance past comma */
+			rr++;
 		}
 	}
 
@@ -33876,6 +33887,59 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 	return res;
 }
 
+AST_TEST_DEFINE(get_in_brackets_const_test)
+{
+	const char *input;
+	const char *start = NULL;
+	int len = 0;
+	int res;
+
+#define CHECK_RESULTS(in, expected_res, expected_start, expected_len)	do {	\
+		input = (in);						\
+		res = get_in_brackets_const(input, &start, &len);	\
+		if ((expected_res) != res) {				\
+			ast_test_status_update(test, "Unexpected result: %d != %d\n", expected_res, res); \
+			return AST_TEST_FAIL;				\
+		}							\
+		if ((expected_start) != start) {			\
+			const char *e = expected_start ? expected_start : "(null)"; \
+			const char *a = start ? start : "(null)";	\
+			ast_test_status_update(test, "Unexpected start: %s != %s\n", e, a); \
+			return AST_TEST_FAIL;				\
+		}							\
+		if ((expected_len) != len) {				\
+			ast_test_status_update(test, "Unexpected len: %d != %d\n", expected_len, len); \
+			return AST_TEST_FAIL;				\
+		}							\
+	} while(0)
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = "/channels/chan_sip/";
+		info->summary = "get_in_brackets_const test";
+		info->description =
+			"Tests the get_in_brackets_const function";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	CHECK_RESULTS("", 1, NULL, -1);
+	CHECK_RESULTS("normal <test>", 0, input + 8, 4);
+	CHECK_RESULTS("\"normal\" <test>", 0, input + 10, 4);
+	CHECK_RESULTS("not normal <test", -1, NULL, -1);
+	CHECK_RESULTS("\"yes < really\" <test>", 0, input + 16, 4);
+	CHECK_RESULTS("\"even > this\" <test>", 0, input + 15, 4);
+	CHECK_RESULTS("<sip:id1@10.10.10.10;lr>", 0, input + 1, 22);
+	CHECK_RESULTS("<sip:id1@10.10.10.10;lr>, <sip:id1@10.10.10.20;lr>", 0, input + 1, 22);
+	CHECK_RESULTS("<sip:id1,id2@10.10.10.10;lr>", 0, input + 1, 26);
+	CHECK_RESULTS("<sip:id1@10., <sip:id2@10.10.10.10;lr>", 0, input + 1, 36);
+	CHECK_RESULTS("\"quoted text\" <sip:dlg1@10.10.10.10;lr>", 0, input + 15, 23);
+
+	return AST_TEST_PASS;
+}
+
 #endif
 
 #define DATA_EXPORT_SIP_PEER(MEMBER)				\
@@ -34126,6 +34190,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_sip_peers_get);
 	AST_TEST_REGISTER(test_sip_mwi_subscribe_parse);
 	AST_TEST_REGISTER(test_tcp_message_fragmentation);
+	AST_TEST_REGISTER(get_in_brackets_const_test);
 #endif
 
 	/* Register AstData providers */
@@ -34254,6 +34319,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_sip_peers_get);
 	AST_TEST_UNREGISTER(test_sip_mwi_subscribe_parse);
 	AST_TEST_UNREGISTER(test_tcp_message_fragmentation);
+	AST_TEST_UNREGISTER(get_in_brackets_const_test);
 #endif
 	/* Unregister all the AstData providers */
 	ast_data_unregister(NULL);
