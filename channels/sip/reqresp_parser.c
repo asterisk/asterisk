@@ -948,6 +948,59 @@ AST_TEST_DEFINE(get_name_and_number_test)
 	return res;
 }
 
+int get_in_brackets_const(const char *src,const char **start,int *length)
+{
+	const char *parse = src;
+	const char *first_bracket;
+	const char *second_bracket;
+
+	if (start == NULL) {
+		return -1;
+	}
+	if (length == NULL) {
+		return -1;
+	}
+	*start = NULL;
+	*length = -1;
+	if (ast_strlen_zero(src)) {
+		return 1;
+	}
+
+	/*
+	 * Skip any quoted text until we find the part in brackets.
+	 * On any error give up and return -1
+	 */
+	while ( (first_bracket = strchr(parse, '<')) ) {
+		const char *first_quote = strchr(parse, '"');
+		first_bracket++;
+		if (!first_quote || first_quote >= first_bracket) {
+			break; /* no need to look at quoted part */
+		}
+		/* the bracket is within quotes, so ignore it */
+		parse = find_closing_quote(first_quote + 1, NULL);
+		if (!*parse) {
+			ast_log(LOG_WARNING, "No closing quote found in '%s'\n", src);
+			return  -1;
+		}
+		parse++;
+	}
+
+	/* Require a first bracket.  Unlike get_in_brackets_full, this procedure is passed a const,
+	 * so it can expect a pointer to an original value */
+	if (!first_bracket) {
+		ast_log(LOG_WARNING, "No opening bracket found in '%s'\n", src);
+		return 1;
+	}
+
+	if ((second_bracket = strchr(first_bracket, '>'))) {
+		*start = first_bracket;
+		*length = second_bracket - first_bracket;
+		return 0;
+	}
+	ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", src);
+	return -1;
+}
+
 int get_in_brackets_full(char *tmp,char **out,char **residue)
 {
 	const char *parse = tmp;
