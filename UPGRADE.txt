@@ -21,7 +21,6 @@
 ===
 ===========================================================
 
-From 11 to 12:
 
 AMI:
  - The SIP SIPqualifypeer action now sends a response indicating it will qualify
