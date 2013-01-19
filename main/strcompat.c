@@ -17,6 +17,8 @@
 /*! \file
  *
  * \brief Compatibility functions for strsep and strtoq missing on Solaris
+ *
+ * .. and lots of other functions too.
  */
 
 /*** MODULEINFO
@@ -567,4 +569,16 @@ char *mkdtemp(char *path)
 {
 	return mktemp_internal(path, 0, MKTEMP_DIR) ? NULL : path;
 }
+#endif
+
+#ifndef HAVE_ROUNDF
+#ifndef HAVE_ROUND
+float roundf(float x) {
+	if (x < 0.0) {
+		return (float)(int)((x) - 0.5);
+	} else {
+		return (float)(int)((x) + 0.5);
+	}
+}
+#endif
 #endif

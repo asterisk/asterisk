@@ -216,4 +216,12 @@ typedef unsigned long long uint64_t;
 #define MY_GLOB_FLAGS   (GLOB_NOMAGIC | GLOB_BRACE)
 #endif
 
+#ifndef HAVE_ROUNDF
+#ifdef HAVE_ROUND
+#define roundf(x) ((float)round(x))
+#else
+float roundf(float x);
+#endif
+#endif
+
 #endif
