@@ -6820,15 +6820,21 @@ static void destroy_session(struct skinnysession *s)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, cur, list) {
 		if (cur == s) {
 			AST_LIST_REMOVE_CURRENT(list);
-			if (s->fd > -1) 
+			if (s->fd > -1) {
 				close(s->fd);
-			
-			if (!s->device)
+			}
+
+			if (s->device) {
+				s->device->session = NULL;
+			} else {
 				ast_atomic_fetchadd_int(&unauth_sessions, -1);
+			}
 
 			ast_mutex_destroy(&s->lock);
-			
+
 			ast_free(s);
+
+			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
@@ -6966,21 +6972,22 @@ static void *skinny_session(void *data)
 		res = get_input(s);
 		if (res < 0) {
 			ast_verb(3, "Ending Skinny session from %s (bad input)\n", ast_inet_ntoa(s->sin.sin_addr));
-			break;
+			destroy_session(s);
+			return NULL;
 		}
 
 		if (res > 0)
 		{
 			if (!(req = skinny_req_parse(s))) {
-				destroy_session(s);
 				ast_verb(3, "Ending Skinny session from %s (failed parse)\n", ast_inet_ntoa(s->sin.sin_addr));
+				destroy_session(s);
 				return NULL;
 			}
 
 			res = handle_message(req, s);
 			if (res < 0) {
-				destroy_session(s);
 				ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+				destroy_session(s);
 				return NULL;
 			}
 		}
