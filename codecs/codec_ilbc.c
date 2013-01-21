@@ -96,27 +96,29 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
+	int datalen = f->datalen;
 	int16_t *dst = pvt->outbuf.i16;
 	ilbc_block tmpf[ILBC_SAMPLES];
 
-	if (!f->data.ptr && f->datalen) {
-		ast_debug(1, "issue 16070, ILIB ERROR. data = NULL datalen = %d src = %s\n", f->datalen, f->src ? f->src : "no src set");
+	if (!f->data.ptr && datalen) {
+		ast_debug(1, "issue 16070, ILIB ERROR. data = NULL datalen = %d src = %s\n", datalen, f->src ? f->src : "no src set");
 		f->datalen = 0;
+		datalen = 0;
 	}
 
-	if (f->datalen == 0) { /* native PLC, set fake f->datalen and clear plc_mode */
-		f->datalen = ILBC_FRAME_LEN;
+	if (datalen == 0) { /* native PLC, set fake datalen and clear plc_mode */
+		datalen = ILBC_FRAME_LEN;
 		f->samples = ILBC_SAMPLES;
 		plc_mode = 0;	/* do native plc */
 		pvt->samples += ILBC_SAMPLES;
 	}
 
-	if (f->datalen % ILBC_FRAME_LEN) {
-		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
+	if (datalen % ILBC_FRAME_LEN) {
+		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, datalen);
 		return -1;
 	}
 
-	for (x=0; x < f->datalen ; x += ILBC_FRAME_LEN) {
+	for (x=0; x < datalen ; x += ILBC_FRAME_LEN) {
 		if (pvt->samples + ILBC_SAMPLES > BUFFER_SAMPLES) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
