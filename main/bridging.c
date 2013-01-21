@@ -141,6 +141,26 @@ static void bridge_poke(struct ast_bridge *bridge)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Stop the bridge.
+ * \since 12.0.0
+ *
+ * \note This function assumes the bridge is locked.
+ *
+ * \return Nothing
+ */
+static void bridge_stop(struct ast_bridge *bridge)
+{
+	pthread_t thread = bridge->thread;
+
+	bridge->stop = 1;
+	bridge_poke(bridge);
+	ao2_unlock(bridge);
+	pthread_join(thread, NULL);
+	ao2_lock(bridge);
+}
+
 /*! \brief Helper function to add a channel to the bridge array
  *
  * \note This function assumes the bridge is locked.
@@ -209,22 +229,43 @@ static struct ast_bridge_channel *find_bridge_channel(struct ast_bridge *bridge,
 	return bridge_channel;
 }
 
+/*!
+ * \internal
+ * \brief Force out all channels that are not already going out of the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge Bridge to eject all channels
+ *
+ * \note On entry, bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void bridge_force_out_all(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *bridge_channel;
+
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		switch (bridge_channel->state) {
+		case AST_BRIDGE_CHANNEL_STATE_END:
+		case AST_BRIDGE_CHANNEL_STATE_HANGUP:
+		case AST_BRIDGE_CHANNEL_STATE_DEPART:
+			break;
+		default:
+			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+			break;
+		}
+	}
+}
+
 /*! \brief Internal function to see whether a bridge should dissolve, and if so do it */
 static void bridge_check_dissolve(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_bridge_channel *bridge_channel2 = NULL;
-
 	if (!ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE) && (!bridge_channel->features || !bridge_channel->features->usable || !ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_FLAG_DISSOLVE))) {
 		return;
 	}
 
 	ast_debug(1, "Dissolving bridge %p\n", bridge);
-
-	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel2, entry) {
-		if (bridge_channel2->state != AST_BRIDGE_CHANNEL_STATE_END && bridge_channel2->state != AST_BRIDGE_CHANNEL_STATE_DEPART) {
-			ast_bridge_change_state(bridge_channel2, AST_BRIDGE_CHANNEL_STATE_HANGUP);
-		}
-	}
+	bridge_force_out_all(bridge);
 }
 
 /*! \brief Internal function to handle DTMF from a channel */
@@ -530,8 +571,6 @@ int ast_bridge_check(uint32_t capabilities)
 
 int ast_bridge_destroy(struct ast_bridge *bridge)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
-
 	ao2_lock(bridge);
 
 	if (bridge->callid) {
@@ -539,20 +578,13 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 	}
 
 	if (bridge->thread != AST_PTHREADT_NULL) {
-		pthread_t thread = bridge->thread;
-		bridge->stop = 1;
-		bridge_poke(bridge);
-		ao2_unlock(bridge);
-		pthread_join(thread, NULL);
-		ao2_lock(bridge);
+		bridge_stop(bridge);
 	}
 
 	ast_debug(1, "Telling all channels in bridge %p to leave the party\n", bridge);
 
 	/* Drop every bridged channel, the last one will cause the bridge thread (if it exists) to exit */
-	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
-	}
+	bridge_force_out_all(bridge);
 
 	ao2_unlock(bridge);
 
@@ -659,13 +691,8 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 			bridge->refresh = 1;
 			bridge_poke(bridge);
 		} else {
-			pthread_t bridge_thread = bridge->thread;
 			ast_debug(1, "Telling current bridge thread for bridge %p to stop\n", bridge);
-			bridge->stop = 1;
-			bridge_poke(bridge);
-			ao2_unlock(bridge);
-			pthread_join(bridge_thread, NULL);
-			ao2_lock(bridge);
+			bridge_stop(bridge);
 		}
 	}
 
