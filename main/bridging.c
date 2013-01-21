@@ -198,7 +198,7 @@ static void bridge_array_remove(struct ast_bridge *bridge, struct ast_channel *c
 /*! \brief Helper function to find a bridge channel given a channel */
 static struct ast_bridge_channel *find_bridge_channel(struct ast_bridge *bridge, struct ast_channel *chan)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
+	struct ast_bridge_channel *bridge_channel;
 
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 		if (bridge_channel->chan == chan) {
@@ -231,7 +231,7 @@ static void bridge_check_dissolve(struct ast_bridge *bridge, struct ast_bridge_c
 static struct ast_frame *bridge_handle_dtmf(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct ast_bridge_features *features = (bridge_channel->features ? bridge_channel->features : &bridge->features);
-	struct ast_bridge_features_hook *hook = NULL;
+	struct ast_bridge_features_hook *hook;
 
 	/* If the features structure we grabbed is not usable immediately return the frame */
 	if (!features->usable) {
@@ -281,8 +281,14 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
 
 	/* If a bridge channel with actual channel is present read a frame and handle it */
 	if (chan && bridge_channel) {
-		struct ast_frame *frame = (((bridge->features.mute) || (bridge_channel->features && bridge_channel->features->mute)) ? ast_read_noaudio(chan) : ast_read(chan));
+		struct ast_frame *frame;
 
+		if (bridge->features.mute
+			|| (bridge_channel->features && bridge_channel->features->mute)) {
+			frame = ast_read_noaudio(chan);
+		} else {
+			frame = ast_read(chan);
+		}
 		/* This is pretty simple... see if they hung up */
 		if (!frame || (frame->frametype == AST_FRAME_CONTROL && frame->subclass.integer == AST_CONTROL_HANGUP)) {
 			/* Signal the thread that is handling the bridged channel that it should be ended */
@@ -432,6 +438,9 @@ static void destroy_bridge(void *obj)
 
 	ast_debug(1, "Actually destroying bridge %p, nobody wants it anymore\n", bridge);
 
+	/* There should not be any channels left in the bridge. */
+	ast_assert(AST_LIST_EMPTY(&bridge->channels));
+
 	/* Pass off the bridge to the technology to destroy if needed */
 	if (bridge->technology->destroy) {
 		ast_debug(1, "Giving bridge technology %s the bridge structure %p to destroy\n", bridge->technology->name, bridge);
@@ -508,7 +517,7 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 
 int ast_bridge_check(uint32_t capabilities)
 {
-	struct ast_bridge_technology *bridge_technology = NULL;
+	struct ast_bridge_technology *bridge_technology;
 
 	if (!(bridge_technology = find_best_technology(capabilities))) {
 		return 0;
@@ -538,7 +547,7 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 		ao2_lock(bridge);
 	}
 
-	ast_debug(1, "Telling all channels in bridge %p to end and leave the party\n", bridge);
+	ast_debug(1, "Telling all channels in bridge %p to leave the party\n", bridge);
 
 	/* Drop every bridged channel, the last one will cause the bridge thread (if it exists) to exit */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
@@ -922,8 +931,6 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 		bridge_channel->bridge->callid = ast_read_threadstorage_callid();
 	}
 
-	state = bridge_channel->state;
-
 	/* Add channel into the bridge */
 	AST_LIST_INSERT_TAIL(&bridge_channel->bridge->channels, bridge_channel, entry);
 	bridge_channel->bridge->num++;
@@ -931,18 +938,20 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 	bridge_array_add(bridge_channel->bridge, bridge_channel->chan);
 
 	if (bridge_channel->swap) {
-		struct ast_bridge_channel *bridge_channel2 = NULL;
+		struct ast_bridge_channel *bridge_channel2;
 
-		/* If we are performing a swap operation we do not need
-		 * to execute the smart bridge operation as the actual number
-		 * of channels involved will not have changed, we just need to
-		 * tell the other channel to leave */
-		if ((bridge_channel2 = find_bridge_channel(bridge_channel->bridge, bridge_channel->swap))) {
+		/*
+		 * If we are performing a swap operation we do not need to
+		 * execute the smart bridge operation as the actual number of
+		 * channels involved will not have changed, we just need to tell
+		 * the other channel to leave.
+		 */
+		bridge_channel2 = find_bridge_channel(bridge_channel->bridge, bridge_channel->swap);
+		bridge_channel->swap = NULL;
+		if (bridge_channel2) {
 			ast_debug(1, "Swapping bridge channel %p out from bridge %p so bridge channel %p can slip in\n", bridge_channel2, bridge_channel->bridge, bridge_channel);
 			ast_bridge_change_state(bridge_channel2, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 		}
-
-		bridge_channel->swap = NULL;
 	} else if (ast_test_flag(&bridge_channel->bridge->feature_flags, AST_BRIDGE_FLAG_SMART)) {
 		/* Perform the smart bridge operation, basically see if we need to move around between technologies */
 		smart_bridge_operation(bridge_channel->bridge, bridge_channel, bridge_channel->bridge->num);
@@ -1066,8 +1075,10 @@ static void bridge_channel_destroy(void *obj)
 
 static struct ast_bridge_channel *bridge_channel_alloc(struct ast_bridge *bridge)
 {
-	struct ast_bridge_channel *bridge_channel = ao2_alloc(sizeof(struct ast_bridge_channel), bridge_channel_destroy);
-	if (!(bridge_channel)) {
+	struct ast_bridge_channel *bridge_channel;
+
+	bridge_channel = ao2_alloc(sizeof(struct ast_bridge_channel), bridge_channel_destroy);
+	if (!bridge_channel) {
 		return NULL;
 	}
 	ast_cond_init(&bridge_channel->cond, NULL);
@@ -1084,14 +1095,15 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_bridge_features *features,
 	struct ast_bridge_tech_optimizations *tech_args)
 {
-	struct ast_bridge_channel *bridge_channel = bridge_channel_alloc(bridge);
-	enum ast_bridge_channel_state state = AST_BRIDGE_CHANNEL_STATE_HANGUP;
+	struct ast_bridge_channel *bridge_channel;
+	enum ast_bridge_channel_state state;
 
+	bridge_channel = bridge_channel_alloc(bridge);
 	if (!bridge_channel) {
-		return state;
+		return AST_BRIDGE_CHANNEL_STATE_HANGUP;
 	}
 	if (tech_args) {
-		memcpy(&bridge_channel->tech_args, tech_args, sizeof(bridge_channel->tech_args));
+		bridge_channel->tech_args = *tech_args;
 	}
 
 	/* Initialize various other elements of the bridge channel structure that we can't do above */
@@ -1109,7 +1121,6 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	ao2_unlock(bridge_channel);
 
 	ao2_ref(bridge_channel, -1);
-
 	return state;
 }
 
@@ -1144,10 +1155,11 @@ static void *bridge_channel_thread(void *data)
 
 int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup)
 {
-	struct ast_bridge_channel *bridge_channel = bridge_channel_alloc(bridge);
+	struct ast_bridge_channel *bridge_channel;
 
 	/* Try to allocate a structure for the bridge channel */
-	if (!(bridge_channel)) {
+	bridge_channel = bridge_channel_alloc(bridge);
+	if (!bridge_channel) {
 		return -1;
 	}
 
@@ -1169,7 +1181,7 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 
 int ast_bridge_depart(struct ast_bridge *bridge, struct ast_channel *chan)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
+	struct ast_bridge_channel *bridge_channel;
 	pthread_t thread;
 
 	ao2_lock(bridge);
@@ -1192,7 +1204,7 @@ int ast_bridge_depart(struct ast_bridge *bridge, struct ast_channel *chan)
 
 int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
+	struct ast_bridge_channel *bridge_channel;
 
 	ao2_lock(bridge);
 
@@ -1211,7 +1223,7 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 
 int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
+	struct ast_bridge_channel *bridge_channel;
 
 	ao2_lock(bridge0);
 	ao2_lock(bridge1);
@@ -1372,13 +1384,13 @@ int ast_bridge_features_hook(struct ast_bridge_features *features,
 	void *hook_pvt,
 	ast_bridge_features_hook_pvt_destructor destructor)
 {
-	struct ast_bridge_features_hook *hook = NULL;
+	struct ast_bridge_features_hook *hook;
 
 	/* Allocate new memory and setup it's various variables */
-	if (!(hook = ast_calloc(1, sizeof(*hook)))) {
+	hook = ast_calloc(1, sizeof(*hook));
+	if (!hook) {
 		return -1;
 	}
-
 	ast_copy_string(hook->dtmf, dtmf, sizeof(hook->dtmf));
 	hook->callback = callback;
 	hook->destructor = destructor;
@@ -1444,7 +1456,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 
 int ast_bridge_features_cleanup(struct ast_bridge_features *features)
 {
-	struct ast_bridge_features_hook *hook = NULL;
+	struct ast_bridge_features_hook *hook;
 
 	/* This is relatively simple, hooks are kept as a list on the features structure so we just pop them off and free them */
 	while ((hook = AST_LIST_REMOVE_HEAD(&features->hooks, entry))) {
@@ -1463,7 +1475,7 @@ int ast_bridge_features_cleanup(struct ast_bridge_features *features)
 
 int ast_bridge_dtmf_stream(struct ast_bridge *bridge, const char *dtmf, struct ast_channel *chan)
 {
-	struct ast_bridge_channel *bridge_channel = NULL;
+	struct ast_bridge_channel *bridge_channel;
 
 	ao2_lock(bridge);
 
