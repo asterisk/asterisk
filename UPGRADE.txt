@@ -17,6 +17,16 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
+
+from 1.8.20.0 to 1.8.20.1:
+* Asterisk would previously not output certain error messages when a remote
+  console attempted to connect to Asterisk and no instance of Asterisk was
+  running. This error message is displayed on stderr; as a result, some
+  initialization scripts that used remote consoles to test for the presence
+  of a running Asterisk instance started to display erroneous error messages.
+  The init.d scripts and the safe_asterisk have been updated in the contrib
+  folder to account for this.
+
 from 1.8.19 to 1.8.20:
 * Asterisk has always had code to ignore dash '-' characters that are not
   part of a character set in the dialplan extensions.  The code now
