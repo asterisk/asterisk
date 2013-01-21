@@ -1159,7 +1159,6 @@ static const char *ast_str_encode_mime(struct ast_str **end, ssize_t maxlen, con
 {
 	struct ast_str *tmp = ast_str_alloca(80);
 	int first_section = 1;
-	*end = '\0';
 
 	ast_str_reset(*end);
 	ast_str_set(&tmp, -1, "=?%s?Q?", charset);
