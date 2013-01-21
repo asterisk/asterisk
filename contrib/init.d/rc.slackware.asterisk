@@ -24,7 +24,7 @@ asterisk_start() {
    if [ -x /usr/sbin/asterisk ]; then
       # Check if Asterisk is already running.  If it is, then bug out, because
       # starting safe_asterisk when Asterisk is running is very bad.
-      VERSION=`/usr/sbin/asterisk -rx 'core show version'`
+      VERSION=`/usr/sbin/asterisk -rx 'core show version' 2>/dev/null`
 	  if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
          echo "Asterisk is already running.  $0 will exit now."
          exit 1
