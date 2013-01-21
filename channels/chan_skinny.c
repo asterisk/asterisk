@@ -3108,25 +3108,6 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Updating\n", sub->callid);
 
 	send_callinfo(sub);
-	if (ast_channel_state(sub->owner) == AST_STATE_UP) {
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
-		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
-	} else {
-		if (sub->calldirection == SKINNY_INCOMING) {
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
-			transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-		} else {
-			if (!sub->ringing) {
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
-				transmit_displaypromptstatus(d, "Ring-Out", 0, l->instance, sub->callid);
-				sub->ringing = 1;
-			} else {
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_PROGRESS);
-				transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
-				sub->progress = 1;
-			}
-		}
-	}
 }
 
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
@@ -5235,6 +5216,9 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_RINGOUT from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
 			return;
 		}
+		if (sub->substate != SUBSTATE_PROGRESS) {
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_PROGRESS);
+		}
 	
 		if (!d->earlyrtp) {
 			transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
@@ -5278,6 +5262,9 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		sub->substate = SUBSTATE_CALLWAIT;
 		break;
 	case SUBSTATE_CONNECTED:
+		if (sub->substate == SUBSTATE_RINGIN) {
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+		}
 		if (sub->substate == SUBSTATE_HOLD) {
 			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
 			transmit_connect(d, sub);
