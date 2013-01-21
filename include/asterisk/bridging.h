@@ -85,13 +85,13 @@ enum ast_bridge_capability {
 
 /*! \brief State information about a bridged channel */
 enum ast_bridge_channel_state {
-	/*! Waiting for a signal */
+	/*! Waiting for a signal (Channel in the bridge) */
 	AST_BRIDGE_CHANNEL_STATE_WAIT = 0,
 	/*! Bridged channel has ended itself (it has hung up) */
 	AST_BRIDGE_CHANNEL_STATE_END,
-	/*! Bridged channel should be hung up */
+	/*! Bridged channel was forced out and should be hung up */
 	AST_BRIDGE_CHANNEL_STATE_HANGUP,
-	/*! Bridged channel should be removed from the bridge without being hung up */
+	/*! Bridged channel was ast_bridge_depart() from the bridge without being hung up */
 	AST_BRIDGE_CHANNEL_STATE_DEPART,
 	/*! Bridged channel is executing a feature hook */
 	AST_BRIDGE_CHANNEL_STATE_FEATURE,

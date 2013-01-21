@@ -1404,7 +1404,7 @@ int ast_bridge_features_hook(struct ast_bridge_features *features,
 	return 0;
 }
 
-int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
+void ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
 	ast_bridge_talking_indicate_callback talker_cb,
 	ast_bridge_talking_indicate_destructor talker_destructor,
 	void *pvt_data)
@@ -1412,7 +1412,6 @@ int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
 	features->talker_cb = talker_cb;
 	features->talker_destructor_cb = talker_destructor;
 	features->talker_pvt_data = pvt_data;
-	return 0;
 }
 
 int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_bridge_builtin_feature feature, const char *dtmf, void *config)
@@ -1436,11 +1435,10 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
 	return ast_bridge_features_hook(features, dtmf, builtin_features_handlers[feature], config, NULL);
 }
 
-int ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_bridge_feature_flags flag)
+void ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_bridge_feature_flags flag)
 {
 	ast_set_flag(&features->feature_flags, flag);
 	features->usable = 1;
-	return 0;
 }
 
 int ast_bridge_features_init(struct ast_bridge_features *features)
@@ -1454,7 +1452,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 	return 0;
 }
 
-int ast_bridge_features_cleanup(struct ast_bridge_features *features)
+void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 {
 	struct ast_bridge_features_hook *hook;
 
@@ -1469,8 +1467,6 @@ int ast_bridge_features_cleanup(struct ast_bridge_features *features)
 		features->talker_destructor_cb(features->talker_pvt_data);
 		features->talker_pvt_data = NULL;
 	}
-
-	return 0;
 }
 
 int ast_bridge_dtmf_stream(struct ast_bridge *bridge, const char *dtmf, struct ast_channel *chan)

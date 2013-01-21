@@ -243,10 +243,9 @@ int ast_bridge_features_hook(struct ast_bridge_features *features,
  * \param pvt_data Optional unique data that will be passed with the talking events.
  * \param talker_destructor Optional destructor callback for pvt data.
  *
- * \retval 0, success
- * \retval -1, failure
+ * \return Nothing
  */
-int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
+void ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
 	ast_bridge_talking_indicate_callback talker_cb,
 	ast_bridge_talking_indicate_destructor talker_destructor,
 	void *pvt_data);
@@ -282,8 +281,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
  * \param features Bridge features structure
  * \param flag Flag to enable
  *
- * \retval 0 on success
- * \retval -1 on failure
+ * \return Nothing
  *
  * Example usage:
  *
@@ -296,7 +294,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
  * This sets the AST_BRIDGE_FLAG_DISSOLVE feature to be enabled on the features structure
  * 'features'.
  */
-int ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_bridge_feature_flags flag);
+void ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_bridge_feature_flags flag);
 
 /*!
  * \brief Initialize bridge features structure
@@ -325,8 +323,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features);
  *
  * \param features Bridge features structure
  *
- * \retval 0 on success
- * \retval -1 on failure
+ * \return Nothing
  *
  * Example usage:
  *
@@ -341,7 +338,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features);
  * \note This MUST be called after the features structure is done being used
  *       or a memory leak may occur.
  */
-int ast_bridge_features_cleanup(struct ast_bridge_features *features);
+void ast_bridge_features_cleanup(struct ast_bridge_features *features);
 
 /*!
  * \brief Play a DTMF stream into a bridge, optionally not to a given channel

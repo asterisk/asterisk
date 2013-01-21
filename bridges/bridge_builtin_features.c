@@ -131,7 +131,11 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 /*! \brief Attended transfer feature to turn it into a threeway call */
 static int attended_threeway_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
-	/* This is sort of abusing the depart state but in this instance it is only going to be handled in the below function so it is okay */
+	/*
+	 * This is sort of abusing the depart state but in this instance
+	 * it is only going to be handled by feature_attended_transfer()
+	 * so it is okay.
+	 */
 	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_DEPART);
 	return 0;
 }
