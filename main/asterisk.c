@@ -3472,7 +3472,7 @@ static void env_init(void)
 
 static void print_intro_message(const char *runuser, const char *rungroup)
 {
-	if (ast_opt_console || option_verbose) {
+	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
 		if (ast_register_verbose(console_verboser)) {
 			fprintf(stderr, "Unable to register console verboser?\n");
 			return;

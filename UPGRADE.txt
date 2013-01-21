@@ -20,6 +20,16 @@
 ===
 ===========================================================
 
+From 11.2.0 to 11.2.1:
+
+* Asterisk would previously not output certain error messages when a remote
+  console attempted to connect to Asterisk and no instance of Asterisk was
+  running. This error message is displayed on stderr; as a result, some
+  initialization scripts that used remote consoles to test for the presence
+  of a running Asterisk instance started to display erroneous error messages.
+  The init.d scripts and the safe_asterisk have been updated in the contrib
+  folder to account for this.
+
 From 11.2 to 11.3:
 
 * Now by default, when Asterisk is installed in a path other than /usr, the
