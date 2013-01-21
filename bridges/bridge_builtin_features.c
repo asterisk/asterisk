@@ -241,7 +241,11 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 /*! \brief Internal built in feature for hangup */
 static int feature_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
-	/* This is very simple, we basically change the state on the bridge channel to end and the core takes care of the rest */
+	/*
+	 * This is very simple, we simply change the state on the
+	 * bridge_channel to force the channel out of the bridge and the
+	 * core takes care of the rest.
+	 */
 	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
 	return 0;
 }

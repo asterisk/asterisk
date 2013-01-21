@@ -36,13 +36,21 @@ enum ast_bridge_feature_flags {
 	AST_BRIDGE_FLAG_SMART = (1 << 1),
 };
 
-/*! \brief Built in features */
+/*! \brief Built in DTMF features */
 enum ast_bridge_builtin_feature {
-	/*! DTMF Based Blind Transfer */
-	AST_BRIDGE_BUILTIN_BLINDTRANSFER = 0,
-	/*! DTMF Based Attended Transfer */
+	/*! DTMF based Blind Transfer */
+	AST_BRIDGE_BUILTIN_BLINDTRANSFER,
+	/*! DTMF based Attended Transfer */
 	AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER,
-	/*! DTMF Based Hangup Feature */
+	/*!
+	 * DTMF based depart bridge feature
+	 *
+	 * \note Imparted channels are optionally hangup depending upon
+	 * how it was imparted.
+	 *
+	 * \note Joined channels exit the bridge with
+	 * AST_BRIDGE_CHANNEL_STATE_END.
+	 */
 	AST_BRIDGE_BUILTIN_HANGUP,
 
 	/*! End terminator for list of built in features. Must remain last. */
@@ -124,7 +132,7 @@ struct ast_bridge_features {
 	void *talker_pvt_data;
 	/*! Feature flags that are enabled */
 	struct ast_flags feature_flags;
-	/*! Bit to indicate that the hook list is useful and should be considered when looking for DTMF features */
+	/*! Bit to indicate that the feature_flags and hook list is setup */
 	unsigned int usable:1;
 	/*! Bit to indicate whether the channel/bridge is muted or not */
 	unsigned int mute:1;
@@ -155,7 +163,8 @@ struct ast_bridge_features_attended_transfer {
 	char context[AST_MAX_CONTEXT];
 };
 
-/*! \brief Register a handler for a built in feature
+/*!
+ * \brief Register a handler for a built in feature
  *
  * \param feature The feature that the handler will be responsible for
  * \param callback The callback function that will handle it
@@ -175,7 +184,8 @@ struct ast_bridge_features_attended_transfer {
  */
 int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_bridge_features_hook_callback callback, const char *dtmf);
 
-/*! \brief Unregister a handler for a built in feature
+/*!
+ * \brief Unregister a handler for a built in feature
  *
  * \param feature The feature to unregister
  *
@@ -192,7 +202,8 @@ int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_br
  */
 int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
 
-/*! \brief Attach a custom hook to a bridge features structure
+/*!
+ * \brief Attach a custom hook to a bridge features structure
  *
  * \param features Bridge features structure
  * \param dtmf DTMF string to be activated upon
@@ -224,7 +235,8 @@ int ast_bridge_features_hook(struct ast_bridge_features *features,
 	void *hook_pvt,
 	ast_bridge_features_hook_pvt_destructor destructor);
 
-/*! \brief Set a callback on the features structure to receive talking notifications on.
+/*!
+ * \brief Set a callback on the features structure to receive talking notifications on.
  *
  * \param features Bridge features structure
  * \param talker_cb Callback function to execute when talking events occur in the bridge core.
@@ -239,7 +251,8 @@ int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
 	ast_bridge_talking_indicate_destructor talker_destructor,
 	void *pvt_data);
 
-/*! \brief Enable a built in feature on a bridge features structure
+/*!
+ * \brief Enable a built in feature on a bridge features structure
  *
  * \param features Bridge features structure
  * \param feature Feature to enable
@@ -263,7 +276,8 @@ int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
  */
 int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_bridge_builtin_feature feature, const char *dtmf, void *config);
 
-/*! \brief Set a flag on a bridge features structure
+/*!
+ * \brief Set a flag on a bridge features structure
  *
  * \param features Bridge features structure
  * \param flag Flag to enable
@@ -284,7 +298,8 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
  */
 int ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_bridge_feature_flags flag);
 
-/*! \brief Initialize bridge features structure
+/*!
+ * \brief Initialize bridge features structure
  *
  * \param features Bridge featues structure
  *
@@ -305,7 +320,8 @@ int ast_bridge_features_set_flag(struct ast_bridge_features *features, enum ast_
  */
 int ast_bridge_features_init(struct ast_bridge_features *features);
 
-/*! \brief Clean up the contents of a bridge features structure
+/*!
+ * \brief Clean up the contents of a bridge features structure
  *
  * \param features Bridge features structure
  *
@@ -327,7 +343,8 @@ int ast_bridge_features_init(struct ast_bridge_features *features);
  */
 int ast_bridge_features_cleanup(struct ast_bridge_features *features);
 
-/*! \brief Play a DTMF stream into a bridge, optionally not to a given channel
+/*!
+ * \brief Play a DTMF stream into a bridge, optionally not to a given channel
  *
  * \param bridge Bridge to play stream into
  * \param dtmf DTMF to play

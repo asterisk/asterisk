@@ -81,7 +81,8 @@ struct ast_bridge_technology {
 	AST_RWLIST_ENTRY(ast_bridge_technology) entry;
 };
 
-/*! \brief Register a bridge technology for use
+/*!
+ * \brief Register a bridge technology for use
  *
  * \param technology The bridge technology to register
  * \param mod The module that is registering the bridge technology
@@ -104,7 +105,8 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 /*! \brief See \ref __ast_bridge_technology_register() */
 #define ast_bridge_technology_register(technology) __ast_bridge_technology_register(technology, ast_module_info->self)
 
-/*! \brief Unregister a bridge technology from use
+/*!
+ * \brief Unregister a bridge technology from use
  *
  * \param technology The bridge technology to unregister
  *
@@ -123,7 +125,8 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
  */
 int ast_bridge_technology_unregister(struct ast_bridge_technology *technology);
 
-/*! \brief Feed notification that a frame is waiting on a channel into the bridging core
+/*!
+ * \brief Feed notification that a frame is waiting on a channel into the bridging core
  *
  * \param bridge The bridge that the notification should influence
  * \param bridge_channel Bridge channel the notification was received on (if known)
@@ -143,7 +146,8 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology);
  */
 void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_channel *chan, int outfd);
 
-/*! \brief Lets the bridging indicate when a bridge channel has stopped or started talking.
+/*!
+ * \brief Lets the bridging indicate when a bridge channel has stopped or started talking.
  *
  * \note All DSP functionality on the bridge has been pushed down to the lowest possible
  * layer, which in this case is the specific bridging technology being used. Since it
@@ -158,7 +162,8 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
  */
 void ast_bridge_notify_talking(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, int started_talking);
 
-/*! \brief Suspend a bridge technology from consideration
+/*!
+ * \brief Suspend a bridge technology from consideration
  *
  * \param technology The bridge technology to suspend
  *
@@ -174,7 +179,8 @@ void ast_bridge_notify_talking(struct ast_bridge *bridge, struct ast_bridge_chan
  */
 void ast_bridge_technology_suspend(struct ast_bridge_technology *technology);
 
-/*! \brief Unsuspend a bridge technology
+/*!
+ * \brief Unsuspend a bridge technology
  *
  * \param technology The bridge technology to unsuspend
  *

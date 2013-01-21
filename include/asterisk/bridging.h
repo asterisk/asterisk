@@ -251,7 +251,8 @@ struct ast_bridge {
 	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
 	};
 
-/*! \brief Create a new bridge
+/*!
+ * \brief Create a new bridge
  *
  * \param capabilities The capabilities that we require to be used on the bridge
  * \param flags Flags that will alter the behavior of the bridge
@@ -297,7 +298,8 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
 	__ao2_unlock(bridge, file, function, line, var);
 }
 
-/*! \brief See if it is possible to create a bridge
+/*!
+ * \brief See if it is possible to create a bridge
  *
  * \param capabilities The capabilities that the bridge will use
  *
@@ -315,7 +317,8 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
  */
 int ast_bridge_check(uint32_t capabilities);
 
-/*! \brief Destroy a bridge
+/*!
+ * \brief Destroy a bridge
  *
  * \param bridge Bridge to destroy
  *
@@ -332,7 +335,8 @@ int ast_bridge_check(uint32_t capabilities);
  */
 int ast_bridge_destroy(struct ast_bridge *bridge);
 
-/*! \brief Join (blocking) a channel to a bridge
+/*!
+ * \brief Join (blocking) a channel to a bridge
  *
  * \param bridge Bridge to join
  * \param chan Channel to join
@@ -365,7 +369,8 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_bridge_features *features,
 	struct ast_bridge_tech_optimizations *tech_args);
 
-/*! \brief Impart (non-blocking) a channel on a bridge
+/*!
+ * \brief Impart (non-blocking) a channel onto a bridge
  *
  * \param bridge Bridge to impart on
  * \param chan Channel to impart
@@ -395,7 +400,8 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  */
 int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup);
 
-/*! \brief Depart a channel from a bridge
+/*!
+ * \brief Depart a channel from a bridge
  *
  * \param bridge Bridge to depart from
  * \param chan Channel to depart
@@ -418,7 +424,8 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
  */
 int ast_bridge_depart(struct ast_bridge *bridge, struct ast_channel *chan);
 
-/*! \brief Remove a channel from a bridge
+/*!
+ * \brief Remove a channel from a bridge
  *
  * \param bridge Bridge that the channel is to be removed from
  * \param chan Channel to remove
@@ -441,7 +448,8 @@ int ast_bridge_depart(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan);
 
-/*! \brief Merge two bridges together
+/*!
+ * \brief Merge two bridges together
  *
  * \param bridge0 First bridge
  * \param bridge1 Second bridge
@@ -463,7 +471,8 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1);
 
-/*! \brief Suspend a channel temporarily from a bridge
+/*!
+ * \brief Suspend a channel temporarily from a bridge
  *
  * \param bridge Bridge to suspend the channel from
  * \param chan Channel to suspend
@@ -486,7 +495,8 @@ int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1);
  */
 int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan);
 
-/*! \brief Unsuspend a channel from a bridge
+/*!
+ * \brief Unsuspend a channel from a bridge
  *
  * \param bridge Bridge to unsuspend the channel from
  * \param chan Channel to unsuspend
@@ -508,7 +518,8 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
 
-/*! \brief Change the state of a bridged channel
+/*!
+ * \brief Change the state of a bridged channel
  *
  * \param bridge_channel Channel to change the state on
  * \param new_state The new state to place the channel into
@@ -527,8 +538,9 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
 
-/*! \brief Adjust the internal mixing sample rate of a bridge used during
- *         multimix mode.
+/*!
+ * \brief Adjust the internal mixing sample rate of a bridge
+ * used during multimix mode.
  *
  * \param bridge Channel to change the sample rate on.
  * \param sample_rate the sample rate to change to. If a
@@ -538,8 +550,9 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
  */
 void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate);
 
-/*! \brief Adjust the internal mixing interval of a bridge used during
- *         multimix mode.
+/*!
+ * \brief Adjust the internal mixing interval of a bridge used
+ * during multimix mode.
  *
  * \param bridge Channel to change the sample rate on.
  * \param mixing_interval the sample rate to change to.  If 0 is set
