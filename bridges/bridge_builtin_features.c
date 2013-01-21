@@ -111,14 +111,12 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 	/* Grab the extension to transfer to */
 	if (!grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
 		ast_stream_and_wait(bridge_channel->chan, "pbx-invalid", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 		return 0;
 	}
 
 	/* Get a channel that is the destination we wish to call */
 	if (!(chan = dial_transfer(bridge_channel->chan, exten, context))) {
 		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 		return 0;
 	}
 
@@ -180,14 +178,12 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	/* Grab the extension to transfer to */
 	if (!grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
 		ast_stream_and_wait(bridge_channel->chan, "pbx-invalid", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 		return 0;
 	}
 
 	/* Get a channel that is the destination we wish to call */
 	if (!(chan = dial_transfer(bridge_channel->chan, exten, context))) {
 		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 		return 0;
 	}
 
@@ -195,7 +191,6 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	if (!(attended_bridge = ast_bridge_new(AST_BRIDGE_CAPABILITY_1TO1MIX, 0))) {
 		ast_hangup(chan);
 		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 		return 0;
 	}
 
@@ -232,7 +227,6 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 		}
 	} else {
 		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_ANY);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
 	}
 
 	/* Now that all channels are out of it we can destroy the bridge and the called features structure */
