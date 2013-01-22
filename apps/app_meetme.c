@@ -6415,6 +6415,8 @@ static void *dial_trunk(void *data)
 	struct sla_trunk_ref *trunk_ref = args->trunk_ref;
 	int caller_is_saved;
 	struct ast_party_caller caller;
+	int last_state = 0;
+	int current_state = 0;
 
 	if (!(dial = ast_dial_create())) {
 		ast_mutex_lock(args->cond_lock);
@@ -6468,14 +6470,35 @@ static void *dial_trunk(void *data)
 		case AST_DIAL_RESULT_TIMEOUT:
 		case AST_DIAL_RESULT_UNANSWERED:
 			done = 1;
+			break;
 		case AST_DIAL_RESULT_TRYING:
+			current_state = AST_CONTROL_PROGRESS;
+			break;
 		case AST_DIAL_RESULT_RINGING:
 		case AST_DIAL_RESULT_PROGRESS:
 		case AST_DIAL_RESULT_PROCEEDING:
+			current_state = AST_CONTROL_RINGING;
 			break;
 		}
 		if (done)
 			break;
+
+		/* check that SLA station that originated trunk call is still alive */
+		if (args->station && ast_device_state(args->station->device) == AST_DEVICE_NOT_INUSE) {
+			ast_debug(3, "Originating station device %s no longer active\n", args->station->device);
+			trunk_ref->trunk->chan = NULL;
+			break;
+		}
+
+		/* If trunk line state changed, send indication back to originating SLA Station channel */
+		if (current_state != last_state) {
+			ast_debug(3, "Indicating State Change %d to channel %s\n", current_state, ast_channel_name(trunk_ref->chan));
+			ast_indicate(trunk_ref->chan, current_state);
+			last_state = current_state;
+		}
+
+		/* avoid tight loop... sleep for 1/10th second */
+		ast_safe_sleep(trunk_ref->chan, 100);
 	}
 
 	if (!trunk_ref->trunk->chan) {
