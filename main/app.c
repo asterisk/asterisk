@@ -1004,24 +1004,37 @@ static int control_streamfile(struct ast_channel *chan,
 		}
 
 		/* We go at next loop if we got the restart char */
-		if (restart && strchr(restart, res)) {
+		if ((restart && strchr(restart, res)) || res == AST_CONTROL_STREAM_RESTART) {
 			ast_debug(1, "we'll restart the stream here at next loop\n");
 			pause_restart_point = 0;
+			ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+				"Control: %s\r\n",
+				ast_channel_name(chan),
+				"Restart");
 			continue;
 		}
 
-		if (suspend && strchr(suspend, res)) {
+		if ((suspend && strchr(suspend, res)) || res == AST_CONTROL_STREAM_SUSPEND) {
 			pause_restart_point = ast_tellstream(ast_channel_stream(chan));
+			ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+				"Control: %s\r\n",
+				ast_channel_name(chan),
+				"Pause");
 			for (;;) {
 				ast_stopstream(chan);
 				if (!(res = ast_waitfordigit(chan, 1000))) {
 					continue;
-				} else if (res == -1 || strchr(suspend, res) || (stop && strchr(stop, res))) {
+				} else if (res == -1 || (suspend && strchr(suspend, res)) || (stop && strchr(stop, res))
+						|| res == AST_CONTROL_STREAM_SUSPEND || res == AST_CONTROL_STREAM_STOP) {
 					break;
 				}
 			}
-			if (res == *suspend) {
+			if ((suspend && (res == *suspend)) || res == AST_CONTROL_STREAM_SUSPEND) {
 				res = 0;
+				ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+					"Control: %s\r\n",
+					ast_channel_name(chan),
+					"Unpause");
 				continue;
 			}
 		}
@@ -1031,7 +1044,11 @@ static int control_streamfile(struct ast_channel *chan,
 		}
 
 		/* if we get one of our stop chars, return it to the calling function */
-		if (stop && strchr(stop, res)) {
+		if ((stop && strchr(stop, res)) || res == AST_CONTROL_STREAM_STOP) {
+			ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+				"Control: %s\r\n",
+				ast_channel_name(chan),
+				"Stop");
 			break;
 		}
 	}
@@ -1048,11 +1065,6 @@ static int control_streamfile(struct ast_channel *chan,
 
 	if (offsetms) {
 		*offsetms = offset / 8; /* samples --> ms ... XXX Assumes 8 kHz */
-	}
-
-	/* If we are returning a digit cast it as char */
-	if (res > 0 || ast_channel_stream(chan)) {
-		res = (char)res;
 	}
 
 	ast_stopstream(chan);

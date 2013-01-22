@@ -267,6 +267,16 @@ enum ast_control_frame_type {
 	AST_CONTROL_MCID = 31,			/*!< Indicate that the caller is being malicious. */
 	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
 	AST_CONTROL_PVT_CAUSE_CODE = 33, /*!< Contains an update to the protocol-specific cause-code stored for branching dials */
+
+	/* Control frames used to manipulate a stream on a channel. The values for these
+	 * must be greater than the allowed value for a 8-bit char, so that they avoid
+	 * conflicts with DTMF values. */
+	AST_CONTROL_STREAM_STOP = 1000,		/*!< Indicate to a channel in playback to stop the stream */
+	AST_CONTROL_STREAM_SUSPEND = 1001,	/*!< Indicate to a channel in playback to suspend the stream */
+	AST_CONTROL_STREAM_RESTART = 1002,	/*!< Indicate to a channel in playback to restart the stream */
+	AST_CONTROL_STREAM_REVERSE = 1003,	/*!< Indicate to a channel in playback to rewind */
+	AST_CONTROL_STREAM_FORWARD = 1004,	/*!< Indicate to a channel in playback to fast forward */
+
 };
 
 enum ast_frame_read_action {

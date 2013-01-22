@@ -137,46 +137,47 @@ int ast_filedelete(const char *filename, const char *fmt);
  */
 int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 
-/*! 
+/*!
  * \brief Waits for a stream to stop or digit to be pressed
  * \param c channel to waitstream on
  * \param breakon string of DTMF digits to break upon
  * Begins playback of a stream...
- * Wait for a stream to stop or for any one of a given digit to arrive,  
+ * Wait for a stream to stop or for any one of a given digit to arrive,
  * \retval 0 if the stream finishes
- * \retval the character if it was interrupted,
- * \retval -1 on error 
+ * \retval the character if it was interrupted by the channel.
+ * \retval -1 on error
  */
 int ast_waitstream(struct ast_channel *c, const char *breakon);
 
-/*! 
- * \brief Waits for a stream to stop or digit matching a valid one digit exten to be pressed 
+/*!
+ * \brief Waits for a stream to stop or digit matching a valid one digit exten to be pressed
  * \param c channel to waitstream on
  * \param context string of context to match digits to break upon
  * Begins playback of a stream...
- * Wait for a stream to stop or for any one of a valid extension digit to arrive,  
+ * Wait for a stream to stop or for any one of a valid extension digit to arrive,
  * \retval 0 if the stream finishes.
  * \retval the character if it was interrupted.
  * \retval -1 on error.
  */
 int ast_waitstream_exten(struct ast_channel *c, const char *context);
 
-/*! 
- * \brief Same as waitstream but allows stream to be forwarded or rewound 
+/*!
+ * \brief Same as waitstream but allows stream to be forwarded or rewound
  * \param c channel to waitstream on
  * \param breakon string of DTMF digits to break upon
  * \param forward DTMF digit to fast forward upon
  * \param rewind DTMF digit to rewind upon
  * \param ms How many miliseconds to skip forward/back
  * Begins playback of a stream...
- * Wait for a stream to stop or for any one of a given digit to arrive,  
+ * Wait for a stream to stop or for any one of a given digit to arrive,
  * \retval 0 if the stream finishes.
- * \retval the character if it was interrupted.
+ * \retval the character if it was interrupted,
+ * \retval the value of the control frame if it was interrupted by some other party,
  * \retval -1 on error.
  */
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
 
-/*! 
+/*!
  * \brief Same as waitstream_fr but allows a callback to be alerted when a user
  * fastforwards or rewinds the file.
  * \param c channel to waitstream on
@@ -184,11 +185,12 @@ int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *fo
  * \param forward DTMF digit to fast forward upon
  * \param rewind DTMF digit to rewind upon
  * \param ms How many milliseconds to skip forward/back
- * \param cb to call when rewind or fastfoward occurs. 
+ * \param cb to call when rewind or fastfoward occurs.
  * Begins playback of a stream...
- * Wait for a stream to stop or for any one of a given digit to arrive,  
+ * Wait for a stream to stop or for any one of a given digit to arrive,
  * \retval 0 if the stream finishes.
- * \retval the character if it was interrupted.
+ * \retval the character if it was interrupted,
+ * \retval the value of the control frame if it was interrupted by some other party,
  * \retval -1 on error.
  */
 int ast_waitstream_fr_w_cb(struct ast_channel *c,

@@ -3700,6 +3700,17 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 					ast_frfree(f);
 					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 					return -1;
+				case AST_CONTROL_STREAM_STOP:
+				case AST_CONTROL_STREAM_SUSPEND:
+				case AST_CONTROL_STREAM_RESTART:
+				case AST_CONTROL_STREAM_REVERSE:
+				case AST_CONTROL_STREAM_FORWARD:
+					/* Fall-through and treat as if it were a DTMF signal. Items
+					 * that perform stream control will handle this. */
+					res = f->subclass.integer;
+					ast_frfree(f);
+					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+					return res;
 				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
@@ -4454,6 +4465,11 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_MCID:
 	case AST_CONTROL_UPDATE_RTP_PEER:
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_STREAM_STOP:
+	case AST_CONTROL_STREAM_SUSPEND:
+	case AST_CONTROL_STREAM_REVERSE:
+	case AST_CONTROL_STREAM_FORWARD:
+	case AST_CONTROL_STREAM_RESTART:
 		break;
 
 	case AST_CONTROL_INCOMPLETE:
@@ -4661,6 +4677,11 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_MCID:
 	case AST_CONTROL_UPDATE_RTP_PEER:
+	case AST_CONTROL_STREAM_STOP:
+	case AST_CONTROL_STREAM_SUSPEND:
+	case AST_CONTROL_STREAM_REVERSE:
+	case AST_CONTROL_STREAM_FORWARD:
+	case AST_CONTROL_STREAM_RESTART:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;

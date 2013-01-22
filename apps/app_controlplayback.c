@@ -36,6 +36,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/module.h"
+#include "asterisk/manager.h"
+#include "asterisk/utils.h"
+#include "asterisk/astobj2.h"
 
 /*** DOCUMENTATION
 	<application name="ControlPlayback" language="en_US">
@@ -82,6 +85,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Contains the status of the attempt as a text string</para>
 					<value name="SUCCESS" />
 					<value name="USERSTOPPED" />
+					<value name="REMOTESTOPPED" />
 					<value name="ERROR" />
 				</variable>
 				<variable name="CPLAYBACKOFFSET">
@@ -95,6 +99,69 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
+	<manager name="ControlPlayback" language="en_US">
+		<synopsis>
+			Control the playback of a file being played to a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The name of the channel that currently has a file being played back to it.</para>
+			</parameter>
+			<parameter name="Control" required="true">
+				<enumlist>
+					<enum  name="stop">
+						<para>Stop the playback operation.</para>
+					</enum>
+					<enum name="forward">
+						<para>Move the current position in the media forward. The amount
+						of time that the stream moves forward is determined by the
+						<replaceable>skipms</replaceable> value passed to the application
+						that initiated the playback.</para>
+						<note>
+							<para>The default skipms value is <literal>3000</literal> ms.</para>
+						</note>
+					</enum>
+					<enum name="reverse">
+						<para>Move the current position in the media backward. The amount
+						of time that the stream moves backward is determined by the
+						<replaceable>skipms</replaceable> value passed to the application
+						that initiated the playback.</para>
+						<note>
+							<para>The default skipms value is <literal>3000</literal> ms.</para>
+						</note>
+					</enum>
+					<enum name="pause">
+						<para>Pause/unpause the playback operation, if supported.
+						If not supported, stop the playback.</para>
+					</enum>
+					<enum name="restart">
+						<para>Restart the playback operation, if supported.
+						If not supported, stop the playback.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Control the operation of a media file being played back to a channel.
+			Note that this AMI action does not initiate playback of media to channel, but
+			rather controls the operation of a media operation that was already initiated
+			on the channel.</para>
+			<note>
+				<para>The <literal>pause</literal> and <literal>restart</literal>
+				<replaceable>Control</replaceable> options will stop a playback
+				operation if that operation was not initiated from the
+				<replaceable>ControlPlayback</replaceable> application or the
+				<replaceable>control stream file</replaceable> AGI command.</para>
+			</note>
+		</description>
+		<see-also>
+			<ref type="application">Playback</ref>
+			<ref type="application">ControlPlayback</ref>
+			<ref type="agi">stream file</ref>
+			<ref type="agi">control stream file</ref>
+		</see-also>
+	</manager>
  ***/
 static const char app[] = "ControlPlayback";
 
@@ -201,6 +268,9 @@ static int controlplayback_exec(struct ast_channel *chan, const char *data)
 		snprintf(stopkeybuf, sizeof(stopkeybuf), "%c", res);
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTOPKEY", stopkeybuf);
 		res = 0;
+	} else if (res > 0 && res == AST_CONTROL_STREAM_STOP) {
+		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "REMOTESTOPPED");
+		res = 0;
 	} else {
 		if (res < 0) {
 			res = 0;
@@ -215,16 +285,67 @@ static int controlplayback_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
+static int controlplayback_manager(struct mansession *s, const struct message *m)
+{
+	const char *channel_name = astman_get_header(m, "Channel");
+	const char *control_type = astman_get_header(m, "Control");
+	struct ast_channel *chan;
+
+	if (ast_strlen_zero(channel_name)) {
+		astman_send_error(s, m, "Channel not specified");
+		return 0;
+	}
+
+	if (ast_strlen_zero(control_type)) {
+		astman_send_error(s, m, "Control not specified");
+		return 0;
+	}
+
+	chan = ast_channel_get_by_name(channel_name);
+	if (!chan) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+
+	if (!strcasecmp(control_type, "stop")) {
+		ast_queue_control(chan, AST_CONTROL_STREAM_STOP);
+	} else if (!strcasecmp(control_type, "forward")) {
+		ast_queue_control(chan, AST_CONTROL_STREAM_FORWARD);
+	} else if (!strcasecmp(control_type, "reverse")) {
+		ast_queue_control(chan, AST_CONTROL_STREAM_REVERSE);
+	} else if (!strcasecmp(control_type, "pause")) {
+		ast_queue_control(chan, AST_CONTROL_STREAM_SUSPEND);
+	} else if (!strcasecmp(control_type, "restart")) {
+		ast_queue_control(chan, AST_CONTROL_STREAM_RESTART);
+	} else {
+		astman_send_error(s, m, "Unknown control type");
+		chan = ast_channel_unref(chan);
+		return 0;
+	}
+
+	chan = ast_channel_unref(chan);
+	astman_send_ack(s, m, NULL);
+	return 0;
+}
+
 static int unload_module(void)
 {
-	int res;
-	res = ast_unregister_application(app);
+	int res = 0;
+
+	res |= ast_unregister_application(app);
+	res |= ast_manager_unregister("ControlPlayback");
+
 	return res;
 }
 
 static int load_module(void)
 {
-	return ast_register_application_xml(app, controlplayback_exec);
+	int res = 0;
+
+	res |= ast_register_application_xml(app, controlplayback_exec);
+	res |= ast_manager_register_xml("ControlPlayback", EVENT_FLAG_CALL, controlplayback_manager);
+
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Control Playback Application");

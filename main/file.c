@@ -1240,6 +1240,45 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	return fs;
 }
 
+static void waitstream_control(struct ast_channel *c,
+		enum ast_waitstream_fr_cb_values type,
+		ast_waitstream_fr_cb cb,
+		int skip_ms)
+{
+	switch (type)
+	{
+	case AST_WAITSTREAM_CB_FASTFORWARD:
+		{
+			int eoftest;
+			ast_stream_fastforward(ast_channel_stream(c), skip_ms);
+			eoftest = fgetc(ast_channel_stream(c)->f);
+			if (feof(ast_channel_stream(c)->f)) {
+				ast_stream_rewind(ast_channel_stream(c), skip_ms);
+			} else {
+				ungetc(eoftest, ast_channel_stream(c)->f);
+			}
+		}
+		break;
+	case AST_WAITSTREAM_CB_REWIND:
+		ast_stream_rewind(ast_channel_stream(c), skip_ms);
+		break;
+	default:
+		break;
+	}
+
+	if (cb) {
+		long ms_len = ast_tellstream(ast_channel_stream(c)) / (ast_format_rate(&ast_channel_stream(c)->fmt->format) / 1000);
+		cb(c, ms_len, type);
+	}
+
+	ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+		"Control: %s\r\n"
+		"SkipMs: %d\r\n",
+		ast_channel_name(c),
+		(type == AST_WAITSTREAM_CB_FASTFORWARD) ? "FastForward" : "Rewind",
+		skip_ms);
+}
+
 /*!
  * \brief the core of all waitstream() functions
  */
@@ -1336,34 +1375,49 @@ static int waitstream_core(struct ast_channel *c,
 						return res;
 					}
 				} else {
-					enum ast_waitstream_fr_cb_values cb_val = 0;
 					res = fr->subclass.integer;
 					if (strchr(forward, res)) {
-						int eoftest;
-						ast_stream_fastforward(ast_channel_stream(c), skip_ms);
-						eoftest = fgetc(ast_channel_stream(c)->f);
-						if (feof(ast_channel_stream(c)->f)) {
-							ast_stream_rewind(ast_channel_stream(c), skip_ms);
-						} else {
-							ungetc(eoftest, ast_channel_stream(c)->f);
-						}
-						cb_val = AST_WAITSTREAM_CB_FASTFORWARD;
+						waitstream_control(c, AST_WAITSTREAM_CB_FASTFORWARD, cb, skip_ms);
 					} else if (strchr(reverse, res)) {
-						ast_stream_rewind(ast_channel_stream(c), skip_ms);
-						cb_val = AST_WAITSTREAM_CB_REWIND;
+						waitstream_control(c, AST_WAITSTREAM_CB_REWIND, cb, skip_ms);
 					} else if (strchr(breakon, res)) {
+						ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+							"Control: %s\r\n",
+							ast_channel_name(c),
+							"Break");
+
 						ast_frfree(fr);
 						ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
 						return res;
-					}
-					if (cb_val && cb) {
-						long ms_len = ast_tellstream(ast_channel_stream(c)) / (ast_format_rate(&ast_channel_stream(c)->fmt->format) / 1000);
-						cb(c, ms_len, cb_val);
 					}
 				}
 				break;
 			case AST_FRAME_CONTROL:
 				switch (fr->subclass.integer) {
+				case AST_CONTROL_STREAM_STOP:
+				case AST_CONTROL_STREAM_SUSPEND:
+				case AST_CONTROL_STREAM_RESTART:
+					/* Fall-through and break out */
+					ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
+						"Control: %s\r\n",
+						ast_channel_name(c),
+						"Break");
+					res = fr->subclass.integer;
+					ast_frfree(fr);
+					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+					return res;
+				case AST_CONTROL_STREAM_REVERSE:
+					if (!skip_ms) {
+						skip_ms = 3000;
+					}
+					waitstream_control(c, AST_WAITSTREAM_CB_REWIND, cb, skip_ms);
+					break;
+				case AST_CONTROL_STREAM_FORWARD:
+					if (!skip_ms) {
+						skip_ms = 3000;
+					}
+					waitstream_control(c, AST_WAITSTREAM_CB_FASTFORWARD, cb, skip_ms);
+					break;
 				case AST_CONTROL_HANGUP:
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
@@ -1427,26 +1481,62 @@ int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *fo
 		-1 /* no audiofd */, -1 /* no cmdfd */, NULL /* no context */, NULL /* no callback */);
 }
 
+/*! \internal
+ * \brief Clean up the return value of a waitstream call
+ *
+ * It's possible for a control frame to come in from an external source and break the
+ * playback. From a consumer of most ast_waitstream_* function callers, this should
+ * appear like normal playback termination, i.e., return 0 and not the value of the
+ * control frame.
+ */
+static int sanitize_waitstream_return(int return_value)
+{
+	switch (return_value) {
+	case AST_CONTROL_STREAM_STOP:
+	case AST_CONTROL_STREAM_SUSPEND:
+	case AST_CONTROL_STREAM_RESTART:
+		/* Fall through and set return_value to 0 */
+		return_value = 0;
+		break;
+	default:
+		/* Do nothing */
+		break;
+	}
+
+	return return_value;
+}
+
 int ast_waitstream(struct ast_channel *c, const char *breakon)
 {
-	return waitstream_core(c, breakon, NULL, NULL, 0, -1, -1, NULL, NULL /* no callback */);
+	int res;
+
+	res = waitstream_core(c, breakon, NULL, NULL, 0, -1, -1, NULL, NULL /* no callback */);
+
+	return sanitize_waitstream_return(res);
 }
 
 int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int cmdfd)
 {
-	return waitstream_core(c, breakon, NULL, NULL, 0,
+	int res;
+
+	res = waitstream_core(c, breakon, NULL, NULL, 0,
 		audiofd, cmdfd, NULL /* no context */, NULL /* no callback */);
+
+	return sanitize_waitstream_return(res);
 }
 
 int ast_waitstream_exten(struct ast_channel *c, const char *context)
 {
+	int res;
+
 	/* Waitstream, with return in the case of a valid 1 digit extension */
 	/* in the current or specified context being pressed */
-
 	if (!context)
 		context = ast_channel_context(c);
-	return waitstream_core(c, NULL, NULL, NULL, 0,
+	res = waitstream_core(c, NULL, NULL, NULL, 0,
 		-1, -1, context, NULL /* no callback */);
+
+	return sanitize_waitstream_return(res);
 }
 
 /*

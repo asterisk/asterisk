@@ -82,6 +82,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>See Also: Background (application) -- for playing sound files that are interruptible</para>
 			<para>WaitExten (application) -- wait for digits from caller, optionally play music on hold</para>
 		</description>
+		<see-also>
+			<ref type="application">Background</ref>
+			<ref type="application">WaitExten</ref>
+			<ref type="application">ControlPlayback</ref>
+			<ref type="agi">stream file</ref>
+			<ref type="agi">control stream file</ref>
+			<ref type="manager">ControlPlayback</ref>
+		</see-also>
 	</application>
  ***/
 
@@ -473,11 +481,12 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 				res = say_full(chan, front, "", ast_channel_language(chan), NULL, -1, -1);
 			else
 				res = ast_streamfile(chan, front, ast_channel_language(chan));
-			if (!res) { 
-				res = ast_waitstream(chan, "");	
+			if (!res) {
+				res = ast_waitstream(chan, "");
 				ast_stopstream(chan);
-			} else {
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", ast_channel_name(chan), (char *)data);
+			}
+			if (res) {
+				ast_log(LOG_WARNING, "Playback failed on %s for %s\n", ast_channel_name(chan), (char *)data);
 				res = 0;
 				mres = 1;
 			}

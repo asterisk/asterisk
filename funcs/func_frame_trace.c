@@ -327,8 +327,23 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_PVT_CAUSE_CODE:
 			ast_verbose("SubClass: PVT_CAUSE_CODE\n");
 			break;
+		case AST_CONTROL_STREAM_STOP:
+			ast_verbose("SubClass: STREAM_STOP\n");
+			break;
+		case AST_CONTROL_STREAM_SUSPEND:
+			ast_verbose("SubClass: STREAM_SUSPEND\n");
+			break;
+		case AST_CONTROL_STREAM_RESTART:
+			ast_verbose("SubClass: STREAM_RESTART\n");
+			break;
+		case AST_CONTROL_STREAM_REVERSE:
+			ast_verbose("SubClass: STREAM_REVERSE\n");
+			break;
+		case AST_CONTROL_STREAM_FORWARD:
+			ast_verbose("SubClass: STREAM_FORWARD\n");
+			break;
 		}
-		
+
 		if (frame->subclass.integer == -1) {
 			ast_verbose("SubClass: %d\n", frame->subclass.integer);
 		}

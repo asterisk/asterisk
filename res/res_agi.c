@@ -160,6 +160,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			permitted. Returns <literal>0</literal> if playback completes without a digit
 			being pressed, or the ASCII numerical value of the digit if one was pressed,
 			or <literal>-1</literal> on error or if the channel was disconnected.</para>
+			<para>It sets the following channel variables upon completion:</para>
+			<variablelist>
+				<variable name="CPLAYBACKSTATUS">
+					<para>Contains the status of the attempt as a text string</para>
+					<value name="SUCCESS" />
+					<value name="USERSTOPPED" />
+					<value name="REMOTESTOPPED" />
+					<value name="ERROR" />
+				</variable>
+				<variable name="CPLAYBACKOFFSET">
+					<para>Contains the offset in ms into the file where playback
+					was at when it stopped. <literal>-1</literal> is end of file.</para>
+				</variable>
+				<variable name="CPLAYBACKSTOPKEY">
+					<para>If the playback is stopped by the user this variable contains
+					the key that was pressed.</para>
+				</variable>
+			</variablelist>
 		</description>
 	</agi>
 	<agi name="database del" language="en_US">
@@ -652,6 +670,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			or <literal>-1</literal> on error or if the channel was disconnected. If
 			musiconhold is playing before calling stream file it will be automatically
 			stopped and will not be restarted after completion.</para>
+			<para>It sets the following channel variables upon completion:</para>
+			<variablelist>
+				<variable name="PLAYBACKSTATUS">
+					<para>The status of the playback attempt as a text string.</para>
+					<value name="SUCCESS"/>
+					<value name="FAILED"/>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="agi">control stream file</ref>
@@ -1984,6 +2010,9 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 {
 	int res = 0, skipms = 3000;
 	const char *fwd = "#", *rev = "*", *suspend = NULL, *stop = NULL;	/* Default values */
+	char stopkeybuf[2];
+	long offsetms = 0;
+	char offsetbuf[20];
 
 	if (argc < 5 || argc > 9) {
 		return RESULT_SHOWUSAGE;
@@ -2010,6 +2039,25 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	}
 
 	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, suspend, NULL, skipms, NULL);
+
+	/* If we stopped on one of our stop keys, return 0  */
+	if (res > 0 && stop && strchr(stop, res)) {
+		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
+		snprintf(stopkeybuf, sizeof(stopkeybuf), "%c", res);
+		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTOPKEY", stopkeybuf);
+	} else if (res > 0 && res == AST_CONTROL_STREAM_STOP) {
+		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "REMOTESTOPPED");
+		res = 0;
+	} else {
+		if (res < 0) {
+			pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "ERROR");
+		} else {
+			pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "SUCCESS");
+		}
+	}
+
+	snprintf(offsetbuf, sizeof(offsetbuf), "%ld", offsetms);
+	pbx_builtin_setvar_helper(chan, "CPLAYBACKOFFSET", offsetbuf);
 
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
 
@@ -2068,6 +2116,8 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 		return RESULT_SUCCESS;
 	}
 	ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", res, sample_offset);
+	pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", res ? "FAILED" : "SUCCESS");
+
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 

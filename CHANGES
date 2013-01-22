@@ -32,6 +32,15 @@ AMI (Asterisk Manager Interface)
    'Manager Show Command' now displays the privileges needed for using a given
    manager command instead.
 
+ * Added new action "ControlPlayback". The ControlPlayback action allows an AMI
+   client to manipulate audio currently being played back on a channel. The
+   supported operations depend on the application being used to send audio to
+   the channel. When the audio playback was initiated using the ControlPlayback
+   application or CONTROL STREAM FILE AGI command, the audio can be paused,
+   stopped, restarted, reversed, or skipped forward. When initiated by other
+   mechanisms (such as the Playback application), the audio can be stopped,
+   reversed, or skipped forward.
+
 Channel Drivers
 ------------------
 
