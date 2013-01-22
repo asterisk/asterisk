@@ -227,6 +227,7 @@ static int t38_tx_packet_handler(t38_core_state_t *t38_core_state, void *data, c
 	} else {
 		/* no need to lock, this all runs in the same thread */
 		AST_LIST_INSERT_TAIL(&p->read_frames, f, frame_list);
+		res = 0;
 	}
 
 	return res;
