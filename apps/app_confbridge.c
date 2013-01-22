@@ -666,6 +666,23 @@ static void send_leave_event(struct ast_channel *chan, const char *conf_name)
 }
 
 /*!
+ * \internal
+ * \brief Complain if the given sound file does not exist.
+ *
+ * \param filename Sound file to check if exists.
+ *
+ * \retval non-zero if the file exists.
+ */
+static int sound_file_exists(const char *filename)
+{
+	if (ast_fileexists(filename, NULL, NULL)) {
+		return -1;
+	}
+	ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
+	return 0;
+}
+
+/*!
  * \brief Announce number of users in the conference bridge to the caller
  *
  * \param conference_bridge Conference bridge to peek at
@@ -710,7 +727,7 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 				"")) {
 				return -1;
 			}
-		} else if (ast_fileexists(there_are, NULL, NULL) && ast_fileexists(other_in_party, NULL, NULL)) {
+		} else if (sound_file_exists(there_are) && sound_file_exists(other_in_party)) {
 			play_sound_file(conference_bridge, there_are);
 			play_sound_number(conference_bridge, conference_bridge->activeusers - 1);
 			play_sound_file(conference_bridge, other_in_party);
@@ -1200,7 +1217,16 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNTALL) &&
 		(conference_bridge->activeusers > conference_bridge_user->u_profile.announce_user_count_all_after)) {
-		if (announce_user_count(conference_bridge, NULL)) {
+		int user_count_res;
+
+		/*
+		 * We have to autoservice the new user because he has not quite
+		 * joined the conference yet.
+		 */
+		ast_autoservice_start(conference_bridge_user->chan);
+		user_count_res = announce_user_count(conference_bridge, NULL);
+		ast_autoservice_stop(conference_bridge_user->chan);
+		if (user_count_res) {
 			leave_conference(conference_bridge_user);
 			return NULL;
 		}
@@ -1279,8 +1305,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	struct ast_channel *underlying_channel;
 
 	/* Do not waste resources trying to play files that do not exist */
-	if (!ast_strlen_zero(filename) && !ast_fileexists(filename, NULL, NULL)) {
-		ast_log(LOG_WARNING, "File %s does not exist in any format\n", !ast_strlen_zero(filename) ? filename : "<unknown>");
+	if (!ast_strlen_zero(filename) && !sound_file_exists(filename)) {
 		return 0;
 	}
 
@@ -1294,7 +1319,10 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	} else {
 		/* Channel was already available so we just need to add it back into the bridge */
 		underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
-		ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL, 0);
+		if (ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL, 0)) {
+			ast_mutex_unlock(&conference_bridge->playback_lock);
+			return -1;
+		}
 	}
 
 	/* The channel is all under our control, in goes the prompt */
