@@ -1,3 +1,70 @@
+2013-01-22  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.20.1 Released.
+
+	* Fix astcanary startup problem due to wrong pid value from before daemon
+	  call
+
+	  When Asterisk forks itself into the background via a call to daemon, it must
+	  re-set the pid value of the new process. Otherwise, astcanary gets the pid
+	  value of the process before the fork, which prevents it from running.
+	  Asterisk eventually starts lowering its priority, as it can no longer
+	  communicate with the proverbial canary in the coal mine.
+
+	  This patch ensures that the correct process identifier is used by astcanary.
+
+	  (closes issue ASTERISK-20947)
+	  Reported by: Jakob Hirsch
+	  Tested by: mjordan
+	  patches:
+	    asterisk-10.12.0.astcanary_ppid.diff uploaded by Jakob Hirsch (license 6113)
+
+	* Update init.d scripts to handle stderr; readd splash screen for remote
+	  consoles
+
+	  When r376428 was commited to re-order start up sequences to be more tolerant
+  	  of forking with thread primitives, a few items were changed that caused
+	  changes in behavior on some distros. This includes:
+	  
+	  * Not displaying the splash screen on a remote console.
+          * Displaying an error message on stderr when a remote console cannot
+            connect to a running instance of Asterisk.
+
+          In the first case, the splash screen was re-added (thanks to Michael L.
+          Young).
+          In the second case, the various init.d scripts were modified to pipe
+          stderr to /dev/null, as the error message is useful - if you execute a
+	  remote console or a remote console command execution and it fail, it
+	  should tell you. Note that the error message was always present, it just
+	  failed to be printed prior to r376428.
+
+          Much thanks to the folks who quickly reported this problem, provided
+          solutions, and promptly tested the various init.d scripts on a variety of
+	  distros.
+
+         (closes issue ASTERISK-20945)
+         Reported by: Warren Selby
+         Tested by: Michael L. Young, Jamuel Starkey, kaldemar, Danny Nicholas, mjordan
+         patches:
+           asterisk-20945-remote-intro-msg.diff uploaded by elguero (license 5026)
+	   ASTERISK-20945-1.8-mjordan.diff uploaded by mjordan (license 6283)
+
+
+	* Reset RTP timestamp; sequence number on SSRC change
+
+	  In r370252 for ASTERISK-18404, Asterisk's handling of RTP was
+	  modified to better account for out of order RTP packets. This was
+	  accomplished by using the RTP timestamp and sequence number to check
+	  for out of order packets. However, when a SSRC change occurs, the
+	  timestamp and sequence number will no longer have any relation to the
+	  previously received packets. The variables tracking the timestamp and
+	  sequence number therefore have to be reset.
+
+	  (closes issue ASTERISK-20906)
+	  Reported by: Eelco Brolman
+	  patches:
+	    dtmf_on_hold.patch uploaded by Eelco Brolman (license #6442)
+
 2013-01-14  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.20.0 Released.
