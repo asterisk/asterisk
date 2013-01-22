@@ -11069,10 +11069,6 @@ static void unload_pbx(void)
 	if (device_state_sub) {
 		device_state_sub = ast_event_unsubscribe(device_state_sub);
 	}
-	if (device_state_tps) {
-		ast_taskprocessor_unreference(device_state_tps);
-		device_state_tps = NULL;
-	}
 
 	/* Unregister builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
