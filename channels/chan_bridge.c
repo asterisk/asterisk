@@ -126,9 +126,8 @@ static int bridge_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 
 	/* Impart the output channel upon the given bridge of the input channel */
-	ast_bridge_impart(ast_channel_internal_bridge(p->input), p->output, NULL, NULL, 0);
-
-	return 0;
+	return ast_bridge_impart(ast_channel_internal_bridge(p->input), p->output, NULL, NULL, 0)
+		? -1 : 0;
 }
 
 /*! \brief Called when a channel should be hung up */
