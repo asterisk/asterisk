@@ -11079,6 +11079,9 @@ static void unload_pbx(void)
 	ast_custom_function_unregister(&exception_function);
 	ast_custom_function_unregister(&testtime_function);
 	ast_data_unregister(NULL);
+	if (extension_state_tps) {
+		extension_state_tps = ast_taskprocessor_unreference(extension_state_tps);
+	}
 }
 
 int load_pbx(void)
