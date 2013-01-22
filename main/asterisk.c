@@ -3472,7 +3472,7 @@ static void env_init(void)
 
 static void print_intro_message(const char *runuser, const char *rungroup)
 {
-	if (ast_opt_console || option_verbose) {
+	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
 		if (ast_register_verbose(console_verboser)) {
 			fprintf(stderr, "Unable to register console verboser?\n");
 			return;
@@ -3893,6 +3893,8 @@ int main(int argc, char *argv[])
 #ifndef HAVE_SBIN_LAUNCHD
 		if (daemon(1, 0) < 0) {
 			fprintf(stderr, "daemon() failed: %s\n", strerror(errno));
+		} else {
+			ast_mainpid = getpid();
 		}
 #else
 		fprintf(stderr, "Mac OS X detected.  Use 'launchctl load /Library/LaunchDaemon/org.asterisk.asterisk.plist'.\n");
@@ -3944,11 +3946,10 @@ int main(int argc, char *argv[])
 	}
 
 	/* Blindly write the PID file. */
-	ast_mainpid = getpid();
 	unlink(ast_config_AST_PID);
 	f = fopen(ast_config_AST_PID, "w");
 	if (f) {
-		fprintf(f, "%ld\n", (long)getpid());
+		fprintf(f, "%ld\n", (long)ast_mainpid);
 		fclose(f);
 	} else {
 		fprintf(stderr, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
