@@ -150,10 +150,12 @@ static inline struct astobj2 *INTERNAL_OBJ(void *user_data)
 	p = (struct astobj2 *) ((char *) user_data - sizeof(*p));
 	if (AO2_MAGIC != p->priv_data.magic) {
 		if (p->priv_data.magic) {
-			ast_log(LOG_ERROR, "bad magic number 0x%x for %p\n", p->priv_data.magic, p);
+			ast_log(LOG_ERROR, "bad magic number 0x%x for object %p\n",
+				p->priv_data.magic, user_data);
 		} else {
 			ast_log(LOG_ERROR,
-				"bad magic number for %p. Object is likely destroyed.\n", p);
+				"bad magic number for object %p. Object is likely destroyed.\n",
+				user_data);
 		}
 		return NULL;
 	}
