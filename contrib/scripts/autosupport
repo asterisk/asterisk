@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Autosupport Version 2.0.18
+# Autosupport Version 2.0.19
 # Collect support information
 #
-# Copyright (C) 2005-2011, Digium, Inc.
+# Copyright (C) 2005-2013, Digium, Inc.
 #
 # Written by John Bigelow (support@digium.com)
 #            Charles Moye (cmoye@digium.com)
@@ -36,7 +36,7 @@ then
   if [ $1 == "-h" ] || [ $1 == "--help" ]; then
     echo
     echo "Digium autosupport script"
-    echo "Copyright (C) 2005-2010, Digium, Inc."
+    echo "Copyright (C) 2005-2013, Digium, Inc."
     echo "Licensed under the terms of the GNU General Public License"
     echo
     echo "usage: autosupport [prefix]"
@@ -187,7 +187,7 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
       "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show status" "dahdi show channels" \
       "dahdi show channel 1" "core show channels" "skype show version" "skype show licenses" "skype show users" \
       "skype show hostid" "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" "fax show version" \
-      "fax show licenses" "fax show hostid" "fax show stats"; do
+      "fax show licenses" "fax show hostid" "fax show stats" "digium_phones show version"; do
     echo "asterisk -rx \"$command\"" >> $OUTPUT;
     asterisk -rx "$command" >> $OUTPUT;
     echo >> $OUTPUT;
@@ -387,6 +387,26 @@ for file in /lib/modules/$(uname -r)/build/.config /usr/src/linux/.config; do
   fi
 done
 echo >> $OUTPUT;
+
+FIRMWARE_DIR=`grep firmware_package_directory /etc/asterisk/res_digium_phone.conf|sed 's/;.*$//;'|grep firmware|sed 's/firmware_package_directory=//;'`;
+if [ `echo $FIRMWARE_DIR|egrep -v '^$'|wc -l` -eq "0" ]
+then
+  FIRMWARE_DIR="/var/www/firmware_package_directory"
+fi
+echo "------------------" >> $OUTPUT;
+echo "FIRMWARE LISTING: ls -al $FIRMWARE_DIR" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+ls -al $FIRMWARE_DIR >> $OUTPUT;
+echo >> $OUTPUT;
+
+FIRMWARE_URLS=`grep file_url_prefix /etc/asterisk/res_digium_phone.conf|sed 's/;.*$//;'|grep file|sed 's/file_url_prefix=//;'`;
+for FIRMWARE_URL in $FIRMWARE_URLS; do
+  echo "------------------" >> $OUTPUT;
+  echo "REMOTE FIRMWARE LISTING: wget $FIRMWARE_URL" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  wget "$FIRMWARE_URL" -O- 2>/dev/null >> $OUTPUT;
+  echo >> $OUTPUT;
+done
 
 echo "done!"
 }
