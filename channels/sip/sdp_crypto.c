@@ -291,7 +291,7 @@ int sdp_crypto_offer(struct sdp_crypto *p, int taglen)
 	char crypto_buf[128];
 
 	if (p->a_crypto) {
-		ast_free(p->a_crypto);
+		return 0;
 	}
 
 	if (snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 AES_CM_128_HMAC_SHA1_%i inline:%s\r\n",
