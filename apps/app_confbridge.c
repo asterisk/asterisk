@@ -152,7 +152,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Conference" required="false">
+			<parameter name="Conference" required="true">
 				<para>Conference number.</para>
 			</parameter>
 		</syntax>
