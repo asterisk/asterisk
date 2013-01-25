@@ -202,6 +202,7 @@ static int keep_alive = 120;
 static int auth_timeout = DEFAULT_AUTH_TIMEOUT;
 static int auth_limit = DEFAULT_AUTH_LIMIT;
 static int unauth_sessions = 0;
+static char immed_dialchar = '\0';
 static char vmexten[AST_MAX_EXTENSION];      /* Voicemail pilot number */
 static char used_context[AST_MAX_EXTENSION]; /* placeholder to check if context are already used in regcontext */
 static char regcontext[AST_MAX_CONTEXT];     /* Context for auto-extension */
@@ -718,6 +719,31 @@ struct bksp_req_message {
 #define SOFTKEY_GPICKUP 0x12
 #define SOFTKEY_DND 0x13
 #define SOFTKEY_IDIVERT 0x14
+#define SOFTKEY_FORCEDIAL 0x15
+
+#define KEYMASK_ALL            0xFFFFFFFF
+#define KEYMASK_NONE           (1 << 0)
+#define KEYMASK_REDIAL         (1 << 1)
+#define KEYMASK_NEWCALL        (1 << 2)
+#define KEYMASK_HOLD           (1 << 3)
+#define KEYMASK_TRNSFER        (1 << 4)
+#define KEYMASK_CFWDALL        (1 << 5)
+#define KEYMASK_CFWDBUSY       (1 << 6)
+#define KEYMASK_CFWDNOANSWER   (1 << 7)
+#define KEYMASK_BKSPC          (1 << 8)
+#define KEYMASK_ENDCALL        (1 << 9)
+#define KEYMASK_RESUME         (1 << 10)
+#define KEYMASK_ANSWER         (1 << 11)
+#define KEYMASK_INFO           (1 << 12)
+#define KEYMASK_CONFRN         (1 << 13)
+#define KEYMASK_PARK           (1 << 14)
+#define KEYMASK_JOIN           (1 << 15)
+#define KEYMASK_MEETME         (1 << 16)
+#define KEYMASK_PICKUP         (1 << 17)
+#define KEYMASK_GPICKUP        (1 << 18)
+#define KEYMASK_DND            (1 << 29)
+#define KEYMASK_IDIVERT        (1 << 20)
+#define KEYMASK_FORCEDIAL      (1 << 21)
 
 static struct soft_key_template_definition soft_key_template_default[] = {
 	{ "\200\001", SOFTKEY_REDIAL },
@@ -740,6 +766,7 @@ static struct soft_key_template_definition soft_key_template_default[] = {
 	{ "\200\022", SOFTKEY_GPICKUP },
 	{ "\200\077", SOFTKEY_DND },
 	{ "\200\120", SOFTKEY_IDIVERT },
+	{ "Dial", SOFTKEY_FORCEDIAL},
 };
 
 /* Localized message "codes" (in octal)
@@ -934,6 +961,7 @@ static const uint8_t soft_key_default_connwithtrans[] = {
 static const uint8_t soft_key_default_dadfd[] = {
 	SOFTKEY_BKSPC,
 	SOFTKEY_ENDCALL,
+	SOFTKEY_FORCEDIAL,
 };
 
 static const uint8_t soft_key_default_connwithconf[] = {
@@ -2468,20 +2496,44 @@ static void transmit_stop_tone(struct skinny_device *d, int instance, int refere
 	transmit_response(d, req);
 }
 
-static void transmit_selectsoftkeys(struct skinny_device *d, int instance, int callid, int softkey)
+static int keyset_translatebitmask(int keyset, int intmask)
+{
+	int extmask = 0;
+	int x, y;
+	const struct soft_key_definitions *softkeymode = soft_key_default_definitions;
+
+	for(x = 0; x < ARRAY_LEN(soft_key_default_definitions); x++) {
+		if (softkeymode[x].mode == keyset) {
+			const uint8_t *defaults = softkeymode[x].defaults;
+
+			for (y = 0; y < softkeymode[x].count; y++) {
+				if (intmask & (1 << (defaults[y]))) {
+					extmask |= (1 << ((y)));
+				}
+			}
+			break;
+		}
+	}
+
+	return extmask;
+}
+
+static void transmit_selectsoftkeys(struct skinny_device *d, int instance, int callid, int softkey, int mask)
 {
 	struct skinny_req *req;
+	int newmask;
 
 	if (!(req = req_alloc(sizeof(struct select_soft_keys_message), SELECT_SOFT_KEYS_MESSAGE)))
 		return;
 
+	newmask = keyset_translatebitmask(softkey, mask);
 	req->data.selectsoftkey.instance = htolel(instance);
 	req->data.selectsoftkey.reference = htolel(callid);
 	req->data.selectsoftkey.softKeySetIndex = htolel(softkey);
-	req->data.selectsoftkey.validKeyMask = htolel(0xFFFFFFFF);
+	req->data.selectsoftkey.validKeyMask = htolel(newmask);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting SELECT_SOFT_KEYS_MESSAGE to %s, inst %d, callid %d, softkey %d, mask 0xFFFFFFFF\n",
-		d->name, instance, callid, softkey);
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting SELECT_SOFT_KEYS_MESSAGE to %s, inst %d, callid %d, softkey %d, mask 0x%08x\n",
+		d->name, instance, callid, softkey, newmask);
 	transmit_response(d, req);
 }
 
@@ -2864,6 +2916,7 @@ static void transmit_softkeysetres(struct skinny_device *d)
 	int i;
 	int x;
 	int y;
+	int keydefcount;
 	const struct soft_key_definitions *softkeymode = soft_key_default_definitions;
 
 	if (!(req = req_alloc(sizeof(struct soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
@@ -2871,10 +2924,11 @@ static void transmit_softkeysetres(struct skinny_device *d)
 
 	SKINNY_DEBUG(DEBUG_TEMPLATE, 3, "Creating Softkey Template\n");
 
+	keydefcount = ARRAY_LEN(soft_key_default_definitions);
 	req->data.softkeysets.softKeySetOffset = htolel(0);
-	req->data.softkeysets.softKeySetCount = htolel(13);
-	req->data.softkeysets.totalSoftKeySetCount = htolel(13);
-	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(struct soft_key_definitions); x++) {
+	req->data.softkeysets.softKeySetCount = htolel(keydefcount);
+	req->data.softkeysets.totalSoftKeySetCount = htolel(keydefcount);
+	for (x = 0; x < keydefcount; x++) {
 		const uint8_t *defaults = softkeymode->defaults;
 		/* XXX I wanted to get the size of the array dynamically, but that wasn't wanting to work.
 		   This will have to do for now. */
@@ -2899,6 +2953,7 @@ static void transmit_softkeysetres(struct skinny_device *d)
 static void transmit_softkeytemplateres(struct skinny_device *d)
 {
 	struct skinny_req *req;
+
 	if (!(req = req_alloc(sizeof(struct soft_key_template_res_message), SOFT_KEY_TEMPLATE_RES_MESSAGE)))
 		return;
 
@@ -3070,11 +3125,11 @@ static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state
 		case AST_EXTENSION_INUSE:
 			if (subline->sub && (subline->sub->substate == SKINNY_CONNECTED)) { /* Device has a real call */
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CONNECTED);
-				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_CONNECTED);
+				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_CONNECTED, KEYMASK_ALL);
 				transmit_displaypromptstatus(d, "Connected", 0, l->instance, subline->callid);
 			} else { /* Some other device has active call */
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
-				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE);
+				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
 				transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
 			}
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
@@ -3083,14 +3138,14 @@ static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state
 			break;
 		case AST_EXTENSION_ONHOLD:
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_HOLD);
-			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLAHOLD);
+			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLAHOLD, KEYMASK_ALL);
 			transmit_displaypromptstatus(d, "Hold", 0, l->instance, subline->callid);
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 			transmit_activatecallplane(d, l);
 			break;
 		case AST_EXTENSION_NOT_INUSE:
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_ONHOOK);
-			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_ONHOOK);
+			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_ONHOOK, KEYMASK_ALL);
 			transmit_clearpromptmessage(d, l->instance, subline->callid);
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
 			transmit_activatecallplane(d, l);
@@ -4327,7 +4382,7 @@ static void skinny_dialer(struct skinny_subchannel *sub, int timedout)
 	struct skinny_device *d = l->device;
 
 	if (timedout || !ast_matchmore_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
-		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Force dialing '%s'\n", sub->callid, sub->exten);
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Force dialing '%s' because of %s\n", sub->callid, sub->exten, (timedout ? "timeout" : "exactmatch"));
 		if (ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
 			if (sub->substate == SUBSTATE_OFFHOOK) {
 				dialandactivatesub(sub, sub->exten);
@@ -4342,6 +4397,7 @@ static void skinny_dialer(struct skinny_subchannel *sub, int timedout)
 	} else {
 		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Wait for more digits\n", sub->callid);
 		if (ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
+			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_DADFD, KEYMASK_ALL);
 			sub->dialer_sched = skinny_sched_add(matchdigittimeout, skinny_dialer_cb, sub);
 		} else {
 			sub->dialer_sched = skinny_sched_add(gendigittimeout, skinny_dialer_cb, sub);
@@ -5075,7 +5131,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			if (subline->callid) {
 				transmit_stop_tone(d, l->instance, sub->callid);
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
-				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE);
+				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
 				transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
 			}
 
@@ -5090,7 +5146,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		case SUBSTATE_CONNECTED:
 			transmit_activatecallplane(d, l);
 			transmit_stop_tone(d, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_CONNECTED);
+			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_CONNECTED, KEYMASK_ALL);
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_CONNECTED);
 			if (!sub->rtp) {
 				start_rtp(sub);
@@ -5117,7 +5173,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_stopmediatransmission(d, sub);
 
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
-			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE);
+			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
 			transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
 
 			sub->substate = SUBSTATE_HOLD;
@@ -5156,7 +5212,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_activatecallplane(d, l);
 		transmit_clear_display_message(d, l->instance, sub->callid);
 		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK, KEYMASK_ALL);
 		transmit_displaypromptstatus(d, "Enter number", 0, l->instance, sub->callid);
 
 		sub->substate = SUBSTATE_OFFHOOK;
@@ -5214,7 +5270,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 			transmit_stop_tone(d, l->instance, sub->callid);
 			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
+			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT, KEYMASK_ALL);
 			transmit_displaypromptstatus(d, "Dialing", 0, l->instance, sub->callid);
 		}
 
@@ -5261,7 +5317,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		break;
 	case SUBSTATE_RINGIN:
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
 		transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
@@ -5281,7 +5337,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	case SUBSTATE_CALLWAIT:
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
 		transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
@@ -5305,7 +5361,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		send_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
 		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED, KEYMASK_ALL);
 		if (!sub->rtp) {
 			start_rtp(sub);
 		}
@@ -5384,7 +5440,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_HOLD);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_ONHOLD);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_ONHOLD, KEYMASK_ALL);
 		sub->substate = SUBSTATE_HOLD;
 		break;
 	default:
@@ -5598,7 +5654,7 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 		transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
 		transmit_clearpromptmessage(d, l->instance, sub->callid);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
-		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
+		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK, KEYMASK_ALL);
 		transmit_activatecallplane(d, l);
 		transmit_displaynotify(d, "CFwd disabled", 10);
 		if (sub->owner && ast_channel_state(sub->owner) != AST_STATE_UP) {
@@ -5664,19 +5720,19 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 	}
 
 	if ((sub->owner && ast_channel_state(sub->owner) <  AST_STATE_UP)) {
-		if (sub->dialer_sched &&	!skinny_sched_del(sub->dialer_sched, sub)) {
+		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
 			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Got a digit and not timed out, so try dialing\n", sub->callid);
 			sub->dialer_sched = 0;
 			len = strlen(sub->exten);
 			if (len == 0) {
 				transmit_stop_tone(d, l->instance, sub->callid);
-				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_DADFD);
+				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_DADFD, KEYMASK_ALL&~KEYMASK_FORCEDIAL);
 			}
-			if (len < sizeof(sub->exten) - 1) {
+			if (len < sizeof(sub->exten) - 1 && dgt != immed_dialchar) {
 				sub->exten[len] = dgt;
 				sub->exten[len + 1] = '\0';
 			}
-			if (len == sizeof(sub->exten) - 1) {
+			if (len == sizeof(sub->exten) - 1 || dgt == immed_dialchar) {
 				skinny_dialer(sub, 1);
 			} else {
 				skinny_dialer(sub, 0);
@@ -6555,7 +6611,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				sub->exten[len-1] = '\0';
 				if (len == 1) {
 					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-					transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
+					transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK, KEYMASK_ALL);
 				}
 				transmit_backspace(d, l->instance, sub->callid);
 			}
@@ -6702,6 +6758,12 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_channel_unref(c);
 		}
 		break;
+	case SOFTKEY_FORCEDIAL:
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_FORCEDIAL from %s, inst %d, callref %d\n",
+			d->name, instance, callreference);
+		skinny_dialer(sub, 1);
+
+		break;
 	default:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_UNKNOWN(%d) from %s, inst %d, callref %d\n",
 			event, d->name, instance, callreference);
@@ -6814,7 +6876,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case SOFT_KEY_SET_REQ_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFT_KEY_SET_REQ_MESSAGE from %s\n", d->name);
 		transmit_softkeysetres(d);
-		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
+		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK, KEYMASK_ALL);
 		break;
 	case SOFT_KEY_EVENT_MESSAGE:
 		/* SKINNY_PACKETDEBUG handled in handle_soft_key_event_message */
@@ -7219,6 +7281,16 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 				continue;
 			} else if (!strcasecmp(v->name, "vmexten")) {
 				ast_copy_string(vmexten, v->value, sizeof(vmexten));
+				continue;
+			} else if (!strcasecmp(v->name, "immeddialkey")) {
+				if (!strcmp(v->value,"#")) {
+					immed_dialchar = '#';
+				} else if (!strcmp(v->value,"*")) {
+					immed_dialchar = '*';
+				} else {
+					ast_log(LOG_WARNING, "Invalid immeddialkey '%s' at line %d, only # or * accepted. Immeddial key disabled\n", v->value, v->lineno);
+				}
+
 				continue;
 			} else if (!strcasecmp(v->name, "dateformat")) {
 				memcpy(date_format, v->value, sizeof(date_format));

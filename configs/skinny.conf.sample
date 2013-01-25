@@ -38,6 +38,14 @@ keepalive=120
 			; for framing options
 ;disallow=
 
+; The imeddialkey option allows for a key to be used to immediately dial the already
+; entered number. This is useful where the dialplan includes variable length pattern
+; matching. Valid options are '#' and '*'. On devices with soft buttons, a button will
+; be available to immediately dial when a pattern than can be dialed has been entered.
+; Default is unset, that is no immediated dial key (softbutton still exists).
+;
+;immeddialkey='#'
+
 ; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos=cs3		; Sets TOS for signaling packets.
 ;tos_audio=ef		; Sets TOS for RTP audio packets.
