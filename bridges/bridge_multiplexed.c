@@ -70,107 +70,107 @@ struct multiplexed_thread {
 };
 
 /*! \brief Container of all operating multiplexed threads */
-static struct ao2_container *multiplexed_threads;
+static struct ao2_container *muxed_threads;
 
 /*! \brief Callback function for finding a free multiplexed thread */
 static int find_multiplexed_thread(void *obj, void *arg, int flags)
 {
-	struct multiplexed_thread *multiplexed_thread = obj;
-	return (multiplexed_thread->count <= (MULTIPLEXED_MAX_CHANNELS - 2)) ? CMP_MATCH | CMP_STOP : 0;
+	struct multiplexed_thread *muxed_thread = obj;
+	return (muxed_thread->count <= (MULTIPLEXED_MAX_CHANNELS - 2)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Destroy callback for a multiplexed thread structure */
 static void destroy_multiplexed_thread(void *obj)
 {
-	struct multiplexed_thread *multiplexed_thread = obj;
+	struct multiplexed_thread *muxed_thread = obj;
 
-	if (multiplexed_thread->pipe[0] > -1) {
-		close(multiplexed_thread->pipe[0]);
+	if (muxed_thread->pipe[0] > -1) {
+		close(muxed_thread->pipe[0]);
 	}
-	if (multiplexed_thread->pipe[1] > -1) {
-		close(multiplexed_thread->pipe[1]);
+	if (muxed_thread->pipe[1] > -1) {
+		close(muxed_thread->pipe[1]);
 	}
 }
 
 /*! \brief Create function which finds/reserves/references a multiplexed thread structure */
 static int multiplexed_bridge_create(struct ast_bridge *bridge)
 {
-	struct multiplexed_thread *multiplexed_thread;
+	struct multiplexed_thread *muxed_thread;
 
-	ao2_lock(multiplexed_threads);
+	ao2_lock(muxed_threads);
 
 	/* Try to find an existing thread to handle our additional channels */
-	multiplexed_thread = ao2_callback(multiplexed_threads, 0, find_multiplexed_thread, NULL);
-	if (!multiplexed_thread) {
+	muxed_thread = ao2_callback(muxed_threads, 0, find_multiplexed_thread, NULL);
+	if (!muxed_thread) {
 		int flags;
 
 		/* If we failed we will have to create a new one from scratch */
-		multiplexed_thread = ao2_alloc(sizeof(*multiplexed_thread), destroy_multiplexed_thread);
-		if (!multiplexed_thread) {
+		muxed_thread = ao2_alloc(sizeof(*muxed_thread), destroy_multiplexed_thread);
+		if (!muxed_thread) {
 			ast_debug(1, "Failed to find or create a new multiplexed thread for bridge '%p'\n", bridge);
-			ao2_unlock(multiplexed_threads);
+			ao2_unlock(muxed_threads);
 			return -1;
 		}
 
-		multiplexed_thread->pipe[0] = multiplexed_thread->pipe[1] = -1;
+		muxed_thread->pipe[0] = muxed_thread->pipe[1] = -1;
 		/* Setup a pipe so we can poke the thread itself when needed */
-		if (pipe(multiplexed_thread->pipe)) {
+		if (pipe(muxed_thread->pipe)) {
 			ast_debug(1, "Failed to create a pipe for poking a multiplexed thread for bridge '%p'\n", bridge);
-			ao2_ref(multiplexed_thread, -1);
-			ao2_unlock(multiplexed_threads);
+			ao2_ref(muxed_thread, -1);
+			ao2_unlock(muxed_threads);
 			return -1;
 		}
 
 		/* Setup each pipe for non-blocking operation */
-		flags = fcntl(multiplexed_thread->pipe[0], F_GETFL);
-		if (fcntl(multiplexed_thread->pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+		flags = fcntl(muxed_thread->pipe[0], F_GETFL);
+		if (fcntl(muxed_thread->pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
 			ast_log(LOG_WARNING, "Failed to setup first nudge pipe for non-blocking operation on %p (%d: %s)\n", bridge, errno, strerror(errno));
-			ao2_ref(multiplexed_thread, -1);
-			ao2_unlock(multiplexed_threads);
+			ao2_ref(muxed_thread, -1);
+			ao2_unlock(muxed_threads);
 			return -1;
 		}
-		flags = fcntl(multiplexed_thread->pipe[1], F_GETFL);
-		if (fcntl(multiplexed_thread->pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
+		flags = fcntl(muxed_thread->pipe[1], F_GETFL);
+		if (fcntl(muxed_thread->pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
 			ast_log(LOG_WARNING, "Failed to setup second nudge pipe for non-blocking operation on %p (%d: %s)\n", bridge, errno, strerror(errno));
-			ao2_ref(multiplexed_thread, -1);
-			ao2_unlock(multiplexed_threads);
+			ao2_ref(muxed_thread, -1);
+			ao2_unlock(muxed_threads);
 			return -1;
 		}
 
 		/* Set up default parameters */
-		multiplexed_thread->thread = AST_PTHREADT_NULL;
+		muxed_thread->thread = AST_PTHREADT_NULL;
 
 		/* Finally link us into the container so others may find us */
-		ao2_link(multiplexed_threads, multiplexed_thread);
-		ast_debug(1, "Created multiplexed thread '%p' for bridge '%p'\n", multiplexed_thread, bridge);
+		ao2_link(muxed_threads, muxed_thread);
+		ast_debug(1, "Created multiplexed thread '%p' for bridge '%p'\n", muxed_thread, bridge);
 	} else {
-		ast_debug(1, "Found multiplexed thread '%p' for bridge '%p'\n", multiplexed_thread, bridge);
+		ast_debug(1, "Found multiplexed thread '%p' for bridge '%p'\n", muxed_thread, bridge);
 	}
 
 	/* Bump the count of the thread structure up by two since the channels for this bridge will be joining shortly */
-	multiplexed_thread->count += 2;
+	muxed_thread->count += 2;
 
-	ao2_unlock(multiplexed_threads);
+	ao2_unlock(muxed_threads);
 
-	bridge->bridge_pvt = multiplexed_thread;
+	bridge->bridge_pvt = muxed_thread;
 
 	return 0;
 }
 
 /*! \brief Internal function which nudges the thread */
-static void multiplexed_nudge(struct multiplexed_thread *multiplexed_thread)
+static void multiplexed_nudge(struct multiplexed_thread *muxed_thread)
 {
 	int nudge = 0;
 
-	if (multiplexed_thread->thread == AST_PTHREADT_NULL) {
+	if (muxed_thread->thread == AST_PTHREADT_NULL) {
 		return;
 	}
 
-	if (write(multiplexed_thread->pipe[1], &nudge, sizeof(nudge)) != sizeof(nudge)) {
-		ast_log(LOG_ERROR, "We couldn't poke multiplexed thread '%p'... something is VERY wrong\n", multiplexed_thread);
+	if (write(muxed_thread->pipe[1], &nudge, sizeof(nudge)) != sizeof(nudge)) {
+		ast_log(LOG_ERROR, "We couldn't poke multiplexed thread '%p'... something is VERY wrong\n", muxed_thread);
 	}
 
-	while (multiplexed_thread->waiting) {
+	while (muxed_thread->waiting) {
 		sched_yield();
 	}
 }
@@ -178,27 +178,27 @@ static void multiplexed_nudge(struct multiplexed_thread *multiplexed_thread)
 /*! \brief Destroy function which unreserves/unreferences/removes a multiplexed thread structure */
 static int multiplexed_bridge_destroy(struct ast_bridge *bridge)
 {
-	struct multiplexed_thread *multiplexed_thread;
+	struct multiplexed_thread *muxed_thread;
 
-	multiplexed_thread = bridge->bridge_pvt;
-	if (!multiplexed_thread) {
+	muxed_thread = bridge->bridge_pvt;
+	if (!muxed_thread) {
 		return -1;
 	}
 
-	ao2_lock(multiplexed_threads);
+	ao2_lock(muxed_threads);
 
-	multiplexed_thread->count -= 2;
+	muxed_thread->count -= 2;
 
-	if (!multiplexed_thread->count) {
-		ast_debug(1, "Unlinking multiplexed thread '%p' since nobody is using it anymore\n", multiplexed_thread);
-		ao2_unlink(multiplexed_threads, multiplexed_thread);
+	if (!muxed_thread->count) {
+		ast_debug(1, "Unlinking multiplexed thread '%p' since nobody is using it anymore\n", muxed_thread);
+		ao2_unlink(muxed_threads, muxed_thread);
 	}
 
-	multiplexed_nudge(multiplexed_thread);
+	multiplexed_nudge(muxed_thread);
 
-	ao2_unlock(multiplexed_threads);
+	ao2_unlock(muxed_threads);
 
-	ao2_ref(multiplexed_thread, -1);
+	ao2_ref(muxed_thread, -1);
 	bridge->bridge_pvt = NULL;
 
 	return 0;
@@ -207,39 +207,39 @@ static int multiplexed_bridge_destroy(struct ast_bridge *bridge)
 /*! \brief Thread function that executes for multiplexed threads */
 static void *multiplexed_thread_function(void *data)
 {
-	struct multiplexed_thread *multiplexed_thread = data;
-	int fds = multiplexed_thread->pipe[0];
+	struct multiplexed_thread *muxed_thread = data;
+	int fds = muxed_thread->pipe[0];
 
-	ao2_lock(multiplexed_thread);
+	ao2_lock(muxed_thread);
 
-	ast_debug(1, "Starting actual thread for multiplexed thread '%p'\n", multiplexed_thread);
+	ast_debug(1, "Starting actual thread for multiplexed thread '%p'\n", muxed_thread);
 
-	while (multiplexed_thread->thread != AST_PTHREADT_STOP) {
+	while (muxed_thread->thread != AST_PTHREADT_STOP) {
 		struct ast_channel *winner;
-		struct ast_channel *first = multiplexed_thread->chans[0];
+		struct ast_channel *first = muxed_thread->chans[0];
 		int to = -1;
 		int outfd = -1;
 
 		/* Move channels around so not just the first one gets priority */
-		memmove(multiplexed_thread->chans, multiplexed_thread->chans + 1,
-			sizeof(struct ast_channel *) * (multiplexed_thread->service_count - 1));
-		multiplexed_thread->chans[multiplexed_thread->service_count - 1] = first;
+		memmove(muxed_thread->chans, muxed_thread->chans + 1,
+			sizeof(struct ast_channel *) * (muxed_thread->service_count - 1));
+		muxed_thread->chans[muxed_thread->service_count - 1] = first;
 
-		multiplexed_thread->waiting = 1;
-		ao2_unlock(multiplexed_thread);
-		winner = ast_waitfor_nandfds(multiplexed_thread->chans, multiplexed_thread->service_count, &fds, 1, NULL, &outfd, &to);
-		multiplexed_thread->waiting = 0;
-		ao2_lock(multiplexed_thread);
-		if (multiplexed_thread->thread == AST_PTHREADT_STOP) {
+		muxed_thread->waiting = 1;
+		ao2_unlock(muxed_thread);
+		winner = ast_waitfor_nandfds(muxed_thread->chans, muxed_thread->service_count, &fds, 1, NULL, &outfd, &to);
+		muxed_thread->waiting = 0;
+		ao2_lock(muxed_thread);
+		if (muxed_thread->thread == AST_PTHREADT_STOP) {
 			break;
 		}
 
 		if (outfd > -1) {
 			int nudge;
 
-			if (read(multiplexed_thread->pipe[0], &nudge, sizeof(nudge)) < 0) {
+			if (read(muxed_thread->pipe[0], &nudge, sizeof(nudge)) < 0) {
 				if (errno != EINTR && errno != EAGAIN) {
-					ast_log(LOG_WARNING, "read() failed for pipe on multiplexed thread '%p': %s\n", multiplexed_thread, strerror(errno));
+					ast_log(LOG_WARNING, "read() failed for pipe on multiplexed thread '%p': %s\n", muxed_thread, strerror(errno));
 				}
 			}
 		}
@@ -247,10 +247,10 @@ static void *multiplexed_thread_function(void *data)
 			struct ast_bridge *bridge;
 			int stop = 0;
 
-			ao2_unlock(multiplexed_thread);
+			ao2_unlock(muxed_thread);
 			while ((bridge = ast_channel_internal_bridge(winner)) && ao2_trylock(bridge)) {
 				sched_yield();
-				if (multiplexed_thread->thread == AST_PTHREADT_STOP) {
+				if (muxed_thread->thread == AST_PTHREADT_STOP) {
 					stop = 1;
 					break;
 				}
@@ -259,70 +259,70 @@ static void *multiplexed_thread_function(void *data)
 				ast_bridge_handle_trip(bridge, NULL, winner, -1);
 				ao2_unlock(bridge);
 			}
-			ao2_lock(multiplexed_thread);
+			ao2_lock(muxed_thread);
 		}
 	}
 
-	multiplexed_thread->thread = AST_PTHREADT_NULL;
+	muxed_thread->thread = AST_PTHREADT_NULL;
 
-	ast_debug(1, "Stopping actual thread for multiplexed thread '%p'\n", multiplexed_thread);
+	ast_debug(1, "Stopping actual thread for multiplexed thread '%p'\n", muxed_thread);
 
-	ao2_unlock(multiplexed_thread);
-	ao2_ref(multiplexed_thread, -1);
+	ao2_unlock(muxed_thread);
+	ao2_ref(muxed_thread, -1);
 
 	return NULL;
 }
 
 /*! \brief Helper function which adds or removes a channel and nudges the thread */
-static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thread, struct ast_channel *chan, int add)
+static void multiplexed_add_or_remove(struct multiplexed_thread *muxed_thread, struct ast_channel *chan, int add)
 {
 	int idx;
 	pthread_t thread = AST_PTHREADT_NULL;
 
-	ao2_lock(multiplexed_thread);
+	ao2_lock(muxed_thread);
 
-	multiplexed_nudge(multiplexed_thread);
+	multiplexed_nudge(muxed_thread);
 
-	for (idx = 0; idx < ARRAY_LEN(multiplexed_thread->chans); ++idx) {
-		if (multiplexed_thread->chans[idx] == chan) {
+	for (idx = 0; idx < ARRAY_LEN(muxed_thread->chans); ++idx) {
+		if (muxed_thread->chans[idx] == chan) {
 			if (!add) {
-				memmove(multiplexed_thread->chans + idx,
-					multiplexed_thread->chans + idx + 1,
-					sizeof(struct ast_channel *) * (ARRAY_LEN(multiplexed_thread->chans) - (idx + 1)));
-				multiplexed_thread->chans[ARRAY_LEN(multiplexed_thread->chans) - 1] = NULL;
-				--multiplexed_thread->service_count;
+				memmove(muxed_thread->chans + idx,
+					muxed_thread->chans + idx + 1,
+					sizeof(struct ast_channel *) * (ARRAY_LEN(muxed_thread->chans) - (idx + 1)));
+				muxed_thread->chans[ARRAY_LEN(muxed_thread->chans) - 1] = NULL;
+				--muxed_thread->service_count;
 			}
 			break;
 		}
-		if (!multiplexed_thread->chans[idx]) {
+		if (!muxed_thread->chans[idx]) {
 			if (add) {
-				multiplexed_thread->chans[idx] = chan;
-				++multiplexed_thread->service_count;
+				muxed_thread->chans[idx] = chan;
+				++muxed_thread->service_count;
 			}
 			break;
 		}
 	}
-	if (ARRAY_LEN(multiplexed_thread->chans) == idx && add) {
+	if (ARRAY_LEN(muxed_thread->chans) == idx && add) {
 		ast_log(LOG_ERROR, "Could not add channel %s to multiplexed thread %p.  Array not large enough.\n",
-			ast_channel_name(chan), multiplexed_thread);
+			ast_channel_name(chan), muxed_thread);
 		ast_assert(0);
 	}
 
-	if (multiplexed_thread->service_count && multiplexed_thread->thread == AST_PTHREADT_NULL) {
-		ao2_ref(multiplexed_thread, +1);
-		if (ast_pthread_create(&multiplexed_thread->thread, NULL, multiplexed_thread_function, multiplexed_thread)) {
-			ao2_ref(multiplexed_thread, -1);
+	if (muxed_thread->service_count && muxed_thread->thread == AST_PTHREADT_NULL) {
+		ao2_ref(muxed_thread, +1);
+		if (ast_pthread_create(&muxed_thread->thread, NULL, multiplexed_thread_function, muxed_thread)) {
+			ao2_ref(muxed_thread, -1);
 			ast_log(LOG_WARNING, "Failed to create the bridge thread for multiplexed thread '%p', trying next time\n",
-				multiplexed_thread);
+				muxed_thread);
 		}
-	} else if (!multiplexed_thread->service_count
-		&& multiplexed_thread->thread != AST_PTHREADT_NULL
-		&& multiplexed_thread->thread != AST_PTHREADT_STOP) {
-		thread = multiplexed_thread->thread;
-		multiplexed_thread->thread = AST_PTHREADT_STOP;
+	} else if (!muxed_thread->service_count
+		&& muxed_thread->thread != AST_PTHREADT_NULL
+		&& muxed_thread->thread != AST_PTHREADT_STOP) {
+		thread = muxed_thread->thread;
+		muxed_thread->thread = AST_PTHREADT_STOP;
 	}
 
-	ao2_unlock(multiplexed_thread);
+	ao2_unlock(muxed_thread);
 
 	if (thread != AST_PTHREADT_NULL) {
 		pthread_join(thread, NULL);
@@ -334,11 +334,11 @@ static int multiplexed_bridge_join(struct ast_bridge *bridge, struct ast_bridge_
 {
 	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
 	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
-	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
+	struct multiplexed_thread *muxed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Adding channel '%s' to multiplexed thread '%p' for monitoring\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
+	ast_debug(1, "Adding channel '%s' to multiplexed thread '%p' for monitoring\n", ast_channel_name(bridge_channel->chan), muxed_thread);
 
-	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 1);
+	multiplexed_add_or_remove(muxed_thread, bridge_channel->chan, 1);
 
 	/* If the second channel has not yet joined do not make things compatible */
 	if (c0 == c1) {
@@ -357,11 +357,11 @@ static int multiplexed_bridge_join(struct ast_bridge *bridge, struct ast_bridge_
 /*! \brief Leave function which actually removes the channel from the array */
 static int multiplexed_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
+	struct multiplexed_thread *muxed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Removing channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
+	ast_debug(1, "Removing channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), muxed_thread);
 
-	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 0);
+	multiplexed_add_or_remove(muxed_thread, bridge_channel->chan, 0);
 
 	return 0;
 }
@@ -369,21 +369,21 @@ static int multiplexed_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 /*! \brief Suspend function which means control of the channel is going elsewhere */
 static void multiplexed_bridge_suspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
+	struct multiplexed_thread *muxed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Suspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
+	ast_debug(1, "Suspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), muxed_thread);
 
-	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 0);
+	multiplexed_add_or_remove(muxed_thread, bridge_channel->chan, 0);
 }
 
 /*! \brief Unsuspend function which means control of the channel is coming back to us */
 static void multiplexed_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
+	struct multiplexed_thread *muxed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Unsuspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
+	ast_debug(1, "Unsuspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), muxed_thread);
 
-	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 1);
+	multiplexed_add_or_remove(muxed_thread, bridge_channel->chan, 1);
 }
 
 /*! \brief Write function for writing frames into the bridge */
@@ -426,7 +426,7 @@ static int unload_module(void)
 {
 	int res = ast_bridge_technology_unregister(&multiplexed_bridge);
 
-	ao2_ref(multiplexed_threads, -1);
+	ao2_ref(muxed_threads, -1);
 	multiplexed_bridge.format_capabilities = ast_format_cap_destroy(multiplexed_bridge.format_capabilities);
 
 	return res;
@@ -434,7 +434,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(multiplexed_threads = ao2_container_alloc(MULTIPLEXED_BUCKETS, NULL, NULL))) {
+	if (!(muxed_threads = ao2_container_alloc(MULTIPLEXED_BUCKETS, NULL, NULL))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(multiplexed_bridge.format_capabilities = ast_format_cap_alloc())) {
