@@ -100,11 +100,13 @@ static int multiplexed_bridge_create(struct ast_bridge *bridge)
 	ao2_lock(multiplexed_threads);
 
 	/* Try to find an existing thread to handle our additional channels */
-	if (!(multiplexed_thread = ao2_callback(multiplexed_threads, 0, find_multiplexed_thread, NULL))) {
+	multiplexed_thread = ao2_callback(multiplexed_threads, 0, find_multiplexed_thread, NULL);
+	if (!multiplexed_thread) {
 		int flags;
 
 		/* If we failed we will have to create a new one from scratch */
-		if (!(multiplexed_thread = ao2_alloc(sizeof(*multiplexed_thread), destroy_multiplexed_thread))) {
+		multiplexed_thread = ao2_alloc(sizeof(*multiplexed_thread), destroy_multiplexed_thread);
+		if (!multiplexed_thread) {
 			ast_debug(1, "Failed to find or create a new multiplexed thread for bridge '%p'\n", bridge);
 			ao2_unlock(multiplexed_threads);
 			return -1;
@@ -207,11 +209,14 @@ static void *multiplexed_thread_function(void *data)
 	ast_debug(1, "Starting actual thread for multiplexed thread '%p'\n", multiplexed_thread);
 
 	while (multiplexed_thread->thread != AST_PTHREADT_STOP) {
-		struct ast_channel *winner = NULL, *first = multiplexed_thread->chans[0];
-		int to = -1, outfd = -1;
+		struct ast_channel *winner;
+		struct ast_channel *first = multiplexed_thread->chans[0];
+		int to = -1;
+		int outfd = -1;
 
 		/* Move channels around so not just the first one gets priority */
-		memmove(multiplexed_thread->chans, multiplexed_thread->chans + 1, sizeof(struct ast_channel *) * (multiplexed_thread->service_count - 1));
+		memmove(multiplexed_thread->chans, multiplexed_thread->chans + 1,
+			sizeof(struct ast_channel *) * (multiplexed_thread->service_count - 1));
 		multiplexed_thread->chans[multiplexed_thread->service_count - 1] = first;
 
 		multiplexed_thread->waiting = 1;
@@ -233,8 +238,9 @@ static void *multiplexed_thread_function(void *data)
 			}
 		}
 		if (winner && ast_channel_internal_bridge(winner)) {
-			struct ast_bridge *bridge = ast_channel_internal_bridge(winner);
+			struct ast_bridge *bridge;
 			int stop = 0;
+
 			ao2_unlock(multiplexed_thread);
 			while ((bridge = ast_channel_internal_bridge(winner)) && ao2_trylock(bridge)) {
 				sched_yield();
@@ -310,7 +316,8 @@ static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thr
 /*! \brief Join function which actually adds the channel into the array to be monitored */
 static int multiplexed_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan, *c1 = AST_LIST_LAST(&bridge->channels)->chan;
+	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
+	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
 	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
 
 	ast_debug(1, "Adding channel '%s' to multiplexed thread '%p' for monitoring\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);

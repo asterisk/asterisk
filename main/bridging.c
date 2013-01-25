@@ -138,7 +138,11 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
 	ao2_unlock(bridge_channel);
 }
 
-/*! \brief Helper function to poke the bridge thread */
+/*!
+ * \brief Helper function to poke the bridge thread
+ *
+ * \note This function assumes the bridge is locked.
+ */
 static void bridge_poke(struct ast_bridge *bridge)
 {
 	/* Poke the thread just in case */
@@ -167,7 +171,8 @@ static void bridge_stop(struct ast_bridge *bridge)
 	ao2_lock(bridge);
 }
 
-/*! \brief Helper function to add a channel to the bridge array
+/*!
+ * \brief Helper function to add a channel to the bridge array
  *
  * \note This function assumes the bridge is locked.
  */
@@ -181,17 +186,21 @@ static void bridge_array_add(struct ast_bridge *bridge, struct ast_channel *chan
 
 	bridge->array[bridge->array_num++] = chan;
 
-	ast_debug(1, "Added channel %s(%p) to bridge array on %p, new count is %d\n", ast_channel_name(chan), chan, bridge, (int)bridge->array_num);
+	ast_debug(1, "Added channel %s(%p) to bridge array on %p, new count is %d\n",
+		ast_channel_name(chan), chan, bridge, (int) bridge->array_num);
 
 	/* If the next addition of a channel will exceed our array size grow it out */
 	if (bridge->array_num == bridge->array_size) {
-		struct ast_channel **tmp;
-		ast_debug(1, "Growing bridge array on %p from %d to %d\n", bridge, (int)bridge->array_size, (int)bridge->array_size + BRIDGE_ARRAY_GROW);
-		if (!(tmp = ast_realloc(bridge->array, (bridge->array_size + BRIDGE_ARRAY_GROW) * sizeof(struct ast_channel *)))) {
-			ast_log(LOG_ERROR, "Failed to allocate more space for another channel on bridge '%p', this is not going to end well\n", bridge);
+		struct ast_channel **new_array;
+
+		ast_debug(1, "Growing bridge array on %p from %d to %d\n",
+			bridge, (int) bridge->array_size, (int) bridge->array_size + BRIDGE_ARRAY_GROW);
+		new_array = ast_realloc(bridge->array,
+			(bridge->array_size + BRIDGE_ARRAY_GROW) * sizeof(*bridge->array));
+		if (!new_array) {
 			return;
 		}
-		bridge->array = tmp;
+		bridge->array = new_array;
 		bridge->array_size += BRIDGE_ARRAY_GROW;
 	}
 }
@@ -268,7 +277,10 @@ static void bridge_force_out_all(struct ast_bridge *bridge)
 /*! \brief Internal function to see whether a bridge should dissolve, and if so do it */
 static void bridge_check_dissolve(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	if (!ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE) && (!bridge_channel->features || !bridge_channel->features->usable || !ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_FLAG_DISSOLVE))) {
+	if (!ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE)
+		&& (!bridge_channel->features
+			|| !bridge_channel->features->usable
+			|| !ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_FLAG_DISSOLVE))) {
 		return;
 	}
 
@@ -343,7 +355,8 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
 			/* Signal the thread that is handling the bridged channel that it should be ended */
 			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
 		} else if (frame->frametype == AST_FRAME_CONTROL && bridge_drop_control_frame(frame->subclass.integer)) {
-			ast_debug(1, "Dropping control frame from bridge channel %p\n", bridge_channel);
+			ast_debug(1, "Dropping control frame %d from bridge channel %p\n",
+				frame->subclass.integer, bridge_channel);
 		} else if (frame->frametype == AST_FRAME_DTMF_BEGIN || frame->frametype == AST_FRAME_DTMF_END) {
 			int dtmf_passthrough = bridge_channel->features ?
 				bridge_channel->features->dtmf_passthrough :
@@ -384,7 +397,7 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
 static int generic_thread_loop(struct ast_bridge *bridge)
 {
 	while (!bridge->stop && !bridge->refresh && bridge->array_num) {
-		struct ast_channel *winner = NULL;
+		struct ast_channel *winner;
 		int to = -1;
 
 		/* Move channels around for priority reasons if we have more than one channel in our array */
@@ -397,7 +410,7 @@ static int generic_thread_loop(struct ast_bridge *bridge)
 		/* Wait on the channels */
 		bridge->waiting = 1;
 		ao2_unlock(bridge);
-		winner = ast_waitfor_n(bridge->array, (int)bridge->array_num, &to);
+		winner = ast_waitfor_n(bridge->array, (int) bridge->array_num, &to);
 		bridge->waiting = 0;
 		ao2_lock(bridge);
 
@@ -431,7 +444,10 @@ static void *bridge_thread(void *data)
 			bridge->technology->thread ? bridge->technology->thread : generic_thread_loop,
 			bridge);
 
-		/* Execute the appropriate thread function. If the technology does not provide one we use the generic one */
+		/*
+		 * Execute the appropriate thread function.  If the technology
+		 * does not provide one we use the generic one.
+		 */
 		res = bridge->technology->thread
 			? bridge->technology->thread(bridge)
 			: generic_thread_loop(bridge);
@@ -494,7 +510,8 @@ static void destroy_bridge(void *obj)
 	if (bridge->technology->destroy) {
 		ast_debug(1, "Giving bridge technology %s the bridge structure %p to destroy\n", bridge->technology->name, bridge);
 		if (bridge->technology->destroy(bridge)) {
-			ast_debug(1, "Bridge technology %s failed to destroy bridge structure %p... trying our best\n", bridge->technology->name, bridge);
+			ast_debug(1, "Bridge technology %s failed to destroy bridge structure %p... some memory may have leaked\n",
+				bridge->technology->name, bridge);
 		}
 	}
 
@@ -512,8 +529,8 @@ static void destroy_bridge(void *obj)
 
 struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 {
-	struct ast_bridge *bridge = NULL;
-	struct ast_bridge_technology *bridge_technology = NULL;
+	struct ast_bridge *bridge;
+	struct ast_bridge_technology *bridge_technology;
 
 	/* If we need to be a smart bridge see if we can move between 1to1 and multimix bridges */
 	if (flags & AST_BRIDGE_FLAG_SMART) {
@@ -526,8 +543,11 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 		ast_bridge_destroy(other_bridge);
 	}
 
-	/* If capabilities were provided use our helper function to find the "best" bridge technology, otherwise we can
-	 * just look for the most basic capability needed, single 1to1 mixing. */
+	/*
+	 * If capabilities were provided use our helper function to find
+	 * the "best" bridge technology, otherwise we can just look for
+	 * the most basic capability needed, single 1to1 mixing.
+	 */
 	bridge_technology = capabilities
 		? find_best_technology(capabilities)
 		: find_best_technology(AST_BRIDGE_CAPABILITY_1TO1MIX);
@@ -557,7 +577,7 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 		if (bridge->technology->create(bridge)) {
 			ast_debug(1, "Bridge technology %s failed to setup bridge structure %p\n", bridge->technology->name, bridge);
 			ao2_ref(bridge, -1);
-			bridge = NULL;
+			return NULL;
 		}
 	}
 
@@ -657,23 +677,26 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, int count)
 {
 	uint32_t new_capabilities = 0;
-	struct ast_bridge_technology *new_technology = NULL, *old_technology = bridge->technology;
+	struct ast_bridge_technology *new_technology;
+	struct ast_bridge_technology *old_technology = bridge->technology;
 	struct ast_bridge temp_bridge = {
 		.technology = bridge->technology,
 		.bridge_pvt = bridge->bridge_pvt,
 	};
-	struct ast_bridge_channel *bridge_channel2 = NULL;
+	struct ast_bridge_channel *bridge_channel2;
 
 	/* Based on current feature determine whether we want to change bridge technologies or not */
 	if (bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_1TO1MIX) {
 		if (count <= 2) {
-			ast_debug(1, "Bridge %p channel count (%d) is within limits for bridge technology %s, not performing smart bridge operation.\n", bridge, count, bridge->technology->name);
+			ast_debug(1, "Bridge %p channel count (%d) is within limits for bridge technology %s, not performing smart bridge operation.\n",
+				bridge, count, bridge->technology->name);
 			return 0;
 		}
 		new_capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX;
 	} else if (bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) {
 		if (count > 2) {
-			ast_debug(1, "Bridge %p channel count (%d) is within limits for bridge technology %s, not performing smart bridge operation.\n", bridge, count, bridge->technology->name);
+			ast_debug(1, "Bridge %p channel count (%d) is within limits for bridge technology %s, not performing smart bridge operation.\n",
+				bridge, count, bridge->technology->name);
 			return 0;
 		}
 		new_capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX;
@@ -689,11 +712,17 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 		return -1;
 	}
 
-	ast_debug(1, "Performing smart bridge operation on bridge %p, moving from bridge technology %s to %s\n", bridge, old_technology->name, new_technology->name);
+	ast_debug(1, "Performing smart bridge operation on bridge %p, moving from bridge technology %s to %s\n",
+		bridge, old_technology->name, new_technology->name);
 
 	/* If a thread is currently executing for the current technology tell it to stop */
 	if (bridge->thread != AST_PTHREADT_NULL) {
-		/* If the new bridge technology also needs a thread simply tell the bridge thread to refresh itself. This has the benefit of not incurring the cost/time of tearing down and bringing up a new thread. */
+		/*
+		 * If the new bridge technology also needs a thread simply tell
+		 * the bridge thread to refresh itself.  This has the benefit of
+		 * not incurring the cost/time of tearing down and bringing up a
+		 * new thread.
+		 */
 		if (new_technology->capabilities & AST_BRIDGE_CAPABILITY_THREAD) {
 			ast_debug(1, "Telling current bridge thread for bridge %p to refresh\n", bridge);
 			bridge->refresh = 1;
@@ -704,15 +733,22 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 	}
 
-	/* Since we are soon going to pass this bridge to a new technology we need to NULL out the bridge_pvt pointer but don't worry as it still exists in temp_bridge, ditto for the old technology */
+	/*
+	 * Since we are soon going to pass this bridge to a new
+	 * technology we need to NULL out the bridge_pvt pointer but
+	 * don't worry as it still exists in temp_bridge, ditto for the
+	 * old technology.
+	 */
 	bridge->bridge_pvt = NULL;
 	bridge->technology = new_technology;
 
 	/* Pass the bridge to the new bridge technology so it can set it up */
 	if (new_technology->create) {
-		ast_debug(1, "Giving bridge technology %s the bridge structure %p to setup\n", new_technology->name, bridge);
+		ast_debug(1, "Giving bridge technology %s the bridge structure %p to setup\n",
+			new_technology->name, bridge);
 		if (new_technology->create(bridge)) {
-			ast_debug(1, "Bridge technology %s failed to setup bridge structure %p\n", new_technology->name, bridge);
+			ast_debug(1, "Bridge technology %s failed to setup bridge structure %p\n",
+				new_technology->name, bridge);
 		}
 	}
 
@@ -725,9 +761,11 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 
 		/* First we part them from the old technology */
 		if (old_technology->leave) {
-			ast_debug(1, "Giving bridge technology %s notification that %p is leaving bridge %p (really %p)\n", old_technology->name, bridge_channel2, &temp_bridge, bridge);
+			ast_debug(1, "Giving bridge technology %s notification that %p is leaving bridge %p (really %p)\n",
+				old_technology->name, bridge_channel2, &temp_bridge, bridge);
 			if (old_technology->leave(&temp_bridge, bridge_channel2)) {
-				ast_debug(1, "Bridge technology %s failed to allow %p (really %p) to leave bridge %p\n", old_technology->name, bridge_channel2, &temp_bridge, bridge);
+				ast_debug(1, "Bridge technology %s failed to allow %p (really %p) to leave bridge %p\n",
+					old_technology->name, bridge_channel2, &temp_bridge, bridge);
 			}
 		}
 
@@ -736,9 +774,11 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 
 		/* Third we join them to the new technology */
 		if (new_technology->join) {
-			ast_debug(1, "Giving bridge technology %s notification that %p is joining bridge %p\n", new_technology->name, bridge_channel2, bridge);
+			ast_debug(1, "Giving bridge technology %s notification that %p is joining bridge %p\n",
+				new_technology->name, bridge_channel2, bridge);
 			if (new_technology->join(bridge, bridge_channel2)) {
-				ast_debug(1, "Bridge technology %s failed to join %p to bridge %p\n", new_technology->name, bridge_channel2, bridge);
+				ast_debug(1, "Bridge technology %s failed to join %p to bridge %p\n",
+					new_technology->name, bridge_channel2, bridge);
 			}
 		}
 
@@ -751,9 +791,11 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 
 	/* Now that all the channels have been moved over we need to get rid of all the information the old technology may have left around */
 	if (old_technology->destroy) {
-		ast_debug(1, "Giving bridge technology %s the bridge structure %p (really %p) to destroy\n", old_technology->name, &temp_bridge, bridge);
+		ast_debug(1, "Giving bridge technology %s the bridge structure %p (really %p) to destroy\n",
+			old_technology->name, &temp_bridge, bridge);
 		if (old_technology->destroy(&temp_bridge)) {
-			ast_debug(1, "Bridge technology %s failed to destroy bridge structure %p (really %p)... some memory may have leaked\n", old_technology->name, &temp_bridge, bridge);
+			ast_debug(1, "Bridge technology %s failed to destroy bridge structure %p (really %p)... some memory may have leaked\n",
+				old_technology->name, &temp_bridge, bridge);
 		}
 	}
 
@@ -907,9 +949,12 @@ static void bridge_channel_feature(struct ast_bridge *bridge, struct ast_bridge_
 	/* If a hook was actually matched execute it on this channel, otherwise stream up the DTMF to the other channels */
 	if (hook) {
 		hook->callback(bridge, bridge_channel, hook->hook_pvt);
-		/* If we are handing the channel off to an external hook for ownership,
-		 * we are not guaranteed what kind of state it will come back in.  If
-		 * the channel hungup, we need to detect that here. */
+		/*
+		 * If we are handing the channel off to an external hook for
+		 * ownership, we are not guaranteed what kind of state it will
+		 * come back in.  If the channel hungup, we need to detect that
+		 * here if the hook did not already change the state.
+		 */
 		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
 			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
 		}
@@ -1000,7 +1045,8 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 		/* Update bridge pointer on channel */
 		ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
 		/* If the technology requires a thread and one is not running, start it up */
-		if (bridge_channel->bridge->thread == AST_PTHREADT_NULL && (bridge_channel->bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_THREAD)) {
+		if (bridge_channel->bridge->thread == AST_PTHREADT_NULL
+			&& (bridge_channel->bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_THREAD)) {
 			bridge_channel->bridge->stop = 0;
 			ast_debug(1, "Starting a bridge thread for bridge %p\n", bridge_channel->bridge);
 			ao2_ref(bridge_channel->bridge, +1);
