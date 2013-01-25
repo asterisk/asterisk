@@ -178,7 +178,12 @@ static void multiplexed_nudge(struct multiplexed_thread *multiplexed_thread)
 /*! \brief Destroy function which unreserves/unreferences/removes a multiplexed thread structure */
 static int multiplexed_bridge_destroy(struct ast_bridge *bridge)
 {
-	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
+	struct multiplexed_thread *multiplexed_thread;
+
+	multiplexed_thread = bridge->bridge_pvt;
+	if (!multiplexed_thread) {
+		return -1;
+	}
 
 	ao2_lock(multiplexed_threads);
 
@@ -194,6 +199,7 @@ static int multiplexed_bridge_destroy(struct ast_bridge *bridge)
 	ao2_unlock(multiplexed_threads);
 
 	ao2_ref(multiplexed_thread, -1);
+	bridge->bridge_pvt = NULL;
 
 	return 0;
 }
@@ -270,26 +276,36 @@ static void *multiplexed_thread_function(void *data)
 /*! \brief Helper function which adds or removes a channel and nudges the thread */
 static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thread, struct ast_channel *chan, int add)
 {
-	int i, removed = 0;
+	int idx;
 	pthread_t thread = AST_PTHREADT_NULL;
 
 	ao2_lock(multiplexed_thread);
 
 	multiplexed_nudge(multiplexed_thread);
 
-	for (i = 0; i < MULTIPLEXED_MAX_CHANNELS; i++) {
-		if (multiplexed_thread->chans[i] == chan) {
+	for (idx = 0; idx < ARRAY_LEN(multiplexed_thread->chans); ++idx) {
+		if (multiplexed_thread->chans[idx] == chan) {
 			if (!add) {
-				multiplexed_thread->chans[i] = NULL;
-				multiplexed_thread->service_count--;
-				removed = 1;
+				memmove(multiplexed_thread->chans + idx,
+					multiplexed_thread->chans + idx + 1,
+					sizeof(struct ast_channel *) * (ARRAY_LEN(multiplexed_thread->chans) - (idx + 1)));
+				multiplexed_thread->chans[ARRAY_LEN(multiplexed_thread->chans) - 1] = NULL;
+				--multiplexed_thread->service_count;
 			}
 			break;
-		} else if (!multiplexed_thread->chans[i] && add) {
-			multiplexed_thread->chans[i] = chan;
-			multiplexed_thread->service_count++;
+		}
+		if (!multiplexed_thread->chans[idx]) {
+			if (add) {
+				multiplexed_thread->chans[idx] = chan;
+				++multiplexed_thread->service_count;
+			}
 			break;
 		}
+	}
+	if (ARRAY_LEN(multiplexed_thread->chans) == idx && add) {
+		ast_log(LOG_ERROR, "Could not add channel %s to multiplexed thread %p.  Array not large enough.\n",
+			ast_channel_name(chan), multiplexed_thread);
+		ast_assert(0);
 	}
 
 	if (multiplexed_thread->service_count && multiplexed_thread->thread == AST_PTHREADT_NULL) {
@@ -299,11 +315,11 @@ static void multiplexed_add_or_remove(struct multiplexed_thread *multiplexed_thr
 			ast_log(LOG_WARNING, "Failed to create the bridge thread for multiplexed thread '%p', trying next time\n",
 				multiplexed_thread);
 		}
-	} else if (!multiplexed_thread->service_count && multiplexed_thread->thread != AST_PTHREADT_NULL) {
+	} else if (!multiplexed_thread->service_count
+		&& multiplexed_thread->thread != AST_PTHREADT_NULL
+		&& multiplexed_thread->thread != AST_PTHREADT_STOP) {
 		thread = multiplexed_thread->thread;
 		multiplexed_thread->thread = AST_PTHREADT_STOP;
-	} else if (!add && removed) {
-		memmove(multiplexed_thread->chans + i, multiplexed_thread->chans + i + 1, sizeof(struct ast_channel *) * (MULTIPLEXED_MAX_CHANNELS - (i + 1)));
 	}
 
 	ao2_unlock(multiplexed_thread);

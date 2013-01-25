@@ -118,6 +118,14 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 	return current ? 0 : -1;
 }
 
+static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
+{
+	ao2_lock(bridge_channel);
+	pthread_kill(bridge_channel->thread, SIGURG);
+	ast_cond_signal(&bridge_channel->cond);
+	ao2_unlock(bridge_channel);
+}
+
 /*! \note This function assumes the bridge_channel is locked. */
 static void ast_bridge_change_state_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
 {
@@ -211,7 +219,7 @@ static void bridge_array_add(struct ast_bridge *bridge, struct ast_channel *chan
  */
 static void bridge_array_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 {
-	int i;
+	int idx;
 
 	/* We have to make sure the bridge thread is not using the bridge array before messing with it */
 	while (bridge->waiting) {
@@ -219,12 +227,12 @@ static void bridge_array_remove(struct ast_bridge *bridge, struct ast_channel *c
 		sched_yield();
 	}
 
-	for (i = 0; i < bridge->array_num; i++) {
-		if (bridge->array[i] == chan) {
-			bridge->array[i] = (bridge->array[(bridge->array_num - 1)] != chan ? bridge->array[(bridge->array_num - 1)] : NULL);
-			bridge->array[(bridge->array_num - 1)] = NULL;
-			bridge->array_num--;
-			ast_debug(1, "Removed channel %p from bridge array on %p, new count is %d\n", chan, bridge, (int)bridge->array_num);
+	for (idx = 0; idx < bridge->array_num; ++idx) {
+		if (bridge->array[idx] == chan) {
+			--bridge->array_num;
+			bridge->array[idx] = bridge->array[bridge->array_num];
+			ast_debug(1, "Removed channel %p from bridge array on %p, new count is %d\n",
+				chan, bridge, (int) bridge->array_num);
 			break;
 		}
 	}
@@ -515,16 +523,16 @@ static void destroy_bridge(void *obj)
 		}
 	}
 
+	cleanup_video_mode(bridge);
+
+	/* Clean up the features configuration */
+	ast_bridge_features_cleanup(&bridge->features);
+
 	/* We are no longer using the bridge technology so decrement the module reference count on it */
 	ast_module_unref(bridge->technology->mod);
 
-	/* Last but not least clean up the features configuration */
-	ast_bridge_features_cleanup(&bridge->features);
-
 	/* Drop the array of channels */
 	ast_free(bridge->array);
-
-	cleanup_video_mode(bridge);
 }
 
 struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
@@ -534,13 +542,10 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 
 	/* If we need to be a smart bridge see if we can move between 1to1 and multimix bridges */
 	if (flags & AST_BRIDGE_FLAG_SMART) {
-		struct ast_bridge *other_bridge;
-
-		if (!(other_bridge = ast_bridge_new((capabilities & AST_BRIDGE_CAPABILITY_1TO1MIX) ? AST_BRIDGE_CAPABILITY_MULTIMIX : AST_BRIDGE_CAPABILITY_1TO1MIX, 0))) {
+		if (!ast_bridge_check((capabilities & AST_BRIDGE_CAPABILITY_1TO1MIX)
+			? AST_BRIDGE_CAPABILITY_MULTIMIX : AST_BRIDGE_CAPABILITY_1TO1MIX)) {
 			return NULL;
 		}
-
-		ast_bridge_destroy(other_bridge);
 	}
 
 	/*
@@ -558,7 +563,9 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 	}
 
 	/* We have everything we need to create this bridge... so allocate the memory, link things together, and fire her up! */
-	if (!(bridge = ao2_alloc(sizeof(*bridge), destroy_bridge))) {
+	bridge = ao2_alloc(sizeof(*bridge), destroy_bridge);
+	if (!bridge) {
+		ast_module_unref(bridge_technology->mod);
 		return NULL;
 	}
 
@@ -566,7 +573,11 @@ struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 	bridge->thread = AST_PTHREADT_NULL;
 
 	/* Create an array of pointers for the channels that will be joining us */
-	bridge->array = ast_calloc(BRIDGE_ARRAY_START, sizeof(struct ast_channel*));
+	bridge->array = ast_malloc(BRIDGE_ARRAY_START * sizeof(*bridge->array));
+	if (!bridge->array) {
+		ao2_ref(bridge, -1);
+		return NULL;
+	}
 	bridge->array_size = BRIDGE_ARRAY_START;
 
 	ast_set_flag(&bridge->feature_flags, flags);
@@ -783,10 +794,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 
 		/* Fourth we tell them to wake up so they become aware that the above has happened */
-		pthread_kill(bridge_channel2->thread, SIGURG);
-		ao2_lock(bridge_channel2);
-		ast_cond_signal(&bridge_channel2->cond);
-		ao2_unlock(bridge_channel2);
+		bridge_channel_poke(bridge_channel2);
 	}
 
 	/* Now that all the channels have been moved over we need to get rid of all the information the old technology may have left around */
@@ -1383,10 +1391,7 @@ int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1)
 		}
 
 		/* Poke the bridge channel, this will cause it to wake up and execute the proper threading model for the new bridge it is in */
-		pthread_kill(bridge_channel->thread, SIGURG);
-		ao2_lock(bridge_channel);
-		ast_cond_signal(&bridge_channel->cond);
-		ao2_unlock(bridge_channel);
+		bridge_channel_poke(bridge_channel);
 	}
 
 	ast_debug(1, "Merged channels from bridge %p into bridge %p\n", bridge1, bridge0);
