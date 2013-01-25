@@ -203,7 +203,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 	const char *id = NULL;
 
 	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config file '%s'n", config->filename);
+		ast_log(LOG_ERROR, "Unable to load config file '%s'\n", config->filename);
 		return;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_debug(1, "Config file '%s' was unchanged\n", config->filename);
