@@ -1,0 +1,50 @@
+; Sample configuration file for Sorcery Data Access Layer
+
+;
+; Wizards
+;
+; Wizards are the persistence mechanism for objects. They are loaded as Asterisk modules and register
+; themselves with the sorcery core. All implementation specific details of how objects are persisted is isolated
+; within wizards.
+;
+
+;
+; Caching
+;
+; A wizard can optionally be marked as an object cache by adding "/cache" to the object type within the mapping.
+; If an object is returned from a non-object cache it is immediately given to the cache to be created. Multiple
+; object caches can be configured for a single object type.
+;
+
+;
+; Object Type Mappings
+;
+; To allow configuration of where and how an object is persisted object mappings can be defined within this file
+; on a per-module basis. The mapping consists of the object type, options, wizard name, and wizard configuration
+; data. This has the following format:
+;
+; object type [/options] = wizard name, wizard configuration data
+;
+; For example to configure an in-memory wizard for the 'bob' object type:
+;
+; bob = memory
+;
+; Or to configure the object type 'joe' from a configuration file:
+;
+; joe = config,joe.conf
+;
+; Note that an object type can have multiple mappings defined. Each mapping will be consulted in the order in which
+; it appears within the configuration file. This means that if you are configuring a wizard as a cache it should
+; appear as the first mapping so the cache is consulted before all other mappings.
+;
+
+;
+; The following object mappings are used by the unit test to test certain functionality of sorcery.
+;
+[test_sorcery]
+test=memory
+
+[test_sorcery_cache]
+test/cache=test
+test=memory
+

@@ -1,0 +1,211 @@
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2012 - 2013, Digium, Inc.
+ *
+ * Joshua Colp <jcolp@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*!
+ * \file
+ *
+ * \brief Sorcery In-Memory Object Wizard
+ *
+ * \author Joshua Colp <jcolp@digium.com>
+ */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/module.h"
+#include "asterisk/sorcery.h"
+#include "asterisk/astobj2.h"
+
+/*! \brief Number of buckets for sorcery objects */
+#define OBJECT_BUCKETS 53
+
+static void *sorcery_memory_open(const char *data);
+static int sorcery_memory_create(void *data, void *object);
+static void *sorcery_memory_retrieve_id(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id);
+static void *sorcery_memory_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields);
+static void sorcery_memory_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
+					     const struct ast_variable *fields);
+static int sorcery_memory_update(void *data, void *object);
+static int sorcery_memory_delete(void *data, void *object);
+static void sorcery_memory_close(void *data);
+
+static struct ast_sorcery_wizard memory_object_wizard = {
+	.name = "memory",
+	.open = sorcery_memory_open,
+	.create = sorcery_memory_create,
+	.retrieve_id = sorcery_memory_retrieve_id,
+	.retrieve_fields = sorcery_memory_retrieve_fields,
+	.retrieve_multiple = sorcery_memory_retrieve_multiple,
+	.update = sorcery_memory_update,
+	.delete = sorcery_memory_delete,
+	.close = sorcery_memory_close,
+};
+
+/*! \brief Structure used for fields comparison */
+struct sorcery_memory_fields_cmp_params {
+	/*! \brief Pointer to the sorcery structure */
+	const struct ast_sorcery *sorcery;
+
+	/*! \brief Pointer to the fields to check */
+	const struct ast_variable *fields;
+
+	/*! \brief Optional container to put object into */
+	struct ao2_container *container;
+};
+
+/*! \brief Hashing function for sorcery objects */
+static int sorcery_memory_hash(const void *obj, const int flags)
+{
+	const char *id = obj;
+
+	return ast_str_hash(flags & OBJ_KEY ? id : ast_sorcery_object_get_id(obj));
+}
+
+/*! \brief Comparator function for sorcery objects */
+static int sorcery_memory_cmp(void *obj, void *arg, int flags)
+{
+	const char *id = arg;
+
+	return !strcmp(ast_sorcery_object_get_id(obj), flags & OBJ_KEY ? id : ast_sorcery_object_get_id(arg)) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int sorcery_memory_create(void *data, void *object)
+{
+	ao2_link(data, object);
+	return 0;
+}
+
+static int sorcery_memory_fields_cmp(void *obj, void *arg, int flags)
+{
+	const struct sorcery_memory_fields_cmp_params *params = arg;
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, diff, NULL, ast_variables_destroy);
+
+	/* If we can't turn the object into an object set OR if differences exist between the fields
+	 * passed in and what are present on the object they are not a match.
+	 */
+	if (params->fields &&
+	    (!(objset = ast_sorcery_objectset_create(params->sorcery, obj)) ||
+	     (ast_sorcery_changeset_create(objset, params->fields, &diff)) ||
+	     diff)) {
+		return 0;
+	}
+
+	if (params->container) {
+		ao2_link(params->container, obj);
+
+		/* As multiple objects are being returned keep going */
+		return 0;
+	} else {
+		/* Immediately stop and return, we only want a single object */
+		return CMP_MATCH | CMP_STOP;
+	}
+}
+
+static void *sorcery_memory_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields)
+{
+	struct sorcery_memory_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.fields = fields,
+		.container = NULL,
+	};
+
+	/* If no fields are present return nothing, we require *something* */
+	if (!fields) {
+		return NULL;
+	}
+
+	return ao2_callback(data, 0, sorcery_memory_fields_cmp, &params);
+}
+
+static void *sorcery_memory_retrieve_id(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id)
+{
+	return ao2_find(data, id, OBJ_KEY);
+}
+
+static void sorcery_memory_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const struct ast_variable *fields)
+{
+	struct sorcery_memory_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.fields = fields,
+		.container = objects,
+	};
+
+	ao2_callback(data, 0, sorcery_memory_fields_cmp, &params);
+}
+
+static int sorcery_memory_update(void *data, void *object)
+{
+	RAII_VAR(void *, existing, NULL, ao2_cleanup);
+
+	ao2_lock(data);
+
+	if (!(existing = ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_UNLINK))) {
+		ao2_unlock(data);
+		return -1;
+	}
+
+	ao2_link(data, object);
+
+	ao2_unlock(data);
+
+	return 0;
+}
+
+static int sorcery_memory_delete(void *data, void *object)
+{
+	RAII_VAR(void *, existing, ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_UNLINK), ao2_cleanup);
+
+	return existing ? 0 : -1;
+}
+
+static void *sorcery_memory_open(const char *data)
+{
+	return ao2_container_alloc(OBJECT_BUCKETS, sorcery_memory_hash, sorcery_memory_cmp);
+}
+
+static void sorcery_memory_close(void *data)
+{
+	ao2_ref(data, -1);
+}
+
+static int load_module(void)
+{
+	if (ast_sorcery_wizard_register(&memory_object_wizard)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+static int unload_module(void)
+{
+	ast_sorcery_wizard_unregister(&memory_object_wizard);
+	return 0;
+}
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Sorcery In-Memory Object Wizard",
+	.load = load_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
+);

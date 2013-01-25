@@ -239,6 +239,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/format.h"
 #include "asterisk/aoc.h"
 #include "asterisk/uuid.h"
+#include "asterisk/sorcery.h"
 
 #include "../defaults.h"
 
@@ -4115,6 +4116,11 @@ int main(int argc, char *argv[])
 
 	ast_aoc_cli_init();
 	ast_uuid_init();
+
+	if (ast_sorcery_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
 
 	ast_makesocket();
 	sigemptyset(&sigs);

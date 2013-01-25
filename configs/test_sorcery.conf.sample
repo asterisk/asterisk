@@ -1,0 +1,14 @@
+; This is a res_sorcery_config compatible file for the sorcery unit tests
+
+[hey]
+bob=98
+joe=41
+
+[hey2]
+type=zombies
+bob=97
+joe=40
+
+[hey3]
+bob=96
+joe=39
