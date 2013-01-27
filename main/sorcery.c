@@ -472,6 +472,7 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 	object_type->type.item_alloc = alloc;
 
 	object_type->transform = transform;
+	object_type->apply = apply;
 	object_type->file->types[0] = &object_type->type;
 	object_type->file->types[1] = NULL;
 
