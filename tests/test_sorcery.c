@@ -92,6 +92,15 @@ struct sorcery_test_caching {
 	struct test_sorcery_object object;
 };
 
+/*! \brief Global scope apply handler integer to make sure it executed */
+static int apply_handler_called;
+
+/*! \brief Simple apply handler which sets global scope integer to 1 if called */
+static void test_apply_handler(const struct ast_sorcery *sorcery, void *obj)
+{
+	apply_handler_called = 1;
+}
+
 /*! \brief Global scope caching structure for testing */
 static struct sorcery_test_caching cache = { 0, };
 
@@ -691,6 +700,60 @@ AST_TEST_DEFINE(objectset_apply)
 		res = AST_TEST_FAIL;
 	} else if (obj->joe != 25) {
 		ast_test_status_update(test, "Object set was not actually applied to object despite it returning success\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(objectset_apply_handler)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "objectset_apply_handler";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object apply handler unit test";
+		info->description =
+			"Test object set apply handler call in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
+	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+		ast_test_status_update(test, "Failed to register 'test' object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	apply_handler_called = 0;
+
+	if (!(objset = ast_variable_new("joe", "25", ""))) {
+		ast_test_status_update(test, "Failed to create an object set, test could not occur\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_sorcery_objectset_apply(sorcery, obj, objset)) {
+		ast_test_status_update(test, "Failed to apply valid object set to object\n");
+		res = AST_TEST_FAIL;
+	} else if (!apply_handler_called) {
+		ast_test_status_update(test, "Apply handler was not called when it should have been\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -1886,6 +1949,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_diff);
 	AST_TEST_UNREGISTER(objectset_create);
 	AST_TEST_UNREGISTER(objectset_apply);
+	AST_TEST_UNREGISTER(objectset_apply_handler);
 	AST_TEST_UNREGISTER(objectset_apply_invalid);
 	AST_TEST_UNREGISTER(objectset_transform);
 	AST_TEST_UNREGISTER(changeset_create);
@@ -1924,6 +1988,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_diff);
 	AST_TEST_REGISTER(objectset_create);
 	AST_TEST_REGISTER(objectset_apply);
+	AST_TEST_REGISTER(objectset_apply_handler);
 	AST_TEST_REGISTER(objectset_apply_invalid);
 	AST_TEST_REGISTER(objectset_transform);
 	AST_TEST_REGISTER(changeset_create);
