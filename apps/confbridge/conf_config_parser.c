@@ -899,9 +899,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		break;
 	}
 
-	ast_cli(a->fd,"sound_join:           %s\n", conf_get_sound(CONF_SOUND_JOIN, b_profile.sounds));
-	ast_cli(a->fd,"sound_leave:          %s\n", conf_get_sound(CONF_SOUND_LEAVE, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
+	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_joined:     %s\n", conf_get_sound(CONF_SOUND_HAS_JOINED, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_left:       %s\n", conf_get_sound(CONF_SOUND_HAS_LEFT, b_profile.sounds));
 	ast_cli(a->fd,"sound_kicked:         %s\n", conf_get_sound(CONF_SOUND_KICKED, b_profile.sounds));
@@ -918,6 +917,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_unlocked_now:   %s\n", conf_get_sound(CONF_SOUND_UNLOCKED_NOW, b_profile.sounds));
 	ast_cli(a->fd,"sound_lockednow:      %s\n", conf_get_sound(CONF_SOUND_LOCKED_NOW, b_profile.sounds));
 	ast_cli(a->fd,"sound_error_menu:     %s\n", conf_get_sound(CONF_SOUND_ERROR_MENU, b_profile.sounds));
+	ast_cli(a->fd,"sound_join:           %s\n", conf_get_sound(CONF_SOUND_JOIN, b_profile.sounds));
+	ast_cli(a->fd,"sound_leave:          %s\n", conf_get_sound(CONF_SOUND_LEAVE, b_profile.sounds));
 	ast_cli(a->fd,"sound_participants_muted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_MUTED, b_profile.sounds));
 	ast_cli(a->fd,"sound_participants_unmuted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_UNMUTED, b_profile.sounds));
 	ast_cli(a->fd,"\n");
@@ -1241,6 +1242,7 @@ static int bridge_template_handler(const struct aco_option *opt, struct ast_vari
 	 * structure of a dynamic profile will need to be altered, a completely new sounds structure must be
 	 * created instead of simply holding a reference to the one built by the config file. */
 	ast_string_field_set(sounds, onlyperson, b_profile->sounds->onlyperson);
+	ast_string_field_set(sounds, onlyone, b_profile->sounds->onlyone);
 	ast_string_field_set(sounds, hasjoin, b_profile->sounds->hasjoin);
 	ast_string_field_set(sounds, hasleft, b_profile->sounds->hasleft);
 	ast_string_field_set(sounds, kicked, b_profile->sounds->kicked);
@@ -1257,6 +1259,8 @@ static int bridge_template_handler(const struct aco_option *opt, struct ast_vari
 	ast_string_field_set(sounds, unlockednow, b_profile->sounds->unlockednow);
 	ast_string_field_set(sounds, lockednow, b_profile->sounds->lockednow);
 	ast_string_field_set(sounds, errormenu, b_profile->sounds->errormenu);
+	ast_string_field_set(sounds, join, b_profile->sounds->join);
+	ast_string_field_set(sounds, leave, b_profile->sounds->leave);
 	ast_string_field_set(sounds, participantsmuted, b_profile->sounds->participantsmuted);
 	ast_string_field_set(sounds, participantsunmuted, b_profile->sounds->participantsunmuted);
 
