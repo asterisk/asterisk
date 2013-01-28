@@ -26,9 +26,13 @@
 /* Max version of IAX protocol we support */
 #define IAX_PROTO_VERSION 2
 
-/* NOTE: IT IS CRITICAL THAT IAX_MAX_CALLS BE A POWER OF 2. */
+/* NOTE: It is recommended that IAX_MAX_CALLS be a power of 2, but it is not
+ * required.  The maximum number of calls supported by the protocol is 32768.
+ *
+ * For LOW_MEMORY, we use 2049 for compatibility with earlier code because
+ * callno 2048 leaked out when the intended callno range was 2 - 2047. */
 #if defined(LOW_MEMORY)
-#define IAX_MAX_CALLS 2048
+#define IAX_MAX_CALLS 2049
 #else
 #define IAX_MAX_CALLS 32768
 #endif
