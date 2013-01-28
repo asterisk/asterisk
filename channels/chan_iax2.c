@@ -874,7 +874,7 @@ static const unsigned int CALLNO_POOL_BUCKETS = 2699;
  *
  * \note Contents protected by the iaxsl[] locks
  */
-static AST_LIST_HEAD_NOLOCK(, iax_frame) frame_queue[IAX_MAX_CALLS + 1];
+static AST_LIST_HEAD_NOLOCK(, iax_frame) frame_queue[IAX_MAX_CALLS];
 
 static struct ast_taskprocessor *transmit_processor;
 
@@ -1076,7 +1076,7 @@ static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
  * based on the local call number.  The local call number is used as the
  * index into the array where the associated pvt structure is stored.
  */
-static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS + 1];
+static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
 
 static struct ast_callid *iax_pvt_callid_get(int callno)
 {
@@ -1133,7 +1133,7 @@ static struct ao2_container *iax_transfercallno_pvts;
 
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
-#define TRUNK_CALL_START	IAX_MAX_CALLS / 2
+#define TRUNK_CALL_START	(IAX_MAX_CALLS / 2)
 
 /* Debug routines... */
 static struct sockaddr_in debugaddr;
@@ -2152,7 +2152,7 @@ static int make_trunk(unsigned short callno, int locked)
 		ast_log(LOG_WARNING, "Can't make trunk once a call has started!\n");
 		return -1;
 	}
-	if (callno & TRUNK_CALL_START) {
+	if (callno >= TRUNK_CALL_START) {
 		ast_log(LOG_WARNING, "Call %d is already a trunk\n", callno);
 		return -1;
 	}
@@ -2803,7 +2803,7 @@ static int create_callno_pools(void)
 	}
 
 	/* start at 2, 0 and 1 are reserved */
-	for (i = 2; i <= IAX_MAX_CALLS; i++) {
+	for (i = 2; i < IAX_MAX_CALLS; i++) {
 		struct callno_entry *callno_entry;
 
 		if (!(callno_entry = ao2_alloc(sizeof(*callno_entry), NULL))) {
