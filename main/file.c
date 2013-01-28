@@ -329,6 +329,15 @@ static void filestream_destructor(void *arg)
 	if (f->trans)
 		ast_translator_free_path(f->trans);
 
+	if (f->fmt->close) {
+		void (*closefn)(struct ast_filestream *) = f->fmt->close;
+		closefn(f);
+	}
+
+	if (f->f) {
+		fclose(f->f);
+	}
+
 	if (f->realfilename && f->filename) {
 		pid = ast_safe_fork(0);
 		if (!pid) {
@@ -345,12 +354,6 @@ static void filestream_destructor(void *arg)
 		free(f->filename);
 	if (f->realfilename)
 		free(f->realfilename);
-	if (f->fmt->close) {
-		void (*closefn)(struct ast_filestream *) = f->fmt->close;
-		closefn(f);
-	}
-	if (f->f)
-		fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
 	if (f->write_buffer) {
