@@ -39,6 +39,10 @@
 ; (defaults to queue_log)
 ;queue_log_name = queue_log
 ;
+; When using realtime for the queue log, use GMT for the timestamp
+; instead of localtime.  The default of this option is 'no'.
+;queue_log_realtime_use_gmt = yes
+;
 ; Log rotation strategy:
 ; none:  Do not perform any logrotation at all.  You should make
 ;        very sure to set up some external logrotate mechanism

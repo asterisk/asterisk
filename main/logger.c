@@ -111,6 +111,7 @@ static struct {
 	unsigned int queue_log:1;
 	unsigned int queue_log_to_file:1;
 	unsigned int queue_adaptive_realtime:1;
+	unsigned int queue_log_realtime_use_gmt:1;
 } logfiles = { 1 };
 
 static char hostname[MAXHOSTNAMELEN];
@@ -427,6 +428,9 @@ static void init_logger_chain(int locked, const char *altconf)
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name"))) {
 		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
 	}
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_realtime_use_gmt"))) {
+		logfiles.queue_log_realtime_use_gmt = ast_true(s);
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "exec_after_rotate"))) {
 		ast_copy_string(exec_after_rotate, s, sizeof(exec_after_rotate));
 	}
@@ -554,7 +558,7 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 
 	if (ast_check_realtime("queue_log")) {
 		tv = ast_tvnow();
-		ast_localtime(&tv, &tm, NULL);
+		ast_localtime(&tv, &tm, logfiles.queue_log_realtime_use_gmt ? "GMT" : NULL);
 		ast_strftime(time_str, sizeof(time_str), "%F %T.%6q", &tm);
 		va_start(ap, fmt);
 		vsnprintf(qlog_msg, sizeof(qlog_msg), fmt, ap);
