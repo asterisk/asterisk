@@ -10041,14 +10041,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    (sscanf(m, "audio %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=audio 0 " + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=audio 0 " + protocol + " " + codecs + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 3))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=audio 0 %s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=audio 0 %s %s\r\n", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring audio media offer because port number is zero\n");
@@ -10123,14 +10123,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    (sscanf(m, "video %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=video 0 " + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=video 0 " + protocol + " " + codecs + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 1 + strlen(codecs) + 3))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=video 0 %s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=video 0 %s %s\r\n", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring video stream offer because port number is zero\n");
@@ -10201,14 +10201,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    (sscanf(m, "text %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=text 0 " + protocol + " " + codecs + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(9 + strlen(protocol) + 1 + strlen(codecs) + 1))) {
+				 * length is "m=text 0 " + protocol + " " + codecs + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(9 + strlen(protocol) + 1 + strlen(codecs) + 3))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				sprintf(offer->decline_m_line, "m=text 0 %s %s", protocol, codecs);
+				sprintf(offer->decline_m_line, "m=text 0 %s %s\r\n", protocol, codecs);
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring text stream offer because port number is zero\n");
@@ -10264,14 +10264,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if (((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
 			     (sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0))) {
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=image 0 udptl t38" + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(20))) {
+				 * length is "m=image 0 udptl t38" + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(22))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be exactly the right length */
-				strcpy(offer->decline_m_line, "m=image 0 udptl t38");
+				strcpy(offer->decline_m_line, "m=image 0 udptl t38\r\n");
 
 				if (x == 0) {
 					ast_log(LOG_WARNING, "Ignoring image stream offer because port number is zero\n");
@@ -10313,14 +10313,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if ((sscanf(m, "%19s %30u/%30u %n", type, &x, &numberofports, &len) == 3 && len > 0) ||
 			     (sscanf(m, "%19s %30u %n", type, &x, &len) == 2 && len > 0)) {
 				/* produce zero-port m-line since it may be needed later
-				 * length is "m=" + type + " 0 " + remainder + "\0" */
-				if (!(offer->decline_m_line = ast_malloc(2 + strlen(type) + 3 + strlen(m + len) + 1))) {
+				 * length is "m=" + type + " 0 " + remainder + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(2 + strlen(type) + 3 + strlen(m + len) + 3))) {
 					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
 					res = -1;
 					goto process_sdp_cleanup;
 				}
 				/* guaranteed to be long enough */
-				sprintf(offer->decline_m_line, "m=%s 0 %s", type, m + len);
+				sprintf(offer->decline_m_line, "m=%s 0 %s\r\n", type, m + len);
 				continue;
 			} else {
 				ast_log(LOG_WARNING, "Unsupported top-level media type in offer: %s\n", m);
