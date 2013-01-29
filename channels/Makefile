@@ -64,13 +64,14 @@ endif
 clean::
 	$(MAKE) -C misdn clean
 	rm -f sip/*.o sip/*.i
+	rm -f iax2/*.o iax2/*.i
 	rm -f h323/libchanh323.a h323/Makefile.ast h323/*.o h323/*.dep
 
 dist-clean::
 	rm -f h323/Makefile
 
-$(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
-iax2-parser.o iax2-provision.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_iax2)
+$(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): $(subst .c,.o,$(wildcard iax2/*.c))
+$(subst .c,.o,$(wildcard iax2/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_iax2)
 $(if $(filter chan_sip,$(EMBEDDED_MODS)),modules.link,chan_sip.so): $(subst .c,.o,$(wildcard sip/*.c))
 $(subst .c,.o,$(wildcard sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_sip)
 $(if $(filter chan_dahdi,$(EMBEDDED_MODS)),modules.link,chan_dahdi.so): sig_analog.o sig_pri.o sig_ss7.o

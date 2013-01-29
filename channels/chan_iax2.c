@@ -102,9 +102,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/netsock2.h"
 
-#include "iax2.h"
-#include "iax2-parser.h"
-#include "iax2-provision.h"
+#include "iax2/include/iax2.h"
+#include "iax2/include/parser.h"
+#include "iax2/include/provision.h"
 #include "jitterbuf.h"
 
 /*** DOCUMENTATION

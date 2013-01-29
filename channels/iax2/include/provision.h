@@ -13,7 +13,10 @@
  *  \brief IAX2 Provisioning protocol
  */
 
-#include "iax2-parser.h"
+#ifndef __IAX2_PROVISION_H
+#define __IAX2_PROVISION_H
+
+#include "parser.h"
 
 #define PROV_IE_USEDHCP 	1	/* Presense only */
 #define PROV_IE_IPADDR		2	/* 32-bit */
@@ -51,3 +54,5 @@ int iax_provision_unload(void);
 int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, const char *template, int force);
 int iax_provision_version(unsigned int *signature, const char *template, int force);
 char *iax_prov_complete_template(const char *line, const char *word, int pos, int state);
+
+#endif

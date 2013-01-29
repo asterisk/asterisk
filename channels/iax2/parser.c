@@ -42,9 +42,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
 
-#include "iax2.h"
-#include "iax2-parser.h"
-#include "iax2-provision.h"
+#include "include/iax2.h"
+#include "include/parser.h"
+#include "include/provision.h"
 
 static int frames = 0;
 static int iframes = 0;
