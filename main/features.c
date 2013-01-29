@@ -5099,7 +5099,21 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 				snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 				pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
 				pbx_builtin_setvar_helper(chan, "PARKEDLOT", pu->parkinglot->name);
-				set_c_e_p(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1);
+
+				/* Handle fallback when extensions don't exist here since that logic was removed from pbx */
+				if (ast_exists_extension(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1, NULL)) {
+					set_c_e_p(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1);
+				} else if (ast_exists_extension(chan, pu->parkinglot->cfg.comebackcontext, "s", 1, NULL)) {
+					ast_verb(2, "Can not start %s at %s,%s,1. Using 's@%s' instead.\n", ast_channel_name(chan),
+						pu->parkinglot->cfg.comebackcontext, peername_flat, pu->parkinglot->cfg.comebackcontext);
+					set_c_e_p(chan, pu->parkinglot->cfg.comebackcontext, "s", 1);
+				} else {
+					ast_verb(2, "Can not start %s at %s,%s,1 and exten 's@%s' does not exist. Using 's@default'\n",
+						ast_channel_name(chan),
+						pu->parkinglot->cfg.comebackcontext, peername_flat,
+						pu->parkinglot->cfg.comebackcontext);
+					set_c_e_p(chan, "default", "s", 1);
+				}
 			}
 		} else {
 			/*
