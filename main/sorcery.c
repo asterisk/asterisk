@@ -39,6 +39,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock2.h"
 #include "asterisk/module.h"
 
+/* To prevent DEBUG_FD_LEAKS from interfering with things we undef open and close */
+#undef open
+#undef close
+
 /*! \brief Number of buckets for wizards (should be prime for performance reasons) */
 #define WIZARD_BUCKETS 7
 

@@ -195,7 +195,7 @@ AST_TEST_DEFINE(wizard_registration)
 	return AST_TEST_PASS;
 }
 
-AST_TEST_DEFINE(open)
+AST_TEST_DEFINE(sorcery_open)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
 
@@ -1937,7 +1937,7 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple_all)
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
-	AST_TEST_UNREGISTER(open);
+	AST_TEST_UNREGISTER(sorcery_open);
 	AST_TEST_UNREGISTER(apply_default);
 	AST_TEST_UNREGISTER(apply_config);
 	AST_TEST_UNREGISTER(object_register);
@@ -1976,7 +1976,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(wizard_registration);
-	AST_TEST_REGISTER(open);
+	AST_TEST_REGISTER(sorcery_open);
 	AST_TEST_REGISTER(apply_default);
 	AST_TEST_REGISTER(apply_config);
 	AST_TEST_REGISTER(object_register);
