@@ -49,6 +49,7 @@ extern struct ast_srtp_policy_res *res_srtp_policy;
 struct sdp_crypto {
 	char *a_crypto;
 	unsigned char local_key[SRTP_MASTER_LEN];
+	char *tag;
 	char local_key64[SRTP_MASTER_LEN64];
 	unsigned char remote_key[SRTP_MASTER_LEN];
 };
@@ -64,6 +65,8 @@ void sdp_crypto_destroy(struct sdp_crypto *crypto)
 {
 	ast_free(crypto->a_crypto);
 	crypto->a_crypto = NULL;
+	ast_free(crypto->tag);
+	crypto->tag = NULL;
 	ast_free(crypto);
 }
 
@@ -197,10 +200,10 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 	char *key_salt = NULL;
 	char *lifetime = NULL;
 	int found = 0;
-	int attr_len = strlen(attr);
 	int key_len = 0;
 	int suite_val = 0;
 	unsigned char remote_key[SRTP_MASTER_LEN];
+	int taglen = 0;
 
 	if (!ast_rtp_engine_srtp_is_registered()) {
 		return -1;
@@ -227,9 +230,11 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 	if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_80")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_80;
 		ast_set_flag(srtp, SRTP_CRYPTO_TAG_80);
+		taglen = 80;
 	} else if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_32")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_32;
 		ast_set_flag(srtp, SRTP_CRYPTO_TAG_32);
+		taglen = 32;
 	} else {
 		ast_log(LOG_WARNING, "Unsupported crypto suite: %s\n", suite);
 		return -1;
@@ -276,32 +281,33 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 		return -1;
 	}
 
-	if (!p->a_crypto) {
-		if (!(p->a_crypto = ast_calloc(1, attr_len + 11))) {
-			ast_log(LOG_ERROR, "Could not allocate memory for a_crypto\n");
+	if (!p->tag) {
+		ast_log(LOG_DEBUG, "Accepting crypto tag %s\n", tag);
+		p->tag = ast_strdup(tag);
+		if (!p->tag) {
+			ast_log(LOG_ERROR, "Could not allocate memory for tag\n");
 			return -1;
 		}
-		snprintf(p->a_crypto, attr_len + 10, "a=crypto:%s %s inline:%s\r\n", tag, suite, p->local_key64);
 	}
-	return 0;
+
+	/* Finally, rebuild the crypto line */
+	return sdp_crypto_offer(p, taglen);
 }
 
 int sdp_crypto_offer(struct sdp_crypto *p, int taglen)
 {
-	char crypto_buf[128];
-
+	/* Rebuild the crypto line */
 	if (p->a_crypto) {
-		return 0;
+		ast_free(p->a_crypto);
 	}
 
-	if (snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 AES_CM_128_HMAC_SHA1_%i inline:%s\r\n",
-			taglen, p->local_key64) < 1) {
+	if (ast_asprintf(&p->a_crypto, "a=crypto:%s AES_CM_128_HMAC_SHA1_%i inline:%s\r\n",
+			 p->tag ? p->tag : "1", taglen, p->local_key64) == -1) {
+			ast_log(LOG_ERROR, "Could not allocate memory for crypto line\n");
 		return -1;
 	}
 
-	if (!(p->a_crypto = ast_strdup(crypto_buf))) {
-		return -1;
-	}
+	ast_log(LOG_DEBUG, "Crypto line: %s", p->a_crypto);
 
 	return 0;
 }
