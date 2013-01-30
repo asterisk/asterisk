@@ -15516,7 +15516,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 {
 #define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
-	int targetnum = 0;
+	ast_group_t targetnum = 0;
 	int filtertype = 0;
 	struct dahdi_pvt *tmp = NULL;
 	char tmps[20] = "";
@@ -15543,9 +15543,10 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc == 5) {
 		if (!strcasecmp(a->argv[3], "group")) {
 			targetnum = atoi(a->argv[4]);
-			if ((targetnum < 0) || (targetnum > 63))
+			if (63 < targetnum) {
 				return CLI_SHOWUSAGE;
-			targetnum = 1 << targetnum;
+			}
+			targetnum = ((ast_group_t) 1) << targetnum;
 			filtertype = 1;
 		} else if (!strcasecmp(a->argv[3], "context")) {
 			filtertype = 2;
