@@ -11169,15 +11169,26 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 	int found = FALSE;
 	char s[256];
 	unsigned int x;
+	char *attrib = ast_strdupa(a);
+	char *pos;
 
 	if (initialize_udptl(p)) {
 		return found;
 	}
 
-	if ((sscanf(a, "T38FaxMaxBuffer:%30u", &x) == 1)) {
+	/* Due to a typo in an IANA registration of one of the T.38 attributes,
+	 * RFC5347 section 2.5.2 recommends that all T.38 attributes be parsed in
+	 * a case insensitive manner. Hence, the importance of proof reading (and
+	 * code reviews).
+	 */
+	for (pos = attrib; *pos; ++pos) {
+		*pos = tolower(*pos);
+	}
+
+	if ((sscanf(attrib, "t38faxmaxbuffer:%30u", &x) == 1)) {
 		ast_debug(3, "MaxBufferSize:%d\n", x);
 		found = TRUE;
-	} else if ((sscanf(a, "T38MaxBitRate:%30u", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30u", &x) == 1)) {
+	} else if ((sscanf(attrib, "t38maxbitrate:%30u", &x) == 1) || (sscanf(attrib, "t38faxmaxrate:%30u", &x) == 1)) {
 		ast_debug(3, "T38MaxBitRate: %d\n", x);
 		switch (x) {
 		case 14400:
@@ -11200,11 +11211,11 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			break;
 		}
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxVersion:%30u", &x) == 1)) {
+	} else if ((sscanf(attrib, "t38faxversion:%30u", &x) == 1)) {
 		ast_debug(3, "FaxVersion: %u\n", x);
 		p->t38.their_parms.version = x;
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxMaxDatagram:%30u", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30u", &x) == 1)) {
+	} else if ((sscanf(attrib, "t38faxmaxdatagram:%30u", &x) == 1) || (sscanf(attrib, "t38maxdatagram:%30u", &x) == 1)) {
 		/* override the supplied value if the configuration requests it */
 		if (((signed int) p->t38_maxdatagram >= 0) && ((unsigned int) p->t38_maxdatagram > x)) {
 			ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
@@ -11213,8 +11224,8 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		ast_debug(3, "FaxMaxDatagram: %u\n", x);
 		ast_udptl_set_far_max_datagram(p->udptl, x);
 		found = TRUE;
-	} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
-		if (sscanf(a, "T38FaxFillBitRemoval:%30u", &x) == 1) {
+	} else if ((strncmp(attrib, "t38faxfillbitremoval", 20) == 0)) {
+		if (sscanf(attrib, "t38faxfillbitremoval:%30u", &x) == 1) {
 			ast_debug(3, "FillBitRemoval: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.fill_bit_removal = TRUE;
@@ -11224,8 +11235,8 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			p->t38.their_parms.fill_bit_removal = TRUE;
 		}
 		found = TRUE;
-	} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
-		if (sscanf(a, "T38FaxTranscodingMMR:%30u", &x) == 1) {
+	} else if ((strncmp(attrib, "t38faxtranscodingmmr", 20) == 0)) {
+		if (sscanf(attrib, "t38faxtranscodingmmr:%30u", &x) == 1) {
 			ast_debug(3, "Transcoding MMR: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_mmr = TRUE;
@@ -11235,8 +11246,8 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			p->t38.their_parms.transcoding_mmr = TRUE;
 		}
 		found = TRUE;
-	} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
-		if (sscanf(a, "T38FaxTranscodingJBIG:%30u", &x) == 1) {
+	} else if ((strncmp(attrib, "t38faxtranscodingjbig", 21) == 0)) {
+		if (sscanf(attrib, "t38faxtranscodingjbig:%30u", &x) == 1) {
 			ast_debug(3, "Transcoding JBIG: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_jbig = TRUE;
@@ -11246,14 +11257,14 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			p->t38.their_parms.transcoding_jbig = TRUE;
 		}
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
+	} else if ((sscanf(attrib, "t38faxratemanagement:%255s", s) == 1)) {
 		ast_debug(3, "RateManagement: %s\n", s);
 		if (!strcasecmp(s, "localTCF"))
 			p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
 		else if (!strcasecmp(s, "transferredTCF"))
 			p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
+	} else if ((sscanf(attrib, "t38faxudpec:%255s", s) == 1)) {
 		ast_debug(3, "UDP EC: %s\n", s);
 		if (!strcasecmp(s, "t38UDPRedundancy")) {
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
