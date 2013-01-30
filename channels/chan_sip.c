@@ -34166,7 +34166,6 @@ static int load_module(void)
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create I/O context\n");
-		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -34174,6 +34173,7 @@ static int load_module(void)
 
 	can_parse_xml = sip_is_xml_parsable();
 	if (reload_config(sip_reloadreason)) {	/* Load the configuration from sip.conf */
+		ast_sip_api_provider_unregister();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -34244,11 +34244,13 @@ static int load_module(void)
 	initialize_escs();
 
 	if (sip_epa_register(&cc_epa_static_data)) {
+		ast_sip_api_provider_unregister();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (sip_reqresp_parser_init() == -1) {
 		ast_log(LOG_ERROR, "Unable to initialize the SIP request and response parser\n");
+		ast_sip_api_provider_unregister();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -34257,13 +34259,16 @@ static int load_module(void)
 		 * in incoming PUBLISH requests
 		 */
 		if (ast_cc_agent_register(&sip_cc_agent_callbacks)) {
+			ast_sip_api_provider_unregister();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 	if (ast_cc_monitor_register(&sip_cc_monitor_callbacks)) {
+		ast_sip_api_provider_unregister();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(sip_monitor_instances = ao2_container_alloc(37, sip_monitor_instance_hash_fn, sip_monitor_instance_cmp_fn))) {
+		ast_sip_api_provider_unregister();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
