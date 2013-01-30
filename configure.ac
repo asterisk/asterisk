@@ -178,7 +178,7 @@ case "${host_os}" in
      OSARCH=cygwin
      PBX_WINARCH=1
      ;;
-     linux-gnueabi)
+     linux-gnueabi*)
      OSARCH=linux-gnu
      ;;
      kfreebsd*-gnu)
