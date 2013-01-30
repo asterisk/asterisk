@@ -468,6 +468,11 @@ static void *ical_load_calendar(void *void_data)
 
 		ast_debug(10, "Refreshing after %d minute timeout\n", pvt->owner->refresh);
 
+		/* Free the old calendar data */
+		if (pvt->data) {
+			icalcomponent_free(pvt->data);
+			pvt->data = NULL;
+		}
 		if (!(pvt->data = fetch_icalendar(pvt))) {
 			ast_log(LOG_WARNING, "Unable to parse iCalendar '%s'\n", pvt->owner->name);
 			continue;
