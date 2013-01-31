@@ -136,8 +136,6 @@ struct ast_bridge_tech_optimizations {
  * \brief Structure that contains information regarding a channel in a bridge
  */
 struct ast_bridge_channel {
-	/*! Lock to protect this data structure */
-	ast_mutex_t lock;
 	/*! Condition, used if we want to wake up a thread waiting on the bridged channel */
 	ast_cond_t cond;
 	/*! Current bridged channel state */
