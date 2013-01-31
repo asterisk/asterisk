@@ -3012,7 +3012,8 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 		 */
 		do {
 			AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
-			struct ast_frame *cur, *new;
+			struct ast_frame *cur;
+			struct ast_frame *new_frame;
 			int timeout_ms = MAX(delay, 500);
 			unsigned int done = 0;
 			struct timeval start;
@@ -3043,11 +3044,11 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 					break;
 				}
 
-				if ((new = ast_frisolate(cur)) != cur) {
+				if ((new_frame = ast_frisolate(cur)) != cur) {
 					ast_frfree(cur);
 				}
 
-				AST_LIST_INSERT_HEAD(&frames, new, frame_list);
+				AST_LIST_INSERT_HEAD(&frames, new_frame, frame_list);
 
 				/* if a specific delay period was requested, continue
 				 * until that delay has passed. don't stop just because
@@ -3057,7 +3058,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 					continue;
 				}
 
-				switch (new->frametype) {
+				switch (new_frame->frametype) {
 					/* all of these frametypes qualify as 'media' */
 				case AST_FRAME_VOICE:
 				case AST_FRAME_VIDEO:
