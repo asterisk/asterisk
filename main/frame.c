@@ -692,6 +692,7 @@ void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, ch
 		break;
 	default:
 		ast_copy_string(subclass, "Unknown Subclass", slen);
+		break;
 	}
 }
 
@@ -734,6 +735,7 @@ void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 		break;
 	default:
 		snprintf(ftype, len, "Unknown Frametype '%d'", frame_type);
+		break;
 	}
 }
 

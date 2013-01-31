@@ -209,7 +209,8 @@ static void print_frame(struct ast_frame *frame)
 	switch (frame->frametype) {
 	case AST_FRAME_DTMF_END:
 		ast_verbose("FrameType: DTMF END\n");
-		ast_verbose("Digit: %d\n", frame->subclass.integer);
+		ast_verbose("Digit: 0x%02X '%c'\n", frame->subclass.integer,
+			frame->subclass.integer < ' ' ? ' ' : frame->subclass.integer);
 		break;
 	case AST_FRAME_VOICE:
 		ast_verbose("FrameType: VOICE\n");
@@ -372,7 +373,8 @@ static void print_frame(struct ast_frame *frame)
 		break;
 	case AST_FRAME_DTMF_BEGIN:
 		ast_verbose("FrameType: DTMF BEGIN\n");
-		ast_verbose("Digit: %d\n", frame->subclass.integer);
+		ast_verbose("Digit: 0x%02X '%c'\n", frame->subclass.integer,
+			frame->subclass.integer < ' ' ? ' ' : frame->subclass.integer);
 		break;
 	}
 
