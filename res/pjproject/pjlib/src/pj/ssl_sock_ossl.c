@@ -602,8 +602,8 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
     /* Setup SSL BIOs */
     ssock->ossl_rbio = BIO_new(BIO_s_mem());
     ssock->ossl_wbio = BIO_new(BIO_s_mem());
-    BIO_set_close(ssock->ossl_rbio, BIO_CLOSE);
-    BIO_set_close(ssock->ossl_wbio, BIO_CLOSE);
+    (void)BIO_set_close(ssock->ossl_rbio, BIO_CLOSE);
+    (void)BIO_set_close(ssock->ossl_wbio, BIO_CLOSE);
     SSL_set_bio(ssock->ossl_ssl, ssock->ossl_rbio, ssock->ossl_wbio);
 
     return PJ_SUCCESS;
@@ -1145,7 +1145,7 @@ static pj_status_t flush_write_bio(pj_ssl_sock_t *ssock,
     }
 
     /* Reset write BIO after flushed */
-    BIO_reset(ssock->ossl_wbio);
+    (void)BIO_reset(ssock->ossl_wbio);
 
     if (status == PJ_EPENDING) {
 	/* Update write state */
