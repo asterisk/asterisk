@@ -2421,8 +2421,8 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 
 #define CHECK_BLOCKING(c) do { 	 \
 	if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
-		if (option_debug) \
-			ast_log(LOG_DEBUG, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), (c)->name, (long) (c)->blocker, (c)->blockproc); \
+		ast_debug(1, "Thread %p is blocking '%s', already blocked by thread %p in procedure %s\n", \
+			(void *) pthread_self(), (c)->name, (void *) (c)->blocker, (c)->blockproc); \
 	} else { \
 		(c)->blocker = pthread_self(); \
 		(c)->blockproc = __PRETTY_FUNCTION__; \
