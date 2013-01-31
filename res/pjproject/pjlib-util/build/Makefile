@@ -69,12 +69,16 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjlib pjlib-test clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJLIB_UTIL_LIB) $(UTIL_TEST_EXE)
 
-pjlib-util:
+pjlib-util: $(PJLIB_UTIL_LIB)
+$(PJLIB_UTIL_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJLIB_UTIL app=pjlib-util $(PJLIB_UTIL_LIB)
 
-pjlib-util-test:
+pjlib-util-test: $(UTIL_TEST_EXE)
+$(UTIL_TEST_EXE): $(PJLIB_UTIL_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=UTIL_TEST app=pjlib-util-test $(UTIL_TEST_EXE)
 
 .PHONY: ../lib/pjlib-util.ko

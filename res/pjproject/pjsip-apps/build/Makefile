@@ -57,8 +57,6 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 TARGETS := pjsua pjsystest samples
 
-.PHONY: $(TARGETS)
-
 all: $(TARGETS)
 
 doc:
@@ -66,12 +64,16 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjsua clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJSUA_EXE) $(PJSYSTEST_EXE)
 
-pjsua:
+pjsua: $(PJSUA_EXE)
+$(PJSUA_EXE):
 	$(MAKE) -f $(RULES_MAK) APP=PJSUA app=pjsua $(PJSUA_EXE)
 
-pjsystest:
+pjsystest: $(PJSYSTEST_EXE)
+$(PJSYSTEST_EXE):
 	$(MAKE) -f $(RULES_MAK) APP=PJSYSTEST app=pjsystest $(PJSYSTEST_EXE)
 
 samples:

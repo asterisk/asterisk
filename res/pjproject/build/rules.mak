@@ -72,6 +72,7 @@ print_common:
 	@echo DEPFLAGS=$(DEPFLAGS)
 	@echo CC=$(CC)
 	@echo AR=$(AR)
+	@echo AR_FLAGS=$(AR_FLAGS)
 	@echo RANLIB=$(RANLIB)
 
 print_bin: print_common
@@ -84,7 +85,7 @@ print_lib: print_common
 
 $(LIB): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
 	if test ! -d $(LIBDIR); then $(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)),$(HOST_MKDIR)); fi
-	$(AR) $(LIB) $(OBJS)
+	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 	$(RANLIB) $(LIB)
 
 $(SHLIB): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
