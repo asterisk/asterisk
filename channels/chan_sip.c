@@ -25304,12 +25304,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	parse_oli(req, p->owner);
 
 	/* Session-Timers */
-	if ((p->sipoptions & SIP_OPT_TIMER) && !ast_strlen_zero(sip_get_header(req, "Session-Expires"))) {
+	if ((p->sipoptions & SIP_OPT_TIMER)) {
 		enum st_refresher_param st_ref_param;
 
 		/* The UAC has requested session-timers for this session. Negotiate
 		the session refresh interval and who will be the refresher */
-		ast_debug(2, "Incoming INVITE with 'timer' option supported and \"Session-Expires\" header.\n");
+		ast_debug(2, "Incoming INVITE with 'timer' option supported\n");
 
 		/* Allocate Session-Timers struct w/in the dialog */
 		if (!p->stimer)
@@ -25317,21 +25317,25 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 		/* Parse the Session-Expires header */
 		p_uac_se_hdr = sip_get_header(req, "Session-Expires");
-		rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref_param);
-		tmp_st_ref = (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) ? SESSION_TIMER_REFRESHER_THEM : SESSION_TIMER_REFRESHER_US;
-		if (rtn != 0) {
-			transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
-			p->invitestate = INV_COMPLETED;
-			if (!p->lastinvite) {
-				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		if (!ast_strlen_zero(p_uac_se_hdr)) {
+			ast_debug(2, "INVITE also has \"Session-Expires\" header.\n");
+			rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref_param);
+			tmp_st_ref = (st_ref_param == SESSION_TIMER_REFRESHER_PARAM_UAC) ? SESSION_TIMER_REFRESHER_THEM : SESSION_TIMER_REFRESHER_US;
+			if (rtn != 0) {
+				transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
+				p->invitestate = INV_COMPLETED;
+				if (!p->lastinvite) {
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				}
+				res = INV_REQ_ERROR;
+				goto request_invite_cleanup;
 			}
-			res = INV_REQ_ERROR;
-			goto request_invite_cleanup;
 		}
 
 		/* Parse the Min-SE header */
 		p_uac_min_se = sip_get_header(req, "Min-SE");
 		if (!ast_strlen_zero(p_uac_min_se)) {
+			ast_debug(2, "INVITE also has \"Min-SE\" header.\n");
 			rtn = parse_minse(p_uac_min_se, &uac_min_se);
 			if (rtn != 0) {
 				transmit_response_reliable(p, "400 Min-SE Invalid Syntax", req);
@@ -25371,6 +25375,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				} else {
 					st_interval = uac_max_se;
 				}
+			} else if (uac_min_se > 0) {
+				int dlg_max_se = st_get_se(p, TRUE);
+				st_interval = MAX(dlg_max_se, uac_min_se);
 			} else {
 				/* Set to default max value */
 				st_interval = global_max_se;
