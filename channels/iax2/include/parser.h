@@ -18,6 +18,7 @@
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H
 
+#include "asterisk/frame.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/crypto.h"
 #include "iax2.h"

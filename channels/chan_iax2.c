@@ -64,7 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <regex.h>
 
-#include "asterisk/paths.h"	/* need ast_config_AST_DATA_DIR for firmware */
+#include "asterisk/paths.h"
 
 #include "asterisk/lock.h"
 #include "asterisk/frame.h" 
@@ -103,6 +103,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock2.h"
 
 #include "iax2/include/iax2.h"
+#include "iax2/include/firmware.h"
 #include "iax2/include/parser.h"
 #include "iax2/include/provision.h"
 #include "jitterbuf.h"
@@ -575,15 +576,6 @@ struct iax2_trunk_peer {
 
 static AST_LIST_HEAD_STATIC(tpeers, iax2_trunk_peer);
 
-struct iax_firmware {
-	AST_LIST_ENTRY(iax_firmware) list;
-	int fd;
-	int mmaplen;
-	int dead;
-	struct ast_iax2_firmware_header *fwh;
-	unsigned char *buf;
-};
-
 enum iax_reg_state {
 	REG_STATE_UNREGISTERED = 0,
 	REG_STATE_REGSENT,
@@ -949,8 +941,6 @@ struct callno_entry {
 	/*! was this callno calltoken validated or not */
 	unsigned char validated;
 };
-
-static AST_LIST_HEAD_STATIC(firmwares, iax_firmware);
 
 enum {
 	/*! Extension exists */
@@ -3083,253 +3073,6 @@ static int iax2_queue_control_data(int callno,
 		ast_channel_unlock(iaxs[callno]->owner);
 	}
 	return 0;
-}
-static void destroy_firmware(struct iax_firmware *cur)
-{
-	/* Close firmware */
-	if (cur->fwh) {
-		munmap((void*)cur->fwh, ntohl(cur->fwh->datalen) + sizeof(*(cur->fwh)));
-	}
-	close(cur->fd);
-	ast_free(cur);
-}
-
-static int try_firmware(char *s)
-{
-	struct stat stbuf;
-	struct iax_firmware *cur = NULL;
-	int ifd, fd, res, len, chunk;
-	struct ast_iax2_firmware_header *fwh, fwh2;
-	struct MD5Context md5;
-	unsigned char sum[16], buf[1024];
-	char *s2, *last;
-
-	s2 = ast_alloca(strlen(s) + 100);
-
-	last = strrchr(s, '/');
-	if (last)
-		last++;
-	else
-		last = s;
-
-	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
-
-	if (stat(s, &stbuf) < 0) {
-		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
-		return -1;
-	}
-
-	/* Make sure it's not a directory */
-	if (S_ISDIR(stbuf.st_mode))
-		return -1;
-	ifd = open(s, O_RDONLY);
-	if (ifd < 0) {
-		ast_log(LOG_WARNING, "Cannot open '%s': %s\n", s, strerror(errno));
-		return -1;
-	}
-	fd = open(s2, O_RDWR | O_CREAT | O_EXCL, AST_FILE_MODE);
-	if (fd < 0) {
-		ast_log(LOG_WARNING, "Cannot open '%s' for writing: %s\n", s2, strerror(errno));
-		close(ifd);
-		return -1;
-	}
-	/* Unlink our newly created file */
-	unlink(s2);
-	
-	/* Now copy the firmware into it */
-	len = stbuf.st_size;
-	while(len) {
-		chunk = len;
-		if (chunk > sizeof(buf))
-			chunk = sizeof(buf);
-		res = read(ifd, buf, chunk);
-		if (res != chunk) {
-			ast_log(LOG_WARNING, "Only read %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
-			close(ifd);
-			close(fd);
-			return -1;
-		}
-		res = write(fd, buf, chunk);
-		if (res != chunk) {
-			ast_log(LOG_WARNING, "Only write %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
-			close(ifd);
-			close(fd);
-			return -1;
-		}
-		len -= chunk;
-	}
-	close(ifd);
-	/* Return to the beginning */
-	lseek(fd, 0, SEEK_SET);
-	if ((res = read(fd, &fwh2, sizeof(fwh2))) != sizeof(fwh2)) {
-		ast_log(LOG_WARNING, "Unable to read firmware header in '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	if (ntohl(fwh2.magic) != IAX_FIRMWARE_MAGIC) {
-		ast_log(LOG_WARNING, "'%s' is not a valid firmware file\n", s);
-		close(fd);
-		return -1;
-	}
-	if (ntohl(fwh2.datalen) != (stbuf.st_size - sizeof(fwh2))) {
-		ast_log(LOG_WARNING, "Invalid data length in firmware '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	if (fwh2.devname[sizeof(fwh2.devname) - 1] || ast_strlen_zero((char *)fwh2.devname)) {
-		ast_log(LOG_WARNING, "No or invalid device type specified for '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	fwh = (struct ast_iax2_firmware_header*)mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
-	if (fwh == MAP_FAILED) {
-		ast_log(LOG_WARNING, "mmap failed: %s\n", strerror(errno));
-		close(fd);
-		return -1;
-	}
-	MD5Init(&md5);
-	MD5Update(&md5, fwh->data, ntohl(fwh->datalen));
-	MD5Final(sum, &md5);
-	if (memcmp(sum, fwh->chksum, sizeof(sum))) {
-		ast_log(LOG_WARNING, "Firmware file '%s' fails checksum\n", s);
-		munmap((void*)fwh, stbuf.st_size);
-		close(fd);
-		return -1;
-	}
-
-	AST_LIST_TRAVERSE(&firmwares, cur, list) {
-		if (!strcmp((char *)cur->fwh->devname, (char *)fwh->devname)) {
-			/* Found a candidate */
-			if (cur->dead || (ntohs(cur->fwh->version) < ntohs(fwh->version)))
-				/* The version we have on loaded is older, load this one instead */
-				break;
-			/* This version is no newer than what we have.  Don't worry about it.
-			   We'll consider it a proper load anyhow though */
-			munmap((void*)fwh, stbuf.st_size);
-			close(fd);
-			return 0;
-		}
-	}
-	
-	if (!cur && ((cur = ast_calloc(1, sizeof(*cur))))) {
-		cur->fd = -1;
-		AST_LIST_INSERT_TAIL(&firmwares, cur, list);
-	}
-	
-	if (cur) {
-		if (cur->fwh)
-			munmap((void*)cur->fwh, cur->mmaplen);
-		if (cur->fd > -1)
-			close(cur->fd);
-		cur->fwh = fwh;
-		cur->fd = fd;
-		cur->mmaplen = stbuf.st_size;
-		cur->dead = 0;
-	}
-	
-	return 0;
-}
-
-static int iax_check_version(char *dev)
-{
-	int res = 0;
-	struct iax_firmware *cur = NULL;
-
-	if (ast_strlen_zero(dev))
-		return 0;
-
-	AST_LIST_LOCK(&firmwares);
-	AST_LIST_TRAVERSE(&firmwares, cur, list) {
-		if (!strcmp(dev, (char *)cur->fwh->devname)) {
-			res = ntohs(cur->fwh->version);
-			break;
-		}
-	}
-	AST_LIST_UNLOCK(&firmwares);
-
-	return res;
-}
-
-static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev, unsigned int desc)
-{
-	int res = -1;
-	unsigned int bs = desc & 0xff;
-	unsigned int start = (desc >> 8) & 0xffffff;
-	unsigned int bytes;
-	struct iax_firmware *cur;
-
-	if (ast_strlen_zero((char *)dev) || !bs)
-		return -1;
-
-	start *= bs;
-	
-	AST_LIST_LOCK(&firmwares);
-	AST_LIST_TRAVERSE(&firmwares, cur, list) {
-		if (strcmp((char *)dev, (char *)cur->fwh->devname))
-			continue;
-		iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
-		if (start < ntohl(cur->fwh->datalen)) {
-			bytes = ntohl(cur->fwh->datalen) - start;
-			if (bytes > bs)
-				bytes = bs;
-			iax_ie_append_raw(ied, IAX_IE_FWBLOCKDATA, cur->fwh->data + start, bytes);
-		} else {
-			bytes = 0;
-			iax_ie_append(ied, IAX_IE_FWBLOCKDATA);
-		}
-		if (bytes == bs)
-			res = 0;
-		else
-			res = 1;
-		break;
-	}
-	AST_LIST_UNLOCK(&firmwares);
-
-	return res;
-}
-
-
-static void reload_firmware(int unload)
-{
-	struct iax_firmware *cur = NULL;
-	DIR *fwd;
-	struct dirent *de;
-	char dir[256], fn[256];
-
-	AST_LIST_LOCK(&firmwares);
-
-	/* Mark all as dead */
-	AST_LIST_TRAVERSE(&firmwares, cur, list)
-		cur->dead = 1;
-
-	/* Now that we have marked them dead... load new ones */
-	if (!unload) {
-		snprintf(dir, sizeof(dir), "%s/firmware/iax", ast_config_AST_DATA_DIR);
-		fwd = opendir(dir);
-		if (fwd) {
-			while((de = readdir(fwd))) {
-				if (de->d_name[0] != '.') {
-					snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
-					if (!try_firmware(fn)) {
-						ast_verb(2, "Loaded firmware '%s'\n", de->d_name);
-					}
-				}
-			}
-			closedir(fwd);
-		} else 
-			ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
-	}
-
-	/* Clean up leftovers */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&firmwares, cur, list) {
-		if (!cur->dead)
-			continue;
-		AST_LIST_REMOVE_CURRENT(list);
-		destroy_firmware(cur);
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	AST_LIST_UNLOCK(&firmwares);
 }
 
 /*!
@@ -7062,10 +6805,21 @@ static int manager_iax2_show_netstats(struct mansession *s, const struct message
 	return RESULT_SUCCESS;
 }
 
+static int firmware_show_callback(struct ast_iax2_firmware_header *header,
+	void *user_data)
+{
+	int *fd = user_data;
+
+	ast_cli(*fd, "%-15.15s  %-15d %-15d\n",
+		header->devname,
+		ntohs(header->version),
+		(int) ntohl(header->datalen));
+
+	return 0;
+}
+
 static char *handle_cli_iax2_show_firmware(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct iax_firmware *cur = NULL;
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "iax2 show firmware";
@@ -7081,14 +6835,11 @@ static char *handle_cli_iax2_show_firmware(struct ast_cli_entry *e, int cmd, str
 		return CLI_SHOWUSAGE;
 
 	ast_cli(a->fd, "%-15.15s  %-15.15s %-15.15s\n", "Device", "Version", "Size");
-	AST_LIST_LOCK(&firmwares);
-	AST_LIST_TRAVERSE(&firmwares, cur, list) {
-		if ((a->argc == 3) || (!strcasecmp(a->argv[3], (char *) cur->fwh->devname)))  {
-			ast_cli(a->fd, "%-15.15s  %-15d %-15d\n", cur->fwh->devname, 
-				ntohs(cur->fwh->version), (int)ntohl(cur->fwh->datalen));
-		}
-	}
-	AST_LIST_UNLOCK(&firmwares);
+
+	iax_firmware_traverse(
+		a->argc == 3 ? NULL : a->argv[3],
+		firmware_show_callback,
+		(void *) &a->fd);
 
 	return CLI_SUCCESS;
 }
@@ -8824,7 +8575,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	struct iax2_peer *p;
 	int msgcount;
 	char data[80];
-	int version;
+	uint16_t version;
 	const char *peer_name;
 	int res = -1;
 	struct ast_sockaddr sockaddr;
@@ -8971,9 +8722,9 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
 		}
 	}
-	version = iax_check_version(devtype);
-	if (version) 
+	if (iax_firmware_get_version(devtype, &version)) {
 		iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
+	}
 
 	res = 0;
 
@@ -11638,7 +11389,7 @@ immediatedial:
 					break;
 				}
 				memset(&ied0, 0, sizeof(ied0));
-				res = iax_firmware_append(&ied0, (unsigned char *)ies.devicetype, ies.fwdesc);
+				res = iax_firmware_append(&ied0, ies.devicetype, ies.fwdesc);
 				if (res < 0)
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				else if (res > 0)
@@ -13761,7 +13512,7 @@ static int reload_config(int forced_reload)
 		poke_all_peers();
 	}
 	
-	reload_firmware(0);
+	iax_firmware_reload();
 	iax_provision_reload(1);
 	ast_unload_realtime("iaxpeers");
 
@@ -14502,7 +14253,7 @@ static int __unload_module(void)
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
-	reload_firmware(1);
+	iax_firmware_unload();
 
 	for (x = 0; x < ARRAY_LEN(iaxsl); x++) {
 		ast_mutex_destroy(&iaxsl[x]);
@@ -14956,7 +14707,7 @@ static int load_module(void)
 	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
 
 
-	reload_firmware(0);
+	iax_firmware_reload();
 	iax_provision_reload(0);
 
 	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, SENTINEL);
