@@ -106,6 +106,7 @@ AC_CHECK_LIB(winmm,puts)
 AC_CHECK_LIB(socket,puts)
 AC_CHECK_LIB(rt,puts)
 AC_CHECK_LIB(nsl,puts)
+AC_CHECK_LIB(m,sin)
 AC_CHECK_LIB(uuid,uuid_generate)
 AC_CHECK_LIB(uuid,uuid_generate,[ac_has_uuid_lib=1])
 
@@ -178,7 +179,6 @@ AC_ARG_ENABLE(floating-point,
 	      [
 		AC_DEFINE(PJ_HAS_FLOATING_POINT,1)
 	        AC_MSG_RESULT([Checking if floating point is disabled... no]) 
-		AC_CHECK_LIB(m,fmod)
 	      ])
 
 
