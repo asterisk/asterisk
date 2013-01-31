@@ -40,21 +40,15 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_LANG_C
 
-dnl #
-dnl # Setup CROSS_COMPILE variable
-dnl #
-if test -z "$CROSS_COMPILE"; then 
-    CROSS_COMPILE=`echo ${CC} | sed 's/gcc//'`
-fi
+AC_PROG_RANLIB
+AC_CHECK_TOOLS([AR], [ar gar], :)
 
-if test "$AR" = ""; then AR="${CROSS_COMPILE}ar rv"; fi
-AC_SUBST(AR)
+if test "$AR_FLAGS" = ""; then AR_FLAGS="rv"; fi
+AC_SUBST(AR_FLAGS)
 if test "$LD" = ""; then LD="$CC"; fi
 AC_SUBST(LD)
 if test "$LDOUT" = ""; then LDOUT="-o "; fi
 AC_SUBST(LDOUT)
-if test "$RANLIB" = ""; then RANLIB="${CROSS_COMPILE}ranlib"; fi
-AC_SUBST(RANLIB)
 if test "$OBJEXT" = ""; then OBJEXT='o'; fi
 AC_SUBST(OBJEXT)
 if test "$LIBEXT" = ""; then LIBEXT='a'; fi

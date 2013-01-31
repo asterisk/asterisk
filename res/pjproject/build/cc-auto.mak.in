@@ -1,6 +1,7 @@
 export CC = @CC@ -c
 export CXX = @CXX@ -c
 export AR = @AR@
+export AR_FLAGS = @AR_FLAGS@
 export LD = @LD@
 export LDOUT = -o 
 export RANLIB = @RANLIB@
