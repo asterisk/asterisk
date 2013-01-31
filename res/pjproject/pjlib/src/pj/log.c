@@ -106,7 +106,7 @@ static void log_set_indent(int indent)
     pj_thread_local_set(thread_indent_tls_id, (void*)(long)indent);
 }
 
-static int log_get_raw_indent()
+static int log_get_raw_indent(void)
 {
     return (long)pj_thread_local_get(thread_indent_tls_id);
 }
@@ -118,13 +118,13 @@ static void log_set_indent(int indent)
     if (log_indent < 0) log_indent = 0;
 }
 
-static int log_get_raw_indent()
+static int log_get_raw_indent(void)
 {
     return log_indent;
 }
 #endif	/* PJ_LOG_ENABLE_INDENT && PJ_HAS_THREADS */
 
-static int log_get_indent()
+static int log_get_indent(void)
 {
     int indent = log_get_raw_indent();
     return indent > LOG_MAX_INDENT ? LOG_MAX_INDENT : indent;

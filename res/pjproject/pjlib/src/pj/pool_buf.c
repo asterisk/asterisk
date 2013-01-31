@@ -43,7 +43,7 @@ static void pool_buf_cleanup(void)
 	is_initialized = 0;
 }
 
-static pj_status_t pool_buf_initialize()
+static pj_status_t pool_buf_initialize(void)
 {
     pj_atexit(&pool_buf_cleanup);
 
