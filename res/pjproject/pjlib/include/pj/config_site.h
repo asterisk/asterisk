@@ -20,6 +20,7 @@
  */
 
 #define PJ_HAS_IPV6 1
+#define PJ_TODO(id)
 
 /*
  * Typical configuration for WinCE target.
