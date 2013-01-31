@@ -106,8 +106,6 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 TARGETS := pjsip pjsip-ua pjsip-simple pjsua-lib pjsip-test
 
-.PHONY: $(TARGETS)
-
 all: $(TARGETS)
 
 doc:
@@ -124,21 +122,28 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjsip pjsip-ua pjsua-lib clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJSIP_LIB) $(PJSIP_UA_LIB) $(PJSIP_SIMPLE_LIB) $(PJSUA_LIB_LIB) $(TEST_EXE)
 
-pjsip:
+pjsip: $(PJSIP_LIB)
+$(PJSIP_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP app=pjsip $(PJSIP_LIB)
 
-pjsip-ua:
+pjsip-ua: $(PJSIP_UA_LIB)
+$(PJSIP_UA_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_UA app=pjsip-ua $(PJSIP_UA_LIB)
 
-pjsip-simple:
+pjsip-simple: $(PJSIP_SIMPLE_LIB)
+$(PJSIP_SIMPLE_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $(PJSIP_SIMPLE_LIB)
 
-pjsua-lib: 
+pjsua-lib: $(PJSUA_LIB_LIB)
+$(PJSUA_LIB_LIB): 
 	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $(PJSUA_LIB_LIB)
 
-pjsip-test:
+pjsip-test: $(TEST_EXE)
+$(TEST_EXE): $(PJSUA_LIB_LIB) $(PJSIP_SIMPLE_LIB) $(PJSIP_UA_LIB) $(PJSIP_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjsip-test $(TEST_EXE)
 
 .PHONY: ../lib/pjsip.ko

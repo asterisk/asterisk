@@ -92,18 +92,24 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjlib pjlib-test clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJNATH_LIB) $(PJNATH_TEST_EXE) $(PJTURN_CLIENT_EXE) $(PJTURN_SRV_EXE)
 
-pjnath:
+pjnath: $(PJNATH_LIB)
+$(PJNATH_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJNATH app=pjnath $(PJNATH_LIB)
 
-pjnath-test: $(PJLIB_LIB) $(PJLIB_UTIL_LIB) $(PJNATH_LIB)
+pjnath-test: $(PJNATH_TEST_EXE)
+$(PJNATH_TEST_EXE): $(PJNATH_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=PJNATH_TEST app=pjnath-test $(PJNATH_TEST_EXE)
 
-pjturn-client: $(PJLIB_LIB) $(PJLIB_UTIL_LIB) $(PJNATH_LIB)
+pjturn-client: $(PJTURN_CLIENT_EXE)
+$(PJTURN_CLIENT_EXE): $(PJNATH_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=PJTURN_CLIENT app=pjturn-client $(PJTURN_CLIENT_EXE)
 
-pjturn-srv: $(PJLIB_LIB) $(PJLIB_UTIL_LIB) $(PJNATH_LIB)
+pjturn-srv: $(PJTURN_SRV_EXE)
+$(PJTURN_SRV_EXE): $(PJNATH_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=PJTURN_SRV app=pjturn-srv $(PJTURN_SRV_EXE)
 
 .PHONY: ../lib/pjnath.ko

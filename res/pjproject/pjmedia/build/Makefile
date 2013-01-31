@@ -156,24 +156,32 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjmedia pjmedia-codec pjmedia-videodev pjmedia-audiodev pjmedia-test clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJMEDIA_LIB) $(PJMEDIA_CODEC_LIB) $(PJMEDIA_VIDEODEV_LIB) $(PJMEDIA_AUDIODEV_LIB) $(PJSDP_LIB) $(PJMEDIA_TEST_EXE)
 
-pjmedia:
+pjmedia: $(PJMEDIA_LIB)
+$(PJMEDIA_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJMEDIA app=pjmedia $(PJMEDIA_LIB)
 
-pjmedia-codec:
+pjmedia-codec: $(PJMEDIA_CODEC_LIB)
+$(PJMEDIA_CODEC_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJMEDIA_CODEC app=pjmedia-codec $(PJMEDIA_CODEC_LIB)
 
-pjmedia-videodev:
+pjmedia-videodev: $(PJMEDIA_VIDEODEV_LIB)
+$(PJMEDIA_VIDEODEV_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJMEDIA_VIDEODEV app=pjmedia-videodev $(PJMEDIA_VIDEODEV_LIB)
 
-pjmedia-audiodev:
+pjmedia-audiodev: $(PJMEDIA_AUDIODEV_LIB)
+$(PJMEDIA_AUDIODEV_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJMEDIA_AUDIODEV app=pjmedia-audiodev $(PJMEDIA_AUDIODEV_LIB)
 
-pjsdp:
+pjsdp: $(PJSDP_LIB)
+$(PJSDP_LIB):
 	$(MAKE) -f $(RULES_MAK) APP=PJSDP app=pjsdp $(PJSDP_LIB)
 
-pjmedia-test: $(PJMEDIA_LIB)
+pjmedia-test: $(PJMEDIA_TEST_EXE)
+$(PJMEDIA_TEST_EXE): $(PJMEDIA_LIB) $(PJMEDIA_CODEC_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=PJMEDIA_TEST app=pjmedia-test $(PJMEDIA_TEST_EXE)
 
 .PHONY: ../lib/pjmedia.ko

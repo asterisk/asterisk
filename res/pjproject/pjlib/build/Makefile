@@ -77,17 +77,21 @@ depend: ../include/pj/config_site.h
 	echo '$(TEST_EXE): $(PJLIB_LIB)' >> .pjlib-test-$(TARGET_NAME).depend
 
 
-.PHONY: dep depend pjlib pjlib-test clean realclean distclean
+.PHONY: dep depend clean realclean distclean
+.PHONY: $(TARGETS)
+.PHONY: $(PJLIB_LIB) $(TEST_EXE)
 
 dep: depend
 
-pjlib: ../include/pj/config_site.h
+pjlib: $(PJLIB_LIB)
+$(PJLIB_LIB): ../include/pj/config_site.h
 	$(MAKE) -f $(RULES_MAK) APP=PJLIB app=pjlib $(PJLIB_LIB)
 
 ../include/pj/config_site.h:
 	touch ../include/pj/config_site.h
-	
-pjlib-test: 
+
+pjlib-test: $(TEST_EXE)
+$(TEST_EXE): $(PJLIB_LIB)
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjlib-test $(TEST_EXE)
 
 .PHONY: ../lib/pjlib.ko
