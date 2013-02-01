@@ -39,7 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/mman.h>
 #include <arpa/inet.h>
 
-#include "asterisk/astmm.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/md5.h"
 #include "asterisk/paths.h"
