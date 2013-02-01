@@ -1082,6 +1082,20 @@ struct dialed_number_message {
 	uint32_t callReference;
 };
 
+#define MAXCALLINFOSTR 256
+#define CALL_INFO_MESSAGE_VARIABLE 0x014A
+struct call_info_message_variable {
+	uint32_t instance;
+	uint32_t callreference;
+	uint32_t calldirection;
+	uint32_t unknown1;
+	uint32_t unknown2;
+	uint32_t unknown3;
+	uint32_t unknown4;
+	uint32_t unknown5;
+	char calldetails[MAXCALLINFOSTR];
+};
+
 union skinny_data {
 	struct alarm_message alarm;
 	struct speed_dial_stat_req_message speeddialreq;
@@ -1130,6 +1144,7 @@ union skinny_data {
 	struct enbloc_call_message enbloccallmessage;
 	struct forward_stat_message forwardstat;
 	struct bksp_req_message bkspmessage;
+	struct call_info_message_variable callinfomessagevariable;
 };
 
 /* packet composition */
@@ -2375,6 +2390,57 @@ static void transmit_callinfo(struct skinny_device *d, int instance, int callid,
 	transmit_response(d, req);
 }
 
+static void transmit_callinfo_variable(struct skinny_device *d, int instance, int callreference,
+	char *fromname, char *fromnum, char *toname, char *tonum, int calldirection)
+{
+	struct skinny_req *req;
+	char *strptr;
+	char *thestrings[12];
+	int i;
+	int callinfostrleft = MAXCALLINFOSTR;
+
+	if (!(req = req_alloc(sizeof(struct call_info_message_variable), CALL_INFO_MESSAGE_VARIABLE)))
+		return;
+
+	req->data.callinfomessagevariable.instance = htolel(instance);
+	req->data.callinfomessagevariable.callreference = htolel(callreference);
+	req->data.callinfomessagevariable.calldirection = htolel(calldirection);
+
+	req->data.callinfomessagevariable.unknown1 = htolel(0x00);
+	req->data.callinfomessagevariable.unknown2 = htolel(0x00);
+	req->data.callinfomessagevariable.unknown3 = htolel(0x00);
+	req->data.callinfomessagevariable.unknown4 = htolel(0x00);
+	req->data.callinfomessagevariable.unknown5 = htolel(0x00);
+
+	thestrings[0] = fromnum;
+	thestrings[1] = "";                     /* Appears to be origfrom */
+	thestrings[2] = tonum;
+	thestrings[3] = "";
+	thestrings[4] = "";
+	thestrings[5] = "";
+	thestrings[6] = "";
+	thestrings[7] = "";
+
+	thestrings[8] = "";
+	thestrings[9] = fromname;
+	thestrings[10] = toname;
+	thestrings[11] = "";
+
+	strptr = req->data.callinfomessagevariable.calldetails;
+
+	for(i = 0; i < 12; i++) {
+		ast_copy_string(strptr, thestrings[i], callinfostrleft);
+		strptr += strlen(thestrings[i]) + 1;
+		callinfostrleft -= strlen(thestrings[i]) + 1;
+	}
+
+	req->len = req->len - (callinfostrleft & ~0x3);
+
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting CALL_INFO_MESSAGE_VARIABLE to %s, to %s(%s) from %s(%s) (dir=%d) on %s(%d)\n",
+		d->name, toname, tonum, fromname, fromnum, calldirection, d->name, instance);
+	transmit_response(d, req);
+}
+
 static void send_callinfo(struct skinny_subchannel *sub)
 {
 	struct ast_channel *ast;
@@ -2407,7 +2473,12 @@ static void send_callinfo(struct skinny_subchannel *sub)
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
 		return;
 	}
-	transmit_callinfo(d, l->instance, sub->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+
+	if (d->protocolversion < 17) {
+		transmit_callinfo(d, l->instance, sub->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+	} else {
+		transmit_callinfo_variable(d, l->instance, sub->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+	}
 }
 
 static void push_callinfo(struct skinny_subline *subline, struct skinny_subchannel *sub)
@@ -2442,7 +2513,12 @@ static void push_callinfo(struct skinny_subline *subline, struct skinny_subchann
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
 		return;
 	}
-	transmit_callinfo(subline->line->device, subline->line->instance, subline->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+
+	if (d->protocolversion < 17) {
+		transmit_callinfo(subline->line->device, subline->line->instance, subline->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+	} else {
+		transmit_callinfo_variable(subline->line->device, subline->line->instance, subline->callid, fromname, fromnum, toname, tonum, sub->calldirection);
+	}
 }
 
 static void transmit_connect(struct skinny_device *d, struct skinny_subchannel *sub)
