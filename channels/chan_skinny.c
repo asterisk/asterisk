@@ -745,163 +745,161 @@ struct bksp_req_message {
 #define KEYMASK_IDIVERT        (1 << 20)
 #define KEYMASK_FORCEDIAL      (1 << 21)
 
+/* Localized message "codes" (in octal)
+   Below is en_US (taken from a 7970) */
+
+/*                            "\200\000"        ??? */
+#define OCTAL_REDIAL          "\200\001"     /* Redial */
+#define OCTAL_NEWCALL         "\200\002"     /* New Call */
+#define OCTAL_HOLD            "\200\003"     /* Hold */
+#define OCTAL_TRANSFER        "\200\004"     /* Transfer */
+#define OCTAL_CFWDALL         "\200\005"     /* CFwdALL */
+#define OCTAL_CFWDBUSY        "\200\006"     /* CFwdBusy */
+#define OCTAL_CFWDNOAN        "\200\007"     /* CFwdNoAnswer */
+#define OCTAL_BKSPC           "\200\010"     /* << */
+#define OCTAL_ENDCALL         "\200\011"     /* EndCall */
+#define OCTAL_RESUME          "\200\012"     /* Resume */
+#define OCTAL_ANSWER          "\200\013"     /* Answer */
+#define OCTAL_INFO            "\200\014"     /* Info */
+#define OCTAL_CONFRN          "\200\015"     /* Confrn */
+#define OCTAL_PARK            "\200\016"     /* Park */
+#define OCTAL_JOIN            "\200\017"     /* Join */
+#define OCTAL_MEETME          "\200\020"     /* MeetMe */
+#define OCTAL_PICKUP          "\200\021"     /* PickUp */
+#define OCTAL_GPICKUP         "\200\022"     /* GPickUp */
+#define OCTAL_CUROPTS         "\200\023"     /* Your current options */
+#define OCTAL_OFFHOOK         "\200\024"     /* Off Hook */
+#define OCTAL_ONHOOK          "\200\025"     /* On Hook */
+#define OCTAL_RINGOUT         "\200\026"     /* Ring out */
+#define OCTAL_FROM            "\200\027"     /* From */
+#define OCTAL_CONNECTED       "\200\030"     /* Connected */
+#define OCTAL_BUSY            "\200\031"     /* Busy */
+#define OCTAL_LINEINUSE       "\200\032"     /* Line In Use */
+#define OCTAL_CALLWAITING     "\200\033"     /* Call Waiting */
+#define OCTAL_CALLXFER        "\200\034"     /* Call Transfer */
+#define OCTAL_CALLPARK        "\200\035"     /* Call Park */
+#define OCTAL_CALLPROCEED     "\200\036"     /* Call Proceed */
+#define OCTAL_INUSEREMOTE     "\200\037"     /* In Use Remote */
+#define OCTAL_ENTRNUM         "\200\040"     /* Enter number */
+#define OCTAL_PARKAT          "\200\041"     /* Call park At */
+#define OCTAL_PRIMONLY        "\200\042"     /* Primary Only */
+#define OCTAL_TMPFAIL         "\200\043"     /* Temp Fail */
+#define OCTAL_HAVEVMAIL       "\200\044"     /* You Have VoiceMail */
+#define OCTAL_FWDEDTO         "\200\045"     /* Forwarded to */
+#define OCTAL_CANTCOMPCNF     "\200\046"     /* Can Not Complete Conference */
+#define OCTAL_NOCONFBRDG      "\200\047"     /* No Conference Bridge */
+#define OCTAL_NOPRIMARYCTL    "\200\050"     /* Can Not Hold Primary Control */
+#define OCTAL_INVALCONFPART   "\200\051"     /* Invalid Conference Participant */
+#define OCTAL_INCONFALREADY   "\200\052"     /* In Conference Already */
+#define OCTAL_NOPARTINFO      "\200\053"     /* No Participant Info */
+#define OCTAL_MAXPARTEXCEED   "\200\054"     /* Exceed Maximum Parties */
+#define OCTAL_KEYNOTACTIVE    "\200\055"     /* Key Is Not Active */
+#define OCTAL_ERRNOLIC        "\200\056"     /* Error No License */
+#define OCTAL_ERRDBCFG        "\200\057"     /* Error DBConfig */
+#define OCTAL_ERRDB           "\200\060"     /* Error Database */
+#define OCTAL_ERRPASSLMT      "\200\061"     /* Error Pass Limit */
+#define OCTAL_ERRUNK          "\200\062"     /* Error Unknown */
+#define OCTAL_ERRMISMATCH     "\200\063"     /* Error Mismatch */
+#define OCTAL_CONFERENCE      "\200\064"     /* Conference */
+#define OCTAL_PARKNO          "\200\065"     /* Park Number */
+#define OCTAL_PRIVATE         "\200\066"     /* Private */
+#define OCTAL_INSUFBANDW      "\200\067"     /* Not Enough Bandwidth */
+#define OCTAL_UNKNUM          "\200\070"     /* Unknown Number */
+#define OCTAL_RMLSTC          "\200\071"     /* RmLstC */
+#define OCTAL_VOICEMAIL       "\200\072"     /* Voicemail */
+#define OCTAL_IMMDIV          "\200\073"     /* ImmDiv */
+#define OCTAL_INTRCPT         "\200\074"     /* Intrcpt */
+#define OCTAL_SETWTCH         "\200\075"     /* SetWtch */
+#define OCTAL_TRNSFVM         "\200\076"     /* TrnsfVM */
+#define OCTAL_DND             "\200\077"     /* DND */
+#define OCTAL_DIVALL          "\200\100"     /* DivAll */
+#define OCTAL_CALLBACK        "\200\101"     /* CallBack */
+#define OCTAL_NETCNGREROUT    "\200\102"     /* Network congestion,rerouting */
+#define OCTAL_BARGE           "\200\103"     /* Barge */
+#define OCTAL_BARGEFAIL       "\200\104"     /* Failed to setup Barge */
+#define OCTAL_BARGEEXIST      "\200\105"     /* Another Barge exists */
+#define OCTAL_INCOMPATDEV     "\200\106"     /* Incompatible device type */
+#define OCTAL_PARKNONUM       "\200\107"     /* No Park Number Available */
+#define OCTAL_PARKREVERSION   "\200\110"     /* CallPark Reversion */
+#define OCTAL_SRVNOTACTIVE    "\200\111"     /* Service is not Active */
+#define OCTAL_HITRAFFIC       "\200\112"     /* High Traffic Try Again Later */
+#define OCTAL_QRT             "\200\113"     /* QRT */
+#define OCTAL_MCID            "\200\114"     /* MCID */
+#define OCTAL_DIRTRFR         "\200\115"     /* DirTrfr */
+#define OCTAL_SELECT          "\200\116"     /* Select */
+#define OCTAL_CONFLIST        "\200\117"     /* ConfList */
+#define OCTAL_IDIVERT         "\200\120"     /* iDivert */
+#define OCTAL_CBARGE          "\200\121"     /* cBarge */
+#define OCTAL_CANTCOMPLXFER   "\200\122"     /* Can Not Complete Transfer */
+#define OCTAL_CANTJOINCALLS   "\200\123"     /* Can Not Join Calls */
+#define OCTAL_MCIDSUCCESS     "\200\124"     /* Mcid Successful */
+#define OCTAL_NUMNOTCFG       "\200\125"     /* Number Not Configured */
+#define OCTAL_SECERROR        "\200\126"     /* Security Error */
+#define OCTAL_VIDBANDWNA      "\200\127"     /* Video Bandwidth Unavailable */
+#define OCTAL_VIDMODE         "\200\130"     /* VidMode */
+#define OCTAL_CALLDURTIMEOUT  "\200\131"     /* Max Call Duration Timeout */
+#define OCTAL_HOLDDURTIMEOUT  "\200\132"     /* Max Hold Duration Timeout */
+#define OCTAL_OPICKUP         "\200\133"     /* OPickUp */
+/*                            "\200\134"        ??? */
+/*                            "\200\135"        ??? */
+/*                            "\200\136"        ??? */
+/*                            "\200\137"        ??? */
+/*                            "\200\140"        ??? */
+#define OCTAL_EXTXFERRESTRICT "\200\141"     /* External Transfer Restricted */
+/*                            "\200\142"        ??? */
+/*                            "\200\143"        ??? */
+/*                            "\200\144"        ??? */
+#define OCTAL_MACADD          "\200\145"     /* Mac Address */
+#define OCTAL_HOST            "\200\146"     /* Host Name */
+#define OCTAL_DOMAIN          "\200\147"     /* Domain Name */
+#define OCTAL_IPADD           "\200\150"     /* IP Address */
+#define OCTAL_SUBMASK         "\200\151"     /* Subnet Mask */
+#define OCTAL_TFTP1           "\200\152"     /* TFTP Server 1 */
+#define OCTAL_ROUTER1         "\200\153"     /* Default Router 1 */
+#define OCTAL_ROUTER2         "\200\154"     /* Default Router 2 */
+#define OCTAL_ROUTER3         "\200\155"     /* Default Router 3 */
+#define OCTAL_ROUTER4         "\200\156"     /* Default Router 4 */
+#define OCTAL_ROUTER5         "\200\157"     /* Default Router 5 */
+#define OCTAL_DNS1            "\200\160"     /* DNS Server 1 */
+#define OCTAL_DNS2            "\200\161"     /* DNS Server 2 */
+#define OCTAL_DNS3            "\200\162"     /* DNS Server 3 */
+#define OCTAL_DNS4            "\200\163"     /* DNS Server 4 */
+#define OCTAL_DNS5            "\200\164"     /* DNS Server 5 */
+#define OCTAL_VLANOPID        "\200\165"     /* Operational VLAN Id */
+#define OCTAL_VLANADID        "\200\166"     /* Admin. VLAN Id */
+#define OCTAL_CM1             "\200\167"     /* CallManager 1 */
+#define OCTAL_CM2             "\200\170"     /* CallManager 2 */
+#define OCTAL_CM3             "\200\171"     /* CallManager 3 */
+#define OCTAL_CM4             "\200\172"     /* CallManager 4 */
+#define OCTAL_CM5             "\200\173"     /* CallManager 5 */
+#define OCTAL_URLINFO         "\200\174"     /* Information URL */
+#define OCTAL_URLDIRS         "\200\175"     /* Directories URL */
+#define OCTAL_URLMSGS         "\200\176"     /* Messages URL */
+#define OCTAL_URLSRVS         "\200\177"     /* Services URL */
+
 static struct soft_key_template_definition soft_key_template_default[] = {
-	{ "\200\001", SOFTKEY_REDIAL },
-	{ "\200\002", SOFTKEY_NEWCALL },
-	{ "\200\003", SOFTKEY_HOLD },
-	{ "\200\004", SOFTKEY_TRNSFER },
-	{ "\200\005", SOFTKEY_CFWDALL },
-	{ "\200\006", SOFTKEY_CFWDBUSY },
-	{ "\200\007", SOFTKEY_CFWDNOANSWER },
-	{ "\200\010", SOFTKEY_BKSPC },
-	{ "\200\011", SOFTKEY_ENDCALL },
-	{ "\200\012", SOFTKEY_RESUME },
-	{ "\200\013", SOFTKEY_ANSWER },
-	{ "\200\014", SOFTKEY_INFO },
-	{ "\200\015", SOFTKEY_CONFRN },
-	{ "\200\016", SOFTKEY_PARK },
-	{ "\200\017", SOFTKEY_JOIN },
-	{ "\200\020", SOFTKEY_MEETME },
-	{ "\200\021", SOFTKEY_PICKUP },
-	{ "\200\022", SOFTKEY_GPICKUP },
-	{ "\200\077", SOFTKEY_DND },
-	{ "\200\120", SOFTKEY_IDIVERT },
+	{ OCTAL_REDIAL, SOFTKEY_REDIAL },
+	{ OCTAL_NEWCALL, SOFTKEY_NEWCALL },
+	{ OCTAL_HOLD, SOFTKEY_HOLD },
+	{ OCTAL_TRANSFER, SOFTKEY_TRNSFER },
+	{ OCTAL_CFWDALL, SOFTKEY_CFWDALL },
+	{ OCTAL_CFWDBUSY, SOFTKEY_CFWDBUSY },
+	{ OCTAL_CFWDNOAN, SOFTKEY_CFWDNOANSWER },
+	{ OCTAL_BKSPC, SOFTKEY_BKSPC },
+	{ OCTAL_ENDCALL, SOFTKEY_ENDCALL },
+	{ OCTAL_RESUME, SOFTKEY_RESUME },
+	{ OCTAL_ANSWER, SOFTKEY_ANSWER },
+	{ OCTAL_INFO, SOFTKEY_INFO },
+	{ OCTAL_CONFRN, SOFTKEY_CONFRN },
+	{ OCTAL_PARK, SOFTKEY_PARK },
+	{ OCTAL_JOIN, SOFTKEY_JOIN },
+	{ OCTAL_MEETME, SOFTKEY_MEETME },
+	{ OCTAL_PICKUP, SOFTKEY_PICKUP },
+	{ OCTAL_GPICKUP, SOFTKEY_GPICKUP },
+	{ OCTAL_DND, SOFTKEY_DND },
+	{ OCTAL_IDIVERT, SOFTKEY_IDIVERT },
 	{ "Dial", SOFTKEY_FORCEDIAL},
 };
-
-/* Localized message "codes" (in octal)
-   Below is en_US (taken from a 7970)
-
-   \200\xxx
-       \000: ???
-       \001: Redial
-       \002: New Call
-       \003: Hold
-       \004: Transfer
-       \005: CFwdALL
-       \006: CFwdBusy
-       \007: CFwdNoAnswer
-       \010: <<
-       \011: EndCall
-       \012: Resume
-       \013: Answer
-       \014: Info
-       \015: Confrn
-       \016: Park
-       \017: Join
-       \020: MeetMe
-       \021: PickUp
-       \022: GPickUp
-       \023: Your current options
-       \024: Off Hook
-       \025: On Hook
-       \026: Ring out
-       \027: From
-       \030: Connected
-       \031: Busy
-       \032: Line In Use
-       \033: Call Waiting
-       \034: Call Transfer
-       \035: Call Park
-       \036: Call Proceed
-       \037: In Use Remote
-       \040: Enter number
-       \041: Call park At
-       \042: Primary Only
-       \043: Temp Fail
-       \044: You Have VoiceMail
-       \045: Forwarded to
-       \046: Can Not Complete Conference
-       \047: No Conference Bridge
-       \050: Can Not Hold Primary Control
-       \051: Invalid Conference Participant
-       \052: In Conference Already
-       \053: No Participant Info
-       \054: Exceed Maximum Parties
-       \055: Key Is Not Active
-       \056: Error No License
-       \057: Error DBConfig
-       \060: Error Database
-       \061: Error Pass Limit
-       \062: Error Unknown
-       \063: Error Mismatch
-       \064: Conference
-       \065: Park Number
-       \066: Private
-       \067: Not Enough Bandwidth
-       \070: Unknown Number
-       \071: RmLstC
-       \072: Voicemail
-       \073: ImmDiv
-       \074: Intrcpt
-       \075: SetWtch
-       \076: TrnsfVM
-       \077: DND
-       \100: DivAll
-       \101: CallBack
-       \102: Network congestion,rerouting
-       \103: Barge
-       \104: Failed to setup Barge
-       \105: Another Barge exists
-       \106: Incompatible device type
-       \107: No Park Number Available
-       \110: CallPark Reversion
-       \111: Service is not Active
-       \112: High Traffic Try Again Later
-       \113: QRT
-       \114: MCID
-       \115: DirTrfr
-       \116: Select
-       \117: ConfList
-       \120: iDivert
-       \121: cBarge
-       \122: Can Not Complete Transfer
-       \123: Can Not Join Calls
-       \124: Mcid Successful
-       \125: Number Not Configured
-       \126: Security Error
-       \127: Video Bandwidth Unavailable
-       \130: VidMode
-       \131: Max Call Duration Timeout
-       \132: Max Hold Duration Timeout
-       \133: OPickUp
-       \134: ???
-       \135: ???
-       \136: ???
-       \137: ???
-       \140: ???
-       \141: External Transfer Restricted
-       \142: ???
-       \143: ???
-       \144: ???
-       \145: Mac Address
-       \146: Host Name
-       \147: Domain Name
-       \150: IP Address
-       \151: Subnet Mask
-       \152: TFTP Server 1
-       \153: Default Router 1
-       \154: Default Router 2
-       \155: Default Router 3
-       \156: Default Router 4
-       \157: Default Router 5
-       \160: DNS Server 1
-       \161: DNS Server 2
-       \162: DNS Server 3
-       \163: DNS Server 4
-       \164: DNS Server 5
-       \165: Operational VLAN Id
-       \166: Admin. VLAN Id
-       \167: CallManager 1
-       \170: CallManager 2
-       \171: CallManager 3
-       \172: CallManager 4
-       \173: CallManager 5
-       \174: Information URL
-       \175: Directories URL
-       \176: Messages URL
-       \177: Services URL
- */
 
 struct soft_key_definitions {
 	const uint8_t mode;
@@ -1096,6 +1094,14 @@ struct call_info_message_variable {
 	char calldetails[MAXCALLINFOSTR];
 };
 
+#define DISPLAY_PROMPT_STATUS_MESSAGE_VARIABLE 0x0145
+struct display_prompt_status_message_variable {
+	uint32_t unknown;
+	uint32_t lineInstance;
+	uint32_t callReference;
+	char promptMessage[MAXCALLINFOSTR];
+};
+
 union skinny_data {
 	struct alarm_message alarm;
 	struct speed_dial_stat_req_message speeddialreq;
@@ -1145,6 +1151,7 @@ union skinny_data {
 	struct forward_stat_message forwardstat;
 	struct bksp_req_message bkspmessage;
 	struct call_info_message_variable callinfomessagevariable;
+	struct display_prompt_status_message_variable displaypromptstatusvar;
 };
 
 /* packet composition */
@@ -2701,20 +2708,67 @@ static void transmit_displaynotify(struct skinny_device *d, const char *text, in
 	transmit_response(d, req);
 }
 
-static void transmit_displaypromptstatus(struct skinny_device *d, const char *text, int t, int instance, int callid)
+static void transmit_displaypromptstatus(struct skinny_device *d, const char *text, const char *extratext, int t, int instance, int callid)
 {
 	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct display_prompt_status_message), DISPLAY_PROMPT_STATUS_MESSAGE)))
 		return;
 
-	ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
 	req->data.displaypromptstatus.messageTimeout = htolel(t);
 	req->data.displaypromptstatus.lineInstance = htolel(instance);
 	req->data.displaypromptstatus.callReference = htolel(callid);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PROMPT_STATUS_MESSAGE to %s, text %s\n", d->name, text);
+	if ((char)*text == '\200') {
+		int octalstrlen = strlen(text);
+		ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatusvar.promptMessage));
+		ast_copy_string(req->data.displaypromptstatus.promptMessage+octalstrlen, extratext, sizeof(req->data.displaypromptstatus.promptMessage)-octalstrlen);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PROMPT_STATUS_MESSAGE to %s, '\\%03o\\%03o', '%s'\n",
+			d->name, (uint8_t)*text, (uint8_t)*(text+1), extratext);
+	} else {
+		ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PROMPT_STATUS_MESSAGE to %s, '%s'\n",
+			d->name, text);
+	}
 	transmit_response(d, req);
+}
+
+static void transmit_displaypromptstatusvar(struct skinny_device *d, const char *text, const char *extratext, int t, int instance, int callid)
+{
+	struct skinny_req *req;
+	int packetlen;
+
+	if (!(req = req_alloc(sizeof(struct display_prompt_status_message_variable), DISPLAY_PROMPT_STATUS_MESSAGE_VARIABLE)))
+		return;
+
+	req->data.displaypromptstatusvar.lineInstance = htolel(instance);
+	req->data.displaypromptstatusvar.callReference = htolel(callid);
+
+	if ((char)*text == '\200') {
+		int octalstrlen = strlen(text);
+		ast_copy_string(req->data.displaypromptstatusvar.promptMessage, text, sizeof(req->data.displaypromptstatusvar.promptMessage));
+		ast_copy_string(req->data.displaypromptstatusvar.promptMessage+octalstrlen, extratext, sizeof(req->data.displaypromptstatusvar.promptMessage)-octalstrlen);
+		packetlen = req->len - MAXCALLINFOSTR + strlen(text) + strlen(extratext);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PROMPT_STATUS_MESSAGE_VARIABLE to %s, '\\%03o\\%03o', '%s'\n",
+			d->name, (uint8_t)*text, (uint8_t)*(text+1), extratext);
+	} else {
+		ast_copy_string(req->data.displaypromptstatusvar.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
+		packetlen = req->len - MAXCALLINFOSTR + strlen(text);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PROMPT_STATUS_MESSAGE_VARIABLE to %s, '%s'\n",
+			d->name, text);
+	}
+	req->len = (packetlen & ~0x3) + 4;
+
+	transmit_response(d, req);
+}
+
+static void send_displaypromptstatus(struct skinny_device *d, const char *text, const char *extratext, int t, int instance, int callid)
+{
+	if (d->protocolversion < 17) {
+		transmit_displaypromptstatus(d, text, extratext, t, instance, callid);
+	} else {
+		transmit_displaypromptstatusvar(d, text, extratext, t, instance, callid);
+	}
 }
 
 static void transmit_clearpromptmessage(struct skinny_device *d, int instance, int callid)
@@ -3202,11 +3256,11 @@ static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state
 			if (subline->sub && (subline->sub->substate == SKINNY_CONNECTED)) { /* Device has a real call */
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CONNECTED);
 				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_CONNECTED, KEYMASK_ALL);
-				transmit_displaypromptstatus(d, "Connected", 0, l->instance, subline->callid);
+				send_displaypromptstatus(d, OCTAL_CONNECTED, "", 0, l->instance, subline->callid);
 			} else { /* Some other device has active call */
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
 				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
-				transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
+				send_displaypromptstatus(d, "In Use", "", 0, l->instance, subline->callid);
 			}
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 			transmit_ringer_mode(d, SKINNY_RING_OFF);
@@ -3215,7 +3269,7 @@ static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state
 		case AST_EXTENSION_ONHOLD:
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_HOLD);
 			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLAHOLD, KEYMASK_ALL);
-			transmit_displaypromptstatus(d, "Hold", 0, l->instance, subline->callid);
+			send_displaypromptstatus(d, "Hold", "", 0, l->instance, subline->callid);
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 			transmit_activatecallplane(d, l);
 			break;
@@ -5208,7 +5262,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 				transmit_stop_tone(d, l->instance, sub->callid);
 				transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
 				transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
-				transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
+				send_displaypromptstatus(d, "In Use", "", 0, l->instance, subline->callid);
 			}
 
 			sub->cxmode = SKINNY_CX_RECVONLY;
@@ -5250,7 +5304,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 			transmit_callstate(d, l->instance, subline->callid, SKINNY_CALLREMOTEMULTILINE);
 			transmit_selectsoftkeys(d, l->instance, subline->callid, KEYDEF_SLACONNECTEDNOTACTIVE, KEYMASK_ALL);
-			transmit_displaypromptstatus(d, "In Use", 0, l->instance, subline->callid);
+			send_displaypromptstatus(d, "In Use", "", 0, l->instance, subline->callid);
 
 			sub->substate = SUBSTATE_HOLD;
 
@@ -5289,7 +5343,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_clear_display_message(d, l->instance, sub->callid);
 		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK, KEYMASK_ALL);
-		transmit_displaypromptstatus(d, "Enter number", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_ENTRNUM, "", 0, l->instance, sub->callid);
 
 		sub->substate = SUBSTATE_OFFHOOK;
 		sub->dialer_sched = skinny_sched_add(firstdigittimeout, skinny_dialer_cb, sub);
@@ -5347,7 +5401,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_stop_tone(d, l->instance, sub->callid);
 			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT, KEYMASK_ALL);
-			transmit_displaypromptstatus(d, "Dialing", 0, l->instance, sub->callid);
+			send_displaypromptstatus(d, "Dialing", "", 0, l->instance, sub->callid);
 		}
 
 		if  (AST_LIST_FIRST(&l->sublines)) {
@@ -5387,14 +5441,14 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
 		transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
-		transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_RINGOUT, "", 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		sub->substate = SUBSTATE_RINGOUT;
 		break;
 	case SUBSTATE_RINGIN:
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
-		transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, "Ring-In", "", 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 		transmit_ringer_mode(d, SKINNY_RING_INSIDE);
@@ -5414,7 +5468,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
-		transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_CALLWAITING, "", 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 		transmit_start_tone(d, SKINNY_CALLWAITTONE, l->instance, sub->callid);
@@ -5436,7 +5490,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_stop_tone(d, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
-		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_CONNECTED, "", 0, l->instance, sub->callid);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED, KEYMASK_ALL);
 		if (!sub->rtp) {
 			start_rtp(sub);
@@ -5470,7 +5524,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 		send_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_BUSY);
-		transmit_displaypromptstatus(d, "Busy", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_BUSY, "", 0, l->instance, sub->callid);
 		sub->substate = SUBSTATE_BUSY;
 		break;
 	case SUBSTATE_CONGESTION:
@@ -5484,7 +5538,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 		send_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONGESTION);
-		transmit_displaypromptstatus(d, "Congestion", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, "Congestion", "", 0, l->instance, sub->callid);
 		sub->substate = SUBSTATE_CONGESTION;
 		break;
 	case SUBSTATE_PROGRESS:
@@ -5498,7 +5552,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 		send_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_PROGRESS);
-		transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, "Call Progress", "", 0, l->instance, sub->callid);
 		sub->substate = SUBSTATE_PROGRESS;
 		break;
 	case SUBSTATE_HOLD:
