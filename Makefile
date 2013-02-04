@@ -98,12 +98,7 @@ export LDCONFIG
 export LDCONFIG_FLAGS
 export PYTHON
 
-# even though we could use '-include makeopts' here, use a wildcard
-# lookup anyway, so that make won't try to build makeopts if it doesn't
-# exist (other rules will force it to be built if needed)
-ifneq ($(wildcard makeopts),)
-  include makeopts
-endif
+-include makeopts
 
 # start the primary CFLAGS and LDFLAGS with any that were provided
 # to the configure script
@@ -311,7 +306,7 @@ else
 	mK=" make"
 endif
 
-all: _cleantest_all
+all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"
 	@echo " + Asterisk has successfully been built, and +"
 	@echo " + can be installed by running:              +"
@@ -319,7 +314,7 @@ all: _cleantest_all
 	@echo " +               $(mK) install               +"
 	@echo " +-------------------------------------------+"
 
-full: _cleantest_all_full
+full: _full
 	@echo " +--------- Asterisk Build Complete ---------+"
 	@echo " + Asterisk has successfully been built, and +"
 	@echo " + can be installed by running:              +"
@@ -327,20 +322,10 @@ full: _cleantest_all_full
 	@echo " +               $(mK) install               +"
 	@echo " +-------------------------------------------+"
 
-
-# For parallel builds, we must call cleantest *before* running the
-# other dependencies on _all.
-_cleantest_all: cleantest
-	@$(MAKE) _all
-
-# For parallel builds, we must call cleantest *before* running the
-# other dependencies on _all.
-_cleantest_all_full: cleantest
-	@$(MAKE) _all_full
 
 _all: makeopts $(SUBDIRS) doc/core-en_US.xml $(ADDL_TARGETS)
 
-_all_full: makeopts $(SUBDIRS) doc/full-en_US.xml $(ADDL_TARGETS)
+_full: makeopts $(SUBDIRS) doc/full-en_US.xml $(ADDL_TARGETS)
 
 makeopts: configure
 	@echo "****"
@@ -375,7 +360,7 @@ makeopts.embed_rules: menuselect.makeopts
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDFLAGS)
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LIBS)
 
-$(SUBDIRS): main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
+$(SUBDIRS): makeopts cleantest main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
     # Non-windows:
@@ -395,10 +380,10 @@ $(D1): res
 res:	main
 endif
 
-$(MOD_SUBDIRS):
+$(MOD_SUBDIRS): makeopts
 	+@_ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
-$(OTHER_SUBDIRS):
+$(OTHER_SUBDIRS): makeopts
 	+@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts build_tools/make_defaults_h
@@ -452,7 +437,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -rf doc/api
 	rm -f build_tools/menuselect-deps
 
-datafiles: _cleantest_all doc/core-en_US.xml
+datafiles: _all doc/core-en_US.xml
 	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig "$(DESTDIR)$(libdir)/pkgconfig";
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
@@ -473,7 +458,7 @@ datafiles: _cleantest_all doc/core-en_US.xml
 	done
 	$(MAKE) -C sounds install
 
-doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+doc/core-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 	@printf "Building Documentation For: "
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
@@ -487,7 +472,7 @@ doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"
 	@echo
 	@echo "</docs>" >> $@
 
-doc/full-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+doc/full-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@echo "---        Please install python to build full documentation           ---"
@@ -561,7 +546,7 @@ installdirs:
 main-bininstall:
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" ASTLIBDIR="$(ASTLIBDIR)" $(SUBMAKE) -C main bininstall
 
-bininstall: _cleantest_all installdirs $(SUBDIRS_INSTALL) main-bininstall
+bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 	$(INSTALL) -m 755 contrib/scripts/astgenkey "$(DESTDIR)$(ASTSBINDIR)/"
 	$(INSTALL) -m 755 contrib/scripts/autosupport "$(DESTDIR)$(ASTSBINDIR)/"
 	if [ ! -f "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk" -a ! -f /sbin/launchd ]; then \
@@ -916,19 +901,19 @@ MAKE_MENUSELECT=CC="$(BUILD_CC)" CXX="" LD="" AR="" RANLIB="" \
 		CFLAGS="$(BUILD_CFLAGS)" LDFLAGS="$(BUILD_LDFLAGS)" \
 		$(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
-menuselect/menuselect: menuselect/makeopts
+menuselect/menuselect: menuselect/makeopts cleantest
 	+$(MAKE_MENUSELECT) menuselect
 
-menuselect/cmenuselect: menuselect/makeopts
+menuselect/cmenuselect: menuselect/makeopts cleantest
 	+$(MAKE_MENUSELECT) cmenuselect
 
-menuselect/gmenuselect: menuselect/makeopts
+menuselect/gmenuselect: menuselect/makeopts cleantest
 	+$(MAKE_MENUSELECT) gmenuselect
 
-menuselect/nmenuselect: menuselect/makeopts
+menuselect/nmenuselect: menuselect/makeopts cleantest
 	+$(MAKE_MENUSELECT) nmenuselect
 
-menuselect/makeopts: makeopts
+menuselect/makeopts: makeopts cleantest
 	+$(MAKE_MENUSELECT) makeopts
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml utils/utils.xml agi/agi.xml configure makeopts
@@ -956,7 +941,8 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 .PHONY: distclean
 .PHONY: all
 .PHONY: _all
-.PHONY: _cleantest_all
+.PHONY: full
+.PHONY: _full
 .PHONY: prereqs
 .PHONY: cleantest
 .PHONY: uninstall
