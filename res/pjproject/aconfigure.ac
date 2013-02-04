@@ -13,6 +13,7 @@ AC_CONFIG_HEADER([pjlib/include/pj/compat/os_auto.h
 		 ])
 AC_CONFIG_FILES([build.mak 
 		 build/os-auto.mak 
+		 build/cc-auto.mak
 		 pjlib/build/os-auto.mak 
 		 pjlib-util/build/os-auto.mak 
 		 pjmedia/build/os-auto.mak

@@ -17,6 +17,15 @@ include $(PJDIR)/build/cc-$(CC_NAME).mak
 -include cc-$(CC_NAME).mak
 
 #
+# Include auto configured compiler specification.
+# This will override the compiler settings above.
+# Currently this is made OPTIONAL, to prevent people
+# from getting errors because they don't re-run ./configure
+# after downloading new PJSIP.
+#
+-include $(PJDIR)/build/cc-auto.mak
+
+#
 # Include global machine specific definitions
 #
 include $(PJDIR)/build/m-$(MACHINE_NAME).mak

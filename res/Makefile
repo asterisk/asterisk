@@ -67,21 +67,25 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
-	$(MAKE) -C pjproject realclean
+	@if [ -f pjproject/build.mak ]; then $(MAKE) -C pjproject realclean; fi
 	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
 
-pjproject/build.mak:
-	cd pjproject && ./configure AR="" CFLAGS=-fPIC  --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec
+dist-clean::
+	rm -f pjproject/build.mak
 
-.PHONY : pjproject
-pjproject: pjproject/build.mak
-	# Make sure we always build pjproject with a single job.
-	$(MAKE) -j1 -C pjproject dep
-	$(MAKE) -j1 -C pjproject
+pjproject/build.mak: pjproject/aconfigure
+	(cd pjproject && CFLAGS="-fPIC" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec)
 
-include pjproject/build.mak
+ifneq ($(findstring $(MAKECMDGOALS),all),)
+-include pjproject/build.mak
+endif
 
-$(PJ_LIB_FILES): pjproject
+.PHONY: FORCE
+FORCE:
+
+$(PJ_LIB_FILES): FORCE
+	$(MAKE) -C $(patsubst %/lib/,%,$(dir $@))/build/ ../lib/$(notdir $@)
+
 res_rtp_asterisk.o: $(PJ_LIB_FILES)
 res_rtp_asterisk.o: _ASTCFLAGS+=$(PJ_CFLAGS)
 res_rtp_asterisk.so: _ASTLDFLAGS+=$(PJ_LDFLAGS)
