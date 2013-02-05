@@ -58,8 +58,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					available to that particular channel driver.</para>
 				</argument>
 				<argument name="Technology2/Resource2" multiple="true">
-					<para>Optional extra devices to dial inparallel</para>
-					<para>If you need more then one enter them as Technology2/Resource2&amp;
+					<para>Optional extra devices to dial in parallel</para>
+					<para>If you need more than one, enter them as Technology2/Resource2&amp;
 					Technology3/Resourse3&amp;.....</para>
 				</argument>
 			</parameter>
@@ -75,25 +75,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Quiet, do not play beep to caller</para>
 					</option>
 					<option name="r">
-						<para>Record the page into a file (ConfBridge option <literal>r</literal>)</para>
+						<para>Record the page into a file (<literal>CONFBRIDGE(bridge,record_conference)</literal>)</para>
 					</option>
 					<option name="s">
 						<para>Only dial a channel if its device state says that it is <literal>NOT_INUSE</literal></para>
 					</option>
 					<option name="A">
 						<argument name="x" required="true">
-							<para>The announcement to playback in all devices</para>
+							<para>The announcement to playback to all devices</para>
 						</argument>
-						<para>Play an announcement simultaneously to all paged participants</para>
+						<para>Play an announcement to all paged participants</para>
 					</option>
 					<option name="n">
-						<para>Do not play simultaneous announcement to caller (implies <literal>A(x)</literal>)</para>
+						<para>Do not play announcement to caller (alters <literal>A(x)</literal> behavior)</para>
 					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="timeout">
 				<para>Specify the length of time that the system will attempt to connect a call.
-				After this duration, any intercom calls that have not been answered will be hung up by the
+				After this duration, any page calls that have not been answered will be hung up by the
 				system.</para>
 			</parameter>
 		</syntax>
@@ -101,7 +101,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Places outbound calls to the given <replaceable>technology</replaceable>/<replaceable>resource</replaceable>
 			and dumps them into a conference bridge as muted participants. The original
 			caller is dumped into the conference as a speaker and the room is
-			destroyed when the original callers leaves.</para>
+			destroyed when the original caller leaves.</para>
 		</description>
 		<see-also>
 			<ref type="application">ConfBridge</ref>
