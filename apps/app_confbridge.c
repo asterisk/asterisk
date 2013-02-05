@@ -739,9 +739,8 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 /*!
  * \brief Play back an audio file to a channel
  *
- * \param conference_bridge Conference bridge they are in
- * \param chan Channel to play audio prompt to
- * \param file Prompt to play
+ * \param cbu User to play audio prompt to
+ * \param filename Prompt to play
  *
  * \return Returns 0 on success, -1 if the user hung up
  * \note Generally this should be called when the conference is unlocked to avoid blocking
@@ -1207,6 +1206,15 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 
 	ao2_unlock(conference_bridge);
 
+	/* If an announcement is to be played play it */
+	if (!ast_strlen_zero(conference_bridge_user->u_profile.announcement)) {
+		if (play_prompt_to_user(conference_bridge_user,
+			conference_bridge_user->u_profile.announcement)) {
+			leave_conference(conference_bridge_user);
+			return NULL;
+		}
+	}
+
 	/* Announce number of users if need be */
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
 		if (announce_user_count(conference_bridge, conference_bridge_user)) {
@@ -1526,7 +1534,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 2 && !ast_strlen_zero(args.u_profile_name)) {
 		u_profile_name = args.u_profile_name;
 	}
-
 	if (!conf_find_user_profile(chan, u_profile_name, &conference_bridge_user.u_profile)) {
 		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name);
 		res = -1;

@@ -141,6 +141,70 @@ struct page_options {
 	struct ast_flags flags;
 };
 
+/*!
+ * \internal
+ * \brief Setup the page bridge profile.
+ *
+ * \param chan Setup bridge profile on this channel.
+ * \param options Options to setup bridge profile.
+ *
+ * \return Nothing
+ */
+static void setup_profile_bridge(struct ast_channel *chan, struct page_options *options)
+{
+	/* Use default_bridge as a starting point */
+	ast_func_write(chan, "CONFBRIDGE(bridge,template)", "");
+	if (ast_test_flag(&options->flags, PAGE_RECORD)) {
+		ast_func_write(chan, "CONFBRIDGE(bridge,record_conference)", "yes");
+	}
+}
+
+/*!
+ * \internal
+ * \brief Setup the paged user profile.
+ *
+ * \param chan Setup user profile on this channel.
+ * \param options Options to setup paged user profile.
+ *
+ * \return Nothing
+ */
+static void setup_profile_paged(struct ast_channel *chan, struct page_options *options)
+{
+	/* Use default_user as a starting point */
+	ast_func_write(chan, "CONFBRIDGE(user,template)", "");
+	ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
+	ast_func_write(chan, "CONFBRIDGE(user,end_marked)", "yes");
+	if (!ast_test_flag(&options->flags, PAGE_DUPLEX)) {
+		ast_func_write(chan, "CONFBRIDGE(user,startmuted)", "yes");
+	}
+	if (ast_test_flag(&options->flags, PAGE_ANNOUNCE)
+		&& !ast_strlen_zero(options->opts[OPT_ARG_ANNOUNCE])) {
+		ast_func_write(chan, "CONFBRIDGE(user,announcement)", options->opts[OPT_ARG_ANNOUNCE]);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Setup the caller user profile.
+ *
+ * \param chan Setup user profile on this channel.
+ * \param options Options to setup caller user profile.
+ *
+ * \return Nothing
+ */
+static void setup_profile_caller(struct ast_channel *chan, struct page_options *options)
+{
+	/* Use default_user as a starting point if not already setup. */
+	ast_func_write(chan, "CONFBRIDGE(user,template)", "");
+	ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
+	ast_func_write(chan, "CONFBRIDGE(user,marked)", "yes");
+	if (!ast_test_flag(&options->flags, PAGE_NOCALLERANNOUNCE)
+		&& ast_test_flag(&options->flags, PAGE_ANNOUNCE)
+		&& !ast_strlen_zero(options->opts[OPT_ARG_ANNOUNCE])) {
+		ast_func_write(chan, "CONFBRIDGE(user,announcement)", options->opts[OPT_ARG_ANNOUNCE]);
+	}
+}
+
 static void page_state_callback(struct ast_dial *dial)
 {
 	struct ast_channel *chan;
@@ -152,22 +216,8 @@ static void page_state_callback(struct ast_dial *dial)
 		return;
 	}
 
-	ast_func_write(chan, "CONFBRIDGE(bridge,template)", "default_bridge");
-
-	if (ast_test_flag(&options->flags, PAGE_RECORD)) {
-		ast_func_write(chan, "CONFBRIDGE(bridge,record_conference)", "yes");
-	}
-
-	ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
-	ast_func_write(chan, "CONFBRIDGE(user,end_marked)", "yes");
-
-	if (!ast_test_flag(&options->flags, PAGE_DUPLEX)) {
-		ast_func_write(chan, "CONFBRIDGE(user,startmuted)", "yes");
-	}
-
-	if (ast_test_flag(&options->flags, PAGE_ANNOUNCE) && !ast_strlen_zero(options->opts[OPT_ARG_ANNOUNCE])) {
-		ast_func_write(chan, "CONFBRIDGE(user,announcement)", options->opts[OPT_ARG_ANNOUNCE]);
-	}
+	setup_profile_bridge(chan, options);
+	setup_profile_paged(chan, options);
 }
 
 static int page_exec(struct ast_channel *chan, const char *data)
@@ -302,17 +352,10 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!res) {
-		ast_func_write(chan, "CONFBRIDGE(bridge,template)", "default_bridge");
-
-		if (ast_test_flag(&options.flags, PAGE_RECORD)) {
-			ast_func_write(chan, "CONFBRIDGE(bridge,record_conference)", "yes");
-		}
-
-		ast_func_write(chan, "CONFBRIDGE(user,quiet)", "yes");
-		ast_func_write(chan, "CONFBRIDGE(user,marked)", "yes");
+		setup_profile_bridge(chan, &options);
+		setup_profile_caller(chan, &options);
 
 		snprintf(confbridgeopts, sizeof(confbridgeopts), "%u", confid);
-
 		pbx_exec(chan, app, confbridgeopts);
 	}
 
