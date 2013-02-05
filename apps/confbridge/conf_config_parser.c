@@ -1355,7 +1355,7 @@ error:
 
 static void conf_user_profile_copy(struct user_profile *dst, struct user_profile *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	*dst = *src;
 }
 
 const struct user_profile *conf_find_user_profile(struct ast_channel *chan, const char *user_profile_name, struct user_profile *result)
