@@ -95,8 +95,6 @@ static void leave_marked(struct conference_bridge_user *cbu)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&cbu->conference_bridge->active_list, cbu_iter, list) {
 			/* Kick ENDMARKED cbu_iters */
 			if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_ENDMARKED)) {
-				AST_LIST_REMOVE_CURRENT(list);
-				cbu_iter->conference_bridge->activeusers--;
 				cbu_iter->kicked = 1;
 				ast_bridge_remove(cbu_iter->conference_bridge->bridge, cbu_iter->chan);
 			} else if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_WAITMARKED) &&
@@ -139,7 +137,8 @@ static void leave_marked(struct conference_bridge_user *cbu)
 			case 0:
 				conf_change_state(cbu, CONF_STATE_SINGLE_MARKED);
 				break;
-			case 1: break; /* Stay in marked */
+			case 1:
+				break; /* Stay in marked */
 			}
 			break;
 		}
@@ -149,7 +148,8 @@ static void leave_marked(struct conference_bridge_user *cbu)
 		case 0:
 			conf_change_state(cbu, CONF_STATE_MULTI);
 			break;
-		default: break; /* Stay in marked */
+		default:
+			break; /* Stay in marked */
 		}
 	}
 }
