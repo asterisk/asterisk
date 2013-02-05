@@ -167,12 +167,19 @@ static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial
 	return;
 }
 
-/*! \brief Options structure - maps options to respective handlers (enable/disable). This list MUST be perfectly kept in order, or else madness will happen. */
-static const struct ast_option_types {
+struct ast_option_types {
 	enum ast_dial_option option;
 	ast_dial_option_cb_enable enable;
 	ast_dial_option_cb_disable disable;
-} option_types[] = {
+};
+
+/*!
+ * \brief Map options to respective handlers (enable/disable).
+ *
+ * \note This list MUST be perfectly kept in order with enum
+ * ast_dial_option, or else madness will happen.
+ */
+static const struct ast_option_types option_types[] = {
 	{ AST_DIAL_OPTION_RINGING, NULL, NULL },                                  /*!< Always indicate ringing to caller */
 	{ AST_DIAL_OPTION_ANSWER_EXEC, answer_exec_enable, answer_exec_disable }, /*!< Execute application upon answer in async mode */
 	{ AST_DIAL_OPTION_MUSIC, music_enable, music_disable },                   /*!< Play music to the caller instead of ringing */
