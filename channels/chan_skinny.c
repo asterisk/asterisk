@@ -7744,6 +7744,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
   	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&default_prefs, 0, sizeof(default_prefs));
+	memset(&vmexten, '\0', sizeof(vmexten));
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
