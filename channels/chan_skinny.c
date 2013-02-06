@@ -202,7 +202,7 @@ static int keep_alive = 120;
 static int auth_timeout = DEFAULT_AUTH_TIMEOUT;
 static int auth_limit = DEFAULT_AUTH_LIMIT;
 static int unauth_sessions = 0;
-static char immed_dialchar = '\0';
+static char immed_dialchar;
 static char vmexten[AST_MAX_EXTENSION];      /* Voicemail pilot number */
 static char used_context[AST_MAX_EXTENSION]; /* placeholder to check if context are already used in regcontext */
 static char regcontext[AST_MAX_CONTEXT];     /* Context for auto-extension */
@@ -4361,6 +4361,8 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 /*! \brief List global settings for the Skinny subsystem. */
 static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	char immed_str[2] = {immed_dialchar, '\0'};
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "skinny show settings";
@@ -4382,6 +4384,7 @@ static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struc
 	ast_cli(a->fd, "  Date Format:            %s\n", date_format);
 	ast_cli(a->fd, "  Voice Mail Extension:   %s\n", S_OR(vmexten, "(not set)"));
 	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(regcontext, "(not set)"));
+	ast_cli(a->fd, "  Immed. Dial Key:        %s\n", S_OR(immed_str, "(not set)"));
 	ast_cli(a->fd, "  Jitterbuffer enabled:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_ENABLED)));
 	 if (ast_test_flag(&global_jbconf, AST_JB_ENABLED)) {
 		ast_cli(a->fd, "  Jitterbuffer forced:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_FORCED)));
@@ -7999,8 +8002,12 @@ static int config_load(void)
 		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled.\n", config);
 		return -1;
 	}
+
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&default_prefs, 0, sizeof(default_prefs));
+	immed_dialchar = '\0';
+	memset(&vmexten, '\0', sizeof(vmexten));
+	
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));

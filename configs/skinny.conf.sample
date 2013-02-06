@@ -44,7 +44,7 @@ keepalive=120
 ; be available to immediately dial when a pattern than can be dialed has been entered.
 ; Default is unset, that is no immediated dial key (softbutton still exists).
 ;
-;immeddialkey='#'
+;immeddialkey=#
 
 ; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos=cs3		; Sets TOS for signaling packets.
