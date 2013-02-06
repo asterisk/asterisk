@@ -7695,9 +7695,13 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 					}
 					ast_mutex_lock(&ltemp->lock);
 					l->instance = ltemp->instance;
+					if (l == temp->activeline) {
+						d->activeline = l;
+					}
 					if (!AST_LIST_EMPTY(&ltemp->sub)) {
 						ast_mutex_lock(&l->lock);
 						l->sub = ltemp->sub;
+						l->activesub = ltemp->activesub;
 						AST_LIST_TRAVERSE(&l->sub, sub, list) {
 							sub->line = l;
 						}
