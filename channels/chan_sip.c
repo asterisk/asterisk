@@ -24766,6 +24766,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	int st_interval = 0;            /* Session-Timer negotiated refresh interval                */
 	enum st_refresher tmp_st_ref = SESSION_TIMER_REFRESHER_AUTO; /* Session-Timer refresher     */
 	int dlg_min_se = -1;
+	int dlg_max_se = global_max_se;
 	struct {
 		char exten[AST_MAX_EXTENSION];
 		char context[AST_MAX_CONTEXT];
@@ -25368,19 +25369,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				tmp_st_ref = st_get_refresher(p);
 			}
 
+			dlg_max_se = st_get_se(p, TRUE);
 			if (uac_max_se > 0) {
-				int dlg_max_se = st_get_se(p, TRUE);
 				if (dlg_max_se >= uac_min_se) {
 					st_interval = (uac_max_se < dlg_max_se) ? uac_max_se : dlg_max_se;
 				} else {
 					st_interval = uac_max_se;
 				}
 			} else if (uac_min_se > 0) {
-				int dlg_max_se = st_get_se(p, TRUE);
 				st_interval = MAX(dlg_max_se, uac_min_se);
 			} else {
-				/* Set to default max value */
-				st_interval = global_max_se;
+				st_interval = dlg_max_se;
 			}
 			break;
 
