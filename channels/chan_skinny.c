@@ -7955,9 +7955,13 @@ static struct skinny_device *config_device(const char *dname, struct ast_variabl
 					}
 					ast_mutex_lock(&ltemp->lock);
 					l->instance = ltemp->instance;
+					if (l == temp->activeline) {
+						d->activeline = l;
+					}
 					if (!AST_LIST_EMPTY(&ltemp->sub)) {
 						ast_mutex_lock(&l->lock);
 						l->sub = ltemp->sub;
+						l->activesub = ltemp->activesub;
 						AST_LIST_TRAVERSE(&l->sub, sub, list) {
 							sub->line = l;
 						}
