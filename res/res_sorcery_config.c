@@ -36,12 +36,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sorcery.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/config.h"
+#include "asterisk/uuid.h"
 
 /*! \brief Default number of buckets for sorcery objects */
 #define DEFAULT_OBJECT_BUCKETS 53
 
 /*! \brief Structure for storing configuration file sourced objects */
 struct sorcery_config {
+	/*! \brief UUID for identifying us when opening a configuration file */
+	char uuid[AST_UUID_STR_LEN];
+
 	/*! \brief Objects retrieved from the configuration file */
 	struct ao2_global_obj objects;
 
@@ -198,7 +202,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 {
 	struct sorcery_config *config = data;
 	struct ast_flags flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_config *cfg = ast_config_load2(config->filename, "res_sorcery_config", flags);
+	struct ast_config *cfg = ast_config_load2(config->filename, config->uuid, flags);
 	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
 	const char *id = NULL;
 
@@ -269,10 +273,19 @@ static void *sorcery_config_open(const char *data)
 {
 	char *tmp = ast_strdupa(data), *filename = strsep(&tmp, ","), *option;
 	struct sorcery_config *config;
+	struct ast_uuid *uuid;
 
 	if (ast_strlen_zero(filename) || !(config = ao2_alloc_options(sizeof(*config) + strlen(filename) + 1, sorcery_config_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
 		return NULL;
 	}
+
+	if (!(uuid = ast_uuid_generate())) {
+		ao2_ref(config, -1);
+		return NULL;
+	}
+
+	ast_uuid_to_str(uuid, config->uuid, AST_UUID_STR_LEN);
+	ast_free(uuid);
 
 	ast_rwlock_init(&config->objects.lock);
 	config->buckets = DEFAULT_OBJECT_BUCKETS;
