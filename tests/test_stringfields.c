@@ -294,8 +294,115 @@ error:
 	return AST_TEST_FAIL;
 }
 
+AST_TEST_DEFINE(string_field_aggregate_test)
+{
+	struct test_struct {
+		AST_DECLARE_STRING_FIELDS (
+			AST_STRING_FIELD(string1);
+			AST_STRING_FIELD(string2);
+		);
+		int foo;
+	} inst1, inst2, inst3, inst4;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "string_field_aggregate_test";
+		info->category = "/main/utils/";
+		info->summary = "Test stringfield aggregate operations";
+		info->description =
+			"This tests the structure comparison and copy macros of the stringfield API";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_string_field_init(&inst1, 32);
+	ast_string_field_init(&inst2, 32);
+	ast_string_field_init(&inst3, 32);
+	ast_string_field_init(&inst4, 32);
+
+	ast_string_field_set(&inst1, string1, "foo");
+	ast_string_field_set(&inst1, string2, "bar");
+	inst1.foo = 1;
+
+	ast_string_field_set(&inst2, string2, "bar");
+	ast_string_field_set(&inst2, string1, "foo");
+	inst2.foo = 2;
+
+	ast_string_field_set(&inst3, string1, "foo");
+	ast_string_field_set(&inst3, string2, "baz");
+	inst3.foo = 3;
+
+	ast_string_field_set(&inst4, string1, "faz");
+	ast_string_field_set(&inst4, string2, "baz");
+	inst4.foo = 3;
+
+	if (ast_string_fields_cmp(&inst1, &inst2)) {
+		ast_test_status_update(test, "Structures 1/2 should be equal!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 1/2 are equal as expected.\n");
+	}
+
+	if (!ast_string_fields_cmp(&inst1, &inst3)) {
+		ast_test_status_update(test, "Structures 1/3 should be different!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 1/3 are different as expected.\n");
+	}
+
+	if (!ast_string_fields_cmp(&inst2, &inst3)) {
+		ast_test_status_update(test, "Structures 2/3 should be different!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 2/3 are different as expected.\n");
+	}
+
+	if (!ast_string_fields_cmp(&inst3, &inst4)) {
+		ast_test_status_update(test, "Structures 3/4 should be different!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 3/4 are different as expected.\n");
+	}
+
+	if (ast_string_fields_copy(&inst1, &inst3)) {
+		ast_test_status_update(test, "Copying from structure 3 to structure 4 failed!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Copying from structure 3 to structure 4 succeeded!\n");
+	}
+
+	/* inst1 and inst3 should now be equal and inst1 should no longer be equal to inst2 */
+	if (ast_string_fields_cmp(&inst1, &inst3)) {
+		ast_test_status_update(test, "Structures 1/3 should be equal!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 1/3 are equal as expected.\n");
+	}
+
+	if (!ast_string_fields_cmp(&inst1, &inst2)) {
+		ast_test_status_update(test, "Structures 1/2 should be different!\n");
+		goto error;
+	} else {
+		ast_test_status_update(test, "Structures 1/2 are different as expected.\n");
+	}
+
+	ast_string_field_free_memory(&inst1);
+	ast_string_field_free_memory(&inst2);
+	ast_string_field_free_memory(&inst3);
+	ast_string_field_free_memory(&inst4);
+	return AST_TEST_PASS;
+error:
+	ast_string_field_free_memory(&inst1);
+	ast_string_field_free_memory(&inst2);
+	ast_string_field_free_memory(&inst3);
+	ast_string_field_free_memory(&inst4);
+	return AST_TEST_FAIL;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(string_field_aggregate_test);
 	AST_TEST_UNREGISTER(string_field_test);
 	return 0;
 }
@@ -303,6 +410,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(string_field_test);
+	AST_TEST_REGISTER(string_field_aggregate_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

@@ -311,11 +311,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \param x Pointer to a structure containing fields
   \param ptr Pointer to a field within the structure
   \param data String value to be copied into the field
-  \return nothing
+  \retval zero on success
+  \retval non-zero on error
 */
 #define ast_string_field_ptr_set(x, ptr, data) ast_string_field_ptr_set_by_fields((x)->__field_mgr_pool, (x)->__field_mgr, ptr, data)
 
-#define ast_string_field_ptr_set_by_fields(field_mgr_pool, field_mgr, ptr, data) do {                                   \
+#define ast_string_field_ptr_set_by_fields(field_mgr_pool, field_mgr, ptr, data) \
+({ \
+    int __res__ = 0; \
     const char *__d__ = (data);                                         \
     size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;                              \
     ast_string_field *__p__ = (ast_string_field *) (ptr);                               \
@@ -329,19 +332,21 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
             __ast_string_field_release_active(field_mgr_pool, (*ptr));              \
         }                                                   \
         memcpy(* (void **) __p__, __d__, __dlen__);                             \
+    } else { \
+        __res__ = -1; \
     }                                                       \
-    } while (0)
+    __res__; \
+})
 
 /*!
   \brief Set a field to a simple string value
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
   \param data String value to be copied into the field
-  \return nothing
+  \retval zero on success
+  \retval non-zero on error
 */
-#define ast_string_field_set(x, field, data) do {		\
-	ast_string_field_ptr_set(x, &(x)->field, data);		\
-	} while (0)
+#define ast_string_field_set(x, field, data) ast_string_field_ptr_set(x, &(x)->field, data)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -386,5 +391,66 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 */
 #define ast_string_field_build_va(x, field, fmt, args) \
 	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args)
+
+/*!
+  \brief Compare the string fields in two instances of the same structure
+  \since 12
+  \param instance1 The first instance of the structure to be compared
+  \param instance2 The second instance of the structure to be compared
+  \retval zero if all string fields are equal (does not compare non-string field data)
+  \retval non-zero if the values of the string fields differ
+*/
+#define ast_string_fields_cmp(instance1, instance2) \
+({ \
+	int __res__ = 0; \
+	size_t __ptr_size__ = sizeof(char *); \
+	int __len__ = ((void *)&(instance1)->__field_mgr - (void *)&(instance1)->__field_mgr_pool)/__ptr_size__ - 1; \
+	int __len2__ = ((void *)&(instance2)->__field_mgr - (void *)&(instance2)->__field_mgr_pool)/__ptr_size__ - 1; \
+	if (__len__ == __len2__) { \
+		char **__head1__ = (void *)&(instance1)->__field_mgr_pool + __ptr_size__; \
+		char **__head2__ = (void *)&(instance2)->__field_mgr_pool + __ptr_size__; \
+		for (__len__ -= 1; __len__ >= 0; __len__--) { \
+			__res__ = strcmp(__head1__[__len__], __head2__[__len__]); \
+			if (__res__) { \
+				break; \
+			} \
+		} \
+	} else { \
+		__res__ = -1; \
+	} \
+	__res__; \
+})
+
+/*!
+  \brief Copy all string fields from one instance to another of the same structure
+  \since 12
+  \param copy The instance of the structure to be copied into
+  \param orig The instance of the structure to be copied from
+  \retval zero on success
+  \retval non-zero on error
+*/
+#define ast_string_fields_copy(copy, orig) \
+({ \
+	int __outer_res__ = 0; \
+	size_t __ptr_size__ = sizeof(char *); \
+	int __len__ = ((void *)&(copy)->__field_mgr - (void *)&(copy)->__field_mgr_pool)/__ptr_size__ - 1; \
+	int __len2__ = ((void *)&(orig)->__field_mgr - (void *)&(orig)->__field_mgr_pool)/__ptr_size__ - 1; \
+	if (__len__ == __len2__) { \
+		char **__copy_head__ = (void *)&(copy)->__field_mgr_pool + __ptr_size__; \
+		char **__orig_head__ = (void *)&(orig)->__field_mgr_pool + __ptr_size__; \
+		for (__len2__ -= 1; __len2__ >= 0; __len2__--) { \
+			__ast_string_field_release_active((copy)->__field_mgr_pool, __copy_head__[__len2__]); \
+		} \
+		for (__len__ -= 1; __len__ >= 0; __len__--) { \
+			if (ast_string_field_ptr_set((copy), &__copy_head__[__len__], __orig_head__[__len__])) { \
+				__outer_res__ = -1; \
+				break; \
+			} \
+		} \
+	} else { \
+		__outer_res__ = -1; \
+	} \
+	__outer_res__; \
+})
 
 #endif /* _ASTERISK_STRINGFIELDS_H */
