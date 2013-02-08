@@ -27,7 +27,10 @@ context => parkedcalls          ; Which context parked calls are in (default par
                                 ;         an extension created based on the name of the channel that originally parked
                                 ;         the call.  This extension will be created automatically to do a Dial() to the
                                 ;         device that originally parked the call for comebacktodialtime seconds. If the
-                                ;         call is not answered, the call will proceed to 'park-dial,t,1'.
+                                ;         call is not answered, the call will proceed to the next priority (usually none
+                                ;         unless you deliberately set up a catch-all second priority in the park-call
+                                ;         context) in the dialplan for extension matching the peer name (same as how
+                                ;         peer names are flattened into extensions when comebacktoorigin is 'no').
                                 ;
                                 ; 'no'  - This option is useful for performing custom dialplan functionality prior to
                                 ;         sending the call back to the extension that initially parked the call, or to

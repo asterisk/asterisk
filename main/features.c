@@ -5075,6 +5075,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 			char *peername;
 			char *dash;
 			char *peername_flat; /* using something like DAHDI/52 for an extension name is NOT a good idea */
+			char parkingslot[AST_MAX_EXTENSION]; /* buffer for parkinglot slot number */
 			int i;
 
 			peername = ast_strdupa(pu->peername);
@@ -5135,6 +5136,11 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 						peername_flat, parking_con_dial);
 				}
 			}
+
+			snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
+			pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
+			pbx_builtin_setvar_helper(chan, "PARKEDLOT", pu->parkinglot->name);
+
 			if (pu->options_specified) {
 				/*
 				 * Park() was called with overriding return arguments, respect
@@ -5144,12 +5150,6 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 			} else if (pu->parkinglot->cfg.comebacktoorigin) {
 				set_c_e_p(chan, parking_con_dial, peername_flat, 1);
 			} else {
-				char parkingslot[AST_MAX_EXTENSION];
-
-				snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
-				pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
-				pbx_builtin_setvar_helper(chan, "PARKEDLOT", pu->parkinglot->name);
-
 				/* Handle fallback when extensions don't exist here since that logic was removed from pbx */
 				if (ast_exists_extension(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1, NULL)) {
 					set_c_e_p(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1);

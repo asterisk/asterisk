@@ -61,6 +61,9 @@ Features
 
  * Add support for automixmonitor to the BRIDGE_FEATURES channel variable.
 
+ * PARKINGSLOT and PARKEDLOT channel variables will now be set for a parked
+   channel even when comebactoorigin=yes
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an
