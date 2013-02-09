@@ -6863,7 +6863,7 @@ static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer
  *       this function, it invalidates our channel container locking order.  All channels
  *       must be unlocked before it is permissible to lock the channels' ao2 container.
  */
-int ast_do_masquerade(struct ast_channel *original)
+void ast_do_masquerade(struct ast_channel *original)
 {
 	int x;
 	int origstate;
@@ -6940,7 +6940,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		 */
 		ast_channel_unlock(original);
 		ao2_unlock(channels);
-		return 0;
+		return;
 	}
 
 	/* Bump the refs to ensure that they won't dissapear on us. */
@@ -7345,8 +7345,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Release our held safety references. */
 	ast_channel_unref(original);
 	ast_channel_unref(clonechan);
-
-	return 0;
 }
 
 void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani)

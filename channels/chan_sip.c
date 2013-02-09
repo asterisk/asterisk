@@ -24807,9 +24807,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, st
 	ast_channel_unlock(c);
 	sip_pvt_unlock(p->refer->refer_call);
 	sip_pvt_unlock(p);
-	if (ast_do_masquerade(replacecall)) {
-		ast_log(LOG_WARNING, "Failed to perform masquerade with INVITE replaces\n");
-	}
+	ast_do_masquerade(replacecall);
 	ast_channel_lock(c);
 	if (earlyreplace || oneleggedreplace ) {
 		ast_channel_hangupcause_set(c, AST_CAUSE_SWITCH_CONGESTION);

@@ -2322,7 +2322,7 @@ int ast_transfer(struct ast_channel *chan, char *dest);
  *     while the features are nice, the cost is very high in terms of pure nastiness. XXX
  * \param chan Channel to masquerade
  */
-int ast_do_masquerade(struct ast_channel *chan);
+void ast_do_masquerade(struct ast_channel *chan);
 
 /*!
  * \brief Find bridged channel
