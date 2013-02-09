@@ -1307,6 +1307,11 @@ AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls;
 static int totalcalls;
 
+/*!
+ * \brief Registered functions container.
+ *
+ * It is sorted by function name.
+ */
 static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 
 /*! \brief Declaration of builtin applications */
@@ -1362,6 +1367,11 @@ AST_MUTEX_DEFINE_STATIC(conlock);
  */
 AST_MUTEX_DEFINE_STATIC(context_merge_lock);
 
+/*!
+ * \brief Registered applications container.
+ *
+ * It is sorted by application name.
+ */
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 
 static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
@@ -1594,20 +1604,37 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 /*! Go no deeper than this through includes (not counting loops) */
 #define AST_PBX_MAX_STACK	128
 
-/*! \brief Find application handle in linked list
- */
+static struct ast_app *pbx_findapp_nolock(const char *name)
+{
+	struct ast_app *cur;
+	int cmp;
+
+	AST_RWLIST_TRAVERSE(&apps, cur, list) {
+		cmp = strcasecmp(name, cur->name);
+		if (cmp > 0) {
+			continue;
+		}
+		if (!cmp) {
+			/* Found it. */
+			break;
+		}
+		/* Not in container. */
+		cur = NULL;
+		break;
+	}
+
+	return cur;
+}
+
 struct ast_app *pbx_findapp(const char *app)
 {
-	struct ast_app *tmp;
+	struct ast_app *ret;
 
 	AST_RWLIST_RDLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
-		if (!strcasecmp(tmp->name, app))
-			break;
-	}
+	ret = pbx_findapp_nolock(app);
 	AST_RWLIST_UNLOCK(&apps);
 
-	return tmp;
+	return ret;
 }
 
 static struct ast_switch *pbx_findswitch(const char *sw)
@@ -3772,6 +3799,43 @@ static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+static char *complete_functions(const char *word, int pos, int state)
+{
+	struct ast_custom_function *cur;
+	char *ret = NULL;
+	int which = 0;
+	int wordlen;
+	int cmp;
+
+	if (pos != 3) {
+		return NULL;
+	}
+
+	wordlen = strlen(word);
+	AST_RWLIST_RDLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
+		/* case-insensitive for convenience in this 'complete' function */
+		cmp = strncasecmp(word, cur->name, wordlen);
+		if (cmp > 0) {
+			continue;
+		}
+		if (!cmp) {
+			/* Found match. */
+			if (++which <= state) {
+				/* Not enough matches. */
+				continue;
+			}
+			ret = ast_strdup(cur->name);
+			break;
+		}
+		/* Not in container. */
+		break;
+	}
+	AST_RWLIST_UNLOCK(&acf_root);
+
+	return ret;
+}
+
 static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_custom_function *acf;
@@ -3780,9 +3844,6 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *seealso = NULL;
 	char stxtitle[40], *syntax = NULL, *arguments = NULL;
 	int syntax_size, description_size, synopsis_size, arguments_size, seealso_size;
-	char *ret = NULL;
-	int which = 0;
-	int wordlen;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -3792,21 +3853,10 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 			"       Describe a particular dialplan function.\n";
 		return NULL;
 	case CLI_GENERATE:
-		wordlen = strlen(a->word);
-		/* case-insensitive for convenience in this 'complete' function */
-		AST_RWLIST_RDLOCK(&acf_root);
-		AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
-			if (!strncasecmp(a->word, acf->name, wordlen) && ++which > a->n) {
-				ret = ast_strdup(acf->name);
-				break;
-			}
-		}
-		AST_RWLIST_UNLOCK(&acf_root);
-
-		return ret;
+		return complete_functions(a->word, a->pos, a->n);
 	}
 
-	if (a->argc < 4) {
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -3879,15 +3929,34 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static struct ast_custom_function *ast_custom_function_find_nolock(const char *name)
+{
+	struct ast_custom_function *cur;
+	int cmp;
+
+	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
+		cmp = strcmp(name, cur->name);
+		if (cmp > 0) {
+			continue;
+		}
+		if (!cmp) {
+			/* Found it. */
+			break;
+		}
+		/* Not in container. */
+		cur = NULL;
+		break;
+	}
+
+	return cur;
+}
+
 struct ast_custom_function *ast_custom_function_find(const char *name)
 {
-	struct ast_custom_function *acf = NULL;
+	struct ast_custom_function *acf;
 
 	AST_RWLIST_RDLOCK(&acf_root);
-	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
-		if (!strcmp(name, acf->name))
-			break;
-	}
+	acf = ast_custom_function_find_nolock(name);
 	AST_RWLIST_UNLOCK(&acf_root);
 
 	return acf;
@@ -3988,12 +4057,11 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	AST_RWLIST_WRLOCK(&acf_root);
 
-	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
-		if (!strcmp(acf->name, cur->name)) {
-			ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
-			AST_RWLIST_UNLOCK(&acf_root);
-			return -1;
-		}
+	cur = ast_custom_function_find_nolock(acf->name);
+	if (cur) {
+		ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
+		AST_RWLIST_UNLOCK(&acf_root);
+		return -1;
 	}
 
 	/* Store in alphabetical order */
@@ -4004,7 +4072,6 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-
 	if (!cur) {
 		AST_RWLIST_INSERT_TAIL(&acf_root, acf, acflist);
 	}
@@ -6189,7 +6256,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		ast_free(ast_channel_pbx(c));
 	}
 	if (!(pbx = ast_calloc(1, sizeof(*pbx)))) {
-		return -1;
+		return AST_PBX_FAILED;
 	}
 
 	callid = ast_read_threadstorage_callid();
@@ -6488,7 +6555,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		ast_hangup(c);
 	}
 
-	return 0;
+	return AST_PBX_SUCCESS;
 }
 
 /*!
@@ -7057,21 +7124,20 @@ int ast_context_unlockmacro(const char *context)
 /*! \brief Dynamically register a new dial plan application */
 int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *), const char *synopsis, const char *description, void *mod)
 {
-	struct ast_app *tmp, *cur = NULL;
+	struct ast_app *tmp;
+	struct ast_app *cur;
 	char tmps[80];
-	int length, res;
+	int length;
 #ifdef AST_XML_DOCS
 	char *tmpxml;
 #endif
 
 	AST_RWLIST_WRLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
-		if (!(res = strcasecmp(app, tmp->name))) {
-			ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
-			AST_RWLIST_UNLOCK(&apps);
-			return -1;
-		} else if (res < 0)
-			break;
+	cur = pbx_findapp_nolock(app);
+	if (cur) {
+		ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
+		AST_RWLIST_UNLOCK(&apps);
+		return -1;
 	}
 
 	length = sizeof(*tmp) + strlen(app) + 1;
@@ -8405,23 +8471,32 @@ static void unreference_cached_app(struct ast_app *app)
 
 int ast_unregister_application(const char *app)
 {
-	struct ast_app *tmp;
+	struct ast_app *cur;
+	int cmp;
 
 	AST_RWLIST_WRLOCK(&apps);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
-		if (!strcasecmp(app, tmp->name)) {
-			unreference_cached_app(tmp);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
+		cmp = strcasecmp(app, cur->name);
+		if (cmp > 0) {
+			continue;
+		}
+		if (!cmp) {
+			/* Found it. */
+			unreference_cached_app(cur);
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered application '%s'\n", tmp->name);
-			ast_string_field_free_memory(tmp);
-			ast_free(tmp);
+			ast_verb(2, "Unregistered application '%s'\n", cur->name);
+			ast_string_field_free_memory(cur);
+			ast_free(cur);
 			break;
 		}
+		/* Not in container. */
+		cur = NULL;
+		break;
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&apps);
 
-	return tmp ? 0 : -1;
+	return cur ? 0 : -1;
 }
 
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
@@ -12103,17 +12178,29 @@ int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string)
 
 char *ast_complete_applications(const char *line, const char *word, int state)
 {
-	struct ast_app *app = NULL;
+	struct ast_app *app;
 	int which = 0;
+	int cmp;
 	char *ret = NULL;
 	size_t wordlen = strlen(word);
 
 	AST_RWLIST_RDLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, app, list) {
-		if (!strncasecmp(word, app->name, wordlen) && ++which > state) {
+		cmp = strncasecmp(word, app->name, wordlen);
+		if (cmp > 0) {
+			continue;
+		}
+		if (!cmp) {
+			/* Found match. */
+			if (++which <= state) {
+				/* Not enough matches. */
+				continue;
+			}
 			ret = ast_strdup(app->name);
 			break;
 		}
+		/* Not in container. */
+		break;
 	}
 	AST_RWLIST_UNLOCK(&apps);
 
