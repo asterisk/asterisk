@@ -3814,11 +3814,14 @@ static char *complete_functions(const char *word, int pos, int state)
 	wordlen = strlen(word);
 	AST_RWLIST_RDLOCK(&acf_root);
 	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
-		/* case-insensitive for convenience in this 'complete' function */
+		/*
+		 * Do a case-insensitive search for convenience in this
+		 * 'complete' function.
+		 *
+		 * We must search the entire container because the functions are
+		 * sorted and normally found case sensitively.
+		 */
 		cmp = strncasecmp(word, cur->name, wordlen);
-		if (cmp > 0) {
-			continue;
-		}
 		if (!cmp) {
 			/* Found match. */
 			if (++which <= state) {
@@ -3828,8 +3831,6 @@ static char *complete_functions(const char *word, int pos, int state)
 			ret = ast_strdup(cur->name);
 			break;
 		}
-		/* Not in container. */
-		break;
 	}
 	AST_RWLIST_UNLOCK(&acf_root);
 
@@ -4066,7 +4067,7 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	/* Store in alphabetical order */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
-		if (strcasecmp(acf->name, cur->name) < 0) {
+		if (strcmp(acf->name, cur->name) < 0) {
 			AST_RWLIST_INSERT_BEFORE_CURRENT(acf, acflist);
 			break;
 		}
