@@ -77,6 +77,22 @@ static struct ast_variable *test_sorcery_transform(struct ast_variable *set)
 	return transformed;
 }
 
+/*! \brief Internal function which copies pre-defined data into an object, natively */
+static int test_sorcery_copy(const void *src, void *dst)
+{
+	struct test_sorcery_object *obj = dst;
+	obj->bob = 10;
+	obj->joe = 20;
+	return 0;
+}
+
+/*! \brief Internal function which creates a pre-defined diff natively */
+static int test_sorcery_diff(const void *original, const void *modified, struct ast_variable **changes)
+{
+	*changes = ast_variable_new("yes", "itworks", "");
+	return 0;
+}
+
 /*! \brief Test structure for caching */
 struct sorcery_test_caching {
 	/*! \brief Whether the object has been created in the cache or not */
@@ -142,18 +158,18 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 {
 	struct ast_sorcery *sorcery;
 
-        if (!(sorcery = ast_sorcery_open())) {
+	if (!(sorcery = ast_sorcery_open())) {
 		return NULL;
-        }
+	}
 
-        if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
-	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
+		ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_sorcery_unref(sorcery);
 		return NULL;
-        }
+	}
 
-        ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-        ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	return sorcery;
 }
@@ -330,6 +346,11 @@ AST_TEST_DEFINE(object_register)
 
 	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+		ast_test_status_update(test, "Registered object type a second time, despite it being registered already\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -544,6 +565,57 @@ AST_TEST_DEFINE(object_copy)
 	return res;
 }
 
+AST_TEST_DEFINE(object_copy_native)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct test_sorcery_object *, copy, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_copy_native";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object native copy unit test";
+		info->description =
+			"Test object native copy in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_object_set_copy_handler(sorcery, "test", test_sorcery_copy);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	obj->bob = 50;
+	obj->joe = 100;
+
+	if (!(copy = ast_sorcery_copy(sorcery, obj))) {
+		ast_test_status_update(test, "Failed to create a copy of a known valid object\n");
+		res = AST_TEST_FAIL;
+	} else if (copy == obj) {
+		ast_test_status_update(test, "Created copy is actually the original object\n");
+		res = AST_TEST_FAIL;
+	} else if (copy->bob != 10) {
+		ast_test_status_update(test, "Value of 'bob' on newly created copy is not the predefined native copy value\n");
+		res = AST_TEST_FAIL;
+	} else if (copy->joe != 20) {
+		ast_test_status_update(test, "Value of 'joe' on newly created copy is not the predefined native copy value\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
 AST_TEST_DEFINE(object_diff)
 {
        RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
@@ -596,6 +668,72 @@ AST_TEST_DEFINE(object_diff)
        for (field = changes; field; field = field->next) {
 	       if (!strcmp(field->name, "joe")) {
 		       if (strcmp(field->value, "42")) {
+			       ast_test_status_update(test, "Object diff produced unexpected value '%s' for joe\n", field->value);
+			       res = AST_TEST_FAIL;
+		       }
+	       } else {
+		       ast_test_status_update(test, "Object diff produced unexpected field '%s'\n", field->name);
+		       res = AST_TEST_FAIL;
+	       }
+       }
+
+       return res;
+}
+
+AST_TEST_DEFINE(object_diff_native)
+{
+       RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+       RAII_VAR(struct test_sorcery_object *, obj1, NULL, ao2_cleanup);
+       RAII_VAR(struct test_sorcery_object *, obj2, NULL, ao2_cleanup);
+       RAII_VAR(struct ast_variable *, changes, NULL, ast_variables_destroy);
+       struct ast_variable *field;
+       int res = AST_TEST_PASS;
+
+       switch (cmd) {
+       case TEST_INIT:
+	       info->name = "object_diff_native";
+	       info->category = "/main/sorcery/";
+	       info->summary = "sorcery object native diff unit test";
+	       info->description =
+		       "Test native object diffing in sorcery";
+	       return AST_TEST_NOT_RUN;
+       case TEST_EXECUTE:
+	       break;
+       }
+
+       if (!(sorcery = alloc_and_initialize_sorcery())) {
+	       ast_test_status_update(test, "Failed to open sorcery structure\n");
+	       return AST_TEST_FAIL;
+       }
+
+       ast_sorcery_object_set_diff_handler(sorcery, "test", test_sorcery_diff);
+
+       if (!(obj1 = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+	       ast_test_status_update(test, "Failed to allocate a known object type\n");
+	       return AST_TEST_FAIL;
+       }
+
+       obj1->bob = 99;
+       obj1->joe = 55;
+
+       if (!(obj2 = ast_sorcery_alloc(sorcery, "test", "blah2"))) {
+	       ast_test_status_update(test, "Failed to allocate a second known object type\n");
+	       return AST_TEST_FAIL;
+       }
+
+       obj2->bob = 99;
+       obj2->joe = 42;
+
+       if (ast_sorcery_diff(sorcery, obj1, obj2, &changes)) {
+	       ast_test_status_update(test, "Failed to diff obj1 and obj2\n");
+       } else if (!changes) {
+	       ast_test_status_update(test, "Failed to produce a diff of two objects, despite there being differences\n");
+	       return AST_TEST_FAIL;
+       }
+
+       for (field = changes; field; field = field->next) {
+	       if (!strcmp(field->name, "yes")) {
+		       if (strcmp(field->value, "itworks")) {
 			       ast_test_status_update(test, "Object diff produced unexpected value '%s' for joe\n", field->value);
 			       res = AST_TEST_FAIL;
 		       }
@@ -1946,7 +2084,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_alloc_with_id);
 	AST_TEST_UNREGISTER(object_alloc_without_id);
 	AST_TEST_UNREGISTER(object_copy);
+	AST_TEST_UNREGISTER(object_copy_native);
 	AST_TEST_UNREGISTER(object_diff);
+	AST_TEST_UNREGISTER(object_diff_native);
 	AST_TEST_UNREGISTER(objectset_create);
 	AST_TEST_UNREGISTER(objectset_apply);
 	AST_TEST_UNREGISTER(objectset_apply_handler);
@@ -1985,7 +2125,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_alloc_with_id);
 	AST_TEST_REGISTER(object_alloc_without_id);
 	AST_TEST_REGISTER(object_copy);
+	AST_TEST_REGISTER(object_copy_native);
 	AST_TEST_REGISTER(object_diff);
+	AST_TEST_REGISTER(object_diff_native);
 	AST_TEST_REGISTER(objectset_create);
 	AST_TEST_REGISTER(objectset_apply);
 	AST_TEST_REGISTER(objectset_apply_handler);

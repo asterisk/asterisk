@@ -63,6 +63,12 @@ struct ast_sorcery_object_type {
 	/*! \brief Optional object set apply callback */
 	sorcery_apply_handler apply;
 
+	/*! \brief Optional object copy callback */
+	sorcery_copy_handler copy;
+
+	/*! \brief Optional object diff callback */
+	sorcery_diff_handler diff;
+
 	/*! \brief Wizard instances */
 	struct ao2_container *wizards;
 
@@ -299,7 +305,7 @@ struct ast_sorcery *ast_sorcery_open(void)
 		return NULL;
 	}
 
-	if (!(sorcery->types = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, TYPE_BUCKETS, sorcery_type_hash, sorcery_type_cmp))) {
+	if (!(sorcery->types = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, TYPE_BUCKETS, sorcery_type_hash, sorcery_type_cmp))) {
 		ao2_ref(sorcery, -1);
 		sorcery = NULL;
 	}
@@ -467,7 +473,7 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
-	if (!object_type) {
+	if (!object_type || object_type->type.item_alloc) {
 		return -1;
 	}
 
@@ -485,6 +491,28 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 	}
 
 	return 0;
+}
+
+void ast_sorcery_object_set_copy_handler(struct ast_sorcery *sorcery, const char *type, sorcery_copy_handler copy)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+
+	if (!object_type) {
+		return;
+	}
+
+	object_type->copy = copy;
+}
+
+void ast_sorcery_object_set_diff_handler(struct ast_sorcery *sorcery, const char *type, sorcery_diff_handler diff)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+
+	if (!object_type) {
+		return;
+	}
+
+	object_type->diff = diff;
 }
 
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
@@ -573,6 +601,21 @@ void ast_sorcery_load(const struct ast_sorcery *sorcery)
 	ao2_callback(sorcery->types, OBJ_NODATA, sorcery_object_load, &details);
 }
 
+void ast_sorcery_load_object(const struct ast_sorcery *sorcery, const char *type)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct sorcery_load_details details = {
+		.sorcery = sorcery,
+		.reload = 0,
+	};
+
+	if (!object_type) {
+		return;
+	}
+
+	sorcery_object_load(object_type, &details, 0);
+}
+
 void ast_sorcery_reload(const struct ast_sorcery *sorcery)
 {
 	struct sorcery_load_details details = {
@@ -581,6 +624,21 @@ void ast_sorcery_reload(const struct ast_sorcery *sorcery)
 	};
 
 	ao2_callback(sorcery->types, OBJ_NODATA, sorcery_object_load, &details);
+}
+
+void ast_sorcery_reload_object(const struct ast_sorcery *sorcery, const char *type)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct sorcery_load_details details = {
+		.sorcery = sorcery,
+		.reload = 1,
+	};
+
+	if (!object_type) {
+		return;
+	}
+
+	sorcery_object_load(object_type, &details, 0);
 }
 
 void ast_sorcery_ref(struct ast_sorcery *sorcery)
@@ -753,14 +811,25 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 void *ast_sorcery_copy(const struct ast_sorcery *sorcery, const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
 	struct ast_sorcery_object_details *copy = ast_sorcery_alloc(sorcery, details->type, details->id);
 	RAII_VAR(struct ast_variable *, objectset, NULL, ast_variables_destroy);
+	int res = 0;
 
-	if (!copy ||
-	    !(objectset = ast_sorcery_objectset_create(sorcery, object)) ||
-	    ast_sorcery_objectset_apply(sorcery, copy, objectset)) {
-		ao2_cleanup(copy);
+	if (!copy) {
 		return NULL;
+	} else if (object_type->copy) {
+		res = object_type->copy(object, copy);
+	} else if ((objectset = ast_sorcery_objectset_create(sorcery, object))) {
+		res = ast_sorcery_objectset_apply(sorcery, copy, objectset);
+	} else {
+		/* No native copy available and could not create an objectset, this copy has failed */
+		res = -1;
+	}
+
+	if (res) {
+		ao2_cleanup(copy);
+		copy = NULL;
 	}
 
 	return copy;
@@ -768,8 +837,7 @@ void *ast_sorcery_copy(const struct ast_sorcery *sorcery, const void *object)
 
 int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, const void *modified, struct ast_variable **changes)
 {
-	RAII_VAR(struct ast_variable *, objectset1, NULL, ast_variables_destroy);
-	RAII_VAR(struct ast_variable *, objectset2, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, ast_sorcery_object_get_type(original), OBJ_KEY), ao2_cleanup);
 
 	*changes = NULL;
 
@@ -777,10 +845,19 @@ int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, co
 		return -1;
 	}
 
-	objectset1 = ast_sorcery_objectset_create(sorcery, original);
-	objectset2 = ast_sorcery_objectset_create(sorcery, modified);
+	if (original == modified) {
+		return 0;
+	} else if (!object_type->diff) {
+		RAII_VAR(struct ast_variable *, objectset1, NULL, ast_variables_destroy);
+		RAII_VAR(struct ast_variable *, objectset2, NULL, ast_variables_destroy);
 
-	return ast_sorcery_changeset_create(objectset1, objectset2, changes);
+		objectset1 = ast_sorcery_objectset_create(sorcery, original);
+		objectset2 = ast_sorcery_objectset_create(sorcery, modified);
+
+		return ast_sorcery_changeset_create(objectset1, objectset2, changes);
+	} else {
+		return object_type->diff(original, modified, changes);
+	}
 }
 
 /*! \brief Internal function used to create an object in caching wizards */

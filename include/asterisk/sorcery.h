@@ -112,8 +112,8 @@ enum ast_sorcery_retrieve_flags {
 	/*! \brief Return all matching objects */
 	AST_RETRIEVE_FLAG_MULTIPLE = (1 << 0),
 
-        /*! \brief Perform no matching, return all objects */
-        AST_RETRIEVE_FLAG_ALL = (1 << 1),
+	/*! \brief Perform no matching, return all objects */
+	AST_RETRIEVE_FLAG_ALL = (1 << 1),
 };
 
 /*! \brief Forward declaration for the sorcery main structure */
@@ -150,6 +150,29 @@ typedef struct ast_variable *(*sorcery_transform_handler)(struct ast_variable *s
  * \param obj The object itself
  */
 typedef void (*sorcery_apply_handler)(const struct ast_sorcery *sorcery, void *obj);
+
+/*!
+ * \brief A callback function for copying the contents of one object to another
+ *
+ * \param src The source object
+ * \param dst The destination object
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+typedef int (*sorcery_copy_handler)(const void *src, void *dst);
+
+/*!
+ * \brief A callback function for generating a changeset between two objects
+ *
+ * \param original The original object
+ * \param modified The modified object
+ * \param changes The changeset
+ *
+ * \param 0 success
+ * \param -1 failure
+ */
+typedef int (*sorcery_diff_handler)(const void *original, const void *modified, struct ast_variable **changes);
 
 /*! \brief Interface for a sorcery wizard */
 struct ast_sorcery_wizard {
@@ -290,6 +313,24 @@ int ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, con
 int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
 
 /*!
+ * \brief Set the copy handler for an object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param copy Copy handler
+ */
+void ast_sorcery_object_set_copy_handler(struct ast_sorcery *sorcery, const char *type, sorcery_copy_handler copy);
+
+/*!
+ * \brief Set the diff handler for an object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param diff Diff handler
+ */
+void ast_sorcery_object_set_diff_handler(struct ast_sorcery *sorcery, const char *type, sorcery_diff_handler diff);
+
+/*!
  * \brief Register a field within an object
  *
  * \param sorcery Pointer to a sorcery structure
@@ -346,11 +387,27 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 void ast_sorcery_load(const struct ast_sorcery *sorcery);
 
 /*!
+ * \brief Inform any wizards of a specific object type to load persistent objects
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Name of the object type to load
+ */
+void ast_sorcery_load_object(const struct ast_sorcery *sorcery, const char *type);
+
+/*!
  * \brief Inform any wizards to reload persistent objects
  *
  * \param sorcery Pointer to a sorcery structure
  */
 void ast_sorcery_reload(const struct ast_sorcery *sorcery);
+
+/*!
+ * \brief Inform any wizards of a specific object type to reload persistent objects
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Name of the object type to reload
+ */
+void ast_sorcery_reload_object(const struct ast_sorcery *sorcery, const char *type);
 
 /*!
  * \brief Increase the reference count of a sorcery structure
