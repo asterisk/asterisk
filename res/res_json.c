@@ -242,10 +242,10 @@ size_t ast_json_object_size(struct ast_json *object)
 }
 struct ast_json *ast_json_object_get(struct ast_json *object, const char *key)
 {
-	if (key) {
-		return (struct ast_json *)json_object_get((json_t *)object, key);
+	if (!key) {
+		return NULL;
 	}
-	return NULL;
+	return (struct ast_json *)json_object_get((json_t *)object, key);
 }
 int ast_json_object_set(struct ast_json *object, const char *key, struct ast_json *value)
 {
@@ -391,13 +391,16 @@ int ast_json_dump_str(struct ast_json *root, struct ast_str **dst)
 
 int ast_json_dump_file(struct ast_json *root, FILE *output)
 {
-	if (root && output) {
-		return json_dumpf((json_t *)root, output, dump_flags());
+	if (!root || !output) {
+		return -1;
 	}
-	return -1;
+	return json_dumpf((json_t *)root, output, dump_flags());
 }
 int ast_json_dump_new_file(struct ast_json *root, const char *path)
 {
+	if (!root || !path) {
+		return -1;
+	}
 	return json_dump_file((json_t *)root, path, dump_flags());
 }
 

@@ -395,8 +395,6 @@ AST_TEST_DEFINE(json_test_int)
 	ast_test_validate(test, 0 == uut_res);
 	ast_test_validate(test, LLONG_MIN == ast_json_integer_get(uut));
 
-	ast_json_unref(uut);
-
 	return AST_TEST_PASS;
 }
 
@@ -460,8 +458,6 @@ AST_TEST_DEFINE(json_test_array_create)
 	ast_test_validate(test, NULL != uut);
 	ast_test_validate(test, AST_JSON_ARRAY == ast_json_typeof(uut));
 	ast_test_validate(test, 0 == ast_json_array_size(uut));
-
-	ast_json_unref(uut);
 
 	return AST_TEST_PASS;
 }
@@ -1406,6 +1402,27 @@ AST_TEST_DEFINE(json_test_pack)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(json_test_pack_ownership)
+{
+	RAII_VAR(void *, alloc_debug, json_test_init(test), json_test_finish);
+	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "pack_ownership";
+		info->category = "/main/json/";
+		info->summary = "Testing json_pack failure conditions.";
+		info->description = "Test JSON abstraction library.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	uut = ast_json_pack("[o]", ast_json_string_create("Am I freed?"));
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(json_test_pack_errors)
 {
 	RAII_VAR(void *, alloc_debug, json_test_init(test), json_test_finish);
@@ -1528,7 +1545,7 @@ AST_TEST_DEFINE(json_test_circular_object)
 	/* circular reference testing */
 	/* Cannot add self */
 	uut = ast_json_object_create();
-	uut_res = ast_json_object_set(uut, "myself", uut);
+	uut_res = ast_json_object_set(uut, "myself", ast_json_ref(uut));
 	ast_test_validate(test, -1 == uut_res);
 	ast_test_validate(test, 0 == ast_json_object_size(uut));
 
@@ -1553,7 +1570,8 @@ AST_TEST_DEFINE(json_test_circular_array)
 	}
 
 	uut = ast_json_array_create();
-	uut_res = ast_json_object_set(uut, "myself", uut);
+	ast_test_validate(test, 0 == ast_json_array_size(uut));
+	uut_res = ast_json_array_append(uut, ast_json_ref(uut));
 	ast_test_validate(test, -1 == uut_res);
 	ast_test_validate(test, 0 == ast_json_array_size(uut));
 
@@ -1636,6 +1654,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(json_test_dump_load_null);
 	AST_TEST_UNREGISTER(json_test_parse_errors);
 	AST_TEST_UNREGISTER(json_test_pack);
+	AST_TEST_UNREGISTER(json_test_pack_ownership);
 	AST_TEST_UNREGISTER(json_test_pack_errors);
 	AST_TEST_UNREGISTER(json_test_copy);
 	AST_TEST_UNREGISTER(json_test_deep_copy);
@@ -1688,6 +1707,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(json_test_dump_load_null);
 	AST_TEST_REGISTER(json_test_parse_errors);
 	AST_TEST_REGISTER(json_test_pack);
+	AST_TEST_REGISTER(json_test_pack_ownership);
 	AST_TEST_REGISTER(json_test_pack_errors);
 	AST_TEST_REGISTER(json_test_copy);
 	AST_TEST_REGISTER(json_test_deep_copy);
@@ -1698,4 +1718,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "JSON testing.");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "JSON testing",
+		.load = load_module,
+		.unload = unload_module,
+		.nonoptreq = "res_json");
