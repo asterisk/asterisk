@@ -782,15 +782,6 @@ AST_DEFINE_APP_ARGS_TYPE(park_app_args,
 /* module and CLI command definitions */
 static const char *parkcall = "Park";
 
-static struct ast_app *monitor_app = NULL;
-static int monitor_ok = 1;
-
-static struct ast_app *mixmonitor_app = NULL;
-static int mixmonitor_ok = 1;
-
-static struct ast_app *stopmixmonitor_app = NULL;
-static int stopmixmonitor_ok = 1;
-
 static pthread_t parking_thread;
 struct ast_dial_features {
 	/*! Channel's feature flags. */
@@ -2286,14 +2277,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	const char *touch_format = NULL;
 	const char *touch_monitor = NULL;
 	const char *touch_monitor_prefix = NULL;
+	struct ast_app *monitor_app;
 
-	if (!monitor_ok) {
-		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
-		return -1;
-	}
-
-	if (!monitor_app && !(monitor_app = pbx_findapp("Monitor"))) {
-		monitor_ok = 0;
+	monitor_app = pbx_findapp("Monitor");
+	if (!monitor_app) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
 		return -1;
 	}
@@ -2377,15 +2364,11 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 	const char *mixmonitor_spy_type = "MixMonitor";
 	const char *touch_format;
 	const char *touch_monitor;
+	struct ast_app *mixmonitor_app;
 	int count = 0;
 
-	if (!mixmonitor_ok) {
-		ast_log(LOG_ERROR,"Cannot record the call. The mixmonitor application is disabled.\n");
-		return -1;
-	}
-
-	if (!(mixmonitor_app = pbx_findapp("MixMonitor"))) {
-		mixmonitor_ok = 0;
+	mixmonitor_app = pbx_findapp("MixMonitor");
+	if (!mixmonitor_app) {
 		ast_log(LOG_ERROR,"Cannot record the call. The mixmonitor application is disabled.\n");
 		return -1;
 	}
@@ -2418,18 +2401,15 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 		count = ast_channel_audiohook_count_by_source_running(callee_chan, mixmonitor_spy_type, AST_AUDIOHOOK_TYPE_SPY);
 		ast_channel_unlock(callee_chan);
 		if (count > 0) {
-			if (!stopmixmonitor_ok) {
+			struct ast_app *stopmixmonitor_app;
+
+			stopmixmonitor_app = pbx_findapp("StopMixMonitor");
+			if (!stopmixmonitor_app) {
 				ast_log(LOG_ERROR,"Cannot stop recording the call. The stopmixmonitor application is disabled.\n");
 				return -1;
 			}
-			if (!(stopmixmonitor_app = pbx_findapp("StopMixMonitor"))) {
-				stopmixmonitor_ok = 0;
-				ast_log(LOG_ERROR,"Cannot stop recording the call. The stopmixmonitor application is disabled.\n");
-				return -1;
-			} else {
-				pbx_exec(callee_chan, stopmixmonitor_app, "");
-				return AST_FEATURE_RETURN_SUCCESS;
-			}
+			pbx_exec(callee_chan, stopmixmonitor_app, "");
+			return AST_FEATURE_RETURN_SUCCESS;
 		}
 
 		ast_log(LOG_WARNING,"Stopped MixMonitors are attached to the channel.\n");
@@ -4309,6 +4289,48 @@ void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval st
 }
 
 /*!
+ * \internal
+ * \brief Check if Monitor needs to be started on a channel.
+ * \since 12.0.0
+ *
+ * \param chan The bridge considers this channel the caller.
+ * \param peer The bridge considers this channel the callee.
+ *
+ * \return Nothing
+ */
+static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *peer)
+{
+	const char *value;
+	const char *monitor_args = NULL;
+	struct ast_channel *monitor_chan = NULL;
+
+	ast_channel_lock(chan);
+	value = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR");
+	if (!ast_strlen_zero(value)) {
+		monitor_args = ast_strdupa(value);
+		monitor_chan = chan;
+	}
+	ast_channel_unlock(chan);
+	if (!monitor_chan) {
+		ast_channel_lock(peer);
+		value = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR");
+		if (!ast_strlen_zero(value)) {
+			monitor_args = ast_strdupa(value);
+			monitor_chan = peer;
+		}
+		ast_channel_unlock(peer);
+	}
+	if (monitor_chan) {
+		struct ast_app *monitor_app;
+
+		monitor_app = pbx_findapp("Monitor");
+		if (monitor_app) {
+			pbx_exec(monitor_chan, monitor_app, monitor_args);
+		}
+	}
+}
+
+/*!
  * \brief bridge the call and set CDR
  *
  * \param chan The bridge considers this channel the caller.
@@ -4363,22 +4385,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		ast_indicate(peer, AST_CONTROL_RINGING);
 	}
 
-	if (monitor_ok) {
-		const char *monitor_exec;
-		struct ast_channel *src = NULL;
-		if (!monitor_app) {
-			if (!(monitor_app = pbx_findapp("Monitor")))
-				monitor_ok=0;
-		}
-		if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR")))
-			src = chan;
-		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
-			src = peer;
-		if (monitor_app && src) {
-			char *tmp = ast_strdupa(monitor_exec);
-			pbx_exec(src, monitor_app, tmp);
-		}
-	}
+	bridge_check_monitor(chan, peer);
 
 	set_config_flags(chan, config);
 
