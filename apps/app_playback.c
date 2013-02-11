@@ -504,8 +504,8 @@ static int reload(void)
 	if (say_cfg) {
 		ast_config_destroy(say_cfg);
 		ast_log(LOG_NOTICE, "Reloading say.conf\n");
-		say_cfg = newcfg;
 	}
+	say_cfg = newcfg;
 
 	if (say_cfg) {
 		for (v = ast_variable_browse(say_cfg, "general"); v ; v = v->next) {
