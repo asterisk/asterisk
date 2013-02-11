@@ -1224,7 +1224,7 @@ struct ao2_container *__ao2_container_alloc_list_debug(unsigned int ao2_options,
 
 #define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
 	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
-#define ao2_container_alloc_rbtree(ao2_options, container_options, , sort_fn, cmp_fn) \
+#define ao2_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn) \
 	__ao2_container_alloc_rbtree_debug((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
 
 #elif defined(__AST_DEBUG_MALLOC)
