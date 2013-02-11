@@ -1093,8 +1093,6 @@ static void xmpp_pubsub_delete_node(struct ast_xmpp_client *client, const char *
 	iks_insert_attrib(delete, "node", node_name);
 	ast_xmpp_client_send(client, request);
 
-	iks_delete(delete);
-	iks_delete(pubsub);
 	iks_delete(request);
 }
 
