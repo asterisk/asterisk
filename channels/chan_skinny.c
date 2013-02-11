@@ -2402,7 +2402,7 @@ static void transmit_callinfo_variable(struct skinny_device *d, int instance, in
 {
 	struct skinny_req *req;
 	char *strptr;
-	char *thestrings[12];
+	char *thestrings[13];
 	int i;
 	int callinfostrleft = MAXCALLINFOSTR;
 
@@ -2421,7 +2421,11 @@ static void transmit_callinfo_variable(struct skinny_device *d, int instance, in
 
 	thestrings[0] = fromnum;
 	thestrings[1] = "";                     /* Appears to be origfrom */
-	thestrings[2] = tonum;
+	if (calldirection == SKINNY_OUTGOING) {
+		thestrings[2] = tonum;
+	} else {
+		thestrings[2] = "";
+	}
 	thestrings[3] = "";
 	thestrings[4] = "";
 	thestrings[5] = "";
@@ -2432,10 +2436,11 @@ static void transmit_callinfo_variable(struct skinny_device *d, int instance, in
 	thestrings[9] = fromname;
 	thestrings[10] = toname;
 	thestrings[11] = "";
+	thestrings[12] = "";
 
 	strptr = req->data.callinfomessagevariable.calldetails;
 
-	for(i = 0; i < 12; i++) {
+	for(i = 0; i < 13; i++) {
 		ast_copy_string(strptr, thestrings[i], callinfostrleft);
 		strptr += strlen(thestrings[i]) + 1;
 		callinfostrleft -= strlen(thestrings[i]) + 1;
@@ -2474,7 +2479,7 @@ static void send_callinfo(struct skinny_subchannel *sub)
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
 		fromname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
 		fromnum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
-		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, l->lastnumberdialed);
+		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
 		tonum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, l->lastnumberdialed);
 	} else {
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
@@ -2514,7 +2519,7 @@ static void push_callinfo(struct skinny_subline *subline, struct skinny_subchann
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
 		fromname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
 		fromnum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
-		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, l->lastnumberdialed);
+		toname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
 		tonum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, l->lastnumberdialed);
 	} else {
 		ast_verb(1, "Error sending Callinfo to %s(%d) - No call direction in sub\n", d->name, l->instance);
