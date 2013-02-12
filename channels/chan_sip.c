@@ -229,6 +229,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    balanced, along with the complete history for that object.
    In normal operation, the macros defined will throw away the tags, so they do not
    affect the speed of the program at all. They can be considered to be documentation.
+
+   Note: This must also be enabled in channels/sip/security_events.c
 */
 /* #define  REF_DEBUG 1 */
 
@@ -3240,9 +3242,7 @@ cleanup:
 }
 
 #ifdef REF_DEBUG
-#define sip_ref_peer(arg1,arg2) _ref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define sip_unref_peer(arg1,arg2) _unref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-static struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
+struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
 {
 	if (peer)
 		__ao2_ref_debug(peer, 1, tag, file, line, func);
@@ -3251,7 +3251,7 @@ static struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, 
 	return peer;
 }
 
-static struct sip_peer *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
+void *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
 {
 	if (peer)
 		__ao2_ref_debug(peer, -1, tag, file, line, func);

@@ -1917,7 +1917,15 @@ struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int 
 void sip_auth_headers(enum sip_auth_type code, char **header, char **respheader);
 const char *sip_get_header(const struct sip_request *req, const char *name);
 const char *sip_get_transport(enum sip_transport t);
-void *sip_unref_peer(struct sip_peer *peer, char *tag);
+
+#ifdef REF_DEBUG
+#define sip_ref_peer(arg1,arg2) _ref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define sip_unref_peer(arg1,arg2) _unref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func);
+void *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func);
+#else
 struct sip_peer *sip_ref_peer(struct sip_peer *peer, char *tag);
+void *sip_unref_peer(struct sip_peer *peer, char *tag);
+#endif /* REF_DEBUG */
 
 #endif
