@@ -177,4 +177,33 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
  * \param pool The pool to shut down
  */
 void ast_threadpool_shutdown(struct ast_threadpool *pool);
+
+/*!
+ * \brief Serialized execution of tasks within a \ref ast_threadpool.
+ *
+ * \since 12.0.0
+ *
+ * A \ref ast_taskprocessor with the same contract as a default taskprocessor
+ * (tasks execute serially) except instead of executing out of a dedicated
+ * thread, execution occurs in a thread from a \ref ast_threadpool. Think of it
+ * as a lightweight thread.
+ *
+ * While it guarantees that each task will complete before executing the next,
+ * there is no guarantee as to which thread from the \c pool individual tasks
+ * will execute. This normally only matters if your code relys on thread
+ * specific information, such as thread locals.
+ *
+ * Use ast_taskprocessor_unreference() to dispose of the returned \ref
+ * ast_taskprocessor.
+ *
+ * Only a single taskprocessor with a given name may exist. This function will fail
+ * if a taskprocessor with the given name already exists.
+ *
+ * \param name Name of the serializer. (must be unique)
+ * \param pool \ref ast_threadpool for execution.
+ * \return \ref ast_taskprocessor for enqueuing work.
+ * \return \c NULL on error.
+ */
+struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast_threadpool *pool);
+
 #endif /* ASTERISK_THREADPOOL_H */
