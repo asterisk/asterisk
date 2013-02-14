@@ -2458,6 +2458,7 @@ static void send_callinfo(struct skinny_subchannel *sub)
 	struct ast_channel *ast;
 	struct skinny_device *d;
 	struct skinny_line *l;
+	struct ast_party_id connected_id;
 	char *fromname;
 	char *fromnum;
 	char *toname;
@@ -2470,10 +2471,16 @@ static void send_callinfo(struct skinny_subchannel *sub)
 	ast = sub->owner;
 	l = sub->line;
 	d = l->device;
+	connected_id = ast_channel_connected_effective_id(ast);
 
 	if (sub->calldirection == SKINNY_INCOMING) {
-		fromname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
-		fromnum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, "");
+		if ((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			fromname = S_COR(connected_id.name.valid, connected_id.name.str, "");
+			fromnum = S_COR(connected_id.number.valid, connected_id.number.str, "");
+		} else {
+			fromname = "";
+			fromnum = "";
+		}
 		toname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
 		tonum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
@@ -2498,6 +2505,7 @@ static void push_callinfo(struct skinny_subline *subline, struct skinny_subchann
 	struct ast_channel *ast;
 	struct skinny_device *d;
 	struct skinny_line *l;
+	struct ast_party_id connected_id;
 	char *fromname;
 	char *fromnum;
 	char *toname;
@@ -2510,10 +2518,16 @@ static void push_callinfo(struct skinny_subline *subline, struct skinny_subchann
 	ast = sub->owner;
 	l = sub->line;
 	d = l->device;
+	connected_id = ast_channel_connected_effective_id(ast);
 
 	if (sub->calldirection == SKINNY_INCOMING) {
-		fromname = S_COR(ast_channel_connected(ast)->id.name.valid, ast_channel_connected(ast)->id.name.str, "");
-		fromnum = S_COR(ast_channel_connected(ast)->id.number.valid, ast_channel_connected(ast)->id.number.str, "");
+		if((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			fromname = S_COR(connected_id.name.valid, connected_id.name.str, "");
+			fromnum = S_COR(connected_id.number.valid, connected_id.number.str, "");
+		} else {
+			fromname = "";
+			fromnum = "";
+		}
 		toname = S_COR(ast_channel_caller(ast)->id.name.valid, ast_channel_caller(ast)->id.name.str, "");
 		tonum = S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, "");
 	} else if (sub->calldirection == SKINNY_OUTGOING) {
@@ -2794,6 +2808,10 @@ static void transmit_clearpromptmessage(struct skinny_device *d, int instance, i
 static void transmit_dialednumber(struct skinny_device *d, const char *text, int instance, int callid)
 {
 	struct skinny_req *req;
+
+	if (d->protocolversion > 16) {
+		return;
+	}
 
 	if (!(req = req_alloc(sizeof(struct dialed_number_message), DIALED_NUMBER_MESSAGE)))
 		return;
@@ -5192,8 +5210,10 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	struct skinny_subline *subline = sub->subline;
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
+	struct ast_party_id connected_id;
 	pthread_t t;
 	int actualstate = state;
+	char *fromnum;
 
 	if (sub->substate == SUBSTATE_ONHOOK) {
 		return;
@@ -5454,9 +5474,15 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		sub->substate = SUBSTATE_RINGOUT;
 		break;
 	case SUBSTATE_RINGIN:
+		connected_id = ast_channel_connected_effective_id(c);
+		if ((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			fromnum = S_COR(connected_id.number.valid, connected_id.number.str, "Unknown");
+		} else {
+			fromnum = "Unknown";
+		}
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
-		send_displaypromptstatus(d, "Ring-In", "", 0, l->instance, sub->callid);
+		send_displaypromptstatus(d, OCTAL_FROM, fromnum, 0, l->instance, sub->callid);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 		transmit_ringer_mode(d, SKINNY_RING_INSIDE);
