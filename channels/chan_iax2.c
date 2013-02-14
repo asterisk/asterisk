@@ -651,6 +651,10 @@ struct iax_rr {
 
 struct iax2_pvt_ref;
 
+/* We use the high order bit as the validated flag, and the lower 15 as the
+ * actual call number */
+typedef uint16_t callno_entry;
+
 struct chan_iax2_pvt {
 	/*! Socket to send/receive on for this call */
 	int sockfd;
@@ -693,7 +697,7 @@ struct chan_iax2_pvt {
 	/*! Our call number */
 	unsigned short callno;
 	/*! Our callno_entry entry */
-	struct callno_entry *callno_entry;
+	callno_entry callno_entry;
 	/*! Peer callno */
 	unsigned short peercallno;
 	/*! Negotiated format, this is only used to remember what format was
@@ -849,13 +853,31 @@ struct signaling_queue_entry {
 	AST_LIST_ENTRY(signaling_queue_entry) next;
 };
 
+enum callno_type {
+	CALLNO_TYPE_NORMAL,
+	CALLNO_TYPE_TRUNK,
+};
+
+#define PTR_TO_CALLNO_ENTRY(a) ((uint16_t)(unsigned long)(a))
+#define CALLNO_ENTRY_TO_PTR(a) ((void *)(unsigned long)(a))
+
+#define CALLNO_ENTRY_SET_VALIDATED(a) ((a) |= 0x8000)
+#define CALLNO_ENTRY_IS_VALIDATED(a)  ((a) & 0x8000)
+#define CALLNO_ENTRY_GET_CALLNO(a)    ((a) & 0x7FFF)
+
+struct call_number_pool {
+	size_t capacity;
+	size_t available;
+	callno_entry numbers[IAX_MAX_CALLS / 2 + 1];
+};
+
+AST_MUTEX_DEFINE_STATIC(callno_pool_lock);
+
 /*! table of available call numbers */
-static struct ao2_container *callno_pool;
+static struct call_number_pool callno_pool;
 
 /*! table of available trunk call numbers */
-static struct ao2_container *callno_pool_trunk;
-
-static const unsigned int CALLNO_POOL_BUCKETS = 2699;
+static struct call_number_pool callno_pool_trunk;
 
 /*!
  * \brief a list of frames that may need to be retransmitted
@@ -933,13 +955,6 @@ struct addr_range {
 	uint16_t limit;
 	/*! delete me marker for reloads */
 	unsigned char delme;
-};
-
-struct callno_entry {
-	/*! callno used for this entry */
-	uint16_t callno;
-	/*! was this callno calltoken validated or not */
-	unsigned char validated;
 };
 
 enum {
@@ -1236,9 +1251,9 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh, unsigned char *poo, int *datalen);
 static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt);
 static void build_rand_pad(unsigned char *buf, ssize_t len);
-static struct callno_entry *get_unused_callno(int trunk, int validated);
+static int get_unused_callno(enum callno_type type, int validated, callno_entry *entry);
 static int replace_callno(const void *obj);
-static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *callno_entry);
+static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry);
 static void network_change_event_cb(const struct ast_event *, void *);
 static void acl_change_event_cb(const struct ast_event *, void *);
 
@@ -2001,7 +2016,7 @@ static void pvt_destructor(void *obj)
 	iax2_destroy_helper(pvt);
 
 	sched_delay_remove(&pvt->addr, pvt->callno_entry);
-	pvt->callno_entry = NULL;
+	pvt->callno_entry = 0;
 
 	/* Already gone */
 	ast_set_flag64(pvt, IAX_ALREADYGONE);
@@ -2137,7 +2152,7 @@ static int make_trunk(unsigned short callno, int locked)
 {
 	int x;
 	int res= 0;
-	struct callno_entry *callno_entry;
+	callno_entry entry;
 	if (iaxs[callno]->oseqno) {
 		ast_log(LOG_WARNING, "Can't make trunk once a call has started!\n");
 		return -1;
@@ -2147,12 +2162,15 @@ static int make_trunk(unsigned short callno, int locked)
 		return -1;
 	}
 
-	if (!(callno_entry = get_unused_callno(1, iaxs[callno]->callno_entry->validated))) {
+	if (get_unused_callno(
+			CALLNO_TYPE_TRUNK,
+			CALLNO_ENTRY_IS_VALIDATED(iaxs[callno]->callno_entry),
+			&entry)) {
 		ast_log(LOG_WARNING, "Unable to trunk call: Insufficient space\n");
 		return -1;
 	}
 
-	x = callno_entry->callno;
+	x = CALLNO_ENTRY_GET_CALLNO(entry);
 	ast_mutex_lock(&iaxsl[x]);
 
 	/*!
@@ -2168,9 +2186,14 @@ static int make_trunk(unsigned short callno, int locked)
 	/* since we copied over the pvt from a different callno, make sure the old entry is replaced
 	 * before assigning the new one */
 	if (iaxs[x]->callno_entry) {
-		iax2_sched_add(sched, MIN_REUSE_TIME * 1000, replace_callno, iaxs[x]->callno_entry);
+		iax2_sched_add(
+			sched,
+			MIN_REUSE_TIME * 1000,
+			replace_callno,
+			CALLNO_ENTRY_TO_PTR(iaxs[x]->callno_entry));
+
 	}
-	iaxs[x]->callno_entry = callno_entry;
+	iaxs[x]->callno_entry = entry;
 
 	iaxs[callno] = NULL;
 	/* Update the two timers that should have been started */
@@ -2678,17 +2701,20 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 		ao2_iterator_destroy(&i);
 
 		if (a->argc == 4) {
+			size_t pool_avail = callno_pool.available;
+			size_t trunk_pool_avail = callno_pool_trunk.available;
+
 			ast_cli(a->fd, "\nNon-CallToken Validation Callno Limit: %d\n"
 			                 "Non-CallToken Validated Callno Used:   %d\n",
 				global_maxcallno_nonval,
 				total_nonval_callno_used);
 
-			ast_cli(a->fd,   "Total Available Callno:                %d\n"
-			                 "Regular Callno Available:              %d\n"
-			                 "Trunk Callno Available:                %d\n",
-				ao2_container_count(callno_pool) + ao2_container_count(callno_pool_trunk),
-				ao2_container_count(callno_pool),
-				ao2_container_count(callno_pool_trunk));
+			ast_cli(a->fd,   "Total Available Callno:                %zu\n"
+			                 "Regular Callno Available:              %zu\n"
+			                 "Trunk Callno Available:                %zu\n",
+				pool_avail + trunk_pool_avail,
+				pool_avail,
+				trunk_pool_avail);
 		} else if (a->argc == 5 && !found) {
 			ast_cli(a->fd, "No call number table entries for %s found\n", a->argv[4] );
 		}
@@ -2700,116 +2726,143 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 	}
 }
 
-static struct callno_entry *get_unused_callno(int trunk, int validated)
+static int get_unused_callno(enum callno_type type, int validated, callno_entry *entry)
 {
-	struct callno_entry *callno_entry = NULL;
-	if ((!ao2_container_count(callno_pool) && !trunk) || (!ao2_container_count(callno_pool_trunk) && trunk)) {
-		ast_log(LOG_WARNING, "Out of CallNumbers\n");
-		/* Minor optimization for the extreme case. */
-		return NULL;
+	struct call_number_pool *pool = NULL;
+	callno_entry swap;
+	size_t choice;
+
+	switch (type) {
+	case CALLNO_TYPE_NORMAL:
+		pool = &callno_pool;
+		break;
+	case CALLNO_TYPE_TRUNK:
+		pool = &callno_pool_trunk;
+		break;
+	default:
+		ast_assert(0);
+		break;
 	}
 
-	/* the callno_pool container is locked here primarily to ensure thread
-	 * safety of the total_nonval_callno_used check and increment */
-	ao2_lock(callno_pool);
+	/* If we fail, make sure this has a defined value */
+	*entry = 0;
 
-	/* only a certain number of nonvalidated call numbers should be allocated.
-	 * If there ever is an attack, this separates the calltoken validating
-	 * users from the non calltoken validating users. */
-	if (!validated && (total_nonval_callno_used >= global_maxcallno_nonval)) {
-		ast_log(LOG_WARNING, "NON-CallToken callnumber limit is reached. Current:%d Max:%d\n", total_nonval_callno_used, global_maxcallno_nonval);
-		ao2_unlock(callno_pool);
-		return NULL;
+	/* We lock here primarily to ensure thread safety of the
+	 * total_nonval_callno_used check and increment */
+	ast_mutex_lock(&callno_pool_lock);
+
+	/* Bail out if we don't have any available call numbers */
+	if (!pool->available) {
+		ast_log(LOG_WARNING, "Out of call numbers\n");
+		ast_mutex_unlock(&callno_pool_lock);
+		return 1;
 	}
 
-	/* unlink the object from the container, taking over ownership
-	 * of the reference the container had to the object */
-	callno_entry = ao2_find((trunk ? callno_pool_trunk : callno_pool), NULL, OBJ_POINTER | OBJ_UNLINK | OBJ_CONTINUE);
-
-	if (callno_entry) {
-		callno_entry->validated = validated;
-		if (!validated) {
-			total_nonval_callno_used++;
-		}
+	/* Only a certain number of non-validated call numbers should be allocated.
+	 * If there ever is an attack, this separates the calltoken validating users
+	 * from the non-calltoken validating users. */
+	if (!validated && total_nonval_callno_used >= global_maxcallno_nonval) {
+		ast_log(LOG_WARNING,
+			"NON-CallToken callnumber limit is reached. Current: %d Max: %d\n",
+			total_nonval_callno_used,
+			global_maxcallno_nonval);
+		ast_mutex_unlock(&callno_pool_lock);
+		return 1;
 	}
 
-	ao2_unlock(callno_pool);
-	return callno_entry;
+	/* We use a modified Fisher-Yates-Durstenfeld Shuffle to maintain a list of
+	 * available call numbers.  The array of call numbers begins as an ordered
+	 * list from 1 -> n, and we keep a running tally of how many remain unclaimed
+	 * - let's call that x.  When a call number is needed we pick a random index
+	 * into the array between 0 and x and use that as our call number.  In a
+	 * typical FYD shuffle, we would swap the value that we are extracting with
+	 * the number at x, but in our case we swap and don't touch the value at x
+	 * because it is effectively invisible.  We rely on the rest of the IAX2 core
+	 * to return the number to us at some point.  Finally, we decrement x by 1
+	 * which establishes our new unused range.
+	 *
+	 * When numbers are returned to the pool, we put them just past x and bump x
+	 * by 1 so that this number is now available for re-use. */
+
+	choice = ast_random() % pool->available;
+
+	*entry = pool->numbers[choice];
+	swap = pool->numbers[pool->available - 1];
+
+	pool->numbers[choice] = swap;
+	pool->available--;
+
+	if (validated) {
+		CALLNO_ENTRY_SET_VALIDATED(*entry);
+	} else {
+		total_nonval_callno_used++;
+	}
+
+	ast_mutex_unlock(&callno_pool_lock);
+
+	return 0;
 }
 
 static int replace_callno(const void *obj)
 {
-	struct callno_entry *callno_entry = (struct callno_entry *) obj;
+	callno_entry entry = PTR_TO_CALLNO_ENTRY(obj);
+	struct call_number_pool *pool;
 
-	/* the callno_pool container is locked here primarily to ensure thread
-	 * safety of the total_nonval_callno_used check and decrement */
-	ao2_lock(callno_pool);
+	/* We lock here primarily to ensure thread safety of the
+	 * total_nonval_callno_used check and decrement */
+	ast_mutex_lock(&callno_pool_lock);
 
-	if (!callno_entry->validated && (total_nonval_callno_used != 0)) {
-		total_nonval_callno_used--;
-	} else if (!callno_entry->validated && (total_nonval_callno_used == 0)) {
-		ast_log(LOG_ERROR, "Attempted to decrement total non calltoken validated callnumbers below zero... Callno is:%d \n", callno_entry->callno);
+	if (!CALLNO_ENTRY_IS_VALIDATED(entry)) {
+		if (total_nonval_callno_used) {
+			total_nonval_callno_used--;
+		} else {
+			ast_log(LOG_ERROR,
+				"Attempted to decrement total non calltoken validated "
+				"callnumbers below zero.  Callno is: %d\n",
+				CALLNO_ENTRY_GET_CALLNO(entry));
+		}
 	}
 
-	if (callno_entry->callno < TRUNK_CALL_START) {
-		ao2_link(callno_pool, callno_entry);
+	if (CALLNO_ENTRY_GET_CALLNO(entry) < TRUNK_CALL_START) {
+		pool = &callno_pool;
 	} else {
-		ao2_link(callno_pool_trunk, callno_entry);
+		pool = &callno_pool_trunk;
 	}
-	ao2_ref(callno_entry, -1); /* only container ref remains */
 
-	ao2_unlock(callno_pool);
+	ast_assert(pool->capacity > pool->available);
+
+	/* This clears the validated flag */
+	entry = CALLNO_ENTRY_GET_CALLNO(entry);
+
+	pool->numbers[pool->available] = entry;
+	pool->available++;
+
+	ast_mutex_unlock(&callno_pool_lock);
+
 	return 0;
-}
-
-static int callno_hash(const void *obj, const int flags)
-{
-	/*
-	 * XXX A hash function should always return the same value for
-	 * the same inputs.
-	 */
-	return abs(ast_random());
 }
 
 static int create_callno_pools(void)
 {
 	uint16_t i;
 
-	/*!
-	 * \todo XXX A different method of randomly picking an available
-	 * IAX2 callno needs to be devised.
-	 *
-	 * A hash function should always return the same value for the
-	 * same inputs.  This game with the hash function prevents
-	 * astob2.c from generically checking the integrity of hash
-	 * containers while the system runs.
-	 */
-	if (!(callno_pool = ao2_container_alloc(CALLNO_POOL_BUCKETS, callno_hash, NULL))) {
-		return -1;
+	callno_pool.available = callno_pool_trunk.available = 0;
+
+	/* We start at 2.  0 and 1 are reserved. */
+	for (i = 2; i < TRUNK_CALL_START; i++) {
+		callno_pool.numbers[callno_pool.available] = i;
+		callno_pool.available++;
 	}
 
-	if (!(callno_pool_trunk = ao2_container_alloc(CALLNO_POOL_BUCKETS, callno_hash, NULL))) {
-		return -1;
+	for (i = TRUNK_CALL_START; i < IAX_MAX_CALLS; i++) {
+		callno_pool_trunk.numbers[callno_pool_trunk.available] = i;
+		callno_pool_trunk.available++;
 	}
 
-	/* start at 2, 0 and 1 are reserved */
-	for (i = 2; i < IAX_MAX_CALLS; i++) {
-		struct callno_entry *callno_entry;
+	callno_pool.capacity = callno_pool.available;
+	callno_pool_trunk.capacity = callno_pool_trunk.available;
 
-		if (!(callno_entry = ao2_alloc(sizeof(*callno_entry), NULL))) {
-			return -1;
-		}
-
-		callno_entry->callno = i;
-
-		if (i < TRUNK_CALL_START) {
-			ao2_link(callno_pool, callno_entry);
-		} else {
-			ao2_link(callno_pool_trunk, callno_entry);
-		}
-
-		ao2_ref(callno_entry, -1);
-	}
+	ast_assert(callno_pool.capacity && callno_pool_trunk.capacity);
 
 	return 0;
 }
@@ -2822,7 +2875,7 @@ static int create_callno_pools(void)
  * avaliable again, and the address from the previous connection must be decremented
  * from the peercnts table.  This function schedules these operations to take place.
  */
-static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *callno_entry)
+static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry)
 {
 	int i;
 	struct peercnt *peercnt;
@@ -2839,7 +2892,11 @@ static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *cal
 		}
 	}
 
-	iax2_sched_add(sched, MIN_REUSE_TIME * 1000, replace_callno, callno_entry);
+	iax2_sched_add(
+		sched,
+		MIN_REUSE_TIME * 1000,
+		replace_callno,
+		CALLNO_ENTRY_TO_PTR(entry));
 }
 
 /*! 
@@ -2935,7 +2992,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 		}
 	}
 	if (!res && (new >= NEW_ALLOW)) {
-		struct callno_entry *callno_entry;
+		callno_entry entry;
 		/* It may seem odd that we look through the peer list for a name for
 		 * this *incoming* call.  Well, it is weird.  However, users don't
 		 * have an IP address/port number that we can match against.  So,
@@ -2951,21 +3008,21 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			return 0;
 		}
 
-		if (!(callno_entry = get_unused_callno(0, validated))) {
+		if (get_unused_callno(CALLNO_TYPE_NORMAL, validated, &entry)) {
 			/* since we ran out of space, remove the peercnt
 			 * entry we added earlier */
 			peercnt_remove_by_addr(sin);
 			ast_log(LOG_WARNING, "No more space\n");
 			return 0;
 		}
-		x = callno_entry->callno;
+		x = CALLNO_ENTRY_GET_CALLNO(entry);
 		ast_mutex_lock(&iaxsl[x]);
 
 		iaxs[x] = new_iax(sin, host);
 		if (iaxs[x]) {
 			if (iaxdebug)
 				ast_debug(1, "Creating new call structure %d\n", x);
-			iaxs[x]->callno_entry = callno_entry;
+			iaxs[x]->callno_entry = entry;
 			iaxs[x]->sockfd = sockfd;
 			iaxs[x]->addr.sin_port = sin->sin_port;
 			iaxs[x]->addr.sin_family = sin->sin_family;
@@ -2989,7 +3046,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
 			ast_mutex_unlock(&iaxsl[x]);
-			replace_callno(callno_entry);
+			replace_callno(CALLNO_ENTRY_TO_PTR(entry));
 			return 0;
 		}
 		if (!return_locked)
@@ -14266,8 +14323,6 @@ static int __unload_module(void)
 	ao2_ref(peercnts, -1);
 	ao2_ref(callno_limits, -1);
 	ao2_ref(calltoken_ignores, -1);
-	ao2_ref(callno_pool, -1);
-	ao2_ref(callno_pool_trunk, -1);
 	if (timer) {
 		ast_timer_close(timer);
 		timer = NULL;
@@ -14341,7 +14396,7 @@ static int transfercallno_pvt_cmp_cb(void *obj, void *arg, int flags)
 static int load_objects(void)
 {
 	peers = users = iax_peercallno_pvts = iax_transfercallno_pvts = NULL;
-	peercnts = callno_limits = calltoken_ignores = callno_pool = callno_pool_trunk = NULL;
+	peercnts = callno_limits = calltoken_ignores = NULL;
 
 	if (!(peers = ao2_container_alloc(MAX_PEER_BUCKETS, peer_hash_cb, peer_cmp_cb))) {
 		goto container_fail;
@@ -14386,12 +14441,6 @@ container_fail:
 	}
 	if (calltoken_ignores) {
 		ao2_ref(calltoken_ignores, -1);
-	}
-	if (callno_pool) {
-		ao2_ref(callno_pool, -1);
-	}
-	if (callno_pool_trunk) {
-		ao2_ref(callno_pool_trunk, -1);
 	}
 	return AST_MODULE_LOAD_FAILURE;
 }
