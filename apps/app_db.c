@@ -106,13 +106,15 @@ static int deltree_exec(struct ast_channel *chan, const char *data)
 		keytree = 0;
 	}
 
-	if (keytree)
+	if (keytree) {
 		ast_verb(3, "DBdeltree: family=%s, keytree=%s\n", family, keytree);
-	else
+	} else {
 		ast_verb(3, "DBdeltree: family=%s\n", family);
+	}
 
-	if (ast_db_deltree(family, keytree))
+	if (ast_db_deltree(family, keytree) < 0) {
 		ast_verb(3, "DBdeltree: Error deleting key from database.\n");
+	}
 
 	return 0;
 }
