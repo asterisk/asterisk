@@ -108,7 +108,7 @@
  * If you don't like the extra 'v', just edit the sed command.
  *
  \verbatim
-  ../asterisk-tools/update-tags
+  ../asterisk-tools/update_tags
  \endverbatim
  * 
  * Example configuration (refer to menuselect/menuselelct for more
