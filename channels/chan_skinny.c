@@ -2426,8 +2426,8 @@ static void transmit_callinfo_variable(struct skinny_device *d, int instance, in
 	} else {
 		thestrings[2] = "";
 	}
-	thestrings[3] = "";
-	thestrings[4] = "";
+	thestrings[3] = "203";
+	thestrings[4] = "204";
 	thestrings[5] = "";
 	thestrings[6] = "";
 	thestrings[7] = "";
@@ -2808,10 +2808,6 @@ static void transmit_clearpromptmessage(struct skinny_device *d, int instance, i
 static void transmit_dialednumber(struct skinny_device *d, const char *text, int instance, int callid)
 {
 	struct skinny_req *req;
-
-	if (d->protocolversion > 16) {
-		return;
-	}
 
 	if (!(req = req_alloc(sizeof(struct dialed_number_message), DIALED_NUMBER_MESSAGE)))
 		return;
