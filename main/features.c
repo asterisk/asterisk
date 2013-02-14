@@ -4246,9 +4246,12 @@ void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval st
 	long duration;
 
 	ast_channel_lock(chan);
-	dead = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan);
+	dead = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
+		|| (ast_channel_softhangup_internal_flag(chan)
+			& ~(AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE));
 	ast_channel_unlock(chan);
 	if (dead) {
+		/* Channel is a zombie or a real hangup. */
 		return;
 	}
 
