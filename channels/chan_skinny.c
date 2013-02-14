@@ -2426,8 +2426,8 @@ static void transmit_callinfo_variable(struct skinny_device *d, int instance, in
 	} else {
 		thestrings[2] = "";
 	}
-	thestrings[3] = "203";
-	thestrings[4] = "204";
+	thestrings[3] = "";
+	thestrings[4] = "";
 	thestrings[5] = "";
 	thestrings[6] = "";
 	thestrings[7] = "";
