@@ -105,6 +105,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
+#include "asterisk/term.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
 /* #define REF_DEBUG_ONLY_QUEUES */
@@ -8312,11 +8313,14 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 
 				ast_str_append(&out, 0, " (ringinuse %s)", mem->ringinuse ? "enabled" : "disabled");
 
-				ast_str_append(&out, 0, "%s%s%s (%s)",
-					mem->dynamic ? " (dynamic)" : "",
-					mem->realtime ? " (realtime)" : "",
-					mem->paused ? " (paused)" : "",
-					ast_devstate2str(mem->status));
+				ast_str_append(&out, 0, "%s%s%s%s%s%s%s%s%s (%s%s%s)",
+					mem->dynamic ? ast_term_color(COLOR_CYAN, COLOR_BLACK) : "", mem->dynamic ? " (dynamic)" : "", ast_term_reset(),
+					mem->realtime ? ast_term_color(COLOR_MAGENTA, COLOR_BLACK) : "", mem->realtime ? " (realtime)" : "", ast_term_reset(),
+					mem->paused ? ast_term_color(COLOR_BROWN, COLOR_BLACK) : "", mem->paused ? " (paused)" : "", ast_term_reset(),
+					ast_term_color(
+						mem->status == AST_DEVICE_UNAVAILABLE || mem->status == AST_DEVICE_UNKNOWN ?
+							COLOR_RED : COLOR_GREEN, COLOR_BLACK),
+						ast_devstate2str(mem->status), ast_term_reset());
 				if (mem->calls) {
 					ast_str_append(&out, 0, " has taken %d calls (last was %ld secs ago)",
 						mem->calls, (long) (time(NULL) - mem->lastcall));

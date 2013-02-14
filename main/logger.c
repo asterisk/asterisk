@@ -1082,7 +1082,6 @@ static void logger_print_normal(struct logmsg *logmsg)
 			/* Console channels */
 			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
 				char linestr[128];
-				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
 				/* If the level is verbose, then skip it */
 				if (logmsg->level == __LOG_VERBOSE)
@@ -1091,14 +1090,14 @@ static void logger_print_normal(struct logmsg *logmsg)
 				/* Turn the numerical line number into a string */
 				snprintf(linestr, sizeof(linestr), "%d", logmsg->line);
 				/* Build string to print out */
-				snprintf(buf, sizeof(buf), "[%s] %s[%d]%s: %s:%s %s: %s",
+				snprintf(buf, sizeof(buf), "[%s] " COLORIZE_FMT "[%d]%s: " COLORIZE_FMT ":" COLORIZE_FMT " " COLORIZE_FMT ": %s",
 					 logmsg->date,
-					 term_color(tmp1, logmsg->level_name, colors[logmsg->level], 0, sizeof(tmp1)),
+					 COLORIZE(colors[logmsg->level], 0, logmsg->level_name),
 					 logmsg->lwp,
 					 call_identifier_str,
-					 term_color(tmp2, logmsg->file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-					 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
+					 COLORIZE(COLOR_BRWHITE, 0, logmsg->file),
+					 COLORIZE(COLOR_BRWHITE, 0, linestr),
+					 COLORIZE(COLOR_BRWHITE, 0, logmsg->function),
 					 logmsg->message);
 				/* Print out */
 				ast_console_puts_mutable(buf, logmsg->level);

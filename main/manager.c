@@ -1635,7 +1635,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
 	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
 	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-	term_color(privilege_title, "[Privilege]\n", COLOR_MAGENTA, 0,40);
+	term_color(privilege_title, "[Privilege]\n", COLOR_MAGENTA, 0, 40);
 #endif
 
 	AST_RWLIST_RDLOCK(&actions);

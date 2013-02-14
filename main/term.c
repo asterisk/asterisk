@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
+#include "asterisk/threadstorage.h"
 
 static int vt100compat;
 
@@ -53,6 +54,13 @@ static const char * const termpath[] = {
 	"/usr/lib/terminfo",
 	NULL
 	};
+
+AST_THREADSTORAGE(commonbuf);
+
+struct commonbuf {
+	short which;
+	char buffer[AST_TERM_MAX_ROTATING_BUFFERS][AST_TERM_MAX_ESCAPE_CHARS];
+};
 
 static int opposite(int color)
 {
@@ -217,11 +225,11 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 
 static void check_fgcolor(int *fgcolor, int *attr)
 {
+	*attr = ast_opt_light_background ? 0 : ATTR_BRIGHT;
 	if (*fgcolor & 128) {
-		*attr = ast_opt_light_background ? 0 : ATTR_BRIGHT;
 		*fgcolor &= ~128;
 	}
-	
+
 	if (ast_opt_light_background) {
 		*fgcolor = opposite(*fgcolor);
 	}
@@ -249,7 +257,7 @@ int ast_term_color_code(struct ast_str **str, int fgcolor, int bgcolor)
 
 	check_fgcolor(&fgcolor, &attr);
 	check_bgcolor(&bgcolor);
-	
+
 	if (ast_opt_force_black_background) {
 		ast_str_append(str, 0, "%c[%d;%d;%dm", ESC, attr, fgcolor, COLOR_BLACK + 10);
 	} else if (bgcolor) {
@@ -284,6 +292,32 @@ char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
 	return outbuf;
 }
 
+const char *ast_term_color(int fgcolor, int bgcolor)
+{
+	struct commonbuf *cb = ast_threadstorage_get(&commonbuf, sizeof(*cb));
+	char *buf;
+
+	if (!cb) {
+		return "";
+	}
+	buf = cb->buffer[cb->which++];
+	if (cb->which == AST_TERM_MAX_ROTATING_BUFFERS) {
+		cb->which = 0;
+	}
+
+	return term_color_code(buf, fgcolor, bgcolor, AST_TERM_MAX_ESCAPE_CHARS);
+}
+
+const char *ast_term_reset(void)
+{
+	if (ast_opt_force_black_background) {
+		static const char reset[] = { ESC, '[', COLOR_BLACK + 10, 'm', 0 };
+		return reset;
+	} else {
+		return quitdata;
+	}
+}
+
 char *term_strip(char *outbuf, const char *inbuf, int maxout)
 {
 	char *outbuf_ptr = outbuf;
@@ -313,22 +347,22 @@ char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 		return outbuf;
 	}
 	if (ast_opt_force_black_background) {
-		snprintf(outbuf, maxout, "%c[%d;%dm%c%c[%d;%dm%s",
-			ESC, COLOR_BLUE, COLOR_BLACK + 10,
+		snprintf(outbuf, maxout, "%c[%d;%d;%dm%c%c[%d;%dm%s",
+			ESC, ATTR_BRIGHT, COLOR_BLUE, COLOR_BLACK + 10,
 			inbuf[0],
 			ESC, COLOR_WHITE, COLOR_BLACK + 10,
 			inbuf + 1);
 	} else if (ast_opt_light_background) {
-		snprintf(outbuf, maxout, "%c[%d;0m%c%c[%d;0m%s",
+		snprintf(outbuf, maxout, "%c[%d;0m%c%c[0m%s",
 			ESC, COLOR_BLUE,
 			inbuf[0],
-			ESC, COLOR_BLACK,
+			ESC,
 			inbuf + 1);
 	} else {
-		snprintf(outbuf, maxout, "%c[%d;%d;0m%c%c[%d;%d;0m%s",
+		snprintf(outbuf, maxout, "%c[%d;%d;0m%c%c[0m%s",
 			ESC, ATTR_BRIGHT, COLOR_BLUE,
 			inbuf[0],
-			ESC, 0, COLOR_WHITE,
+			ESC,
 			inbuf + 1);
 	}
 	return outbuf;
@@ -357,17 +391,17 @@ void term_filter_escapes(char *line)
 	}
 }
 
-char *term_prep(void)
+const char *term_prep(void)
 {
 	return prepdata;
 }
 
-char *term_end(void)
+const char *term_end(void)
 {
 	return enddata;
 }
 
-char *term_quit(void)
+const char *term_quit(void)
 {
 	return quitdata;
 }

@@ -2797,7 +2797,7 @@ static void data_result_print_cli_node(int fd, const struct ast_data *node, uint
 
 	ast_free(tabs);
 
-	ast_term_color_code(&output, COLOR_WHITE, 0);
+	ast_term_color_code(&output, 0, 0);
 
 	ast_cli(fd, "%s", ast_str_buffer(output));
 
@@ -2840,19 +2840,7 @@ static void __data_result_print_cli(int fd, const struct ast_data *root, uint32_
  */
 static void data_result_print_cli(int fd, const struct ast_data *root)
 {
-	struct ast_str *output;
-
-	/* print the initial node. */
-	output = ast_str_create(30);
-	if (!output) {
-		return;
-	}
-
-	ast_term_color_code(&output, data_result_get_color(root->type), 0);
-	ast_str_append(&output, 0, "%s\n", root->name);
-	ast_term_color_code(&output, COLOR_WHITE, 0);
-	ast_cli(fd, "%s", ast_str_buffer(output));
-	ast_free(output);
+	ast_cli(fd, COLORIZE_FMT "\n", COLORIZE(data_result_get_color(root->type), 0, root->name));
 
 	__data_result_print_cli(fd, root, 0);
 

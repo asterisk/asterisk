@@ -2571,7 +2571,6 @@ static char *cli_prompt(EditLine *editline)
 	char *pfmt;
 	int color_used = 0;
 	static int cli_prompt_changes = 0;
-	char term_code[20];
 	struct passwd *pw;
 	struct group *gr;
 
@@ -2598,10 +2597,10 @@ static char *cli_prompt(EditLine *editline)
 				case 'C': /* color */
 					t++;
 					if (sscanf(t, "%30d;%30d%n", &fgcolor, &bgcolor, &i) == 2) {
-						ast_str_append(&prompt, 0, "%s", term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)));
+						ast_term_color_code(&prompt, fgcolor, bgcolor);
 						t += i - 1;
 					} else if (sscanf(t, "%30d%n", &fgcolor, &i) == 1) {
-						ast_str_append(&prompt, 0, "%s", term_color_code(term_code, fgcolor, 0, sizeof(term_code)));
+						ast_term_color_code(&prompt, fgcolor, 0);
 						t += i - 1;
 					}
 
@@ -2681,7 +2680,7 @@ static char *cli_prompt(EditLine *editline)
 		}
 		if (color_used) {
 			/* Force colors back to normal at end */
-			ast_str_append(&prompt, 0, "%s", term_color_code(term_code, 0, 0, sizeof(term_code)));
+			ast_term_color_code(&prompt, 0, 0);
 		}
 	} else if (remotehostname) {
 		ast_str_set(&prompt, 0, ASTERISK_PROMPT2, remotehostname);
@@ -3586,7 +3585,6 @@ int main(int argc, char *argv[])
 	int c;
 	char filename[80] = "";
 	char hostname[MAXHOSTNAMELEN] = "";
-	char tmp[80];
 	char * xarg = NULL;
 	int x;
 	FILE *f;
@@ -4284,7 +4282,7 @@ int main(int argc, char *argv[])
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
-	ast_verb(0, "%s\n", term_color(tmp, "Asterisk Ready.", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRWHITE, COLOR_BLACK, "Asterisk Ready."));
 	if (ast_opt_no_fork) {
 		consolethread = pthread_self();
 	}

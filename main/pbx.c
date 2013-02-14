@@ -4041,7 +4041,6 @@ static int acf_retrieve_docs(struct ast_custom_function *acf)
 int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)
 {
 	struct ast_custom_function *cur;
-	char tmps[80];
 
 	if (!acf) {
 		return -1;
@@ -4079,7 +4078,7 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	ast_verb(2, "Registered custom function '%s'\n", term_color(tmps, acf->name, COLOR_BRCYAN, 0, sizeof(tmps)));
+	ast_verb(2, "Registered custom function '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, acf->name));
 
 	return 0;
 }
@@ -4694,12 +4693,11 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 #endif
 			ast_debug(1, "Launching '%s'\n", app->name);
 			{
-				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
-				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
+				ast_verb(3, "Executing [%s@%s:%d] " COLORIZE_FMT "(\"" COLORIZE_FMT "\", \"" COLORIZE_FMT "\") %s\n",
 					exten, context, priority,
-					term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
-					term_color(tmp2, ast_channel_name(c), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-					term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+					COLORIZE(COLOR_BRCYAN, 0, app->name),
+					COLORIZE(COLOR_BRMAGENTA, 0, ast_channel_name(c)),
+					COLORIZE(COLOR_BRMAGENTA, 0, passdata),
 					"in new stack");
 			}
 			/*** DOCUMENTATION
@@ -7127,7 +7125,6 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 {
 	struct ast_app *tmp;
 	struct ast_app *cur;
-	char tmps[80];
 	int length;
 #ifdef AST_XML_DOCS
 	char *tmpxml;
@@ -7206,7 +7203,7 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
-	ast_verb(2, "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
+	ast_verb(2, "Registered application '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, tmp->name));
 
 	AST_RWLIST_UNLOCK(&apps);
 
@@ -7248,74 +7245,67 @@ void ast_unregister_switch(struct ast_switch *sw)
 
 static void print_app_docs(struct ast_app *aa, int fd)
 {
-	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40], stxtitle[40], argtitle[40];
-	char seealsotitle[40];
-	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *syntax = NULL, *arguments = NULL;
-	char *seealso = NULL;
-	int syntax_size, synopsis_size, description_size, arguments_size, seealso_size;
-
-	snprintf(info, sizeof(info), "\n  -= Info about application '%s' =- \n\n", aa->name);
-	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
-
-	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-
 #ifdef AST_XML_DOCS
+	char *synopsis = NULL, *description = NULL, *arguments = NULL, *seealso = NULL;
 	if (aa->docsrc == AST_XML_DOC) {
+		synopsis = ast_xmldoc_printable(S_OR(aa->synopsis, "Not available"), 1);
 		description = ast_xmldoc_printable(S_OR(aa->description, "Not available"), 1);
 		arguments = ast_xmldoc_printable(S_OR(aa->arguments, "Not available"), 1);
-		synopsis = ast_xmldoc_printable(S_OR(aa->synopsis, "Not available"), 1);
 		seealso = ast_xmldoc_printable(S_OR(aa->seealso, "Not available"), 1);
-
 		if (!synopsis || !description || !arguments || !seealso) {
-			goto return_cleanup;
+			goto free_docs;
 		}
+		ast_cli(fd, "\n"
+			"%s  -= Info about application '%s' =- %s\n\n"
+			COLORIZE_FMT "\n"
+			"%s\n\n"
+			COLORIZE_FMT "\n"
+			"%s\n\n"
+			COLORIZE_FMT "\n"
+			"%s%s%s\n\n"
+			COLORIZE_FMT "\n"
+			"%s\n\n"
+			COLORIZE_FMT "\n"
+			"%s\n",
+			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
+			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
+			COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
+			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
+				ast_term_color(COLOR_CYAN, 0), S_OR(aa->syntax, "Not available"), ast_term_reset(),
+			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
+			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso);
+free_docs:
+		ast_free(synopsis);
+		ast_free(description);
+		ast_free(arguments);
+		ast_free(seealso);
 	} else
 #endif
 	{
-		synopsis_size = strlen(S_OR(aa->synopsis, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		synopsis = ast_malloc(synopsis_size);
-
-		description_size = strlen(S_OR(aa->description, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		description = ast_malloc(description_size);
-
-		arguments_size = strlen(S_OR(aa->arguments, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		arguments = ast_malloc(arguments_size);
-
-		seealso_size = strlen(S_OR(aa->seealso, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		seealso = ast_malloc(seealso_size);
-
-		if (!synopsis || !description || !arguments || !seealso) {
-			goto return_cleanup;
-		}
-
-		term_color(synopsis, S_OR(aa->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
-		term_color(description, S_OR(aa->description, "Not available"),	COLOR_CYAN, 0, description_size);
-		term_color(arguments, S_OR(aa->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
-		term_color(seealso, S_OR(aa->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
+		ast_cli(fd, "\n"
+			"%s  -= Info about application '%s' =- %s\n\n"
+			COLORIZE_FMT "\n"
+			COLORIZE_FMT "\n\n"
+			COLORIZE_FMT "\n"
+			COLORIZE_FMT "\n\n"
+			COLORIZE_FMT "\n"
+			COLORIZE_FMT "\n\n"
+			COLORIZE_FMT "\n"
+			COLORIZE_FMT "\n\n"
+			COLORIZE_FMT "\n"
+			COLORIZE_FMT "\n",
+			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
+			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"),
+			COLORIZE(COLOR_CYAN, 0, S_OR(aa->synopsis, "Not available")),
+			COLORIZE(COLOR_MAGENTA, 0, "[Description]"),
+			COLORIZE(COLOR_CYAN, 0, S_OR(aa->description, "Not available")),
+			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
+			COLORIZE(COLOR_CYAN, 0, S_OR(aa->syntax, "Not available")),
+			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"),
+			COLORIZE(COLOR_CYAN, 0, S_OR(aa->arguments, "Not available")),
+			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"),
+			COLORIZE(COLOR_CYAN, 0, S_OR(aa->seealso, "Not available")));
 	}
-
-	/* Handle the syntax the same for both XML and raw docs */
-	syntax_size = strlen(S_OR(aa->syntax, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-	if (!(syntax = ast_malloc(syntax_size))) {
-		goto return_cleanup;
-	}
-	term_color(syntax, S_OR(aa->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
-
-	ast_cli(fd, "%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n",
-			infotitle, syntitle, synopsis, destitle, description,
-			stxtitle, syntax, argtitle, arguments, seealsotitle, seealso);
-
-return_cleanup:
-	ast_free(description);
-	ast_free(arguments);
-	ast_free(synopsis);
-	ast_free(seealso);
-	ast_free(syntax);
 }
 
 /*
