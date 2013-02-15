@@ -159,6 +159,9 @@ static enum ast_presence_state ast_presence_state_helper(const char *presence_pr
 	}
 	AST_RWLIST_UNLOCK(&presence_state_providers);
 
+	if (!provider) {
+		ast_log(LOG_WARNING, "No provider found for label %s\n", label);
+	}
 
 	return res;
 }
