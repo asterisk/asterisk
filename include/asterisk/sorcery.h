@@ -275,17 +275,22 @@ struct ast_sorcery *ast_sorcery_open(void);
  *
  * \param sorcery Pointer to a sorcery structure
  * \param name Name of the category to use within the configuration file, normally the module name
+ * \param module The module name (AST_MODULE)
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name);
+int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, const char *module);
+
+#define ast_sorcery_apply_config(sorcery, name) \
+	__ast_sorcery_apply_config((sorcery), (name), AST_MODULE)
 
 /*!
  * \brief Apply default object wizard mappings
  *
  * \param sorcery Pointer to a sorcery structure
  * \param type Type of object to apply to
+ * \param module The name of the module, typically AST_MODULE
  * \param name Name of the wizard to use
  * \param data Data to be passed to wizard
  *
@@ -296,7 +301,10 @@ int ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name);
  *
  * \note Only a single default can exist per object type
  */
-int ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *name, const char *data);
+int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data);
+
+#define ast_sorcery_apply_default(sorcery, type, name, data) \
+	__ast_sorcery_apply_default((sorcery), (type), AST_MODULE, (name), (data))
 
 /*!
  * \brief Register an object type

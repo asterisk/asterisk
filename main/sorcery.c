@@ -330,7 +330,7 @@ static void sorcery_object_type_destructor(void *obj)
 }
 
 /*! \brief Internal function which allocates an object type structure */
-static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *type)
+static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *type, const char *module)
 {
 	struct ast_sorcery_object_type *object_type;
 
@@ -361,6 +361,7 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 
 	object_type->info->files[0] = object_type->file;
 	object_type->info->files[1] = NULL;
+	object_type->info->module = module;
 
 	ast_copy_string(object_type->name, type, sizeof(object_type->name));
 
@@ -382,7 +383,7 @@ static void sorcery_object_wizard_destructor(void *obj)
 }
 
 /*! \brief Internal function which creates an object type and adds a wizard mapping */
-static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char *type, const char *name, const char *data, unsigned int caching)
+static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data, unsigned int caching)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type,  ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_wizard *, wizard, ao2_find(wizards, name, OBJ_KEY), ao2_cleanup);
@@ -394,7 +395,7 @@ static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char 
 	}
 
 	if (!object_type) {
-		if (!(object_type = sorcery_object_type_alloc(type))) {
+		if (!(object_type = sorcery_object_type_alloc(type, module))) {
 			return -1;
 		}
 		created = 1;
@@ -418,7 +419,7 @@ static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char 
 	return 0;
 }
 
-int ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name)
+int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, const char *module)
 {
 	struct ast_flags flags = { 0 };
 	struct ast_config *config = ast_config_load2("sorcery.conf", "sorcery", flags);
@@ -447,7 +448,7 @@ int ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name)
 		}
 
 		/* Any error immediately causes us to stop */
-		if ((res = sorcery_apply_wizard_mapping(sorcery, name, wizard, data, caching))) {
+		if ((res = sorcery_apply_wizard_mapping(sorcery, name, module, wizard, data, caching))) {
 			break;
 		}
 	}
@@ -457,7 +458,7 @@ int ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name)
 	return res;
 }
 
-int ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *name, const char *data)
+int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type,  ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
@@ -466,7 +467,7 @@ int ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, con
 		return -1;
 	}
 
-	return sorcery_apply_wizard_mapping(sorcery, type, name, data, 0);
+	return sorcery_apply_wizard_mapping(sorcery, type, module, name, data, 0);
 }
 
 int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)

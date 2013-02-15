@@ -894,7 +894,7 @@ static char *complete_config_option(const char *module, const char *option, cons
 /* Define as 0 if we want to allow configurations to be registered without
  * documentation
  */
-#define XMLDOC_STRICT 1
+#define XMLDOC_STRICT 0
 
 /*! \internal
  * \brief Update the XML documentation for a config type based on its registration
