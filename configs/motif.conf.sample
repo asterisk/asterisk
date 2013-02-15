@@ -75,18 +75,25 @@ context=incoming-motif ; Default context that incoming sessions will land in
 ;maxpayloads = 30      ; Maximum number of payloads we will offer
 
 ; Sample configuration entry for Jingle
-[jingle-endpoint](default)
-transport=ice-udp               ; Change the default protocol of outgoing sessions to Jingle ICE-UDP
-allow=g722                      ; Add G.722 as an allowed format since the other side may support it
-connection=local-jabber-account ; Connection to accept traffic on and send traffic out
-accountcode=jingle              ; Account code for CDR purposes
+;[jingle-endpoint](default)
+;transport=ice-udp               ; Change the default protocol of outgoing sessions to Jingle ICE-UDP
+;allow=g722                      ; Add G.722 as an allowed format since the other side may support it
+;connection=local-jabber-account ; Connection to accept traffic on and send traffic out
+;accountcode=jingle              ; Account code for CDR purposes
 
 ; Sample configuration entry for Google Talk
 [gtalk-endpoint](default)
-transport=google         ; Since this is a Google Talk endpoint we want to offer Google Jingle for outgoing sessions
-connection=gtalk-account
+;transport=google         ; Since this is a Google Talk endpoint we want to offer Google Jingle for outgoing sessions
+;connection=gtalk-account
 
 ; Sample configuration entry for Google Voice
-[gvoice](default)
-transport=google-v1       ; Google Voice uses the original Google Talk protocol
-connection=gvoice-account
+;[gvoice](default)
+;transport=google-v1       ; Google Voice uses the original Google Talk protocol
+;connection=gvoice-account
+
+; Additional options
+; callgroup
+; pickupgroup
+; language
+; musicclass
+; parkinglot

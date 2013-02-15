@@ -288,6 +288,126 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		account defined in <literal>xmpp.conf</literal> to send the message from.
 		Note that this field is required for XMPP messages.</para>
 	</info>
+	<configInfo name="res_xmpp" language="en_US">
+		<synopsis>XMPP Messaging</synopsis>
+		<configFile name="xmpp.conf">
+			<configObject name="global">
+				<synopsis>Global configuration settings</synopsis>
+				<configOption name="debug">
+					<synopsis>Enable/disable XMPP message debugging</synopsis>
+				</configOption>
+				<configOption name="autoprune">
+					<synopsis>Auto-remove users from buddy list.</synopsis>
+					<description><para>Auto-remove users from buddy list. Depending on the setup
+					(e.g., using your personal Gtalk account for a test) this could cause loss of
+					the contact list.
+					</para></description>
+				</configOption>
+				<configOption name="autoregister">
+					<synopsis>Auto-register users from buddy list</synopsis>
+				</configOption>
+				<configOption name="collection_nodes">
+					<synopsis>Enable support for XEP-0248 for use with distributed device state</synopsis>
+				</configOption>
+				<configOption name="pubsub_autocreate">
+					<synopsis>Whether or not the PubSub server supports/is using auto-create for nodes</synopsis>
+				</configOption>
+				<configOption name="auth_policy">
+					<synopsis>Whether to automatically accept or deny users' subscription requests</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="client">
+				<synopsis>Configuration options for an XMPP client</synopsis>
+				<configOption name="username">
+					<synopsis>XMPP username with optional resource</synopsis>
+				</configOption>
+				<configOption name="secret">
+					<synopsis>XMPP password</synopsis>
+				</configOption>
+				<configOption name="serverhost">
+					<synopsis>Route to server, e.g. talk.google.com</synopsis>
+				</configOption>
+				<configOption name="statusmessage">
+					<synopsis>Custom status message</synopsis>
+				</configOption>
+				<configOption name="pubsub_node">
+					<synopsis>Node for publishing events via PubSub</synopsis>
+				</configOption>
+				<configOption name="context">
+					<synopsis>Dialplan context to send incoming messages to</synopsis>
+				</configOption>
+				<configOption name="priority">
+					<synopsis>XMPP resource priority</synopsis>
+				</configOption>
+				<configOption name="port">
+					<synopsis>XMPP server port</synopsis>
+				</configOption>
+				<configOption name="timeout">
+					<synopsis>Timeout in seconds to hold incoming messages</synopsis>
+					<description><para>Timeout (in seconds) on the message stack. Messages stored longer
+					than this value will be deleted by Asterisk. This option applies to incoming messages only
+					which are intended to be processed by the <literal>JABBER_RECEIVE</literal> dialplan function.
+					</para></description>
+				</configOption>
+				<configOption name="debug">
+					<synopsis>Enable debugging</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Connection is either a client or a component</synopsis>
+				</configOption>
+				<configOption name="distribute_events">
+					<synopsis>Whether or not to distribute events using this connection</synopsis>
+				</configOption>
+				<configOption name="usetls">
+					<synopsis>Whether to use TLS for the connection or not</synopsis>
+				</configOption>
+				<configOption name="usesasl">
+					<synopsis>Whether to use SASL for the connection or not</synopsis>
+				</configOption>
+				<configOption name="forceoldssl">
+					<synopsis>Force the use of old-style SSL for the connection</synopsis>
+				</configOption>
+				<configOption name="keepalive">
+					<synopsis>If enabled, periodically send an XMPP message from this client with an empty message</synopsis>
+				</configOption>
+				<configOption name="autoprune">
+					<synopsis>Auto-remove users from buddy list.</synopsis>
+					<description><para>Auto-remove users from buddy list. Depending on the setup
+					(e.g., using your personal Gtalk account for a test) this could cause loss of
+					the contact list.
+					</para></description>
+				</configOption>
+				<configOption name="autoregister">
+					<synopsis>Auto-register users bfrom buddy list</synopsis>
+				</configOption>
+				<configOption name="auth_policy">
+					<synopsis>Whether to automatically accept or deny users' subscription requests</synopsis>
+				</configOption>
+				<configOption name="sendtodialplan">
+					<synopsis>Send incoming messages into the dialplan</synopsis>
+				</configOption>
+				<configOption name="status">
+					<synopsis>Default XMPP status for the client</synopsis>
+					<description><para>Can be one of the following XMPP statuses:</para>
+						<enumlist>
+							<enum name="chat"/>
+							<enum name="available"/>
+							<enum name="away"/>
+							<enum name="xaway"/>
+							<enum name="dnd"/>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="buddy">
+					<synopsis>Manual addition of buddy to list</synopsis>
+					<description><para>
+					Manual addition of buddy to the buddy list. For distributed events, these budies are
+					automatically added in the whitelist as 'owners' of the node(s).
+					</para></description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
 ***/
 
 /*! \brief Supported general configuration flags */
@@ -658,6 +778,7 @@ static void xmpp_config_post_apply(void)
 
 static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
+	.name = "global",
 	.item_offset = offsetof(struct xmpp_config, global),
 	.category_match = ACO_WHITELIST,
 	.category = "^general$",
@@ -667,6 +788,7 @@ struct aco_type *global_options[] = ACO_TYPES(&global_option);
 
 static struct aco_type client_option = {
 	.type = ACO_ITEM,
+	.name = "client",
 	.category_match = ACO_BLACKLIST,
 	.category = "^(general)$",
 	.item_alloc = ast_xmpp_client_config_alloc,

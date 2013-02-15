@@ -28,6 +28,7 @@
 #include "asterisk.h"
 #include "asterisk/xml.h"
 #include "asterisk/logger.h"
+#include "asterisk/utils.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -35,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xinclude.h>
+#include <libxml/xpath.h>
 /* libxml2 ast_xml implementation. */
 
 
@@ -314,6 +316,43 @@ struct ast_xml_node *ast_xml_node_get_prev(struct ast_xml_node *node)
 struct ast_xml_node *ast_xml_node_get_parent(struct ast_xml_node *node)
 {
 	return (struct ast_xml_node *) ((xmlNode *) node)->parent;
+}
+
+struct ast_xml_node *ast_xml_xpath_get_first_result(struct ast_xml_xpath_results *results)
+{
+	return (struct ast_xml_node *) ((xmlXPathObjectPtr) results)->nodesetval->nodeTab[0];
+}
+
+void ast_xml_xpath_results_free(struct ast_xml_xpath_results *results)
+{
+	xmlXPathFreeObject((xmlXPathObjectPtr) results);
+}
+
+int ast_xml_xpath_num_results(struct ast_xml_xpath_results *results)
+{
+	return ((xmlXPathObjectPtr) results)->nodesetval->nodeNr;
+}
+
+struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char *xpath_str)
+{
+	xmlXPathContextPtr context;
+	xmlXPathObjectPtr result;
+	if (!(context = xmlXPathNewContext((xmlDoc *) doc))) {
+		ast_log(LOG_ERROR, "Could not create XPath context!\n");
+		return NULL;
+	}
+	result = xmlXPathEvalExpression((xmlChar *) xpath_str, context);
+	xmlXPathFreeContext(context);
+	if (!result) {
+		ast_log(LOG_WARNING, "Error for query: %s\n", xpath_str);
+		return NULL;
+	}
+	if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
+		xmlXPathFreeObject(result);
+		ast_debug(5, "No results for query: %s\n", xpath_str);
+		return NULL;
+	}
+	return (struct ast_xml_xpath_results *) result;
 }
 
 #endif /* defined(HAVE_LIBXML2) */

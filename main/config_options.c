@@ -31,11 +31,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <regex.h>
 
+#include "asterisk/_private.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/acl.h"
 #include "asterisk/frame.h"
+#include "asterisk/xmldoc.h"
+#include "asterisk/cli.h"
+#include "asterisk/term.h"
 
 #ifdef LOW_MEMORY
 #define CONFIG_OPT_BUCKETS 5
@@ -70,6 +74,26 @@ struct aco_option {
 	intptr_t args[0];
 };
 
+#ifdef AST_XML_DOCS
+static struct ao2_container *xmldocs;
+#endif /* AST_XML_DOCS */
+
+/*! \brief Value of the aco_option_type enum as strings */
+static char *aco_option_type_string[] = {
+	"ACL",				/* OPT_ACL_T, */
+	"Boolean",			/* OPT_BOOL_T, */
+	"Boolean",			/* OPT_BOOLFLAG_T, */
+	"String",			/* OPT_CHAR_ARRAY_T, */
+	"Codec",			/* OPT_CODEC_T, */
+	"Custom",			/* OPT_CUSTOM_T, */
+	"Double",			/* OPT_DOUBLE_T, */
+	"Integer",			/* OPT_INT_T, */
+	"None",				/* OPT_NOOP_T, */
+	"IP Address",		/* OPT_SOCKADDR_T, */
+	"String",			/* OPT_STRINGFIELD_T, */
+	"Unsigned Integer",	/* OPT_UINT_T, */
+};
+
 void *aco_pending_config(struct aco_info *info)
 {
 	if (!(info && info->internal)) {
@@ -99,6 +123,11 @@ static int acl_handler_fn(const struct aco_option *opt, struct ast_variable *var
 static int codec_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int noop_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int chararray_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
+
+#ifdef AST_XML_DOCS
+static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, unsigned int matches);
+static int xmldoc_update_config_option(struct aco_type **types, const char *module, const char *name, const char *object_name, const char *default_value, unsigned int regex, enum aco_option_type type);
+#endif
 
 static aco_option_handler ast_config_option_default_handler(enum aco_option_type type)
 {
@@ -142,7 +171,7 @@ static regex_t *build_regex(const char *text)
 	return regex;
 }
 
-static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
+static int link_option_to_types(struct aco_info *info, struct aco_type **types, struct aco_option *opt)
 {
 	size_t idx = 0;
 	struct aco_type *type;
@@ -152,7 +181,11 @@ static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
 			ast_log(LOG_ERROR, "Attempting to register option using uninitialized type\n");
 			return -1;
 		}
-		if (!ao2_link(type->internal->opts, opt)) {
+		if (!ao2_link(type->internal->opts, opt)
+#ifdef AST_XML_DOCS
+				|| xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type)
+#endif /* AST_XML_DOCS */
+		) {
 			while (--idx) {
 				ao2_unlink(types[idx]->internal->opts, opt);
 			}
@@ -181,13 +214,60 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
 	opt->deprecated = 1;
 	opt->match_type = ACO_EXACT;
 
-	if (link_option_to_types(types, opt)) {
+	if (link_option_to_types(info, types, opt)) {
 		ao2_ref(opt, -1);
 		return -1;
 	}
 
 	return 0;
 }
+
+#ifdef AST_XML_DOCS
+/*! \internal
+ * \brief Find a particular ast_xml_doc_item from it's parent config_info, types, and name
+ */
+static struct ast_xml_doc_item *find_xmldoc_option(struct ast_xml_doc_item *config_info, struct aco_type **types, const char *name)
+{
+	struct ast_xml_doc_item *iter = config_info;
+
+	if (!iter) {
+		return NULL;
+	}
+	/* First is just the configInfo, we can skip it */
+	while ((iter = iter->next)) {
+		size_t x;
+		if (strcasecmp(iter->name, name)) {
+			continue;
+		}
+		for (x = 0; types[x]; x++) {
+			/* All we care about is that at least one type has the option */
+			if (!strcasecmp(types[x]->name, iter->ref)) {
+				return iter;
+			}
+		}
+	}
+	return NULL;
+}
+
+/*! \internal
+ * \brief Find a particular ast_xml_doc_item from it's parent config_info and name
+ */
+static struct ast_xml_doc_item *find_xmldoc_type(struct ast_xml_doc_item *config_info, const char *name)
+{
+	struct ast_xml_doc_item *iter = config_info;
+	if (!iter) {
+		return NULL;
+	}
+	/* First is just the config Info, skip it */
+	while ((iter = iter->next)) {
+		if (!strcasecmp(iter->type, "configObject") && !strcasecmp(iter->name, name)) {
+			break;
+		}
+	}
+	return iter;
+}
+
+#endif /* AST_XML_DOCS */
 
 int __aco_option_register(struct aco_info *info, const char *name, enum aco_matchtype matchtype, struct aco_type **types,
 	const char *default_val, enum aco_option_type kind, aco_option_handler handler, unsigned int flags, size_t argc, ...)
@@ -235,7 +315,7 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 		return -1;
 	};
 
-	if (link_option_to_types(types, opt)) {
+	if (link_option_to_types(info, types, opt)) {
 		ao2_ref(opt, -1);
 		return -1;
 	}
@@ -535,10 +615,10 @@ try_alias:
 	}
 
 	if (res != ACO_PROCESS_OK) {
-	   goto end;
+		goto end;
 	}
 
-	if (info->pre_apply_config && (info->pre_apply_config()))  {
+	if (info->pre_apply_config && (info->pre_apply_config())) {
 		res = ACO_PROCESS_ERROR;
 		goto end;
 	}
@@ -648,18 +728,26 @@ static int internal_type_init(struct aco_type *type)
 
 int aco_info_init(struct aco_info *info)
 {
-	size_t x, y;
+	size_t x = 0, y = 0;
+	struct aco_file *file;
+	struct aco_type *type;
 
 	if (!(info->internal = ast_calloc(1, sizeof(*info->internal)))) {
 		return -1;
 	}
 
-	for (x = 0; info->files[x]; x++) {
-		for (y = 0; info->files[x]->types[y]; y++) {
-			if (internal_type_init(info->files[x]->types[y])) {
+	while ((file = info->files[x++])) {
+		while ((type = file->types[y++])) {
+			if (internal_type_init(type)) {
 				goto error;
 			}
+#ifdef AST_XML_DOCS
+			if (xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
+				goto error;
+			}
+#endif /* AST_XML_DOCS */
 		}
+		y = 0;
 	}
 
 	return 0;
@@ -714,6 +802,428 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj)
 	return 0;
 }
 
+#ifdef AST_XML_DOCS
+
+/*! \internal
+ * \brief Complete the name of the module the user is looking for
+ */
+static char *complete_config_module(const char *word, int pos, int state)
+{
+	char *c = NULL;
+	size_t wordlen = strlen(word);
+	int which = 0;
+	struct ao2_iterator i;
+	struct ast_xml_doc_item *cur;
+
+	if (pos != 3) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(xmldocs, 0);
+	while ((cur = ao2_iterator_next(&i))) {
+		if (!strncasecmp(word, cur->name, wordlen) && ++which > state) {
+			c = ast_strdup(cur->name);
+			ao2_ref(cur, -1);
+			break;
+		}
+		ao2_ref(cur, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	return c;
+}
+
+/*! \internal
+ * \brief Complete the name of the configuration type the user is looking for
+ */
+static char *complete_config_type(const char *module, const char *word, int pos, int state)
+{
+	char *c = NULL;
+	size_t wordlen = strlen(word);
+	int which = 0;
+	RAII_VAR(struct ast_xml_doc_item *, info, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *cur;
+
+	if (pos != 4) {
+		return NULL;
+	}
+
+	if (!(info = ao2_find(xmldocs, module, OBJ_KEY))) {
+		return NULL;
+	}
+
+	cur = info;
+	while ((cur = cur->next)) {
+		if (!strcasecmp(cur->type, "configObject") && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
+			c = ast_strdup(cur->name);
+			break;
+		}
+	}
+	return c;
+}
+
+/*! \internal
+ * \brief Complete the name of the configuration option the user is looking for
+ */
+static char *complete_config_option(const char *module, const char *option, const char *word, int pos, int state)
+{
+	char *c = NULL;
+	size_t wordlen = strlen(word);
+	int which = 0;
+	RAII_VAR(struct ast_xml_doc_item *, info, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *cur;
+
+	if (pos != 5) {
+		return NULL;
+	}
+
+	if (!(info = ao2_find(xmldocs, module, OBJ_KEY))) {
+		return NULL;
+	}
+
+	cur = info;
+	while ((cur = cur->next)) {
+		if (!strcasecmp(cur->type, "configOption") && !strcasecmp(cur->ref, option) && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
+			c = ast_strdup(cur->name);
+			break;
+		}
+	}
+	return c;
+}
+
+/* Define as 0 if we want to allow configurations to be registered without
+ * documentation
+ */
+#define XMLDOC_STRICT 1
+
+/*! \internal
+ * \brief Update the XML documentation for a config type based on its registration
+ */
+static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, unsigned int matches)
+{
+	RAII_VAR(struct ast_xml_xpath_results *, results, NULL, ast_xml_xpath_results_free);
+	RAII_VAR(struct ast_xml_doc_item *, config_info, ao2_find(xmldocs, module, OBJ_KEY), ao2_cleanup);
+	struct ast_xml_doc_item *config_type;
+	struct ast_xml_node *type, *syntax, *matchinfo, *tmp;
+
+	/* If we already have a syntax element, bail. This isn't an error, since we may unload a module which
+	 * has updated the docs and then load it again. */
+	if ((results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']/syntax", module, name))) {
+		return 0;
+	}
+
+	if (!(results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']", module, name))) {
+		ast_log(LOG_WARNING, "Cannot update type '%s' in module '%s' because it has no existing documentation!\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(type = ast_xml_xpath_get_first_result(results))) {
+		ast_log(LOG_WARNING, "Could not retrieve documentation for type '%s' in module '%s'\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(syntax = ast_xml_new_child(type, "syntax"))) {
+		ast_log(LOG_WARNING, "Could not create syntax node for type '%s' in module '%s'\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(matchinfo = ast_xml_new_child(syntax, "matchInfo"))) {
+		ast_log(LOG_WARNING, "Could not create matchInfo node for type '%s' in module '%s'\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(tmp = ast_xml_new_child(matchinfo, "category"))) {
+		ast_log(LOG_WARNING, "Could not create category node for type '%s' in module '%s'\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	ast_xml_set_text(tmp, category);
+	ast_xml_set_attribute(tmp, "match", matches ? "true" : "false");
+
+	if (!ast_strlen_zero(matchfield) && !(tmp = ast_xml_new_child(matchinfo, "field"))) {
+		ast_log(LOG_WARNING, "Could not add %s attribute for type '%s' in module '%s'\n", matchfield, name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	ast_xml_set_attribute(tmp, "name", matchfield);
+	ast_xml_set_text(tmp, matchvalue);
+
+	if (!config_info || !(config_type = find_xmldoc_type(config_info, name))) {
+		ast_log(LOG_WARNING, "Could not obtain XML documentation item for config type %s\n", name);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (ast_xmldoc_regenerate_doc_item(config_type)) {
+		ast_log(LOG_WARNING, "Could not update type '%s' with values from config type registration\n", name);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	return 0;
+}
+
+/*! \internal
+ * \brief Update the XML documentation for a config option based on its registration
+ */
+static int xmldoc_update_config_option(struct aco_type **types, const char *module, const char *name, const char *object_name, const char *default_value, unsigned int regex, enum aco_option_type type)
+{
+	RAII_VAR(struct ast_xml_xpath_results *, results, NULL, ast_xml_xpath_results_free);
+	RAII_VAR(struct ast_xml_doc_item *, config_info, ao2_find(xmldocs, module, OBJ_KEY), ao2_cleanup);
+	struct ast_xml_doc_item * config_option;
+	struct ast_xml_node *option;
+
+	ast_assert(ARRAY_LEN(aco_option_type_string) > type);
+
+	if (!config_info || !(config_option = find_xmldoc_option(config_info, types, name))) {
+		ast_log(LOG_ERROR, "XML Documentation for option '%s' in modules '%s' not found!\n", name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']/configOption[@name='%s']", module, object_name, name))) {
+		ast_log(LOG_WARNING, "Could not find option '%s' with type '%s' in module '%s'\n", name, object_name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	if (!(option = ast_xml_xpath_get_first_result(results))) {
+		ast_log(LOG_WARNING, "Could obtain results for option '%s' with type '%s' in module '%s'\n", name, object_name, module);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+	ast_xml_set_attribute(option, "regex", regex ? "true" : "false");
+	ast_xml_set_attribute(option, "default", default_value);
+	ast_xml_set_attribute(option, "type", aco_option_type_string[type]);
+
+	if (ast_xmldoc_regenerate_doc_item(config_option)) {
+		ast_log(LOG_WARNING, "Could not update option '%s' with values from config option registration\n", name);
+		return XMLDOC_STRICT ? -1 : 0;
+	}
+
+	return 0;
+}
+
+/*! \internal
+ * \brief Show the modules with configuration information
+ */
+static void cli_show_modules(struct ast_cli_args *a)
+{
+	struct ast_xml_doc_item *item;
+	struct ao2_iterator it_items;
+
+	ast_assert(a->argc == 3);
+
+	if (ao2_container_count(xmldocs) == 0) {
+		ast_cli(a->fd, "No modules found.\n");
+		return;
+	}
+
+	it_items = ao2_iterator_init(xmldocs, 0);
+	ast_cli(a->fd, "The following modules have configuration information:\n");
+	while ((item = ao2_iterator_next(&it_items))) {
+		ast_cli(a->fd, "\t%s\n", item->name);
+		ao2_ref(item, -1);
+	}
+	ao2_iterator_destroy(&it_items);
+}
+
+/*! \internal
+ * \brief Show the configuration types for a module
+ */
+static void cli_show_module_types(struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_xml_doc_item *, item, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *tmp;
+
+	ast_assert(a->argc == 4);
+
+	if (!(item = ao2_find(xmldocs, a->argv[3], OBJ_KEY))) {
+		ast_cli(a->fd, "Module %s not found.\n", a->argv[3]);
+		return;
+	}
+
+	if (ast_str_strlen(item->synopsis)) {
+		ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(item->synopsis), 1));
+	}
+	if (ast_str_strlen(item->description)) {
+		ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(item->description), 1));
+	}
+
+	tmp = item;
+	ast_cli(a->fd, "Configuration option types for %s:\n", tmp->name);
+	while ((tmp = tmp->next)) {
+		if (!strcasecmp(tmp->type, "configObject")) {
+			ast_cli(a->fd, "%-25s -- %-65.65s\n", tmp->name,
+				ast_str_buffer(tmp->synopsis));
+		}
+	}
+}
+
+/*! \internal
+ * \brief Show the information for a configuration type
+ */
+static void cli_show_module_type(struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_xml_doc_item *, item, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *tmp;
+	char option_type[64];
+	int match = 0;
+
+	ast_assert(a->argc == 5);
+
+	if (!(item = ao2_find(xmldocs, a->argv[3], OBJ_KEY))) {
+		ast_cli(a->fd, "Unknown module %s\n", a->argv[3]);
+		return;
+	}
+
+	tmp = item;
+	while ((tmp = tmp->next)) {
+		if (!strcasecmp(tmp->type, "configObject") && !strcasecmp(tmp->name, a->argv[4])) {
+			match = 1;
+			term_color(option_type, tmp->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(option_type));
+			ast_cli(a->fd, "%s", option_type);
+			if (ast_str_strlen(tmp->syntax)) {
+				ast_cli(a->fd, ": [%s]\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->syntax), 1));
+			} else {
+				ast_cli(a->fd, "\n\n");
+			}
+			if (ast_str_strlen(tmp->synopsis)) {
+				ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->synopsis), 1));
+			}
+			if (ast_str_strlen(tmp->description)) {
+				ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->description), 1));
+			}
+		}
+	}
+
+	if (!match) {
+		ast_cli(a->fd, "Unknown configuration type %s\n", a->argv[4]);
+		return;
+	}
+
+	/* Now iterate over the options for the type */
+	tmp = item;
+	while ((tmp = tmp->next)) {
+		if (!strcasecmp(tmp->type, "configOption") && !strcasecmp(tmp->ref, a->argv[4])) {
+			ast_cli(a->fd, "%-25s -- %-65.65s\n", tmp->name,
+					ast_str_buffer(tmp->synopsis));
+		}
+	}
+}
+
+/*! \internal
+ * \brief Show detailed information for an option
+ */
+static void cli_show_module_options(struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_xml_doc_item *, item, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *tmp;
+	char option_name[64];
+	int match = 0;
+
+	ast_assert(a->argc == 6);
+
+	if (!(item = ao2_find(xmldocs, a->argv[3], OBJ_KEY))) {
+		ast_cli(a->fd, "Unknown module %s\n", a->argv[3]);
+		return;
+	}
+	tmp = item;
+	while ((tmp = tmp->next)) {
+		if (!strcasecmp(tmp->type, "configOption") && !strcasecmp(tmp->ref, a->argv[4]) && !strcasecmp(tmp->name, a->argv[5])) {
+			if (match) {
+				ast_cli(a->fd, "\n");
+			}
+			term_color(option_name, tmp->ref, COLOR_MAGENTA, COLOR_BLACK, sizeof(option_name));
+			ast_cli(a->fd, "[%s%s]\n", option_name, term_end());
+			if (ast_str_strlen(tmp->syntax)) {
+				ast_cli(a->fd, "%s\n", ast_xmldoc_printable(ast_str_buffer(tmp->syntax), 1));
+			}
+			ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(AS_OR(tmp->synopsis, "No information available"), 1));
+			if (ast_str_strlen(tmp->description)) {
+				ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->description), 1));
+			}
+
+			match = 1;
+		}
+	}
+
+	if (!match) {
+		ast_cli(a->fd, "No option %s found for %s:%s\n", a->argv[5], a->argv[3], a->argv[4]);
+	}
+}
+
+static char *cli_show_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "config show help";
+		e->usage =
+			"Usage: config show help [<module> [<type> [<option>]]]\n"
+			"   Display detailed information about module configuration.\n"
+			"     * If nothing is specified, the modules that have\n"
+			"       configuration information are listed.\n"
+			"     * If <module> is specified, the configuration types\n"
+			"       for that module will be listed, along with brief\n"
+			"       information about that type.\n"
+			"     * If <module> and <type> are specified, detailed\n"
+			"       information about the type is displayed, as well\n"
+			"       as the available options.\n"
+			"     * If <module>, <type>, and <option> are specified,\n"
+			"       detailed information will be displayed about that\n"
+			"       option.\n"
+			"   NOTE: the help documentation is partially generated at run\n"
+			"     time when a module is loaded. If a module is not loaded,\n"
+			"     configuration help for that module may be incomplete.\n";
+		return NULL;
+	case CLI_GENERATE:
+		switch(a->pos) {
+		case 3: return complete_config_module(a->word, a->pos, a->n);
+		case 4: return complete_config_type(a->argv[3], a->word, a->pos, a->n);
+		case 5: return complete_config_option(a->argv[3], a->argv[4], a->word, a->pos, a->n);
+		default: return NULL;
+		}
+	}
+
+	switch (a->argc) {
+	case 3:
+		cli_show_modules(a);
+		break;
+	case 4:
+		cli_show_module_types(a);
+		break;
+	case 5:
+		cli_show_module_type(a);
+		break;
+	case 6:
+		cli_show_module_options(a);
+		break;
+	default:
+		return CLI_SHOWUSAGE;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_aco[] = {
+	AST_CLI_DEFINE(cli_show_help, "Show configuration help for a module"),
+};
+
+static void aco_deinit(void)
+{
+	ast_cli_unregister(cli_aco);
+	ao2_cleanup(xmldocs);
+}
+#endif /* AST_XML_DOCS */
+
+int aco_init(void)
+{
+#ifdef AST_XML_DOCS
+	ast_register_atexit(aco_deinit);
+	if (!(xmldocs = ast_xmldoc_build_documentation("configInfo"))) {
+		ast_log(LOG_ERROR, "Couldn't build config documentation\n");
+		return -1;
+	}
+	ast_cli_register_multiple(cli_aco, ARRAY_LEN(cli_aco));
+#endif /* AST_XML_DOCS */
+	return 0;
+}
+
 /* Default config option handlers */
 
 /*! \brief Default option handler for signed integers
@@ -730,7 +1240,7 @@ static int int_handler_fn(const struct aco_option *opt, struct ast_variable *var
 			ast_parse_arg(var->value, flags, field, (int) opt->args[1], (int) opt->args[2]);
 		if (res) {
 			if (opt->flags & PARSE_RANGE_DEFAULTS) {
-				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to  %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
+				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
 				res = 0;
 			} else if (opt->flags & PARSE_DEFAULT) {
 				ast_log(LOG_WARNING, "Failed to set %s=%s, Set to default value %d instead.\n", var->name, var->value, *field);
@@ -760,7 +1270,7 @@ static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *va
 			ast_parse_arg(var->value, flags, field, (unsigned int) opt->args[1], (unsigned int) opt->args[2]);
 		if (res) {
 			if (opt->flags & PARSE_RANGE_DEFAULTS) {
-				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to  %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
+				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
 				res = 0;
 			} else if (opt->flags & PARSE_DEFAULT) {
 				ast_log(LOG_WARNING, "Failed to set %s=%s, Set to default value %d instead.\n", var->name, var->value, *field);

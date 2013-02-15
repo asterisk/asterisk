@@ -77,6 +77,145 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/xmpp.h"
 
+/*** DOCUMENTATION
+	<configInfo name="chan_motif" language="en_US">
+		<synopsis>Jingle Channel Driver</synopsis>
+		<description>
+			<para><emphasis>Transports</emphasis></para>
+			<para>There are three different transports and protocol derivatives
+			supported by <literal>chan_motif</literal>. They are in order of
+			preference: Jingle using ICE-UDP, Google Jingle, and Google-V1.</para>
+			<para>Jingle as defined in XEP-0166 supports the widest range of
+			features. It is referred to as <literal>ice-udp</literal>. This is
+			the specification that Jingle clients implement.</para>
+			<para>Google Jingle follows the Jingle specification for signaling
+			but uses a custom transport for media. It is supported by the
+			Google Talk Plug-in in Gmail and by some other Jingle clients. It
+			is referred to as <literal>google</literal> in this file.</para>
+			<para>Google-V1 is the original Google Talk signaling protocol
+			which uses an initial preliminary version of Jingle. It also uses
+			the same custom transport as Google Jingle for media. It is
+			supported by Google Voice, some other Jingle clients, and the
+			Windows Google Talk client. It is referred to as <literal>google-v1</literal>
+			in this file.</para>
+			<para>Incoming sessions will automatically switch to the correct
+			transport once it has been determined.</para>
+			<para>Outgoing sessions are capable of determining if the target
+			is capable of Jingle or a Google transport if the target is in the
+			roster. Unfortunately it is not possible to differentiate between
+			a Google Jingle or Google-V1 capable resource until a session
+			initiate attempt occurs. If a resource is determined to use a
+			Google transport it will initially use Google Jingle but will fall
+			back to Google-V1 if required.</para>
+			<para>If an outgoing session attempt fails due to failure to
+			support the given transport <literal>chan_motif</literal> will
+			fall back in preference order listed previously until all
+			transports have been exhausted.</para>
+			<para><emphasis>Dialing and Resource Selection Strategy</emphasis></para>
+			<para>Placing a call through an endpoint can be accomplished using the
+			following dial string:</para>
+			<para><literal>Motif/[endpoint name]/[target]</literal></para>
+			<para>When placing an outgoing call through an endpoint the requested
+			target is searched for in the roster list. If present the first Jingle
+			or Google Jingle capable resource is specifically targeted. Since the
+			capabilities of the resource are known the outgoing session initiation
+			will disregard the configured transport and use the determined one.</para>
+			<para>If the target is not found in the roster the target will be used
+			as-is and a session will be initiated using the transport specified
+			in this configuration file. If no transport has been specified the
+			endpoint defaults to <literal>ice-udp</literal>.</para>
+			<para><emphasis>Video Support</emphasis></para>
+			<para>Support for video does not need to be explicitly enabled.
+			Configuring any video codec on your endpoint will automatically enable
+			it.</para>
+			<para><emphasis>DTMF</emphasis></para>
+			<para>The only supported method for DTMF is RFC2833. This is always
+			enabled on audio streams and negotiated if possible.</para>
+			<para><emphasis>Incoming Calls</emphasis></para>
+			<para>Incoming calls will first look for the extension matching the
+			name of the endpoint in the configured context. If no such extension
+			exists the call will automatically fall back to the <literal>s</literal> extension.</para>
+			<para><emphasis>CallerID</emphasis></para>
+			<para>The incoming caller id number is populated with the username of
+			the caller and the name is populated with the full identity of the
+			caller. If you would like to perform authentication or filtering
+			of incoming calls it is recommended that you use these fields to do so.</para>
+			<para>Outgoing caller id can <emphasis>not</emphasis> be set.</para>
+			<warning>
+				<para>Multiple endpoints using the
+				same connection is <emphasis>NOT</emphasis> supported. Doing so
+				may result in broken calls.</para>
+			</warning>
+		</description>
+		<configFile name="motif.conf">
+			<configObject name="endpoint">
+				<synopsis>The configuration for an endpoint.</synopsis>
+				<configOption name="context">
+					<synopsis>Default dialplan context that incoming sessions will be routed to</synopsis>
+				</configOption>
+				<configOption name="callgroup">
+					<synopsis>A callgroup to assign to this endpoint.</synopsis>
+				</configOption>
+				<configOption name="pickupgroup">
+					<synopsis>A pickup group to assign to this endpoint.</synopsis>
+				</configOption>
+				<configOption name="language">
+					<synopsis>The default language for this endpoint.</synopsis>
+				</configOption>
+				<configOption name="musicclass">
+					<synopsis>Default music on hold class for this endpoint.</synopsis>
+				</configOption>
+				<configOption name="parkinglot">
+					<synopsis>Default parking lot for this endpoint.</synopsis>
+				</configOption>
+				<configOption name="accountcode">
+					<synopsis>Accout code for CDR purposes</synopsis>
+				</configOption>
+				<configOption name="allow">
+					<synopsis>Codecs to allow</synopsis>
+				</configOption>
+				<configOption name="disallow">
+					<synopsis>Codecs to disallow</synopsis>
+				</configOption>
+				<configOption name="connection">
+					<synopsis>Connection to accept traffic on and on which to send traffic out</synopsis>
+				</configOption>
+				<configOption name="transport">
+					<synopsis>The transport to use for the endpoint.</synopsis>
+					<description>
+						<para>The default outbound transport for this endpoint. Inbound
+						messages are inferred. Allowed transports are <literal>ice-udp</literal>,
+						<literal>google</literal>, or <literal>google-v1</literal>. Note
+						that <literal>chan_motif</literal> will fall back to transport
+						preference order if the transport value chosen here fails.</para>
+						<enumlist>
+							<enum name="ice-udp">
+								<para>The Jingle protocol, as defined in XEP 0166.</para>
+							</enum>
+							<enum name="google">
+								<para>The Google Jingle protocol, which follows the Jingle
+								specification for signaling but uses a custom transport for
+								media.</para>
+							</enum>
+							<enum name="google-v1">
+								<para>Google-V1 is the original Google Talk signaling
+								protocol which uses an initial preliminary version of Jingle.
+								It also uses the same custom transport as <literal>google</literal> for media.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="maxicecandidates">
+					<synopsis>Maximum number of ICE candidates to offer</synopsis>
+				</configOption>
+				<configOption name="maxpayloads">
+					<synopsis>Maximum number of pyaloads to offer</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+***/
+
 /*! \brief Default maximum number of ICE candidates we will offer */
 #define DEFAULT_MAX_ICE_CANDIDATES "10"
 
@@ -406,6 +545,7 @@ static int jingle_endpoint_cmp(void *obj, void *arg, int flags)
 
 static struct aco_type endpoint_option = {
 	.type = ACO_ITEM,
+	.name = "endpoint",
 	.category_match = ACO_BLACKLIST,
 	.category = "^general$",
 	.item_alloc = jingle_endpoint_alloc,

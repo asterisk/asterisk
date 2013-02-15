@@ -456,7 +456,7 @@ doc/core-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "la
 	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
 	@for x in $(MOD_SUBDIRS); do \
 		printf "$$x " ; \
-		for i in $$x/*.c; do \
+		for i in `find $$x -name *.c`; do \
 			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
 		done ; \
 	done

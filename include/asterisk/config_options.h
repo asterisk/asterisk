@@ -109,6 +109,7 @@ typedef int (*aco_matchvalue_func)(const char *text);
 struct aco_type {
 	/* common stuff */
 	enum aco_type_t type;   /*!< Whether this is a global or item type */
+	const char *name;       /*!< The name of this type (must match XML documentation) */
 	const char *category;   /*!< A regular expression for matching categories to be allowed or denied */
 	const char *matchfield; /*!< An option name to match for this type (i.e. a 'type'-like column) */
 	const char *matchvalue; /*!< The value of the option to require for matching (i.e. 'peer' for type= in sip.conf) */
@@ -197,6 +198,14 @@ void *aco_pending_config(struct aco_info *info);
 #define CONFIG_INFO_STANDARD(name, arr, alloc, ...) \
 static struct aco_info name = { \
 	.module = AST_MODULE, \
+	.global_obj = &arr, \
+	.snapshot_alloc = alloc, \
+	__VA_ARGS__ \
+};
+
+#define CONFIG_INFO_CORE(mod, name, arr, alloc, ...) \
+static struct aco_info name = { \
+	.module = mod, \
 	.global_obj = &arr, \
 	.snapshot_alloc = alloc, \
 	__VA_ARGS__ \

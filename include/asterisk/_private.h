@@ -49,6 +49,7 @@ int ast_ssl_init(void);                 /*!< Provided by ssl.c */
 int ast_test_init(void);            /*!< Provided by test.c */
 int ast_msg_init(void);             /*!< Provided by message.c */
 void ast_msg_shutdown(void);        /*!< Provided by message.c */
+int aco_init(void);             /*!< Provided by config_options.c */
 
 /*!
  * \brief Reload asterisk modules.

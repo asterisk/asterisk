@@ -40,6 +40,464 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/pbx.h"
 
+
+/*** DOCUMENTATION
+	<configInfo name="app_confbridge" language="en_US">
+		<synopsis>Conference Bridge Application</synopsis>
+		<configFile name="confbridge.conf">
+			<configObject name="global">
+				<synopsis>Unused, but reserved.</synopsis>
+			</configObject>
+			<configObject name="user_profile">
+				<synopsis>A named profile to apply to specific callers.</synopsis>
+				<description><para>Callers in a ConfBridge have a profile associated with them
+				that determine their options. A configuration section is determined to be a
+				user_profile when the <literal>type</literal> parameter has a value
+				of <literal>user</literal>.
+				</para></description>
+				<configOption name="type">
+					<synopsis>Define this configuration category as a user profile.</synopsis>
+					<description><para>The type parameter determines how a context in the
+					configuration file is interpreted.</para>
+					<enumlist>
+						<enum name="user"><para>Configure the context as a <replaceable>user_profile</replaceable></para></enum>
+						<enum name="bridge"><para>Configure the context as a <replaceable>bridge_profile</replaceable></para></enum>
+						<enum name="menu"><para>Configure the context as a <replaceable>menu</replaceable></para></enum>
+					</enumlist>
+					</description>
+				</configOption>
+				<configOption name="admin">
+					<synopsis>Sets if the user is an admin or not</synopsis>
+				</configOption>
+				<configOption name="marked">
+					<synopsis>Sets if this is a marked user or not</synopsis>
+				</configOption>
+				<configOption name="startmuted">
+					<synopsis>Sets if all users should start out muted</synopsis>
+				</configOption>
+				<configOption name="music_on_hold_when_empty">
+					<synopsis>Play MOH when user is alone or waiting on a marked user</synopsis>
+				</configOption>
+				<configOption name="quiet">
+					<synopsis>Silence enter/leave prompts and user intros for this user</synopsis>
+				</configOption>
+				<configOption name="announce_user_count">
+					<synopsis>Sets if the number of users should be announced to the user</synopsis>
+				</configOption>
+				<configOption name="announce_user_count_all">
+					<synopsis>Announce user count to all the other users when this user joins</synopsis>
+					<description><para>Sets if the number of users should be announced to all the other users
+					in the conference when this user joins. This option can be either set to 'yes' or
+					a number. When set to a number, the announcement will only occur once the user
+					count is above the specified number.
+					</para></description>
+				</configOption>
+				<configOption name="announce_only_user">
+					<synopsis>Announce to a user when they join an empty conference</synopsis>
+				</configOption>
+				<configOption name="wait_marked">
+					<synopsis>Sets if the user must wait for a marked user to enter before joining a conference</synopsis>
+				</configOption>
+				<configOption name="end_marked">
+					<synopsis>Kick the user from the conference when the last marked user leaves</synopsis>
+				</configOption>
+				<configOption name="talk_detection_events">
+					<synopsis>Set whether or not notifications of when a user begins and ends talking should be sent out as events over AMI</synopsis>
+				</configOption>
+				<configOption name="dtmf_passthrough">
+					<synopsis>Sets whether or not DTMF should pass through the conference</synopsis>
+				</configOption>
+				<configOption name="announce_join_leave">
+					<synopsis>Prompt user for their name when joining a conference and play it to the conference when they enter</synopsis>
+				</configOption>
+				<configOption name="pin">
+					<synopsis>Sets a PIN the user must enter before joining the conference</synopsis>
+				</configOption>
+				<configOption name="music_on_hold_class">
+					<synopsis>The MOH class to use for this user</synopsis>
+				</configOption>
+				<configOption name="announcement">
+					<synopsis>Sound file to play to the user when they join a conference</synopsis>
+				</configOption>
+				<configOption name="denoise">
+					<synopsis>Apply a denoise filter to the audio before mixing</synopsis>
+					<description><para>Sets whether or not a denoise filter should be applied
+					to the audio before mixing or not.  Off by default. Requires
+					codec_speex to be built and installed.  Do not confuse this option
+					with drop_silence.  Denoise is useful if there is a lot of background
+					noise for a user as it attempts to remove the noise while preserving
+					the speech.  This option does NOT remove silence from being mixed into
+					the conference and does come at the cost of a slight performance hit.
+					</para></description>
+				</configOption>
+				<configOption name="dsp_drop_silence">
+					<synopsis>Drop what Asterisk detects as silence from audio sent to the bridge</synopsis>
+					<description><para>
+					This option drops what Asterisk detects as silence from
+					entering into the bridge.  Enabling this option will drastically
+					improve performance and help remove the buildup of background
+					noise from the conference. Highly recommended for large conferences
+					due to its performance enhancements.
+					</para></description>
+				</configOption>
+				<configOption name="dsp_silence_threshold">
+					<synopsis>The number of milliseconds of detected silence necessary to trigger silence detection</synopsis>
+					<description><para>
+					The time in milliseconds of sound falling within the what
+					the dsp has established as baseline silence before a user
+					is considered be silent.  This value affects several
+					operations and should not be changed unless the impact
+					on call quality is fully understood.</para>
+					<para>What this value affects internally:</para>
+					<para>
+						1. When talk detection AMI events are enabled, this value
+						determines when the user has stopped talking after a
+						period of talking.  If this value is set too low
+						AMI events indicating the user has stopped talking
+						may get falsely sent out when the user briefly pauses
+						during mid sentence.
+					</para>
+					<para>
+						2. The drop_silence option depends on this value to
+						determine when the user's audio should begin to be
+						dropped from the conference bridge after the user
+						stops talking.  If this value is set too low the user's
+						audio stream may sound choppy to the other participants.
+						This is caused by the user transitioning constantly from
+						silence to talking during mid sentence.
+					</para>
+					<para>
+						The best way to approach this option is to set it slightly above
+						the maximum amount of ms of silence a user may generate during
+						natural speech.
+					</para>
+					<para>By default this value is 2500ms. Valid values are 1 through 2^31.</para>
+					</description>
+				</configOption>
+				<configOption name="dsp_talking_threshold">
+					<synopsis>The number of milliseconds of detected non-silence necessary to triger talk detection</synopsis>
+					<description><para>
+						The time in milliseconds of sound above what the dsp has
+						established as base line silence for a user before a user
+						is considered to be talking.  This value affects several
+						operations and should not be changed unless the impact on
+						call quality is fully understood.</para>
+						<para>
+						What this value affects internally:
+						</para>
+						<para>
+						1. Audio is only mixed out of a user's incoming audio stream
+						if talking is detected.  If this value is set too
+						loose the user will hear themselves briefly each
+						time they begin talking until the dsp has time to
+						establish that they are in fact talking.
+						</para>
+						<para>
+						2. When talk detection AMI events are enabled, this value
+						determines when talking has begun which results in
+						an AMI event to fire.  If this value is set too tight
+						AMI events may be falsely triggered by variants in
+						room noise.
+						</para>
+						<para>
+						3. The drop_silence option depends on this value to determine
+						when the user's audio should be mixed into the bridge
+						after periods of silence.  If this value is too loose
+						the beginning of a user's speech will get cut off as they
+						transition from silence to talking.
+						</para>
+						<para>By default this value is 160 ms. Valid values are 1 through 2^31</para>
+					</description>
+				</configOption>
+				<configOption name="jitterbuffer">
+					<synopsis>Place a jitter buffer on the user's audio stream before audio mixing is performed</synopsis>
+					<description><para>
+						Enabling this option places a jitterbuffer on the user's audio stream
+						before audio mixing is performed.  This is highly recommended but will
+						add a slight delay to the audio.  This option is using the <literal>JITTERBUFFER</literal>
+						dialplan function's default adaptive jitterbuffer.  For a more fine tuned
+						jitterbuffer, disable this option and use the <literal>JITTERBUFFER</literal> dialplan function
+						on the user before entering the ConfBridge application.
+					</para></description>
+				</configOption>
+				<configOption name="template">
+					<synopsis>When using the CONFBRIDGE dialplan function, use a user profile as a template for creating a new temporary profile</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="bridge_profile">
+				<synopsis>A named profile to apply to specific bridges.</synopsis>
+				<description><para>ConfBridge bridges have a profile associated with them
+				that determine their options. A configuration section is determined to be a
+				<literal>bridge_profile</literal> when the <literal>type</literal> parameter has a value
+				of <literal>bridge</literal>.
+				</para></description>
+				<configOption name="type">
+					<synopsis>Define this configuration category as a bridge profile</synopsis>
+					<description><para>The type parameter determines how a context in the
+					configuration file is interpreted.</para>
+					<enumlist>
+						<enum name="user"><para>Configure the context as a <replaceable>user_profile</replaceable></para></enum>
+						<enum name="bridge"><para>Configure the context as a <replaceable>bridge_profile</replaceable></para></enum>
+						<enum name="menu"><para>Configure the context as a <replaceable>menu</replaceable></para></enum>
+					</enumlist>
+					</description>
+				</configOption>
+				<configOption name="jitterbuffer">
+					<synopsis>Place a jitter buffer on the conference's audio stream</synopsis>
+				</configOption>
+				<configOption name="internal_sample_rate">
+					<synopsis>Set the internal native sample rate for mixing the conference</synopsis>
+					<description><para>
+						Sets the internal native sample rate the
+						conference is mixed at.  This is set to automatically
+						adjust the sample rate to the best quality by default.
+						Other values can be anything from 8000-192000.  If a
+						sample rate is set that Asterisk does not support, the
+						closest sample rate Asterisk does support to the one requested
+						will be used.
+					</para></description>
+				</configOption>
+				<configOption name="mixing_interval">
+					<synopsis>Sets the internal mixing interval in milliseconds for the bridge</synopsis>
+					<description><para>
+						Sets the internal mixing interval in milliseconds for the bridge.  This
+						number reflects how tight or loose the mixing will be for the conference.
+						In order to improve performance a larger mixing interval such as 40ms may
+						be chosen.  Using a larger mixing interval comes at the cost of introducing
+						larger amounts of delay into the bridge.  Valid values here are 10, 20, 40,
+						or 80.
+					</para></description>
+				</configOption>
+				<configOption name="record_conference">
+					<synopsis>Record the conference starting with the first active user's entrance and ending with the last active user's exit</synopsis>
+					<description><para>
+						Records the conference call starting when the first user
+						enters the room, and ending when the last user exits the room.
+						The default recorded filename is
+						<filename>'confbridge-${name of conference bridge}-${start time}.wav</filename>
+						and the default format is 8khz slinear.  This file will be
+						located in the configured monitoring directory in asterisk.conf.
+					</para></description>
+				</configOption>
+				<configOption name="record_file" default="confbridge-${name of conference bridge}-${start time}.wav">
+					<synopsis>The filename of the conference recording</synopsis>
+					<description><para>
+						When record_conference is set to yes, the specific name of the
+						record file can be set using this option.  Note that since multiple
+						conferences may use the same bridge profile, this may cause issues
+						depending on the configuration.  It is recommended to only use this
+						option dynamically with the <literal>CONFBRIDGE()</literal> dialplan function. This
+						allows the record name to be specified and a unique name to be chosen.
+						By default, the record_file is stored in Asterisk's spool/monitor directory
+						with a unique filename starting with the 'confbridge' prefix.
+					</para></description>
+				</configOption>
+				<configOption name="video_mode">
+					<synopsis>Sets how confbridge handles video distribution to the conference participants</synopsis>
+					<description><para>
+						Sets how confbridge handles video distribution to the conference participants.
+						Note that participants wanting to view and be the source of a video feed
+						_MUST_ be sharing the same video codec.  Also, using video in conjunction with
+						with the jitterbuffer currently results in the audio being slightly out of sync
+						with the video.  This is a result of the jitterbuffer only working on the audio
+						stream.  It is recommended to disable the jitterbuffer when video is used.</para>
+						<enumlist>
+							<enum name="none">
+								<para>No video sources are set by default in the conference. It is still
+								possible for a user to be set as a video source via AMI or DTMF action
+								at any time.</para>
+							</enum>
+							<enum name="follow_talker">
+								<para>The video feed will follow whoever is talking and providing video.</para>
+							</enum>
+							<enum name="last_marked">
+								<para>The last marked user to join the conference with video capabilities
+								will be the single source of video distributed to all participants.
+								If multiple marked users are capable of video, the last one to join
+								is always the source, when that user leaves it goes to the one who
+								joined before them.</para>
+							</enum>
+							<enum name="first_marked">
+								<para>The first marked user to join the conference with video capabilities
+								is the single source of video distribution among all participants. If
+								that user leaves, the marked user to join after them becomes the source.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="max_members">
+					<synopsis>Limit the maximum number of participants for a single conference</synopsis>
+					<description><para>
+						This option limits the number of participants for a single
+						conference to a specific number.  By default conferences
+						have no participant limit. After the limit is reached, the
+						conference will be locked until someone leaves.  Note however
+						that an Admin user will always be alowed to join the conference
+						regardless if this limit is reached or not.
+					</para></description>
+				</configOption>
+				<configOption name="^sound_">
+					<synopsis>Override the various conference bridge sound files</synopsis>
+					<description><para>
+						All sounds in the conference are customizable using the bridge profile options below.
+						Simply state the option followed by the filename or full path of the filename after
+						the option.  Example: <literal>sound_had_joined=conf-hasjoin</literal>  This will play the <literal>conf-hasjoin</literal>
+						sound file found in the sounds directory when announcing someone's name is joining the
+						conference.</para>
+						<enumlist>
+							<enum name="sound_join"><para>The sound played to everyone when someone enters the conference.</para></enum>
+							<enum name="sound_leave"><para>The sound played to everyone when someone leaves the conference.</para></enum>
+							<enum name="sound_has_joined"><para>The sound played before announcing someone's name has
+										joined the conference. This is used for user intros.
+										Example <literal>"_____ has joined the conference"</literal></para></enum>
+							<enum name="sound_has_left"><para>The sound played when announcing someone's name has
+										left the conference. This is used for user intros.
+										Example <literal>"_____ has left the conference"</literal></para></enum>
+							<enum name="sound_kicked"><para>The sound played to a user who has been kicked from the conference.</para></enum>
+							<enum name="sound_muted"><para>The sound played when the mute option it toggled on.</para></enum>
+							<enum name="sound_unmuted"><para>The sound played when the mute option it toggled off.</para></enum>
+							<enum name="sound_only_person"><para>The sound played when the user is the only person in the conference.</para></enum>
+							<enum name="sound_only_one"><para>The sound played to a user when there is only one other
+										person is in the conference.</para></enum>
+							<enum name="sound_there_are"><para>The sound played when announcing how many users there
+										are in a conference.</para></enum>
+							<enum name="sound_other_in_party"><para>This file is used in conjunction with <literal>sound_there_are</literal>
+										when announcing how many users there are in the conference.
+										The sounds are stringed together like this.
+										<literal>"sound_there_are" ${number of participants} "sound_other_in_party"</literal></para></enum>
+							<enum name="sound_place_into_conference"><para>The sound played when someone is placed into the conference
+										after waiting for a marked user.</para></enum>
+							<enum name="sound_wait_for_leader"><para>The sound played when a user is placed into a conference that
+										can not start until a marked user enters.</para></enum>
+							<enum name="sound_leader_has_left"><para>The sound played when the last marked user leaves the conference.</para></enum>
+							<enum name="sound_get_pin"><para>The sound played when prompting for a conference pin number.</para></enum>
+							<enum name="sound_invalid_pin"><para>The sound played when an invalid pin is entered too many times.</para></enum>
+							<enum name="sound_locked"><para>The sound played to a user trying to join a locked conference.</para></enum>
+							<enum name="sound_locked_now"><para>The sound played to an admin after toggling the conference to locked mode.</para></enum>
+							<enum name="sound_unlocked_now"><para>The sound played to an admin after toggling the conference to unlocked mode.</para></enum>
+							<enum name="sound_error_menu"><para>The sound played when an invalid menu option is entered.</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="template">
+					<synopsis>When using the CONFBRIDGE dialplan function, use a bridge profile as a template for creating a new temporary profile</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="menu">
+				<synopsis>A conference user menu</synopsis>
+				<description>
+					<para>Conference users, as defined by a <literal>conf_user</literal>,
+					can have a DTMF menu assigned to their profile when they enter the
+					<literal>ConfBridge</literal> application.</para>
+				</description>
+				<configOption name="type">
+					<synopsis>Define this configuration category as a menu</synopsis>
+					<description><para>The type parameter determines how a context in the
+					configuration file is interpreted.</para>
+					<enumlist>
+						<enum name="user"><para>Configure the context as a <replaceable>user_profile</replaceable></para></enum>
+						<enum name="bridge"><para>Configure the context as a <replaceable>bridge_profile</replaceable></para></enum>
+						<enum name="menu"><para>Configure the context as a <replaceable>menu</replaceable></para></enum>
+					</enumlist>
+					</description>
+				</configOption>
+				<configOption name="^[0-9A-D*#]+$">
+					<synopsis>DTMF sequences to assign various confbridge actions to</synopsis>
+					<description><para>--- ConfBridge Menu Options ---</para>
+					<para>The ConfBridge application also has the ability to apply custom DTMF menus to
+					each channel using the application.  Like the User and Bridge profiles a menu
+					is passed in to ConfBridge as an argument in the dialplan.</para>
+					<para>Below is a list of menu actions that can be assigned to a DTMF sequence.</para>
+					<note><para>
+					A single DTMF sequence can have multiple actions associated with it. This is
+					accomplished by stringing the actions together and using a <literal>,</literal> as the
+					delimiter.  Example:  Both listening and talking volume is reset when <literal>5</literal> is
+					pressed.  <literal>5=reset_talking_volume, reset_listening_volume</literal></para></note>
+					<enumlist>
+						<enum name="playback(filename&amp;filename2&amp;...)"><para>
+							<literal>playback</literal> will play back an audio file to a channel
+							and then immediately return to the conference.
+							This file can not be interupted by DTMF.
+							Multiple files can be chained together using the
+							<literal>&amp;</literal> character.</para></enum>
+						<enum name="playback_and_continue(filename&amp;filename2&amp;...)"><para>
+							<literal>playback_and_continue</literal> will
+							play back a prompt while continuing to
+							collect the dtmf sequence.  This is useful
+							when using a menu prompt that describes all
+							the menu options.  Note however that any DTMF
+							during this action will terminate the prompts
+							playback.  Prompt files can be chained together
+							using the <literal>&amp;</literal> character as a delimiter.</para></enum>
+						<enum name="toggle_mute"><para>
+							Toggle turning on and off mute.  Mute will make the user silent
+							to everyone else, but the user will still be able to listen in.
+							continue to collect the dtmf sequence.</para></enum>
+						<enum name="no_op"><para>
+							This action does nothing (No Operation). Its only real purpose exists for
+							being able to reserve a sequence in the config as a menu exit sequence.</para></enum>
+						<enum name="decrease_listening_volume"><para>
+							Decreases the channel's listening volume.</para></enum>
+						<enum name="increase_listening_volume"><para>
+							Increases the channel's listening volume.</para></enum>
+						<enum name="reset_listening_volume"><para>
+							Reset channel's listening volume to default level.</para></enum>
+						<enum name="decrease_talking_volume"><para>
+							Decreases the channel's talking volume.</para></enum>
+						<enum name="increase_talking_volume"><para>
+							Increases the channel's talking volume.</para></enum>
+						<enum name="reset_talking_volume"><para>
+							Reset channel's talking volume to default level.</para></enum>
+						<enum name="dialplan_exec(context,exten,priority)"><para>
+							The <literal>dialplan_exec</literal> action allows a user
+							to escape from the conference and execute
+							commands in the dialplan.  Once the dialplan
+							exits the user will be put back into the
+							conference.  The possibilities are endless!</para></enum>
+						<enum name="leave_conference"><para>
+							This action allows a user to exit the conference and continue
+							execution in the dialplan.</para></enum>
+						<enum name="admin_kick_last"><para>
+							This action allows an Admin to kick the last participant from the
+							conference. This action will only work for admins which allows
+							a single menu to be used for both users and admins.</para></enum>
+						<enum name="admin_toggle_conference_lock"><para>
+							This action allows an Admin to toggle locking and
+							unlocking the conference.  Non admins can not use
+							this action even if it is in their menu.</para></enum>
+						<enum name="set_as_single_video_src"><para>
+							This action allows any user to set themselves as the
+							single video source distributed to all participants.
+							This will make the video feed stick to them regardless
+							of what the <literal>video_mode</literal> is set to.</para></enum>
+						<enum name="release_as_single_video_src"><para>
+							This action allows a user to release themselves as
+							the video source.  If <literal>video_mode</literal> is not set to <literal>none</literal>
+							this action will result in the conference returning to
+							whatever video mode the bridge profile is using.</para>
+							<para>Note that this action will have no effect if the user
+							is not currently the video source.  Also, the user is
+							not guaranteed by using this action that they will not
+							become the video source again.  The bridge will return
+							to whatever operation the <literal>video_mode</literal> option is set to
+							upon release of the video src.</para></enum>
+						<enum name="admin_toggle_mute_participants"><para>
+							This action allows an administrator to toggle the mute
+							state for all non-admins within a conference.  All
+							admin users are unaffected by this option.  Note that all
+							users, regardless of their admin status, are notified
+							that the conference is muted.</para></enum>
+						<enum name="participant_count"><para>
+							This action plays back the number of participants currently
+							in a conference</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+***/
+
 struct confbridge_cfg {
 	struct ao2_container *bridge_profiles;
 	struct ao2_container *user_profiles;
@@ -81,6 +539,7 @@ static void *bridge_profile_find(struct ao2_container *container, const char *ca
 
 static struct aco_type bridge_type = {
 	.type = ACO_ITEM,
+	.name = "bridge_profile",
 	.category_match = ACO_BLACKLIST,
 	.category = "^general$",
 	.matchfield = "type",
@@ -117,6 +576,7 @@ static void *user_profile_find(struct ao2_container *container, const char *cate
 
 static struct aco_type user_type = {
 	.type = ACO_ITEM,
+	.name  = "user_profile",
 	.category_match = ACO_BLACKLIST,
 	.category = "^general$",
 	.matchfield = "type",
@@ -147,6 +607,7 @@ static void *menu_find(struct ao2_container *container, const char *category)
 
 static struct aco_type menu_type = {
 	.type = ACO_ITEM,
+	.name = "menu",
 	.category_match = ACO_BLACKLIST,
 	.category = "^general$",
 	.matchfield = "type",
@@ -164,6 +625,7 @@ static struct aco_type *user_types[] = ACO_TYPES(&user_type);
 /* The general category is reserved, but unused */
 static struct aco_type general_type = {
 	.type = ACO_GLOBAL,
+	.name = "global",
 	.category_match = ACO_WHITELIST,
 	.category = "^general$",
 };
@@ -1293,8 +1755,6 @@ int conf_load_config(int reload)
 
 	/* User options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, user_types, NULL, OPT_NOOP_T, 0, 0);
-	aco_option_register(&cfg_info, "type", ACO_EXACT, bridge_types, NULL, OPT_NOOP_T, 0, 0);
-	aco_option_register(&cfg_info, "type", ACO_EXACT, menu_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "admin", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ADMIN);
 	aco_option_register(&cfg_info, "marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MARKEDUSER);
 	aco_option_register(&cfg_info, "startmuted", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTMUTED);
@@ -1321,6 +1781,7 @@ int conf_load_config(int reload)
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, user_types, NULL, user_template_handler, 0);
 
 	/* Bridge options */
+	aco_option_register(&cfg_info, "type", ACO_EXACT, bridge_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), USER_OPT_JITTERBUFFER);
 	/* "auto" will fail to parse as a uint, but we use PARSE_DEFAULT to set the value to 0 in that case, which is the value that auto resolves to */
 	aco_option_register(&cfg_info, "internal_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, internal_sample_rate), 0);
@@ -1334,6 +1795,7 @@ int conf_load_config(int reload)
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 
 	/* Menu options */
+	aco_option_register(&cfg_info, "type", ACO_EXACT, menu_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register_custom(&cfg_info, "^[0-9A-D*#]+$", ACO_REGEX, menu_types, NULL, menu_option_handler, 0);
 
 	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {

@@ -23,6 +23,7 @@
 
 struct ast_xml_node;
 struct ast_xml_doc;
+struct ast_xml_xpath_results;
 
 /*!
  * \brief Initialize the XML library implementation.
@@ -206,6 +207,44 @@ struct ast_xml_node *ast_xml_node_get_parent(struct ast_xml_node *node);
 /*!
  * \brief Dump the specified document to a file. */
 int ast_xml_doc_dump_file(FILE *output, struct ast_xml_doc *doc);
+
+/*!
+ * \brief Free the XPath results
+ * \param results The XPath results object to dispose of
+ *
+ * \since 12
+ */
+void ast_xml_xpath_results_free(struct ast_xml_xpath_results *results);
+
+/*!
+ * \brief Return the number of results from an XPath query
+ * \param results The XPath results object to count
+ * \retval The number of results in the XPath object
+ *
+ * \since 12
+ */
+int ast_xml_xpath_num_results(struct ast_xml_xpath_results *results);
+
+/*!
+ * \brief Return the first result node of an XPath query
+ * \param results The XPath results object to get the first result from
+ * \retval The first result in the XPath object on success
+ * \retval NULL on error
+ *
+ * \since 12
+ */
+struct ast_xml_node *ast_xml_xpath_get_first_result(struct ast_xml_xpath_results *results);
+
+/*!
+ * \brief Execute an XPath query on an XML document
+ * \param doc The XML document to query
+ * \param xpath_str The XPath query string to execute on the document
+ * \retval An object containing the results of the XPath query on success
+ * \retval NULL on failure
+ *
+ * \since 12
+ */
+struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char *xpath_str);
 
 /* Features using ast_xml_ */
 #ifdef HAVE_LIBXML2

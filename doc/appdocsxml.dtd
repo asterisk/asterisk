@@ -1,13 +1,13 @@
-  <!ELEMENT docs (application|function|agi|manager|managerEvent|info)*>
+  <!ELEMENT docs (application|function|agi|manager|managerEvent|info|configInfo)*>
   <!ATTLIST docs xmlns:xi CDATA #FIXED "http://www.w3.org/2001/XInclude">
 
   <!ELEMENT xi:include (xi:fallback?) >
-  <!ATTLIST xi:include 
+  <!ATTLIST xi:include
   xmlns:xi	CDATA       #FIXED    "http://www.w3.org/2001/XInclude"
   href		CDATA       #IMPLIED
   parse		(xml|text)  "xml"
   xpointer	CDATA       #IMPLIED
-  encoding	CDATA       #IMPLIED 
+  encoding	CDATA       #IMPLIED
   accept	CDATA       #IMPLIED
   accept-language CDATA  #IMPLIED >
 
@@ -39,6 +39,30 @@
   <!ELEMENT managerEventInstance (synopsis?,syntax?,description?,see-also?)*>
   <!ATTLIST managerEventInstance class CDATA #REQUIRED>
 
+  <!ELEMENT configInfo (synopsis?,description?,configFile+)>
+  <!ATTLIST configInfo name CDATA #REQUIRED>
+  <!ATTLIST configInfo language CDATA #REQUIRED>
+
+  <!ELEMENT configFile (configObject+)>
+  <!ATTLIST configFile name CDATA #REQUIRED>
+
+  <!ELEMENT configObject (synopsis?|description?|syntax?|see-also?|configOption)*>
+  <!ATTLIST configObject name CDATA #REQUIRED>
+
+  <!ELEMENT configOption (synopsis,description?,syntax?,see-also?)*>
+  <!ATTLIST configOption name CDATA #REQUIRED>
+  <!ATTLIST configOption regex (yes|no|true|false) "false">
+  <!ATTLIST configOption default CDATA #IMPLIED>
+  <!ATTLIST configOption type CDATA #IMPLIED>
+
+  <!ELEMENT matchInfo (category|field?)>
+
+  <!ELEMENT category (#PCDATA)>
+  <!ATTLIST category match (yes|no|true|false) #REQUIRED>
+
+  <!ELEMENT field (#PCDATA)>
+  <!ATTLIST field name CDATA #REQUIRED>
+
   <!ELEMENT info (para|note|warning|variablelist|enumlist|info|xi:include)*>
   <!ATTLIST info name CDATA #REQUIRED>
   <!ATTLIST info language CDATA #REQUIRED>
@@ -52,7 +76,7 @@
 
   <!ELEMENT synopsis (#PCDATA)>
 
-  <!ELEMENT syntax (parameter|xi:include)*>
+  <!ELEMENT syntax (parameter|dataType|category|matchInfo|xi:include)*>
   <!ATTLIST syntax argsep CDATA ",">
 
   <!ELEMENT description (para|note|warning|variablelist|enumlist|info|xi:include)*>
@@ -91,7 +115,7 @@
   <!ELEMENT replaceable (#PCDATA)>
   <!ELEMENT directory (#PCDATA)>
   <!ELEMENT astcli (#PCDATA)>
- 
+
   <!ELEMENT note (para+|xi:include*)>
   <!ELEMENT warning (para+|xi:include*)>
 

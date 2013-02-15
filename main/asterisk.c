@@ -4170,6 +4170,8 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	aco_init();
+
 	if (astdb_init()) {
 		printf("%s", term_quit());
 		exit(1);

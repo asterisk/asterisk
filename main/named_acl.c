@@ -44,11 +44,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define NACL_CONFIG "acl.conf"
 #define ACL_FAMILY "acls"
 
-struct named_acl_global_config {
-	AST_DECLARE_STRING_FIELDS(
-		/* Nothing here yet. */
-	);
-};
+/*** DOCUMENTATION
+	<configInfo name="named_acl" language="en_US">
+		<configFile name="named_acl.conf">
+			<configObject name="named_acl">
+				<synopsis>Options for configuring a named ACL</synopsis>
+				<configOption name="permit">
+					<synopsis>An address/subnet from which to allow access</synopsis>
+				</configOption>
+				<configOption name="deny">
+					<synopsis>An address/subnet from which to disallow access</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+***/
 
 /*
  * Configuration structure - holds pointers to ao2 containers used for configuration
@@ -56,7 +66,6 @@ struct named_acl_global_config {
  * time, it's really a config options friendly wrapper for the named ACL container
  */
 struct named_acl_config {
-	struct named_acl_global_config *global;
 	struct ao2_container *named_acl_list;
 };
 
@@ -70,6 +79,7 @@ static void *named_acl_find(struct ao2_container *container, const char *cat);
 /* Config type for named ACL profiles (must not be named general) */
 static struct aco_type named_acl_type = {
 	.type = ACO_ITEM,                  /*!< named_acls are items stored in containers, not individual global objects */
+	.name = "named_acl",
 	.category_match = ACO_BLACKLIST,
 	.category = "^general$",           /*!< Match everything but "general" */
 	.item_alloc = named_acl_alloc,     /*!< A callback to allocate a new named_acl based on category */
@@ -77,26 +87,16 @@ static struct aco_type named_acl_type = {
 	.item_offset = offsetof(struct named_acl_config, named_acl_list), /*!< Could leave this out since 0 */
 };
 
-/* Config type for the general part of the ACL profile (must be named general) */
-static struct aco_type global_option = {
-	.type = ACO_GLOBAL,
-	.item_offset = offsetof(struct named_acl_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
-};
-
 /* This array of aco_type structs is necessary to use aco_option_register */
 struct aco_type *named_acl_types[] = ACO_TYPES(&named_acl_type);
 
-struct aco_type *global_options[] = ACO_TYPES(&global_option);
-
 struct aco_file named_acl_conf = {
 	.filename = "acl.conf",
-	.types = ACO_TYPES(&named_acl_type, &global_option),
+	.types = ACO_TYPES(&named_acl_type),
 };
 
 /* Create a config info struct that describes the config processing for named ACLs. */
-CONFIG_INFO_STANDARD(cfg_info, globals, named_acl_config_alloc,
+CONFIG_INFO_CORE("named_acl", cfg_info, globals, named_acl_config_alloc,
 	.files = ACO_FILES(&named_acl_conf),
 );
 
@@ -124,13 +124,6 @@ static void named_acl_config_destructor(void *obj)
 {
 	struct named_acl_config *cfg = obj;
 	ao2_cleanup(cfg->named_acl_list);
-	ao2_cleanup(cfg->global);
-}
-
-static void named_acl_global_config_destructor(void *obj)
-{
-	struct named_acl_global_config *global = obj;
-	ast_string_field_free_memory(global);
 }
 
 /*! \brief allocator callback for named_acl_config. Notice it returns void * since it is used by
@@ -142,14 +135,6 @@ static void *named_acl_config_alloc(void)
 
 	if (!(cfg = ao2_alloc(sizeof(*cfg), named_acl_config_destructor))) {
 		return NULL;
-	}
-
-	if (!(cfg->global = ao2_alloc(sizeof(*cfg->global), named_acl_global_config_destructor))) {
-		goto error;
-	}
-
-	if (ast_string_field_init(cfg->global, 128)) {
-		goto error;
 	}
 
 	if (!(cfg->named_acl_list = ao2_container_alloc(37, named_acl_hash_fn, named_acl_cmp_fn))) {

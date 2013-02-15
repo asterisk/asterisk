@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/xmldoc.h"
+#include "asterisk/cli.h"
 
 #ifdef AST_XML_DOCS
 
@@ -979,6 +980,10 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 	const char *paramtype, *attrname, *literal;
 	int required, isenum, first = 1, isliteral;
 
+	if (!fixnode) {
+		return NULL;
+	}
+
 	syntax = ast_str_create(128);
 	if (!syntax) {
 		/* at least try to return something... */
@@ -1078,6 +1083,10 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 	int required;
 	char *ret;
 
+	if (!fixnode) {
+		return NULL;
+	}
+
 	syntax = ast_str_create(128);
 	if (!syntax) {
 		return ast_strdup(name);
@@ -1118,11 +1127,76 @@ static char *xmldoc_get_syntax_manager(struct ast_xml_node *fixnode, const char 
 	return ret;
 }
 
+static char *xmldoc_get_syntax_config_object(struct ast_xml_node *fixnode, const char *name)
+{
+	struct ast_xml_node *matchinfo, *tmp;
+	int match;
+	const char *attr_value;
+	const char *text;
+	RAII_VAR(struct ast_str *, syntax, ast_str_create(128), ast_free);
+
+	if (!syntax || !fixnode) {
+		return NULL;
+	}
+	if (!(matchinfo = ast_xml_find_element(ast_xml_node_get_children(fixnode), "matchInfo", NULL, NULL))) {
+		return NULL;
+	}
+	if (!(tmp  = ast_xml_find_element(ast_xml_node_get_children(matchinfo), "category", NULL, NULL))) {
+		return NULL;
+	}
+	attr_value = ast_xml_get_attribute(tmp, "match");
+	if (attr_value) {
+		match = ast_true(attr_value);
+		text = ast_xml_get_text(tmp);
+		ast_str_set(&syntax, 0, "category %s /%s/", match ? "=~" : "!~", text);
+		ast_xml_free_attr(attr_value);
+	}
+
+	if ((tmp = ast_xml_find_element(ast_xml_node_get_children(matchinfo), "field", NULL, NULL))) {
+		text = ast_xml_get_text(tmp);
+		attr_value = ast_xml_get_attribute(tmp, "name");
+		ast_str_append(&syntax, 0, " matchfield: %s = %s", S_OR(attr_value, "Unknown"), text);
+		ast_xml_free_attr(attr_value);
+	}
+	return ast_strdup(ast_str_buffer(syntax));
+}
+
+static char *xmldoc_get_syntax_config_option(struct ast_xml_node *fixnode, const char *name)
+{
+	const char *type;
+	const char *default_value;
+	const char *regex;
+	RAII_VAR(struct ast_str *, syntax, ast_str_create(128), ast_free);
+
+	if (!syntax || !fixnode) {
+		return NULL;
+	}
+	type = ast_xml_get_attribute(fixnode, "type");
+	default_value = ast_xml_get_attribute(fixnode, "default");
+
+	regex = ast_xml_get_attribute(fixnode, "regex");
+	ast_str_set(&syntax, 0, "%s = [%s] (Default: %s) (Regex: %s)\n",
+		name,
+		type,
+		default_value,
+		regex ? regex : "False");
+
+	ast_xml_free_attr(type);
+	ast_xml_free_attr(default_value);
+	ast_xml_free_attr(regex);
+
+	return ast_strdup(ast_str_buffer(syntax));
+}
+
 /*! \brief Types of syntax that we are able to generate. */
 enum syntaxtype {
 	FUNCTION_SYNTAX,
 	MANAGER_SYNTAX,
 	MANAGER_EVENT_SYNTAX,
+	CONFIG_INFO_SYNTAX,
+	CONFIG_FILE_SYNTAX,
+	CONFIG_OPTION_SYNTAX,
+	CONFIG_OBJECT_SYNTAX,
 	COMMAND_SYNTAX
 };
 
@@ -1131,11 +1205,15 @@ static struct strsyntaxtype {
 	const char *type;
 	enum syntaxtype stxtype;
 } stxtype[] = {
-	{ "function",		FUNCTION_SYNTAX			},
-	{ "application",	FUNCTION_SYNTAX			},
-	{ "manager",		MANAGER_SYNTAX			},
-	{ "managerEvent",	MANAGER_EVENT_SYNTAX	},
-	{ "agi",			COMMAND_SYNTAX			}
+    { "function",     FUNCTION_SYNTAX      },
+    { "application",  FUNCTION_SYNTAX      },
+    { "manager",      MANAGER_SYNTAX       },
+    { "managerEvent", MANAGER_EVENT_SYNTAX },
+    { "configInfo",   CONFIG_INFO_SYNTAX   },
+    { "configFile",   CONFIG_FILE_SYNTAX   },
+    { "configOption", CONFIG_OPTION_SYNTAX },
+    { "configObject", CONFIG_OBJECT_SYNTAX },
+    { "agi",          COMMAND_SYNTAX       },
 };
 
 /*! \internal
@@ -1170,18 +1248,15 @@ static enum syntaxtype xmldoc_get_syntax_type(const char *type)
  *
  * \since 11
  */
-static char *_ast_xmldoc_build_syntax(struct ast_xml_node *node, const char *type, const char *name)
+static char *_ast_xmldoc_build_syntax(struct ast_xml_node *root_node, const char *type, const char *name)
 {
 	char *syntax = NULL;
+	struct ast_xml_node *node = root_node;
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		if (!strcasecmp(ast_xml_node_get_name(node), "syntax")) {
 			break;
 		}
-	}
-
-	if (!node) {
-		return syntax;
 	}
 
 	switch (xmldoc_get_syntax_type(type)) {
@@ -1196,6 +1271,12 @@ static char *_ast_xmldoc_build_syntax(struct ast_xml_node *node, const char *typ
 		break;
 	case MANAGER_EVENT_SYNTAX:
 		syntax = xmldoc_get_syntax_manager(node, name, "Event");
+		break;
+	case CONFIG_OPTION_SYNTAX:
+		syntax = xmldoc_get_syntax_config_option(root_node, name);
+		break;
+	case CONFIG_OBJECT_SYNTAX:
+		syntax = xmldoc_get_syntax_config_object(node, name);
 		break;
 	default:
 		syntax = xmldoc_get_syntax_fun(node, name, "parameter", 1, 1);
@@ -2198,6 +2279,7 @@ static struct ast_xml_doc_item *xmldoc_build_documentation_item(struct ast_xml_n
 	if (!(item = ast_xml_doc_item_alloc(name, type))) {
 		return NULL;
 	}
+	item->node = node;
 
 	syntax = _ast_xmldoc_build_syntax(node, type, name);
 	seealso = _ast_xmldoc_build_seealso(node);
@@ -2228,6 +2310,105 @@ static struct ast_xml_doc_item *xmldoc_build_documentation_item(struct ast_xml_n
 	ast_free(description);
 
 	return item;
+}
+
+struct ast_xml_xpath_results *__attribute__((format(printf, 1, 2))) ast_xmldoc_query(const char *fmt, ...)
+{
+	struct ast_xml_xpath_results *results = NULL;
+	struct documentation_tree *doctree;
+	RAII_VAR(struct ast_str *, xpath_str, ast_str_create(128), ast_free);
+	va_list ap;
+
+	if (!xpath_str) {
+		return NULL;
+	}
+
+	va_start(ap, fmt);
+	ast_str_set_va(&xpath_str, 0, fmt, ap);
+	va_end(ap);
+
+	AST_RWLIST_RDLOCK(&xmldoc_tree);
+	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
+		if (!(results = ast_xml_query(doctree->doc, ast_str_buffer(xpath_str)))) {
+			continue;
+		}
+		break;
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	return results;
+}
+
+static void build_config_docs(struct ast_xml_node *cur, struct ast_xml_doc_item **tail)
+{
+	struct ast_xml_node *iter;
+	struct ast_xml_doc_item *item;
+
+	for (iter = ast_xml_node_get_children(cur); iter; iter = ast_xml_node_get_next(iter)) {
+		if (strncasecmp(ast_xml_node_get_name(iter), "config", 6)) {
+			continue;
+		}
+		/* Now add all of the child config-related items to the list */
+		if (!(item = xmldoc_build_documentation_item(iter, ast_xml_get_attribute(iter, "name"), ast_xml_node_get_name(iter)))) {
+			ast_log(LOG_ERROR, "Could not build documentation for '%s:%s'\n", ast_xml_node_get_name(iter), ast_xml_get_attribute(iter, "name"));
+			break;
+		}
+		if (!strcasecmp(ast_xml_node_get_name(iter), "configOption")) {
+			ast_string_field_set(item, ref, ast_xml_get_attribute(cur, "name"));
+		}
+		(*tail)->next = item;
+		*tail = (*tail)->next;
+		build_config_docs(iter, tail);
+	}
+}
+
+int ast_xmldoc_regenerate_doc_item(struct ast_xml_doc_item *item)
+{
+	const char *name;
+	char *syntax;
+	char *seealso;
+	char *arguments;
+	char *synopsis;
+	char *description;
+
+	if (!item || !item->node) {
+		return -1;
+	}
+
+	name = ast_xml_get_attribute(item->node, "name");
+	if (!name) {
+		return -1;
+	}
+
+	syntax = _ast_xmldoc_build_syntax(item->node, item->type, name);
+	seealso = _ast_xmldoc_build_seealso(item->node);
+	arguments = _ast_xmldoc_build_arguments(item->node);
+	synopsis = _ast_xmldoc_build_synopsis(item->node);
+	description = _ast_xmldoc_build_description(item->node);
+
+	if (syntax) {
+		ast_str_set(&item->syntax, 0, "%s", syntax);
+	}
+	if (seealso) {
+		ast_str_set(&item->seealso, 0, "%s", seealso);
+	}
+	if (arguments) {
+		ast_str_set(&item->arguments, 0, "%s", arguments);
+	}
+	if (synopsis) {
+		ast_str_set(&item->synopsis, 0, "%s", synopsis);
+	}
+	if (description) {
+		ast_str_set(&item->description, 0, "%s", description);
+	}
+
+	ast_free(syntax);
+	ast_free(seealso);
+	ast_free(arguments);
+	ast_free(synopsis);
+	ast_free(description);
+	ast_xml_free_attr(name);
+	return 0;
 }
 
 struct ao2_container *ast_xmldoc_build_documentation(const char *type)
@@ -2282,6 +2463,19 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 				}
 				item = root;
 				break;
+			case CONFIG_INFO_SYNTAX:
+			{
+				struct ast_xml_doc_item *tail;
+				if (item || !ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), "configInfo")) {
+					break;
+				}
+				if (!(item = xmldoc_build_documentation_item(node, ast_xml_get_attribute(node, "name"), "configInfo"))) {
+					break;
+				}
+				tail = item;
+				build_config_docs(node, &tail);
+				break;
+			}
 			default:
 				item = xmldoc_build_documentation_item(node, name, type);
 			}
@@ -2298,6 +2492,9 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 
 	return docs;
 }
+
+int ast_xmldoc_regenerate_doc_item(struct ast_xml_doc_item *item);
+
 
 #if !defined(HAVE_GLOB_NOMAGIC) || !defined(HAVE_GLOB_BRACE) || defined(DEBUG_NONGNU)
 static int xml_pathmatch(char *xmlpattern, int xmlpattern_maxlen, glob_t *globbuf)
@@ -2342,10 +2539,46 @@ static int xml_pathmatch(char *xmlpattern, int xmlpattern_maxlen, glob_t *globbu
 }
 #endif
 
+static char *handle_dump_docs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct documentation_tree *doctree;
+	FILE *f;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "xmldoc dump";
+		e->usage =
+			"Usage: xmldoc dump <filename>\n"
+			"  Dump XML documentation to a file\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+	if (!(f = fopen(a->argv[2], "w"))) {
+		ast_log(LOG_ERROR, "Could not open file '%s': %s\n", a->argv[2], strerror(errno));
+		return CLI_FAILURE;
+	}
+	AST_RWLIST_RDLOCK(&xmldoc_tree);
+	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
+		ast_xml_doc_dump_file(f, doctree->doc);
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+	fclose(f);
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_dump_xmldocs = AST_CLI_DEFINE(handle_dump_docs, "Dump the XML docs to the specified file");
+
 /*! \brief Close and unload XML documentation. */
 static void xmldoc_unload_documentation(void)
 {
 	struct documentation_tree *doctree;
+
+	ast_cli_unregister(&cli_dump_xmldocs);
 
 	AST_RWLIST_WRLOCK(&xmldoc_tree);
 	while ((doctree = AST_RWLIST_REMOVE_HEAD(&xmldoc_tree, entry))) {
@@ -2390,6 +2623,7 @@ int ast_xmldoc_load_documentation(void)
 	/* initialize the XML library. */
 	ast_xml_init();
 
+	ast_cli_register(&cli_dump_xmldocs);
 	/* register function to be run when asterisk finish. */
 	ast_register_atexit(xmldoc_unload_documentation);
 

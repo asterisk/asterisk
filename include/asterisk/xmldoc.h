@@ -35,6 +35,7 @@ enum ast_doc_src {
 #ifdef AST_XML_DOCS
 
 struct ao2_container;
+struct ast_xml_node;
 
 /*! \brief Struct that contains the XML documentation for a particular item.  Note
  * that this is an ao2 ref counted object.
@@ -61,10 +62,26 @@ struct ast_xml_doc_item {
 		AST_STRING_FIELD(name);
 		/*! The type of the item */
 		AST_STRING_FIELD(type);
+		/*! Reference to another field */
+		AST_STRING_FIELD(ref);
 	);
+	/*! The node that this item was created from. Note that the life time of
+	 * the node is not tied to the lifetime of this object.
+	 */
+	struct ast_xml_node *node;
 	/*! The next XML documentation item that matches the same name/item type */
 	struct ast_xml_doc_item *next;
 };
+
+/*! \brief Execute an XPath query on the loaded XML documentation
+ * \param query The XPath query string to execute
+ * \param ... Variable printf style format arguments
+ * \retval An XPath results object on success
+ * \retval NULL if no match found
+ *
+ * \since 12
+ */
+struct ast_xml_xpath_results *__attribute__((format(printf, 1, 2))) ast_xmldoc_query(const char *fmt, ...);
 
 /*!
  *  \brief Get the syntax for a specified application or function.
@@ -137,6 +154,17 @@ char *ast_xmldoc_build_description(const char *type, const char *name, const cha
  *  \since 11
  */
 struct ao2_container *ast_xmldoc_build_documentation(const char *type);
+
+/*!
+ *  \brief Regenerate the documentation for a particular item
+ *  \param item The documentation item to regenerate
+ *
+ *  \retval -1 on error
+ *  \retval 0 on success
+ *
+ *  \since 12
+ */
+int ast_xmldoc_regenerate_doc_item(struct ast_xml_doc_item *item);
 
 #endif /* AST_XML_DOCS */
 

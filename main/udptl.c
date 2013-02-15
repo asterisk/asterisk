@@ -80,6 +80,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
 
+/*** DOCUMENTATION
+	<configInfo name="udptl" language="en_US">
+		<configFile name="udptl.conf">
+			<configObject name="global">
+				<synopsis>Global options for configuring UDPTL</synopsis>
+				<configOption name="udptlstart">
+					<synopsis>The start of the UDPTL port range</synopsis>
+				</configOption>
+				<configOption name="udptlend">
+					<synopsis>The end of the UDPTL port range</synopsis>
+				</configOption>
+				<configOption name="udptlchecksums">
+					<synopsis>Whether to enable or disable UDP checksums on UDPTL traffic</synopsis>
+				</configOption>
+				<configOption name="udptlfecentries">
+					<synopsis>The number of error correction entries in a UDPTL packet</synopsis>
+				</configOption>
+				<configOption name="udptlfecspan">
+					<synopsis>The span over which parity is calculated for FEC in a UDPTL packet</synopsis>
+				</configOption>
+				<configOption name="use_even_ports">
+					<synopsis>Whether to only use even-numbered UDPTL ports</synopsis>
+				</configOption>
+				<configOption name="t38faxudpec">
+					<synopsis>Removed</synopsis>
+				</configOption>
+				<configOption name="t38faxmaxdatagram">
+					<synopsis>Removed</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+***/
+
 #define UDPTL_MTU		1200
 
 #if !defined(FALSE)
@@ -206,6 +240,7 @@ static int udptl_pre_apply_config(void);
 
 static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
+	.name = "global",
 	.category_match = ACO_WHITELIST,
 	.item_offset = offsetof(struct udptl_config, general),
 	.category = "^general$",
@@ -218,7 +253,7 @@ static struct aco_file udptl_conf = {
 	.types = ACO_TYPES(&general_option),
 };
 
-CONFIG_INFO_STANDARD(cfg_info, globals, udptl_snapshot_alloc,
+CONFIG_INFO_CORE("udptl", cfg_info, globals, udptl_snapshot_alloc,
 	.files = ACO_FILES(&udptl_conf),
 	.pre_apply_config = udptl_pre_apply_config,
 );
