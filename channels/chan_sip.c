@@ -13097,7 +13097,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needvideo) {
 			get_crypto_attrib(p, p->vsrtp, &v_a_crypto);
 			ast_str_append(&m_video, 0, "m=video %d %s", ast_sockaddr_port(&vdest),
-				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->vrtp));
+				       get_sdp_rtp_profile(p, v_a_crypto ? 1 : 0, p->vrtp));
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -13122,7 +13122,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Lets set up the text sdp\n");
 			get_crypto_attrib(p, p->tsrtp, &t_a_crypto);
 			ast_str_append(&m_text, 0, "m=text %d %s", ast_sockaddr_port(&tdest),
-				       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->trtp));
+				       get_sdp_rtp_profile(p, t_a_crypto ? 1 : 0, p->trtp));
 			if (debug) {  /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
