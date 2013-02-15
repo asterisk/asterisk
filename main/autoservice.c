@@ -77,6 +77,7 @@ static int as_chan_list_state;
 
 static void *autoservice_run(void *ign)
 {
+	struct ast_callid *callid = NULL;
 	struct ast_frame hangup_frame = {
 		.frametype = AST_FRAME_CONTROL,
 		.subclass.integer = AST_CONTROL_HANGUP,
@@ -90,7 +91,6 @@ static void *autoservice_run(void *ign)
 		int i, x = 0, ms = 50;
 		struct ast_frame *f = NULL;
 		struct ast_frame *defer_frame = NULL;
-		struct ast_callid *callid = NULL;
 
 		AST_LIST_LOCK(&aslist);
 
@@ -129,9 +129,8 @@ static void *autoservice_run(void *ign)
 			continue;
 		}
 
-		if ((callid = ast_channel_callid(chan))) {
-			ast_callid_threadassoc_add(callid);
-		}
+		callid = ast_channel_callid(chan);
+		ast_callid_threadassoc_change(callid);
 
 		f = ast_read(chan);
 
@@ -173,11 +172,11 @@ static void *autoservice_run(void *ign)
 		} else if (f) {
 			ast_frfree(f);
 		}
+	}
 
-		if (callid) {
-			ast_callid_threadassoc_remove();
-			callid = ast_callid_unref(callid);
-		}
+	if (callid) {
+		ast_callid_threadassoc_remove();
+		callid = ast_callid_unref(callid);
 	}
 
 	asthread = AST_PTHREADT_NULL;
