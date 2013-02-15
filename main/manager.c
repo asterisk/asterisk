@@ -2248,6 +2248,7 @@ void astman_send_error_va(struct mansession *s, const struct message *m, const c
 {
 	va_list ap;
 	struct ast_str *buf;
+	char *msg;
 
 	if (!(buf = ast_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE))) {
 		return;
@@ -2257,8 +2258,13 @@ void astman_send_error_va(struct mansession *s, const struct message *m, const c
 	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	astman_send_response_full(s, m, "Error", ast_str_buffer(buf), NULL);
-	ast_free(buf);
+	/* astman_append will use the same underlying buffer, so copy the message out
+	 * before sending the response */
+	msg = ast_str_buffer(buf);
+	if (msg) {
+		msg = ast_strdupa(msg);
+	}
+	astman_send_response_full(s, m, "Error", msg, NULL);
 }
 
 void astman_send_ack(struct mansession *s, const struct message *m, char *msg)
@@ -3346,7 +3352,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 
 	/* if regex compilation fails, hangup fails */
 	if (regcomp(&regexbuf, ast_str_buffer(regex_string), REG_EXTENDED | REG_NOSUB)) {
-		astman_send_error_va(s, m, "Regex compile failed on: %s\n", name_or_regex);
+		astman_send_error_va(s, m, "Regex compile failed on: %s", name_or_regex);
 		ast_free(regex_string);
 		return 0;
 	}
@@ -4578,6 +4584,10 @@ static int action_presencestate(struct mansession *s, const struct message *m)
 	}
 
 	state = ast_presence_state(provider, &subtype, &message);
+	if (state == AST_PRESENCE_INVALID) {
+		astman_send_error_va(s, m, "Invalid provider %s or provider in invalid state", provider);
+		return 0;
+	}
 
 	if (!ast_strlen_zero(subtype)) {
 		snprintf(subtype_header, sizeof(subtype_header),

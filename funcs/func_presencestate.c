@@ -243,7 +243,7 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 	ast_db_get(astdb_family, data, buf, sizeof(buf));
 
 	if (parse_data(buf, &state, &_subtype, &_message, &_options)) {
-		return -1;
+		return AST_PRESENCE_INVALID;
 	}
 
 	if ((strchr(_options, 'e'))) {
@@ -252,7 +252,6 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 			*subtype = NULL;
 		} else {
 			memset(tmp, 0, sizeof(tmp));
-			ast_log(LOG_NOTICE, "Hey there, I'm doing some base64 decoding\n");
 			ast_base64decode((unsigned char *) tmp, _subtype, sizeof(tmp) - 1);
 			*subtype = ast_strdup(tmp);
 		}
@@ -261,12 +260,10 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 			*message = NULL;
 		} else {
 			memset(tmp, 0, sizeof(tmp));
-			ast_log(LOG_NOTICE, "Hey there, I'm doing some more base64 decoding\n");
 			ast_base64decode((unsigned char *) tmp, _message, sizeof(tmp) - 1);
 			*message = ast_strdup(tmp);
 		}
 	} else {
-		ast_log(LOG_NOTICE, "Not doing any base64 decoding\n");
 		*subtype = ast_strlen_zero(_subtype) ? NULL : ast_strdup(_subtype);
 		*message = ast_strlen_zero(_message) ? NULL : ast_strdup(_message);
 	}
