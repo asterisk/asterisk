@@ -24629,9 +24629,6 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, st
 	ast_setstate(c, AST_STATE_DOWN);
 	ast_channel_unlock(c);
 
-	/* The call should be down with no ast_channel, so hang it up */
-	ast_channel_tech_pvt_set(c, dialog_unref(ast_channel_tech_pvt(c), "unref dialog c->tech_pvt"));
-
 	/* c and c's tech pvt must be unlocked at this point for ast_hangup */
 	ast_hangup(c);
 	/* this indicates to handle_request_do that the owner channel has already been unlocked */
