@@ -281,6 +281,15 @@ struct ast_callid *ast_read_threadstorage_callid(void);
 #define ast_callid_unref(c) ({ ao2_ref(c, -1); (NULL); })
 
 /*!
+ * \brief Sets what is stored in the thread storage to the given
+ *        callid if it does not match what is already there.
+ *
+ * \retval 0 - success
+ * \retval non-zero - failure
+ */
+int ast_callid_threadassoc_change(struct ast_callid *callid);
+
+/*!
  * \brief Adds a known callid to thread storage of the calling thread
  *
  * \retval 0 - success
