@@ -32,6 +32,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <regex.h>
+
 #include "asterisk/module.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/astobj2.h"
@@ -45,6 +47,7 @@ static void *sorcery_memory_retrieve_id(const struct ast_sorcery *sorcery, void 
 static void *sorcery_memory_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields);
 static void sorcery_memory_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
 					     const struct ast_variable *fields);
+static void sorcery_memory_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
 static int sorcery_memory_update(void *data, void *object);
 static int sorcery_memory_delete(void *data, void *object);
 static void sorcery_memory_close(void *data);
@@ -56,6 +59,7 @@ static struct ast_sorcery_wizard memory_object_wizard = {
 	.retrieve_id = sorcery_memory_retrieve_id,
 	.retrieve_fields = sorcery_memory_retrieve_fields,
 	.retrieve_multiple = sorcery_memory_retrieve_multiple,
+	.retrieve_regex = sorcery_memory_retrieve_regex,
 	.update = sorcery_memory_update,
 	.delete = sorcery_memory_delete,
 	.close = sorcery_memory_close,
@@ -68,6 +72,9 @@ struct sorcery_memory_fields_cmp_params {
 
 	/*! \brief Pointer to the fields to check */
 	const struct ast_variable *fields;
+
+	/*! \brief Regular expression for checking object id */
+	regex_t *regex;
 
 	/*! \brief Optional container to put object into */
 	struct ao2_container *container;
@@ -101,13 +108,19 @@ static int sorcery_memory_fields_cmp(void *obj, void *arg, int flags)
 	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
 	RAII_VAR(struct ast_variable *, diff, NULL, ast_variables_destroy);
 
-	/* If we can't turn the object into an object set OR if differences exist between the fields
-	 * passed in and what are present on the object they are not a match.
-	 */
-	if (params->fields &&
+	if (params->regex) {
+		/* If a regular expression has been provided see if it matches, otherwise move on */
+		if (!regexec(params->regex, ast_sorcery_object_get_id(obj), 0, NULL, 0)) {
+			ao2_link(params->container, obj);
+		}
+		return 0;
+	} else if (params->fields &&
 	    (!(objset = ast_sorcery_objectset_create(params->sorcery, obj)) ||
 	     (ast_sorcery_changeset_create(objset, params->fields, &diff)) ||
 	     diff)) {
+		/* If we can't turn the object into an object set OR if differences exist between the fields
+		 * passed in and what are present on the object they are not a match.
+		 */
 		return 0;
 	}
 
@@ -152,6 +165,23 @@ static void sorcery_memory_retrieve_multiple(const struct ast_sorcery *sorcery, 
 	};
 
 	ao2_callback(data, 0, sorcery_memory_fields_cmp, &params);
+}
+
+static void sorcery_memory_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex)
+{
+	regex_t expression;
+	struct sorcery_memory_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.container = objects,
+		.regex = &expression,
+	};
+
+	if (regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
+		return;
+	}
+
+	ao2_callback(data, 0, sorcery_memory_fields_cmp, &params);
+	regfree(&expression);
 }
 
 static int sorcery_memory_update(void *data, void *object)

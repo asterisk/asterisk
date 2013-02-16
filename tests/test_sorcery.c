@@ -1419,6 +1419,74 @@ AST_TEST_DEFINE(object_retrieve_multiple_field)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(object_retrieve_regex)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_retrieve_regex";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery multiple object retrieval using regex unit test";
+		info->description =
+			"Test multiple object retrieval in sorcery using regular expression for matching";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah-98joe"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create object using in-memory wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	ao2_cleanup(obj);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah-93joe"))) {
+		ast_test_status_update(test, "Failed to allocate second instance of a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create second object using in-memory wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	ao2_cleanup(obj);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "neener-93joe"))) {
+		ast_test_status_update(test, "Failed to allocate third instance of a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create third object using in-memory wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objects = ast_sorcery_retrieve_by_regex(sorcery, "test", "^blah-"))) {
+		ast_test_status_update(test, "Failed to retrieve a container of objects\n");
+		return AST_TEST_FAIL;
+	} else if (ao2_container_count(objects) != 2) {
+		ast_test_status_update(test, "Received a container with incorrect number of objects in it\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(object_update)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
@@ -2099,6 +2167,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_retrieve_field);
 	AST_TEST_UNREGISTER(object_retrieve_multiple_all);
 	AST_TEST_UNREGISTER(object_retrieve_multiple_field);
+	AST_TEST_UNREGISTER(object_retrieve_regex);
 	AST_TEST_UNREGISTER(object_update);
 	AST_TEST_UNREGISTER(object_update_uncreated);
 	AST_TEST_UNREGISTER(object_delete);
@@ -2140,6 +2209,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_retrieve_field);
 	AST_TEST_REGISTER(object_retrieve_multiple_all);
 	AST_TEST_REGISTER(object_retrieve_multiple_field);
+	AST_TEST_REGISTER(object_retrieve_regex);
 	AST_TEST_REGISTER(object_update);
 	AST_TEST_REGISTER(object_update_uncreated);
 	AST_TEST_REGISTER(object_delete);

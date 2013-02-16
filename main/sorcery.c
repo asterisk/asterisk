@@ -959,6 +959,30 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 	return object;
 }
 
+struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *sorcery, const char *type, const char *regex)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct ao2_container *objects;
+	struct ao2_iterator i;
+	struct ast_sorcery_object_wizard *wizard;
+
+	if (!object_type || !(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(object_type->wizards, 0);
+	for (; (wizard = ao2_iterator_next(&i)); ao2_ref(wizard, -1)) {
+		if (!wizard->wizard->retrieve_regex) {
+			continue;
+		}
+
+		wizard->wizard->retrieve_regex(sorcery, wizard->data, object_type->name, objects, regex);
+	}
+	ao2_iterator_destroy(&i);
+
+	return objects;
+}
+
 /*! \brief Internal function which returns if the wizard has created the object */
 static int sorcery_wizard_create(void *obj, void *arg, int flags)
 {

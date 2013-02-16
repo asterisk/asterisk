@@ -197,6 +197,9 @@ struct ast_sorcery_wizard {
 	/*! \brief Callback for retrieving an object using an id */
 	void *(*retrieve_id)(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id);
 
+	/*! \brief Callback for retrieving multiple objects using a regex on their id */
+	void (*retrieve_regex)(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
+
 	/*! \brief Optional callback for retrieving an object using fields */
 	void *(*retrieve_fields)(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields);
 
@@ -547,6 +550,20 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
  *       of the given type.
  */
 void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const char *type, unsigned int flags, struct ast_variable *fields);
+
+/*!
+ * \brief Retrieve multiple objects using a regular expression on their id
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to retrieve
+ * \param regex Regular expression
+ *
+ * \retval non-NULL if error occurs
+ * \retval NULL success
+ *
+ * \note The provided regex is treated as extended case sensitive.
+ */
+struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *sorcery, const char *type, const char *regex);
 
 /*!
  * \brief Update an object
