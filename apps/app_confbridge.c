@@ -2157,10 +2157,10 @@ static char *complete_confbridge_name(const char *line, const char *word, int po
 	struct conference_bridge *bridge = NULL;
 	char *res = NULL;
 	int wordlen = strlen(word);
-	struct ao2_iterator i;
+	struct ao2_iterator iter;
 
-	i = ao2_iterator_init(conference_bridges, 0);
-	while ((bridge = ao2_iterator_next(&i))) {
+	iter = ao2_iterator_init(conference_bridges, 0);
+	while ((bridge = ao2_iterator_next(&iter))) {
 		if (!strncasecmp(bridge->name, word, wordlen) && ++which > state) {
 			res = ast_strdup(bridge->name);
 			ao2_ref(bridge, -1);
@@ -2168,7 +2168,7 @@ static char *complete_confbridge_name(const char *line, const char *word, int po
 		}
 		ao2_ref(bridge, -1);
 	}
-	ao2_iterator_destroy(&i);
+	ao2_iterator_destroy(&iter);
 
 	return res;
 }
@@ -2236,10 +2236,7 @@ static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confe
 
 static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ao2_iterator i;
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
-	struct conference_bridge_user *participant = NULL;
+	struct conference_bridge *bridge;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2256,18 +2253,23 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 	}
 
 	if (a->argc == 2) {
+		struct ao2_iterator iter;
+
 		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked?\n");
 		ast_cli(a->fd, "================================ ====== ====== ========\n");
-		i = ao2_iterator_init(conference_bridges, 0);
-		while ((bridge = ao2_iterator_next(&i))) {
+		iter = ao2_iterator_init(conference_bridges, 0);
+		while ((bridge = ao2_iterator_next(&iter))) {
 			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->activeusers + bridge->waitingusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
 			ao2_ref(bridge, -1);
 		}
-		ao2_iterator_destroy(&i);
+		ao2_iterator_destroy(&iter);
 		return CLI_SUCCESS;
 	}
 
 	if (a->argc == 3) {
+		struct conference_bridge_user *participant;
+		struct conference_bridge tmp;
+
 		ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
 		bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
 		if (!bridge) {
@@ -2657,7 +2659,7 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 {
 	const char *actionid = astman_get_header(m, "ActionID");
 	struct conference_bridge *bridge = NULL;
-	struct ao2_iterator i;
+	struct ao2_iterator iter;
 	char id_text[512] = "";
 	int totalitems = 0;
 
@@ -2673,8 +2675,8 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 	astman_send_listack(s, m, "Confbridge conferences will follow", "start");
 
 	/* Traverse the conference list */
-	i = ao2_iterator_init(conference_bridges, 0);
-	while ((bridge = ao2_iterator_next(&i))) {
+	iter = ao2_iterator_init(conference_bridges, 0);
+	while ((bridge = ao2_iterator_next(&iter))) {
 		totalitems++;
 
 		ao2_lock(bridge);
@@ -2695,7 +2697,7 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 
 		ao2_ref(bridge, -1);
 	}
-	ao2_iterator_destroy(&i);
+	ao2_iterator_destroy(&iter);
 
 	/* Send final confirmation */
 	astman_append(s,
