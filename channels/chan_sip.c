@@ -14440,7 +14440,8 @@ static void state_notify_build_xml(struct state_notify_data *data, int full, con
 		else
 			ast_str_append(tmp, 0, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
 
-		if (allow_notify_user_presence(p) && (data->presence_state > 0)) {
+		if (allow_notify_user_presence(p) && (data->presence_state != AST_PRESENCE_INVALID)
+				&& (data->presence_state != AST_PRESENCE_NOT_SET)) {
 			ast_str_append(tmp, 0, "</tuple>\n");
 			ast_str_append(tmp, 0, "<tuple id=\"digium-presence\">\n");
 			ast_str_append(tmp, 0, "<status>\n");
