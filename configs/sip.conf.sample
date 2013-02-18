@@ -457,7 +457,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                        ; register their phones.
 ;contactacl=named_acl_example          ; Use named ACLs defined in acl.conf
 
-;engine=asterisk                ; RTP engine to use when communicating with the device
+;rtp_engine=asterisk            ; RTP engine to use when communicating with the device
 
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
@@ -1233,7 +1233,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; outboundproxy
 ; rfc2833compensate
 ; callbackextension
-; registertrying
 ; timert1
 ; timerb
 ; qualifyfreq
