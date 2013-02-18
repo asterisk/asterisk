@@ -407,6 +407,34 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	return tmp;
 }
 
+static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename)
+{
+	char *rec_file = bridge->b_profile.rec_file;
+	time_t now;
+	char *ext;
+
+	if (ast_str_strlen(*filename)) {
+		    return;
+	}
+
+	time(&now);
+
+	ast_str_reset(*filename);
+	if (ast_strlen_zero(rec_file)) {
+		ast_str_set(filename, 0, "confbridge-%s-%u.wav", bridge->name, (unsigned int)now);
+	} else {
+		/* insert time before file extension */
+		ext = strrchr(rec_file, '.');
+		if (ext) {
+			ast_str_set_substr(filename, 0, rec_file, ext - rec_file);
+			ast_str_append(filename, 0, "-%u%s", (unsigned int)now, ext);
+		} else {
+			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int)now);
+		}
+	}
+	ast_str_append(filename, 0, ",a");
+}
+
 static void *record_thread(void *obj)
 {
 	struct conference_bridge *conference_bridge = obj;
@@ -425,16 +453,7 @@ static void *record_thread(void *obj)
 
 	/* XXX If we get an EXIT right here, START will essentially be a no-op */
 	while (conference_bridge->record_state != CONF_RECORD_EXIT) {
-		if (!(ast_strlen_zero(conference_bridge->b_profile.rec_file))) {
-			ast_str_append(&filename, 0, "%s", conference_bridge->b_profile.rec_file);
-		} else {
-			time_t now;
-			time(&now);
-			ast_str_append(&filename, 0, "confbridge-%s-%u.wav",
-				conference_bridge->name,
-				(unsigned int) now);
-		}
-
+		set_rec_filename(conference_bridge, &filename);
 		chan = ast_channel_ref(conference_bridge->record_chan);
 		ast_answer(chan);
 		pbx_exec(chan, mixmonapp, ast_str_buffer(filename));
@@ -565,6 +584,13 @@ static int start_conf_record_thread(struct conference_bridge *conference_bridge)
 	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
 
 	conf_start_record(conference_bridge);
+
+	/*
+	 * if the thread has already been started, don't start another
+	 */
+	if (conference_bridge->record_thread != AST_PTHREADT_NULL) {
+		return 0;
+	}
 
 	if (ast_pthread_create_background(&conference_bridge->record_thread, NULL, record_thread, conference_bridge)) {
 		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference_bridge->name);
