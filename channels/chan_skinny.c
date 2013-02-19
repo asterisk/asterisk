@@ -3531,6 +3531,36 @@ static char *skinny_debugs(void)
 	return dbgcli_buf;
 }
 
+static char *complete_skinny_debug(const char *line, const char *word, int pos, int state)
+{
+	const char *debugOpts[]={ "all","audio","hint","lock","off","packet","show","sub","template","thread",NULL };
+	char *wordptr = (char *)word;
+	char buf[32];
+	char *bufptr = buf;
+	int buflen = sizeof(buf);
+	int wordlen;
+	int which = 0;
+	int i = 0;
+
+	if (*word == '+' || *word == '-' || *word == '!') {
+		*bufptr = *word;
+		wordptr++;
+		bufptr++;
+		buflen--;
+	}
+	wordlen = strlen(wordptr);
+
+	while (debugOpts[i]) {
+		if (!strncasecmp(wordptr, debugOpts[i], wordlen) && ++which > state) {
+			ast_copy_string(bufptr, debugOpts[i], buflen);
+			return ast_strdup(buf);
+		}
+		i++;
+	}
+
+	return NULL;
+}
+
 static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i;
@@ -3541,13 +3571,14 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "skinny debug {audio|hint|lock|off|packet|show|sub|template|thread}";
+		e->command = "skinny debug";
 		e->usage =
 			"Usage: skinny debug {audio|hint|lock|off|packet|show|sub|template|thread}\n"
 			"       Enables/Disables various Skinny debugging messages\n";
 		return NULL;
 	case CLI_GENERATE:
-		return NULL;
+		return complete_skinny_debug(a->line, a->word, a->pos, a->n);
+
 	}
 
 	if (a->argc < 3)
@@ -3558,12 +3589,17 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 		return CLI_SUCCESS;
 	}
 
-	for(i = e->args-1; i < a->argc; i++) {
+	for(i = e->args; i < a->argc; i++) {
 		result++;
 		arg = a->argv[i];
 
 		if (!strncasecmp(arg, "off", 3)) {
 			skinnydebug = 0;
+			continue;
+		}
+
+		if (!strncasecmp(arg, "all", 3)) {
+			skinnydebug = DEBUG_GENERAL|DEBUG_SUB|DEBUG_PACKET|DEBUG_AUDIO|DEBUG_LOCK|DEBUG_TEMPLATE|DEBUG_THREAD|DEBUG_HINT;
 			continue;
 		}
 
@@ -3638,32 +3674,31 @@ static char *handle_skinny_reload(struct ast_cli_entry *e, int cmd, struct ast_c
 static char *complete_skinny_devices(const char *word, int state)
 {
 	struct skinny_device *d;
-	char *result = NULL;
 	int wordlen = strlen(word), which = 0;
 
 	AST_LIST_TRAVERSE(&devices, d, list) {
-		if (!strncasecmp(word, d->id, wordlen) && ++which > state)
-			result = ast_strdup(d->id);
+		if (!strncasecmp(word, d->name, wordlen) && ++which > state) {
+                       return ast_strdup(d->name);
+               }
 	}
 
-	return result;
+	return NULL;
 }
 
 static char *complete_skinny_show_device(const char *line, const char *word, int pos, int state)
 {
-	return (pos == 3 ? ast_strdup(complete_skinny_devices(word, state)) : NULL);
+	return (pos == 3 ? complete_skinny_devices(word, state) : NULL);
 }
 
 static char *complete_skinny_reset(const char *line, const char *word, int pos, int state)
 {
-	return (pos == 2 ? ast_strdup(complete_skinny_devices(word, state)) : NULL);
+	return (pos == 2 ? complete_skinny_devices(word, state) : NULL);
 }
 
 static char *complete_skinny_show_line(const char *line, const char *word, int pos, int state)
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
-	char *result = NULL;
 	int wordlen = strlen(word), which = 0;
 
 	if (pos != 3)
@@ -3671,12 +3706,13 @@ static char *complete_skinny_show_line(const char *line, const char *word, int p
 
 	AST_LIST_TRAVERSE(&devices, d, list) {
 		AST_LIST_TRAVERSE(&d->lines, l, list) {
-			if (!strncasecmp(word, l->name, wordlen) && ++which > state)
-				result = ast_strdup(l->name);
+			if (!strncasecmp(word, l->name, wordlen) && ++which > state) {
+				return ast_strdup(l->name);
+			}
 		}
 	}
 
-	return result;
+	return NULL;
 }
 
 static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
