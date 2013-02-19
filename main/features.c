@@ -3023,7 +3023,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_party_connected_line_free(&connected_line);
 		return -1;
 	}
-	ast_explicit_goto(xferchan, ast_channel_context(transferee), ast_channel_exten(transferee), ast_channel_priority(transferee));
+
+	dash = strrchr(xferto, '@');
+	if (dash) {
+		/* Trim off the context. */
+		*dash = '\0';
+	}
+	ast_explicit_goto(xferchan, transferer_real_context, xferto, 1);
 	ast_channel_state_set(xferchan, AST_STATE_UP);
 	ast_clear_flag(ast_channel_flags(xferchan), AST_FLAGS_ALL);
 
