@@ -402,6 +402,11 @@ struct soft_key_event_message {
 #define HEADSET_STATUS_MESSAGE 0x002B
 #define REGISTER_AVAILABLE_LINES_MESSAGE 0x002D
 
+#define SERVICEURL_STATREQ_MESSAGE 0x0033
+struct serviceurl_statreq_message {
+	uint32_t instance;
+};
+
 #define REGISTER_ACK_MESSAGE 0x0081
 struct register_ack_message {
 	uint32_t keepAlive;
@@ -576,6 +581,7 @@ struct button_definition_template {
 #define STIMULUS_LINE 0x09
 #define STIMULUS_VOICEMAIL 0x0F
 #define STIMULUS_AUTOANSWER 0x11
+#define STIMULUS_SERVICEURL 0x14
 #define STIMULUS_DND 0x3F
 #define STIMULUS_CONFERENCE 0x7D
 #define STIMULUS_CALLPARK 0x7E
@@ -594,6 +600,7 @@ struct button_definition_template {
 #define BT_LINE STIMULUS_LINE
 #define BT_VOICEMAIL STIMULUS_VOICEMAIL
 #define BT_AUTOANSWER STIMULUS_AUTOANSWER
+#define BT_SERVICEURL STIMULUS_SERVICEURL
 #define BT_DND STIMULUS_DND
 #define BT_CONFERENCE STIMULUS_CONFERENCE
 #define BT_CALLPARK STIMULUS_CALLPARK
@@ -1080,6 +1087,14 @@ struct dialed_number_message {
 	uint32_t callReference;
 };
 
+#define MAX_SERVICEURL 256
+#define SERVICEURL_STAT_MESSAGE 0x012F
+struct serviceurl_stat_message {
+	uint32_t instance;
+	char url[MAX_SERVICEURL];
+	char displayName[40];
+};
+
 #define MAXCALLINFOSTR 256
 #define CALL_INFO_MESSAGE_VARIABLE 0x014A
 struct call_info_message_variable {
@@ -1152,6 +1167,7 @@ union skinny_data {
 	struct bksp_req_message bkspmessage;
 	struct call_info_message_variable callinfomessagevariable;
 	struct display_prompt_status_message_variable displaypromptstatusvar;
+	struct serviceurl_stat_message serviceurlmessage;
 };
 
 /* packet composition */
@@ -1467,6 +1483,14 @@ struct skinny_speeddial {
 	struct skinny_device *parent;
 };
 
+struct skinny_serviceurl {
+	int instance;
+	char url[MAX_SERVICEURL];
+	char displayName[40];
+	AST_LIST_ENTRY(skinny_serviceurl) list;
+	struct skinny_device *device;
+};
+
 #define SKINNY_DEVICECONTAINER 1
 #define SKINNY_LINECONTAINER 2
 #define SKINNY_SUBLINECONTAINER 3
@@ -1516,6 +1540,7 @@ struct skinny_device {
 	struct ast_format_cap *confcap;
 	AST_LIST_HEAD(, skinny_line) lines;
 	AST_LIST_HEAD(, skinny_speeddial) speeddials;
+	AST_LIST_HEAD(, skinny_serviceurl) serviceurls;
 	AST_LIST_HEAD(, skinny_addon) addons;
 	AST_LIST_ENTRY(skinny_device) list;
 };
@@ -3199,6 +3224,31 @@ static void transmit_backspace(struct skinny_device *d, int instance, unsigned c
 	transmit_response(d, req);
 }
 
+static void transmit_serviceurlstat(struct skinny_device *d, int instance)
+{
+	struct skinny_req *req;
+	struct skinny_serviceurl *surl;
+
+	if (!(req = req_alloc(sizeof(struct serviceurl_stat_message), SERVICEURL_STAT_MESSAGE)))
+		return;
+
+	AST_LIST_TRAVERSE(&d->serviceurls, surl, list) {
+		if (surl->instance == instance) {
+			break;
+		}
+	}
+
+	if (surl) {
+		memcpy(req->data.serviceurlmessage.displayName, surl->displayName, sizeof(req->data.serviceurlmessage.displayName));
+		memcpy(req->data.serviceurlmessage.url, surl->url, sizeof(req->data.serviceurlmessage.url));
+	}
+	req->data.serviceurlmessage.instance = htolel(instance);
+
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting SERVICEURL_STAT_MESSAGE to %s, inst %d\n",
+		d->name, instance);
+	transmit_response(d, req);
+}
+
 static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct skinny_container *container = data;
@@ -3975,6 +4025,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 	struct skinny_line *l;
 	struct skinny_speeddial *sd;
 	struct skinny_addon *sa;
+	struct skinny_serviceurl *surl;
 	char codec_buf[512];
 
 	if (argc < 4) {
@@ -3984,7 +4035,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list) {
 		if (!strcasecmp(argv[3], d->id) || !strcasecmp(argv[3], d->name)) {
-			int numlines = 0, numaddons = 0, numspeeddials = 0;
+			int numlines = 0, numaddons = 0, numspeeddials = 0, numserviceurls = 0;
 
 			AST_LIST_TRAVERSE(&d->lines, l, list){
 				numlines++;
@@ -3996,6 +4047,10 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 
 			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 				numspeeddials++;
+			}
+
+			AST_LIST_TRAVERSE(&d->serviceurls, surl, list) {
+				numserviceurls++;
 			}
 
 			if (type == 0) { /* CLI */
@@ -4016,19 +4071,17 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					ast_cli(fd, "  %s (%s)\n", l->name, l->label);
 				}
-				AST_LIST_TRAVERSE(&d->addons, sa, list) {
-					numaddons++;
-				}
 				ast_cli(fd, "Addons:      %d\n", numaddons);
 				AST_LIST_TRAVERSE(&d->addons, sa, list) {
 					ast_cli(fd, "  %s\n", sa->type);
 				}
-				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
-					numspeeddials++;
-				}
 				ast_cli(fd, "Speeddials:  %d\n", numspeeddials);
 				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 					ast_cli(fd, "  %s (%s) ishint: %d\n", sd->exten, sd->label, sd->isHint);
+				}
+				ast_cli(fd, "ServiceURLs:  %d\n", numserviceurls);
+				AST_LIST_TRAVERSE(&d->serviceurls, surl, list) {
+					ast_cli(fd, "  %s (%s)\n", surl->displayName, surl->url);
 				}
 			} else { /* manager */
 				astman_append(s, "Channeltype: SKINNY\r\n");
@@ -4057,6 +4110,10 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				astman_append(s, "NumberOfSpeeddials: %d\r\n", numspeeddials);
 				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
 					astman_append(s, "Speeddial: %s (%s) ishint: %d\r\n", sd->exten, sd->label, sd->isHint);
+				}
+				astman_append(s, "ServiceURLs:  %d\r\n", numserviceurls);
+				AST_LIST_TRAVERSE(&d->serviceurls, surl, list) {
+					astman_append(s, "  %s (%s)\r\n", surl->displayName, surl->url);
 				}
 			}
 		}
@@ -6378,11 +6435,12 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	int i;
-
 	struct skinny_speeddial *sd;
+	struct skinny_serviceurl *surl;
 	struct button_definition_template btn[42];
 	int lineInstance = 1;
 	int speeddialInstance = 1;
+	int serviceurlInstance = 1;
 	int buttonCount = 0;
 
 	if (!(req = req_alloc(sizeof(struct button_template_res_message), BUTTON_TEMPLATE_RES_MESSAGE)))
@@ -6459,6 +6517,20 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
 							req->data.buttontemplate.definition[i].instanceNumber = speeddialInstance;
 							speeddialInstance++;
+							buttonCount++;
+							btnSet = 1;
+							break;
+						}
+					}
+				}
+
+				if (!btnSet) {
+					AST_LIST_TRAVERSE(&d->serviceurls, surl, list) {
+						if (surl->instance == serviceurlInstance) {
+							SKINNY_DEBUG(DEBUG_TEMPLATE, 4, "Adding button: %d, %d\n", BT_SERVICEURL, serviceurlInstance);
+							req->data.buttontemplate.definition[i].buttonDefinition = BT_SERVICEURL;
+							req->data.buttontemplate.definition[i].instanceNumber = serviceurlInstance;
+							serviceurlInstance++;
 							buttonCount++;
 							btnSet = 1;
 							break;
@@ -7094,6 +7166,10 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		/* XXX I have no clue what this is for, but my phone was sending it, so... */
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received REGISTER_AVAILABLE_LINES_MESSAGE from %s\n", d->name);
 		break;
+	case SERVICEURL_STATREQ_MESSAGE:
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "SERVICEURL_STATREQ_MESSAGE from %s\n", d->name);
+		transmit_serviceurlstat(d, letohl(req->data.serviceurlmessage.instance));
+		break;
 	default:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received UNKNOWN_MESSAGE(%x) from %s\n", letohl(req->e), d->name);
 		break;
@@ -7417,6 +7493,7 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 	struct ast_variable *v;
 	int lineInstance = 1;
 	int speeddialInstance = 1;
+	int serviceUrlInstance = 1;
 
 	while(vptr) {
 		v = vptr;
@@ -7859,6 +7936,30 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 				AST_LIST_INSERT_HEAD(&CDEV->speeddials, sd, list);
 				continue;
 			}
+		} else if (!strcasecmp(v->name, "serviceurl")) {
+			if (type & (TYPE_DEVICE)) {
+				struct skinny_serviceurl *surl;
+				char buf[256];
+				char *stringp = buf, *serviceUrl, *displayName;
+				if (!(surl = ast_calloc(1, sizeof(*surl)))) {
+					ast_log(LOG_WARNING, "Unable to allocate memory for serviceurl %s. Ignoring service URL.\n", v->name);
+					continue;
+				}
+				ast_copy_string(buf, v->value, sizeof(buf));
+				displayName = strsep(&stringp, ",");
+				if (stringp) {
+					serviceUrl = stringp;
+					ast_copy_string(surl->url, ast_strip(serviceUrl), sizeof(surl->url));
+					ast_copy_string(surl->displayName, displayName, sizeof(surl->displayName));
+					surl->instance = serviceUrlInstance++;
+					surl->device = CDEV;
+					AST_LIST_INSERT_HEAD(&CDEV->serviceurls, surl, list);
+				} else {
+					ast_free(surl);
+					ast_log(LOG_WARNING, "Badly formed option for service URL in %s. Ignoring service URL.\n", v->name);
+				}
+				continue;
+			}
 		} else if (!strcasecmp(v->name, "addon")) {
 			if (type & (TYPE_DEVICE)) {
 				struct skinny_addon *a;
@@ -8170,6 +8271,7 @@ static void delete_devices(void)
 	struct skinny_line *l;
 	struct skinny_speeddial *sd;
 	struct skinny_addon *a;
+	struct skinny_serviceurl *surl;
 
 	AST_LIST_LOCK(&devices);
 	AST_LIST_LOCK(&lines);
@@ -8186,6 +8288,10 @@ static void delete_devices(void)
 		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
 			free(sd->container);
 			free(sd);
+		}
+		/* Delete all serviceurls for this device */
+		while ((surl = AST_LIST_REMOVE_HEAD(&d->serviceurls, list))) {
+			free(surl);
 		}
 		/* Delete all addons for this device */
 		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {

@@ -178,6 +178,12 @@ keepalive=120
 ;directmedia=yes	; Allow media to go directly between two RTP endpoints.
 ;line=120		; Dial(Skinny/120@florian)
 
+; Service URLs attached to line buttons (eg phone directory)
+; See http://www.voip-info.org/wiki/view/Asterisk+Cisco+79XX+XML+Services
+; for intro to xml structure.
+;serviceurl=Directory,http://host/file.xml
+
+
 ; Typical config for a 7910
 ;[duba]			; Device name
 ;device=SEP0007EB463101	; Official identifier
