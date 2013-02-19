@@ -146,6 +146,9 @@ ConfBridge
    file will be played to the user, and only the user, upon joining the
    conference bridge.
 
+ * Added record_file_append option that defaults to "yes", but if set to no
+   will create a new file between each start/stop recording.
+
 
 Dial
 -------------------

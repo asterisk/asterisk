@@ -1330,6 +1330,10 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		b_profile.flags & BRIDGE_OPT_RECORD_CONFERENCE ?
 		"yes" : "no");
 
+	ast_cli(a->fd,"Record File Append:    %s\n",
+		b_profile.flags & BRIDGE_OPT_RECORD_FILE_APPEND ?
+		"yes" : "no");
+
 	ast_cli(a->fd,"Record File:          %s\n",
 		ast_strlen_zero(b_profile.rec_file) ? "Auto Generated" :
 		b_profile.rec_file);
@@ -1788,6 +1792,7 @@ int conf_load_config(int reload)
 	aco_option_register_custom(&cfg_info, "mixing_interval", ACO_EXACT, bridge_types, "20", mix_interval_handler, 0);
 	aco_option_register(&cfg_info, "record_conference", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_CONFERENCE);
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);
+	aco_option_register(&cfg_info, "record_file_append", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_FILE_APPEND);
 	aco_option_register(&cfg_info, "max_members", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, max_members));
 	aco_option_register(&cfg_info, "record_file", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_file));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);

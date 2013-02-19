@@ -602,7 +602,7 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 	time_t now;
 	char *ext;
 
-	if (ast_str_strlen(*filename)) {
+	if (ast_str_strlen(*filename) && ast_test_flag(&bridge->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND)) {
 		    return;
 	}
 
@@ -621,7 +621,10 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int)now);
 		}
 	}
-	ast_str_append(filename, 0, ",a");
+
+	if (ast_test_flag(&bridge->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND)) {
+		ast_str_append(filename, 0, ",a");
+	}
 }
 
 static void *record_thread(void *obj)
