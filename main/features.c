@@ -2851,7 +2851,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_party_connected_line_free(&connected_line);
 		return -1;
 	}
-	ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+
+	dash = strrchr(xferto, '@');
+	if (dash) {
+		/* Trim off the context. */
+		*dash = '\0';
+	}
+	ast_explicit_goto(xferchan, transferer_real_context, xferto, 1);
 	xferchan->_state = AST_STATE_UP;
 	ast_clear_flag(xferchan, AST_FLAGS_ALL);
 
