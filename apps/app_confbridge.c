@@ -581,8 +581,6 @@ static int conf_start_record(struct conference_bridge *conference_bridge)
  */
 static int start_conf_record_thread(struct conference_bridge *conference_bridge)
 {
-	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
-
 	conf_start_record(conference_bridge);
 
 	/*
@@ -591,6 +589,8 @@ static int start_conf_record_thread(struct conference_bridge *conference_bridge)
 	if (conference_bridge->record_thread != AST_PTHREADT_NULL) {
 		return 0;
 	}
+
+	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
 
 	if (ast_pthread_create_background(&conference_bridge->record_thread, NULL, record_thread, conference_bridge)) {
 		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference_bridge->name);
