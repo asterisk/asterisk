@@ -110,17 +110,17 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode);
  */
 void ast_update_use_count(void);
 
-/*! 
- * \brief Ask for a list of modules, descriptions, and use counts.
+/*!
+ * \brief Ask for a list of modules, descriptions, use counts and status.
  * \param modentry A callback to an updater function.
  * \param like
  *
  * For each of the modules loaded, modentry will be executed with the resource,
  * description, and usecount values of each particular module.
- * 
+ *
  * \return the number of modules loaded
  */
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
+int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *status, const char *like),
 			   const char *like);
 
 /*!

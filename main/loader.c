@@ -1240,7 +1240,7 @@ void ast_update_use_count(void)
 	AST_LIST_UNLOCK(&updaters);
 }
 
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
+int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *status, const char *like),
 			   const char *like)
 {
 	struct ast_module *cur;
@@ -1251,7 +1251,8 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 		unlock = 0;
 
 	AST_LIST_TRAVERSE(&module_list, cur, entry) {
-		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount, like);
+		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
+						cur->flags.running ? "Running" : "Not Running", like);
 	}
 
 	if (unlock)

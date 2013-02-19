@@ -2719,7 +2719,7 @@ static int load_module(void)
 	ast_format_cap_add_all_by_type(jingle_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
 
 	if (aco_process_config(&cfg_info, 0)) {
-		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Not loading module.\n");
+		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Module loaded but not running.\n");
 		aco_info_destroy(&cfg_info);
 		return AST_MODULE_LOAD_DECLINE;
 	}
