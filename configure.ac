@@ -2303,7 +2303,9 @@ PBX_LAUNCHD=0
 if test "${cross_compiling}" = "no";
 then
   AC_CHECK_FILE(/sbin/launchd, AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
-  PBX_LAUNCHD=1
+  if test "${HAVE_SBIN_LAUNCHD}" = 1; then
+    PBX_LAUNCHD=1
+  fi
 fi
 AC_SUBST(PBX_LAUNCHD)
 
