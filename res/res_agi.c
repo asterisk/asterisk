@@ -1444,12 +1444,61 @@ async_agi_abort:
 #undef AMI_BUF_SIZE
 }
 
+/*!
+ * \internal
+ * \brief Handle the connection that was started by launch_netscript.
+ *
+ * \param agiurl Url that we are trying to connect to.
+ * \param addr Address that host was resolved to.
+ * \param netsockfd File descriptor of socket.
+ *
+ * \retval 0 when connection is succesful.
+ * \retval 1 when there is an error.
+ */
+static int handle_connection(const char *agiurl, const struct ast_sockaddr addr, const int netsockfd)
+{
+	struct pollfd pfds[1];
+	int res, conresult;
+	socklen_t reslen;
+
+	reslen = sizeof(conresult);
+
+	pfds[0].fd = netsockfd;
+	pfds[0].events = POLLOUT;
+
+	while ((res = ast_poll(pfds, 1, MAX_AGI_CONNECT)) != 1) {
+		if (errno != EINTR) {
+			if (!res) {
+				ast_log(LOG_WARNING, "FastAGI connection to '%s' timed out after MAX_AGI_CONNECT (%d) milliseconds.\n",
+					agiurl, MAX_AGI_CONNECT);
+			} else {
+				ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+			}
+
+			return 1;
+		}
+	}
+
+	if (getsockopt(pfds[0].fd, SOL_SOCKET, SO_ERROR, &conresult, &reslen) < 0) {
+		ast_log(LOG_WARNING, "Connection to %s failed with error: %s\n",
+			ast_sockaddr_stringify(&addr), strerror(errno));
+		return 1;
+	}
+
+	if (conresult) {
+		ast_log(LOG_WARNING, "Connecting to '%s' failed for url '%s': %s\n",
+			ast_sockaddr_stringify(&addr), agiurl, strerror(conresult));
+		return 1;
+	}
+
+	return 0;
+}
+
 /* launch_netscript: The fastagi handler.
 	FastAGI defaults to port 4573 */
 static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 {
-	int s = 0, flags, res;
-	struct pollfd pfds[1];
+	int s = 0, flags;
 	char *host, *script;
 	int num_addrs = 0, i = 0;
 	struct ast_sockaddr *addrs;
@@ -1491,12 +1540,16 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 			continue;
 		}
 
-		if (ast_connect(s, &addrs[i]) && (errno != EINPROGRESS)) {
+		if (ast_connect(s, &addrs[i]) && errno == EINPROGRESS) {
+
+			if (handle_connection(agiurl, addrs[i], s)) {
+				close(s);
+				continue;
+			}
+
+		} else {
 			ast_log(LOG_WARNING, "Connection to %s failed with unexpected error: %s\n",
-				ast_sockaddr_stringify(&addrs[i]),
-				strerror(errno));
-			close(s);
-			continue;
+			ast_sockaddr_stringify(&addrs[i]), strerror(errno));
 		}
 
 		break;
@@ -1509,20 +1562,6 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 		return AGI_RESULT_FAILURE;
 	}
 
-	pfds[0].fd = s;
-	pfds[0].events = POLLOUT;
-	while ((res = ast_poll(pfds, 1, MAX_AGI_CONNECT)) != 1) {
-		if (errno != EINTR) {
-			if (!res) {
-				ast_log(LOG_WARNING, "FastAGI connection to '%s' timed out after MAX_AGI_CONNECT (%d) milliseconds.\n",
-					agiurl, MAX_AGI_CONNECT);
-			} else
-				ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
-			close(s);
-			return AGI_RESULT_FAILURE;
-		}
-	}
-
 	if (ast_agi_send(s, NULL, "agi_network: yes\n") < 0) {
 		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
@@ -1533,8 +1572,9 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 
 	/* If we have a script parameter, relay it to the fastagi server */
 	/* Script parameters take the form of: AGI(agi://my.example.com/?extension=${EXTEN}) */
-	if (!ast_strlen_zero(script))
+	if (!ast_strlen_zero(script)) {
 		ast_agi_send(s, NULL, "agi_network_script: %s\n", script);
+	}
 
 	ast_debug(4, "Wow, connected!\n");
 	fds[0] = s;
