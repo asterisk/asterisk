@@ -1985,6 +1985,7 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
 
+	bindaddr.sin_family = AF_INET;
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp, AF_INET)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Jingle disabled\n");
