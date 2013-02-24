@@ -1343,7 +1343,30 @@ static int function_capable_string_allowed_with_auths(const char *evaluating, in
 	return 1;
 }
 
-/*! \brief Convert authority code to a list of options */
+/*! \brief Convert authority code to a list of options for a user. This will only
+ * display those authority codes that have an explicit match on authority */
+static const char *user_authority_to_str(int authority, struct ast_str **res)
+{
+	int i;
+	char *sep = "";
+
+	ast_str_reset(*res);
+	for (i = 0; i < ARRAY_LEN(perms) - 1; i++) {
+		if ((authority & perms[i].num) == perms[i].num) {
+			ast_str_append(res, 0, "%s%s", sep, perms[i].label);
+			sep = ",";
+		}
+	}
+
+	if (ast_str_strlen(*res) == 0)	/* replace empty string with something sensible */
+		ast_str_append(res, 0, "<none>");
+
+	return ast_str_buffer(*res);
+}
+
+
+/*! \brief Convert authority code to a list of options. Note that the EVENT_FLAG_ALL
+ * authority will always be returned. */
 static const char *authority_to_str(int authority, struct ast_str **res)
 {
 	int i;
@@ -1737,8 +1760,8 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 		(user->username ? user->username : "(N/A)"),
 		(user->secret ? "<Set>" : "(N/A)"),
 		((user->acl && !ast_acl_list_is_empty(user->acl)) ? "yes" : "no"),
-		authority_to_str(user->readperm, &rauthority),
-		authority_to_str(user->writeperm, &wauthority),
+		user_authority_to_str(user->readperm, &rauthority),
+		user_authority_to_str(user->writeperm, &wauthority),
 		(user->displayconnects ? "yes" : "no"));
 	ast_cli(a->fd, "      Variables: \n");
 		for (v = user->chanvars ; v ; v = v->next) {
