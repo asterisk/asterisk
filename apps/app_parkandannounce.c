@@ -129,6 +129,8 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(args.return_context)) {
 		ast_clear_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		ast_parseable_goto(chan, args.return_context);
+	} else {
+		chan->priority++;
 	}
 
 	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", chan->context, chan->exten,
