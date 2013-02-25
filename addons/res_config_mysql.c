@@ -343,9 +343,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	newparam = va_arg(ap, const char *);
-	newval = va_arg(ap, const char *);
-	if (!newparam || !newval)  {
+	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		release_database(dbh);
 		return NULL;
@@ -376,7 +374,6 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql, 0, " AND %s%s '%s'", newparam, op, ast_str_buffer(buf));
 	}
-	va_end(ap);
 
 	ast_debug(1, "MySQL RealTime: Retrieve SQL: %s\n", ast_str_buffer(sql));
 
@@ -457,9 +454,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	newparam = va_arg(ap, const char *);
-	newval = va_arg(ap, const char *);
-	if (!newparam || !newval)  {
+	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		ast_config_destroy(cfg);
 		release_database(dbh);
@@ -498,8 +493,6 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	if (initfield) {
 		ast_str_append(&sql, 0, " ORDER BY %s", initfield);
 	}
-
-	va_end(ap);
 
 	ast_debug(1, "MySQL RealTime: Retrieve SQL: %s\n", ast_str_buffer(sql));
 
@@ -581,9 +574,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	newparam = va_arg(ap, const char *);
-	newval = va_arg(ap, const char *);
-	if (!newparam || !newval)  {
+	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime update requires at least 1 parameter and 1 value to update.\n");
 		release_table(table);
 		release_database(dbh);
@@ -633,7 +624,6 @@ static int update_mysql(const char *database, const char *tablename, const char 
 			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
-	va_end(ap);
 
 	ESCAPE_STRING(buf, lookup);
 	ast_str_append(&sql, 0, " WHERE `%s` = '%s'", keyfield, ast_str_buffer(buf));
@@ -667,7 +657,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 {
 	struct mysql_conn *dbh;
 	my_ulonglong numrows;
-	int first = 1;
+	int first;
 	const char *newparam, *newval;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
 	struct ast_str *where = ast_str_thread_get(&sql2_buf, 100);
@@ -706,6 +696,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 		return -1;
 	}
 
+	first = 1;
 	while ((newparam = va_arg(ap, const char *))) {
 		if (!(column = find_column(table, newparam))) {
 			ast_log(LOG_ERROR, "Updating on column '%s', but that column does not exist within the table '%s'!\n", newparam, tablename);
@@ -753,7 +744,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
-	va_end(ap);
+
 	release_table(table);
 
 	ast_str_append(&sql, 0, " %s", ast_str_buffer(where));
@@ -802,9 +793,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 		return -1;
 	}
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	newparam = va_arg(ap, const char *);
-	newval = va_arg(ap, const char *);
-	if (!newparam || !newval)  {
+	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime storage requires at least 1 parameter and 1 value to search on.\n");
 		release_database(dbh);
 		return -1;
@@ -833,7 +822,6 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 			ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 		}
 	}
-	va_end(ap);
 	ast_str_append(&sql, 0, "%s)", ast_str_buffer(sql2));
 	ast_debug(1,"MySQL RealTime: Insert SQL: %s\n", ast_str_buffer(sql));
 
@@ -901,7 +889,6 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql, 0, " AND `%s` = '%s'", newparam, ast_str_buffer(buf));
 	}
-	va_end(ap);
 
 	ast_debug(1, "MySQL RealTime: Delete SQL: %s\n", ast_str_buffer(sql));
 
