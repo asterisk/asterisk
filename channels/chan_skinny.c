@@ -1096,6 +1096,20 @@ struct serviceurl_stat_message {
 };
 
 #define MAXCALLINFOSTR 256
+#define MAXDISPLAYNOTIFYSTR 32
+
+#define DISPLAY_PRINOTIFY_MESSAGE 0x0120
+struct display_prinotify_message {
+	uint32_t timeout;
+	uint32_t priority;
+	char text[MAXDISPLAYNOTIFYSTR];
+};
+
+#define CLEAR_PRINOTIFY_MESSAGE 0x0121
+struct clear_prinotify_message {
+	uint32_t priority;
+};
+
 #define CALL_INFO_MESSAGE_VARIABLE 0x014A
 struct call_info_message_variable {
 	uint32_t instance;
@@ -1107,6 +1121,13 @@ struct call_info_message_variable {
 	uint32_t unknown4;
 	uint32_t unknown5;
 	char calldetails[MAXCALLINFOSTR];
+};
+
+#define DISPLAY_PRINOTIFY_MESSAGE_VARIABLE 0x0144
+struct display_prinotify_message_variable {
+	uint32_t timeout;
+	uint32_t priority;
+	char text[MAXDISPLAYNOTIFYSTR];
 };
 
 #define DISPLAY_PROMPT_STATUS_MESSAGE_VARIABLE 0x0145
@@ -1168,6 +1189,9 @@ union skinny_data {
 	struct call_info_message_variable callinfomessagevariable;
 	struct display_prompt_status_message_variable displaypromptstatusvar;
 	struct serviceurl_stat_message serviceurlmessage;
+	struct clear_prinotify_message clearprinotify;
+	struct display_prinotify_message displayprinotify;
+	struct display_prinotify_message_variable displayprinotifyvar;
 };
 
 /* packet composition */
@@ -2750,6 +2774,83 @@ static void transmit_displaynotify(struct skinny_device *d, const char *text, in
 
 	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_NOTIFY_MESSAGE to %s, text %s\n", d->name, text);
 	transmit_response(d, req);
+}
+
+static void transmit_clearprinotify(struct skinny_device *d, int priority)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct clear_prinotify_message), CLEAR_PRINOTIFY_MESSAGE)))
+		return;
+
+	req->data.clearprinotify.priority = htolel(priority);
+
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting CLEAR_PRINOTIFY_MESSAGE to %s, priority %d\n", d->name, priority);
+	transmit_response(d, req);
+}
+
+static void _transmit_displayprinotify(struct skinny_device *d, const char *text, const char *extratext, int timeout, int priority)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct display_prinotify_message), DISPLAY_PRINOTIFY_MESSAGE)))
+		return;
+
+	req->data.displayprinotify.timeout = htolel(timeout);
+	req->data.displayprinotify.priority = htolel(priority);
+
+	if ((char)*text == '\200') {
+		int octalstrlen = strlen(text);
+		ast_copy_string(req->data.displayprinotify.text, text, sizeof(req->data.displayprinotify.text));
+		ast_copy_string(req->data.displayprinotify.text+octalstrlen, extratext, sizeof(req->data.displayprinotify.text)-octalstrlen);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PRINOTIFY_MESSAGE to %s, '\\%03o\\%03o', '%s', timeout=%d, priority=%d\n",
+			d->name, (uint8_t)*text, (uint8_t)*(text+1), extratext, timeout, priority);
+	} else {
+		ast_copy_string(req->data.displayprinotify.text, text, sizeof(req->data.displayprinotify.text));
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PRINOTIFY_MESSAGE to %s, '%s', timeout=%d, priority=%d\n",
+			d->name, text, timeout, priority);
+	}
+
+	transmit_response(d, req);
+}
+
+static void _transmit_displayprinotifyvar(struct skinny_device *d, const char *text, const char *extratext, int timeout, int priority)
+{
+	struct skinny_req *req;
+	int packetlen;
+
+	if (!(req = req_alloc(sizeof(struct display_prinotify_message_variable), DISPLAY_PRINOTIFY_MESSAGE_VARIABLE)))
+		return;
+
+	req->data.displayprinotifyvar.timeout = htolel(timeout);
+	req->data.displayprinotifyvar.priority = htolel(priority);
+
+	if ((char)*text == '\200') {
+		int octalstrlen = strlen(text);
+		ast_copy_string(req->data.displayprinotifyvar.text, text, sizeof(req->data.displayprinotifyvar.text));
+		ast_copy_string(req->data.displayprinotifyvar.text+octalstrlen, extratext, sizeof(req->data.displayprinotifyvar.text)-octalstrlen);
+		packetlen = req->len - MAXDISPLAYNOTIFYSTR + strlen(text) + strlen(extratext);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PRINOTIFY_MESSAGE_VARIABLE to %s, '\\%03o\\%03o', '%s', timeout=%d, priority=%d\n",
+			d->name, (uint8_t)*text, (uint8_t)*(text+1), extratext, timeout, priority);
+	} else {
+		ast_copy_string(req->data.displayprinotifyvar.text, text, sizeof(req->data.displayprinotifyvar.text));
+		packetlen = req->len - MAXDISPLAYNOTIFYSTR + strlen(text);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PRINOTIFY_MESSAGE_VARIABLE to %s, '%s', timeout=%d, priority=%d\n",
+			d->name, text, timeout, priority);
+	}
+	
+	req->len = (packetlen & ~0x3) + 4;
+
+	transmit_response(d, req);
+}
+
+static void send_displayprinotify(struct skinny_device *d, const char *text, const char *extratext, int timeout, int priority)
+{
+	if (d->protocolversion < 17) {
+		_transmit_displayprinotify(d, text, extratext, timeout, priority);
+	} else {
+		_transmit_displayprinotifyvar(d, text, extratext, timeout, priority);
+	}
 }
 
 static void transmit_displaypromptstatus(struct skinny_device *d, const char *text, const char *extratext, int t, int instance, int callid)
@@ -4512,6 +4613,92 @@ static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+static char *_skinny_message_set(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+{
+	struct skinny_device *d;
+	char text_buf[32];
+
+	if (argc < 7) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		if (!strcasecmp(argv[3], d->name)) {
+			int i;
+			char *strp = text_buf;
+			int charleft = sizeof(text_buf);
+			int priority = atoi(argv[4]);
+			int timeout = atoi(argv[5]);
+			ast_copy_string(strp, argv[6], charleft);
+			charleft -= strlen(strp);
+			strp += strlen(strp);
+			for(i=7; i<argc; i++) {
+				ast_copy_string(strp++, " ", charleft--);
+				ast_copy_string(strp, argv[i], charleft);
+				charleft -= strlen(strp);
+				strp += strlen(strp);
+			}
+			send_displayprinotify(d, text_buf, "", timeout, priority);
+		}
+	}
+	AST_LIST_UNLOCK(&devices);
+	return CLI_SUCCESS;
+}
+
+/*! \brief Handle sending messages to devices. */
+static char *handle_skinny_message_set(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "skinny message set";
+		e->usage =
+			"Usage: skinny message set <device> <priority> <timeout> <message>\n"
+			"       Set the current priority level message on a device.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
+	}
+
+	return _skinny_message_set(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+}
+
+static char *_skinny_message_clear(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+{
+	struct skinny_device *d;
+
+	if (argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		if (!strcasecmp(argv[3], d->name)) {
+			int priority = atoi(argv[4]);
+			transmit_clearprinotify(d, priority);
+		}
+	}
+	AST_LIST_UNLOCK(&devices);
+	return CLI_SUCCESS;
+}
+
+/*! \brief Handle clearing messages to devices. */
+static char *handle_skinny_message_clear(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "skinny message clear";
+		e->usage =
+			"Usage: skinny message clear <device> <priority>\n"
+			"       Clear the current priority level message on device.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
+	}
+
+	return _skinny_message_clear(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+}
+
 static struct ast_cli_entry cli_skinny[] = {
 	AST_CLI_DEFINE(handle_skinny_show_devices, "List defined Skinny devices"),
 	AST_CLI_DEFINE(handle_skinny_show_device, "List Skinny device information"),
@@ -4523,6 +4710,8 @@ static struct ast_cli_entry cli_skinny[] = {
 #endif
 	AST_CLI_DEFINE(handle_skinny_reset, "Reset Skinny device(s)"),
 	AST_CLI_DEFINE(handle_skinny_reload, "Reload Skinny config"),
+	AST_CLI_DEFINE(handle_skinny_message_set, "Send message to devices"),
+	AST_CLI_DEFINE(handle_skinny_message_clear, "Clear message to devices"),
 };
 
 static void start_rtp(struct skinny_subchannel *sub)
@@ -5324,6 +5513,10 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		actualstate = SUBSTATE_CALLWAIT;
 	}
 
+	if (sub->substate == SUBSTATE_RINGIN && state != SUBSTATE_RINGIN) {
+		transmit_clearprinotify(d, 5);
+	}
+
 	if ((state == SUBSTATE_CONNECTED) && (!subline) && (AST_LIST_FIRST(&l->sublines))) {
 		const char *slastation;
 		struct skinny_subline *tmpsubline;
@@ -5572,6 +5765,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN, KEYMASK_ALL);
 		send_displaypromptstatus(d, OCTAL_FROM, fromnum, 0, l->instance, sub->callid);
+		send_displayprinotify(d, OCTAL_FROM, fromnum, 10, 5);
 		send_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 		transmit_ringer_mode(d, SKINNY_RING_INSIDE);
