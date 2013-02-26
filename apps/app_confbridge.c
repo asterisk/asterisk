@@ -2354,7 +2354,7 @@ static char *handle_cli_confbridge_mute(struct ast_cli_entry *e, int cmd, struct
 			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
 		}
 		if (a->pos == 3) {
-			return complete_confbridge_participantl(a->argv[2], a->line, a->word, a->pos, a->n);
+			return complete_confbridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
 		}
 		return NULL;
 	}
@@ -2381,7 +2381,7 @@ static char *handle_cli_confbridge_unmute(struct ast_cli_entry *e, int cmd, stru
 			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
 		}
 		if (a->pos == 3) {
-			return complete_confbridge_participantl(a->argv[2], a->line, a->word, a->pos, a->n);
+			return complete_confbridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
 		}
 		return NULL;
 	}
