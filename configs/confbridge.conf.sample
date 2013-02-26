@@ -9,6 +9,10 @@
 ; automatically to all ConfBridge instances invoked without
 ; a user, or bridge argument.  No menu is applied by default.
 ;
+; Note that while properties of the default_user or default_bridge
+; profile can be overridden, if removed, they will be automatically
+; added and made available to the dialplan upon module load.
+;
 
 ; --- ConfBridge User Profile Options ---
 [default_user]
