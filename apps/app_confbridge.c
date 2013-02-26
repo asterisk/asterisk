@@ -2071,6 +2071,32 @@ int conf_handle_dtmf(struct ast_bridge_channel *bridge_channel,
 	return 0;
 }
 
+static int kick_conference_participant(struct conference_bridge *bridge, const char *channel)
+{
+	struct conference_bridge_user *participant = NULL;
+
+	ao2_lock(bridge);
+	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
+		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
+			participant->kicked = 1;
+			ast_bridge_remove(bridge->bridge, participant->chan);
+			ao2_unlock(bridge);
+			return 0;
+		}
+	}
+	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
+			participant->kicked = 1;
+			ast_bridge_remove(bridge->bridge, participant->chan);
+			ao2_unlock(bridge);
+			return 0;
+		}
+	}
+	ao2_unlock(bridge);
+
+	return -1;
+}
+
 static char *complete_confbridge_name(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
@@ -2093,11 +2119,46 @@ static char *complete_confbridge_name(const char *line, const char *word, int po
 	return res;
 }
 
+static char *complete_confbridge_participant(const char *bridge_name, const char *line, const char *word, int pos, int state)
+{
+	int which = 0;
+	RAII_VAR(struct conference_bridge *, bridge, NULL, ao2_cleanup);
+	struct conference_bridge tmp;
+	struct conference_bridge_user *participant;
+	char *res = NULL;
+	int wordlen = strlen(word);
+
+	ast_copy_string(tmp.name, bridge_name, sizeof(tmp.name));
+	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!bridge) {
+		return NULL;
+	}
+
+	ao2_lock(bridge);
+	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
+		if (!strncasecmp(ast_channel_name(participant->chan), word, wordlen) && ++which > state) {
+			res = ast_strdup(ast_channel_name(participant->chan));
+			ao2_unlock(bridge);
+			return res;
+		}
+	}
+
+	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+		if (!strncasecmp(ast_channel_name(participant->chan), word, wordlen) && ++which > state) {
+			res = ast_strdup(ast_channel_name(participant->chan));
+			ao2_unlock(bridge);
+			return res;
+		}
+	}
+	ao2_unlock(bridge);
+
+	return NULL;
+}
+
 static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct conference_bridge *bridge = NULL;
 	struct conference_bridge tmp;
-	struct conference_bridge_user *participant = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2110,11 +2171,9 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		if (a->pos == 2) {
 			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
 		}
-		/*
 		if (a->pos == 3) {
-			return complete_confbridge_channel(a->line, a->word, a->pos, a->n);
+			return complete_confbridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
 		}
-		*/
 		return NULL;
 	}
 
@@ -2128,19 +2187,12 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 		return CLI_SUCCESS;
 	}
-	ao2_lock(bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strncmp(a->argv[3], ast_channel_name(participant->chan), strlen(ast_channel_name(participant->chan)))) {
-			break;
-		}
+	if (kick_conference_participant(bridge, a->argv[3])) {
+		ast_cli(a->fd, "No participant named '%s' found!\n", a->argv[3]);
+		return CLI_SUCCESS;
 	}
-	if (participant) {
-		ast_cli(a->fd, "Kicking %s from confbridge %s\n", ast_channel_name(participant->chan), bridge->name);
-		participant->kicked = 1;
-		ast_bridge_remove(bridge->bridge, participant->chan);
-	}
-	ao2_unlock(bridge);
 	ao2_ref(bridge, -1);
+	ast_cli(a->fd, "Participant '%s' kicked out of conference '%s'\n", a->argv[3], a->argv[2]);
 	return CLI_SUCCESS;
 }
 
@@ -2294,11 +2346,15 @@ static char *handle_cli_confbridge_mute(struct ast_cli_entry *e, int cmd, struct
 	case CLI_INIT:
 		e->command = "confbridge mute";
 		e->usage =
-			"Usage: confbridge mute <conference> <channel>\n";
+			"Usage: confbridge mute <conference> <channel>\n"
+			"       Mute a channel in a conference.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
 			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+		if (a->pos == 3) {
+			return complete_confbridge_participantl(a->argv[2], a->line, a->word, a->pos, a->n);
 		}
 		return NULL;
 	}
@@ -2317,11 +2373,15 @@ static char *handle_cli_confbridge_unmute(struct ast_cli_entry *e, int cmd, stru
 	case CLI_INIT:
 		e->command = "confbridge unmute";
 		e->usage =
-			"Usage: confbridge unmute <conference> <channel>\n";
+			"Usage: confbridge unmute <conference> <channel>\n"
+			"       Unmute a channel in a conference.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
 			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+		if (a->pos == 3) {
+			return complete_confbridge_participantl(a->argv[2], a->line, a->word, a->pos, a->n);
 		}
 		return NULL;
 	}
@@ -2340,7 +2400,9 @@ static char *handle_cli_confbridge_lock(struct ast_cli_entry *e, int cmd, struct
 	case CLI_INIT:
 		e->command = "confbridge lock";
 		e->usage =
-			"Usage: confbridge lock <conference>\n";
+			"Usage: confbridge lock <conference>\n"
+			"       Lock a conference. While locked, no new non-admins\n"
+			"       may join the conference.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -2365,7 +2427,8 @@ static char *handle_cli_confbridge_unlock(struct ast_cli_entry *e, int cmd, stru
 	case CLI_INIT:
 		e->command = "confbridge unlock";
 		e->usage =
-			"Usage: confbridge unlock <conference>\n";
+			"Usage: confbridge unlock <conference>\n"
+			"       Unlock a previously locked conference.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -2453,7 +2516,8 @@ static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd,
 	case CLI_INIT:
 		e->command = "confbridge record stop";
 		e->usage =
-			"Usage: confbridge record stop <conference>\n";
+			"Usage: confbridge record stop <conference>\n"
+			"       Stop a previously started recording.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {
@@ -2702,7 +2766,6 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 {
 	const char *conference = astman_get_header(m, "Conference");
 	const char *channel = astman_get_header(m, "Channel");
-	struct conference_bridge_user *participant = NULL;
 	struct conference_bridge *bridge = NULL;
 	struct conference_bridge tmp;
 	int found = 0;
@@ -2715,6 +2778,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No active conferences.");
 		return 0;
 	}
+
 	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
 	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
 	if (!bridge) {
@@ -2722,16 +2786,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ao2_lock(bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
-			participant->kicked = 1;
-			ast_bridge_remove(bridge->bridge, participant->chan);
-			found = 1;
-			break;
-		}
-	}
-	ao2_unlock(bridge);
+	found = !kick_conference_participant(bridge, channel);
 	ao2_ref(bridge, -1);
 
 	if (found) {
@@ -2910,6 +2965,9 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 	ao2_lock(bridge);
 	if (!strncasecmp(args.type, "parties", 7)) {
 		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
+			count++;
+		}
+		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
 			count++;
 		}
 	} else if (!strncasecmp(args.type, "admins", 6)) {
