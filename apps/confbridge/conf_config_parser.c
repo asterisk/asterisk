@@ -46,6 +46,7 @@ struct confbridge_cfg {
 	struct ao2_container *menus;
 };
 
+static int verify_default_profiles(void);
 static void *bridge_profile_alloc(const char *category);
 static void *bridge_profile_find(struct ao2_container *container, const char *category);
 static struct bridge_profile_sounds *bridge_profile_sounds_alloc(void);
@@ -179,6 +180,7 @@ static void *confbridge_cfg_alloc(void);
 
 CONFIG_INFO_STANDARD(cfg_info, cfg_handle, confbridge_cfg_alloc,
 	.files = ACO_FILES(&confbridge_conf),
+	.pre_apply_config = verify_default_profiles,
 );
 
 /*! bridge profile container functions */
@@ -1280,6 +1282,41 @@ static int sound_option_handler(const struct aco_option *opt, struct ast_variabl
 static int menu_option_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	add_menu_entry(obj, var->name, var->value);
+	return 0;
+}
+
+static int verify_default_profiles(void)
+{
+	RAII_VAR(struct user_profile *, user_profile, NULL, ao2_cleanup);
+	RAII_VAR(struct bridge_profile *, bridge_profile, NULL, ao2_cleanup);
+	struct confbridge_cfg *cfg = aco_pending_config(&cfg_info);
+
+	if (!cfg) {
+		return 0;
+	}
+
+	bridge_profile = ao2_find(cfg->bridge_profiles, DEFAULT_BRIDGE_PROFILE, OBJ_KEY);
+	if (!bridge_profile) {
+		bridge_profile = bridge_profile_alloc(DEFAULT_BRIDGE_PROFILE);
+		if (!bridge_profile) {
+			return -1;
+		}
+		ast_log(AST_LOG_NOTICE, "Adding %s profile to app_confbridge\n", DEFAULT_BRIDGE_PROFILE);
+		aco_set_defaults(&bridge_type, DEFAULT_BRIDGE_PROFILE, bridge_profile);
+		ao2_link(cfg->bridge_profiles, bridge_profile);
+	}
+
+	user_profile = ao2_find(cfg->bridge_profiles, DEFAULT_USER_PROFILE, OBJ_KEY);
+	if (!user_profile) {
+		user_profile = user_profile_alloc(DEFAULT_USER_PROFILE);
+		if (!user_profile) {
+			return -1;
+		}
+		ast_log(AST_LOG_NOTICE, "Adding %s profile to app_confbridge\n", DEFAULT_USER_PROFILE);
+		aco_set_defaults(&user_type, DEFAULT_USER_PROFILE, user_profile);
+		ao2_link(cfg->user_profiles, user_profile);
+	}
+
 	return 0;
 }
 
