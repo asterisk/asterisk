@@ -17146,7 +17146,16 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 		return get_pai(p, req);
 	}
 
+	/*
+	 * RPID is not:
+	 *   rpid = (name-addr / addr-spec) *(SEMI rpi-token)
+	 * But it is:
+	 *   rpid = [display-name] LAQUOT addr-spec RAQUOT *(SEMI rpi-token)
+	 * Ergo, calling parse_name_andor_addr() on it wouldn't be
+	 * correct because that would allow addr-spec style too.
+	 */
 	start = tmp;
+	/* Quoted (note that we're not dealing with escapes properly) */
 	if (*start == '"') {
 		*start++ = '\0';
 		end = strchr(start, '"');
@@ -17155,6 +17164,17 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 		*end++ = '\0';
 		cid_name = start;
 		start = ast_skip_blanks(end);
+	/* Unquoted */
+	} else {
+		cid_name = start;
+		start = end = strchr(start, '<');
+		if (!start) {
+			return 0;
+		}
+		/* trim blanks if there are any. the mandatory NUL is done below */
+		while (--end >= cid_name && *end < 33) {
+			*end = '\0';
+		}
 	}
 
 	if (*start != '<')
