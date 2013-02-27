@@ -4034,7 +4034,7 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 		ast_cli(fd, "none");
 }
 
-static char *_skinny_show_devices(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_show_devices(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
@@ -4142,10 +4142,10 @@ static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct
 		return NULL;
 	}
 
-	return _skinny_show_devices(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_show_devices(a->fd, NULL, NULL, NULL, a->argc, a->argv);
 }
 
-static char *_skinny_show_device(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_show_device(int type, int fd, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
@@ -4282,10 +4282,10 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
 	}
 
-	return _skinny_show_device(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_show_device(0, a->fd, NULL, NULL, a->argc, a->argv);
 }
 
-static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
@@ -4406,10 +4406,10 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 		return CLI_SHOWUSAGE;
 	}
 
-	return _skinny_show_lines(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_show_lines(a->fd, NULL, NULL, NULL, a->argc, a->argv);
 }
 
-static char *_skinny_show_line(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_show_line(int type, int fd, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
@@ -4593,7 +4593,7 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 		return complete_skinny_show_line(a->line, a->word, a->pos, a->n);
 	}
 
-	return _skinny_show_line(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_show_line(0, a->fd, NULL, NULL, a->argc, a->argv);
 }
 
 /*! \brief List global settings for the Skinny subsystem. */
