@@ -4638,7 +4638,7 @@ static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
-static char *_skinny_message_set(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_message_set(int type, int fd, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_device *d;
 	char text_buf[32];
@@ -4685,10 +4685,10 @@ static char *handle_skinny_message_set(struct ast_cli_entry *e, int cmd, struct 
 		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
 	}
 
-	return _skinny_message_set(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_message_set(0, a->fd, NULL, NULL, a->argc, a->argv);
 }
 
-static char *_skinny_message_clear(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+static char *_skinny_message_clear(int type, int fd, struct mansession *s, const struct message *m, int argc, const char * const *argv)
 {
 	struct skinny_device *d;
 
@@ -4721,7 +4721,7 @@ static char *handle_skinny_message_clear(struct ast_cli_entry *e, int cmd, struc
 		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
 	}
 
-	return _skinny_message_clear(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+	return _skinny_message_clear(0, a->fd, NULL, NULL, a->argc, a->argv);
 }
 
 static struct ast_cli_entry cli_skinny[] = {
