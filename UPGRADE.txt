@@ -20,8 +20,14 @@
 ===
 ===========================================================
 
-From 11.2.0 to 11.2.1:
+From 11.3 to 11.4:
+* Added the 'n' option to MeetMe to prevent application of the DENOISE function
+  to a channel joining a conference. Some channel drivers that vary the number
+  of audio samples in a voice frame will experience significant quality problems
+  if a denoiser is attached to the channel; this option gives them the ability
+  to remove the denoiser without having to unload func_speex.
 
+From 11.2.0 to 11.2.1:
 * Asterisk would previously not output certain error messages when a remote
   console attempted to connect to Asterisk and no instance of Asterisk was
   running. This error message is displayed on stderr; as a result, some
