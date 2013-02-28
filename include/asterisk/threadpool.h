@@ -103,6 +103,9 @@ struct ast_threadpool_options {
 	 *
 	 * When the threadpool's size increases, it can never increase
 	 * beyond this number of threads.
+	 *
+	 * Zero is a valid value if the threadpool does not have a
+	 * maximum size.
 	 */
 	int max_size;
 };
@@ -132,7 +135,7 @@ void *ast_threadpool_listener_get_user_data(const struct ast_threadpool_listener
  * \brief Create a new threadpool
  *
  * This function creates a threadpool. Tasks may be pushed onto this thread pool
- * in and will be automatically acted upon by threads within the pool.
+ * and will be automatically acted upon by threads within the pool.
  *
  * Only a single threadpool with a given name may exist. This function will fail
  * if a threadpool with the given name already exists.
