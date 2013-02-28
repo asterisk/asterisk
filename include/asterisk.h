@@ -213,17 +213,6 @@ struct ast_variable;
 struct ast_str;
 struct ast_sched_context;
 
-#ifdef bzero
-#undef bzero
-#endif
-
-#ifdef bcopy
-#undef bcopy
-#endif
-
-#define bzero  0x__dont_use_bzero__use_memset_instead""
-#define bcopy  0x__dont_use_bcopy__use_memmove_instead()
-
 /* Some handy macros for turning a preprocessor token into (effectively) a quoted string */
 #define __stringify_1(x)	#x
 #define __stringify(x)		__stringify_1(x)

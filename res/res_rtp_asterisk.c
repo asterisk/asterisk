@@ -46,10 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <openssl/bio.h>
 #endif
 
-/* Asterisk discourages the use of bzero in favor of memset, in fact if you try to use bzero it will tell you to use memset. As a result bzero has to be undefined
- * here since it is used internally by pjlib. The only other option would be to modify pjlib... which won't happen. */
-#undef bzero
-#define bzero bzero
 #include "pjlib.h"
 #include "pjlib-util.h"
 #include "pjnath.h"
