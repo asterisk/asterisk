@@ -11744,13 +11744,15 @@ immediatedial:
 			ast_string_field_set(iaxs[fr->callno], cid_name, connected.id.name.str);
 			iaxs[fr->callno]->calling_pres = ast_party_id_presentation(&connected.id);
 
-			if (iaxs[fr->callno]->owner) {
+			iax2_lock_owner(fr->callno);
+			if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
 				ast_set_callerid(iaxs[fr->callno]->owner,
 					S_COR(connected.id.number.valid, connected.id.number.str, ""),
 					S_COR(connected.id.name.valid, connected.id.name.str, ""),
 					NULL);
 				ast_channel_caller(iaxs[fr->callno]->owner)->id.number.presentation = connected.id.number.presentation;
 				ast_channel_caller(iaxs[fr->callno]->owner)->id.name.presentation = connected.id.name.presentation;
+				ast_channel_unlock(iaxs[fr->callno]->owner);
 			}
 		}
 		ast_party_connected_line_free(&connected);
