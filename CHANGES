@@ -73,6 +73,14 @@ Logging
  * Added the 'queue_log_realtime_use_gmt' option to have timestamps in GMT
    for realtime queue log entries.
 
+MeetMe
+-------------------
+* Added the 'n' option to MeetMe to prevent application of the DENOISE function
+  to a channel joining a conference. Some channel drivers that vary the number
+  of audio samples in a voice frame will experience significant quality problems
+  if a denoiser is attached to the channel; this option gives them the ability
+  to remove the denoiser without having to unload func_speex.
+
 Queue
 -------------------
  * Add queue available hint.  exten => 8501,hint,Queue:markq_avail
