@@ -134,6 +134,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						channel's currently set music class, or <literal>default</literal>.</para>
 						<argument name="class" required="true" />
 					</option>
+					<option name="n">
+						<para>Disable the denoiser. By default, if <literal>func_speex</literal> is loaded, Asterisk
+						will apply a denoiser to channels in the MeetMe conference. However, channel
+						drivers that present audio with a varying rate will experience degraded
+						performance with a denoiser attached. This parameter allows a channel joining
+						the conference to choose not to have a denoiser attached without having to
+						unload <literal>func_speex</literal>.</para>
+					</option>
 					<option name="o">
 						<para>Set talker optimization - treats talkers who aren't speaking as
 						being muted, meaning (a) No encode is done on transmission and (b)
@@ -616,6 +624,8 @@ enum {
 #define CONFFLAG_NO_AUDIO_UNTIL_UP  (1ULL << 31)
 /*! If set play an intro announcement at start of conference */
 #define CONFFLAG_INTROMSG           (1ULL << 32)
+/*! If set, don't enable a denoiser for the channel */
+#define CONFFLAG_DONT_DENOISE       (1ULL << 33)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
@@ -643,6 +653,7 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
 	AST_APP_OPTION_ARG('M', CONFFLAG_MOH, OPT_ARG_MOH_CLASS ),
 	AST_APP_OPTION('m', CONFFLAG_STARTMUTED ),
+	AST_APP_OPTION('n', CONFFLAG_DONT_DENOISE ),
 	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
 	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
 	AST_APP_OPTION_ARG('p', CONFFLAG_KEYEXIT, OPT_ARG_EXITKEYS ),
@@ -2588,7 +2599,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	}
 
 	/* Reduce background noise from each participant */
-	if ((mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
+	if (!ast_test_flag64(confflags, CONFFLAG_DONT_DENOISE) &&
+		(mod_speex = ast_module_helper("", "func_speex", 0, 0, 0, 0))) {
 		ast_free(mod_speex);
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}

@@ -17,7 +17,15 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
-from 1.8.17 to 1.8.18:
+
+from 1.8.15-cert1 to 1.8.15-cert2
+* Added the 'n' option to MeetMe to prevent application of the DENOISE function
+  to a channel joining a conference. Some channel drivers that vary the number
+  of audio samples in a voice frame will experience significant quality problems
+  if a denoiser is attached to the channel; this option gives them the ability
+  to remove the denoiser without having to unload func_speex.
+
+from 1.8.11 to 1.8.15-cert1
 * Queue strategy rrmemory now has a predictable order similar to strategy
   rrordered. Members will be called in the order that they are added to the
   queue.
