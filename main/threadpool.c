@@ -898,7 +898,7 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
 	if (!pool->shutting_down) {
 		return ast_taskprocessor_push(pool->tps, task, data);
 	}
-	return 0;
+	return -1;
 }
 
 void ast_threadpool_shutdown(struct ast_threadpool *pool)
@@ -1143,7 +1143,9 @@ static void serializer_task_pushed(struct ast_taskprocessor_listener *listener, 
 		struct serializer *ser = ast_taskprocessor_listener_get_user_data(listener);
 		struct ast_taskprocessor *tps = ast_taskprocessor_listener_get_tps(listener);
 
-		ast_threadpool_push(ser->pool, execute_tasks, tps);
+		if (ast_threadpool_push(ser->pool, execute_tasks, tps)) {
+			ast_taskprocessor_unreference(tps);
+		}
 	}
 }
 
