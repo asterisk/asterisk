@@ -540,6 +540,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timerheap, NULL);
 		rtp->ice_started = 1;
+		rtp->strict_rtp_state = STRICT_RTP_OPEN;
 	}
 }
 
@@ -1029,7 +1030,7 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 {
 	struct ast_rtp *rtp = ice->user_data;
 
-	if (status != PJ_SUCCESS || !strictrtp) {
+	if (!strictrtp) {
 		return;
 	}
 
@@ -3917,7 +3918,7 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 
 	rtp->rxseqno = 0;
 
-	if (strictrtp) {
+	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN) {
 		rtp->strict_rtp_state = STRICT_RTP_LEARN;
 		rtp_learning_seq_init(rtp, rtp->seqno);
 	}
