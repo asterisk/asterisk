@@ -93,6 +93,24 @@ static int test_sorcery_diff(const void *original, const void *modified, struct 
 	return 0;
 }
 
+/*! \brief Internal function which sets some values */
+static int test_sorcery_regex_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct test_sorcery_object *test = obj;
+
+	test->bob = 256;
+
+	return 0;
+}
+
+/*! \brief Internal function which creates some ast_variable structures */
+static int test_sorcery_regex_fields(const void *obj, struct ast_variable **fields)
+{
+	*fields = ast_variable_new("toast-bob", "10", "");
+
+	return 0;
+}
+
 /*! \brief Test structure for caching */
 struct sorcery_test_caching {
 	/*! \brief Whether the object has been created in the cache or not */
@@ -429,6 +447,55 @@ AST_TEST_DEFINE(object_field_register)
 
 	if (ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
 		ast_test_status_update(test, "Could not successfully register object field when mapping and object type exists\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(object_fields_register)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_fields_register";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object regex fields registration unit test";
+		info->description =
+			"Test object regex fields registration in sorcery with a provided id";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!ast_sorcery_object_fields_register(sorcery, "test", "^toast-", test_sorcery_regex_handler, test_sorcery_regex_fields)) {
+		ast_test_status_update(test, "Registered a regex object field successfully when no mappings or object types exist\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
+		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!ast_sorcery_object_fields_register(sorcery, "test", "^toast-", test_sorcery_regex_handler, test_sorcery_regex_fields)) {
+		ast_test_status_update(test, "Registered a regex object field successfully when object type does not exist\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+		ast_test_status_update(test, "Failed to register object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_object_fields_register(sorcery, "test", "^toast-", test_sorcery_regex_handler, test_sorcery_regex_fields)) {
+		ast_test_status_update(test, "Registered a regex object field successfully when no mappings or object types exist\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -801,6 +868,64 @@ AST_TEST_DEFINE(objectset_create)
 	return res;
 }
 
+AST_TEST_DEFINE(objectset_create_regex)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+	struct ast_variable *field;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "objectset_create_regex";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object set creation with regex fields unit test";
+		info->description =
+			"Test object set creation with regex fields in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
+	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+		ast_test_status_update(test, "Failed to register 'test' object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_object_fields_register(sorcery, "test", "^toast-", test_sorcery_regex_handler, test_sorcery_regex_fields);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objset = ast_sorcery_objectset_create(sorcery, obj))) {
+		ast_test_status_update(test, "Failed to create an object set for a known sane object\n");
+		return AST_TEST_FAIL;
+	}
+
+	for (field = objset; field; field = field->next) {
+		if (!strcmp(field->name, "toast-bob")) {
+			if (strcmp(field->value, "10")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'bob'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else {
+			ast_test_status_update(test, "Object set created field '%s' which is unknown\n", field->name);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+}
+
 AST_TEST_DEFINE(objectset_apply)
 {
 	int res = AST_TEST_PASS;
@@ -1003,6 +1128,57 @@ AST_TEST_DEFINE(objectset_transform)
 	}
 
 	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(objectset_apply_fields)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "objectset_apply_fields";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object apply regex fields unit test";
+		info->description =
+			"Test object set apply with regex fields in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
+	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+		ast_test_status_update(test, "Failed to register 'test' object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_object_fields_register(sorcery, "test", "^toast-", test_sorcery_regex_handler, test_sorcery_regex_fields);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objset = ast_variable_new("toast-bob", "20", ""))) {
+		ast_test_status_update(test, "Failed to create an object set, test could not occur\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_sorcery_objectset_apply(sorcery, obj, objset)) {
+		ast_test_status_update(test, "Failed to apply valid object set to object\n");
+		res = AST_TEST_FAIL;
+	} else if (obj->bob != 256) {
+		ast_test_status_update(test, "Regex field handler was not called when it should have been\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
 }
 
 AST_TEST_DEFINE(changeset_create)
@@ -2149,6 +2325,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_register);
 	AST_TEST_UNREGISTER(object_register_without_mapping);
 	AST_TEST_UNREGISTER(object_field_register);
+	AST_TEST_UNREGISTER(object_fields_register);
 	AST_TEST_UNREGISTER(object_alloc_with_id);
 	AST_TEST_UNREGISTER(object_alloc_without_id);
 	AST_TEST_UNREGISTER(object_copy);
@@ -2156,10 +2333,12 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_diff);
 	AST_TEST_UNREGISTER(object_diff_native);
 	AST_TEST_UNREGISTER(objectset_create);
+	AST_TEST_UNREGISTER(objectset_create_regex);
 	AST_TEST_UNREGISTER(objectset_apply);
 	AST_TEST_UNREGISTER(objectset_apply_handler);
 	AST_TEST_UNREGISTER(objectset_apply_invalid);
 	AST_TEST_UNREGISTER(objectset_transform);
+	AST_TEST_UNREGISTER(objectset_apply_fields);
 	AST_TEST_UNREGISTER(changeset_create);
 	AST_TEST_UNREGISTER(changeset_create_unchanged);
 	AST_TEST_UNREGISTER(object_create);
@@ -2191,6 +2370,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_register);
 	AST_TEST_REGISTER(object_register_without_mapping);
 	AST_TEST_REGISTER(object_field_register);
+	AST_TEST_REGISTER(object_fields_register);
 	AST_TEST_REGISTER(object_alloc_with_id);
 	AST_TEST_REGISTER(object_alloc_without_id);
 	AST_TEST_REGISTER(object_copy);
@@ -2198,10 +2378,12 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_diff);
 	AST_TEST_REGISTER(object_diff_native);
 	AST_TEST_REGISTER(objectset_create);
+	AST_TEST_REGISTER(objectset_create_regex);
 	AST_TEST_REGISTER(objectset_apply);
 	AST_TEST_REGISTER(objectset_apply_handler);
 	AST_TEST_REGISTER(objectset_apply_invalid);
 	AST_TEST_REGISTER(objectset_transform);
+	AST_TEST_REGISTER(objectset_apply_fields);
 	AST_TEST_REGISTER(changeset_create);
 	AST_TEST_REGISTER(changeset_create_unchanged);
 	AST_TEST_REGISTER(object_create);

@@ -90,8 +90,11 @@ struct ast_sorcery_object_field {
 	/*! \brief Name of the field */
 	char name[MAX_OBJECT_FIELD];
 
-	/*! \brief Callback function for translation */
+	/*! \brief Callback function for translation of a single value */
 	sorcery_field_handler handler;
+
+	/*! \brief Callback function for translation of multiple values */
+	sorcery_fields_handler multiple_handler;
 
 	/*! \brief Position of the field */
 	intptr_t args[];
@@ -516,6 +519,24 @@ void ast_sorcery_object_set_diff_handler(struct ast_sorcery *sorcery, const char
 	object_type->diff = diff;
 }
 
+int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *type, const char *regex, aco_option_handler config_handler, sorcery_fields_handler sorcery_handler)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_field *, object_field, NULL, ao2_cleanup);
+
+	if (!object_type || !object_type->type.item_alloc || !config_handler || !(object_field = ao2_alloc(sizeof(*object_field), NULL))) {
+		return -1;
+	}
+
+	ast_copy_string(object_field->name, regex, sizeof(object_field->name));
+	object_field->multiple_handler = sorcery_handler;
+
+	ao2_link(object_type->fields, object_field);
+	__aco_option_register(object_type->info, regex, ACO_REGEX, object_type->file->types, "", OPT_CUSTOM_T, config_handler, 0, 0);
+
+	return 0;
+}
+
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
 					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, size_t argc, ...)
 {
@@ -662,24 +683,30 @@ struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorc
 
 	i = ao2_iterator_init(object_type->fields, 0);
 
-	for (; (object_field = ao2_iterator_next(&i)); ao2_ref(object_field, -1)) {
-		RAII_VAR(char *, buf, NULL, ast_free);
-		struct ast_variable *tmp;
+	for (; (object_field = ao2_iterator_next(&i)) && !res; ao2_ref(object_field, -1)) {
+		struct ast_variable *tmp = NULL;
 
-		/* Any fields with no handler just get skipped */
-		if (!object_field->handler) {
+		if (object_field->multiple_handler) {
+			if ((res = object_field->multiple_handler(object, &tmp))) {
+				ast_variables_destroy(tmp);
+			}
+		} else if (object_field->handler) {
+			char *buf = NULL;
+
+			if ((res = object_field->handler(object, object_field->args, &buf)) ||
+				!(tmp = ast_variable_new(object_field->name, S_OR(buf, ""), ""))) {
+				res = -1;
+			}
+
+			ast_free(buf);
+		} else {
 			continue;
 		}
 
-		if ((res = object_field->handler(object, object_field->args, &buf)) ||
-		    !(tmp = ast_variable_new(object_field->name, S_OR(buf, ""), ""))) {
-			res = -1;
-			ao2_ref(object_field, -1);
-			break;
+		if (!res) {
+			tmp->next = fields;
+			fields = tmp;
 		}
-
-		tmp->next = fields;
-		fields = tmp;
 	}
 
 	ao2_iterator_destroy(&i);

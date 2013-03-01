@@ -132,6 +132,17 @@ struct ast_sorcery;
 typedef int (*sorcery_field_handler)(const void *obj, const intptr_t *args, char **buf);
 
 /*!
+ * \brief A callback function for translating multiple values into an ast_variable list
+ *
+ * \param obj Object to get values from
+ * \param fields Pointer to store the list of fields
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+typedef int (*sorcery_fields_handler)(const void *obj, struct ast_variable **fields);
+
+/*!
  * \brief A callback function for performing a transformation on an object set
  *
  * \param set The existing object set
@@ -340,6 +351,21 @@ void ast_sorcery_object_set_copy_handler(struct ast_sorcery *sorcery, const char
  * \param diff Diff handler
  */
 void ast_sorcery_object_set_diff_handler(struct ast_sorcery *sorcery, const char *type, sorcery_diff_handler diff);
+
+/*!
+ * \brief Register a regex for multiple fields within an object
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param regex A regular expression pattern for the fields
+ * \param config_handler A custom handler for translating the string representation of the fields
+ * \param sorcery_handler A custom handler for translating the native representation of the fields
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *type, const char *regex, aco_option_handler config_handler,
+									   sorcery_fields_handler sorcery_handler);
 
 /*!
  * \brief Register a field within an object
