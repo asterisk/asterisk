@@ -307,6 +307,9 @@ chan_sip
    detects that an incoming SIP request crossed a NAT after being sent by
    the remote endpoint.
 
+ * The default global nat setting in sip.conf has been changed from force_rport
+   to auto_force_rport.
+
  * NAT settings are now a combinable list of options. The equivalent of the
    deprecated nat=yes is nat=force_rport,comedia. nat=no behaves as before.
 
