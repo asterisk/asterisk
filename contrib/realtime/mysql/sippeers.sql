@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `sippeers` (
       `transport` enum('udp','tcp','udp,tcp','tcp,udp') DEFAULT NULL,
       `dtmfmode` enum('rfc2833','info','shortinfo','inband','auto') DEFAULT NULL,
       `directmedia` enum('yes','no','nonat','update') DEFAULT NULL,
-      `nat` enum('yes','no','never','route') DEFAULT NULL,
+      `nat` varchar(29) DEFAULT NULL,
       `callgroup` varchar(40) DEFAULT NULL,
       `pickupgroup` varchar(40) DEFAULT NULL,
       `language` varchar(40) DEFAULT NULL,
