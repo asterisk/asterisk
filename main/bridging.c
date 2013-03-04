@@ -638,9 +638,10 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 	ast_format_copy(&formats[0], ast_channel_readformat(bridge_channel->chan));
 	ast_format_copy(&formats[1], ast_channel_writeformat(bridge_channel->chan));
 
-	/* Are the formats currently in use something ths bridge can handle? */
+	/* Are the formats currently in use something this bridge can handle? */
 	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, ast_channel_readformat(bridge_channel->chan))) {
 		struct ast_format best_format;
+
 		ast_best_codec(bridge->technology->format_capabilities, &best_format);
 
 		/* Read format is a no go... */
@@ -662,6 +663,7 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 
 	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &formats[1])) {
 		struct ast_format best_format;
+
 		ast_best_codec(bridge->technology->format_capabilities, &best_format);
 
 		/* Write format is a no go... */

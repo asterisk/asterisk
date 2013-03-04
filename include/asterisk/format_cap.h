@@ -86,7 +86,8 @@ void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *for
 void ast_format_cap_add_all_by_type(struct ast_format_cap *cap, enum ast_format_type type);
 
 /*!
- * \brief Add all known formats to the capabilities structure using default format attribute. */
+ * \brief Add all known formats to the capabilities structure using default format attribute.
+ */
 void ast_format_cap_add_all(struct ast_format_cap *cap);
 
 /*!
@@ -166,8 +167,8 @@ int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const
 /*!
  * \brief Find if ast_format is within the capabilities of the ast_format_cap object.
  *
- * retval 1 format is compatible with formats held in ast_format_cap object.
- * retval 0 format is not compatible with any formats in ast_format_cap object.
+ * \retval 1 format is compatible with formats held in ast_format_cap object.
+ * \retval 0 format is not compatible with any formats in ast_format_cap object.
  */
 int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct ast_format *format);
 
@@ -259,7 +260,6 @@ void ast_format_cap_iter_start(struct ast_format_cap *cap);
  *
  * ast_format_cap_iter_start(cap);
  * while (!ast_format_cap_iter_next(cap, &format)) {
- *
  * }
  * ast_format_cap_iter_end(Cap);
  *
@@ -282,7 +282,7 @@ void ast_format_cap_iter_end(struct ast_format_cap *cap);
 /*!
  * \brief ast_format_cap to old bitfield format represenatation
  *
- * \note This is only to be used for IAX2 compatibility 
+ * \note This is only to be used for IAX2 compatibility
  *
  * \retval old bitfield representation of ast_format_cap
  * \retval 0, if no old bitfield capabilities are present in ast_format_cap
@@ -291,7 +291,7 @@ uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap);
 
 /*!
  * \brief convert old bitfield format to ast_format_cap represenatation
- * \note This is only to be used for IAX2 compatibility 
+ * \note This is only to be used for IAX2 compatibility
  */
 void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src);
 
@@ -303,6 +303,6 @@ void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src);
  * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.
  */
-char* ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap);
+char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap);
 
 #endif /* _AST_FORMATCAP_H */
