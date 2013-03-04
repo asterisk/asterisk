@@ -407,14 +407,14 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	return tmp;
 }
 
-static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename)
+static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename, int is_new)
 {
 	char *rec_file = bridge->b_profile.rec_file;
 	time_t now;
 	char *ext;
 
-	if (ast_str_strlen(*filename)) {
-		    return;
+	if (ast_str_strlen(*filename) && !is_new) {
+		return;
 	}
 
 	time(&now);
@@ -435,12 +435,28 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 	ast_str_append(filename, 0, ",a");
 }
 
+static int is_new_rec_file(const char *rec_file, struct ast_str **orig_rec_file)
+{
+	if (!ast_strlen_zero(rec_file)) {
+		if (!*orig_rec_file) {
+			*orig_rec_file = ast_str_create(PATH_MAX);
+		}
+
+		if (strcmp(ast_str_buffer(*orig_rec_file), rec_file)) {
+			ast_str_set(orig_rec_file, 0, "%s", rec_file);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void *record_thread(void *obj)
 {
 	struct conference_bridge *conference_bridge = obj;
 	struct ast_app *mixmonapp = pbx_findapp("MixMonitor");
 	struct ast_channel *chan;
 	struct ast_str *filename = ast_str_alloca(PATH_MAX);
+	struct ast_str *orig_rec_file = NULL;
 
 	ast_mutex_lock(&conference_bridge->record_lock);
 	if (!mixmonapp) {
@@ -453,7 +469,8 @@ static void *record_thread(void *obj)
 
 	/* XXX If we get an EXIT right here, START will essentially be a no-op */
 	while (conference_bridge->record_state != CONF_RECORD_EXIT) {
-		set_rec_filename(conference_bridge, &filename);
+		set_rec_filename(conference_bridge, &filename,
+				 is_new_rec_file(conference_bridge->b_profile.rec_file, &orig_rec_file));
 		chan = ast_channel_ref(conference_bridge->record_chan);
 		ast_answer(chan);
 		pbx_exec(chan, mixmonapp, ast_str_buffer(filename));
@@ -463,6 +480,7 @@ static void *record_thread(void *obj)
 		/* STOP has been called. Wait for either a START or an EXIT */
 		ast_cond_wait(&conference_bridge->record_cond, &conference_bridge->record_lock);
 	}
+	ast_free(orig_rec_file);
 	ast_mutex_unlock(&conference_bridge->record_lock);
 	ao2_ref(conference_bridge, -1);
 	return NULL;
