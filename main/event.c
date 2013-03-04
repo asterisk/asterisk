@@ -215,6 +215,7 @@ static const char * const event_names[AST_EVENT_TOTAL] = {
 	[AST_EVENT_CEL]                 = "CEL",
 	[AST_EVENT_SECURITY]            = "Security",
 	[AST_EVENT_NETWORK_CHANGE]      = "NetworkChange",
+	[AST_EVENT_PRESENCE_STATE]      = "PresenceState",
 };
 
 /*!
@@ -279,7 +280,11 @@ static const struct ie_map {
 	[AST_EVENT_IE_RECEIVED_HASH]       = { AST_EVENT_IE_PLTYPE_STR,  "ReceivedHash" },
 	[AST_EVENT_IE_USING_PASSWORD]      = { AST_EVENT_IE_PLTYPE_UINT, "UsingPassword" },
 	[AST_EVENT_IE_ATTEMPTED_TRANSPORT] = { AST_EVENT_IE_PLTYPE_STR,  "AttemptedTransport" },
-	[AST_EVENT_IE_CACHABLE]            = { AST_EVENT_IE_PLTYPE_UINT,  "Cachable" },
+	[AST_EVENT_IE_CACHABLE]            = { AST_EVENT_IE_PLTYPE_UINT, "Cachable" },
+	[AST_EVENT_IE_PRESENCE_PROVIDER]   = { AST_EVENT_IE_PLTYPE_STR,  "PresenceProvider" },
+	[AST_EVENT_IE_PRESENCE_STATE]      = { AST_EVENT_IE_PLTYPE_UINT, "PresenceState" },
+	[AST_EVENT_IE_PRESENCE_SUBTYPE]    = { AST_EVENT_IE_PLTYPE_STR,  "PresenceSubtype" },
+	[AST_EVENT_IE_PRESENCE_MESSAGE]    = { AST_EVENT_IE_PLTYPE_STR,  "PresenceMessage" },
 };
 
 const char *ast_event_get_type_name(const struct ast_event *event)
