@@ -4645,6 +4645,7 @@ static struct unistimsession *channel_to_session(struct ast_channel *ast)
 	ast_mutex_lock(&sub->parent->parent->lock);
 	if (!sub->parent->parent->session) {
 		ast_log(LOG_WARNING, "Unistim callback function called without a session\n");
+		ast_mutex_unlock(&sub->parent->parent->lock);
 		return NULL;
 	}
 	ast_mutex_unlock(&sub->parent->parent->lock);
@@ -5078,6 +5079,7 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %s (%p) but was %s (%p)\n",
 				ast_channel_name(oldchan), oldchan, ast_channel_name(p->owner), p->owner);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 
