@@ -22,7 +22,7 @@
 	* John Todd, TalkPlus, Inc.  and JR Richardson, Ntegrated Solutions. 
 		for funding the development of SIP Session Timers support.
 
-	* Omnitor AB, Gunnar Hellström, for funding work with videocaps, 
+	* Omnitor AB, Gunnar Hellstrï¿½m, for funding work with videocaps, 
 		T.140 RED, originate with video/text and many more 
 		contributions.
 
@@ -54,7 +54,7 @@
 
 === HARDWARE DONORS === 
 
- We'd like to thank the followwing for granting access to hardware for testing.
+ We'd like to thank the following for granting access to hardware for testing.
 
 	* Thanks to QuickNet Technologies for their donation of an Internet
 		PhoneJack and Linejack card to the project.  
@@ -63,13 +63,12 @@
 	* Thanks to VoipSupply for their donation of Sipura ATAs to the project
 		for T.38 testing. (http://www.voipsupply.com)
 
-
 	* Thanks to Grandstream for their donation of ATAs to the project for
 		T.38 testing. (http://www.grandstream.com)
 
 === MISCELLANEOUS PATCHES ===
 
- We'd like to thank the flollowing for their patches
+ We'd like to thank the following for their patches
 
 	* Jim Dixon - Zapata Telephony and app_rpt
 		http://www.zapatatelephony.org/app_rpt.html
@@ -240,7 +239,8 @@
 		ControlPlayback, and multiple bug fixes See 
 		http://voip-info.org/users/view/sergee serg(AT)voipsolutions.ru
 
-	* Klaus Darillon - the SIPremoveHeader function in chan_sip
+	* Klaus Darillon - the SIPremoveHeader function in chan_sip and SIP Path
+		Support.
 
 	* Moises Silva (moy) - for writing LibOpenR2, and providing support for
 		it in chan_dahdi moises.silva(AT)gmail.com
@@ -252,7 +252,7 @@
 		cdr_tds rewrite, countless other improvements, fixes, and good
 		ideas. sean(AT)malleable.com
 
-	* Jan Kaláb - Calendaring support for Exchange Server 2007+ via 
+	* Jan Kalï¿½b - Calendaring support for Exchange Server 2007+ via 
 		Exchange Web Services.
 
 	* University of Oslo (uio.no), Norway - SIP Max-Forwards setting 

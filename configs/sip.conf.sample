@@ -442,6 +442,21 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;outboundproxy=[2001:db8::1]:5062               ; IPv6 address literal with explicit port
 ;                                               ; (could also be tcp,udp) - defining transports on the proxy line only
 ;                                               ; applies for the global proxy, otherwise use the transport= option
+
+;supportpath=yes		; This activates parsing and handling of Path header as defined in RFC 3327. This enables
+				; Asterisk to route outgoing out-of-dialog requests via a set of proxies by using a pre-loaded
+				; route-set defined by the Path headers in the REGISTER request.
+				; NOTE: There are multiple things to consider with this setting:
+				;  * As this influences routing of SIP requests make sure to not trust Path headers provided
+				;    by the user's SIP client (the proxy in front of Asterisk should remove existing user
+				;    provided Path headers).
+				;  * When a peer has both a path and outboundproxy set, the path will be added to Route: header
+				;    but routing to next hop is done using the outboundproxy.
+				;  * If set globally, not only will all peers use the Path header, but outbound REGISTER
+				;    requests from Asterisk will add path to the Supported header.
+
+;rtsavepath=yes                 ; If using dynamic realtime, store the path headers
+
 ;matchexternaddrlocally = yes     ; Only substitute the externaddr or externhost setting if it matches
                                 ; your localnet setting. Unless you have some sort of strange network
                                 ; setup you will not need to enable this.

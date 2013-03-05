@@ -121,6 +121,7 @@ ipaddr = AstAccountIPAddress
 defaultuser = AstAccountDefaultUser
 regserver = AstAccountRegistrationServer
 lastms = AstAccountLastQualifyMilliseconds
+supportpath = AstAccountPathSupport
 additionalFilter=(objectClass=AsteriskSIPUser)
 
 ;

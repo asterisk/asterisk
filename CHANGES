@@ -50,6 +50,13 @@ chan_mobile
 
  * Added ECAM command support for Sony Ericsson phones.
 
+chan_sip
+------------------
+ * Added support for RFC 3327 "Path" headers. This can be enabled in sip.conf
+   using the 'supportpath' setting, either on a global basis or on a peer basis.
+   This setting enables Asterisk to route outgoing out-of-dialog requests via a
+   set of proxies by using a pre-loaded route-set defined by the Path headers in
+   the REGISTER request. See Realtime updates for more configuration information.
 
 Features
 -------------------
@@ -94,6 +101,15 @@ Core
    that the REDIRECTING dialplan function can be used to set the redirecting
    reason to any string. It also allows for custom strings to be read as the
    redirecting reason from SIP Diversion headers.
+
+Realtime
+------------------
+ * Dynamic realtime tables for SIP Users can now include a 'path' field. This
+   will store the path information for that peer when it registers. Realtime
+   tables can also use the 'supportpath' field to enable Path header support.
+
+ * LDAP realtime configurations for SIP Users now have the AstAccountPathSupport
+   objectIdentifier. This maps to the supportpath option in sip.conf. 
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------

@@ -108,6 +108,7 @@ olcObjectIdentifier: AstAccountSetVar AstAttrType:66
 olcObjectIdentifier: AstAccountAllowOverlap AstAttrType:67
 olcObjectIdentifier: AstAccountVideoSupport AstAttrType:68
 olcObjectIdentifier: AstAccountIgnoreSDPVersion AstAttrType:69
+olcObjectIdentifier: AstAccountPathSupport AstAttrType:70
 #
 #
 #############################################################################
@@ -636,6 +637,13 @@ olcAttributeTypes: ( AstAccountIgnoreSDPVersion
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 #
+olcAttributeTypes: ( AstAccountPathSupport
+        NAME 'AstAccountPathSupport'
+        DESC 'Asterisk account support Path RFC 3327'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
 #############################################################################
 # Object Class definitions
 #
@@ -758,7 +766,8 @@ olcObjectClasses: ( AsteriskSIPUser
         AstAccountTransport $
         AstAccountType $
         AstAccountUserAgent $
-        AstAccountVideoSupport
+        AstAccountVideoSupport $
+        AstAccountPathSupport
     )
     )
 #
