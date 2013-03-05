@@ -4072,6 +4072,7 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %s (%p) but was %s (%p)\n",
 				oldchan->name, oldchan, p->owner->name, p->owner);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 
