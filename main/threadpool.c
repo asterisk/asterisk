@@ -1188,7 +1188,6 @@ struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast
 	if (!tps) {
 		return NULL;
 	}
-	listener = NULL; /* ownership transferred to tps */
 
 	return tps;
 }
