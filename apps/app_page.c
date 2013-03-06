@@ -85,10 +85,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<argument name="x" required="true">
 							<para>The announcement to playback in all devices</para>
 						</argument>
-						<para>Play an announcement simultaneously to all paged participants</para>
+						<para>Play an announcement to all paged participants</para>
 					</option>
 					<option name="n">
-						<para>Do not play simultaneous announcement to caller (implies <literal>A(x)</literal>)</para>
+						<para>Do not play announcement to caller (implies <literal>A(x)</literal>)</para>
 					</option>
 				</optionlist>
 			</parameter>
