@@ -801,8 +801,8 @@ static int queued_set_size(void *data)
 		ao2_container_count(pool->idle_threads);
 
 	if (current_size == num_threads) {
-		ast_log(LOG_NOTICE, "Not changing threadpool size since new size %u is the same as current %u\n",
-				num_threads, current_size);
+		ast_debug(3, "Not changing threadpool size since new size %u is the same as current %u\n",
+			  num_threads, current_size);
 		return 0;
 	}
 
