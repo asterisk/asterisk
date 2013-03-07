@@ -1519,7 +1519,7 @@ static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const 
 		AST_LIST_LOCK(&logmsgs);
 		if (close_logger_thread) {
 			/* Logger is either closing or closed.  We cannot log this message. */
-			ast_free(logmsg);
+			logmsg_free(logmsg);
 		} else {
 			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
 			ast_cond_signal(&logcond);
