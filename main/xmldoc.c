@@ -1150,6 +1150,7 @@ static char *xmldoc_get_syntax_config_object(struct ast_xml_node *fixnode, const
 		text = ast_xml_get_text(tmp);
 		ast_str_set(&syntax, 0, "category %s /%s/", match ? "=~" : "!~", text);
 		ast_xml_free_attr(attr_value);
+		ast_xml_free_text(text);
 	}
 
 	if ((tmp = ast_xml_find_element(ast_xml_node_get_children(matchinfo), "field", NULL, NULL))) {
@@ -1157,6 +1158,7 @@ static char *xmldoc_get_syntax_config_object(struct ast_xml_node *fixnode, const
 		attr_value = ast_xml_get_attribute(tmp, "name");
 		ast_str_append(&syntax, 0, " matchfield: %s = %s", S_OR(attr_value, "Unknown"), text);
 		ast_xml_free_attr(attr_value);
+		ast_xml_free_text(text);
 	}
 	return ast_strdup(ast_str_buffer(syntax));
 }
