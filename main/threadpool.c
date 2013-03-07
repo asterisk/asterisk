@@ -792,7 +792,7 @@ static struct set_size_data *set_size_data_alloc(struct ast_threadpool *pool,
  */
 static int queued_set_size(void *data)
 {
-	struct set_size_data *ssd = data;
+	RAII_VAR(struct set_size_data *, ssd, data, ao2_cleanup);
 	struct ast_threadpool *pool = ssd->pool;
 	unsigned int num_threads = ssd->size;
 
@@ -813,7 +813,6 @@ static int queued_set_size(void *data)
 	}
 
 	threadpool_send_state_changed(pool);
-	ao2_ref(ssd, -1);
 	return 0;
 }
 
