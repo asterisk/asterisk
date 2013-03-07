@@ -15021,10 +15021,12 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *ma
 		int combining_old = 0;
 		/* Assume we are combining folders if:
 		 *  - The current index is the old folder index OR
-		 *  - The current index is urgent and we were looking for INBOX OR
-		 *  - The current index is INBOX and we were looking for Urgent
+		 *  - The current index is urgent and we were looking for INBOX or all folders OR
+		 *  - The current index is INBOX and we were looking for Urgent or all folders
 		 */
-		if ((i == old_index || (i == urgent_index && this_index_only == inbox_index) || (i == inbox_index && this_index_only == urgent_index)) && (combine_INBOX_and_OLD)) {
+		if ((i == old_index ||
+			(i == urgent_index && (this_index_only == inbox_index || this_index_only == -1)) ||
+			(i == inbox_index && (this_index_only == urgent_index || this_index_only == -1))) && (combine_INBOX_and_OLD)) {
 			combining_old = 1;
 		}
 
