@@ -2475,10 +2475,11 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 			case CONFIG_INFO_SYNTAX:
 			{
 				struct ast_xml_doc_item *tail;
+				RAII_VAR(const char *, name, ast_xml_get_attribute(node, "name"), ast_xml_free_attr);
 				if (item || !ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), "configInfo")) {
 					break;
 				}
-				if (!(item = xmldoc_build_documentation_item(node, ast_xml_get_attribute(node, "name"), "configInfo"))) {
+				if (!(item = xmldoc_build_documentation_item(node, name, "configInfo"))) {
 					break;
 				}
 				tail = item;
