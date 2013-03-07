@@ -760,6 +760,7 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 				if ((paramtype = ast_xml_get_attribute(node, "required"))) {
 					if (!ast_true(paramtype)) {
 						optmidnode = 1;
+						ast_xml_free_attr(paramtype);
 						break;
 					}
 					ast_xml_free_attr(paramtype);
@@ -2347,16 +2348,22 @@ static void build_config_docs(struct ast_xml_node *cur, struct ast_xml_doc_item 
 	struct ast_xml_doc_item *item;
 
 	for (iter = ast_xml_node_get_children(cur); iter; iter = ast_xml_node_get_next(iter)) {
+		const char *iter_name;
 		if (strncasecmp(ast_xml_node_get_name(iter), "config", 6)) {
 			continue;
 		}
+		iter_name = ast_xml_get_attribute(iter, "name");
 		/* Now add all of the child config-related items to the list */
-		if (!(item = xmldoc_build_documentation_item(iter, ast_xml_get_attribute(iter, "name"), ast_xml_node_get_name(iter)))) {
-			ast_log(LOG_ERROR, "Could not build documentation for '%s:%s'\n", ast_xml_node_get_name(iter), ast_xml_get_attribute(iter, "name"));
+		if (!(item = xmldoc_build_documentation_item(iter, iter_name, ast_xml_node_get_name(iter)))) {
+			ast_log(LOG_ERROR, "Could not build documentation for '%s:%s'\n", ast_xml_node_get_name(iter), iter_name);
+			ast_xml_free_attr(iter_name);
 			break;
 		}
+		ast_xml_free_attr(iter_name);
 		if (!strcasecmp(ast_xml_node_get_name(iter), "configOption")) {
-			ast_string_field_set(item, ref, ast_xml_get_attribute(cur, "name"));
+			const char *name = ast_xml_get_attribute(cur, "name");
+			ast_string_field_set(item, ref, name);
+			ast_xml_free_attr(name);
 		}
 		(*tail)->next = item;
 		*tail = (*tail)->next;
