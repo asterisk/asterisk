@@ -25310,13 +25310,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				if (get_ip_and_port_from_sdp(req, SDP_AUDIO, &addr)) {
 					ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Audio may not work properly on this call.\n");
 				} else {
-					ast_rtp_instance_set_alt_remote_address(p->rtp, &addr);
+					ast_rtp_instance_set_remote_address(p->rtp, &addr);
 				}
 				if (p->vrtp) {
 					if (get_ip_and_port_from_sdp(req, SDP_VIDEO, &addr)) {
 						ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Video may not work properly on this call.\n");
 					} else {
-						ast_rtp_instance_set_alt_remote_address(p->vrtp, &addr);
+						ast_rtp_instance_set_remote_address(p->vrtp, &addr);
 					}
 				}
 			}

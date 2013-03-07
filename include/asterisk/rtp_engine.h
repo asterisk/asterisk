@@ -443,8 +443,6 @@ struct ast_rtp_engine {
 	void (*packetization_set)(struct ast_rtp_instance *instance, struct ast_codec_pref *pref);
 	/*! Callback for setting the remote address that RTP is to be sent to */
 	void (*remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
-	/*! Callback for setting an alternate remote address */
-	void (*alt_remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for changing DTMF mode */
 	int (*dtmf_mode_set)(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
 	/*! Callback for getting DTMF mode */
@@ -790,29 +788,6 @@ struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int r
  * \since 1.8
  */
 int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, const struct ast_sockaddr *address);
-
-
-/*!
- * \brief Set the address of an an alternate RTP address to receive from
- *
- * \param instance The RTP instance to change the address on
- * \param address Address to set it to
- *
- * \retval 0 success
- * \retval -1 failure
- *
- * Example usage:
- *
- * \code
- * ast_rtp_instance_set_alt_remote_address(instance, &address);
- * \endcode
- *
- * This changes the alternate remote address that RTP will be sent to on instance to the address given in the sin
- * structure.
- *
- * \since 1.8
- */
-int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, const struct ast_sockaddr *address);
 
 /*!
  * \brief Set the address that we are expecting to receive RTP on
