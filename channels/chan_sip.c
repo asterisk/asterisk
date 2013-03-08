@@ -9858,64 +9858,6 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 	return;
 }
 
-
-static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct ast_sockaddr *addr)
-{
-	const char *m;
-	const char *c;
-	int miterator = req->sdp_start;
-	int citerator = req->sdp_start;
-	int x = 0;
-	int numberofports;
-	int len;
-	int af;
-	char proto[4], host[258] = ""; /*Initialize to empty so we will know if we have any input */
-
-	c = get_sdp_iterate(&citerator, req, "c");
-	if (sscanf(c, "IN %3s %256s", proto, host) != 2) {
-			ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
-			/* Continue since there may be a valid host in a c= line specific to the audio stream */
-	}
-	/* We only want the m and c lines for audio */
-	for (m = get_sdp_iterate(&miterator, req, "m"); !ast_strlen_zero(m); m = get_sdp_iterate(&miterator, req, "m")) {
-		if ((media == SDP_AUDIO && ((sscanf(m, "audio %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %30u RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
-			(media == SDP_VIDEO && ((sscanf(m, "video %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "video %30u RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
-			/* See if there's a c= line for this media stream.
-			 * XXX There is no guarantee that we'll be grabbing the c= line for this
-			 * particular media stream here. However, this is the same logic used in process_sdp.
-			 */
-			c = get_sdp_iterate(&citerator, req, "c");
-			if (!ast_strlen_zero(c)) {
-				sscanf(c, "IN %3s %256s", proto, host);
-			}
-			break;
-		}
-	}
-
-	if (!strcmp("IP4", proto)) {
-		af = AF_INET;
-	} else if (!strcmp("IP6", proto)) {
-		af = AF_INET6;
-	} else {
-		ast_log(LOG_WARNING, "Unknown protocol '%s'.\n", proto);
-		return -1;
-	}
-
-	if (ast_strlen_zero(host) || x == 0) {
-		ast_log(LOG_WARNING, "Failed to read an alternate host or port in SDP. Expect %s problems\n", media == SDP_AUDIO ? "audio" : "video");
-		return -1;
-	}
-
-	if (ast_sockaddr_resolve_first_af(addr, host, 0, af)) {
-		ast_log(LOG_WARNING, "Could not look up IP address of alternate hostname. Expect %s problems\n", media == SDP_AUDIO? "audio" : "video");
-		return -1;
-	}
-
-	return 0;
-}
-
 /*! \internal
  * \brief Returns whether or not the address is null or ANY / unspecified (0.0.0.0 or ::)
  * \retval TRUE if the address is null or any
