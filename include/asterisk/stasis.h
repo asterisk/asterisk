@@ -35,9 +35,6 @@
  * within Asterisk. It is designed to be:
  *  - Loosely coupled; new message types can be added in seperate modules.
  *  - Easy to use; publishing and subscribing are straightforward operations.
- *  - Consistent memory management; all message bus objects are AO2 managed
- *    objects, using ao2_ref() and ao2_cleanup() to manage the reference
- *    counting.
  *
  * There are three main concepts for using the Stasis Message Bus:
  *  - \ref stasis_message
@@ -75,11 +72,12 @@
  * to the topic is dispatched to all of its subscribers. The topic itself may be
  * named, which is useful in debugging.
  *
- * Topics themselves are reference counted objects, and automagically
- * unsubscribe all of their subscribers when they are destroyed. Topics are also
- * thread safe, so no worries about publishing/subscribing/unsubscribing to a
- * topic concurrently from multiple threads. It's also designed to handle the
- * case of unsubscribing from a topic from within the subscription handler.
+ * Topics themselves are reference counted objects. Since topics are referred to
+ * by their subscibers, they will not be freed until all of their subscribers
+ * have unsubscribed. Topics are also thread safe, so no worries about
+ * publishing/subscribing/unsubscribing to a topic concurrently from multiple
+ * threads. It's also designed to handle the case of unsubscribing from a topic
+ * from within the subscription handler.
  *
  * \par Forwarding
  *
@@ -110,8 +108,10 @@
  * removed from the cache). A stasis_cache_clear_create() message must be sent
  * to the topic in order to remove entries from the cache.
  *
- * As with all things Stasis, the \ref stasis_caching_topic is a reference
- * counted AO2 object.
+ * In order to unsubscribe a \ref stasis_caching_topic from the upstream topic,
+ * call stasis_caching_unsubscribe(). Due to cyclic references, the \ref
+ * stasis_caching_topic will not be freed until after it has been unsubscribed,
+ * and all other ao2_ref()'s have been cleaned up.
  *
  * \par stasis_subscriber
  *
@@ -122,12 +122,10 @@
  * threads (this usually isn't important unless you use thread locals or
  * something similar).
  *
- * Since the topic (by necessity) holds a reference to the subscription,
- * reference counting alone is insufficient to terminate a subscription. In
- * order to stop receiving messages, call stasis_unsubscribe() with your \ref
- * stasis_subscription. This will remove the topic's reference to the
- * subscription, and allow it to be destroyed when all of the other references
- * are cleaned up.
+ * In order to stop receiving messages, call stasis_unsubscribe() with your \ref
+ * stasis_subscription. Due to cyclic references, the \ref
+ * stasis_subscription will not be freed until after it has been unsubscribed,
+ * and all other ao2_ref()'s have been cleaned up.
  */
 
 #include "asterisk/utils.h"
