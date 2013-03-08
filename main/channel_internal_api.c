@@ -195,6 +195,8 @@ struct ast_channel {
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
+	struct stasis_topic *topic;			/*!< Topic for all channel's events */
+	struct stasis_subscription *forwarder;		/*!< Subscription for event forwarding to all topic */
 };
 
 /* AST_DATA definitions, which will probably have to be re-thought since the channel will be opaque */
@@ -1364,6 +1366,12 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 	}
 
 	ast_string_field_free_memory(chan);
+
+	stasis_unsubscribe(chan->forwarder);
+	chan->forwarder = NULL;
+
+	ao2_cleanup(chan->topic);
+	chan->topic = NULL;
 }
 
 void ast_channel_internal_finalize(struct ast_channel *chan)
@@ -1374,4 +1382,17 @@ void ast_channel_internal_finalize(struct ast_channel *chan)
 int ast_channel_internal_is_finalized(struct ast_channel *chan)
 {
 	return chan->finalized;
+}
+
+struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
+{
+	return chan->topic;
+}
+
+void ast_channel_internal_setup_topics(struct ast_channel *chan)
+{
+	ast_assert(chan->topic == NULL);
+	ast_assert(chan->forwarder == NULL);
+	chan->topic = stasis_topic_create(chan->uniqueid);
+	chan->forwarder = stasis_forward_all(chan->topic, ast_channel_topic_all());
 }

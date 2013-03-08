@@ -11453,18 +11453,7 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a variable is set to a particular value.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
-			"Channel: %s\r\n"
-			"Variable: %s\r\n"
-			"Value: %s\r\n"
-			"Uniqueid: %s\r\n",
-			chan ? ast_channel_name(chan) : "none", name, value,
-			chan ? ast_channel_uniqueid(chan) : "none");
+		ast_channel_publish_varset(chan, name, value);
 	}
 
 	if (chan)

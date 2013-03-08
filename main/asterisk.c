@@ -240,6 +240,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/aoc.h"
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/stasis.h"
 
 #include "../defaults.h"
 
@@ -4117,6 +4118,11 @@ int main(int argc, char *argv[])
 
 	if (ast_sorcery_init()) {
 		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (stasis_init()) {
+		printf("Stasis initialization failed.\n%s", term_quit());
 		exit(1);
 	}
 

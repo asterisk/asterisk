@@ -152,6 +152,15 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 /*! \brief All active channels on the system */
 static struct ao2_container *channels;
 
+/*! \brief Message type for channel snapshot events */
+static struct stasis_message_type *__channel_snapshot;
+
+static struct stasis_message_type *__channel_varset;
+
+struct stasis_topic *__channel_topic_all;
+
+struct stasis_caching_topic *__channel_topic_all_cached;
+
 /*! \brief map AST_CAUSE's to readable string representations
  *
  * \ref causes.h
@@ -213,6 +222,77 @@ static const struct causes_map causes[] = {
 	{ AST_CAUSE_PROTOCOL_ERROR, "PROTOCOL_ERROR", "Protocol error, unspecified" },
 	{ AST_CAUSE_INTERWORKING, "INTERWORKING", "Interworking, unspecified" },
 };
+
+static void publish_channel_state(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	snapshot = ast_channel_snapshot_create(chan);
+	if (!snapshot) {
+		ast_log(LOG_ERROR, "Allocation error\n");
+		return;
+	}
+
+	message = stasis_message_create(ast_channel_snapshot(), snapshot);
+	if (!message) {
+		return;
+	}
+
+	ast_assert(ast_channel_topic(chan) != NULL);
+	stasis_publish(ast_channel_topic(chan), message);
+}
+
+static void channel_varset_dtor(void *obj)
+{
+	struct ast_channel_varset *event = obj;
+	ao2_cleanup(event->snapshot);
+	ast_free(event->variable);
+	ast_free(event->value);
+}
+
+void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
+{
+	RAII_VAR(struct ast_channel_varset *, event, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	event = ao2_alloc(sizeof(*event), channel_varset_dtor);
+	if (!event) {
+		return;
+	}
+
+	if (chan) {
+		event->snapshot = ast_channel_snapshot_create(chan);
+		if (event->snapshot == NULL) {
+			return;
+		}
+	}
+	event->variable = ast_strdup(name);
+	event->value = ast_strdup(value);
+	if (event->variable == NULL || event->value == NULL) {
+		return;
+	}
+
+	msg = stasis_message_create(ast_channel_varset(), event);
+	if (!msg) {
+		return;
+	}
+
+	if (chan) {
+		stasis_publish(ast_channel_topic(chan), msg);
+	} else {
+		stasis_publish(ast_channel_topic_all(), msg);
+	}
+}
+
+
+static void publish_cache_clear(struct ast_channel *chan)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	message = stasis_cache_clear_create(ast_channel_snapshot(), ast_channel_uniqueid(chan));
+	stasis_publish(ast_channel_topic(chan), message);
+}
 
 struct ast_variable *ast_channeltype_list(void)
 {
@@ -1073,6 +1153,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_linkedid_set(tmp, ast_channel_uniqueid(tmp));
 	}
 
+	ast_channel_internal_setup_topics(tmp);
+
 	if (!ast_strlen_zero(name_fmt)) {
 		char *slash, *slash2;
 		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
@@ -1145,34 +1227,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * a lot of data into this func to do it here!
 	 */
 	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a new channel is created.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newstate']/managerEventInstance/syntax/parameter[@name='ChannelState'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newstate']/managerEventInstance/syntax/parameter[@name='ChannelStateDesc'])" />
-				</syntax>
-			</managerEventInstance>
-		***/
-		ast_manager_event(tmp, EVENT_FLAG_CALL, "Newchannel",
-			"Channel: %s\r\n"
-			"ChannelState: %d\r\n"
-			"ChannelStateDesc: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"AccountCode: %s\r\n"
-			"Exten: %s\r\n"
-			"Context: %s\r\n"
-			"Uniqueid: %s\r\n",
-			ast_channel_name(tmp),
-			state,
-			ast_state2str(state),
-			S_OR(cid_num, ""),
-			S_OR(cid_name, ""),
-			ast_channel_accountcode(tmp),
-			S_OR(exten, ""),
-			S_OR(context, ""),
-			ast_channel_uniqueid(tmp));
+		publish_channel_state(tmp);
 	}
 
 	ast_channel_internal_finalize(tmp);
@@ -2893,39 +2948,9 @@ int ast_hangup(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	ast_cc_offer(chan);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel is hung up.</synopsis>
-				<syntax>
-					<parameter name="Cause">
-						<para>A numeric cause code for why the channel was hung up.</para>
-					</parameter>
-					<parameter name="Cause-txt">
-						<para>A description of why the channel was hung up.</para>
-					</parameter>
-				</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"ConnectedLineNum: %s\r\n"
-		"ConnectedLineName: %s\r\n"
-		"AccountCode: %s\r\n"
-		"Cause: %d\r\n"
-		"Cause-txt: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>"),
-		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, "<unknown>"),
-		ast_channel_accountcode(chan),
-		ast_channel_hangupcause(chan),
-		ast_cause2str(ast_channel_hangupcause(chan))
-		);
+
+	publish_channel_state(chan);
+	publish_cache_clear(chan);
 
 	if (ast_channel_cdr(chan) && !ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_BRIDGED) &&
 		!ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_POST_DISABLED) &&
@@ -7435,47 +7460,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	 * we override what they are saying the state is and things go amuck. */
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
-	/* setstate used to conditionally report Newchannel; this is no more */
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel's state changes.</synopsis>
-			<syntax>
-				<parameter name="ChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="ChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
-		"Channel: %s\r\n"
-		"ChannelState: %d\r\n"
-		"ChannelStateDesc: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"ConnectedLineNum: %s\r\n"
-		"ConnectedLineName: %s\r\n"
-		"Uniqueid: %s\r\n",
-		ast_channel_name(chan), ast_channel_state(chan), ast_state2str(ast_channel_state(chan)),
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""),
-		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, ""),
-		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, ""),
-		ast_channel_uniqueid(chan));
+	publish_channel_state(chan);
 
 	return 0;
 }
@@ -8644,6 +8629,14 @@ static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 
 static void channels_shutdown(void)
 {
+	ao2_cleanup(__channel_snapshot);
+	__channel_snapshot = NULL;
+	ao2_cleanup(__channel_varset);
+	__channel_varset = NULL;
+	ao2_cleanup(__channel_topic_all);
+	__channel_topic_all = NULL;
+	stasis_caching_unsubscribe(__channel_topic_all_cached);
+	__channel_topic_all_cached = NULL;
 	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
@@ -8651,6 +8644,16 @@ static void channels_shutdown(void)
 		ao2_ref(channels, -1);
 		channels = NULL;
 	}
+}
+
+static const char *channel_snapshot_get_id(struct stasis_message *message)
+{
+	struct ast_channel_snapshot *snapshot;
+	if (ast_channel_snapshot() != stasis_message_type(message)) {
+		return NULL;
+	}
+	snapshot = stasis_message_data(message);
+	return snapshot->uniqueid;
 }
 
 void ast_channels_init(void)
@@ -8661,6 +8664,12 @@ void ast_channels_init(void)
 		ao2_container_register("channels", channels, prnt_channel_key);
 	}
 
+	__channel_snapshot = stasis_message_type_create("ast_channel_snapshot");
+	__channel_varset = stasis_message_type_create("ast_channel_varset");
+
+	__channel_topic_all = stasis_topic_create("ast_channel_topic_all");
+	__channel_topic_all_cached = stasis_caching_topic_create(__channel_topic_all, channel_snapshot_get_id);
+
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
 
 	ast_data_register_multiple_core(channel_providers, ARRAY_LEN(channel_providers));
@@ -8668,6 +8677,7 @@ void ast_channels_init(void)
 	ast_plc_reload();
 
 	ast_register_atexit(channels_shutdown);
+
 }
 
 /*! \brief Print call group and pickup group ---*/
@@ -11239,6 +11249,79 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 		*slash = '\0';
 	}
 	return 0;
+}
+
+static void ast_channel_snapshot_dtor(void *obj)
+{
+	struct ast_channel_snapshot *snapshot = obj;
+	ast_string_field_free_memory(snapshot);
+}
+
+struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	snapshot = ao2_alloc(sizeof(*snapshot), ast_channel_snapshot_dtor);
+	if (ast_string_field_init(snapshot, 1024)) {
+		return NULL;
+	}
+
+	ast_string_field_set(snapshot, name, ast_channel_name(chan));
+	ast_string_field_set(snapshot, accountcode, ast_channel_accountcode(chan));
+	ast_string_field_set(snapshot, peeraccount, ast_channel_peeraccount(chan));
+	ast_string_field_set(snapshot, userfield, ast_channel_userfield(chan));
+	ast_string_field_set(snapshot, uniqueid, ast_channel_uniqueid(chan));
+	ast_string_field_set(snapshot, linkedid, ast_channel_linkedid(chan));
+	ast_string_field_set(snapshot, parkinglot, ast_channel_parkinglot(chan));
+	ast_string_field_set(snapshot, hangupsource, ast_channel_hangupsource(chan));
+	if (ast_channel_appl(chan)) {
+		ast_string_field_set(snapshot, appl, ast_channel_appl(chan));
+	}
+	if (ast_channel_data(chan)) {
+		ast_string_field_set(snapshot, data, ast_channel_data(chan));
+	}
+	ast_string_field_set(snapshot, context, ast_channel_context(chan));
+	ast_string_field_set(snapshot, exten, ast_channel_exten(chan));
+
+	ast_string_field_set(snapshot, caller_name,
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
+	ast_string_field_set(snapshot, caller_number,
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
+
+	ast_string_field_set(snapshot, connected_name,
+		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, ""));
+	ast_string_field_set(snapshot, connected_number,
+		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, ""));
+
+	snapshot->creationtime = ast_channel_creationtime(chan);
+	snapshot->state = ast_channel_state(chan);
+	snapshot->priority = ast_channel_priority(chan);
+	snapshot->amaflags = ast_channel_amaflags(chan);
+	snapshot->hangupcause = ast_channel_hangupcause(chan);
+	snapshot->flags = *ast_channel_flags(chan);
+
+	ao2_ref(snapshot, +1);
+	return snapshot;
+}
+
+struct stasis_message_type *ast_channel_varset(void)
+{
+	return __channel_varset;
+}
+
+struct stasis_message_type *ast_channel_snapshot(void)
+{
+	return __channel_snapshot;
+}
+
+struct stasis_topic *ast_channel_topic_all(void)
+{
+	return __channel_topic_all;
+}
+
+struct stasis_caching_topic *ast_channel_topic_all_cached(void)
+{
+	return __channel_topic_all_cached;
 }
 
 /* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY
