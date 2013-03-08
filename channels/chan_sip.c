@@ -26757,6 +26757,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 		ast_string_field_set(pvt, username, to_user);
 	}
 	ast_sip_ouraddrfor(&pvt->sa, &pvt->ourip, pvt);
+	build_via(pvt);
 	ast_set_flag(&pvt->flags[0], SIP_OUTGOING);
 
 	/* XXX Does pvt->expiry need to be set? */
