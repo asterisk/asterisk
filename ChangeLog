@@ -1,3 +1,460 @@
+2013-03-08  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.2-cert1-rc1 Created.
+
+2013-03-07 17:57 +0000 [r382576-382618]  Matthew Jordan <mjordan@digium.com>
+
+	* apps/app_voicemail.c, /: Let vm_mailbox_snapshot combine "Urgent"
+	  when no folder is specified r381835 fixed a bug in
+	  vm_mailbox_snapshot where combining INBOX and Old forgot that
+	  Urgent also "counts" as new messages. This fixed the problem when
+	  any of the three folders was specified and the combine option was
+	  used. It missed the case where the folder isn't specified and we
+	  build a snapshot of all folders. This patch corrects that.
+	  ........ Merged revisions 382617 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* res/res_rtp_asterisk.c, /: Add a 'secret' probation strictrtp
+	  mode to handle delayed changes in RTP source Often, Asterisk may
+	  realize that a change in the source of an RTP stream is about to
+	  occur and ask that the RTP engine reset it's lock on the current
+	  RTP source. In certain scenarios, it may take awhile for the new
+	  remote system to send RTP packets, while the old remote system
+	  may continue providing RTP during that time period. This causes
+	  Asterisk to re-lock onto the old source, thereby rejecting the
+	  new source when the old source stops sending RTP and the new
+	  source begins. This patch prevents that by having a constant
+	  secondary, 'secret' probation mode enabled when an RTP source has
+	  been chosen. RTP packets from other sources are always
+	  considered, but never chosen unless the current RTP source stops
+	  sending RTP. Review: https://reviewboard.asterisk.org/r/2364
+	  (closes issue AST-1124) Reported by: John Bigelow Tested by: John
+	  Bigelow (closes issue AST-1125) Reported by: John Bigelow Tested
+	  by: John Bigelow ........ Merged revisions 382573 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-03-06 19:36 +0000 [r382536]  Kinsey Moore <kmoore@digium.com>
+
+	* /, apps/app_page.c: app_page: Fixup application XML documentation
+	  typos and inaccuracies. (closes issue AST-1116) ........ Merged
+	  revisions 380869 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-03-04 21:15 +0000 [r382393]  Jason Parker <jparker@digium.com>
+
+	* /, main/event.c: Fix comparison of presence state in event
+	  subsystem. Several new IEs were not given types (or names),
+	  causing the comparison function to improperly succeed. This adds
+	  those. (closes issue AST-1128) ........ Merged revisions 382390
+	  from http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-03-04 20:21 +0000 [r382387]  kharwell <kharwell@localhost>:
+
+	* /, apps/app_confbridge.c: Confbridge CLI new record file name
+	  check. This fix checks to make sure that if a confbridge record
+	  start command is issued from the CLI it will always use the file
+	  name given on the CLI even if it changes between start/stop
+	  records for a conference. Previously it had been reusing the same
+	  file between start/stops even if a new filename was given. (issue
+	  AST-1088) Reported by: John Bigelow ........ Merged revisions
+	  382385 from http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-02-28 16:54 +0000 [r382231]  Matthew Jordan <mjordan@digium.com>
+
+	* /, apps/app_meetme.c, UPGRADE.txt: Let channels joining a MeetMe
+	  conference opt out of the denoiser For some channel drivers,
+	  specifically those that have a varying rate in the number of
+	  audio samples, the audio quality for a MeetMe conference can be
+	  exceedingly poor. This is due to a unilateral application of the
+	  DENOISE function in func_speex to channels joining the
+	  conference. The denoiser function in the speex library is
+	  initialized with the number of audio samples in each sample that
+	  will be provided to it. If the number of audio samples changes,
+	  the denoiser has to be thrown away and re-initialized. While this
+	  could be worked around by removing func_speex, that doesn't help
+	  if you actually use the denoiser with other channels on the
+	  system. This patches does the following: * Checks for the
+	  presence of func_speex as opposed to codec_speex when determining
+	  if the DENOISE function is present (which is where the function
+	  is actually implemented) * Adds an option to MeetMe 'n' that
+	  causes the denoiser to not be applied to a channel when it joins.
+	  This keeps the current behavior the default, but let's users
+	  disable the denoiser if it causes problems on their system.
+	  Review: https://reviewboard.asterisk.org/r/2358 (closes issue
+	  AST-1062) Reported by: Thomas Arimont ........ Merged revisions
+	  382227 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+	  ........ Merged revisions 382230 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-02-26 16:46 +0000 [r382073-382084]  Matthew Jordan <mjordan@digium.com>
+
+	* apps/confbridge/conf_config_parser.c,
+	  configs/confbridge.conf.sample, /: Ensure that the default
+	  bridge/user profiles are always available ConfBridge and Page
+	  require that there always be a default bridge and user profile
+	  available. While properties of the default profiles can be
+	  overriden in the configuration file, removing them can create
+	  situations where neither application can function properly. This
+	  patch ensures that if an administrator removes the profiles from
+	  the confbridge.conf configuration file, the profiles are added
+	  upon load. Documentation clarifying this has been added to the
+	  confbridge.conf.sample file. Review:
+	  https://reviewboard.asterisk.org/r/2356/ (closes issue AST-1115)
+	  Reported by: John Bigelow Tested by: John Bigelow ........ Merged
+	  revisions 382066 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, apps/app_confbridge.c: Multiple revisions 379478,382068-382069
+	  ........ r379478 | kmoore | 2013-01-18 15:46:58 -0600 (Fri, 18
+	  Jan 2013) | 13 lines Fix regression in Confbridge user count When
+	  the restructuring work got committed to Confbridge in r375470 to
+	  fix many open issues, it caused a regression in the reported
+	  count of users when conference information was requested via CLI
+	  or manager. This corrects the user count and user information
+	  displayed when listing conference information from the CLI and
+	  manager. (closes issue ASTERISK-20938) Reported By: Timo Teras
+	  Patches: confbridge-list.patch uploaded by Timo Teras (license
+	  5409) ........ r382068 | mjordan | 2013-02-26 09:35:05 -0600
+	  (Tue, 26 Feb 2013) | 26 lines Clean up ConfBridge commands to
+	  account for wait_marked users When ConfBridge was refactored to
+	  better handle the concept of marked, wait_marked, and normal
+	  users co-existing in a conference (thereby implementing a state
+	  machine for the conference), the wait_marked users were put into
+	  their own list of conference participants, separate from the
+	  active users. This list is used for wait_marked users when they
+	  are waiting in a conference but no marked user has joined; normal
+	  users may have joined at this point however. There are several
+	  AMI/CLI commands that affect conference users that were not
+	  checking the wait_marked users list: * CLI/AMI commands that
+	  mute/unmute a participant. In this case, wait_marked users have
+	  to remain in their particular state and should not be affected -
+	  however, the commands would return "Channel not found" as opposed
+	  to the appropriate error condition. * CLI/AMI commands that kick
+	  a participant. An admin should always be able to kick a
+	  participant out of the conference. This patch fixes both sets of
+	  commands, and cleans up the CLI commands slightly by allowing
+	  them to complete a participant name (this was supposed to have
+	  been added, but the function call was commented out and wasn't
+	  implemented). Review: https://reviewboard.asterisk.org/r/2346/
+	  (closes issue AST-1114) Reported by: John Bigelow Tested by: John
+	  Bigelow ........ r382069 | mjordan | 2013-02-26 09:38:05 -0600
+	  (Tue, 26 Feb 2013) | 3 lines Fix typo in r382068 Well, that was
+	  embarrassing. Removed an '-l' that somehow got in there. ........
+	  Merged revisions 379478,382068-382069 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-02-20 19:15 +0000 [r381832-381836]  Matthew Jordan <mjordan@digium.com>
+
+	* apps/app_voicemail.c, /: Let vm_mailbox_snapshot_create's combine
+	  option apply to "Urgent" as well The vm_mailbox_snapshot_create
+	  function has an option that combines the contents of INBOX and
+	  Old into a single snapshot. The intent of this is that both 'new'
+	  messages and 'deleted' messages are given in a single snapshot,
+	  as some applications prefer this view of the voicemail world.
+	  Unfortunately, the initial implementation ignored the "Urgent"
+	  folder. The "Urgent" folder is a pseudo-INBOX, in that new
+	  messages left with the 'U' flag will be placed in that folder as
+	  opposed to INBOX. Thus, the option failed the intent with which
+	  it was added. This patch makes it so that the "Urgent" folder is
+	  included in the snapshot when that option is used. ........
+	  Merged revisions 381835 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, channels/chan_sip.c: Ensure Min-SE is included in outbound
+	  INVITEs Asterisk now includes Min-SE in outbound INVITEs when the
+	  value is not 90 (the default) and session timers are not
+	  disabled. This has the effect of Asterisk following RFC4028 more
+	  closely with regard to 422 responses and preventing situations in
+	  which Asterisk would be forced to temporarily accept a call to
+	  tear it down based on a Session-Expires below the locally
+	  configured Min-SE. (issue SWP-5051) Review:
+	  https://reviewboard.asterisk.org/r/2222/ Reported-by: Kinsey
+	  Moore Patch-by: Kinsey Moore ........ Merged revisions 377946
+	  from http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  Merged revisions 377947 from
+	  http://svn.asterisk.org/svn/asterisk/branches/10 ........ Merged
+	  revisions 377948 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* asterisk-11.2.0-summary.html (removed),
+	  asterisk-11.2.0-summary.txt (removed): Remove the release
+	  summaries from the branch
+
+2013-02-20 16:16 +0000 [r381705-381823]  kharwell <kharwell@localhost>:
+
+	* /: Updated merge properties to reflect correct trace.
+
+	* apps/app_confbridge.c: Confbridge channels staying active when
+	  all participants leave. If you started/stopped recording of a
+	  conference multiple times channels would remain active even when
+	  all participants left the conference. This was due to the fact
+	  that a reference to the confbridge was being added every time a
+	  start record command was issued, but when the recording was
+	  stopped there was no matching de-reference thus keeping the
+	  conference alive. Made sure only a single reference is added for
+	  the record thread no matter how many times recording is
+	  started/stopped. A de-reference is issued upon thread ending.
+	  Note, this issue is being fixed under AST-1088 since it relates
+	  to it and should have been corrected along with those
+	  modifications. (issue AST-1088) Reported by: John Bigelow
+	  ........ Merged revisions 381737 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, apps/app_confbridge.c: Fixed Confbridge file recording
+	  deadlock and appending. A deadlock occurred after
+	  starting/stopping and then restarting a confbridge recording.
+	  Upon starting a recording a record thread is created that holds a
+	  lock until just before exiting. Stopping the recording does not
+	  stop/exit the thread or release the lock. The thread waits until
+	  recording begins again. Starting a stopped recording signals the
+	  thread to continue and start recording again. However restarting
+	  the recording also created another record thread resulting in a
+	  deadlock. The fix was to make sure the record thread was only
+	  created once. Also it was noted that filenames for the recordings
+	  were being concatenated for each start/stop. This was fixed by
+	  creating a new file for each conference session and appending the
+	  actual recorded data within the file (e.g. passing the 'a' option
+	  to MixMonitor). (issue AST-1088) Reported by: John Bigelow
+	  Review: http://reviewboard.digium.internal/r/374/ ........ Merged
+	  revisions 381702 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-02-16 16:31 +0000 [r381596-381616]  Matthew Jordan <mjordan@digium.com>
+
+	* /, channels/chan_sip.c: Don't send presencestate information if
+	  the state is invalid Previously, presencestate information was
+	  sent whenever the state was not NOT_SET. When r381594 actually
+	  returned INVALID presence state in all the places it was supposed
+	  to, it caused chan_sip to start adding presence state information
+	  to NOTIFY requests that it previously would not have added.
+	  chan_sip shouldn't be adding presence state information when the
+	  provider is in an invalid state; users can't set the state to
+	  invalid and an invalid state always implies that the provider is
+	  in an error condition. (issue AST-1084) ........ Merged revisions
+	  381613 from http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* funcs/func_presencestate.c, main/manager.c, /,
+	  main/presencestate.c: Fix crash in PresenceState AMI action when
+	  specifying an invalid provider This patch fixes a crash in
+	  Asterisk that could be caused by using the PresenceState AMI
+	  action while providing an invalid provider. This patch also adds
+	  some additional warnings when a user attempts to provide the
+	  PresenceState action with invalid data, and removes some NOTICE
+	  statements that were still lurking in the code from testing.
+	  (closes issue AST-1084) Reported by: John Bigelow Tested by: John
+	  Bigelow ........ Merged revisions 381594 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-02-14 18:46 +0000 [r381400-381447]  Matthew Jordan <mjordan@digium.com>
+
+	* main/channel.c, /: Multiple revisions 378121,378459 ........
+	  r378121 | kmoore | 2012-12-18 11:41:35 -0600 (Tue, 18 Dec 2012) |
+	  14 lines Add test events for time limit-related hangups This
+	  patch adds hangup-related test events in order to support testing
+	  of time-limited bridges. This aids in testing the S() and L()
+	  bridge options. (issue SWP-4713) ........ Merged revisions 378119
+	  from http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  Merged revisions 378120 from
+	  http://svn.asterisk.org/svn/asterisk/branches/10 ........ r378459
+	  | kmoore | 2013-01-03 12:48:00 -0600 (Thu, 03 Jan 2013) | 10
+	  lines Add missing test event This test event was missing from
+	  channel.c causing the dial_LS_options test to fail intermittently
+	  because of a race condition where most code paths emitted the
+	  test event but this one did not. The dial_LS_options test should
+	  stop bouncing now. ........ Merged revisions 378455 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 378121,378459 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, channels/chan_sip.c: Fixed failing test from r380696. When I
+	  added my extensive suite of session timer unit tests, apparently
+	  one of them was failing and I never noticed. If neither Min-SE
+	  nor Session-Expires is set in the header, it was responding with
+	  a Session-Expires of the global maxmimum instead of the
+	  configured max for the endpoint. (issue ASTERISK-20787) ........
+	  Merged revisions 380973 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 380974 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, channels/chan_sip.c: Process session timers, even if
+	  Session-Expires header is missing Previously, Asterisk only
+	  processed session timer information if both the 'Supported:
+	  timer' and 'Session-Expires' headers were present. However, the
+	  Session-Expires header is optional. If we were to receive a
+	  request with a Min-SE greater than our configured
+	  session-expires, we would respond with a 'Session-Expires' header
+	  that was too small. This patch cleans the situation up a bit,
+	  always processing timer information if the 'Supported: timer'
+	  header is present. (closes issue ASTERISK-20787) Reported by:
+	  Mark Michelson Review: https://reviewboard.asterisk.org/r/2299/
+	  ........ Merged revisions 380696 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 380698 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, apps/confbridge/conf_state_multi_marked.c: app_confbridge: Fix
+	  error messages on exiting conference. A marked user ending a
+	  conference with only end_marked users generates error messages:
+	  ERROR[0000][C-00000000]: confbridge/conf_state.c:47
+	  conf_invalid_event_fn: Invalid event for confbridge user '' * The
+	  MULTI_MARKED state was doing too much when it was kicking out the
+	  end_marked users from the conference. The kicked out users will
+	  clean up after themselves when they exit the conference. (closes
+	  issue ASTERISK-20991) Reported by: Jeremy Kister Tested by:
+	  rmudgett ........ Merged revisions 380892 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, apps/app_page.c, apps/app_confbridge.c: app_page and
+	  app_confbridge: Fix custom announcement on entering conference.
+	  The Page and ConfBridge custom announcement did not play when
+	  users entered the conference. * Fix the
+	  CONFBRIDGE(user,announcement) file not getting played. The code
+	  to do this got removed accidentally when the ConfBridge code was
+	  restructured to be more state machine like. * Fixed
+	  play_prompt_to_user() doxygen comments. * Fixed the Page A(x) and
+	  n options for the caller. The caller never played the
+	  announcement file and totally ignored the n option. The code to
+	  do this was lost when the application was converted to use
+	  ConfBridge. * Factored out setup_profile_bridge(),
+	  setup_profile_paged(), and setup_profile_caller() routines to
+	  setup ConfBridge profiles. Made each profile setup routine use
+	  the default template if one has not already been setup by
+	  dialplan. (closes issue ASTERISK-20990) Reported by: Jeremy
+	  Kister Tested by: rmudgett ........ Merged revisions 380894 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, main/asterisk.c: Fix astcanary startup problem due to wrong
+	  pid value from before daemon call When Asterisk forks itself into
+	  the background via a call to daemon, it must re-set the pid value
+	  of the new process. Otherwise, astcanary gets the pid value of
+	  the process before the fork, which prevents it from running.
+	  Asterisk eventually starts lowering its priority, as it can no
+	  longer communicate with the proverbial canary in the coal mine.
+	  This patch ensures that the correct process identifier is used by
+	  astcanary. Note that this is getting committed to 10 as a
+	  regression fix. (closes issue ASTERISK-20947) Reported by: Jakob
+	  Hirsch Tested by: mjordan patches:
+	  asterisk-10.12.0.astcanary_ppid.diff uploaded by Jakob Hirsch
+	  (license 6113) ........ Merged revisions 379509 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 379510 from
+	  http://svn.asterisk.org/svn/asterisk/branches/10 ........ Merged
+	  revisions 379513 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* contrib/init.d/rc.mandriva.asterisk,
+	  contrib/init.d/rc.debian.asterisk, /,
+	  contrib/init.d/rc.redhat.asterisk, UPGRADE.txt,
+	  contrib/init.d/rc.gentoo.asterisk,
+	  contrib/init.d/rc.slackware.asterisk,
+	  contrib/init.d/rc.archlinux.asterisk,
+	  contrib/scripts/safe_asterisk, main/asterisk.c,
+	  contrib/init.d/rc.suse.asterisk: Update init.d scripts to handle
+	  stderr; readd splash screen for remote consoles When r376428 was
+	  commited to re-order start up sequences to be more tolerant of
+	  forking with thread primitives, a few items were changed that
+	  caused changes in behavior on some distros. This includes: * Not
+	  displaying the splash screen on a remote console. * Displaying an
+	  error message on stderr when a remote console cannot connect to a
+	  running instance of Asterisk. In the first case, the splash
+	  screen was re-added (thanks to Michael L. Young). In the second
+	  case, the various init.d scripts were modified to pipe stderr to
+	  /dev/null, as the error message is useful - if you execute a
+	  remote console or a remote console command execution and it fail,
+	  it should tell you. Note that the error message was always
+	  present, it just failed to be printed prior to r376428. Much
+	  thanks to the folks who quickly reported this problem, provided
+	  solutions, and promptly tested the various init.d scripts on a
+	  variety of distros. (closes issue ASTERISK-20945) Reported by:
+	  Warren Selby Tested by: Michael L. Young, Jamuel Starkey,
+	  kaldemar, Danny Nicholas, mjordan patches:
+	  asterisk-20945-remote-intro-msg.diff uploaded by elguero (license
+	  5026) ASTERISK-20945-1.8-mjordan.diff uploaded by mjordan
+	  (license 6283) ........ Merged revisions 379760 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 379777 from
+	  http://svn.asterisk.org/svn/asterisk/branches/10 ........ Merged
+	  revisions 379790 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* res/res_rtp_asterisk.c, /: Reset RTP timestamp; sequence number
+	  on SSRC change In r370252 for ASTERISK-18404, Asterisk's handling
+	  of RTP was modified to better account for out of order RTP
+	  packets. This was accomplished by using the RTP timestamp and
+	  sequence number to check for out of order packets. However, when
+	  a SSRC change occurs, the timestamp and sequence number will no
+	  longer have any relation to the previously received packets. The
+	  variables tracking the timestamp and sequence number therefore
+	  have to be reset. (closes issue ASTERISK-20906) Reported by:
+	  Eelco Brolman patches: dtmf_on_hold.patch uploaded by Eelco
+	  Brolman (license #6442) ........ Merged revisions 378967 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 378984 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, channels/chan_sip.c: Perform case insensitive comparisons for
+	  T.38 attributes RFC5347 section 2.5.2 states the following: ...
+	  The attribute "T38MaxBitRate" was once incorrectly registered
+	  with IANA as "T38maxBitRate" (lower-case "m"). In accordance with
+	  T.38 examples and common implementation practice, the form
+	  "T38MaxBitRate" SHOULD be generated by implementations conforming
+	  to this package. In general, it is RECOMMENDED that
+	  implementations of this package accept lowercase, uppercase, and
+	  mixed upper/lowercase encodings of all the T.38 attributes. ...
+	  Asterisk currently does not perform case insensitive matching on
+	  the T.38 attributes. This causes the T38MaxBitRate attribute to
+	  be negotiated at 2400 baud instead of 14400 (or whatever value
+	  you actually wanted). This patch makes it so that when we compare
+	  T.38 attributes, we do so in a case insensitive fashion. Note
+	  that while the issue reporter did not directly write the patch,
+	  they contributed to it (and would have provided one themselves if
+	  the license had gone through a tad faster), and hence get
+	  attribution for it. Review:
+	  https://reviewboard.asterisk.org/r/2298/ (closes issue
+	  ASTERISK-20897) Reported by: Eric Hill Tested by: Eric Hill
+	  patches: -- uploaded by Eric Hill ........ Merged revisions
+	  380458 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+	  ........ Merged revisions 380465 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* main/rtp_engine.c, /: Do not allow native RTP bridging if
+	  packetization of media streams differs. The RTP engine will no
+	  longer allow for local and remote native RTP bridges if
+	  packetization of streams differs. Allowing native bridging in
+	  this scenario has been known to cause FAX failures. (closes
+	  ASTERISK-20650) Reported by: Maciej Krajewski Patches:
+	  ASTERISK-20659.patch uploaded by Mark Michelson (License #5049)
+	  Review: https://reviewboard.asterisk.org/r/2319 ........ Merged
+	  revisions 381281 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 381306 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /: Track merged changes using the standard branch nomenclature
+
+2013-02-08 19:42 +0000 [r381085]  Jonathan Rose <jrose@digium.com>
+
+	* apps/app_meetme.c, sounds/Makefile: Merge r379892 into Certified
+	  11.2 ........ r379892 | jrose | 2013-01-22 13:07:42 -0600 (Tue,
+	  22 Jan 2013) | 16 lines app_meetme: Use new prompts for
+	  administrator menu The old prompts for the administrator menu
+	  were inadequate. They didn't mention that the menu had additional
+	  options through the 8 key and pressing the 8 key wouldn't reveal
+	  what those options were. This patch fixes all of that while also
+	  organizing code pertaining to each individual menu type which was
+	  previously all stored in one gigantic function along with many of
+	  the basic conference functions. (closes issue AST-996) Reported
+	  by: John Bigelow Review:
+	  http://reviewboard.digium.internal/r/360/ ........ Merged
+	  revisions 379885 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+	  ------------------------------------------------------------------------
+
+2013-01-14 20:23 +0000 [r379063]  Matthew Jordan <mjordan@digium.com>
+
+	* / (added): Create branch for Certified Asterisk 11.2.
+
 2013-01-14  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.2.0 Released.
