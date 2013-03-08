@@ -337,6 +337,10 @@ void stasis_forward_message(struct stasis_topic *topic, struct stasis_topic *pub
 	struct stasis_subscription **subscribers = NULL;
 	size_t num_subscribers, i;
 
+	ast_assert(topic != NULL);
+	ast_assert(publisher_topic != NULL);
+	ast_assert(message != NULL);
+
 	/* Copy the subscribers, so we don't have to hold the mutex for long */
 	{
 		SCOPED_AO2LOCK(lock, topic);

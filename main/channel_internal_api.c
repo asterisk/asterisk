@@ -1391,8 +1391,14 @@ struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 
 void ast_channel_internal_setup_topics(struct ast_channel *chan)
 {
+	const char *topic_name = chan->uniqueid;
 	ast_assert(chan->topic == NULL);
 	ast_assert(chan->forwarder == NULL);
-	chan->topic = stasis_topic_create(chan->uniqueid);
+
+	if (ast_strlen_zero(topic_name)) {
+		topic_name = "<dummy-channel>";
+	}
+
+	chan->topic = stasis_topic_create(topic_name);
 	chan->forwarder = stasis_forward_all(chan->topic, ast_channel_topic_all());
 }

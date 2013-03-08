@@ -1283,6 +1283,8 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	ast_channel_epfd_set(tmp, -1);
 #endif
 
+	ast_channel_internal_setup_topics(tmp);
+
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 
