@@ -564,6 +564,7 @@ AST_TEST_DEFINE(cache)
 	RAII_VAR(struct stasis_message *, test_message1_clear, NULL, ao2_cleanup);
 	int actual_len;
 	struct stasis_cache_update *actual_update;
+	struct ao2_container *cache_dump;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -598,6 +599,12 @@ AST_TEST_DEFINE(cache)
 	stasis_publish(topic, test_message2_1);
 	actual_len = consumer_wait_for(consumer, 2);
 	ast_test_validate(test, 2 == actual_len);
+
+	/* Dump the cache to ensure that it has the correct number of items in it */
+	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
+	ao2_ref(cache_dump, -1);
+	cache_dump = NULL;
 
 	/* Check for new snapshot messages */
 	ast_test_validate(test, stasis_cache_update() == stasis_message_type(consumer->messages_rxed[0]));
@@ -634,6 +641,12 @@ AST_TEST_DEFINE(cache)
 	/* stasis_cache_get returned a ref, so unref test_message2_2 */
 	ao2_ref(test_message2_2, -1);
 
+	/* Dump the cache to ensure that it has the correct number of items in it */
+	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
+	ao2_ref(cache_dump, -1);
+	cache_dump = NULL;
+
 	/* Clear snapshot 1 */
 	test_message1_clear = stasis_cache_clear_create(cache_type, "1");
 	ast_test_validate(test, NULL != test_message1_clear);
@@ -647,6 +660,18 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, test_message1_1 == actual_update->old_snapshot);
 	ast_test_validate(test, NULL == actual_update->new_snapshot);
 	ast_test_validate(test, NULL == stasis_cache_get(caching_topic, cache_type, "1"));
+
+	/* Dump the cache to ensure that it has the correct number of items in it */
+	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	ast_test_validate(test, 1 == ao2_container_count(cache_dump));
+	ao2_ref(cache_dump, -1);
+	cache_dump = NULL;
+
+	/* Dump the cache to ensure that it has no subscription change items in it since those aren't cached */
+	cache_dump = stasis_cache_dump(caching_topic, stasis_subscription_change());
+	ast_test_validate(test, 0 == ao2_container_count(cache_dump));
+	ao2_ref(cache_dump, -1);
+	cache_dump = NULL;
 
 	return AST_TEST_PASS;
 }

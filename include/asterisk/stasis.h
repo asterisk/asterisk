@@ -480,6 +480,17 @@ struct stasis_message *stasis_cache_get(struct stasis_caching_topic *caching_top
 					struct stasis_message_type *type,
 					const char *id);
 
+/*!
+ * \brief Dump cached items to a subscription
+ * \param caching_topic The topic returned from stasis_caching_topic_create().
+ * \param type Type of message to dump (any type if NULL).
+ * \return ao2_container containing all matches (must be unreffed by caller)
+ * \return NULL on allocation error
+ * \since 12
+ */
+struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_topic,
+					struct stasis_message_type *type);
+
 /*! @} */
 
 /*! @{ */

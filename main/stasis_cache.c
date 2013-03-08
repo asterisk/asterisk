@@ -205,6 +205,39 @@ struct stasis_message *stasis_cache_get(struct stasis_caching_topic *caching_top
 	return cached_entry->snapshot;
 }
 
+struct cache_dump_data {
+	struct ao2_container *cached;
+	struct stasis_message_type *type;
+};
+
+static int cache_dump_cb(void *obj, void *arg, int flags)
+{
+	struct cache_dump_data *cache_dump = arg;
+	struct cache_entry *entry = obj;
+
+	if (!cache_dump->type || entry->type == cache_dump->type) {
+		ao2_link(cache_dump->cached, entry->snapshot);
+	}
+
+	return 0;
+}
+
+struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type)
+{
+	struct cache_dump_data cache_dump;
+
+	ast_assert(caching_topic->cache != NULL);
+
+	cache_dump.type = type;
+	cache_dump.cached = ao2_container_alloc(1, NULL, NULL);
+	if (!cache_dump.cached) {
+		return NULL;
+	}
+
+	ao2_callback(caching_topic->cache, OBJ_MULTIPLE | OBJ_NODATA, cache_dump_cb, &cache_dump);
+	return cache_dump.cached;
+}
+
 static struct stasis_message_type *__cache_clear_data;
 
 static struct stasis_message_type *cache_clear_data(void)
