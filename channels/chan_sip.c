@@ -25305,21 +25305,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		} else {
 			/* We already have a pending invite. Sorry. You are on hold. */
 			p->glareinvite = seqno;
-			if (p->rtp && find_sdp(req)) {
-				struct ast_sockaddr addr;
-				if (get_ip_and_port_from_sdp(req, SDP_AUDIO, &addr)) {
-					ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Audio may not work properly on this call.\n");
-				} else {
-					ast_rtp_instance_set_remote_address(p->rtp, &addr);
-				}
-				if (p->vrtp) {
-					if (get_ip_and_port_from_sdp(req, SDP_VIDEO, &addr)) {
-						ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Video may not work properly on this call.\n");
-					} else {
-						ast_rtp_instance_set_remote_address(p->vrtp, &addr);
-					}
-				}
-			}
 			transmit_response_reliable(p, "491 Request Pending", req);
 			check_via(p, req);
 			ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
