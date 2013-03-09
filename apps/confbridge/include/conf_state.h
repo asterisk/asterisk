@@ -36,16 +36,16 @@
 #ifndef _CONF_STATE_H_
 #define _CONF_STATE_H_
 
-struct conference_state;
-struct conference_bridge;
-struct conference_bridge_user;
+struct confbridge_state;
+struct confbridge_conference;
+struct confbridge_user;
 
-typedef void (*conference_event_fn)(struct conference_bridge_user *cbu);
-typedef void (*conference_entry_fn)(struct conference_bridge_user *cbu);
-typedef void (*conference_exit_fn)(struct conference_bridge_user *cbu);
+typedef void (*conference_event_fn)(struct confbridge_user *user);
+typedef void (*conference_entry_fn)(struct confbridge_user *user);
+typedef void (*conference_exit_fn)(struct confbridge_user *user);
 
 /*! \brief A conference state object to hold the various state callback functions */
-struct conference_state {
+struct confbridge_state {
 	const char *name;
 	conference_event_fn join_unmarked;    /*!< Handle an unmarked join event */
 	conference_event_fn join_waitmarked;  /*!< Handle a waitmarked join event */
@@ -58,38 +58,38 @@ struct conference_state {
 };
 
 /*! \brief Conference state with no active or waiting users */
-extern struct conference_state *CONF_STATE_EMPTY;
+extern struct confbridge_state *CONF_STATE_EMPTY;
 
 /*! \brief Conference state with only waiting users */
-extern struct conference_state *CONF_STATE_INACTIVE;
+extern struct confbridge_state *CONF_STATE_INACTIVE;
 
 /*! \brief Conference state with only a single unmarked active user */
-extern struct conference_state *CONF_STATE_SINGLE;
+extern struct confbridge_state *CONF_STATE_SINGLE;
 
 /*! \brief Conference state with only a single marked active user */
-extern struct conference_state *CONF_STATE_SINGLE_MARKED;
+extern struct confbridge_state *CONF_STATE_SINGLE_MARKED;
 
 /*! \brief Conference state with multiple active users, but no marked users */
-extern struct conference_state *CONF_STATE_MULTI;
+extern struct confbridge_state *CONF_STATE_MULTI;
 
 /*! \brief Conference state with multiple active users and at least one marked user */
-extern struct conference_state *CONF_STATE_MULTI_MARKED;
+extern struct confbridge_state *CONF_STATE_MULTI_MARKED;
 
 /*! \brief Execute conference state transition because of a user action
- * \param cbu The user that joined/left
+ * \param user The user that joined/left
  * \param newstate The state to transition to
  */
-void conf_change_state(struct conference_bridge_user *cbu, struct conference_state *newstate);
+void conf_change_state(struct confbridge_user *user, struct confbridge_state *newstate);
 
 /* Common event handlers shared between different states */
 
 /*! \brief Logic to execute every time a waitmarked user joins an unmarked conference */
-void conf_default_join_waitmarked(struct conference_bridge_user *cbu);
+void conf_default_join_waitmarked(struct confbridge_user *user);
 
 /*! \brief Logic to execute every time a waitmarked user leaves an unmarked conference */
-void conf_default_leave_waitmarked(struct conference_bridge_user *cbu);
+void conf_default_leave_waitmarked(struct confbridge_user *user);
 
 /*! \brief A handler for join/leave events that are invalid in a particular state */
-void conf_invalid_event_fn(struct conference_bridge_user *cbu);
+void conf_invalid_event_fn(struct confbridge_user *user);
 
 #endif

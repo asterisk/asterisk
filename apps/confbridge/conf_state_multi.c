@@ -35,12 +35,12 @@
 #include "include/confbridge.h"
 #include "include/conf_state.h"
 
-static void join_unmarked(struct conference_bridge_user *cbu);
-static void join_marked(struct conference_bridge_user *cbu);
-static void leave_unmarked(struct conference_bridge_user *cbu);
-void transition_to_multi(struct conference_bridge_user *cbu);
+static void join_unmarked(struct confbridge_user *user);
+static void join_marked(struct confbridge_user *user);
+static void leave_unmarked(struct confbridge_user *user);
+void transition_to_multi(struct confbridge_user *user);
 
-struct conference_state STATE_MULTI = {
+struct confbridge_state STATE_MULTI = {
 	.name = "MULTI",
 	.join_unmarked = join_unmarked,
 	.join_waitmarked = conf_default_join_waitmarked,
@@ -49,29 +49,29 @@ struct conference_state STATE_MULTI = {
 	.leave_waitmarked = conf_default_leave_waitmarked,
 	.entry = transition_to_multi,
 };
-struct conference_state *CONF_STATE_MULTI = &STATE_MULTI;
+struct confbridge_state *CONF_STATE_MULTI = &STATE_MULTI;
 
-static void join_unmarked(struct conference_bridge_user *cbu)
+static void join_unmarked(struct confbridge_user *user)
 {
-	conf_add_user_active(cbu->conference_bridge, cbu);
+	conf_add_user_active(user->conference, user);
 }
 
-static void join_marked(struct conference_bridge_user *cbu)
+static void join_marked(struct confbridge_user *user)
 {
-	conf_add_user_marked(cbu->conference_bridge, cbu);
+	conf_add_user_marked(user->conference, user);
 
-	conf_change_state(cbu, CONF_STATE_MULTI_MARKED);
+	conf_change_state(user, CONF_STATE_MULTI_MARKED);
 }
 
-static void leave_unmarked(struct conference_bridge_user *cbu)
+static void leave_unmarked(struct confbridge_user *user)
 {
-	conf_remove_user_active(cbu->conference_bridge, cbu);
-	if (cbu->conference_bridge->activeusers == 1) {
-		conf_change_state(cbu, CONF_STATE_SINGLE);
+	conf_remove_user_active(user->conference, user);
+	if (user->conference->activeusers == 1) {
+		conf_change_state(user, CONF_STATE_SINGLE);
 	}
 }
 
-void transition_to_multi(struct conference_bridge_user *cbu)
+void transition_to_multi(struct confbridge_user *user)
 {
 	return;
 }

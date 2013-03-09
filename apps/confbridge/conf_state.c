@@ -42,9 +42,9 @@
 #include "include/conf_state.h"
 #include "include/confbridge.h"
 
-void conf_invalid_event_fn(struct conference_bridge_user *cbu)
+void conf_invalid_event_fn(struct confbridge_user *user)
 {
-	ast_log(LOG_ERROR, "Invalid event for confbridge user '%s'\n", cbu->u_profile.name);
+	ast_log(LOG_ERROR, "Invalid event for confbridge user '%s'\n", user->u_profile.name);
 }
 
 /*!
@@ -55,7 +55,7 @@ void conf_invalid_event_fn(struct conference_bridge_user *cbu)
  *
  * \return Nothing
  */
-static void conf_mute_moh_inactive_waitmarked(struct conference_bridge_user *user)
+static void conf_mute_moh_inactive_waitmarked(struct confbridge_user *user)
 {
 	/* Be sure we are muted so we can't talk to anybody else waiting */
 	user->features.mute = 1;
@@ -65,30 +65,30 @@ static void conf_mute_moh_inactive_waitmarked(struct conference_bridge_user *use
 	}
 }
 
-void conf_default_join_waitmarked(struct conference_bridge_user *cbu)
+void conf_default_join_waitmarked(struct confbridge_user *user)
 {
-	conf_add_user_waiting(cbu->conference_bridge, cbu);
-	conf_mute_moh_inactive_waitmarked(cbu);
-	conf_add_post_join_action(cbu, conf_handle_inactive_waitmarked);
+	conf_add_user_waiting(user->conference, user);
+	conf_mute_moh_inactive_waitmarked(user);
+	conf_add_post_join_action(user, conf_handle_inactive_waitmarked);
 }
 
-void conf_default_leave_waitmarked(struct conference_bridge_user *cbu)
+void conf_default_leave_waitmarked(struct confbridge_user *user)
 {
-	conf_remove_user_waiting(cbu->conference_bridge, cbu);
+	conf_remove_user_waiting(user->conference, user);
 }
 
-void conf_change_state(struct conference_bridge_user *cbu, struct conference_state *newstate)
+void conf_change_state(struct confbridge_user *user, struct confbridge_state *newstate)
 {
-	ast_debug(1, "Changing conference '%s' state from %s to %s\n", cbu->conference_bridge->name, cbu->conference_bridge->state->name, newstate->name);
+	ast_debug(1, "Changing conference '%s' state from %s to %s\n", user->conference->name, user->conference->state->name, newstate->name);
 	ast_test_suite_event_notify("CONF_CHANGE_STATE", "Conference: %s\r\nOldState: %s\r\nNewState: %s\r\n",
-			cbu->conference_bridge->name,
-			cbu->conference_bridge->state->name,
+			user->conference->name,
+			user->conference->state->name,
 			newstate->name);
-	if (cbu->conference_bridge->state->exit) {
-		cbu->conference_bridge->state->exit(cbu);
+	if (user->conference->state->exit) {
+		user->conference->state->exit(user);
 	}
-	cbu->conference_bridge->state = newstate;
-	if (cbu->conference_bridge->state->entry) {
-		cbu->conference_bridge->state->entry(cbu);
+	user->conference->state = newstate;
+	if (user->conference->state->entry) {
+		user->conference->state->entry(user);
 	}
 }

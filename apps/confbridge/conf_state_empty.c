@@ -37,12 +37,12 @@
 #include "include/confbridge.h"
 #include "include/conf_state.h"
 
-static void join_unmarked(struct conference_bridge_user *cbu);
-static void join_waitmarked(struct conference_bridge_user *cbu);
-static void join_marked(struct conference_bridge_user *cbu);
-static void transition_to_empty(struct conference_bridge_user *cbu);
+static void join_unmarked(struct confbridge_user *user);
+static void join_waitmarked(struct confbridge_user *user);
+static void join_marked(struct confbridge_user *user);
+static void transition_to_empty(struct confbridge_user *user);
 
-struct conference_state STATE_EMPTY = {
+struct confbridge_state STATE_EMPTY = {
 	.name = "EMPTY",
 	.join_unmarked = join_unmarked,
 	.join_waitmarked = join_waitmarked,
@@ -50,37 +50,37 @@ struct conference_state STATE_EMPTY = {
 	.entry = transition_to_empty,
 };
 
-struct conference_state *CONF_STATE_EMPTY = &STATE_EMPTY;
+struct confbridge_state *CONF_STATE_EMPTY = &STATE_EMPTY;
 
-static void join_unmarked(struct conference_bridge_user *cbu)
+static void join_unmarked(struct confbridge_user *user)
 {
-	conf_add_user_active(cbu->conference_bridge, cbu);
-	conf_handle_first_join(cbu->conference_bridge);
-	conf_add_post_join_action(cbu, conf_handle_only_unmarked);
+	conf_add_user_active(user->conference, user);
+	conf_handle_first_join(user->conference);
+	conf_add_post_join_action(user, conf_handle_only_unmarked);
 
-	conf_change_state(cbu, CONF_STATE_SINGLE);
+	conf_change_state(user, CONF_STATE_SINGLE);
 }
 
-static void join_waitmarked(struct conference_bridge_user *cbu)
+static void join_waitmarked(struct confbridge_user *user)
 {
-	conf_default_join_waitmarked(cbu);
-	conf_handle_first_join(cbu->conference_bridge);
+	conf_default_join_waitmarked(user);
+	conf_handle_first_join(user->conference);
 
-	conf_change_state(cbu, CONF_STATE_INACTIVE);
+	conf_change_state(user, CONF_STATE_INACTIVE);
 }
 
-static void join_marked(struct conference_bridge_user *cbu)
+static void join_marked(struct confbridge_user *user)
 {
-	conf_add_user_marked(cbu->conference_bridge, cbu);
-	conf_handle_first_join(cbu->conference_bridge);
-	conf_add_post_join_action(cbu, conf_handle_first_marked_common);
+	conf_add_user_marked(user->conference, user);
+	conf_handle_first_join(user->conference);
+	conf_add_post_join_action(user, conf_handle_first_marked_common);
 
-	conf_change_state(cbu, CONF_STATE_SINGLE_MARKED);
+	conf_change_state(user, CONF_STATE_SINGLE_MARKED);
 }
 
-static void transition_to_empty(struct conference_bridge_user *cbu)
+static void transition_to_empty(struct confbridge_user *user)
 {
 	/* Set device state to "not in use" */
-	ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", cbu->conference_bridge->name);
-	conf_ended(cbu->conference_bridge);
+	ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", user->conference->name);
+	conf_ended(user->conference);
 }

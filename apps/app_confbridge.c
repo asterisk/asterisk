@@ -305,10 +305,10 @@ enum {
 /*! \brief Container to hold all conference bridges in progress */
 static struct ao2_container *conference_bridges;
 
-static void leave_conference(struct conference_bridge_user *user);
-static int play_sound_number(struct conference_bridge *conference_bridge, int say_number);
-static int execute_menu_entry(struct conference_bridge *conference_bridge,
-	struct conference_bridge_user *conference_bridge_user,
+static void leave_conference(struct confbridge_user *user);
+static int play_sound_number(struct confbridge_conference *conference, int say_number);
+static int execute_menu_entry(struct confbridge_conference *conference,
+	struct confbridge_user *user,
 	struct ast_bridge_channel *bridge_channel,
 	struct conf_menu_entry *menu_entry,
 	struct conf_menu *menu);
@@ -316,15 +316,15 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 /*! \brief Hashing function used for conference bridges container */
 static int conference_bridge_hash_cb(const void *obj, const int flags)
 {
-	const struct conference_bridge *conference_bridge = obj;
-	return ast_str_case_hash(conference_bridge->name);
+	const struct confbridge_conference *conference = obj;
+	return ast_str_case_hash(conference->name);
 }
 
 /*! \brief Comparison function used for conference bridges container */
 static int conference_bridge_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct conference_bridge *conference_bridge0 = obj, *conference_bridge1 = arg;
-	return (!strcasecmp(conference_bridge0->name, conference_bridge1->name) ? CMP_MATCH | CMP_STOP : 0);
+	const struct confbridge_conference *conference0 = obj, *conference1 = arg;
+	return (!strcasecmp(conference0->name, conference1->name) ? CMP_MATCH | CMP_STOP : 0);
 }
 
 const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds *custom_sounds)
@@ -596,13 +596,13 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	return tmp;
 }
 
-static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename, int is_new)
+static void set_rec_filename(struct confbridge_conference *conference, struct ast_str **filename, int is_new)
 {
-	char *rec_file = bridge->b_profile.rec_file;
+	char *rec_file = conference->b_profile.rec_file;
 	time_t now;
 	char *ext;
 
-	if (ast_str_strlen(*filename) && ast_test_flag(&bridge->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND) && !is_new) {
+	if (ast_str_strlen(*filename) && ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND) && !is_new) {
 		    return;
 	}
 
@@ -610,7 +610,7 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 
 	ast_str_reset(*filename);
 	if (ast_strlen_zero(rec_file)) {
-		ast_str_set(filename, 0, "confbridge-%s-%u.wav", bridge->name, (unsigned int)now);
+		ast_str_set(filename, 0, "confbridge-%s-%u.wav", conference->name, (unsigned int)now);
 	} else {
 		/* insert time before file extension */
 		ext = strrchr(rec_file, '.');
@@ -622,7 +622,7 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 		}
 	}
 
-	if (ast_test_flag(&bridge->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND)) {
+	if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND)) {
 		ast_str_append(filename, 0, ",a");
 	}
 }
@@ -644,69 +644,69 @@ static int is_new_rec_file(const char *rec_file, struct ast_str **orig_rec_file)
 
 static void *record_thread(void *obj)
 {
-	struct conference_bridge *conference_bridge = obj;
+	struct confbridge_conference *conference = obj;
 	struct ast_app *mixmonapp = pbx_findapp("MixMonitor");
 	struct ast_channel *chan;
 	struct ast_str *filename = ast_str_alloca(PATH_MAX);
 	struct ast_str *orig_rec_file = NULL;
 
-	ast_mutex_lock(&conference_bridge->record_lock);
+	ast_mutex_lock(&conference->record_lock);
 	if (!mixmonapp) {
 		ast_log(LOG_WARNING, "Can not record ConfBridge, MixMonitor app is not installed\n");
-		conference_bridge->record_thread = AST_PTHREADT_NULL;
-		ast_mutex_unlock(&conference_bridge->record_lock);
-		ao2_ref(conference_bridge, -1);
+		conference->record_thread = AST_PTHREADT_NULL;
+		ast_mutex_unlock(&conference->record_lock);
+		ao2_ref(conference, -1);
 		return NULL;
 	}
 
 	/* XXX If we get an EXIT right here, START will essentially be a no-op */
-	while (conference_bridge->record_state != CONF_RECORD_EXIT) {
-		set_rec_filename(conference_bridge, &filename,
-				 is_new_rec_file(conference_bridge->b_profile.rec_file, &orig_rec_file));
-		chan = ast_channel_ref(conference_bridge->record_chan);
+	while (conference->record_state != CONF_RECORD_EXIT) {
+		set_rec_filename(conference, &filename,
+				 is_new_rec_file(conference->b_profile.rec_file, &orig_rec_file));
+		chan = ast_channel_ref(conference->record_chan);
 		ast_answer(chan);
 		pbx_exec(chan, mixmonapp, ast_str_buffer(filename));
-		ast_bridge_join(conference_bridge->bridge, chan, NULL, NULL, NULL);
+		ast_bridge_join(conference->bridge, chan, NULL, NULL, NULL);
 
 		ast_hangup(chan); /* This will eat this thread's reference to the channel as well */
 		/* STOP has been called. Wait for either a START or an EXIT */
-		ast_cond_wait(&conference_bridge->record_cond, &conference_bridge->record_lock);
+		ast_cond_wait(&conference->record_cond, &conference->record_lock);
 	}
 	ast_free(orig_rec_file);
-	ast_mutex_unlock(&conference_bridge->record_lock);
-	ao2_ref(conference_bridge, -1);
+	ast_mutex_unlock(&conference->record_lock);
+	ao2_ref(conference, -1);
 	return NULL;
 }
 
 /*! \brief Returns whether or not conference is being recorded.
- * \param conference_bridge The bridge to check for recording
+ * \param conference The bridge to check for recording
  * \retval 1, conference is recording.
  * \retval 0, conference is NOT recording.
  */
-static int conf_is_recording(struct conference_bridge *conference_bridge)
+static int conf_is_recording(struct confbridge_conference *conference)
 {
-	return conference_bridge->record_state == CONF_RECORD_START;
+	return conference->record_state == CONF_RECORD_START;
 }
 
 /*! \brief Stop recording a conference bridge
  * \internal
- * \param conference_bridge The conference bridge on which to stop the recording
+ * \param conference The conference bridge on which to stop the recording
  * \retval -1 Failure
  * \retval 0 Success
  */
-static int conf_stop_record(struct conference_bridge *conference_bridge)
+static int conf_stop_record(struct confbridge_conference *conference)
 {
 	struct ast_channel *chan;
-	if (conference_bridge->record_thread == AST_PTHREADT_NULL || !conf_is_recording(conference_bridge)) {
+	if (conference->record_thread == AST_PTHREADT_NULL || !conf_is_recording(conference)) {
 		return -1;
 	}
-	conference_bridge->record_state = CONF_RECORD_STOP;
-	chan = ast_channel_ref(conference_bridge->record_chan);
-	ast_bridge_remove(conference_bridge->bridge, chan);
+	conference->record_state = CONF_RECORD_STOP;
+	chan = ast_channel_ref(conference->record_chan);
+	ast_bridge_remove(conference->bridge, chan);
 	ast_queue_frame(chan, &ast_null_frame);
 	chan = ast_channel_unref(chan);
-	ast_test_suite_event_notify("CONF_STOP_RECORD", "Message: stopped conference recording channel\r\nConference: %s", conference_bridge->b_profile.name);
-	send_stop_record_event(conference_bridge->name);
+	ast_test_suite_event_notify("CONF_STOP_RECORD", "Message: stopped conference recording channel\r\nConference: %s", conference->b_profile.name);
+	send_stop_record_event(conference->name);
 
 	return 0;
 }
@@ -715,26 +715,26 @@ static int conf_stop_record(struct conference_bridge *conference_bridge)
  * \internal
  * \brief Stops the confbridge recording thread.
  *
- * \note Must be called with the conference_bridge locked
+ * \note Must be called with the conference locked
  */
-static int conf_stop_record_thread(struct conference_bridge *conference_bridge)
+static int conf_stop_record_thread(struct confbridge_conference *conference)
 {
-	if (conference_bridge->record_thread == AST_PTHREADT_NULL) {
+	if (conference->record_thread == AST_PTHREADT_NULL) {
 		return -1;
 	}
-	conf_stop_record(conference_bridge);
+	conf_stop_record(conference);
 
-	ast_mutex_lock(&conference_bridge->record_lock);
-	conference_bridge->record_state = CONF_RECORD_EXIT;
-	ast_cond_signal(&conference_bridge->record_cond);
-	ast_mutex_unlock(&conference_bridge->record_lock);
+	ast_mutex_lock(&conference->record_lock);
+	conference->record_state = CONF_RECORD_EXIT;
+	ast_cond_signal(&conference->record_cond);
+	ast_mutex_unlock(&conference->record_lock);
 
-	pthread_join(conference_bridge->record_thread, NULL);
-	conference_bridge->record_thread = AST_PTHREADT_NULL;
+	pthread_join(conference->record_thread, NULL);
+	conference->record_thread = AST_PTHREADT_NULL;
 
 	/* this is the reference given to the channel during the channel alloc */
-	if (conference_bridge->record_chan) {
-		conference_bridge->record_chan = ast_channel_unref(conference_bridge->record_chan);
+	if (conference->record_chan) {
+		conference->record_chan = ast_channel_unref(conference->record_chan);
 	}
 
 	return 0;
@@ -742,18 +742,18 @@ static int conf_stop_record_thread(struct conference_bridge *conference_bridge)
 
 /*! \brief Start recording the conference
  * \internal
- * \note conference_bridge must be locked when calling this function
- * \param conference_bridge The conference bridge to start recording
+ * \note The conference must be locked when calling this function
+ * \param conference The conference bridge to start recording
  * \retval 0 success
  * \rteval non-zero failure
  */
-static int conf_start_record(struct conference_bridge *conference_bridge)
+static int conf_start_record(struct confbridge_conference *conference)
 {
 	struct ast_format_cap *cap;
 	struct ast_format tmpfmt;
 	int cause;
 
-	if (conference_bridge->record_state != CONF_RECORD_STOP) {
+	if (conference->record_state != CONF_RECORD_STOP) {
 		return -1;
 	}
 
@@ -768,45 +768,45 @@ static int conf_start_record(struct conference_bridge *conference_bridge)
 
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 
-	if (!(conference_bridge->record_chan = ast_request("ConfBridgeRec", cap, NULL, conference_bridge->name, &cause))) {
+	if (!(conference->record_chan = ast_request("ConfBridgeRec", cap, NULL, conference->name, &cause))) {
 		cap = ast_format_cap_destroy(cap);
 		return -1;
 	}
 
 	cap = ast_format_cap_destroy(cap);
 
-	conference_bridge->record_state = CONF_RECORD_START;
-	ast_mutex_lock(&conference_bridge->record_lock);
-	ast_cond_signal(&conference_bridge->record_cond);
-	ast_mutex_unlock(&conference_bridge->record_lock);
-	ast_test_suite_event_notify("CONF_START_RECORD", "Message: started conference recording channel\r\nConference: %s", conference_bridge->b_profile.name);
-	send_start_record_event(conference_bridge->name);
+	conference->record_state = CONF_RECORD_START;
+	ast_mutex_lock(&conference->record_lock);
+	ast_cond_signal(&conference->record_cond);
+	ast_mutex_unlock(&conference->record_lock);
+	ast_test_suite_event_notify("CONF_START_RECORD", "Message: started conference recording channel\r\nConference: %s", conference->b_profile.name);
+	send_start_record_event(conference->name);
 
 	return 0;
 }
 
 /*! \brief Start the recording thread on a conference bridge
  * \internal
- * \param conference_bridge The conference bridge on which to start the recording thread
+ * \param conference The conference bridge on which to start the recording thread
  * \retval 0 success
  * \retval -1 failure
  */
-static int start_conf_record_thread(struct conference_bridge *conference_bridge)
+static int start_conf_record_thread(struct confbridge_conference *conference)
 {
-	conf_start_record(conference_bridge);
+	conf_start_record(conference);
 
 	/*
 	 * if the thread has already been started, don't start another
 	 */
-	if (conference_bridge->record_thread != AST_PTHREADT_NULL) {
+	if (conference->record_thread != AST_PTHREADT_NULL) {
 		return 0;
 	}
 
-	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
+	ao2_ref(conference, +1); /* give the record thread a ref */
 
-	if (ast_pthread_create_background(&conference_bridge->record_thread, NULL, record_thread, conference_bridge)) {
-		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference_bridge->name);
-		ao2_ref(conference_bridge, -1); /* error so remove ref */
+	if (ast_pthread_create_background(&conference->record_thread, NULL, record_thread, conference)) {
+		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference->name);
+		ao2_ref(conference, -1); /* error so remove ref */
 		return -1;
 	}
 
@@ -833,52 +833,52 @@ static int sound_file_exists(const char *filename)
 /*!
  * \brief Announce number of users in the conference bridge to the caller
  *
- * \param conference_bridge Conference bridge to peek at
- * \param conference_bridge_user Optional Caller
+ * \param conference Conference bridge to peek at
+ * \param user Optional Caller
  *
  * \note if caller is NULL, the announcment will be sent to all participants in the conference.
  * \return Returns 0 on success, -1 if the user hung up
  */
-static int announce_user_count(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+static int announce_user_count(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	const char *other_in_party = conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, conference_bridge->b_profile.sounds);
-	const char *only_one = conf_get_sound(CONF_SOUND_ONLY_ONE, conference_bridge->b_profile.sounds);
-	const char *there_are = conf_get_sound(CONF_SOUND_THERE_ARE, conference_bridge->b_profile.sounds);
+	const char *other_in_party = conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, conference->b_profile.sounds);
+	const char *only_one = conf_get_sound(CONF_SOUND_ONLY_ONE, conference->b_profile.sounds);
+	const char *there_are = conf_get_sound(CONF_SOUND_THERE_ARE, conference->b_profile.sounds);
 
-	if (conference_bridge->activeusers <= 1) {
+	if (conference->activeusers <= 1) {
 		/* Awww we are the only person in the conference bridge OR we only have waitmarked users */
 		return 0;
-	} else if (conference_bridge->activeusers == 2) {
-		if (conference_bridge_user) {
+	} else if (conference->activeusers == 2) {
+		if (user) {
 			/* Eep, there is one other person */
-			if (ast_stream_and_wait(conference_bridge_user->chan,
+			if (ast_stream_and_wait(user->chan,
 				only_one,
 				"")) {
 				return -1;
 			}
 		} else {
-			play_sound_file(conference_bridge, only_one);
+			play_sound_file(conference, only_one);
 		}
 	} else {
 		/* Alas multiple others in here */
-		if (conference_bridge_user) {
-			if (ast_stream_and_wait(conference_bridge_user->chan,
+		if (user) {
+			if (ast_stream_and_wait(user->chan,
 				there_are,
 				"")) {
 				return -1;
 			}
-			if (ast_say_number(conference_bridge_user->chan, conference_bridge->activeusers - 1, "", ast_channel_language(conference_bridge_user->chan), NULL)) {
+			if (ast_say_number(user->chan, conference->activeusers - 1, "", ast_channel_language(user->chan), NULL)) {
 				return -1;
 			}
-			if (ast_stream_and_wait(conference_bridge_user->chan,
+			if (ast_stream_and_wait(user->chan,
 				other_in_party,
 				"")) {
 				return -1;
 			}
 		} else if (sound_file_exists(there_are) && sound_file_exists(other_in_party)) {
-			play_sound_file(conference_bridge, there_are);
-			play_sound_number(conference_bridge, conference_bridge->activeusers - 1);
-			play_sound_file(conference_bridge, other_in_party);
+			play_sound_file(conference, there_are);
+			play_sound_number(conference, conference->activeusers - 1);
+			play_sound_file(conference, other_in_party);
 		}
 	}
 	return 0;
@@ -887,7 +887,7 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 /*!
  * \brief Play back an audio file to a channel
  *
- * \param cbu User to play audio prompt to
+ * \param user User to play audio prompt to
  * \param filename Prompt to play
  *
  * \return Returns 0 on success, -1 if the user hung up
@@ -895,78 +895,79 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
  * the entire conference while the sound is played. But don't unlock the conference bridge
  * in the middle of a state transition.
  */
-static int play_prompt_to_user(struct conference_bridge_user *cbu, const char *filename)
+static int play_prompt_to_user(struct confbridge_user *user, const char *filename)
 {
-	return ast_stream_and_wait(cbu->chan, filename, "");
+	return ast_stream_and_wait(user->chan, filename, "");
 }
 
-static void handle_video_on_join(struct conference_bridge *conference_bridge, struct ast_channel *chan, int marked)
+static void handle_video_on_join(struct confbridge_conference *conference, struct ast_channel *chan, int marked)
 {
 	/* Right now, only marked users are automatically set as the single src of video.*/
 	if (!marked) {
 		return;
 	}
 
-	if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED)) {
+	if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED)) {
 		int set = 1;
-		struct conference_bridge_user *tmp_user = NULL;
-		ao2_lock(conference_bridge);
+		struct confbridge_user *user = NULL;
+
+		ao2_lock(conference);
 		/* see if anyone is already the video src */
-		AST_LIST_TRAVERSE(&conference_bridge->active_list, tmp_user, list) {
-			if (tmp_user->chan == chan) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (user->chan == chan) {
 				continue;
 			}
-			if (ast_bridge_is_video_src(conference_bridge->bridge, tmp_user->chan)) {
+			if (ast_bridge_is_video_src(conference->bridge, user->chan)) {
 				set = 0;
 				break;
 			}
 		}
-		ao2_unlock(conference_bridge);
+		ao2_unlock(conference);
 		if (set) {
-			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, chan);
+			ast_bridge_set_single_src_video_mode(conference->bridge, chan);
 		}
-	} else if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
+	} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
 		/* we joined and are video capable, we override anyone else that may have already been the video feed */
-		ast_bridge_set_single_src_video_mode(conference_bridge->bridge, chan);
+		ast_bridge_set_single_src_video_mode(conference->bridge, chan);
 	}
 }
 
-static void handle_video_on_exit(struct conference_bridge *conference_bridge, struct ast_channel *chan)
+static void handle_video_on_exit(struct confbridge_conference *conference, struct ast_channel *chan)
 {
-	struct conference_bridge_user *tmp_user = NULL;
+	struct confbridge_user *user = NULL;
 
 	/* if this isn't a video source, nothing to update */
-	if (!ast_bridge_is_video_src(conference_bridge->bridge, chan)) {
+	if (!ast_bridge_is_video_src(conference->bridge, chan)) {
 		return;
 	}
 
-	ast_bridge_remove_video_src(conference_bridge->bridge, chan);
+	ast_bridge_remove_video_src(conference->bridge, chan);
 
 	/* If in follow talker mode, make sure to restore this mode on the
 	 * bridge when a source is removed.  It is possible this channel was
 	 * only set temporarily as a video source by an AMI or DTMF action. */
-	if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
-		ast_bridge_set_talker_src_video_mode(conference_bridge->bridge);
+	if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
+		ast_bridge_set_talker_src_video_mode(conference->bridge);
 	}
 
 	/* if the video_mode isn't set to automatically pick the video source, do nothing on exit. */
-	if (!ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED) &&
-		!ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
+	if (!ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED) &&
+		!ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
 		return;
 	}
 
 	/* Make the next available marked user the video src.  */
-	ao2_lock(conference_bridge);
-	AST_LIST_TRAVERSE(&conference_bridge->active_list, tmp_user, list) {
-		if (tmp_user->chan == chan) {
+	ao2_lock(conference);
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+		if (user->chan == chan) {
 			continue;
 		}
-		if (ast_test_flag(&tmp_user->u_profile, USER_OPT_MARKEDUSER)) {
-			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, tmp_user->chan);
+		if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
+			ast_bridge_set_single_src_video_mode(conference->bridge, user->chan);
 			break;
 		}
 	}
-	ao2_unlock(conference_bridge);
+	ao2_unlock(conference);
 }
 
 /*!
@@ -978,75 +979,75 @@ static void handle_video_on_exit(struct conference_bridge *conference_bridge, st
  */
 static void destroy_conference_bridge(void *obj)
 {
-	struct conference_bridge *conference_bridge = obj;
+	struct confbridge_conference *conference = obj;
 
-	ast_debug(1, "Destroying conference bridge '%s'\n", conference_bridge->name);
+	ast_debug(1, "Destroying conference bridge '%s'\n", conference->name);
 
-	if (conference_bridge->playback_chan) {
-		struct ast_channel *underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
+	if (conference->playback_chan) {
+		struct ast_channel *underlying_channel = ast_channel_tech(conference->playback_chan)->bridged_channel(conference->playback_chan, NULL);
 		if (underlying_channel) {
 			ast_hangup(underlying_channel);
 		}
-		ast_hangup(conference_bridge->playback_chan);
-		conference_bridge->playback_chan = NULL;
+		ast_hangup(conference->playback_chan);
+		conference->playback_chan = NULL;
 	}
 
 	/* Destroying a conference bridge is simple, all we have to do is destroy the bridging object */
-	if (conference_bridge->bridge) {
-		ast_bridge_destroy(conference_bridge->bridge);
-		conference_bridge->bridge = NULL;
+	if (conference->bridge) {
+		ast_bridge_destroy(conference->bridge);
+		conference->bridge = NULL;
 	}
 
-	conf_bridge_profile_destroy(&conference_bridge->b_profile);
-	ast_cond_destroy(&conference_bridge->record_cond);
-	ast_mutex_destroy(&conference_bridge->record_lock);
-	ast_mutex_destroy(&conference_bridge->playback_lock);
+	conf_bridge_profile_destroy(&conference->b_profile);
+	ast_cond_destroy(&conference->record_cond);
+	ast_mutex_destroy(&conference->record_lock);
+	ast_mutex_destroy(&conference->playback_lock);
 }
 
 /*! \brief Call the proper join event handler for the user for the conference bridge's current state
  * \internal
- * \param cbu The conference bridge user that is joining
+ * \param user The conference bridge user that is joining
  * \retval 0 success
  * \retval -1 failure
  */
-static int handle_conf_user_join(struct conference_bridge_user *cbu)
+static int handle_conf_user_join(struct confbridge_user *user)
 {
 	conference_event_fn handler;
-	if (ast_test_flag(&cbu->u_profile, USER_OPT_MARKEDUSER)) {
-		handler = cbu->conference_bridge->state->join_marked;
-	} else if (ast_test_flag(&cbu->u_profile, USER_OPT_WAITMARKED)) {
-		handler = cbu->conference_bridge->state->join_waitmarked;
+	if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
+		handler = user->conference->state->join_marked;
+	} else if (ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED)) {
+		handler = user->conference->state->join_waitmarked;
 	} else {
-		handler = cbu->conference_bridge->state->join_unmarked;
+		handler = user->conference->state->join_unmarked;
 	}
 
 	ast_assert(handler != NULL);
 
 	if (!handler) {
-		conf_invalid_event_fn(cbu);
+		conf_invalid_event_fn(user);
 		return -1;
 	}
 
-	handler(cbu);
+	handler(user);
 
 	return 0;
 }
 
 /*! \brief Call the proper leave event handler for the user for the conference bridge's current state
  * \internal
- * \param cbu The conference bridge user that is leaving
+ * \param user The conference bridge user that is leaving
  * \retval 0 success
  * \retval -1 failure
  */
-static int handle_conf_user_leave(struct conference_bridge_user *cbu)
+static int handle_conf_user_leave(struct confbridge_user *user)
 {
 	conference_event_fn handler;
-	if (ast_test_flag(&cbu->u_profile, USER_OPT_MARKEDUSER)) {
-		handler = cbu->conference_bridge->state->leave_marked;
-	} else if (ast_test_flag(&cbu->u_profile, USER_OPT_WAITMARKED)) {
-		handler = cbu->conference_bridge->state->leave_waitmarked;
+	if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
+		handler = user->conference->state->leave_marked;
+	} else if (ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED)) {
+		handler = user->conference->state->leave_waitmarked;
 	} else {
-		handler = cbu->conference_bridge->state->leave_unmarked;
+		handler = user->conference->state->leave_unmarked;
 	}
 
 	ast_assert(handler != NULL);
@@ -1055,16 +1056,16 @@ static int handle_conf_user_leave(struct conference_bridge_user *cbu)
 		/* This should never happen. If it does, though, it is bad. The user will not have been removed
 		 * from the appropriate list, so counts will be off and stuff. The conference won't be torn down, etc.
 		 * Shouldn't happen, though. */
-		conf_invalid_event_fn(cbu);
+		conf_invalid_event_fn(user);
 		return -1;
 	}
 
-	handler(cbu);
+	handler(user);
 
 	return 0;
 }
 
-void conf_moh_stop(struct conference_bridge_user *user)
+void conf_moh_stop(struct confbridge_user *user)
 {
 	user->playing_moh = 0;
 	if (!user->suspended_moh) {
@@ -1075,23 +1076,23 @@ void conf_moh_stop(struct conference_bridge_user *user)
 		 * call to ast_bridge_join() in confbridge_exec() from
 		 * interfering with the bridge and MOH operations here.
 		 */
-		ast_bridge_lock(user->conference_bridge->bridge);
+		ast_bridge_lock(user->conference->bridge);
 
 		/*
 		 * Temporarily suspend the user from the bridge so we have
 		 * control to stop MOH if needed.
 		 */
-		in_bridge = !ast_bridge_suspend(user->conference_bridge->bridge, user->chan);
+		in_bridge = !ast_bridge_suspend(user->conference->bridge, user->chan);
 		ast_moh_stop(user->chan);
 		if (in_bridge) {
-			ast_bridge_unsuspend(user->conference_bridge->bridge, user->chan);
+			ast_bridge_unsuspend(user->conference->bridge, user->chan);
 		}
 
-		ast_bridge_unlock(user->conference_bridge->bridge);
+		ast_bridge_unlock(user->conference->bridge);
 	}
 }
 
-void conf_moh_start(struct conference_bridge_user *user)
+void conf_moh_start(struct confbridge_user *user)
 {
 	user->playing_moh = 1;
 	if (!user->suspended_moh) {
@@ -1102,19 +1103,19 @@ void conf_moh_start(struct conference_bridge_user *user)
 		 * call to ast_bridge_join() in confbridge_exec() from
 		 * interfering with the bridge and MOH operations here.
 		 */
-		ast_bridge_lock(user->conference_bridge->bridge);
+		ast_bridge_lock(user->conference->bridge);
 
 		/*
 		 * Temporarily suspend the user from the bridge so we have
 		 * control to start MOH if needed.
 		 */
-		in_bridge = !ast_bridge_suspend(user->conference_bridge->bridge, user->chan);
+		in_bridge = !ast_bridge_suspend(user->conference->bridge, user->chan);
 		ast_moh_start(user->chan, user->u_profile.moh_class, NULL);
 		if (in_bridge) {
-			ast_bridge_unsuspend(user->conference_bridge->bridge, user->chan);
+			ast_bridge_unsuspend(user->conference->bridge, user->chan);
 		}
 
-		ast_bridge_unlock(user->conference_bridge->bridge);
+		ast_bridge_unlock(user->conference->bridge);
 	}
 }
 
@@ -1126,13 +1127,13 @@ void conf_moh_start(struct conference_bridge_user *user)
  *
  * \return Nothing
  */
-static void conf_moh_unsuspend(struct conference_bridge_user *user)
+static void conf_moh_unsuspend(struct confbridge_user *user)
 {
-	ao2_lock(user->conference_bridge);
+	ao2_lock(user->conference);
 	if (--user->suspended_moh == 0 && user->playing_moh) {
 		ast_moh_start(user->chan, user->u_profile.moh_class, NULL);
 	}
-	ao2_unlock(user->conference_bridge);
+	ao2_unlock(user->conference);
 }
 
 /*!
@@ -1143,40 +1144,40 @@ static void conf_moh_unsuspend(struct conference_bridge_user *user)
  *
  * \return Nothing
  */
-static void conf_moh_suspend(struct conference_bridge_user *user)
+static void conf_moh_suspend(struct confbridge_user *user)
 {
-	ao2_lock(user->conference_bridge);
+	ao2_lock(user->conference);
 	if (user->suspended_moh++ == 0 && user->playing_moh) {
 		ast_moh_stop(user->chan);
 	}
-	ao2_unlock(user->conference_bridge);
+	ao2_unlock(user->conference);
 }
 
-int conf_handle_first_marked_common(struct conference_bridge_user *cbu)
+int conf_handle_first_marked_common(struct confbridge_user *user)
 {
-	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET) && play_prompt_to_user(cbu, conf_get_sound(CONF_SOUND_PLACE_IN_CONF, cbu->b_profile.sounds))) {
+	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET) && play_prompt_to_user(user, conf_get_sound(CONF_SOUND_PLACE_IN_CONF, user->b_profile.sounds))) {
 		return -1;
 	}
 	return 0;
 }
 
-int conf_handle_inactive_waitmarked(struct conference_bridge_user *cbu)
+int conf_handle_inactive_waitmarked(struct confbridge_user *user)
 {
 	/* If we have not been quieted play back that they are waiting for the leader */
-	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET) && play_prompt_to_user(cbu,
-			conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, cbu->b_profile.sounds))) {
+	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET) && play_prompt_to_user(user,
+			conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, user->b_profile.sounds))) {
 		/* user hungup while the sound was playing */
 		return -1;
 	}
 	return 0;
 }
 
-int conf_handle_only_unmarked(struct conference_bridge_user *cbu)
+int conf_handle_only_unmarked(struct confbridge_user *user)
 {
 	/* If audio prompts have not been quieted or this prompt quieted play it on out */
-	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET | USER_OPT_NOONLYPERSON)) {
-		if (play_prompt_to_user(cbu,
-			conf_get_sound(CONF_SOUND_ONLY_PERSON, cbu->b_profile.sounds))) {
+	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET | USER_OPT_NOONLYPERSON)) {
+		if (play_prompt_to_user(user,
+			conf_get_sound(CONF_SOUND_ONLY_PERSON, user->b_profile.sounds))) {
 			/* user hungup while the sound was playing */
 			return -1;
 		}
@@ -1184,217 +1185,217 @@ int conf_handle_only_unmarked(struct conference_bridge_user *cbu)
 	return 0;
 }
 
-int conf_add_post_join_action(struct conference_bridge_user *cbu, int (*func)(struct conference_bridge_user *cbu))
+int conf_add_post_join_action(struct confbridge_user *user, int (*func)(struct confbridge_user *user))
 {
 	struct post_join_action *action;
 	if (!(action = ast_calloc(1, sizeof(*action)))) {
 		return -1;
 	}
 	action->func = func;
-	AST_LIST_INSERT_TAIL(&cbu->post_join_list, action, list);
+	AST_LIST_INSERT_TAIL(&user->post_join_list, action, list);
 	return 0;
 }
 
 
-void conf_handle_first_join(struct conference_bridge *conference_bridge)
+void conf_handle_first_join(struct confbridge_conference *conference)
 {
-	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", conference_bridge->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "confbridge:%s", conference->name);
 }
 
-void conf_handle_second_active(struct conference_bridge *conference_bridge)
+void conf_handle_second_active(struct confbridge_conference *conference)
 {
 	/* If we are the second participant we may need to stop music on hold on the first */
-	struct conference_bridge_user *first_participant = AST_LIST_FIRST(&conference_bridge->active_list);
+	struct confbridge_user *first_user = AST_LIST_FIRST(&conference->active_list);
 
-	if (ast_test_flag(&first_participant->u_profile, USER_OPT_MUSICONHOLD)) {
-		conf_moh_stop(first_participant);
+	if (ast_test_flag(&first_user->u_profile, USER_OPT_MUSICONHOLD)) {
+		conf_moh_stop(first_user);
 	}
-	if (!ast_test_flag(&first_participant->u_profile, USER_OPT_STARTMUTED)) {
-		first_participant->features.mute = 0;
+	if (!ast_test_flag(&first_user->u_profile, USER_OPT_STARTMUTED)) {
+		first_user->features.mute = 0;
 	}
 }
 
-void conf_ended(struct conference_bridge *conference_bridge)
+void conf_ended(struct confbridge_conference *conference)
 {
-	/* Called with a reference to conference_bridge */
-	ao2_unlink(conference_bridges, conference_bridge);
-	send_conf_end_event(conference_bridge->name);
-	conf_stop_record_thread(conference_bridge);
+	/* Called with a reference to conference */
+	ao2_unlink(conference_bridges, conference);
+	send_conf_end_event(conference->name);
+	conf_stop_record_thread(conference);
 }
 
 /*!
  * \brief Join a conference bridge
  *
- * \param name The conference name
- * \param conference_bridge_user Conference bridge user structure
+ * \param conference_name The conference name
+ * \param user Conference bridge user structure
  *
  * \return A pointer to the conference bridge struct, or NULL if the conference room wasn't found.
  */
-static struct conference_bridge *join_conference_bridge(const char *name, struct conference_bridge_user *conference_bridge_user)
+static struct confbridge_conference *join_conference_bridge(const char *conference_name, struct confbridge_user *user)
 {
-	struct conference_bridge *conference_bridge = NULL;
+	struct confbridge_conference *conference = NULL;
 	struct post_join_action *action;
-	struct conference_bridge tmp;
+	struct confbridge_conference tmp;
 	int max_members_reached = 0;
 
-	ast_copy_string(tmp.name, name, sizeof(tmp.name));
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
 
 	/* We explictly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
 	ao2_lock(conference_bridges);
 
-	ast_debug(1, "Trying to find conference bridge '%s'\n", name);
+	ast_debug(1, "Trying to find conference bridge '%s'\n", conference_name);
 
 	/* Attempt to find an existing conference bridge */
-	conference_bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
 
-	if (conference_bridge && conference_bridge->b_profile.max_members) {
-		max_members_reached = conference_bridge->b_profile.max_members > conference_bridge->activeusers ? 0 : 1;
+	if (conference && conference->b_profile.max_members) {
+		max_members_reached = conference->b_profile.max_members > conference->activeusers ? 0 : 1;
 	}
 
 	/* When finding a conference bridge that already exists make sure that it is not locked, and if so that we are not an admin */
-	if (conference_bridge && (max_members_reached || conference_bridge->locked) && !ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ADMIN)) {
+	if (conference && (max_members_reached || conference->locked) && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 		ao2_unlock(conference_bridges);
-		ao2_ref(conference_bridge, -1);
-		ast_debug(1, "Conference '%s' is locked and caller is not an admin\n", name);
-		ast_stream_and_wait(conference_bridge_user->chan,
-				conf_get_sound(CONF_SOUND_LOCKED, conference_bridge_user->b_profile.sounds),
+		ao2_ref(conference, -1);
+		ast_debug(1, "Conference '%s' is locked and caller is not an admin\n", conference_name);
+		ast_stream_and_wait(user->chan,
+				conf_get_sound(CONF_SOUND_LOCKED, user->b_profile.sounds),
 				"");
 		return NULL;
 	}
 
 	/* If no conference bridge was found see if we can create one */
-	if (!conference_bridge) {
+	if (!conference) {
 		/* Try to allocate memory for a new conference bridge, if we fail... this won't end well. */
-		if (!(conference_bridge = ao2_alloc(sizeof(*conference_bridge), destroy_conference_bridge))) {
+		if (!(conference = ao2_alloc(sizeof(*conference), destroy_conference_bridge))) {
 			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Conference '%s' could not be created.\n", name);
+			ast_log(LOG_ERROR, "Conference '%s' could not be created.\n", conference_name);
 			return NULL;
 		}
 
 		/* Setup lock for playback channel */
-		ast_mutex_init(&conference_bridge->playback_lock);
+		ast_mutex_init(&conference->playback_lock);
 
 		/* Setup lock for the record channel */
-		ast_mutex_init(&conference_bridge->record_lock);
-		ast_cond_init(&conference_bridge->record_cond, NULL);
+		ast_mutex_init(&conference->record_lock);
+		ast_cond_init(&conference->record_cond, NULL);
 
 		/* Setup conference bridge parameters */
-		conference_bridge->record_thread = AST_PTHREADT_NULL;
-		ast_copy_string(conference_bridge->name, name, sizeof(conference_bridge->name));
-		conf_bridge_profile_copy(&conference_bridge->b_profile, &conference_bridge_user->b_profile);
+		conference->record_thread = AST_PTHREADT_NULL;
+		ast_copy_string(conference->name, conference_name, sizeof(conference->name));
+		conf_bridge_profile_copy(&conference->b_profile, &user->b_profile);
 
 		/* Create an actual bridge that will do the audio mixing */
-		if (!(conference_bridge->bridge = ast_bridge_new(AST_BRIDGE_CAPABILITY_MULTIMIX, 0))) {
-			ao2_ref(conference_bridge, -1);
-			conference_bridge = NULL;
+		if (!(conference->bridge = ast_bridge_new(AST_BRIDGE_CAPABILITY_MULTIMIX, 0))) {
+			ao2_ref(conference, -1);
+			conference = NULL;
 			ao2_unlock(conference_bridges);
-			ast_log(LOG_ERROR, "Conference '%s' mixing bridge could not be created.\n", name);
+			ast_log(LOG_ERROR, "Conference '%s' mixing bridge could not be created.\n", conference_name);
 			return NULL;
 		}
 
 		/* Set the internal sample rate on the bridge from the bridge profile */
-		ast_bridge_set_internal_sample_rate(conference_bridge->bridge, conference_bridge->b_profile.internal_sample_rate);
+		ast_bridge_set_internal_sample_rate(conference->bridge, conference->b_profile.internal_sample_rate);
 		/* Set the internal mixing interval on the bridge from the bridge profile */
-		ast_bridge_set_mixing_interval(conference_bridge->bridge, conference_bridge->b_profile.mix_interval);
+		ast_bridge_set_mixing_interval(conference->bridge, conference->b_profile.mix_interval);
 
-		if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
-			ast_bridge_set_talker_src_video_mode(conference_bridge->bridge);
+		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
+			ast_bridge_set_talker_src_video_mode(conference->bridge);
 		}
 
 		/* Link it into the conference bridges container */
-		if (!ao2_link(conference_bridges, conference_bridge)) {
-			ao2_ref(conference_bridge, -1);
-			conference_bridge = NULL;
+		if (!ao2_link(conference_bridges, conference)) {
+			ao2_ref(conference, -1);
+			conference = NULL;
 			ao2_unlock(conference_bridges);
 			ast_log(LOG_ERROR,
-				"Conference '%s' could not be added to the conferences list.\n", name);
+				"Conference '%s' could not be added to the conferences list.\n", conference_name);
 			return NULL;
 		}
 
 		/* Set the initial state to EMPTY */
-		conference_bridge->state = CONF_STATE_EMPTY;
+		conference->state = CONF_STATE_EMPTY;
 
-		conference_bridge->record_state = CONF_RECORD_STOP;
-		if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_RECORD_CONFERENCE)) {
-			ao2_lock(conference_bridge);
-			start_conf_record_thread(conference_bridge);
-			ao2_unlock(conference_bridge);
+		conference->record_state = CONF_RECORD_STOP;
+		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_CONFERENCE)) {
+			ao2_lock(conference);
+			start_conf_record_thread(conference);
+			ao2_unlock(conference);
 		}
 
-		send_conf_start_event(conference_bridge->name);
-		ast_debug(1, "Created conference '%s' and linked to container.\n", name);
+		send_conf_start_event(conference->name);
+		ast_debug(1, "Created conference '%s' and linked to container.\n", conference_name);
 	}
 
 	ao2_unlock(conference_bridges);
 
 	/* Setup conference bridge user parameters */
-	conference_bridge_user->conference_bridge = conference_bridge;
+	user->conference = conference;
 
-	ao2_lock(conference_bridge);
+	ao2_lock(conference);
 
 	/*
 	 * Suspend any MOH until the user actually joins the bridge of
 	 * the conference.  This way any pre-join file playback does not
 	 * need to worry about MOH.
 	 */
-	conference_bridge_user->suspended_moh = 1;
+	user->suspended_moh = 1;
 
-	if (handle_conf_user_join(conference_bridge_user)) {
+	if (handle_conf_user_join(user)) {
 		/* Invalid event, nothing was done, so we don't want to process a leave. */
-		ao2_unlock(conference_bridge);
-		ao2_ref(conference_bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return NULL;
 	}
 
-	if (ast_check_hangup(conference_bridge_user->chan)) {
-		ao2_unlock(conference_bridge);
-		leave_conference(conference_bridge_user);
+	if (ast_check_hangup(user->chan)) {
+		ao2_unlock(conference);
+		leave_conference(user);
 		return NULL;
 	}
 
-	ao2_unlock(conference_bridge);
+	ao2_unlock(conference);
 
 	/* If an announcement is to be played play it */
-	if (!ast_strlen_zero(conference_bridge_user->u_profile.announcement)) {
-		if (play_prompt_to_user(conference_bridge_user,
-			conference_bridge_user->u_profile.announcement)) {
-			leave_conference(conference_bridge_user);
+	if (!ast_strlen_zero(user->u_profile.announcement)) {
+		if (play_prompt_to_user(user,
+			user->u_profile.announcement)) {
+			leave_conference(user);
 			return NULL;
 		}
 	}
 
 	/* Announce number of users if need be */
-	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
-		if (announce_user_count(conference_bridge, conference_bridge_user)) {
-			leave_conference(conference_bridge_user);
+	if (ast_test_flag(&user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
+		if (announce_user_count(conference, user)) {
+			leave_conference(user);
 			return NULL;
 		}
 	}
 
-	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNTALL) &&
-		(conference_bridge->activeusers > conference_bridge_user->u_profile.announce_user_count_all_after)) {
+	if (ast_test_flag(&user->u_profile, USER_OPT_ANNOUNCEUSERCOUNTALL) &&
+		(conference->activeusers > user->u_profile.announce_user_count_all_after)) {
 		int user_count_res;
 
 		/*
 		 * We have to autoservice the new user because he has not quite
 		 * joined the conference yet.
 		 */
-		ast_autoservice_start(conference_bridge_user->chan);
-		user_count_res = announce_user_count(conference_bridge, NULL);
-		ast_autoservice_stop(conference_bridge_user->chan);
+		ast_autoservice_start(user->chan);
+		user_count_res = announce_user_count(conference, NULL);
+		ast_autoservice_stop(user->chan);
 		if (user_count_res) {
-			leave_conference(conference_bridge_user);
+			leave_conference(user);
 			return NULL;
 		}
 	}
 
 	/* Handle post-join actions */
-	while ((action = AST_LIST_REMOVE_HEAD(&conference_bridge_user->post_join_list, list))) {
-		action->func(conference_bridge_user);
+	while ((action = AST_LIST_REMOVE_HEAD(&user->post_join_list, list))) {
+		action->func(user);
 		ast_free(action);
 	}
 
-	return conference_bridge;
+	return conference;
 }
 
 /*!
@@ -1402,13 +1403,13 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
  *
  * \param user The conference user
  */
-static void leave_conference(struct conference_bridge_user *user)
+static void leave_conference(struct confbridge_user *user)
 {
 	struct post_join_action *action;
 
-	ao2_lock(user->conference_bridge);
+	ao2_lock(user->conference);
 	handle_conf_user_leave(user);
-	ao2_unlock(user->conference_bridge);
+	ao2_unlock(user->conference);
 
 	/* Discard any post-join actions */
 	while ((action = AST_LIST_REMOVE_HEAD(&user->post_join_list, list))) {
@@ -1416,8 +1417,8 @@ static void leave_conference(struct conference_bridge_user *user)
 	}
 
 	/* Done mucking with the conference, huzzah */
-	ao2_ref(user->conference_bridge, -1);
-	user->conference_bridge = NULL;
+	ao2_ref(user->conference, -1);
+	user->conference = NULL;
 }
 
 /*!
@@ -1425,38 +1426,38 @@ static void leave_conference(struct conference_bridge_user *user)
  * \brief allocates playback chan on a channel
  * \pre expects conference to be locked before calling this function
  */
-static int alloc_playback_chan(struct conference_bridge *conference_bridge)
+static int alloc_playback_chan(struct confbridge_conference *conference)
 {
 	int cause;
 	struct ast_format_cap *cap;
 	struct ast_format tmpfmt;
 
-	if (conference_bridge->playback_chan) {
+	if (conference->playback_chan) {
 		return 0;
 	}
 	if (!(cap = ast_format_cap_alloc_nolock())) {
 		return -1;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-	if (!(conference_bridge->playback_chan = ast_request("Bridge", cap, NULL, "", &cause))) {
+	if (!(conference->playback_chan = ast_request("Bridge", cap, NULL, "", &cause))) {
 		cap = ast_format_cap_destroy(cap);
 		return -1;
 	}
 	cap = ast_format_cap_destroy(cap);
 
-	ast_channel_internal_bridge_set(conference_bridge->playback_chan, conference_bridge->bridge);
+	ast_channel_internal_bridge_set(conference->playback_chan, conference->bridge);
 
-	if (ast_call(conference_bridge->playback_chan, "", 0)) {
-		ast_hangup(conference_bridge->playback_chan);
-		conference_bridge->playback_chan = NULL;
+	if (ast_call(conference->playback_chan, "", 0)) {
+		ast_hangup(conference->playback_chan);
+		conference->playback_chan = NULL;
 		return -1;
 	}
 
-	ast_debug(1, "Created a playback channel to conference bridge '%s'\n", conference_bridge->name);
+	ast_debug(1, "Created a playback channel to conference bridge '%s'\n", conference->name);
 	return 0;
 }
 
-static int play_sound_helper(struct conference_bridge *conference_bridge, const char *filename, int say_number)
+static int play_sound_helper(struct confbridge_conference *conference, const char *filename, int say_number)
 {
 	struct ast_channel *underlying_channel;
 
@@ -1465,54 +1466,54 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 		return 0;
 	}
 
-	ast_mutex_lock(&conference_bridge->playback_lock);
-	if (!(conference_bridge->playback_chan)) {
-		if (alloc_playback_chan(conference_bridge)) {
-			ast_mutex_unlock(&conference_bridge->playback_lock);
+	ast_mutex_lock(&conference->playback_lock);
+	if (!(conference->playback_chan)) {
+		if (alloc_playback_chan(conference)) {
+			ast_mutex_unlock(&conference->playback_lock);
 			return -1;
 		}
-		underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
+		underlying_channel = ast_channel_tech(conference->playback_chan)->bridged_channel(conference->playback_chan, NULL);
 	} else {
 		/* Channel was already available so we just need to add it back into the bridge */
-		underlying_channel = ast_channel_tech(conference_bridge->playback_chan)->bridged_channel(conference_bridge->playback_chan, NULL);
-		if (ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL, 0)) {
-			ast_mutex_unlock(&conference_bridge->playback_lock);
+		underlying_channel = ast_channel_tech(conference->playback_chan)->bridged_channel(conference->playback_chan, NULL);
+		if (ast_bridge_impart(conference->bridge, underlying_channel, NULL, NULL, 0)) {
+			ast_mutex_unlock(&conference->playback_lock);
 			return -1;
 		}
 	}
 
 	/* The channel is all under our control, in goes the prompt */
 	if (!ast_strlen_zero(filename)) {
-		ast_stream_and_wait(conference_bridge->playback_chan, filename, "");
+		ast_stream_and_wait(conference->playback_chan, filename, "");
 	} else if (say_number >= 0) {
-		ast_say_number(conference_bridge->playback_chan, say_number, "", ast_channel_language(conference_bridge->playback_chan), NULL);
+		ast_say_number(conference->playback_chan, say_number, "", ast_channel_language(conference->playback_chan), NULL);
 	}
 
-	ast_debug(1, "Departing underlying channel '%s' from bridge '%p'\n", ast_channel_name(underlying_channel), conference_bridge->bridge);
-	ast_bridge_depart(conference_bridge->bridge, underlying_channel);
+	ast_debug(1, "Departing underlying channel '%s' from bridge '%p'\n", ast_channel_name(underlying_channel), conference->bridge);
+	ast_bridge_depart(conference->bridge, underlying_channel);
 
-	ast_mutex_unlock(&conference_bridge->playback_lock);
+	ast_mutex_unlock(&conference->playback_lock);
 
 	return 0;
 }
 
-int play_sound_file(struct conference_bridge *conference_bridge, const char *filename)
+int play_sound_file(struct confbridge_conference *conference, const char *filename)
 {
-	return play_sound_helper(conference_bridge, filename, -1);
+	return play_sound_helper(conference, filename, -1);
 }
 
 /*!
  * \brief Play number into the conference bridge
  *
- * \param conference_bridge The conference bridge to say the number into
+ * \param conference The conference bridge to say the number into
  * \param say_number number to say
  *
  * \retval 0 success
  * \retval -1 failure
  */
-static int play_sound_number(struct conference_bridge *conference_bridge, int say_number)
+static int play_sound_number(struct confbridge_conference *conference, int say_number)
 {
-	return play_sound_helper(conference_bridge, NULL, say_number);
+	return play_sound_helper(conference, NULL, say_number);
 }
 
 static void conf_handle_talker_destructor(void *pvt_data)
@@ -1559,10 +1560,10 @@ static void conf_handle_talker_cb(struct ast_bridge *bridge, struct ast_bridge_c
 	      ast_channel_name(bridge_channel->chan), ast_channel_uniqueid(bridge_channel->chan), conf_name, talking ? "on" : "off");
 }
 
-static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user *conference_bridge_user)
+static int conf_get_pin(struct ast_channel *chan, struct confbridge_user *user)
 {
 	char pin_guess[MAX_PIN+1] = { 0, };
-	const char *pin = conference_bridge_user->u_profile.pin;
+	const char *pin = user->u_profile.pin;
 	char *tmp = pin_guess;
 	int i, res;
 	unsigned int len = MAX_PIN ;
@@ -1570,14 +1571,14 @@ static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user 
 	/* give them three tries to get the pin right */
 	for (i = 0; i < 3; i++) {
 		if (ast_app_getdata(chan,
-			conf_get_sound(CONF_SOUND_GET_PIN, conference_bridge_user->b_profile.sounds),
+			conf_get_sound(CONF_SOUND_GET_PIN, user->b_profile.sounds),
 			tmp, len, 0) >= 0) {
 			if (!strcasecmp(pin, pin_guess)) {
 				return 0;
 			}
 		}
 		ast_streamfile(chan,
-			conf_get_sound(CONF_SOUND_INVALID_PIN, conference_bridge_user->b_profile.sounds),
+			conf_get_sound(CONF_SOUND_INVALID_PIN, user->b_profile.sounds),
 			ast_channel_language(chan));
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 		if (res > 0) {
@@ -1596,7 +1597,7 @@ static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user 
 	return -1;
 }
 
-static int conf_rec_name(struct conference_bridge_user *user, const char *conf_name)
+static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 {
 	char destdir[PATH_MAX];
 	int res;
@@ -1638,8 +1639,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	char *parse;
 	const char *b_profile_name = DEFAULT_BRIDGE_PROFILE;
 	const char *u_profile_name = DEFAULT_USER_PROFILE;
-	struct conference_bridge *conference_bridge = NULL;
-	struct conference_bridge_user conference_bridge_user = {
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_user user = {
 		.chan = chan,
 		.tech_args.talking_threshold = DEFAULT_TALKING_THRESHOLD,
 		.tech_args.silence_threshold = DEFAULT_SILENCE_THRESHOLD,
@@ -1651,7 +1652,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(u_profile_name);
 		AST_APP_ARG(menu_name);
 	);
-	ast_bridge_features_init(&conference_bridge_user.features);
+	ast_bridge_features_init(&user.features);
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
@@ -1672,7 +1673,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 1 && !ast_strlen_zero(args.b_profile_name)) {
 		b_profile_name = args.b_profile_name;
 	}
-	if (!conf_find_bridge_profile(chan, b_profile_name, &conference_bridge_user.b_profile)) {
+	if (!conf_find_bridge_profile(chan, b_profile_name, &user.b_profile)) {
 		ast_log(LOG_WARNING, "Conference bridge profile %s does not exist\n", b_profile_name);
 		res = -1;
 		goto confbridge_cleanup;
@@ -1682,32 +1683,32 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 2 && !ast_strlen_zero(args.u_profile_name)) {
 		u_profile_name = args.u_profile_name;
 	}
-	if (!conf_find_user_profile(chan, u_profile_name, &conference_bridge_user.u_profile)) {
+	if (!conf_find_user_profile(chan, u_profile_name, &user.u_profile)) {
 		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name);
 		res = -1;
 		goto confbridge_cleanup;
 	}
 
-	quiet = ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_QUIET);
+	quiet = ast_test_flag(&user.u_profile, USER_OPT_QUIET);
 
 	/* ask for a PIN immediately after finding user profile.  This has to be
 	 * prompted for requardless of quiet setting. */
-	if (!ast_strlen_zero(conference_bridge_user.u_profile.pin)) {
-		if (conf_get_pin(chan, &conference_bridge_user)) {
+	if (!ast_strlen_zero(user.u_profile.pin)) {
+		if (conf_get_pin(chan, &user)) {
 			res = -1; /* invalid PIN */
 			goto confbridge_cleanup;
 		}
 	}
 
 	/* See if we need them to record a intro name */
-	if (!quiet && ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE)) {
-		conf_rec_name(&conference_bridge_user, args.conf_name);
+	if (!quiet && ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE)) {
+		conf_rec_name(&user, args.conf_name);
 	}
 
 	/* menu name */
 	if (args.argc > 3 && !ast_strlen_zero(args.menu_name)) {
-		ast_copy_string(conference_bridge_user.menu_name, args.menu_name, sizeof(conference_bridge_user.menu_name));
-		if (conf_set_menu_to_user(conference_bridge_user.menu_name, &conference_bridge_user)) {
+		ast_copy_string(user.menu_name, args.menu_name, sizeof(user.menu_name));
+		if (conf_set_menu_to_user(user.menu_name, &user)) {
 			ast_log(LOG_WARNING, "Conference menu %s does not exist and can not be applied to confbridge user.\n",
 				args.menu_name);
 			res = -1; /* invalid PIN */
@@ -1716,33 +1717,33 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Set if DTMF should pass through for this user or not */
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_DTMF_PASS)) {
-		conference_bridge_user.features.dtmf_passthrough = 1;
+	if (ast_test_flag(&user.u_profile, USER_OPT_DTMF_PASS)) {
+		user.features.dtmf_passthrough = 1;
 	}
 
 	/* Set dsp threshold values if present */
-	if (conference_bridge_user.u_profile.talking_threshold) {
-		conference_bridge_user.tech_args.talking_threshold = conference_bridge_user.u_profile.talking_threshold;
+	if (user.u_profile.talking_threshold) {
+		user.tech_args.talking_threshold = user.u_profile.talking_threshold;
 	}
-	if (conference_bridge_user.u_profile.silence_threshold) {
-		conference_bridge_user.tech_args.silence_threshold = conference_bridge_user.u_profile.silence_threshold;
+	if (user.u_profile.silence_threshold) {
+		user.tech_args.silence_threshold = user.u_profile.silence_threshold;
 	}
 
 	/* Set a talker indicate call back if talking detection is requested */
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_TALKER_DETECT)) {
+	if (ast_test_flag(&user.u_profile, USER_OPT_TALKER_DETECT)) {
 		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
 		if (!(conf_name)) {
 			res = -1; /* invalid PIN */
 			goto confbridge_cleanup;
 		}
-		ast_bridge_features_set_talk_detector(&conference_bridge_user.features,
+		ast_bridge_features_set_talk_detector(&user.features,
 			conf_handle_talker_cb,
 			conf_handle_talker_destructor,
 			conf_name);
 	}
 
 	/* Look for a conference bridge matching the provided name */
-	if (!(conference_bridge = join_conference_bridge(args.conf_name, &conference_bridge_user))) {
+	if (!(conference = join_conference_bridge(args.conf_name, &user))) {
 		res = -1; /* invalid PIN */
 		goto confbridge_cleanup;
 	}
@@ -1752,15 +1753,15 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	volume_adjustments[1] = ast_audiohook_volume_get(chan, AST_AUDIOHOOK_DIRECTION_WRITE);
 
 	/* If the caller should be joined already muted, make it so */
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_STARTMUTED)) {
-		conference_bridge_user.features.mute = 1;
+	if (ast_test_flag(&user.u_profile, USER_OPT_STARTMUTED)) {
+		user.features.mute = 1;
 	}
 
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_DROP_SILENCE)) {
-		conference_bridge_user.tech_args.drop_silence = 1;
+	if (ast_test_flag(&user.u_profile, USER_OPT_DROP_SILENCE)) {
+		user.tech_args.drop_silence = 1;
 	}
 
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_JITTERBUFFER)) {
+	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER)) {
 		char *func_jb;
 		if ((func_jb = ast_module_helper("", "func_jitterbuffer", 0, 0, 0, 0))) {
 			ast_free(func_jb);
@@ -1768,7 +1769,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_DENOISE)) {
+	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE)) {
 		char *mod_speex;
 		/* Reduce background noise from each participant */
 		if ((mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
@@ -1778,73 +1779,73 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* if this user has a intro, play it before entering */
-	if (!ast_strlen_zero(conference_bridge_user.name_rec_location)) {
+	if (!ast_strlen_zero(user.name_rec_location)) {
 		ast_autoservice_start(chan);
-		play_sound_file(conference_bridge, conference_bridge_user.name_rec_location);
-		play_sound_file(conference_bridge,
-			conf_get_sound(CONF_SOUND_HAS_JOINED, conference_bridge_user.b_profile.sounds));
+		play_sound_file(conference, user.name_rec_location);
+		play_sound_file(conference,
+			conf_get_sound(CONF_SOUND_HAS_JOINED, user.b_profile.sounds));
 		ast_autoservice_stop(chan);
 	}
 
 	/* Play the Join sound to both the conference and the user entering. */
 	if (!quiet) {
-		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, conference_bridge_user.b_profile.sounds);
+		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, user.b_profile.sounds);
 
 		ast_stream_and_wait(chan, join_sound, "");
 		ast_autoservice_start(chan);
-		play_sound_file(conference_bridge, join_sound);
+		play_sound_file(conference, join_sound);
 		ast_autoservice_stop(chan);
 	}
 
 	/* See if we need to automatically set this user as a video source or not */
-	handle_video_on_join(conference_bridge, conference_bridge_user.chan, ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_MARKEDUSER));
+	handle_video_on_join(conference, user.chan, ast_test_flag(&user.u_profile, USER_OPT_MARKEDUSER));
 
-	conf_moh_unsuspend(&conference_bridge_user);
+	conf_moh_unsuspend(&user);
 
 	/* Join our conference bridge for real */
-	send_join_event(conference_bridge_user.chan, conference_bridge->name);
-	ast_bridge_join(conference_bridge->bridge,
+	send_join_event(user.chan, conference->name);
+	ast_bridge_join(conference->bridge,
 		chan,
 		NULL,
-		&conference_bridge_user.features,
-		&conference_bridge_user.tech_args);
-	send_leave_event(conference_bridge_user.chan, conference_bridge->name);
+		&user.features,
+		&user.tech_args);
+	send_leave_event(user.chan, conference->name);
 
 	/* if we're shutting down, don't attempt to do further processing */
 	if (ast_shutting_down()) {
-		leave_conference(&conference_bridge_user);
-		conference_bridge = NULL;
+		leave_conference(&user);
+		conference = NULL;
 		goto confbridge_cleanup;
 	}
 
 	/* If this user was a video source, we need to clean up and possibly pick a new source. */
-	handle_video_on_exit(conference_bridge, conference_bridge_user.chan);
+	handle_video_on_exit(conference, user.chan);
 
 	/* if this user has a intro, play it when leaving */
-	if (!quiet && !ast_strlen_zero(conference_bridge_user.name_rec_location)) {
+	if (!quiet && !ast_strlen_zero(user.name_rec_location)) {
 		ast_autoservice_start(chan);
-		play_sound_file(conference_bridge, conference_bridge_user.name_rec_location);
-		play_sound_file(conference_bridge,
-			conf_get_sound(CONF_SOUND_HAS_LEFT, conference_bridge_user.b_profile.sounds));
+		play_sound_file(conference, user.name_rec_location);
+		play_sound_file(conference,
+			conf_get_sound(CONF_SOUND_HAS_LEFT, user.b_profile.sounds));
 		ast_autoservice_stop(chan);
 	}
 
 	/* play the leave sound */
 	if (!quiet) {
-		const char *leave_sound = conf_get_sound(CONF_SOUND_LEAVE, conference_bridge_user.b_profile.sounds);
+		const char *leave_sound = conf_get_sound(CONF_SOUND_LEAVE, user.b_profile.sounds);
 		ast_autoservice_start(chan);
-		play_sound_file(conference_bridge, leave_sound);
+		play_sound_file(conference, leave_sound);
 		ast_autoservice_stop(chan);
 	}
 
 	/* Easy as pie, depart this channel from the conference bridge */
-	leave_conference(&conference_bridge_user);
-	conference_bridge = NULL;
+	leave_conference(&user);
+	conference = NULL;
 
 	/* If the user was kicked from the conference play back the audio prompt for it */
-	if (!quiet && conference_bridge_user.kicked) {
+	if (!quiet && user.kicked) {
 		res = ast_stream_and_wait(chan,
-			conf_get_sound(CONF_SOUND_KICKED, conference_bridge_user.b_profile.sounds),
+			conf_get_sound(CONF_SOUND_KICKED, user.b_profile.sounds),
 			"");
 	}
 
@@ -1856,63 +1857,63 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		ast_audiohook_volume_set(chan, AST_AUDIOHOOK_DIRECTION_WRITE, volume_adjustments[1]);
 	}
 
-	if (!ast_strlen_zero(conference_bridge_user.name_rec_location)) {
-		ast_filedelete(conference_bridge_user.name_rec_location, NULL);
+	if (!ast_strlen_zero(user.name_rec_location)) {
+		ast_filedelete(user.name_rec_location, NULL);
 	}
 
 confbridge_cleanup:
-	ast_bridge_features_cleanup(&conference_bridge_user.features);
-	conf_bridge_profile_destroy(&conference_bridge_user.b_profile);
+	ast_bridge_features_cleanup(&user.features);
+	conf_bridge_profile_destroy(&user.b_profile);
 	return res;
 }
 
-static int action_toggle_mute(struct conference_bridge *conference_bridge,
-	struct conference_bridge_user *conference_bridge_user,
+static int action_toggle_mute(struct confbridge_conference *conference,
+	struct confbridge_user *user,
 	struct ast_channel *chan)
 {
 	/* Mute or unmute yourself, note we only allow manipulation if they aren't waiting for a marked user or if marked users exist */
-	if (!ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_WAITMARKED) || conference_bridge->markedusers) {
-		conference_bridge_user->features.mute = (!conference_bridge_user->features.mute ? 1 : 0);
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(chan), conference_bridge_user->features.mute ? "muted" : "unmuted", conference_bridge_user->b_profile.name, ast_channel_name(chan));
-		if (conference_bridge_user->features.mute) {
-			send_mute_event(chan, conference_bridge->name);
+	if (!ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) || conference->markedusers) {
+		user->features.mute = (!user->features.mute ? 1 : 0);
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(chan), user->features.mute ? "muted" : "unmuted", user->b_profile.name, ast_channel_name(chan));
+		if (user->features.mute) {
+			send_mute_event(chan, conference->name);
 		} else { 
-			send_unmute_event(chan, conference_bridge->name);
+			send_unmute_event(chan, conference->name);
 		}
 	}
-	return ast_stream_and_wait(chan, (conference_bridge_user->features.mute ?
-		conf_get_sound(CONF_SOUND_MUTED, conference_bridge_user->b_profile.sounds) :
-		conf_get_sound(CONF_SOUND_UNMUTED, conference_bridge_user->b_profile.sounds)),
+	return ast_stream_and_wait(chan, (user->features.mute ?
+		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
+		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds)),
 		"");
 }
 
-static int action_toggle_mute_participants(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+static int action_toggle_mute_participants(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	struct conference_bridge_user *participant = NULL;
+	struct confbridge_user *cur_user = NULL;
 	const char *sound_to_play;
 
-	ao2_lock(conference_bridge);
+	ao2_lock(conference);
 
 	/* If already muted, then unmute */
-	conference_bridge->muted = conference_bridge->muted ? 0 : 1;
-	sound_to_play = conf_get_sound((conference_bridge->muted ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
-		conference_bridge_user->b_profile.sounds);
+	conference->muted = conference->muted ? 0 : 1;
+	sound_to_play = conf_get_sound((conference->muted ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
+		user->b_profile.sounds);
 
-	AST_LIST_TRAVERSE(&conference_bridge->active_list, participant, list) {
-		if (!ast_test_flag(&participant->u_profile, USER_OPT_ADMIN)) {
-			participant->features.mute = conference_bridge->muted;
+	AST_LIST_TRAVERSE(&conference->active_list, cur_user, list) {
+		if (!ast_test_flag(&cur_user->u_profile, USER_OPT_ADMIN)) {
+			cur_user->features.mute = conference->muted;
 		}
 	}
 
-	ao2_unlock(conference_bridge);
+	ao2_unlock(conference);
 
 	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
-	ast_stream_and_wait(conference_bridge_user->chan, sound_to_play, "");
+	ast_stream_and_wait(user->chan, sound_to_play, "");
 
 	/* Announce to the group that all participants are muted */
-	ast_autoservice_start(conference_bridge_user->chan);
-	play_sound_helper(conference_bridge, sound_to_play, 0);
-	ast_autoservice_stop(conference_bridge_user->chan);
+	ast_autoservice_start(user->chan);
+	play_sound_helper(conference, sound_to_play, 0);
+	ast_autoservice_stop(user->chan);
 
 	return 0;
 }
@@ -1931,8 +1932,8 @@ static int action_playback(struct ast_bridge_channel *bridge_channel, const char
 	return 0;
 }
 
-static int action_playback_and_continue(struct conference_bridge *conference_bridge,
-	struct conference_bridge_user *conference_bridge_user,
+static int action_playback_and_continue(struct confbridge_conference *conference,
+	struct confbridge_user *user,
 	struct ast_bridge_channel *bridge_channel,
 	struct conf_menu *menu,
 	const char *playback_file,
@@ -1993,8 +1994,8 @@ static int action_playback_and_continue(struct conference_bridge *conference_bri
 	}
 
 	if (conf_find_menu_entry_by_sequence(dtmf, menu, &new_menu_entry)) {
-		execute_menu_entry(conference_bridge,
-			conference_bridge_user,
+		execute_menu_entry(conference,
+			user,
 			bridge_channel,
 			&new_menu_entry, menu);
 		conf_menu_entry_destroy(&new_menu_entry);
@@ -2002,34 +2003,34 @@ static int action_playback_and_continue(struct conference_bridge *conference_bri
 	return 0;
 }
 
-static int action_kick_last(struct conference_bridge *conference_bridge,
+static int action_kick_last(struct confbridge_conference *conference,
 	struct ast_bridge_channel *bridge_channel,
-	struct conference_bridge_user *conference_bridge_user)
+	struct confbridge_user *user)
 {
-	struct conference_bridge_user *last_participant = NULL;
-	int isadmin = ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ADMIN);
+	struct confbridge_user *last_user = NULL;
+	int isadmin = ast_test_flag(&user->u_profile, USER_OPT_ADMIN);
 
 	if (!isadmin) {
 		ast_stream_and_wait(bridge_channel->chan,
-			conf_get_sound(CONF_SOUND_ERROR_MENU, conference_bridge_user->b_profile.sounds),
+			conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds),
 			"");
 		ast_log(LOG_WARNING, "Only admin users can use the kick_last menu action. Channel %s of conf %s is not an admin.\n",
 			ast_channel_name(bridge_channel->chan),
-			conference_bridge->name);
+			conference->name);
 		return -1;
 	}
 
-	ao2_lock(conference_bridge);
-	if (((last_participant = AST_LIST_LAST(&conference_bridge->active_list)) == conference_bridge_user)
-		|| (ast_test_flag(&last_participant->u_profile, USER_OPT_ADMIN))) {
-		ao2_unlock(conference_bridge);
+	ao2_lock(conference);
+	if (((last_user = AST_LIST_LAST(&conference->active_list)) == user)
+		|| (ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN))) {
+		ao2_unlock(conference);
 		ast_stream_and_wait(bridge_channel->chan,
-			conf_get_sound(CONF_SOUND_ERROR_MENU, conference_bridge_user->b_profile.sounds),
+			conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds),
 			"");
-	} else if (last_participant) {
-		last_participant->kicked = 1;
-		ast_bridge_remove(conference_bridge->bridge, last_participant->chan);
-		ao2_unlock(conference_bridge);
+	} else if (last_user) {
+		last_user->kicked = 1;
+		ast_bridge_remove(conference->bridge, last_user->chan);
+		ao2_unlock(conference);
 	}
 	return 0;
 }
@@ -2078,32 +2079,32 @@ static int action_dialplan_exec(struct ast_bridge_channel *bridge_channel, struc
 	return res;
 }
 
-static int execute_menu_entry(struct conference_bridge *conference_bridge,
-	struct conference_bridge_user *conference_bridge_user,
+static int execute_menu_entry(struct confbridge_conference *conference,
+	struct confbridge_user *user,
 	struct ast_bridge_channel *bridge_channel,
 	struct conf_menu_entry *menu_entry,
 	struct conf_menu *menu)
 {
 	struct conf_menu_action *menu_action;
-	int isadmin = ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ADMIN);
+	int isadmin = ast_test_flag(&user->u_profile, USER_OPT_ADMIN);
 	int stop_prompts = 0;
 	int res = 0;
 
 	AST_LIST_TRAVERSE(&menu_entry->actions, menu_action, action) {
 		switch (menu_action->id) {
 		case MENU_ACTION_TOGGLE_MUTE:
-			res |= action_toggle_mute(conference_bridge,
-				conference_bridge_user,
+			res |= action_toggle_mute(conference,
+				user,
 				bridge_channel->chan);
 			break;
 		case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
 			if (!isadmin) {
 				break;
 			}
-			action_toggle_mute_participants(conference_bridge, conference_bridge_user);
+			action_toggle_mute_participants(conference, user);
 			break;
 		case MENU_ACTION_PARTICIPANT_COUNT:
-			announce_user_count(conference_bridge, conference_bridge_user);
+			announce_user_count(conference, user);
 			break;
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
@@ -2111,31 +2112,31 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 			}
 			break;
 		case MENU_ACTION_RESET_LISTENING:
-			ast_audiohook_volume_set(conference_bridge_user->chan, AST_AUDIOHOOK_DIRECTION_WRITE, 0);
+			ast_audiohook_volume_set(user->chan, AST_AUDIOHOOK_DIRECTION_WRITE, 0);
 			break;
 		case MENU_ACTION_RESET_TALKING:
-			ast_audiohook_volume_set(conference_bridge_user->chan, AST_AUDIOHOOK_DIRECTION_READ, 0);
+			ast_audiohook_volume_set(user->chan, AST_AUDIOHOOK_DIRECTION_READ, 0);
 			break;
 		case MENU_ACTION_INCREASE_LISTENING:
-			ast_audiohook_volume_adjust(conference_bridge_user->chan,
+			ast_audiohook_volume_adjust(user->chan,
 				AST_AUDIOHOOK_DIRECTION_WRITE, 1);
 			break;
 		case MENU_ACTION_DECREASE_LISTENING:
-			ast_audiohook_volume_adjust(conference_bridge_user->chan,
+			ast_audiohook_volume_adjust(user->chan,
 				AST_AUDIOHOOK_DIRECTION_WRITE, -1);
 			break;
 		case MENU_ACTION_INCREASE_TALKING:
-			ast_audiohook_volume_adjust(conference_bridge_user->chan,
+			ast_audiohook_volume_adjust(user->chan,
 				AST_AUDIOHOOK_DIRECTION_READ, 1);
 			break;
 		case MENU_ACTION_DECREASE_TALKING:
-			ast_audiohook_volume_adjust(conference_bridge_user->chan,
+			ast_audiohook_volume_adjust(user->chan,
 				AST_AUDIOHOOK_DIRECTION_READ, -1);
 			break;
 		case MENU_ACTION_PLAYBACK_AND_CONTINUE:
 			if (!(stop_prompts)) {
-				res |= action_playback_and_continue(conference_bridge,
-					conference_bridge_user,
+				res |= action_playback_and_continue(conference,
+					user,
 					bridge_channel,
 					menu,
 					menu_action->data.playback_file,
@@ -2150,31 +2151,31 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 			if (!isadmin) {
 				break;
 			}
-			conference_bridge->locked = (!conference_bridge->locked ? 1 : 0);
+			conference->locked = (!conference->locked ? 1 : 0);
 			res |= ast_stream_and_wait(bridge_channel->chan,
-				(conference_bridge->locked ?
-				conf_get_sound(CONF_SOUND_LOCKED_NOW, conference_bridge_user->b_profile.sounds) :
-				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, conference_bridge_user->b_profile.sounds)),
+				(conference->locked ?
+				conf_get_sound(CONF_SOUND_LOCKED_NOW, user->b_profile.sounds) :
+				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds)),
 				"");
 
 			break;
 		case MENU_ACTION_ADMIN_KICK_LAST:
-			res |= action_kick_last(conference_bridge, bridge_channel, conference_bridge_user);
+			res |= action_kick_last(conference, bridge_channel, user);
 			break;
 		case MENU_ACTION_LEAVE:
-			ao2_lock(conference_bridge);
-			ast_bridge_remove(conference_bridge->bridge, bridge_channel->chan);
-			ao2_unlock(conference_bridge);
+			ao2_lock(conference);
+			ast_bridge_remove(conference->bridge, bridge_channel->chan);
+			ao2_unlock(conference);
 			break;
 		case MENU_ACTION_NOOP:
 			break;
 		case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
-			ao2_lock(conference_bridge);
-			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, bridge_channel->chan);
-			ao2_unlock(conference_bridge);
+			ao2_lock(conference);
+			ast_bridge_set_single_src_video_mode(conference->bridge, bridge_channel->chan);
+			ao2_unlock(conference);
 			break;
 		case MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC:
-			handle_video_on_exit(conference_bridge, bridge_channel->chan);
+			handle_video_on_exit(conference, bridge_channel->chan);
 			break;
 		}
 	}
@@ -2182,38 +2183,38 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 }
 
 int conf_handle_dtmf(struct ast_bridge_channel *bridge_channel,
-	struct conference_bridge_user *conference_bridge_user,
+	struct confbridge_user *user,
 	struct conf_menu_entry *menu_entry,
 	struct conf_menu *menu)
 {
 	/* See if music on hold is playing */
-	conf_moh_suspend(conference_bridge_user);
+	conf_moh_suspend(user);
 
 	/* execute the list of actions associated with this menu entry */
-	execute_menu_entry(conference_bridge_user->conference_bridge, conference_bridge_user, bridge_channel, menu_entry, menu);
+	execute_menu_entry(user->conference, user, bridge_channel, menu_entry, menu);
 
 	/* See if music on hold needs to be started back up again */
-	conf_moh_unsuspend(conference_bridge_user);
+	conf_moh_unsuspend(user);
 
 	return 0;
 }
 
-static int kick_conference_participant(struct conference_bridge *bridge, const char *channel)
+static int kick_conference_participant(struct confbridge_conference *conference, const char *channel)
 {
-	struct conference_bridge_user *participant = NULL;
+	struct confbridge_user *user = NULL;
 
-	SCOPED_AO2LOCK(bridge_lock, bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
-			participant->kicked = 1;
-			ast_bridge_remove(bridge->bridge, participant->chan);
+	SCOPED_AO2LOCK(bridge_lock, conference);
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
+			user->kicked = 1;
+			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
 		}
 	}
-	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
-		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
-			participant->kicked = 1;
-			ast_bridge_remove(bridge->bridge, participant->chan);
+	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
+			user->kicked = 1;
+			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
 		}
 	}
@@ -2224,19 +2225,19 @@ static int kick_conference_participant(struct conference_bridge *bridge, const c
 static char *complete_confbridge_name(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
-	struct conference_bridge *bridge = NULL;
+	struct confbridge_conference *conference = NULL;
 	char *res = NULL;
 	int wordlen = strlen(word);
 	struct ao2_iterator iter;
 
 	iter = ao2_iterator_init(conference_bridges, 0);
-	while ((bridge = ao2_iterator_next(&iter))) {
-		if (!strncasecmp(bridge->name, word, wordlen) && ++which > state) {
-			res = ast_strdup(bridge->name);
-			ao2_ref(bridge, -1);
+	while ((conference = ao2_iterator_next(&iter))) {
+		if (!strncasecmp(conference->name, word, wordlen) && ++which > state) {
+			res = ast_strdup(conference->name);
+			ao2_ref(conference, -1);
 			break;
 		}
-		ao2_ref(bridge, -1);
+		ao2_ref(conference, -1);
 	}
 	ao2_iterator_destroy(&iter);
 
@@ -2246,29 +2247,29 @@ static char *complete_confbridge_name(const char *line, const char *word, int po
 static char *complete_confbridge_participant(const char *bridge_name, const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
-	RAII_VAR(struct conference_bridge *, bridge, NULL, ao2_cleanup);
-	struct conference_bridge tmp;
-	struct conference_bridge_user *participant;
+	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
+	struct confbridge_conference tmp;
+	struct confbridge_user *user;
 	char *res = NULL;
 	int wordlen = strlen(word);
 
 	ast_copy_string(tmp.name, bridge_name, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		return NULL;
 	}
 
 	{
-		SCOPED_AO2LOCK(bridge_lock, bridge);
-		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-			if (!strncasecmp(ast_channel_name(participant->chan), word, wordlen) && ++which > state) {
-				res = ast_strdup(ast_channel_name(participant->chan));
+		SCOPED_AO2LOCK(bridge_lock, conference);
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (!strncasecmp(ast_channel_name(user->chan), word, wordlen) && ++which > state) {
+				res = ast_strdup(ast_channel_name(user->chan));
 				return res;
 			}
 		}
-		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
-			if (!strncasecmp(ast_channel_name(participant->chan), word, wordlen) && ++which > state) {
-				res = ast_strdup(ast_channel_name(participant->chan));
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+			if (!strncasecmp(ast_channel_name(user->chan), word, wordlen) && ++which > state) {
+				res = ast_strdup(ast_channel_name(user->chan));
 				return res;
 			}
 		}
@@ -2279,8 +2280,8 @@ static char *complete_confbridge_participant(const char *bridge_name, const char
 
 static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2304,36 +2305,36 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 	}
 
 	ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 		return CLI_SUCCESS;
 	}
-	if (kick_conference_participant(bridge, a->argv[3])) {
+	if (kick_conference_participant(conference, a->argv[3])) {
 		ast_cli(a->fd, "No participant named '%s' found!\n", a->argv[3]);
 		return CLI_SUCCESS;
 	}
-	ao2_ref(bridge, -1);
+	ao2_ref(conference, -1);
 	ast_cli(a->fd, "Participant '%s' kicked out of conference '%s'\n", a->argv[3], a->argv[2]);
 	return CLI_SUCCESS;
 }
 
-static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct conference_bridge_user *participant, int waiting)
+static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confbridge_user *user, int waiting)
 {
 	char flag_str[5 + 1];/* Max flags + terminator */
 	int pos = 0;
 
 	/* Build flags column string. */
-	if (ast_test_flag(&participant->u_profile, USER_OPT_ADMIN)) {
+	if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 		flag_str[pos++] = 'A';
 	}
-	if (ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER)) {
+	if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
 		flag_str[pos++] = 'M';
 	}
-	if (ast_test_flag(&participant->u_profile, USER_OPT_WAITMARKED)) {
+	if (ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED)) {
 		flag_str[pos++] = 'W';
 	}
-	if (ast_test_flag(&participant->u_profile, USER_OPT_ENDMARKED)) {
+	if (ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED)) {
 		flag_str[pos++] = 'E';
 	}
 	if (waiting) {
@@ -2341,18 +2342,18 @@ static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confe
 	}
 	flag_str[pos] = '\0';
 
-	ast_cli(a->fd, "%-29s ", ast_channel_name(participant->chan));
+	ast_cli(a->fd, "%-29s ", ast_channel_name(user->chan));
 	ast_cli(a->fd, "%-5s ", flag_str);
-	ast_cli(a->fd, "%-17s", participant->u_profile.name);
-	ast_cli(a->fd, "%-17s", participant->b_profile.name);
-	ast_cli(a->fd, "%-17s", participant->menu_name);
-	ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"));
+	ast_cli(a->fd, "%-17s", user->u_profile.name);
+	ast_cli(a->fd, "%-17s", user->b_profile.name);
+	ast_cli(a->fd, "%-17s", user->menu_name);
+	ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"));
 	ast_cli(a->fd, "\n");
 }
 
 static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct conference_bridge *bridge;
+	struct confbridge_conference *conference;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2384,35 +2385,35 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked?\n");
 		ast_cli(a->fd, "================================ ====== ====== ========\n");
 		iter = ao2_iterator_init(conference_bridges, 0);
-		while ((bridge = ao2_iterator_next(&iter))) {
-			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->activeusers + bridge->waitingusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
-			ao2_ref(bridge, -1);
+		while ((conference = ao2_iterator_next(&iter))) {
+			ast_cli(a->fd, "%-32s %6i %6i %s\n", conference->name, conference->activeusers + conference->waitingusers, conference->markedusers, (conference->locked ? "locked" : "unlocked"));
+			ao2_ref(conference, -1);
 		}
 		ao2_iterator_destroy(&iter);
 		return CLI_SUCCESS;
 	}
 
 	if (a->argc == 3) {
-		struct conference_bridge_user *participant;
-		struct conference_bridge tmp;
+		struct confbridge_user *user;
+		struct confbridge_conference tmp;
 
 		ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
-		bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-		if (!bridge) {
+		conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+		if (!conference) {
 			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 			return CLI_SUCCESS;
 		}
 		ast_cli(a->fd, "Channel                       Flags User Profile     Bridge Profile   Menu             CallerID\n");
 		ast_cli(a->fd, "============================= ===== ================ ================ ================ ================\n");
-		ao2_lock(bridge);
-		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-			handle_cli_confbridge_list_item(a, participant, 0);
+		ao2_lock(conference);
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			handle_cli_confbridge_list_item(a, user, 0);
 		}
-		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
-			handle_cli_confbridge_list_item(a, participant, 1);
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+			handle_cli_confbridge_list_item(a, user, 1);
 		}
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return CLI_SUCCESS;
 	}
 
@@ -2425,22 +2426,22 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
  * \retval 0 success
  * \retval -1 conference not found
  */
-static int generic_lock_unlock_helper(int lock, const char *conference)
+static int generic_lock_unlock_helper(int lock, const char *conference_name)
 {
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 	int res = 0;
 
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		return -1;
 	}
-	ao2_lock(bridge);
-	bridge->locked = lock;
-	ast_test_suite_event_notify("CONF_LOCK", "Message: conference %s\r\nConference: %s", bridge->locked ? "locked" : "unlocked", bridge->b_profile.name);
-	ao2_unlock(bridge);
-	ao2_ref(bridge, -1);
+	ao2_lock(conference);
+	conference->locked = lock;
+	ast_test_suite_event_notify("CONF_LOCK", "Message: conference %s\r\nConference: %s", conference->locked ? "locked" : "unlocked", conference->b_profile.name);
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
 
 	return res;
 }
@@ -2452,31 +2453,31 @@ static int generic_lock_unlock_helper(int lock, const char *conference)
  * \retval -1 conference not found
  * \retval -2 user not found
  */
-static int generic_mute_unmute_helper(int mute, const char *conference, const char *user)
+static int generic_mute_unmute_helper(int mute, const char *conference_name, const char *chan_name)
 {
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
-	struct conference_bridge_user *participant = NULL;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
+	struct confbridge_user *user = NULL;
 	int res = 0;
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		return -1;
 	}
-	ao2_lock(bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strncmp(user, ast_channel_name(participant->chan), strlen(user))) {
+	ao2_lock(conference);
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+		if (!strncmp(chan_name, ast_channel_name(user->chan), strlen(chan_name))) {
 			break;
 		}
 	}
-	if (participant) {
-		participant->features.mute = mute;
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(participant->chan), participant->features.mute ? "muted" : "unmuted", bridge->b_profile.name, ast_channel_name(participant->chan));
+	if (user) {
+		user->features.mute = mute;
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(user->chan), user->features.mute ? "muted" : "unmuted", conference->b_profile.name, ast_channel_name(user->chan));
 	} else {
 		res = -2;;
 	}
-	ao2_unlock(bridge);
-	ao2_ref(bridge, -1);
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
 
 	return res;
 }
@@ -2606,8 +2607,8 @@ static char *handle_cli_confbridge_unlock(struct ast_cli_entry *e, int cmd, stru
 static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *rec_file = NULL;
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2633,39 +2634,39 @@ static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd
 	}
 
 	ast_copy_string(tmp.name, a->argv[3], sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		ast_cli(a->fd, "Conference not found.\n");
 		return CLI_FAILURE;
 	}
-	ao2_lock(bridge);
-	if (conf_is_recording(bridge)) {
+	ao2_lock(conference);
+	if (conf_is_recording(conference)) {
 		ast_cli(a->fd, "Conference is already being recorded.\n");
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return CLI_SUCCESS;
 	}
 	if (!ast_strlen_zero(rec_file)) {
-		ast_copy_string(bridge->b_profile.rec_file, rec_file, sizeof(bridge->b_profile.rec_file));
+		ast_copy_string(conference->b_profile.rec_file, rec_file, sizeof(conference->b_profile.rec_file));
 	}
 
-	if (start_conf_record_thread(bridge)) {
+	if (start_conf_record_thread(conference)) {
 		ast_cli(a->fd, "Could not start recording due to internal error.\n");
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return CLI_FAILURE;
 	}
-	ao2_unlock(bridge);
+	ao2_unlock(conference);
 
 	ast_cli(a->fd, "Recording started\n");
-	ao2_ref(bridge, -1);
+	ao2_ref(conference, -1);
 	return CLI_SUCCESS;
 }
 
 static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 	int ret;
 
 	switch (cmd) {
@@ -2686,16 +2687,16 @@ static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd,
 	}
 
 	ast_copy_string(tmp.name, a->argv[3], sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		ast_cli(a->fd, "Conference not found.\n");
 		return CLI_SUCCESS;
 	}
-	ao2_lock(bridge);
-	ret = conf_stop_record(bridge);
-	ao2_unlock(bridge);
+	ao2_lock(conference);
+	ret = conf_stop_record(conference);
+	ao2_unlock(conference);
 	ast_cli(a->fd, "Recording %sstopped.\n", ret ? "could not be " : "");
-	ao2_ref(bridge, -1);
+	ao2_ref(conference, -1);
 	return CLI_SUCCESS;
 }
 
@@ -2720,7 +2721,7 @@ static struct ast_custom_function confbridge_info_function = {
 	.read = func_confbridge_info,
 };
 
-static void action_confbridgelist_item(struct mansession *s, const char *id_text, struct conference_bridge *bridge, struct conference_bridge_user *participant, int waiting)
+static void action_confbridgelist_item(struct mansession *s, const char *id_text, struct confbridge_conference *conference, struct confbridge_user *user, int waiting)
 {
 	astman_append(s,
 		"Event: ConfbridgeList\r\n"
@@ -2736,24 +2737,24 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		"Waiting: %s\r\n"
 		"\r\n",
 		id_text,
-		bridge->name,
-		S_COR(ast_channel_caller(participant->chan)->id.number.valid, ast_channel_caller(participant->chan)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_caller(participant->chan)->id.name.valid, ast_channel_caller(participant->chan)->id.name.str, "<no name>"),
-		ast_channel_name(participant->chan),
-		ast_test_flag(&participant->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
-		ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No",
-		ast_test_flag(&participant->u_profile, USER_OPT_WAITMARKED) ? "Yes" : "No",
-		ast_test_flag(&participant->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
+		conference->name,
+		S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
+		S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<no name>"),
+		ast_channel_name(user->chan),
+		ast_test_flag(&user->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
+		ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No",
+		ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) ? "Yes" : "No",
+		ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
 		waiting ? "Yes" : "No");
 }
 
 static int action_confbridgelist(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	const char *conference = astman_get_header(m, "Conference");
-	struct conference_bridge_user *participant;
-	struct conference_bridge *bridge;
-	struct conference_bridge tmp;
+	const char *conference_name = astman_get_header(m, "Conference");
+	struct confbridge_user *user;
+	struct confbridge_conference *conference;
+	struct confbridge_conference tmp;
 	char id_text[80];
 	int total = 0;
 
@@ -2761,7 +2762,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(actionid)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", actionid);
 	}
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -2769,26 +2770,26 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No active conferences.");
 		return 0;
 	}
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
 
 	astman_send_listack(s, m, "Confbridge user list will follow", "start");
 
-	ao2_lock(bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
+	ao2_lock(conference);
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 		total++;
-		action_confbridgelist_item(s, id_text, bridge, participant, 0);
+		action_confbridgelist_item(s, id_text, conference, user, 0);
 	}
-	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
 		total++;
-		action_confbridgelist_item(s, id_text, bridge, participant, 1);
+		action_confbridgelist_item(s, id_text, conference, user, 1);
 	}
-	ao2_unlock(bridge);
-	ao2_ref(bridge, -1);
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
 
 	astman_append(s,
 	"Event: ConfbridgeListComplete\r\n"
@@ -2803,7 +2804,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 static int action_confbridgelistrooms(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	struct conference_bridge *bridge = NULL;
+	struct confbridge_conference *conference = NULL;
 	struct ao2_iterator iter;
 	char id_text[512] = "";
 	int totalitems = 0;
@@ -2821,10 +2822,10 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 
 	/* Traverse the conference list */
 	iter = ao2_iterator_init(conference_bridges, 0);
-	while ((bridge = ao2_iterator_next(&iter))) {
+	while ((conference = ao2_iterator_next(&iter))) {
 		totalitems++;
 
-		ao2_lock(bridge);
+		ao2_lock(conference);
 		astman_append(s,
 		"Event: ConfbridgeListRooms\r\n"
 		"%s"
@@ -2834,13 +2835,13 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		"Locked: %s\r\n"
 		"\r\n",
 		id_text,
-		bridge->name,
-		bridge->activeusers + bridge->waitingusers,
-		bridge->markedusers,
-		bridge->locked ? "Yes" : "No"); 
-		ao2_unlock(bridge);
+		conference->name,
+		conference->activeusers + conference->waitingusers,
+		conference->markedusers,
+		conference->locked ? "Yes" : "No"); 
+		ao2_unlock(conference);
 
-		ao2_ref(bridge, -1);
+		ao2_ref(conference, -1);
 	}
 	ao2_iterator_destroy(&iter);
 
@@ -2856,15 +2857,15 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 
 static int action_mute_unmute_helper(struct mansession *s, const struct message *m, int mute)
 {
-	const char *conference = astman_get_header(m, "Conference");
-	const char *channel = astman_get_header(m, "Channel");
+	const char *conference_name = astman_get_header(m, "Conference");
+	const char *channel_name = astman_get_header(m, "Channel");
 	int res = 0;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
-	if (ast_strlen_zero(channel)) {
+	if (ast_strlen_zero(channel_name)) {
 		astman_send_error(s, m, "No channel name provided.");
 		return 0;
 	}
@@ -2873,7 +2874,7 @@ static int action_mute_unmute_helper(struct mansession *s, const struct message 
 		return 0;
 	}
 
-	res = generic_mute_unmute_helper(mute, conference, channel);
+	res = generic_mute_unmute_helper(mute, conference_name, channel_name);
 
 	if (res == -1) {
 		astman_send_error(s, m, "No Conference by that name found.");
@@ -2898,10 +2899,10 @@ static int action_confbridgemute(struct mansession *s, const struct message *m)
 
 static int action_lock_unlock_helper(struct mansession *s, const struct message *m, int lock)
 {
-	const char *conference = astman_get_header(m, "Conference");
+	const char *conference_name = astman_get_header(m, "Conference");
 	int res = 0;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -2909,7 +2910,7 @@ static int action_lock_unlock_helper(struct mansession *s, const struct message 
 		astman_send_error(s, m, "No active conferences.");
 		return 0;
 	}
-	if ((res = generic_lock_unlock_helper(lock, conference))) {
+	if ((res = generic_lock_unlock_helper(lock, conference_name))) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
@@ -2927,13 +2928,13 @@ static int action_confbridgelock(struct mansession *s, const struct message *m)
 
 static int action_confbridgekick(struct mansession *s, const struct message *m)
 {
-	const char *conference = astman_get_header(m, "Conference");
+	const char *conference_name = astman_get_header(m, "Conference");
 	const char *channel = astman_get_header(m, "Channel");
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 	int found = 0;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -2942,15 +2943,15 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
 
-	found = !kick_conference_participant(bridge, channel);
-	ao2_ref(bridge, -1);
+	found = !kick_conference_participant(conference, channel);
+	ao2_ref(conference, -1);
 
 	if (found) {
 		astman_send_ack(s, m, "User kicked");
@@ -2962,12 +2963,12 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 
 static int action_confbridgestartrecord(struct mansession *s, const struct message *m)
 {
-	const char *conference = astman_get_header(m, "Conference");
+	const char *conference_name = astman_get_header(m, "Conference");
 	const char *recordfile = astman_get_header(m, "RecordFile");
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -2976,44 +2977,44 @@ static int action_confbridgestartrecord(struct mansession *s, const struct messa
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
 
-	ao2_lock(bridge);
-	if (conf_is_recording(bridge)) {
+	ao2_lock(conference);
+	if (conf_is_recording(conference)) {
 		astman_send_error(s, m, "Conference is already being recorded.");
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return 0;
 	}
 
 	if (!ast_strlen_zero(recordfile)) {
-		ast_copy_string(bridge->b_profile.rec_file, recordfile, sizeof(bridge->b_profile.rec_file));
+		ast_copy_string(conference->b_profile.rec_file, recordfile, sizeof(conference->b_profile.rec_file));
 	}
 
-	if (start_conf_record_thread(bridge)) {
+	if (start_conf_record_thread(conference)) {
 		astman_send_error(s, m, "Internal error starting conference recording.");
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
+		ao2_unlock(conference);
+		ao2_ref(conference, -1);
 		return 0;
 	}
-	ao2_unlock(bridge);
+	ao2_unlock(conference);
 
-	ao2_ref(bridge, -1);
+	ao2_ref(conference, -1);
 	astman_send_ack(s, m, "Conference Recording Started.");
 	return 0;
 }
 static int action_confbridgestoprecord(struct mansession *s, const struct message *m)
 {
-	const char *conference = astman_get_header(m, "Conference");
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	const char *conference_name = astman_get_header(m, "Conference");
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -3022,36 +3023,36 @@ static int action_confbridgestoprecord(struct mansession *s, const struct messag
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
 
-	ao2_lock(bridge);
-	if (conf_stop_record(bridge)) {
-		ao2_unlock(bridge);
+	ao2_lock(conference);
+	if (conf_stop_record(conference)) {
+		ao2_unlock(conference);
 		astman_send_error(s, m, "Internal error while stopping recording.");
-		ao2_ref(bridge, -1);
+		ao2_ref(conference, -1);
 		return 0;
 	}
-	ao2_unlock(bridge);
+	ao2_unlock(conference);
 
-	ao2_ref(bridge, -1);
+	ao2_ref(conference, -1);
 	astman_send_ack(s, m, "Conference Recording Stopped.");
 	return 0;
 }
 
 static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct message *m)
 {
-	const char *conference = astman_get_header(m, "Conference");
+	const char *conference_name = astman_get_header(m, "Conference");
 	const char *channel = astman_get_header(m, "Channel");
-	struct conference_bridge_user *participant = NULL;
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_user *user = NULL;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference tmp;
 
-	if (ast_strlen_zero(conference)) {
+	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
 		return 0;
 	}
@@ -3064,27 +3065,27 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
 	}
 
 	/* find channel and set as video src. */
-	ao2_lock(bridge);
-	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strncmp(channel, ast_channel_name(participant->chan), strlen(channel))) {
-			ast_bridge_set_single_src_video_mode(bridge->bridge, participant->chan);
+	ao2_lock(conference);
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+		if (!strncmp(channel, ast_channel_name(user->chan), strlen(channel))) {
+			ast_bridge_set_single_src_video_mode(conference->bridge, user->chan);
 			break;
 		}
 	}
-	ao2_unlock(bridge);
-	ao2_ref(bridge, -1);
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
 
-	/* do not access participant after bridge unlock.  We are just
+	/* do not access user after conference unlock.  We are just
 	 * using this check to see if it was found or not */
-	if (!participant) {
+	if (!user) {
 		astman_send_error(s, m, "No channel by that name found in conference.");
 		return 0;
 	}
@@ -3095,9 +3096,9 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *parse = NULL;
-	struct conference_bridge *bridge = NULL;
-	struct conference_bridge_user *participant = NULL;
-	struct conference_bridge tmp;
+	struct confbridge_conference *conference = NULL;
+	struct confbridge_user *user = NULL;
+	struct confbridge_conference tmp;
 	int count = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(type);
@@ -3118,92 +3119,92 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 		return 0;
 	}
 	ast_copy_string(tmp.name, args.confno, sizeof(tmp.name));
-	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-	if (!bridge) {
+	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!conference) {
 		snprintf(buf, len, "0");
 		return 0;
 	}
 
 	/* get the correct count for the type requested */
-	ao2_lock(bridge);
+	ao2_lock(conference);
 	if (!strncasecmp(args.type, "parties", 7)) {
-		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			count++;
 		}
-		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
 			count++;
 		}
 	} else if (!strncasecmp(args.type, "admins", 6)) {
-		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-			if (ast_test_flag(&participant->u_profile, USER_OPT_ADMIN)) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 				count++;
 			}
 		}
 	} else if (!strncasecmp(args.type, "marked", 6)) {
-		AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-			if (ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER)) {
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
 				count++;
 			}
 		}
 	} else if (!strncasecmp(args.type, "locked", 6)) {
-		count = bridge->locked;
+		count = conference->locked;
 	} else {
 		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.  Should be one of: "
 			"parties, admins, marked, or locked.\n", args.type);
 	}
 	snprintf(buf, len, "%d", count);
-	ao2_unlock(bridge);
-	ao2_ref(bridge, -1);
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
 	return 0;
 }
 
-void conf_add_user_active(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_add_user_active(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_INSERT_TAIL(&conference_bridge->active_list, cbu, list);
-	conference_bridge->activeusers++;
+	AST_LIST_INSERT_TAIL(&conference->active_list, user, list);
+	conference->activeusers++;
 }
 
-void conf_add_user_marked(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_add_user_marked(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_INSERT_TAIL(&conference_bridge->active_list, cbu, list);
-	conference_bridge->activeusers++;
-	conference_bridge->markedusers++;
+	AST_LIST_INSERT_TAIL(&conference->active_list, user, list);
+	conference->activeusers++;
+	conference->markedusers++;
 }
 
-void conf_add_user_waiting(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_add_user_waiting(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_INSERT_TAIL(&conference_bridge->waiting_list, cbu, list);
-	conference_bridge->waitingusers++;
+	AST_LIST_INSERT_TAIL(&conference->waiting_list, user, list);
+	conference->waitingusers++;
 }
 
-void conf_remove_user_active(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_remove_user_active(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_REMOVE(&conference_bridge->active_list, cbu, list);
-	conference_bridge->activeusers--;
+	AST_LIST_REMOVE(&conference->active_list, user, list);
+	conference->activeusers--;
 }
 
-void conf_remove_user_marked(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_remove_user_marked(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_REMOVE(&conference_bridge->active_list, cbu, list);
-	conference_bridge->activeusers--;
-	conference_bridge->markedusers--;
+	AST_LIST_REMOVE(&conference->active_list, user, list);
+	conference->activeusers--;
+	conference->markedusers--;
 }
 
-void conf_mute_only_active(struct conference_bridge *conference_bridge)
+void conf_mute_only_active(struct confbridge_conference *conference)
 {
-	struct conference_bridge_user *only_participant = AST_LIST_FIRST(&conference_bridge->active_list);
+	struct confbridge_user *only_user = AST_LIST_FIRST(&conference->active_list);
 
 	/* Turn on MOH/mute if the single participant is set up for it */
-	if (ast_test_flag(&only_participant->u_profile, USER_OPT_MUSICONHOLD)) {
-		only_participant->features.mute = 1;
-		conf_moh_start(only_participant);
+	if (ast_test_flag(&only_user->u_profile, USER_OPT_MUSICONHOLD)) {
+		only_user->features.mute = 1;
+		conf_moh_start(only_user);
 	}
 }
 
-void conf_remove_user_waiting(struct conference_bridge *conference_bridge, struct conference_bridge_user *cbu)
+void conf_remove_user_waiting(struct confbridge_conference *conference, struct confbridge_user *user)
 {
-	AST_LIST_REMOVE(&conference_bridge->waiting_list, cbu, list);
-	conference_bridge->waitingusers--;
+	AST_LIST_REMOVE(&conference->waiting_list, user, list);
+	conference->waitingusers--;
 }
 
 /*! \brief Called when module is being unloaded */

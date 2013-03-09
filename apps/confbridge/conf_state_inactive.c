@@ -35,12 +35,12 @@
 #include "include/confbridge.h"
 #include "include/conf_state.h"
 
-static void join_unmarked(struct conference_bridge_user *cbu);
-static void join_marked(struct conference_bridge_user *cbu);
-static void leave_waitmarked(struct conference_bridge_user *cbu);
-static void transition_to_inactive(struct conference_bridge_user *cbu);
+static void join_unmarked(struct confbridge_user *user);
+static void join_marked(struct confbridge_user *user);
+static void leave_waitmarked(struct confbridge_user *user);
+static void transition_to_inactive(struct confbridge_user *user);
 
-struct conference_state STATE_INACTIVE = {
+struct confbridge_state STATE_INACTIVE = {
 	.name = "INACTIVE",
 	.join_unmarked = join_unmarked,
 	.join_waitmarked = conf_default_join_waitmarked,
@@ -48,33 +48,33 @@ struct conference_state STATE_INACTIVE = {
 	.leave_waitmarked = leave_waitmarked,
 	.entry = transition_to_inactive,
 };
-struct conference_state *CONF_STATE_INACTIVE = &STATE_INACTIVE;
+struct confbridge_state *CONF_STATE_INACTIVE = &STATE_INACTIVE;
 
-static void join_unmarked(struct conference_bridge_user *cbu)
+static void join_unmarked(struct confbridge_user *user)
 {
-	conf_add_user_active(cbu->conference_bridge, cbu);
-	conf_add_post_join_action(cbu, conf_handle_only_unmarked);
+	conf_add_user_active(user->conference, user);
+	conf_add_post_join_action(user, conf_handle_only_unmarked);
 
-	conf_change_state(cbu, CONF_STATE_SINGLE);
+	conf_change_state(user, CONF_STATE_SINGLE);
 }
 
-static void join_marked(struct conference_bridge_user *cbu)
+static void join_marked(struct confbridge_user *user)
 {
-	conf_add_user_marked(cbu->conference_bridge, cbu);
-	conf_handle_second_active(cbu->conference_bridge);
+	conf_add_user_marked(user->conference, user);
+	conf_handle_second_active(user->conference);
 
-	conf_change_state(cbu, CONF_STATE_MULTI_MARKED);
+	conf_change_state(user, CONF_STATE_MULTI_MARKED);
 }
 
-static void leave_waitmarked(struct conference_bridge_user *cbu)
+static void leave_waitmarked(struct confbridge_user *user)
 {
-	conf_remove_user_waiting(cbu->conference_bridge, cbu);
-	if (cbu->conference_bridge->waitingusers == 0) {
-		conf_change_state(cbu, CONF_STATE_EMPTY);
+	conf_remove_user_waiting(user->conference, user);
+	if (user->conference->waitingusers == 0) {
+		conf_change_state(user, CONF_STATE_EMPTY);
 	}
 }
 
-static void transition_to_inactive(struct conference_bridge_user *cbu)
+static void transition_to_inactive(struct confbridge_user *user)
 {
 	return;
 }

@@ -1954,7 +1954,7 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 }
 
 struct dtmf_menu_hook_pvt {
-	struct conference_bridge_user *conference_bridge_user;
+	struct confbridge_user *user;
 	struct conf_menu_entry menu_entry;
 	struct conf_menu *menu;
 };
@@ -1975,7 +1975,7 @@ static void menu_hook_destroy(void *hook_pvt)
 static int menu_hook_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct dtmf_menu_hook_pvt *pvt = hook_pvt;
-	return conf_handle_dtmf(bridge_channel, pvt->conference_bridge_user, &pvt->menu_entry, pvt->menu);
+	return conf_handle_dtmf(bridge_channel, pvt->user, &pvt->menu_entry, pvt->menu);
 }
 
 static int copy_menu_entry(struct conf_menu_entry *dst, struct conf_menu_entry *src)
@@ -2021,7 +2021,7 @@ int conf_find_menu_entry_by_sequence(const char *dtmf_sequence, struct conf_menu
 	return 0;
 }
 
-int conf_set_menu_to_user(const char *menu_name, struct conference_bridge_user *conference_bridge_user)
+int conf_set_menu_to_user(const char *menu_name, struct confbridge_user *user)
 {
 	struct conf_menu *menu;
 	struct conf_menu_entry *menu_entry = NULL;
@@ -2037,6 +2037,7 @@ int conf_set_menu_to_user(const char *menu_name, struct conference_bridge_user *
 	ao2_lock(menu);
 	AST_LIST_TRAVERSE(&menu->entries, menu_entry, entry) {
 		struct dtmf_menu_hook_pvt *pvt;
+
 		if (!(pvt = ast_calloc(1, sizeof(*pvt)))) {
 			ao2_unlock(menu);
 			ao2_ref(menu, -1);
@@ -2048,11 +2049,11 @@ int conf_set_menu_to_user(const char *menu_name, struct conference_bridge_user *
 			ao2_ref(menu, -1);
 			return -1;
 		}
-		pvt->conference_bridge_user = conference_bridge_user;
+		pvt->user = user;
 		ao2_ref(menu, +1);
 		pvt->menu = menu;
 
-		ast_bridge_features_hook(&conference_bridge_user->features, pvt->menu_entry.dtmf, menu_hook_callback, pvt, menu_hook_destroy);
+		ast_bridge_features_hook(&user->features, pvt->menu_entry.dtmf, menu_hook_callback, pvt, menu_hook_destroy);
 	}
 
 	ao2_unlock(menu);
