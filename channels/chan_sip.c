@@ -10744,14 +10744,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (!ast_sockaddr_isnull(sa) || !ast_sockaddr_isnull(vsa) || !ast_sockaddr_isnull(tsa) || !ast_sockaddr_isnull(isa)) && (!sendonly || sendonly == -1)) {
-		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+		if (!ast_test_flag(&p->flags[2], SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL)) {
+			ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+		}
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
 		change_hold_state(p, req, FALSE, sendonly);
 	} else if ((sockaddr_is_null_or_any(sa) && sockaddr_is_null_or_any(vsa) && sockaddr_is_null_or_any(tsa) && sockaddr_is_null_or_any(isa)) || (sendonly && sendonly != -1)) {
-		ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
+		if (!ast_test_flag(&p->flags[2], SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL)) {
+			ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+		}
 		if (sendonly)
 			ast_rtp_instance_stop(p->rtp);
 		/* RTCP needs to go ahead, even if we're on hold!!! */
@@ -31034,6 +31038,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
 			} else if (!strcasecmp(v->name, "ignore_requested_pref")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_IGNORE_PREFCAPS);
+			} else if (!strcasecmp(v->name, "discard_remote_hold_retrieval")) {
+				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL);
 			} else {
 				ast_rtp_dtls_cfg_parse(&peer->dtls_cfg, v->name, v->value);
 			}
@@ -32162,6 +32168,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 		} else if (!strcasecmp(v->name, "icesupport")) {
 			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
+		} else if (!strcasecmp(v->name, "discard_remote_hold_retrieval")) {
+			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL);
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		} else if (!strcasecmp(v->name, "refer_addheaders")) {

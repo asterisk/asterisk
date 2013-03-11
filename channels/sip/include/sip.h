@@ -376,10 +376,12 @@
 #define SIP_PAGE3_USE_AVPF               (1 << 5)  /*!< DGP: Support a minimal AVPF-compatible profile */
 #define SIP_PAGE3_ICE_SUPPORT            (1 << 6)  /*!< DGP: Enable ICE support */
 #define SIP_PAGE3_IGNORE_PREFCAPS        (1 << 7)  /*!< DP: Ignore prefcaps when setting up an outgoing call leg */
+#define SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL  (1 << 8)  /*!< DGP: Stop telling the peer to start music on hold */
 
 #define SIP_PAGE3_FLAGS_TO_COPY \
 	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32 | SIP_PAGE3_NAT_AUTO_RPORT | SIP_PAGE3_NAT_AUTO_COMEDIA | \
-	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING | SIP_PAGE3_USE_AVPF | SIP_PAGE3_ICE_SUPPORT | SIP_PAGE3_IGNORE_PREFCAPS )
+	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING | SIP_PAGE3_USE_AVPF | SIP_PAGE3_ICE_SUPPORT | SIP_PAGE3_IGNORE_PREFCAPS | \
+	 SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL)
 
 #define CHECK_AUTH_BUF_INITLEN   256
 

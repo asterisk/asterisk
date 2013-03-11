@@ -473,6 +473,9 @@ chan_sip
 
  * Added support to use private party ID information with calls.
 
+ * Adds an option discard_remote_hold_retrieval that when set stops telling
+   the peer to start music on hold.
+
 
 chan_skinny
 ------------------
