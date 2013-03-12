@@ -1,3 +1,0 @@
-# @configure_input@
-export UTIL_TEST_OBJS = @ac_main_obj@
-

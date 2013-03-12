@@ -1,2 +1,0 @@
-
-export LDFLAGS += -lwinmm

@@ -1,7 +1,0 @@
-#!/bin/sh
-./aconfigure $*
-
-# Note:
-# if you're looking for the old configure script, it has been renamed
-# to configure-legacy
-

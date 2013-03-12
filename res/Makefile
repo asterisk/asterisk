@@ -67,26 +67,4 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
-	@if [ -f pjproject/build.mak ]; then $(MAKE) -C pjproject realclean; fi
 	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
-
-dist-clean::
-	rm -f pjproject/build.mak
-
-pjproject/build.mak: pjproject/aconfigure
-	(cd pjproject && CFLAGS="-fPIC" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --disable-floating-point --disable-sound --disable-oss --disable-speex-aec --disable-l16-codec --disable-gsm-codec --disable-g722-codec --disable-g7221-codec --disable-speex-codec --disable-ilbc-codec --disable-g711-codec)
-
-ifneq ($(findstring $(MAKECMDGOALS),all),)
--include pjproject/build.mak
-endif
-
-.PHONY: FORCE
-FORCE:
-
-$(PJ_LIB_FILES): FORCE
-	$(MAKE) -C $(patsubst %/lib/,%,$(dir $@))/build/ ../lib/$(notdir $@)
-
-res_rtp_asterisk.o: $(PJ_LIB_FILES)
-res_rtp_asterisk.o: _ASTCFLAGS+=$(PJ_CFLAGS)
-res_rtp_asterisk.so: _ASTLDFLAGS+=$(PJ_LDFLAGS)
-res_rtp_asterisk.so: LIBS+=$(PJ_LDLIBS)

@@ -29,6 +29,7 @@
  */
 
 /*** MODULEINFO
+	<use type="external">pjproject</use>
 	<support_level>core</support_level>
  ***/
 
@@ -46,9 +47,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <openssl/bio.h>
 #endif
 
-#include "pjlib.h"
-#include "pjlib-util.h"
-#include "pjnath.h"
+#ifdef HAVE_PJPROJECT
+#include <pjlib.h>
+#include <pjlib-util.h>
+#include <pjnath.h>
+#endif
 
 #include "asterisk/stun.h"
 #include "asterisk/pbx.h"
@@ -129,6 +132,7 @@ static int nochecksums;
 #endif
 static int strictrtp = DEFAULT_STRICT_RTP; /*< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
 static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
+#ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
 static struct sockaddr_in stunaddr;
 static pj_str_t turnaddr;
@@ -153,6 +157,7 @@ static pj_thread_t *thread;
 
 /*! \brief Notification that the ICE/TURN worker thread should stop */
 static int worker_terminate;
+#endif
 
 #define FLAG_3389_WARNING               (1 << 0)
 #define FLAG_NAT_ACTIVE                 (3 << 1)
@@ -249,12 +254,14 @@ struct ast_rtp {
 
 	struct rtp_red *red;
 
+	ast_mutex_t lock;           /*!< Lock for synchronization purposes */
+	ast_cond_t cond;            /*!< Condition for signaling */
+
+#ifdef HAVE_PJPROJECT
 	pj_ice_sess *ice;           /*!< ICE session */
 	pj_turn_sock *turn_rtp;     /*!< RTP TURN relay */
 	pj_turn_sock *turn_rtcp;    /*!< RTCP TURN relay */
-	ast_mutex_t lock;           /*!< Lock for synchronization purposes */
 	pj_turn_state_t turn_state; /*!< Current state of the TURN relay session */
-	ast_cond_t cond;            /*!< Condition for signaling */
 	unsigned int passthrough:1; /*!< Bit to indicate that the received packet should be passed through */
 	unsigned int ice_started:1; /*!< Bit to indicate ICE connectivity checks have started */
 
@@ -266,6 +273,7 @@ struct ast_rtp {
 
 	struct ao2_container *local_candidates;   /*!< The local ICE candidates */
 	struct ao2_container *remote_candidates;  /*!< The remote ICE candidates */
+#endif
 
 #ifdef HAVE_OPENSSL_SRTP
 	SSL_CTX *ssl_ctx; /*!< SSL context */
@@ -392,6 +400,22 @@ static int ast_rtp_activate(struct ast_rtp_instance *instance);
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
 
+/*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
+static void update_address_with_ice_candidate(struct ast_rtp *rtp, int component, struct ast_sockaddr *cand_address)
+{
+#ifdef HAVE_PJPROJECT
+	char address[PJ_INET6_ADDRSTRLEN];
+
+	if (!rtp->ice || (component < 1) || !rtp->ice->comp[component - 1].valid_check) {
+		return;
+	}
+
+	ast_sockaddr_parse(cand_address, pj_sockaddr_print(&rtp->ice->comp[component - 1].valid_check->rcand->addr, address, sizeof(address), 0), 0);
+	ast_sockaddr_set_port(cand_address, pj_sockaddr_get_port(&rtp->ice->comp[component - 1].valid_check->rcand->addr));
+#endif
+}
+
+#ifdef HAVE_PJPROJECT
 /*! \brief Destructor for locally created ICE candidates */
 static void ast_rtp_ice_candidate_destroy(void *obj)
 {
@@ -472,19 +496,6 @@ static void pj_thread_register_check(void)
 		ast_log(LOG_ERROR, "Coudln't register thread with PJLIB.\n");
 	}
 	return;
-}
-
-/*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
-static void update_address_with_ice_candidate(struct ast_rtp *rtp, int component, struct ast_sockaddr *cand_address)
-{
-	char address[PJ_INET6_ADDRSTRLEN];
-
-	if (!rtp->ice || (component < 1) || !rtp->ice->comp[component - 1].valid_check) {
-		return;
-	}
-
-	ast_sockaddr_parse(cand_address, pj_sockaddr_print(&rtp->ice->comp[component - 1].valid_check->rcand->addr, address, sizeof(address), 0), 0);
-	ast_sockaddr_set_port(cand_address, pj_sockaddr_get_port(&rtp->ice->comp[component - 1].valid_check->rcand->addr));
 }
 
 static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
@@ -691,6 +702,7 @@ static struct ast_rtp_engine_ice ast_rtp_ice = {
 	.get_local_candidates = ast_rtp_ice_get_local_candidates,
 	.ice_lite = ast_rtp_ice_lite,
 };
+#endif
 
 #ifdef HAVE_OPENSSL_SRTP
 static void dtls_info_callback(const SSL *ssl, int where, int ret)
@@ -1017,13 +1029,16 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.stop = ast_rtp_stop,
 	.qos = ast_rtp_qos_set,
 	.sendcng = ast_rtp_sendcng,
+#ifdef HAVE_PJPROJECT
 	.ice = &ast_rtp_ice,
+#endif
 #ifdef HAVE_OPENSSL_SRTP
 	.dtls = &ast_rtp_dtls,
 	.activate = ast_rtp_activate,
 #endif
 };
 
+#ifdef HAVE_PJPROJECT
 static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq);
 
 static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
@@ -1193,6 +1208,7 @@ static int ice_worker_thread(void *data)
 
 	return 0;
 }
+#endif
 
 static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 {
@@ -1447,6 +1463,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	}
 #endif
 
+#ifdef HAVE_PJPROJECT
 	if (rtp->ice) {
 		pj_str_t combined = pj_str(ast_sockaddr_stringify(sa));
 		pj_sockaddr address;
@@ -1472,6 +1489,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		}
 		rtp->passthrough = 0;
 	}
+#endif
 
 	if ((*in > 1) && res_srtp && srtp && res_srtp->unprotect(srtp, buf, &len, rtcp) < 0) {
 	   return -1;
@@ -1503,6 +1521,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 		return -1;
 	}
 
+#ifdef HAVE_PJPROJECT
 	if (rtp->ice) {
 		pj_thread_register_check();
 
@@ -1511,6 +1530,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 			return 0;
 		}
 	}
+#endif
 
 	return ast_sendto(rtcp ? rtp->rtcp->s : rtp->s, temp, len, flags, sa);
 }
@@ -1628,6 +1648,7 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 	return (info->packets == 0);
 }
 
+#ifdef HAVE_PJPROJECT
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport, const pj_turn_sock_cb *turn_cb, pj_turn_sock **turn_sock)
 {
@@ -1692,6 +1713,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		}
 	}
 }
+#endif
 
 static int ast_rtp_new(struct ast_rtp_instance *instance,
 		       struct ast_sched_context *sched, struct ast_sockaddr *addr,
@@ -1699,8 +1721,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 {
 	struct ast_rtp *rtp = NULL;
 	int x, startplace;
+#ifdef HAVE_PJPROJECT
 	pj_stun_config stun_config;
 	pj_str_t ufrag, passwd;
+#endif
 
 	/* Create a new RTP structure to hold all of our data */
 	if (!(rtp = ast_calloc(1, sizeof(*rtp)))) {
@@ -1758,6 +1782,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 		}
 	}
 
+#ifdef HAVE_PJPROJECT
 	pj_thread_register_check();
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, ioqueue, timerheap);
@@ -1770,13 +1795,14 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	ast_rtp_instance_set_data(instance, rtp);
 
 	/* Create an ICE session for ICE negotiation */
-	if (icesupport && pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2, &ast_rtp_ice_sess_cb, &ufrag, &passwd, &rtp->ice) == PJ_SUCCESS) {
+	if (icesupport && pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2, &ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &rtp->ice) == PJ_SUCCESS) {
 		/* Make this available for the callbacks */
 		rtp->ice->user_data = rtp;
 
 		/* Add all of the available candidates to the ICE session */
 		rtp_add_candidates_to_ice(instance, rtp, addr, x, COMPONENT_RTP, TRANSPORT_SOCKET_RTP, &ast_rtp_turn_rtp_sock_cb, &rtp->turn_rtp);
 	}
+#endif
 
 	/* Record any information we may need */
 	rtp->sched = sched;
@@ -1819,6 +1845,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		ast_free(rtp->red);
 	}
 
+#ifdef HAVE_PJPROJECT
 	pj_thread_register_check();
 
 	/* Destroy the ICE session if being used */
@@ -1846,6 +1873,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	if (rtp->remote_candidates) {
 		ao2_ref(rtp->remote_candidates, -1);
 	}
+#endif
 
 #ifdef HAVE_OPENSSL_SRTP
 	/* Destroy the SSL context if present */
@@ -3904,10 +3932,12 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			ast_debug(1, "Setup RTCP on RTP instance '%p'\n", instance);
 			rtp->rtcp->schedid = -1;
 
+#ifdef HAVE_PJPROJECT
 			if (rtp->ice) {
 				rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us, ast_sockaddr_port(&rtp->rtcp->us), COMPONENT_RTCP, TRANSPORT_SOCKET_RTCP,
 							  &ast_rtp_turn_rtcp_sock_cb, &rtp->turn_rtcp);
 			}
+#endif
 
 			return;
 		} else {
@@ -4372,12 +4402,14 @@ static int rtp_reload(int reload)
 	 * the pool this will cause a small memory leak.
 	 */
 
+#ifdef HAVE_PJPROJECT
 	icesupport = DEFAULT_ICESUPPORT;
 	turnport = DEFAULT_TURN_PORT;
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	turnaddr = pj_str(NULL);
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
+#endif
 
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
@@ -4428,6 +4460,7 @@ static int rtp_reload(int reload)
 					DEFAULT_LEARNING_MIN_SEQUENTIAL);
 			}
 		}
+#ifdef HAVE_PJPROJECT
 		if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
 			icesupport = ast_true(s);
 		}
@@ -4455,6 +4488,7 @@ static int rtp_reload(int reload)
 		if ((s = ast_variable_retrieve(cfg, "general", "turnpassword"))) {
 			pj_strdup2(pool, &turnpassword, s);
 		}
+#endif
 		ast_config_destroy(cfg);
 	}
 	if (rtpstart >= rtpend) {
@@ -4474,6 +4508,7 @@ static int reload_module(void)
 
 static int load_module(void)
 {
+#ifdef HAVE_PJPROJECT
 	pj_lock_t *lock;
 
 	pj_log_set_level(0);
@@ -4521,23 +4556,28 @@ static int load_module(void)
 		pj_shutdown();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+#endif
 
 	if (ast_rtp_engine_register(&asterisk_rtp_engine)) {
+#ifdef HAVE_PJPROJECT
 		worker_terminate = 1;
 		pj_thread_join(thread);
 		pj_thread_destroy(thread);
 		pj_caching_pool_destroy(&cachingpool);
 		pj_shutdown();
+#endif
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_cli_register_multiple(cli_rtp, ARRAY_LEN(cli_rtp))) {
+#ifdef HAVE_PJPROJECT
 		worker_terminate = 1;
 		pj_thread_join(thread);
 		pj_thread_destroy(thread);
 		ast_rtp_engine_unregister(&asterisk_rtp_engine);
 		pj_caching_pool_destroy(&cachingpool);
 		pj_shutdown();
+#endif
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -4551,6 +4591,7 @@ static int unload_module(void)
 	ast_rtp_engine_unregister(&asterisk_rtp_engine);
 	ast_cli_unregister_multiple(cli_rtp, ARRAY_LEN(cli_rtp));
 
+#ifdef HAVE_PJPROJECT
 	worker_terminate = 1;
 
 	pj_thread_register_check();
@@ -4560,6 +4601,7 @@ static int unload_module(void)
 
 	pj_caching_pool_destroy(&cachingpool);
 	pj_shutdown();
+#endif
 
 	return 0;
 }

@@ -111,6 +111,12 @@ Realtime
  * LDAP realtime configurations for SIP Users now have the AstAccountPathSupport
    objectIdentifier. This maps to the supportpath option in sip.conf. 
 
+RTP
+------------------
+ * ICE/STUN/TURN support in res_rtp_asterisk has been made optional.  To enable
+   them, an Asterisk-specific version of pjproject needs to be installed.
+   Tarballs are available from https://github.com/asterisk/pjproject/tags/.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
