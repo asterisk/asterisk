@@ -25,6 +25,10 @@ from 1.8.21.0 to 1.8.22.0:
   if a denoiser is attached to the channel; this option gives them the ability
   to remove the denoiser without having to unload func_speex.
 
+* The Registry AMI event for SIP registrations will now always include the
+  Username field. A previous bug fix missed an instance where it was not
+  included; that has been corrected in this release.
+
 from 1.8.20.0 to 1.8.20.1:
 * Asterisk would previously not output certain error messages when a remote
   console attempted to connect to Asterisk and no instance of Asterisk was
