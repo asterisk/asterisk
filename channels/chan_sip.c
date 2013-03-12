@@ -23234,7 +23234,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 
 		r->regstate = REG_STATE_REGISTERED;
 		r->regtime = ast_tvnow();		/* Reset time of last successful registration */
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_debug(1, "Registration successful\n");
 		if (r->timeout > -1) {
