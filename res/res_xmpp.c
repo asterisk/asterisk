@@ -3636,8 +3636,8 @@ static int xmpp_client_config_post_apply(void *obj, void *arg, int flags)
 			cfg->client->jid = iks_id_new(cfg->client->stack, cfg->user);
 		}
 
-		if (!cfg->client->jid) {
-			ast_log(LOG_ERROR, "Jabber identity could not be created for client '%s' - client not active\n", cfg->name);
+		if (!cfg->client->jid || ast_strlen_zero(cfg->client->jid->user)) {
+			ast_log(LOG_ERROR, "Jabber identity '%s' could not be created for client '%s' - client not active\n", cfg->user, cfg->name);
 			return -1;
 		}
 
