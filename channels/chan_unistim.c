@@ -5906,9 +5906,9 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	s = sessions;
 	while (s) {
 		ast_cli(a->fd,
-				"sin=%s timeout=%u state=%s macaddr=%s device=%s session=%p\n",
+				"sin=%s timeout=%u state=%s macaddr=%s device=%p session=%p\n",
 				ast_inet_ntoa(s->sin.sin_addr), s->timeout, ptestate_tostr(s->state), s->macaddr,
-				s->device->name, s);
+				s->device, s);
 		s = s->next;
 	}
 	ast_mutex_unlock(&sessionlock);
