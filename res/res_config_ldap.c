@@ -135,6 +135,7 @@ static struct ldap_table_config *table_config_new(const char *table_name)
 /*! \brief Find a table_config
  *
  * Should be locked before using it 
+ *
  *  \note This function assumes ldap_lock to be locked.
  */
 static struct ldap_table_config *table_config_for_table_name(const char *table_name)
@@ -219,7 +220,8 @@ static void ldap_table_config_add_attribute(struct ldap_table_config *table_conf
 	table_config->attributes = var;
 }
 
-/*! \brief Free table_config 
+/*! \brief Free table_config
+ *
  * \note assumes ldap_lock to be locked
  */
 static void table_configs_free(void)
@@ -245,7 +247,7 @@ static void table_configs_free(void)
 
 /*! \brief Convert variable name to ldap attribute name
  *
- * Should be locked before using it
+ * \note Should be locked before using it
  */
 static const char *convert_attribute_name_to_ldap(struct ldap_table_config *table_config,
 	const char *attribute_name)
@@ -272,6 +274,7 @@ static const char *convert_attribute_name_to_ldap(struct ldap_table_config *tabl
 }
 
 /*! \brief Convert ldap attribute name to variable name 
+ *
  * \note Should be locked before using it
  */
 static const char *convert_attribute_name_from_ldap(struct ldap_table_config *table_config,
@@ -400,7 +403,8 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	int delim_tot_count = 0;
 	int delim_count = 0;
 
-	/* First find the total count */
+	/* \breif First find the total count
+	 */
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
 	for (tot_count = 0; ldap_entry; tot_count++) { 
@@ -414,7 +418,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 		*entries_count_ptr = tot_count;
 	}
 
-	/* Now that we have the total count we allocate space and create the variables
+	/*! \note Now that we have the total count we allocate space and create the variables
 	 * Remember that each element in vars is a linked list that points to realtime variable.
 	 * If the we are dealing with a static realtime variable we create a new element in the \a vars array for each delimited
 	 * value in \a variable_value; otherwise, we keep \a vars static and increase the length of the linked list of variables in the array element.
@@ -426,7 +430,8 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 
 	i = 0;
 
-	/* For each static realtime variable we may create several entries in the \a vars array if it's delimited */
+	/* \brief For each static realtime variable we may create several entries in the \a vars array if it's delimited
+	 */
 	for (entry_index = 0; ldap_entry; ) {
 		int pos = 0;
 		delim_value = NULL;
@@ -959,7 +964,7 @@ static struct ast_variable **realtime_ldap_base(unsigned int *entries_count_ptr,
 
 /*! \brief See Asterisk doc
  *
- * For Realtime Dynamic(i.e., switch, queues, and directory) -- I think
+ * For Realtime Dynamic(i.e., switch, queues, and directory)
  */
 static struct ast_variable *realtime_ldap(const char *basedn,
 					  const char *table_name, va_list ap)
@@ -1082,9 +1087,9 @@ static int compare_categories(const void *a, const void *b)
 	return 0;
 }
 
-/*! \brief See Asterisk doc
+/*! \brief See Asterisk Realtime Documentation
  *
- * This is for Static Realtime (again: I think...)
+ * This is for Static Realtime
  *	
  * load the configuration stuff for the .conf files
  * called on a reload
@@ -1615,6 +1620,9 @@ static int load_module(void)
 	return 0;
 }
 
+/*! \brief Unload Module
+ *
+ */
 static int unload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
@@ -1636,6 +1644,8 @@ static int unload_module(void)
 	return 0;
 }
 
+/*! \breif Relod Module
+ */
 static int reload(void)
 {
 	/* Aquire control before doing anything to the module itself. */
@@ -1664,7 +1674,8 @@ static int reload(void)
 	return 0;
 }
 
-/*! \brief parse the configuration file */
+/*! \brief parse the configuration file
+ */
 static int parse_config(void)
 {
 	struct ast_config *config;
@@ -1812,6 +1823,9 @@ static int ldap_reconnect(void)
 	}
 }
 
+/*! \brief Realtime Status
+ *
+ */
 static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char status[256], credentials[100] = "";
@@ -1860,6 +1874,9 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+/*! \brief Module Information
+ *
+ */
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "LDAP realtime interface",
 	.load = load_module,
 	.unload = unload_module,
