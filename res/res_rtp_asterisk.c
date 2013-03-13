@@ -1791,9 +1791,9 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	ufrag = pj_str(rtp->local_ufrag);
 	generate_random_string(rtp->local_passwd, sizeof(rtp->local_passwd));
 	passwd = pj_str(rtp->local_passwd);
-
+#endif
 	ast_rtp_instance_set_data(instance, rtp);
-
+#ifdef HAVE_PJPROJECT
 	/* Create an ICE session for ICE negotiation */
 	if (icesupport && pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2, &ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &rtp->ice) == PJ_SUCCESS) {
 		/* Make this available for the callbacks */
