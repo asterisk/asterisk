@@ -112,9 +112,9 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
    # if --with-$1=DIR has been specified, use it.
    if test "x${$1_DIR}" != "x"; then
       if test -d ${$1_DIR}/lib; then
-      	 pbxlibdir="-L${$1_DIR}/lib"
+         pbxlibdir="-L${$1_DIR}/lib"
       else
-      	 pbxlibdir="-L${$1_DIR}"
+         pbxlibdir="-L${$1_DIR}"
       fi
    fi
    pbxfuncname="$3"
