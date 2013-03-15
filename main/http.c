@@ -1052,8 +1052,17 @@ static int __ast_http_load(int reload)
 		v = ast_variable_browse(cfg, "general");
 		for (; v; v = v->next) {
 
-			/* handle tls conf */
-			if (!ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
+			/* read tls config options while preventing unsupported options from being set */
+			if (strcasecmp(v->name, "tlscafile")
+				&& strcasecmp(v->name, "tlscapath")
+				&& strcasecmp(v->name, "tlscadir")
+				&& strcasecmp(v->name, "tlsverifyclient")
+				&& strcasecmp(v->name, "tlsdontverifyserver")
+				&& strcasecmp(v->name, "tlsclientmethod")
+				&& strcasecmp(v->name, "sslclientmethod")
+				&& strcasecmp(v->name, "tlscipher")
+				&& strcasecmp(v->name, "sslcipher")
+				&& !ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
 				continue;
 			}
 

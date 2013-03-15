@@ -31305,8 +31305,11 @@ static int reload_config(enum channelreloadreason reason)
 			continue;
 		}
 
-		/* handle tls conf */
-		if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
+		/* handle tls conf, don't allow setting of tlsverifyclient as it isn't supported by chan_sip */
+		if (!strcasecmp(v->name, "tlsverifyclient")) {
+			ast_log(LOG_WARNING, "Ignoring unsupported option 'tlsverifyclient'\n");
+			continue;
+		} else if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
 			continue;
 		}
 

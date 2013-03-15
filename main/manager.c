@@ -7563,7 +7563,15 @@ static int __init_manager(int reload, int by_external_config)
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		val = var->value;
 
-		if (!ast_tls_read_conf(&ami_tls_cfg, &amis_desc, var->name, val)) {
+		/* read tls config options while preventing unsupported options from being set */
+		if (strcasecmp(var->name, "tlscafile")
+			&& strcasecmp(var->name, "tlscapath")
+			&& strcasecmp(var->name, "tlscadir")
+			&& strcasecmp(var->name, "tlsverifyclient")
+			&& strcasecmp(var->name, "tlsdontverifyserver")
+			&& strcasecmp(var->name, "tlsclientmethod")
+			&& strcasecmp(var->name, "sslclientmethod")
+			&& !ast_tls_read_conf(&ami_tls_cfg, &amis_desc, var->name, val)) {
 			continue;
 		}
 
