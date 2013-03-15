@@ -28942,7 +28942,11 @@ static int proc_session_timer(const void *vp)
 
 	if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
 		res = 1;
-		transmit_reinvite_with_sdp(p, FALSE, TRUE);
+		if (T38_ENABLED == p->t38.state) {
+			transmit_reinvite_with_sdp(p, TRUE, TRUE);
+		} else {
+			transmit_reinvite_with_sdp(p, FALSE, TRUE);
+		}
 	} else {
 		p->stimer->st_expirys++;
 		if (p->stimer->st_expirys >= 2) {
