@@ -65,7 +65,7 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
 	return caching_topic->topic;
 }
 
-void stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
+struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
 {
 	if (caching_topic) {
 		if (stasis_subscription_is_subscribed(caching_topic->sub)) {
@@ -74,6 +74,7 @@ void stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
 			ast_log(LOG_ERROR, "stasis_caching_topic unsubscribed multiple times\n");
 		}
 	}
+	return NULL;
 }
 
 struct cache_entry {

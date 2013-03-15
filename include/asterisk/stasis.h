@@ -306,9 +306,10 @@ struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic,
  * delivery of the final message.
  *
  * \param subscription Subscription to cancel.
+ * \retval NULL for convenience
  * \since 12
  */
-void stasis_unsubscribe(struct stasis_subscription *subscription);
+struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *subscription);
 
 /*!
  * \brief Create a subscription which forwards all messages from one topic to
@@ -450,9 +451,10 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 /*!
  * Unsubscribes a caching topic from its upstream topic.
  * \param caching_topic Caching topic to unsubscribe
+ * \retval NULL for convenience
  * \since 12
  */
-void stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic);
+struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic);
 
 /*!
  * \brief Returns the topic of cached events from a caching topics.

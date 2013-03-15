@@ -172,7 +172,7 @@ struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic, stasis_
 	return __stasis_subscribe(topic, callback, data, 1);
 }
 
-void stasis_unsubscribe(struct stasis_subscription *sub)
+struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 {
 	if (sub) {
 		size_t i;
@@ -186,12 +186,13 @@ void stasis_unsubscribe(struct stasis_subscription *sub)
 				topic->subscribers[i] = topic->subscribers[--topic->num_subscribers_current];
 				/* Unsubscribing unrefs the subscription */
 				ao2_cleanup(sub);
-				return;
+				return NULL;
 			}
 		}
 
 		ast_log(LOG_ERROR, "Internal error: subscription has invalid topic\n");
 	}
+	return NULL;
 }
 
 int stasis_subscription_is_subscribed(const struct stasis_subscription *sub)
