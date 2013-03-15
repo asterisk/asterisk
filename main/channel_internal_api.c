@@ -1367,8 +1367,7 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 
 	ast_string_field_free_memory(chan);
 
-	stasis_unsubscribe(chan->forwarder);
-	chan->forwarder = NULL;
+	chan->forwarder = stasis_unsubscribe(chan->forwarder);
 
 	ao2_cleanup(chan->topic);
 	chan->topic = NULL;

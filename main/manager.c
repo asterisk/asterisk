@@ -7590,8 +7590,7 @@ static void manager_shutdown(void)
 {
 	struct ast_manager_user *user;
 
-	stasis_unsubscribe(channel_state_sub);
-	channel_state_sub = NULL;
+	channel_state_sub = stasis_unsubscribe(channel_state_sub);
 
 	if (registered) {
 		ast_manager_unregister("Ping");

@@ -276,8 +276,7 @@ AST_TEST_DEFINE(subscription_messages)
 	ao2_ref(consumer, +1);
 	expected_uniqueid = ast_strdup(stasis_subscription_uniqueid(uut));
 
-	stasis_unsubscribe(uut);
-	uut = NULL;
+	uut = stasis_unsubscribe(uut);
 	complete = consumer_wait_for_completion(consumer);
 	ast_test_validate(test, 1 == complete);
 
@@ -376,8 +375,7 @@ AST_TEST_DEFINE(unsubscribe_stops_messages)
 	ast_test_validate(test, NULL != uut);
 	ao2_ref(consumer, +1);
 
-	stasis_unsubscribe(uut);
-	uut = NULL;
+	uut = stasis_unsubscribe(uut);
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
