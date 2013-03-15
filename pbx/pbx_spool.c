@@ -645,9 +645,10 @@ static void *scan_thread(void *unused)
 	char buf[8192] __attribute__((aligned (sizeof(int))));
 	struct pollfd pfd = { .fd = inotify_fd, .events = POLLIN };
 #else
-	struct timespec nowait = { 0, 1 };
+	struct timespec nowait = { .tv_sec = 0, .tv_nsec = 1 };
 	int inotify_fd = kqueue();
 	struct kevent kev;
+	struct kevent event;
 #endif
 	struct direntry *cur;
 
@@ -678,7 +679,7 @@ static void *scan_thread(void *unused)
 
 #ifndef HAVE_INOTIFY
 	EV_SET(&kev, dirfd(dir), EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_WRITE, 0, NULL);
-	if (kevent(inotify_fd, &kev, 1, NULL, 0, &nowait) < 0 && errno != 0) {
+	if (kevent(inotify_fd, &kev, 1, &event, 1, &nowait) < 0 && errno != 0) {
 		ast_log(LOG_ERROR, "Unable to watch directory %s: %s\n", qdir, strerror(errno));
 	}
 #endif
@@ -750,8 +751,18 @@ static void *scan_thread(void *unused)
 		}
 		queue_created_files();
 #else
-			struct timespec ts2 = { next - now, 0 };
-			if (kevent(inotify_fd, NULL, 0, &kev, 1, &ts2) <= 0) {
+			int num_events;
+			/* If queue empty then wait forever */
+			if (next == INT_MAX) {
+				num_events = kevent(inotify_fd, &kev, 1, &event, 1, NULL);
+			} else {
+				struct timespec ts2 = { .tv_sec = (unsigned long int)(next - now), .tv_nsec = 0 };
+				num_events = kevent(inotify_fd, &kev, 1, &event, 1, &ts2);
+			}
+			if ((num_events < 0) || (event.flags == EV_ERROR)) {
+				ast_debug(10, "KEvent error %s\n", strerror(errno));
+				continue;
+			} else if (num_events == 0) {
 				/* Interrupt or timeout, restart calculations */
 				continue;
 			} else {
