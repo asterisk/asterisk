@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis.h"
+#include "asterisk/stasis_message_router.h"
 #include "asterisk/test.h"
 
 static const char *test_category = "/stasis/core/";
@@ -674,6 +675,148 @@ AST_TEST_DEFINE(cache)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(route_conflicts)
+{
+	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_router *, uut, NULL, stasis_message_router_unsubscribe);
+	RAII_VAR(struct stasis_message_type *, test_message_type, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, consumer1, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, consumer2, NULL, ao2_cleanup);
+	int ret;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary =
+			"Multiple routes to the same message_type should fail";
+		info->description =
+			"Multiple routes to the same message_type should fail";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topic = stasis_topic_create("TestTopic");
+	ast_test_validate(test, NULL != topic);
+
+	consumer1 = consumer_create(1);
+	ast_test_validate(test, NULL != consumer1);
+	consumer2 = consumer_create(1);
+	ast_test_validate(test, NULL != consumer2);
+
+	test_message_type = stasis_message_type_create("TestMessage");
+	ast_test_validate(test, NULL != test_message_type);
+
+	uut = stasis_message_router_create(topic);
+	ast_test_validate(test, NULL != uut);
+
+	ret = stasis_message_router_add(
+		uut, test_message_type, consumer_exec, consumer1);
+	ast_test_validate(test, 0 == ret);
+	ret = stasis_message_router_add(
+		uut, test_message_type, consumer_exec, consumer2);
+	ast_test_validate(test, 0 != ret);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(router)
+{
+	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_router *, uut, NULL, stasis_message_router_unsubscribe);
+	RAII_VAR(char *, test_data, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_type *, test_message_type1, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_type *, test_message_type2, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_type *, test_message_type3, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, consumer1, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, consumer2, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, consumer3, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message1, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message3, NULL, ao2_cleanup);
+	int actual_len, ret;
+	struct stasis_message *actual;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test simple message routing";
+		info->description = "Test simple message routing";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topic = stasis_topic_create("TestTopic");
+	ast_test_validate(test, NULL != topic);
+
+	consumer1 = consumer_create(1);
+	ast_test_validate(test, NULL != consumer1);
+	consumer2 = consumer_create(1);
+	ast_test_validate(test, NULL != consumer2);
+	consumer3 = consumer_create(1);
+	ast_test_validate(test, NULL != consumer3);
+
+	test_message_type1 = stasis_message_type_create("TestMessage1");
+	ast_test_validate(test, NULL != test_message_type1);
+	test_message_type2 = stasis_message_type_create("TestMessage2");
+	ast_test_validate(test, NULL != test_message_type2);
+	test_message_type3 = stasis_message_type_create("TestMessage3");
+	ast_test_validate(test, NULL != test_message_type3);
+
+	uut = stasis_message_router_create(topic);
+	ast_test_validate(test, NULL != uut);
+
+	ret = stasis_message_router_add(
+		uut, test_message_type1, consumer_exec, consumer1);
+	ast_test_validate(test, 0 == ret);
+	ao2_ref(consumer1, +1);
+	ret = stasis_message_router_add(
+		uut, test_message_type2, consumer_exec, consumer2);
+	ast_test_validate(test, 0 == ret);
+	ao2_ref(consumer2, +1);
+	ret = stasis_message_router_set_default(uut, consumer_exec, consumer3);
+	ast_test_validate(test, 0 == ret);
+	ao2_ref(consumer3, +1);
+
+	test_data = ao2_alloc(1, NULL);
+	ast_test_validate(test, NULL != test_data);
+	test_message1 = stasis_message_create(test_message_type1, test_data);
+	ast_test_validate(test, NULL != test_message1);
+	test_message2 = stasis_message_create(test_message_type2, test_data);
+	ast_test_validate(test, NULL != test_message2);
+	test_message3 = stasis_message_create(test_message_type3, test_data);
+	ast_test_validate(test, NULL != test_message3);
+
+	stasis_publish(topic, test_message1);
+	stasis_publish(topic, test_message2);
+	stasis_publish(topic, test_message3);
+
+	actual_len = consumer_wait_for(consumer1, 1);
+	ast_test_validate(test, 1 == actual_len);
+	actual_len = consumer_wait_for(consumer2, 1);
+	ast_test_validate(test, 1 == actual_len);
+	actual_len = consumer_wait_for(consumer3, 1);
+	ast_test_validate(test, 1 == actual_len);
+
+	actual = consumer1->messages_rxed[0];
+	ast_test_validate(test, test_message1 == actual);
+
+	actual = consumer2->messages_rxed[0];
+	ast_test_validate(test, test_message2 == actual);
+
+	actual = consumer3->messages_rxed[0];
+	ast_test_validate(test, test_message3 == actual);
+
+	/* consumer1 and consumer2 do not get the final message. */
+	ao2_cleanup(consumer1);
+	ao2_cleanup(consumer2);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(message_type);
@@ -684,6 +827,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(forward);
 	AST_TEST_UNREGISTER(cache_passthrough);
 	AST_TEST_UNREGISTER(cache);
+	AST_TEST_UNREGISTER(route_conflicts);
+	AST_TEST_UNREGISTER(router);
 	return 0;
 }
 
@@ -697,6 +842,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(forward);
 	AST_TEST_REGISTER(cache_passthrough);
 	AST_TEST_REGISTER(cache);
+	AST_TEST_REGISTER(route_conflicts);
+	AST_TEST_REGISTER(router);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

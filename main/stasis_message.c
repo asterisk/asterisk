@@ -35,7 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/utils.h"
 
-/*! \private */
+/*! \internal */
 struct stasis_message_type {
 	char *name;
 };
@@ -70,7 +70,7 @@ const char *stasis_message_type_name(const struct stasis_message_type *type)
 	return type->name;
 }
 
-/*! \private */
+/*! \internal */
 struct stasis_message {
 	/*! Time the message was created */
 	struct timeval timestamp;

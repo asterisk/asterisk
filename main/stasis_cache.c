@@ -42,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define NUM_CACHE_BUCKETS 563
 #endif
 
-/*! \private */
+/*! \internal */
 struct stasis_caching_topic {
 	struct ao2_container *cache;
 	struct stasis_topic *topic;

@@ -46,7 +46,7 @@ static struct ast_threadpool *pool;
 
 static struct stasis_message_type *__subscription_change_message_type;
 
-/*! \private */
+/*! \internal */
 struct stasis_topic {
 	char *name;
 	/*! Variable length array of the subscribers (raw pointer to avoid cyclic references) */
@@ -86,7 +86,7 @@ struct stasis_topic *stasis_topic_create(const char *name)
 	}
 
 	topic->num_subscribers_max = INITIAL_SUBSCRIBERS_MAX;
-	topic->subscribers = ast_calloc(topic->num_subscribers_max, sizeof(topic->subscribers));
+	topic->subscribers = ast_calloc(topic->num_subscribers_max, sizeof(*topic->subscribers));
 	if (!topic->subscribers) {
 		return NULL;
 	}
@@ -100,7 +100,7 @@ const char *stasis_topic_name(const struct stasis_topic *topic)
 	return topic->name;
 }
 
-/*! \private */
+/*! \internal */
 struct stasis_subscription {
 	/*! Unique ID for this subscription */
 	char *uniqueid;
@@ -264,7 +264,7 @@ static int topic_add_subscription(struct stasis_topic *topic, struct stasis_subs
 }
 
 /*!
- * \private
+ * \internal
  * \brief Information needed to dispatch a message to a subscription
  */
 struct dispatch {
