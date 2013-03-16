@@ -502,7 +502,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
 
-static void mwi_event_cb(const struct ast_event *event, void *userdata)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	/* This module does not handle MWI in an event-based manner.  However, it
 	 * subscribes to MWI for each mailbox that is configured so that the core
@@ -1215,7 +1215,7 @@ struct dahdi_pvt {
 	 */
 	char mailbox[AST_MAX_EXTENSION];
 	/*! \brief Opaque event subscription parameters for message waiting indication support. */
-	struct ast_event_sub *mwi_event_sub;
+	struct stasis_subscription *mwi_event_sub;
 	/*! \brief Delayed dialing for E911.  Overlap digits for ISDN. */
 	char dialdest[256];
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
@@ -3753,7 +3753,6 @@ struct sig_ss7_callback sig_ss7_callbacks =
 static void notify_message(char *mailbox_full, int thereornot)
 {
 	char s[sizeof(mwimonitornotify) + 80];
-	struct ast_event *event;
 	char *mailbox, *context;
 
 	/* Strip off @default */
@@ -3762,16 +3761,7 @@ static void notify_message(char *mailbox_full, int thereornot)
 	if (ast_strlen_zero(context))
 		context = "default";
 
-	if (!(event = ast_event_new(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, thereornot,
-			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, thereornot,
-			AST_EVENT_IE_END))) {
-		return;
-	}
-
-	ast_event_queue_and_cache(event);
+	stasis_publish_mwi_state(mailbox, context, thereornot, thereornot);
 
 	if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(mwimonitornotify)) {
 		snprintf(s, sizeof(s), "%s %s %d", mwimonitornotify, mailbox, thereornot);
@@ -5413,24 +5403,25 @@ static int send_cwcidspill(struct dahdi_pvt *p)
 static int has_voicemail(struct dahdi_pvt *p)
 {
 	int new_msgs;
-	struct ast_event *event;
 	char *mailbox, *context;
+	RAII_VAR(struct stasis_message *, mwi_message, NULL, ao2_cleanup);
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	mailbox = context = ast_strdupa(p->mailbox);
 	strsep(&context, "@");
-	if (ast_strlen_zero(context))
+	if (ast_strlen_zero(context)) {
 		context = "default";
+	}
 
-	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-		AST_EVENT_IE_END);
+	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
+	mwi_message = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
 
-	if (event) {
-		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		ast_event_destroy(event);
-	} else
+	if (mwi_message) {
+		struct stasis_mwi_state *mwi_state = stasis_message_data(mwi_message);
+		new_msgs = mwi_state->new_msgs;
+	} else {
 		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
+	}
 
 	return new_msgs;
 }
@@ -5965,10 +5956,12 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 		}
 	}
 	ast_free(p->cidspill);
-	if (p->use_smdi)
+	if (p->use_smdi) {
 		ast_smdi_interface_unref(p->smdi_iface);
-	if (p->mwi_event_sub)
-		ast_event_unsubscribe(p->mwi_event_sub);
+	}
+	if (p->mwi_event_sub) {
+		p->mwi_event_sub = stasis_unsubscribe(p->mwi_event_sub);
+	}
 	if (p->vars) {
 		ast_variables_destroy(p->vars);
 	}
@@ -5981,8 +5974,9 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 
 	ast_mutex_destroy(&p->lock);
 	dahdi_close_sub(p, SUB_REAL);
-	if (p->owner)
+	if (p->owner) {
 		ast_channel_tech_pvt_set(p->owner, NULL);
+	}
 	ast_free(p);
 }
 
@@ -13226,15 +13220,20 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
 			char *mailbox, *context;
+			struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
+			struct stasis_topic *mailbox_specific_topic;
+
 			mailbox = context = ast_strdupa(tmp->mailbox);
 			strsep(&context, "@");
 			if (ast_strlen_zero(context))
 				context = "default";
-			tmp->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "Dahdi MWI subscription", NULL,
-				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-				AST_EVENT_IE_END);
+
+			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
+
+			mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+			if (mailbox_specific_topic) {
+				tmp->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
+			}
 		}
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 		tmp->mwisend_setting = conf->chan.mwisend_setting;

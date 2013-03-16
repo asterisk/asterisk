@@ -1262,7 +1262,7 @@ struct sip_pkt {
  */
 struct sip_mailbox {
 	/*! Associated MWI subscription */
-	struct ast_event_sub *event_sub;
+	struct stasis_subscription *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
 	unsigned int delme:1;
 	char *context;

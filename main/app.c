@@ -66,6 +66,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/test.h"
 #include "asterisk/module.h"
+#include "asterisk/astobj2.h"
+#include "asterisk/stasis.h"
+
+#define MWI_TOPIC_BUCKETS 57
 
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
@@ -77,6 +81,11 @@ struct zombie {
 };
 
 static AST_LIST_HEAD_STATIC(zombies, zombie);
+
+static struct stasis_topic *mwi_topic_all;
+static struct stasis_caching_topic *mwi_topic_cached;
+static struct stasis_message_type *mwi_message_type;
+static struct stasis_topic_pool *mwi_topic_pool;
 
 static void *shaun_of_the_dead(void *data)
 {
@@ -2629,6 +2638,126 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen uni
 		;
 	}
 	*result = amount > INT_MAX ? INT_MAX : (int) amount;
+	return 0;
+}
+
+
+
+static void mwi_state_dtor(void *obj)
+{
+	struct stasis_mwi_state *mwi_state = obj;
+	ast_string_field_free_memory(mwi_state);
+}
+
+struct stasis_topic *stasis_mwi_topic_all(void)
+{
+	return mwi_topic_all;
+}
+
+struct stasis_caching_topic *stasis_mwi_topic_cached(void)
+{
+	return mwi_topic_cached;
+}
+
+struct stasis_message_type *stasis_mwi_state_message(void)
+{
+	return mwi_message_type;
+}
+
+struct stasis_topic *stasis_mwi_topic(const char *uniqueid)
+{
+	return stasis_topic_pool_get_topic(mwi_topic_pool, uniqueid);
+}
+
+int stasis_publish_mwi_state_full(
+			const char *mailbox,
+			const char *context,
+			int new_msgs,
+			int old_msgs,
+			struct ast_eid *eid)
+{
+	RAII_VAR(struct stasis_mwi_state *, mwi_state, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
+	struct stasis_topic *mailbox_specific_topic;
+
+	ast_assert(!ast_strlen_zero(mailbox));
+	ast_assert(!ast_strlen_zero(context));
+
+	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
+
+	mwi_state = ao2_alloc(sizeof(*mwi_state), mwi_state_dtor);
+	if (ast_string_field_init(mwi_state, 256)) {
+		return -1;
+	}
+
+	ast_string_field_set(mwi_state, uniqueid, ast_str_buffer(uniqueid));
+	ast_string_field_set(mwi_state, mailbox, mailbox);
+	ast_string_field_set(mwi_state, context, context);
+	mwi_state->new_msgs = new_msgs;
+	mwi_state->old_msgs = old_msgs;
+	if (eid) {
+		mwi_state->eid = *eid;
+	} else {
+		ast_set_default_eid(&mwi_state->eid);
+	}
+
+	message = stasis_message_create(stasis_mwi_state_message(), mwi_state);
+
+	mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+	if (!mailbox_specific_topic) {
+		return -1;
+	}
+
+	stasis_publish(mailbox_specific_topic, message);
+
+	return 0;
+}
+
+static const char *mwi_state_get_id(struct stasis_message *message)
+{
+	if (stasis_mwi_state_message() == stasis_message_type(message)) {
+		struct stasis_mwi_state *mwi_state = stasis_message_data(message);
+		return mwi_state->uniqueid;
+	} else if (stasis_subscription_change() == stasis_message_type(message)) {
+		struct stasis_subscription_change *change = stasis_message_data(message);
+		return change->uniqueid;
+	}
+
+	return NULL;
+}
+
+static void app_exit(void)
+{
+	ao2_cleanup(mwi_topic_all);
+	mwi_topic_all = NULL;
+	mwi_topic_cached = stasis_caching_unsubscribe(mwi_topic_cached);
+	ao2_cleanup(mwi_message_type);
+	mwi_message_type = NULL;
+	ao2_cleanup(mwi_topic_pool);
+	mwi_topic_pool = NULL;
+}
+
+int app_init(void)
+{
+	mwi_topic_all = stasis_topic_create("stasis_mwi_topic");
+	if (!mwi_topic_all) {
+		return -1;
+	}
+	mwi_topic_cached = stasis_caching_topic_create(mwi_topic_all, mwi_state_get_id);
+	if (!mwi_topic_cached) {
+		return -1;
+	}
+	mwi_message_type = stasis_message_type_create("stasis_mwi_state");
+	if (!mwi_message_type) {
+		return -1;
+	}
+	mwi_topic_pool = stasis_topic_pool_create(mwi_topic_all);
+	if (!mwi_topic_pool) {
+		return -1;
+	}
+
+	ast_register_atexit(app_exit);
 	return 0;
 }
 

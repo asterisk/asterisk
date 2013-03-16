@@ -373,7 +373,7 @@ static void aji_pubsub_purge_nodes(struct aji_client *client,
 static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
 	const char *context, const char *oldmsgs, const char *newmsgs);
 static void aji_devstate_cb(const struct ast_event *ast_event, void *data);
-static void aji_mwi_cb(const struct ast_event *ast_event, void *data);
+static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg);
 static iks* aji_build_publish_skeleton(struct aji_client *client, const char *node,
 				       const char *event_type, unsigned int cachable);
 /* No transports in this version */
@@ -410,7 +410,7 @@ static char *app_ajileave = "JabberLeave";
 
 static struct aji_client_container clients;
 static struct aji_capabilities *capabilities = NULL;
-static struct ast_event_sub *mwi_sub = NULL;
+static struct stasis_subscription *mwi_sub = NULL;
 static struct ast_event_sub *device_state_sub = NULL;
 static ast_cond_t message_received_condition;
 static ast_mutex_t messagelock;
@@ -3240,30 +3240,33 @@ int ast_aji_disconnect(struct aji_client *client)
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void aji_mwi_cb(const struct ast_event *ast_event, void *data)
+static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	const char *mailbox;
 	const char *context;
 	char oldmsgs[10];
 	char newmsgs[10];
-	struct aji_client *client;
-	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
-	{
-		/* If the event didn't originate from this server, don't send it back out. */
-		ast_debug(1, "Returning here\n");
+	struct aji_client *client = data;
+	struct stasis_mwi_state *mwi_state;
+
+	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state() != stasis_message_type(msg)) {
 		return;
 	}
 
-	client = ASTOBJ_REF((struct aji_client *) data);
-	mailbox = ast_event_get_ie_str(ast_event, AST_EVENT_IE_MAILBOX);
-	context = ast_event_get_ie_str(ast_event, AST_EVENT_IE_CONTEXT);
-	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
-		ast_event_get_ie_uint(ast_event, AST_EVENT_IE_OLDMSGS));
-	snprintf(newmsgs, sizeof(newmsgs), "%d",
-		ast_event_get_ie_uint(ast_event, AST_EVENT_IE_NEWMSGS));
-	aji_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
-	ASTOBJ_UNREF(client, ast_aji_client_destroy);
+	mwi_state = stasis_message_data(msg);
 
+	if (ast_eid_cmp(&ast_eid_default, &mwi_state->eid)) {
+		/* If the event didn't originate from this server, don't send it back out. */
+		return;
+	}
+
+	mailbox = mwi_state->mailbox;
+	context = mwi_state->context;
+	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
+		mwi_state->old_msgs);
+	snprintf(newmsgs, sizeof(newmsgs), "%d",
+		mwi_state->new_msgs);
+	aji_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
 }
 /*!
  * \brief Callback function for device state events
@@ -3300,8 +3303,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 static void aji_init_event_distribution(struct aji_client *client)
 {
 	if (!mwi_sub) {
-		mwi_sub = ast_event_subscribe(AST_EVENT_MWI, aji_mwi_cb, "aji_mwi_subscription",
-			client, AST_EVENT_IE_END);
+		mwi_sub = stasis_subscribe(stasis_mwi_topic_all(), aji_mwi_cb, client);
 	}
 	if (!device_state_sub) {
 		if (ast_enable_distributed_devstate()) {
@@ -3364,14 +3366,10 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 		context = strsep(&item_id, "@");
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
-		if (!(event = ast_event_new(AST_EVENT_MWI, AST_EVENT_IE_MAILBOX,
-			AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_CONTEXT,
-			AST_EVENT_IE_PLTYPE_STR, context, AST_EVENT_IE_OLDMSGS,
-			AST_EVENT_IE_PLTYPE_UINT, oldmsgs, AST_EVENT_IE_NEWMSGS,
-			AST_EVENT_IE_PLTYPE_UINT, newmsgs, AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW,
-			&pubsub_eid, sizeof(pubsub_eid), AST_EVENT_IE_END))) {
-			return IKS_FILTER_EAT;
-		}
+
+		stasis_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, &pubsub_eid);
+
+		return IKS_FILTER_EAT;
 	} else {
 		ast_debug(1, "Don't know how to handle PubSub event of type %s\n",
 			iks_name(item_content));
@@ -4771,7 +4769,7 @@ static int unload_module(void)
 	ast_manager_unregister("JabberSend");
 	ast_custom_function_unregister(&jabberstatus_function);
 	if (mwi_sub) {
-		ast_event_unsubscribe(mwi_sub);
+		mwi_sub = stasis_unsubscribe(mwi_sub);
 	}
 	if (device_state_sub) {
 		ast_event_unsubscribe(device_state_sub);

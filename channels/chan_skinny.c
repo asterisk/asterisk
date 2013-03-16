@@ -1442,7 +1442,7 @@ struct skinny_line {
 	SKINNY_LINE_OPTIONS
 	ast_mutex_t lock;
 	struct skinny_container *container;
-	struct ast_event_sub *mwi_event_sub; /* Event based MWI */
+	struct stasis_subscription *mwi_event_sub; /* Event based MWI */
 	struct skinny_subchannel *activesub;
 	AST_LIST_HEAD(, skinny_subchannel) sub;
 	AST_LIST_HEAD(, skinny_subline) sublines;
@@ -1611,7 +1611,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static void mwi_event_cb(const struct ast_event *event, void *userdata);
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg);
 static int skinny_dialer_cb(const void *data);
 static int skinny_reload(void);
 
@@ -2261,7 +2261,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
 				register_exten(l);
 				/* initialize MWI on line and device */
-				mwi_event_cb(0, l);
+				mwi_event_cb(l, NULL, NULL, NULL);
 				AST_LIST_TRAVERSE(&l->sublines, subline, list) {
 					ast_extension_state_add(subline->context, subline->exten, skinny_extensionstate_cb, subline->container);
 				}
@@ -3507,7 +3507,7 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	send_callinfo(sub);
 }
 
-static void mwi_event_cb(const struct ast_event *event, void *userdata)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct skinny_line *l = userdata;
 	struct skinny_device *d = l->device;
@@ -3518,8 +3518,9 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 		return;
 	}
 
-	if (event) {
-		l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+	if (msg && stasis_mwi_state_message() == stasis_message_type(msg)) {
+		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+		l->newmsgs = mwi_state->new_msgs;
 	}
 
 	if (l->newmsgs) {
@@ -8250,16 +8251,22 @@ static struct skinny_line *config_line(const char *lname, struct ast_variable *v
 
 	if (!ast_strlen_zero(l->mailbox)) {
 		char *cfg_mailbox, *cfg_context;
+		struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
+		struct stasis_topic *mailbox_specific_topic;
+
 		cfg_context = cfg_mailbox = ast_strdupa(l->mailbox);
 		ast_verb(3, "Setting mailbox '%s' on line %s\n", cfg_mailbox, l->name);
 		strsep(&cfg_context, "@");
-		if (ast_strlen_zero(cfg_context))
-			 cfg_context = "default";
-		l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "skinny MWI subsciption", l,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, cfg_mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cfg_context,
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-			AST_EVENT_IE_END);
+		if (ast_strlen_zero(cfg_context)) {
+			cfg_context = "default";
+		}
+
+		ast_str_set(&uniqueid, 0, "%s@%s", cfg_mailbox, cfg_context);
+
+		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		if (mailbox_specific_topic) {
+			l->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, l);
+		}
 	}
 
 	if (!ast_strlen_zero(vmexten) && ast_strlen_zero(l->vmexten)) {
@@ -8694,8 +8701,9 @@ static int unload_module(void)
 				}
 				ast_mutex_unlock(&sub->lock);
 			}
-			if (l->mwi_event_sub)
-				ast_event_unsubscribe(l->mwi_event_sub);
+			if (l->mwi_event_sub) {
+				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
+			}
 			ast_mutex_unlock(&l->lock);
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 			unregister_exten(l);

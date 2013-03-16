@@ -405,7 +405,7 @@ struct sig_pri_mbox {
 	 * \brief MWI mailbox event subscription.
 	 * \note NULL if mailbox not configured.
 	 */
-	struct ast_event_sub *sub;
+	struct stasis_subscription *sub;
 	/*! \brief Mailbox number */
 	const char *number;
 	/*! \brief Mailbox context. */

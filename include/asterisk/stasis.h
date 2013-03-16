@@ -377,6 +377,27 @@ struct stasis_subscription_change {
  */
 struct stasis_message_type *stasis_subscription_change(void);
 
+/*!
+ * \brief Pool for topic aggregation
+ */
+struct stasis_topic_pool;
+
+/*!
+ * \brief Create a topic pool that routes messages from dynamically generated topics to the given topic
+ * \param pooled_topic Topic to which messages will be routed
+ * \retval the new stasis_topic_pool or NULL on failure
+ */
+struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_topic);
+
+/*!
+ * \brief Find or create a topic in the pool
+ * \param pool Pool for which to get the topic
+ * \param topic_name Name of the topic to get
+ * \retval The already stored or newly allocated topic
+ * \retval NULL if the topic was not found and could not be allocated
+ */
+struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name);
+
 /*! @} */
 
 /*! @{ */

@@ -8752,23 +8752,30 @@ static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm
  *
  * \return Nothing
  */
-static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
+static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct sig_pri_span *pri = userdata;
 	const char *mbox_context;
 	const char *mbox_number;
 	int num_messages;
 	int idx;
+	struct stasis_mwi_state *mwi_state;
 
-	mbox_number = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
+	if (stasis_mwi_state_message() != stasis_message_type(msg)) {
+		return;
+	}
+
+	mwi_state = stasis_message_data(msg);
+
+	mbox_number = mwi_state->mailbox;
 	if (ast_strlen_zero(mbox_number)) {
 		return;
 	}
-	mbox_context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
+	mbox_context = mwi_state->context;
 	if (ast_strlen_zero(mbox_context)) {
 		return;
 	}
-	num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+	num_messages = mwi_state->new_msgs;
 
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (!pri->mbox[idx].sub) {
@@ -8799,27 +8806,28 @@ static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
 static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 {
 	int idx;
-	int num_messages;
-	struct ast_event *event;
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
+	struct stasis_mwi_state *mwi_state;
 
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
+		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 		if (!pri->mbox[idx].sub) {
 			/* Mailbox slot is empty */
 			continue;
 		}
 
-		event = ast_event_get_cached(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, pri->mbox[idx].number,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, pri->mbox[idx].context,
-			AST_EVENT_IE_END);
-		if (!event) {
+		ast_str_reset(uniqueid);
+		ast_str_set(&uniqueid, 0, "%s@%s", pri->mbox[idx].number, pri->mbox[idx].context);
+
+		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+		if (!msg) {
 			/* No cached event for this mailbox. */
 			continue;
 		}
-		num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+
+		mwi_state = stasis_message_data(msg);
 		sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, pri->mbox[idx].number,
-			pri->mbox[idx].context, num_messages);
-		ast_event_destroy(event);
+			pri->mbox[idx].context, mwi_state->new_msgs);
 	}
 }
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -8841,7 +8849,7 @@ void sig_pri_stop_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MWI)
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (pri->mbox[idx].sub) {
-			pri->mbox[idx].sub = ast_event_unsubscribe(pri->mbox[idx].sub);
+			pri->mbox[idx].sub = stasis_unsubscribe(pri->mbox[idx].sub);
 		}
 	}
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -8905,13 +8913,14 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	char *saveptr;
 	char *prev_vm_number;
 	struct ast_str *mwi_description = ast_str_alloca(64);
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 #endif	/* defined(HAVE_PRI_MWI) */
 
 #if defined(HAVE_PRI_MWI)
 	/* Prepare the mbox[] for use. */
 	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
 		if (pri->mbox[i].sub) {
-			pri->mbox[i].sub = ast_event_unsubscribe(pri->mbox[i].sub);
+			pri->mbox[i].sub = stasis_unsubscribe(pri->mbox[i].sub);
 		}
 	}
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -8951,6 +8960,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
 		char *mbox_number;
 		char *mbox_context;
+		struct stasis_topic *mailbox_specific_topic;
 
 		mbox_number = strsep(&saveptr, ",");
 		if (!mbox_number) {
@@ -8976,13 +8986,17 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 		/* Fill the mbox[] element. */
 		pri->mbox[i].number = mbox_number;
 		pri->mbox[i].context = mbox_context;
+
+		ast_str_reset(uniqueid);
+		ast_str_set(&uniqueid, 0, "%s@%s", mbox_number, mbox_context);
+
 		ast_str_set(&mwi_description, -1, "%s span %d[%d] MWI mailbox %s@%s",
 			sig_pri_cc_type_name, pri->span, i, mbox_number, mbox_context);
-		pri->mbox[i].sub = ast_event_subscribe(AST_EVENT_MWI, sig_pri_mwi_event_cb,
-			ast_str_buffer(mwi_description), pri,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox_number,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, mbox_context,
-			AST_EVENT_IE_END);
+
+		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		if (mailbox_specific_topic) {
+			pri->mbox[i].sub = stasis_subscribe(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
+		}
 		if (!pri->mbox[i].sub) {
 			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s@%s.",
 				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);

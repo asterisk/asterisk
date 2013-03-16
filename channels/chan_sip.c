@@ -294,6 +294,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/dialplan_functions.h"
 #include "sip/include/security_events.h"
 #include "asterisk/sip_api.h"
+#include "asterisk/app.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -1275,7 +1276,7 @@ static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
-static void mwi_event_cb(const struct ast_event *, void *);
+static void mwi_event_cb(void *, struct stasis_subscription *, struct stasis_topic *, struct stasis_message *);
 static void network_change_event_cb(const struct ast_event *, void *);
 static void acl_change_event_cb(const struct ast_event *event, void *userdata);
 static void sip_keepalive_all_peers(void);
@@ -5225,8 +5226,9 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 /*! Destroy mailbox subscriptions */
 static void destroy_mailbox(struct sip_mailbox *mailbox)
 {
-	if (mailbox->event_sub)
-		ast_event_unsubscribe(mailbox->event_sub);
+	if (mailbox->event_sub) {
+		mailbox->event_sub = stasis_unsubscribe(mailbox->event_sub);
+	}
 	ast_free(mailbox);
 }
 
@@ -16644,11 +16646,16 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 }
 
 /*! \brief Receive MWI events that we have subscribed to */
-static void mwi_event_cb(const struct ast_event *event, void *userdata)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct sip_peer *peer = userdata;
-
-	sip_send_mwi_to_peer(peer, 0);
+	if (stasis_subscription_final_message(sub, msg)) {
+		ao2_cleanup(peer);
+		return;
+	}
+	if (stasis_mwi_state_message() == stasis_message_type(msg)) {
+		sip_send_mwi_to_peer(peer, 0);
+	}
 }
 
 static void network_change_event_subscribe(void)
@@ -24787,16 +24794,9 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(c)) {
 			char *old = strsep(&c, " ");
 			char *new = strsep(&old, "/");
-			struct ast_event *event;
 
-			if ((event = ast_event_new(AST_EVENT_MWI,
-						   AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-						   AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, "SIP_Remote",
-						   AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(new),
-						   AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(old),
-						   AST_EVENT_IE_END))) {
-				ast_event_queue_and_cache(event);
-			}
+			stasis_publish_mwi_state(mailbox, "SIP_Remote", atoi(new), atoi(old));
+
 			transmit_response(p, "200 OK", req);
 		} else {
 			transmit_response(p, "489 Bad event", req);
@@ -27617,16 +27617,20 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 static void add_peer_mwi_subs(struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-		if (mailbox->event_sub) {
-			ast_event_unsubscribe(mailbox->event_sub);
-		}
+		struct stasis_topic *mailbox_specific_topic;
+		mailbox->event_sub = stasis_unsubscribe(mailbox->event_sub);
 
-		mailbox->event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "SIP mbox event", peer,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
-			AST_EVENT_IE_END);
+		ast_str_reset(uniqueid);
+		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
+
+		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		if (mailbox_specific_topic) {
+			ao2_ref(peer, +1);
+			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer);
+		}
 	}
 }
 
@@ -28832,19 +28836,24 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 {
 	struct sip_mailbox *mailbox;
 	int in_cache;
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	in_cache = 0;
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-		struct ast_event *event;
-		event = ast_event_get_cached(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
-			AST_EVENT_IE_END);
-		if (!event)
+		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+		struct stasis_mwi_state *mwi_state;
+
+		ast_str_reset(uniqueid);
+		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
+
+		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+		if (!msg) {
 			continue;
-		*new += ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		*old += ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-		ast_event_destroy(event);
+		}
+
+		mwi_state = stasis_message_data(msg);
+		*new += mwi_state->new_msgs;
+		*old += mwi_state->old_msgs;
 		in_cache = 1;
 	}
 

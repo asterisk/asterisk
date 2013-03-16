@@ -8637,8 +8637,7 @@ static void channels_shutdown(void)
 	__channel_varset = NULL;
 	ao2_cleanup(__channel_topic_all);
 	__channel_topic_all = NULL;
-	stasis_caching_unsubscribe(__channel_topic_all_cached);
-	__channel_topic_all_cached = NULL;
+	__channel_topic_all_cached = stasis_caching_unsubscribe(__channel_topic_all_cached);
 	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {

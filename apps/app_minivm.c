@@ -2013,7 +2013,6 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
  * \brief Queue a message waiting event */
 static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int new, int old)
 {
-	struct ast_event *event;
 	char *mailbox, *context;
 
 	mailbox = ast_strdupa(mbx);
@@ -2022,16 +2021,7 @@ static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int ne
 		context = "default";
 	}
 
-	if (!(event = ast_event_new(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, (new+urgent),
-			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, old,
-			AST_EVENT_IE_END))) {
-		return;
-	}
-
-	ast_event_queue_and_cache(event);
+	stasis_publish_mwi_state(mailbox, context, new + urgent, old);
 }
 
 /*!\internal

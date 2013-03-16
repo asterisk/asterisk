@@ -1319,24 +1319,30 @@ static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, con
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void xmpp_pubsub_mwi_cb(const struct ast_event *ast_event, void *data)
+static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct ast_xmpp_client *client = data;
 	const char *mailbox, *context;
 	char oldmsgs[10], newmsgs[10];
+	struct stasis_mwi_state *mwi_state;
 
-	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID))) {
-		/* If the event didn't originate from this server, don't send it back out. */
-		ast_debug(1, "Returning here\n");
+	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state_message() != stasis_message_type(msg)) {
 		return;
 	}
 
-	mailbox = ast_event_get_ie_str(ast_event, AST_EVENT_IE_MAILBOX);
-	context = ast_event_get_ie_str(ast_event, AST_EVENT_IE_CONTEXT);
+	mwi_state = stasis_message_data(msg);
+
+	if (ast_eid_cmp(&ast_eid_default, &mwi_state->eid)) {
+		/* If the event didn't originate from this server, don't send it back out. */
+		return;
+	}
+
+	mailbox = mwi_state->mailbox;
+	context = mwi_state->context;
 	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
-		 ast_event_get_ie_uint(ast_event, AST_EVENT_IE_OLDMSGS));
+		 mwi_state->old_msgs);
 	snprintf(newmsgs, sizeof(newmsgs), "%d",
-		 ast_event_get_ie_uint(ast_event, AST_EVENT_IE_NEWMSGS));
+		 mwi_state->new_msgs);
 	xmpp_pubsub_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
 }
 
@@ -1479,14 +1485,10 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 		context = strsep(&item_id, "@");
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
-		if (!(event = ast_event_new(AST_EVENT_MWI, AST_EVENT_IE_MAILBOX,
-					    AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_CONTEXT,
-					    AST_EVENT_IE_PLTYPE_STR, context, AST_EVENT_IE_OLDMSGS,
-					    AST_EVENT_IE_PLTYPE_UINT, oldmsgs, AST_EVENT_IE_NEWMSGS,
-					    AST_EVENT_IE_PLTYPE_UINT, newmsgs, AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW,
-					    &pubsub_eid, sizeof(pubsub_eid), AST_EVENT_IE_END))) {
-			return IKS_FILTER_EAT;
-		}
+
+		stasis_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, &pubsub_eid);
+
+		return IKS_FILTER_EAT;
 	} else {
 		ast_debug(1, "Don't know how to handle PubSub event of type %s\n",
 			  iks_name(item_content));
@@ -1587,20 +1589,17 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 	xmpp_pubsub_unsubscribe(client, "device_state");
 	xmpp_pubsub_unsubscribe(client, "message_waiting");
 
-	if (!(client->mwi_sub = ast_event_subscribe(AST_EVENT_MWI, xmpp_pubsub_mwi_cb, "xmpp_pubsub_mwi_subscription",
-						    client, AST_EVENT_IE_END))) {
+	if (!(client->mwi_sub = stasis_subscribe(stasis_mwi_topic_all(), xmpp_pubsub_mwi_cb, client))) {
 		return;
 	}
 
 	if (ast_enable_distributed_devstate()) {
 		return;
 	}
-	
 
 	if (!(client->device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
 							     xmpp_pubsub_devstate_cb, "xmpp_pubsub_devstate_subscription", client, AST_EVENT_IE_END))) {
-		ast_event_unsubscribe(client->mwi_sub);
-		client->mwi_sub = NULL;
+		client->mwi_sub = stasis_unsubscribe(client->mwi_sub);
 		return;
 	}
 
@@ -3524,8 +3523,7 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 	}
 
 	if (client->mwi_sub) {
-		ast_event_unsubscribe(client->mwi_sub);
-		client->mwi_sub = NULL;
+		client->mwi_sub = stasis_unsubscribe(client->mwi_sub);
 		xmpp_pubsub_unsubscribe(client, "message_waiting");
 	}
 

@@ -4178,6 +4178,11 @@ int main(int argc, char *argv[])
 
 	aco_init();
 
+	if (app_init()) {
+		printf("App core initialization failed.\n%s", term_quit());
+		exit(1);
+	}
+
 	if (astdb_init()) {
 		printf("%s", term_quit());
 		exit(1);

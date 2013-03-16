@@ -5500,23 +5500,24 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 /*--- unistim_send_mwi_to_peer: Send message waiting indication ---*/
 static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick)
 {
-	struct ast_event *event;
 	int new;
 	char *mailbox, *context;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	context = mailbox = ast_strdupa(peer->mailbox);
 	strsep(&context, "@");
 	if (ast_strlen_zero(context)) {
 		context = "default";
 	}
-	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-		AST_EVENT_IE_END);
 
-	if (event) {
-		new = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		ast_event_destroy(event);
+	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
+
+	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+
+	if (msg) {
+		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+		new = mwi_state->new_msgs;
 	} else { /* Fall back on checking the mailbox directly */
 		new = ast_app_has_voicemail(peer->mailbox, "INBOX");
 	}

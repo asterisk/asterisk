@@ -28,6 +28,7 @@
 #include "asterisk/threadstorage.h"
 #include "asterisk/file.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/utils.h"
 
 struct ast_flags64;
 
@@ -1086,6 +1087,96 @@ void ast_safe_fork_cleanup(void);
  */
 int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen defunit);
 
+/*!
+ * \brief Publish a MWI state update via stasis
+ * \param[in] uniqueid A unique identifier for this mailbox (usually mailbox@context)
+ * \param[in] mailbox The number identifying this mailbox
+ * \param[in] context The context this mailbox resides in
+ * \param[in] new_msgs The number of new messages in this mailbox
+ * \param[in] old_msgs The number of old messages in this mailbox
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+#define stasis_publish_mwi_state(mailbox, context, new_msgs, old_msgs) \
+	stasis_publish_mwi_state_full(mailbox, context, new_msgs, old_msgs, NULL)
+
+/*!
+ * \brief Publish a MWI state update via stasis with EID
+ * \param[in] uniqueid A unique identifier for this mailbox (usually mailbox@context)
+ * \param[in] mailbox The number identifying this mailbox
+ * \param[in] context The context this mailbox resides in
+ * \param[in] new_msgs The number of new messages in this mailbox
+ * \param[in] old_msgs The number of old messages in this mailbox
+ * \param[in] eid The EID of the server that originally published the message
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+int stasis_publish_mwi_state_full(
+			const char *mailbox,
+			const char *context,
+			int new_msgs,
+			int old_msgs,
+			struct ast_eid *eid);
+
+/*!
+ * \brief The structure that contains MWI state
+ * \since 12
+ */
+struct stasis_mwi_state {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(uniqueid);	/*!< Unique identifier for this mailbox/context */
+		AST_STRING_FIELD(mailbox);	/*!< Mailbox for this event */
+		AST_STRING_FIELD(context);	/*!< Context that this mailbox belongs to */
+	);
+	int new_msgs;				/*!< The current number of new messages for this mailbox */
+	int old_msgs;				/*!< The current number of old messages for this mailbox */
+	struct ast_eid eid;			/*!< The EID of the server where this message originated */
+};
+
+/*!
+ * \brief Get the Stasis topic for MWI messages
+ * \retval The topic structure for MWI messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_topic *stasis_mwi_topic_all(void);
+
+/*!
+ * \brief Get the Stasis topic for MWI messages on a unique ID
+ * \param uniqueid The unique id for which to get the topic
+ * \retval The topic structure for MWI messages for a given uniqueid
+ * \retval NULL if it failed to be found or allocated
+ * \since 12
+ */
+struct stasis_topic *stasis_mwi_topic(const char *uniqueid);
+
+/*!
+ * \brief Get the Stasis caching topic for MWI messages
+ * \retval The caching topic structure for MWI messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_caching_topic *stasis_mwi_topic_cached(void);
+
+/*!
+ * \brief Get the Stasis message type for MWI messages
+ * \retval The message type structure for MWI messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_message_type *stasis_mwi_state_message(void);
+
+/*!
+ * \brief Initialize the application core
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+int app_init(void);
+
+#define AST_MAX_MAILBOX_UNIQUEID (AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2)
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

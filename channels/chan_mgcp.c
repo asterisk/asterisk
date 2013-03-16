@@ -82,6 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/pktccops.h"
+#include "asterisk/stasis.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -342,7 +343,7 @@ struct mgcp_endpoint {
 	char curtone[80];			/*!< Current tone */
 	char mailbox[AST_MAX_EXTENSION];
 	char parkinglot[AST_MAX_CONTEXT];   /*!< Parkinglot */
-	struct ast_event_sub *mwi_event_sub;
+	struct stasis_subscription *mwi_event_sub;
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
 	int callwaiting;
@@ -483,7 +484,7 @@ static struct ast_channel_tech mgcp_tech = {
 	.func_channel_read = acf_channel_read,
 };
 
-static void mwi_event_cb(const struct ast_event *event, void *userdata)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	/* This module does not handle MWI in an event-based manner.  However, it
 	 * subscribes to MWI for each mailbox that is configured so that the core
@@ -494,24 +495,26 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 static int has_voicemail(struct mgcp_endpoint *p)
 {
 	int new_msgs;
-	struct ast_event *event;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 	char *mbox, *cntx;
 
 	cntx = mbox = ast_strdupa(p->mailbox);
 	strsep(&cntx, "@");
-	if (ast_strlen_zero(cntx))
+	if (ast_strlen_zero(cntx)) {
 		cntx = "default";
+	}
 
-	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cntx,
-		AST_EVENT_IE_END);
+	ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
 
-	if (event) {
-		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		ast_event_destroy(event);
-	} else
+	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state(), ast_str_buffer(uniqueid));
+
+	if (msg) {
+		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+		new_msgs = mwi_state->new_msgs;
+	} else {
 		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
+	}
 
 	return new_msgs;
 }
@@ -3972,6 +3975,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	struct mgcp_endpoint *e;
 	struct mgcp_subchannel *sub;
 	struct ast_variable *chanvars = NULL;
+	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	/*char txident[80];*/
 	int i=0, y=0;
@@ -4168,16 +4172,20 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				ast_copy_string(e->parkinglot, parkinglot, sizeof(e->parkinglot));
 				if (!ast_strlen_zero(e->mailbox)) {
 					char *mbox, *cntx;
+					struct stasis_topic *mailbox_specific_topic;
+
 					cntx = mbox = ast_strdupa(e->mailbox);
 					strsep(&cntx, "@");
 					if (ast_strlen_zero(cntx)) {
 						cntx = "default";
 					}
-					e->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "MGCP MWI subscription", NULL,
-						AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox,
-						AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cntx,
-						AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-						AST_EVENT_IE_END);
+					ast_str_reset(uniqueid);
+					ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
+
+					maibox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+					if (mailbox_specific_topic) {
+						e->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
+					}
 				}
 				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", ast_random());
 				e->msgstate = -1;
@@ -4516,8 +4524,9 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 		ast_free(s);
 	}
 
-	if (e->mwi_event_sub)
-		ast_event_unsubscribe(e->mwi_event_sub);
+	if (e->mwi_event_sub) {
+		e->mwi_event_sub = stasis_unsubscribe(e->mwi_event_sub);
+	}
 
 	if (e->chanvars) {
 		ast_variables_destroy(e->chanvars);
