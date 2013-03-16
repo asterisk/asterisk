@@ -3244,6 +3244,14 @@ static int xmpp_client_send_disco_info_request(struct ast_xmpp_client *client, c
 	return res;
 }
 
+/*! \brief Callback function which returns when the resource is available */
+static int xmpp_resource_is_available(void *obj, void *arg, int flags)
+{
+	struct ast_xmpp_resource *resource = obj;
+
+	return (resource->status == IKS_SHOW_AVAILABLE) ? CMP_MATCH | CMP_STOP : 0;
+}
+
 /*! \brief Internal function called when a presence message is received */
 static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, iks *node, ikspak *pak)
 {
@@ -3251,6 +3259,7 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 	struct ast_xmpp_resource *resource;
 	char *type = iks_find_attrib(pak->x, "type");
 	int status = pak->show ? pak->show : STATUS_DISAPPEAR;
+	enum ast_device_state state = AST_DEVICE_UNAVAILABLE;
 
 	/* If no resource is available this is a general buddy presence update, which we will ignore */
 	if (!pak->from->resource) {
@@ -3357,9 +3366,17 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 			      client->name, pak->from->partial, pak->show ? pak->show : IKS_SHOW_UNAVAILABLE);
 	}
 
+	/* Determine if at least one resource is available for device state purposes */
+	if ((resource = ao2_callback(buddy->resources, OBJ_NOLOCK, xmpp_resource_is_available, NULL))) {
+		state = AST_DEVICE_NOT_INUSE;
+		ao2_ref(resource, -1);
+	}
+
 	ao2_unlock(buddy->resources);
 
 	ao2_ref(buddy, -1);
+
+	ast_devstate_changed(state, AST_DEVSTATE_CACHABLE, "XMPP/%s/%s", client->name, pak->from->partial);
 
 	return 0;
 }

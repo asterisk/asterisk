@@ -117,6 +117,14 @@ RTP
    them, an Asterisk-specific version of pjproject needs to be installed.
    Tarballs are available from https://github.com/asterisk/pjproject/tags/.
 
+XMPP
+------------------
+ * Device state for XMPP buddies is now available using the following format:
+   XMPP/<client name>/<buddy address>
+   If any resource is available the device state is considered to be not in use.
+   If no resources exist or all are unavailable the device state is considered
+   to be unavailable.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
