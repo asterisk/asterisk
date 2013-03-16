@@ -700,10 +700,10 @@ static int xmpp_resource_hash(const void *obj, const int flags)
 /*! \brief Comparator function for XMPP resource */
 static int xmpp_resource_cmp(void *obj, void *arg, int flags)
 {
-	struct ast_xmpp_resource *resource1 = obj, *resource2 = arg;
+	struct ast_xmpp_resource *resource1 = obj;
 	const char *resource = arg;
 
-	return !strcmp(resource1->resource, flags & OBJ_KEY ? resource : resource2->resource) ? CMP_MATCH | CMP_STOP : 0;
+	return !strcmp(resource1->resource, resource) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Destructor callback function for XMPP buddy */
@@ -1545,7 +1545,7 @@ static int xmpp_status_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (ast_strlen_zero(jid.resource) || !(resource = ao2_find(buddy->resources, jid.resource, OBJ_KEY))) {
+	if (ast_strlen_zero(jid.resource) || !(resource = ao2_callback(buddy->resources, 0, xmpp_resource_cmp, jid.resource))) {
 		resource = ao2_callback(buddy->resources, OBJ_NODATA, xmpp_resource_immediate, NULL);
 	}
 
@@ -1616,7 +1616,7 @@ static int acf_jabberstatus_read(struct ast_channel *chan, const char *name, cha
 		return -1;
 	}
 
-	if (ast_strlen_zero(jid.resource) || !(resource = ao2_find(buddy->resources, jid.resource, OBJ_KEY))) {
+	if (ast_strlen_zero(jid.resource) || !(resource = ao2_callback(buddy->resources, 0, xmpp_resource_cmp, jid.resource))) {
 		resource = ao2_callback(buddy->resources, OBJ_NODATA, xmpp_resource_immediate, NULL);
 	}
 
@@ -2344,7 +2344,7 @@ static int xmpp_client_service_discovery_result_hook(void *data, ikspak *pak)
 		return IKS_FILTER_EAT;
 	}
 
-	if (!(resource = ao2_find(buddy->resources, pak->from->resource, OBJ_KEY))) {
+	if (!(resource = ao2_callback(buddy->resources, 0, xmpp_resource_cmp, pak->from->resource))) {
 		ao2_ref(buddy, -1);
 		return IKS_FILTER_EAT;
 	}
@@ -3137,7 +3137,7 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 
 	ao2_lock(buddy->resources);
 
-	if (!(resource = ao2_find(buddy->resources, pak->from->resource, OBJ_KEY | OBJ_NOLOCK))) {
+	if (!(resource = ao2_callback(buddy->resources, OBJ_NOLOCK, xmpp_resource_cmp, pak->from->resource))) {
 		/* Only create the new resource if it is not going away - in reality this should not happen */
 		if (status != STATUS_DISAPPEAR) {
 			if (!(resource = ao2_alloc(sizeof(*resource), xmpp_resource_destructor))) {
