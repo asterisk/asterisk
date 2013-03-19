@@ -54,7 +54,7 @@ clean::
 		$(MAKE) -C $$dir clean; \
 	done
 	rm -f g722/*.[oai]
-	rm -f speex/*.[oa]
+	rm -f speex/*.[oai]
 
 .PHONY: $(SUB_DIRS)
 
