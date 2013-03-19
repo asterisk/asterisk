@@ -53,7 +53,7 @@ clean::
 	for dir in $(SUB_DIRS); do \
 		$(MAKE) -C $$dir clean; \
 	done
-	rm -f g722/*.[oa]
+	rm -f g722/*.[oai]
 	rm -f speex/*.[oa]
 
 .PHONY: $(SUB_DIRS)
