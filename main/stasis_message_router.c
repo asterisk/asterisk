@@ -91,6 +91,7 @@ static void router_dispatch(void *data,
 			    struct stasis_message *message)
 {
 	struct stasis_message_router *router = data;
+	RAII_VAR(struct stasis_message_router *, router_needs_cleanup, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_route *, route, NULL, ao2_cleanup);
 	struct stasis_message_type *type = stasis_message_type(message);
 	size_t i;
@@ -123,7 +124,7 @@ static void router_dispatch(void *data,
 	}
 
 	if (stasis_subscription_final_message(sub, message)) {
-		ao2_cleanup(router);
+		router_needs_cleanup = router;
 		return;
 	}
 
