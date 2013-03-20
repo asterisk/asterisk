@@ -888,16 +888,25 @@ int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, co
 	}
 }
 
+/*! \brief Structure used when calling create, update, or delete */
+struct sorcery_details {
+	/*! \brief Pointer to the sorcery instance */
+	const struct ast_sorcery *sorcery;
+	/*! \brief Pointer to the object itself */
+	void *obj;
+};
+
 /*! \brief Internal function used to create an object in caching wizards */
 static int sorcery_cache_create(void *obj, void *arg, int flags)
 {
-	struct ast_sorcery_object_wizard *object_wizard = obj;
+	const struct ast_sorcery_object_wizard *object_wizard = obj;
+	const struct sorcery_details *details = arg;
 
 	if (!object_wizard->caching || !object_wizard->wizard->create) {
 		return 0;
 	}
 
-	object_wizard->wizard->create(object_wizard->data, arg);
+	object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj);
 
 	return 0;
 }
@@ -1014,8 +1023,9 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 static int sorcery_wizard_create(void *obj, void *arg, int flags)
 {
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
+	const struct sorcery_details *details = arg;
 
-	return (!object_wizard->caching && !object_wizard->wizard->create(object_wizard->data, arg)) ? CMP_MATCH | CMP_STOP : 0;
+	return (!object_wizard->caching && !object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
@@ -1023,12 +1033,16 @@ int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 	const struct ast_sorcery_object_details *details = object;
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
+	struct sorcery_details sdetails = {
+		.sorcery = sorcery,
+		.obj = object,
+	};
 
 	if (!object_type) {
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_create, object);
+	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_create, &sdetails);
 
 	return object_wizard ? 0 : -1;
 }
@@ -1037,8 +1051,9 @@ int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 static int sorcery_wizard_update(void *obj, void *arg, int flags)
 {
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
+	const struct sorcery_details *details = arg;
 
-	return (object_wizard->wizard->update && !object_wizard->wizard->update(object_wizard->data, arg) &&
+	return (object_wizard->wizard->update && !object_wizard->wizard->update(details->sorcery, object_wizard->data, details->obj) &&
 		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
 }
 
@@ -1047,12 +1062,16 @@ int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
 	const struct ast_sorcery_object_details *details = object;
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
+	struct sorcery_details sdetails = {
+		.sorcery = sorcery,
+		.obj = object,
+	};
 
 	if (!object_type) {
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_update, object);
+	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_update, &sdetails);
 
 	return object_wizard ? 0 : -1;
 }
@@ -1061,8 +1080,9 @@ int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
 static int sorcery_wizard_delete(void *obj, void *arg, int flags)
 {
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
+	const struct sorcery_details *details = arg;
 
-	return (object_wizard->wizard->delete && !object_wizard->wizard->delete(object_wizard->data, arg) &&
+	return (object_wizard->wizard->delete && !object_wizard->wizard->delete(details->sorcery, object_wizard->data, details->obj) &&
 		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
 }
 
@@ -1071,12 +1091,16 @@ int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 	const struct ast_sorcery_object_details *details = object;
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
+	struct sorcery_details sdetails = {
+		.sorcery = sorcery,
+		.obj = object,
+	};
 
 	if (!object_type) {
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_delete, object);
+	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_delete, &sdetails);
 
 	return object_wizard ? 0 : -1;
 }

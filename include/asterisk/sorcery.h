@@ -203,7 +203,7 @@ struct ast_sorcery_wizard {
 	void (*reload)(void *data, const struct ast_sorcery *sorcery, const char *type);
 
 	/*! \brief Callback for creating an object */
-	int (*create)(void *data, void *object);
+	int (*create)(const struct ast_sorcery *sorcery, void *data, void *object);
 
 	/*! \brief Callback for retrieving an object using an id */
 	void *(*retrieve_id)(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id);
@@ -218,10 +218,10 @@ struct ast_sorcery_wizard {
 	void (*retrieve_multiple)(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const struct ast_variable *fields);
 
 	/*! \brief Callback for updating an object */
-	int (*update)(void *data, void *object);
+	int (*update)(const struct ast_sorcery *sorcery, void *data, void *object);
 
 	/*! \brief Callback for deleting an object */
-	int (*delete)(void *data, void *object);
+	int (*delete)(const struct ast_sorcery *sorcery, void *data, void *object);
 
 	/*! \brief Callback for closing a wizard */
 	void (*close)(void *data);

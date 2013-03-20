@@ -138,7 +138,7 @@ static void test_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 /*! \brief Global scope caching structure for testing */
 static struct sorcery_test_caching cache = { 0, };
 
-static int sorcery_test_create(void *data, void *object)
+static int sorcery_test_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	cache.created = 1;
 	cache.updated = 0;
@@ -151,13 +151,13 @@ static void *sorcery_test_retrieve_id(const struct ast_sorcery *sorcery, void *d
 	return (cache.created && !cache.deleted) ? ast_sorcery_alloc(sorcery, type, id) : NULL;
 }
 
-static int sorcery_test_update(void *data, void *object)
+static int sorcery_test_update(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	cache.updated = 1;
 	return 0;
 }
 
-static int sorcery_test_delete(void *data, void *object)
+static int sorcery_test_delete(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	cache.deleted = 1;
 	return 0;

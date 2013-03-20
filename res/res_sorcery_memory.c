@@ -42,14 +42,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define OBJECT_BUCKETS 53
 
 static void *sorcery_memory_open(const char *data);
-static int sorcery_memory_create(void *data, void *object);
+static int sorcery_memory_create(const struct ast_sorcery *sorcery, void *data, void *object);
 static void *sorcery_memory_retrieve_id(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id);
 static void *sorcery_memory_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields);
 static void sorcery_memory_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
 					     const struct ast_variable *fields);
 static void sorcery_memory_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
-static int sorcery_memory_update(void *data, void *object);
-static int sorcery_memory_delete(void *data, void *object);
+static int sorcery_memory_update(const struct ast_sorcery *sorcery, void *data, void *object);
+static int sorcery_memory_delete(const struct ast_sorcery *sorcery, void *data, void *object);
 static void sorcery_memory_close(void *data);
 
 static struct ast_sorcery_wizard memory_object_wizard = {
@@ -96,7 +96,7 @@ static int sorcery_memory_cmp(void *obj, void *arg, int flags)
 	return !strcmp(ast_sorcery_object_get_id(obj), flags & OBJ_KEY ? id : ast_sorcery_object_get_id(arg)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
-static int sorcery_memory_create(void *data, void *object)
+static int sorcery_memory_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	ao2_link(data, object);
 	return 0;
@@ -184,7 +184,7 @@ static void sorcery_memory_retrieve_regex(const struct ast_sorcery *sorcery, voi
 	regfree(&expression);
 }
 
-static int sorcery_memory_update(void *data, void *object)
+static int sorcery_memory_update(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	RAII_VAR(void *, existing, NULL, ao2_cleanup);
 
@@ -202,7 +202,7 @@ static int sorcery_memory_update(void *data, void *object)
 	return 0;
 }
 
-static int sorcery_memory_delete(void *data, void *object)
+static int sorcery_memory_delete(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	RAII_VAR(void *, existing, ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_UNLINK), ao2_cleanup);
 
