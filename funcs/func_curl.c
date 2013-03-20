@@ -665,20 +665,11 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 			int rowcount = 0;
 			while (fields && values && (piece = strsep(&remainder, "&"))) {
 				char *name = strsep(&piece, "=");
-				/* Do this before the decode, because if something has encoded
-				 * a literal plus-sign, we don't want to translate that to a
-				 * space. */
-				if (hashcompat == HASHCOMPAT_LEGACY) {
-					if (piece) {
-						ast_uri_decode(piece, ast_uri_http_legacy);
-					}
-					ast_uri_decode(name, ast_uri_http_legacy);
-				} else {
-					if (piece) {
-						ast_uri_decode(piece, ast_uri_http);
-					}
-					ast_uri_decode(name, ast_uri_http);
+				struct ast_flags mode = (hashcompat == HASHCOMPAT_LEGACY ? ast_uri_http_legacy : ast_uri_http);
+				if (piece) {
+					ast_uri_decode(piece, mode);
 				}
+				ast_uri_decode(name, mode);
 				ast_str_append(&fields, 0, "%s%s", rowcount ? "," : "", ast_str_set_escapecommas(&escapebuf, 0, name, INT_MAX));
 				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", ast_str_set_escapecommas(&escapebuf, 0, S_OR(piece, ""), INT_MAX));
 				rowcount++;
