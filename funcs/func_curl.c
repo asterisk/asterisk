@@ -581,6 +581,7 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	struct ast_datastore *store = NULL;
 	int hashcompat = 0;
 	AST_LIST_HEAD(global_curl_info, curl_settings) *list = NULL;
+	char curl_errbuf[CURL_ERROR_SIZE + 1]; /* add one to be safe */
 
 	if (buf) {
 		*buf = '\0';
@@ -642,7 +643,19 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, args.postdata);
 	}
 
-	curl_easy_perform(*curl);
+	/* Temporarily assign a buffer for curl to write errors to. */
+	curl_errbuf[0] = curl_errbuf[CURL_ERROR_SIZE] = '\0';
+	curl_easy_setopt(*curl, CURLOPT_ERRORBUFFER, curl_errbuf);
+
+	if (curl_easy_perform(*curl) != 0) {
+		ast_log(LOG_WARNING, "%s ('%s')\n", curl_errbuf, args.url);
+	}
+
+	/* Reset buffer to NULL so curl doesn't try to write to it when the
+	 * buffer is deallocated. Documentation is vague about allowing NULL
+	 * here, but the source allows it. See: "typecheck: allow NULL to unset
+	 * CURLOPT_ERRORBUFFER" (62bcf005f4678a93158358265ba905bace33b834). */
+	curl_easy_setopt(*curl, CURLOPT_ERRORBUFFER, (char*)NULL);
 
 	if (store) {
 		AST_LIST_UNLOCK(list);
