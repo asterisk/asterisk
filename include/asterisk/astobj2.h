@@ -1433,8 +1433,8 @@ void ao2_container_unregister(const char *name);
  * \param flags search_flags to control linking the object.  (OBJ_NOLOCK)
  * \param tag used for debugging.
  *
- * \retval NULL on errors.
- * \retval !NULL on success.
+ * \retval 0 on errors.
+ * \retval 1 on success.
  *
  * This function inserts an object in a container according its key.
  *
