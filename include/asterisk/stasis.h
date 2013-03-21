@@ -54,9 +54,7 @@
  * enforced in code). Messages themselves are reference-counted, AO2 objects,
  * along with their values. By being both reference counted and immutable,
  * messages can be shared throughout the system without any concerns for
- * threading. (Well, the objects must be allocated with \ref
- * AO2_ALLOC_OPT_LOCK_MUTEX so that the reference counting operations are thread
- * safe. But other than that, no worries).
+ * threading.
  *
  * The type of a message is defined by an instance of \ref stasis_message_type,
  * which can be created by calling stasis_message_type_create(). Message types
