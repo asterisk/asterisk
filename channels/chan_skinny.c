@@ -8571,6 +8571,9 @@ int skinny_reload(void)
 		   We do not want to free the line here, that
 		   will happen below. */
 		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
+			if (l->mwi_event_sub) {
+				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
+			}
 		}
 		/* Delete all speeddials for this device */
 		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
