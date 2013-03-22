@@ -31,7 +31,6 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_json</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -1720,5 +1719,4 @@ static int load_module(void)
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "JSON testing",
 		.load = load_module,
-		.unload = unload_module,
-		.nonoptreq = "res_json");
+		.unload = unload_module);

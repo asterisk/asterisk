@@ -41,6 +41,15 @@ AMI (Asterisk Manager Interface)
    mechanisms (such as the Playback application), the audio can be stopped,
    reversed, or skipped forward.
 
+ * Channel related events now contain a snapshot of channel state, adding new
+   fields to many of these events.
+
+ * The AMI event 'Newexten' field 'Extension' is deprecated, and may be removed
+   in a future release. Please use the common 'Exten' field instead.
+
+ * The AMI event 'UserEvent' from app_userevent now contains the channel state
+   fields. The channel state fields will come before the body fields.
+
 Channel Drivers
 ------------------
 

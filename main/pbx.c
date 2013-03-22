@@ -4655,8 +4655,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	int res;
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	char passdata[EXT_DATA_SIZE];
-
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	ast_rdlock_contexts();
 	if (found)
@@ -4700,28 +4701,18 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					COLORIZE(COLOR_BRMAGENTA, 0, passdata),
 					"in new stack");
 			}
-			/*** DOCUMENTATION
-				<managerEventInstance>
-					<synopsis>Raised when a channel enters a new context, extension, priority.</synopsis>
-					<syntax>
-						<parameter name="Application">
-							<para>The application about to be executed.</para>
-						</parameter>
-						<parameter name="AppData">
-							<para>The data to be passed to the application.</para>
-						</parameter>
-					</syntax>
-				</managerEventInstance>
-			***/
-			manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
-					"Channel: %s\r\n"
-					"Context: %s\r\n"
-					"Extension: %s\r\n"
-					"Priority: %d\r\n"
-					"Application: %s\r\n"
-					"AppData: %s\r\n"
-					"Uniqueid: %s\r\n",
-					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), app->name, passdata, ast_channel_uniqueid(c));
+			snapshot = ast_channel_snapshot_create(c);
+			if (snapshot) {
+				/* pbx_exec sets application name and data, but we don't want to log
+				 * every exec. Just update the snapshot here instead.
+				 */
+				ast_string_field_set(snapshot, appl, app->name);
+				ast_string_field_set(snapshot, data, passdata);
+				msg = stasis_message_create(ast_channel_snapshot(), snapshot);
+				if (msg) {
+					stasis_publish(ast_channel_topic(c), msg);
+				}
+			}
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */

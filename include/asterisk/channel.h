@@ -151,6 +151,7 @@ extern "C" {
 #include "asterisk/ccss.h"
 #include "asterisk/framehook.h"
 #include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
@@ -4187,24 +4188,51 @@ struct stasis_caching_topic *ast_channel_topic_all_cached(void);
 
 /*!
  * \since 12
- * \brief Variable set event.
+ * \brief Blob of data associated with a channel.
+ *
+ * The \c blob is actually a JSON object of structured data. It has a "type" field
+ * which contains the type string describing this blob.
  */
-struct ast_channel_varset {
-	/*! Channel variable was set on (or NULL for global variable) */
+struct ast_channel_blob {
+	/*! Channel blob is associated with (or NULL for global/all channels) */
 	struct ast_channel_snapshot *snapshot;
-	/*! Variable name */
-	char *variable;
-	/*! New value */
-	char *value;
+	/*! JSON blob of data */
+	struct ast_json *blob;
 };
 
 /*!
  * \since 12
- * \brief Message type for \ref ast_channel_varset messages.
+ * \brief Message type for \ref ast_channel_blob messages.
  *
- * \retval Message type for \ref ast_channel_varset messages.
+ * \retval Message type for \ref ast_channel_blob messages.
  */
-struct stasis_message_type *ast_channel_varset(void);
+struct stasis_message_type *ast_channel_blob(void);
+
+/*!
+ * \since 12
+ * \brief Extracts the type field from a \ref ast_channel_blob.
+ * Returned \c char* is still owned by \a obj
+ * \param obj Channel blob object.
+ * \return Type field value from the blob.
+ * \return \c NULL on error.
+ */
+const char *ast_channel_blob_type(struct ast_channel_blob *obj);
+
+/*!
+ * \since 12
+ * \brief Creates a \ref ast_channel_blob message.
+ *
+ * The \a blob JSON object requires a \c "type" field describing the blob. It
+ * should also be treated as immutable and not modified after it is put into the
+ * message.
+ *
+ * \param chan Channel blob is associated with, or NULL for global/all channels.
+ * \param blob JSON object representing the data.
+ * \return \ref ast_channel_blob message.
+ * \return \c NULL on error
+ */
+struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
+					       struct ast_json *blob);
 
 /*!
  * \since 12

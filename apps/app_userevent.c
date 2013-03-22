@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/manager.h"
 #include "asterisk/app.h"
+#include "asterisk/json.h"
 
 /*** DOCUMENTATION
 	<application name="UserEvent" language="en_US">
@@ -68,11 +69,12 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(eventname);
 		AST_APP_ARG(extra)[100];
 	);
-	struct ast_str *body = ast_str_create(16);
+	RAII_VAR(struct ast_str *, body, ast_str_create(16), ast_free);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname,optional event body)\n");
-		ast_free(body);
 		return -1;
 	}
 
@@ -89,24 +91,21 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		ast_str_append(&body, 0, "%s\r\n", args.extra[x]);
 	}
 
-	/*** DOCUMENTATION
-	<managerEventInstance>
-		<synopsis>A user defined event raised from the dialplan.</synopsis>
-		<parameter name="UserEvent">
-			<para>The event name, as specified in the dialplan.</para>
-		</parameter>
-		<see-also>
-			<ref type="application">UserEvent</ref>
-		</see-also>
-	</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_USER, "UserEvent",
-			"UserEvent: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"%s",
-			args.eventname, ast_channel_uniqueid(chan), ast_str_buffer(body));
+	blob = ast_json_pack("{s: s, s: s, s: s}",
+			     "type", "userevent",
+			     "eventname", args.eventname,
+			     "body", ast_str_buffer(body));
+	if (!blob) {
+		ast_log(LOG_WARNING, "Unable to create message buffer\n");
+		return -1;
+	}
 
-	ast_free(body);
+	msg = ast_channel_blob_create(chan, blob);
+	if (!msg) {
+		return -1;
+	}
+
+	stasis_publish(ast_channel_topic(chan), msg);
 
 	return 0;
 }

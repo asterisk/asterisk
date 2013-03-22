@@ -345,6 +345,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				char tmp1[80];
 				char tmp2[80];
 				char tmp3[EXT_DATA_SIZE];
+				RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+				RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 				appdata[0] = 0; /* just in case the substitute var func isn't called */
 				if(!ast_strlen_zero(tmp))
@@ -354,16 +356,18 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
-				manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
-							  "Channel: %s\r\n"
-							  "Context: %s\r\n"
-							  "Extension: %s\r\n"
-							  "Priority: %d\r\n"
-							  "Application: %s\r\n"
-							  "AppData: %s\r\n"
-							  "Uniqueid: %s\r\n",
-							  ast_channel_name(chan), ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan), app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", ast_channel_uniqueid(chan));
-				
+				snapshot = ast_channel_snapshot_create(chan);
+				if (snapshot) {
+					/* pbx_exec sets application name and data, but we don't want to log
+					 * every exec. Just update the snapshot here instead.
+					 */
+					ast_string_field_set(snapshot, appl, app);
+					ast_string_field_set(snapshot, data, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
+					msg = stasis_message_create(ast_channel_snapshot(), snapshot);
+					if (msg) {
+						stasis_publish(ast_channel_topic(chan), msg);
+					}
+				}
 				res = pbx_exec(chan, a, appdata);
 			} else
 				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);

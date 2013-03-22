@@ -155,7 +155,7 @@ static struct ao2_container *channels;
 /*! \brief Message type for channel snapshot events */
 static struct stasis_message_type *__channel_snapshot;
 
-static struct stasis_message_type *__channel_varset;
+static struct stasis_message_type *__channel_blob;
 
 struct stasis_topic *__channel_topic_all;
 
@@ -243,37 +243,79 @@ static void publish_channel_state(struct ast_channel *chan)
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
-static void channel_varset_dtor(void *obj)
+static void channel_blob_dtor(void *obj)
 {
-	struct ast_channel_varset *event = obj;
+	struct ast_channel_blob *event = obj;
 	ao2_cleanup(event->snapshot);
-	ast_free(event->variable);
-	ast_free(event->value);
+	ast_json_unref(event->blob);
+}
+
+struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
+					       struct ast_json *blob)
+{
+	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_json *type;
+
+	ast_assert(blob != NULL);
+
+	type = ast_json_object_get(blob, "type");
+	if (type == NULL) {
+		ast_log(LOG_ERROR, "Invalid ast_channel_blob; missing type field");
+		return NULL;
+	}
+
+	obj = ao2_alloc(sizeof(*obj), channel_blob_dtor);
+	if (!obj) {
+		return NULL;
+	}
+
+	if (chan) {
+		obj->snapshot = ast_channel_snapshot_create(chan);
+		if (obj->snapshot == NULL) {
+			return NULL;
+		}
+	}
+
+	obj->blob = ast_json_ref(blob);
+
+	msg = stasis_message_create(ast_channel_blob(), obj);
+	if (!msg) {
+		return NULL;
+	}
+
+	ao2_ref(msg, +1);
+	return msg;
+}
+
+const char *ast_channel_blob_type(struct ast_channel_blob *obj)
+{
+	if (obj == NULL) {
+		return NULL;
+	}
+
+	return ast_json_string_get(ast_json_object_get(obj->blob, "type"));
 }
 
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
 {
-	RAII_VAR(struct ast_channel_varset *, event, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
-	event = ao2_alloc(sizeof(*event), channel_varset_dtor);
-	if (!event) {
+	ast_assert(name != NULL);
+	ast_assert(value != NULL);
+
+	blob = ast_json_pack("{s: s, s: s, s: s}",
+			     "type", "varset",
+			     "variable", name,
+			     "value", value);
+	if (!blob) {
+		ast_log(LOG_ERROR, "Error creating message\n");
 		return;
 	}
 
-	if (chan) {
-		event->snapshot = ast_channel_snapshot_create(chan);
-		if (event->snapshot == NULL) {
-			return;
-		}
-	}
-	event->variable = ast_strdup(name);
-	event->value = ast_strdup(value);
-	if (event->variable == NULL || event->value == NULL) {
-		return;
-	}
+	msg = ast_channel_blob_create(chan, ast_json_ref(blob));
 
-	msg = stasis_message_create(ast_channel_varset(), event);
 	if (!msg) {
 		return;
 	}
@@ -8633,8 +8675,8 @@ static void channels_shutdown(void)
 {
 	ao2_cleanup(__channel_snapshot);
 	__channel_snapshot = NULL;
-	ao2_cleanup(__channel_varset);
-	__channel_varset = NULL;
+	ao2_cleanup(__channel_blob);
+	__channel_blob = NULL;
 	ao2_cleanup(__channel_topic_all);
 	__channel_topic_all = NULL;
 	__channel_topic_all_cached = stasis_caching_unsubscribe(__channel_topic_all_cached);
@@ -8666,7 +8708,7 @@ void ast_channels_init(void)
 	}
 
 	__channel_snapshot = stasis_message_type_create("ast_channel_snapshot");
-	__channel_varset = stasis_message_type_create("ast_channel_varset");
+	__channel_blob = stasis_message_type_create("ast_channel_blob");
 
 	__channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	__channel_topic_all_cached = stasis_caching_topic_create(__channel_topic_all, channel_snapshot_get_id);
@@ -11305,9 +11347,9 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	return snapshot;
 }
 
-struct stasis_message_type *ast_channel_varset(void)
+struct stasis_message_type *ast_channel_blob(void)
 {
-	return __channel_varset;
+	return __channel_blob;
 }
 
 struct stasis_message_type *ast_channel_snapshot(void)

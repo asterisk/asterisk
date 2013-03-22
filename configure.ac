@@ -491,12 +491,13 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/event.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h])
 
-# Any one of these 5 packages support a mandatory requirement, so we want to check on them as early as possible.
+# Any one of these packages support a mandatory requirement, so we want to check on them as early as possible.
 AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [-luuid])
+AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
@@ -514,6 +515,10 @@ AC_SUBST(EDITLINE_LIB)
 
 if test "x$UUID_LIB" == "x"; then
   AC_MSG_ERROR([*** uuid support not found (this typically means the uuid development package is missing)])
+fi
+
+if test "x$JANSSON_LIB" == "x"; then
+  AC_MSG_ERROR([*** JSON support not found (this typically means the libjansson development package is missing)])
 fi
 
 # Another mandatory item (unless it's explicitly disabled)
@@ -1868,8 +1873,6 @@ AST_EXT_LIB_CHECK([IODBC], [iodbc], [SQLConnect], [sql.h], [${PTHREAD_LIBS}], [$
 AST_EXT_LIB_CHECK([INOTIFY], [c], [inotify_init], [sys/inotify.h])
 
 AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
-
-AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 # BSD (and OS X) equivalent of inotify
 AST_EXT_LIB_CHECK([KQUEUE], [c], [kqueue], [sys/event.h])

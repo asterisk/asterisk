@@ -316,4 +316,12 @@ int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastor
  */
 struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid);
 
+/*!
+ * \brief Initialize support for AMI channel events.
+ * \return 0 on success.
+ * \return non-zero on error.
+ * \since 12
+ */
+int manager_channels_init(void);
+
 #endif /* _ASTERISK_MANAGER_H */
