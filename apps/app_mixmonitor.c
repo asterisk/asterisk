@@ -1042,7 +1042,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int stop_mixmonitor_exec(struct ast_channel *chan, const char *data)
+static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *datastore = NULL;
 	char *parse = "";
@@ -1093,6 +1093,12 @@ static int stop_mixmonitor_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_channel_unlock(chan);
 
+	return 0;
+}
+
+static int stop_mixmonitor_exec(struct ast_channel *chan, const char *data)
+{
+	stop_mixmonitor_full(chan, data);
 	return 0;
 }
 
@@ -1315,7 +1321,7 @@ static int manager_stop_mixmonitor(struct mansession *s, const struct message *m
 		return AMI_SUCCESS;
 	}
 
-	res = stop_mixmonitor_exec(c, mixmonitor_id);
+	res = stop_mixmonitor_full(c, mixmonitor_id);
 
 	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
