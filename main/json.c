@@ -27,7 +27,6 @@
  */
 
 /*** MODULEINFO
-	<depend>jansson</depend>
 	<support_level>core</support_level>
  ***/
 
