@@ -502,19 +502,8 @@ struct ast_json *ast_json_deep_copy(const struct ast_json *value)
 	return (struct ast_json *)json_deep_copy((json_t *)value);
 }
 
-static int unload_module(void)
-{
-	/* Nothing to do */
-	return 0;
-}
-
-static int load_module(void)
+void ast_json_init(void)
 {
 	/* Setup to use Asterisk custom allocators */
 	ast_json_reset_alloc_funcs();
-	return AST_MODULE_LOAD_SUCCESS;
 }
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "JSON library",
-		.load = load_module,
-		.unload = unload_module);

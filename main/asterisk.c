@@ -241,6 +241,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 #include "../defaults.h"
 
@@ -4070,6 +4071,7 @@ int main(int argc, char *argv[])
 			ast_el_read_history(filename);
 	}
 
+	ast_json_init();
 	ast_ulaw_init();
 	ast_alaw_init();
 	tdd_init();

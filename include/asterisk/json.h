@@ -33,6 +33,11 @@
 /*!@{*/
 
 /*!
+ * \brief Initialize the JSON library.
+ */
+void ast_json_init(void);
+
+/*!
  * \brief Set custom allocators instead of the standard ast_malloc() and ast_free().
  * \since 12.0.0
  *
