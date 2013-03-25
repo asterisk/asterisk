@@ -637,7 +637,7 @@ int manager_channels_init(void)
 					 NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
-	 * things and fail it.
+	 * thing and fail it.
 	 */
 	if (ret) {
 		manager_channels_shutdown();
