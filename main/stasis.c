@@ -472,7 +472,7 @@ static void topic_pool_dtor(void *obj)
 
 static int topic_pool_entry_hash(const void *obj, const int flags)
 {
-	const char *topic_name= (flags & OBJ_KEY) ? obj : stasis_topic_name(((struct topic_pool_entry*) obj)->topic);
+	const char *topic_name = (flags & OBJ_KEY) ? obj : stasis_topic_name(((struct topic_pool_entry*) obj)->topic);
 	return ast_str_case_hash(topic_name);
 }
 
