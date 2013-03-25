@@ -6410,6 +6410,10 @@ static void *pri_dchannel(void *vpri)
 
 							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+							ast_channel_lock(c);
+							ast_channel_dialed(c)->number.plan = e->ring.calledplan;
+							ast_channel_unlock(c);
+
 							if (e->ring.redirectingreason >= 0) {
 								/* This is now just a status variable.  Use REDIRECTING() dialplan function. */
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
@@ -6548,6 +6552,9 @@ static void *pri_dchannel(void *vpri)
 
 							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+							ast_channel_lock(c);
+							ast_channel_dialed(c)->number.plan = e->ring.calledplan;
+							ast_channel_unlock(c);
 
 							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds,
 								e->ring.call);
