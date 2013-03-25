@@ -80,20 +80,16 @@ check_installed_pkgs() {
 }
 
 handle_debian() {
-	# echo "# Distribution is Debian or compatible"
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
 	$testcmd aptitude install -y $extra_packs
 }
 
 handle_rh() {
-	# echo "# Distribution is RedHat-based or compatible"
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
-        # FIXME: is there yum with RHEL 4?
 	$testcmd yum install -y $extra_packs
 }
 
 handle_obsd() {
-	# echo "# Distribution is OpenBSD or compatible"
 	extra_packs=`check_installed_pkgs $PACKAGES_OBSD`
 	$testcmd pkg_add $extra_packs
 }
