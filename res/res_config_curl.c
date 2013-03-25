@@ -469,7 +469,7 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 {
 	struct ast_str *query, *buffer;
 	char *elm, field[256];
-	int type, size;
+	int type, size, i = 0;
 	const int EncodeSpecialChars = 1;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -491,7 +491,9 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 		type = va_arg(ap, require_type);
 		size = va_arg(ap, int);
 		ast_uri_encode(elm, field, sizeof(field), EncodeSpecialChars);
-		ast_str_append(&query, 0, "%s=%s%%3A%d", field,
+		ast_str_append(&query, 0, "%s%s=%s%%3A%d",
+			i > 0 ? "&" : "",
+			field,
 			type == RQ_CHAR ? "char" :
 			type == RQ_INTEGER1 ? "integer1" :
 			type == RQ_UINTEGER1 ? "uinteger1" :
@@ -507,6 +509,7 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 			type == RQ_DATETIME ? "datetime" :
 			type == RQ_FLOAT ? "float" :
 			"unknown", size);
+		i++;
 	}
 
 	ast_str_append(&query, 0, ")}");
