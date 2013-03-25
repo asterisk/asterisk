@@ -50,6 +50,9 @@ AMI (Asterisk Manager Interface)
  * The AMI event 'UserEvent' from app_userevent now contains the channel state
    fields. The channel state fields will come before the body fields.
 
+ * The deprecated use of | (pipe) as a separator in the channelvars setting in
+   manager.conf has been removed.
+
 Channel Drivers
 ------------------
 

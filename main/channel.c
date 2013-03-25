@@ -243,6 +243,18 @@ static void publish_channel_state(struct ast_channel *chan)
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
+static void publish_channel_blob(struct ast_channel *chan, struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	if (blob) {
+		message = ast_channel_blob_create(chan, blob);
+	}
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+}
+
+
 static void channel_blob_dtor(void *obj)
 {
 	struct ast_channel_blob *event = obj;
@@ -309,22 +321,7 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 			     "type", "varset",
 			     "variable", name,
 			     "value", value);
-	if (!blob) {
-		ast_log(LOG_ERROR, "Error creating message\n");
-		return;
-	}
-
-	msg = ast_channel_blob_create(chan, ast_json_ref(blob));
-
-	if (!msg) {
-		return;
-	}
-
-	if (chan) {
-		stasis_publish(ast_channel_topic(chan), msg);
-	} else {
-		stasis_publish(ast_channel_topic_all(), msg);
-	}
+	publish_channel_blob(chan, blob);
 }
 
 
@@ -1463,22 +1460,16 @@ int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	int res;
 
 	/* Yeah, let's not change a lock-critical value without locking */
 	ast_channel_lock(chan);
 	ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a hangup is requested with no set cause.</synopsis>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_CALL, "HangupRequest",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan));
+	blob = ast_json_pack("{s: s}", "type", "hangup_request");
+	publish_channel_blob(chan, blob);
 
 	res = ast_queue_frame(chan, &f);
 	ast_channel_unlock(chan);
@@ -1488,6 +1479,8 @@ int ast_queue_hangup(struct ast_channel *chan)
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	int res;
 
@@ -1501,21 +1494,10 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 	if (cause < 0) {
 		f.data.uint32 = ast_channel_hangupcause(chan);
 	}
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a hangup is requested with a specific cause code.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
-				</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_CALL, "HangupRequest",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Cause: %d\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		cause);
+	blob = ast_json_pack("{s: s, s: i}",
+			     "type", "hangup_request",
+			     "cause", cause);
+	publish_channel_blob(chan, blob);
 
 	res = ast_queue_frame(chan, &f);
 	ast_channel_unlock(chan);
@@ -2818,25 +2800,16 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 /*! \brief Softly hangup a channel, lock */
 int ast_softhangup(struct ast_channel *chan, int cause)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	int res;
 
 	ast_channel_lock(chan);
 	res = ast_softhangup_nolock(chan, cause);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a soft hangup is requested with a specific cause code.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
-				</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_CALL, "SoftHangupRequest",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Cause: %d\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		cause);
+	blob = ast_json_pack("{s: s, s: i, s: b}",
+			     "type", "hangup_request",
+			     "cause", cause,
+			     "soft", 1);
+	publish_channel_blob(chan, blob);
 	ast_channel_unlock(chan);
 
 	return res;
@@ -6837,39 +6810,6 @@ static void ast_set_owners_and_peers(struct ast_channel *chan1,
 }
 
 /*!
- * \pre chan is locked
- */
-static void report_new_callerid(struct ast_channel *chan)
-{
-	int pres;
-
-	pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel receives new Caller ID information.</synopsis>
-			<syntax>
-				<parameter name="CID-CallingPres">
-					<para>A description of the Caller ID presentation.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "NewCallerid",
-		"Channel: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"CID-CallingPres: %d (%s)\r\n",
-		ast_channel_name(chan),
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""),
-		ast_channel_uniqueid(chan),
-		pres,
-		ast_describe_caller_presentation(pres)
-		);
-}
-
-/*!
  * \internal
  * \brief Transfer COLP between target and transferee channels.
  * \since 1.8
@@ -7273,7 +7213,7 @@ void ast_do_masquerade(struct ast_channel *original)
 	ast_channel_redirecting_set(original, ast_channel_redirecting(clonechan));
 	ast_channel_redirecting_set(clonechan, &exchange.redirecting);
 
-	report_new_callerid(original);
+	publish_channel_state(original);
 
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, ast_channel_timingfd(original));
@@ -7439,7 +7379,7 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 		ast_cdr_setcid(ast_channel_cdr(chan), chan);
 	}
 
-	report_new_callerid(chan);
+	publish_channel_state(chan);
 
 	ast_channel_unlock(chan);
 }
@@ -7458,26 +7398,14 @@ void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_cal
 
 void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_party_caller *caller, const struct ast_set_party_caller *update)
 {
-	const char *pre_set_number;
-	const char *pre_set_name;
-
 	if (ast_channel_caller(chan) == caller) {
 		/* Don't set to self */
 		return;
 	}
 
 	ast_channel_lock(chan);
-	pre_set_number =
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
-	pre_set_name = S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL);
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
-	if (S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL)
-			!= pre_set_number
-		|| S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL)
-			!= pre_set_name) {
-		/* The caller id name or number changed. */
-		report_new_callerid(chan);
-	}
+	publish_channel_state(chan);
 	if (ast_channel_cdr(chan)) {
 		ast_cdr_setcid(ast_channel_cdr(chan), chan);
 	}
@@ -8671,8 +8599,108 @@ static void prnt_channel_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 	prnt(where, "%s", ast_channel_name(chan));
 }
 
+/*!
+ * \brief List of channel variables to append to all channel-related events.
+ */
+struct manager_channel_variable {
+	AST_LIST_ENTRY(manager_channel_variable) entry;
+	unsigned int isfunc:1;
+	char name[];
+};
+
+static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
+
+static void free_channelvars(void)
+{
+	struct manager_channel_variable *var;
+	AST_RWLIST_WRLOCK(&channelvars);
+	while ((var = AST_RWLIST_REMOVE_HEAD(&channelvars, entry))) {
+		ast_free(var);
+	}
+	AST_RWLIST_UNLOCK(&channelvars);
+}
+
+void ast_channel_set_manager_vars(size_t varc, char **vars)
+{
+	size_t i;
+
+	free_channelvars();
+	AST_RWLIST_WRLOCK(&channelvars);
+	for (i = 0; i < varc; ++i) {
+		const char *var = vars[i];
+		struct manager_channel_variable *mcv;
+		if (!(mcv = ast_calloc(1, sizeof(*mcv) + strlen(var) + 1))) {
+			break;
+		}
+		strcpy(mcv->name, var); /* SAFE */
+		if (strchr(var, '(')) {
+			mcv->isfunc = 1;
+		}
+		AST_RWLIST_INSERT_TAIL(&channelvars, mcv, entry);
+	}
+	AST_RWLIST_UNLOCK(&channelvars);
+}
+
+/*!
+ * \brief Destructor for the return value from ast_channel_get_manager_vars().
+ * \param obj AO2 object.
+ */
+static void varshead_dtor(void *obj)
+{
+	struct varshead *head = obj;
+	struct ast_var_t *var;
+
+	while ((var = AST_RWLIST_REMOVE_HEAD(head, entries))) {
+		ast_var_delete(var);
+	}
+}
+
+struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
+{
+	RAII_VAR(struct varshead *, ret, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
+	struct manager_channel_variable *mcv;
+
+	ret = ao2_alloc(sizeof(*ret), varshead_dtor);
+	tmp = ast_str_create(16);
+
+	if (!ret || !tmp) {
+		return NULL;
+	}
+
+	AST_RWLIST_RDLOCK(&channelvars);
+	AST_LIST_TRAVERSE(&channelvars, mcv, entry) {
+		const char *val = NULL;
+		struct ast_var_t *var;
+
+		if (mcv->isfunc) {
+			if (ast_func_read2(chan, mcv->name, &tmp, 0) == 0) {
+				val = ast_str_buffer(tmp);
+			} else {
+				ast_log(LOG_ERROR,
+					"Error invoking function %s\n", mcv->name);
+			}
+		} else {
+			val = pbx_builtin_getvar_helper(chan, mcv->name);
+		}
+
+		var = ast_var_assign(mcv->name, val ? val : "");
+		if (!var) {
+			AST_RWLIST_UNLOCK(&channelvars);
+			return NULL;
+		}
+
+		AST_RWLIST_INSERT_TAIL(ret, var, entries);
+	}
+	AST_RWLIST_UNLOCK(&channelvars);
+
+	ao2_ref(ret, +1);
+	return ret;
+}
+
 static void channels_shutdown(void)
 {
+	free_channelvars();
 	ao2_cleanup(__channel_snapshot);
 	__channel_snapshot = NULL;
 	ao2_cleanup(__channel_blob);
@@ -11298,6 +11326,7 @@ static void ast_channel_snapshot_dtor(void *obj)
 {
 	struct ast_channel_snapshot *snapshot = obj;
 	ast_string_field_free_memory(snapshot);
+	ao2_cleanup(snapshot->manager_vars);
 }
 
 struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
@@ -11342,6 +11371,9 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	snapshot->amaflags = ast_channel_amaflags(chan);
 	snapshot->hangupcause = ast_channel_hangupcause(chan);
 	snapshot->flags = *ast_channel_flags(chan);
+	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
+
+	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
 
 	ao2_ref(snapshot, +1);
 	return snapshot;

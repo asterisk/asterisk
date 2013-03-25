@@ -1385,7 +1385,7 @@ int ast_channel_internal_is_finalized(struct ast_channel *chan)
 
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 {
-	return chan->topic;
+	return chan ? chan->topic : ast_channel_topic_all();
 }
 
 void ast_channel_internal_setup_topics(struct ast_channel *chan)

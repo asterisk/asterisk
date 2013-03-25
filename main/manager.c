@@ -1042,6 +1042,8 @@ static struct ast_event_sub *acl_change_event_subscription;
 
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
+#define MAX_VARS 128
+
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
  *
@@ -1167,14 +1169,6 @@ struct mansession {
 
 static struct ao2_container *sessions = NULL;
 
-struct manager_channel_variable {
-	AST_LIST_ENTRY(manager_channel_variable) entry;
-	unsigned int isfunc:1;
-	char name[0]; /* allocate off the end the real size. */
-};
-
-static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
-
 /*! \brief user descriptor, as read from the config file.
  *
  * \note It is still missing some fields -- e.g. we can have multiple permit and deny
@@ -1208,8 +1202,6 @@ static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
 /*! \brief A container of event documentation nodes */
 AO2_GLOBAL_OBJ_STATIC(event_docs);
-
-static void free_channelvars(void);
 
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
@@ -5650,30 +5642,16 @@ static int append_event(const char *str, int category)
 	return 0;
 }
 
-AST_THREADSTORAGE(manager_event_funcbuf);
-
 static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 {
-	struct manager_channel_variable *var;
+	RAII_VAR(struct varshead *, vars, NULL, ao2_cleanup);
+	struct ast_var_t *var;
 
-	AST_RWLIST_RDLOCK(&channelvars);
-	AST_LIST_TRAVERSE(&channelvars, var, entry) {
-		const char *val;
-		struct ast_str *res;
+	vars = ast_channel_get_manager_vars(chan);
 
-		if (var->isfunc) {
-			res = ast_str_thread_get(&manager_event_funcbuf, 16);
-			if (res && ast_func_read2(chan, var->name, &res, 0) == 0) {
-				val = ast_str_buffer(res);
-			} else {
-				val = NULL;
-			}
-		} else {
-			val = pbx_builtin_getvar_helper(chan, var->name);
-		}
-		ast_str_append(pbuf, 0, "ChanVariable(%s): %s=%s\r\n", ast_channel_name(chan), var->name, val ? val : "");
+	AST_LIST_TRAVERSE(vars, var, entries) {
+		ast_str_append(pbuf, 0, "ChanVariable(%s): %s=%s\r\n", ast_channel_name(chan), var->name, var->value);
 	}
-	AST_RWLIST_UNLOCK(&channelvars);
 }
 
 /* XXX see if can be moved inside the function */
@@ -5700,7 +5678,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		return -1;
 	}
 
-	cat_str = authority_to_str(category, &auth);
+	cat_str = authority_to_str (category, &auth);
 	ast_str_set(&buf, 0,
 			"Event: %s\r\nPrivilege: %s\r\n",
 			 event, cat_str);
@@ -7350,31 +7328,19 @@ static struct ast_cli_entry cli_manager[] = {
  */
 static void load_channelvars(struct ast_variable *var)
 {
-	struct manager_channel_variable *mcv;
-	char *remaining = ast_strdupa(var->value);
-	char *next;
+        char *parse = NULL;
+        AST_DECLARE_APP_ARGS(args,
+                AST_APP_ARG(vars)[MAX_VARS];
+        );
 
 	ast_free(manager_channelvars);
 	manager_channelvars = ast_strdup(var->value);
 
-	/*
-	 * XXX TODO: To allow dialplan functions to have more than one
-	 * parameter requires eliminating the '|' as a separator so we
-	 * could use AST_STANDARD_APP_ARGS() to separate items.
-	 */
-	free_channelvars();
-	AST_RWLIST_WRLOCK(&channelvars);
-	while ((next = strsep(&remaining, ",|"))) {
-		if (!(mcv = ast_calloc(1, sizeof(*mcv) + strlen(next) + 1))) {
-			break;
-		}
-		strcpy(mcv->name, next); /* SAFE */
-		if (strchr(next, '(')) {
-			mcv->isfunc = 1;
-		}
-		AST_RWLIST_INSERT_TAIL(&channelvars, mcv, entry);
-	}
-	AST_RWLIST_UNLOCK(&channelvars);
+	/* parse the setting */
+	parse = ast_strdupa(manager_channelvars);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	ast_channel_set_manager_vars(args.argc, args.vars);
 }
 
 /*! \internal \brief Free a user record.  Should already be removed from the list */
@@ -7594,8 +7560,6 @@ static int __init_manager(int reload, int by_external_config)
 		ast_free(ami_tls_cfg.cipher);
 	}
 	ami_tls_cfg.cipher = ast_strdup("");
-
-	free_channelvars();
 
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		val = var->value;
@@ -7953,17 +7917,6 @@ static void acl_change_event_cb(const struct ast_event *event, void *userdata)
 	/* For now, this is going to be performed simply and just execute a forced reload. */
 	ast_log(LOG_NOTICE, "Reloading manager in response to ACL change event.\n");
 	__init_manager(1, 1);
-}
-
-/* clear out every entry in the channelvar list */
-static void free_channelvars(void)
-{
-	struct manager_channel_variable *var;
-	AST_RWLIST_WRLOCK(&channelvars);
-	while ((var = AST_RWLIST_REMOVE_HEAD(&channelvars, entry))) {
-		ast_free(var);
-	}
-	AST_RWLIST_UNLOCK(&channelvars);
 }
 
 int init_manager(void)

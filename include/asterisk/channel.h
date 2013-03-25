@@ -4136,7 +4136,11 @@ struct ast_channel_snapshot {
 	int priority;			/*!< Dialplan: Current extension priority */
 	int amaflags;			/*!< AMA flags for billing */
 	int hangupcause;		/*!< Why is the channel hanged up. See causes.h */
+	int caller_pres;		/*!< Caller ID presentation. */
+
 	struct ast_flags flags;		/*!< channel flags of AST_FLAG_ type */
+
+	struct varshead *manager_vars;	/*!< Variables to be appended to manager events */
 };
 
 /*!
@@ -4153,6 +4157,27 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 
 /*!
  * \since 12
+ * \brief Sets the variables to be stored in the \a manager_vars field of all
+ * snapshots.
+ * \param varc Number of variable names.
+ * \param vars Array of variable names.
+ */
+void ast_channel_set_manager_vars(size_t varc, char **vars);
+
+/*!
+ * \since 12
+ * \brief Gets the variables for a given channel, as specified by ast_channel_set_manager_vars().
+ *
+ * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
+ *
+ * \param chan Channel to get variables for.
+ * \return List of channel variables.
+ * \return \c NULL on error
+ */
+struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
+
+/*!
+ * \since 12
  * \brief Message type for \ref ast_channel_snapshot.
  *
  * \retval Message type for \ref ast_channel_snapshot.
@@ -4163,10 +4188,12 @@ struct stasis_message_type *ast_channel_snapshot(void);
  * \since 12
  * \brief A topic which publishes the events for a particular channel.
  *
- * \param chan Channel.
+ * If the given \a chan is \c NULL, ast_channel_topic_all() is returned.
+ *
+ * \param chan Channel, or \c NULL.
  *
  * \retval Topic for channel's events.
- * \retval \c NULL if \a chan is \c NULL.
+ * \retval ast_channel_topic_all() if \a chan is \c NULL.
  */
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan);
 
