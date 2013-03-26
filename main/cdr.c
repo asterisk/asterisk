@@ -109,6 +109,8 @@ static const int BATCH_SCHEDULER_ONLY_DEFAULT = 0;
 static int batchsafeshutdown;
 static const int BATCH_SAFE_SHUTDOWN_DEFAULT = 1;
 
+AST_MUTEX_DEFINE_STATIC(cdr_sched_lock);
+
 AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
 /* these are used to wake up the CDR thread when there's work to do */
@@ -1300,17 +1302,24 @@ static int submit_scheduled_batch(const void *data)
 {
 	ast_cdr_submit_batch(0);
 	/* manually reschedule from this point in time */
+	ast_mutex_lock(&cdr_sched_lock);
 	cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+	ast_mutex_unlock(&cdr_sched_lock);
 	/* returning zero so the scheduler does not automatically reschedule */
 	return 0;
 }
 
+/*! Do not hold the batch lock while calling this function */
 static void submit_unscheduled_batch(void)
 {
+	/* Prevent two deletes from happening at the same time */
+	ast_mutex_lock(&cdr_sched_lock);
 	/* this is okay since we are not being called from within the scheduler */
 	AST_SCHED_DEL(sched, cdr_sched);
 	/* schedule the submission to occur ASAP (1 ms) */
 	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
+	ast_mutex_unlock(&cdr_sched_lock);
+
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
 	ast_mutex_lock(&cdr_pending_lock);
 	ast_cond_signal(&cdr_pending_cond);
@@ -1321,6 +1330,7 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 {
 	struct ast_cdr_batch_item *newtail;
 	int curr;
+	int submit_batch = 0;
 
 	if (!cdr)
 		return;
@@ -1367,10 +1377,14 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 
 	/* if we have enough stuff to post, then do it */
 	if (curr >= (batchsize - 1)) {
+		submit_batch = 1;
+	}
+	ast_mutex_unlock(&cdr_batch_lock);
+
+	/* Don't call submit_unscheduled_batch with the cdr_batch_lock held */
+	if (submit_batch) {
 		submit_unscheduled_batch();
 	}
-
-	ast_mutex_unlock(&cdr_batch_lock);
 }
 
 static void *do_cdr(void *data)
@@ -1522,7 +1536,9 @@ static void do_reload(int reload)
 	}
 
 	/* don't run the next scheduled CDR posting while reloading */
+	ast_mutex_lock(&cdr_sched_lock);
 	AST_SCHED_DEL(sched, cdr_sched);
+	ast_mutex_unlock(&cdr_sched_lock);
 
 	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
@@ -1565,7 +1581,9 @@ static void do_reload(int reload)
 	if (enabled && !batchmode) {
 		ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
 	} else if (enabled && batchmode) {
+		ast_mutex_lock(&cdr_sched_lock);
 		cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+		ast_mutex_unlock(&cdr_sched_lock);
 		ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n", batchsize, batchtime);
 	} else {
 		ast_log(LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
@@ -1577,7 +1595,9 @@ static void do_reload(int reload)
 		ast_cond_init(&cdr_pending_cond, NULL);
 		if (ast_pthread_create_background(&cdr_thread, NULL, do_cdr, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
+			ast_mutex_lock(&cdr_sched_lock);
 			AST_SCHED_DEL(sched, cdr_sched);
+			ast_mutex_unlock(&cdr_sched_lock);
 		} else {
 			ast_cli_register(&cli_submit);
 			ast_register_atexit(ast_cdr_engine_term);
