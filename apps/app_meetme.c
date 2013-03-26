@@ -5916,7 +5916,16 @@ static void sla_handle_dial_state_event(void)
 			ringing_trunk = sla_choose_ringing_trunk(ringing_station->station, &s_trunk_ref, 1);
 			ast_mutex_unlock(&sla.lock);
 			if (!ringing_trunk) {
+				/* This case happens in a bit of a race condition.  If two stations answer
+				 * the outbound call at the same time, the first one will get connected to
+				 * the trunk.  When the second one gets here, it will not see any trunks
+				 * ringing so we have no idea what to conect it to.  So, we just hang up
+				 * on it. */
 				ast_debug(1, "Found no ringing trunk for station '%s' to answer!\n", ringing_station->station->name);
+				ast_dial_join(ringing_station->station->dial);
+				ast_dial_destroy(ringing_station->station->dial);
+				ringing_station->station->dial = NULL;
+				ast_free(ringing_station);
 				break;
 			}
 			/* Track the channel that answered this trunk */
