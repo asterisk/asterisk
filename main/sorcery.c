@@ -169,11 +169,6 @@ static int sockaddr_handler_fn(const void *obj, const intptr_t *args, char **buf
 	return !(*buf = ast_strdup(ast_sockaddr_stringify(field))) ? -1 : 0;
 }
 
-static int noop_handler_fn(const void *obj, const intptr_t *args, char **buf)
-{
-	return 0;
-}
-
 static int chararray_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
 	char *field = (char *)(obj + args[0]);
@@ -187,7 +182,6 @@ static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type 
 	case OPT_CHAR_ARRAY_T: return chararray_handler_fn;
 	case OPT_DOUBLE_T: return double_handler_fn;
 	case OPT_INT_T: return int_handler_fn;
-	case OPT_NOOP_T: return noop_handler_fn;
 	case OPT_SOCKADDR_T: return sockaddr_handler_fn;
 	case OPT_STRINGFIELD_T: return stringfield_handler_fn;
 	case OPT_UINT_T: return uint_handler_fn;
