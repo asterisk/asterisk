@@ -6254,12 +6254,14 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	struct ast_channel *c;
 	int event;
 	int instance;
+#ifdef AST_DEVMODE
 	int callreference;
-	/*int res = 0;*/
+	/* This is only used in AST_DEVMODE, as an argument to SKINNY_DEBUG */
+	callreference = letohl(req->data.stimulus.callreference);
+#endif
 
 	event = letohl(req->data.stimulus.stimulus);
 	instance = letohl(req->data.stimulus.stimulusInstance);
-	callreference = letohl(req->data.stimulus.callreference);
 
 	/*  Note that this call should be using the passed in instance and callreference */
 	sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
