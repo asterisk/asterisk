@@ -229,7 +229,7 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 		goto out403;
 	}
 
-	/* Disallow any funny filenames at all */
+	/* Disallow any funny filenames at all (checking first character only??) */
 	if ((uri[0] < 33) || strchr("./|~@#$%^&*() \t", uri[0])) {
 		goto out403;
 	}
@@ -244,6 +244,7 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 
 	if (!(mtype = ast_http_ftype2mtype(ftype))) {
 		snprintf(wkspace, sizeof(wkspace), "text/%s", S_OR(ftype, "plain"));
+		mtype = wkspace;
 	}
 
 	/* Cap maximum length */
@@ -261,12 +262,12 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 		goto out404;
 	}
 
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
+	if (strstr(path, "/private/") && !astman_is_authed(ast_http_manid_from_vars(headers))) {
 		goto out403;
 	}
 
-	if (strstr(path, "/private/") && !astman_is_authed(ast_http_manid_from_vars(headers))) {
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
 		goto out403;
 	}
 
@@ -289,6 +290,7 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 	if ( (http_header = ast_str_create(255)) == NULL) {
+		close(fd);
 		return -1;
 	}
 
