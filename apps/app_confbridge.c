@@ -407,6 +407,34 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	return tmp;
 }
 
+static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename)
+{
+	char *rec_file = bridge->b_profile.rec_file;
+	time_t now;
+	char *ext;
+
+	if (ast_str_strlen(*filename)) {
+		    return;
+	}
+
+	time(&now);
+
+	ast_str_reset(*filename);
+	if (ast_strlen_zero(rec_file)) {
+		ast_str_set(filename, 0, "confbridge-%s-%u.wav", bridge->name, (unsigned int)now);
+	} else {
+		/* insert time before file extension */
+		ext = strrchr(rec_file, '.');
+		if (ext) {
+			ast_str_set_substr(filename, 0, rec_file, ext - rec_file);
+			ast_str_append(filename, 0, "-%u%s", (unsigned int)now, ext);
+		} else {
+			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int)now);
+		}
+	}
+	ast_str_append(filename, 0, ",a");
+}
+
 static void *record_thread(void *obj)
 {
 	struct conference_bridge *conference_bridge = obj;
@@ -425,16 +453,7 @@ static void *record_thread(void *obj)
 
 	/* XXX If we get an EXIT right here, START will essentially be a no-op */
 	while (conference_bridge->record_state != CONF_RECORD_EXIT) {
-		if (!(ast_strlen_zero(conference_bridge->b_profile.rec_file))) {
-			ast_str_append(&filename, 0, "%s", conference_bridge->b_profile.rec_file);
-		} else {
-			time_t now;
-			time(&now);
-			ast_str_append(&filename, 0, "confbridge-%s-%u.wav",
-				conference_bridge->name,
-				(unsigned int) now);
-		}
-
+		set_rec_filename(conference_bridge, &filename);
 		chan = ast_channel_ref(conference_bridge->record_chan);
 		ast_answer(chan);
 		pbx_exec(chan, mixmonapp, ast_str_buffer(filename));
@@ -562,9 +581,16 @@ static int conf_start_record(struct conference_bridge *conference_bridge)
  */
 static int start_conf_record_thread(struct conference_bridge *conference_bridge)
 {
-	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
-
 	conf_start_record(conference_bridge);
+
+	/*
+	 * if the thread has already been started, don't start another
+	 */
+	if (conference_bridge->record_thread != AST_PTHREADT_NULL) {
+		return 0;
+	}
+
+	ao2_ref(conference_bridge, +1); /* give the record thread a ref */
 
 	if (ast_pthread_create_background(&conference_bridge->record_thread, NULL, record_thread, conference_bridge)) {
 		ast_log(LOG_WARNING, "Failed to create recording channel for conference %s\n", conference_bridge->name);
@@ -739,9 +765,8 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 /*!
  * \brief Play back an audio file to a channel
  *
- * \param conference_bridge Conference bridge they are in
- * \param chan Channel to play audio prompt to
- * \param file Prompt to play
+ * \param cbu User to play audio prompt to
+ * \param filename Prompt to play
  *
  * \return Returns 0 on success, -1 if the user hung up
  * \note Generally this should be called when the conference is unlocked to avoid blocking
@@ -1207,6 +1232,15 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 
 	ao2_unlock(conference_bridge);
 
+	/* If an announcement is to be played play it */
+	if (!ast_strlen_zero(conference_bridge_user->u_profile.announcement)) {
+		if (play_prompt_to_user(conference_bridge_user,
+			conference_bridge_user->u_profile.announcement)) {
+			leave_conference(conference_bridge_user);
+			return NULL;
+		}
+	}
+
 	/* Announce number of users if need be */
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
 		if (announce_user_count(conference_bridge, conference_bridge_user)) {
@@ -1526,7 +1560,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 2 && !ast_strlen_zero(args.u_profile_name)) {
 		u_profile_name = args.u_profile_name;
 	}
-
 	if (!conf_find_user_profile(chan, u_profile_name, &conference_bridge_user.u_profile)) {
 		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name);
 		res = -1;

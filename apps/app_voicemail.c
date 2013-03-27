@@ -14975,8 +14975,9 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *ma
 	int i;
 	int this_index_only = -1;
 	int open = 0;
-	int inbox_index = 0;
-	int old_index = 1;
+	int inbox_index = get_folder_by_name("INBOX");
+	int old_index = get_folder_by_name("Old");
+	int urgent_index = get_folder_by_name("Urgent");
 
 	if (ast_strlen_zero(mailbox)) {
 		ast_log(LOG_WARNING, "Cannot create a mailbox snapshot since no mailbox was specified\n");
@@ -15018,15 +15019,23 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *ma
 
 	for (i = 0; i < mailbox_snapshot->folders; i++) {
 		int combining_old = 0;
-		if ((i == old_index) && (combine_INBOX_and_OLD)) {
+		/* Assume we are combining folders if:
+		 *  - The current index is the old folder index OR
+		 *  - The current index is urgent and we were looking for INBOX or all folders OR
+		 *  - The current index is INBOX and we were looking for Urgent or all folders
+		 */
+		if ((i == old_index ||
+			(i == urgent_index && (this_index_only == inbox_index || this_index_only == -1)) ||
+			(i == inbox_index && (this_index_only == urgent_index || this_index_only == -1))) && (combine_INBOX_and_OLD)) {
 			combining_old = 1;
 		}
 
 		/* This if statement is confusing looking.  Here is what it means in english.
 		 * - If a folder is given to the function and that folder's index is not the one we are iterating over, skip it...
-		 * - Unless the folder provided is the INBOX folder and the current index is the OLD folder and we are combining OLD and INBOX msgs.
+		 * - Unless we are combining old and new messages and the current index is one of old, new, or urgent folders
 		 */
-		if ((this_index_only != -1) && (this_index_only != i) && !(combining_old && i == old_index && this_index_only == inbox_index)) {
+		if ((this_index_only != -1 && this_index_only != i) &&
+			!(combining_old && (i == old_index || i == urgent_index || i == inbox_index))) {
 			continue;
 		}
 
