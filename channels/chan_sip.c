@@ -14667,7 +14667,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s\n", peer->name,
 				ast_sockaddr_stringify(&peer->addr));
 	}
+	sip_pvt_unlock(pvt);
 	sip_poke_peer(peer, 0);
+	sip_pvt_lock(pvt);
 	register_peer_exten(peer, 1);
 	
 	/* Save User agent */
@@ -15455,7 +15457,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	}
 	if (!res) {
 		if (send_mwi) {
+			sip_pvt_unlock(p);
 			sip_send_mwi_to_peer(peer, 0);
+			sip_pvt_lock(p);
 		} else {
 			update_peer_lastmsgssent(peer, -1, 0);
 		}
@@ -26932,6 +26936,9 @@ static int sip_poke_noanswer(const void *data)
 \note	This is done with 60 seconds between each ping,
 	unless forced by cli or manager. If peer is unreachable,
 	we check every 10th second by default.
+\note Do *not* hold a pvt lock while calling this function.
+	This function calls sip_alloc, which can cause a deadlock
+	if another sip_pvt is held.
 */
 static int sip_poke_peer(struct sip_peer *peer, int force)
 {
