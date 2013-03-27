@@ -1120,6 +1120,10 @@ int stasis_publish_mwi_state_full(
 			int old_msgs,
 			struct ast_eid *eid);
 
+/*! \addtogroup StasisTopicsAndMessages
+ * @{
+ */
+
 /*!
  * \brief The structure that contains MWI state
  * \since 12
@@ -1167,6 +1171,8 @@ struct stasis_caching_topic *stasis_mwi_topic_cached(void);
  * \since 12
  */
 struct stasis_message_type *stasis_mwi_state_message(void);
+
+/*! @} */
 
 /*!
  * \brief Initialize the application core

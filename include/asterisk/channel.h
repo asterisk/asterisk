@@ -4106,6 +4106,31 @@ struct ast_flags *ast_channel_flags(struct ast_channel *chan);
 
 /*!
  * \since 12
+ * \brief Sets the variables to be stored in the \a manager_vars field of all
+ * snapshots.
+ * \param varc Number of variable names.
+ * \param vars Array of variable names.
+ */
+void ast_channel_set_manager_vars(size_t varc, char **vars);
+
+/*!
+ * \since 12
+ * \brief Gets the variables for a given channel, as specified by ast_channel_set_manager_vars().
+ *
+ * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
+ *
+ * \param chan Channel to get variables for.
+ * \return List of channel variables.
+ * \return \c NULL on error
+ */
+struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
+
+/*! \addtogroup StasisTopicsAndMessages
+ * @{
+ */
+
+/*!
+ * \since 12
  * \brief Structure representing a snapshot of channel state.
  *
  * While not enforced programmatically, this object is shared across multiple
@@ -4154,27 +4179,6 @@ struct ast_channel_snapshot {
  * \retval NULL on error
  */
 struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan);
-
-/*!
- * \since 12
- * \brief Sets the variables to be stored in the \a manager_vars field of all
- * snapshots.
- * \param varc Number of variable names.
- * \param vars Array of variable names.
- */
-void ast_channel_set_manager_vars(size_t varc, char **vars);
-
-/*!
- * \since 12
- * \brief Gets the variables for a given channel, as specified by ast_channel_set_manager_vars().
- *
- * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
- *
- * \param chan Channel to get variables for.
- * \return List of channel variables.
- * \return \c NULL on error
- */
-struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
 
 /*!
  * \since 12
@@ -4260,6 +4264,8 @@ const char *ast_channel_blob_type(struct ast_channel_blob *obj);
  */
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 					       struct ast_json *blob);
+
+/*! @} */
 
 /*!
  * \since 12

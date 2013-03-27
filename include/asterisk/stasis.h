@@ -356,6 +356,10 @@ int stasis_subscription_is_subscribed(const struct stasis_subscription *sub);
  */
 int stasis_subscription_final_message(struct stasis_subscription *sub, struct stasis_message *msg);
 
+/*! \addtogroup StasisTopicsAndMessages
+ * @{
+ */
+
 /*!
  * \brief Holds details about changes to subscriptions for the specified topic
  * \since 12
@@ -374,6 +378,8 @@ struct stasis_subscription_change {
  * \since 12
  */
 struct stasis_message_type *stasis_subscription_change(void);
+
+/*! @} */
 
 /*!
  * \brief Pool for topic aggregation
@@ -398,13 +404,9 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 
 /*! @} */
 
-/*! @{ */
-
-/*!
- * \brief A topic wrapper, which caches certain messages.
- * \since 12
+/*! \addtogroup StasisTopicsAndMessages
+ * @{
  */
-struct stasis_caching_topic;
 
 /*!
  * \brief Message type for cache update messages.
@@ -437,6 +439,16 @@ struct stasis_cache_update {
  * \since 12
  */
 struct stasis_message *stasis_cache_clear_create(struct stasis_message_type *type, const char *id);
+
+/*! @} */
+
+/*! @{ */
+
+/*!
+ * \brief A topic wrapper, which caches certain messages.
+ * \since 12
+ */
+struct stasis_caching_topic;
 
 /*!
  * \brief Callback extract a unique identity from a snapshot message.
@@ -532,5 +544,12 @@ int stasis_init(void);
 int stasis_cache_init(void);
 
 /*! @} */
+
+/*!
+ * \defgroup StasisTopicsAndMessages Stasis topics, and their messages.
+ *
+ * This group contains the topics, messages and corresponding message types
+ * found within Asterisk.
+ */
 
 #endif /* _ASTERISK_STASIS_H */
