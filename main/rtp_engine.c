@@ -1273,6 +1273,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	enum ast_rtp_dtmf_mode dmode;
 	format_t codec0 = 0, codec1 = 0;
 	int unlock_chans = 1;
+	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
 
 	/* Lock both channels so we can look for the glue that binds them together */
 	ast_channel_lock(c0);
@@ -1348,6 +1349,18 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	codec1 = glue1->get_codec ? glue1->get_codec(c1) : 0;
 	if (codec0 && codec1 && !(codec0 & codec1)) {
 		ast_debug(1, "Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n", ast_getformatname(codec0), ast_getformatname(codec1));
+		res = AST_BRIDGE_FAILED_NOWARN;
+		goto done;
+	}
+
+	read_ptime0 = (ast_codec_pref_getsize(&instance0->codecs.pref, c0->rawreadformat)).cur_ms;
+	read_ptime1 = (ast_codec_pref_getsize(&instance1->codecs.pref, c1->rawreadformat)).cur_ms;
+	write_ptime0 = (ast_codec_pref_getsize(&instance0->codecs.pref, c0->rawwriteformat)).cur_ms;
+	write_ptime1 = (ast_codec_pref_getsize(&instance1->codecs.pref, c1->rawwriteformat)).cur_ms;
+
+	if (read_ptime0 != write_ptime1 || read_ptime1 != write_ptime0) {
+		ast_debug(1, "Packetization differs between RTP streams (%d != %d or %d != %d). Cannot native bridge in RTP\n",
+				read_ptime0, write_ptime1, read_ptime1, write_ptime0);
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
 	}
