@@ -1185,6 +1185,11 @@ static struct ao2_container *threadt;
 static struct ao2_container *peers;
 static struct ao2_container *peers_by_ip;
 
+/*! \brief  A bogus peer, to be used when authentication should fail */
+static struct sip_peer *bogus_peer;
+/*! \brief  We can recognise the bogus peer by this invalid MD5 hash */
+#define BOGUS_PEER_MD5SECRET "intentionally_invalid_md5_string"
+
 /*! \brief  The register list: Other SIP proxies we register with and receive calls from */
 static struct ast_register_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
@@ -1331,7 +1336,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
-static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable);
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, uint32_t seqno, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, uint32_t seqno, enum xmittype reliable, int newbranch);
 static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_type publish_type, const char * const explicit_uri);
@@ -16238,6 +16243,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	char a1_hash[256];
 	char resp_hash[256]="";
 	char *c;
+	int is_bogus_peer = 0;
 	int  wrongnonce = FALSE;
 	int  good_response;
 	const char *usednonce = p->nonce;
@@ -16309,8 +16315,14 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 
 	sip_digest_parser(c, keys);
 
+	/* We cannot rely on the bogus_peer having a bad md5 value. Someone could
+	 * use it to construct valid auth. */
+	if (md5secret && strcmp(md5secret, BOGUS_PEER_MD5SECRET) == 0) {
+		is_bogus_peer = 1;
+	}
+
 	/* Verify that digest username matches  the username we auth as */
-	if (strcmp(username, keys[K_USER].s)) {
+	if (strcmp(username, keys[K_USER].s) && !is_bogus_peer) {
 		ast_log(LOG_WARNING, "username mismatch, have <%s>, digest has <%s>\n",
 			username, keys[K_USER].s);
 		/* Oops, we're trying something here */
@@ -16349,7 +16361,8 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	}
 
 	good_response = keys[K_RESP].s &&
-			!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
+			!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash)) &&
+			!is_bogus_peer; /* lastly, check that the peer isn't the fake peer */
 	if (wrongnonce) {
 		if (good_response) {
 			if (sipdebug)
@@ -16575,13 +16588,13 @@ static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_inf
 /*! \brief Send a fake 401 Unauthorized response when the administrator
   wants to hide the names of local devices  from fishers
  */
-static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable)
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable)
 {
 	/* We have to emulate EXACTLY what we'd get with a good peer
 	 * and a bad password, or else we leak information. */
-	const char *response = "407 Proxy Authentication Required";
-	const char *reqheader = "Proxy-Authorization";
-	const char *respheader = "Proxy-Authenticate";
+	const char *response = "401 Unauthorized";
+	const char *reqheader = "Authorization";
+	const char *respheader = "WWW-Authenticate";
 	const char *authtoken;
 	struct ast_str *buf;
 	char *c;
@@ -16596,36 +16609,31 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 		[K_LAST] = { NULL, NULL}
 	};
 
-	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
-		response = "401 Unauthorized";
-		reqheader = "Authorization";
-		respheader = "WWW-Authenticate";
-	}
 	authtoken = sip_get_header(req, reqheader);
 	if (req->ignore && !ast_strlen_zero(p->nonce) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		 * information */
-		transmit_response_with_auth(p, response, req, p->nonce, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->nonce, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	} else if (ast_strlen_zero(p->nonce) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
 		build_nonce(p, 1);
-		transmit_response_with_auth(p, response, req, p->nonce, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->nonce, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
 	if (!(buf = ast_str_thread_get(&check_auth_buf, CHECK_AUTH_BUF_INITLEN))) {
-		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		__transmit_response(p, "403 Forbidden", &p->initreq, reliable);
 		return;
 	}
 
 	/* Make a copy of the response and parse it */
 	if (ast_str_set(&buf, 0, "%s", authtoken) == AST_DYNSTR_BUILD_FAILED) {
-		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		__transmit_response(p, "403 Forbidden", &p->initreq, reliable);
 		return;
 	}
 
@@ -16663,7 +16671,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else {
-		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		__transmit_response(p, "403 Forbidden", &p->initreq, reliable);
 	}
 }
 
@@ -16773,7 +16781,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	if (!AST_LIST_EMPTY(&domain_list)) {
 		if (!check_sip_domain(domain, NULL, 0)) {
 			if (sip_cfg.alwaysauthreject) {
-				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
+				transmit_fake_auth_response(p, &p->initreq, XMIT_UNRELIABLE);
 			} else {
 				transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
 			}
@@ -16799,6 +16807,13 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		}
 	}
 	peer = sip_find_peer(name, NULL, TRUE, FINDPEERS, FALSE, 0);
+
+	/* If we don't want username disclosure, use the bogus_peer when a user
+	 * is not found. */
+	if (!peer && sip_cfg.alwaysauthreject && sip_cfg.autocreatepeer == AUTOPEERS_DISABLED) {
+		peer = bogus_peer;
+		sip_ref_peer(peer, "register_verify: ref the bogus_peer");
+	}
 
 	if (!(peer && ast_apply_acl(peer->acl, addr, "SIP Peer ACL: "))) {
 		/* Peer fails ACL check */
@@ -16891,7 +16906,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			switch (parse_register_contact(p, peer, req)) {
 			case PARSE_REGISTER_DENIED:
 				ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
-				transmit_response_with_date(p, "403 Forbidden (ACL)", req);
+				transmit_response_with_date(p, "403 Forbidden", req);
 				res = 0;
 				break;
 			case PARSE_REGISTER_FAILED:
@@ -16931,7 +16946,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		switch (res) {
 		case AUTH_SECRET_FAILED:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
-			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+			transmit_response(p, "403 Forbidden", &p->initreq);
 			if (global_authfailureevents) {
 				const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 				const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
@@ -16954,7 +16969,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		case AUTH_PEER_NOT_DYNAMIC:
 		case AUTH_ACL_FAILED:
 			if (sip_cfg.alwaysauthreject) {
-				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
+				transmit_fake_auth_response(p, &p->initreq, XMIT_UNRELIABLE);
 				if (global_authfailureevents) {
 					const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 					const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
@@ -17953,7 +17968,19 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			ast_verbose("No matching peer for '%s' from '%s'\n",
 				of, ast_sockaddr_stringify(&p->recv));
 		}
-		return AUTH_DONT_KNOW;
+
+		/* If you don't mind, we can return 404s for devices that do
+		 * not exist: username disclosure. If we allow guests, there
+		 * is no way around that. */
+		if (sip_cfg.allowguest || !sip_cfg.alwaysauthreject) {
+			return AUTH_DONT_KNOW;
+		}
+
+		/* If you do mind, we use a peer that will never authenticate.
+		 * This ensures that we follow the same code path as regular
+		 * auth: less chance for username disclosure. */
+		peer = bogus_peer;
+		sip_ref_peer(peer, "sip_ref_peer: check_peer_ok: must ref bogus_peer so unreffing it does not fail");
 	}
 
 	if (!ast_apply_acl(peer->acl, addr, "SIP Peer ACL: ")) {
@@ -17961,9 +17988,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		sip_unref_peer(peer, "sip_unref_peer: check_peer_ok: from sip_find_peer call, early return of AUTH_ACL_FAILED");
 		return AUTH_ACL_FAILED;
 	}
-	if (debug)
+	if (debug && peer != bogus_peer) {
 		ast_verbose("Found peer '%s' for '%s' from %s\n",
 			peer->name, of, ast_sockaddr_stringify(&p->recv));
+	}
 
 	/* XXX what about p->prefs = peer->prefs; ? */
 	/* Set Frame packetization */
@@ -18246,8 +18274,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		} else {
 			res = AUTH_RTP_FAILED;
 		}
-	} else if (sip_cfg.alwaysauthreject) {
-		res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
 	} else {
 		res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
 	}
@@ -18382,13 +18408,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 			return;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			if (res == AUTH_FAKE_AUTH) {
-				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-				transmit_fake_auth_response(p, SIP_MESSAGE, req, XMIT_UNRELIABLE);
-			} else {
-				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-				transmit_response(p, "403 Forbidden", req);
-			}
+			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
+			transmit_response(p, "403 Forbidden", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return;
 		}
@@ -24463,13 +24484,8 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 			return 0;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			if (res == AUTH_FAKE_AUTH) {
-				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-				transmit_fake_auth_response(p, SIP_OPTIONS, req, XMIT_UNRELIABLE);
-			} else {
-				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-				transmit_response(p, "403 Forbidden", req);
-			}
+			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
+			transmit_response(p, "403 Forbidden", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
 		}
@@ -25133,13 +25149,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			goto request_invite_cleanup;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			if (res == AUTH_FAKE_AUTH) {
-				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-				transmit_fake_auth_response(p, SIP_INVITE, req, XMIT_RELIABLE);
-			} else {
-				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-				transmit_response_reliable(p, "403 Forbidden", req);
-			}
+			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
+			transmit_response_reliable(p, "403 Forbidden", req);
 			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			goto request_invite_cleanup;
@@ -27176,18 +27187,13 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 		return -1;
 	}
 
-	auth_result = check_user(p, req, SIP_PUBLISH, uri, XMIT_RELIABLE, addr);
+	auth_result = check_user(p, req, SIP_PUBLISH, uri, XMIT_UNRELIABLE, addr);
 	if (auth_result == AUTH_CHALLENGE_SENT) {
 		p->lastinvite = seqno;
 		return 0;
 	} else if (auth_result < 0) {
-		if (auth_result == AUTH_FAKE_AUTH) {
-			ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-			transmit_fake_auth_response(p, SIP_INVITE, req, XMIT_RELIABLE);
-		} else {
-			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-			transmit_response_reliable(p, "403 Forbidden", req);
-		}
+		ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
+		transmit_response(p, "403 Forbidden", req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_string_field_set(p, theirtag, NULL);
 		return 0;
@@ -27395,19 +27401,14 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	 * use if !req->ignore, because then we'll end up sending
 	 * a 200 OK if someone retransmits without sending auth */
 	if (p->subscribed == NONE || resubscribe) {
-		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, addr, &authpeer);
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, XMIT_UNRELIABLE, addr, &authpeer);
 
 		/* if an authentication response was sent, we are done here */
 		if (res == AUTH_CHALLENGE_SENT)	/* authpeer = NULL here */
 			return 0;
 		if (res != AUTH_SUCCESSFUL) {
-			if (res == AUTH_FAKE_AUTH) {
-				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-				transmit_fake_auth_response(p, SIP_SUBSCRIBE, req, XMIT_UNRELIABLE);
-			} else {
-				ast_log(LOG_NOTICE, "Failed to authenticate device %s for SUBSCRIBE\n", sip_get_header(req, "From"));
-				transmit_response_reliable(p, "403 Forbidden", req);
-			}
+			ast_log(LOG_NOTICE, "Failed to authenticate device %s for SUBSCRIBE\n", sip_get_header(req, "From"));
+			transmit_response(p, "403 Forbidden", req);
 
 			pvt_set_needdestroy(p, "authentication failed");
 			return 0;
@@ -32942,6 +32943,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 /*! \brief Force reload of module from cli */
 static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	static struct sip_peer *tmp_peer, *new_peer;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -32963,6 +32965,18 @@ static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	}
 	ast_mutex_unlock(&sip_reload_lock);
 	restart_monitor();
+
+	tmp_peer = bogus_peer;
+	/* Create new bogus peer possibly with new global settings. */
+	if ((new_peer = temp_peer("(bogus_peer)"))) {
+		ast_string_field_set(new_peer, md5secret, BOGUS_PEER_MD5SECRET);
+		ast_clear_flag(&new_peer->flags[0], SIP_INSECURE);
+		bogus_peer = new_peer;
+		ao2_t_ref(tmp_peer, -1, "unref the old bogus_peer during reload");
+	} else {
+		ast_log(LOG_ERROR, "Could not update the fake authentication peer.\n");
+		/* You probably have bigger (memory?) issues to worry about though.. */
+	}
 
 	return CLI_SUCCESS;
 }
@@ -34182,6 +34196,17 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	/* Initialize bogus peer. Can be done first after reload_config() */
+	if (!(bogus_peer = temp_peer("(bogus_peer)"))) {
+		ast_log(LOG_ERROR, "Unable to create bogus_peer for authentication\n");
+		io_context_destroy(io);
+		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	/* Make sure the auth will always fail. */
+	ast_string_field_set(bogus_peer, md5secret, BOGUS_PEER_MD5SECRET);
+	ast_clear_flag(&bogus_peer->flags[0], SIP_INSECURE);
+
 	/* Prepare the version that does not require DTMF BEGIN frames.
 	 * We need to use tricks such as memcpy and casts because the variable
 	 * has const fields.
@@ -34197,6 +34222,7 @@ static int load_module(void)
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
+		ao2_t_ref(bogus_peer, -1, "unref the bogus_peer");
 		io_context_destroy(io);
 		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
@@ -34458,6 +34484,8 @@ static int unload_module(void)
 	if (!wait_count) {
 		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
 	}
+
+	ao2_t_ref(bogus_peer, -1, "unref the bogus_peer");
 
 	ao2_t_ref(peers, -1, "unref the peers table");
 	ao2_t_ref(peers_by_ip, -1, "unref the peers_by_ip table");

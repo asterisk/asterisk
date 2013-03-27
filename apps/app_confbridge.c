@@ -3012,6 +3012,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("ConfbridgeLock");
 	res |= ast_manager_unregister("ConfbridgeStartRecord");
 	res |= ast_manager_unregister("ConfbridgeStopRecord");
+	res |= ast_manager_unregister("ConfbridgeSetSingleVideoSrc");
 
 	return res;
 }
