@@ -1,0 +1,134 @@
+                                Release Summary
+
+                       certified-asterisk-11.2-cert1-rc2
+
+                                Date: 2013-03-27
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, certified-asterisk-11.2-cert1-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   2 mjordan                1 kmoore                 2 mjordan                
+   1 jrose                  1 wdoekes                1 jbigelow               
+   1 kmoore                                          1 wdoekes                
+   1 kmoore, wdoekes        
+   1 mmichelson             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-21013: Security Vulnerability: sip username disclosure
+   Revision: 384010
+   Reporter: wdoekes
+   Testers: wdoekes, kmoore
+   Coders: kmoore, wdoekes
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-20967: Security Vulnerability: DoS attack possible due to fix for
+   CVE-2012-5976
+   Revision: 383979
+   Reporter: mjordan
+   Coders: mmichelson
+
+  Category: Resources/res_format_attr_h264
+
+   ASTERISK-20901: Security Vulnerability: Possible stack corruption in when
+   parsing H.264 format attributes
+   Revision: 383974
+   Reporter: mjordan
+   Coders: jrose
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   |          |         | Resolve deadlock between      |                   |
+   | 383842   | mjordan | pending CDR and batch CDR     | ASTERISK-21162    |
+   |          |         | locks                         |                   |
+   |----------+---------+-------------------------------+-------------------|
+   |          |         | Resolve deadlock between SIP  | ASTERISK-21068,   |
+   | 383880   | mjordan | registration and channel      | ASTERISK-20550,   |
+   |          |         | based functions               | ASTERISK-21314,   |
+   |          |         |                               | ASTERISK-21296    |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ channels/chan_sip.c            |  168 ++++++++++++++++++++++++-----------------
+ channels/sip/include/sip.h     |    1
+ channels/sip/security_events.c |    3
+ main/cdr.c                     |   24 +++++
+ main/http.c                    |   22 ++++-
+ main/manager.c                 |   10 ++
+ main/tcptls.c                  |    5 +
+ res/res_format_attr_h264.c     |   11 ++
+ 8 files changed, 167 insertions(+), 77 deletions(-)
+
+     ----------------------------------------------------------------------
