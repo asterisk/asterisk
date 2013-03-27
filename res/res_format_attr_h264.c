@@ -41,8 +41,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Value that indicates an attribute is actually unset */
 #define H264_ATTR_KEY_UNSET UINT8_MAX
 
-/*! \brief Maximum size for SPS / PPS values in sprop-parameter-sets attribute */
+/*! \brief Maximum size for SPS / PPS values in sprop-parameter-sets attribute
+ *   if you change this value then you must change H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT
+ *   as well. */
 #define H264_MAX_SPS_PPS_SIZE 16
+/*! \brief This is used when executing sscanf on buffers of H264_MAX_SPS_PPS_SIZE
+ *   length. It must ALWAYS be a string literal representation of one less than
+ *   H264_MAX_SPS_PPS_SIZE */
+#define H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "15"
 
 enum h264_attr_keys {
 	H264_ATTR_KEY_PROFILE_IDC,
@@ -111,7 +117,8 @@ static int h264_format_attr_sdp_parse(struct ast_format_attr *format_attr, const
 			format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC] = ((val2 >> 16) & 0xFF);
 			format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP] = ((val2 >> 8) & 0xFF);
 			format_attr->format_attr[H264_ATTR_KEY_LEVEL] = (val2 & 0xFF);
-		} else if (sscanf(attrib, "sprop-parameter-sets=%[^','],%s", sps, pps) == 2) {
+		} else if (sscanf(attrib, "sprop-parameter-sets=%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "[^','],%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "s", sps, pps) == 2) {
+			/* XXX sprop-parameter-sets can actually be of unlimited length. This may need to be addressed later. */
 			unsigned char spsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, }, ppsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, };
 			int i;
 
