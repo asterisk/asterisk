@@ -1,3 +1,47 @@
+2013-03-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.12.2 Released.
+
+	* AST-2013-002: Prevent denial of service in HTTP server
+
+	  AST-2012-014, fixed in January of this year, contained a fix for
+	  Asterisk's HTTP server for a remotely-triggered crash. While the fix
+	  put in place fixed the possibility for the crash to be triggered, a
+	  denial of service vector still exists with that solution if an
+	  attacker sends one or more HTTP POST requests with very large
+	  Content-Length values. This patch resolves this by capping the
+	  Content-Length at 1024 bytes. Any attempt to send an HTTP POST
+	  with Content-Length greater than this cap will not result in any
+	  memory allocation. The POST will be responded to with an HTTP 413
+	  "Request Entity Too Large" response.
+
+	  This issue was reported by Christoph Hebeisen of TELUS Security Labs
+
+	* AST-2013-003: Prevent username disclosure in SIP channel driver
+
+	  When authenticating a SIP request with alwaysauthreject enabled,
+	  allowguest disabled, and autocreatepeer disabled, Asterisk discloses
+	  whether a user exists for INVITE, SUBSCRIBE, and REGISTER transaction
+	  in multiple ways. The information is disclosed when:
+	  * A "407 Proxy Authentication Required" response is sent instead of a
+	    "401 Unauthorized" response
+	  * The presence or absence of additional tags occurs at the end of
+	    "403 Forbidden" (such as "(Bad Auth)")
+	  * A "401 Unauthorized" response is sent instead of "403 Forbidden"
+	    response after a retransmission
+	  * Retransmission are sent when a matching peer did not exist, but not
+	    when a matching peer did exist.
+
+	  This patch resolves these various vectors by ensuring that the
+	  responses sent in all scenarios is the same, regardless of the presence
+	  of a matching peer.
+
+	  This issue was reported by Walter Doekes, OSSO B.V. A	substantial
+	  portion of the testing and the solution to this problem was done by
+	  Walter as well - a huge thanks to his tireless efforts in finding all
+	  the ways in which this setting didn't work, providing automated tests,
+	  and working with Kinsey on getting this fixed.
+
 2013-01-22  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.12.1 Released.
