@@ -7114,13 +7114,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_ENDCALL from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
 
-		if (l->transfer && sub && sub->xferor && ast_channel_state(sub->owner) >= AST_STATE_RING) {
-			/* We're allowed to transfer, we have two active calls and
-			    we made at least one of the calls.  Let's try and transfer */
-			handle_transfer_button(sub);
-			return 0;
-		}
-
 		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 
 		if (sub) {
