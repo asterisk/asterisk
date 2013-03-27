@@ -1,3 +1,96 @@
+2013-03-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.21.0-rc2 Released.
+
+	* Do not allow native RTP bridging if packetization of media streams
+	differs.
+
+	The RTP engine will no longer allow for local and remote native RTP
+	bridges	if packetization of streams differs. Allowing native bridging
+	in this	scenario has been known to cause FAX failures.
+
+	* Resolve deadlock between pending CDR and batch CDR locks
+
+	r375757 attempted to resolve a race condition between multiple
+	submissions of CDRs while in batch mode from attempting to destroy the
+	scheduled batch	submission by extending the batch CDR lock. Unfortunately,
+	this causes a deadlock between the pending CDR lock and the batch CDR lock.
+	This patch resolves the intent of r375757 by simply providing a new lock
+	that protects the scheduling of the batches. The original batch CDR lock
+	is kept to protect manipulation of the batch CDR settings, but has been
+	placed such that it is not held when the pending lock is held.
+
+	Thanks to Chase Venters for providing lock analysis on the issue.
+
+	* Resolve deadlock between SIP registration and channel based
+	functions
+
+	In r373424, several reentrancy problems in chan_sip were addressed. As
+	a result, the SIP channel driver is now properly locking the channel
+	driver private information in certain operations that it wasn't previously.
+	This exposed two latent problems either in register_verify or by functions
+	called by register_verify. This includes:
+	 * Holding the private lock while calling sip_send_mwi_to_peer. This
+	 can create a new sip_pvt via sip_alloc, which will obtain the channel
+	 container lock. This is a locking inversion, as any channel related lock
+	 must be obtained prior to obtaining the SIP channel technology private
+	 lock.
+	 * Holding the private lock while calling sip_poke_peer. In the same vein as
+         sip_send_mwi_to_peer, sip_poke_peer can create a new SIP private, causing
+         the same locking inversion.
+
+	Note that this locking inversion typically occured when CLI commands were run
+	while a SIP REGISTER request was being processed, as many CLI commands (such
+	as 'sip show channels', 'core show channels', etc.) have to obtain the channel
+	container lock.
+
+	* AST-2013-002: Prevent denial of service in HTTP server
+
+	AST-2012-014, fixed in January of this year, contained a fix for
+	Asterisk's HTTP server for a remotely-triggered crash. While the fix put in
+	place fixed the possibility for the crash to be triggered, a denial of
+	service vector still exists with that solution if an attacker sends one or
+	more HTTP POST requests with very large Content-Length values. This patch
+	resolves this by capping the Content-Length at 1024 bytes. Any attempt to send
+	an HTTP POST with Content-Length greater than this cap will not result in any
+	memory allocation. The POST will be responded to with an HTTP 413 "Request
+	Entity Too Large" response.
+
+	This issue was reported by Christoph Hebeisen of TELUS Security Labs
+
+	* AST-2013-003: Prevent username disclosure in SIP channel driver
+
+	When authenticating a SIP request with alwaysauthreject enabled,
+	allowguest disabled, and autocreatepeer disabled, Asterisk discloses whether
+	a user exists for INVITE, SUBSCRIBE, and REGISTER transactions in
+	multiple ways. The information is disclosed when:
+	 * A "407 Proxy Authentication Required" response is sent instead of a
+	   "401 Unauthorized" response
+	 * The presence or absence of additional tags occurs at the end of
+	   "403 Forbidden" (such as "(Bad Auth)")
+	 * A "401 Unauthorized" response is sent instead of "403 Forbidden"
+	   response after a retransmission
+	 * Retransmission are sent when a matching peer did not exist, but not
+	   when a matching peer did exist.
+	This patch resolves these various vectors by ensuring that the responses sent
+	in all scenarios is the same, regardless of the presence of a matching peer.
+
+	This issue was reported by Walter Doekes, OSSO B.V. A substantial portion of
+	the testing and the solution to this problem was done by Walter as well - a
+	huge thanks to his tireless efforts in finding all the ways in which this
+	setting didn't work, providing automated tests, and working with Kinsey on
+	getting this fixed.
+
+	* Fix white noise on SRTP decryption
+
+	When res_rtp_asterisk.c was altered to avoid attempting to apply
+	unprotect algorithms to non-audio RTP packets, the test used was
+	incorrect. This caused the audio packets to not be decrypted and
+	resulted in loud white noise on the other endpoint (or both endpoints
+	depending on the call legs involved). The test now properly checks the
+	version field in the RTP header to ensure that RTP and RTCP are
+	decrypted while other types of packets are not.
+
 2013-01-30  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.21.0-rc1 Released.
