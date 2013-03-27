@@ -25355,7 +25355,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 	/* Session-Timers */
 	if ((p->sipoptions & SIP_OPT_TIMER)) {
-		enum st_refresher_param st_ref_param;
+		enum st_refresher_param st_ref_param = SESSION_TIMER_REFRESHER_PARAM_UNKNOWN;
 
 		/* The UAC has requested session-timers for this session. Negotiate
 		the session refresh interval and who will be the refresher */
