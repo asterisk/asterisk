@@ -1326,7 +1326,7 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
 	char oldmsgs[10], newmsgs[10];
 	struct stasis_mwi_state *mwi_state;
 
-	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state_message() != stasis_message_type(msg)) {
+	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state_type() != stasis_message_type(msg)) {
 		return;
 	}
 

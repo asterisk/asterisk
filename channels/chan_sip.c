@@ -16668,7 +16668,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		ao2_cleanup(peer);
 		return;
 	}
-	if (stasis_mwi_state_message() == stasis_message_type(msg)) {
+	if (stasis_mwi_state_type() == stasis_message_type(msg)) {
 		sip_send_mwi_to_peer(peer, 0);
 	}
 }
@@ -28849,7 +28849,7 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		ast_str_reset(uniqueid);
 		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
 
-		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
 		if (!msg) {
 			continue;
 		}

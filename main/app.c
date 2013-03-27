@@ -84,7 +84,7 @@ static AST_LIST_HEAD_STATIC(zombies, zombie);
 
 static struct stasis_topic *mwi_topic_all;
 static struct stasis_caching_topic *mwi_topic_cached;
-static struct stasis_message_type *mwi_message_type;
+static struct stasis_message_type *mwi_state_type;
 static struct stasis_topic_pool *mwi_topic_pool;
 
 static void *shaun_of_the_dead(void *data)
@@ -2659,9 +2659,9 @@ struct stasis_caching_topic *stasis_mwi_topic_cached(void)
 	return mwi_topic_cached;
 }
 
-struct stasis_message_type *stasis_mwi_state_message(void)
+struct stasis_message_type *stasis_mwi_state_type(void)
 {
-	return mwi_message_type;
+	return mwi_state_type;
 }
 
 struct stasis_topic *stasis_mwi_topic(const char *uniqueid)
@@ -2702,7 +2702,7 @@ int stasis_publish_mwi_state_full(
 		ast_set_default_eid(&mwi_state->eid);
 	}
 
-	message = stasis_message_create(stasis_mwi_state_message(), mwi_state);
+	message = stasis_message_create(stasis_mwi_state_type(), mwi_state);
 
 	mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
 	if (!mailbox_specific_topic) {
@@ -2716,7 +2716,7 @@ int stasis_publish_mwi_state_full(
 
 static const char *mwi_state_get_id(struct stasis_message *message)
 {
-	if (stasis_mwi_state_message() == stasis_message_type(message)) {
+	if (stasis_mwi_state_type() == stasis_message_type(message)) {
 		struct stasis_mwi_state *mwi_state = stasis_message_data(message);
 		return mwi_state->uniqueid;
 	} else if (stasis_subscription_change() == stasis_message_type(message)) {
@@ -2732,8 +2732,8 @@ static void app_exit(void)
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
 	mwi_topic_cached = stasis_caching_unsubscribe(mwi_topic_cached);
-	ao2_cleanup(mwi_message_type);
-	mwi_message_type = NULL;
+	ao2_cleanup(mwi_state_type);
+	mwi_state_type = NULL;
 	ao2_cleanup(mwi_topic_pool);
 	mwi_topic_pool = NULL;
 }
@@ -2748,8 +2748,8 @@ int app_init(void)
 	if (!mwi_topic_cached) {
 		return -1;
 	}
-	mwi_message_type = stasis_message_type_create("stasis_mwi_state");
-	if (!mwi_message_type) {
+	mwi_state_type = stasis_message_type_create("stasis_mwi_state");
+	if (!mwi_state_type) {
 		return -1;
 	}
 	mwi_topic_pool = stasis_topic_pool_create(mwi_topic_all);

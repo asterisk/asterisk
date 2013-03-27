@@ -1170,7 +1170,7 @@ struct stasis_caching_topic *stasis_mwi_topic_cached(void);
  * \retval NULL if it has not been allocated
  * \since 12
  */
-struct stasis_message_type *stasis_mwi_state_message(void);
+struct stasis_message_type *stasis_mwi_state_type(void);
 
 /*! @} */
 

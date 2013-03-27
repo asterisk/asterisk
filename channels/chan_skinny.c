@@ -3518,7 +3518,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		return;
 	}
 
-	if (msg && stasis_mwi_state_message() == stasis_message_type(msg)) {
+	if (msg && stasis_mwi_state_type() == stasis_message_type(msg)) {
 		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
 		l->newmsgs = mwi_state->new_msgs;
 	}

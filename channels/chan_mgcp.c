@@ -507,7 +507,7 @@ static int has_voicemail(struct mgcp_endpoint *p)
 
 	ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
 
-	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
 
 	if (msg) {
 		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);

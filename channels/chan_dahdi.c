@@ -5414,7 +5414,7 @@ static int has_voicemail(struct dahdi_pvt *p)
 	}
 
 	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-	mwi_message = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_message(), ast_str_buffer(uniqueid));
+	mwi_message = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
 
 	if (mwi_message) {
 		struct stasis_mwi_state *mwi_state = stasis_message_data(mwi_message);
