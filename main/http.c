@@ -593,6 +593,8 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 	AST_RWLIST_UNLOCK(&uris);
 }
 
+#define MAX_POST_CONTENT 1025
+
 /*
  * get post variables from client Request Entity-Body, if content type is
  * application/x-www-form-urlencoded
@@ -622,6 +624,13 @@ struct ast_variable *ast_http_get_post_vars(
 	}
 
 	if (content_length <= 0) {
+		return NULL;
+	}
+
+	if (content_length > MAX_POST_CONTENT - 1) {
+		ast_log(LOG_WARNING, "Excessively long HTTP content. %d is greater than our max of %d\n",
+				content_length, MAX_POST_CONTENT);
+		ast_http_send(ser, AST_HTTP_POST, 413, "Request Entity Too Large", NULL, NULL, 0, 0);
 		return NULL;
 	}
 
