@@ -1,3 +1,194 @@
+2013-03-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.3.0-rc2 Released.
+
+	* app_confbridge: Fix error messages on exiting conference.
+	
+	  A marked user ending a conference with only end_marked users
+	  generates error messages:
+	  ERROR[0000][C-00000000]: confbridge/conf_state.c:47
+	  conf_invalid_event_fn: Invalid event for confbridge user ''
+
+	  The MULTI_MARKED state was doing too much when it was kicking out
+	  the end_marked users from the conference.  The kicked out users
+	  will clean up after themselves when they exit the conference.
+
+	* app_page and app_confbridge: Fix custom announcement on entering
+	conference.
+
+	  The Page and ConfBridge custom announcement did not play when users
+	  entered the conference.
+
+	  Fix the CONFBRIDGE(user,announcement) file not getting played. The
+	  code to do this got removed accidentally when the ConfBridge code
+	  was restructured to be more state machine like.
+
+	  Fixed play_prompt_to_user() doxygen comments.
+
+	  Fixed the Page A(x) and n options for the caller.  The caller never
+	  played the announcement file and totally ignored the n option.  The
+	  code to do this was lost when the application was converted to use
+	  ConfBridge.
+
+	  Factored out setup_profile_bridge(), setup_profile_paged(), and
+	  setup_profile_caller() routines to setup ConfBridge profiles. Made
+	  each profile setup routine use the default template if one has not
+	  already been setup by dialplan.
+
+	* app_confbridge: Fix crash from receiving an AMI action after
+	ConfBridge unloaded.
+
+	  Unloading ConfBridge caused the next AMI action received to crash
+	  Asterisk. Add the missing unregister of AMI action
+	  ConfbridgeSetSingleVideoSrc when ConfBridge is unloaded.
+
+	* Fixed Confbridge file recording deadlock and appending.
+
+	  A deadlock occurred after starting/stopping and then restarting a
+	  confbridge recording.  Upon starting a recording a record thread is
+	  created that holds a lock until just before exiting.  Stopping the
+	  recording does not stop/exit the thread or release the lock.  The
+	  thread waits until recording begins again. Starting a stopped
+	  recording signals the thread to continue and start recording
+	  again.  However restarting the recording also created another
+	  record thread resulting in a deadlock.  The fix was to make sure
+	  the record thread was only created once.
+
+	* Confbridge channels staying active when all participants leave.
+
+	  If you started/stopped recording of a conference multiple times
+	  channels would remain active even when all participants left the
+	  conference.  This was due to the fact that a reference to the
+	  confbridge was being added every time a start record command was
+	  issued, but when the recording was stopped there was no matching
+	  de-reference thus keeping the conference alive. Made sure only a
+	  single reference is added for the record thread no matter how
+	  many times recording is started/stopped.  A de-reference is
+	  issued upon thread ending.
+
+	* Let vm_mailbox_snapshot_create's combine option apply to "Urgent"
+	as well
+
+	  The vm_mailbox_snapshot_create function has an option that combines
+	  the contents of INBOX and Old into a single snapshot. The intent
+	  of this is that both 'new' messages and 'deleted' messages are given
+	  in a single snapshot, as some applications prefer this view of the
+	  voicemail world. Unfortunately, the initial implementation ignored the
+	  "Urgent" folder. The "Urgent" folder is a pseudo-INBOX, in that new
+	  messages left with the 'U' flag will be placed in that folder as
+	  opposed to INBOX. Thus, the option failed the intent with which it
+	  was added.
+
+	* Fix comparison of presence state in event subsystem.
+
+	  Several new IEs were not given types (or names), causing the
+	  comparison function to improperly succeed.  This adds those.
+
+	* Let vm_mailbox_snapshot combine "Urgent" when no folder is specified
+
+	  r381835 fixed a bug in vm_mailbox_snapshot where combining INBOX and
+	  Old forgot that Urgent also "counts" as new messages. This fixed the
+	  problem when any of the three folders was specified and the combine
+	  option was used. It missed the case where the folder isn't specified
+	  and we build a snapshot of all folders. This patch corrects that.
+
+	* Do not allow native RTP bridging if packetization of media streams
+	differs.
+
+	The RTP engine will no longer allow for local and remote native RTP
+	bridges	if packetization of streams differs. Allowing native bridging
+	in this	scenario has been known to cause FAX failures.
+
+	* Resolve deadlock between pending CDR and batch CDR locks
+
+	r375757 attempted to resolve a race condition between multiple
+	submissions of CDRs while in batch mode from attempting to destroy the
+	scheduled batch	submission by extending the batch CDR lock. Unfortunately,
+	this causes a deadlock between the pending CDR lock and the batch CDR lock.
+	This patch resolves the intent of r375757 by simply providing a new lock
+	that protects the scheduling of the batches. The original batch CDR lock
+	is kept to protect manipulation of the batch CDR settings, but has been
+	placed such that it is not held when the pending lock is held.
+
+	Thanks to Chase Venters for providing lock analysis on the issue.
+
+	* Resolve deadlock between SIP registration and channel based
+	functions
+
+	In r373424, several reentrancy problems in chan_sip were addressed. As
+	a result, the SIP channel driver is now properly locking the channel
+	driver private information in certain operations that it wasn't previously.
+	This exposed two latent problems either in register_verify or by functions
+	called by register_verify. This includes:
+	 * Holding the private lock while calling sip_send_mwi_to_peer. This
+	 can create a new sip_pvt via sip_alloc, which will obtain the channel
+	 container lock. This is a locking inversion, as any channel related lock
+	 must be obtained prior to obtaining the SIP channel technology private
+	 lock.
+	 * Holding the private lock while calling sip_poke_peer. In the same vein as
+         sip_send_mwi_to_peer, sip_poke_peer can create a new SIP private, causing
+         the same locking inversion.
+
+	Note that this locking inversion typically occured when CLI commands were run
+	while a SIP REGISTER request was being processed, as many CLI commands (such
+	as 'sip show channels', 'core show channels', etc.) have to obtain the channel
+	container lock.
+
+	* AST-2013-001: Prevent buffer overflow through H.264 format negotiation
+
+	  The format attribute resource for H.264 video performs an unsafe read
+	  against a media attribute when parsing the SDP. The value passed in with
+	  the format attribute is not checked for its length when parsed into a fixed
+	  length buffer. This patch resolves the vulnerability by only reading
+	  as many characters from the SDP value as will fit into the buffer.
+
+	* AST-2013-002: Prevent denial of service in HTTP server
+
+	AST-2012-014, fixed in January of this year, contained a fix for
+	Asterisk's HTTP server for a remotely-triggered crash. While the fix put in
+	place fixed the possibility for the crash to be triggered, a denial of
+	service vector still exists with that solution if an attacker sends one or
+	more HTTP POST requests with very large Content-Length values. This patch
+	resolves this by capping the Content-Length at 1024 bytes. Any attempt to send
+	an HTTP POST with Content-Length greater than this cap will not result in any
+	memory allocation. The POST will be responded to with an HTTP 413 "Request
+	Entity Too Large" response.
+
+	This issue was reported by Christoph Hebeisen of TELUS Security Labs
+
+	* AST-2013-003: Prevent username disclosure in SIP channel driver
+
+	When authenticating a SIP request with alwaysauthreject enabled,
+	allowguest disabled, and autocreatepeer disabled, Asterisk discloses whether
+	a user exists for INVITE, SUBSCRIBE, and REGISTER transactions in
+	multiple ways. The information is disclosed when:
+	 * A "407 Proxy Authentication Required" response is sent instead of a
+	   "401 Unauthorized" response
+	 * The presence or absence of additional tags occurs at the end of
+	   "403 Forbidden" (such as "(Bad Auth)")
+	 * A "401 Unauthorized" response is sent instead of "403 Forbidden"
+	   response after a retransmission
+	 * Retransmission are sent when a matching peer did not exist, but not
+	   when a matching peer did exist.
+	This patch resolves these various vectors by ensuring that the responses sent
+	in all scenarios is the same, regardless of the presence of a matching peer.
+
+	This issue was reported by Walter Doekes, OSSO B.V. A substantial portion of
+	the testing and the solution to this problem was done by Walter as well - a
+	huge thanks to his tireless efforts in finding all the ways in which this
+	setting didn't work, providing automated tests, and working with Kinsey on
+	getting this fixed.
+
+	* Fix white noise on SRTP decryption
+
+	When res_rtp_asterisk.c was altered to avoid attempting to apply
+	unprotect algorithms to non-audio RTP packets, the test used was
+	incorrect. This caused the audio packets to not be decrypted and
+	resulted in loud white noise on the other endpoint (or both endpoints
+	depending on the call legs involved). The test now properly checks the
+	version field in the RTP header to ensure that RTP and RTCP are
+	decrypted while other types of packets are not.
+
 2013-01-30  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.3.0-rc1 Released.
