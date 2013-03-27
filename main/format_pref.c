@@ -317,7 +317,7 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, struc
 /*! \brief Pick a codec */
 struct ast_format *ast_codec_choose(struct ast_codec_pref *pref, struct ast_format_cap *cap, int find_best, struct ast_format *result)
 {
-	int x, slot, found;
+	int x, slot, found = 0;
 	size_t f_len = 0;
 	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
