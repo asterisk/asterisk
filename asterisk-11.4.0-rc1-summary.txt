@@ -1,0 +1,661 @@
+                                Release Summary
+
+                              asterisk-11.4.0-rc1
+
+                                Date: 2013-03-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.3.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   15 mjordan               6 jbigelow               6 jbigelow               
+   10 rmudgett              2 elguero                4 jkister                
+   8 qwell                  2 Jeremy Kister          4 mjordan                
+   6 kharwell               2 kmoore                 2 wdoekes                
+   6 kmoore                 2 rmudgett               1 /dev/null              
+   6 wdoekes                1 andrea                 1 aepshteyn              
+   5 elguero                1 Daniel Bohling         1 amsoft2001             
+   4 dlee                   1 daroz                  1 ascanland              
+   4 file                   1 JoshE                  1 avalentin              
+   3 jrose                  1 myself                 1 chengzhicn             
+   3 mmichelson             1 Pavel Troller          1 coriley                
+   2 igorg                  1 Rusty Newton           1 daroz                  
+   2 tzafrir                1 snuffy                 1 dbohling               
+   2 wedhorn                1 wdoekes                1 Demon                  
+   1 avalentin                                       1 eelcob                 
+   1 coriley                                         1 ianc                   
+   1 Dmitriy Serov                                   1 johan                  
+   1 eelcob                                          1 kris2k                 
+   1 Heiko Wundram                                   1 marcelloceschia        
+   1 ianc                                            1 mmichelson             
+   1 jcolp                                           1 modelnine              
+   1 kmoore, wdoekes                                 1 n8ideas                
+   1 marcelloceschia                                 1 nbansal                
+   1 nbansal                                         1 patrol-cz              
+   1 Pavel Troller                                   1 pgoergler              
+   1 russell                                         1 rmudgett               
+   1 seanbright                                      1 rnewton                
+   1 serginuez                                       1 salecha                
+   1 Zhi Cheng                                       1 serginuez              
+                                                     1 shmagin                
+                                                     1 sickpig                
+                                                     1 tomaso                 
+                                                     1 tsearle                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/res_config_mysql
+
+   ASTERISK-21035: [patch] - features.conf in static realtime requires
+   distinct cat_metric for each parking lot
+   Revision: 382943
+   Reporter: aepshteyn
+   Coders: elguero
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-20990: Confbridge announcement not played
+   Revision: 380894
+   Reporter: jkister
+   Testers: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-20991: Confbridge errors on leaving
+   Revision: 380892
+   Reporter: jkister
+   Testers: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-20994: AMI command reception after app_confbridge.so unload
+   results in crash
+   Revision: 381067
+   Reporter: jkister
+   Testers: Rusty Newton, Jeremy Kister
+   Coders: rmudgett
+
+  Category: Applications/app_db
+
+   ASTERISK-21070: DBdeltree throws spurious error under almost all cases
+   Revision: 381365
+   Reporter: ianc
+   Coders: ianc
+
+  Category: Applications/app_dial
+
+   ASTERISK-21113: app_dial.c does not honor 'c' flag when calling party
+   hangs up
+   Revision: 381880
+   Reporter: modelnine
+   Coders: Heiko Wundram
+
+  Category: Applications/app_mixmonitor
+
+   ASTERISK-21294: Calling StopMixMonitor on a channel w/o MixMonitor running
+   returns -1
+   Revision: 383631
+   Reporter: daroz
+   Testers: daroz
+   Coders: elguero
+
+  Category: Applications/app_page
+
+   ASTERISK-20991: Confbridge errors on leaving
+   Revision: 380892
+   Reporter: jkister
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Applications/app_parkandannounce
+
+   ASTERISK-20113: ParkAndAnnounce doesn't return to n+1 when no
+   return_context defined
+   Revision: 381917
+   Reporter: serginuez
+   Coders: serginuez
+
+  Category: Applications/app_playback
+
+   ASTERISK-20800: 'module reload app_playback.so' won't load say.conf if it
+   didn't exist during module's first load
+   Revision: 381217
+   Reporter: pgoergler
+   Coders: kharwell
+
+  Category: Applications/app_queue
+
+   ASTERISK-19960: Incorrect data in queue_log, event TRANSFER, field data1
+   Revision: 381791
+   Reporter: shmagin
+   Coders: kharwell
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-21248: CALLERID(dnid-num-plan) does not get any value set.
+   Revision: 383798
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_gulp
+
+   ASTERISK-20815: Fix pjproject's build system to be tolerant of build
+   errors and parallel building
+   Revision: 380816
+   Reporter: mjordan
+   Coders: qwell
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-21128: Locking inversion when attempting to set caller ID while
+   holding iaxsl lock causes deadlock
+   Revision: 382234
+   Reporter: patrol-cz
+   Testers: Pavel Troller
+   Coders: mjordan, Pavel Troller
+
+  Category: Channels/chan_jingle
+
+   ASTERISK-19341: Missing initialization on bind_addr
+   Revision: 381976
+   Reporter: avalentin
+   Coders: avalentin
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20787: Asterisk should inspect Min-SE header in an INVITE even if
+   there is no Session-Expires present
+   Revision: 380698
+   Reporter: mmichelson
+   Coders: dlee
+
+   ASTERISK-20904: RFC1918 NAT Issue On Prune
+   Revision: 382322
+   Reporter: n8ideas
+   Testers: JoshE, elguero
+   Coders: elguero
+
+   ASTERISK-20929: Core-dump on SIP BYE for an invalid call transaction
+   Revision: 381566
+   Reporter: kris2k
+   Coders: mmichelson
+
+   ASTERISK-21013: Security Vulnerability: sip username disclosure
+   Revision: 384003
+   Reporter: wdoekes
+   Testers: wdoekes, kmoore
+   Coders: kmoore, wdoekes
+
+   ASTERISK-21201: [patch] In Manager Interface, SIP registry event does not
+   show username on Status: Registered
+   Revision: 382848
+   Reporter: Demon
+   Coders: Dmitriy Serov
+
+   ASTERISK-21232: Asterisk sends AUDIO REINVITE when session timer expires
+   in T38 call
+   Revision: 383125
+   Reporter: nbansal
+   Coders: nbansal
+
+  Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-20638: SIP dialog matching is incorrect when multiple provisional
+   responses are received with pedantic SIP checking
+   Revision: 382174
+   Reporter: eelcob
+   Coders: eelcob
+
+  Category: Channels/chan_sip/Messaging
+
+   ASTERISK-21148: [patch] - Asterisk use '(null)' in 'via' header and
+   'call-id' header when relaying SIP MESSAGE
+   Revision: 382739
+   Reporter: chengzhicn
+   Coders: Zhi Cheng
+
+  Category: Channels/chan_sip/SRTP
+
+   ASTERISK-21323: Asterisk 11 svn branch and srtp - white noise only
+   Revision: 384049
+   Reporter: sickpig
+   Testers: kmoore, andrea, jbigelow
+   Coders: kmoore
+
+  Category: Channels/chan_skinny
+
+   ASTERISK-16610: problem to reload the module skinny when active calls.
+   Revision: 380942
+   Reporter: salecha
+   Testers: snuffy, myself
+   Coders: wedhorn
+
+  Category: Channels/chan_unistim
+
+   ASTERISK-21119: Asterisk system locks up with chan_unistim
+   Revision: 382410
+   Reporter: dbohling
+   Testers: Daniel Bohling
+   Coders: igorg
+
+  Category: Contrib/General
+
+   ASTERISK-21173: [patch] example sippeers sql hasn't been adapted for ipv6
+   and causes chan_sip to generate a warning message
+   Revision: 382940
+   Reporter: tsearle
+   Coders: elguero
+
+  Category: Core/BuildSystem
+
+   ASTERISK-20749: Cannot enable res_timing_kqueue via "make menuselect"
+   Revision: 381848
+   Reporter: /dev/null
+   Coders: mjordan
+
+  Category: Core/General
+
+   ASTERISK-21014: logger.c Call_ID 'bound' or 'removed' DEBUG messages
+   spammed during a feature code attended transfer
+   Revision: 381554
+   Reporter: rnewton
+   Coders: kharwell
+
+  Category: Core/HTTP
+
+   ASTERISK-20967: Security Vulnerability: DoS attack possible due to fix for
+   CVE-2012-5976
+   Revision: 383978
+   Reporter: mjordan
+   Coders: mmichelson
+
+   ASTERISK-20967: Security Vulnerability: DoS attack possible due to fix for
+   CVE-2012-5976
+   Revision: 384119
+   Reporter: mjordan
+   Coders: wdoekes
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20397: "manager show user " shows the "all" permission despite it
+   not being set
+   Revision: 381943
+   Reporter: johan
+   Coders: mjordan
+
+  Category: Features
+
+   ASTERISK-21014: logger.c Call_ID 'bound' or 'removed' DEBUG messages
+   spammed during a feature code attended transfer
+   Revision: 381554
+   Reporter: rnewton
+   Coders: kharwell
+
+  Category: Functions/func_callerid
+
+   ASTERISK-21248: CALLERID(dnid-num-plan) does not get any value set.
+   Revision: 383798
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: General
+
+   ASTERISK-19451: va_start/va_copy and va_end do not always match up
+   Revision: 382022
+   Reporter: wdoekes
+   Coders: wdoekes
+
+   ASTERISK-20994: AMI command reception after app_confbridge.so unload
+   results in crash
+   Revision: 381067
+   Reporter: jkister
+   Testers: Rusty Newton, Jeremy Kister
+   Coders: rmudgett
+
+  Category: PBX/pbx_spool
+
+   ASTERISK-21176: Call files on OS X, using KQueue, do not get processed
+   (load 100%)
+   Revision: 383121
+   Reporter: coriley
+   Coders: coriley
+
+  Category: Resources/res_agi
+
+   ASTERISK-21065: Asterisk 11 IPv6 - FastAGI fail
+   Revision: 381893
+   Reporter: jkister
+   Testers: Jeremy Kister, elguero
+   Coders: elguero
+
+  Category: Resources/res_format_attr_h264
+
+   ASTERISK-20901: Security Vulnerability: Possible stack corruption in when
+   parsing H.264 format attributes
+   Revision: 383973
+   Reporter: mjordan
+   Coders: jrose
+
+  Category: Resources/res_xmpp
+
+   ASTERISK-20982: xmpp Segfault when delete node using cli
+   Revision: 381159
+   Reporter: marcelloceschia
+   Coders: marcelloceschia
+
+   ASTERISK-21156: Asterisk crashes with XMPP\Google Voice config where
+   username is missing hostname portion
+   Revision: 382923
+   Reporter: amsoft2001
+   Coders: jcolp
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                      | Issues          |
+   |          |            |                              | Referenced      |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | chan_dahdi: Fix "dahdi show  |                 |
+   | 380575   | rmudgett   | channels group" for groups   |                 |
+   |          |            | greater than 31.             |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380612   | rmudgett   | Make CHECK_BLOCKING() debug  |                 |
+   |          |            | message more useful.         |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380671   | qwell      | Remove a cross-compile       |                 |
+   |          |            | workaround.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Always check for libm,       |                 |
+   | 380672   | qwell      | regardless of configure      |                 |
+   |          |            | options.                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380673   | qwell      | Add support for parallel     | ASTERISK-20815  |
+   |          |            | builds of pjproject.         |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380735   | qwell      | Fix a few compiler warnings. |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380736   | qwell      | Ignore warnings caused by    |                 |
+   |          |            | PJ_TODO()s in pjproject.     |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380854   | rmudgett   | Separate option_types[] from |                 |
+   |          |            | the struct definition.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Because the compiler can     |                 |
+   | 380856   | rmudgett   | check types with a struct    |                 |
+   |          |            | copy and memcpy() cannot.    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | app_page: Fixup application  |                 |
+   | 380869   | rmudgett   | XML documentation typos and  |                 |
+   |          |            | inaccuracies.                |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380926   | wedhorn    | Reset skinny vmexten on      |                 |
+   |          |            | reload.                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380974   | dlee       | Fixed failing test from      | ASTERISK-20787  |
+   |          |            | r380696.                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix some more                |                 |
+   | 381282   | kmoore     | REF_DEBUG-related build      |                 |
+   |          |            | errors                       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Do not allow native RTP      |                 |
+   | 381306   | mmichelson | bridging if packetization of |                 |
+   |          |            | media streams differs.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | End stuck DTMF if            |                 |
+   | 381467   | rmudgett   | AST_SOFTHANGUP_ASYNCGOTO     | ASTERISK-20492  |
+   |          |            | because it isn't a real      |                 |
+   |          |            | hangup.                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | chan_sip: Use video and text |                 |
+   | 381553   | jrose      | crypto attributes to append  |                 |
+   |          |            | RTP profiles to SDP          |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Don't send presencestate     |                 |
+   | 381613   | mjordan    | information if the state is  | AST-1084        |
+   |          |            | invalid                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | PRESENCE_STATE: Provide      |                 |
+   | 381655   | jrose      | better documentation for the |                 |
+   |          |            | 'e' option.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Remove "registertrying" and  |                 |
+   | 381669   | wdoekes    | add "rtp_engine" from/to     |                 |
+   |          |            | sip.conf.sample              |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fixed Confbridge file        |                 |
+   | 381702   | kharwell   | recording deadlock and       | AST-1088        |
+   |          |            | appending.                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Confbridge channels staying  |                 |
+   | 381737   | kharwell   | active when all participants | AST-1088        |
+   |          |            | leave.                       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Let                          |                 |
+   | 381835   | mjordan    | vm_mailbox_snapshot_create's |                 |
+   |          |            | combine option apply to      |                 |
+   |          |            | "Urgent" as well             |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382069   | mjordan    | Fix typo in r382068          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382096   | tzafrir    | Remove unneeded              |                 |
+   |          |            | linux-gnueabi*               |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382108   | wdoekes    | Correct RPID parsing for     |                 |
+   |          |            | unquoted display-name.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382111   | tzafrir    | Consider linux-gnuspe as     |                 |
+   |          |            | linux-gnu                    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Regenerate the configure     |                 |
+   | 382151   | file       | script. The one in the tree  |                 |
+   |          |            | was not working for me at    |                 |
+   |          |            | all.                         |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix a bug with ICE and       |                 |
+   | 382296   | file       | strictrtp where media could  |                 |
+   |          |            | get dropped.                 |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | While the ICE negotiation is |                 |
+   |          |            | occurring leave strictrtp in |                 |
+   | 382298   | file       | an open state, media can and |                 |
+   |          |            | will come from different     |                 |
+   |          |            | places.                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382385   | kharwell   | Confbridge CLI new record    | AST-1088        |
+   |          |            | file name check.             |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | be played simultaneously.    |                 |
+   | 382514   | kmoore     | This is not necessarily the  |                 |
+   |          |            | case.                        |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382574   | kmoore     | Ensure that logmsgs are      |                 |
+   |          |            | freed properly               |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Let vm_mailbox_snapshot      |                 |
+   | 382617   | mjordan    | combine "Urgent" when no     |                 |
+   |          |            | folder is specified          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382827   | igorg      | Fix core dump on CLI usage   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383062   | qwell      | Fix whitespace in            |                 |
+   |          |            | AST_EXT_LIB_CHECK macro.     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix a bug where resources    |                 |
+   | 383266   | file       | were not found due to        |                 |
+   |          |            | hashing on the priority      |                 |
+   |          |            | itself.                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383341   | dlee       | Removed codecs/g722/*.i on   |                 |
+   |          |            | make clean                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383342   | dlee       | Remove codecs/speex/*.i on   |                 |
+   |          |            | make clean                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383457   | wdoekes    | Minor cleanup in func_curl   |                 |
+   |          |            | near hashcompat code.        |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383461   | wdoekes    | Have func_curl log a warning |                 |
+   |          |            | when a curl request fails.   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383668   | seanbright | Properly delimit post data   |                 |
+   |          |            | in res_config_curl.          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383836   | russell    | Fix multi-station answer     |                 |
+   |          |            | race condition.              |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Resolve deadlock between     |                 |
+   | 383840   | mjordan    | pending CDR and batch CDR    | ASTERISK-21162  |
+   |          |            | locks                        |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Resolve deadlock between SIP | ASTERISK-21068, |
+   | 383878   | mjordan    | registration and channel     | ASTERISK-20550, |
+   |          |            | based functions              | ASTERISK-21314, |
+   |          |            |                              | ASTERISK-21296  |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Address uninitialized        |                 |
+   | 384163   | kmoore     | conditional that valgrind    |                 |
+   |          |            | found                        |                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                        |    3
+ Makefile                                       |   50 +---
+ UPGRADE.txt                                    |   12 -
+ addons/res_config_mysql.c                      |   29 --
+ apps/app_confbridge.c                          |  204 +++++++++++++----
+ apps/app_db.c                                  |    8
+ apps/app_dial.c                                |    2
+ apps/app_meetme.c                              |   23 +
+ apps/app_mixmonitor.c                          |   10
+ apps/app_page.c                                |  105 ++++++--
+ apps/app_parkandannounce.c                     |    2
+ apps/app_playback.c                            |    2
+ apps/app_voicemail.c                           |   19 +
+ apps/confbridge/conf_config_parser.c           |   39 +++
+ apps/confbridge/conf_state_multi_marked.c      |    8
+ autoconf/ast_ext_lib.m4                        |    4
+ channels/chan_dahdi.c                          |    7
+ channels/chan_iax2.c                           |    4
+ channels/chan_jingle.c                         |    1
+ channels/chan_sip.c                            |  295 ++++++++++++++++---------
+ channels/chan_skinny.c                         |    5
+ channels/chan_unistim.c                        |    6
+ channels/sig_pri.c                             |    7
+ channels/sip/include/sip.h                     |   11
+ channels/sip/security_events.c                 |    5
+ codecs/Makefile                                |    4
+ configs/confbridge.conf.sample                 |    4
+ configs/sip.conf.sample                        |    3
+ configure.ac                                   |    6
+ contrib/realtime/mysql/sippeers.sql            |   16 -
+ contrib/realtime/postgresql/realtime.sql       |    4
+ funcs/func_curl.c                              |   32 +-
+ funcs/func_presencestate.c                     |   10
+ include/asterisk/autoconfig.h.in               |    5
+ include/asterisk/channel.h                     |    3
+ include/asterisk/logger.h                      |    9
+ main/Makefile                                  |    2
+ main/autoservice.c                             |   15 -
+ main/cdr.c                                     |   24 +-
+ main/dial.c                                    |   13 -
+ main/event.c                                   |    7
+ main/features.c                                |   13 -
+ main/format_pref.c                             |    2
+ main/http.c                                    |   32 ++
+ main/logger.c                                  |   38 +++
+ main/manager.c                                 |   55 ++++
+ main/presencestate.c                           |    3
+ main/rtp_engine.c                              |   13 +
+ main/tcptls.c                                  |    5
+ pbx/pbx_spool.c                                |   19 +
+ res/Makefile                                   |   24 +-
+ res/pjproject/aconfigure                       |  294 ++++++++++++++++++++----
+ res/pjproject/aconfigure.ac                    |   17 -
+ res/pjproject/build/cc-auto.mak.in             |    1
+ res/pjproject/build/common.mak                 |    9
+ res/pjproject/build/os-auto.mak.in             |    4
+ res/pjproject/build/rules.mak                  |    3
+ res/pjproject/pjlib-util/build/Makefile        |   10
+ res/pjproject/pjlib/build/Makefile             |   12 -
+ res/pjproject/pjlib/include/pj/config_site.h   |    1
+ res/pjproject/pjlib/src/pj/log.c               |    6
+ res/pjproject/pjlib/src/pj/pool_buf.c          |    2
+ res/pjproject/pjlib/src/pj/ssl_sock_ossl.c     |    6
+ res/pjproject/pjmedia/build/Makefile           |   22 +
+ res/pjproject/pjmedia/src/test/test.c          |    4
+ res/pjproject/pjnath/build/Makefile            |   16 -
+ res/pjproject/pjsip-apps/build/Makefile        |   12 -
+ res/pjproject/pjsip-apps/src/samples/icedemo.c |   22 -
+ res/pjproject/pjsip/build/Makefile             |   21 +
+ res/res_agi.c                                  |   84 +++++--
+ res/res_config_curl.c                          |    7
+ res/res_format_attr_h264.c                     |   11
+ res/res_rtp_asterisk.c                         |  110 +++++----
+ res/res_xmpp.c                                 |   18 -
+ 74 files changed, 1366 insertions(+), 548 deletions(-)
+
+     ----------------------------------------------------------------------
