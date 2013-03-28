@@ -50,7 +50,23 @@ AST_TEST_DEFINE(uuid)
 		break;
 	}
 
-	/* First, make sure that we can generate a UUID */
+	/* Use method of generating UUID directly as a string. */
+	ast_uuid_generate_str(uuid_str, sizeof(uuid_str));
+	if (strlen(uuid_str) != (AST_UUID_STR_LEN - 1)) {
+		ast_test_status_update(test, "Failed to directly generate UUID string\n");
+		goto end;
+	}
+	ast_test_status_update(test, "Generate UUID direct to string, got %s\n", uuid_str);
+
+	/* Now convert the direct UUID string to a UUID */
+	uuid1 = ast_str_to_uuid(uuid_str);
+	if (!uuid1) {
+		ast_test_status_update(test, "Unable to convert direct UUID string %s to UUID\n", uuid_str);
+		goto end;
+	}
+	ast_free(uuid1);
+
+	/* Make sure that we can generate a UUID */
 	uuid1 = ast_uuid_generate();
 	if (!uuid1) {
 		ast_test_status_update(test, "Unable to generate a UUID\n");
@@ -71,7 +87,7 @@ AST_TEST_DEFINE(uuid)
 		goto end;
 	}
 
-	ast_test_status_update(test, "Converted uuid to string, got %s\n", uuid_str);
+	ast_test_status_update(test, "Second generated UUID converted to string, got %s\n", uuid_str);
 
 	/* Now convert the string back to a UUID */
 	uuid2 = ast_str_to_uuid(uuid_str);

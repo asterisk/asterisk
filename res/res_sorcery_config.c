@@ -305,19 +305,12 @@ static void *sorcery_config_open(const char *data)
 {
 	char *tmp = ast_strdupa(data), *filename = strsep(&tmp, ","), *option;
 	struct sorcery_config *config;
-	struct ast_uuid *uuid;
 
 	if (ast_strlen_zero(filename) || !(config = ao2_alloc_options(sizeof(*config) + strlen(filename) + 1, sorcery_config_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
 		return NULL;
 	}
 
-	if (!(uuid = ast_uuid_generate())) {
-		ao2_ref(config, -1);
-		return NULL;
-	}
-
-	ast_uuid_to_str(uuid, config->uuid, AST_UUID_STR_LEN);
-	ast_free(uuid);
+	ast_uuid_generate_str(config->uuid, sizeof(config->uuid));
 
 	ast_rwlock_init(&config->objects.lock);
 	config->buckets = DEFAULT_OBJECT_BUCKETS;

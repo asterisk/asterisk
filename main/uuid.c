@@ -38,13 +38,17 @@ struct ast_uuid {
 	uuid_t uu;
 };
 
-struct ast_uuid *ast_uuid_generate(void)
+/*!
+ * \internal
+ * \brief Generate a UUID.
+ * \since 12.0.0
+ *
+ * \param uuid Fill this with a generated UUID.
+ *
+ * \return Nothing
+ */
+static void generate_uuid(struct ast_uuid *uuid)
 {
-	struct ast_uuid *uuid = ast_malloc(sizeof(*uuid));
-
-	if (!uuid) {
-		return NULL;
-	}
 	/* libuuid provides three methods of generating uuids,
 	 * uuid_generate(), uuid_generate_random(), and uuid_generate_time().
 	 *
@@ -114,6 +118,16 @@ struct ast_uuid *ast_uuid_generate(void)
 	if (!has_dev_urandom) {
 		ast_mutex_unlock(&uuid_lock);
 	}
+}
+
+struct ast_uuid *ast_uuid_generate(void)
+{
+	struct ast_uuid *uuid = ast_malloc(sizeof(*uuid));
+
+	if (!uuid) {
+		return NULL;
+	}
+	generate_uuid(uuid);
 	return uuid;
 }
 
@@ -124,10 +138,19 @@ char *ast_uuid_to_str(const struct ast_uuid *uuid, char *buf, size_t size)
 	return buf;
 }
 
+char *ast_uuid_generate_str(char *buf, size_t size)
+{
+	struct ast_uuid uuid;
+
+	generate_uuid(&uuid);
+	return ast_uuid_to_str(&uuid, buf, size);
+}
+
 struct ast_uuid *ast_str_to_uuid(const char *str)
 {
 	struct ast_uuid *uuid = ast_malloc(sizeof(*uuid));
 	int res;
+
 	if (!uuid) {
 		return NULL;
 	}
@@ -143,6 +166,7 @@ struct ast_uuid *ast_str_to_uuid(const char *str)
 struct ast_uuid *ast_uuid_copy(const struct ast_uuid *src)
 {
 	struct ast_uuid *dst = ast_malloc(sizeof(*dst));
+
 	if (!dst) {
 		return NULL;
 	}
@@ -202,5 +226,4 @@ void ast_uuid_init(void)
 	uuid_generate_random(uu);
 
 	ast_debug(1, "UUID system initiated\n");
-	return;
 }

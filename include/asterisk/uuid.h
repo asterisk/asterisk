@@ -24,7 +24,7 @@
 #define _ASTERISK_UUID_H
 
 /* Size of an RFC 4122 UUID string plus terminating null byte */
-#define AST_UUID_STR_LEN 37
+#define AST_UUID_STR_LEN (36 + 1)
 
 struct ast_uuid;
 
@@ -50,9 +50,20 @@ struct ast_uuid *ast_uuid_generate(void);
  * \param uuid The UUID to convert to a string
  * \param[out] buf The buffer where the UUID string will be stored
  * \param size The size of the buffer. Must be at least AST_UUID_STR_LEN.
- * \returns The UUID string (a pointer to buf)
+ * \return The UUID string (a pointer to buf)
  */
 char *ast_uuid_to_str(const struct ast_uuid *uuid, char *buf, size_t size);
+
+/*!
+ * \brief Generate a UUID string.
+ * \since 12.0.0
+ *
+ * \param buf The buffer where the UUID string will be stored
+ * \param size The size of the buffer. Must be at least AST_UUID_STR_LEN.
+ *
+ * \return The UUID string (a pointer to buf)
+ */
+char *ast_uuid_generate_str(char *buf, size_t size);
 
 /*!
  * \brief Convert a string to a UUID

@@ -106,7 +106,7 @@ const char *stasis_topic_name(const struct stasis_topic *topic)
 /*! \internal */
 struct stasis_subscription {
 	/*! Unique ID for this subscription */
-	char *uniqueid;
+	char uniqueid[AST_UUID_STR_LEN];
 	/*! Topic subscribed to. */
 	struct stasis_topic *topic;
 	/*! Mailbox for processing incoming messages. */
@@ -121,8 +121,6 @@ static void subscription_dtor(void *obj)
 {
 	struct stasis_subscription *sub = obj;
 	ast_assert(!stasis_subscription_is_subscribed(sub));
-	ast_free(sub->uniqueid);
-	sub->uniqueid = NULL;
 	ao2_cleanup(sub->topic);
 	sub->topic = NULL;
 	ast_taskprocessor_unreference(sub->mailbox);
@@ -134,27 +132,19 @@ static void send_subscription_change_message(struct stasis_topic *topic, char *u
 struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic, stasis_subscription_cb callback, void *data)
 {
 	RAII_VAR(struct stasis_subscription *, sub, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_uuid *, id, NULL, ast_free);
-	char uniqueid[AST_UUID_STR_LEN];
 
 	sub = ao2_alloc(sizeof(*sub), subscription_dtor);
 	if (!sub) {
 		return NULL;
 	}
 
-	id = ast_uuid_generate();
-	if (!id) {
-		ast_log(LOG_ERROR, "UUID generation failed\n");
-		return NULL;
-	}
-	ast_uuid_to_str(id, uniqueid, sizeof(uniqueid));
+	ast_uuid_generate_str(sub->uniqueid, sizeof(sub->uniqueid));
 
-	sub->mailbox = ast_threadpool_serializer(uniqueid, pool);
+	sub->mailbox = ast_threadpool_serializer(sub->uniqueid, pool);
 	if (!sub->mailbox) {
 		return NULL;
 	}
 
-	sub->uniqueid = ast_strdup(uniqueid);
 	ao2_ref(topic, +1);
 	sub->topic = topic;
 	sub->callback = callback;
@@ -163,7 +153,7 @@ struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic, stasis_
 	if (topic_add_subscription(topic, sub) != 0) {
 		return NULL;
 	}
-	send_subscription_change_message(topic, uniqueid, "Subscribe");
+	send_subscription_change_message(topic, sub->uniqueid, "Subscribe");
 
 	ao2_ref(sub, +1);
 	return sub;

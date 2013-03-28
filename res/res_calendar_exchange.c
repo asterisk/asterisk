@@ -243,17 +243,9 @@ static void *unref_exchangecal(void *obj)
 static struct ast_str *generate_exchange_uuid(struct ast_str *uid)
 {
 	char buffer[AST_UUID_STR_LEN];
-	struct ast_uuid *uuid = ast_uuid_generate();
 
-	if (!uuid) {
-		ast_str_set(&uid, 0, "%s", "");
-		return uid;
-	}
-
-	ast_str_set(&uid, 0, "%s", ast_uuid_to_str(uuid, buffer, AST_UUID_STR_LEN));
-
-	ast_free(uuid);
-
+	ast_uuid_generate_str(buffer, sizeof(buffer));
+	ast_str_set(&uid, 0, "%s", buffer);
 	return uid;
 }
 
@@ -414,9 +406,17 @@ static struct ast_str *exchangecal_request(struct exchangecal_pvt *pvt, const ch
 
 static int exchangecal_write_event(struct ast_calendar_event *event)
 {
-	struct ast_str *body = NULL, *response = NULL, *subdir = NULL;
-	struct ast_str *uid = NULL, *summary = NULL, *description = NULL, *organizer = NULL,
-	               *location = NULL, *start = NULL, *end = NULL, *busystate = NULL;
+	struct ast_str *body = NULL;
+	struct ast_str *response = NULL;
+	struct ast_str *subdir = NULL;
+	struct ast_str *uid = NULL;
+	struct ast_str *summary = NULL;
+	struct ast_str *description = NULL;
+	struct ast_str *organizer = NULL;
+	struct ast_str *location = NULL;
+	struct ast_str *start = NULL;
+	struct ast_str *end = NULL;
+	struct ast_str *busystate = NULL;
 	int ret = -1;
 
 	if (!event) {
@@ -434,7 +434,7 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 		goto write_cleanup;
 	}
 
-	if (!(uid = ast_str_create(32)) ||
+	if (!(uid = ast_str_create(AST_UUID_STR_LEN)) ||
 		!(summary = ast_str_create(32)) ||
 		!(description = ast_str_create(32)) ||
 		!(organizer = ast_str_create(32)) ||
@@ -449,7 +449,7 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 	if (ast_strlen_zero(event->uid)) {
 		uid = generate_exchange_uuid(uid);
 	} else {
-		ast_str_set(&uid, 36, "%s", event->uid);
+		ast_str_set(&uid, AST_UUID_STR_LEN, "%s", event->uid);
 	}
 
 	if (!is_valid_uuid(uid)) {
@@ -496,7 +496,14 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 		"      </a:prop>\n"
 		"    </a:set>\n"
 		"</a:propertyupdate>\n",
-		ast_str_buffer(uid), ast_str_buffer(summary), ast_str_buffer(description), ast_str_buffer(organizer), ast_str_buffer(location), ast_str_buffer(start), ast_str_buffer(end), ast_str_buffer(busystate));
+		ast_str_buffer(uid),
+		ast_str_buffer(summary),
+		ast_str_buffer(description),
+		ast_str_buffer(organizer),
+		ast_str_buffer(location),
+		ast_str_buffer(start),
+		ast_str_buffer(end),
+		ast_str_buffer(busystate));
 	ast_verb(0, "\n\n%s\n\n", ast_str_buffer(body));
 	ast_str_set(&subdir, 0, "/Calendar/%s.eml", ast_str_buffer(uid));
 
@@ -505,39 +512,17 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 	}
 
 write_cleanup:
-	if (uid) {
-		ast_free(uid);
-	}
-	if (summary) {
-		ast_free(summary);
-	}
-	if (description) {
-		ast_free(description);
-	}
-	if (organizer) {
-		ast_free(organizer);
-	}
-	if (location) {
-		ast_free(location);
-	}
-	if (start) {
-		ast_free(start);
-	}
-	if (end) {
-		ast_free(end);
-	}
-	if (busystate) {
-		ast_free(busystate);
-	}
-	if (body) {
-		ast_free(body);
-	}
-	if (response) {
-		ast_free(response);
-	}
-	if (subdir) {
-		ast_free(subdir);
-	}
+	ast_free(uid);
+	ast_free(summary);
+	ast_free(description);
+	ast_free(organizer);
+	ast_free(location);
+	ast_free(start);
+	ast_free(end);
+	ast_free(busystate);
+	ast_free(body);
+	ast_free(response);
+	ast_free(subdir);
 
 	return ret;
 }

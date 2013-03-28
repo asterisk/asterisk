@@ -807,15 +807,7 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 	}
 
 	if (ast_strlen_zero(id)) {
-		struct ast_uuid *uuid = ast_uuid_generate();
-
-		if (!uuid) {
-			ao2_ref(details, -1);
-			return NULL;
-		}
-
-		ast_uuid_to_str(uuid, details->id, AST_UUID_STR_LEN);
-		ast_free(uuid);
+		ast_uuid_generate_str(details->id, sizeof(details->id));
 	} else {
 		ast_copy_string(details->id, id, sizeof(details->id));
 	}
