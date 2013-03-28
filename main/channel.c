@@ -153,13 +153,13 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 static struct ao2_container *channels;
 
 /*! \brief Message type for channel snapshot events */
-static struct stasis_message_type *__channel_snapshot;
+static struct stasis_message_type *channel_snapshot_type;
 
-static struct stasis_message_type *__channel_blob;
+static struct stasis_message_type *channel_blob_type;
 
-struct stasis_topic *__channel_topic_all;
+struct stasis_topic *channel_topic_all;
 
-struct stasis_caching_topic *__channel_topic_all_cached;
+struct stasis_caching_topic *channel_topic_all_cached;
 
 /*! \brief map AST_CAUSE's to readable string representations
  *
@@ -234,7 +234,7 @@ static void publish_channel_state(struct ast_channel *chan)
 		return;
 	}
 
-	message = stasis_message_create(ast_channel_snapshot(), snapshot);
+	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
 	if (!message) {
 		return;
 	}
@@ -291,7 +291,7 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 
 	obj->blob = ast_json_ref(blob);
 
-	msg = stasis_message_create(ast_channel_blob(), obj);
+	msg = stasis_message_create(ast_channel_blob_type(), obj);
 	if (!msg) {
 		return NULL;
 	}
@@ -300,7 +300,7 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 	return msg;
 }
 
-const char *ast_channel_blob_type(struct ast_channel_blob *obj)
+const char *ast_channel_blob_json_type(struct ast_channel_blob *obj)
 {
 	if (obj == NULL) {
 		return NULL;
@@ -329,7 +329,7 @@ static void publish_cache_clear(struct ast_channel *chan)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
-	message = stasis_cache_clear_create(ast_channel_snapshot(), ast_channel_uniqueid(chan));
+	message = stasis_cache_clear_create(ast_channel_snapshot_type(), ast_channel_uniqueid(chan));
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
@@ -8701,13 +8701,13 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 static void channels_shutdown(void)
 {
 	free_channelvars();
-	ao2_cleanup(__channel_snapshot);
-	__channel_snapshot = NULL;
-	ao2_cleanup(__channel_blob);
-	__channel_blob = NULL;
-	ao2_cleanup(__channel_topic_all);
-	__channel_topic_all = NULL;
-	__channel_topic_all_cached = stasis_caching_unsubscribe(__channel_topic_all_cached);
+	ao2_cleanup(channel_snapshot_type);
+	channel_snapshot_type = NULL;
+	ao2_cleanup(channel_blob_type);
+	channel_blob_type = NULL;
+	ao2_cleanup(channel_topic_all);
+	channel_topic_all = NULL;
+	channel_topic_all_cached = stasis_caching_unsubscribe(channel_topic_all_cached);
 	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
@@ -8720,7 +8720,7 @@ static void channels_shutdown(void)
 static const char *channel_snapshot_get_id(struct stasis_message *message)
 {
 	struct ast_channel_snapshot *snapshot;
-	if (ast_channel_snapshot() != stasis_message_type(message)) {
+	if (ast_channel_snapshot_type() != stasis_message_type(message)) {
 		return NULL;
 	}
 	snapshot = stasis_message_data(message);
@@ -8735,11 +8735,11 @@ void ast_channels_init(void)
 		ao2_container_register("channels", channels, prnt_channel_key);
 	}
 
-	__channel_snapshot = stasis_message_type_create("ast_channel_snapshot");
-	__channel_blob = stasis_message_type_create("ast_channel_blob");
+	channel_snapshot_type = stasis_message_type_create("ast_channel_snapshot");
+	channel_blob_type = stasis_message_type_create("ast_channel_blob");
 
-	__channel_topic_all = stasis_topic_create("ast_channel_topic_all");
-	__channel_topic_all_cached = stasis_caching_topic_create(__channel_topic_all, channel_snapshot_get_id);
+	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
+	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
 
@@ -11379,24 +11379,24 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	return snapshot;
 }
 
-struct stasis_message_type *ast_channel_blob(void)
+struct stasis_message_type *ast_channel_blob_type(void)
 {
-	return __channel_blob;
+	return channel_blob_type;
 }
 
-struct stasis_message_type *ast_channel_snapshot(void)
+struct stasis_message_type *ast_channel_snapshot_type(void)
 {
-	return __channel_snapshot;
+	return channel_snapshot_type;
 }
 
 struct stasis_topic *ast_channel_topic_all(void)
 {
-	return __channel_topic_all;
+	return channel_topic_all;
 }
 
 struct stasis_caching_topic *ast_channel_topic_all_cached(void)
 {
-	return __channel_topic_all_cached;
+	return channel_topic_all_cached;
 }
 
 /* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY

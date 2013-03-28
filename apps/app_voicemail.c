@@ -12627,7 +12627,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 {
 	struct stasis_subscription_change *change;
 	/* Only looking for subscription change notices here */
-	if (stasis_message_type(msg) != stasis_subscription_change()) {
+	if (stasis_message_type(msg) != stasis_subscription_change_type()) {
 		return;
 	}
 
@@ -12656,7 +12656,7 @@ static void start_poll_thread(void)
 	mwi_sub_sub = stasis_subscribe(stasis_mwi_topic_all(), mwi_event_cb, NULL);
 
 	if (mwi_sub_sub) {
-		struct ao2_container *cached = stasis_cache_dump(stasis_mwi_topic_cached(), stasis_subscription_change());
+		struct ao2_container *cached = stasis_cache_dump(stasis_mwi_topic_cached(), stasis_subscription_change_type());
 		if (cached) {
 			ao2_callback(cached, OBJ_MULTIPLE | OBJ_NODATA, dump_cache, NULL);
 		}

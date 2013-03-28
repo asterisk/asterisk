@@ -2719,7 +2719,7 @@ static const char *mwi_state_get_id(struct stasis_message *message)
 	if (stasis_mwi_state_type() == stasis_message_type(message)) {
 		struct stasis_mwi_state *mwi_state = stasis_message_data(message);
 		return mwi_state->uniqueid;
-	} else if (stasis_subscription_change() == stasis_message_type(message)) {
+	} else if (stasis_subscription_change_type() == stasis_message_type(message)) {
 		struct stasis_subscription_change *change = stasis_message_data(message);
 		return change->uniqueid;
 	}

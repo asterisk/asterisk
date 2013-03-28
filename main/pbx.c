@@ -4708,7 +4708,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				 */
 				ast_string_field_set(snapshot, appl, app->name);
 				ast_string_field_set(snapshot, data, passdata);
-				msg = stasis_message_create(ast_channel_snapshot(), snapshot);
+				msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
 				if (msg) {
 					stasis_publish(ast_channel_topic(c), msg);
 				}

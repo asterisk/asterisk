@@ -161,7 +161,7 @@ static void consumer_exec(void *data, struct stasis_subscription *sub, struct st
 	RAII_VAR(struct consumer *, consumer_needs_cleanup, NULL, ao2_cleanup);
 	SCOPED_MUTEX(lock, &consumer->lock);
 
-	if (!consumer->ignore_subscriptions || stasis_message_type(message) != stasis_subscription_change()) {
+	if (!consumer->ignore_subscriptions || stasis_message_type(message) != stasis_subscription_change_type()) {
 
 		++consumer->messages_rxed_len;
 		consumer->messages_rxed = ast_realloc(consumer->messages_rxed, sizeof(*consumer->messages_rxed) * consumer->messages_rxed_len);
@@ -282,8 +282,8 @@ AST_TEST_DEFINE(subscription_messages)
 	ast_test_validate(test, 1 == complete);
 
 	ast_test_validate(test, 2 == consumer->messages_rxed_len);
-	ast_test_validate(test, stasis_subscription_change() == stasis_message_type(consumer->messages_rxed[0]));
-	ast_test_validate(test, stasis_subscription_change() == stasis_message_type(consumer->messages_rxed[1]));
+	ast_test_validate(test, stasis_subscription_change_type() == stasis_message_type(consumer->messages_rxed[0]));
+	ast_test_validate(test, stasis_subscription_change_type() == stasis_message_type(consumer->messages_rxed[1]));
 
 	change = stasis_message_data(consumer->messages_rxed[0]);
 	ast_test_validate(test, topic == change->topic);
@@ -606,7 +606,7 @@ AST_TEST_DEFINE(cache)
 	cache_dump = NULL;
 
 	/* Check for new snapshot messages */
-	ast_test_validate(test, stasis_cache_update() == stasis_message_type(consumer->messages_rxed[0]));
+	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[0]));
 	actual_update = stasis_message_data(consumer->messages_rxed[0]);
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
@@ -615,7 +615,7 @@ AST_TEST_DEFINE(cache)
 	/* stasis_cache_get returned a ref, so unref test_message1_1 */
 	ao2_ref(test_message1_1, -1);
 
-	ast_test_validate(test, stasis_cache_update() == stasis_message_type(consumer->messages_rxed[1]));
+	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[1]));
 	actual_update = stasis_message_data(consumer->messages_rxed[1]);
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
@@ -667,7 +667,7 @@ AST_TEST_DEFINE(cache)
 	cache_dump = NULL;
 
 	/* Dump the cache to ensure that it has no subscription change items in it since those aren't cached */
-	cache_dump = stasis_cache_dump(caching_topic, stasis_subscription_change());
+	cache_dump = stasis_cache_dump(caching_topic, stasis_subscription_change_type());
 	ast_test_validate(test, 0 == ao2_container_count(cache_dump));
 	ao2_ref(cache_dump, -1);
 	cache_dump = NULL;

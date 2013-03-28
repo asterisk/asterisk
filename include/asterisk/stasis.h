@@ -377,7 +377,7 @@ struct stasis_subscription_change {
  * \return The stasis_message_type for subscription change notices
  * \since 12
  */
-struct stasis_message_type *stasis_subscription_change(void);
+struct stasis_message_type *stasis_subscription_change_type(void);
 
 /*! @} */
 
@@ -413,7 +413,7 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
  * \return Message type for cache update messages.
  * \since 12
  */
-struct stasis_message_type *stasis_cache_update(void);
+struct stasis_message_type *stasis_cache_update_type(void);
 
 /*!
  * \brief Cache update message

@@ -363,7 +363,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 					 */
 					ast_string_field_set(snapshot, appl, app);
 					ast_string_field_set(snapshot, data, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
-					msg = stasis_message_create(ast_channel_snapshot(), snapshot);
+					msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
 					if (msg) {
 						stasis_publish(ast_channel_topic(chan), msg);
 					}

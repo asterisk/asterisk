@@ -217,7 +217,7 @@ const char *stasis_subscription_uniqueid(const struct stasis_subscription *sub)
 int stasis_subscription_final_message(struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct stasis_subscription_change *change;
-	if (stasis_message_type(msg) != stasis_subscription_change()) {
+	if (stasis_message_type(msg) != stasis_subscription_change_type()) {
 		return 0;
 	}
 
@@ -413,7 +413,7 @@ static struct stasis_subscription_change *subscription_change_alloc(struct stasi
 	return change;
 }
 
-struct stasis_message_type *stasis_subscription_change(void)
+struct stasis_message_type *stasis_subscription_change_type(void)
 {
 	return __subscription_change_message_type;
 }
@@ -429,7 +429,7 @@ static void send_subscription_change_message(struct stasis_topic *topic, char *u
 		return;
 	}
 
-	msg = stasis_message_create(stasis_subscription_change(), change);
+	msg = stasis_message_create(stasis_subscription_change_type(), change);
 
 	if (!msg) {
 		return;

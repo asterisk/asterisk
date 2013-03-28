@@ -441,7 +441,7 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 
 	update = stasis_message_data(message);
 
-	if (ast_channel_snapshot() != update->type) {
+	if (ast_channel_snapshot_type() != update->type) {
 		return;
 	}
 
@@ -593,11 +593,11 @@ static void channel_blob_cb(void *data, struct stasis_subscription *sub,
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 
-	if (strcmp("varset", ast_channel_blob_type(obj)) == 0) {
+	if (strcmp("varset", ast_channel_blob_json_type(obj)) == 0) {
 		channel_varset(obj);
-	} else if (strcmp("userevent", ast_channel_blob_type(obj)) == 0) {
+	} else if (strcmp("userevent", ast_channel_blob_json_type(obj)) == 0) {
 		channel_userevent(obj);
-	} else if (strcmp("hangup_request", ast_channel_blob_type(obj)) == 0) {
+	} else if (strcmp("hangup_request", ast_channel_blob_json_type(obj)) == 0) {
 		channel_hangup_request(obj);
 	}
 }
@@ -627,12 +627,12 @@ int manager_channels_init(void)
 	}
 
 	ret |= stasis_message_router_add(channel_state_router,
-					 stasis_cache_update(),
+					 stasis_cache_update_type(),
 					 channel_snapshot_update,
 					 NULL);
 
 	ret |= stasis_message_router_add(channel_state_router,
-					 ast_channel_blob(),
+					 ast_channel_blob_type(),
 					 channel_blob_cb,
 					 NULL);
 

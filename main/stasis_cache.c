@@ -250,7 +250,7 @@ static struct stasis_message_type *cache_clear_data(void)
 
 static struct stasis_message_type *__cache_update;
 
-struct stasis_message_type *stasis_cache_update(void)
+struct stasis_message_type *stasis_cache_update_type(void)
 {
 	ast_assert(__cache_update != NULL);
 	return __cache_update;
@@ -340,7 +340,7 @@ static struct stasis_message *update_create(struct stasis_topic *topic, struct s
 		update->type = stasis_message_type(new_snapshot);
 	}
 
-	msg = stasis_message_create(stasis_cache_update(), update);
+	msg = stasis_message_create(stasis_cache_update_type(), update);
 	if (!msg) {
 		return NULL;
 	}
