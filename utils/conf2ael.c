@@ -25,6 +25,7 @@
 /*** MODULEINFO
 	<depend>res_ael_share</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

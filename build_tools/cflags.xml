@@ -7,6 +7,7 @@
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
@@ -23,6 +24,7 @@
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="BETTER_BACKTRACES" displayname="Use libbfd (GPL) to generate better inline backtraces">
 			<depend>BFD</depend>
@@ -40,6 +42,7 @@
 		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)">
 			<defaultenabled>no</defaultenabled>
@@ -48,14 +51,17 @@
 		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
 			<depend>G711_NEW_ALGORITHM</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 			<support_level>core</support_level>
@@ -76,6 +82,7 @@
 		</member>
 		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="BUILD_NATIVE" displayname="Allow compiler to generate code optimized for the CPU on which the build is performed.">
 			<support_level>core</support_level>

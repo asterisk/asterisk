@@ -1,33 +1,43 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags - Development">
 		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
 			<depend>DEBUG_THREADS</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 	</category>

@@ -2,45 +2,56 @@
 		<member name="EMBED_ADDONS" displayname="Add-ons" remove_on_change="addons/*.o addons/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_APPS" displayname="Applications" remove_on_change="apps/*.o apps/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_BRIDGES" displayname="Bridging Technologies" remove_on_change="bridges/*.o bridges/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_CDR" displayname="Call Detail Recording" remove_on_change="cdr/*.o cdr/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/*/*.o channels/*.oo channels/*/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/*/*.o codecs/*/*/*.o codecs/*/*.a codecs/*/*/*.a codecs/*.oo codecs/*/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_FORMATS" displayname="File Formats" remove_on_change="formats/*.o formats/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_FUNCS" displayname="Dialplan Functions" remove_on_change="funcs/*.o funcs/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/*/*.o pbx/*.oo pbx/*/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_RES" displayname="Resource Modules" remove_on_change="res/*.o res/*/*.o res/*.oo res/*/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="EMBED_TEST" displayname="Test Modules" remove_on_change="tests/*.o tests/*.oo">
 			<depend>gnu_ld</depend>
 			<support_level>extended</support_level>
+			<defaultenabled>no</defaultenabled>
 		</member>
 	</category>

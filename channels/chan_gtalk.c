@@ -38,6 +38,7 @@
 	<use type="external">openssl</use>
 	<support_level>deprecated</support_level>
 	<replacement>chan_motif</replacement>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
