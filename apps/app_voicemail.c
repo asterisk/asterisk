@@ -5902,7 +5902,10 @@ static void run_externnotify(char *context, char *extension, const char *flag)
 		if (inboxcount2(ext_context, &urgentvoicemails, &newvoicemails, &oldvoicemails)) {
 			ast_log(AST_LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
-			snprintf(arguments, sizeof(arguments), "%s %s %s %d %d %d &", externnotify, context, extension, newvoicemails, oldvoicemails, urgentvoicemails);
+			snprintf(arguments, sizeof(arguments), "%s %s %s %d %d %d &",
+				externnotify, S_OR(context, "\"\""),
+				extension, newvoicemails,
+				oldvoicemails, urgentvoicemails);
 			ast_debug(1, "Executing %s\n", arguments);
 			ast_safe_system(arguments);
 		}
