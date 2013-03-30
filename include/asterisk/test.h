@@ -134,6 +134,41 @@
 /*! Macros used for the Asterisk Test Suite AMI events */
 #ifdef TEST_FRAMEWORK
 
+struct stasis_topic;
+struct stasis_message_type;
+
+/*!
+ * \since 12
+ * \brief Obtain the \ref stasis_topic for \ref ast_test_suite_event_notify
+ * messages
+ *
+ * \retval A stasis topic
+ */
+struct stasis_topic *ast_test_suite_topic(void);
+
+/*!
+ * \since 12
+ * \brief Obtain the \ref stasis_message_type for \ref ast_test_suite_event_notify
+ * messages
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_test_suite_message_type(void);
+
+/*!
+ * \since 12
+ * \brief The message payload in a \ref ast_test_suite_message_type
+ */
+struct ast_test_suite_message_payload;
+
+/*!
+ * \since 12
+ * \brief Get the JSON for a \ref ast_test_suite_message_payload
+ *
+ * \retval An \ref ast_json object
+ */
+struct ast_json *ast_test_suite_get_blob(struct ast_test_suite_message_payload *payload);
+
 /*!
  * \brief Notifies the test suite of a change in application state
  *
@@ -151,39 +186,14 @@ void __ast_test_suite_event_notify(const char *file, const char *func, int line,
 	__attribute__((format(printf, 5, 6)));
 
 /*!
- * \brief Notifies the test suite of a failed assert on an expression
- *
- * \details
- * If the expression provided evaluates to true, no action is taken.  If the expression
- * evaluates to a false, a TestEvent manager event is raised with a subtype of Assert, notifying
- * the test suite that the expression failed to evaluate to true.
- *
- * \param exp	The expression to evaluate
- *
- * \return Nothing
- */
-void __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp);
-
-/*!
  * \ref __ast_test_suite_event_notify()
  */
 #define ast_test_suite_event_notify(s, f, ...) \
 	__ast_test_suite_event_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, (s), (f), ## __VA_ARGS__)
 
-/*!
- * \ref __ast_test_suite_assert_notify()
- */
-#define ast_test_suite_assert(exp)				\
-	do {										\
-		if (__builtin_expect(!(exp), 1)) {		\
-			__ast_test_suite_assert_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, #exp); \
-		}										\
-	} while (0)
-
 #else
 
 #define ast_test_suite_event_notify(s, f, ...)
-#define ast_test_suite_assert(exp)
 
 #endif
 

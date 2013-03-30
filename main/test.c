@@ -45,7 +45,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/ast_version.h"
 #include "asterisk/paths.h"
 #include "asterisk/time.h"
-#include "asterisk/manager.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
+#include "asterisk/astobj2.h"
+
+/*! \since 12
+ * \brief The topic for test suite messages
+ */
+struct stasis_topic *test_suite_topic;
+
+/*! \since 12
+ * \brief The message type for test suite messages
+ */
+static struct stasis_message_type *test_suite_type;
 
 /*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
@@ -910,49 +922,104 @@ static struct ast_cli_entry test_cli[] = {
 	AST_CLI_DEFINE(test_cli_generate_results,          "generate test results to file"),
 };
 
+struct stasis_topic *ast_test_suite_topic(void)
+{
+	return test_suite_topic;
+}
+
+struct stasis_message_type *ast_test_suite_message_type(void)
+{
+	return test_suite_type;
+}
+
+/*!
+ * \since 12
+ * \brief A wrapper object that can be ao2 ref counted around an \ref ast_json blob
+ */
+struct ast_test_suite_message_payload {
+	struct ast_json *blob; /*!< The actual blob that we want to deliver */
+};
+
+/*! \internal
+ * \since 12
+ * \brief Destructor for \ref ast_test_suite_message_payload
+ */
+static void test_suite_message_payload_dtor(void *obj)
+{
+	struct ast_test_suite_message_payload *payload = obj;
+
+	if (payload->blob) {
+		ast_json_unref(payload->blob);
+	}
+}
+
+struct ast_json *ast_test_suite_get_blob(struct ast_test_suite_message_payload *payload)
+{
+	return payload->blob;
+}
+
 void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
 {
-	struct ast_str *buf = NULL;
+	RAII_VAR(struct ast_test_suite_message_payload *, payload,
+			ao2_alloc(sizeof(*payload), test_suite_message_payload_dtor),
+			ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_str *, buf, ast_str_create(128), ast_free);
 	va_list ap;
 
-	if (!(buf = ast_str_create(128))) {
+	if (!buf) {
+		return;
+	}
+	if (!payload) {
 		return;
 	}
 
 	va_start(ap, fmt);
 	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
-
-	manager_event(EVENT_FLAG_TEST, "TestEvent",
-		"Type: StateChange\r\n"
-		"State: %s\r\n"
-		"AppFile: %s\r\n"
-		"AppFunction: %s\r\n"
-		"AppLine: %d\r\n"
-		"%s\r\n",
-		state, file, func, line, ast_str_buffer(buf));
-
-	ast_free(buf);
-}
-
-void __ast_test_suite_assert_notify(const char *file, const char *func, int line, const char *exp)
-{
-	manager_event(EVENT_FLAG_TEST, "TestEvent",
-		"Type: Assert\r\n"
-		"AppFile: %s\r\n"
-		"AppFunction: %s\r\n"
-		"AppLine: %d\r\n"
-		"Expression: %s\r\n",
-		file, func, line, exp);
+	payload->blob = ast_json_pack("{s: s, s: s, s: s, s: s, s: i, s: s}",
+			     "type", "testevent",
+			     "state", state,
+			     "appfile", file,
+			     "appfunction", func,
+			     "line", line,
+			     "data", ast_str_buffer(buf));
+	if (!payload->blob) {
+		return;
+	}
+	msg = stasis_message_create(ast_test_suite_message_type(), payload);
+	if (!msg) {
+		return;
+	}
+	stasis_publish(ast_test_suite_topic(), msg);
 }
 
 #endif /* TEST_FRAMEWORK */
 
+#ifdef TEST_FRAMEWORK
+
+static void test_cleanup(void)
+{
+	ao2_cleanup(test_suite_topic);
+	test_suite_topic = NULL;
+	ao2_cleanup(test_suite_type);
+	test_suite_type = NULL;
+}
+
+#endif
+
 int ast_test_init(void)
 {
 #ifdef TEST_FRAMEWORK
+	/* Create stasis topic */
+	test_suite_topic = stasis_topic_create("test_suite_topic");
+	test_suite_type = stasis_message_type_create("test_suite_type");
+	if (!test_suite_topic || !test_suite_type) {
+		return -1;
+	}
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
+	ast_register_atexit(test_cleanup);
 #endif
 
 	return 0;

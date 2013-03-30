@@ -92,6 +92,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
 #include "asterisk/stasis.h"
+#include "asterisk/test.h"
+#include "asterisk/json.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -7343,6 +7345,50 @@ static void load_channelvars(struct ast_variable *var)
 	ast_channel_set_manager_vars(args.argc, args.vars);
 }
 
+#ifdef TEST_FRAMEWORK
+
+static void test_suite_event_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic,
+		struct stasis_message *message)
+{
+	struct ast_test_suite_message_payload *payload;
+	struct ast_json *blob;
+	const char *type;
+
+	if (stasis_message_type(message) != ast_test_suite_message_type()) {
+		return;
+	}
+
+	payload = stasis_message_data(message);
+	if (!payload) {
+		return;
+	}
+	blob = ast_test_suite_get_blob(payload);
+	if (!blob) {
+		return;
+	}
+
+	type = ast_json_string_get(ast_json_object_get(blob, "type"));
+	if (ast_strlen_zero(type) || strcmp("testevent", type)) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_TEST, "TestEvent",
+		"Type: StateChange\r\n"
+		"State: %s\r\n"
+		"AppFile: %s\r\n"
+		"AppFunction: %s\r\n"
+		"AppLine: %ld\r\n"
+		"%s\r\n",
+		ast_json_string_get(ast_json_object_get(blob, "state")),
+		ast_json_string_get(ast_json_object_get(blob, "appfile")),
+		ast_json_string_get(ast_json_object_get(blob, "appfunction")),
+		ast_json_integer_get(ast_json_object_get(blob, "line")),
+		ast_json_string_get(ast_json_object_get(blob, "data")));
+}
+
+#endif
+
 /*! \internal \brief Free a user record.  Should already be removed from the list */
 static void manager_free_user(struct ast_manager_user *user)
 {
@@ -7498,6 +7544,10 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 		ast_manager_register_xml_core("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
 		ast_manager_register_xml_core("Filter", EVENT_FLAG_SYSTEM, action_filter);
+
+#ifdef TEST_FRAMEWORK
+		stasis_subscribe(ast_test_suite_topic(), test_suite_event_cb, NULL);
+#endif
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		__ast_custom_function_register(&managerclient_function, NULL);

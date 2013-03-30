@@ -10953,7 +10953,6 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	/* If ADSI is supported, setup login screen */
 	adsi_begin(chan, &useadsi);
 
-	ast_test_suite_assert(valid);
 	if (!valid) {
 		goto out;
 	}
