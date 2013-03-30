@@ -7378,7 +7378,7 @@ static void test_suite_event_cb(void *data, struct stasis_subscription *sub,
 		"State: %s\r\n"
 		"AppFile: %s\r\n"
 		"AppFunction: %s\r\n"
-		"AppLine: %ld\r\n"
+		"AppLine: %jd\r\n"
 		"%s\r\n",
 		ast_json_string_get(ast_json_object_get(blob, "state")),
 		ast_json_string_get(ast_json_object_get(blob, "appfile")),
