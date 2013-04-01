@@ -386,22 +386,22 @@ $(MOD_SUBDIRS): makeopts
 $(OTHER_SUBDIRS): makeopts
 	+@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
-defaults.h: makeopts build_tools/make_defaults_h
+defaults.h: makeopts cleantest build_tools/make_defaults_h
 	@build_tools/make_defaults_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-main/version.c: FORCE
+main/version.c: FORCE cleantest
 	@build_tools/make_version_c > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-include/asterisk/buildopts.h: menuselect.makeopts
+include/asterisk/buildopts.h: menuselect.makeopts cleantest
 	@build_tools/make_buildopts_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-include/asterisk/build.h:
+include/asterisk/build.h: cleantest
 	@build_tools/make_build_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
@@ -458,7 +458,7 @@ datafiles: _all doc/core-en_US.xml
 	done
 	$(MAKE) -C sounds install
 
-doc/core-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+doc/core-en_US.xml: makeopts cleantest $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 	@printf "Building Documentation For: "
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
@@ -472,7 +472,7 @@ doc/core-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "la
 	@echo
 	@echo "</docs>" >> $@
 
-doc/full-en_US.xml: makeopts $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+doc/full-en_US.xml: makeopts cleantest $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@echo "---        Please install python to build full documentation           ---"
