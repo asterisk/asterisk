@@ -38,6 +38,8 @@ PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp spee
 
 KVERS=`uname -r`
 
+JANSSON_VER=2.4
+
 case "$1" in
 test)    testcmd=echo ;;
 install) testcmd='' ;;
@@ -101,11 +103,25 @@ install_unpackaged() {
 	make && make install
 	cd ..
 
-	echo "*** Installing libresample ***"
-	svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
-	cd libresample-trunk
-	./configure && make && make install
-	cd ..
+	# Only install libresample if it wasn't installed via package
+	if ! test -f /usr/include/libresample.h; then
+	    echo "*** Installing libresample ***"
+	    svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
+	    cd libresample-trunk
+	    ./configure && make && make install
+	    cd ..
+	fi
+
+	# Only install Jansson if it wasn't installed via package
+	if ! test -f /usr/include/jansson.h; then
+		echo "*** Installing jansson ***"
+		wget -O - http://www.digip.org/jansson/releases/jansson-${JANSSON_VER}.tar.gz | zcat | tar -xf -
+		cd jansson-${JANSSON_VER}
+		./configure && make all && make install
+		cd ..
+		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+		/sbin/ldconfig
+	fi
 }
 
 if in_test_mode; then
