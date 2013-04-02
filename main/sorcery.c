@@ -475,6 +475,7 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 		return -1;
 	}
 
+	object_type->type.name = object_type->name;
 	object_type->type.type = ACO_ITEM;
 	object_type->type.category = "";
 	object_type->type.item_alloc = alloc;
