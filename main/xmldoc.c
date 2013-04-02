@@ -709,13 +709,13 @@ static char *xmldoc_get_syntax_fun(struct ast_xml_node *rootnode, const char *ro
 	}
 
 	/* Get the argument separator from the root node attribute name 'argsep', if not found
-	defaults to '|'. */
+	defaults to ','. */
 	attrargsep = ast_xml_get_attribute(rootnode, "argsep");
 	if (attrargsep) {
 		argsep = ast_strdupa(attrargsep);
 		ast_xml_free_attr(attrargsep);
 	} else {
-		argsep = ast_strdupa("|");
+		argsep = ast_strdupa(",");
 	}
 
 	/* Get order of evaluation. */

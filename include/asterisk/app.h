@@ -864,13 +864,13 @@ int ast_app_group_list_unlock(void);
   \param parse A modifiable buffer containing the input to be parsed
 
   This function will separate the input string using the standard argument
-  separator character '|' and fill in the provided structure, including
+  separator character ',' and fill in the provided structure, including
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
-	args.argc = __ast_app_separate_args(parse, '|', 1, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+	args.argc = __ast_app_separate_args(parse, ',', 1, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 #define AST_STANDARD_RAW_ARGS(args, parse) \
-	args.argc = __ast_app_separate_args(parse, '|', 0, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+	args.argc = __ast_app_separate_args(parse, ',', 0, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 
 /*!
   \brief Performs the 'nonstandard' argument separation process for an application.
