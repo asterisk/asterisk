@@ -401,10 +401,11 @@ include/asterisk/buildopts.h: menuselect.makeopts cleantest
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
+# build.h must depend on cleantest, or parallel make may wipe it out after it's
+# been created. But since build.h contains a timestamp, the cmp trick used above
+# won't work. Just testing for existence is good enough.
 include/asterisk/build.h: cleantest
-	@build_tools/make_build_h > $@.tmp
-	@cmp -s $@.tmp $@ || mv $@.tmp $@
-	@rm -f $@.tmp
+	@test -f $@ || build_tools/make_build_h > $@
 
 $(SUBDIRS_CLEAN):
 	+@$(SUBMAKE) -C $(@:-clean=) clean
