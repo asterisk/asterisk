@@ -1413,7 +1413,6 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.localdialplan = PRI_NATIONAL_ISDN + 1,
 			.nodetype = PRI_CPE,
 			.qsigchannelmapping = DAHDI_CHAN_MAPPING_PHYSICAL,
-			.inband_on_proceeding = 1,
 
 #if defined(HAVE_PRI_CCSS)
 			.cc_ptmp_recall_mode = 1,/* specificRecall */

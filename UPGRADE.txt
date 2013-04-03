@@ -67,6 +67,7 @@ chan_dahdi:
  - Analog port dialing and deferred DTMF dialing for PRI now distinguishes
    between 'w' and 'W'.  The 'w' pauses dialing for half a second.  The 'W'
    pauses dialing for one second.
+ - The default for inband_on_proceeding has changed to no.
 
 Dialplan:
  - All channel and global variable names are evaluated in a case-sensitive manner.
@@ -191,7 +192,7 @@ SIP
    configuration option. Symptoms of this include one way media or no media flow.
 
 chan_unistim
- - Due to massive update in chan_unistim phone keys functions and on-screen 
+ - Due to massive update in chan_unistim phone keys functions and on-screen
    information changed.
 
 users.conf:
@@ -263,10 +264,10 @@ Manager:
    unchanged.
 
 Module Support Level
- - All modules in the addons, apps, bridge, cdr, cel, channels, codecs, 
+ - All modules in the addons, apps, bridge, cdr, cel, channels, codecs,
    formats, funcs, pbx, and res have been updated to include MODULEINFO data
    that includes <support_level> tags with a value of core, extended, or deprecated.
-   More information is available on the Asterisk wiki at 
+   More information is available on the Asterisk wiki at
    https://wiki.asterisk.org/wiki/display/AST/Asterisk+Module+Support+States
 
    Deprecated modules are now marked to not build by default and must be explicitly
