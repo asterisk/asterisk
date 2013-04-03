@@ -77,6 +77,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="item" required="true">
 				<para>Standard items (provided by all channel technologies) are:</para>
 				<enumlist>
+					<enum name="amaflags">
+						<para>R/W the Automatic Message Accounting (AMA) flags on the channel.
+						When read from a channel, the integer value will always be returned.
+						When written to a channel, both the string format or integer value
+						is accepted.</para>
+						<enumlist>
+							<enum name="1"><para><literal>OMIT</literal></para></enum>
+							<enum name="2"><para><literal>BILLING</literal></para></enum>
+							<enum name="3"><para><literal>DOCUMENTATION</literal></para></enum>
+						</enumlist>
+					</enum>
+					<enum name="accountcode">
+						<para>R/W the channel's account code.</para>
+					</enum>
 					<enum name="audioreadformat">
 						<para>R/O format currently being read.</para>
 					</enum>
