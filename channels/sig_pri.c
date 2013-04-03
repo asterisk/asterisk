@@ -6752,9 +6752,11 @@ static void *pri_dchannel(void *vpri)
 					/* Bring voice path up */
 					pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 					pri->pvts[chanpos]->progress = 1;
+					sig_pri_set_dialing(pri->pvts[chanpos], 0);
 					sig_pri_open_media(pri->pvts[chanpos]);
+				} else if (pri->inband_on_proceeding) {
+					sig_pri_set_dialing(pri->pvts[chanpos], 0);
 				}
-				sig_pri_set_dialing(pri->pvts[chanpos], 0);
 				sig_pri_unlock_private(pri->pvts[chanpos]);
 				break;
 			case PRI_EVENT_FACILITY:
