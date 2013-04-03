@@ -393,6 +393,8 @@ struct sig_pri_span {
 	 * appended to the initial_user_tag[].
 	 */
 	unsigned int append_msn_to_user_tag:1;
+	/*! TRUE if a PROCEEDING message needs to unsquelch the received audio. */
+	unsigned int inband_on_proceeding:1;
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */
