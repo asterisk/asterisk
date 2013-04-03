@@ -3468,6 +3468,15 @@ static struct rbtree_node *rb_node_prev_full(struct rbtree_node *node)
 	}
 }
 
+enum equal_node_bias {
+	/*! Bias search toward first matching node in the container. */
+	BIAS_FIRST,
+	/*! Bias search toward any matching node. */
+	BIAS_EQUAL,
+	/*! Bias search toward last matching node in the container. */
+	BIAS_LAST,
+};
+
 enum empty_node_direction {
 	GO_LEFT,
 	GO_RIGHT,
@@ -3485,10 +3494,11 @@ enum empty_node_direction {
  *   OBJ_POINTER - if set, 'obj_right', is an object.
  *   OBJ_KEY - if set, 'obj_right', is a search key item that is not an object.
  *   OBJ_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
+ * \param bias How to bias search direction for duplicates
  *
  * \return enum empty_node_direction to proceed.
  */
-static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *empty, ao2_sort_fn *sort_fn, void *obj_right, enum search_flags flags)
+static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *empty, ao2_sort_fn *sort_fn, void *obj_right, enum search_flags flags, enum equal_node_bias bias)
 {
 	int cmp;
 	struct rbtree_node *cur;
@@ -3505,6 +3515,9 @@ static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *emp
 		if (cmp < 0) {
 			return GO_RIGHT;
 		}
+		if (cmp == 0 && bias == BIAS_LAST) {
+			return GO_RIGHT;
+		}
 		return GO_LEFT;
 	}
 
@@ -3516,10 +3529,13 @@ static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *emp
 	cur = rb_node_most_left(empty->right);
 	if (cur->common.obj) {
 		cmp = sort_fn(cur->common.obj, obj_right, flags);
-		if (cmp <= 0) {
-			return GO_RIGHT;
+		if (cmp > 0) {
+			return GO_LEFT;
 		}
-		return GO_LEFT;
+		if (cmp == 0 && bias == BIAS_FIRST) {
+			return GO_LEFT;
+		}
+		return GO_RIGHT;
 	}
 
 	/*
@@ -3551,6 +3567,9 @@ static enum empty_node_direction rb_find_empty_direction(struct rbtree_node *emp
 		if (cur->common.obj) {
 			cmp = sort_fn(cur->common.obj, obj_right, flags);
 			if (cmp < 0) {
+				return GO_RIGHT;
+			}
+			if (cmp == 0 && bias == BIAS_LAST) {
 				return GO_RIGHT;
 			}
 			return GO_LEFT;
@@ -4185,6 +4204,7 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 	struct rbtree_node *next;
 	ao2_sort_fn *sort_fn;
 	uint32_t options;
+	enum equal_node_bias bias;
 
 	if (!self->root) {
 		/* The tree is empty. */
@@ -4194,6 +4214,21 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 
 	sort_fn = self->common.sort_fn;
 	options = self->common.options;
+	switch (options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+	default:
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
+		if (options & AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN) {
+			bias = BIAS_FIRST;
+		} else {
+			bias = BIAS_LAST;
+		}
+		break;
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
+	case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+		bias = BIAS_EQUAL;
+		break;
+	}
 
 	/*
 	 * New nodes are always colored red when initially inserted into
@@ -4206,7 +4241,7 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 	for (;;) {
 		if (!cur->common.obj) {
 			/* Which direction do we go to insert this node? */
-			if (rb_find_empty_direction(cur, sort_fn, node->common.obj, OBJ_POINTER)
+			if (rb_find_empty_direction(cur, sort_fn, node->common.obj, OBJ_POINTER, bias)
 				== GO_LEFT) {
 				if (cur->left) {
 					cur = cur->left;
@@ -4254,6 +4289,34 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 			rb_insert_fixup(self, node);
 			return AO2_CONTAINER_INSERT_NODE_INSERTED;
 		}
+		switch (bias) {
+		case BIAS_FIRST:
+			/* Duplicate nodes unconditionally accepted. */
+			if (cur->left) {
+				cur = cur->left;
+				continue;
+			}
+
+			/* Node becomes a left child */
+			cur->left = node;
+			node->parent = cur;
+			rb_insert_fixup(self, node);
+			return AO2_CONTAINER_INSERT_NODE_INSERTED;
+		case BIAS_EQUAL:
+			break;
+		case BIAS_LAST:
+			/* Duplicate nodes unconditionally accepted. */
+			if (cur->right) {
+				cur = cur->right;
+				continue;
+			}
+
+			/* Node becomes a right child */
+			cur->right = node;
+			node->parent = cur;
+			rb_insert_fixup(self, node);
+			return AO2_CONTAINER_INSERT_NODE_INSERTED;
+		}
 
 		break;
 	}
@@ -4262,50 +4325,8 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 	switch (options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
 	default:
 	case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
-		if (options & AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN) {
-			/* Find first duplicate node. */
-			for (;;) {
-				next = rb_node_prev_full(cur);
-				if (!next) {
-					break;
-				}
-				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
-				if (cmp) {
-					break;
-				}
-				cur = next;
-			}
-			if (!cur->left) {
-				/* Node becomes a left child */
-				cur->left = node;
-			} else {
-				/* Node becomes a right child */
-				cur = rb_node_most_right(cur->left);
-				cur->right = node;
-			}
-		} else {
-			/* Find last duplicate node. */
-			for (;;) {
-				next = rb_node_next_full(cur);
-				if (!next) {
-					break;
-				}
-				cmp = sort_fn(next->common.obj, node->common.obj, OBJ_POINTER);
-				if (cmp) {
-					break;
-				}
-				cur = next;
-			}
-			if (!cur->right) {
-				/* Node becomes a right child */
-				cur->right = node;
-			} else {
-				/* Node becomes a left child */
-				cur = rb_node_most_left(cur->right);
-				cur->left = node;
-			}
-		}
-		break;
+		ast_assert(0);/* Case already handled by BIAS_FIRST/BIAS_LAST. */
+		return AO2_CONTAINER_INSERT_NODE_REJECTED;
 	case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
 		/* Reject all objects with the same key. */
 		return AO2_CONTAINER_INSERT_NODE_REJECTED;
@@ -4545,16 +4566,17 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
  *   OBJ_KEY - if set, 'obj_right', is a search key item that is not an object.
  *   OBJ_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
  *   OBJ_CONTINUE - if set, return node right before or right after search key if not a match.
+ * \param bias How to bias search direction for duplicates
  *
  * \retval node on success.
  * \retval NULL if not found.
  */
-static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, void *obj_right, enum search_flags flags)
+static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, void *obj_right, enum search_flags flags, enum equal_node_bias bias)
 {
 	int cmp;
 	enum search_flags sort_flags;
 	struct rbtree_node *node;
-	struct rbtree_node *next;
+	struct rbtree_node *next = NULL;
 	ao2_sort_fn *sort_fn;
 
 	sort_flags = flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY);
@@ -4568,13 +4590,34 @@ static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, vo
 	for (;;) {
 		if (!node->common.obj) {
 			/* Which direction do we go to find the node? */
-			if (rb_find_empty_direction(node, sort_fn, obj_right, sort_flags)
+			if (rb_find_empty_direction(node, sort_fn, obj_right, sort_flags, bias)
 				== GO_LEFT) {
 				next = node->left;
 			} else {
 				next = node->right;
 			}
 			if (!next) {
+				switch (bias) {
+				case BIAS_FIRST:
+					/* Check successor node for match. */
+					next = rb_node_next_full(node);
+					break;
+				case BIAS_EQUAL:
+					break;
+				case BIAS_LAST:
+					/* Check previous node for match. */
+					next = rb_node_prev_full(node);
+					break;
+				}
+				if (next) {
+					cmp = sort_fn(next->common.obj, obj_right, sort_flags);
+					if (cmp == 0) {
+						/* Found the first/last matching node. */
+						return next;
+					}
+					next = NULL;
+				}
+
 				/* No match found. */
 				if (flags & OBJ_CONTINUE) {
 					next = rb_node_next_full(node);
@@ -4591,9 +4634,46 @@ static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, vo
 			} else if (cmp < 0) {
 				next = node->right;
 			} else {
-				return node;
+				switch (bias) {
+				case BIAS_FIRST:
+					next = node->left;
+					break;
+				case BIAS_EQUAL:
+					return node;
+				case BIAS_LAST:
+					next = node->right;
+					break;
+				}
+				if (!next) {
+					/* Found the first/last matching node. */
+					return node;
+				}
 			}
 			if (!next) {
+				switch (bias) {
+				case BIAS_FIRST:
+					if (cmp < 0) {
+						/* Check successor node for match. */
+						next = rb_node_next_full(node);
+					}
+					break;
+				case BIAS_EQUAL:
+					break;
+				case BIAS_LAST:
+					if (cmp > 0) {
+						/* Check previous node for match. */
+						next = rb_node_prev_full(node);
+					}
+					break;
+				}
+				if (next) {
+					cmp = sort_fn(next->common.obj, obj_right, sort_flags);
+					if (cmp == 0) {
+						/* Found the first/last matching node. */
+						return next;
+					}
+				}
+
 				/* No match found. */
 				if (flags & OBJ_CONTINUE) {
 					return node;
@@ -4620,9 +4700,8 @@ static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, vo
  */
 static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, enum search_flags flags, void *arg, struct rbtree_traversal_state *state)
 {
-	struct rbtree_node *next;
 	struct rbtree_node *node;
-	int cmp;
+	enum equal_node_bias bias;
 
 	if (self->common.destroying) {
 		/* Force traversal to be post order for tree destruction. */
@@ -4663,32 +4742,25 @@ static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, 
 		}
 
 		/* Search for initial node. */
-		node = rb_find_initial(self, arg, flags);
-		if (!node) {
-			return NULL;
-		}
 		switch (self->common.options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+			if ((flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) != OBJ_PARTIAL_KEY) {
+				/* There are no duplicates allowed. */
+				bias = BIAS_EQUAL;
+				break;
+			}
+			/* Fall through */
 		default:
 		case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
 		case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
 			/* Find first duplicate node. */
-			for (;;) {
-				next = rb_node_prev_full(node);
-				if (!next) {
-					break;
-				}
-				cmp = state->sort_fn(next->common.obj, arg,
-					flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY));
-				if (cmp) {
-					break;
-				}
-				node = next;
-			}
+			bias = BIAS_FIRST;
 			break;
-		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
-		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
-			/* There are no duplicates allowed. */
-			break;
+		}
+		node = rb_find_initial(self, arg, flags, bias);
+		if (!node) {
+			return NULL;
 		}
 		break;
 	case OBJ_ORDER_DESCENDING:
@@ -4705,32 +4777,25 @@ static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, 
 		}
 
 		/* Search for initial node. */
-		node = rb_find_initial(self, arg, flags);
-		if (!node) {
-			return NULL;
-		}
 		switch (self->common.options & AO2_CONTAINER_ALLOC_OPT_DUPS_MASK) {
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
+		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
+			if ((flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) != OBJ_PARTIAL_KEY) {
+				/* There are no duplicates allowed. */
+				bias = BIAS_EQUAL;
+				break;
+			}
+			/* Fall through */
 		default:
 		case AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW:
 		case AO2_CONTAINER_ALLOC_OPT_DUPS_OBJ_REJECT:
 			/* Find last duplicate node. */
-			for (;;) {
-				next = rb_node_next_full(node);
-				if (!next) {
-					break;
-				}
-				cmp = state->sort_fn(next->common.obj, arg,
-					flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY));
-				if (cmp) {
-					break;
-				}
-				node = next;
-			}
+			bias = BIAS_LAST;
 			break;
-		case AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT:
-		case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
-			/* There are no duplicates allowed. */
-			break;
+		}
+		node = rb_find_initial(self, arg, flags, bias);
+		if (!node) {
+			return NULL;
 		}
 		break;
 	case OBJ_ORDER_PRE:
