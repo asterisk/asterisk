@@ -1491,7 +1491,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq);
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
 static int set_address_from_contact(struct sip_pvt *pvt);
-static void check_via(struct sip_pvt *p, struct sip_request *req);
+static void check_via(struct sip_pvt *p, const struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
@@ -16448,7 +16448,7 @@ static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_re
 }
 
 /*! \brief check Via: header for hostname, port and rport request/answer */
-static void check_via(struct sip_pvt *p, struct sip_request *req)
+static void check_via(struct sip_pvt *p, const struct sip_request *req)
 {
 	char via[512];
 	char *c, *maddr;
@@ -26077,7 +26077,10 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	owner_chan_ref = sip_pvt_lock_full(p);
 
 	copy_socket_data(&p->socket, &req->socket);
-	ast_sockaddr_copy(&p->recv, addr);
+
+	if (ast_sockaddr_isnull(&p->recv)) { /* This may already be set before getting here */
+		ast_sockaddr_copy(&p->recv, addr);
+	}
 
 	/* if we have an owner, then this request has been authenticated */
 	if (p->owner) {
@@ -28147,7 +28150,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
-					if ((!found && !realtime) || !peer->host_dynamic) {
+					if ((!found && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) || !peer->host_dynamic) {
 						/* Initialize stuff if this is a new peer, or if it used to
 						 * not be dynamic before the reload. */
 						ast_sockaddr_setnull(&peer->addr);
@@ -28467,6 +28470,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 	}
 
+	ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
+	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
+	ast_copy_flags(&peer->flags[2], &peerflags[2], mask[2].flags);
+
 	if (ast_str_strlen(fullcontact)) {
 		ast_string_field_set(peer, fullcontact, ast_str_buffer(fullcontact));
 		peer->rt_fromcontact = TRUE;
@@ -28560,9 +28567,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		sip_poke_peer(peer, 0);
 	}
 
-	ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
-	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
-	ast_copy_flags(&peer->flags[2], &peerflags[2], mask[2].flags);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
 	}
