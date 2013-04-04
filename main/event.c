@@ -152,10 +152,7 @@ static int ast_event_hash_presence_state_change(const void *obj, const int flags
 
 #define MAX_CACHE_ARGS 8
 
-/*!
- * \brief Event types that are kept in the cache.
- */
-static struct {
+struct cache_events {
 	/*!
 	 * \brief Container of cached events
 	 *
@@ -174,7 +171,12 @@ static struct {
 	 * will be replaced.
 	 */
 	enum ast_event_ie_type cache_args[MAX_CACHE_ARGS];
-} ast_event_cache[AST_EVENT_TOTAL] = {
+};
+
+/*!
+ * \brief Event types that are kept in the cache.
+ */
+static struct cache_events ast_event_cache[AST_EVENT_TOTAL] = {
 	[AST_EVENT_MWI] = {
 		.hash_fn = ast_event_hash_mwi,
 		.cache_args = { AST_EVENT_IE_MAILBOX, AST_EVENT_IE_CONTEXT },
@@ -191,7 +193,6 @@ static struct {
 		.hash_fn = ast_event_hash_presence_state_change,
 		.cache_args = { AST_EVENT_IE_PRESENCE_STATE, },
 	},
-
 };
 
 /*!
@@ -218,13 +219,15 @@ static const char * const event_names[AST_EVENT_TOTAL] = {
 	[AST_EVENT_PRESENCE_STATE]      = "PresenceState",
 };
 
+struct ie_map {
+	enum ast_event_ie_pltype ie_pltype;
+	const char *name;
+};
+
 /*!
  * \brief IE payload types and names
  */
-static const struct ie_map {
-	enum ast_event_ie_pltype ie_pltype;
-	const char *name;
-} ie_maps[AST_EVENT_IE_TOTAL] = {
+static const struct ie_map ie_maps[AST_EVENT_IE_TOTAL] = {
 	[AST_EVENT_IE_NEWMSGS]             = { AST_EVENT_IE_PLTYPE_UINT, "NewMessages" },
 	[AST_EVENT_IE_OLDMSGS]             = { AST_EVENT_IE_PLTYPE_UINT, "OldMessages" },
 	[AST_EVENT_IE_MAILBOX]             = { AST_EVENT_IE_PLTYPE_STR,  "Mailbox" },
