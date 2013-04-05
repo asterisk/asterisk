@@ -20,6 +20,30 @@
 ===
 ===========================================================
 
+From 11.4 to 11.5:
+* The default settings for chan_sip are now overriden properly by the general
+  settings in sip.conf.  Please look over your settings upon upgrading.
+
+From 11.3 to 11.4:
+* Added the 'n' option to MeetMe to prevent application of the DENOISE function
+  to a channel joining a conference. Some channel drivers that vary the number
+  of audio samples in a voice frame will experience significant quality problems
+  if a denoiser is attached to the channel; this option gives them the ability
+  to remove the denoiser without having to unload func_speex.
+
+* The Registry AMI event for SIP registrations will now always include the
+  Username field. A previous bug fix missed an instance where it was not
+  included; that has been corrected in this release.
+
+From 11.2.0 to 11.2.1:
+* Asterisk would previously not output certain error messages when a remote
+  console attempted to connect to Asterisk and no instance of Asterisk was
+  running. This error message is displayed on stderr; as a result, some
+  initialization scripts that used remote consoles to test for the presence
+  of a running Asterisk instance started to display erroneous error messages.
+  The init.d scripts and the safe_asterisk have been updated in the contrib
+  folder to account for this.
+
 From 11.2 to 11.3:
 
 * Now by default, when Asterisk is installed in a path other than /usr, the
