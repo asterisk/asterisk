@@ -20,6 +20,10 @@
 ===
 ===========================================================
 
+From 11.4 to 11.5:
+* The default settings for chan_sip are now overriden properly by the general
+  settings in sip.conf.  Please look over your settings upon upgrading.
+
 From 11.3 to 11.4:
 * Added the 'n' option to MeetMe to prevent application of the DENOISE function
   to a channel joining a conference. Some channel drivers that vary the number

@@ -31052,7 +31052,8 @@ static int reload_config(enum channelreloadreason reason)
 	struct sip_peer *peer;
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
-	struct ast_flags dummy[3];
+	struct ast_flags mask[3] = {{0}};
+	struct ast_flags setflags[3] = {{0}};
 	struct ast_flags config_flags = { (reason == CHANNEL_MODULE_LOAD || reason == CHANNEL_ACL_RELOAD) ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct ast_sockaddr old_bindaddr = bindaddr;
@@ -31297,13 +31298,12 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION);
 
-
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
-		if (handle_common_options(&global_flags[0], &dummy[0], v)) {
+		if (handle_common_options(&setflags[0], &mask[0], v)) {
 			continue;
 		}
-		if (handle_t38_options(&global_flags[0], &dummy[0], v, &global_t38_maxdatagram)) {
+		if (handle_t38_options(&setflags[0], &mask[0], v, &global_t38_maxdatagram)) {
 			continue;
 		}
 		/* handle jb conf */
@@ -31844,6 +31844,11 @@ static int reload_config(enum channelreloadreason reason)
 			global_refer_addheaders = ast_true(v->value);
 		}
 	}
+
+	/* Override global defaults if setting found in general section */
+	ast_copy_flags(&global_flags[0], &setflags[0], mask[0].flags);
+	ast_copy_flags(&global_flags[1], &setflags[1], mask[1].flags);
+	ast_copy_flags(&global_flags[2], &setflags[2], mask[2].flags);
 
 	/* For backwards compatibility the corresponding registration timer value is used if subscription timer value isn't set by configuration */
 	if (!min_subexpiry_set) {
