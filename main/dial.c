@@ -42,6 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
+#include "asterisk/causes.h"
+#include "asterisk/stasis_channels.h"
 
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
@@ -316,6 +318,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 	} else {
 		if (chan)
 			ast_poll_channel_add(chan, channel->owner);
+		ast_channel_publish_dial(chan, channel->owner, channel->device, NULL);
 		res = 1;
 		ast_verb(3, "Called %s\n", numsubst);
 	}
@@ -413,15 +416,18 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			AST_LIST_REMOVE(&dial->channels, channel, list);
 			AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
 			AST_LIST_UNLOCK(&dial->channels);
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "ANSWER");
 			set_state(dial, AST_DIAL_RESULT_ANSWERED);
 			break;
 		case AST_CONTROL_BUSY:
 			ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "BUSY");
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_CONGESTION:
 			ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "CONGESTION");
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
@@ -507,15 +513,18 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 		AST_LIST_REMOVE(&dial->channels, channel, list);
 		AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
 		AST_LIST_UNLOCK(&dial->channels);
+		ast_channel_publish_dial(NULL, channel->owner, channel->device, "ANSWER");
 		set_state(dial, AST_DIAL_RESULT_ANSWERED);
 		break;
 	case AST_CONTROL_BUSY:
 		ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
+		ast_channel_publish_dial(NULL, channel->owner, channel->device, "BUSY");
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_CONGESTION:
 		ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
+		ast_channel_publish_dial(NULL, channel->owner, channel->device, "CONGESTION");
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
@@ -565,6 +574,25 @@ static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
 		new_timeout = lowest_timeout - diff;
 
 	return new_timeout;
+}
+
+/*! \since 12
+ * \internal \brief Convert a hangup cause to a publishable dial status
+ */
+static const char *hangup_cause_to_dial_status(int hangup_cause)
+{
+	switch(hangup_cause) {
+	case AST_CAUSE_BUSY:
+		return "BUSY";
+	case AST_CAUSE_CONGESTION:
+		return "CONGESTION";
+	case AST_CAUSE_NO_ROUTE_DESTINATION:
+	case AST_CAUSE_UNREGISTERED:
+		return "CHANUNAVAIL";
+	case AST_CAUSE_NO_ANSWER:
+	default:
+		return "NOANSWER";
+	}
 }
 
 /*! \brief Helper function that basically keeps tabs on dialing attempts */
@@ -631,7 +659,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		/* Wait for frames from channels */
 		who = ast_waitfor_n(cs, pos, &timeout);
 
-		/* Check to see if our thread is being cancelled */
+		/* Check to see if our thread is being canceled */
 		if (dial->thread == AST_PTHREADT_STOP)
 			break;
 
@@ -660,6 +688,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			}
 			if (chan)
 				ast_poll_channel_del(chan, channel->owner);
+			ast_channel_publish_dial(chan, who, channel->device, hangup_cause_to_dial_status(ast_channel_hangupcause(who)));
 			ast_hangup(who);
 			channel->owner = NULL;
 			continue;
@@ -684,6 +713,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 				continue;
 			if (chan)
 				ast_poll_channel_del(chan, channel->owner);
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "CANCEL");
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 		}
@@ -707,6 +737,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 				continue;
 			if (chan)
 				ast_poll_channel_del(chan, channel->owner);
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "CANCEL");
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 		}

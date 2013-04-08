@@ -49,6 +49,8 @@
 #include "asterisk/channel.h"
 #include "asterisk/json.h"
 
+struct ast_channel_snapshot;
+
 /*! @{ */
 
 /*!

@@ -365,7 +365,7 @@ struct ast_party_dialed {
  * PSTN gateway).
  *
  * \todo Implement settings for transliteration between UTF8 Caller ID names in
- *       to ASCII Caller ID's (DAHDI). Östen Åsklund might be transliterated into
+ *       to ASCII Caller ID's (DAHDI). Ã–sten Ã…sklund might be transliterated into
  *       Osten Asklund or Oesten Aasklund depending upon language and person...
  *       We need automatic routines for incoming calls and static settings for
  *       our own accounts.
@@ -3015,7 +3015,7 @@ void ast_party_id_reset(struct ast_party_id *id);
  *
  * \details
  * This function will generate an effective party id.
- * 
+ *
  * Each party id component of the party id 'base' is overwritten
  * by components of the party id 'overlay' if the overlay
  * component is marked as valid.  However the component 'tag' of
@@ -3788,7 +3788,7 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 void ast_channel_unlink(struct ast_channel *chan);
 
 /*!
- * \brief Sets the HANGUPCAUSE hash and optionally the SIP_CAUSE hash 
+ * \brief Sets the HANGUPCAUSE hash and optionally the SIP_CAUSE hash
  * on the given channel
  *
  * \param chan channel on which to set the cause information
@@ -4125,69 +4125,6 @@ void ast_channel_set_manager_vars(size_t varc, char **vars);
  */
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
 
-/*! \addtogroup StasisTopicsAndMessages
- * @{
- */
-
-/*!
- * \since 12
- * \brief Structure representing a snapshot of channel state.
- *
- * While not enforced programmatically, this object is shared across multiple
- * threads, and should be threated as an immutable object.
- */
-struct ast_channel_snapshot {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);			/*!< ASCII unique channel name */
-		AST_STRING_FIELD(accountcode);		/*!< Account code for billing */
-		AST_STRING_FIELD(peeraccount);		/*!< Peer account code for billing */
-		AST_STRING_FIELD(userfield);		/*!< Userfield for CEL billing */
-		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
-		AST_STRING_FIELD(linkedid);		/*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(parkinglot);		/*!< Default parking lot, if empty, default parking lot */
-		AST_STRING_FIELD(hangupsource);		/*!< Who is responsible for hanging up this channel */
-		AST_STRING_FIELD(appl);			/*!< Current application */
-		AST_STRING_FIELD(data);			/*!< Data passed to current application */
-		AST_STRING_FIELD(context);		/*!< Dialplan: Current extension context */
-		AST_STRING_FIELD(exten);		/*!< Dialplan: Current extension number */
-		AST_STRING_FIELD(caller_name);		/*!< Caller ID Name */
-		AST_STRING_FIELD(caller_number);	/*!< Caller ID Number */
-		AST_STRING_FIELD(connected_name);	/*!< Connected Line Name */
-		AST_STRING_FIELD(connected_number);	/*!< Connected Line Number */
-	);
-
-	struct timeval creationtime;	/*!< The time of channel creation */
-	enum ast_channel_state state;	/*!< State of line */
-	int priority;			/*!< Dialplan: Current extension priority */
-	int amaflags;			/*!< AMA flags for billing */
-	int hangupcause;		/*!< Why is the channel hanged up. See causes.h */
-	int caller_pres;		/*!< Caller ID presentation. */
-
-	struct ast_flags flags;		/*!< channel flags of AST_FLAG_ type */
-
-	struct varshead *manager_vars;	/*!< Variables to be appended to manager events */
-};
-
-/*!
- * \since 12
- * \brief Generate a snapshot of the channel state. This is an ao2 object, so
- * ao2_cleanup() to deallocate.
- *
- * \param chan The channel from which to generate a snapshot
- *
- * \retval pointer on success (must be ast_freed)
- * \retval NULL on error
- */
-struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan);
-
-/*!
- * \since 12
- * \brief Message type for \ref ast_channel_snapshot.
- *
- * \retval Message type for \ref ast_channel_snapshot.
- */
-struct stasis_message_type *ast_channel_snapshot_type(void);
-
 /*!
  * \since 12
  * \brief A topic which publishes the events for a particular channel.
@@ -4200,82 +4137,5 @@ struct stasis_message_type *ast_channel_snapshot_type(void);
  * \retval ast_channel_topic_all() if \a chan is \c NULL.
  */
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan);
-
-/*!
- * \since 12
- * \brief A topic which publishes the events for all channels.
- * \retval Topic for all channel events.
- */
-struct stasis_topic *ast_channel_topic_all(void);
-
-/*!
- * \since 12
- * \brief A caching topic which caches \ref ast_channel_snapshot messages from
- * ast_channel_events_all(void).
- *
- * \retval Topic for all channel events.
- */
-struct stasis_caching_topic *ast_channel_topic_all_cached(void);
-
-/*!
- * \since 12
- * \brief Blob of data associated with a channel.
- *
- * The \c blob is actually a JSON object of structured data. It has a "type" field
- * which contains the type string describing this blob.
- */
-struct ast_channel_blob {
-	/*! Channel blob is associated with (or NULL for global/all channels) */
-	struct ast_channel_snapshot *snapshot;
-	/*! JSON blob of data */
-	struct ast_json *blob;
-};
-
-/*!
- * \since 12
- * \brief Message type for \ref ast_channel_blob messages.
- *
- * \retval Message type for \ref ast_channel_blob messages.
- */
-struct stasis_message_type *ast_channel_blob_type(void);
-
-/*!
- * \since 12
- * \brief Extracts the type field from a \ref ast_channel_blob.
- * Returned \c char* is still owned by \a obj
- * \param obj Channel blob object.
- * \return Type field value from the blob.
- * \return \c NULL on error.
- */
-const char *ast_channel_blob_json_type(struct ast_channel_blob *obj);
-
-/*!
- * \since 12
- * \brief Creates a \ref ast_channel_blob message.
- *
- * The \a blob JSON object requires a \c "type" field describing the blob. It
- * should also be treated as immutable and not modified after it is put into the
- * message.
- *
- * \param chan Channel blob is associated with, or NULL for global/all channels.
- * \param blob JSON object representing the data.
- * \return \ref ast_channel_blob message.
- * \return \c NULL on error
- */
-struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
-					       struct ast_json *blob);
-
-/*! @} */
-
-/*!
- * \since 12
- * \brief Publish a \ref ast_channel_varset for a channel.
- *
- * \param chan Channel to pulish the event for, or \c NULL for 'none'.
- * \param variable Name of the variable being set
- * \param value Value.
- */
-void ast_channel_publish_varset(struct ast_channel *chan,
-				const char *variable, const char *value);
 
 #endif /* _ASTERISK_CHANNEL_H */

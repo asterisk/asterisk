@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis_channels.h"
 
 /*!
  * \note I M P O R T A N T :

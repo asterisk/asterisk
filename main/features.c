@@ -3626,9 +3626,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 
 	ast_rwlock_unlock(&features_lock);
 
-	ast_assert(dynamic_features_buf != NULL);
-
-	if (!ast_str_strlen(dynamic_features_buf) || feature_detected) {
+	if (!dynamic_features_buf || !ast_str_strlen(dynamic_features_buf) || feature_detected) {
 		return res;
 	}
 
@@ -3745,7 +3743,6 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 
 
 int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature) {
-
 	return feature_interpret_helper(chan, NULL, NULL, code, 0, NULL, features, FEATURE_INTERPRET_DETECT, feature);
 }
 

@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/app.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis_channels.h"
 
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1

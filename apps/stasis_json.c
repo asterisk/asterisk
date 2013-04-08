@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/app_stasis.h"
+#include "asterisk/stasis_channels.h"
 
 struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot)
 {

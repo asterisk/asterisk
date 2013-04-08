@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/pbx.h"
+#include "asterisk/stasis_channels.h"
 
 static struct stasis_message_router *channel_state_router;
 
@@ -154,7 +155,144 @@ static struct stasis_message_router *channel_state_router;
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="DialBegin">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a dial action has started.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="ChannelDest">
+				</parameter>
+				<parameter name="ChannelStateDest">
+					<para>A numeric code for the channel's current state, related to ChannelStateDescDest</para>
+				</parameter>
+				<parameter name="ChannelStateDescDest">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="CallerIDNumDest">
+				</parameter>
+				<parameter name="CallerIDNameDest">
+				</parameter>
+				<parameter name="ConnectedLineNumDest">
+				</parameter>
+				<parameter name="ConnectedLineNameDest">
+				</parameter>
+				<parameter name="AccountCodeDest">
+				</parameter>
+				<parameter name="ContextDest">
+				</parameter>
+				<parameter name="ExtenDest">
+				</parameter>
+				<parameter name="PriorityDest">
+				</parameter>
+				<parameter name="UniqueidDest">
+				</parameter>
+				<parameter name="DialString">
+					<para>The non-technology specific device being dialed.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">Dial</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="DialEnd">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a dial action has completed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<parameter name="DialStatus">
+					<para>The result of the dial operation.</para>
+					<enumlist>
+						<enum name="ANSWER" />
+						<enum name="BUSY" />
+						<enum name="CANCEL" />
+						<enum name="CHANUNAVAIL" />
+						<enum name="CONGESTION" />
+						<enum name="NOANSWER" />
+					</enumlist>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">Dial</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
+
+/*!
+ * \brief Generate the AMI message body from a channel snapshot
+ * \internal
+ *
+ * \param snapshot the channel snapshot for which to generate an AMI message
+ *                 body
+ * \param suffix the suffix to append to the channel fields
+ *
+ * \retval NULL on error
+ * \retval ast_str* on success (must be ast_freed by caller)
+ */
+static struct ast_str *manager_build_channel_state_string_suffix(
+		const struct ast_channel_snapshot *snapshot,
+		const char *suffix)
+{
+	struct ast_str *out = ast_str_create(1024);
+	int res = 0;
+	if (!out) {
+		return NULL;
+	}
+	res = ast_str_set(&out, 0,
+		"Channel%s: %s\r\n"
+		"ChannelState%s: %d\r\n"
+		"ChannelStateDesc%s: %s\r\n"
+		"CallerIDNum%s: %s\r\n"
+		"CallerIDName%s: %s\r\n"
+		"ConnectedLineNum%s: %s\r\n"
+		"ConnectedLineName%s: %s\r\n"
+		"AccountCode%s: %s\r\n"
+		"Context%s: %s\r\n"
+		"Exten%s: %s\r\n"
+		"Priority%s: %d\r\n"
+		"Uniqueid%s: %s\r\n",
+		suffix, snapshot->name,
+		suffix, snapshot->state,
+		suffix, ast_state2str(snapshot->state),
+		suffix, S_OR(snapshot->caller_number, "<unknown>"),
+		suffix, S_OR(snapshot->caller_name, "<unknown>"),
+		suffix, S_OR(snapshot->connected_number, "<unknown>"),
+		suffix, S_OR(snapshot->connected_name, "<unknown>"),
+		suffix, snapshot->accountcode,
+		suffix, snapshot->context,
+		suffix, snapshot->exten,
+		suffix, snapshot->priority,
+		suffix, snapshot->uniqueid);
+
+	if (!res) {
+		return NULL;
+	}
+
+	if (snapshot->manager_vars) {
+		struct ast_var_t *var;
+		AST_LIST_TRAVERSE(snapshot->manager_vars, var, entries) {
+			ast_str_append(&out, 0, "ChanVariable%s: %s=%s\r\n",
+						   suffix,
+						   var->name, var->value);
+		}
+	}
+
+	return out;
+}
 
 /*!
  * \brief Generate the AMI message body from a channel snapshot
@@ -169,51 +307,7 @@ static struct stasis_message_router *channel_state_router;
 static struct ast_str *manager_build_channel_state_string(
 	const struct ast_channel_snapshot *snapshot)
 {
-	struct ast_str *out = ast_str_create(1024);
-	int res = 0;
-	if (!out) {
-		return NULL;
-	}
-	res = ast_str_set(&out, 0,
-		"Channel: %s\r\n"
-		"ChannelState: %d\r\n"
-		"ChannelStateDesc: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"ConnectedLineNum: %s\r\n"
-		"ConnectedLineName: %s\r\n"
-		"AccountCode: %s\r\n"
-		"Context: %s\r\n"
-		"Exten: %s\r\n"
-		"Priority: %d\r\n"
-		"Uniqueid: %s\r\n",
-		snapshot->name,
-		snapshot->state,
-		ast_state2str(snapshot->state),
-		snapshot->caller_number,
-		snapshot->caller_name,
-		snapshot->connected_number,
-		snapshot->connected_name,
-		snapshot->accountcode,
-		snapshot->context,
-		snapshot->exten,
-		snapshot->priority,
-		snapshot->uniqueid);
-
-	if (!res) {
-		return NULL;
-	}
-
-	if (snapshot->manager_vars) {
-		struct ast_var_t *var;
-		AST_LIST_TRAVERSE(snapshot->manager_vars, var, entries) {
-			ast_str_append(&out, 0, "ChanVariable(%s): %s=%s\r\n",
-				       snapshot->name,
-				       var->name, var->value);
-		}
-	}
-
-	return out;
+	return manager_build_channel_state_string_suffix(snapshot, "");
 }
 
 /*! \brief Struct containing info for an AMI channel event to send out. */
@@ -602,6 +696,65 @@ static void channel_blob_cb(void *data, struct stasis_subscription *sub,
 	}
 }
 
+/*!
+ * \brief Callback processing messages for channel dialing
+ */
+static void channel_dial_cb(void *data, struct stasis_subscription *sub,
+				struct stasis_topic *topic,
+				struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *obj = stasis_message_data(message);
+	const char *dialstatus;
+	const char *dialstring;
+	struct ast_channel_snapshot *caller;
+	struct ast_channel_snapshot *peer;
+	RAII_VAR(struct ast_str *, caller_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, peer_event_string, NULL, ast_free);
+
+	if (strcmp("dial", ast_multi_channel_blob_get_type(obj))) {
+		ast_assert(0);
+		return;
+	}
+
+	caller = ast_multi_channel_blob_get_channel(obj, "caller");
+	peer = ast_multi_channel_blob_get_channel(obj, "peer");
+
+	/* Peer is required - otherwise, who are we dialing? */
+	ast_assert(peer != NULL);
+	peer_event_string = manager_build_channel_state_string_suffix(peer, "Dest");
+	if (!peer_event_string) {
+		return;
+	}
+
+	if (caller) {
+		caller_event_string = manager_build_channel_state_string(caller);
+		if (!caller_event_string) {
+			return;
+		}
+		dialstatus = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstatus"));
+		dialstring = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstring"));
+		if (ast_strlen_zero(dialstatus)) {
+			manager_event(EVENT_FLAG_CALL, "DialBegin",
+					"%s"
+					"%s"
+					"DialString: %s\r\n",
+					ast_str_buffer(caller_event_string),
+					ast_str_buffer(peer_event_string),
+					S_OR(dialstring, "unknown"));
+		} else {
+			manager_event(EVENT_FLAG_CALL, "DialEnd",
+					"%s"
+					"%s"
+					"DialStatus: %s\r\n",
+					ast_str_buffer(caller_event_string),
+					ast_str_buffer(peer_event_string),
+					S_OR(dialstatus, "unknown"));
+		}
+	} else {
+		/* TODO: If we don't have a caller, this should be treated as an Originate */
+	}
+}
+
 static void manager_channels_shutdown(void)
 {
 	stasis_message_router_unsubscribe(channel_state_router);
@@ -636,6 +789,11 @@ int manager_channels_init(void)
 					 channel_blob_cb,
 					 NULL);
 
+	ret |= stasis_message_router_add(channel_state_router,
+					 ast_channel_dial_type(),
+					 channel_dial_cb,
+					 NULL);
+
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.
 	 */
@@ -646,3 +804,4 @@ int manager_channels_init(void)
 
 	return 0;
 }
+

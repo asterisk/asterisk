@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ccss.h"
 #include "asterisk/indications.h"
 #include "asterisk/framehook.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -818,63 +819,6 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
 }
 
-static void senddialevent(struct ast_channel *src, struct ast_channel *dst, const char *dialstring)
-{
-	struct ast_channel *chans[] = { src, dst };
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a dial action has started.</synopsis>
-			<syntax>
-				<parameter name="SubEvent">
-					<para>A sub event type, specifying whether the dial action has begun or ended.</para>
-					<enumlist>
-						<enum name="Begin"/>
-						<enum name="End"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Dial", 2, chans,
-		"SubEvent: Begin\r\n"
-		"Channel: %s\r\n"
-		"Destination: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"ConnectedLineNum: %s\r\n"
-		"ConnectedLineName: %s\r\n"
-		"UniqueID: %s\r\n"
-		"DestUniqueID: %s\r\n"
-		"Dialstring: %s\r\n",
-		ast_channel_name(src), ast_channel_name(dst),
-		S_COR(ast_channel_caller(src)->id.number.valid, ast_channel_caller(src)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_caller(src)->id.name.valid, ast_channel_caller(src)->id.name.str, "<unknown>"),
-		S_COR(ast_channel_connected(src)->id.number.valid, ast_channel_connected(src)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_connected(src)->id.name.valid, ast_channel_connected(src)->id.name.str, "<unknown>"),
-		ast_channel_uniqueid(src), ast_channel_uniqueid(dst),
-		dialstring ? dialstring : "");
-}
-
-static void senddialendevent(struct ast_channel *src, const char *dialstatus)
-{
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a dial action has ended.</synopsis>
-			<syntax>
-				<parameter name="DialStatus">
-					<para>The value of the <variable>DIALSTATUS</variable> channel variable.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(src, EVENT_FLAG_CALL, "Dial",
-		"SubEvent: End\r\n"
-		"Channel: %s\r\n"
-		"UniqueID: %s\r\n"
-		"DialStatus: %s\r\n",
-		ast_channel_name(src), ast_channel_uniqueid(src), dialstatus);
-}
-
 /*!
  * helper function for wait_for_answer()
  *
@@ -1069,7 +1013,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			num->nochan++;
 		} else {
 			ast_channel_lock_both(c, in);
-			senddialevent(in, c, stuff);
+			ast_channel_publish_dial(c, in, stuff, NULL);
 			ast_channel_unlock(in);
 			ast_channel_unlock(c);
 			/* Hangup the original channel now, in case we needed it */
@@ -1089,6 +1033,33 @@ struct privacy_args {
 	char privintro[1024];
 	char status[256];
 };
+
+static const char *hangup_cause_to_dial_status(int hangup_cause)
+{
+	switch(hangup_cause) {
+	case AST_CAUSE_BUSY:
+		return "BUSY";
+	case AST_CAUSE_CONGESTION:
+		return "CONGESTION";
+	case AST_CAUSE_NO_ROUTE_DESTINATION:
+	case AST_CAUSE_UNREGISTERED:
+		return "CHANUNAVAIL";
+	case AST_CAUSE_NO_ANSWER:
+	default:
+		return "NOANSWER";
+	}
+}
+
+static void publish_dial_end_event(struct ast_channel *in, struct dial_head *out_chans, struct ast_channel *exception, const char *status)
+{
+	struct chanlist *outgoing;
+	AST_LIST_TRAVERSE(out_chans, outgoing, node) {
+		if (!outgoing->chan || outgoing->chan == exception) {
+			continue;
+		}
+		ast_channel_publish_dial(in, outgoing->chan, NULL, status);
+	}
+}
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct dial_head *out_chans, int *to, struct ast_flags64 *peerflags,
@@ -1133,6 +1104,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				*to = -1;
 				strcpy(pa->status, "CONGESTION");
 				ast_cdr_failed(ast_channel_cdr(in));
+				ast_channel_publish_dial(in, outgoing->chan, NULL, pa->status);
 				return NULL;
 			}
 		}
@@ -1293,6 +1265,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #ifdef HAVE_EPOLL
 				ast_poll_channel_del(in, c);
 #endif
+				ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 				ast_hangup(c);
 				c = o->chan = NULL;
 				ast_clear_flag64(o, DIAL_STILLGOING);
@@ -1333,6 +1306,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							}
 						}
 						peer = c;
+						ast_channel_publish_dial(in, peer, NULL, "ANSWER");
+						publish_dial_end_event(in, out_chans, peer, "CANCEL");
 						if (ast_channel_cdr(peer)) {
 							ast_channel_cdr(peer)->answer = ast_tvnow();
 							ast_channel_cdr(peer)->disposition = AST_CDR_ANSWERED;
@@ -1346,9 +1321,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							DIAL_NOFORWARDHTML);
 						ast_channel_dialcontext_set(c, "");
 						ast_channel_exten_set(c, "");
-						if (CAN_EARLY_BRIDGE(peerflags, in, peer))
+						if (CAN_EARLY_BRIDGE(peerflags, in, peer)) {
 							/* Setup early bridge if appropriate */
 							ast_channel_early_bridge(in, peer);
+						}
 					}
 					/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 					ast_channel_hangupcause_set(in, AST_CAUSE_NORMAL_CLEARING);
@@ -1357,6 +1333,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_BUSY:
 					ast_verb(3, "%s is busy\n", ast_channel_name(c));
 					ast_channel_hangupcause_set(in, ast_channel_hangupcause(c));
+					ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag64(o, DIAL_STILLGOING);
@@ -1365,6 +1342,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_CONGESTION:
 					ast_verb(3, "%s is circuit-busy\n", ast_channel_name(c));
 					ast_channel_hangupcause_set(in, ast_channel_hangupcause(c));
+					ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag64(o, DIAL_STILLGOING);
@@ -1572,6 +1550,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				*to = -1;
 				strcpy(pa->status, "CANCEL");
 				ast_cdr_noanswer(ast_channel_cdr(in));
+				publish_dial_end_event(in, out_chans, NULL, pa->status);
 				if (f) {
 					if (f->data.uint32) {
 						ast_channel_hangupcause_set(in, f->data.uint32);
@@ -1596,6 +1575,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_cdr_noanswer(ast_channel_cdr(in));
 						*result = f->subclass.integer;
 						strcpy(pa->status, "CANCEL");
+						publish_dial_end_event(in, out_chans, NULL, pa->status);
 						ast_frfree(f);
 						ast_channel_unlock(in);
 						if (is_cc_recall) {
@@ -1612,6 +1592,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
 					ast_cdr_noanswer(ast_channel_cdr(in));
+					publish_dial_end_event(in, out_chans, NULL, pa->status);
 					ast_frfree(f);
 					if (is_cc_recall) {
 						ast_cc_completed(in, "CC completed, but the caller hung up with DTMF");
@@ -1707,6 +1688,7 @@ skip_frame:;
 
 	if (!*to) {
 		ast_verb(3, "Nobody picked up in %d ms\n", orig);
+		publish_dial_end_event(in, out_chans, NULL, "NOANSWER");
 	}
 	if (!*to || ast_check_hangup(in)) {
 		ast_cdr_noanswer(ast_channel_cdr(in));
@@ -2621,7 +2603,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			continue;
 		}
 
-		senddialevent(chan, tmp->chan, tmp->number);
+		ast_channel_publish_dial(chan, tmp->chan, tmp->number, NULL);
 		ast_channel_unlock(chan);
 
 		ast_verb(3, "Called %s\n", tmp->interface);
@@ -3098,7 +3080,6 @@ out:
 	ast_channel_early_bridge(chan, NULL);
 	hanguptree(&out_chans, NULL, ast_channel_hangupcause(chan)==AST_CAUSE_ANSWERED_ELSEWHERE || ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0 ); /* forward 'answered elsewhere' if we received it */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
-	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 
 	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_INCOMPLETE)) {

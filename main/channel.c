@@ -74,6 +74,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel_internal.h"
 #include "asterisk/features.h"
 #include "asterisk/test.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
  ***/
@@ -152,15 +153,6 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 /*! \brief All active channels on the system */
 static struct ao2_container *channels;
 
-/*! \brief Message type for channel snapshot events */
-static struct stasis_message_type *channel_snapshot_type;
-
-static struct stasis_message_type *channel_blob_type;
-
-struct stasis_topic *channel_topic_all;
-
-struct stasis_caching_topic *channel_topic_all_cached;
-
 /*! \brief map AST_CAUSE's to readable string representations
  *
  * \ref causes.h
@@ -222,116 +214,6 @@ static const struct causes_map causes[] = {
 	{ AST_CAUSE_PROTOCOL_ERROR, "PROTOCOL_ERROR", "Protocol error, unspecified" },
 	{ AST_CAUSE_INTERWORKING, "INTERWORKING", "Interworking, unspecified" },
 };
-
-static void publish_channel_state(struct ast_channel *chan)
-{
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-
-	snapshot = ast_channel_snapshot_create(chan);
-	if (!snapshot) {
-		ast_log(LOG_ERROR, "Allocation error\n");
-		return;
-	}
-
-	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-	if (!message) {
-		return;
-	}
-
-	ast_assert(ast_channel_topic(chan) != NULL);
-	stasis_publish(ast_channel_topic(chan), message);
-}
-
-static void publish_channel_blob(struct ast_channel *chan, struct ast_json *blob)
-{
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	if (blob) {
-		message = ast_channel_blob_create(chan, blob);
-	}
-	if (message) {
-		stasis_publish(ast_channel_topic(chan), message);
-	}
-}
-
-
-static void channel_blob_dtor(void *obj)
-{
-	struct ast_channel_blob *event = obj;
-	ao2_cleanup(event->snapshot);
-	ast_json_unref(event->blob);
-}
-
-struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
-					       struct ast_json *blob)
-{
-	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_json *type;
-
-	ast_assert(blob != NULL);
-
-	type = ast_json_object_get(blob, "type");
-	if (type == NULL) {
-		ast_log(LOG_ERROR, "Invalid ast_channel_blob; missing type field");
-		return NULL;
-	}
-
-	obj = ao2_alloc(sizeof(*obj), channel_blob_dtor);
-	if (!obj) {
-		return NULL;
-	}
-
-	if (chan) {
-		obj->snapshot = ast_channel_snapshot_create(chan);
-		if (obj->snapshot == NULL) {
-			return NULL;
-		}
-	}
-
-	obj->blob = ast_json_ref(blob);
-
-	msg = stasis_message_create(ast_channel_blob_type(), obj);
-	if (!msg) {
-		return NULL;
-	}
-
-	ao2_ref(msg, +1);
-	return msg;
-}
-
-const char *ast_channel_blob_json_type(struct ast_channel_blob *obj)
-{
-	if (obj == NULL) {
-		return NULL;
-	}
-
-	return ast_json_string_get(ast_json_object_get(obj->blob, "type"));
-}
-
-void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
-{
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-
-	ast_assert(name != NULL);
-	ast_assert(value != NULL);
-
-	blob = ast_json_pack("{s: s, s: s, s: s}",
-			     "type", "varset",
-			     "variable", name,
-			     "value", value);
-	publish_channel_blob(chan, blob);
-}
-
-
-static void publish_cache_clear(struct ast_channel *chan)
-{
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-
-	message = stasis_cache_clear_create(ast_channel_snapshot_type(), ast_channel_uniqueid(chan));
-	stasis_publish(ast_channel_topic(chan), message);
-}
 
 struct ast_variable *ast_channeltype_list(void)
 {
@@ -934,6 +816,34 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
+static void publish_channel_state(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	snapshot = ast_channel_snapshot_create(chan);
+	if (!snapshot) {
+		ast_log(LOG_ERROR, "Allocation error\n");
+		return;
+	}
+
+	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
+	if (!message) {
+		return;
+	}
+
+	ast_assert(ast_channel_topic(chan) != NULL);
+	stasis_publish(ast_channel_topic(chan), message);
+}
+
+static void publish_cache_clear(struct ast_channel *chan)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	message = stasis_cache_clear_create(ast_channel_snapshot_type(), ast_channel_uniqueid(chan));
+	stasis_publish(ast_channel_topic(chan), message);
+}
+
 /*! \brief Gives the string form of a given channel state.
  *
  * \note This function is not reentrant.
@@ -1455,6 +1365,18 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 {
 	return __ast_queue_frame(chan, fin, 1, NULL);
+}
+
+/*! \internal \brief Publish a channel blob message */
+static void publish_channel_blob(struct ast_channel *chan, struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	if (blob) {
+		message = ast_channel_blob_create(chan, blob);
+	}
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
 }
 
 /*! \brief Queue a hangup frame for channel */
@@ -8700,14 +8622,11 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 
 static void channels_shutdown(void)
 {
+
+	ast_stasis_channels_shutdown();
+
 	free_channelvars();
-	ao2_cleanup(channel_snapshot_type);
-	channel_snapshot_type = NULL;
-	ao2_cleanup(channel_blob_type);
-	channel_blob_type = NULL;
-	ao2_cleanup(channel_topic_all);
-	channel_topic_all = NULL;
-	channel_topic_all_cached = stasis_caching_unsubscribe(channel_topic_all_cached);
+
 	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
@@ -8715,16 +8634,6 @@ static void channels_shutdown(void)
 		ao2_ref(channels, -1);
 		channels = NULL;
 	}
-}
-
-static const char *channel_snapshot_get_id(struct stasis_message *message)
-{
-	struct ast_channel_snapshot *snapshot;
-	if (ast_channel_snapshot_type() != stasis_message_type(message)) {
-		return NULL;
-	}
-	snapshot = stasis_message_data(message);
-	return snapshot->uniqueid;
 }
 
 void ast_channels_init(void)
@@ -8735,11 +8644,7 @@ void ast_channels_init(void)
 		ao2_container_register("channels", channels, prnt_channel_key);
 	}
 
-	channel_snapshot_type = stasis_message_type_create("ast_channel_snapshot");
-	channel_blob_type = stasis_message_type_create("ast_channel_blob");
-
-	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
-	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
+	ast_stasis_channels_init();
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
 
@@ -11320,83 +11225,6 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 		*slash = '\0';
 	}
 	return 0;
-}
-
-static void ast_channel_snapshot_dtor(void *obj)
-{
-	struct ast_channel_snapshot *snapshot = obj;
-	ast_string_field_free_memory(snapshot);
-	ao2_cleanup(snapshot->manager_vars);
-}
-
-struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
-{
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-
-	snapshot = ao2_alloc(sizeof(*snapshot), ast_channel_snapshot_dtor);
-	if (ast_string_field_init(snapshot, 1024)) {
-		return NULL;
-	}
-
-	ast_string_field_set(snapshot, name, ast_channel_name(chan));
-	ast_string_field_set(snapshot, accountcode, ast_channel_accountcode(chan));
-	ast_string_field_set(snapshot, peeraccount, ast_channel_peeraccount(chan));
-	ast_string_field_set(snapshot, userfield, ast_channel_userfield(chan));
-	ast_string_field_set(snapshot, uniqueid, ast_channel_uniqueid(chan));
-	ast_string_field_set(snapshot, linkedid, ast_channel_linkedid(chan));
-	ast_string_field_set(snapshot, parkinglot, ast_channel_parkinglot(chan));
-	ast_string_field_set(snapshot, hangupsource, ast_channel_hangupsource(chan));
-	if (ast_channel_appl(chan)) {
-		ast_string_field_set(snapshot, appl, ast_channel_appl(chan));
-	}
-	if (ast_channel_data(chan)) {
-		ast_string_field_set(snapshot, data, ast_channel_data(chan));
-	}
-	ast_string_field_set(snapshot, context, ast_channel_context(chan));
-	ast_string_field_set(snapshot, exten, ast_channel_exten(chan));
-
-	ast_string_field_set(snapshot, caller_name,
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
-	ast_string_field_set(snapshot, caller_number,
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
-
-	ast_string_field_set(snapshot, connected_name,
-		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, ""));
-	ast_string_field_set(snapshot, connected_number,
-		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, ""));
-
-	snapshot->creationtime = ast_channel_creationtime(chan);
-	snapshot->state = ast_channel_state(chan);
-	snapshot->priority = ast_channel_priority(chan);
-	snapshot->amaflags = ast_channel_amaflags(chan);
-	snapshot->hangupcause = ast_channel_hangupcause(chan);
-	snapshot->flags = *ast_channel_flags(chan);
-	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
-
-	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
-
-	ao2_ref(snapshot, +1);
-	return snapshot;
-}
-
-struct stasis_message_type *ast_channel_blob_type(void)
-{
-	return channel_blob_type;
-}
-
-struct stasis_message_type *ast_channel_snapshot_type(void)
-{
-	return channel_snapshot_type;
-}
-
-struct stasis_topic *ast_channel_topic_all(void)
-{
-	return channel_topic_all;
-}
-
-struct stasis_caching_topic *ast_channel_topic_all_cached(void)
-{
-	return channel_topic_all_cached;
 }
 
 /* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY

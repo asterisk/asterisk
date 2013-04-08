@@ -53,6 +53,12 @@ AMI (Asterisk Manager Interface)
  * The deprecated use of | (pipe) as a separator in the channelvars setting in
    manager.conf has been removed.
 
+ * Channel Variables conveyed with a channel no longer contain the name of the
+   channel as part of the key field, i.e., ChanVariable(SIP/foo): bar=baz is now
+   ChanVariable: bar=baz. When multiple channels are present in a single AMI
+   event, the various ChanVariable fields will contain a suffix that specifies
+   which channel they correspond to.
+
 Channel Drivers
 ------------------
 
