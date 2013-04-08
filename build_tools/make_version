@@ -1,5 +1,9 @@
 #!/bin/sh
 
+AWK=${AWK:-awk}
+GIT=${GIT:-git}
+GREP=${GREP:-grep}
+
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
 elif [ -d ${1}/.svn ]; then
@@ -92,7 +96,7 @@ elif [ -d ${1}/.git ]; then
     # If the first log commit messages indicates that this is checked into
     # subversion, we'll just use the SVN- form of the revision.
     MODIFIED=""
-    SVN_REV=`${GIT} log --pretty=full -1 | grep -F "git-svn-id:" | sed -e "s/.*\@\([^\s]*\)\s.*/\1/g"`
+    SVN_REV=`${GIT} log --pretty=full -1 | ${GREP} -F "git-svn-id:" | sed -e "s/.*\@\([^\s]*\)\s.*/\1/g"`
     if [ -z "$SVN_REV" ]; then
         VERSION=GIT-`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
         if [ $? -ne 0 ]; then
@@ -105,7 +109,7 @@ elif [ -d ${1}/.git ]; then
         fi
         echo ${VERSION}
     else
-        PARTS=`LANG=C ${GIT} log --pretty=full | grep -F "git-svn-id:" | head -1 | awk '{print $2;}' | sed -e s:^.*/svn/$2/:: | sed -e 's:/: :g' | sed -e 's/@.*$//g'`
+        PARTS=`LANG=C ${GIT} log --pretty=full | ${GREP} -F "git-svn-id:" | head -1 | ${AWK} '{print $2;}' | sed -e s:^.*/svn/$2/:: | sed -e 's:/: :g' | sed -e 's/@.*$//g'`
         BRANCH=0
         TEAM=0
         TAG=0

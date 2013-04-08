@@ -1,5 +1,8 @@
 #!/bin/sh
 
+GREP=${GREP:-grep}
+MD5=${MD5:-md5sum}
+
 cat << END
 /*
  * buildopts.h 

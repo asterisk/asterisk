@@ -81,6 +81,8 @@ export STATIC_BUILD       # Additional cflags, set to -static
                           # should go directly to ASTLDFLAGS
 
 #--- paths to various commands
+# The makeopts include below tries to set these if they're found during
+# configure.
 export CC
 export CXX
 export AR
@@ -221,10 +223,13 @@ ifeq ($(OSARCH),SunOS)
   _ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include -D_XPG4_2 -D__EXTENSIONS__
 endif
 
-ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) GIT=$(GIT) build_tools/make_version .)
-
-ifneq ($(wildcard .version),)
-  ASTERISKVERSIONNUM:=$(shell $(AWK) -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}' .version)
+ifneq ($(GREP),)
+  ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) GIT=$(GIT) build_tools/make_version .)
+endif
+ifneq ($(AWK),)
+  ifneq ($(wildcard .version),)
+    ASTERISKVERSIONNUM:=$(shell $(AWK) -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}' .version)
+  endif
 endif
 
 ifneq ($(wildcard .svn),)
@@ -450,7 +455,11 @@ datafiles: _all doc/core-en_US.xml
 	done
 	$(MAKE) -C sounds install
 
-doc/core-en_US.xml: makeopts cleantest $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+ifneq ($(GREP),)
+  XML_core_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+endif
+
+doc/core-en_US.xml: makeopts cleantest $(XML_core_en_US)
 	@printf "Building Documentation For: "
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
@@ -464,7 +473,11 @@ doc/core-en_US.xml: makeopts cleantest $(foreach dir,$(MOD_SUBDIRS),$(shell $(GR
 	@echo
 	@echo "</docs>" >> $@
 
-doc/full-en_US.xml: makeopts cleantest $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+ifneq ($(GREP),)
+  XMX_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+endif
+
+doc/full-en_US.xml: makeopts cleantest $(XML_full_en_US)
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@echo "---        Please install python to build full documentation           ---"

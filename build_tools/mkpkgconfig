@@ -1,5 +1,6 @@
 #!/bin/sh
 PPATH="$1"
+GREP=${GREP:-grep}
 ## Make sure we were called from Makefile
 
 if [ "x$ASTERISKVERSIONNUM" = "x" ]; then
