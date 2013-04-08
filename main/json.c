@@ -27,6 +27,7 @@
  */
 
 /*** MODULEINFO
+	<depend>jansson</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -35,10 +36,12 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/json.h"
+#include "asterisk/localtime.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
 
 #include <jansson.h>
+#include <time.h>
 
 /*!
  * \brief Function wrapper around ast_malloc macro.
@@ -499,6 +502,37 @@ struct ast_json *ast_json_copy(const struct ast_json *value)
 struct ast_json *ast_json_deep_copy(const struct ast_json *value)
 {
 	return (struct ast_json *)json_deep_copy((json_t *)value);
+}
+
+struct ast_json *ast_json_name_number(const char *name, const char *number)
+{
+	return ast_json_pack("{s: s, s: s}",
+			     "name", name,
+			     "number", number);
+}
+
+struct ast_json *ast_json_dialplan_cep(const char *context, const char *exten, int priority)
+{
+	return ast_json_pack("{s: o, s: o, s: o}",
+			     "context", context ? ast_json_string_create(context) : ast_json_null(),
+			     "exten", exten ? ast_json_string_create(exten) : ast_json_null(),
+			     "priority", priority != -1 ? ast_json_integer_create(priority) : ast_json_null());
+}
+
+struct ast_json *ast_json_timeval(const struct timeval *tv, const char *zone)
+{
+	char buf[AST_ISO8601_LEN];
+	struct ast_tm tm = {};
+
+	if (tv == NULL) {
+		return NULL;
+	}
+
+	ast_localtime(tv, &tm, zone);
+
+	ast_strftime(buf, sizeof(buf),AST_ISO8601_FORMAT, &tm);
+
+	return ast_json_string_create(buf);
 }
 
 void ast_json_init(void)

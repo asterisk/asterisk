@@ -764,4 +764,48 @@ struct ast_json *ast_json_deep_copy(const struct ast_json *value);
 
 /*!@}*/
 
+/*!@{*/
+
+/*!
+ * \brief Common JSON rendering functions for common 'objects'.
+ */
+
+/*!
+ * \brief Simple name/number pair.
+ * \param name Name
+ * \param number Number
+ * \return NULL if error (non-UTF8 characters, NULL inputs, etc.)
+ * \return JSON object with name and number fields
+ */
+struct ast_json *ast_json_name_number(const char *name, const char *number);
+
+/*!
+ * \brief Construct a timeval as JSON.
+ *
+ * JSON does not define a standard date format (boo), but the de facto standard
+ * is to use ISO 8601 formatted string. We build a millisecond resolution string
+ * from the \c timeval
+ *
+ * \param tv \c timeval to encode.
+ * \param zone Text string of a standard system zoneinfo file.  If NULL, the system localtime will be used.
+ * \return JSON string with ISO 8601 formatted date/time.
+ * \return \c NULL on error.
+ */
+struct ast_json *ast_json_timeval(const struct timeval *tv, const char *zone);
+
+/*!
+ * \brief Construct a context/exten/priority as JSON.
+ *
+ * If a \c NULL is passed for \c context or \c exten, or -1 for \c priority,
+ * the fields is set to ast_json_null().
+ *
+ * \param context Context name.
+ * \param exten Extension.
+ * \param priority Dialplan priority.
+ * \return JSON object with \c context, \c exten and \c priority fields
+ */
+struct ast_json *ast_json_dialplan_cep(const char *context, const char *exten, int priority);
+
+/*!@}*/
+
 #endif /* _ASTERISK_JSON_H */

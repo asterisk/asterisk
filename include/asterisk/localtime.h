@@ -99,4 +99,9 @@ char *ast_strptime_locale(const char *s, const char *format, struct ast_tm *tm, 
 struct ast_test;
 void ast_localtime_wakeup_monitor(struct ast_test *info);
 
+/*! \brief ast_strftime for ISO8601 formatting timestamps. */
+#define AST_ISO8601_FORMAT "%FT%T.%q%z"
+/*! \brief Max length of an null terminated, millisecond resolution, ISO8601 timestamp string. */
+#define AST_ISO8601_LEN 29
+
 #endif /* _ASTERISK_LOCALTIME_H */

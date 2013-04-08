@@ -1611,6 +1611,102 @@ AST_TEST_DEFINE(json_test_clever_circle)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(json_test_name_number)
+{
+	RAII_VAR(void *, alloc_debug, json_test_init(test), json_test_finish);
+	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "name_number";
+		info->category = "/main/json/";
+		info->summary = "JSON encoding of name/number pair.";
+		info->description = "Test JSON abstraction library.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, NULL == ast_json_name_number("name", NULL));
+	ast_test_validate(test, NULL == ast_json_name_number(NULL, "1234"));
+	ast_test_validate(test, NULL == ast_json_name_number(NULL, NULL));
+
+	expected = ast_json_pack("{s: s, s: s}",
+				 "name", "Jenny",
+				 "number", "867-5309");
+	uut = ast_json_name_number("Jenny", "867-5309");
+	ast_test_validate(test, ast_json_equal(expected, uut));
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(json_test_timeval)
+{
+	RAII_VAR(void *, alloc_debug, json_test_init(test), json_test_finish);
+	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
+	struct timeval tv = {};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "timeval";
+		info->category = "/main/json/";
+		info->summary = "JSON encoding of timevals.";
+		info->description = "Test JSON abstraction library.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, NULL == ast_json_timeval(NULL, NULL));
+	expected = ast_json_string_create("2013-02-07T09:32:34.314-0600");
+
+	tv.tv_sec = 1360251154;
+	tv.tv_usec = 314159;
+	uut = ast_json_timeval(&tv, "America/Chicago");
+
+	ast_test_validate(test, ast_json_equal(expected, uut));
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(json_test_cep)
+{
+	RAII_VAR(void *, alloc_debug, json_test_init(test), json_test_finish);
+	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "cep";
+		info->category = "/main/json/";
+		info->summary = "JSON with circular references cannot be encoded.";
+		info->description = "Test JSON abstraction library.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	expected = ast_json_pack("{s: o, s: o, s: o}",
+				 "context", ast_json_null(),
+				 "exten", ast_json_null(),
+				 "priority", ast_json_null());
+	uut = ast_json_dialplan_cep(NULL, NULL, -1);
+	ast_test_validate(test, ast_json_equal(expected, uut));
+
+	ast_json_unref(expected);
+	ast_json_unref(uut);
+	expected = ast_json_pack("{s: s, s: s, s: i}",
+				 "context", "main",
+				 "exten", "4321",
+				 "priority", 7);
+	uut = ast_json_dialplan_cep("main", "4321", 7);
+	ast_test_validate(test, ast_json_equal(expected, uut));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(json_test_false);
@@ -1661,6 +1757,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(json_test_circular_object);
 	AST_TEST_UNREGISTER(json_test_circular_array);
 	AST_TEST_UNREGISTER(json_test_clever_circle);
+	AST_TEST_UNREGISTER(json_test_name_number);
+	AST_TEST_UNREGISTER(json_test_timeval);
+	AST_TEST_UNREGISTER(json_test_cep);
 	return 0;
 }
 
@@ -1714,6 +1813,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(json_test_circular_object);
 	AST_TEST_REGISTER(json_test_circular_array);
 	AST_TEST_REGISTER(json_test_clever_circle);
+	AST_TEST_REGISTER(json_test_name_number);
+	AST_TEST_REGISTER(json_test_timeval);
+	AST_TEST_REGISTER(json_test_cep);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

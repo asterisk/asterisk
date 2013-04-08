@@ -67,17 +67,6 @@ static void dispose_jitterbuffer(struct ast_jb *jb)
 	jb->jbobj = NULL;
 }
 
-/*! \internal \brief Destructor for frames
- * \param f The frame to destroy
- */
-static void dispose_frame(struct ast_frame *f)
-{
-	if (!f) {
-		return;
-	}
-	ast_frfree(f);
-}
-
 /*! \internal \brief Create a test frame
  * \param timestamp the time in ms of the frame
  * \param seqno the frame's sequence number
@@ -217,8 +206,8 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, dispose_frame); \
-	RAII_VAR(struct ast_frame *, actual_frame, NULL, dispose_frame); \
+	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
+	RAII_VAR(struct ast_frame *, actual_frame, NULL, ast_frame_dtor); \
 	int res; \
 \
 	switch (cmd) { \
@@ -273,8 +262,8 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, dispose_frame); \
-	RAII_VAR(struct ast_frame *, actual_frame, NULL, dispose_frame); \
+	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
+	RAII_VAR(struct ast_frame *, actual_frame, NULL, ast_frame_dtor); \
 	int res; \
 	long next; \
 	int i; \
@@ -336,7 +325,7 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, dispose_frame); \
+	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
 	int res; \
 	int i; \
 \
@@ -401,8 +390,8 @@ static struct ast_jb default_jb = {
 	RAII_VAR(struct ast_jb *, jb, &default_jb, dispose_jitterbuffer); \
 	const struct ast_jb_impl *impl; \
 	struct ast_jb_conf conf; \
-	RAII_VAR(struct ast_frame *, actual_frame, NULL, dispose_frame); \
-	RAII_VAR(struct ast_frame *, expected_frame, NULL, dispose_frame); \
+	RAII_VAR(struct ast_frame *, actual_frame, NULL, ast_frame_dtor); \
+	RAII_VAR(struct ast_frame *, expected_frame, NULL, ast_frame_dtor); \
 	int res; \
 	long next; \
 	int i; \

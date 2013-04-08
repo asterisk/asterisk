@@ -351,6 +351,13 @@ void ast_frame_free(struct ast_frame *frame, int cache)
 	}
 }
 
+void ast_frame_dtor(struct ast_frame *f)
+{
+	if (f) {
+		ast_frfree(f);
+	}
+}
+
 /*!
  * \brief 'isolates' a frame by duplicating non-malloc'ed components
  * (header, src, data).

@@ -39,11 +39,11 @@ extern "C" {
 /*!
  * \page Def_Frame AST Multimedia and signalling frames
  * \section Def_AstFrame What is an ast_frame ?
- * A frame of data read used to communicate between 
+ * A frame of data read used to communicate between
  * between channels and applications.
  * Frames are divided into frame types and subclasses.
  *
- * \par Frame types 
+ * \par Frame types
  * \arg \b VOICE:  Voice data, subclass is codec (AST_FORMAT_*)
  * \arg \b VIDEO:  Video data, subclass is codec (AST_FORMAT_*)
  * \arg \b DTMF:   A DTMF digit, subclass is the digit
@@ -88,7 +88,7 @@ extern "C" {
  */
 
 /*!
- * \brief Frame types 
+ * \brief Frame types
  *
  * \note It is important that the values of each frame type are never changed,
  *       because it will break backwards compatability with older versions.
@@ -113,11 +113,11 @@ enum ast_frame_type {
 	AST_FRAME_IMAGE,
 	/*! HTML Frame */
 	AST_FRAME_HTML,
-	/*! Comfort Noise frame (subclass is level of CNG in -dBov), 
+	/*! Comfort Noise frame (subclass is level of CNG in -dBov),
 	    body may include zero or more 8-bit quantization coefficients */
 	AST_FRAME_CNG,
 	/*! Modem-over-IP data streams */
-	AST_FRAME_MODEM,	
+	AST_FRAME_MODEM,
 	/*! DTMF begin event, subclass is the digit */
 	AST_FRAME_DTMF_BEGIN,
 };
@@ -137,24 +137,24 @@ union ast_frame_subclass {
  */
 struct ast_frame {
 	/*! Kind of frame */
-	enum ast_frame_type frametype;				
+	enum ast_frame_type frametype;
 	/*! Subclass, frame dependent */
 	union ast_frame_subclass subclass;
 	/*! Length of data */
-	int datalen;				
+	int datalen;
 	/*! Number of samples in this frame */
-	int samples;				
+	int samples;
 	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
-	int mallocd;				
+	int mallocd;
 	/*! The number of bytes allocated for a malloc'd frame header */
 	size_t mallocd_hdr_len;
 	/*! How many bytes exist _before_ "data" that can be used if needed */
-	int offset;				
+	int offset;
 	/*! Optional source of frame for debugging */
-	const char *src;				
+	const char *src;
 	/*! Pointer to actual data */
 	union { void *ptr; uint32_t uint32; char pad[8]; } data;
-	/*! Global delivery time */		
+	/*! Global delivery time */
 	struct timeval delivery;
 	/*! For placing in a linked list */
 	AST_LIST_ENTRY(ast_frame) frame_list;
@@ -197,7 +197,7 @@ extern struct ast_frame ast_null_frame;
  * RTP header information into the space provided by AST_FRIENDLY_OFFSET instead
  * of having to create a new buffer with the necessary space allocated.
  */
-#define AST_FRIENDLY_OFFSET 	64	
+#define AST_FRIENDLY_OFFSET 	64
 #define AST_MIN_OFFSET 		32	/*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
@@ -353,10 +353,10 @@ struct ast_control_pvt_cause_code {
 #define AST_OPTION_FLAG_ANSWER		5
 #define AST_OPTION_FLAG_WTF		6
 
-/*! Verify touchtones by muting audio transmission 
+/*! Verify touchtones by muting audio transmission
  * (and reception) and verify the tone is still present
  * Option data is a single signed char value 0 or 1 */
-#define AST_OPTION_TONE_VERIFY		1		
+#define AST_OPTION_TONE_VERIFY		1
 
 /*! Put a compatible channel into TDD (TTY for the hearing-impared) mode
  * Option data is a single signed char value 0 or 1 */
@@ -370,7 +370,7 @@ struct ast_control_pvt_cause_code {
  * Option data is a single signed char value 0 or 1 */
 #define	AST_OPTION_AUDIO_MODE		4
 
-/*! Set channel transmit gain 
+/*! Set channel transmit gain
  * Option data is a single signed char representing number of decibels (dB)
  * to set gain to (on top of any gain specified in channel driver) */
 #define AST_OPTION_TXGAIN		5
@@ -380,7 +380,7 @@ struct ast_control_pvt_cause_code {
  * to set gain to (on top of any gain specified in channel driver) */
 #define AST_OPTION_RXGAIN		6
 
-/* set channel into "Operator Services" mode 
+/* set channel into "Operator Services" mode
  * Option data is a struct oprmode
  *
  * \note This option should never be sent over the network */
@@ -433,7 +433,7 @@ struct ast_control_pvt_cause_code {
  * Option data is a character buffer of suitable length */
 #define AST_OPTION_DEVICE_NAME		16
 
-/*! Get the CC agent type from the channel (Read only) 
+/*! Get the CC agent type from the channel (Read only)
  * Option data is a character buffer of suitable length */
 #define AST_OPTION_CC_AGENT_TYPE    17
 
@@ -450,12 +450,12 @@ struct oprmode {
 struct ast_option_header {
 	/* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN
-        uint16_t flag:3;
-        uint16_t option:13;
+	uint16_t flag:3;
+	uint16_t option:13;
 #else
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-        uint16_t option:13;
-        uint16_t flag:3;
+	uint16_t option:13;
+	uint16_t flag:3;
 #else
 #error Byte order not defined
 #endif
@@ -463,25 +463,31 @@ struct ast_option_header {
 		uint8_t data[0];
 };
 
-/*! \brief  Requests a frame to be allocated 
- * 
- * \param source 
- * Request a frame be allocated.  source is an optional source of the frame, 
- * len is the requested length, or "0" if the caller will supply the buffer 
+/*! \brief  Requests a frame to be allocated
+ *
+ * \param source
+ * Request a frame be allocated.  source is an optional source of the frame,
+ * len is the requested length, or "0" if the caller will supply the buffer
  */
 #if 0 /* Unimplemented */
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
-/*!  
+/*!
  * \brief Frees a frame or list of frames
- * 
+ *
  * \param fr Frame to free, or head of list to free
  * \param cache Whether to consider this frame for frame caching
  */
 void ast_frame_free(struct ast_frame *fr, int cache);
 
 #define ast_frfree(fr) ast_frame_free(fr, 1)
+
+/*!
+ * \brief NULL-safe wrapper for \ref ast_frfree, good for \ref RAII_VAR.
+ * \param frame Frame to free, or head of list to free.
+ */
+void ast_frame_dtor(struct ast_frame *frame);
 
 /*! \brief Makes a frame independent of any static storage
  * \param fr frame to act upon
@@ -498,7 +504,7 @@ void ast_frame_free(struct ast_frame *fr, int cache);
  */
 struct ast_frame *ast_frisolate(struct ast_frame *fr);
 
-/*! \brief Copies a frame 
+/*! \brief Copies a frame
  * \param fr frame to copy
  * Duplicates a frame -- should only rarely be used, typically frisolate is good enough
  * \return Returns a frame on success, NULL on error
@@ -507,7 +513,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *fr);
 
 void ast_swapcopy_samples(void *dst, const void *src, int samples);
 
-/* Helpers for byteswapping native samples to/from 
+/* Helpers for byteswapping native samples to/from
    little-endian and big-endian. */
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define ast_frame_byteswap_le(fr) do { ; } while(0)
@@ -518,13 +524,13 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
 #endif
 
 /*! \brief Parse an "allow" or "deny" line in a channel or device configuration
-        and update the capabilities and pref if provided.
+	and update the capabilities and pref if provided.
 	Video codecs are not added to codec preference lists, since we can not transcode
 	\return Returns number of errors encountered during parsing
  */
 int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing);
 
-/*! \name AST_Smoother 
+/*! \name AST_Smoother
 */
 /*@{ */
 /*! \page ast_smooth The AST Frame Smoother
@@ -584,7 +590,7 @@ struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f,
 
 /*! \brief Gets duration in ms of interpolation frame for a format */
 static inline int ast_codec_interp_len(struct ast_format *format)
-{ 
+{
 	return (format->id == AST_FORMAT_ILBC) ? 30 : 20;
 }
 

@@ -38,3 +38,4 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   LIBS+= -lres_smdi.so
 endif
 
+app_stasis.so: stasis_json.o
