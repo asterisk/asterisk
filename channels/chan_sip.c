@@ -27500,16 +27500,13 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		}
 	} else if (!strcasecmp(v->name, "nat")) {
 		ast_set_flag(&mask[0], SIP_NAT_FORCE_RPORT);
-		ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT); /* Default to "force_rport" */
-		if (!strcasecmp(v->value, "no")) {
-			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
-		} else if (!strcasecmp(v->value, "yes")) {
-			/* We've already defaulted to force_rport */
-			ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
+		ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
+		if (!strcasecmp(v->value, "yes")) {
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
 			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+		} else if (!strcasecmp(v->value, "force_rport")) {
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
 		} else if (!strcasecmp(v->value, "comedia")) {
-			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
-			ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
 			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
 		}
 	} else if (!strcasecmp(v->name, "directmedia") || !strcasecmp(v->name, "canreinvite")) {
@@ -28659,7 +28656,8 @@ static int reload_config(enum channelreloadreason reason)
 	struct sip_peer *peer;
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
-	struct ast_flags dummy[2];
+	struct ast_flags mask[3] = {{0}};
+	struct ast_flags setflags[3] = {{0}};
 	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct ast_sockaddr old_bindaddr = bindaddr;
@@ -28894,10 +28892,10 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
-		if (handle_common_options(&global_flags[0], &dummy[0], v)) {
+		if (handle_common_options(&setflags[0], &mask[0], v)) {
 			continue;
 		}
-		if (handle_t38_options(&global_flags[0], &dummy[0], v, &global_t38_maxdatagram)) {
+		if (handle_t38_options(&setflags[0], &mask[0], v, &global_t38_maxdatagram)) {
 			continue;
 		}
 		/* handle jb conf */
@@ -29380,6 +29378,11 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		}
 	}
+
+	/* Override global defaults if setting found in general section */
+	ast_copy_flags(&global_flags[0], &setflags[0], mask[0].flags);
+	ast_copy_flags(&global_flags[1], &setflags[1], mask[1].flags);
+	ast_copy_flags(&global_flags[2], &setflags[2], mask[2].flags);
 
 	if (subscribe_network_change) {
 		network_change_event_subscribe();
