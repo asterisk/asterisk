@@ -122,6 +122,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_webs
 {
 	struct websocket_protocol *protocol;
 
+	if (!protocols) {
+		return -1;
+	}
+
 	ao2_lock(protocols);
 
 	/* Ensure a second protocol handler is not registered for the same protocol */
@@ -156,6 +160,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_webs
 int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
 {
 	struct websocket_protocol *protocol;
+
+	if (!protocols) {
+		return -1;
+	}
 
 	if (!(protocol = ao2_find(protocols, name, OBJ_KEY))) {
 		return -1;
@@ -670,6 +678,7 @@ static int unload_module(void)
 	ast_websocket_remove_protocol("echo", websocket_echo_callback);
 	ast_http_uri_unlink(&websocketuri);
 	ao2_ref(protocols, -1);
+	protocols = NULL;
 
 	return 0;
 }

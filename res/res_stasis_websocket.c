@@ -305,7 +305,7 @@ static int load_module(void)
 		/* ironic */
 		return AST_MODULE_LOAD_FAILURE;
 	}
-        r |= ast_websocket_add_protocol(ws_protocol, websocket_callback);
+	r |= ast_websocket_add_protocol(ws_protocol, websocket_callback);
 	return r;
 }
 
@@ -315,12 +315,13 @@ static int unload_module(void)
 
 	ast_json_unref(oom_json);
 	oom_json = NULL;
-        r |= ast_websocket_remove_protocol(ws_protocol, websocket_callback);
+	r |= ast_websocket_remove_protocol(ws_protocol, websocket_callback);
 	return r;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis HTTP bindings",
                 .load = load_module,
                 .unload = unload_module,
-                .nonoptreq = "app_stasis,res_http_websocket"
+                .nonoptreq = "app_stasis,res_http_websocket",
+                .load_pri = AST_MODPRI_APP_DEPEND,
         );
