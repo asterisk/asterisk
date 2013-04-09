@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app_stasis.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/channel.h"
+#include "asterisk/lock.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis.h"
 #include "asterisk/strings.h"
@@ -48,7 +49,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Name of the application to invoke.</para>
 			</parameter>
 			<parameter name="args">
-				<para>Optional comma-delimited arguments for the application invocation.</para>
+				<para>Optional comma-delimited arguments for the
+				application invocation.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -178,7 +180,7 @@ struct stasis_app_control {
 	 */
 	int continue_to_dialplan:1;
 	/*! Uniqueid of the associated channel */
-	char channel_uniqueid[];
+	char channel_id[];
 };
 
 static struct stasis_app_control *control_create(const char *uniqueid)
@@ -192,9 +194,33 @@ static struct stasis_app_control *control_create(const char *uniqueid)
 		return NULL;
 	}
 
-	strncpy(control->channel_uniqueid, uniqueid, size - sizeof(*control));
+	strncpy(control->channel_id, uniqueid, size - sizeof(*control));
 
 	return control;
+}
+
+/*! AO2 hash function for \ref stasis_app_control */
+static int control_hash(const void *obj, const int flags)
+{
+	const struct stasis_app_control *control = obj;
+	const char *id = flags & OBJ_KEY ? obj : control->channel_id;
+
+	return ast_str_hash(id);
+}
+
+/*! AO2 comparison function for \ref stasis_app_control */
+static int control_compare(void *lhs, void *rhs, int flags)
+{
+	const struct stasis_app_control *lhs_control = lhs;
+	const struct stasis_app_control *rhs_control = rhs;
+	const char *rhs_name =
+		flags & OBJ_KEY ? rhs : rhs_control->channel_id;
+
+	if (strcmp(lhs_control->channel_id, rhs_name) == 0) {
+		return CMP_MATCH | CMP_STOP;
+	} else {
+		return 0;
+	}
 }
 
 struct stasis_app_control *stasis_app_control_find_by_channel(
@@ -366,7 +392,8 @@ static void control_unlink(struct stasis_app_control *control)
 	}
 
 	controls = app_controls();
-	ao2_unlink_flags(controls, control, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+	ao2_unlink_flags(controls, control,
+			 OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
 	ao2_cleanup(control);
 }
 
@@ -376,7 +403,8 @@ static int app_stasis_exec(struct ast_channel *chan, const char *data)
 	RAII_VAR(struct ao2_container *, apps, apps_registry(), ao2_cleanup);
 	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_control *, control, NULL, control_unlink);
-	RAII_VAR(struct stasis_subscription *, subscription, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_subscription *, subscription, NULL,
+		 stasis_unsubscribe);
 	int res = 0;
 	char *parse = NULL;
 	int hungup = 0;
@@ -400,7 +428,8 @@ static int app_stasis_exec(struct ast_channel *chan, const char *data)
 
 	app = ao2_find(apps, args.app_name, OBJ_KEY);
 	if (!app) {
-		ast_log(LOG_ERROR, "Stasis app '%s' not registered\n", args.app_name);
+		ast_log(LOG_ERROR,
+			"Stasis app '%s' not registered\n", args.app_name);
 		return -1;
 	}
 
@@ -416,30 +445,35 @@ static int app_stasis_exec(struct ast_channel *chan, const char *data)
 		ao2_link(controls, control);
 	}
 
-	subscription = stasis_subscribe(ast_channel_topic(chan), sub_handler, app);
+	subscription =
+		stasis_subscribe(ast_channel_topic(chan), sub_handler, app);
 	if (subscription == NULL) {
-		ast_log(LOG_ERROR, "Error subscribing app %s to channel %s\n", args.app_name, ast_channel_name(chan));
+		ast_log(LOG_ERROR, "Error subscribing app %s to channel %s\n",
+			args.app_name, ast_channel_name(chan));
 		return -1;
 	}
 	ao2_ref(app, +1); /* subscription now has a reference */
 
 	res = send_start_msg(app, chan, args.argc - 1, args.app_argv);
 	if (res != 0) {
-		ast_log(LOG_ERROR, "Error sending start message to %s\n", args.app_name);
+		ast_log(LOG_ERROR,
+			"Error sending start message to %s\n", args.app_name);
 		return res;
 	}
 
 	while (!hungup && !control_continue_test_and_reset(control) && ast_waitfor(chan, -1) > -1) {
 		RAII_VAR(struct ast_frame *, f, ast_read(chan), ast_frame_dtor);
 		if (!f) {
-			ast_debug(3, "%s: No more frames. Must be done, I guess.\n", ast_channel_uniqueid(chan));
+			ast_debug(3, "%s: No more frames. Must be done, I guess.\n",
+				  ast_channel_uniqueid(chan));
 			break;
 		}
 
 		switch (f->frametype) {
 		case AST_FRAME_CONTROL:
 			if (f->subclass.integer == AST_CONTROL_HANGUP) {
-				ast_debug(3, "%s: Received hangup\n", ast_channel_uniqueid(chan));
+				ast_debug(3, "%s: Received hangup\n",
+					  ast_channel_uniqueid(chan));
 				hungup = 1;
 			}
 			break;
@@ -451,7 +485,8 @@ static int app_stasis_exec(struct ast_channel *chan, const char *data)
 
 	res = send_end_msg(app, chan);
 	if (res != 0) {
-		ast_log(LOG_ERROR, "Error sending end message to %s\n", args.app_name);
+		ast_log(LOG_ERROR,
+			"Error sending end message to %s\n", args.app_name);
 		return res;
 	}
 
@@ -466,10 +501,11 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 	app = ao2_find(apps, app_name, OBJ_KEY);
 
 	if (!app) {
-		/* XXX We can do a better job handling late binding, queueing up the call for a few seconds
-		 * to wait for the app to register.
+		/* XXX We can do a better job handling late binding, queueing up
+		 * the call for a few seconds to wait for the app to register.
 		 */
-		ast_log(LOG_WARNING, "Stasis app '%s' not registered\n", app_name);
+		ast_log(LOG_WARNING,
+			"Stasis app '%s' not registered\n", app_name);
 		return -1;
 	}
 
@@ -523,12 +559,14 @@ static int load_module(void)
 {
 	int r = 0;
 
-	__apps_registry = ao2_container_alloc(APPS_NUM_BUCKETS, app_hash, app_compare);
+	__apps_registry =
+		ao2_container_alloc(APPS_NUM_BUCKETS, app_hash, app_compare);
 	if (__apps_registry == NULL) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	__app_controls = ao2_container_alloc(CONTROLS_NUM_BUCKETS, app_hash, app_compare);
+	__app_controls = ao2_container_alloc(CONTROLS_NUM_BUCKETS,
+					     control_hash, control_compare);
 	if (__app_controls == NULL) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -551,6 +589,7 @@ static int unload_module(void)
 	return r;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis dialplan application",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS,
+		"Stasis dialplan application",
 		.load = load_module,
 		.unload = unload_module);
