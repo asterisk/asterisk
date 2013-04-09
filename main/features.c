@@ -438,6 +438,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>The allowed values are:</para>
 				<enumlist>
 					<enum name="parkingtime"><para>Specified in seconds.</para></enum>
+					<enum name="inherit"><para>Inherit feature settings made in FEATURE or FEATUREMAP to child channels.</para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -3333,26 +3334,12 @@ struct feature_ds {
 	 * \todo XXX This isn't pretty.  At some point it would be nice to have all
 	 * of the global / [general] options in a config object that we store here
 	 * instead of handling each one manually.
+	 *
+	 * \note If anything gets added here, don't forget to update
+	 * feature_ds_duplicate, as well.
 	 * */
 	unsigned int parkingtime;
 	unsigned int parkingtime_is_set:1;
-};
-
-static void feature_ds_destroy(void *data)
-{
-	struct feature_ds *feature_ds = data;
-
-	if (feature_ds->feature_map) {
-		ao2_ref(feature_ds->feature_map, -1);
-		feature_ds->feature_map = NULL;
-	}
-
-	ast_free(feature_ds);
-}
-
-static const struct ast_datastore_info feature_ds_info = {
-	.type = "FEATURE",
-	.destroy = feature_ds_destroy,
 };
 
 static int feature_exten_hash(const void *obj, int flags)
@@ -3371,6 +3358,44 @@ static int feature_exten_cmp(void *obj, void *arg, int flags)
 	return !strcmp(fe->sname, flags & OBJ_KEY ? sname : fe2->sname) ?
 			CMP_MATCH | CMP_STOP : 0;
 }
+
+static void feature_ds_destroy(void *data)
+{
+	struct feature_ds *feature_ds = data;
+
+	if (feature_ds->feature_map) {
+		ao2_ref(feature_ds->feature_map, -1);
+		feature_ds->feature_map = NULL;
+	}
+
+	ast_free(feature_ds);
+}
+
+static void *feature_ds_duplicate(void *data)
+{
+	struct feature_ds *old_ds = data;
+	struct feature_ds *new_ds;
+
+	if (!(new_ds = ast_calloc(1, sizeof(*new_ds)))) {
+		return NULL;
+	}
+
+	if (old_ds->feature_map) {
+		ao2_ref(old_ds->feature_map, +1);
+		new_ds->feature_map = old_ds->feature_map;
+	}
+
+	new_ds->parkingtime = old_ds->parkingtime;
+	new_ds->parkingtime_is_set = old_ds->parkingtime_is_set;
+
+	return new_ds;
+}
+
+static const struct ast_datastore_info feature_ds_info = {
+	.type = "FEATURE",
+	.destroy = feature_ds_destroy,
+	.duplicate = feature_ds_duplicate,
+};
 
 /*!
  * \internal
@@ -3409,6 +3434,19 @@ static struct feature_ds *get_feature_ds(struct ast_channel *chan)
 	ast_channel_datastore_add(chan, ds);
 
 	return feature_ds;
+}
+
+static struct ast_datastore *get_feature_chan_ds(struct ast_channel *chan)
+{
+	struct ast_datastore *ds;
+
+	if (!(ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
+		/* Hasn't been created yet.  Trigger creation. */
+		get_feature_ds(chan);
+		ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL);
+	}
+
+	return ds;
 }
 
 /*!
@@ -8964,6 +9002,16 @@ static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	if (!strcasecmp(data, "parkingtime")) {
 		snprintf(buf, len, "%u", get_parkingtime(chan, NULL) / 1000);
+	} else if (!strcasecmp(data, "inherit")) {
+		struct ast_datastore *ds;
+		unsigned int inherit;
+
+		ast_channel_lock(chan);
+		ds = get_feature_chan_ds(chan);
+		inherit = ds ? ds->inheritance : 0;
+		ast_channel_unlock(chan);
+
+		snprintf(buf, len, "%s", inherit ? "yes" : "no");
 	} else {
 		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);
 		res = -1;
@@ -8993,6 +9041,11 @@ static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
 			ast_log(LOG_WARNING, "'%s' is not a valid parkingtime\n", value);
 			feature_ds->parkingtime_is_set = 0;
 			res = -1;
+		}
+	} else if (!strcasecmp(data, "inherit")) {
+		struct ast_datastore *ds;
+		if ((ds = get_feature_chan_ds(chan))) {
+			ds->inheritance = ast_true(value) ? DATASTORE_INHERIT_FOREVER : 0;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);

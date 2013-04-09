@@ -89,6 +89,10 @@ Features
  * PARKINGSLOT and PARKEDLOT channel variables will now be set for a parked
    channel even when comebactoorigin=yes
 
+ * You can now have the settings for a channel updated using the FEATURE()
+   and FEATUREMAP() functions inherited to child channels by setting
+   FEATURE(inherit)=yes.
+
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an
