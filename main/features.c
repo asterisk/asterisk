@@ -3325,7 +3325,7 @@ struct feature_exten {
 	char exten[FEATURE_MAX_LEN];
 };
 
-struct feature_ds {
+struct feature_datastore {
 	struct ao2_container *feature_map;
 
 	/*!
@@ -3361,7 +3361,7 @@ static int feature_exten_cmp(void *obj, void *arg, int flags)
 
 static void feature_ds_destroy(void *data)
 {
-	struct feature_ds *feature_ds = data;
+	struct feature_datastore *feature_ds = data;
 
 	if (feature_ds->feature_map) {
 		ao2_ref(feature_ds->feature_map, -1);
@@ -3373,8 +3373,8 @@ static void feature_ds_destroy(void *data)
 
 static void *feature_ds_duplicate(void *data)
 {
-	struct feature_ds *old_ds = data;
-	struct feature_ds *new_ds;
+	struct feature_datastore *old_ds = data;
+	struct feature_datastore *new_ds;
 
 	if (!(new_ds = ast_calloc(1, sizeof(*new_ds)))) {
 		return NULL;
@@ -3405,9 +3405,9 @@ static const struct ast_datastore_info feature_ds_info = {
  *
  * \return the data on the FEATURE datastore, or NULL on error
  */
-static struct feature_ds *get_feature_ds(struct ast_channel *chan)
+static struct feature_datastore *get_feature_ds(struct ast_channel *chan)
 {
-	struct feature_ds *feature_ds;
+	struct feature_datastore *feature_ds;
 	struct ast_datastore *ds;
 
 	if ((ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
@@ -3462,7 +3462,7 @@ static int builtin_feature_get_exten(struct ast_channel *chan, const char *featu
 		char *buf, size_t len)
 {
 	struct ast_call_feature *feature;
-	struct feature_ds *feature_ds;
+	struct feature_datastore *feature_ds;
 	struct feature_exten *fe = NULL;
 
 	*buf = '\0';
@@ -8959,7 +8959,7 @@ exit_features_test:
 static unsigned int get_parkingtime(struct ast_channel *chan, struct ast_parkinglot *parkinglot)
 {
 	const char *parkinglot_name;
-	struct feature_ds *feature_ds;
+	struct feature_datastore *feature_ds;
 	unsigned int parkingtime;
 
 	ast_channel_lock(chan);
@@ -9024,7 +9024,7 @@ static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
 		const char *value)
 {
 	int res = 0;
-	struct feature_ds *feature_ds;
+	struct feature_datastore *feature_ds;
 
 	ast_channel_lock(chan);
 
@@ -9077,7 +9077,7 @@ static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data
 static int featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
 		const char *value)
 {
-	struct feature_ds *feature_ds;
+	struct feature_datastore *feature_ds;
 	struct feature_exten *fe;
 
 	if (!ast_find_call_feature(data)) {
