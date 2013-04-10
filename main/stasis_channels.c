@@ -153,6 +153,9 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	snapshot->amaflags = ast_channel_amaflags(chan);
 	snapshot->hangupcause = ast_channel_hangupcause(chan);
 	snapshot->flags = *ast_channel_flags(chan);
+	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
+
+	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
 
 	ao2_ref(snapshot, +1);
 	return snapshot;
