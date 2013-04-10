@@ -3902,7 +3902,10 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!(atxfer_feature = ast_find_call_feature("atxfer"))) {
+	ast_rdlock_call_features();
+	atxfer_feature = ast_find_call_feature("atxfer");
+	ast_unlock_call_features();
+	if (!atxfer_feature) {
 		astman_send_error(s, m, "No attended transfer feature found");
 		return 0;
 	}
