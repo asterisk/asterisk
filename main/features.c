@@ -879,17 +879,9 @@ static void *dial_features_duplicate(void *data)
 	return df_copy;
 }
 
-static void dial_features_destroy(void *data)
-{
-	struct ast_dial_features *df = data;
-	if (df) {
-		ast_free(df);
-	}
-}
-
 static const struct ast_datastore_info dial_features_info = {
 	.type = "dial-features",
-	.destroy = dial_features_destroy,
+	.destroy = ast_free_ptr,
 	.duplicate = dial_features_duplicate,
 };
 
