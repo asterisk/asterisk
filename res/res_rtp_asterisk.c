@@ -29,6 +29,7 @@
  */
 
 /*** MODULEINFO
+	<depend>uuid</depend>
 	<support_level>core</support_level>
  ***/
 
