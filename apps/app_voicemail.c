@@ -1677,6 +1677,14 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 	return res;
 }
 
+/*!
+ * \brief Check if configuration file is valid
+ */
+static inline int valid_config(const struct ast_config *cfg)
+{
+	return cfg && cfg != CONFIG_STATUS_FILEINVALID;
+}
+
 /*! 
  * \brief The handler for the change password option.
  * \param vmu The voicemail user to work with.
@@ -1713,7 +1721,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		}
 		/* Fall-through */
 	case OPT_PWLOC_VOICEMAILCONF:
-		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
+		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && valid_config(cfg)) {
 			while ((category = ast_category_browse(cfg, category))) {
 				if (!strcasecmp(category, vmu->context)) {
 					if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
@@ -1742,14 +1750,17 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 				ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
+				ast_config_destroy(cfg);
 				break;
 			}
+
+			ast_config_destroy(cfg);
 		}
 		/* Fall-through */
 	case OPT_PWLOC_USERSCONF:
 		/* check users.conf and update the password stored for the mailbox */
 		/* if no vmsecret entry exists create one. */
-		if ((cfg = ast_config_load("users.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
+		if ((cfg = ast_config_load("users.conf", config_flags)) && valid_config(cfg)) {
 			ast_debug(4, "we are looking for %s\n", vmu->mailbox);
 			for (category = ast_category_browse(cfg, NULL); category; category = ast_category_browse(cfg, category)) {
 				ast_debug(4, "users.conf: %s\n", category);
@@ -1783,6 +1794,8 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 				ast_config_text_file_save("users.conf", cfg, "AppVoicemail");
 			}
+
+			ast_config_destroy(cfg);
 		}
 	}
 }
@@ -4137,7 +4150,7 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 			res = -1;
 			break;
 		}
-		if (cfg && cfg != CONFIG_STATUS_FILEINVALID) {
+		if (valid_config(cfg)) {
 			if (!(idata.context = ast_variable_retrieve(cfg, "message", "context"))) {
 				idata.context = "";
 			}
@@ -4193,7 +4206,7 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 	if (obj) {
 		ast_odbc_release_obj(obj);
 	}
-	if (cfg)
+	if (valid_config(cfg))
 		ast_config_destroy(cfg);
 	if (fdm != MAP_FAILED)
 		munmap(fdm, fdlen);
@@ -4672,7 +4685,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	if (strlen(fromfile) < sizeof(fromfile) - 5) {
 		strcat(fromfile, ".txt");
 	}
-	if (!(msg_cfg = ast_config_load(fromfile, config_flags))) {
+	if (!(msg_cfg = ast_config_load(fromfile, config_flags)) || !(valid_config(msg_cfg))) {
 		ast_debug(1, "Config load for message text file '%s' failed\n", fromfile);
 		return;
 	}
@@ -5064,7 +5077,7 @@ static void make_email_file(FILE *p,
 			if (strlen(fromfile) < sizeof(fromfile) - 5) {
 				strcat(fromfile, ".txt");
 			}
-			if ((msg_cfg = ast_config_load(fromfile, config_flags))) {
+			if ((msg_cfg = ast_config_load(fromfile, config_flags)) && valid_config(msg_cfg)) {
 				if ((v = ast_variable_retrieve(msg_cfg, "message", "callerid"))) {
 					ast_copy_string(origcallerid, v, sizeof(origcallerid));
 				}
@@ -7550,7 +7563,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
 	strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
-	if ((msg_cfg = ast_config_load(textfile, config_flags)) && msg_cfg != CONFIG_STATUS_FILEINVALID && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
+	if ((msg_cfg = ast_config_load(textfile, config_flags)) && valid_config(msg_cfg) && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 		*duration = atoi(duration_str);
 	} else {
 		*duration = 0;
@@ -7586,7 +7599,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			*duration = 0;
 
 			/* if we can't read the message metadata, stop now */
-			if (!msg_cfg) {
+			if (!valid_config(msg_cfg)) {
 				cmd = 0;
 				break;
 			}
@@ -7670,7 +7683,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		}
 	}
 
-	if (msg_cfg)
+	if (valid_config(msg_cfg))
 		ast_config_destroy(msg_cfg);
 	if (prepend_duration)
 		*duration = prepend_duration;
@@ -8430,7 +8443,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
-	if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!valid_config(msg_cfg)) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
@@ -8508,7 +8521,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		}
 	}
 
-	if (!msg_cfg) {
+	if (!valid_config(msg_cfg)) {
 		ast_log(AST_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
@@ -13565,7 +13578,7 @@ static void read_password_from_file(const char *secretfn, char *password, int pa
 	struct ast_flags config_flags = { 0 };
 
 	pwconf = ast_config_load(secretfn, config_flags);
-	if (pwconf) {
+	if (valid_config(pwconf)) {
 		const char *val = ast_variable_retrieve(pwconf, "general", "password");
 		if (val) {
 			ast_copy_string(password, val, passwordlen);
@@ -14052,7 +14065,7 @@ AST_TEST_DEFINE(test_voicemail_load_config)
 	fputs("00000002 => 9999,Mrs. Test\n", file);
 	fclose(file);
 
-	if (!(cfg = ast_config_load(config_filename, config_flags))) {
+	if (!(cfg = ast_config_load(config_filename, config_flags)) || !valid_config(cfg)) {
 		res = AST_TEST_FAIL;
 		goto cleanup;
 	}
@@ -14370,7 +14383,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename, config_flags);
 	DISPOSE(vms->curdir, vms->curmsg);
-	if (!msg_cfg || msg_cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!valid_config(msg_cfg)) {
 		ast_log(AST_LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
@@ -14532,9 +14545,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		break;
 	}
 
-#ifndef IMAP_STORAGE
 	ast_config_destroy(msg_cfg);
 
+#ifndef IMAP_STORAGE
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 		vms->heard[msg] = 1;
