@@ -9685,6 +9685,9 @@ static void defer_full_frame(struct iax2_thread *from_here, struct iax2_thread *
 	if (!cur_pkt_buf)
 		AST_LIST_INSERT_TAIL(&to_here->full_frames, pkt_buf, entry);
 
+	to_here->iostate = IAX_IOSTATE_READY;
+	ast_cond_signal(&to_here->cond);
+
 	ast_mutex_unlock(&to_here->lock);
 }
 
