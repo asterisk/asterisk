@@ -1447,6 +1447,8 @@ static int sip_notify_alloc(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
+static void set_peer_nat(const struct sip_pvt *p, struct sip_peer *peer);
+static void check_for_nat(const struct ast_sockaddr *them, struct sip_pvt *p);
 
 /*--- Device monitoring and Device/extension state/event handling */
 static int extensionstate_update(const char *context, const char *exten, struct state_notify_data *data, struct sip_pvt *p, int force);
@@ -16862,22 +16864,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
-			if (ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
-				if (p->natdetected) {
-					ast_set_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT);
-				} else {
-					ast_clear_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT);
-				}
-			}
-			if (ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
-				if (p->natdetected) {
-					ast_set_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP);
-				} else {
-					ast_clear_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP);
-				}
+
+			set_peer_nat(p, peer);
+			if (p->natdetected && ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+				ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
 			}
 
-			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri2, XMIT_UNRELIABLE))) {
 				if (sip_cancel_destroy(p))
 					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
@@ -17889,6 +17881,67 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
+/*! \brief Set the peers nat flags if they are using auto_* settings */
+static void set_peer_nat(const struct sip_pvt *p, struct sip_peer *peer)
+{
+
+	if (!p || !peer) {
+		return;
+	}
+
+	if (ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+		if (p->natdetected) {
+			ast_set_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT);
+		} else {
+			ast_clear_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT);
+		}
+	}
+
+	if (ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
+		if (p->natdetected) {
+			ast_set_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP);
+		} else {
+			ast_clear_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP);
+		}
+	}
+}
+
+/*! \brief Check and see if the requesting UA is likely to be behind a NAT.
+ *
+ * If the requesting NAT is behind NAT, set the * natdetected flag so that
+ * later, peers with nat=auto_* can use the value. Also, set the flags so
+ * that Asterisk responds identically whether or not a peer exists so as
+ * not to leak peer name information.
+ */
+static void check_for_nat(const struct ast_sockaddr *addr, struct sip_pvt *p)
+{
+
+	if (!addr || !p) {
+		return;
+	}
+
+	if (ast_sockaddr_cmp(addr, &p->recv)) {
+		char *tmp_str = ast_strdupa(ast_sockaddr_stringify(addr));
+		ast_debug(3, "NAT detected for %s / %s\n", tmp_str, ast_sockaddr_stringify(&p->recv));
+		p->natdetected = 1;
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+			ast_set_flag(&p->flags[0], SIP_NAT_FORCE_RPORT);
+		}
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
+			ast_set_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP);
+		}
+	} else {
+		p->natdetected = 0;
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+			ast_clear_flag(&p->flags[0], SIP_NAT_FORCE_RPORT);
+		}
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
+			ast_clear_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP);
+		}
+	}
+
+}
+
 /*! \brief check Via: header for hostname, port and rport request/answer */
 static void check_via(struct sip_pvt *p, const struct sip_request *req)
 {
@@ -17952,29 +18005,7 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 
 		ast_sockaddr_set_port(&p->sa, port);
 
-		/* Check and see if the requesting UA is likely to be behind a NAT. If they are, set the
-		 * natdetected flag so that later, peers with nat=auto_* can use the value. Also
-		 * set the flags so that Asterisk responds identically whether or not a peer exists
-		 * so as not to leak peer name information. */
-		if (ast_sockaddr_cmp(&tmp, &p->recv)) {
-			char *tmp_str = ast_strdupa(ast_sockaddr_stringify(&tmp));
-			ast_debug(3, "NAT detected for %s / %s\n", tmp_str, ast_sockaddr_stringify(&p->recv));
-			p->natdetected = 1;
-			if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
-				ast_set_flag(&p->flags[0], SIP_NAT_FORCE_RPORT);
-			}
-			if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
-				ast_set_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP);
-			}
-		} else {
-			p->natdetected = 0;
-			if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
-				ast_clear_flag(&p->flags[0], SIP_NAT_FORCE_RPORT);
-			}
-			if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
-				ast_clear_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP);
-			}
-		}
+		check_for_nat(&tmp, p);
 
 		if (sip_debug_test_pvt(p)) {
 			ast_verbose("Sending to %s (%s)\n",
@@ -18042,13 +18073,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	 *  are set on the peer.  So we check for that here and set the peer's
 	 *  address accordingly.
 	 */
-	if (p->natdetected && ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
-		ast_set_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT);
-		ast_sockaddr_copy(&peer->addr, &p->recv);
-	}
+	set_peer_nat(p, peer);
 
-	if (p->natdetected && ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
-		ast_set_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP);
+	if (p->natdetected && ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+		ast_sockaddr_copy(&peer->addr, &p->recv);
 	}
 
 	if (!ast_apply_acl(peer->acl, addr, "SIP Peer ACL: ")) {
@@ -29668,6 +29696,22 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
+	/* When chan_sip is first loaded, we may have a peer entry but it hasn't re-registered yet.
+	   If the peer hasn't re-registered, we have not checked for NAT yet.  With the new
+	   auto_* settings, we need to check for NAT so we do not have one-way audio. */
+	check_for_nat(&p->ourip, p);
+	set_peer_nat(p, p->relatedpeer);
+
+	if (p->natdetected && ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+		ast_copy_flags(&p->flags[0], &p->relatedpeer->flags[0], SIP_NAT_FORCE_RPORT);
+	}
+
+	if (p->natdetected && ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
+		ast_copy_flags(&p->flags[1], &p->relatedpeer->flags[1], SIP_PAGE2_SYMMETRICRTP);
+	}
+
+	do_setnat(p);
+
 	build_via(p);
 
 	/* Change the dialog callid. */
