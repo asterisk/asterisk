@@ -44,7 +44,7 @@
  * override configured mappings. They are only used in the case where no configured mapping exists.
  *
  * Configuring object mappings implicitly creates a basic version of an object type. The object type
- * must be fully registered, however, using the \ref ast_sorcery_object_type_register API call before any
+ * must be fully registered, however, using the \ref ast_sorcery_object_register API call before any
  * objects of the type can be allocated, created, or retrieved.
  *
  * Once the object type itself has been fully registered the individual fields within the object must
