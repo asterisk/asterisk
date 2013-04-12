@@ -9828,6 +9828,9 @@ static int unload_module(void)
 	res |= ast_manager_unregister("QueuePause");
 	res |= ast_manager_unregister("QueueLog");
 	res |= ast_manager_unregister("QueuePenalty");
+	res |= ast_manager_unregister("QueueReload");
+	res |= ast_manager_unregister("QueueReset");
+	res |= ast_manager_unregister("QueueMemberRingInUse");
 	res |= ast_unregister_application(app_aqm);
 	res |= ast_unregister_application(app_rqm);
 	res |= ast_unregister_application(app_pqm);
