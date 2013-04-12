@@ -316,6 +316,37 @@ int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastor
  */
 struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid);
 
+/*! \brief Struct representing a snapshot of channel state */
+struct ast_channel_snapshot;
+
+/*!
+ * \brief Generate the AMI message body from a channel snapshot
+ * \since 12
+ *
+ * \param snapshot the channel snapshot for which to generate an AMI message
+ *                 body
+ * \param suffix the suffix to append to the channel fields
+ *
+ * \retval NULL on error
+ * \retval ast_str* on success (must be ast_freed by caller)
+ */
+struct ast_str *ast_manager_build_channel_state_string_suffix(
+		const struct ast_channel_snapshot *snapshot,
+		const char *suffix);
+
+/*!
+ * \brief Generate the AMI message body from a channel snapshot
+ * \since 12
+ *
+ * \param snapshot the channel snapshot for which to generate an AMI message
+ *                 body
+ *
+ * \retval NULL on error
+ * \retval ast_str* on success (must be ast_freed by caller)
+ */
+struct ast_str *ast_manager_build_channel_state_string(
+		const struct ast_channel_snapshot *snapshot);
+
 /*!
  * \brief Initialize support for AMI channel events.
  * \return 0 on success.

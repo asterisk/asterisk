@@ -232,18 +232,7 @@ static struct stasis_message_router *channel_state_router;
 	</managerEvent>
  ***/
 
-/*!
- * \brief Generate the AMI message body from a channel snapshot
- * \internal
- *
- * \param snapshot the channel snapshot for which to generate an AMI message
- *                 body
- * \param suffix the suffix to append to the channel fields
- *
- * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
- */
-static struct ast_str *manager_build_channel_state_string_suffix(
+struct ast_str *ast_manager_build_channel_state_string_suffix(
 		const struct ast_channel_snapshot *snapshot,
 		const char *suffix)
 {
@@ -294,20 +283,10 @@ static struct ast_str *manager_build_channel_state_string_suffix(
 	return out;
 }
 
-/*!
- * \brief Generate the AMI message body from a channel snapshot
- * \internal
- *
- * \param snapshot the channel snapshot for which to generate an AMI message
- *                 body
- *
- * \retval NULL on error
- * \retval ast_str* on success (must be ast_freed by caller)
- */
-static struct ast_str *manager_build_channel_state_string(
+struct ast_str *ast_manager_build_channel_state_string(
 	const struct ast_channel_snapshot *snapshot)
 {
-	return manager_build_channel_state_string_suffix(snapshot, "");
+	return ast_manager_build_channel_state_string_suffix(snapshot, "");
 }
 
 /*! \brief Struct containing info for an AMI channel event to send out. */
@@ -553,7 +532,7 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 		/* If we haven't already, build the channel event string */
 		if (!channel_event_string) {
 			channel_event_string =
-				manager_build_channel_state_string(new_snapshot);
+				ast_manager_build_channel_state_string(new_snapshot);
 			if (!channel_event_string) {
 				return;
 			}
@@ -572,7 +551,7 @@ static void channel_varset(struct ast_channel_blob *obj)
 	const char *value = ast_json_string_get(ast_json_object_get(obj->blob, "value"));
 
 	if (obj->snapshot) {
-		channel_event_string = manager_build_channel_state_string(obj->snapshot);
+		channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 	} else {
 		channel_event_string = ast_str_create(35);
 		ast_str_set(&channel_event_string, 0,
@@ -614,7 +593,7 @@ static void channel_userevent(struct ast_channel_blob *obj)
 
 	eventname = ast_json_string_get(ast_json_object_get(obj->blob, "eventname"));
 	body = ast_json_string_get(ast_json_object_get(obj->blob, "body"));
-	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
 	if (!channel_event_string) {
 		return;
@@ -654,7 +633,7 @@ static void channel_hangup_request(struct ast_channel_blob *obj)
 		return;
 	}
 
-	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
 	if (!channel_event_string) {
 		return;
@@ -721,13 +700,13 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 	/* Peer is required - otherwise, who are we dialing? */
 	ast_assert(peer != NULL);
-	peer_event_string = manager_build_channel_state_string_suffix(peer, "Dest");
+	peer_event_string = ast_manager_build_channel_state_string_suffix(peer, "Dest");
 	if (!peer_event_string) {
 		return;
 	}
 
 	if (caller) {
-		caller_event_string = manager_build_channel_state_string(caller);
+		caller_event_string = ast_manager_build_channel_state_string(caller);
 		if (!caller_event_string) {
 			return;
 		}
