@@ -90,6 +90,8 @@ struct multicast_rtp {
 	unsigned int ssrc;
 	/*! Sequence number, used when creating/sending the RTP packet */
 	uint16_t seqno;
+	unsigned int lastts;	
+	struct timeval txcore;
 };
 
 /* Forward Declarations */
@@ -138,6 +140,30 @@ static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched
 	ast_rtp_instance_set_data(instance, multicast);
 
 	return 0;
+}
+
+static int rtp_get_rate(struct ast_format *format)
+{
+        return (format->id == AST_FORMAT_G722) ? 8000 : ast_format_rate(format);
+}
+
+static unsigned int calc_txstamp(struct multicast_rtp *rtp, struct timeval *delivery)
+{
+        struct timeval t;
+        long ms;
+
+        if (ast_tvzero(rtp->txcore)) {
+                rtp->txcore = ast_tvnow();
+                rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
+        }
+
+        t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
+        if ((ms = ast_tvdiff_ms(t, rtp->txcore)) < 0) {
+                ms = 0;
+        }
+        rtp->txcore = t;
+
+        return (unsigned int) ms;
 }
 
 /*! \brief Helper function which populates a control packet with useful information and sends it */
@@ -210,6 +236,8 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	struct ast_sockaddr remote_address;
 	int hdrlen = 12, res = 0, codec;
 	unsigned char *rtpheader;
+	unsigned int ms = calc_txstamp(multicast, &frame->delivery);
+	int rate = rtp_get_rate(&frame->subclass.format) / 1000;
 
 	/* We only accept audio, nothing else */
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -225,12 +253,21 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	if (frame->offset < hdrlen) {
 		f = ast_frdup(frame);
 	}
-
+	
+	/* Calucate last TS */
+	multicast->lastts = multicast->lastts + ms * rate;
+	
 	/* Construct an RTP header for our packet */
 	rtpheader = (unsigned char *)(f->data.ptr - hdrlen);
 	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno)));
-	put_unaligned_uint32(rtpheader + 4, htonl(f->ts * 8));
-	put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
+	put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
+	
+	if (ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO)) {
+		put_unaligned_uint32(rtpheader + 4, htonl(f->ts * 8));
+	} 
+	else {
+		put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
+	}
 
 	/* Increment sequence number and wrap to 0 if it overflows 16 bits. */
 	multicast->seqno = 0xFFFF & (multicast->seqno + 1);
