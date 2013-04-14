@@ -478,6 +478,13 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	} else if (r < 0) {
 		ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 	}
+
+	/* Return NULL frame on error */
+	if (r < 0) {
+		ast_mutex_unlock(&alsalock);
+		return &f;
+	}
+
 	/* Update positions */
 	readpos += r;
 	left -= r;
