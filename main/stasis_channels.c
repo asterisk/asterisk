@@ -458,6 +458,37 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 	publish_message_for_channel_topics(msg, chan);
 }
 
+struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot)
+{
+	RAII_VAR(struct ast_json *, json_chan, NULL, ast_json_unref);
+
+	if (snapshot == NULL) {
+		return NULL;
+	}
+
+	json_chan = ast_json_pack("{ s: s, s: s, s: s, s: s, s: s, s: s, s: s,"
+				  "  s: s, s: s, s: s, s: s, s: o, s: o, s: o,"
+				  "  s: o"
+				  "}",
+				  "name", snapshot->name,
+				  "state", ast_state2str(snapshot->state),
+				  "accountcode", snapshot->accountcode,
+				  "peeraccount", snapshot->peeraccount,
+				  "userfield", snapshot->userfield,
+				  "uniqueid", snapshot->uniqueid,
+				  "linkedid", snapshot->linkedid,
+				  "parkinglot", snapshot->parkinglot,
+				  "hangupsource", snapshot->hangupsource,
+				  "appl", snapshot->appl,
+				  "data", snapshot->data,
+				  "dialplan", ast_json_dialplan_cep(snapshot->context, snapshot->exten, snapshot->priority),
+				  "caller", ast_json_name_number(snapshot->caller_name, snapshot->caller_number),
+				  "connected", ast_json_name_number(snapshot->connected_name, snapshot->connected_number),
+				  "creationtime", ast_json_timeval(snapshot->creationtime, NULL));
+
+	return ast_json_ref(json_chan);
+}
+
 void ast_stasis_channels_shutdown(void)
 {
 	ao2_cleanup(channel_snapshot_type);

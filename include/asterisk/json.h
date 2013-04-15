@@ -791,7 +791,7 @@ struct ast_json *ast_json_name_number(const char *name, const char *number);
  * \return JSON string with ISO 8601 formatted date/time.
  * \return \c NULL on error.
  */
-struct ast_json *ast_json_timeval(const struct timeval *tv, const char *zone);
+struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone);
 
 /*!
  * \brief Construct a context/exten/priority as JSON.

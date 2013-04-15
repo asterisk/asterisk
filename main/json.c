@@ -519,16 +519,12 @@ struct ast_json *ast_json_dialplan_cep(const char *context, const char *exten, i
 			     "priority", priority != -1 ? ast_json_integer_create(priority) : ast_json_null());
 }
 
-struct ast_json *ast_json_timeval(const struct timeval *tv, const char *zone)
+struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone)
 {
 	char buf[AST_ISO8601_LEN];
 	struct ast_tm tm = {};
 
-	if (tv == NULL) {
-		return NULL;
-	}
-
-	ast_localtime(tv, &tm, zone);
+	ast_localtime(&tv, &tm, zone);
 
 	ast_strftime(buf, sizeof(buf),AST_ISO8601_FORMAT, &tm);
 

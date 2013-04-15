@@ -665,7 +665,7 @@ static void channel_dtmf_begin(struct ast_channel_blob *obj)
 	const char *direction =
 		ast_json_string_get(ast_json_object_get(obj->blob, "direction"));
 
-	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
 	if (!channel_event_string) {
 		return;
@@ -706,7 +706,7 @@ static void channel_dtmf_end(struct ast_channel_blob *obj)
 	long duration_ms =
 		ast_json_integer_get(ast_json_object_get(obj->blob, "duration_ms"));
 
-	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
 	if (!channel_event_string) {
 		return;

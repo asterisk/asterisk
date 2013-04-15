@@ -292,6 +292,13 @@ void ast_channel_publish_dial(struct ast_channel *caller,
 /*! @} */
 
 /*!
+ * \brief Build a JSON object from a \ref ast_channel_snapshot.
+ * \return JSON object representing channel snapshot.
+ * \return \c NULL on error
+ */
+struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
+
+/*!
  * \brief Dispose of the stasis channel topics and message types
  */
 void ast_stasis_channels_shutdown(void);

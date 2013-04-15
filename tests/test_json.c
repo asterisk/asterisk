@@ -1659,12 +1659,11 @@ AST_TEST_DEFINE(json_test_timeval)
 		break;
 	}
 
-	ast_test_validate(test, NULL == ast_json_timeval(NULL, NULL));
 	expected = ast_json_string_create("2013-02-07T09:32:34.314-0600");
 
 	tv.tv_sec = 1360251154;
 	tv.tv_usec = 314159;
-	uut = ast_json_timeval(&tv, "America/Chicago");
+	uut = ast_json_timeval(tv, "America/Chicago");
 
 	ast_test_validate(test, ast_json_equal(expected, uut));
 

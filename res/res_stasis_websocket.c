@@ -24,7 +24,7 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">app_stasis</depend>
+	<depend type="module">res_stasis</depend>
 	<depend type="module">res_http_websocket</depend>
 	<support_level>core</support_level>
  ***/
@@ -33,11 +33,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/app_stasis.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/http_websocket.h"
 #include "asterisk/json.h"
 #include "asterisk/module.h"
+#include "asterisk/stasis_app.h"
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 
@@ -322,6 +322,6 @@ static int unload_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis HTTP bindings",
                 .load = load_module,
                 .unload = unload_module,
-                .nonoptreq = "app_stasis,res_http_websocket",
+                .nonoptreq = "res_stasis,res_http_websocket",
                 .load_pri = AST_MODPRI_APP_DEPEND,
         );

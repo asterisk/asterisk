@@ -25,7 +25,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>app_stasis</depend>
+	<depend>res_stasis</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -35,9 +35,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/test.h"
-#include "asterisk/app_stasis.h"
+#include "asterisk/stasis_app.h"
 
-static const char *test_category = "/stasis/app/";
+static const char *test_category = "/stasis/res/";
 
 AST_TEST_DEFINE(app_invoke_dne)
 {
@@ -187,8 +187,8 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis Core testing",
-		.load = load_module,
-		.unload = unload_module,
-		.nonoptreq = "app_stasis"
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Stasis Core testing",
+	.load = load_module,
+	.unload = unload_module,
+	.nonoptreq = "res_stasis",
 	);

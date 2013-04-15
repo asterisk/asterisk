@@ -16,26 +16,26 @@
  * at the top of the source tree.
  */
 
-#ifndef _ASTERISK_APP_STASIS_H
-#define _ASTERISK_APP_STASIS_H
+#ifndef _ASTERISK_STASIS_APP_H
+#define _ASTERISK_STASIS_APP_H
 
 /*! \file
  *
- * \brief Stasis Application API. See \ref app_stasis "Stasis Application API"
+ * \brief Stasis Application API. See \ref res_stasis "Stasis Application API"
  * for detailed documentation.
  *
  * \author David M. Lee, II <dlee@digium.com>
  * \since 12
  *
- * \page app_stasis Stasis Application API
+ * \page res_stasis Stasis Application API
  *
  * This is the API that binds the Stasis dialplan application to external
  * Stasis applications, such as \c res_stasis_websocket.
  *
- * This module registers a dialplan function named \c Stasis, which is used to
- * put a channel into the named Stasis app. As a channel enters and leaves the
- * Stasis diaplan applcation, the Stasis app receives a \c 'stasis-start' and \c
- * 'stasis-end' events.
+ * The associated \c res_stasis module registers a dialplan function named \c
+ * Stasis, which uses \c res_stasis to put a channel into the named Stasis
+ * app. As a channel enters and leaves the Stasis diaplan application, the
+ * Stasis app receives a \c 'stasis-start' and \c 'stasis-end' events.
  *
  * Stasis apps register themselves using the \ref stasis_app_register and
  * stasis_app_unregister functions. Messages are sent to an appliction using
@@ -50,6 +50,25 @@
 #include "asterisk/json.h"
 
 struct ast_channel_snapshot;
+
+/*! @{ */
+
+/*!
+ * \brief Control a channel using \c stasis_app.
+ *
+ * This function blocks until the channel hangs up, or
+ * stasis_app_control_continue() is called on the channel's \ref
+ * stasis_app_control struct.
+ *
+ * \param chan Channel to control with Stasis.
+ * \param app_name Application controlling the channel.
+ * \param argc Number of arguments for the application.
+ * \param argv Arguments for the application.
+ */
+int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
+		    char *argv[]);
+
+/*! @} */
 
 /*! @{ */
 
@@ -110,7 +129,7 @@ struct stasis_app_control;
  * \brief Returns the handler for the given channel
  * \param chan Channel to handle.
  * \return NULL channel not in Stasis application
- * \return Pointer to app_stasis handler.
+ * \return Pointer to stasis handler.
  */
 struct stasis_app_control *stasis_app_control_find_by_channel(
 	const struct ast_channel *chan);
@@ -126,15 +145,4 @@ void stasis_app_control_continue(struct stasis_app_control *handler);
 
 /*! @} */
 
-/*! @{ */
-
-/*!
- * \brief Build a JSON object from a \ref ast_channel_snapshot.
- * \return JSON object representing channel snapshot.
- * \return \c NULL on error
- */
-struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
-
-/*! @} */
-
-#endif /* _ASTERISK_APP_STASIS_H */
+#endif /* _ASTERISK_STASIS_APP_H */
