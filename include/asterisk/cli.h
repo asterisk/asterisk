@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "asterisk/linkedlists.h"
+#include "asterisk/strings.h"
 
 void ast_cli(int fd, const char *fmt, ...)
 	__attribute__((format(printf, 2, 3)));
@@ -57,12 +58,17 @@ void ast_cli(int fd, const char *fmt, ...)
  */
 #define ESS(x) ((x) == 1 ? "" : "s")
 
-/*! \brief return Yes or No depending on the argument.
- * This is used in many places in CLI command, having a function to generate
- * this helps maintaining a consistent output (and possibly emitting the
- * output in other languages, at some point).
+/*!
+ * \brief Return Yes or No depending on the argument.
+ *
+ * Note that this should probably still be used for CLI commands instead of
+ * AST_YESNO(), in the off chance we someday want to translate the CLI.
+ *
+ * \param x Boolean value
+ * \return "Yes" if x is true (non-zero)
+ * \return "No" if x is false (zero)
  */
-#define AST_CLI_YESNO(x) (x) ? "Yes" : "No"
+#define AST_CLI_YESNO(x) AST_YESNO(x)
 
 /*! \brief return On or Off depending on the argument.
  * This is used in many places in CLI command, having a function to generate

@@ -358,6 +358,43 @@ static int send_end_msg(struct app *app, struct ast_channel *chan)
 	return 0;
 }
 
+static void dtmf_handler(struct app *app, struct ast_channel_blob *obj)
+{
+	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
+	const char *direction;
+
+	/* To simplify events, we'll only generate on receive */
+	direction = ast_json_string_get(
+		ast_json_object_get(obj->blob, "direction"));
+
+	if (strcmp("Received", direction) != 0) {
+		return;
+	}
+
+	extra = ast_json_pack(
+		"{s: o}",
+		"digit", ast_json_ref(ast_json_object_get(obj->blob, "digit")));
+	if (!extra) {
+		return;
+	}
+
+	msg = app_event_create("dtmf-received", obj->snapshot, extra);
+	if (!msg) {
+		return;
+	}
+
+	app_send(app, msg);
+}
+
+static void blob_handler(struct app *app, struct ast_channel_blob *blob)
+{
+	/* To simplify events, we'll only generate on DTMF end */
+	if (strcmp(ast_channel_blob_json_type(blob), "dtmf_end") == 0) {
+		dtmf_handler(app, blob);
+	}
+}
+
 static void sub_handler(void *data, struct stasis_subscription *sub,
 			struct stasis_topic *topic,
 			struct stasis_message *message)
@@ -373,6 +410,9 @@ static void sub_handler(void *data, struct stasis_subscription *sub,
 			return;
 		}
 		app_send(app, msg);
+	} else if (ast_channel_blob_type() == stasis_message_type(message)) {
+		struct ast_channel_blob *blob = stasis_message_data(message);
+		blob_handler(app, blob);
 	}
 	if (stasis_subscription_final_message(sub, message)) {
 		ao2_cleanup(data);

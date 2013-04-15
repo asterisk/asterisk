@@ -275,8 +275,8 @@ struct ast_str *ast_manager_build_channel_state_string_suffix(
 		struct ast_var_t *var;
 		AST_LIST_TRAVERSE(snapshot->manager_vars, var, entries) {
 			ast_str_append(&out, 0, "ChanVariable%s: %s=%s\r\n",
-						   suffix,
-						   var->name, var->value);
+				       suffix,
+				       var->name, var->value);
 		}
 	}
 
@@ -657,6 +657,90 @@ static void channel_hangup_request(struct ast_channel_blob *obj)
 		      ast_str_buffer(extra));
 }
 
+static void channel_dtmf_begin(struct ast_channel_blob *obj)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	const char *digit =
+		ast_json_string_get(ast_json_object_get(obj->blob, "digit"));
+	const char *direction =
+		ast_json_string_get(ast_json_object_get(obj->blob, "direction"));
+
+	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+
+	if (!channel_event_string) {
+		return;
+	}
+
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a DTMF digit has started on a channel.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+					<parameter name="Digit">
+						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
+					</parameter>
+					<parameter name="Direction">
+						<enumlist>
+							<enum name="Received"/>
+							<enum name="Sent"/>
+						</enumlist>
+					</parameter>
+				</syntax>
+		</managerEventInstance>
+	***/
+	manager_event(EVENT_FLAG_DTMF, "DTMFBegin",
+		"%s"
+		"Digit: %s\r\n"
+		"Direction: %s\r\n",
+		ast_str_buffer(channel_event_string),
+		digit, direction);
+}
+
+static void channel_dtmf_end(struct ast_channel_blob *obj)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	const char *digit =
+		ast_json_string_get(ast_json_object_get(obj->blob, "digit"));
+	const char *direction =
+		ast_json_string_get(ast_json_object_get(obj->blob, "direction"));
+	long duration_ms =
+		ast_json_integer_get(ast_json_object_get(obj->blob, "duration_ms"));
+
+	channel_event_string = manager_build_channel_state_string(obj->snapshot);
+
+	if (!channel_event_string) {
+		return;
+	}
+
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a DTMF digit has ended on a channel.</synopsis>
+				<syntax>
+					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+					<parameter name="Digit">
+						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
+					</parameter>
+					<parameter name="DurationMs">
+						<para>Duration (in milliseconds) DTMF was sent/received</para>
+					</parameter>
+					<parameter name="Direction">
+						<enumlist>
+							<enum name="Received"/>
+							<enum name="Sent"/>
+						</enumlist>
+					</parameter>
+				</syntax>
+		</managerEventInstance>
+	***/
+	manager_event(EVENT_FLAG_DTMF, "DTMFEnd",
+		"%s"
+		"Digit: %s\r\n"
+		"DurationMs: %ld\r\n"
+		"Direction: %s\r\n",
+		ast_str_buffer(channel_event_string),
+		digit, duration_ms, direction);
+}
+
 /*!
  * \brief Callback processing messages on the channel topic.
  */
@@ -672,6 +756,10 @@ static void channel_blob_cb(void *data, struct stasis_subscription *sub,
 		channel_userevent(obj);
 	} else if (strcmp("hangup_request", ast_channel_blob_json_type(obj)) == 0) {
 		channel_hangup_request(obj);
+	} else if (strcmp("dtmf_begin", ast_channel_blob_json_type(obj)) == 0) {
+		channel_dtmf_begin(obj);
+	} else if (strcmp("dtmf_end", ast_channel_blob_json_type(obj)) == 0) {
+		channel_dtmf_end(obj);
 	}
 }
 

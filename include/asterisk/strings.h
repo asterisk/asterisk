@@ -83,6 +83,18 @@ static force_inline int attribute_pure ast_strlen_zero(const char *s)
 #define S_COR(a, b, c) ({typeof(&((b)[0])) __x = (b); (a) && !ast_strlen_zero(__x) ? (__x) : (c);})
 
 /*!
+ * \brief return Yes or No depending on the argument.
+ *
+ * Note that this macro is used my AMI, where a literal "Yes" and "No" are
+ * expected, and translations would cause problems.
+ *
+ * \param x Boolean value
+ * \return "Yes" if x is true (non-zero)
+ * \return "No" if x is false (zero)
+ */
+#define AST_YESNO(x) ((x) ? "Yes" : "No")
+
+/*!
   \brief Gets a pointer to the first non-whitespace character in a string.
   \param str the input string
   \return a pointer to the first non-whitespace character

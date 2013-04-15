@@ -3714,42 +3714,56 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 	return 0; /* Time is up */
 }
 
-static void send_dtmf_event(struct ast_channel *chan, const char *direction, const char digit, const char *begin, const char *end)
+enum DtmfDirection {
+	DTMF_RECEIVED,
+	DTMF_SENT
+};
+
+static const char *dtmf_direction_to_string(enum DtmfDirection direction)
 {
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a DTMF digit has started or ended on a channel.</synopsis>
-				<syntax>
-					<parameter name="Direction">
-						<enumlist>
-							<enum name="Received"/>
-							<enum name="Sent"/>
-						</enumlist>
-					</parameter>
-					<parameter name="Begin">
-						<enumlist>
-							<enum name="Yes"/>
-							<enum name="No"/>
-						</enumlist>
-					</parameter>
-					<parameter name="End">
-						<enumlist>
-							<enum name="Yes"/>
-							<enum name="No"/>
-						</enumlist>
-					</parameter>
-				</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_DTMF,
-			"DTMF",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Digit: %c\r\n"
-			"Direction: %s\r\n"
-			"Begin: %s\r\n"
-			"End: %s\r\n",
-			ast_channel_name(chan), ast_channel_uniqueid(chan), digit, direction, begin, end);
+	switch (direction) {
+	case DTMF_RECEIVED:
+		return "Received";
+	case DTMF_SENT:
+		return "Sent";
+	}
+
+	return "?";
+}
+
+static void send_dtmf_begin_event(struct ast_channel *chan,
+	enum DtmfDirection direction, const char digit)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	char digit_str[] = { digit, '\0' };
+
+	blob = ast_json_pack("{ s: s, s: s, s: s }",
+		"type", "dtmf_begin",
+		"digit", digit_str,
+		"direction", dtmf_direction_to_string(direction));
+	if (!blob) {
+		return;
+	}
+
+	publish_channel_blob(chan, blob);
+}
+
+static void send_dtmf_end_event(struct ast_channel *chan,
+	enum DtmfDirection direction, const char digit, long duration_ms)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	char digit_str[] = { digit, '\0' };
+
+	blob = ast_json_pack("{ s: s, s: s, s: s, s: i }",
+		"type", "dtmf_end",
+		"digit", digit_str,
+		"direction", dtmf_direction_to_string(direction),
+		"duration_ms", duration_ms);
+	if (!blob) {
+		return;
+	}
+
+	publish_channel_blob(chan, blob);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -4104,7 +4118,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_DTMF_END:
-			send_dtmf_event(chan, "Received", f->subclass.integer, "No", "Yes");
+			send_dtmf_end_event(chan, DTMF_RECEIVED, f->subclass.integer, f->len);
 			ast_log(LOG_DTMF, "DTMF end '%c' received on %s, duration %ld ms\n", f->subclass.integer, ast_channel_name(chan), f->len);
 			/* Queue it up if DTMF is deferred, or if DTMF emulation is forced. */
 			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF) || ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF)) {
@@ -4190,7 +4204,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
-			send_dtmf_event(chan, "Received", f->subclass.integer, "Yes", "No");
+			send_dtmf_begin_event(chan, DTMF_RECEIVED, f->subclass.integer);
 			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass.integer, ast_channel_name(chan));
 			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY | AST_FLAG_EMULATE_DTMF) ||
 			    (!ast_tvzero(*ast_channel_dtmf_tv(chan)) &&
@@ -5042,7 +5056,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			if (old_frame != fr)
 				f = fr;
 		}
-		send_dtmf_event(chan, "Sent", fr->subclass.integer, "Yes", "No");
+		send_dtmf_begin_event(chan, DTMF_SENT, fr->subclass.integer);
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_begin(chan, fr->subclass.integer);
@@ -5058,7 +5072,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				ast_frfree(new_frame);
 			}
 		}
-		send_dtmf_event(chan, "Sent", fr->subclass.integer, "No", "Yes");
+		send_dtmf_end_event(chan, DTMF_SENT, fr->subclass.integer, fr->len);
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_end(chan, fr->subclass.integer, fr->len);
