@@ -114,7 +114,9 @@ struct stasis_ws_session_info {
 
 static void session_dtor(void *obj)
 {
+#ifdef AST_DEVMODE /* Avoid unused variable warning */
 	struct stasis_ws_session_info *session = obj;
+#endif
 
 	/* session_shutdown should have been called before */
 	ast_assert(session->ws_session == NULL);
