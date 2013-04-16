@@ -34,7 +34,7 @@
  * \brief Structure representing a snapshot of channel state.
  *
  * While not enforced programmatically, this object is shared across multiple
- * threads, and should be threated as an immutable object.
+ * threads, and should be treated as an immutable object.
  */
 struct ast_channel_snapshot {
 	AST_DECLARE_STRING_FIELDS(
