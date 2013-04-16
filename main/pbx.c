@@ -1130,11 +1130,6 @@ struct presencechange {
 	char *message;
 };
 
-struct statechange {
-	AST_LIST_ENTRY(statechange) entry;
-	char dev[0];
-};
-
 struct pbx_exception {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(context);	/*!< Context associated with this exception */
@@ -1300,7 +1295,7 @@ static int extenpatternmatchnew = 0;
 static char *overrideswitch = NULL;
 
 /*! \brief Subscription for device state change events */
-static struct ast_event_sub *device_state_sub;
+static struct stasis_subscription *device_state_sub;
 /*! \brief Subscription for presence state change events */
 static struct ast_event_sub *presence_state_sub;
 
@@ -5247,32 +5242,40 @@ static void get_device_state_causing_channels(struct ao2_container *c)
 	ao2_iterator_destroy(&iter);
 }
 
-static int handle_statechange(void *datap)
+static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
+	struct ast_device_state_message *dev_state;
 	struct ast_hint *hint;
 	struct ast_str *hint_app;
 	struct ast_hintdevice *device;
 	struct ast_hintdevice *cmpdevice;
-	struct statechange *sc = datap;
 	struct ao2_iterator *dev_iter;
 	struct ao2_iterator cb_iter;
 	char context_name[AST_MAX_CONTEXT];
 	char exten_name[AST_MAX_EXTENSION];
 
+	if (ast_device_state_message_type() != stasis_message_type(msg)) {
+		return;
+	}
+
+	dev_state = stasis_message_data(msg);
+	if (dev_state->eid) {
+		/* ignore non-aggregate states */
+		return;
+	}
+
 	if (ao2_container_count(hintdevices) == 0) {
 		/* There are no hints monitoring devices. */
-		ast_free(sc);
-		return 0;
+		return;
 	}
 
 	hint_app = ast_str_create(1024);
 	if (!hint_app) {
-		ast_free(sc);
-		return -1;
+		return;
 	}
 
-	cmpdevice = ast_alloca(sizeof(*cmpdevice) + strlen(sc->dev));
-	strcpy(cmpdevice->hintdevice, sc->dev);
+	cmpdevice = ast_alloca(sizeof(*cmpdevice) + strlen(dev_state->device));
+	strcpy(cmpdevice->hintdevice, dev_state->device);
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
 	dev_iter = ao2_t_callback(hintdevices,
@@ -5283,8 +5286,7 @@ static int handle_statechange(void *datap)
 	if (!dev_iter) {
 		ast_mutex_unlock(&context_merge_lock);
 		ast_free(hint_app);
-		ast_free(sc);
-		return -1;
+		return;
 	}
 
 	for (; (device = ao2_iterator_next(dev_iter)); ao2_t_ref(device, -1, "Next device")) {
@@ -5381,8 +5383,7 @@ static int handle_statechange(void *datap)
 
 	ao2_iterator_destroy(dev_iter);
 	ast_free(hint_app);
-	ast_free(sc);
-	return 0;
+	return;
 }
 
 /*!
@@ -8846,7 +8847,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	/*
 	 * Notify watchers of all removed hints with the same lock
-	 * environment as handle_statechange().
+	 * environment as device_state_cb().
 	 */
 	while ((saved_hint = AST_LIST_REMOVE_HEAD(&hints_removed, list))) {
 		/* this hint has been removed, notify the watchers */
@@ -11707,25 +11708,6 @@ static void presence_state_cb(const struct ast_event *event, void *unused)
 	}
 }
 
-static void device_state_cb(const struct ast_event *event, void *unused)
-{
-	const char *device;
-	struct statechange *sc;
-
-	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
-	if (ast_strlen_zero(device)) {
-		ast_log(LOG_ERROR, "Received invalid event that had no device IE\n");
-		return;
-	}
-
-	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(device) + 1)))
-		return;
-	strcpy(sc->dev, device);
-	if (ast_taskprocessor_push(extension_state_tps, handle_statechange, sc) < 0) {
-		ast_free(sc);
-	}
-}
-
 /*!
  * \internal
  * \brief Implements the hints data provider.
@@ -11786,7 +11768,7 @@ static void unload_pbx(void)
 		presence_state_sub = ast_event_unsubscribe(presence_state_sub);
 	}
 	if (device_state_sub) {
-		device_state_sub = ast_event_unsubscribe(device_state_sub);
+		device_state_sub = stasis_unsubscribe(device_state_sub);
 	}
 
 	/* Unregister builtin applications */
@@ -11833,8 +11815,7 @@ int load_pbx(void)
 	/* Register manager application */
 	ast_manager_register_xml_core("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, "pbx Device State Change", NULL,
-			AST_EVENT_IE_END))) {
+	if (!(device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL))) {
 		return -1;
 	}
 

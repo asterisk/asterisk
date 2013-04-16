@@ -47,6 +47,7 @@
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/pbx.h"
+#include "asterisk/stasis.h"
 
 /*
  * As per RFC 3920 - section 3.1, the maximum length for a full Jabber ID
@@ -135,7 +136,7 @@ struct ast_xmpp_client {
 	int timeout;
 	unsigned int reconnect:1; /*!< Reconnect this client */
 	struct stasis_subscription *mwi_sub; /*!< If distributing event information the MWI subscription */
-	struct ast_event_sub *device_state_sub; /*!< If distributing event information the device state subscription */
+	struct stasis_subscription *device_state_sub; /*!< If distributing event information the device state subscription */
 };
 
 /*!

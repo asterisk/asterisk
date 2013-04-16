@@ -1352,22 +1352,22 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void xmpp_pubsub_devstate_cb(const struct ast_event *ast_event, void *data)
+static void xmpp_pubsub_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct ast_xmpp_client *client = data;
-	const char *device, *device_state;
-	unsigned int cachable;
+	struct ast_device_state_message *dev_state;
 
-	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID))) {
-		/* If the event didn't originate from this server, don't send it back out. */
-		ast_debug(1, "Returning here\n");
+	if (!stasis_subscription_is_subscribed(sub) || ast_device_state_message_type() != stasis_message_type(msg)) {
 		return;
 	}
 
-	device = ast_event_get_ie_str(ast_event, AST_EVENT_IE_DEVICE);
-	device_state = ast_devstate_str(ast_event_get_ie_uint(ast_event, AST_EVENT_IE_STATE));
-	cachable = ast_event_get_ie_uint(ast_event, AST_EVENT_IE_CACHABLE);
-	xmpp_pubsub_publish_device_state(client, device, device_state, cachable);
+	dev_state = stasis_message_data(msg);
+	if (!dev_state->eid || ast_eid_cmp(&ast_eid_default, dev_state->eid)) {
+		/* If the event is aggregate or didn't originate from this server, don't send it out. */
+		return;
+	}
+
+	xmpp_pubsub_publish_device_state(client, dev_state->device, ast_devstate_str(dev_state->state), dev_state->cachable);
 }
 
 /*!
@@ -1474,13 +1474,11 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 		if ((cachable_str = iks_find_cdata(item, "cachable"))) {
 			sscanf(cachable_str, "%30d", &cachable);
 		}
-		if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
-					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_STATE,
-					    AST_EVENT_IE_PLTYPE_UINT, ast_devstate_val(device_state), AST_EVENT_IE_EID,
-					    AST_EVENT_IE_PLTYPE_RAW, &pubsub_eid, sizeof(pubsub_eid),
-					    AST_EVENT_IE_END))) {
-			return IKS_FILTER_EAT;
-		}
+		ast_publish_device_state_full(item_id,
+						ast_devstate_val(device_state),
+						cachable == AST_DEVSTATE_CACHABLE ? AST_DEVSTATE_CACHABLE : AST_DEVSTATE_NOT_CACHABLE,
+						&pubsub_eid);
+		return IKS_FILTER_EAT;
 	} else if (!strcasecmp(iks_name(item_content), "mailbox")) {
 		context = strsep(&item_id, "@");
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
@@ -1572,6 +1570,14 @@ static int xmpp_pubsub_handle_error(void *data, ikspak *pak)
 	return IKS_FILTER_EAT;
 }
 
+static int cached_devstate_cb(void *obj, void *arg, int flags)
+{
+	struct stasis_message *msg = obj;
+	struct ast_xmpp_client *client = arg;
+	xmpp_pubsub_devstate_cb(client, client->device_state_sub, NULL, msg);
+	return 0;
+}
+
 /*!
  * \brief Initialize collections for event distribution
  * \param client the configured XMPP client we use to connect to a XMPP server
@@ -1581,6 +1587,7 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, cached, NULL, ao2_cleanup);
 
 	if (!cfg || !cfg->clients || !(clientcfg = xmpp_config_find(cfg->clients, client->name))) {
 		return;
@@ -1593,17 +1600,13 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 		return;
 	}
 
-	if (ast_enable_distributed_devstate()) {
-		return;
-	}
-
-	if (!(client->device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
-							     xmpp_pubsub_devstate_cb, "xmpp_pubsub_devstate_subscription", client, AST_EVENT_IE_END))) {
+	if (!(client->device_state_sub = stasis_subscribe(ast_device_state_topic_all(), xmpp_pubsub_devstate_cb, client))) {
 		client->mwi_sub = stasis_unsubscribe(client->mwi_sub);
 		return;
 	}
 
-	ast_event_dump_cache(client->device_state_sub);
+	cached = stasis_cache_dump(ast_device_state_topic_cached(), NULL);
+	ao2_callback(cached, OBJ_NODATA, cached_devstate_cb, client);
 
 	xmpp_pubsub_subscribe(client, "device_state");
 	xmpp_pubsub_subscribe(client, "message_waiting");
@@ -3528,8 +3531,7 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 	}
 
 	if (client->device_state_sub) {
-		ast_event_unsubscribe(client->device_state_sub);
-		client->device_state_sub = NULL;
+		client->device_state_sub = stasis_unsubscribe(client->device_state_sub);
 		xmpp_pubsub_unsubscribe(client, "device_state");
 	}
 

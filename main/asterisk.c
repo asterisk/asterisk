@@ -4180,6 +4180,11 @@ int main(int argc, char *argv[])
 
 	aco_init();
 
+	if (devstate_init()) {
+		printf("Device state core initialization failed.\n%s", term_quit());
+		exit(1);
+	}
+
 	if (app_init()) {
 		printf("App core initialization failed.\n%s", term_quit());
 		exit(1);

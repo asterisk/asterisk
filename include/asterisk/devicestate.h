@@ -38,6 +38,7 @@
 #define _ASTERISK_DEVICESTATE_H
 
 #include "asterisk/channelstate.h"
+#include "asterisk/utils.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -270,19 +271,87 @@ struct ast_devstate_aggregate {
 };
 
 /*!
- * \brief Enable distributed device state processing.
- *
- * \details
- * By default, Asterisk assumes that device state change events will only be
- * originating from one instance.  If a module gets loaded and configured such
- * that multiple instances of Asterisk will be sharing device state, this
- * function should be called to enable distributed device state processing.
- * It is off by default to save on unnecessary processing.
- *
- * \retval 0 success
- * \retval -1 failure
+ * \brief The structure that contains device state
+ * \since 12
  */
-int ast_enable_distributed_devstate(void);
+struct ast_device_state_message {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(cache_id);	/*!< A unique ID used for hashing */
+		AST_STRING_FIELD(device);	/*!< The name of the device */
+	);
+	enum ast_device_state state;		/*!< The state of the device */
+	struct ast_eid *eid;			/*!< The EID of the server where this message originated, NULL EID means aggregate state */
+	enum ast_devstate_cache cachable;	/*!< Flag designating the cachability of this device state */
+};
+
+/*!
+ * \brief Get the Stasis topic for device state messages
+ * \retval The topic for device state messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_topic *ast_device_state_topic_all(void);
+
+/*!
+ * \brief Get the Stasis topic for device state messages for a specific device
+ * \param uniqueid The device for which to get the topic
+ * \retval The topic structure for MWI messages for a given device
+ * \retval NULL if it failed to be found or allocated
+ * \since 12
+ */
+struct stasis_topic *ast_device_state_topic(const char *device);
+
+/*!
+ * \brief Get the Stasis caching topic for device state messages
+ * \retval The caching topic for device state messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_caching_topic *ast_device_state_topic_cached(void);
+
+/*!
+ * \brief Get the Stasis message type for device state messages
+ * \retval The message type for device state messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_message_type *ast_device_state_message_type(void);
+
+/*!
+ * \brief Initialize the device state core
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+int devstate_init(void);
+
+/*!
+ * \brief Publish a device state update
+ * \param[in] device The device name
+ * \param[in] state The state of the device
+ * \param[in] cachable Whether the device state can be cached
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+#define ast_publish_device_state(device, state, cachable) \
+	ast_publish_device_state_full(device, state, cachable, &ast_eid_default)
+
+/*!
+ * \brief Publish a device state update with EID
+ * \param[in] device The device name
+ * \param[in] state The state of the device
+ * \param[in] cachable Whether the device state can be cached
+ * \param[in] eid The EID of the server that originally published the message
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 12
+ */
+int ast_publish_device_state_full(
+			const char *device,
+			enum ast_device_state state,
+			enum ast_devstate_cache cachable,
+			struct ast_eid *eid);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

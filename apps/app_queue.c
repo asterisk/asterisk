@@ -990,9 +990,6 @@ static const struct autopause {
 	{ QUEUE_AUTOPAUSE_ALL,"all" },
 };
 
-
-static struct ast_taskprocessor *devicestate_tps;
-
 #define DEFAULT_RETRY		5
 #define DEFAULT_TIMEOUT		15
 #define RECHECK			1		/*!< Recheck every second to see we we're at the top yet */
@@ -1037,8 +1034,8 @@ static int montype_default = 0;
 /*! \brief queues.conf [general] option */
 static int shared_lastcall = 1;
 
-/*! \brief Subscription to device state change events */
-static struct ast_event_sub *device_state_sub;
+/*! \brief Subscription to device state change messages */
+static struct stasis_subscription *device_state_sub;
 
 /*! \brief queues.conf [general] option */
 static int update_cdr = 0;
@@ -1618,12 +1615,6 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 	return -1;
 }
 
-struct statechange {
-	AST_LIST_ENTRY(statechange) entry;
-	int state;
-	char dev[0];
-};
-
 /*! \brief set a member's status based on device state of that member's state_interface.
  *
  * Lock interface list find sc, iterate through each queues queue_member list for member to
@@ -1742,16 +1733,26 @@ static int is_member_available(struct member *mem)
 }
 
 /*! \brief set a member's status based on device state of that member's interface*/
-static int handle_statechange(void *datap)
+static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
-	struct statechange *sc = datap;
 	struct ao2_iterator miter, qiter;
+	struct ast_device_state_message *dev_state;
 	struct member *m;
 	struct call_queue *q;
 	char interface[80], *slash_pos;
 	int found = 0;			/* Found this member in any queue */
 	int found_member;		/* Found this member in this queue */
 	int avail = 0;			/* Found an available member in this queue */
+
+	if (ast_device_state_message_type() != stasis_message_type(msg)) {
+		return;
+	}
+
+	dev_state = stasis_message_data(msg);
+	if (dev_state->eid) {
+		/* ignore non-aggregate states */
+		return;
+	}
 
 	qiter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&qiter, "Iterate over queues"))) {
@@ -1770,9 +1771,9 @@ static int handle_statechange(void *datap)
 					}
 				}
 
-				if (!strcasecmp(interface, sc->dev)) {
+				if (!strcasecmp(interface, dev_state->device)) {
 					found_member = 1;
-					update_status(q, m, sc->state);
+					update_status(q, m, dev_state->state);
 				}
 			}
 
@@ -1804,39 +1805,18 @@ static int handle_statechange(void *datap)
 	ao2_iterator_destroy(&qiter);
 
 	if (found) {
-		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, ast_devstate2str(sc->state));
+		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n",
+			dev_state->device,
+			dev_state->state,
+			ast_devstate2str(dev_state->state));
 	} else {
-		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", sc->dev, sc->state, ast_devstate2str(sc->state));
+		ast_debug(3, "Device '%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n",
+			dev_state->device,
+			dev_state->state,
+			ast_devstate2str(dev_state->state));
 	}
 
-	ast_free(sc);
-	return 0;
-}
-
-static void device_state_cb(const struct ast_event *event, void *unused)
-{
-	enum ast_device_state state;
-	const char *device;
-	struct statechange *sc;
-	size_t datapsize;
-
-	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
-	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
-
-	if (ast_strlen_zero(device)) {
-		ast_log(LOG_ERROR, "Received invalid event that had no device IE\n");
-		return;
-	}
-	datapsize = sizeof(*sc) + strlen(device) + 1;
-	if (!(sc = ast_calloc(1, datapsize))) {
-		ast_log(LOG_ERROR, "failed to calloc a state change struct\n");
-		return;
-	}
-	sc->state = state;
-	strcpy(sc->dev, device);
-	if (ast_taskprocessor_push(devicestate_tps, handle_statechange, sc) < 0) {
-		ast_free(sc);
-	}
+	return;
 }
 
 /*! \brief Helper function which converts from extension state to device state values */
@@ -9876,8 +9856,9 @@ static int unload_module(void)
 
 	res |= ast_data_unregister(NULL);
 
-	if (device_state_sub)
-		ast_event_unsubscribe(device_state_sub);
+	if (device_state_sub) {
+		device_state_sub = stasis_unsubscribe(device_state_sub);
+	}
 
 	ast_extension_state_del(0, extension_state_cb);
 
@@ -9887,7 +9868,6 @@ static int unload_module(void)
 		queue_t_unref(q, "Done with iterator");
 	}
 	ao2_iterator_destroy(&q_iter);
-	devicestate_tps = ast_taskprocessor_unreference(devicestate_tps);
 	ao2_ref(queues, -1);
 	ast_unload_realtime("queue_members");
 	return res;
@@ -9948,12 +9928,8 @@ static int load_module(void)
 	res |= ast_custom_function_register(&queuewaitingcount_function);
 	res |= ast_custom_function_register(&queuememberpenalty_function);
 
-	if (!(devicestate_tps = ast_taskprocessor_get("app_queue", 0))) {
-		ast_log(LOG_WARNING, "devicestate taskprocessor reference failed - devicestate notifications will not occur\n");
-	}
-
 	/* in the following subscribe call, do I use DEVICE_STATE, or DEVICE_STATE_CHANGE? */
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, "AppQueue Device state", NULL, AST_EVENT_IE_END))) {
+	if (!(device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL))) {
 		res = -1;
 	}
 
