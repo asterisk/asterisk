@@ -660,8 +660,6 @@ static int load_module(void)
 
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
 
-	ast_enable_distributed_devstate();
-
 	return AST_MODULE_LOAD_SUCCESS;
 
 failed:
