@@ -705,7 +705,7 @@ static void *run_devstate_collector(void *data)
 static void devstate_change_collector_cb(const struct ast_event *event, void *data)
 {
 	struct devstate_change *sc;
-	const char *device;
+	const char *device, *cachable_str;
 	const struct ast_eid *eid;
 	uint32_t state;
 	enum ast_devstate_cache cachable = AST_DEVSTATE_CACHABLE;
@@ -713,7 +713,6 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
 	eid = ast_event_get_ie_raw(event, AST_EVENT_IE_EID);
 	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
-	cachable = ast_event_get_ie_uint(event, AST_EVENT_IE_CACHABLE);
 
 	if (ast_strlen_zero(device) || !eid) {
 		ast_log(LOG_ERROR, "Invalid device state change event received\n");
@@ -726,6 +725,16 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 	strcpy(sc->device, device);
 	sc->eid = *eid;
 	sc->state = state;
+
+	/* For 'cachable' we cannot use ast_event_get_ie_uint(), it overwrites the default of AST_DEVSTATE_CACHABLE we
+	 * have already setup for 'cachable', if for whatever reason the AST_EVENT_IE_CACHABLE wasn't
+	 * posted in the event ast_event_get_ie_uint() is going will return 0,
+	 * which equates to AST_DEVSTATE_NOT_CACHABLE the first enumeration in 'ast_devstate_cache'.
+	 */
+
+	if ((cachable_str = ast_event_get_ie_str(event, AST_EVENT_IE_CACHABLE))) {
+		sscanf(cachable_str, "%30u", &cachable);
+	}
 	sc->cachable = cachable;
 
 	ast_mutex_lock(&devstate_collector.lock);
