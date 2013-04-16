@@ -3355,10 +3355,10 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 		return IKS_FILTER_EAT;
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
-		device_state = iks_find_cdata(item, "state");
-		if ((cachable_str = iks_find_cdata(item, "cachable"))) {
+		if ((cachable_str = iks_find_attrib(item_content, "cachable"))) {
 			sscanf(cachable_str, "%30d", &cachable);
 		}
+		device_state = iks_find_cdata(item, "state");
 		ast_publish_device_state_full(item_id,
 						ast_devstate_val(device_state),
 						cachable == AST_DEVSTATE_CACHABLE ? AST_DEVSTATE_CACHABLE : AST_DEVSTATE_NOT_CACHABLE,
