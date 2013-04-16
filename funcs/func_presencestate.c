@@ -645,21 +645,20 @@ AST_TEST_DEFINE(test_invalid_parse_data)
 }
 
 struct test_cb_data {
-	enum ast_presence_state presence;
-	const char *provider;
-	const char *subtype;
-	const char *message;
+	struct ast_presence_state_message *presence_state;
 	/* That's right. I'm using a semaphore */
 	sem_t sem;
 };
 
-static void test_cb(const struct ast_event *event, void *userdata)
+static void test_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
 {
 	struct test_cb_data *cb_data = userdata;
-	cb_data->presence = ast_event_get_ie_uint(event, AST_EVENT_IE_PRESENCE_STATE);
-	cb_data->provider = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_PROVIDER));
-	cb_data->subtype = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_SUBTYPE));
-	cb_data->message = ast_strdup(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_MESSAGE));
+	if (stasis_message_type(msg) != ast_presence_state_message_type()) {
+		return;
+	}
+	cb_data->presence_state = stasis_message_data(msg);
+	ao2_ref(cb_data->presence_state, +1);
+
 	sem_post(&cb_data->sem);
 }
 
@@ -670,7 +669,7 @@ static void test_cb(const struct ast_event *event, void *userdata)
  */
 AST_TEST_DEFINE(test_presence_state_change)
 {
-	struct ast_event_sub *test_sub;
+	struct stasis_subscription *test_sub;
 	struct test_cb_data *cb_data;
 
 	switch (cmd) {
@@ -690,8 +689,7 @@ AST_TEST_DEFINE(test_presence_state_change)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(test_sub = ast_event_subscribe(AST_EVENT_PRESENCE_STATE,
-			test_cb, "Test presence state callbacks", cb_data, AST_EVENT_IE_END))) {
+	if (!(test_sub = stasis_subscribe(ast_presence_state_topic_all(), test_cb, cb_data))) {
 		return AST_TEST_FAIL;
 	}
 
@@ -701,16 +699,16 @@ AST_TEST_DEFINE(test_presence_state_change)
 
 	presence_write(NULL, "PRESENCESTATE", "CustomPresence:TestPresenceStateChange", "away,down the hall,Quarterly financial meeting");
 	sem_wait(&cb_data->sem);
-	if (cb_data->presence != AST_PRESENCE_AWAY ||
-			strcmp(cb_data->provider, "CustomPresence:TestPresenceStateChange") ||
-			strcmp(cb_data->subtype, "down the hall") ||
-			strcmp(cb_data->message, "Quarterly financial meeting")) {
+	if (cb_data->presence_state->state != AST_PRESENCE_AWAY ||
+			strcmp(cb_data->presence_state->provider, "CustomPresence:TestPresenceStateChange") ||
+			strcmp(cb_data->presence_state->subtype, "down the hall") ||
+			strcmp(cb_data->presence_state->message, "Quarterly financial meeting")) {
 		return AST_TEST_FAIL;
 	}
 
-	ast_free((char *)cb_data->provider);
-	ast_free((char *)cb_data->subtype);
-	ast_free((char *)cb_data->message);
+	test_sub = stasis_unsubscribe(test_sub);
+
+	ao2_cleanup(cb_data->presence_state);
 	ast_free((char *)cb_data);
 
 	ast_db_del("CustomPresence", "TestPresenceStateChange");

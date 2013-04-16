@@ -149,6 +149,40 @@ int ast_presence_state_prov_add(const char *label, ast_presence_state_prov_cb_ty
  */
 int ast_presence_state_prov_del(const char *label);
 
+/*!
+ * \brief Get presence state message type
+ * \retval Stasis message type for presence state messages
+ * \since 12
+ */
+struct stasis_message_type *ast_presence_state_message_type(void);
+
+/*!
+ * \brief Get presence state topic
+ * \retval Stasis topic for presence state messages
+ * \since 12
+ */
+struct stasis_topic *ast_presence_state_topic_all(void);
+
+/*!
+ * \brief Get caching presence state topic
+ * \retval Caching Stasis topic for presence state messages
+ * \since 12
+ */
+struct stasis_caching_topic *ast_presence_state_topic_cached(void);
+
+/*!
+ * \brief Stasis message payload representing a presence state update
+ * \since 12
+ */
+struct ast_presence_state_message {
+		AST_DECLARE_STRING_FIELDS(
+			AST_STRING_FIELD(provider);	/*!< Provider that produced this presence state message */
+			AST_STRING_FIELD(subtype);	/*!< Subtype associated with this presence state message */
+			AST_STRING_FIELD(message);	/*!< The message to convey */
+		);
+		enum ast_presence_state state;		/*!< The state associated with this presence state message */
+};
+
 int ast_presence_state_engine_init(void);
 #endif
 
