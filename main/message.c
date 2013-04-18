@@ -1041,6 +1041,27 @@ static int msg_tech_cmp(void *obj, void *arg, int flags)
 	return res;
 }
 
+static struct ast_msg_tech_holder *msg_find_by_tech(const struct ast_msg_tech *msg_tech, int ao2_flags)
+{
+	struct ast_msg_tech_holder *tech_holder;
+	struct ast_msg_tech_holder tmp_tech_holder = {
+		.tech = msg_tech,
+	};
+
+	ast_rwlock_init(&tmp_tech_holder.tech_lock);
+	tech_holder = ao2_find(msg_techs, &tmp_tech_holder, ao2_flags);
+	ast_rwlock_destroy(&tmp_tech_holder.tech_lock);
+	return tech_holder;
+}
+
+static struct ast_msg_tech_holder *msg_find_by_tech_name(const char *tech_name, int ao2_flags)
+{
+	struct ast_msg_tech tmp_msg_tech = {
+		.name = tech_name,
+	};
+	return msg_find_by_tech(&tmp_msg_tech, ao2_flags);
+}
+
 /*!
  * \internal
  * \brief MessageSend() application
@@ -1089,16 +1110,7 @@ static int msg_send_exec(struct ast_channel *chan, const char *data)
 	tech_name = ast_strdupa(args.to);
 	tech_name = strsep(&tech_name, ":");
 
-	{
-		struct ast_msg_tech tmp_msg_tech = {
-			.name = tech_name,
-		};
-		struct ast_msg_tech_holder tmp_tech_holder = {
-			.tech = &tmp_msg_tech,
-		};
-
-		tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER);
-	}
+	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
 
 	if (!tech_holder) {
 		ast_log(LOG_WARNING, "No message technology '%s' found.\n", tech_name);
@@ -1159,16 +1171,8 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 
 	tech_name = ast_strdupa(to);
 	tech_name = strsep(&tech_name, ":");
-	{
-		struct ast_msg_tech tmp_msg_tech = {
-			.name = tech_name,
-		};
-		struct ast_msg_tech_holder tmp_tech_holder = {
-			.tech = &tmp_msg_tech,
-		};
 
-		tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER);
-	}
+	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
 
 	if (!tech_holder) {
 		astman_send_error(s, m, "Message technology not found.");
@@ -1219,16 +1223,8 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 
 	tech_name = ast_strdupa(to);
 	tech_name = strsep(&tech_name, ":");
-	{
-		struct ast_msg_tech tmp_msg_tech = {
-			.name = tech_name,
-		};
-		struct ast_msg_tech_holder tmp_tech_holder = {
-			.tech = &tmp_msg_tech,
-		};
 
-		tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER);
-	}
+	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
 
 	if (!tech_holder) {
 		ao2_ref(msg, -1);
@@ -1249,12 +1245,9 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 
 int ast_msg_tech_register(const struct ast_msg_tech *tech)
 {
-	struct ast_msg_tech_holder tmp_tech_holder = {
-		.tech = tech,
-	};
 	struct ast_msg_tech_holder *tech_holder;
 
-	if ((tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER))) {
+	if ((tech_holder = msg_find_by_tech(tech, OBJ_POINTER))) {
 		ao2_ref(tech_holder, -1);
 		ast_log(LOG_ERROR, "Message technology already registered for '%s'\n",
 				tech->name);
@@ -1280,12 +1273,9 @@ int ast_msg_tech_register(const struct ast_msg_tech *tech)
 
 int ast_msg_tech_unregister(const struct ast_msg_tech *tech)
 {
-	struct ast_msg_tech_holder tmp_tech_holder = {
-		.tech = tech,
-	};
 	struct ast_msg_tech_holder *tech_holder;
 
-	tech_holder = ao2_find(msg_techs, &tmp_tech_holder, OBJ_POINTER | OBJ_UNLINK);
+	tech_holder = msg_find_by_tech(tech, OBJ_POINTER | OBJ_UNLINK);
 
 	if (!tech_holder) {
 		ast_log(LOG_ERROR, "No '%s' message technology found.\n", tech->name);
