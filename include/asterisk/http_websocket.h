@@ -19,6 +19,7 @@
 #ifndef _ASTERISK_HTTP_WEBSOCKET_H
 #define _ASTERISK_HTTP_WEBSOCKET_H
 
+#include "asterisk/http.h"
 #include "asterisk/optional_api.h"
 
 /*!
@@ -40,7 +41,13 @@ enum ast_websocket_opcode {
 };
 
 /*!
- * \brief Opaque structure for WebSocket sessions
+ * \brief Opaque structure for WebSocket server.
+ * \since 12
+ */
+struct ast_websocket_server;
+
+/*!
+ * \brief Opaque structure for WebSocket sessions.
  */
 struct ast_websocket;
 
@@ -58,7 +65,24 @@ struct ast_websocket;
 typedef void (*ast_websocket_callback)(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers);
 
 /*!
- * \brief Add a sub-protocol handler to the server
+ * \brief Creates a \ref websocket_server
+ *
+ * \retval New \ref websocket_server instance
+ * \retval \c NULL on error
+ * \since 12
+ */
+struct ast_websocket_server *ast_websocket_server_create(void);
+
+/*!
+ * \brief Callback suitable for use with a \ref ast_http_uri.
+ *
+ * Set the data field of the ast_http_uri to \ref ast_websocket_server.
+ * \since 12
+ */
+int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers);
+
+/*!
+ * \brief Add a sub-protocol handler to the default /ws server
  *
  * \param name Name of the sub-protocol to register
  * \param callback Callback called when a new connection requesting the sub-protocol is established
@@ -69,7 +93,7 @@ typedef void (*ast_websocket_callback)(struct ast_websocket *session, struct ast
 AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
 
 /*!
- * \brief Remove a sub-protocol handler from the server
+ * \brief Remove a sub-protocol handler from the default /ws server.
  *
  * \param name Name of the sub-protocol to unregister
  * \param callback Callback that was previously registered with the sub-protocol
@@ -78,6 +102,30 @@ AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websock
  * \retval -1 if sub-protocol was not found or if callback did not match
  */
 AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
+
+/*!
+ * \brief Add a sub-protocol handler to the given server.
+ *
+ * \param name Name of the sub-protocol to register
+ * \param callback Callback called when a new connection requesting the sub-protocol is established
+ *
+ * \retval 0 success
+ * \retval -1 if sub-protocol handler could not be registered
+ * \since 12
+ */
+AST_OPTIONAL_API(int, ast_websocket_server_add_protocol, (struct ast_websocket_server *server, const char *name, ast_websocket_callback callback), {return -1;});
+
+/*!
+ * \brief Remove a sub-protocol handler from the given server.
+ *
+ * \param name Name of the sub-protocol to unregister
+ * \param callback Callback that was previously registered with the sub-protocol
+ *
+ * \retval 0 success
+ * \retval -1 if sub-protocol was not found or if callback did not match
+ * \since 12
+ */
+AST_OPTIONAL_API(int, ast_websocket_server_remove_protocol, (struct ast_websocket_server *server, const char *name, ast_websocket_callback callback), {return -1;});
 
 /*!
  * \brief Read a WebSocket frame and handle it

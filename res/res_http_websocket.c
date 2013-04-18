@@ -77,9 +77,6 @@ struct websocket_protocol {
 	ast_websocket_callback callback; /*!< Callback called when a new session is established */
 };
 
-/*! \brief Container for registered protocols */
-static struct ao2_container *protocols;
-
 /*! \brief Hashing function for protocols */
 static int protocol_hash_fn(const void *obj, const int flags)
 {
@@ -105,6 +102,36 @@ static void protocol_destroy_fn(void *obj)
 	ast_free(protocol->name);
 }
 
+/*! \brief Structure for a WebSocket server */
+struct ast_websocket_server {
+	struct ao2_container *protocols; /*!< Container for registered protocols */
+};
+
+static void websocket_server_dtor(void *obj)
+{
+	struct ast_websocket_server *server = obj;
+	ao2_cleanup(server->protocols);
+	server->protocols = NULL;
+}
+
+struct ast_websocket_server *ast_websocket_server_create(void)
+{
+	RAII_VAR(struct ast_websocket_server *, server, NULL, ao2_cleanup);
+
+	server = ao2_alloc(sizeof(*server), websocket_server_dtor);
+	if (!server) {
+		return NULL;
+	}
+
+	server->protocols = ao2_container_alloc(MAX_PROTOCOL_BUCKETS, protocol_hash_fn, protocol_cmp_fn);
+	if (!server->protocols) {
+		return NULL;
+	}
+
+	ao2_ref(server, +1);
+	return server;
+}
+
 /*! \brief Destructor function for sessions */
 static void session_destroy_fn(void *obj)
 {
@@ -118,38 +145,38 @@ static void session_destroy_fn(void *obj)
 	ast_free(session->payload);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_websocket_callback callback)
+int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
 	struct websocket_protocol *protocol;
 
-	if (!protocols) {
+	if (!server->protocols) {
 		return -1;
 	}
 
-	ao2_lock(protocols);
+	ao2_lock(server->protocols);
 
 	/* Ensure a second protocol handler is not registered for the same protocol */
-	if ((protocol = ao2_find(protocols, name, OBJ_KEY | OBJ_NOLOCK))) {
+	if ((protocol = ao2_find(server->protocols, name, OBJ_KEY | OBJ_NOLOCK))) {
 		ao2_ref(protocol, -1);
-		ao2_unlock(protocols);
+		ao2_unlock(server->protocols);
 		return -1;
 	}
 
 	if (!(protocol = ao2_alloc(sizeof(*protocol), protocol_destroy_fn))) {
-		ao2_unlock(protocols);
+		ao2_unlock(server->protocols);
 		return -1;
 	}
 
 	if (!(protocol->name = ast_strdup(name))) {
 		ao2_ref(protocol, -1);
-		ao2_unlock(protocols);
+		ao2_unlock(server->protocols);
 		return -1;
 	}
 
 	protocol->callback = callback;
 
-	ao2_link_flags(protocols, protocol, OBJ_NOLOCK);
-	ao2_unlock(protocols);
+	ao2_link_flags(server->protocols, protocol, OBJ_NOLOCK);
+	ao2_unlock(server->protocols);
 	ao2_ref(protocol, -1);
 
 	ast_verb(2, "WebSocket registered sub-protocol '%s'\n", name);
@@ -157,15 +184,11 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_webs
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
+int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
 	struct websocket_protocol *protocol;
 
-	if (!protocols) {
-		return -1;
-	}
-
-	if (!(protocol = ao2_find(protocols, name, OBJ_KEY))) {
+	if (!(protocol = ao2_find(server->protocols, name, OBJ_KEY))) {
 		return -1;
 	}
 
@@ -174,7 +197,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
 		return -1;
 	}
 
-	ao2_unlink(protocols, protocol);
+	ao2_unlink(server->protocols, protocol);
 	ao2_ref(protocol, -1);
 
 	ast_verb(2, "WebSocket unregistered sub-protocol '%s'\n", name);
@@ -474,20 +497,22 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 	return 0;
 }
 
-/*! \brief Callback that is executed everytime an HTTP request is received by this module */
-static int websocket_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
+int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
 	char *upgrade = NULL, *key = NULL, *key1 = NULL, *key2 = NULL, *protos = NULL, *requested_protocols = NULL, *protocol = NULL;
 	int version = 0, flags = 1;
 	struct websocket_protocol *protocol_handler = NULL;
 	struct ast_websocket *session;
+	struct ast_websocket_server *server;
 
 	/* Upgrade requests are only permitted on GET methods */
 	if (method != AST_HTTP_GET) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
 		return -1;
 	}
+
+	server = urih->data;
 
 	/* Get the minimum headers required to satisfy our needs */
 	for (v = headers; v; v = v->next) {
@@ -533,7 +558,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 
 	/* Iterate through the requested protocols trying to find one that we have a handler for */
 	while ((protocol = strsep(&requested_protocols, ","))) {
-		if ((protocol_handler = ao2_find(protocols, ast_strip(protocol), OBJ_KEY))) {
+		if ((protocol_handler = ao2_find(server->protocols, ast_strip(protocol), OBJ_KEY))) {
 			break;
 		}
 	}
@@ -619,7 +644,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 }
 
 static struct ast_http_uri websocketuri = {
-	.callback = websocket_callback,
+	.callback = ast_websocket_uri_cb,
 	.description = "Asterisk HTTP WebSocket",
 	.uri = "ws",
 	.has_subtree = 0,
@@ -664,9 +689,30 @@ end:
 	ast_websocket_unref(session);
 }
 
+int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_websocket_callback callback)
+{
+	struct ast_websocket_server *ws_server = websocketuri.data;
+	if (!ws_server) {
+		return -1;
+	}
+	return ast_websocket_server_add_protocol(ws_server, name, callback);
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
+{
+	struct ast_websocket_server *ws_server = websocketuri.data;
+	if (!ws_server) {
+		return -1;
+	}
+	return ast_websocket_server_remove_protocol(ws_server, name, callback);
+}
+
 static int load_module(void)
 {
-	protocols = ao2_container_alloc(MAX_PROTOCOL_BUCKETS, protocol_hash_fn, protocol_cmp_fn);
+	websocketuri.data = ast_websocket_server_create();
+	if (!websocketuri.data) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 	ast_http_uri_link(&websocketuri);
 	ast_websocket_add_protocol("echo", websocket_echo_callback);
 
@@ -677,8 +723,8 @@ static int unload_module(void)
 {
 	ast_websocket_remove_protocol("echo", websocket_echo_callback);
 	ast_http_uri_unlink(&websocketuri);
-	ao2_ref(protocols, -1);
-	protocols = NULL;
+	ao2_ref(websocketuri.data, -1);
+	websocketuri.data = NULL;
 
 	return 0;
 }
