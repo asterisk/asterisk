@@ -31,8 +31,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
+#include <stdbool.h>
 #include <math.h>
-#include <sys/select.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "asterisk/module.h"
 #include "asterisk/timing.h"
@@ -40,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/astobj2.h"
 #include "asterisk/time.h"
 #include "asterisk/lock.h"
-#include "asterisk/poll-compat.h"
 
 static void *timing_funcs_handle;
 
@@ -91,13 +92,15 @@ struct pthread_timer {
 	unsigned int tick_count;
 	unsigned int pending_ticks;
 	struct timeval start;
-	unsigned int continuous:1;
+	bool continuous:1;
+	bool pipe_signaled:1;
 };
 
 static void pthread_timer_destructor(void *obj);
 static struct pthread_timer *find_timer(int handle, int unlinkobj);
-static void write_byte(struct pthread_timer *timer);
-static int read_pipe(struct pthread_timer *timer, unsigned int num);
+static void signal_pipe(struct pthread_timer *timer);
+static void unsignal_pipe(struct pthread_timer *timer);
+static void ack_ticks(struct pthread_timer *timer, unsigned int num);
 
 /*!
  * \brief Data for the timing thread
@@ -113,6 +116,7 @@ static int pthread_timer_open(void)
 {
 	struct pthread_timer *timer;
 	int fd;
+	int i;
 
 	if (!(timer = ao2_alloc(sizeof(*timer), pthread_timer_destructor))) {
 		errno = ENOMEM;
@@ -127,6 +131,12 @@ static int pthread_timer_open(void)
 		return -1;
 	}
 
+	for (i = 0; i < ARRAY_LEN(timer->pipe); ++i) {
+		int flags = fcntl(timer->pipe[i], F_GETFL);
+		flags |= O_NONBLOCK;
+		fcntl(timer->pipe[i], F_SETFL, flags);
+	}
+	
 	ao2_lock(pthread_timers);
 	if (!ao2_container_count(pthread_timers)) {
 		ast_mutex_lock(&timing_thread.lock);
@@ -193,7 +203,6 @@ static int pthread_timer_set_rate(int handle, unsigned int rate)
 static int pthread_timer_ack(int handle, unsigned int quantity)
 {
 	struct pthread_timer *timer;
-	int res;
 
 	ast_assert(quantity > 0);
 
@@ -202,12 +211,12 @@ static int pthread_timer_ack(int handle, unsigned int quantity)
 	}
 
 	ao2_lock(timer);
-	res = read_pipe(timer, quantity);
+	ack_ticks(timer, quantity);
 	ao2_unlock(timer);
 
 	ao2_ref(timer, -1);
 
-	return res;
+	return 0;
 }
 
 static int pthread_timer_enable_continuous(int handle)
@@ -221,8 +230,8 @@ static int pthread_timer_enable_continuous(int handle)
 
 	ao2_lock(timer);
 	if (!timer->continuous) {
-		timer->continuous = 1;
-		write_byte(timer);
+		timer->continuous = true;
+		signal_pipe(timer);
 	}
 	ao2_unlock(timer);
 
@@ -242,13 +251,8 @@ static int pthread_timer_disable_continuous(int handle)
 
 	ao2_lock(timer);
 	if (timer->continuous) {
-		timer->continuous = 0;
-		if (read_pipe(timer, 1) != 0) {
-			/* Let the errno from read_pipe propagate up */
-			ao2_unlock(timer);
-			ao2_ref(timer, -1);
-			return -1;
-		}
+		timer->continuous = false;
+		unsignal_pipe(timer);
 	}
 	ao2_unlock(timer);
 
@@ -267,7 +271,7 @@ static enum ast_timer_event pthread_timer_get_event(int handle)
 	}
 
 	ao2_lock(timer);
-	if (timer->continuous && timer->pending_ticks == 1) {
+	if (timer->continuous) {
 		res = AST_TIMING_EVENT_CONTINUOUS;
 	}
 	ao2_unlock(timer);
@@ -366,79 +370,69 @@ static int check_timer(struct pthread_timer *timer)
 /*!
  * \internal
  * \pre timer is locked
- * \retval 0 if nothing to read or read success
- * \retval -1 on error
  */
-static int read_pipe(struct pthread_timer *timer, unsigned int quantity)
+static void ack_ticks(struct pthread_timer *timer, unsigned int quantity)
 {
-	int rd_fd = timer->pipe[PIPE_READ];
 	int pending_ticks = timer->pending_ticks;
 
 	ast_assert(quantity);
-
-	if (timer->continuous && pending_ticks) {
-		pending_ticks--;
-	}
 
 	if (quantity > pending_ticks) {
 		quantity = pending_ticks;
 	}
 
 	if (!quantity) {
-		return 0;
+		return;
 	}
 
-	do {
-		unsigned char buf[1024];
-		ssize_t res;
-		struct pollfd pfd = {
-			.fd = rd_fd,
-			.events = POLLIN,
-		};
+	timer->pending_ticks -= quantity;
 
-		if (ast_poll(&pfd, 1, 0) != 1) {
-			ast_debug(1, "Reading not available on timing pipe, "
-					"quantity: %u\n", quantity);
-			return -1;
-		}
-
-		res = read(rd_fd, buf,
-			(quantity < sizeof(buf)) ? quantity : sizeof(buf));
-
-		if (res == -1) {
-			if (errno == EAGAIN) {
-				continue;
-			}
-			ast_log(LOG_ERROR, "read failed on timing pipe: %s\n",
-					strerror(errno));
-			return -1;
-		}
-
-		quantity -= res;
-		timer->pending_ticks -= res;
-	} while (quantity);
-
-	return 0;
+	if ((0 == timer->pending_ticks) && !timer->continuous) {
+		unsignal_pipe(timer);
+	}
 }
 
 /*!
  * \internal
  * \pre timer is locked
  */
-static void write_byte(struct pthread_timer *timer)
+static void signal_pipe(struct pthread_timer *timer)
 {
 	ssize_t res;
 	unsigned char x = 42;
 
-	do {
-		res = write(timer->pipe[PIPE_WRITE], &x, 1);
-	} while (res == -1 && errno == EAGAIN);
+	if (timer->pipe_signaled) {
+		return;
+	}
 
-	if (res == -1) {
+	res = write(timer->pipe[PIPE_WRITE], &x, 1);
+	if (-1 == res) {
 		ast_log(LOG_ERROR, "Error writing to timing pipe: %s\n",
 				strerror(errno));
 	} else {
-		timer->pending_ticks++;
+		timer->pipe_signaled = true;
+	}
+}
+
+/*!
+ * \internal
+ * \pre timer is locked
+ */
+static void unsignal_pipe(struct pthread_timer *timer)
+{
+	ssize_t res;
+	unsigned long buffer;
+
+	if (!timer->pipe_signaled) {
+		return;
+	}
+
+	res = read(timer->pipe[PIPE_READ], &buffer, sizeof(buffer));
+	if (-1 == res) {
+		ast_log(LOG_ERROR, "Error reading from pipe: %s\n",
+				strerror(errno));
+	} else {
+		timer->pipe_signaled = false;
 	}
 }
 
@@ -452,7 +446,8 @@ static int run_timer(void *obj, void *arg, int flags)
 
 	ao2_lock(timer);
 	if (check_timer(timer)) {
-		write_byte(timer);
+		timer->pending_ticks++;
+		signal_pipe(timer);
 	}
 	ao2_unlock(timer);
 
