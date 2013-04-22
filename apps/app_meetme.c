@@ -6437,17 +6437,18 @@ static int sla_process_timers(struct timespec *ts)
 
 static int sla_load_config(int reload);
 
-/*! \brief Check if we can do a reload of SLA, and do it if we can */
+/*!
+ * \internal
+ * \brief Check if we can do a reload of SLA, and do it if we can
+ * \pre sla.lock is locked.
+ */
 static void sla_check_reload(void)
 {
 	struct sla_station *station;
 	struct sla_trunk *trunk;
 
-	ast_mutex_lock(&sla.lock);
-
 	if (!AST_LIST_EMPTY(&sla.event_q) || !AST_LIST_EMPTY(&sla.ringing_trunks) 
 		|| !AST_LIST_EMPTY(&sla.ringing_stations)) {
-		ast_mutex_unlock(&sla.lock);
 		return;
 	}
 
@@ -6458,7 +6459,6 @@ static void sla_check_reload(void)
 	}
 	AST_RWLIST_UNLOCK(&sla_stations);
 	if (station) {
-		ast_mutex_unlock(&sla.lock);
 		return;
 	}
 
@@ -6469,15 +6469,12 @@ static void sla_check_reload(void)
 	}
 	AST_RWLIST_UNLOCK(&sla_trunks);
 	if (trunk) {
-		ast_mutex_unlock(&sla.lock);
 		return;
 	}
 
 	/* yay */
 	sla_load_config(1);
 	sla.reload = 0;
-
-	ast_mutex_unlock(&sla.lock);
 }
 
 static void *sla_thread(void *data)
