@@ -153,6 +153,8 @@ static const struct ast_cfhttp_methods_text {
 	{ AST_HTTP_POST,        "POST" },
 	{ AST_HTTP_HEAD,        "HEAD" },
 	{ AST_HTTP_PUT,         "PUT" },
+	{ AST_HTTP_DELETE,      "DELETE" },
+	{ AST_HTTP_OPTIONS,     "OPTIONS" },
 };
 
 const char *ast_get_http_method(enum ast_http_method method)
@@ -897,6 +899,10 @@ static void *httpd_helper_thread(void *data)
 		http_method = AST_HTTP_HEAD;
 	} else if (!strcasecmp(method,"PUT")) {
 		http_method = AST_HTTP_PUT;
+	} else if (!strcasecmp(method,"DELETE")) {
+		http_method = AST_HTTP_DELETE;
+	} else if (!strcasecmp(method,"OPTIONS")) {
+		http_method = AST_HTTP_OPTIONS;
 	}
 
 	uri = ast_skip_blanks(uri);	/* Skip white space */

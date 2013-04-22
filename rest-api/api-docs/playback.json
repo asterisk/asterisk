@@ -1,0 +1,102 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/playback.{format}",
+	"apis": [
+		{
+			"path": "/playback/{playbackId}",
+			"description": "Control object for a playback operation.",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get a playback's details.",
+					"nickname": "getPlayback",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "playbackId",
+							"description": "Playback's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Stop a playback.",
+					"nickname": "stopPlayback",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "playbackId",
+							"description": "Playback's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/playback/{playbackId}/control",
+			"description": "Control object for a playback operation.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Get a playback's details.",
+					"nickname": "controlPlayback",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "playbackId",
+							"description": "Playback's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "operation",
+							"description": "Operation to perform on the playback.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"play",
+									"pause",
+									"rewind",
+									"fast-forward",
+									"speed-up",
+									"slow-down"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Playback": {
+			"id": "Playback",
+			"properties": {
+				"id": {
+					"required": true,
+					"description": "Playback's identifier.",
+					"type": "string"
+				}
+			}
+		}
+	}
+}

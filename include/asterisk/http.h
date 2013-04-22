@@ -58,7 +58,10 @@ enum ast_http_method {
 	AST_HTTP_GET = 0,
 	AST_HTTP_POST,
 	AST_HTTP_HEAD,
-	AST_HTTP_PUT,            /*!< Not supported in Asterisk */
+	AST_HTTP_PUT,
+	AST_HTTP_DELETE,
+	AST_HTTP_OPTIONS,
+	AST_HTTP_MAX_METHOD, /*!< Last entry in ast_http_method enum */
 };
 
 struct ast_http_uri;

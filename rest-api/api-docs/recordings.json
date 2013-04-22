@@ -1,0 +1,270 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/recordings.{format}",
+	"apis": [
+		{
+			"path": "/recordings",
+			"description": "Recordings",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List all recordings.",
+					"nickname": "getRecordings",
+					"responseClass": "List[Recording]"
+				}
+			]
+		},
+		{
+			"path": "/recordings/stored",
+			"description": "Recordings",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List recordings that are complete.",
+					"nickname": "getStoredRecordings",
+					"responseClass": "List[StoredRecording]"
+				}
+			]
+		},
+		{
+			"path": "/recordings/stored/{recordingId}",
+			"description": "Individual recording",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get a stored recording's details.",
+					"nickname": "getStoredRecording",
+					"responseClass": "StoredRecording",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Delete a stored recording.",
+					"nickname": "deleteStoredRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live",
+			"description": "Recordings that are in progress",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List libe recordings.",
+					"nickname": "getLiveRecordings",
+					"responseClass": "List[LiveRecording]"
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}",
+			"description": "A recording that is in progress",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List live recordings.",
+					"nickname": "getLiveRecording",
+					"responseClass": "LiveRecording",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Stop a live recording and discard it.",
+					"nickname": "cancelRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}/stop",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Stop a live recording and store it.",
+					"nickname": "stopRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}/pause",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Pause a live recording.",
+					"nickname": "pauseRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}/unpause",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Unpause a live recording.",
+					"nickname": "unpauseRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}/mute",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Mute a live recording.",
+					"nickname": "muteRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/recordings/live/{recordingId}/unmute",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Unmute a live recording.",
+					"nickname": "unmuteRecording",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "recordingId",
+							"description": "Recording's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Recording": {
+			"id": "Recording",
+			"properties": {
+				"id": {
+					"required": true,
+					"type": "string"
+				}
+			}
+		},
+		"StoredRecording": {
+			"id": "StoredRecording",
+			"properties": {
+				"id": {
+					"required": true,
+					"type": "string"
+				},
+				"formats": {
+					"required": true,
+					"type": "List[string]"
+				},
+				"durationSeconds": {
+					"required": false,
+					"type": "int"
+				},
+				"time": {
+					"description": "Time recording was started",
+					"required": false,
+					"type": "Date"
+				}
+			}
+		},
+		"LiveRecording": {
+			"id": "LiveRecording",
+			"properties": {
+				"id": {
+					"required": true,
+					"type": "string"
+				}
+			}
+		}
+	}
+}

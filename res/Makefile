@@ -67,4 +67,7 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
-	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
+	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi]
+
+# Dependencies for res_stasis_http_*.so are generated, so they're in this file
+include stasis_http.make

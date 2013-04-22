@@ -1,0 +1,42 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"apis": [
+		{
+			"path": "/api-docs/asterisk.{format}",
+			"description": "Asterisk resources"
+		},
+		{
+			"path": "/api-docs/endpoints.{format}",
+			"description": "Endpoint resources"
+		},
+		{
+			"path": "/api-docs/channels.{format}",
+			"description": "Channel resources"
+		},
+		{
+			"path": "/api-docs/bridges.{format}",
+			"description": "Bridge resources"
+		},
+		{
+			"path": "/api-docs/recordings.{format}",
+			"description": "Recording resources"
+		},
+		{
+			"path": "/api-docs/sounds.{format}",
+			"description": "Sound resources"
+		},
+		{
+			"path": "/api-docs/playback.{format}",
+			"description": "Playback control resources"
+		},
+		{
+			"path": "/api-docs/events.{format}",
+			"description": "WebSocket resource"
+		}
+	]
+}

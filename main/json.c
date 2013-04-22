@@ -338,20 +338,15 @@ int ast_json_object_iter_set(struct ast_json *object, struct ast_json_iter *iter
 /*!
  * \brief Default flags for JSON encoding.
  */
-static size_t dump_flags(void)
+static size_t dump_flags(enum ast_json_encoding_format format)
 {
-	/* There's a chance this could become a runtime flag */
-	int flags = JSON_COMPACT;
-#ifdef AST_DEVMODE
-	/* In dev mode, write readable JSON */
-	flags = JSON_INDENT(2) | JSON_PRESERVE_ORDER;
-#endif
-	return flags;
+	return format == AST_JSON_PRETTY ?
+		JSON_INDENT(2) | JSON_PRESERVE_ORDER : JSON_COMPACT;
 }
 
-char *ast_json_dump_string(struct ast_json *root)
+char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format)
 {
-	return json_dumps((json_t *)root, dump_flags());
+	return json_dumps((json_t *)root, dump_flags(format));
 }
 
 static int write_to_ast_str(const char *buffer, size_t size, void *data)
@@ -385,25 +380,25 @@ static int write_to_ast_str(const char *buffer, size_t size, void *data)
 	return 0;
 }
 
-int ast_json_dump_str(struct ast_json *root, struct ast_str **dst)
+int ast_json_dump_str_format(struct ast_json *root, struct ast_str **dst, enum ast_json_encoding_format format)
 {
-	return json_dump_callback((json_t *)root, write_to_ast_str, dst, dump_flags());
+	return json_dump_callback((json_t *)root, write_to_ast_str, dst, dump_flags(format));
 }
 
 
-int ast_json_dump_file(struct ast_json *root, FILE *output)
+int ast_json_dump_file_format(struct ast_json *root, FILE *output, enum ast_json_encoding_format format)
 {
 	if (!root || !output) {
 		return -1;
 	}
-	return json_dumpf((json_t *)root, output, dump_flags());
+	return json_dumpf((json_t *)root, output, dump_flags(format));
 }
-int ast_json_dump_new_file(struct ast_json *root, const char *path)
+int ast_json_dump_new_file_format(struct ast_json *root, const char *path, enum ast_json_encoding_format format)
 {
 	if (!root || !path) {
 		return -1;
 	}
-	return json_dump_file((json_t *)root, path, dump_flags());
+	return json_dump_file((json_t *)root, path, dump_flags(format));
 }
 
 /*!

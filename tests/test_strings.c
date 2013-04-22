@@ -251,15 +251,78 @@ cleanup:
 	return res;
 }
 
+AST_TEST_DEFINE(begins_with_test)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "begins_with";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_begins_with";
+		info->description = "Test ast_begins_with";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	// prefixes
+	ast_test_validate(test, 1 == ast_begins_with("foobar", "foobar"));
+	ast_test_validate(test, 1 == ast_begins_with("foobar", "foo"));
+	ast_test_validate(test, 1 == ast_begins_with("foobar", ""));
+	ast_test_validate(test, 1 == ast_begins_with("", ""));
+
+	// not prefixes
+	ast_test_validate(test, 0 == ast_begins_with("foobar", "bang"));
+	ast_test_validate(test, 0 == ast_begins_with("foobar", "foobat"));
+	ast_test_validate(test, 0 == ast_begins_with("boo", "boom"));
+	ast_test_validate(test, 0 == ast_begins_with("", "blitz"));
+
+	// nothing failed; we're all good!
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(ends_with_test)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "ends_with";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_ends_with";
+		info->description = "Test ast_ends_with";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	// prefixes
+	ast_test_validate(test, 1 == ast_ends_with("foobar", "foobar"));
+	ast_test_validate(test, 1 == ast_ends_with("foobar", "bar"));
+	ast_test_validate(test, 1 == ast_ends_with("foobar", ""));
+	ast_test_validate(test, 1 == ast_ends_with("", ""));
+
+	// not suffixes
+	ast_test_validate(test, 0 == ast_ends_with("bar", "bbar"));
+	ast_test_validate(test, 0 == ast_ends_with("foobar", "bang"));
+	ast_test_validate(test, 0 == ast_ends_with("foobar", "foobat"));
+	ast_test_validate(test, 0 == ast_ends_with("boo", "boom"));
+	ast_test_validate(test, 0 == ast_ends_with("", "blitz"));
+
+	// nothing failed; we're all good!
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
+	AST_TEST_UNREGISTER(begins_with_test);
+	AST_TEST_UNREGISTER(ends_with_test);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(str_test);
+	AST_TEST_REGISTER(begins_with_test);
+	AST_TEST_REGISTER(ends_with_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

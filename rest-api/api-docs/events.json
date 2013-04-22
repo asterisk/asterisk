@@ -1,0 +1,166 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/events.{format}",
+	"apis": [
+		{
+			"path": "/events",
+			"description": "Events from Asterisk to applications",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "WebSocket connection for events.",
+					"nickname": "eventWebsocket",
+					"responseClass": "Event",
+					"parameters": [
+						{
+							"name": "app",
+							"description": "Comma seperated list of applications to subscribe to.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						},
+						{
+							"name": "Upgrade",
+							"description": "RFC6455 header for upgrading a connection to a websocket.",
+							"paramType": "header",
+							"required": true,
+							"dataType": "string",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"websocket"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Event": {
+			"id": "Event",
+			"description": "Asynchronous events from Asterisk. The non-required fields of this object are mutually exclusive.",
+			"properties": {
+				"application": {
+					"type": "string",
+					"description": "Name of the application receiving the event.",
+					"required": true
+				},
+				"application_replaced": { "type": "ApplicationReplaced" },
+				"bridge_created": { "type": "BridgeCreated" },
+				"bridge_destroyed": { "type": "BridgeDestroyed" },
+				"channel_entered_bridge": { "type": "ChannelEnteredBridge" },
+				"channel_left_bridge": { "type": "ChannelLeftBridge" },
+				"channel_state_change": { "type": "ChannelStateChange" },
+				"dtmf_received": { "type": "DtmfReceived" },
+				"stasis_end": { "type": "StasisEnd" },
+				"stasis_start": { "type": "StasisStart" }
+			}
+		},
+		"ApplicationReplaced": {
+			"id": "ApplicationReplaced",
+			"description": "Notification that another WebSocket has taken over for an application.",
+			"notes": "An application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event.",
+			"properties": {
+				"application": {
+					"type": "string"
+				}
+			}
+		},
+		"BridgeCreated": {
+			"id": "BridgeCreated",
+			"description": "Notification that a bridge has been created.",
+			"properties": {
+				"bridge": {
+					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeDestroyed": {
+			"id": "BridgeDestroyed",
+			"description": "Notification that a bridge has been destroyed.",
+			"properties": {
+				"bridge": {
+					"type": "Bridge"
+				}
+			}
+		},
+		"ChannelEnteredBridge": {
+			"id": "ChannelEnteredBridge",
+			"description": "Notification that a channel has entered a bridge.",
+			"properties": {
+				"bridge": {
+					"type": "Bridge"
+				},
+				"channel": {
+					"type": "Channel"
+				}
+			}
+		},
+		"ChannelLeftBridge": {
+			"id": "ChannelLeftBridge",
+			"description": "Notification that a channel has left a bridge.",
+			"properties": {
+				"bridge": {
+					"type": "Bridge"
+				},
+				"channel": {
+					"type": "Channel"
+				}
+			}
+		},
+		"ChannelStateChange": {
+			"id": "ChannelStateChange",
+			"description": "Notification of a channel's state change.",
+			"properties": {
+				"channel_info": {
+					"type": "Channel"
+				}
+			}
+		},
+		"DtmfReceived": {
+			"id": "DtmfReceived",
+			"description": "DTMF received on a channel.",
+			"notes": "This event is sent when the DTMF ends. There is no notification about the start of DTMF",
+			"properties": {
+				"digit": {
+					"type": "string",
+					"description": "DTMF digit received (0-9, A-E, # or *)"
+				},
+				"channel": {
+					"type": "Channel",
+					"description": "The channel on which DTMF was received"
+				}
+			}
+		},
+		"StasisEnd": {
+			"id": "StasisEnd",
+			"description": "Notification that a channel has left a Stasis appliction.",
+			"properties": {
+				"channel_info": {
+					"type": "Channel"
+				}
+			}
+		},
+		"StasisStart": {
+			"id": "StasisStart",
+			"description": "Notification that a channel has entered a Stasis appliction.",
+			"properties": {
+				"args": {
+					"type": "List[string]",
+					"description": "Arguments to the application"
+				},
+				"channel_info": {
+					"type": "Channel"
+				}
+			}
+		}
+	}
+}

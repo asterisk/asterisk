@@ -586,16 +586,33 @@ int ast_json_object_iter_set(struct ast_json *object, struct ast_json_iter *iter
 /*!@{*/
 
 /*!
+ * \brief Encoding format type.
+ * \since 12.0.0
+ */
+enum ast_json_encoding_format
+{
+	/*! Compact format, low human readability */
+	AST_JSON_COMPACT,
+	/*! Formatted for human readability */
+	AST_JSON_PRETTY,
+};
+
+#define ast_json_dump_string(root) ast_json_dump_string_format(root, AST_JSON_COMPACT)
+
+/*!
  * \brief Encode a JSON value to a string.
  * \since 12.0.0
  *
  * Returned string must be freed by calling ast_free().
  *
- * \param JSON value.
+ * \param root JSON value.
+ * \param format encoding format type.
  * \return String encoding of \a root.
  * \return \c NULL on error.
  */
-char *ast_json_dump_string(struct ast_json *root);
+char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format);
+
+#define ast_json_dump_str(root, dst) ast_json_dump_str_format(root, dst, AST_JSON_COMPACT)
 
 /*!
  * \brief Encode a JSON value to an \ref ast_str.
@@ -605,10 +622,13 @@ char *ast_json_dump_string(struct ast_json *root);
  *
  * \param root JSON value.
  * \param dst \ref ast_str to store JSON encoding.
+ * \param format encoding format type.
  * \return 0 on success.
  * \return -1 on error. The contents of \a dst are undefined.
  */
-int ast_json_dump_str(struct ast_json *root, struct ast_str **dst);
+int ast_json_dump_str_format(struct ast_json *root, struct ast_str **dst, enum ast_json_encoding_format format);
+
+#define ast_json_dump_file(root, output) ast_json_dump_file_format(root, output, AST_JSON_COMPACT)
 
 /*!
  * \brief Encode a JSON value to a \c FILE.
@@ -616,10 +636,13 @@ int ast_json_dump_str(struct ast_json *root, struct ast_str **dst);
  *
  * \param root JSON value.
  * \param output File to write JSON encoding to.
+ * \param format encoding format type.
  * \return 0 on success.
  * \return -1 on error. The contents of \a output are undefined.
  */
-int ast_json_dump_file(struct ast_json *root, FILE *output);
+int ast_json_dump_file_format(struct ast_json *root, FILE *output, enum ast_json_encoding_format format);
+
+#define ast_json_dump_new_file(root, path) ast_json_dump_new_file_format(root, path, AST_JSON_COMPACT)
 
 /*!
  * \brief Encode a JSON value to a file at the given location.
@@ -627,10 +650,11 @@ int ast_json_dump_file(struct ast_json *root, FILE *output);
  *
  * \param root JSON value.
  * \param path Path to file to write JSON encoding to.
+ * \param format encoding format type.
  * \return 0 on success.
  * \return -1 on error. The contents of \a output are undefined.
  */
-int ast_json_dump_new_file(struct ast_json *root, const char *path);
+int ast_json_dump_new_file_format(struct ast_json *root, const char *path, enum ast_json_encoding_format format);
 
 #define AST_JSON_ERROR_TEXT_LENGTH    160
 #define AST_JSON_ERROR_SOURCE_LENGTH   80

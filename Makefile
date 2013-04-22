@@ -453,6 +453,9 @@ datafiles: _all doc/core-en_US.xml
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/images" ; \
 	done
 	$(MAKE) -C sounds install
+	find rest-api -name "*.json" | while read x; do \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/rest-api" ; \
+	done
 
 ifneq ($(GREP),)
   XML_core_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
@@ -537,8 +540,8 @@ INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTV
 	"$(ASTLOGDIR)/cel-custom" "$(ASTDATADIR)" "$(ASTDATADIR)/documentation" \
 	"$(ASTDATADIR)/documentation/thirdparty" "$(ASTDATADIR)/firmware" \
 	"$(ASTDATADIR)/firmware/iax" "$(ASTDATADIR)/images" "$(ASTDATADIR)/keys" \
-	"$(ASTDATADIR)/phoneprov" "$(ASTDATADIR)/static-http" "$(ASTDATADIR)/sounds" \
-	"$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)"
+	"$(ASTDATADIR)/phoneprov" "$(ASTDATADIR)/rest-api" "$(ASTDATADIR)/static-http" \
+	"$(ASTDATADIR)/sounds" "$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)"
 
 installdirs:
 	@for i in $(INSTALLDIRS); do \
@@ -958,6 +961,19 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@cat sounds/sounds.xml >> $@
 	@echo "</menu>" >> $@
 
+# We don't want to require Python or Pystache for every build, so this is its
+# own target.
+stasis-stubs:
+ifeq ($(PYTHON),:)
+	@echo "--------------------------------------------------------------------------"
+	@echo "---        Please install python to build Stasis HTTP stubs            ---"
+	@echo "--------------------------------------------------------------------------"
+	@false
+else
+	$(PYTHON) rest-api-templates/make_stasis_http_stubs.py \
+		rest-api/resources.json res/
+endif
+
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds
@@ -977,6 +993,7 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 .PHONY: installdirs
 .PHONY: validate-docs
 .PHONY: _clean
+.PHONY: stasis-stubs
 .PHONY: $(SUBDIRS_INSTALL)
 .PHONY: $(SUBDIRS_DIST_CLEAN)
 .PHONY: $(SUBDIRS_CLEAN)

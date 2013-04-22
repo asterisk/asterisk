@@ -1,0 +1,85 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/sounds.{format}",
+	"apis": [
+		{
+			"path": "/sounds",
+			"description": "Sounds",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List all sounds.",
+					"nickname": "getSounds",
+					"responseClass": "List[Sound]",
+					"parameters": [
+						{
+							"name": "lang",
+							"paramType": "query",
+							"dataType": "string",
+							"required": false
+						},
+						{
+							"name": "format",
+							"paramType": "query",
+							"dataType": "string",
+							"required": false,
+							"__note": "core show translation can show translation paths between formats, along with relative costs. so this could be just installed format, or we could follow that for transcoded formats."
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/sounds/{soundId}",
+			"description": "Individual sound",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get a sound's details.",
+					"nickname": "getStoredSound",
+					"responseClass": "Sound",
+					"parameters": [
+						{
+							"name": "soundId",
+							"description": "Sound's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Sound": {
+			"id": "Sound",
+			"properties": {
+				"id": {
+					"required": true,
+					"description": "Sound's identifier.",
+					"type": "string"
+				},
+				"text": {
+					"required": false,
+					"description": "Text description of the sound, usually the words spoken.",
+					"type": "string"
+				},
+				"lang": {
+					"required": true,
+					"type": "string"
+				},
+				"formats": {
+					"required": true,
+					"type": "List[string]"
+				}
+			}
+		}
+	}
+}

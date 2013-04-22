@@ -1,0 +1,47 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/asterisk.{format}",
+	"apis": [
+		{
+			"path": "/asterisk/info",
+			"description": "Asterisk system information (similar to core show settings)",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Gets Asterisk system information.",
+					"nickname": "getAsteriskInfo",
+					"responseClass": "AsteriskInfo",
+					"parameters": [
+						{
+							"name": "only",
+							"description": "Filter information returned",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": true,
+							"dataType": "string",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"version",
+									"modules",
+									"uptime"
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"AsteriskInfo": {
+			"id": "AsteriskInfo",
+			"properties": {}
+		}
+	}
+}

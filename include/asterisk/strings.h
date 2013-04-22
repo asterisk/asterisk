@@ -82,6 +82,48 @@ static force_inline int attribute_pure ast_strlen_zero(const char *s)
  */
 #define S_COR(a, b, c) ({typeof(&((b)[0])) __x = (b); (a) && !ast_strlen_zero(__x) ? (__x) : (c);})
 
+/*
+  \brief Checks whether a string begins with another.
+  \since 12.0.0
+  \param str String to check.
+  \param prefix Prefix to look for.
+  \param 1 if \a str begins with \a prefix, 0 otherwise.
+ */
+static int force_inline attribute_pure ast_begins_with(const char *str, const char *prefix)
+{
+	ast_assert(str != NULL);
+	ast_assert(prefix != NULL);
+	while (*str == *prefix && *prefix != '\0') {
+		++str;
+		++prefix;
+	}
+	return *prefix == '\0';
+}
+
+/*
+  \brief Checks whether a string ends with another.
+  \since 12.0.0
+  \param str String to check.
+  \param suffix Suffix to look for.
+  \param 1 if \a str ends with \a suffix, 0 otherwise.
+ */
+static int force_inline attribute_pure ast_ends_with(const char *str, const char *suffix)
+{
+	size_t str_len;
+	size_t suffix_len;
+
+	ast_assert(str != NULL);
+	ast_assert(suffix != NULL);
+	str_len = strlen(str);
+	suffix_len = strlen(suffix);
+
+	if (suffix_len > str_len) {
+		return 0;
+	}
+
+	return strcmp(str + str_len - suffix_len, suffix) == 0;
+}
+
 /*!
  * \brief return Yes or No depending on the argument.
  *

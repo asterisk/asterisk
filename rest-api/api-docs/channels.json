@@ -1,0 +1,645 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/channels.{format}",
+	"apis": [
+		{
+			"path": "/channels",
+			"description": "Active channels",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List active channels.",
+					"nickname": "getChannels",
+					"responseClass": "List[Channel]"
+				},
+				{
+					"httpMethod": "POST",
+					"summary": "Create a new channel (originate).",
+					"nickname": "originate",
+					"responseClass": "Originated",
+					"parameters": [
+						{
+							"name": "endpoint",
+							"description": "Endpoint to call. If not specified, originate is routed via dialplan",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "extension",
+							"description": "Extension to dial",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "context",
+							"description": "When routing via dialplan, the context use. If omitted, uses 'default'",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}",
+			"description": "Active channel",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Channel details.",
+					"nickname": "getChannel",
+					"responseClass": "Channel",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Delete (i.e. hangup) a channel.",
+					"nickname": "deleteChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/dial",
+			"description": "Create a new channel (originate) and bridge to this channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Create a new channel (originate) and bridge to this channel.",
+					"nickname": "dial",
+					"responseClass": "Dialed",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "endpoint",
+							"description": "Endpoint to call. If not specified, dial is routed via dialplan",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "extension",
+							"description": "Extension to dial",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "context",
+							"description": "When routing via dialplan, the context use. If omitted, uses 'default'",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/continue",
+			"description": "Exit application; continue execution in the dialplan",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Exit application; continue execution in the dialplan.",
+					"nickname": "continueInDialplan",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/answer",
+			"description": "Answer a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Answer a channel.",
+					"nickname": "answerChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/mute",
+			"description": "Mute a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Mute a channel.",
+					"nickname": "muteChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "direction",
+							"description": "Direction in which to mute audio",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defaultValue": "both",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"both",
+									"in",
+									"out"
+								]
+							}
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/unmute",
+			"description": "Unmute a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Unmute a channel.",
+					"nickname": "unmuteChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "direction",
+							"description": "Direction in which to unmute audio",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defaultValue": "both",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"both",
+									"in",
+									"out"
+								]
+							}
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/hold",
+			"description": "Put a channel on hold",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Hold a channel.",
+					"nickname": "holdChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/unhold",
+			"description": "Remove a channel from hold",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Remove a channel from hold.",
+					"nickname": "unholdChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/play",
+			"description": "Play media to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Start playback of media.",
+					"notes": "The media URI may be any of a number of URI's. You may use http: and https: URI's, as well as sound: and recording: URI's. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"nickname": "playOnChannel",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "media",
+							"description": "Media's URI to play.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/record",
+			"description": "Record audio from a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Start a recording.",
+					"notes": "Record audio from a channel. Note that this will not capture audio sent to the channel. The bridge itself has a record feature if that's what you want.",
+					"nickname": "recordChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "name",
+							"description": "Recording's filename",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "format",
+							"description": "Format to encode audio in",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						},
+						{
+							"name": "maxDurationSeconds",
+							"description": "Maximum duration of the recording, in seconds. 0 for no limit",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0
+						},
+						{
+							"name": "maxSilenceSeconds",
+							"description": "Maximum duration of silence, in seconds. 0 for no limit",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0
+						},
+						{
+							"name": "append",
+							"description": "If true, and recording already exists, append to recording",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
+						},
+						{
+							"name": "beep",
+							"description": "Play beep when recording begins",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
+						},
+						{
+							"name": "terminateOn",
+							"description": "DTMF input to terminate recording",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defaultValue": "none",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"none",
+									"any",
+									"*",
+									"#"
+								]
+							}
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel is not in a Stasis application."
+						},
+						{
+							"code": 409,
+							"reason": "The channel is currently bridges with other channels."
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Originated": {
+			"id": "Originated",
+			"properties": {}
+		},
+		"Dialed": {
+			"id": "Dialed",
+			"properties": {}
+		},
+		"DialplanCEP": {
+			"id": "DialplanCEP",
+			"properties": {
+				"context": {
+					"required": true,
+					"type": "string",
+					"description": "Context in the dialplan"
+				},
+				"exten": {
+					"required": true,
+					"type": "string",
+					"description": "Extension in the dialplan"
+				},
+				"priority": {
+					"required": true,
+					"type": "long",
+					"description": "Priority in the dialplan"
+				}
+			}
+		},
+		"CallerID": {
+			"id": "CallerID",
+			"properties": {
+				"name": {
+					"required": true,
+					"type": "string"
+				},
+				"number": {
+					"required": true,
+					"type": "string"
+				}
+			}
+		},
+		"Channel": {
+			"id": "Channel",
+			"properties": {
+				"uniqueid": {
+					"required": true,
+					"type": "string",
+					"description": "Unique identifier of the channel"
+				},
+				"name": {
+					"required": true,
+					"type": "string",
+					"description": "Name of the channel (i.e. SIP/foo-0000a7e3)"
+				},
+				"state": {
+					"required": true,
+					"type": "string"
+				},
+				"accountcode": {
+					"required": true,
+					"type": "string"
+				},
+				"peeraccount": {
+					"required": true,
+					"type": "string"
+				},
+				"userfield": {
+					"required": true,
+					"type": "string"
+				},
+				"linkedid": {
+					"required": true,
+					"type": "string"
+				},
+				"parkinglot": {
+					"required": true,
+					"type": "string"
+				},
+				"hangupsource": {
+					"required": true,
+					"type": "string"
+				},
+				"appl": {
+					"required": true,
+					"type": "string",
+					"description": "Currently executing dialplan application"
+				},
+				"data": {
+					"required": true,
+					"type": "string",
+					"description": "Arguments passed to appl"
+				},
+				"dialplan": {
+					"required": true,
+					"type": "DialplanCEP",
+					"description": "Current location in the dialplan"
+				},
+				"caller": {
+					"required": true,
+					"type": "CallerID"
+				},
+				"connected": {
+					"required": true,
+					"type": "CallerID"
+				},
+				"creationtime": {
+					"required": true,
+					"type": "Date",
+					"description": "Timestamp when channel was created"
+				}
+			}
+		}
+	}
+}

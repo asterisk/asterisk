@@ -66,7 +66,7 @@ struct ast_channel_snapshot;
  * \param argv Arguments for the application.
  */
 int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
-		    char *argv[]);
+	char *argv[]);
 
 /*! @} */
 
@@ -126,22 +126,50 @@ int stasis_app_send(const char *app_name, struct ast_json *message);
 struct stasis_app_control;
 
 /*!
- * \brief Returns the handler for the given channel
+ * \brief Returns the handler for the given channel.
  * \param chan Channel to handle.
- * \return NULL channel not in Stasis application
- * \return Pointer to stasis handler.
+ * \return NULL channel not in Stasis application.
+ * \return Pointer to \c res_stasis handler.
  */
 struct stasis_app_control *stasis_app_control_find_by_channel(
 	const struct ast_channel *chan);
 
 /*!
- * \brief Exit \c app_stasis and continue execution in the dialplan.
- *
- * If the channel is no longer in \c app_stasis, this function does nothing.
- *
- * \param handler Handler for \c app_stasis
+ * \brief Returns the handler for the channel with the given id.
+ * \param channel_id Uniqueid of the channel.
+ * \return NULL channel not in Stasis application, or channel does not exist.
+ * \return Pointer to \c res_stasis handler.
  */
-void stasis_app_control_continue(struct stasis_app_control *handler);
+struct stasis_app_control *stasis_app_control_find_by_channel_id(
+	const char *channel_id);
+
+/*!
+ * \brief Exit \c res_stasis and continue execution in the dialplan.
+ *
+ * If the channel is no longer in \c res_stasis, this function does nothing.
+ *
+ * \param control Control for \c res_stasis
+ */
+void stasis_app_control_continue(struct stasis_app_control *control);
+
+/*!
+ * \brief Answer the channel associated with this control.
+ * \param control Control for \c res_stasis.
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_answer(struct stasis_app_control *control);
+
+/*! @} */
+
+/*! @{ */
+
+/*!
+ * \brief Build a JSON object from a \ref ast_channel_snapshot.
+ * \return JSON object representing channel snapshot.
+ * \return \c NULL on error
+ */
+struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
 
 /*! @} */
 
