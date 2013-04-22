@@ -52,8 +52,7 @@ void ast_srv_cleanup(struct srv_context **context);
 
 /*! Lookup entry in SRV records Returns 1 if found, 0 if not found, -1 on hangup 
 	Only do SRV record lookup if you get a domain without a port. If you get a port #, it's a DNS host name.
-*/
-/*!	\param	chan Ast channel
+!	\param	chan Ast channel
 	\param	host host name (return value)
 	\param	hostlen Length of string "host"
 	\param	port Port number (return value)
