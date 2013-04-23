@@ -240,10 +240,10 @@ static struct stasis_app_control *control_create(const char *uniqueid)
 static void *exec_command(struct stasis_app_control *control,
 			  struct stasis_app_command *command)
 {
-        ao2_lock(control);
+	ao2_lock(control);
 	ao2_ref(command, +1);
 	ao2_link(control->command_queue, command);
-        ao2_unlock(control);
+	ao2_unlock(control);
 
 	return wait_for_command(command);
 }
@@ -302,12 +302,12 @@ struct stasis_app_control *stasis_app_control_find_by_channel_id(
  */
 static int control_continue_test_and_reset(struct stasis_app_control *control)
 {
-        int r;
-        SCOPED_AO2LOCK(lock, control);
+	int r;
+	SCOPED_AO2LOCK(lock, control);
 
-        r = control->continue_to_dialplan;
-        control->continue_to_dialplan = 0;
-        return r;
+	r = control->continue_to_dialplan;
+	control->continue_to_dialplan = 0;
+	return r;
 }
 
 void stasis_app_control_continue(struct stasis_app_control *control)
@@ -526,7 +526,7 @@ static void dispatch_commands(struct stasis_app_control *control,
 	struct ao2_iterator i;
 	void *obj;
 
-        SCOPED_AO2LOCK(lock, control);
+	SCOPED_AO2LOCK(lock, control);
 
 	i = ao2_iterator_init(control->command_queue, AO2_ITERATOR_UNLINK);
 
