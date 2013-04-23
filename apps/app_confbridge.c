@@ -317,14 +317,47 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 static int conference_bridge_hash_cb(const void *obj, const int flags)
 {
 	const struct confbridge_conference *conference = obj;
-	return ast_str_case_hash(conference->name);
+	const char *name = obj;
+	int hash;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		name = conference->name;
+		/* Fall through */
+	case OBJ_KEY:
+		hash = ast_str_case_hash(name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		/* Should never happen in hash callback. */
+		ast_assert(0);
+		hash = 0;
+		break;
+	}
+	return hash;
 }
 
 /*! \brief Comparison function used for conference bridges container */
 static int conference_bridge_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct confbridge_conference *conference0 = obj, *conference1 = arg;
-	return (!strcasecmp(conference0->name, conference1->name) ? CMP_MATCH | CMP_STOP : 0);
+	const struct confbridge_conference *left = obj;
+	const struct confbridge_conference *right = arg;
+	const char *right_name = arg;
+	int cmp;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		right_name = right->name;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcasecmp(left->name, right_name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		cmp = strncasecmp(left->name, right_name, strlen(right_name));
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH;
 }
 
 const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds *custom_sounds)
@@ -1233,12 +1266,9 @@ void conf_ended(struct confbridge_conference *conference)
  */
 static struct confbridge_conference *join_conference_bridge(const char *conference_name, struct confbridge_user *user)
 {
-	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference *conference;
 	struct post_join_action *action;
-	struct confbridge_conference tmp;
 	int max_members_reached = 0;
-
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
 
 	/* We explictly lock the conference bridges container ourselves so that other callers can not create duplicate conferences at the same */
 	ao2_lock(conference_bridges);
@@ -1246,8 +1276,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 	ast_debug(1, "Trying to find conference bridge '%s'\n", conference_name);
 
 	/* Attempt to find an existing conference bridge */
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
-
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (conference && conference->b_profile.max_members) {
 		max_members_reached = conference->b_profile.max_members > conference->activeusers ? 0 : 1;
 	}
@@ -2225,7 +2254,7 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 static char *complete_confbridge_name(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
-	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference *conference;
 	char *res = NULL;
 	int wordlen = strlen(word);
 	struct ao2_iterator iter;
@@ -2244,17 +2273,15 @@ static char *complete_confbridge_name(const char *line, const char *word, int po
 	return res;
 }
 
-static char *complete_confbridge_participant(const char *bridge_name, const char *line, const char *word, int pos, int state)
+static char *complete_confbridge_participant(const char *conference_name, const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
-	struct confbridge_conference tmp;
 	struct confbridge_user *user;
 	char *res = NULL;
 	int wordlen = strlen(word);
 
-	ast_copy_string(tmp.name, bridge_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		return NULL;
 	}
@@ -2280,8 +2307,7 @@ static char *complete_confbridge_participant(const char *bridge_name, const char
 
 static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2304,8 +2330,7 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, a->argv[2], OBJ_KEY);
 	if (!conference) {
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 		return CLI_SUCCESS;
@@ -2395,10 +2420,8 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 
 	if (a->argc == 3) {
 		struct confbridge_user *user;
-		struct confbridge_conference tmp;
 
-		ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
-		conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+		conference = ao2_find(conference_bridges, a->argv[2], OBJ_KEY);
 		if (!conference) {
 			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 			return CLI_SUCCESS;
@@ -2428,12 +2451,10 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
  */
 static int generic_lock_unlock_helper(int lock, const char *conference_name)
 {
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 	int res = 0;
 
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		return -1;
 	}
@@ -2455,12 +2476,11 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
  */
 static int generic_mute_unmute_helper(int mute, const char *conference_name, const char *chan_name)
 {
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
-	struct confbridge_user *user = NULL;
+	struct confbridge_conference *conference;
+	struct confbridge_user *user;
 	int res = 0;
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		return -1;
 	}
@@ -2607,8 +2627,7 @@ static char *handle_cli_confbridge_unlock(struct ast_cli_entry *e, int cmd, stru
 static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *rec_file = NULL;
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2633,8 +2652,7 @@ static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd
 		rec_file = a->argv[4];
 	}
 
-	ast_copy_string(tmp.name, a->argv[3], sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, a->argv[3], OBJ_KEY);
 	if (!conference) {
 		ast_cli(a->fd, "Conference not found.\n");
 		return CLI_FAILURE;
@@ -2665,8 +2683,7 @@ static char *handle_cli_confbridge_start_record(struct ast_cli_entry *e, int cmd
 
 static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 	int ret;
 
 	switch (cmd) {
@@ -2686,8 +2703,7 @@ static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd,
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_copy_string(tmp.name, a->argv[3], sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, a->argv[3], OBJ_KEY);
 	if (!conference) {
 		ast_cli(a->fd, "Conference not found.\n");
 		return CLI_SUCCESS;
@@ -2754,7 +2770,6 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 	const char *conference_name = astman_get_header(m, "Conference");
 	struct confbridge_user *user;
 	struct confbridge_conference *conference;
-	struct confbridge_conference tmp;
 	char id_text[80];
 	int total = 0;
 
@@ -2770,8 +2785,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No active conferences.");
 		return 0;
 	}
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
@@ -2804,7 +2818,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 static int action_confbridgelistrooms(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	struct confbridge_conference *conference = NULL;
+	struct confbridge_conference *conference;
 	struct ao2_iterator iter;
 	char id_text[512] = "";
 	int totalitems = 0;
@@ -2930,8 +2944,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 {
 	const char *conference_name = astman_get_header(m, "Conference");
 	const char *channel = astman_get_header(m, "Channel");
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 	int found = 0;
 
 	if (ast_strlen_zero(conference_name)) {
@@ -2943,8 +2956,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
@@ -2965,8 +2977,7 @@ static int action_confbridgestartrecord(struct mansession *s, const struct messa
 {
 	const char *conference_name = astman_get_header(m, "Conference");
 	const char *recordfile = astman_get_header(m, "RecordFile");
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 
 	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
@@ -2977,8 +2988,7 @@ static int action_confbridgestartrecord(struct mansession *s, const struct messa
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
@@ -3011,8 +3021,7 @@ static int action_confbridgestartrecord(struct mansession *s, const struct messa
 static int action_confbridgestoprecord(struct mansession *s, const struct message *m)
 {
 	const char *conference_name = astman_get_header(m, "Conference");
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_conference *conference;
 
 	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
@@ -3023,8 +3032,7 @@ static int action_confbridgestoprecord(struct mansession *s, const struct messag
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
@@ -3048,9 +3056,8 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 {
 	const char *conference_name = astman_get_header(m, "Conference");
 	const char *channel = astman_get_header(m, "Channel");
-	struct confbridge_user *user = NULL;
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_conference tmp;
+	struct confbridge_user *user;
+	struct confbridge_conference *conference;
 
 	if (ast_strlen_zero(conference_name)) {
 		astman_send_error(s, m, "No Conference name provided.");
@@ -3065,8 +3072,7 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 		return 0;
 	}
 
-	ast_copy_string(tmp.name, conference_name, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		astman_send_error(s, m, "No Conference by that name found.");
 		return 0;
@@ -3095,10 +3101,9 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 
 static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	char *parse = NULL;
-	struct confbridge_conference *conference = NULL;
-	struct confbridge_user *user = NULL;
-	struct confbridge_conference tmp;
+	char *parse;
+	struct confbridge_conference *conference;
+	struct confbridge_user *user;
 	int count = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(type);
@@ -3114,12 +3119,7 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 	if (ast_strlen_zero(args.confno) || ast_strlen_zero(args.type)) {
 		return -1;
 	}
-	if (!ao2_container_count(conference_bridges)) {
-		snprintf(buf, len, "0");
-		return 0;
-	}
-	ast_copy_string(tmp.name, args.confno, sizeof(tmp.name));
-	conference = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	conference = ao2_find(conference_bridges, args.confno, OBJ_KEY);
 	if (!conference) {
 		snprintf(buf, len, "0");
 		return 0;
@@ -3210,33 +3210,34 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
 /*! \brief Called when module is being unloaded */
 static int unload_module(void)
 {
-	int res = ast_unregister_application(app);
+	ast_unregister_application(app);
 
 	ast_custom_function_unregister(&confbridge_function);
 	ast_custom_function_unregister(&confbridge_info_function);
 
-	ast_cli_unregister_multiple(cli_confbridge, sizeof(cli_confbridge) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
+
+	ast_manager_unregister("ConfbridgeList");
+	ast_manager_unregister("ConfbridgeListRooms");
+	ast_manager_unregister("ConfbridgeMute");
+	ast_manager_unregister("ConfbridgeUnmute");
+	ast_manager_unregister("ConfbridgeKick");
+	ast_manager_unregister("ConfbridgeUnlock");
+	ast_manager_unregister("ConfbridgeLock");
+	ast_manager_unregister("ConfbridgeStartRecord");
+	ast_manager_unregister("ConfbridgeStopRecord");
+	ast_manager_unregister("ConfbridgeSetSingleVideoSrc");
 
 	/* Get rid of the conference bridges container. Since we only allow dynamic ones none will be active. */
-	ao2_ref(conference_bridges, -1);
+	ao2_cleanup(conference_bridges);
+	conference_bridges = NULL;
 
 	conf_destroy_config();
 
 	ast_channel_unregister(&record_tech);
 	record_tech.capabilities = ast_format_cap_destroy(record_tech.capabilities);
 
-	res |= ast_manager_unregister("ConfbridgeList");
-	res |= ast_manager_unregister("ConfbridgeListRooms");
-	res |= ast_manager_unregister("ConfbridgeMute");
-	res |= ast_manager_unregister("ConfbridgeUnmute");
-	res |= ast_manager_unregister("ConfbridgeKick");
-	res |= ast_manager_unregister("ConfbridgeUnlock");
-	res |= ast_manager_unregister("ConfbridgeLock");
-	res |= ast_manager_unregister("ConfbridgeStartRecord");
-	res |= ast_manager_unregister("ConfbridgeStopRecord");
-	res |= ast_manager_unregister("ConfbridgeSetSingleVideoSrc");
-
-	return res;
+	return 0;
 }
 
 /*!
@@ -3257,30 +3258,33 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if ((ast_custom_function_register(&confbridge_function))) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	if ((ast_custom_function_register(&confbridge_info_function))) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
+
 	if (!(record_tech.capabilities = ast_format_cap_alloc())) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add_all(record_tech.capabilities);
 	if (ast_channel_register(&record_tech)) {
 		ast_log(LOG_ERROR, "Unable to register ConfBridge recorder.\n");
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	/* Create a container to hold the conference bridges */
-	if (!(conference_bridges = ao2_container_alloc(CONFERENCE_BRIDGE_BUCKETS, conference_bridge_hash_cb, conference_bridge_cmp_cb))) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	if (ast_register_application_xml(app, confbridge_exec)) {
-		ao2_ref(conference_bridges, -1);
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	res |= ast_cli_register_multiple(cli_confbridge, sizeof(cli_confbridge) / sizeof(struct ast_cli_entry));
+	/* Create a container to hold the conference bridges */
+	conference_bridges = ao2_container_alloc(CONFERENCE_BRIDGE_BUCKETS,
+		conference_bridge_hash_cb, conference_bridge_cmp_cb);
+	if (!conference_bridges) {
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	res |= ast_register_application_xml(app, confbridge_exec);
+
+	res |= ast_custom_function_register(&confbridge_function);
+	res |= ast_custom_function_register(&confbridge_info_function);
+
+	res |= ast_cli_register_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
+
 	res |= ast_manager_register_xml("ConfbridgeList", EVENT_FLAG_REPORTING, action_confbridgelist);
 	res |= ast_manager_register_xml("ConfbridgeListRooms", EVENT_FLAG_REPORTING, action_confbridgelistrooms);
 	res |= ast_manager_register_xml("ConfbridgeMute", EVENT_FLAG_CALL, action_confbridgemute);
@@ -3292,6 +3296,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_CALL, action_confbridgestoprecord);
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

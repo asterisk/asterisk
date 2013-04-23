@@ -648,32 +648,95 @@ CONFIG_INFO_STANDARD(cfg_info, cfg_handle, confbridge_cfg_alloc,
 /*! bridge profile container functions */
 static int bridge_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct bridge_profile *entry1 = obj, *entry2 = arg;
-	const char *name = arg;
-	return (!strcasecmp(entry1->name, flags & OBJ_KEY ? name : entry2->name)) ?
-		CMP_MATCH | CMP_STOP : 0;
+	const struct bridge_profile *left = obj;
+	const struct bridge_profile *right = arg;
+	const char *right_name = arg;
+	int cmp;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		right_name = right->name;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcasecmp(left->name, right_name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		cmp = strncasecmp(left->name, right_name, strlen(right_name));
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH;
 }
+
 static int bridge_hash_cb(const void *obj, const int flags)
 {
 	const struct bridge_profile *b_profile = obj;
 	const char *name = obj;
-	return ast_str_case_hash(flags & OBJ_KEY ? name : b_profile->name);
+	int hash;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		name = b_profile->name;
+		/* Fall through */
+	case OBJ_KEY:
+		hash = ast_str_case_hash(name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		/* Should never happen in hash callback. */
+		ast_assert(0);
+		hash = 0;
+		break;
+	}
+	return hash;
 }
 
 /*! menu container functions */
 static int menu_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct conf_menu *entry1 = obj, *entry2 = arg;
-	const char *name = arg;
-	return (!strcasecmp(entry1->name, flags & OBJ_KEY ? name : entry2->name)) ?
-		CMP_MATCH | CMP_STOP : 0;
+	const struct conf_menu *left = obj;
+	const struct conf_menu *right = arg;
+	const char *right_name = arg;
+	int cmp;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		right_name = right->name;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcasecmp(left->name, right_name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		cmp = strncasecmp(left->name, right_name, strlen(right_name));
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH;
 }
+
 static int menu_hash_cb(const void *obj, const int flags)
 {
 	const struct conf_menu *menu = obj;
 	const char *name = obj;
-	return ast_str_case_hash(flags & OBJ_KEY ? name : menu->name);
+	int hash;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		name = menu->name;
+		/* Fall through */
+	case OBJ_KEY:
+		hash = ast_str_case_hash(name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		/* Should never happen in hash callback. */
+		ast_assert(0);
+		hash = 0;
+		break;
+	}
+	return hash;
 }
+
 static void menu_destructor(void *obj)
 {
 	struct conf_menu *menu = obj;
@@ -688,16 +751,47 @@ static void menu_destructor(void *obj)
 /*! User profile container functions */
 static int user_cmp_cb(void *obj, void *arg, int flags)
 {
-	const struct user_profile *entry1 = obj, *entry2 = arg;
-	const char *name = arg;
-	return (!strcasecmp(entry1->name, flags & OBJ_KEY ? name : entry2->name)) ?
-		CMP_MATCH | CMP_STOP : 0;
+	const struct user_profile *left = obj;
+	const struct user_profile *right = arg;
+	const char *right_name = arg;
+	int cmp;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		right_name = right->name;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcasecmp(left->name, right_name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		cmp = strncasecmp(left->name, right_name, strlen(right_name));
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH;
 }
+
 static int user_hash_cb(const void *obj, const int flags)
 {
 	const struct user_profile *u_profile = obj;
 	const char *name = obj;
-	return ast_str_case_hash(flags & OBJ_KEY ? name : u_profile->name);
+	int hash;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	default:
+	case OBJ_POINTER:
+		name = u_profile->name;
+		/* Fall through */
+	case OBJ_KEY:
+		hash = ast_str_case_hash(name);
+		break;
+	case OBJ_PARTIAL_KEY:
+		/* Should never happen in hash callback. */
+		ast_assert(0);
+		hash = 0;
+		break;
+	}
+	return hash;
 }
 
 /*! Bridge Profile Sounds functions */
