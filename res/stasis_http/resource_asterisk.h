@@ -53,4 +53,10 @@ struct ast_get_asterisk_info_args {
  */
 void stasis_http_get_asterisk_info(struct ast_variable *headers, struct ast_get_asterisk_info_args *args, struct stasis_http_response *response);
 
+/*
+ * JSON models
+ *
+ * AsteriskInfo
+ */
+
 #endif /* _ASTERISK_RESOURCE_ASTERISK_H */

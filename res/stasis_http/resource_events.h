@@ -55,4 +55,42 @@ struct ast_event_websocket_args {
  */
 void stasis_http_event_websocket(struct ast_variable *headers, struct ast_event_websocket_args *args, struct stasis_http_response *response);
 
+/*
+ * JSON models
+ *
+ * DtmfReceived
+ * - digit: string 
+ * - channel: Channel 
+ * BridgeCreated
+ * - bridge: Bridge 
+ * BridgeDestroyed
+ * - bridge: Bridge 
+ * ApplicationReplaced
+ * - application: string 
+ * ChannelLeftBridge
+ * - bridge: Bridge 
+ * - channel: Channel 
+ * StasisStart
+ * - args: List[string] 
+ * - channel_info: Channel 
+ * StasisEnd
+ * - channel_info: Channel 
+ * ChannelStateChange
+ * - channel_info: Channel 
+ * ChannelEnteredBridge
+ * - bridge: Bridge 
+ * - channel: Channel 
+ * Event
+ * - stasis_start: StasisStart 
+ * - channel_entered_bridge: ChannelEnteredBridge 
+ * - channel_left_bridge: ChannelLeftBridge 
+ * - application_replaced: ApplicationReplaced 
+ * - channel_state_change: ChannelStateChange 
+ * - bridge_created: BridgeCreated 
+ * - application: string (required)
+ * - stasis_end: StasisEnd 
+ * - dtmf_received: DtmfReceived 
+ * - bridge_destroyed: BridgeDestroyed 
+ */
+
 #endif /* _ASTERISK_RESOURCE_EVENTS_H */

@@ -64,5 +64,16 @@ void stasis_http_{{c_nickname}}(struct ast_variable *headers, struct ast_{{c_nic
 {{/operations}}
 {{/apis}}
 
+/*
+ * JSON models
+ *
+{{#models}}
+ * {{id}}
+{{#properties}}
+ * - {{name}}: {{type}} {{#required}}(required){{/required}}
+{{/properties}}
+{{/models}}
+ */
+
 #endif /* _ASTERISK_RESOURCE_{{name_caps}}_H */
 {{/api_declaration}}
