@@ -297,9 +297,11 @@ class Model(Stringify):
         self.id = None
         self.properties = None
 
-    def load(self, model_json, processor, context):
+    def load(self, id, model_json, processor, context):
         context = add_context(context, model_json, 'id')
         self.id = model_json.get('id')
+        if id != self.id:
+            raise SwaggerError("Model id doesn't match name", c)
         props = model_json.get('properties').items() or []
         self.properties = [
             Property(k).load(j, processor, context) for (k, j) in props]
@@ -372,13 +374,9 @@ class ApiDeclaration(Stringify):
         self.apis = [
             Api().load(j, processor, context) for j in api_json]
         models = api_decl_json.get('models').items() or []
-        self.models = OrderedDict(
-            (k, Model().load(j, processor, context)) for (k, j) in models)
+        self.models = [
+            Model().load(k, j, processor, context) for (k, j) in models]
 
-        for (name, model) in self.models.items():
-            c = list(context).append('model = %s' % name)
-            if name != model.id:
-                raise SwaggerError("Model id doesn't match name", c)
         return self
 
 
