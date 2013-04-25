@@ -983,7 +983,13 @@ static void *worker_start(void *arg)
 {
 	struct worker_thread *worker = arg;
 
+	if (worker->options.thread_start) {
+		worker->options.thread_start();
+	}
 	worker_active(worker);
+	if (worker->options.thread_end) {
+		worker->options.thread_end();
+	}
 	return NULL;
 }
 

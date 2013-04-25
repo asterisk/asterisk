@@ -43,6 +43,9 @@ snmp/agent.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_snmp)
 $(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
 ael/ael_lex.o ael/ael.tab.o ael/pval.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ael_share)
 
+$(if $(filter res_sip,$(EMBEDDED_MODS)),modules.link,res_sip.so): $(subst .c,.o,$(wildcard res_sip/*.c))
+$(subst .c,.o,$(wildcard res_sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_sip)
+
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael_lex.c: ael/ael.flex
 else
@@ -67,7 +70,7 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
-	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi]
+	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi] res_sip/*.[oi]
 
 # Dependencies for res_stasis_http_*.so are generated, so they're in this file
 include stasis_http.make

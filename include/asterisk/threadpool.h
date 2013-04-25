@@ -108,6 +108,20 @@ struct ast_threadpool_options {
 	 * maximum size.
 	 */
 	int max_size;
+	/*!
+	 * \brief Function to call when a thread starts
+	 *
+	 * This is useful if there is something common that all threads
+	 * in a threadpool need to do when they start.
+	 */
+	void (*thread_start)(void);
+	/*!
+	 * \brief Function to call when a thread ends
+	 *
+	 * This is useful if there is common cleanup to execute when
+	 * a thread completes
+	 */
+	void (*thread_end)(void);
 };
 
 /*!

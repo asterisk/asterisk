@@ -740,7 +740,7 @@ int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object,
 	}
 
 	if (!res && object_type->apply) {
-		object_type->apply(sorcery, object);
+		res = object_type->apply(sorcery, object);
 	}
 
 	return res;
@@ -940,6 +940,7 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 	unsigned int cached = 0;
 
 	if (!object_type) {
+		ast_log(LOG_NOTICE, "Can't find object type '%s'\n", type);
 		return NULL;
 	}
 

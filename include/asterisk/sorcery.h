@@ -157,10 +157,15 @@ typedef struct ast_variable *(*sorcery_transform_handler)(struct ast_variable *s
 /*!
  * \brief A callback function for when an object set is successfully applied to an object
  *
+ * \note On a failure return, the state of the object is left undefined. It is a bad
+ * idea to try to use this object.
+ *
  * \param sorcery Sorcery structure in use
  * \param obj The object itself
+ * \retval 0 Success
+ * \retval non-zero Failure
  */
-typedef void (*sorcery_apply_handler)(const struct ast_sorcery *sorcery, void *obj);
+typedef int (*sorcery_apply_handler)(const struct ast_sorcery *sorcery, void *obj);
 
 /*!
  * \brief A callback function for copying the contents of one object to another

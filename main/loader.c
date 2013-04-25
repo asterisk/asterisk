@@ -842,6 +842,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	printf ("!!! Going to load %s\n", mod->resource);
 	res = mod->info->load();
 
 	switch (res) {

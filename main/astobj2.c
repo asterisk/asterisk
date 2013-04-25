@@ -525,6 +525,7 @@ int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *fil
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
 
 	if (obj == NULL) {
+		ast_backtrace();
 		ast_assert(0);
 		return -1;
 	}

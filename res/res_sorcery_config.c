@@ -199,7 +199,6 @@ static void sorcery_config_retrieve_multiple(const struct ast_sorcery *sorcery, 
 	if (!config_objects) {
 		return;
 	}
-
 	ao2_callback(config_objects, 0, sorcery_config_fields_cmp, &params);
 }
 

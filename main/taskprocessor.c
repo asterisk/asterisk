@@ -602,7 +602,6 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 	/* Unref listener here since the taskprocessor has gained a reference to the listener */
 	ao2_ref(listener, -1);
 	return p;
-
 }
 
 struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener)

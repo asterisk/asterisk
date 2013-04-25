@@ -130,9 +130,10 @@ struct sorcery_test_caching {
 static int apply_handler_called;
 
 /*! \brief Simple apply handler which sets global scope integer to 1 if called */
-static void test_apply_handler(const struct ast_sorcery *sorcery, void *obj)
+static int test_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 {
 	apply_handler_called = 1;
+	return 0;
 }
 
 /*! \brief Global scope caching structure for testing */

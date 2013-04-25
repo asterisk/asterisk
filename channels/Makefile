@@ -113,3 +113,4 @@ h323/Makefile.ast:
 
 h323/libchanh323.a: h323/Makefile.ast
 	$(CMD_PREFIX) $(MAKE) -C h323 libchanh323.a
+

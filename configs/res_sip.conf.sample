@@ -1,0 +1,24 @@
+; This is an in-flux configuration file for the res_sip module, it will change as things progress
+
+;;; Transports
+[local]
+type=transport
+protocol=udp ; Supported protocols are udp, tcp, and tls
+bind=0.0.0.0 ; This supports both IPv4 and IPv6, port is optional
+
+;;; Endpoints
+[endpoint]
+type=endpoint
+context=default
+disallow=all
+allow=ulaw
+dtmfmode=rfc4733          ; Supported DTMF modes are rfc4733, inband, info, and none
+;transport=local          ; Name of a specific transport to use when placing calls
+;100rel=yes               ; Enable or disable 100rel support - valid options are: yes, no, required
+;timers=yes               ; Enable or disable session timers support - valid options are: yes, no, required, always
+;timers_min_se=90         ; Minimum session timers expiration period, in seconds
+;timers_sess_expires=1800 ; Session timers expiration period, in seconds
+;mohsuggest=example	      ; What musiconhold class to suggest that the peer channel use when this endpoint places them on hold
+;rtp_ipv6=yes             ; Force IPv6 for RTP transport
+;rtp_symmetric=yes        ; Enable symmetric RTP support
+;use_ptime=yes            ; Whether to use the ptime value received from the endpoint or not
