@@ -18816,7 +18816,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "ForcerPort");
+	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "Forcerport");
 
 	user_iter = ao2_iterator_init(peers, 0);
 	while ((user = ao2_t_iterator_next(&user_iter, "iterate thru peers table"))) {
