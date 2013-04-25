@@ -1,10 +1,10 @@
 ; This is an in-flux configuration file for the res_sip module, it will change as things progress
 
 ;;; Transports
-[local]
-type=transport
-protocol=udp ; Supported protocols are udp, tcp, and tls
-bind=0.0.0.0 ; This supports both IPv4 and IPv6, port is optional
+;[local]
+;type=transport
+;protocol=udp ; Supported protocols are udp, tcp, and tls
+;bind=0.0.0.0 ; This supports both IPv4 and IPv6, port is optional
 
 ;;; Endpoints
 [endpoint]
