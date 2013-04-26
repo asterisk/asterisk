@@ -18,6 +18,8 @@
 
 /*! \file
  * \brief Universally unique identifier support
+ *
+ * \extref Depends on libuuid, a component of the e2fsprogs package - http://e2fsprogs.sourceforge.net/
  */
 
 #include "asterisk.h"
