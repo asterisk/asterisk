@@ -19,6 +19,12 @@
  * \brief Opaque structure representing an RFC 3265 SIP subscription
  */
 
+/*** MODULEINFO
+	<depend>pjproject</depend>
+	<depend>res_sip</depend>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include <pjsip.h>

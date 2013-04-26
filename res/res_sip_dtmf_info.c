@@ -18,6 +18,8 @@
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
+	<depend>res_sip</depend>
+	<depend>res_sip_session</depend>
 	<support_level>core</support_level>
  ***/
 

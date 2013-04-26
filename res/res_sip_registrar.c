@@ -17,6 +17,8 @@
  */
 
 /*** MODULEINFO
+	<depend>pjproject</depend>
+	<depend>res_sip</depend>
 	<support_level>core</support_level>
  ***/
 

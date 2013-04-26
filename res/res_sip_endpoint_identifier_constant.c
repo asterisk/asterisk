@@ -20,6 +20,7 @@
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
+	<depend>res_sip</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>core</support_level>
  ***/
