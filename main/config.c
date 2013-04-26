@@ -1617,6 +1617,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				AST_LIST_UNLOCK(&cfmtime_head);
 				ast_free(comment_buffer);
 				ast_free(lline_buffer);
+#ifdef AST_INCLUDE_GLOB
+				globfree(&globbuf);
+#endif
 				return CONFIG_STATUS_FILEUNCHANGED;
 			}
 		}
@@ -1627,6 +1630,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		if (cfg == NULL) {
 			ast_free(comment_buffer);
 			ast_free(lline_buffer);
+#ifdef AST_INCLUDE_GLOB
+				globfree(&globbuf);
+#endif
 			return NULL;
 		}
 
