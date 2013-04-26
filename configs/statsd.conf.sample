@@ -1,0 +1,8 @@
+[general]
+;enabled = yes			; When set to yes, statsd support is enabled
+;server = 127.0.0.1		; server[:port] of statsd server to use.
+				; If not specified, the port is 8125
+;prefix =			; Prefix to prepend to all metrics
+;add_newline = no		; Append a newline to every event. This is
+				; useful if you want to run a fake statsd
+				; server using netcat (nc -lu 8125)

@@ -1,0 +1,8 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_statsd_log;
+		LINKER_SYMBOL_PREFIX*ast_statsd_log_full;
+		LINKER_SYMBOL_PREFIX*ast_statsd_log_sample;
+	local:
+		*;
+};

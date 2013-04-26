@@ -458,6 +458,11 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
 long int ast_random(void);
 
+/*!
+ * \brief Returns a random number between 0.0 and 1.0, inclusive.
+ * \since 12
+ */
+#define ast_random_double() (((double)ast_random()) / RAND_MAX)
 
 /*!
  * \brief free() wrapper
