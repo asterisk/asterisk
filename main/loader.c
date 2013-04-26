@@ -842,6 +842,9 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	if (!ast_fully_booted) {
+		ast_verb(1, "Loading %s.\n", mod->resource);
+	}
 	res = mod->info->load();
 
 	switch (res) {
