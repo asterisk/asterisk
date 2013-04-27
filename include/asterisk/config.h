@@ -98,12 +98,12 @@ struct ast_variable {
 };
 
 typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file, const char *who_asked);
-typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
-typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
-typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
-typedef int realtime_update2(const char *database, const char *table, va_list ap);
-typedef int realtime_store(const char *database, const char *table, va_list ap);
-typedef int realtime_destroy(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
+typedef struct ast_variable *realtime_var_get(const char *database, const char *table, const struct ast_variable *fields);
+typedef struct ast_config *realtime_multi_get(const char *database, const char *table, const struct ast_variable *fields);
+typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
+typedef int realtime_update2(const char *database, const char *table, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields);
+typedef int realtime_store(const char *database, const char *table, const struct ast_variable *fields);
+typedef int realtime_destroy(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
 
 /*!
  * \brief Function pointer called to ensure database schema is properly configured for realtime use
@@ -305,7 +305,9 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
  * You should use the constant SENTINEL to terminate arguments, in
  * order to preserve cross-platform compatibility.
  */
+struct ast_variable *ast_load_realtime_fields(const char *family, const struct ast_variable *fields);
 struct ast_variable *ast_load_realtime(const char *family, ...) attribute_sentinel;
+struct ast_variable *ast_load_realtime_all_fields(const char *family, const struct ast_variable *fields);
 struct ast_variable *ast_load_realtime_all(const char *family, ...) attribute_sentinel;
 
 /*!
@@ -363,6 +365,24 @@ int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
  * \brief Retrieve realtime configuration
  *
  * \param family which family/config to lookup
+ * \param fields list of fields
+ *
+ * \details
+ * This will use builtin configuration backends to look up a particular
+ * entity in realtime and return a variable list of its parameters. Unlike
+ * the ast_load_realtime, this function can return more than one entry and
+ * is thus stored inside a traditional ast_config structure rather than
+ * just returning a linked list of variables.
+ *
+ * \return An ast_config with one or more results
+ * \retval NULL Error or no results returned
+ */
+struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields);
+
+/*!
+ * \brief Retrieve realtime configuration
+ *
+ * \param family which family/config to lookup
  *
  * \details
  * This will use builtin configuration backends to look up a particular
@@ -385,6 +405,21 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...) attribu
  * \param family which family/config to be updated
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
+ * \param fields fields to update
+ *
+ * \details
+ * This function is used to update a parameter in realtime configuration space.
+ *
+ * \return Number of rows affected, or -1 on error.
+ */
+int ast_update_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields);
+
+/*!
+ * \brief Update realtime configuration
+ *
+ * \param family which family/config to be updated
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
  *
  * \details
  * This function is used to update a parameter in realtime configuration space.
@@ -395,6 +430,23 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...) attribu
  * order to preserve cross-platform compatibility.
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...) attribute_sentinel;
+
+/*!
+ * \brief Update realtime configuration
+ *
+ * \param family which family/config to be updated
+ * \param lookup_fields fields used to look up entries
+ * \param update_fields fields to update
+ *
+ * \details
+ * This function is used to update a parameter in realtime configuration space.
+ * It includes the ability to lookup a row based upon multiple key criteria.
+ * As a result, this function includes two sentinel values, one to terminate
+ * lookup values and the other to terminate the listing of fields to update.
+ *
+ * \return Number of rows affected, or -1 on error.
+ */
+int ast_update2_realtime_fields(const char *family, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields);
 
 /*!
  * \brief Update realtime configuration
@@ -418,6 +470,24 @@ int ast_update2_realtime(const char *family, ...) attribute_sentinel;
  * \brief Create realtime configuration
  *
  * \param family which family/config to be created
+ * \param fields fields themselves
+ *
+ * \details
+ * This function is used to create a parameter in realtime configuration space.
+ *
+ * \return Number of rows affected, or -1 on error.
+ *
+ * \note
+ * On the MySQL engine only, for reasons of backwards compatibility, the return
+ * value is the insert ID.  This value is nonportable and may be changed in a
+ * future version to match the other engines.
+ */
+int ast_store_realtime_fields(const char *family, const struct ast_variable *fields);
+
+/*!
+ * \brief Create realtime configuration
+ *
+ * \param family which family/config to be created
  *
  * \details
  * This function is used to create a parameter in realtime configuration space.
@@ -433,6 +503,22 @@ int ast_update2_realtime(const char *family, ...) attribute_sentinel;
  * order to preserve cross-platform compatibility.
  */
 int ast_store_realtime(const char *family, ...) attribute_sentinel;
+
+/*!
+ * \brief Destroy realtime configuration
+ *
+ * \param family which family/config to be destroyed
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
+ * \param fields fields themselves
+ *
+ * \details
+ * This function is used to destroy an entry in realtime configuration space.
+ * Additional params are used as keys.
+ *
+ * \return Number of rows affected, or -1 on error.
+ */
+int ast_destroy_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields);
 
 /*!
  * \brief Destroy realtime configuration
@@ -502,6 +588,19 @@ int ast_config_engine_deregister(struct ast_config_engine *del);
  * \retval 0 if it is not
  */
 int ast_realtime_is_mapping_defined(const char *family);
+
+#ifdef TEST_FRAMEWORK
+/*!
+ * \brief Add an explicit mapping for a family
+ *
+ * \param name Family name
+ * \param driver Driver to use
+ * \param database Database to access
+ * \param table Table to use
+ * \param priority Priority of this mapping
+ */
+int ast_realtime_append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority);
+#endif
 
 /*!
  * \brief Exposed initialization method for core process

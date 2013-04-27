@@ -53,18 +53,18 @@ AST_THREADSTORAGE(result_buf);
  * \brief Execute a curl query and return ast_variable list
  * \param url The base URL from which to retrieve data
  * \param unused Not currently used
- * \param ap list containing one or more field/operator/value set.
+ * \param fields list containing one or more field/operator/value set.
  *
  * \retval var on success
  * \retval NULL on failure
 */
-static struct ast_variable *realtime_curl(const char *url, const char *unused, va_list ap)
+static struct ast_variable *realtime_curl(const char *url, const char *unused, const struct ast_variable *fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[256], buf2[256];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp, *pair, *key;
-	int i;
+	unsigned int start = 1;
 	struct ast_variable *var = NULL, *prev = NULL;
 
 	if (!ast_custom_function_find("CURL")) {
@@ -82,11 +82,11 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 
 	ast_str_set(&query, 0, "${CURL(%s/single,", url);
 
-	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
-		newval = va_arg(ap, const char *);
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
+	for (field = fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "&" : "", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");
@@ -124,18 +124,18 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
  * \brief Excute an Select query and return ast_config list
  * \param url
  * \param unused
- * \param ap list containing one or more field/operator/value set.
+ * \param fields list containing one or more field/operator/value set.
  *
  * \retval struct ast_config pointer on success
  * \retval NULL on failure
 */
-static struct ast_config *realtime_multi_curl(const char *url, const char *unused, va_list ap)
+static struct ast_config *realtime_multi_curl(const char *url, const char *unused, const struct ast_variable *fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[256], buf2[256];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp, *line, *pair, *key, *initfield = NULL;
-	int i;
+	int start = 1;
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
@@ -155,17 +155,17 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 
 	ast_str_set(&query, 0, "${CURL(%s/multi,", url);
 
-	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
-		newval = va_arg(ap, const char *);
-		if (i == 0) {
+	for (field = fields; field; field = field->next) {
+		if (start) {
 			char *op;
-			initfield = ast_strdupa(newparam);
+			initfield = ast_strdupa(field->name);
 			if ((op = strchr(initfield, ' ')))
 				*op = '\0';
 		}
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "&" : "", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");
@@ -216,7 +216,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
  * \param unused
  * \param keyfield where clause field
  * \param lookup value of field for where clause
- * \param ap list containing one or more field/value set(s).
+ * \param fields list containing one or more field/value set(s).
  *
  * Update a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. All values to be changed are stored in ap list.
@@ -225,13 +225,13 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int update_curl(const char *url, const char *unused, const char *keyfield, const char *lookup, va_list ap)
+static int update_curl(const char *url, const char *unused, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[256], buf2[256];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp;
-	int i, rowcount = -1;
+	int start = 1, rowcount = -1;
 
 	if (!ast_custom_function_find("CURL")) {
 		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
@@ -250,11 +250,11 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	ast_uri_encode(lookup, buf2, sizeof(buf2), ast_uri_http);
 	ast_str_set(&query, 0, "${CURL(%s/update?%s=%s,", url, buf1, buf2);
 
-	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
-		newval = va_arg(ap, const char *);
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
+	for (field = fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "&" : "", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");
@@ -274,13 +274,14 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	return -1;
 }
 
-static int update2_curl(const char *url, const char *unused, va_list ap)
+static int update2_curl(const char *url, const char *unused, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[200], buf2[200];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp;
-	int rowcount = -1, lookup = 1, first = 1;
+	unsigned int start = 1;
+	int rowcount = -1;
 
 	if (!ast_custom_function_find("CURL")) {
 		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
@@ -296,23 +297,20 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
 
 	ast_str_set(&query, 0, "${CURL(%s/update?", url);
 
-	for (;;) {
-		if ((newparam = va_arg(ap, const char *)) == SENTINEL) {
-			if (lookup) {
-				lookup = 0;
-				ast_str_append(&query, 0, ",");
-				/* Back to the first parameter; we don't need a starting '&' */
-				first = 1;
-				continue;
-			} else {
-				break;
-			}
-		}
-		newval = va_arg(ap, const char *);
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", first ? "" : "&", buf1, buf2);
-		first = 0;
+	for (field = lookup_fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "" : "&", buf1, buf2);
+		start = 0;
+	}
+	ast_str_append(&query, 0, ",");
+	start = 1;
+
+	for (field = update_fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "" : "&", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");
@@ -340,7 +338,7 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
  * \brief Execute an INSERT query
  * \param url
  * \param unused
- * \param ap list containing one or more field/value set(s)
+ * \param fields list containing one or more field/value set(s)
  *
  * Insert a new record into database table, prepare the sql statement.
  * All values to be changed are stored in ap list.
@@ -349,13 +347,13 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int store_curl(const char *url, const char *unused, va_list ap)
+static int store_curl(const char *url, const char *unused, const struct ast_variable *fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[256], buf2[256];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp;
-	int i, rowcount = -1;
+	int start = 1, rowcount = -1;
 
 	if (!ast_custom_function_find("CURL")) {
 		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
@@ -372,11 +370,11 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 
 	ast_str_set(&query, 0, "${CURL(%s/store,", url);
 
-	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
-		newval = va_arg(ap, const char *);
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
+	for (field = fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "&" : "", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");
@@ -401,7 +399,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
  * \param unused
  * \param keyfield where clause field
  * \param lookup value of field for where clause
- * \param ap list containing one or more field/value set(s)
+ * \param fields list containing one or more field/value set(s)
  *
  * Delete a row from a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. Additional params to match rows are stored in ap list.
@@ -410,13 +408,13 @@ static int store_curl(const char *url, const char *unused, va_list ap)
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int destroy_curl(const char *url, const char *unused, const char *keyfield, const char *lookup, va_list ap)
+static int destroy_curl(const char *url, const char *unused, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
 	struct ast_str *query, *buffer;
 	char buf1[200], buf2[200];
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char *stringp;
-	int i, rowcount = -1;
+	int start = 1, rowcount = -1;
 
 	if (!ast_custom_function_find("CURL")) {
 		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
@@ -435,11 +433,11 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	ast_uri_encode(lookup, buf2, sizeof(buf2), ast_uri_http);
 	ast_str_set(&query, 0, "${CURL(%s/destroy,%s=%s&", url, buf1, buf2);
 
-	for (i = 0; (newparam = va_arg(ap, const char *)); i++) {
-		newval = va_arg(ap, const char *);
-		ast_uri_encode(newparam, buf1, sizeof(buf1), ast_uri_http);
-		ast_uri_encode(newval, buf2, sizeof(buf2), ast_uri_http);
-		ast_str_append(&query, 0, "%s%s=%s", i > 0 ? "&" : "", buf1, buf2);
+	for (field = fields; field; field = field->next) {
+		ast_uri_encode(field->name, buf1, sizeof(buf1), ast_uri_http);
+		ast_uri_encode(field->value, buf2, sizeof(buf2), ast_uri_http);
+		ast_str_append(&query, 0, "%s%s=%s", !start ? "&" : "", buf1, buf2);
+		start = 0;
 	}
 
 	ast_str_append(&query, 0, ")}");

@@ -540,7 +540,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 	int pos;
 	va_list args;
 
-	if (!object_type || !object_type->type.item_alloc) {
+	if (!strcmp(type, "id") || !object_type || !object_type->type.item_alloc) {
 		return -1;
 	}
 

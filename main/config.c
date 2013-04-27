@@ -2220,7 +2220,11 @@ static void clear_config_maps(void)
 	}
 }
 
-static int append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority)
+#ifdef TEST_FRAMEWORK
+int ast_realtime_append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority)
+#else
+static int ast_realtime_append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority)
+#endif
 {
 	struct ast_config_map *map;
 	char *dst;
@@ -2323,13 +2327,13 @@ int read_config_maps(void)
 			continue;
 		if (!strcasecmp(v->name, "sipfriends")) {
 			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sippeers instead.\n");
-			append_mapping("sippeers", driver, database, table ? table : "sipfriends", pri);
+			ast_realtime_append_mapping("sippeers", driver, database, table ? table : "sipfriends", pri);
 		} else if (!strcasecmp(v->name, "iaxfriends")) {
 			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
-			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends", pri);
-			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends", pri);
+			ast_realtime_append_mapping("iaxusers", driver, database, table ? table : "iaxfriends", pri);
+			ast_realtime_append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends", pri);
 		} else
-			append_mapping(v->name, driver, database, table, pri);
+			ast_realtime_append_mapping(v->name, driver, database, table, pri);
 	}
 
 	ast_config_destroy(config);
@@ -2517,7 +2521,36 @@ struct ast_config *ast_config_load2(const char *filename, const char *who_asked,
 	return result;
 }
 
-static struct ast_variable *ast_load_realtime_helper(const char *family, va_list ap)
+static struct ast_variable *realtime_arguments_to_fields(va_list ap)
+{
+	struct ast_variable *first, *fields = NULL;
+	const char *newparam = va_arg(ap, const char *), *newval = va_arg(ap, const char *);
+
+	if (!(first = ast_variable_new(newparam, newval, ""))) {
+		return NULL;
+	}
+
+	while ((newparam = va_arg(ap, const char *))) {
+		struct ast_variable *field;
+
+		newval = va_arg(ap, const char *);
+		if (!(field = ast_variable_new(newparam, newval, ""))) {
+			ast_variables_destroy(fields);
+			ast_variables_destroy(first);
+			return NULL;
+		}
+
+		field->next = fields;
+		fields = field;
+	}
+
+	first->next = fields;
+	fields = first;
+
+	return fields;
+}
+
+struct ast_variable *ast_load_realtime_all_fields(const char *family, const struct ast_variable *fields)
 {
 	struct ast_config_engine *eng;
 	char db[256];
@@ -2527,7 +2560,7 @@ static struct ast_variable *ast_load_realtime_helper(const char *family, va_list
 
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->realtime_func && (res = eng->realtime_func(db, table, ap))) {
+			if (eng->realtime_func && (res = eng->realtime_func(db, table, fields))) {
 				return res;
 			}
 		} else {
@@ -2540,26 +2573,28 @@ static struct ast_variable *ast_load_realtime_helper(const char *family, va_list
 
 struct ast_variable *ast_load_realtime_all(const char *family, ...)
 {
-	struct ast_variable *res;
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	struct ast_variable *res = NULL;
 	va_list ap;
 
 	va_start(ap, family);
-	res = ast_load_realtime_helper(family, ap);
+	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
+
+	if (fields) {
+		res = ast_load_realtime_all_fields(family, fields);
+	}
 
 	return res;
 }
 
-struct ast_variable *ast_load_realtime(const char *family, ...)
+struct ast_variable *ast_load_realtime_fields(const char *family, const struct ast_variable *fields)
 {
 	struct ast_variable *res;
 	struct ast_variable *cur;
 	struct ast_variable **prev;
-	va_list ap;
 
-	va_start(ap, family);
-	res = ast_load_realtime_helper(family, ap);
-	va_end(ap);
+	res = ast_load_realtime_all_fields(family, fields);
 
 	/* Filter the list. */
 	prev = &res;
@@ -2586,6 +2621,18 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 		}
 	}
 	return res;
+}
+
+struct ast_variable *ast_load_realtime(const char *family, ...)
+{
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	va_list ap;
+
+	va_start(ap, family);
+	fields = realtime_arguments_to_fields(ap);
+	va_end(ap);
+
+	return ast_load_realtime_fields(family, fields);
 }
 
 /*! \brief Check if realtime engine is configured for family */
@@ -2652,19 +2699,17 @@ int ast_unload_realtime(const char *family)
 	return res;
 }
 
-struct ast_config *ast_load_realtime_multientry(const char *family, ...)
+struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields)
 {
 	struct ast_config_engine *eng;
 	char db[256];
 	char table[256];
 	struct ast_config *res = NULL;
-	va_list ap;
 	int i;
 
-	va_start(ap, family);
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, ap))) {
+			if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, fields))) {
 				/* If we were returned an empty cfg, destroy it and return NULL */
 				if (!res->root) {
 					ast_config_destroy(res);
@@ -2676,103 +2721,152 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 			break;
 		}
 	}
+
+	return res;
+}
+
+struct ast_config *ast_load_realtime_multientry(const char *family, ...)
+{
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	va_list ap;
+
+	va_start(ap, family);
+	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
+
+	return ast_load_realtime_multientry_fields(family, fields);
+}
+
+int ast_update_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields)
+{
+	struct ast_config_engine *eng;
+	int res = -1, i;
+	char db[256];
+	char table[256];
+
+	for (i = 1; ; i++) {
+		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
+			/* If the update succeeds, it returns 0. */
+			if (eng->update_func && !(res = eng->update_func(db, table, keyfield, lookup, fields))) {
+				break;
+			}
+		} else {
+			break;
+		}
+	}
 
 	return res;
 }
 
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	va_list ap;
+
+	va_start(ap, lookup);
+	fields = realtime_arguments_to_fields(ap);
+	va_end(ap);
+
+	return ast_update_realtime_fields(family, keyfield, lookup, fields);
+}
+
+int ast_update2_realtime_fields(const char *family, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
+{
 	struct ast_config_engine *eng;
 	int res = -1, i;
 	char db[256];
 	char table[256];
-	va_list ap;
 
-	va_start(ap, lookup);
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the update succeeds, it returns 0. */
-			if (eng->update_func && !(res = eng->update_func(db, table, keyfield, lookup, ap))) {
+			if (eng->update2_func && !(res = eng->update2_func(db, table, lookup_fields, update_fields))) {
 				break;
 			}
 		} else {
 			break;
 		}
 	}
-	va_end(ap);
 
 	return res;
 }
 
 int ast_update2_realtime(const char *family, ...)
 {
+	RAII_VAR(struct ast_variable *, lookup_fields, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, update_fields, NULL, ast_variables_destroy);
+	va_list ap;
+
+	va_start(ap, family);
+	lookup_fields = realtime_arguments_to_fields(ap);
+	update_fields = realtime_arguments_to_fields(ap);
+	va_end(ap);
+
+	return ast_update2_realtime_fields(family, lookup_fields, update_fields);
+}
+
+int ast_store_realtime_fields(const char *family, const struct ast_variable *fields)
+{
 	struct ast_config_engine *eng;
 	int res = -1, i;
 	char db[256];
 	char table[256];
-	va_list ap;
 
-	va_start(ap, family);
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->update2_func && !(res = eng->update2_func(db, table, ap))) {
+			/* If the store succeeds, it returns 0. */
+			if (eng->store_func && !(res = eng->store_func(db, table, fields))) {
 				break;
 			}
 		} else {
 			break;
 		}
 	}
-	va_end(ap);
 
 	return res;
 }
 
 int ast_store_realtime(const char *family, ...)
 {
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	va_list ap;
+
+	va_start(ap, family);
+	fields = realtime_arguments_to_fields(ap);
+	va_end(ap);
+
+	return ast_store_realtime_fields(family, fields);
+}
+
+int ast_destroy_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields)
+{
 	struct ast_config_engine *eng;
 	int res = -1, i;
 	char db[256];
 	char table[256];
-	va_list ap;
 
-	va_start(ap, family);
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the store succeeds, it returns 0. */
-			if (eng->store_func && !(res = eng->store_func(db, table, ap))) {
+			if (eng->destroy_func && !(res = eng->destroy_func(db, table, keyfield, lookup, fields))) {
 				break;
 			}
 		} else {
 			break;
 		}
 	}
-	va_end(ap);
 
 	return res;
 }
 
 int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
-	struct ast_config_engine *eng;
-	int res = -1, i;
-	char db[256];
-	char table[256];
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
 	va_list ap;
 
 	va_start(ap, lookup);
-	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->destroy_func && !(res = eng->destroy_func(db, table, keyfield, lookup, ap))) {
-				break;
-			}
-		} else {
-			break;
-		}
-	}
+	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
 
-	return res;
+	return ast_destroy_realtime_fields(family, keyfield, lookup, fields);
 }
 
 char *ast_realtime_decode_chunk(char *chunk)

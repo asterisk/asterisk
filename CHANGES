@@ -147,6 +147,12 @@ XMPP
    If no resources exist or all are unavailable the device state is considered
    to be unavailable.
 
+Sorcery
+------------------
+ * All future modules which utilize Sorcery for object persistence must have a
+   column named "id" within their schema when using the Sorcery realtime module.
+   This column must be able to contain a string of up to 128 characters in length.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------

@@ -55,7 +55,7 @@ struct custom_prepare_struct {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(encoding)[256];
 	);
-	va_list ap;
+	const struct ast_variable *fields;
 	unsigned long long skip;
 };
 
@@ -73,10 +73,9 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 {
 	int res, x = 1, count = 0;
 	struct custom_prepare_struct *cps = data;
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	char encodebuf[1024];
 	SQLHSTMT stmt;
-	va_list ap;
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -93,14 +92,14 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
-	va_copy(ap, cps->ap);
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
+	for (field = cps->fields; field; field = field->next) {
+		const char *newval = field->value;
+
 		if ((1LL << count++) & cps->skip) {
-			ast_debug(1, "Skipping field '%s'='%s' (%llo/%llo)\n", newparam, newval, 1LL << (count - 1), cps->skip);
+			ast_debug(1, "Skipping field '%s'='%s' (%llo/%llo)\n", field->name, newval, 1LL << (count - 1), cps->skip);
 			continue;
 		}
-		ast_debug(1, "Parameter %d ('%s') = '%s'\n", x, newparam, newval);
+		ast_debug(1, "Parameter %d ('%s') = '%s'\n", x, field->name, newval);
 		if (strchr(newval, ';') || strchr(newval, '^')) {
 			char *eptr = encodebuf;
 			const char *vptr = newval;
@@ -123,7 +122,6 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		}
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
-	va_end(ap);
 
 	if (!ast_strlen_zero(cps->extra))
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cps->extra), 0, (void *)cps->extra, 0, NULL);
@@ -143,7 +141,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
  * \retval var on success
  * \retval NULL on failure
 */
-static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
+static struct ast_variable *realtime_odbc(const char *database, const char *table, const struct ast_variable *fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
@@ -151,7 +149,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	char coltitle[256];
 	char rowdata[2048];
 	char *op;
-	const char *newparam;
+	const struct ast_variable *field = fields;
 	char *stringp;
 	char *chunk;
 	SQLSMALLINT collen;
@@ -164,9 +162,12 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
 	SQLLEN indicator;
-	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql };
+	struct custom_prepare_struct cps = { .sql = sql, .fields = fields, };
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
+
+	if (!fields) {
+		return NULL;
+	}
 
 	if (ast_string_field_init(&cps, 256)) {
 		return NULL;
@@ -185,29 +186,16 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 
-	va_copy(aq, ap);
-	newparam = va_arg(aq, const char *);
-	if (!newparam) {
-		va_end(aq);
-		ast_odbc_release_obj(obj);
-		ast_string_field_free_memory(&cps);
-		return NULL;
+	op = !strchr(field->name, ' ') ? " =" : "";
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, field->name, op,
+		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+	while ((field = field->next)) {
+		op = !strchr(field->name, ' ') ? " =" : "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", field->name, op,
+			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
 	}
-	va_arg(aq, const char *);
-	op = !strchr(newparam, ' ') ? " =" : "";
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, newparam, op,
-		strcasestr(newparam, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
-	while((newparam = va_arg(aq, const char *))) {
-		op = !strchr(newparam, ' ') ? " =" : "";
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", newparam, op,
-			strcasestr(newparam, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
-		va_arg(aq, const char *);
-	}
-	va_end(aq);
 
-	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
-	va_end(cps.ap);
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
@@ -310,7 +298,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
  * \retval var on success
  * \retval NULL on failure
 */
-static struct ast_config *realtime_multi_odbc(const char *database, const char *table, va_list ap)
+static struct ast_config *realtime_multi_odbc(const char *database, const char *table, const struct ast_variable *fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
@@ -319,7 +307,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	char rowdata[2048];
 	const char *initfield;
 	char *op;
-	const char *newparam;
+	const struct ast_variable *field = fields;
 	char *stringp;
 	char *chunk;
 	SQLSMALLINT collen;
@@ -335,13 +323,11 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
 	SQLLEN indicator;
-	struct custom_prepare_struct cps = { .sql = sql };
-	va_list aq;
+	struct custom_prepare_struct cps = { .sql = sql, .fields = fields, };
 
-	if (!table || ast_string_field_init(&cps, 256)) {
+	if (!table || !field || ast_string_field_init(&cps, 256)) {
 		return NULL;
 	}
-
 
 	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj) {
@@ -349,37 +335,24 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		return NULL;
 	}
 
-	va_copy(aq, ap);
-	newparam = va_arg(aq, const char *);
-	if (!newparam)  {
-		va_end(aq);
-		ast_odbc_release_obj(obj);
-		ast_string_field_free_memory(&cps);
-		return NULL;
-	}
-
-	initfield = ast_strdupa(newparam);
+	initfield = ast_strdupa(field->name);
 	if ((op = strchr(initfield, ' '))) {
 		*op = '\0';
 	}
 
-	va_arg(aq, const char *);
-	op = !strchr(newparam, ' ') ? " =" : "";
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, newparam, op,
-		strcasestr(newparam, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
-	while((newparam = va_arg(aq, const char *))) {
-		op = !strchr(newparam, ' ') ? " =" : "";
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", newparam, op,
-			strcasestr(newparam, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
-		va_arg(aq, const char *);
+	field = field->next;
+	op = !strchr(field->name, ' ') ? " =" : "";
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, field->name, op,
+		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+	while ((field = field->next)) {
+		op = !strchr(field->name, ' ') ? " =" : "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", field->name, op,
+			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
 	}
-	va_end(aq);
 
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 
-	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
-	va_end(cps.ap);
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
@@ -478,21 +451,20 @@ next_sql_fetch:;
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
+static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
 	char sql[256];
 	SQLLEN rowcount=0;
-	const char *newparam;
+	const struct ast_variable *field = fields;
 	int res, count = 1;
-	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup, .fields = fields, };
 	struct odbc_cache_tables *tableptr;
 	struct odbc_cache_columns *column = NULL;
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
-	if (!table) {
+	if (!table || !field) {
 		return -1;
 	}
 
@@ -507,47 +479,32 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 		return -1;
 	}
 
-	va_copy(aq, ap);
-	newparam = va_arg(aq, const char *);
-	if (!newparam)  {
-		va_end(aq);
-		ast_odbc_release_obj(obj);
-		ast_odbc_release_table(tableptr);
-		ast_string_field_free_memory(&cps);
-		return -1;
-	}
-	va_arg(aq, const char *);
-
-	if (tableptr && !ast_odbc_find_column(tableptr, newparam)) {
-		ast_log(LOG_WARNING, "Key field '%s' does not exist in table '%s@%s'.  Update will fail\n", newparam, table, database);
+	if (tableptr && !ast_odbc_find_column(tableptr, field->name)) {
+		ast_log(LOG_WARNING, "Key field '%s' does not exist in table '%s@%s'.  Update will fail\n", field->name, table, database);
 	}
 
-	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, newparam);
-	while((newparam = va_arg(aq, const char *))) {
-		va_arg(aq, const char *);
-		if ((tableptr && (column = ast_odbc_find_column(tableptr, newparam))) || count > 63) {
+	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, field->name);
+	while ((field = field->next)) {
+		if ((tableptr && (column = ast_odbc_find_column(tableptr, field->name))) || count > 63) {
 			/* NULL test for integer-based columns */
-			if (ast_strlen_zero(newparam) && tableptr && column && column->nullable && count < 64 &&
+			if (ast_strlen_zero(field->name) && tableptr && column && column->nullable && count < 64 &&
 				(column->type == SQL_INTEGER || column->type == SQL_BIGINT ||
 				 column->type == SQL_SMALLINT || column->type == SQL_TINYINT ||
 				 column->type == SQL_NUMERIC || column->type == SQL_DECIMAL)) {
-				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=NULL", newparam);
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=NULL", field->name);
 				cps.skip |= (1LL << count);
 			} else {
-				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", field->name);
 			}
 		} else { /* the column does not exist in the table */
 			cps.skip |= (1LL << count);
 		}
 		count++;
 	}
-	va_end(aq);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s=?", keyfield);
 	ast_odbc_release_table(tableptr);
 
-	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
-	va_end(cps.ap);
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
@@ -575,17 +532,17 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 struct update2_prepare_struct {
 	const char *database;
 	const char *table;
-	va_list ap;
+	const struct ast_variable *lookup_fields;
+	const struct ast_variable *update_fields;
 };
 
 static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 {
 	int res, x = 1, first = 1;
 	struct update2_prepare_struct *ups = data;
-	const char *newparam, *newval;
+	const struct ast_variable *field;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	SQLHSTMT stmt;
-	va_list ap;
 	struct odbc_cache_tables *tableptr = ast_odbc_find_table(ups->database, ups->table);
 
 	if (!sql) {
@@ -609,45 +566,30 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 
 	ast_str_set(&sql, 0, "UPDATE %s SET ", ups->table);
 
-	/* Start by finding the second set of parameters */
-	va_copy(ap, ups->ap);
-
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
-	}
-
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
-		if (ast_odbc_find_column(tableptr, newparam)) {
-			ast_str_append(&sql, 0, "%s%s=? ", first ? "" : ", ", newparam);
-			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+	for (field = ups->update_fields; field; field = field->next) {
+		if (ast_odbc_find_column(tableptr, field->name)) {
+			ast_str_append(&sql, 0, "%s%s=? ", first ? "" : ", ", field->name);
+			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(field->name), 0, (void *)field->value, 0, NULL);
 			first = 0;
 		} else {
-			ast_log(LOG_NOTICE, "Not updating column '%s' in '%s@%s' because that column does not exist!\n", newparam, ups->table, ups->database);
+			ast_log(LOG_NOTICE, "Not updating column '%s' in '%s@%s' because that column does not exist!\n", field->name, ups->table, ups->database);
 		}
 	}
-	va_end(ap);
 
 	ast_str_append(&sql, 0, "WHERE");
 	first = 1;
 
-	/* Restart search, because we need to add the search parameters */
-	va_copy(ap, ups->ap);
-
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
-		if (!ast_odbc_find_column(tableptr, newparam)) {
-			va_end(ap);
-			ast_log(LOG_ERROR, "One or more of the criteria columns '%s' on '%s@%s' for this update does not exist!\n", newparam, ups->table, ups->database);
+	for (field = ups->lookup_fields; field; field = field->next) {
+		if (!ast_odbc_find_column(tableptr, field->name)) {
+			ast_log(LOG_ERROR, "One or more of the criteria columns '%s' on '%s@%s' for this update does not exist!\n", field->name, ups->table, ups->database);
 			ast_odbc_release_table(tableptr);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			return NULL;
 		}
-		ast_str_append(&sql, 0, "%s %s=?", first ? "" : " AND", newparam);
-		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+		ast_str_append(&sql, 0, "%s %s=?", first ? "" : " AND", field->name);
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(field->value), 0, (void *)field->value, 0, NULL);
 		first = 0;
 	}
-	va_end(ap);
 
 	/* Done with the table metadata */
 	ast_odbc_release_table(tableptr);
@@ -676,11 +618,11 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int update2_odbc(const char *database, const char *table, va_list ap)
+static int update2_odbc(const char *database, const char *table, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
-	struct update2_prepare_struct ups = { .database = database, .table = table, };
+	struct update2_prepare_struct ups = { .database = database, .table = table, .lookup_fields = lookup_fields, .update_fields = update_fields, };
 	struct ast_str *sql;
 	int res;
 	SQLLEN rowcount = 0;
@@ -689,13 +631,10 @@ static int update2_odbc(const char *database, const char *table, va_list ap)
 		return -1;
 	}
 
-	va_copy(ups.ap, ap);
 	if (!(stmt = ast_odbc_prepare_and_execute(obj, update2_prepare, &ups))) {
-		va_end(ups.ap);
 		ast_odbc_release_obj(obj);
 		return -1;
 	}
-	va_end(ups.ap);
 
 	res = SQLRowCount(stmt, &rowcount);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -728,7 +667,7 @@ static int update2_odbc(const char *database, const char *table, va_list ap)
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int store_odbc(const char *database, const char *table, va_list ap)
+static int store_odbc(const char *database, const char *table, const struct ast_variable *fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
@@ -736,13 +675,12 @@ static int store_odbc(const char *database, const char *table, va_list ap)
 	char keys[256];
 	char vals[256];
 	SQLLEN rowcount=0;
-	const char *newparam;
+	const struct ast_variable *field = fields;
 	int res;
-	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql, .extra = NULL };
+	struct custom_prepare_struct cps = { .sql = sql, .extra = NULL, .fields = fields, };
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
-	if (!table) {
+	if (!table || !field) {
 		return -1;
 	}
 
@@ -751,29 +689,15 @@ static int store_odbc(const char *database, const char *table, va_list ap)
 		return -1;
 	}
 
-	va_copy(aq, ap);
-
-	newparam = va_arg(aq, const char *);
-	if (!newparam)  {
-		va_end(aq);
-		ast_odbc_release_obj(obj);
-		return -1;
-	}
-	va_arg(aq, const char *);
-	snprintf(keys, sizeof(keys), "%s", newparam);
+	snprintf(keys, sizeof(keys), "%s", field->name);
 	ast_copy_string(vals, "?", sizeof(vals));
-	while ((newparam = va_arg(aq, const char *))) {
-		snprintf(keys + strlen(keys), sizeof(keys) - strlen(keys), ", %s", newparam);
+	while ((field = field->next)) {
+		snprintf(keys + strlen(keys), sizeof(keys) - strlen(keys), ", %s", field->name);
 		snprintf(vals + strlen(vals), sizeof(vals) - strlen(vals), ", ?");
-		va_arg(aq, const char *);
 	}
-	va_end(aq);
 	snprintf(sql, sizeof(sql), "INSERT INTO %s (%s) VALUES (%s)", table, keys, vals);
 
-
-	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
-	va_end(cps.ap);
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
@@ -810,16 +734,15 @@ static int store_odbc(const char *database, const char *table, va_list ap)
  * \retval number of rows affected
  * \retval -1 on failure
 */
-static int destroy_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
+static int destroy_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
 	struct odbc_obj *obj;
 	SQLHSTMT stmt;
 	char sql[256];
 	SQLLEN rowcount=0;
-	const char *newparam;
+	const struct ast_variable *field;
 	int res;
-	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup, .fields = fields, };
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	if (!table) {
@@ -833,17 +756,12 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 
 	snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE ", table);
 
-	va_copy(aq, ap);
-	while((newparam = va_arg(aq, const char *))) {
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=? AND ", newparam);
-		va_arg(aq, const char *);
+	for (field = fields; field; field = field->next) {
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=? AND ", field->name);
 	}
-	va_end(aq);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=?", keyfield);
 
-	va_copy(cps.ap, ap);
 	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
-	va_end(cps.ap);
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
