@@ -65,7 +65,7 @@ class SwaggerPostProcessor(object):
         """Post process a ResourceApi object.
 
         @param resource_api: ResourceApi object.
-        @param contect: Current context in the API.
+        @param context: Current context in the API.
         """
         pass
 
@@ -73,7 +73,7 @@ class SwaggerPostProcessor(object):
         """Post process a Operation object.
 
         @param operation: Operation object.
-        @param contect: Current context in the API.
+        @param context: Current context in the API.
         """
         pass
 
@@ -81,7 +81,7 @@ class SwaggerPostProcessor(object):
         """Post process a Parameter object.
 
         @param parameter: Parameter object.
-        @param contect: Current context in the API.
+        @param context: Current context in the API.
         """
         pass
 
