@@ -110,5 +110,5 @@
  *
  * For more detailed information about working with branches and merging,
  * see the following page on %asterisk.org:
- * \arg http://www.asterisk.org/developers/svn-branching-merging
+ * \arg https://wiki.asterisk.org/wiki/display/AST/Subversion+Usage
  */
