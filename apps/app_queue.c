@@ -4089,7 +4089,7 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
  *
  * \todo eventually all call forward logic should be intergerated into and replaced by ast_call_forward()
  */
-static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
+static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed, int ringing)
 {
 	const char *queue = qe->parent->name;
 	struct callattempt *o, *start = NULL, *prev = NULL;
@@ -4588,6 +4588,16 @@ skip_frame:;
 		}
 	}
 
+	/* Make a position announcement, if enabled */
+ 	if (qe->parent->announcefrequency) {
+		say_position(qe, ringing);
+	}
+
+ 	/* Make a periodic announcement, if enabled */
+ 	if (qe->parent->periodicannouncefrequency) {
+ 		say_periodic_announcement(qe, ringing);
+ 	}
+ 
 	if (!*to) {
 		for (o = start; o; o = o->call_next) {
 			rna(orig, qe, o->interface, o->member->membername, 1);
@@ -5378,7 +5388,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 	ring_one(qe, outgoing, &numbusies);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies,
 		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
-		forwardsallowed);
+		forwardsallowed, ringing);
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
 	 * the case, don't free the datastore here because later, when the channel
