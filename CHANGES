@@ -157,6 +157,8 @@ Sorcery
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 
+
+
 Build System
 -------------------
  * The Asterisk build system will now build and install a shared library
@@ -300,6 +302,9 @@ Queue
    state_interface has been set.
 
  * Add queue monitoring hints.  exten => 8501,hint,Queue:markq.
+
+ * App_queue will now play periodic announcements for the caller that
+   holds the first position in the queue while waiting for answer.
 
 SayUnixTime
 ------------------
