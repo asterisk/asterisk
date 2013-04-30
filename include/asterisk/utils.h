@@ -324,8 +324,8 @@ static force_inline void ast_slinear_saturated_add(short *input, short *value)
 	res = (int) *input + *value;
 	if (res > 32767)
 		*input = 32767;
-	else if (res < -32767)
-		*input = -32767;
+	else if (res < -32768)
+		*input = -32768;
 	else
 		*input = (short) res;
 }
@@ -337,8 +337,8 @@ static force_inline void ast_slinear_saturated_subtract(short *input, short *val
 	res = (int) *input - *value;
 	if (res > 32767)
 		*input = 32767;
-	else if (res < -32767)
-		*input = -32767;
+	else if (res < -32768)
+		*input = -32768;
 	else
 		*input = (short) res;
 }
@@ -350,8 +350,8 @@ static force_inline void ast_slinear_saturated_multiply(short *input, short *val
 	res = (int) *input * *value;
 	if (res > 32767)
 		*input = 32767;
-	else if (res < -32767)
-		*input = -32767;
+	else if (res < -32768)
+		*input = -32768;
 	else
 		*input = (short) res;
 }
