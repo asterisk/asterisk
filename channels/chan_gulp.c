@@ -785,7 +785,7 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		if (ind_data) {
 			res = ast_sip_push_task(session->serializer, indicate, ind_data);
 			if (res) {
-				ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could queue task properly\n",
+				ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could not queue task properly\n",
 						response_code, ast_sorcery_object_get_id(session->endpoint));
 				ao2_cleanup(ind_data);
 			}
