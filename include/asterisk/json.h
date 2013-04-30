@@ -830,6 +830,21 @@ struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone);
  */
 struct ast_json *ast_json_dialplan_cep(const char *context, const char *exten, int priority);
 
+struct ast_json_payload {
+	struct ast_json *json;
+};
+
+/*!
+ * \brief Create an ao2 object to pass json blobs as data payloads for stasis
+ * \since 12.0.0
+ *
+ * \param json the ast_json blob we are loading
+ *
+ * \retval NULL if we fail to alloc it
+ * \retval pointer to the ast_json_payload created
+ */
+struct ast_json_payload *ast_json_payload_create(struct ast_json *json);
+
 /*!@}*/
 
 #endif /* _ASTERISK_JSON_H */

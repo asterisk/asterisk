@@ -385,6 +385,24 @@ int ast_named_acl_init(void);
  */
 int ast_named_acl_reload(void);
 
+/*!
+ * \brief accessor for the ACL stasis topic
+ * \since 12
+ *
+ * \retval NULL if the stasis topic hasn't been created or has been disabled
+ * \retval a pointer to the ACL stasis topic
+ */
+struct stasis_topic *ast_acl_topic(void);
+
+/*!
+ * \brief accessor for the named ACL change stasis message type
+ * \since 12
+ *
+ * \retval NULL if the ACL change message type hasn't been created or has been canceled
+ * \retval a pointer to the ACL change message type
+ */
+struct stasis_message_type *ast_named_acl_change_type(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

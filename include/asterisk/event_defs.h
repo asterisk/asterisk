@@ -56,12 +56,10 @@ enum ast_event_type {
 	AST_EVENT_NETWORK_CHANGE      = 0x09,
 	/*! The presence state for a presence provider */
 	AST_EVENT_PRESENCE_STATE      = 0x0a,
-	/*! Used to alert listeners when a named ACL has changed. */
-	AST_EVENT_ACL_CHANGE          = 0x0b,
 	/*! Send out a ping for debugging distributed events */
-	AST_EVENT_PING                = 0x0c,
+	AST_EVENT_PING                = 0x0b,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL               = 0x0d,
+	AST_EVENT_TOTAL               = 0x0c,
 };
 
 /*! \brief Event Information Element types */

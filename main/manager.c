@@ -1040,7 +1040,7 @@ static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
 
 static int block_sockets;
 static int unauth_sessions = 0;
-static struct ast_event_sub *acl_change_event_subscription;
+static struct stasis_subscription *acl_change_sub;
 
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
@@ -1065,20 +1065,20 @@ static const struct {
 	{{ "restart", "gracefully", NULL }},
 };
 
-static void acl_change_event_cb(const struct ast_event *event, void *userdata);
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 
-static void acl_change_event_subscribe(void)
+static void acl_change_stasis_subscribe(void)
 {
-	if (!acl_change_event_subscription) {
-		acl_change_event_subscription = ast_event_subscribe(AST_EVENT_ACL_CHANGE,
-			acl_change_event_cb, "Manager must react to Named ACL changes", NULL, AST_EVENT_IE_END);
+	if (!acl_change_sub) {
+		acl_change_sub = stasis_subscribe(ast_acl_topic(),
+			acl_change_stasis_cb, NULL);
 	}
 }
 
-static void acl_change_event_unsubscribe(void)
+static void acl_change_stasis_unsubscribe(void)
 {
-	if (acl_change_event_subscription) {
-		acl_change_event_subscription = ast_event_unsubscribe(acl_change_event_subscription);
+	if (acl_change_sub) {
+		acl_change_sub = stasis_unsubscribe(acl_change_sub);
 	}
 }
 
@@ -7587,7 +7587,7 @@ static int __init_manager(int reload, int by_external_config)
 
 	/* If this wasn't performed due to a forced reload (because those can be created by ACL change events, we need to unsubscribe to ACL change events. */
 	if (!by_external_config) {
-		acl_change_event_unsubscribe();
+		acl_change_stasis_unsubscribe();
 	}
 
 	/* default values */
@@ -7893,7 +7893,7 @@ static int __init_manager(int reload, int by_external_config)
 
 	/* Check the flag for named ACL event subscription and if we need to, register a subscription. */
 	if (acl_subscription_flag && !by_external_config) {
-		acl_change_event_subscribe();
+		acl_change_stasis_subscribe();
 	}
 
 	/* Perform cleanup - essentially prune out old users that no longer exist */
@@ -7965,8 +7965,13 @@ static int __init_manager(int reload, int by_external_config)
 	return 0;
 }
 
-static void acl_change_event_cb(const struct ast_event *event, void *userdata)
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
 	/* For now, this is going to be performed simply and just execute a forced reload. */
 	ast_log(LOG_NOTICE, "Reloading manager in response to ACL change event.\n");
 	__init_manager(1, 1);

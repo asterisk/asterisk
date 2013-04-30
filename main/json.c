@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
+#include "asterisk/astobj2.h"
 
 #include <jansson.h>
 #include <time.h>
@@ -530,4 +531,24 @@ void ast_json_init(void)
 {
 	/* Setup to use Asterisk custom allocators */
 	ast_json_reset_alloc_funcs();
+}
+
+static void json_payload_destructor(void *obj)
+{
+	struct ast_json_payload *payload = obj;
+	ast_json_unref(payload->json);
+}
+
+struct ast_json_payload *ast_json_payload_create(struct ast_json *json)
+{
+	struct ast_json_payload *payload;
+
+	if (!(payload = ao2_alloc(sizeof(*payload), json_payload_destructor))) {
+		return NULL;
+	}
+
+	ast_json_ref(json);
+	payload->json = json;
+
+	return payload;
 }

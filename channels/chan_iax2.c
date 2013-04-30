@@ -284,7 +284,7 @@ static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
 static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
-static struct ast_event_sub *acl_change_event_subscription; /*!< subscription id for ACL change events */
+static struct stasis_subscription *acl_change_sub; /*!< subscription id for ACL change events */
 static int network_change_event_sched_id = -1;
 
 static int maxauthreq = 3;
@@ -1255,7 +1255,7 @@ static int get_unused_callno(enum callno_type type, int validated, callno_entry 
 static int replace_callno(const void *obj);
 static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry);
 static void network_change_event_cb(const struct ast_event *, void *);
-static void acl_change_event_cb(const struct ast_event *, void *);
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 
 static struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -1338,18 +1338,18 @@ static void network_change_event_unsubscribe(void)
 	}
 }
 
-static void acl_change_event_subscribe(void)
+static void acl_change_stasis_subscribe(void)
 {
-	if (!acl_change_event_subscription) {
-		acl_change_event_subscription = ast_event_subscribe(AST_EVENT_ACL_CHANGE,
-			acl_change_event_cb, "IAX2 ACL Change", NULL, AST_EVENT_IE_END);
+	if (!acl_change_sub) {
+		acl_change_sub = stasis_subscribe(ast_acl_topic(),
+			acl_change_stasis_cb, NULL);
 	}
 }
 
-static void acl_change_event_unsubscribe(void)
+static void acl_change_stasis_unsubscribe(void)
 {
-	if (acl_change_event_subscription) {
-		acl_change_event_subscription = ast_event_unsubscribe(acl_change_event_subscription);
+	if (acl_change_sub) {
+		acl_change_sub = stasis_unsubscribe(acl_change_sub);
 	}
 }
 
@@ -1375,8 +1375,13 @@ static void network_change_event_cb(const struct ast_event *event, void *userdat
 
 }
 
-static void acl_change_event_cb(const struct ast_event *event, void *userdata)
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
 	ast_log(LOG_NOTICE, "Reloading chan_iax2 in response to ACL change event.\n");
 	reload_config(1);
 }
@@ -12700,7 +12705,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	}
 
 	if (subscribe_acl_change) {
-		acl_change_event_subscribe();
+		acl_change_stasis_subscribe();
 	}
 
 	return peer;
@@ -12972,7 +12977,7 @@ cleanup:
 	}
 
 	if (subscribe_acl_change) {
-		acl_change_event_subscribe();
+		acl_change_stasis_subscribe();
 	}
 
 	return user;
@@ -14284,7 +14289,7 @@ static int __unload_module(void)
 	int x;
 
 	network_change_event_unsubscribe();
-	acl_change_event_unsubscribe();
+	acl_change_stasis_unsubscribe();
 
 	ast_manager_unregister("IAXpeers");
 	ast_manager_unregister("IAXpeerlist");

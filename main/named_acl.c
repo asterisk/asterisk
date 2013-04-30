@@ -33,13 +33,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
-#include "asterisk/event.h"
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
 #include "asterisk/acl.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/paths.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 #define NACL_CONFIG "acl.conf"
 #define ACL_FAMILY "acls"
@@ -355,9 +356,39 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
 	return ha;
 }
 
+/*! \brief Topic for ACLs */
+static struct stasis_topic *acl_topic;
+
+/*! \brief Message type for named ACL changes */
+static struct stasis_message_type *named_acl_change_type;
+
 /*!
  * \internal
- * \brief Sends an update event corresponding to a given named ACL that has changed.
+ * \brief Initialize Named ACL related stasis topics/messages
+ */
+static void ast_acl_stasis_init(void)
+{
+	acl_topic = stasis_topic_create("ast_acl");
+	named_acl_change_type = stasis_message_type_create("ast_named_acl_change");
+}
+
+struct stasis_topic *ast_acl_topic(void)
+{
+	return acl_topic;
+}
+
+struct stasis_message_type *ast_named_acl_change_type(void)
+{
+	return named_acl_change_type;
+}
+
+/*!
+ * \internal
+ * \brief Sends a stasis message corresponding to a given named ACL that has changed or
+ *        that all ACLs have been updated and old copies must be refreshed. Consumers of
+ *        named ACLs should subscribe to the ast_acl_topic and respond to messages of the
+ *        ast_named_acl_change_type stasis message type in order to be able to accomodate
+ *        changes to named ACLs.
  *
  * \param name Name of the ACL that has changed. May be an empty string (but not NULL)
  *        If name is an empty string, then all ACLs must be refreshed.
@@ -365,23 +396,38 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
  * \retval 0 success
  * \retval 1 failure
  */
-static int push_acl_change_event(char *name)
+static int publish_acl_change(const char *name)
 {
-	struct ast_event *event = ast_event_new(AST_EVENT_ACL_CHANGE,
-							AST_EVENT_IE_DESCRIPTION, AST_EVENT_IE_PLTYPE_STR, name,
-							AST_EVENT_IE_END);
-	if (!event) {
-		ast_log(LOG_ERROR, "Failed to allocate acl.conf reload event. Some modules will have out of date ACLs.\n");
-		return -1;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, ast_json_object_create(), ast_json_unref);
+
+	if (!json_object) {
+		goto publish_failure;
 	}
 
-	if (ast_event_queue(event)) {
-		ast_event_destroy(event);
-		ast_log(LOG_ERROR, "Failed to queue acl.conf reload event. Some modules will have out of date ACLs.\n");
-		return -1;
+	if (ast_json_object_set(json_object, "name", ast_json_string_create(name))) {
+		goto publish_failure;
 	}
+
+	if (!(json_payload = ast_json_payload_create(json_object))) {
+		goto publish_failure;
+	}
+
+	msg = stasis_message_create(ast_named_acl_change_type(), json_payload);
+
+	if (!msg) {
+		goto publish_failure;
+	}
+
+	stasis_publish(ast_acl_topic(), msg);
 
 	return 0;
+
+publish_failure:
+	ast_log(LOG_ERROR, "Failed to to issue ACL change message for %s.\n",
+		ast_strlen_zero(name) ? "all named ACLs" : name);
+	return -1;
 }
 
 /*!
@@ -409,7 +455,7 @@ int ast_named_acl_reload(void)
 	}
 
 	/* We need to push an ACL change event with no ACL name so that all subscribers update with all ACLs */
-	push_acl_change_event("");
+	publish_acl_change("");
 
 	return 0;
 }
@@ -548,6 +594,8 @@ int ast_named_acl_init()
 	if (aco_info_init(&cfg_info)) {
 		return 0;
 	}
+
+	ast_acl_stasis_init();
 
 	/* Register the per level options. */
 	aco_option_register(&cfg_info, "permit", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 1, FLDSET(struct named_acl, ha));
