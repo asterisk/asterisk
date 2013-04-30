@@ -164,6 +164,9 @@ static struct stasis_http_response *response_alloc(void)
  */
 static void response_free(struct stasis_http_response *resp)
 {
+	if (!resp) {
+		return;
+	}
 	ast_free(resp->headers);
 	ast_json_unref(resp->message);
 	ast_free(resp);
@@ -178,7 +181,7 @@ static void *setup_invocation_test(void) {
 	invocation_count = 0;
 	r = stasis_http_add_handler(&test_root);
 	ast_assert(r == 0);
-	return NULL;
+	return &invocation_count;
 }
 
 /*!
@@ -186,13 +189,16 @@ static void *setup_invocation_test(void) {
  * Tear down test fixture for invocation tests.
  */
 static void tear_down_invocation_test(void *ignore) {
+	if (!ignore) {
+		return;
+	}
 	stasis_http_remove_handler(&test_root);
 }
 
 
 AST_TEST_DEFINE(get_docs)
 {
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_variable *, headers, NULL, ast_variables_destroy);
 	struct ast_json *basePathJson;
 	const char *basePath;
@@ -208,6 +214,7 @@ AST_TEST_DEFINE(get_docs)
 		break;
 	}
 
+	response = response_alloc();
 	headers = ast_variable_new("Host", "stasis.asterisk.org", __FILE__);
 	stasis_http_get_docs("resources.json", headers, response);
 	ast_test_validate(test, 200 == response->response_code);
@@ -223,7 +230,7 @@ AST_TEST_DEFINE(get_docs)
 
 AST_TEST_DEFINE(get_docs_nohost)
 {
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	struct ast_variable *headers = NULL;
 	struct ast_json *basePathJson;
 
@@ -238,6 +245,7 @@ AST_TEST_DEFINE(get_docs_nohost)
 		break;
 	}
 
+	response = response_alloc();
 	stasis_http_get_docs("resources.json", headers, response);
 	ast_test_validate(test, 200 == response->response_code);
 
@@ -250,7 +258,7 @@ AST_TEST_DEFINE(get_docs_nohost)
 
 AST_TEST_DEFINE(get_docs_notfound)
 {
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	struct ast_variable *headers = NULL;
 
 	switch (cmd) {
@@ -264,6 +272,7 @@ AST_TEST_DEFINE(get_docs_notfound)
 		break;
 	}
 
+	response = response_alloc();
 	stasis_http_get_docs("i-am-not-a-resource.json", headers, response);
 	ast_test_validate(test, 404 == response->response_code);
 
@@ -272,7 +281,7 @@ AST_TEST_DEFINE(get_docs_notfound)
 
 AST_TEST_DEFINE(get_docs_hackerz)
 {
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	struct ast_variable *headers = NULL;
 
 	switch (cmd) {
@@ -286,6 +295,7 @@ AST_TEST_DEFINE(get_docs_hackerz)
 		break;
 	}
 
+	response = response_alloc();
 	stasis_http_get_docs("../../../../sbin/asterisk", headers, response);
 	ast_test_validate(test, 404 == response->response_code);
 
@@ -294,8 +304,8 @@ AST_TEST_DEFINE(get_docs_hackerz)
 
 AST_TEST_DEFINE(invoke_get)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
@@ -311,6 +321,8 @@ AST_TEST_DEFINE(invoke_get)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	get_params = ast_variable_new("get1", "get-one", __FILE__);
 	ast_assert(get_params != NULL);
 	get_params->next = ast_variable_new("get2", "get-two", __FILE__);
@@ -342,8 +354,8 @@ AST_TEST_DEFINE(invoke_get)
 
 AST_TEST_DEFINE(invoke_wildcard)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
@@ -359,6 +371,8 @@ AST_TEST_DEFINE(invoke_wildcard)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	expected = ast_json_pack("{s: s, s: {}, s: {}, s: {s: s}}",
 				 "name", "bam_get",
 				 "get_params",
@@ -377,8 +391,8 @@ AST_TEST_DEFINE(invoke_wildcard)
 
 AST_TEST_DEFINE(invoke_delete)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
@@ -394,6 +408,8 @@ AST_TEST_DEFINE(invoke_delete)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	expected = ast_json_pack("{s: s, s: {}, s: {}, s: {s: s}}",
 				 "name", "bang_delete",
 				 "get_params",
@@ -412,8 +428,8 @@ AST_TEST_DEFINE(invoke_delete)
 
 AST_TEST_DEFINE(invoke_post)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
@@ -429,6 +445,8 @@ AST_TEST_DEFINE(invoke_post)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	get_params = ast_variable_new("get1", "get-one", __FILE__);
 	ast_assert(get_params != NULL);
 	get_params->next = ast_variable_new("get2", "get-two", __FILE__);
@@ -460,8 +478,8 @@ AST_TEST_DEFINE(invoke_post)
 
 AST_TEST_DEFINE(invoke_bad_post)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
 
@@ -476,6 +494,8 @@ AST_TEST_DEFINE(invoke_bad_post)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	stasis_http_invoke("foo", AST_HTTP_POST, get_params, headers, response);
 
 	ast_test_validate(test, 0 == invocation_count);
@@ -486,8 +506,8 @@ AST_TEST_DEFINE(invoke_bad_post)
 
 AST_TEST_DEFINE(invoke_not_found)
 {
-	RAII_VAR(void *, fixture, setup_invocation_test(), tear_down_invocation_test);
-	RAII_VAR(struct stasis_http_response *, response, response_alloc(), response_free);
+	RAII_VAR(void *, fixture, NULL, tear_down_invocation_test);
+	RAII_VAR(struct stasis_http_response *, response, NULL, response_free);
 	struct ast_variable *get_params = NULL;
 	struct ast_variable *headers = NULL;
 
@@ -502,6 +522,8 @@ AST_TEST_DEFINE(invoke_not_found)
 		break;
 	}
 
+	fixture = setup_invocation_test();
+	response = response_alloc();
 	stasis_http_invoke("foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers, response);
 
 	ast_test_validate(test, 0 == invocation_count);

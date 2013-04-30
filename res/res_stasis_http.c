@@ -241,14 +241,17 @@ int stasis_http_add_handler(struct stasis_rest_handlers *handler)
 int stasis_http_remove_handler(struct stasis_rest_handlers *handler)
 {
 	RAII_VAR(struct stasis_rest_handlers *, new_handler, NULL, ao2_cleanup);
-	size_t old_size, new_size, i, j;
+	size_t size, i, j;
 
-	SCOPED_MUTEX(lock, &root_handler_lock);
-	old_size = sizeof(*new_handler) +
+	if (!root_handler) {
+		return -1;
+	}
+
+	ast_mutex_lock(&root_handler_lock);
+	size = sizeof(*new_handler) +
 		root_handler->num_children * sizeof(handler);
-	new_size = old_size - sizeof(handler);
 
-	new_handler = ao2_alloc(new_size, NULL);
+	new_handler = ao2_alloc(size, NULL);
 	if (!new_handler) {
 		return -1;
 	}
@@ -265,6 +268,7 @@ int stasis_http_remove_handler(struct stasis_rest_handlers *handler)
 	ao2_cleanup(root_handler);
 	ao2_ref(new_handler, +1);
 	root_handler = new_handler;
+	ast_mutex_unlock(&root_handler_lock);
 	return 0;
 }
 
@@ -899,6 +903,7 @@ static int unload_module(void)
 	ao2_global_obj_release(confs);
 
 	ao2_cleanup(root_handler);
+	root_handler = NULL;
 	ast_mutex_destroy(&root_handler_lock);
 
 	return 0;
