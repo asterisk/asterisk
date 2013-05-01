@@ -1294,6 +1294,8 @@ static struct ast_config *notify_types = NULL;    /*!< The list of manual NOTIFY
 		(head) = (element)->next;	\
 	} while (0)
 
+struct show_peers_context;
+
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /* Note: This is added to help splitting up chan_sip.c into several files
 	in coming releases. */
@@ -1469,6 +1471,7 @@ static char *transfermode2str(enum transfermodes mode) attribute_const;
 static int peer_status(struct sip_peer *peer, char *status, int statuslen);
 static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char * _sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[]);
+static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct show_peers_context *cont, struct sip_peer *peer);
 static char *sip_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static void  print_group(int fd, ast_group_t group, int crlf);
@@ -18952,46 +18955,58 @@ int peercomparefunc(const void *a, const void *b)
 	return strcmp((*ap)->name, (*bp)->name);
 }
 
+/* the last argument is left-aligned, so we don't need a size anyways */
+#define PEERS_FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
+
+/*! \brief Used in the sip_show_peers functions to pass parameters */
+struct show_peers_context {
+	regex_t regexbuf;
+	int havepattern;
+	char idtext[256];
+	int realtimepeers;
+	int peers_mon_online;
+	int peers_mon_offline;
+	int peers_unmon_offline;
+	int peers_unmon_online;
+};
 
 /*! \brief Execute sip show peers command */
 static char *_sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
-	regex_t regexbuf;
-	int havepattern = FALSE;
+	struct show_peers_context cont = {
+		.havepattern = FALSE,
+		.idtext = "",
+
+		.peers_mon_online = 0,
+		.peers_mon_offline = 0,
+		.peers_unmon_online = 0,
+		.peers_unmon_offline = 0,
+	};
+
 	struct sip_peer *peer;
 	struct ao2_iterator* it_peers;
 
-/* the last argument is left-aligned, so we don't need a size anyways */
-#define FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
-
-	char name[256];
 	int total_peers = 0;
-	int peers_mon_online = 0;
-	int peers_mon_offline = 0;
-	int peers_unmon_offline = 0;
-	int peers_unmon_online = 0;
 	const char *id;
-	char idtext[256] = "";
-	int realtimepeers;
 	struct sip_peer **peerarray;
 	int k;
 
-	realtimepeers = ast_check_realtime("sippeers");
+	cont.realtimepeers = ast_check_realtime("sippeers");
 
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m, "ActionID");
 		if (!ast_strlen_zero(id)) {
-			snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+			snprintf(cont.idtext, sizeof(cont.idtext), "ActionID: %s\r\n", id);
 		}
 	}
 
 	switch (argc) {
 	case 5:
 		if (!strcasecmp(argv[3], "like")) {
-			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB)) {
+			if (regcomp(&cont.regexbuf, argv[4], REG_EXTENDED | REG_NOSUB)) {
 				return CLI_SHOWUSAGE;
 			}
-			havepattern = TRUE;
+			cont.havepattern = TRUE;
 		} else {
 			return CLI_SHOWUSAGE;
 		}
@@ -19003,7 +19018,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	if (!s) {
 		/* Normal list */
-		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", "Description", (realtimepeers ? "Realtime" : ""));
+		ast_cli(fd, PEERS_FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", "Description", (cont.realtimepeers ? "Realtime" : ""));
 	}
 
 	ao2_lock(peers);
@@ -19029,7 +19044,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			continue;
 		}
 
-		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
+		if (cont.havepattern && regexec(&cont.regexbuf, peer->name, 0, NULL, 0)) {
 			ao2_unlock(peer);
 			sip_unref_peer(peer, "toss iterator peer ptr before continue");
 			continue;
@@ -19043,110 +19058,16 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	qsort(peerarray, total_peers, sizeof(struct sip_peer *), peercomparefunc);
 
 	for(k = 0; k < total_peers; k++) {
-		char status[20] = "";
-		char pstatus;
-
-		/*
-		 * tmp_port and tmp_host store copies of ast_sockaddr_stringify strings since the
-		 * string pointers for that function aren't valid between subsequent calls to
-		 * ast_sockaddr_stringify functions
-		 */
-		char *tmp_port;
-		char *tmp_host;
-
-		peer = peerarray[k];
-
-		tmp_port = ast_sockaddr_isnull(&peer->addr) ?
-			"0" : ast_strdupa(ast_sockaddr_stringify_port(&peer->addr));
-
-		tmp_host = ast_sockaddr_isnull(&peer->addr) ?
-			"(Unspecified)" : ast_strdupa(ast_sockaddr_stringify_addr(&peer->addr));
-
-		ao2_lock(peer);
-		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
-			ao2_unlock(peer);
-			peer = peerarray[k] = sip_unref_peer(peer, "toss iterator peer ptr before continue");
-			continue;
-		}
-
-		if (!ast_strlen_zero(peer->username) && !s) {
-			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
-		} else {
-			ast_copy_string(name, peer->name, sizeof(name));
-		}
-
-		pstatus = peer_status(peer, status, sizeof(status));
-		if (pstatus == 1) {
-			peers_mon_online++;
-		} else if (pstatus == 0) {
-			peers_mon_offline++;
-		} else {
-			if (ast_sockaddr_isnull(&peer->addr) ||
-			    !ast_sockaddr_port(&peer->addr)) {
-				peers_unmon_offline++;
-			} else {
-				peers_unmon_online++;
-			}
-		}
-
-		if (!s) { /* Normal CLI list */
-			ast_cli(fd, FORMAT2, name,
-			tmp_host,
-			peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ?
-				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " A " : " a " :
-				ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
-			(!ast_acl_list_is_empty(peer->acl)) ? " A " : "   ",       /* permit/deny */
-			tmp_port, status,
-			peer->description ? peer->description : "",
-			realtimepeers ? (peer->is_realtime ? "Cached RT" : "") : "");
-		} else {	/* Manager format */
-			/* The names here need to be the same as other channels */
-			astman_append(s,
-			"Event: PeerEntry\r\n%s"
-			"Channeltype: SIP\r\n"
-			"ObjectName: %s\r\n"
-			"ChanObjectType: peer\r\n"	/* "peer" or "user" */
-			"IPaddress: %s\r\n"
-			"IPport: %s\r\n"
-			"Dynamic: %s\r\n"
-			"AutoForcerport: %s\r\n"
-			"Forcerport: %s\r\n"
-			"AutoComedia: %s\r\n"
-			"Comedia: %s\r\n"
-			"VideoSupport: %s\r\n"
-			"TextSupport: %s\r\n"
-			"ACL: %s\r\n"
-			"Status: %s\r\n"
-			"RealtimeDevice: %s\r\n"
-			"Description: %s\r\n\r\n",
-			idtext,
-			peer->name,
-			ast_sockaddr_isnull(&peer->addr) ? "-none-" : tmp_host,
-			ast_sockaddr_isnull(&peer->addr) ? "0" : tmp_port,
-			peer->host_dynamic ? "yes" : "no",	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ? "yes" : "no",
-			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
-			ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) ? "yes" : "no",
-			ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "yes" : "no",
-			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
-			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
-			ast_acl_list_is_empty(peer->acl) ? "no" : "yes",       /* permit/deny/acl */
-			status,
-			realtimepeers ? (peer->is_realtime ? "yes" : "no") : "no",
-			peer->description);
-		}
-		ao2_unlock(peer);
-		peer = peerarray[k] = sip_unref_peer(peer, "toss iterator peer ptr");
+		peerarray[k] = _sip_show_peers_one(fd, s, &cont, peerarray[k]);
 	}
 
 	if (!s) {
 		ast_cli(fd, "%d sip peers [Monitored: %d online, %d offline Unmonitored: %d online, %d offline]\n",
-		        total_peers, peers_mon_online, peers_mon_offline, peers_unmon_online, peers_unmon_offline);
+		        total_peers, cont.peers_mon_online, cont.peers_mon_offline, cont.peers_unmon_online, cont.peers_unmon_offline);
 	}
 
-	if (havepattern) {
-		regfree(&regexbuf);
+	if (cont.havepattern) {
+		regfree(&cont.regexbuf);
 	}
 
 	if (total) {
@@ -19156,8 +19077,111 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	ast_free(peerarray);
 
 	return CLI_SUCCESS;
-#undef FORMAT2
 }
+
+/*! \brief Emit informations for one peer during sip show peers command */
+static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct show_peers_context *cont, struct sip_peer *peer)
+{
+	/* _sip_show_peers_one() is separated from _sip_show_peers() to properly free the ast_strdupa
+	 * (this is executed in a loop in _sip_show_peers() )
+	 */
+
+	char name[256];
+	char status[20] = "";
+	char pstatus;
+
+	/*
+	 * tmp_port and tmp_host store copies of ast_sockaddr_stringify strings since the
+	 * string pointers for that function aren't valid between subsequent calls to
+	 * ast_sockaddr_stringify functions
+	 */
+	char *tmp_port;
+	char *tmp_host;
+
+	tmp_port = ast_sockaddr_isnull(&peer->addr) ?
+		"0" : ast_strdupa(ast_sockaddr_stringify_port(&peer->addr));
+
+	tmp_host = ast_sockaddr_isnull(&peer->addr) ?
+		"(Unspecified)" : ast_strdupa(ast_sockaddr_stringify_addr(&peer->addr));
+
+	ao2_lock(peer);
+	if (cont->havepattern && regexec(&cont->regexbuf, peer->name, 0, NULL, 0)) {
+		ao2_unlock(peer);
+		return sip_unref_peer(peer, "toss iterator peer ptr no match");
+	}
+
+	if (!ast_strlen_zero(peer->username) && !s) {
+		snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
+	} else {
+		ast_copy_string(name, peer->name, sizeof(name));
+	}
+
+	pstatus = peer_status(peer, status, sizeof(status));
+	if (pstatus == 1) {
+		cont->peers_mon_online++;
+	} else if (pstatus == 0) {
+		cont->peers_mon_offline++;
+	} else {
+		if (ast_sockaddr_isnull(&peer->addr) ||
+		    !ast_sockaddr_port(&peer->addr)) {
+			cont->peers_unmon_offline++;
+		} else {
+			cont->peers_unmon_online++;
+		}
+	}
+
+	if (!s) { /* Normal CLI list */
+		ast_cli(fd, PEERS_FORMAT2, name,
+		tmp_host,
+		peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
+		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ?
+			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " A " : " a " :
+			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
+		(!ast_acl_list_is_empty(peer->acl)) ? " A " : "   ",       /* permit/deny */
+		tmp_port, status,
+		peer->description ? peer->description : "",
+		cont->realtimepeers ? (peer->is_realtime ? "Cached RT" : "") : "");
+	} else {	/* Manager format */
+		/* The names here need to be the same as other channels */
+		astman_append(s,
+		"Event: PeerEntry\r\n%s"
+		"Channeltype: SIP\r\n"
+		"ObjectName: %s\r\n"
+		"ChanObjectType: peer\r\n"	/* "peer" or "user" */
+		"IPaddress: %s\r\n"
+		"IPport: %s\r\n"
+		"Dynamic: %s\r\n"
+		"AutoForcerport: %s\r\n"
+		"Forcerport: %s\r\n"
+		"AutoComedia: %s\r\n"
+		"Comedia: %s\r\n"
+		"VideoSupport: %s\r\n"
+		"TextSupport: %s\r\n"
+		"ACL: %s\r\n"
+		"Status: %s\r\n"
+		"RealtimeDevice: %s\r\n"
+		"Description: %s\r\n\r\n",
+		cont->idtext,
+		peer->name,
+		ast_sockaddr_isnull(&peer->addr) ? "-none-" : tmp_host,
+		ast_sockaddr_isnull(&peer->addr) ? "0" : tmp_port,
+		peer->host_dynamic ? "yes" : "no",	/* Dynamic or not? */
+		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ? "yes" : "no",
+		ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
+		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) ? "yes" : "no",
+		ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "yes" : "no",
+		ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
+		ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
+		ast_acl_list_is_empty(peer->acl) ? "no" : "yes",       /* permit/deny/acl */
+		status,
+		cont->realtimepeers ? (peer->is_realtime ? "yes" : "no") : "no",
+		peer->description);
+	}
+	ao2_unlock(peer);
+
+	return sip_unref_peer(peer, "toss iterator peer ptr");
+}
+#undef PEERS_FORMAT2
 
 static int peer_dump_func(void *userobj, void *arg, int flags)
 {
