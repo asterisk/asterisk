@@ -10426,21 +10426,21 @@ static int socket_process_helper(struct iax2_thread *thread)
 
 					ast_set_flag64(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
+						const char *moh_suggest;
+
 						iax2_lock_owner(fr->callno);
 						if (!iaxs[fr->callno] || !iaxs[fr->callno]->owner) {
 							break;
 						}
-						if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
-							const char *moh_suggest = iaxs[fr->callno]->mohsuggest;
 
-							/*
-							 * We already hold the owner lock so we do not
-							 * need to check iaxs[fr->callno] after it returns.
-							 */
-							iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD, 
-								S_OR(moh_suggest, NULL),
-								!ast_strlen_zero(moh_suggest) ? strlen(moh_suggest) + 1 : 0);
-						}
+						/*
+						 * We already hold the owner lock so we do not
+						 * need to check iaxs[fr->callno] after it returns.
+						 */
+						moh_suggest = iaxs[fr->callno]->mohsuggest;
+						iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD,
+							S_OR(moh_suggest, NULL),
+							!ast_strlen_zero(moh_suggest) ? strlen(moh_suggest) + 1 : 0);
 						ast_channel_unlock(iaxs[fr->callno]->owner);
 					}
 				}
@@ -10465,13 +10465,12 @@ static int socket_process_helper(struct iax2_thread *thread)
 					if (!iaxs[fr->callno]->owner) {
 						break;
 					}
-					if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
-						/*
-						 * We already hold the owner lock so we do not
-						 * need to check iaxs[fr->callno] after it returns.
-						 */
-						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
-					}
+
+					/*
+					 * We already hold the owner lock so we do not
+					 * need to check iaxs[fr->callno] after it returns.
+					 */
+					iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
 					ast_channel_unlock(iaxs[fr->callno]->owner);
 				}
 				break;
