@@ -131,21 +131,21 @@ static struct ast_channel_tech local_tech = {
 	.setoption = local_setoption,
 };
 
-/*! \brief the local pvt structure for all channels
-
-	The local channel pvt has two ast_chan objects - the "owner" and the "next channel", the outbound channel
-
-	ast_chan owner -> local_pvt -> ast_chan chan -> yet-another-pvt-depending-on-channel-type
-
-*/
+/*!
+ * \brief the local pvt structure for all channels
+ *
+ * The local channel pvt has two ast_chan objects - the "owner" and the "next channel", the outbound channel
+ *
+ * ast_chan owner -> local_pvt -> ast_chan chan -> yet-another-pvt-depending-on-channel-type
+ */
 struct local_pvt {
+	struct ast_channel *owner;      /*!< Master Channel - Bridging happens here */
+	struct ast_channel *chan;       /*!< Outbound channel - PBX is run here */
+	struct ast_format_cap *reqcap;  /*!< Requested format capabilities */
+	struct ast_jb_conf jb_conf;     /*!< jitterbuffer configuration for this local channel */
 	unsigned int flags;             /*!< Private flags */
 	char context[AST_MAX_CONTEXT];  /*!< Context to call */
 	char exten[AST_MAX_EXTENSION];  /*!< Extension to call */
-	struct ast_format_cap *reqcap;  /*!< Requested format capabilities */
-	struct ast_jb_conf jb_conf;     /*!< jitterbuffer configuration for this local channel */
-	struct ast_channel *owner;      /*!< Master Channel - Bridging happens here */
-	struct ast_channel *chan;       /*!< Outbound channel - PBX is run here */
 };
 
 #define LOCAL_ALREADY_MASQED  (1 << 0) /*!< Already masqueraded */
@@ -404,7 +404,8 @@ query_cleanup:
 	return res;
 }
 
-/*! \brief queue a frame on a to either the p->owner or p->chan
+/*!
+ * \brief queue a frame onto either the p->owner or p->chan
  *
  * \note the local_pvt MUST have it's ref count bumped before entering this function and
  * decremented after this function is called.  This is a side effect of the deadlock
@@ -762,8 +763,8 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			f.datalen = datalen;
 			res = local_queue_frame(p, isoutbound, &f, ast, 1);
 
-			if (!res && (condition == AST_CONTROL_T38_PARAMETERS) &&
-			    (datalen == sizeof(struct ast_control_t38_parameters))) {
+			if (!res && condition == AST_CONTROL_T38_PARAMETERS
+				&& datalen == sizeof(struct ast_control_t38_parameters)) {
 				const struct ast_control_t38_parameters *parameters = data;
 
 				if (parameters->request_response == AST_T38_REQUEST_PARMS) {
@@ -966,7 +967,7 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		S_COR(ast_channel_caller(owner)->id.number.valid, ast_channel_caller(owner)->id.number.str, NULL))) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", exten, context);
 		res = -1;
-		chan = ast_channel_unref(chan); /* we already unlocked it, so clear it hear so the cleanup label won't touch it. */
+		chan = ast_channel_unref(chan); /* we already unlocked it, so clear it here so the cleanup label won't touch it. */
 		goto return_cleanup;
 	}
 
@@ -1010,7 +1011,8 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 
 
 	/* Start switch on sub channel */
-	if (!(res = ast_pbx_start(chan))) {
+	res = ast_pbx_start(chan);
+	if (!res) {
 		ao2_lock(p);
 		ast_set_flag(p, LOCAL_LAUNCHED_PBX);
 		ao2_unlock(p);
@@ -1103,7 +1105,6 @@ static int local_hangup(struct ast_channel *ast)
 	if (!p->owner && !p->chan) {
 		ao2_unlock(p);
 
-		/* Remove from list */
 		ao2_unlink(locals, p);
 		ao2_ref(p, -1);
 		p = NULL;
@@ -1188,8 +1189,7 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 			if (ast_test_flag(tmp, LOCAL_NO_OPTIMIZATION))
 				ast_set_flag(&tmp->jb_conf, AST_JB_ENABLED);
 			else {
-				ast_log(LOG_ERROR, "You must use the 'n' option for chan_local "
-					"to use the 'j' option to enable the jitterbuffer\n");
+				ast_log(LOG_ERROR, "You must use the 'n' option with the 'j' option to enable the jitter buffer\n");
 			}
 		}
 		if (strchr(opts, 'b')) {
@@ -1208,7 +1208,6 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 	ast_copy_string(tmp->context, c ? c : "default", sizeof(tmp->context));
 	ast_copy_string(tmp->exten, parse, sizeof(tmp->exten));
 
-	/* Add to list */
 	ao2_link(locals, tmp);
 
 	return tmp; /* this is returned with a ref */
