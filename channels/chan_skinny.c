@@ -5234,9 +5234,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			ast_channel_name(xferor->owner), ast_bridged_channel(xferor->owner) ? ast_channel_name(ast_bridged_channel(xferor->owner)) : "");
 
 		if (ast_bridged_channel(xferor->owner)) {
-			if (ast_bridged_channel(xferee->owner)) {
-				ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
-			}
+			ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
 			if (ast_channel_state(xferor->owner) == AST_STATE_RING) {
 				/* play ringing inband */
 				if ((ts = ast_get_indication_tone(ast_channel_zone(xferor->owner), "ring"))) {
