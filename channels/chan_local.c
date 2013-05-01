@@ -21,7 +21,7 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * \brief Local Proxy Channel
- * 
+ *
  * \ingroup channel_drivers
  */
 
@@ -218,7 +218,7 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 }
 
 /* Called with ast locked */
-static int local_setoption(struct ast_channel *ast, int option, void * data, int datalen)
+static int local_setoption(struct ast_channel *ast, int option, void *data, int datalen)
 {
 	int res = 0;
 	struct local_pvt *p;
@@ -296,7 +296,7 @@ static int local_devicestate(const char *data)
 	if (!context) {
 		ast_log(LOG_WARNING,
 			"Someone used Local/%s somewhere without a @context. This is bad.\n", data);
-		return AST_DEVICE_INVALID;	
+		return AST_DEVICE_INVALID;
 	}
 	*context++ = '\0';
 
@@ -424,7 +424,6 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 
 	/* Recalculate outbound channel */
 	other = isoutbound ? p->owner : p->chan;
-
 	if (!other) {
 		return 0;
 	}
@@ -472,6 +471,7 @@ static int local_answer(struct ast_channel *ast)
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
+
 		res = local_queue_frame(p, isoutbound, &answer, ast, 1);
 	} else {
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
@@ -685,7 +685,9 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	}
 
 	/* Do not let a masquerade cause a Local channel to be bridged to itself! */
-	if (!ast_check_hangup(newchan) && ((p->owner && ast_channel_internal_bridged_channel(p->owner) == p->chan) || (p->chan && ast_channel_internal_bridged_channel(p->chan) == p->owner))) {
+	if (!ast_check_hangup(newchan)
+		&& ((p->owner && ast_channel_internal_bridged_channel(p->owner) == p->chan)
+			|| (p->chan && ast_channel_internal_bridged_channel(p->chan) == p->owner))) {
 		ast_log(LOG_WARNING, "You can not bridge a Local channel to itself!\n");
 		ao2_unlock(p);
 		ast_queue_hangup(newchan);
@@ -717,6 +719,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	} else if (condition == AST_CONTROL_CONNECTED_LINE || condition == AST_CONTROL_REDIRECTING) {
 		struct ast_channel *this_channel;
 		struct ast_channel *the_other_channel;
+
 		/* A connected line update frame may only contain a partial amount of data, such
 		 * as just a source, or just a ton, and not the full amount of information. However,
 		 * the collected information is all stored in the outgoing channel's connectedline
@@ -735,6 +738,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		}
 		if (the_other_channel) {
 			unsigned char frame_data[1024];
+
 			if (condition == AST_CONTROL_CONNECTED_LINE) {
 				if (isoutbound) {
 					ast_connected_line_copy_to_caller(ast_channel_caller(the_other_channel), ast_channel_connected(this_channel));
@@ -766,7 +770,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			if (!res && (condition == AST_CONTROL_T38_PARAMETERS) &&
 			    (datalen == sizeof(struct ast_control_t38_parameters))) {
 				const struct ast_control_t38_parameters *parameters = data;
-				
+
 				if (parameters->request_response == AST_T38_REQUEST_PARMS) {
 					res = AST_T38_REQUEST_PARMS;
 				}
@@ -997,16 +1001,17 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		</managerEventInstance>
 	***/
 	manager_event(EVENT_FLAG_CALL, "LocalBridge",
-		      "Channel1: %s\r\n"
-		      "Channel2: %s\r\n"
-		      "Uniqueid1: %s\r\n"
-		      "Uniqueid2: %s\r\n"
-		      "Context: %s\r\n"
-		      "Exten: %s\r\n"
-		      "LocalOptimization: %s\r\n",
-			ast_channel_name(p->owner), ast_channel_name(p->chan), ast_channel_uniqueid(p->owner), ast_channel_uniqueid(p->chan),
-			p->context, p->exten,
-			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
+		"Channel1: %s\r\n"
+		"Channel2: %s\r\n"
+		"Uniqueid1: %s\r\n"
+		"Uniqueid2: %s\r\n"
+		"Context: %s\r\n"
+		"Exten: %s\r\n"
+		"LocalOptimization: %s\r\n",
+		ast_channel_name(p->owner), ast_channel_name(p->chan),
+		ast_channel_uniqueid(p->owner), ast_channel_uniqueid(p->chan),
+		p->context, p->exten,
+		ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
 
 
 	/* Start switch on sub channel */
@@ -1372,7 +1377,6 @@ static int manager_optimize_away(struct mansession *s, const struct message *m)
 	struct ao2_iterator it;
 
 	channel = astman_get_header(m, "Channel");
-
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "'Channel' not specified.");
 		return 0;
