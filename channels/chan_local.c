@@ -78,11 +78,6 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
-/* right now we are treating the locals astobj2 container as a
- * list.  If there is ever a reason to make this more efficient
- * increasing the bucket size would help. */
-static const int BUCKET_SIZE = 1;
-
 static struct ao2_container *locals;
 
 static unsigned int name_sequence = 0;
@@ -1429,7 +1424,8 @@ static int load_module(void)
 	}
 	ast_format_cap_add_all(local_tech.capabilities);
 
-	if (!(locals = ao2_container_alloc(BUCKET_SIZE, NULL, locals_cmp_cb))) {
+	locals = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, locals_cmp_cb);
+	if (!locals) {
 		ast_format_cap_destroy(local_tech.capabilities);
 		return AST_MODULE_LOAD_FAILURE;
 	}
