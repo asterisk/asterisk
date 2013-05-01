@@ -3226,11 +3226,10 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 	   together (but then, why would we want to?) */
 	if (ast_bridged_channel(p->sub->owner)) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
-		   stop if now if appropriate */
-		if (ast_bridged_channel(p->sub->next->owner))
-			ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
+		   stop it now */
+		ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
 		if (ast_channel_state(p->sub->owner) == AST_STATE_RINGING) {
-			ast_indicate(ast_bridged_channel(p->sub->next->owner), AST_CONTROL_RINGING);
+			ast_queue_control(p->sub->next->owner, AST_CONTROL_RINGING);
 		}
 		if (ast_channel_masquerade(p->sub->next->owner, ast_bridged_channel(p->sub->owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
@@ -3241,7 +3240,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		unalloc_sub(p->sub->next);
 	} else if (ast_bridged_channel(p->sub->next->owner)) {
 		if (ast_channel_state(p->sub->owner) == AST_STATE_RINGING) {
-			ast_indicate(ast_bridged_channel(p->sub->next->owner), AST_CONTROL_RINGING);
+			ast_queue_control(p->sub->next->owner, AST_CONTROL_RINGING);
 		}
 		ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
 		if (ast_channel_masquerade(p->sub->owner, ast_bridged_channel(p->sub->next->owner))) {
@@ -3277,8 +3276,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 	if (sub->outgoing) {
 		/* Answered */
 		if (sub->owner) {
-			if (ast_bridged_channel(sub->owner))
-				ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
 				start_rtp(sub);
@@ -3334,8 +3332,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				ast_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
 				ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?\n");
 			}
-			if (ast_bridged_channel(sub->owner))
-				ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
 				start_rtp(sub);
@@ -3452,20 +3449,19 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					sub->cxmode = MGCP_CX_MUTE;
 					ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 					transmit_modify_request(sub);
-					if (sub->owner && ast_bridged_channel(sub->owner))
+					if (sub->owner)
 						ast_queue_control(sub->owner, AST_CONTROL_HOLD);
 					sub->next->cxmode = MGCP_CX_RECVONLY;
 					handle_hd_hf(sub->next, ev);
 				} else if (sub->owner && sub->next->owner) {
 					/* We've got two active calls lets decide whether or not to conference or just flip flop */
 					if ((!sub->outgoing) && (!sub->next->outgoing)) {
-						/* We made both calls lets conferenct */
+						/* We made both calls lets conference */
 						ast_verb(3, "MGCP Conferencing %d and %d on %s@%s\n",
 								sub->id, sub->next->id, p->name, p->parent->name);
 						sub->cxmode = MGCP_CX_CONF;
 						sub->next->cxmode = MGCP_CX_CONF;
-						if (ast_bridged_channel(sub->next->owner))
-							ast_queue_control(sub->next->owner, AST_CONTROL_UNHOLD);
+						ast_queue_control(sub->next->owner, AST_CONTROL_UNHOLD);
 						transmit_modify_request(sub);
 						transmit_modify_request(sub->next);
 					} else {
@@ -3477,11 +3473,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						sub->cxmode = MGCP_CX_MUTE;
 						ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 						transmit_modify_request(sub);
-						if (ast_bridged_channel(sub->owner))
-							ast_queue_control(sub->owner, AST_CONTROL_HOLD);
 
-						if (ast_bridged_channel(sub->next->owner))
-							ast_queue_control(sub->next->owner, AST_CONTROL_HOLD);
+						ast_queue_control(sub->owner, AST_CONTROL_HOLD);
+						ast_queue_control(sub->next->owner, AST_CONTROL_HOLD);
 
 						handle_hd_hf(sub->next, ev);
 					}
@@ -3496,8 +3490,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						/* XXX - What do we do now? */
 						return -1;
 					}
-					if (ast_bridged_channel(p->sub->owner))
-						ast_queue_control(p->sub->owner, AST_CONTROL_UNHOLD);
+					ast_queue_control(p->sub->owner, AST_CONTROL_UNHOLD);
 					p->sub->cxmode = MGCP_CX_SENDRECV;
 					transmit_modify_request(p->sub);
 				}
