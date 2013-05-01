@@ -2962,15 +2962,10 @@ static void transfer_call_step1(struct unistimsession *pte)
 	if (sub->moh) {
 		ast_log(LOG_WARNING, "Transfer with peer already listening music on hold\n");
 	} else {
-		if (ast_bridged_channel(sub->owner)) {
-			ast_moh_start(ast_bridged_channel(sub->owner),
-						  sub->parent->musicclass, NULL);
-			sub->moh = 1;
-			sub->subtype = SUB_THREEWAY;
-		} else {
-			ast_log(LOG_WARNING, "Unable to find peer subchannel for music on hold\n");
-			return;
-		}
+		ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
+			sub->parent->musicclass, strlen(sub->parent->musicclass) + 1);
+		sub->moh = 1;
+		sub->subtype = SUB_THREEWAY;
 	}
 	sub_start_silence(pte, sub);
 	handle_dial_page(pte);
@@ -2994,7 +2989,7 @@ static void transfer_cancel_step2(struct unistimsession *pte)
 		}
 		if (sub->owner) {
 			swap_subs(sub, sub_trans);
-			ast_moh_stop(ast_bridged_channel(sub_trans->owner));
+			ast_queue_control(sub_trans->owner, AST_CONTROL_UNHOLD);
 			sub_trans->moh = 0;
 			sub_trans->subtype = SUB_REAL;
 			sub->subtype = SUB_THREEWAY;
@@ -3502,13 +3497,9 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 		break;
 	case KEY_HANGUP:
 		if (sub && sub->owner) {
-			struct ast_channel *bridgepeer = NULL;
-
 			sub_stop_silence(pte, sub);
 			send_tone(pte, 0, 0);
-			if ((bridgepeer = ast_bridged_channel(sub->owner))) {
-				ast_moh_stop(bridgepeer);
-			}
+			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
 			sub->moh = 0;
 			sub->subtype = SUB_REAL;
 			pte->state = STATE_CALL;
@@ -3519,7 +3510,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			send_led_update(pte, 0x08);
 			send_led_update(pte, 0x10);
 			show_main_page(pte);
-                }
+		}
 		break;
 	case KEY_FAV0:
 	case KEY_FAV1:
@@ -4799,9 +4790,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		if (unistimdebug) {
 			ast_verb(0, "Threeway call disconnected, switching to real call\n");
 		}
-		if (ast_bridged_channel(sub_trans->owner)) {
-			ast_moh_stop(ast_bridged_channel(sub_trans->owner));
-		}
+		ast_queue_control(sub_trans->owner, AST_CONTROL_UNHOLD);
 		sub_trans->moh = 0;
 		sub_trans->subtype = SUB_REAL;
 		swap_subs(sub_trans, sub);
