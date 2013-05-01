@@ -1354,10 +1354,9 @@ static struct ast_cli_entry cli_local[] = {
 static int manager_optimize_away(struct mansession *s, const struct message *m)
 {
 	const char *channel;
-	struct local_pvt *p, *tmp = NULL;
-	struct ast_channel *c;
-	int found = 0;
-	struct ao2_iterator it;
+	struct local_pvt *p;
+	struct local_pvt *found;
+	struct ast_channel *chan;
 
 	channel = astman_get_header(m, "Channel");
 	if (ast_strlen_zero(channel)) {
@@ -1365,31 +1364,21 @@ static int manager_optimize_away(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	c = ast_channel_get_by_name(channel);
-	if (!c) {
+	chan = ast_channel_get_by_name(channel);
+	if (!chan) {
 		astman_send_error(s, m, "Channel does not exist.");
 		return 0;
 	}
 
-	p = ast_channel_tech_pvt(c);
-	ast_channel_unref(c);
-	c = NULL;
+	p = ast_channel_tech_pvt(chan);
+	ast_channel_unref(chan);
 
-	it = ao2_iterator_init(locals, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		if (tmp == p) {
-			ao2_lock(tmp);
-			found = 1;
-			ast_clear_flag(tmp, LOCAL_NO_OPTIMIZATION);
-			ao2_unlock(tmp);
-			ao2_ref(tmp, -1);
-			break;
-		}
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
-
+	found = p ? ao2_find(locals, p, 0) : NULL;
 	if (found) {
+		ao2_lock(found);
+		ast_clear_flag(found, LOCAL_NO_OPTIMIZATION);
+		ao2_unlock(found);
+		ao2_ref(found, -1);
 		astman_send_ack(s, m, "Queued channel to be optimized away");
 	} else {
 		astman_send_error(s, m, "Unable to find channel");
