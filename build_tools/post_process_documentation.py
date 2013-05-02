@@ -22,9 +22,9 @@ def merge_parameter_information(managerEvent):
 
     def __swap_parameter_documentation(one, two):
         # See who has the better documentation and use it
-        if (one.hasChildNodes()):
+        if (one.hasChildNodes() and not two.hasChildNodes()):
             two.parentNode.replaceChild(one.cloneNode(True), two)
-        elif (two.hasChildNodes()):
+        elif (two.hasChildNodes() and not one.hasChildNodes()):
             one.parentNode.replaceChild(two.cloneNode(True), one)
 
     def __merge_parameter(param, other_instances):

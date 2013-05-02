@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/channel.h"
 #include "asterisk/agi.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="Gosub" language="en_US">
@@ -202,7 +203,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Cause the channel to execute the specified dialplan subroutine,
 			returning to the dialplan with execution of a Return().</para>
 		</description>
+		<see-also>
+			<ref type="application">GoSub</ref>
+		</see-also>
 	</agi>
+	<managerEvent language="en_US" name="VarSet">
+		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<synopsis>Raised when a variable local to the gosub stack frame is set due to a subroutine call.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Variable">
+					<para>The LOCAL variable being set.</para>
+					<note><para>The variable name will always be enclosed with
+					<literal>LOCAL()</literal></para></note>
+				</parameter>
+				<parameter name="Value">
+					<para>The new value of the variable.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">GoSub</ref>
+				<ref type="agi">gosub</ref>
+				<ref type="function">LOCAL</ref>
+				<ref type="function">LOCAL_PEEK</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 static const char app_gosub[] = "Gosub";
@@ -235,6 +261,8 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 {
 	struct ast_var_t *variables;
 	int found = 0;
+	int len;
+	RAII_VAR(char *, local_buffer, NULL, ast_free);
 
 	/* Does this variable already exist? */
 	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
@@ -252,20 +280,13 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		pbx_builtin_setvar_helper(chan, var, value);
 	}
 
-	/*** DOCUMENTATION
-	<managerEventInstance>
-		<synopsis>Raised when a LOCAL channel variable is set due to a subroutine call.</synopsis>
-		<see-also>
-			<ref type="application">GoSub</ref>
-		</see-also>
-	</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
-		"Channel: %s\r\n"
-		"Variable: LOCAL(%s)\r\n"
-		"Value: %s\r\n"
-		"Uniqueid: %s\r\n",
-		ast_channel_name(chan), var, value, ast_channel_uniqueid(chan));
+	len = 8 + strlen(var); /* LOCAL() + var */
+	local_buffer = ast_malloc(len);
+	if (!local_buffer) {
+		return 0;
+	}
+	sprintf(local_buffer, "LOCAL(%s)", var);
+	ast_channel_publish_varset(chan, local_buffer, value);
 	return 0;
 }
 
