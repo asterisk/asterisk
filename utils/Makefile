@@ -151,6 +151,10 @@ aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
+version.c: $(ASTTOPDIR)/main/version.c
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
 astobj2.c: $(ASTTOPDIR)/main/astobj2.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
@@ -176,7 +180,7 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(CMD_PREFIX) cp "$<" "$@"
 
 
-refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
+refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o
 refcounter.o: _ASTCFLAGS+=-O0
 
 extconf.o: extconf.c
