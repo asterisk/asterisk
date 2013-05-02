@@ -23162,7 +23162,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 
 		/* Check for Session-Timers related headers */
-		if (st_get_mode(p, 0) != SESSION_TIMER_MODE_REFUSE && p->outgoing_call == TRUE && !reinvite) {
+		if (st_get_mode(p, 0) != SESSION_TIMER_MODE_REFUSE) {
 			p_hdrval = (char*)sip_get_header(req, "Session-Expires");
 			if (!ast_strlen_zero(p_hdrval)) {
 				/* UAS supports Session-Timers */
