@@ -968,7 +968,6 @@ struct sip_st_dlg {
 	int st_interval;                   /*!< Session-Timers negotiated session refresh interval */
 	enum st_refresher st_ref;          /*!< Session-Timers cached refresher */
 	int st_schedid;                    /*!< Session-Timers ast_sched scheduler id */
-	int st_expirys;                    /*!< Session-Timers number of expirys */
 	int st_active_peer_ua;             /*!< Session-Timers on/off in peer UA */
 	int st_cached_min_se;              /*!< Session-Timers cached Min-SE */
 	int st_cached_max_se;              /*!< Session-Timers cached Session-Expires */

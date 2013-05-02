@@ -21433,7 +21433,6 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  				if (cur->stimer->st_active == TRUE) {
  					ast_cli(a->fd, "  S-Timer Interval:       %d\n", cur->stimer->st_interval);
  					ast_cli(a->fd, "  S-Timer Refresher:      %s\n", strefresher2str(cur->stimer->st_ref));
- 					ast_cli(a->fd, "  S-Timer Expirys:        %d\n", cur->stimer->st_expirys);
  					ast_cli(a->fd, "  S-Timer Sched Id:       %d\n", cur->stimer->st_schedid);
  					ast_cli(a->fd, "  S-Timer Peer Sts:       %s\n", cur->stimer->st_active_peer_ua ? "Active" : "Inactive");
  					ast_cli(a->fd, "  S-Timer Cached Min-SE:  %d\n", cur->stimer->st_cached_min_se);
@@ -25897,9 +25896,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			}
 
 			restart_session_timer(p);
-			if (p->stimer->st_expirys > 0) {
-				p->stimer->st_expirys--;
-			}
 		}
 	}
 
@@ -29322,6 +29318,8 @@ static void stop_session_timer(struct sip_pvt *p)
 /*! \brief Session-Timers: Start session timer */
 static void start_session_timer(struct sip_pvt *p)
 {
+	unsigned int timeout_ms;
+
 	if (!p->stimer) {
 		ast_log(LOG_WARNING, "Null stimer in start_session_timer - %s\n", p->callid);
 		return;
@@ -29334,14 +29332,31 @@ static void start_session_timer(struct sip_pvt *p)
 			dialog_unref(p, "unref stimer->st_schedid from dialog"));
 	}
 
-	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer,
+	/*
+	 * RFC 4028 Section 10
+	 * If the side not performing refreshes does not receive a
+	 * session refresh request before the session expiration, it SHOULD send
+	 * a BYE to terminate the session, slightly before the session
+	 * expiration.  The minimum of 32 seconds and one third of the session
+	 * interval is RECOMMENDED.
+	 */
+
+	timeout_ms = (1000 * p->stimer->st_interval);
+	if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
+		timeout_ms /= 2;
+	} else {
+		timeout_ms -= MIN(timeout_ms / 3, 32000);
+	}
+
+	p->stimer->st_schedid = ast_sched_add(sched, timeout_ms, proc_session_timer,
 			dialog_ref(p, "adding session timer ref"));
+
 	if (p->stimer->st_schedid < 0) {
 		dialog_unref(p, "removing session timer ref");
 		ast_log(LOG_ERROR, "ast_sched_add failed - %s\n", p->callid);
 	} else {
 		p->stimer->st_active = TRUE;
-		ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
+		ast_debug(2, "Session timer started: %d - %s %ums\n", p->stimer->st_schedid, p->callid, timeout_ms);
 	}
 }
 
@@ -29375,30 +29390,25 @@ static int proc_session_timer(const void *vp)
 			transmit_reinvite_with_sdp(p, FALSE, TRUE);
 		}
 	} else {
-		p->stimer->st_expirys++;
-		if (p->stimer->st_expirys >= 2) {
-			if (p->stimer->quit_flag) {
+		if (p->stimer->quit_flag) {
+			goto return_unref;
+		}
+		ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
+		sip_pvt_lock(p);
+		while (p->owner && ast_channel_trylock(p->owner)) {
+			sip_pvt_unlock(p);
+			usleep(1);
+			if (p->stimer && p->stimer->quit_flag) {
 				goto return_unref;
 			}
-			ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
 			sip_pvt_lock(p);
-			while (p->owner && ast_channel_trylock(p->owner)) {
-				sip_pvt_unlock(p);
-				usleep(1);
-				if (p->stimer && p->stimer->quit_flag) {
-					goto return_unref;
-				}
-				sip_pvt_lock(p);
-			}
-
-			manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: SIPSessionTimer\r\n"
-					"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), ast_channel_uniqueid(p->owner));
-			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
-			ast_channel_unlock(p->owner);
-			sip_pvt_unlock(p);
-		} else {
-			res = 1;
 		}
+
+		manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: SIPSessionTimer\r\n"
+				"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), ast_channel_uniqueid(p->owner));
+		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+		ast_channel_unlock(p->owner);
+		sip_pvt_unlock(p);
 	}
 
 return_unref:
