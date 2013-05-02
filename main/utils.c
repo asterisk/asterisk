@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #include "asterisk/network.h"
+#include "asterisk/ast_version.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"
@@ -981,11 +982,12 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	ast_str_append(&str, 0, "\n"
 	               "=======================================================================\n"
-	               "=== Currently Held Locks ==============================================\n"
+	               "=== %s\n"
+	               "=== Currently Held Locks\n"
 	               "=======================================================================\n"
 	               "===\n"
 	               "=== <pending> <lock#> (<file>): <lock type> <line num> <function> <lock name> <lock addr> (times locked)\n"
-	               "===\n");
+	               "===\n", ast_get_version());
 
 	if (!str)
 		return CLI_FAILURE;
