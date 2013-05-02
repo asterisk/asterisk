@@ -5015,9 +5015,12 @@ static void fill_txgain(struct dahdi_gains *g, float gain, float drc, int law)
 				if (drc) {
 					k = drc_sample(k, drc);
 				}
-				k = (float)k*linear_gain;
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
+				k = (float)k * linear_gain;
+				if (k > 32767) {
+					k = 32767;
+				} else if (k < -32768) {
+					k = -32768;
+				}
 				g->txgain[j] = AST_LIN2A(k);
 			} else {
 				g->txgain[j] = j;
@@ -5031,9 +5034,12 @@ static void fill_txgain(struct dahdi_gains *g, float gain, float drc, int law)
 				if (drc) {
 					k = drc_sample(k, drc);
 				}
-				k = (float)k*linear_gain;
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
+				k = (float)k * linear_gain;
+				if (k > 32767) {
+					k = 32767;
+				} else if (k < -32768) {
+					k = -32768;
+				}
 				g->txgain[j] = AST_LIN2MU(k);
 
 			} else {
@@ -5058,9 +5064,12 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, float drc, int law)
 				if (drc) {
 					k = drc_sample(k, drc);
 				}
-				k = (float)k*linear_gain;
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
+				k = (float)k * linear_gain;
+				if (k > 32767) {
+					k = 32767;
+				} else if (k < -32768) {
+					k = -32768;
+				}
 				g->rxgain[j] = AST_LIN2A(k);
 			} else {
 				g->rxgain[j] = j;
@@ -5074,9 +5083,12 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, float drc, int law)
 				if (drc) {
 					k = drc_sample(k, drc);
 				}
-				k = (float)k*linear_gain;
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
+				k = (float)k * linear_gain;
+				if (k > 32767) {
+					k = 32767;
+				} else if (k < -32768) {
+					k = -32768;
+				}
 				g->rxgain[j] = AST_LIN2MU(k);
 			} else {
 				g->rxgain[j] = j;
