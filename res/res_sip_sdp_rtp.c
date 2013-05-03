@@ -556,7 +556,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	if (direct_media_enabled) {
 		ast_format_cap_joint_copy(session->endpoint->codecs, session->direct_media_cap, caps);
-	} else if (ast_format_cap_is_empty(session->req_caps)) {
+	} else if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
 		ast_format_cap_copy(caps, session->endpoint->codecs);
 	} else {
 		ast_format_cap_joint_copy(session->endpoint->codecs, session->req_caps, caps);

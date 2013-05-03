@@ -434,7 +434,7 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
 	ast_channel_tech_pvt_set(chan, pvt);
 
-	if (ast_format_cap_is_empty(session->req_caps)) {
+	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->codecs);
 	} else {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->req_caps);
