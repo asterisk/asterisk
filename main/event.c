@@ -142,7 +142,6 @@ static int ast_event_cmp(void *obj, void *arg, int flags);
 static int ast_event_hash_mwi(const void *obj, const int flags);
 static int ast_event_hash_devstate(const void *obj, const int flags);
 static int ast_event_hash_devstate_change(const void *obj, const int flags);
-static int ast_event_hash_presence_state_change(const void *obj, const int flags);
 
 #ifdef LOW_MEMORY
 #define NUM_CACHE_BUCKETS 17
@@ -188,10 +187,6 @@ static struct cache_events ast_event_cache[AST_EVENT_TOTAL] = {
 	[AST_EVENT_DEVICE_STATE_CHANGE] = {
 		.hash_fn = ast_event_hash_devstate_change,
 		.cache_args = { AST_EVENT_IE_DEVICE, AST_EVENT_IE_EID, },
-	},
-	[AST_EVENT_PRESENCE_STATE] = {
-		.hash_fn = ast_event_hash_presence_state_change,
-		.cache_args = { AST_EVENT_IE_PRESENCE_STATE, },
 	},
 };
 
@@ -1612,22 +1607,6 @@ static int ast_event_hash_devstate_change(const void *obj, const int flags)
 	const struct ast_event *event = obj;
 
 	return ast_str_hash(ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE));
-}
-
-/*!
- * \internal
- * \brief Hash function for AST_EVENT_PRESENCE_STATE
- *
- * \param[in] obj an ast_event
- * \param[in] flags unused
- *
- * \return hash value
- */
-static int ast_event_hash_presence_state_change(const void *obj, const int flags)
-{
-	const struct ast_event *event = obj;
-
-	return ast_str_hash(ast_event_get_ie_str(event, AST_EVENT_IE_PRESENCE_PROVIDER));
 }
 
 static int ast_event_hash(const void *obj, const int flags)

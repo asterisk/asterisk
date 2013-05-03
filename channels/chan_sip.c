@@ -843,9 +843,9 @@ static int regobjs = 0;       /*!< Registry objects */
 static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
 static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
 
-static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static struct stasis_subscription *network_change_sub; /*!< subscription id for network change events */
 static struct stasis_subscription *acl_change_sub; /*!< subscription id for named ACL system change events */
-static int network_change_event_sched_id = -1;
+static int network_change_sched_id = -1;
 
 static char used_context[AST_MAX_CONTEXT];        /*!< name of automatically created context for unloading */
 
@@ -1286,7 +1286,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
 static void mwi_event_cb(void *, struct stasis_subscription *, struct stasis_topic *, struct stasis_message *);
-static void network_change_event_cb(const struct ast_event *, void *);
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 static void sip_keepalive_all_peers(void);
 
@@ -16707,18 +16707,18 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 	}
 }
 
-static void network_change_event_subscribe(void)
+static void network_change_stasis_subscribe(void)
 {
-	if (!network_change_event_subscription) {
-		network_change_event_subscription = ast_event_subscribe(AST_EVENT_NETWORK_CHANGE,
-			network_change_event_cb, "SIP Network Change", NULL, AST_EVENT_IE_END);
+	if (!network_change_sub) {
+		network_change_sub = stasis_subscribe(ast_system_topic(),
+			network_change_stasis_cb, NULL);
 	}
 }
 
-static void network_change_event_unsubscribe(void)
+static void network_change_stasis_unsubscribe(void)
 {
-	if (network_change_event_subscription) {
-		network_change_event_subscription = ast_event_unsubscribe(network_change_event_subscription);
+	if (network_change_sub) {
+		network_change_sub = stasis_unsubscribe(network_change_sub);
 	}
 }
 
@@ -16731,26 +16731,31 @@ static void acl_change_stasis_subscribe(void)
 
 }
 
-static void acl_change_event_unsubscribe(void)
+static void acl_change_event_stasis_unsubscribe(void)
 {
 	if (acl_change_sub) {
 		acl_change_sub = stasis_unsubscribe(acl_change_sub);
 	}
 }
 
-static int network_change_event_sched_cb(const void *data)
+static int network_change_sched_cb(const void *data)
 {
-	network_change_event_sched_id = -1;
+	network_change_sched_id = -1;
 	sip_send_all_registers();
 	sip_send_all_mwi_subscriptions();
 	return 0;
 }
 
-static void network_change_event_cb(const struct ast_event *event, void *userdata)
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
 {
-	ast_debug(1, "SIP, got a network change event, renewing all SIP registrations.\n");
-	if (network_change_event_sched_id == -1) {
-		network_change_event_sched_id = ast_sched_add(sched, 1000, network_change_event_sched_cb, NULL);
+	/* This callback is only concerned with network change messages from the system topic. */
+	if (stasis_message_type(message) != ast_network_change_type()) {
+		return;
+	}
+
+	ast_verb(1, "SIP, got a network change message, renewing all SIP registrations.\n");
+	if (network_change_sched_id == -1) {
+		network_change_sched_id = ast_sched_add(sched, 1000, network_change_sched_cb, NULL);
 	}
 }
 
@@ -32329,9 +32334,9 @@ static int reload_config(enum channelreloadreason reason)
 	}
 
 	if (subscribe_network_change) {
-		network_change_event_subscribe();
+		network_change_stasis_subscribe();
 	} else {
-		network_change_event_unsubscribe();
+		network_change_stasis_unsubscribe();
 	}
 
 	if (global_t1 < global_t1min) {
@@ -34819,7 +34824,7 @@ static int load_module(void)
 
 
 	sip_register_tests();
-	network_change_event_subscribe();
+	network_change_stasis_subscribe();
 
 	ast_websocket_add_protocol("sip", sip_websocket_callback);
 
@@ -34839,8 +34844,8 @@ static int unload_module(void)
 
 	ast_websocket_remove_protocol("sip", sip_websocket_callback);
 
-	network_change_event_unsubscribe();
-	acl_change_event_unsubscribe();
+	network_change_stasis_unsubscribe();
+	acl_change_event_stasis_unsubscribe();
 
 	ast_sched_dump(sched);
 

@@ -32,7 +32,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
-#include "asterisk/event.h"
 #include "asterisk/sched.h"
 #include "asterisk/config.h"
 #include "asterisk/stun.h"
@@ -40,6 +39,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/acl.h"
 #include "asterisk/cli.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
+#include "asterisk/astobj2.h"
 
 #include <fcntl.h>
 
@@ -152,18 +154,27 @@ static int stun_monitor_request(const void *blarg)
 			args.external_addr = answer;
 
 			if (args.external_addr_known) {
-				struct ast_event *event;
+				RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+				RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
+				RAII_VAR(struct ast_json *, json_object, ast_json_object_create(), ast_json_unref);
 
-				/*
-				 * The external address was already known, and has changed...
-				 * generate event.
-				 */
-				event = ast_event_new(AST_EVENT_NETWORK_CHANGE, AST_EVENT_IE_END);
-				if (!event) {
-					ast_log(LOG_ERROR, "Could not create AST_EVENT_NETWORK_CHANGE event.\n");
-				} else if (ast_event_queue(event)) {
-					ast_event_destroy(event);
-					ast_log(LOG_ERROR, "Could not queue AST_EVENT_NETWORK_CHANGE event.\n");
+				/* This json_object doesn't actually contain anything yet. We have to reference something
+				 * for stasis, and this is useful for if we want to ever add data for any reason. */
+				if (!json_object) {
+					goto publish_failure;
+				}
+
+				if (!(json_payload = ast_json_payload_create(json_object))) {
+					goto publish_failure;
+				}
+
+				msg = stasis_message_create(ast_network_change_type(), json_payload);
+
+publish_failure:
+				if (msg) {
+					stasis_publish(ast_system_topic(), msg);
+				} else {
+					ast_log(LOG_ERROR, "Failed to issue network change message.\n");
 				}
 			} else {
 				/* this was the first external address we found, do not alert listeners

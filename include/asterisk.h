@@ -127,6 +127,31 @@ const char *ast_file_version_find(const char *file);
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
+ * \brief accessor for the system stasis topic
+ * \since 12
+ *
+ * \retval NULL if the stasis topic hasn't been created or has been
+ *         deliberately disabled. Unless it is ran prior to system
+ *         initialization, this should never return NULL.
+ * \retval a pointer to the System stasis topic
+ */
+struct stasis_topic *ast_system_topic(void);
+
+/*!
+ * \brief accessor for the network change stasis message type
+ * \since 12
+ *
+ * \retval NULL if the message type hasn't been created or has been
+ *         deliberately disabled. Unless it is ran prior to system
+ *         initialization, this should never return NULL.
+ * \retval a pointer to the network change stasis message type
+ *
+ * \note Messages of this type should always be issued on and expected from
+ *       the system stasis topic.
+ */
+struct stasis_message_type *ast_network_change_type(void);
+
+/*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
  * \param version the version string (typically a SVN revision keyword string)

@@ -3560,6 +3560,26 @@ static void env_init(void)
 	setenv("AST_VERSION", ast_get_version(), 1);
 }
 
+static struct stasis_topic *system_topic;
+
+static struct stasis_message_type *network_change_type;
+
+struct stasis_topic *ast_system_topic(void)
+{
+	return system_topic;
+}
+
+struct stasis_message_type *ast_network_change_type(void)
+{
+	return network_change_type;
+}
+
+static void stasis_system_topic_init(void)
+{
+	system_topic = stasis_topic_create("ast_system");
+	network_change_type = stasis_message_type_create("network_change");
+}
+
 static void print_intro_message(const char *runuser, const char *rungroup)
 {
 	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
@@ -4127,6 +4147,7 @@ int main(int argc, char *argv[])
 		printf("Stasis initialization failed.\n%s", term_quit());
 		exit(1);
 	}
+	stasis_system_topic_init();
 
 	ast_makesocket();
 	sigemptyset(&sigs);

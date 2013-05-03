@@ -283,9 +283,9 @@ static char default_parkinglot[AST_MAX_CONTEXT];
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
-static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static struct stasis_subscription *network_change_sub; /*!< subscription id for network change events */
 static struct stasis_subscription *acl_change_sub; /*!< subscription id for ACL change events */
-static int network_change_event_sched_id = -1;
+static int network_change_sched_id = -1;
 
 static int maxauthreq = 3;
 static int max_retries = 4;
@@ -1254,7 +1254,7 @@ static void build_rand_pad(unsigned char *buf, ssize_t len);
 static int get_unused_callno(enum callno_type type, int validated, callno_entry *entry);
 static int replace_callno(const void *obj);
 static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry);
-static void network_change_event_cb(const struct ast_event *, void *);
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 
 static struct ast_channel_tech iax2_tech = {
@@ -1323,18 +1323,18 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 	 * is time to send MWI, since it is only sent with a REGACK. */
 }
 
-static void network_change_event_subscribe(void)
+static void network_change_stasis_subscribe(void)
 {
-	if (!network_change_event_subscription) {
-		network_change_event_subscription = ast_event_subscribe(AST_EVENT_NETWORK_CHANGE,
-			network_change_event_cb, "IAX2 Network Change", NULL, AST_EVENT_IE_END);
+	if (!network_change_sub) {
+		network_change_sub = stasis_subscribe(ast_system_topic(),
+			network_change_stasis_cb, NULL);
 	}
 }
 
-static void network_change_event_unsubscribe(void)
+static void network_change_stasis_unsubscribe(void)
 {
-	if (network_change_event_subscription) {
-		network_change_event_subscription = ast_event_unsubscribe(network_change_event_subscription);
+	if (network_change_sub) {
+		network_change_sub = stasis_unsubscribe(network_change_sub);
 	}
 }
 
@@ -1353,10 +1353,10 @@ static void acl_change_stasis_unsubscribe(void)
 	}
 }
 
-static int network_change_event_sched_cb(const void *data)
+static int network_change_sched_cb(const void *data)
 {
 	struct iax2_registry *reg;
-	network_change_event_sched_id = -1;
+	network_change_sched_id = -1;
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		iax2_do_register(reg);
@@ -1366,13 +1366,18 @@ static int network_change_event_sched_cb(const void *data)
 	return 0;
 }
 
-static void network_change_event_cb(const struct ast_event *event, void *userdata)
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
-	ast_debug(1, "IAX, got a network change event, renewing all IAX registrations.\n");
-	if (network_change_event_sched_id == -1) {
-		network_change_event_sched_id = iax2_sched_add(sched, 1000, network_change_event_sched_cb, NULL);
+	/* This callback is only concerned with network change messages from the system topic. */
+	if (stasis_message_type(message) != ast_network_change_type()) {
+		return;
 	}
 
+	ast_verb(1, "IAX, got a network change message, renewing all IAX registrations.\n");
+	if (network_change_sched_id == -1) {
+		network_change_sched_id = iax2_sched_add(sched, 1000, network_change_sched_cb, NULL);
+	}
 }
 
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
@@ -13442,9 +13447,9 @@ static int set_config(const char *config_file, int reload, int forced)
 	}
 
 	if (subscribe_network_change) {
-		network_change_event_subscribe();
+		network_change_stasis_subscribe();
 	} else {
-		network_change_event_unsubscribe();
+		network_change_stasis_unsubscribe();
 	}
 
 	if (defaultsockfd < 0) {
@@ -14287,7 +14292,7 @@ static int __unload_module(void)
 	struct ast_context *con;
 	int x;
 
-	network_change_event_unsubscribe();
+	network_change_stasis_unsubscribe();
 	acl_change_stasis_unsubscribe();
 
 	ast_manager_unregister("IAXpeers");
@@ -14789,7 +14794,7 @@ static int load_module(void)
 
 	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, SENTINEL);
 
-	network_change_event_subscribe();
+	network_change_stasis_subscribe();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
