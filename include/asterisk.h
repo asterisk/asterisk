@@ -127,27 +127,23 @@ const char *ast_file_version_find(const char *file);
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
- * \brief accessor for the system stasis topic
  * \since 12
+ * \brief A \ref stasis topic which publishes messages regarding system changes
  *
- * \retval NULL if the stasis topic hasn't been created or has been
- *         deliberately disabled. Unless it is ran prior to system
- *         initialization, this should never return NULL.
- * \retval a pointer to the System stasis topic
+ * \retval \ref stasis_topic for system level changes
+ * \retval NULL on error
  */
 struct stasis_topic *ast_system_topic(void);
 
 /*!
- * \brief accessor for the network change stasis message type
  * \since 12
+ * \brief A \ref stasis_message_type for network changes
  *
- * \retval NULL if the message type hasn't been created or has been
- *         deliberately disabled. Unless it is ran prior to system
- *         initialization, this should never return NULL.
- * \retval a pointer to the network change stasis message type
+ * \retval NULL on error
+ * \retval \ref stasis_message_type for network changes
  *
  * \note Messages of this type should always be issued on and expected from
- *       the system stasis topic.
+ *       the \ref ast_system_topic \ref stasis topic
  */
 struct stasis_message_type *ast_network_change_type(void);
 
