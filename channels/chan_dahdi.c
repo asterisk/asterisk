@@ -3271,7 +3271,7 @@ static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 		}
 		/* Fall through */
 	default:
-		ast_log(LOG_NOTICE, "PRI got event: %s (%d) on D-channel of span %d\n",
+		ast_log(LOG_NOTICE, "Got DAHDI event: %s (%d) on D-channel of span %d\n",
 			event2str(x), x, pri->span);
 		break;
 	}
