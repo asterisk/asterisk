@@ -383,12 +383,19 @@ murf
 
 
 
-/*! \brief
- * Typedef for an object destructor. This is called just before freeing
- * the memory for the object. It is passed a pointer to the user-defined
- * data of the object.
+/*!
+ * \brief Typedef for an object destructor.
+ *
+ * \param vdoomed Object to destroy.
+ *
+ * \details
+ * This is called just before freeing the memory for the object.
+ * It is passed a pointer to the user-defined data of the
+ * object.
+ *
+ * \return Nothing
  */
-typedef void (*ao2_destructor_fn)(void *);
+typedef void (*ao2_destructor_fn)(void *vdoomed);
 
 /*! \brief Options available when allocating an ao2 object. */
 enum ao2_alloc_opts {
