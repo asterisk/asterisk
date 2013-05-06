@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 #include "asterisk/module.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/logger.h"
+#include "asterisk/json.h"
 
 /*! \brief Dummy sorcery object */
 struct test_sorcery_object {
@@ -126,6 +127,27 @@ struct sorcery_test_caching {
 	struct test_sorcery_object object;
 };
 
+/*! \brief Test structure for observer */
+struct sorcery_test_observer {
+	/*! \brief Lock for notification */
+	ast_mutex_t lock;
+
+	/*! \brief Condition for notification */
+	ast_cond_t cond;
+
+	/*! \brief Pointer to the created object */
+	const void *created;
+
+	/*! \brief Pointer to the update object */
+	const void *updated;
+
+	/*! \brief Pointer to the deleted object */
+	const void *deleted;
+
+	/*! \brief Whether the type has been loaded */
+	unsigned int loaded:1;
+};
+
 /*! \brief Global scope apply handler integer to make sure it executed */
 static int apply_handler_called;
 
@@ -138,6 +160,9 @@ static int test_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 
 /*! \brief Global scope caching structure for testing */
 static struct sorcery_test_caching cache = { 0, };
+
+/*! \brief Global scope observer structure for testing */
+static struct sorcery_test_observer observer;
 
 static int sorcery_test_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
@@ -171,6 +196,42 @@ static struct ast_sorcery_wizard test_wizard = {
 	.retrieve_id = sorcery_test_retrieve_id,
 	.update = sorcery_test_update,
 	.delete = sorcery_test_delete,
+};
+
+static void sorcery_observer_created(const void *object)
+{
+	SCOPED_MUTEX(lock, &observer.lock);
+	observer.created = object;
+	ast_cond_signal(&observer.cond);
+}
+
+static void sorcery_observer_updated(const void *object)
+{
+	SCOPED_MUTEX(lock, &observer.lock);
+	observer.updated = object;
+	ast_cond_signal(&observer.cond);
+}
+
+static void sorcery_observer_deleted(const void *object)
+{
+	SCOPED_MUTEX(lock, &observer.lock);
+	observer.deleted = object;
+	ast_cond_signal(&observer.cond);
+}
+
+static void sorcery_observer_loaded(const char *object_type)
+{
+	SCOPED_MUTEX(lock, &observer.lock);
+	observer.loaded = 1;
+	ast_cond_signal(&observer.cond);
+}
+
+/*! \brief Test sorcery observer implementation */
+static struct ast_sorcery_observer test_observer = {
+	.created = sorcery_observer_created,
+	.updated = sorcery_observer_updated,
+	.deleted = sorcery_observer_deleted,
+	.loaded = sorcery_observer_loaded,
 };
 
 static struct ast_sorcery *alloc_and_initialize_sorcery(void)
@@ -862,6 +923,63 @@ AST_TEST_DEFINE(objectset_create)
 			}
 		} else {
 			ast_test_status_update(test, "Object set created field '%s' which is unknown\n", field->name);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(objectset_json_create)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, objset, NULL, ast_json_unref);
+	struct ast_json_iter *field;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "objectset_json_create";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery json object set creation unit test";
+		info->description =
+			"Test object set creation (for JSON format) in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objset = ast_sorcery_objectset_json_create(sorcery, obj))) {
+		ast_test_status_update(test, "Failed to create an object set for a known sane object\n");
+		return AST_TEST_FAIL;
+	}
+
+	for (field = ast_json_object_iter(objset); field; field = ast_json_object_iter_next(objset, field)) {
+		struct ast_json *value = ast_json_object_iter_value(field);
+
+		if (!strcmp(ast_json_object_iter_key(field), "bob")) {
+			if (strcmp(ast_json_string_get(value), "5")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'bob'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else if (!strcmp(ast_json_object_iter_key(field), "joe")) {
+			if (strcmp(ast_json_string_get(value), "10")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'joe'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else {
+			ast_test_status_update(test, "Object set created field '%s' which is unknown\n", ast_json_object_iter_key(field));
 			res = AST_TEST_FAIL;
 		}
 	}
@@ -1950,6 +2068,151 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(object_type_observer)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	int res = AST_TEST_FAIL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_type_observer";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object type observer unit test";
+		info->description =
+			"Test that object type observers get called when they should";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!ast_sorcery_observer_add(sorcery, "test", NULL)) {
+		ast_test_status_update(test, "Successfully added a NULL observer when it should not be possible\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_observer_add(sorcery, "test", &test_observer)) {
+		ast_test_status_update(test, "Failed to add a proper observer\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		goto end;
+	}
+
+	ast_mutex_init(&observer.lock);
+	ast_cond_init(&observer.cond, NULL);
+	observer.created = NULL;
+	observer.updated = NULL;
+	observer.deleted = NULL;
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create object using in-memory wizard\n");
+		goto end;
+	}
+
+	ast_mutex_lock(&observer.lock);
+	while (!observer.created) {
+        struct timeval start = ast_tvnow();
+        struct timespec end = {
+                .tv_sec = start.tv_sec + 10,
+                .tv_nsec = start.tv_usec * 1000,
+        };
+		if (ast_cond_timedwait(&observer.cond, &observer.lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+	ast_mutex_unlock(&observer.lock);
+
+	if (!observer.created) {
+		ast_test_status_update(test, "Failed to receive observer notification for object creation within suitable timeframe\n");
+		goto end;
+	}
+
+	if (ast_sorcery_update(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to update object using in-memory wizard\n");
+		goto end;
+	}
+
+	ast_mutex_lock(&observer.lock);
+	while (!observer.updated) {
+        struct timeval start = ast_tvnow();
+        struct timespec end = {
+                .tv_sec = start.tv_sec + 10,
+                .tv_nsec = start.tv_usec * 1000,
+        };
+		if (ast_cond_timedwait(&observer.cond, &observer.lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+	ast_mutex_unlock(&observer.lock);
+
+	if (!observer.updated) {
+		ast_test_status_update(test, "Failed to receive observer notification for object updating within suitable timeframe\n");
+		goto end;
+	}
+
+	if (ast_sorcery_delete(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to delete object using in-memory wizard\n");
+		goto end;
+	}
+
+	ast_mutex_lock(&observer.lock);
+	while (!observer.deleted) {
+        struct timeval start = ast_tvnow();
+        struct timespec end = {
+                .tv_sec = start.tv_sec + 10,
+                .tv_nsec = start.tv_usec * 1000,
+        };
+		if (ast_cond_timedwait(&observer.cond, &observer.lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+	ast_mutex_unlock(&observer.lock);
+
+	if (!observer.deleted) {
+		ast_test_status_update(test, "Failed to receive observer notification for object deletion within suitable timeframe\n");
+		goto end;
+	}
+
+	ast_sorcery_reload(sorcery);
+
+	ast_mutex_lock(&observer.lock);
+	while (!observer.loaded) {
+        struct timeval start = ast_tvnow();
+        struct timespec end = {
+                .tv_sec = start.tv_sec + 10,
+                .tv_nsec = start.tv_usec * 1000,
+        };
+		if (ast_cond_timedwait(&observer.cond, &observer.lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+	ast_mutex_unlock(&observer.lock);
+
+	if (!observer.loaded) {
+		ast_test_status_update(test, "Failed to receive observer notification for object type load within suitable timeframe\n");
+		goto end;
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	observer.created = NULL;
+	observer.updated = NULL;
+	observer.deleted = NULL;
+	ast_mutex_destroy(&observer.lock);
+	ast_cond_destroy(&observer.cond);
+
+	return res;
+}
+
 AST_TEST_DEFINE(configuration_file_wizard)
 {
 	struct ast_flags flags = { CONFIG_FLAG_NOCACHE };
@@ -2334,6 +2597,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_diff);
 	AST_TEST_UNREGISTER(object_diff_native);
 	AST_TEST_UNREGISTER(objectset_create);
+	AST_TEST_UNREGISTER(objectset_json_create);
 	AST_TEST_UNREGISTER(objectset_create_regex);
 	AST_TEST_UNREGISTER(objectset_apply);
 	AST_TEST_UNREGISTER(objectset_apply_handler);
@@ -2353,6 +2617,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_delete);
 	AST_TEST_UNREGISTER(object_delete_uncreated);
 	AST_TEST_UNREGISTER(caching_wizard_behavior);
+	AST_TEST_UNREGISTER(object_type_observer);
 	AST_TEST_UNREGISTER(configuration_file_wizard);
 	AST_TEST_UNREGISTER(configuration_file_wizard_with_file_integrity);
 	AST_TEST_UNREGISTER(configuration_file_wizard_with_criteria);
@@ -2379,6 +2644,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_diff);
 	AST_TEST_REGISTER(object_diff_native);
 	AST_TEST_REGISTER(objectset_create);
+	AST_TEST_REGISTER(objectset_json_create);
 	AST_TEST_REGISTER(objectset_create_regex);
 	AST_TEST_REGISTER(objectset_apply);
 	AST_TEST_REGISTER(objectset_apply_handler);
@@ -2398,6 +2664,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_delete);
 	AST_TEST_REGISTER(object_delete_uncreated);
 	AST_TEST_REGISTER(caching_wizard_behavior);
+	AST_TEST_REGISTER(object_type_observer);
 	AST_TEST_REGISTER(configuration_file_wizard);
 	AST_TEST_REGISTER(configuration_file_wizard_with_file_integrity);
 	AST_TEST_REGISTER(configuration_file_wizard_with_criteria);

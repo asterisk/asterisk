@@ -38,6 +38,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config_options.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/module.h"
+#include "asterisk/taskprocessor.h"
+#include "asterisk/threadpool.h"
+#include "asterisk/json.h"
 
 /* To prevent DEBUG_FD_LEAKS from interfering with things we undef open and close */
 #undef open
@@ -51,6 +54,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Maximum length of an object field name */
 #define MAX_OBJECT_FIELD 128
+
+/*! \brief Thread pool for observers */
+static struct ast_threadpool *threadpool;
 
 /*! \brief Structure for registered object type */
 struct ast_sorcery_object_type {
@@ -83,6 +89,27 @@ struct ast_sorcery_object_type {
 
 	/*! \brief Type details */
 	struct aco_type type;
+
+	/*! \brief Observers */
+	struct ao2_container *observers;
+
+	/*! \brief Serializer for observers */
+	struct ast_taskprocessor *serializer;
+};
+
+/*! \brief Structure for registered object type observer */
+struct ast_sorcery_object_type_observer {
+	/*! \brief Pointer to the observer implementation */
+	const struct ast_sorcery_observer *callbacks;
+};
+
+/*! \brief Structure used for observer invocations */
+struct sorcery_observer_invocation {
+	/*! \brief Pointer to the object type */
+	struct ast_sorcery_object_type *object_type;
+
+	/*! \brief Pointer to the object */
+	void *object;
 };
 
 /*! \brief Structure for registered object field */
@@ -213,9 +240,21 @@ static int sorcery_wizard_cmp(void *obj, void *arg, int flags)
 
 int ast_sorcery_init(void)
 {
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.auto_increment = 1,
+		.max_size = 0,
+		.idle_timeout = 60,
+		.initial_size = 0,
+	};
 	ast_assert(wizards == NULL);
 
+	if (!(threadpool = ast_threadpool_create("Sorcery", NULL, &options))) {
+		return -1;
+	}
+
 	if (!(wizards = ao2_container_alloc(WIZARD_BUCKETS, sorcery_wizard_hash, sorcery_wizard_cmp))) {
+		ast_threadpool_shutdown(threadpool);
 		return -1;
 	}
 
@@ -317,6 +356,7 @@ static void sorcery_object_type_destructor(void *obj)
 
 	ao2_cleanup(object_type->wizards);
 	ao2_cleanup(object_type->fields);
+	ao2_cleanup(object_type->observers);
 
 	if (object_type->info) {
 		aco_info_destroy(object_type->info);
@@ -324,12 +364,15 @@ static void sorcery_object_type_destructor(void *obj)
 	}
 
 	ast_free(object_type->file);
+
+	ast_taskprocessor_unreference(object_type->serializer);
 }
 
 /*! \brief Internal function which allocates an object type structure */
 static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *type, const char *module)
 {
 	struct ast_sorcery_object_type *object_type;
+	char uuid[AST_UUID_STR_LEN];
 
 	if (!(object_type = ao2_alloc(sizeof(*object_type), sorcery_object_type_destructor))) {
 		return NULL;
@@ -346,12 +389,27 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 		return NULL;
 	}
 
+	if (!(object_type->observers = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, 1, NULL, NULL))) {
+		ao2_ref(object_type, -1);
+		return NULL;
+	}
+
 	if (!(object_type->info = ast_calloc(1, sizeof(*object_type->info) + 2 * sizeof(object_type->info->files[0])))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
 
 	if (!(object_type->file = ast_calloc(1, sizeof(*object_type->file) + 2 * sizeof(object_type->file->types[0])))) {
+		ao2_ref(object_type, -1);
+		return NULL;
+	}
+
+	if (!ast_uuid_generate_str(uuid, sizeof(uuid))) {
+		ao2_ref(object_type, -1);
+		return NULL;
+	}
+
+	if (!(object_type->serializer = ast_threadpool_serializer(uuid, threadpool))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
@@ -597,6 +655,58 @@ static int sorcery_wizard_load(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*! \brief Destructor for observer invocation */
+static void sorcery_observer_invocation_destroy(void *obj)
+{
+	struct sorcery_observer_invocation *invocation = obj;
+
+	ao2_cleanup(invocation->object_type);
+	ao2_cleanup(invocation->object);
+}
+
+/*! \brief Allocator function for observer invocation */
+static struct sorcery_observer_invocation *sorcery_observer_invocation_alloc(struct ast_sorcery_object_type *object_type, void *object)
+{
+	struct sorcery_observer_invocation *invocation = ao2_alloc(sizeof(*invocation), sorcery_observer_invocation_destroy);
+
+	if (!invocation) {
+		return NULL;
+	}
+
+	ao2_ref(object_type, +1);
+	invocation->object_type = object_type;
+
+	if (object) {
+		ao2_ref(object, +1);
+		invocation->object = object;
+	}
+
+	return invocation;
+}
+
+/*! \brief Internal callback function which notifies an individual observer that an object type has been loaded */
+static int sorcery_observer_notify_loaded(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_type_observer *observer = obj;
+
+	if (observer->callbacks->loaded) {
+		observer->callbacks->loaded(arg);
+	}
+
+	return 0;
+}
+
+/*! \brief Internal callback function which notifies observers that an object type has been loaded */
+static int sorcery_observers_notify_loaded(void *data)
+{
+	struct sorcery_observer_invocation *invocation = data;
+
+	ao2_callback(invocation->object_type->observers, OBJ_NODATA, sorcery_observer_notify_loaded, invocation->object_type->name);
+	ao2_cleanup(invocation);
+
+	return 0;
+}
+
 static int sorcery_object_load(void *obj, void *arg, int flags)
 {
 	struct ast_sorcery_object_type *type = obj;
@@ -604,6 +714,14 @@ static int sorcery_object_load(void *obj, void *arg, int flags)
 
 	details->type = type->name;
 	ao2_callback(type->wizards, OBJ_NODATA, sorcery_wizard_load, details);
+
+	if (ao2_container_count(type->observers)) {
+		struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(type, NULL);
+
+		if (invocation && ast_taskprocessor_push(type->serializer, sorcery_observers_notify_loaded, invocation)) {
+			ao2_cleanup(invocation);
+		}
+	}
 
 	return 0;
 }
@@ -713,6 +831,68 @@ struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorc
 	}
 
 	return fields;
+}
+
+struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sorcery, const void *object)
+{
+	const struct ast_sorcery_object_details *details = object;
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	struct ao2_iterator i;
+	struct ast_sorcery_object_field *object_field;
+	struct ast_json *json = ast_json_object_create();
+	int res = 0;
+
+	if (!object_type || !json) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(object_type->fields, 0);
+
+	for (; (object_field = ao2_iterator_next(&i)) && !res; ao2_ref(object_field, -1)) {
+		if (object_field->multiple_handler) {
+			struct ast_variable *tmp = NULL;
+			struct ast_variable *field;
+
+			if ((res = object_field->multiple_handler(object, &tmp))) {
+				break;
+			}
+
+			for (field = tmp; field; field = field->next) {
+				struct ast_json *value = ast_json_string_create(field->value);
+
+				if (value && ast_json_object_set(json, field->name, value)) {
+					ast_json_unref(value);
+					res = -1;
+				}
+			}
+
+			ast_variables_destroy(tmp);
+		} else if (object_field->handler) {
+			char *buf = NULL;
+			struct ast_json *value = NULL;
+
+			if ((res = object_field->handler(object, object_field->args, &buf)) ||
+				!(value = ast_json_string_create(buf)) ||
+				ast_json_object_set(json, object_field->name, value)) {
+				ast_json_unref(value);
+				res = -1;
+			}
+
+			ast_free(buf);
+		} else {
+			continue;
+		}
+	}
+
+	ao2_iterator_destroy(&i);
+
+	/* If any error occurs we destroy the JSON object so a partial objectset is not returned */
+	if (res) {
+		ast_json_unref(json);
+		json = NULL;
+	}
+
+	return json;
 }
 
 int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object, struct ast_variable *objectset)
@@ -1016,6 +1196,29 @@ static int sorcery_wizard_create(void *obj, void *arg, int flags)
 	return (!object_wizard->caching && !object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \brief Internal callback function which notifies an individual observer that an object has been created */
+static int sorcery_observer_notify_create(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_type_observer *observer = obj;
+
+	if (observer->callbacks->created) {
+		observer->callbacks->created(arg);
+	}
+
+	return 0;
+}
+
+/*! \brief Internal callback function which notifies observers that an object has been created */
+static int sorcery_observers_notify_create(void *data)
+{
+	struct sorcery_observer_invocation *invocation = data;
+
+	ao2_callback(invocation->object_type->observers, OBJ_NODATA, sorcery_observer_notify_create, invocation->object);
+	ao2_cleanup(invocation);
+
+	return 0;
+}
+
 int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
@@ -1030,9 +1233,39 @@ int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_create, &sdetails);
+	if ((object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_create, &sdetails)) &&
+		ao2_container_count(object_type->observers)) {
+		struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+
+		if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_create, invocation)) {
+			ao2_cleanup(invocation);
+		}
+	}
 
 	return object_wizard ? 0 : -1;
+}
+
+/*! \brief Internal callback function which notifies an individual observer that an object has been updated */
+static int sorcery_observer_notify_update(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_type_observer *observer = obj;
+
+	if (observer->callbacks->updated) {
+		observer->callbacks->updated(arg);
+	}
+
+	return 0;
+}
+
+/*! \brief Internal callback function which notifies observers that an object has been updated */
+static int sorcery_observers_notify_update(void *data)
+{
+	struct sorcery_observer_invocation *invocation = data;
+
+	ao2_callback(invocation->object_type->observers, OBJ_NODATA, sorcery_observer_notify_update, invocation->object);
+	ao2_cleanup(invocation);
+
+	return 0;
 }
 
 /*! \brief Internal function which returns if a wizard has updated the object */
@@ -1059,9 +1292,39 @@ int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_update, &sdetails);
+	if ((object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_update, &sdetails)) &&
+		ao2_container_count(object_type->observers)) {
+		struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+
+		if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_update, invocation)) {
+			ao2_cleanup(invocation);
+		}
+	}
 
 	return object_wizard ? 0 : -1;
+}
+
+/*! \brief Internal callback function which notifies an individual observer that an object has been deleted */
+static int sorcery_observer_notify_delete(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_type_observer *observer = obj;
+
+	if (observer->callbacks->deleted) {
+		observer->callbacks->deleted(arg);
+	}
+
+	return 0;
+}
+
+/*! \brief Internal callback function which notifies observers that an object has been deleted */
+static int sorcery_observers_notify_delete(void *data)
+{
+	struct sorcery_observer_invocation *invocation = data;
+
+	ao2_callback(invocation->object_type->observers, OBJ_NODATA, sorcery_observer_notify_delete, invocation->object);
+	ao2_cleanup(invocation);
+
+	return 0;
 }
 
 /*! \brief Internal function which returns if a wizard has deleted the object */
@@ -1088,7 +1351,14 @@ int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 		return -1;
 	}
 
-	object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_delete, &sdetails);
+	if ((object_wizard = ao2_callback(object_type->wizards, 0, sorcery_wizard_delete, &sdetails)) &&
+		ao2_container_count(object_type->observers)) {
+		struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+
+		if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_delete, invocation)) {
+			ao2_cleanup(invocation);
+		}
+	}
 
 	return object_wizard ? 0 : -1;
 }
@@ -1108,4 +1378,43 @@ const char *ast_sorcery_object_get_type(const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
 	return details->type;
+}
+
+int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct ast_sorcery_object_type_observer *observer;
+
+	if (!object_type || !callbacks) {
+		return -1;
+	}
+
+	if (!(observer = ao2_alloc(sizeof(*observer), NULL))) {
+		return -1;
+	}
+
+	observer->callbacks = callbacks;
+	ao2_link(object_type->observers, observer);
+	ao2_ref(observer, -1);
+
+	return 0;
+}
+
+/*! \brief Internal callback function for removing an observer */
+static int sorcery_observer_remove(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_type_observer *observer = obj;
+
+	return (observer->callbacks == arg) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *type, struct ast_sorcery_observer *callbacks)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+
+	if (!object_type) {
+		return;
+	}
+
+	ao2_callback(object_type->observers, OBJ_NODATA | OBJ_UNLINK, sorcery_observer_remove, callbacks);
 }

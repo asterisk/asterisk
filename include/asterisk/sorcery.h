@@ -232,6 +232,21 @@ struct ast_sorcery_wizard {
 	void (*close)(void *data);
 };
 
+/*! \brief Interface for a sorcery object type observer */
+struct ast_sorcery_observer {
+	/*! \brief Callback for when an object is created */
+	void (*created)(const void *object);
+
+	/*! \brief Callback for when an object is updated */
+	void (*updated)(const void *object);
+
+	/*! \brief Callback for when an object is deleted */
+	void (*deleted)(const void *object);
+
+	/*! \brief Callback for when an object type is loaded/reloaded */
+	void (*loaded)(const char *object_type);
+};
+
 /*! \brief Structure which contains details about a sorcery object */
 struct ast_sorcery_object_details {
 	/*! \brief Unique identifier of this object */
@@ -472,6 +487,19 @@ void ast_sorcery_ref(struct ast_sorcery *sorcery);
 struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorcery, const void *object);
 
 /*!
+ * \brief Create an object set in JSON format for an object
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object Pointer to a sorcery object
+ *
+ * \retval non-NULL success
+ * \retval NULL if error occurred
+ *
+ * \note The returned ast_json object must be unreferenced using ast_json_unref
+ */
+struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sorcery, const void *object);
+
+/*!
  * \brief Apply an object set (KVP list) to an object
  *
  * \param sorcery Pointer to a sorcery structure
@@ -539,6 +567,30 @@ void *ast_sorcery_copy(const struct ast_sorcery *sorcery, const void *object);
  * \note While the objects must be of the same type they do not have to be the same object
  */
 int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, const void *modified, struct ast_variable **changes);
+
+/*!
+ * \brief Add an observer to a specific object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object that should be observed
+ * \param callbacks Implementation of the observer interface
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks);
+
+/*!
+ * \brief Remove an observer from a specific object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object that should no longer be observed
+ * \param callbacks Implementation of the observer interface
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *type, struct ast_sorcery_observer *callbacks);
 
 /*!
  * \brief Create and potentially persist an object using an available wizard

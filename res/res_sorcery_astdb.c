@@ -125,13 +125,12 @@ static int sorcery_json_equal(struct ast_json *object, struct ast_json *criteria
 
 static int sorcery_astdb_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	RAII_VAR(struct ast_variable *, objset, ast_sorcery_objectset_create(sorcery, object), ast_variables_destroy);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, objset, ast_sorcery_objectset_json_create(sorcery, object), ast_json_unref);
 	RAII_VAR(char *, value, NULL, ast_free_ptr);
 	const char *prefix = data;
 	char family[strlen(prefix) + strlen(ast_sorcery_object_get_type(object)) + 2];
 
-	if (!objset || !(json = sorcery_objectset_to_json(objset)) || !(value = ast_json_dump_string(json))) {
+	if (!objset || !(value = ast_json_dump_string(objset))) {
 		return -1;
 	}
 
