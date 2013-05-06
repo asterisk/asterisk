@@ -6435,8 +6435,8 @@ static void sla_check_reload(void)
 
 	ast_mutex_lock(&sla.lock);
 
-	if (!AST_LIST_EMPTY(&sla.event_q) || !AST_LIST_EMPTY(&sla.ringing_trunks) 
-		|| !AST_LIST_EMPTY(&sla.ringing_stations)) {
+	if (!AST_LIST_EMPTY(&sla.event_q) || !AST_LIST_EMPTY(&sla.ringing_trunks)
+		|| !AST_LIST_EMPTY(&sla.ringing_stations) || !AST_LIST_EMPTY(&sla.failed_stations)) {
 		ast_mutex_unlock(&sla.lock);
 		return;
 	}
@@ -6454,8 +6454,9 @@ static void sla_check_reload(void)
 
 	AST_RWLIST_RDLOCK(&sla_trunks);
 	AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
-		if (trunk->ref_count)
+		if (trunk->ref_count || trunk->chan || trunk->active_stations || trunk->hold_stations) {
 			break;
+		}
 	}
 	AST_RWLIST_UNLOCK(&sla_trunks);
 	if (trunk) {
@@ -6711,7 +6712,7 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 
-	AST_RWLIST_RDLOCK(&sla_stations);
+	AST_RWLIST_WRLOCK(&sla_stations);
 	station = sla_find_station(station_name);
 	if (station)
 		ast_atomic_fetchadd_int((int *) &station->ref_count, 1);
@@ -6923,7 +6924,7 @@ static int sla_trunk_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	AST_RWLIST_RDLOCK(&sla_trunks);
+	AST_RWLIST_WRLOCK(&sla_trunks);
 	trunk = sla_find_trunk(args.trunk_name);
 	if (trunk)
 		ast_atomic_fetchadd_int((int *) &trunk->ref_count, 1);
