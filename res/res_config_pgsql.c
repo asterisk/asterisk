@@ -198,7 +198,7 @@ static int _pgsql_exec(const char *database, const char *tablename, const char *
  *  \return -1 on query failure
  *  \return 0 on success
  *
- *  \example
+ *  \code
  *	int i, rows;
  *	PGresult *result;
  *	char *field_name, *field_type, *field_len, *field_notnull, *field_default;
@@ -213,7 +213,7 @@ static int _pgsql_exec(const char *database, const char *tablename, const char *
  *		field_notnull = PQgetvalue(result, i, 3);
  *		field_default = PQgetvalue(result, i, 4);
  *	}
- *
+ *  \endcode
  */
 static int pgsql_exec(const char *database, const char *tablename, const char *sql, PGresult **result)
 {
