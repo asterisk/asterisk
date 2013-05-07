@@ -569,7 +569,7 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
  * the lock. When the lock goes out of scope, it will automatically
  * be unlocked.
  *
- * \example
+ * \code
  * int some_function(struct ast_channel *chan)
  * {
  *     SCOPED_LOCK(lock, chan, ast_channel_lock, ast_channel_unlock);
@@ -580,6 +580,7 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
  *
  *     return -1;
  * }
+ * \endcode
  *
  * In the above example, neither return path requires explicit unlocking
  * of the channel.
