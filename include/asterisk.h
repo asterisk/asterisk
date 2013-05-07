@@ -127,27 +127,6 @@ const char *ast_file_version_find(const char *file);
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
- * \since 12
- * \brief A \ref stasis topic which publishes messages regarding system changes
- *
- * \retval \ref stasis_topic for system level changes
- * \retval NULL on error
- */
-struct stasis_topic *ast_system_topic(void);
-
-/*!
- * \since 12
- * \brief A \ref stasis_message_type for network changes
- *
- * \retval NULL on error
- * \retval \ref stasis_message_type for network changes
- *
- * \note Messages of this type should always be issued on and expected from
- *       the \ref ast_system_topic \ref stasis topic
- */
-struct stasis_message_type *ast_network_change_type(void);
-
-/*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
  * \param version the version string (typically a SVN revision keyword string)
@@ -220,6 +199,27 @@ int64_t ast_mark(int, int start1_stop0);
 #define ast_profile(a, b) do { } while (0)
 #define ast_mark(a, b) do { } while (0)
 #endif /* LOW_MEMORY */
+
+/*!
+ * \since 12
+ * \brief A \ref stasis topic which publishes messages regarding system changes
+ *
+ * \retval \ref stasis_topic for system level changes
+ * \retval NULL on error
+ */
+struct stasis_topic *ast_system_topic(void);
+
+/*!
+ * \since 12
+ * \brief A \ref stasis_message_type for network changes
+ *
+ * \retval NULL on error
+ * \retval \ref stasis_message_type for network changes
+ *
+ * \note Messages of this type should always be issued on and expected from
+ *       the \ref ast_system_topic \ref stasis topic
+ */
+struct stasis_message_type *ast_network_change_type(void);
 
 /*! \brief
  * Definition of various structures that many asterisk files need,
