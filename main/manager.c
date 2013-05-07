@@ -4726,7 +4726,7 @@ static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
-/*
+/*!
  * \brief Manager command to add an event filter to a manager session
  * \see For more details look at manager_add_filter
  */
@@ -4760,10 +4760,9 @@ static int action_filter(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/*
+/*!
  * \brief Add an event filter to a manager session
  *
- * \param s               manager session to modify filters on
  * \param filter_pattern  Filter syntax to add, see below for syntax
  *
  * \return FILTER_ALLOC_FAILED   Memory allocation failure
@@ -4774,9 +4773,12 @@ static int action_filter(struct mansession *s, const struct message *m)
  * Filter can be any valid regular expression
  * Filter can be a valid regular expression prefixed with !, which will add the filter as a black filter
  *
- * \example filter_pattern = "Event: Newchannel"
- * \example filter_pattern = "Event: New.*"
- * \example filter_pattern = "!Channel: DAHDI.*"
+ * Examples:
+ * \code
+ *   filter_pattern = "Event: Newchannel"
+ *   filter_pattern = "Event: New.*"
+ *   filter_pattern = "!Channel: DAHDI.*"
+ * \endcode
  *
  */
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters) {
