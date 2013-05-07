@@ -24,9 +24,54 @@
  * \brief Asterisk JSON abstraction layer.
  * \since 12.0.0
  *
- * This is a very thin wrapper around the Jansson API. For more details on it, see its
- * docs at http://www.digip.org/jansson/doc/2.4/apiref.html.
-
+ * This is a very thin wrapper around the Jansson API. For more details on it,
+ * see its docs at http://www.digip.org/jansson/doc/2.4/apiref.html.
+ *
+ * Rather than provide the multiple ways of doing things that the Jansson API
+ * does, the Asterisk wrapper is always reference-stealing, and always NULL
+ * safe.
+ *
+ * And by always, I mean that the reference is stolen even if the function
+ * fails. This avoids lots of conditional logic, and also avoids having to track
+ * zillions of local variables when building complex JSON objects. You can
+ * instead chain \c ast_json_* calls together safely and only worry about
+ * cleaning up the root object.
+ *
+ * In the cases where you have a need to introduce intermediate objects, just
+ * wrap them with json_ref() when passing them to other \c ast_json_*()
+ * functions.
+ *
+ * \code
+ *	// Example of how to use the Asterisk JSON API
+ *	static struct ast_json *foo(void) {
+ *		RAII_VAR(struct ast_json *, array, NULL, ast_json_unref);
+ *		RAII_VAR(struct ast_json *, obj, NULL, ast_json_unref);
+ *		int i, res;
+ *
+ *		array = ast_json_array_create();
+ *		if (!array) { return NULL; }
+ *
+ *		for (i = 0; i < 10; ++i) {
+ *			// NULL safety and object stealing means calls can
+ *			// be chained together directly.
+ *			res = ast_json_array_append(array,
+ *				ast_json_integer_create(i));
+ *			if (res != 0) { return NULL; }
+ *		}
+ *
+ *		obj = ast_json_object_create();
+ *		if (!obj) { return NULL; }
+ *
+ *		// If you already have an object reference, ast_json_ref()
+ *		// can be used inline to bump the ref before passing it along
+ *		// to a ref-stealing call
+ *		res = ast_json_object_set(obj, "foo", ast_json_ref(array));
+ *		if (!res) { return NULL; }
+ *
+ *		return obj;
+ *	}
+ * \endcode
+ *
  * \author David M. Lee, II <dlee@digium.com>
  */
 
