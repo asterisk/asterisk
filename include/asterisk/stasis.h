@@ -543,6 +543,43 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 /*! @{ */
 
 /*!
+ * \brief Boiler-plate removing macro for defining message types.
+ *
+ * \param name Name of message type.
+ * \since 12
+ */
+#define STASIS_MESSAGE_TYPE_DEFN(name)				\
+	static struct stasis_message_type *__ ## name;	\
+	struct stasis_message_type *name(void) {	\
+		ast_assert(__ ## name != NULL);		\
+		return __ ## name;			\
+	}
+
+/*!
+ * \brief Boiler-plate removing macro for initializing message types.
+ *
+ * \param name Name of message type.
+ * \return 0 if initialization is successful.
+ * \return Non-zero on failure.
+ * \since 12
+ */
+#define STASIS_MESSAGE_TYPE_INIT(name)				\
+	({						\
+	__ ## name = stasis_message_type_create(#name);	\
+	__ ## name ? 0 : -1;				\
+	})
+
+#define STASIS_MESSAGE_TYPE_CLEANUP(name)		\
+	({					\
+		ao2_cleanup(__ ## name);	\
+		__ ## name = NULL;		\
+	})
+
+/*! @} */
+
+/*! @{ */
+
+/*!
  * \brief Initialize the Stasis subsystem
  * \return 0 on success.
  * \return Non-zero on error.

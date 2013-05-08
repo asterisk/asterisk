@@ -38,35 +38,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define NUM_MULTI_CHANNEL_BLOB_BUCKETS 7
 
-/*! \brief Message type for channel snapshot messages */
-static struct stasis_message_type *channel_snapshot_type;
-
-/*! \brief Message type for channel blob messages */
-static struct stasis_message_type *channel_blob_type;
-
-/*! \brief Message type for channel dial messages */
-static struct stasis_message_type *channel_dial_type;
+/*!
+ * @{ \brief Define channel message types.
+ */
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_snapshot_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dial_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_varset_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
+/*! @} */
 
 /*! \brief Topic for all channels */
 struct stasis_topic *channel_topic_all;
 
 /*! \brief Caching topic for all channels */
 struct stasis_caching_topic *channel_topic_all_cached;
-
-struct stasis_message_type *ast_channel_dial_type(void)
-{
-	return channel_dial_type;
-}
-
-struct stasis_message_type *ast_channel_blob_type(void)
-{
-	return channel_blob_type;
-}
-
-struct stasis_message_type *ast_channel_snapshot_type(void)
-{
-	return channel_snapshot_type;
-}
 
 struct stasis_topic *ast_channel_topic_all(void)
 {
@@ -221,18 +209,13 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 }
 
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
-					       struct ast_json *blob)
+	struct stasis_message_type *type, struct ast_json *blob)
 {
 	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_json *type;
 
-	ast_assert(blob != NULL);
-
-	type = ast_json_object_get(blob, "type");
-	if (type == NULL) {
-		ast_log(LOG_ERROR, "Invalid ast_channel_blob; missing type field\n");
-		return NULL;
+	if (blob == NULL) {
+		blob = ast_json_null();
 	}
 
 	obj = ao2_alloc(sizeof(*obj), channel_blob_dtor);
@@ -249,22 +232,13 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 
 	obj->blob = ast_json_ref(blob);
 
-	msg = stasis_message_create(ast_channel_blob_type(), obj);
+	msg = stasis_message_create(type, obj);
 	if (!msg) {
 		return NULL;
 	}
 
 	ao2_ref(msg, +1);
 	return msg;
-}
-
-const char *ast_channel_blob_json_type(struct ast_channel_blob *obj)
-{
-	if (obj == NULL) {
-		return NULL;
-	}
-
-	return ast_json_string_get(ast_json_object_get(obj->blob, "type"));
 }
 
 /*! \brief A channel snapshot wrapper object used in \ref ast_multi_channel_blob objects */
@@ -319,17 +293,10 @@ struct ast_multi_channel_blob *ast_multi_channel_blob_create(struct ast_json *bl
 	RAII_VAR(struct ast_multi_channel_blob *, obj,
 			ao2_alloc(sizeof(*obj), multi_channel_blob_dtor),
 			ao2_cleanup);
-	struct ast_json *type;
 
 	ast_assert(blob != NULL);
 
 	if (!obj) {
-		return NULL;
-	}
-
-	type = ast_json_object_get(blob, "type");
-	if (type == NULL) {
-		ast_log(LOG_ERROR, "Invalid ast_multi_channel_blob; missing type field\n");
 		return NULL;
 	}
 
@@ -423,15 +390,6 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
 	return obj->blob;
 }
 
-const char *ast_multi_channel_blob_get_type(struct ast_multi_channel_blob *obj)
-{
-	if (!obj) {
-		return NULL;
-	}
-
-	return ast_json_string_get(ast_json_object_get(obj->blob, "type"));
-}
-
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -449,7 +407,8 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 		return;
 	}
 
-	msg = ast_channel_blob_create(chan, ast_json_ref(blob));
+	msg = ast_channel_blob_create(chan, ast_channel_varset_type(),
+		ast_json_ref(blob));
 
 	if (!msg) {
 		return;
@@ -491,12 +450,13 @@ struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot 
 
 void ast_stasis_channels_shutdown(void)
 {
-	ao2_cleanup(channel_snapshot_type);
-	channel_snapshot_type = NULL;
-	ao2_cleanup(channel_blob_type);
-	channel_blob_type = NULL;
-	ao2_cleanup(channel_dial_type);
-	channel_dial_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dial_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_varset_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_user_event_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
 	ao2_cleanup(channel_topic_all);
 	channel_topic_all = NULL;
 	channel_topic_all_cached = stasis_caching_unsubscribe(channel_topic_all_cached);
@@ -504,9 +464,14 @@ void ast_stasis_channels_shutdown(void)
 
 void ast_stasis_channels_init(void)
 {
-	channel_snapshot_type = stasis_message_type_create("ast_channel_snapshot");
-	channel_blob_type = stasis_message_type_create("ast_channel_blob");
-	channel_dial_type = stasis_message_type_create("ast_channel_dial");
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_snapshot_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_dial_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_varset_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_user_event_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_begin_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_end_type);
+
 	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
 }

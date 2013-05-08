@@ -544,8 +544,10 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 	}
 }
 
-static void channel_varset(struct ast_channel_blob *obj)
+static void channel_varset_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	const char *variable = ast_json_string_get(ast_json_object_get(obj->blob, "variable"));
 	const char *value = ast_json_string_get(ast_json_object_get(obj->blob, "value"));
@@ -585,8 +587,10 @@ static void channel_varset(struct ast_channel_blob *obj)
 		      variable, value);
 }
 
-static void channel_userevent(struct ast_channel_blob *obj)
+static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	const char *eventname;
 	const char *body;
@@ -620,8 +624,11 @@ static void channel_userevent(struct ast_channel_blob *obj)
 		      ast_str_buffer(channel_event_string), eventname, body);
 }
 
-static void channel_hangup_request(struct ast_channel_blob *obj)
+static void channel_hangup_request_cb(void *data,
+	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_message *message)
 {
+	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, extra, NULL, ast_free);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	struct ast_json *cause;
@@ -657,8 +664,10 @@ static void channel_hangup_request(struct ast_channel_blob *obj)
 		      ast_str_buffer(extra));
 }
 
-static void channel_dtmf_begin(struct ast_channel_blob *obj)
+static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	const char *digit =
 		ast_json_string_get(ast_json_object_get(obj->blob, "digit"));
@@ -696,8 +705,10 @@ static void channel_dtmf_begin(struct ast_channel_blob *obj)
 		digit, direction);
 }
 
-static void channel_dtmf_end(struct ast_channel_blob *obj)
+static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
+	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	const char *digit =
 		ast_json_string_get(ast_json_object_get(obj->blob, "digit"));
@@ -742,33 +753,10 @@ static void channel_dtmf_end(struct ast_channel_blob *obj)
 }
 
 /*!
- * \brief Callback processing messages on the channel topic.
- */
-static void channel_blob_cb(void *data, struct stasis_subscription *sub,
-			    struct stasis_topic *topic,
-			    struct stasis_message *message)
-{
-	struct ast_channel_blob *obj = stasis_message_data(message);
-
-	if (strcmp("varset", ast_channel_blob_json_type(obj)) == 0) {
-		channel_varset(obj);
-	} else if (strcmp("userevent", ast_channel_blob_json_type(obj)) == 0) {
-		channel_userevent(obj);
-	} else if (strcmp("hangup_request", ast_channel_blob_json_type(obj)) == 0) {
-		channel_hangup_request(obj);
-	} else if (strcmp("dtmf_begin", ast_channel_blob_json_type(obj)) == 0) {
-		channel_dtmf_begin(obj);
-	} else if (strcmp("dtmf_end", ast_channel_blob_json_type(obj)) == 0) {
-		channel_dtmf_end(obj);
-	}
-}
-
-/*!
  * \brief Callback processing messages for channel dialing
  */
 static void channel_dial_cb(void *data, struct stasis_subscription *sub,
-				struct stasis_topic *topic,
-				struct stasis_message *message)
+	struct stasis_topic *topic, struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
 	const char *dialstatus;
@@ -777,11 +765,6 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 	struct ast_channel_snapshot *peer;
 	RAII_VAR(struct ast_str *, caller_event_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, peer_event_string, NULL, ast_free);
-
-	if (strcmp("dial", ast_multi_channel_blob_get_type(obj))) {
-		ast_assert(0);
-		return;
-	}
 
 	caller = ast_multi_channel_blob_get_channel(obj, "caller");
 	peer = ast_multi_channel_blob_get_channel(obj, "peer");
@@ -852,8 +835,28 @@ int manager_channels_init(void)
 					 NULL);
 
 	ret |= stasis_message_router_add(channel_state_router,
-					 ast_channel_blob_type(),
-					 channel_blob_cb,
+					 ast_channel_varset_type(),
+					 channel_varset_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(channel_state_router,
+					 ast_channel_user_event_type(),
+					 channel_user_event_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(channel_state_router,
+					 ast_channel_dtmf_begin_type(),
+					 channel_dtmf_begin_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(channel_state_router,
+					 ast_channel_dtmf_end_type(),
+					 channel_dtmf_end_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(channel_state_router,
+					 ast_channel_hangup_request_type(),
+					 channel_hangup_request_cb,
 					 NULL);
 
 	ret |= stasis_message_router_add(channel_state_router,

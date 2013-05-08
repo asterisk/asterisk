@@ -70,8 +70,7 @@ struct ast_channel_snapshot {
  * \since 12
  * \brief Blob of data associated with a channel.
  *
- * The \c blob is actually a JSON object of structured data. It has a "type" field
- * which contains the type string describing this blob.
+ * This blob is actually shared amongst several \ref stasis_message_type's.
  */
 struct ast_channel_blob {
 	/*! Channel blob is associated with (or NULL for global/all channels) */
@@ -112,14 +111,6 @@ struct stasis_message_type *ast_channel_snapshot_type(void);
 
 /*!
  * \since 12
- * \brief Message type for \ref ast_channel_blob messages.
- *
- * \retval Message type for \ref ast_channel_blob messages.
- */
-struct stasis_message_type *ast_channel_blob_type(void);
-
-/*!
- * \since 12
  * \brief Generate a snapshot of the channel state. This is an ao2 object, so
  * ao2_cleanup() to deallocate.
  *
@@ -128,44 +119,35 @@ struct stasis_message_type *ast_channel_blob_type(void);
  * \retval pointer on success (must be ast_freed)
  * \retval NULL on error
  */
-struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan);
+struct ast_channel_snapshot *ast_channel_snapshot_create(
+	struct ast_channel *chan);
 
 /*!
  * \since 12
  * \brief Creates a \ref ast_channel_blob message.
  *
- * The \a blob JSON object requires a \c "type" field describing the blob. It
- * should also be treated as immutable and not modified after it is put into the
- * message.
+ * The given \a blob should be treated as immutable and not modified after it is
+ * put into the message.
  *
- * \param chan Channel blob is associated with, or NULL for global/all channels.
- * \param blob JSON object representing the data.
+ * \param chan Channel blob is associated with, or \c NULL for global/all channels.
+ * \param type Message type for this blob.
+ * \param blob JSON object representing the data, or \c NULL for no data. If
+ *             \c NULL, ast_json_null() is put into the object.
+ *
  * \return \ref ast_channel_blob message.
  * \return \c NULL on error
  */
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
-					       struct ast_json *blob);
+	struct stasis_message_type *type, struct ast_json *blob);
 
 /*!
  * \since 12
- * \brief Extracts the type field from a \ref ast_channel_blob.
- * Returned \c char* is still owned by \a obj
- * \param obj Channel blob object.
- * \return Type field value from the blob.
- * \return \c NULL on error.
- */
-const char *ast_channel_blob_json_type(struct ast_channel_blob *obj);
-
-/*!
- * \since 12
- * \brief Create a \ref ast_multi_channel_blob suitable for a \ref stasis_message
+ * \brief Create a \ref ast_multi_channel_blob suitable for a \ref stasis_message.
  *
- * \note Similar to a \ref ast_channel_blob, the \ref ast_multi_channel_blob requires
- * a \a blob JSON object containing a \c "type" field describing the blob. It
- * should also be treated as immutable and not modified after it is put into the
- * message.
+ * The given \a blob should be treated as immutable and not modified after it is
+ * put into the message.
  *
- * \param blob The JSON blob that defines the type of this \ref ast_multi_channel_blob
+ * \param blob The JSON blob that defines the data of this \ref ast_multi_channel_blob
  *
  * \return \ref ast_multi_channel_blob object
  * \return \c NULL on error
@@ -189,8 +171,7 @@ struct ast_multi_channel_blob *ast_multi_channel_blob_create(struct ast_json *bl
  * \retval NULL on error or not found for the role specified
  */
 struct ast_channel_snapshot *ast_multi_channel_blob_get_channel(
-					       struct ast_multi_channel_blob *obj,
-					       const char *role);
+	struct ast_multi_channel_blob *obj, const char *role);
 
 /*!
  * \since 12
@@ -212,8 +193,7 @@ struct ast_channel_snapshot *ast_multi_channel_blob_get_channel(
  * \retval NULL on error or not found for the role specified
  */
 struct ao2_container *ast_multi_channel_blob_get_channels(
-					       struct ast_multi_channel_blob *obj,
-					       const char *role);
+	struct ast_multi_channel_blob *obj, const char *role);
 
 /*!
  * \since 12
@@ -228,17 +208,6 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
 
 /*!
  * \since 12
- * \brief Extracts the type field from a \ref ast_multi_channel_blob.
- * Returned \c char* is still owned by \a obj
- *
- * \param obj Channel blob object.
- * \return Type field value from the blob.
- * \return \c NULL on error.
- */
-const char *ast_multi_channel_blob_get_type(struct ast_multi_channel_blob *obj);
-
-/*!
- * \since 12
  * \brief Add a \ref ast_channel_snapshot to a \ref ast_multi_channel_blob object
  *
  * \note This will increase the reference count by 1 for the channel snapshot. It is
@@ -250,8 +219,7 @@ const char *ast_multi_channel_blob_get_type(struct ast_multi_channel_blob *obj);
  * \ref ast_multi_channel_blob object
  */
 void ast_multi_channel_blob_add_channel(struct ast_multi_channel_blob *obj,
-					       const char *role,
-					       struct ast_channel_snapshot *snapshot);
+	const char *role, struct ast_channel_snapshot *snapshot);
 
 /*!
  * \since 12
@@ -271,6 +239,46 @@ void ast_channel_publish_varset(struct ast_channel *chan,
  * \retval A stasis message type
  */
 struct stasis_message_type *ast_channel_dial_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a variable is set on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_varset_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a custom user event is sent on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_user_event_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a hangup is requested on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_hangup_request_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when DTMF begins on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_dtmf_begin_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when DTMF ends on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_dtmf_end_type(void);
 
 /*!
  * \since 12

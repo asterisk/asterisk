@@ -93,7 +93,6 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 	}
 
 	blob = ast_json_pack("{s: s, s: s, s: s}",
-			     "type", "userevent",
 			     "eventname", args.eventname,
 			     "body", ast_str_buffer(body));
 	if (!blob) {
@@ -101,7 +100,8 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	msg = ast_channel_blob_create(chan, blob);
+	msg = ast_channel_blob_create(
+		chan, ast_channel_user_event_type(), blob);
 	if (!msg) {
 		return -1;
 	}

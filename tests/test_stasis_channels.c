@@ -54,6 +54,7 @@ static void safe_channel_release(struct ast_channel *chan)
 AST_TEST_DEFINE(channel_blob_create)
 {
 	struct ast_channel_blob *blob;
+	RAII_VAR(struct stasis_message_type *, type, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -70,36 +71,71 @@ AST_TEST_DEFINE(channel_blob_create)
 		break;
 	}
 
+	type = stasis_message_type_create("test-type");
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
 	json = ast_json_pack("{s: s}",
-		     "type", "test");
-	bad_json = ast_json_pack("{s: s}",
-		     "bad_key", "test");
+		     "foo", "bar");
 
 	/* Off nominal creation */
-	ast_test_validate(test, NULL == ast_channel_blob_create(NULL, bad_json));
-	ast_test_validate(test, NULL == ast_channel_blob_create(chan, bad_json));
+	ast_test_validate(test, NULL == ast_channel_blob_create(chan, NULL, json));
 
 	/* Test for single channel */
-	msg = ast_channel_blob_create(chan, json);
+	msg = ast_channel_blob_create(chan, type, json);
 	ast_test_validate(test, NULL != msg);
 	blob = stasis_message_data(msg);
 	ast_test_validate(test, NULL != blob);
 	ast_test_validate(test, NULL != blob->snapshot);
 	ast_test_validate(test, NULL != blob->blob);
-	ast_test_validate(test, 0 == strcmp(ast_channel_blob_json_type(blob), "test"));
+	ast_test_validate(test, type == stasis_message_type(msg));
 
 	ast_test_validate(test, 1 == ao2_ref(msg, 0));
 	ao2_cleanup(msg);
 
 	/* Test for global channels */
-	msg = ast_channel_blob_create(NULL, json);
+	msg = ast_channel_blob_create(NULL, type, json);
 	ast_test_validate(test, NULL != msg);
 	blob = stasis_message_data(msg);
 	ast_test_validate(test, NULL != blob);
 	ast_test_validate(test, NULL == blob->snapshot);
 	ast_test_validate(test, NULL != blob->blob);
-	ast_test_validate(test, 0 == strcmp(ast_channel_blob_json_type(blob), "test"));
+	ast_test_validate(test, type == stasis_message_type(msg));
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(null_blob)
+{
+	struct ast_channel_blob *blob;
+	RAII_VAR(struct stasis_message_type *, type, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, bad_json, NULL, ast_json_unref);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test creation of ast_channel_blob objects";
+		info->description = "Test creation of ast_channel_blob objects";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	type = stasis_message_type_create("test-type");
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
+	json = ast_json_pack("{s: s}",
+		     "foo", "bar");
+
+	/* Test for single channel */
+	msg = ast_channel_blob_create(chan, type, NULL);
+	ast_test_validate(test, NULL != msg);
+	blob = stasis_message_data(msg);
+	ast_test_validate(test, NULL != blob);
+	ast_test_validate(test, NULL != blob->snapshot);
+	ast_test_validate(test, ast_json_null() == blob->blob);
+	ast_test_validate(test, type == stasis_message_type(msg));
 
 	return AST_TEST_PASS;
 }
@@ -122,17 +158,11 @@ AST_TEST_DEFINE(multi_channel_blob_create)
 	}
 
 	json = ast_json_pack("{s: s}",
-		     "type", "test");
-	bad_json = ast_json_pack("{s: s}",
-		     "bad_key", "test");
-
-	/* Off nominal creation */
-	ast_test_validate(test, NULL == ast_multi_channel_blob_create(bad_json));
+		     "foo", "bar");
 
 	/* Test for single channel */
 	blob = ast_multi_channel_blob_create(json);
 	ast_test_validate(test, NULL != blob);
-	ast_test_validate(test, 0 == strcmp(ast_multi_channel_blob_get_type(blob), "test"));
 	ast_test_validate(test, NULL != ast_multi_channel_blob_get_json(blob));
 
 	return AST_TEST_PASS;
@@ -266,6 +296,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(channel_blob_create);
+	AST_TEST_UNREGISTER(null_blob);
 	AST_TEST_UNREGISTER(multi_channel_blob_create);
 	AST_TEST_UNREGISTER(multi_channel_blob_snapshots);
 	AST_TEST_UNREGISTER(channel_snapshot_json);
@@ -276,6 +307,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(channel_blob_create);
+	AST_TEST_REGISTER(null_blob);
 	AST_TEST_REGISTER(multi_channel_blob_create);
 	AST_TEST_REGISTER(multi_channel_blob_snapshots);
 	AST_TEST_REGISTER(channel_snapshot_json);
