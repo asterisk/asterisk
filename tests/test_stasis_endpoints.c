@@ -112,6 +112,7 @@ AST_TEST_DEFINE(state_changes)
 	ast_endpoint_set_state(uut, AST_ENDPOINT_OFFLINE);
 	actual_count = stasis_message_sink_wait_for_count(sink, 1,
 		STASIS_SINK_DEFAULT_WAIT);
+	ast_test_validate(test, 1 == actual_count);
 	msg = sink->messages[0];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_endpoint_snapshot_type() == type);
@@ -121,6 +122,7 @@ AST_TEST_DEFINE(state_changes)
 	ast_endpoint_set_max_channels(uut, 8675309);
 	actual_count = stasis_message_sink_wait_for_count(sink, 2,
 		STASIS_SINK_DEFAULT_WAIT);
+	ast_test_validate(test, 2 == actual_count);
 	msg = sink->messages[1];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_endpoint_snapshot_type() == type);
