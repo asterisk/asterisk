@@ -39,11 +39,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 
 #include "asterisk/channel.h"
-#include "asterisk/stringfields.h"
+#include "asterisk/channel_internal.h"
 #include "asterisk/data.h"
+#include "asterisk/endpoints.h"
 #include "asterisk/indications.h"
 #include "asterisk/stasis_channels.h"
-#include "asterisk/channel_internal.h"
+#include "asterisk/stasis_endpoints.h"
+#include "asterisk/stringfields.h"
 #include "asterisk/test.h"
 
 /*!
@@ -198,6 +200,7 @@ struct ast_channel {
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
 	struct stasis_topic *topic;			/*!< Topic for all channel's events */
 	struct stasis_subscription *forwarder;		/*!< Subscription for event forwarding to all topic */
+	struct stasis_subscription *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 };
 
 /* AST_DATA definitions, which will probably have to be re-thought since the channel will be opaque */
@@ -1369,6 +1372,7 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 	ast_string_field_free_memory(chan);
 
 	chan->forwarder = stasis_unsubscribe(chan->forwarder);
+	chan->endpoint_forward = stasis_unsubscribe(chan->endpoint_forward);
 
 	ao2_cleanup(chan->topic);
 	chan->topic = NULL;
@@ -1387,6 +1391,37 @@ int ast_channel_internal_is_finalized(struct ast_channel *chan)
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 {
 	return chan ? chan->topic : ast_channel_topic_all();
+}
+
+int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
+	struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	ast_assert(chan != NULL);
+	ast_assert(endpoint != NULL);
+
+	snapshot = ast_channel_snapshot_create(chan);
+	if (!snapshot) {
+		return -1;
+	}
+
+	msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
+	if (!msg) {
+		return -1;
+	}
+
+	chan->endpoint_forward =
+		stasis_forward_all(chan->topic, ast_endpoint_topic(endpoint));
+
+	if (chan->endpoint_forward == NULL) {
+		return -1;
+	}
+
+	stasis_publish(ast_endpoint_topic(endpoint), msg);
+
+	return 0;
 }
 
 void ast_channel_internal_setup_topics(struct ast_channel *chan)

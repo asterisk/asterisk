@@ -13,16 +13,26 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
-					"summary": "List available endoints.",
+					"summary": "List all endoints.",
 					"nickname": "getEndpoints",
+					"responseClass": "List[Endpoint]"
+				}
+			]
+		},
+		{
+			"path": "/endpoints/{tech}",
+			"description": "Asterisk endpoints",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List available endoints for a given endpoint technology.",
+					"nickname": "getEndpointsByTech",
 					"responseClass": "List[Endpoint]",
 					"parameters": [
 						{
-							"name": "withType",
-							"description": "Filter endpoints by type (sip,iax2,dhadi,...)",
-							"paramType": "query",
-							"required": false,
-							"allowMultiple": true,
+							"name": "tech",
+							"description": "Technology of the endpoints (sip,iax2,...)",
+							"paramType": "path",
 							"dataType": "string"
 						}
 					]
@@ -30,7 +40,7 @@
 			]
 		},
 		{
-			"path": "/endpoints/{endpointId}",
+			"path": "/endpoints/{tech}/{resource}",
 			"description": "Single endpoint",
 			"operations": [
 				{
@@ -40,7 +50,13 @@
 					"responseClass": "Endpoint",
 					"parameters": [
 						{
-							"name": "endpointId",
+							"name": "tech",
+							"description": "Technology of the endpoint",
+							"paramType": "path",
+							"dataType": "string"
+						},
+						{
+							"name": "resource",
 							"description": "ID of the endpoint",
 							"paramType": "path",
 							"dataType": "string"
@@ -53,13 +69,16 @@
 	"models": {
 		"Endpoint": {
 			"id": "Endpoint",
+			"description": "A snapshot of an endpoint. Unlike most resources, which have a single unique identifier, an endpoint is uniquely identified by the technology/resource pair.",
 			"properties": {
 				"technology": {
 					"type": "string",
+					"description": "Technology of the endpoint",
 					"required": true
 				},
-				"name": {
+				"resource": {
 					"type": "string",
+					"description": "Identifier of the endpoint, specific to the given technology.",
 					"required": true
 				}
 			}

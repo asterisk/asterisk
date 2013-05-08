@@ -295,6 +295,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/security_events.h"
 #include "asterisk/sip_api.h"
 #include "asterisk/app.h"
+#include "asterisk/stasis_endpoints.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -5326,6 +5327,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	peer->caps = ast_format_cap_destroy(peer->caps);
 
 	ast_rtp_dtls_cfg_free(&peer->dtls_cfg);
+
+	ast_endpoint_shutdown(peer->endpoint);
+	peer->endpoint = NULL;
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -8010,6 +8014,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
 		sip_pvt_lock(i);
 		return NULL;
+	}
+
+	if (i->relatedpeer) {
+		if (ast_endpoint_add_channel(i->relatedpeer->endpoint, tmp)) {
+			ast_channel_unref(tmp);
+			sip_pvt_lock(i);
+			return NULL;
+		}
 	}
 
 	/* If we sent in a callid, bind it to the channel. */
@@ -30768,6 +30780,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			firstpass = 0;
 	} else {
 		if (!(peer = ao2_t_alloc(sizeof(*peer), sip_destroy_peer_fn, "allocate a peer struct"))) {
+			return NULL;
+		}
+		if (!(peer->endpoint = ast_endpoint_create("SIP", name))) {
 			return NULL;
 		}
 		if (!(peer->caps = ast_format_cap_alloc_nolock())) {

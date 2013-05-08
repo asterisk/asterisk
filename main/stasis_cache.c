@@ -240,54 +240,45 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 	return cache_dump.cached;
 }
 
-static struct stasis_message_type *__cache_clear_data;
+static struct stasis_message_type *cache_clear_type;
 
-static struct stasis_message_type *cache_clear_data(void)
+struct stasis_message_type *stasis_cache_clear_type(void)
 {
-	ast_assert(__cache_clear_data != NULL);
-	return __cache_clear_data;
+	ast_assert(cache_clear_type != NULL);
+	return cache_clear_type;
 }
 
-static struct stasis_message_type *__cache_update;
+static struct stasis_message_type *cache_update_type;
 
 struct stasis_message_type *stasis_cache_update_type(void)
 {
-	ast_assert(__cache_update != NULL);
-	return __cache_update;
+	ast_assert(cache_update_type != NULL);
+	return cache_update_type;
 }
 
-struct cache_clear_data {
-	struct stasis_message_type *type;
-	char *id;
-};
-
-static void cache_clear_data_dtor(void *obj)
+static void cache_clear_dtor(void *obj)
 {
-	struct cache_clear_data *ev = obj;
-	ast_free(ev->id);
-	ev->id = NULL;
+	struct stasis_cache_clear *ev = obj;
 	ao2_cleanup(ev->type);
 	ev->type = NULL;
 }
 
 struct stasis_message *stasis_cache_clear_create(struct stasis_message_type *type, const char *id)
 {
-	RAII_VAR(struct cache_clear_data *, ev, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache_clear *, ev, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
-	ev = ao2_alloc(sizeof(*ev), cache_clear_data_dtor);
+	ev = ao2_alloc(sizeof(*ev) + strlen(id) + 1, cache_clear_dtor);
 	if (!ev) {
 		return NULL;
 	}
 
-	ev->id = ast_strdup(id);
-	if (!ev->id) {
-		return NULL;
-	}
+	/* strcpy safe */
+	strcpy(ev->id, id);
 	ao2_ref(type, +1);
 	ev->type = type;
 
-	msg = stasis_message_create(cache_clear_data(), ev);
+	msg = stasis_message_create(stasis_cache_clear_type(), ev);
 
 	if (!msg) {
 		return NULL;
@@ -363,10 +354,10 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 	}
 
 	/* Handle cache clear event */
-	if (cache_clear_data() == stasis_message_type(message)) {
+	if (stasis_cache_clear_type() == stasis_message_type(message)) {
 		RAII_VAR(struct stasis_message *, old_snapshot, NULL, ao2_cleanup);
 		RAII_VAR(struct stasis_message *, update, NULL, ao2_cleanup);
-		struct cache_clear_data *clear = stasis_message_data(message);
+		struct stasis_cache_clear *clear = stasis_message_data(message);
 		ast_assert(clear->type != NULL);
 		ast_assert(clear->id != NULL);
 		old_snapshot = cache_put(caching_topic, clear->type, clear->id, NULL);
@@ -374,7 +365,9 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 			update = update_create(topic, old_snapshot, NULL);
 			stasis_publish(caching_topic->topic, update);
 		} else {
-			ast_log(LOG_ERROR,
+			/* While this could be a problem, it's very likely to
+			 * happen with message forwarding */
+			ast_debug(1,
 				"Attempting to remove an item from the cache that isn't there: %s %s\n",
 				stasis_message_type_name(clear->type), clear->id);
 		}
@@ -449,28 +442,28 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 
 static void stasis_cache_exit(void)
 {
-	ao2_cleanup(__cache_clear_data);
-	__cache_clear_data = NULL;
-	ao2_cleanup(__cache_update);
-	__cache_update = NULL;
+	ao2_cleanup(cache_clear_type);
+	cache_clear_type = NULL;
+	ao2_cleanup(cache_update_type);
+	cache_update_type = NULL;
 }
 
 int stasis_cache_init(void)
 {
 	ast_register_atexit(stasis_cache_exit);
 
-	if (__cache_clear_data || __cache_update) {
+	if (cache_clear_type || cache_update_type) {
 		ast_log(LOG_ERROR, "Stasis cache double initialized\n");
 		return -1;
 	}
 
-	__cache_update = stasis_message_type_create("stasis_cache_update");
-	if (!__cache_update) {
+	cache_update_type = stasis_message_type_create("stasis_cache_update");
+	if (!cache_update_type) {
 		return -1;
 	}
 
-	__cache_clear_data = stasis_message_type_create("StasisCacheClear");
-	if (!__cache_clear_data) {
+	cache_clear_type = stasis_message_type_create("StasisCacheClear");
+	if (!cache_clear_type) {
 		return -1;
 	}
 	return 0;

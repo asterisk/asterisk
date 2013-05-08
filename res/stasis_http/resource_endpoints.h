@@ -41,21 +41,34 @@
 
 /*! \brief Argument struct for stasis_http_get_endpoints() */
 struct ast_get_endpoints_args {
-	/*! \brief Filter endpoints by type (sip,iax2,dhadi,...) */
-	const char *with_type;
 };
 /*!
- * \brief List available endoints.
+ * \brief List all endoints.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
 void stasis_http_get_endpoints(struct ast_variable *headers, struct ast_get_endpoints_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_get_endpoints_by_tech() */
+struct ast_get_endpoints_by_tech_args {
+	/*! \brief Technology of the endpoints (sip,iax2,...) */
+	const char *tech;
+};
+/*!
+ * \brief List available endoints for a given endpoint technology.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_get_endpoints_by_tech(struct ast_variable *headers, struct ast_get_endpoints_by_tech_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_get_endpoint() */
 struct ast_get_endpoint_args {
+	/*! \brief Technology of the endpoint */
+	const char *tech;
 	/*! \brief ID of the endpoint */
-	const char *endpoint_id;
+	const char *resource;
 };
 /*!
  * \brief Details for an endpoint.

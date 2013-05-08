@@ -55,18 +55,32 @@ static void stasis_http_get_endpoints_cb(
     struct ast_variable *headers, struct stasis_http_response *response)
 {
 	struct ast_get_endpoints_args args = {};
-	struct ast_variable *i;
-
-	for (i = get_params; i; i = i->next) {
-		if (strcmp(i->name, "withType") == 0) {
-			args.with_type = (i->value);
-		} else
-		{}
-	}
 	stasis_http_get_endpoints(headers, &args, response);
 }
 /*!
- * \brief Parameter parsing callback for /endpoints/{endpointId}.
+ * \brief Parameter parsing callback for /endpoints/{tech}.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_get_endpoints_by_tech_cb(
+    struct ast_variable *get_params, struct ast_variable *path_vars,
+    struct ast_variable *headers, struct stasis_http_response *response)
+{
+	struct ast_get_endpoints_by_tech_args args = {};
+	struct ast_variable *i;
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "tech") == 0) {
+			args.tech = (i->value);
+		} else
+		{}
+	}
+	stasis_http_get_endpoints_by_tech(headers, &args, response);
+}
+/*!
+ * \brief Parameter parsing callback for /endpoints/{tech}/{resource}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -80,8 +94,11 @@ static void stasis_http_get_endpoint_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "endpointId") == 0) {
-			args.endpoint_id = (i->value);
+		if (strcmp(i->name, "tech") == 0) {
+			args.tech = (i->value);
+		} else
+		if (strcmp(i->name, "resource") == 0) {
+			args.resource = (i->value);
 		} else
 		{}
 	}
@@ -89,8 +106,8 @@ static void stasis_http_get_endpoint_cb(
 }
 
 /*! \brief REST handler for /api-docs/endpoints.{format} */
-static struct stasis_rest_handlers endpoints_endpointId = {
-	.path_segment = "endpointId",
+static struct stasis_rest_handlers endpoints_tech_resource = {
+	.path_segment = "resource",
 	.is_wildcard = 1,
 	.callbacks = {
 		[AST_HTTP_GET] = stasis_http_get_endpoint_cb,
@@ -99,13 +116,23 @@ static struct stasis_rest_handlers endpoints_endpointId = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/endpoints.{format} */
+static struct stasis_rest_handlers endpoints_tech = {
+	.path_segment = "tech",
+	.is_wildcard = 1,
+	.callbacks = {
+		[AST_HTTP_GET] = stasis_http_get_endpoints_by_tech_cb,
+	},
+	.num_children = 1,
+	.children = { &endpoints_tech_resource, }
+};
+/*! \brief REST handler for /api-docs/endpoints.{format} */
 static struct stasis_rest_handlers endpoints = {
 	.path_segment = "endpoints",
 	.callbacks = {
 		[AST_HTTP_GET] = stasis_http_get_endpoints_cb,
 	},
 	.num_children = 1,
-	.children = { &endpoints_endpointId, }
+	.children = { &endpoints_tech, }
 };
 
 static int load_module(void)

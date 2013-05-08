@@ -1377,6 +1377,8 @@ struct sip_peer {
 	unsigned int disallowed_methods;
 	struct ast_cc_config_params *cc_params;
 
+	struct ast_endpoint *endpoint;
+
 	struct ast_rtp_dtls_cfg dtls_cfg;
 };
 

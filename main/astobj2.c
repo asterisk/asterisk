@@ -5780,3 +5780,41 @@ int astobj2_init(void)
 
 	return 0;
 }
+
+/* XXX TODO BUGBUG and all the other things...
+ * These functions should eventually be moved elsewhere, but the utils folder
+ * won't compile with them in strings.h
+ */
+static int str_hash(const void *obj, const int flags)
+{
+	return ast_str_hash(obj);
+}
+
+static int str_cmp(void *lhs, void *rhs, int flags)
+{
+	return strcmp(lhs, rhs) ? 0 : CMP_MATCH;
+}
+
+struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets)
+{
+	return ao2_container_alloc_options(opts, buckets, str_hash, str_cmp);
+}
+
+int ast_str_container_add(struct ao2_container *str_container, const char *add)
+{
+	RAII_VAR(char *, ao2_add, ao2_alloc(strlen(add) + 1, NULL), ao2_cleanup);
+
+	if (!ao2_add) {
+		return -1;
+	}
+
+	/* safe strcpy */
+	strcpy(ao2_add, add);
+	ao2_link(str_container, ao2_add);
+	return 0;
+}
+
+void ast_str_container_remove(struct ao2_container *str_container, const char *remove)
+{
+	ao2_find(str_container, remove, OBJ_KEY | OBJ_NODATA | OBJ_UNLINK);
+}

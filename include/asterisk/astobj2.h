@@ -1890,4 +1890,55 @@ void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *func
 #define ao2_cleanup(obj) __ao2_cleanup(obj)
 #endif
 void ao2_iterator_cleanup(struct ao2_iterator *iter);
+
+
+/* XXX TODO BUGBUG and all the other things...
+ * These functions should eventually be moved elsewhere, but the utils folder
+ * won't compile with them in strings.h
+ */
+
+/*!
+ * \since 12
+ * \brief Allocates a hash container for bare strings
+ *
+ * \param buckets The number of buckets to use for the hash container
+ *
+ * \retval AO2 container for strings
+ * \retval NULL if allocation failed
+ */
+#define ast_str_container_alloc(buckets) ast_str_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, buckets)
+
+/*!
+ * \since 12
+ * \brief Allocates a hash container for bare strings
+ *
+ * \param opts Options to be provided to the container
+ * \param buckets The number of buckets to use for the hash container
+ *
+ * \retval AO2 container for strings
+ * \retval NULL if allocation failed
+ */
+struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets);
+
+/*!
+ * \since 12
+ * \brief Adds a string to a string container allocated by ast_str_container_alloc
+ *
+ * \param str_container The container to which to add a string
+ * \param add The string to add to the container
+ *
+ * \retval zero on success
+ * \retval non-zero if the operation failed
+ */
+int ast_str_container_add(struct ao2_container *str_container, const char *add);
+
+/*!
+ * \since 12
+ * \brief Removes a string from a string container allocated by ast_str_container_alloc
+ *
+ * \param str_container The container from which to remove a string
+ * \param remove The string to remove from the container
+ */
+void ast_str_container_remove(struct ao2_container *str_container, const char *remove);
+
 #endif /* _ASTERISK_ASTOBJ2_H */

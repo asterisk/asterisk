@@ -431,6 +431,22 @@ struct stasis_cache_update {
 };
 
 /*!
+ * \brief Cache clear message.
+ */
+struct stasis_cache_clear {
+	/*! Type of object being cleared from the cache */
+	struct stasis_message_type *type;
+	/*! Id of the object being cleared from the cache */
+	char id[];
+};
+
+/*!
+ * \brief Message type for \ref stasis_cache_clear.
+ * \since 12
+ */
+struct stasis_message_type *stasis_cache_clear_type(void);
+
+/*!
  * \brief A message which instructs the caching topic to remove an entry from its cache.
  * \param type Message type.
  * \param id Unique id of the snapshot to clear.

@@ -242,6 +242,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/stasis_endpoints.h"
 
 #include "../defaults.h"
 
@@ -4171,6 +4172,11 @@ int main(int argc, char *argv[])
 	}
 	if (stasis_system_topic_init()) {
 		printf("Stasis system-level information initialization failed.\n%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_endpoint_stasis_init()) {
+		printf("Endpoint initialization failed.\n%s", term_quit());
 		exit(1);
 	}
 
