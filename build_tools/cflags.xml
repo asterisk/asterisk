@@ -24,6 +24,12 @@
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 			<support_level>extended</support_level>
 		</member>
+		<member name="DISABLE_INLINE" displayname="Disable the inline API">
+			<!-- Added to work around GCC bug
+			     See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=47816
+			  -->
+			<support_level>extended</support_level>
+		</member>
 		<member name="BETTER_BACKTRACES" displayname="Use libbfd (GPL) to generate better inline backtraces">
 			<depend>BFD</depend>
 			<depend>DLADDR</depend>

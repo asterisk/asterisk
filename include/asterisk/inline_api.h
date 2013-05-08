@@ -43,7 +43,7 @@
   including the header file
  */
 
-#if !defined(LOW_MEMORY)
+#if !defined(LOW_MEMORY) && !defined(DISABLE_INLINE)
 
 #if !defined(AST_API_MODULE)
 #define AST_INLINE_API(hdr, body) hdr; extern inline hdr body
