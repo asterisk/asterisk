@@ -440,7 +440,7 @@ AST_THREADSTORAGE(commonbuf);
 static struct ast_config *realtime_directory(char *context)
 {
 	struct ast_config *cfg;
-	struct ast_config *rtdata;
+	struct ast_config *rtdata = NULL;
 	struct ast_category *cat;
 	struct ast_variable *var;
 	char *mailbox;
@@ -475,7 +475,7 @@ static struct ast_config *realtime_directory(char *context)
 			rtdata = ast_load_realtime_multientry("voicemail", "mailbox LIKE", "%", "context", "default", SENTINEL);
 			context = "default";
 		}
-	} else {
+	} else if (!ast_strlen_zero(context)) {
 		rtdata = ast_load_realtime_multientry("voicemail", "mailbox LIKE", "%", "context", context, SENTINEL);
 	}
 
