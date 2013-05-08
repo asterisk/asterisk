@@ -66,9 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #ifdef __APPLE__
-#if __APPLE_CC__ >= 1495
 #include <arpa/nameser_compat.h>
-#endif
 #endif
 #include <resolv.h>
 #include <ctype.h>
