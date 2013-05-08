@@ -14805,7 +14805,20 @@ static int transmit_state_notify(struct sip_pvt *p, struct state_notify_data *da
 
 	p->pendinginvite = p->ocseq;	/* Remember that we have a pending NOTIFY in order not to confuse the NOTIFY subsystem */
 
-	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
+	/* Send as XMIT_CRITICAL as we may never receive a 200 OK Response which clears p->pendinginvite.
+	 *
+	 * extensionstate_update() uses p->pendinginvite for queuing control.
+	 * Updates stall if pendinginvite <> 0.
+	 *
+	 * The most appropriate solution is to remove the subscription when the NOTIFY transaction fails.
+	 * The client will re-subscribe after restarting or maxexpiry timeout.
+	 */
+
+	/* RFC6665 4.2.2.  Sending State Information to Subscribers
+	 * If the NOTIFY request fails due to expiration of SIP Timer F (transaction timeout),
+	 * the notifier SHOULD remove the subscription.
+	 */
+	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
 /*! \brief Notify user of messages waiting in voicemail (RFC3842)
