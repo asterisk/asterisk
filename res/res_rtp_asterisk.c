@@ -2794,8 +2794,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 {
 	unsigned int *rtpheader;
 	int hdrlen = 12;
-	int res;
-	struct ast_rtp_payload_type payload;
+	int res, payload = 0;
 	char data[256];
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr remote_address = { {0,} };
@@ -2806,7 +2805,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 		return -1;
 	}
 
-	payload = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(instance), AST_RTP_CN);
+	payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 0, AST_RTP_CN);
 
 	level = 127 - (level & 0x7f);
 	
@@ -2814,7 +2813,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
-	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload.code << 16) | (rtp->seqno++));
+	rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	data[12] = level;
@@ -2828,6 +2827,8 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 				ast_sockaddr_stringify(&remote_address),
 				AST_RTP_CN, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 	}
+
+	rtp->seqno++;
 
 	return res;
 }
