@@ -3280,14 +3280,15 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 		return IKS_FILTER_EAT;
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
-		device_state = iks_find_cdata(item, "state");
-		if ((cachable_str = iks_find_cdata(item, "cachable"))) {
+		if ((cachable_str = iks_find_attrib(item_content, "cachable"))) {
 			sscanf(cachable_str, "%30d", &cachable);
 		}
+		device_state = iks_find_cdata(item, "state");
 		if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
 					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_STATE,
 					    AST_EVENT_IE_PLTYPE_UINT, ast_devstate_val(device_state), AST_EVENT_IE_EID,
 					    AST_EVENT_IE_PLTYPE_RAW, &pubsub_eid, sizeof(pubsub_eid),
+					    AST_EVENT_IE_CACHABLE, AST_EVENT_IE_PLTYPE_UINT, cachable,
 					    AST_EVENT_IE_END))) {
 			return IKS_FILTER_EAT;
 		}
