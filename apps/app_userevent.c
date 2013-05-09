@@ -92,7 +92,7 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		ast_str_append(&body, 0, "%s\r\n", args.extra[x]);
 	}
 
-	blob = ast_json_pack("{s: s, s: s, s: s}",
+	blob = ast_json_pack("{s: s, s: s}",
 			     "eventname", args.eventname,
 			     "body", ast_str_buffer(body));
 	if (!blob) {
