@@ -9874,6 +9874,31 @@ static int load_module(void)
 	if (reload_handler(0, &mask, NULL))
 		return AST_MODULE_LOAD_DECLINE;
 
+	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
+
+	/*
+	 * This section is used to determine which name for 'ringinuse' to use in realtime members
+	 * Necessary for supporting older setups.
+	 */
+	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name LIKE", "%", SENTINEL);
+	if (!member_config) {
+		realtime_ringinuse_field = "ringinuse";
+	} else {
+		const char *config_val;
+		if ((config_val = ast_variable_retrieve(member_config, NULL, "ringinuse"))) {
+			ast_log(LOG_NOTICE, "ringinuse field entries found in queue_members table. Using 'ringinuse'\n");
+			realtime_ringinuse_field = "ringinuse";
+		} else if ((config_val = ast_variable_retrieve(member_config, NULL, "ignorebusy"))) {
+			ast_log(LOG_NOTICE, "ignorebusy field found in queue_members table with no ringinuse field. Using 'ignorebusy'\n");
+			realtime_ringinuse_field = "ignorebusy";
+		} else {
+			ast_log(LOG_NOTICE, "No entries were found for ringinuse/ignorebusy in queue_members table. Using 'ringinuse'\n");
+			realtime_ringinuse_field = "ringinuse";
+		}
+	}
+
+	ast_config_destroy(member_config);
+
 	if (queue_persistent_members)
 		reload_queue_members();
 
@@ -9916,31 +9941,6 @@ static int load_module(void)
 	}
 
 	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
-
-	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
-
-	/*
-	 * This section is used to determine which name for 'ringinuse' to use in realtime members
-	 * Necessary for supporting older setups.
-	 */
-	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name LIKE", "%", SENTINEL);
-	if (!member_config) {
-		realtime_ringinuse_field = "ringinuse";
-	} else {
-		const char *config_val;
-		if ((config_val = ast_variable_retrieve(member_config, NULL, "ringinuse"))) {
-			ast_log(LOG_NOTICE, "ringinuse field entries found in queue_members table. Using 'ringinuse'\n");
-			realtime_ringinuse_field = "ringinuse";
-		} else if ((config_val = ast_variable_retrieve(member_config, NULL, "ignorebusy"))) {
-			ast_log(LOG_NOTICE, "ignorebusy field found in queue_members table with no ringinuse field. Using 'ignorebusy'\n");
-			realtime_ringinuse_field = "ignorebusy";
-		} else {
-			ast_log(LOG_NOTICE, "No entries were found for ringinuse/ignorebusy in queue_members table. Using 'ringinuse'\n");
-			realtime_ringinuse_field = "ringinuse";
-		}
-	}
-
-	ast_config_destroy(member_config);
 
 	return res ? AST_MODULE_LOAD_DECLINE : 0;
 }

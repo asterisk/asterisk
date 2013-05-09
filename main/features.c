@@ -4552,17 +4552,6 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		if (!f || (f->frametype == AST_FRAME_CONTROL &&
 				(f->subclass.integer == AST_CONTROL_HANGUP || f->subclass.integer == AST_CONTROL_BUSY ||
 					f->subclass.integer == AST_CONTROL_CONGESTION))) {
-			/*
-			 * If the bridge was broken for a hangup that isn't real,
-			 * then don't run the h extension, because the channel isn't
-			 * really hung up. This should really only happen with AST_SOFTHANGUP_ASYNCGOTO,
-			 * but it doesn't hurt to check AST_SOFTHANGUP_UNBRIDGE either.
-			 */
-			ast_channel_lock(chan);
-			if (ast_channel_softhangup_internal_flag(chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)) {
-				ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT);
-			}
-			ast_channel_unlock(chan);
 			res = -1;
 			break;
 		}
@@ -4749,7 +4738,12 @@ before_you_go:
 		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
-	if (!ast_test_flag(&config->features_caller, AST_FEATURE_NO_H_EXTEN)) {
+	/* run the hangup exten on the chan object IFF it was NOT involved in a parking situation
+	 * if it were, then chan belongs to a different thread now, and might have been hung up long
+	 * ago.
+	 */
+	if (!(ast_channel_softhangup_internal_flag(chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE))
+			&& !ast_test_flag(&config->features_caller, AST_FEATURE_NO_H_EXTEN)) {
 		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
@@ -7575,7 +7569,7 @@ static int manager_parkinglot_list(struct mansession *s, const struct message *m
 	return RESULT_SUCCESS;
 }
 
-/*! 
+/*!
  * \brief Dump parking lot status
  * \param s
  * \param m

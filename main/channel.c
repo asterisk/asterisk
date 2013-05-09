@@ -7549,8 +7549,11 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 					ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 				}
+				ast_channel_lock_both(c0, c1);
 				ast_channel_internal_bridged_channel_set(c0, c1);
 				ast_channel_internal_bridged_channel_set(c1, c0);
+				ast_channel_unlock(c0);
+				ast_channel_unlock(c1);
 			}
 			continue;
 		}
@@ -7831,8 +7834,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	}
 
 	/* Keep track of bridge */
+	ast_channel_lock_both(c0, c1);
 	ast_channel_internal_bridged_channel_set(c0, c1);
 	ast_channel_internal_bridged_channel_set(c1, c0);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
 
 	ast_set_owners_and_peers(c0, c1);
 
@@ -7926,8 +7932,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			if (ast_channel_softhangup_internal_flag(c1) & AST_SOFTHANGUP_UNBRIDGE) {
 				ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 			}
+			ast_channel_lock_both(c0, c1);
 			ast_channel_internal_bridged_channel_set(c0, c1);
 			ast_channel_internal_bridged_channel_set(c1, c0);
+			ast_channel_unlock(c0);
+			ast_channel_unlock(c1);
 			ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
@@ -7973,8 +7982,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					continue;
 				}
 
+				ast_channel_lock_both(c0, c1);
 				ast_channel_internal_bridged_channel_set(c0, NULL);
 				ast_channel_internal_bridged_channel_set(c1, NULL);
+				ast_channel_unlock(c0);
+				ast_channel_unlock(c1);
 				ast_format_cap_destroy(o0nativeformats);
 				ast_format_cap_destroy(o1nativeformats);
 				return res;
@@ -8031,8 +8043,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	ast_indicate(c0, AST_CONTROL_SRCUPDATE);
 	ast_indicate(c1, AST_CONTROL_SRCUPDATE);
 
+	ast_channel_lock_both(c0, c1);
 	ast_channel_internal_bridged_channel_set(c0, NULL);
 	ast_channel_internal_bridged_channel_set(c1, NULL);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
 
 	manager_bridge_event(0, 1, c0, c1);
 	ast_debug(1, "Bridge stops bridging channels %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
