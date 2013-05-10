@@ -72,7 +72,6 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">app_stasis</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -235,6 +234,7 @@ int stasis_http_add_handler(struct stasis_rest_handlers *handler)
 	ao2_cleanup(root_handler);
 	ao2_ref(new_handler, +1);
 	root_handler = new_handler;
+	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -243,9 +243,7 @@ int stasis_http_remove_handler(struct stasis_rest_handlers *handler)
 	RAII_VAR(struct stasis_rest_handlers *, new_handler, NULL, ao2_cleanup);
 	size_t size, i, j;
 
-	if (!root_handler) {
-		return -1;
-	}
+	ast_assert(root_handler != NULL);
 
 	ast_mutex_lock(&root_handler_lock);
 	size = sizeof(*new_handler) +
@@ -259,6 +257,7 @@ int stasis_http_remove_handler(struct stasis_rest_handlers *handler)
 
 	for (i = 0, j = 0; i < root_handler->num_children; ++i) {
 		if (root_handler->children[i] == handler) {
+			ast_module_unref(ast_module_info->self);
 			continue;
 		}
 		new_handler->children[j++] = root_handler->children[i];
@@ -860,6 +859,7 @@ static struct ast_http_uri http_uri = {
 static int load_module(void)
 {
 	ast_mutex_init(&root_handler_lock);
+
 	root_handler = root_handler_create();
 	if (!root_handler) {
 		return AST_MODULE_LOAD_FAILURE;
@@ -932,6 +932,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,
-	.nonoptreq = "app_stasis",
 	.load_pri = AST_MODPRI_APP_DEPEND,
 	);

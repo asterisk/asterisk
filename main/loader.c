@@ -525,6 +525,7 @@ void ast_module_shutdown(void)
 			}
 			AST_LIST_REMOVE_CURRENT(entry);
 			if (mod->flags.running && !mod->flags.declined && mod->info->unload) {
+				ast_verb(1, "Unloading %s\n", mod->resource);
 				mod->info->unload();
 			}
 			AST_LIST_HEAD_DESTROY(&mod->users);
@@ -571,6 +572,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		/* Request any channels attached to the module to hangup. */
 		__ast_module_user_hangup_all(mod);
 
+		ast_verb(1, "Unloading %s\n", mod->resource);
 		res = mod->info->unload();
 		if (res) {
 			ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);

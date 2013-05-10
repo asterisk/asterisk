@@ -263,6 +263,7 @@ static int load_module(void)
 {
 	int r = 0;
 
+	stasis_app_ref();
 	oom_json = ast_json_pack("{s: s}",
 				 "error", "OutOfMemory");
 	if (!oom_json) {
@@ -277,6 +278,7 @@ static int unload_module(void)
 {
 	int r = 0;
 
+	stasis_app_unref();
 	ast_json_unref(oom_json);
 	oom_json = NULL;
 	r |= ast_websocket_remove_protocol(ws_protocol, websocket_callback);

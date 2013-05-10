@@ -942,6 +942,16 @@ static void sub_varset_handler(void *data,
 	generic_blob_handler(obj, handle_blob_varset);
 }
 
+void stasis_app_ref(void)
+{
+	ast_module_ref(ast_module_info->self);
+}
+
+void stasis_app_unref(void)
+{
+	ast_module_unref(ast_module_info->self);
+}
+
 static int load_module(void)
 {
 	int r = 0;

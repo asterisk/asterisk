@@ -33,6 +33,7 @@
 
 /*** MODULEINFO
 	<depend type="module">res_stasis_http</depend>
+	<depend type="module">res_stasis</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -41,6 +42,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
+#include "asterisk/stasis_app.h"
 #include "stasis_http/resource_sounds.h"
 
 /*!
@@ -113,12 +115,14 @@ static struct stasis_rest_handlers sounds = {
 
 static int load_module(void)
 {
+	stasis_app_ref();
 	return stasis_http_add_handler(&sounds);
 }
 
 static int unload_module(void)
 {
 	stasis_http_remove_handler(&sounds);
+	stasis_app_unref();
 	return 0;
 }
 
@@ -126,5 +130,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT,
 	"RESTful API module - Sound resources",
 	.load = load_module,
 	.unload = unload_module,
-	.nonoptreq = "res_stasis_http",
+	.nonoptreq = "res_stasis_http,res_stasis",
 	);

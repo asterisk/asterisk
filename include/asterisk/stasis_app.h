@@ -44,6 +44,10 @@
  * Finally, Stasis apps control channels through the use of the \ref
  * stasis_app_control object, and the family of \c stasis_app_control_*
  * functions.
+ *
+ * Since module unload order is based on reference counting, any module that
+ * uses the API defined in this file must call stasis_app_ref() when loaded,
+ * and stasis_app_unref() when unloaded.
  */
 
 #include "asterisk/channel.h"
@@ -170,6 +174,20 @@ int stasis_app_control_answer(struct stasis_app_control *control);
  * \return \c NULL on error
  */
 struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
+
+/*!
+ * \brief Increment the res_stasis reference count.
+ *
+ * This ensures graceful shutdown happens in the proper order.
+ */
+void stasis_app_ref(void);
+
+/*!
+ * \brief Decrement the res_stasis reference count.
+ *
+ * This ensures graceful shutdown happens in the proper order.
+ */
+void stasis_app_unref(void);
 
 /*! @} */
 

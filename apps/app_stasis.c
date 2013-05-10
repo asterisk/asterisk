@@ -93,6 +93,7 @@ static int load_module(void)
 {
 	int r = 0;
 
+	stasis_app_ref();
 	r |= ast_register_application_xml(stasis, app_exec);
 	return r;
 }
@@ -100,12 +101,15 @@ static int load_module(void)
 static int unload_module(void)
 {
 	int r = 0;
-
 	r |= ast_unregister_application(stasis);
+	stasis_app_unref();
 	return r;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS,
-		"Stasis dialplan application",
-		.load = load_module,
-		.unload = unload_module);
+AST_MODULE_INFO(ASTERISK_GPL_KEY,
+	AST_MODFLAG_DEFAULT,
+	"Stasis dialplan application",
+	.load = load_module,
+	.unload = unload_module,
+	.nonoptreq = "res_stasis",
+	);

@@ -176,11 +176,13 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(app_invoke_dne);
 	AST_TEST_UNREGISTER(app_invoke_one);
 	AST_TEST_UNREGISTER(app_replaced);
+	stasis_app_unref();
 	return 0;
 }
 
 static int load_module(void)
 {
+	stasis_app_ref();
 	AST_TEST_REGISTER(app_replaced);
 	AST_TEST_REGISTER(app_invoke_one);
 	AST_TEST_REGISTER(app_invoke_dne);
