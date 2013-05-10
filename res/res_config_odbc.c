@@ -340,7 +340,6 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		*op = '\0';
 	}
 
-	field = field->next;
 	op = !strchr(field->name, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, field->name, op,
 		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
