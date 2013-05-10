@@ -295,13 +295,17 @@ class Model(Stringify):
 
     def __init__(self):
         self.id = None
+        self.notes = None
+        self.description = None
         self.properties = None
 
     def load(self, id, model_json, processor, context):
         context = add_context(context, model_json, 'id')
+        # This arrangement is required by the Swagger API spec
         self.id = model_json.get('id')
         if id != self.id:
             raise SwaggerError("Model id doesn't match name", c)
+        self.description = model_json.get('description')
         props = model_json.get('properties').items() or []
         self.properties = [
             Property(k).load(j, processor, context) for (k, j) in props]

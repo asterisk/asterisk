@@ -448,6 +448,37 @@ struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot 
 	return ast_json_ref(json_chan);
 }
 
+int ast_channel_snapshot_cep_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot)
+{
+	ast_assert(old_snapshot != NULL);
+	ast_assert(new_snapshot != NULL);
+
+	/* We actually get some snapshots with CEP set, but before the
+	 * application is set. Since empty application is invalid, we treat
+	 * setting the application from nothing as a CEP change.
+	 */
+	if (ast_strlen_zero(old_snapshot->appl) &&
+	    !ast_strlen_zero(new_snapshot->appl)) {
+		return 0;
+	}
+
+	return old_snapshot->priority == new_snapshot->priority &&
+		strcmp(old_snapshot->context, new_snapshot->context) == 0 &&
+		strcmp(old_snapshot->exten, new_snapshot->exten) == 0;
+}
+
+int ast_channel_snapshot_caller_id_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot)
+{
+	ast_assert(old_snapshot != NULL);
+	ast_assert(new_snapshot != NULL);
+	return strcmp(old_snapshot->caller_number, new_snapshot->caller_number) == 0 &&
+		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
+}
+
 void ast_stasis_channels_shutdown(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);

@@ -54,12 +54,16 @@
 					"required": true
 				},
 				"application_replaced": { "type": "ApplicationReplaced" },
-				"bridge_created": { "type": "BridgeCreated" },
-				"bridge_destroyed": { "type": "BridgeDestroyed" },
-				"channel_entered_bridge": { "type": "ChannelEnteredBridge" },
-				"channel_left_bridge": { "type": "ChannelLeftBridge" },
+				"channel_created": { "type": "ChannelCreated" },
+				"channel_destroyed": { "type": "ChannelDestroyed" },
+				"channel_snapshot": { "type": "ChannelSnapshot" },
 				"channel_state_change": { "type": "ChannelStateChange" },
-				"dtmf_received": { "type": "DtmfReceived" },
+				"channel_dtmf_received": { "type": "ChannelDtmfReceived" },
+				"channel_dialplan": { "type": "ChannelDialplan" },
+				"channel_caller_id": { "type": "ChannelCallerId" },
+				"channel_userevent": { "type": "ChannelUserevent" },
+				"channel_hangup_request": { "type": "ChannelHangupRequest" },
+				"channel_varset": { "type": "ChannelVarset" },
 				"stasis_end": { "type": "StasisEnd" },
 				"stasis_start": { "type": "StasisStart" }
 			}
@@ -70,48 +74,47 @@
 			"notes": "An application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event.",
 			"properties": {
 				"application": {
+					"required": true,
 					"type": "string"
 				}
 			}
 		},
-		"BridgeCreated": {
-			"id": "BridgeCreated",
-			"description": "Notification that a bridge has been created.",
+		"ChannelCreated": {
+			"id": "ChannelCreated",
+			"description": "Notification that a channel has been created.",
 			"properties": {
-				"bridge": {
-					"type": "Bridge"
-				}
-			}
-		},
-		"BridgeDestroyed": {
-			"id": "BridgeDestroyed",
-			"description": "Notification that a bridge has been destroyed.",
-			"properties": {
-				"bridge": {
-					"type": "Bridge"
-				}
-			}
-		},
-		"ChannelEnteredBridge": {
-			"id": "ChannelEnteredBridge",
-			"description": "Notification that a channel has entered a bridge.",
-			"properties": {
-				"bridge": {
-					"type": "Bridge"
-				},
 				"channel": {
+					"required": true,
 					"type": "Channel"
 				}
 			}
 		},
-		"ChannelLeftBridge": {
-			"id": "ChannelLeftBridge",
-			"description": "Notification that a channel has left a bridge.",
+		"ChannelSnapshot": {
+			"id": "ChannelSnapshot",
+			"description": "Some part of channel state changed.",
 			"properties": {
-				"bridge": {
-					"type": "Bridge"
+				"channel": {
+					"required": true,
+					"type": "Channel"
+				}
+			}
+		},
+		"ChannelDestroyed": {
+			"id": "ChannelDestroyed",
+			"description": "Notification that a channel has been destroyed.",
+			"properties": {
+				"cause": {
+					"required": true,
+					"description": "Integer representation of the cause of the hangup",
+					"type": "integer"
+				},
+				"cause_txt": {
+					"required": true,
+					"description": "Text representation of the cause of the hangup",
+					"type": "string"
 				},
 				"channel": {
+					"required": true,
 					"type": "Channel"
 				}
 			}
@@ -120,23 +123,124 @@
 			"id": "ChannelStateChange",
 			"description": "Notification of a channel's state change.",
 			"properties": {
-				"channel_info": {
+				"channel": {
+					"required": true,
 					"type": "Channel"
 				}
 			}
 		},
-		"DtmfReceived": {
-			"id": "DtmfReceived",
+		"ChannelDtmfReceived": {
+			"id": "ChannelDtmfReceived",
 			"description": "DTMF received on a channel.",
 			"notes": "This event is sent when the DTMF ends. There is no notification about the start of DTMF",
 			"properties": {
 				"digit": {
+					"required": true,
 					"type": "string",
 					"description": "DTMF digit received (0-9, A-E, # or *)"
 				},
 				"channel": {
+					"required": true,
 					"type": "Channel",
 					"description": "The channel on which DTMF was received"
+				}
+			}
+		},
+		"ChannelDialplan": {
+			"id": "ChannelDialplan",
+			"description": "Channel changed location in the dialplan.",
+			"properties": {
+				"application": {
+					"required": true,
+					"type": "string",
+					"description": "The application that the channel is currently in."
+				},
+				"application_data": {
+					"required": true,
+					"type": "string",
+					"description": "The data that was passed to the application when it was invoked."
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that changed dialplan location."
+				}
+			}
+		},
+		"ChannelCallerId": {
+			"id": "ChannelCallerId",
+			"description": "Channel changed Caller ID.",
+			"properties": {
+				"caller_presentation": {
+					"required": true,
+					"type": "integer",
+					"description": "The integer representation of the Caller Presentation value."
+				},
+				"caller_presentation_txt": {
+					"required": true,
+					"type": "string",
+					"description": "The text representation of the Caller Presentation value."
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that changed Caller ID."
+				}
+			}
+		},
+		"ChannelUserevent": {
+			"id": "ChannelUserevent",
+			"description": "User-generated event with additional user-defined fields in the object.",
+			"properties": {
+				"eventname": {
+					"required": true,
+					"type": "string",
+					"description": "The name of the user event."
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that signaled the user event."
+				}
+			}
+		},
+		"ChannelHangupRequest": {
+			"id": "ChannelHangupRequest",
+			"description": "A hangup was requested on the channel.",
+			"properties": {
+				"cause": {
+					"type": "integer",
+					"description": "Integer representation of the cause of the hangup."
+				},
+				"soft": {
+					"type": "boolean",
+					"description": "Whether the hangup request was a soft hangup request."
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which the hangup was requested."
+				}
+			}
+		},
+		"ChannelVarset": {
+			"id": "ChannelVarset",
+			"description": "Channel variable changed.",
+			"properties": {
+				"variable": {
+					"required": true,
+					"type": "string",
+					"description": "The variable that changed."
+				},
+				"value": {
+					"required": true,
+					"type": "string",
+					"description": "The new value of the variable."
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which the variable was set."
 				}
 			}
 		},
@@ -144,7 +248,8 @@
 			"id": "StasisEnd",
 			"description": "Notification that a channel has left a Stasis appliction.",
 			"properties": {
-				"channel_info": {
+				"channel": {
+					"required": true,
 					"type": "Channel"
 				}
 			}
@@ -154,10 +259,12 @@
 			"description": "Notification that a channel has entered a Stasis appliction.",
 			"properties": {
 				"args": {
+					"required": true,
 					"type": "List[string]",
 					"description": "Arguments to the application"
 				},
-				"channel_info": {
+				"channel": {
+					"required": true,
 					"type": "Channel"
 				}
 			}

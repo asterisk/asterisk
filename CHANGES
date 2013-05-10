@@ -153,6 +153,12 @@ Sorcery
    column named "id" within their schema when using the Sorcery realtime module.
    This column must be able to contain a string of up to 128 characters in length.
 
+app_userevent
+------------------
+ * UserEvent will now handle duplicate keys by overwriting the previous value
+   assigned to the key. UserEvent invocations will also be distributed to any
+   interested res_stasis applications.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------

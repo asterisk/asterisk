@@ -1,0 +1,10 @@
+struct ast_json *stasis_json_event_{{c_id}}_create(
+{{#bridge}}
+	struct ast_bridge_snapshot *bridge_snapshot{{#channel}},{{/channel}}{{^channel}}{{#has_properties}},{{/has_properties}}{{/channel}}
+{{/bridge}}
+{{#channel}}
+	struct ast_channel_snapshot *channel_snapshot{{#has_properties}},{{/has_properties}}
+{{/channel}}
+{{#has_properties}}
+	struct ast_json *blob
+{{/has_properties}}

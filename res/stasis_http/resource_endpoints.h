@@ -83,8 +83,8 @@ void stasis_http_get_endpoint(struct ast_variable *headers, struct ast_get_endpo
  * JSON models
  *
  * Endpoint
+ * - resource: string (required)
  * - technology: string (required)
- * - name: string (required)
  */
 
 #endif /* _ASTERISK_RESOURCE_ENDPOINTS_H */

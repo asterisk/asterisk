@@ -402,34 +402,6 @@ static struct snapshot_manager_event *channel_state_change(
 	return NULL;
 }
 
-/*!
- * \brief Compares the context, exten and priority of two snapshots.
- * \param old_snapshot Old snapshot
- * \param new_snapshot New snapshot
- * \return True (non-zero) if context, exten or priority are identical.
- * \return False (zero) if context, exten and priority changed.
- */
-static inline int cep_equal(
-	const struct ast_channel_snapshot *old_snapshot,
-	const struct ast_channel_snapshot *new_snapshot)
-{
-	ast_assert(old_snapshot != NULL);
-	ast_assert(new_snapshot != NULL);
-
-	/* We actually get some snapshots with CEP set, but before the
-	 * application is set. Since empty application is invalid, we treat
-	 * setting the application from nothing as a CEP change.
-	 */
-	if (ast_strlen_zero(old_snapshot->appl) &&
-	    !ast_strlen_zero(new_snapshot->appl)) {
-		return 0;
-	}
-
-	return old_snapshot->priority == new_snapshot->priority &&
-		strcmp(old_snapshot->context, new_snapshot->context) == 0 &&
-		strcmp(old_snapshot->exten, new_snapshot->exten) == 0;
-}
-
 static struct snapshot_manager_event *channel_newexten(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
@@ -444,7 +416,7 @@ static struct snapshot_manager_event *channel_newexten(
 		return NULL;
 	}
 
-	if (old_snapshot && cep_equal(old_snapshot, new_snapshot)) {
+	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)) {
 		return NULL;
 	}
 
@@ -459,23 +431,6 @@ static struct snapshot_manager_event *channel_newexten(
 		new_snapshot->data);
 }
 
-/*!
- * \brief Compares the callerid info of two snapshots.
- * \param old_snapshot Old snapshot
- * \param new_snapshot New snapshot
- * \return True (non-zero) if callerid are identical.
- * \return False (zero) if callerid changed.
- */
-static inline int caller_id_equal(
-	const struct ast_channel_snapshot *old_snapshot,
-	const struct ast_channel_snapshot *new_snapshot)
-{
-	ast_assert(old_snapshot != NULL);
-	ast_assert(new_snapshot != NULL);
-	return strcmp(old_snapshot->caller_number, new_snapshot->caller_number) == 0 &&
-		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
-}
-
 static struct snapshot_manager_event *channel_new_callerid(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
@@ -485,7 +440,7 @@ static struct snapshot_manager_event *channel_new_callerid(
 		return NULL;
 	}
 
-	if (caller_id_equal(old_snapshot, new_snapshot)) {
+	if (ast_channel_snapshot_caller_id_equal(old_snapshot, new_snapshot)) {
 		return NULL;
 	}
 
@@ -587,19 +542,62 @@ static void channel_varset_cb(void *data, struct stasis_subscription *sub,
 		      variable, value);
 }
 
+/*!
+ * \brief Callback used to determine whether a key should be skipped when converting a JSON object to a manager blob
+ * \param key Key from JSON blob to be evaluated
+ * \retval non-zero if the key should be excluded
+ * \retval zero if the key should not be excluded
+ */
+typedef int (*key_exclusion_cb)(const char *key);
+
+static struct ast_str *manager_str_from_json_object(struct ast_json *blob, key_exclusion_cb exclusion_cb)
+{
+	struct ast_str *output_str = ast_str_create(32);
+	struct ast_json_iter *blob_iter = ast_json_object_iter(blob);
+	if (!output_str || !blob_iter) {
+		return NULL;
+	}
+
+	do {
+		const char *key = ast_json_object_iter_key(blob_iter);
+		const char *value = ast_json_string_get(ast_json_object_iter_value(blob_iter));
+		if (exclusion_cb && exclusion_cb(key)) {
+			continue;
+		}
+
+		ast_str_append(&output_str, 0, "%s: %s\r\n", key, value);
+		if (!output_str) {
+			return NULL;
+		}
+	} while ((blob_iter = ast_json_object_iter_next(blob, blob_iter)));
+
+	return output_str;
+}
+
+static int userevent_exclusion_cb(const char *key)
+{
+	if (!strcmp("type", key)) {
+		return 1;
+	}
+	if (!strcmp("eventname", key)) {
+		return 1;
+	}
+	return 0;
+}
+
 static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_topic *topic, struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, body, NULL, ast_free);
 	const char *eventname;
-	const char *body;
 
 	eventname = ast_json_string_get(ast_json_object_get(obj->blob, "eventname"));
-	body = ast_json_string_get(ast_json_object_get(obj->blob, "body"));
+	body = manager_str_from_json_object(obj->blob, userevent_exclusion_cb);
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
-	if (!channel_event_string) {
+	if (!channel_event_string || !body) {
 		return;
 	}
 
@@ -621,7 +619,7 @@ static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
 		      "%s"
 		      "UserEvent: %s\r\n"
 		      "%s",
-		      ast_str_buffer(channel_event_string), eventname, body);
+		      ast_str_buffer(channel_event_string), eventname, ast_str_buffer(body));
 }
 
 static void channel_hangup_request_cb(void *data,

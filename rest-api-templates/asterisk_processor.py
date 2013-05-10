@@ -107,7 +107,6 @@ class PathSegment(Stringify):
         """
         return len(self.__children)
 
-
 class AsteriskProcessor(SwaggerPostProcessor):
     """A SwaggerPostProcessor which adds fields needed to generate Asterisk
     RESTful HTTP binding code.
@@ -145,6 +144,18 @@ class AsteriskProcessor(SwaggerPostProcessor):
                 segment = resource_api.root_path.get_child(api.path.split('/'))
                 for operation in api.operations:
                     segment.operations.append(operation)
+            resource_api.api_declaration.has_events = False
+            for model in resource_api.api_declaration.models:
+                if model.id == "Event":
+                    resource_api.api_declaration.has_events = True
+                    break
+            if resource_api.api_declaration.has_events:
+                resource_api.api_declaration.events = \
+                    [self.process_model(model, context) for model in \
+                        resource_api.api_declaration.models if model.id != "Event"]
+            else:
+                resource_api.api_declaration.events = []
+
             # Since every API path should start with /[resource], root should
             # have exactly one child.
             if resource_api.root_path.num_children() != 1:
@@ -177,3 +188,43 @@ class AsteriskProcessor(SwaggerPostProcessor):
             parameter.c_space = ''
         else:
             parameter.c_space = ' '
+
+    def process_model(self, model, context):
+        model.c_id = snakify(model.id)
+        model.channel = False
+        model.channel_desc = ""
+        model.bridge = False
+        model.bridge_desc = ""
+        model.properties = [self.process_property(model, prop, context) for prop in model.properties]
+        model.properties = [prop for prop in model.properties if prop]
+	model.has_properties = (len(model.properties) != 0)
+        return model
+
+    def process_property(self, model, prop, context):
+        # process channel separately since it will be pulled out
+        if prop.name == 'channel' and prop.type == 'Channel':
+            model.channel = True
+            model.channel_desc = prop.description or ""
+            return None
+
+        # process bridge separately since it will be pulled out
+        if prop.name == 'bridge' and prop.type == 'Bridge':
+            model.bridge = True
+            model.bridge_desc = prop.description or ""
+            return None
+
+	prop.c_name = snakify(prop.name)
+        if prop.type in self.type_mapping:
+            prop.c_type = self.type_mapping[prop.type]
+            prop.c_convert = self.convert_mapping[prop.c_type]
+        else:
+            prop.c_type = "Property type %s not mappable to a C type" % (prop.type)
+            prop.c_convert = "Property type %s not mappable to a C conversion" % (prop.type)
+            #raise SwaggerError(
+            #    "Invalid property type %s" % prop.type, context)
+        # You shouldn't put a space between 'char *' and the variable
+        if prop.c_type.endswith('*'):
+            prop.c_space = ''
+        else:
+            prop.c_space = ' '
+        return prop

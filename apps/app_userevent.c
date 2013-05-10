@@ -39,23 +39,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<application name="UserEvent" language="en_US">
 		<synopsis>
-			Send an arbitrary event to the manager interface.
+			Send an arbitrary user-defined event to parties interested in a channel (AMI users and relevant res_stasis applications).
 		</synopsis>
 		<syntax>
 			<parameter name="eventname" required="true" />
 			<parameter name="body" />
 		</syntax>
 		<description>
-			<para>Sends an arbitrary event to the manager interface, with an optional
+			<para>Sends an arbitrary event to interested parties, with an optional
 			<replaceable>body</replaceable> representing additional arguments. The
 			<replaceable>body</replaceable> may be specified as
-			a <literal>,</literal> delimited list of headers. Each additional
-			argument will be placed on a new line in the event. The format of the
-			event will be:</para>
+			a <literal>,</literal> delimited list of key:value pairs.</para>
+			<para>For AMI, each additional argument will be placed on a new line in
+			the event and the format of the event will be:</para>
 			<para>    Event: UserEvent</para>
 			<para>    UserEvent: &lt;specified event name&gt;</para>
 			<para>    [body]</para>
-			<para>If no <replaceable>body</replaceable> is specified, only Event and UserEvent headers will be present.</para>
+			<para>If no <replaceable>body</replaceable> is specified, only Event and
+			UserEvent headers will be present.</para>
+			<para>For res_stasis applications, the event will be provided as a JSON
+			blob with additional arguments appearing as keys in the object and the
+			<replaceable>eventname</replaceable> under the
+			<literal>eventname</literal> key.</para>
 		</description>
 	</application>
  ***/
@@ -70,7 +75,6 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(eventname);
 		AST_APP_ARG(extra)[100];
 	);
-	RAII_VAR(struct ast_str *, body, ast_str_create(16), ast_free);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
@@ -79,25 +83,37 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!body) {
-		ast_log(LOG_WARNING, "Unable to allocate buffer\n");
-		return -1;
-	}
-
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	for (x = 0; x < args.argc - 1; x++) {
-		ast_str_append(&body, 0, "%s\r\n", args.extra[x]);
+	blob = ast_json_pack("{s: s, s: s}",
+			     "type", "userevent",
+			     "eventname", args.eventname);
+	if (!blob) {
+		return -1;
 	}
 
-	blob = ast_json_pack("{s: s, s: s}",
-			     "eventname", args.eventname,
-			     "body", ast_str_buffer(body));
-	if (!blob) {
-		ast_log(LOG_WARNING, "Unable to create message buffer\n");
-		return -1;
+	for (x = 0; x < args.argc - 1; x++) {
+		char *key, *value = args.extra[x];
+		struct ast_json *json_value;
+
+		key = strsep(&value, ":");
+		if (!value) {
+			/* no ':' in string? */
+			continue;
+		}
+
+		value = ast_strip(value);
+		json_value = ast_json_string_create(value);
+		if (!json_value) {
+			return -1;
+		}
+
+		/* ref stolen by ast_json_object_set */
+		if (ast_json_object_set(blob, key, json_value)) {
+			return -1;
+		}
 	}
 
 	msg = ast_channel_blob_create(

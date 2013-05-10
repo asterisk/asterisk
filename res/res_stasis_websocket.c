@@ -52,10 +52,6 @@ static struct ast_json *oom_json;
  */
 #define APPS_NUM_BUCKETS 7
 
-struct websocket_app {
-	char *name;
-};
-
 /*!
  * \internal
  * \brief Helper to write a JSON object to a WebSocket.
@@ -76,35 +72,6 @@ static int websocket_write_json(struct ast_websocket *session,
 
 	return ast_websocket_write(session, AST_WEBSOCKET_OPCODE_TEXT, str,
 				   strlen(str));
-}
-
-/*! Hash function for websocket_app */
-static int hash_app(const void *obj, const int flags)
-{
-	const struct websocket_app *app = obj;
-	const char *name = flags & OBJ_KEY ? obj : app->name;
-
-	return ast_str_hash(name);
-}
-
-/*! Comparison function for websocket_app */
-static int compare_app(void *lhs, void *rhs, int flags)
-{
-	const struct websocket_app *lhs_app = lhs;
-	const struct websocket_app *rhs_app = rhs;
-	const char *rhs_name = flags & OBJ_KEY ? rhs : rhs_app->name;
-
-	if (strcmp(lhs_app->name, rhs_name) == 0) {
-		return CMP_MATCH;
-	} else {
-		return 0;
-	}
-}
-
-static void app_dtor(void *obj)
-{
-	struct websocket_app *app = obj;
-	ast_free(app->name);
 }
 
 struct stasis_ws_session_info {
@@ -132,7 +99,7 @@ static struct stasis_ws_session_info *session_create(
 
 	session->ws_session = ws_session;
 	session->websocket_apps =
-		ao2_container_alloc(APPS_NUM_BUCKETS, hash_app, compare_app);
+		ast_str_container_alloc(APPS_NUM_BUCKETS);
 
 	if (!session->websocket_apps) {
 		return NULL;
@@ -154,12 +121,12 @@ static struct stasis_ws_session_info *session_create(
 static void session_shutdown(struct stasis_ws_session_info *session)
 {
         struct ao2_iterator i;
-	struct websocket_app *app;
+	char *app;
 	SCOPED_AO2LOCK(lock, session);
 
 	i = ao2_iterator_init(session->websocket_apps, 0);
 	while ((app = ao2_iterator_next(&i))) {
-		stasis_app_unregister(app->name);
+		stasis_app_unregister(app);
 		ao2_cleanup(app);
 	}
 	ao2_iterator_destroy(&i);
@@ -212,15 +179,10 @@ static int session_register_apps(struct stasis_ws_session_info *session,
 		return -1;
 	}
 	while ((app_name = strsep(&apps, ","))) {
-		RAII_VAR(struct websocket_app *, app, NULL, ao2_cleanup);
-
-		app = ao2_alloc(sizeof(*app), app_dtor);
-		if (!app) {
+		if (ast_str_container_add(session->websocket_apps, app_name)) {
 			websocket_write_json(session->ws_session, oom_json);
 			return -1;
 		}
-		app->name = ast_strdup(app_name);
-		ao2_link(session->websocket_apps, app);
 
 		stasis_app_register(app_name, app_handler, session);
 	}

@@ -307,6 +307,34 @@ void ast_channel_publish_dial(struct ast_channel *caller,
 struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
 
 /*!
+ * \brief Compares the context, exten and priority of two snapshots.
+ * \since 12
+ *
+ * \param old_snapshot Old snapshot
+ * \param new_snapshot New snapshot
+ *
+ * \return True (non-zero) if context, exten or priority are identical.
+ * \return False (zero) if context, exten and priority changed.
+ */
+int ast_channel_snapshot_cep_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot);
+
+/*!
+ * \brief Compares the callerid info of two snapshots.
+ * \since 12
+ *
+ * \param old_snapshot Old snapshot
+ * \param new_snapshot New snapshot
+ *
+ * \return True (non-zero) if callerid are identical.
+ * \return False (zero) if callerid changed.
+ */
+int ast_channel_snapshot_caller_id_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot);
+
+/*!
  * \brief Dispose of the stasis channel topics and message types
  */
 void ast_stasis_channels_shutdown(void);

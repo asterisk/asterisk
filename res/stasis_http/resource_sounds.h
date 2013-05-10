@@ -71,7 +71,7 @@ void stasis_http_get_stored_sound(struct ast_variable *headers, struct ast_get_s
  *
  * Sound
  * - lang: string (required)
- * - text: string 
+ * - text: string
  * - id: string (required)
  * - formats: List[string] (required)
  */

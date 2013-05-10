@@ -196,8 +196,8 @@ void stasis_http_unmute_recording(struct ast_variable *headers, struct ast_unmut
  * Recording
  * - id: string (required)
  * StoredRecording
- * - durationSeconds: int 
- * - time: Date 
+ * - durationSeconds: int
+ * - time: Date
  * - id: string (required)
  * - formats: List[string] (required)
  * LiveRecording
