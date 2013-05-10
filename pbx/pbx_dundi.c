@@ -2178,7 +2178,7 @@ static void *network_thread(void *ignore)
 	   from the network, and queue them for delivery to the channels */
 	int res;
 	/* Establish I/O callback for socket read */
-	ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
+	int *socket_read_id = ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
 
 	while (!dundi_shutdown) {
 		res = ast_sched_wait(sched);
@@ -2193,6 +2193,7 @@ static void *network_thread(void *ignore)
 		check_password();
 	}
 
+	ast_io_remove(io, socket_read_id);
 	netthreadid = AST_PTHREADT_NULL;
 
 	return NULL;
