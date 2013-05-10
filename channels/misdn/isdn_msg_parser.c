@@ -283,6 +283,8 @@ static msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc,
 
 	progress=(PROGRESS_t*)((msg->data+HEADER_LEN));
 
+	enc_ie_progress(&progress->PROGRESS, msg, 0, nt ? 1 : 5, 8, nt, bc);
+
 	if (bc->fac_out.Function != Fac_None) {
 		enc_ie_facility(&progress->FACILITY, msg, &bc->fac_out, nt);
 	}
