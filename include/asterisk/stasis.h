@@ -549,10 +549,10 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
  * \since 12
  */
 #define STASIS_MESSAGE_TYPE_DEFN(name)				\
-	static struct stasis_message_type *__ ## name;	\
-	struct stasis_message_type *name(void) {	\
-		ast_assert(__ ## name != NULL);		\
-		return __ ## name;			\
+	static struct stasis_message_type *_priv_ ## name;	\
+	struct stasis_message_type *name(void) {		\
+		ast_assert(_priv_ ## name != NULL);		\
+		return _priv_ ## name;				\
 	}
 
 /*!
@@ -563,16 +563,16 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
  * \return Non-zero on failure.
  * \since 12
  */
-#define STASIS_MESSAGE_TYPE_INIT(name)				\
-	({						\
-	__ ## name = stasis_message_type_create(#name);	\
-	__ ## name ? 0 : -1;				\
+#define STASIS_MESSAGE_TYPE_INIT(name)					\
+	({								\
+		_priv_ ## name = stasis_message_type_create(#name);	\
+			_priv_ ## name ? 0 : -1;			\
 	})
 
-#define STASIS_MESSAGE_TYPE_CLEANUP(name)		\
+#define STASIS_MESSAGE_TYPE_CLEANUP(name)	\
 	({					\
-		ao2_cleanup(__ ## name);	\
-		__ ## name = NULL;		\
+		ao2_cleanup(_priv_ ## name);	\
+		_priv_ ## name = NULL;		\
 	})
 
 /*! @} */
