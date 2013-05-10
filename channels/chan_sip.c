@@ -21729,7 +21729,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 					feat = ast_find_call_feature(p->relatedpeer->record_on_feature);
 				}
 			} else if (!strcasecmp(c, "off")) {
-				if (ast_strlen_zero(p->relatedpeer->record_on_feature)) {
+				if (ast_strlen_zero(p->relatedpeer->record_off_feature)) {
 					suppress_warning = 1;
 				} else {
 					feat = ast_find_call_feature(p->relatedpeer->record_off_feature);
