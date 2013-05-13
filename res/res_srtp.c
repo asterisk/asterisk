@@ -546,6 +546,7 @@ static void res_srtp_shutdown(void)
 {
 	srtp_install_event_handler(NULL);
 	ast_rtp_engine_unregister_srtp();
+	srtp_shutdown();
 	g_initialized = 0;
 }
 
