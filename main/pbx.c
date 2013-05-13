@@ -9383,6 +9383,7 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	}
 	tmp->root = NULL;
 	ast_rwlock_destroy(&tmp->lock);
+	ast_mutex_destroy(&tmp->macrolock);
 	ast_free(tmp);
 }
 
@@ -10978,6 +10979,10 @@ static void pbx_shutdown(void)
 		ao2_ref(statecbs, -1);
 		statecbs = NULL;
 	}
+	if (contexts_table) {
+		ast_hashtab_destroy(contexts_table, NULL);
+	}
+	pbx_builtin_clear_globals();
 }
 
 int ast_pbx_init(void)
