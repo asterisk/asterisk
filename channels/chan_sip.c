@@ -30108,18 +30108,25 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
-	/* When chan_sip is first loaded, we may have a peer entry but it hasn't re-registered yet.
-	   If the peer hasn't re-registered, we have not checked for NAT yet.  With the new
-	   auto_* settings, we need to check for NAT so we do not have one-way audio. */
-	check_for_nat(&p->ourip, p);
-	set_peer_nat(p, p->relatedpeer);
+	/* When chan_sip is first loaded or reloaded, we need to check for NAT and set the appropiate flags
+	   now that we have the auto_* settings. */
+	check_for_nat(&p->sa, p);
+	/* If there is a peer related to this outgoing call and it hasn't re-registered after
+	   a reload, we need to set the peer's NAT flags accordingly. */
+	if (p->relatedpeer) {
 
-	if (p->natdetected && ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
-		ast_copy_flags(&p->flags[0], &p->relatedpeer->flags[0], SIP_NAT_FORCE_RPORT);
-	}
+		if (!ast_strlen_zero(p->relatedpeer->fullcontact) && !p->natdetected &&
+			(ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) && !ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT))) {
+			/* We need to make an attempt to determine if a peer is behind NAT
+			   if the peer has the auto_force_rport flag set. */
+			struct ast_sockaddr tmpaddr;
 
-	if (p->natdetected && ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
-		ast_copy_flags(&p->flags[1], &p->relatedpeer->flags[1], SIP_PAGE2_SYMMETRICRTP);
+			__set_address_from_contact(p->relatedpeer->fullcontact, &tmpaddr, 0);
+
+			check_for_nat(&tmpaddr, p);
+		}
+
+		set_peer_nat(p, p->relatedpeer);
 	}
 
 	do_setnat(p);
@@ -31340,7 +31347,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * specified, use that address instead. */
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
-		if (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) || ast_sockaddr_isnull(&peer->addr)) {
+		if ((!ast_test_flag(&peer->flags[2],  SIP_PAGE3_NAT_AUTO_RPORT) && !ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT))
+		    || ast_sockaddr_isnull(&peer->addr)) {
 			__set_address_from_contact(ast_str_buffer(fullcontact), &peer->addr, 0);
 		}
 	}
