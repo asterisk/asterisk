@@ -3727,7 +3727,7 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Failure");
 	}
 
-	return res;
+	return 0;
 }
 
 /*! \brief  action_redirect: The redirect manager command */
