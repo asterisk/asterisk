@@ -684,7 +684,11 @@ void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, co
 
 	/* Release the held ao2 object. */
 	if (holder->obj) {
-		__ao2_ref_debug(holder->obj, -1, tag, file, line, func);
+		if (tag) {
+			__ao2_ref_debug(holder->obj, -1, tag, file, line, func);
+		} else {
+			__ao2_ref(holder->obj, -1);
+		}
 		holder->obj = NULL;
 	}
 
@@ -708,7 +712,11 @@ void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const c
 	}
 
 	if (obj) {
-		__ao2_ref_debug(obj, +1, tag, file, line, func);
+		if (tag) {
+			__ao2_ref_debug(obj, +1, tag, file, line, func);
+		} else {
+			__ao2_ref(obj, +1);
+		}
 	}
 	obj_old = holder->obj;
 	holder->obj = obj;
@@ -724,7 +732,11 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
 
 	obj_old = __ao2_global_obj_replace(holder, obj, tag, file, line, func, name);
 	if (obj_old) {
-		__ao2_ref_debug(obj_old, -1, tag, file, line, func);
+		if (tag) {
+			__ao2_ref_debug(obj_old, -1, tag, file, line, func);
+		} else {
+			__ao2_ref(obj_old, -1);
+		}
 		return 1;
 	}
 	return 0;
@@ -749,7 +761,11 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 
 	obj = holder->obj;
 	if (obj) {
-		__ao2_ref_debug(obj, +1, tag, file, line, func);
+		if (tag) {
+			__ao2_ref_debug(obj, +1, tag, file, line, func);
+		} else {
+			__ao2_ref(obj, +1);
+		}
 	}
 
 	__ast_rwlock_unlock(file, line, func, &holder->lock, name);

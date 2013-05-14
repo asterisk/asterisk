@@ -635,10 +635,19 @@ struct ao2_global_obj {
  *
  * \return Nothing
  */
+#ifdef REF_DEBUG
 #define ao2_t_global_obj_release(holder, tag)	\
 	__ao2_global_obj_release(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_release(holder)	\
 	__ao2_global_obj_release(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+
+#else
+
+#define ao2_t_global_obj_release(holder, tag)	\
+	__ao2_global_obj_release(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_release(holder)	\
+	__ao2_global_obj_release(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#endif
 
 void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);
 
@@ -657,10 +666,19 @@ void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, co
  * \retval Reference to previous global ao2 object stored.
  * \retval NULL if no object available.
  */
+#ifdef REF_DEBUG
 #define ao2_t_global_obj_replace(holder, obj, tag)	\
 	__ao2_global_obj_replace(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_replace(holder, obj)	\
 	__ao2_global_obj_replace(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+
+#else
+
+#define ao2_t_global_obj_replace(holder, obj, tag)	\
+	__ao2_global_obj_replace(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_replace(holder, obj)	\
+	__ao2_global_obj_replace(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#endif
 
 void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
 
@@ -680,10 +698,20 @@ void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const c
  * \retval 0 The global object was previously empty
  * \retval 1 The global object was not previously empty
  */
+#ifdef REF_DEBUG
 #define ao2_t_global_obj_replace_unref(holder, obj, tag)	\
 	__ao2_global_obj_replace_unref(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_replace_unref(holder, obj)	\
 	__ao2_global_obj_replace_unref(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+
+#else
+
+#define ao2_t_global_obj_replace_unref(holder, obj, tag)	\
+	__ao2_global_obj_replace_unref(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_replace_unref(holder, obj)	\
+	__ao2_global_obj_replace_unref(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#endif
+
 int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
 
 /*!
@@ -696,10 +724,19 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
  * \retval Reference to current ao2 object stored in the holder.
  * \retval NULL if no object available.
  */
+#ifdef REF_DEBUG
 #define ao2_t_global_obj_ref(holder, tag)	\
 	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_ref(holder)	\
 	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+
+#else
+
+#define ao2_t_global_obj_ref(holder, tag)	\
+	__ao2_global_obj_ref(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#define ao2_global_obj_ref(holder)	\
+	__ao2_global_obj_ref(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+#endif
 
 void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);
 
