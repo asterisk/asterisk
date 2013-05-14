@@ -46,6 +46,9 @@ ael/ael_lex.o ael/ael.tab.o ael/pval.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ael
 $(if $(filter res_sip,$(EMBEDDED_MODS)),modules.link,res_sip.so): $(subst .c,.o,$(wildcard res_sip/*.c))
 $(subst .c,.o,$(wildcard res_sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_sip)
 
+$(if $(filter res_stasis,$(EMBEDDED_MODS)),modules.link,res_stasis.so): $(subst .c,.o,$(wildcard stasis/*.c))
+$(subst .c,.o,$(wildcard stasis/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis)
+
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael_lex.c: ael/ael.flex
 else
@@ -70,7 +73,8 @@ endif
 ael/pval.o: ael/pval.c
 
 clean::
-	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi] res_sip/*.[oi]
+	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi]
+	rm -f res_sip/*.[oi] stasis/*.[oi]
 
 # Dependencies for res_stasis_http_*.so are generated, so they're in this file
 include stasis_http.make

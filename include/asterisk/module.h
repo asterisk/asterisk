@@ -478,6 +478,9 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
  */
 int ast_unregister_application(const char *app);
 
+/*! Macro to safely ref and unref the self module for the current scope */
+#define SCOPED_MODULE_USE(module) \
+	RAII_VAR(struct ast_module *, __self__ ## __LINE__, ast_module_ref(module), ast_module_unref)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

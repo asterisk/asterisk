@@ -53,27 +53,6 @@
 #include "asterisk/channel.h"
 #include "asterisk/json.h"
 
-struct ast_channel_snapshot;
-
-/*! @{ */
-
-/*!
- * \brief Control a channel using \c stasis_app.
- *
- * This function blocks until the channel hangs up, or
- * stasis_app_control_continue() is called on the channel's \ref
- * stasis_app_control struct.
- *
- * \param chan Channel to control with Stasis.
- * \param app_name Application controlling the channel.
- * \param argc Number of arguments for the application.
- * \param argv Arguments for the application.
- */
-int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
-	char *argv[]);
-
-/*! @} */
-
 /*! @{ */
 
 /*!
@@ -87,7 +66,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
  * \param message Message to handle. (borrowed copy)
  */
 typedef void (*stasis_app_cb)(void *data, const char *app_name,
-			      struct ast_json *message);
+	struct ast_json *message);
 
 /*!
  * \brief Register a new Stasis application.
@@ -148,6 +127,16 @@ struct stasis_app_control *stasis_app_control_find_by_channel_id(
 	const char *channel_id);
 
 /*!
+ * \brief Returns the uniqueid of the channel associated with this control
+ *
+ * \param control Control object.
+ * \return Uniqueid of the associate channel.
+ * \return \c NULL if \a control is \c NULL.
+ */
+const char *stasis_app_control_get_channel_id(
+	const struct stasis_app_control *control);
+
+/*!
  * \brief Exit \c res_stasis and continue execution in the dialplan.
  *
  * If the channel is no longer in \c res_stasis, this function does nothing.
@@ -160,20 +149,30 @@ void stasis_app_control_continue(struct stasis_app_control *control);
  * \brief Answer the channel associated with this control.
  * \param control Control for \c res_stasis.
  * \return 0 for success.
- * \return -1 for error.
+ * \return Non-zero for error.
  */
 int stasis_app_control_answer(struct stasis_app_control *control);
 
-/*! @} */
-
-/*! @{ */
+/*!
+ * \brief Returns the most recent snapshot for the associated channel.
+ *
+ * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
+ *
+ * \param control Control for \c res_stasis.
+ * \return Most recent snapshot. ao2_cleanup() when done.
+ * \return \c NULL if channel isn't in cache.
+ */
+struct ast_channel_snapshot *stasis_app_control_get_snapshot(
+	const struct stasis_app_control *control);
 
 /*!
- * \brief Build a JSON object from a \ref ast_channel_snapshot.
- * \return JSON object representing channel snapshot.
- * \return \c NULL on error
+ * \brief Publish a message to the \a control's channel's topic.
+ *
+ * \param control Control to publish to
+ * \param message Message to publish
  */
-struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
+void stasis_app_control_publish(
+	struct stasis_app_control *control, struct stasis_message *message);
 
 /*!
  * \brief Increment the res_stasis reference count.
