@@ -20,7 +20,7 @@
 /*! \file
  *
  * \brief Generated file - declares stubs to be implemented in
- * res/stasis_http/resource_{{name}}.c
+ * res/stasis_json/resource_{{name}}.c
  *
  * {{{description}}}
  *
@@ -36,33 +36,47 @@
 #ifndef _ASTERISK_RESOURCE_{{name_caps}}_H
 #define _ASTERISK_RESOURCE_{{name_caps}}_H
 
-#include "asterisk/stasis_http.h"
+{{#has_events}}
+struct ast_channel_snapshot;
 
-{{#apis}}
-{{#operations}}
-/*! \brief Argument struct for stasis_http_{{c_nickname}}() */
-struct ast_{{c_nickname}}_args {
-{{#parameters}}
-{{#description}}
-	/*! \brief {{{description}}} */
-{{/description}}
-	{{c_data_type}}{{c_space}}{{c_name}};
-{{/parameters}}
-};
+{{#events}}
 /*!
- * \brief {{summary}}
+ * \brief {{description}}
 {{#notes}}
  *
  * {{{notes}}}
 {{/notes}}
  *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
+{{#channel}}
+ * \param channel {{#channel_desc}}{{channel_desc}}{{/channel_desc}}{{^channel_desc}}The channel to be used to generate this event{{/channel_desc}}
+{{/channel}}
+{{#bridge}}
+ * \param bridge {{#bridge_desc}}{{bridge_desc}}{{/bridge_desc}}{{^bridge_desc}}The bridge to be used to generate this event{{/bridge_desc}}
+{{/bridge}}
+{{#has_properties}}
+ * \param blob JSON blob containing the following parameters:
+{{/has_properties}}
+{{#properties}}
+ * - {{name}}: {{type}} {{#description}}- {{description}}{{/description}}{{#required}} (required){{/required}}
+{{/properties}}
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
  */
-void stasis_http_{{c_nickname}}(struct ast_variable *headers, struct ast_{{c_nickname}}_args *args, struct stasis_http_response *response);
-{{/operations}}
-{{/apis}}
+{{> event_function_decl}}
+	);
+
+{{/events}}
+{{/has_events}}
+/*
+ * JSON models
+ *
+{{#models}}
+ * {{id}}
+{{#properties}}
+ * - {{name}}: {{type}}{{#required}} (required){{/required}}
+{{/properties}}
+{{/models}} */
 
 #endif /* _ASTERISK_RESOURCE_{{name_caps}}_H */
 {{/api_declaration}}

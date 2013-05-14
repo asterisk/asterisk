@@ -81,11 +81,4 @@ struct ast_control_playback_args {
  */
 void stasis_http_control_playback(struct ast_variable *headers, struct ast_control_playback_args *args, struct stasis_http_response *response);
 
-/*
- * JSON models
- *
- * Playback
- * - id: string (required)
- */
-
 #endif /* _ASTERISK_RESOURCE_PLAYBACK_H */

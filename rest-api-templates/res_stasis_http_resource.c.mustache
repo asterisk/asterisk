@@ -49,9 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_{{name}}.h"
-{{#has_events}}
-#include "asterisk/stasis_channels.h"
-{{/has_events}}
 
 {{#apis}}
 {{#operations}}
@@ -101,89 +98,6 @@ static void stasis_http_{{c_nickname}}_cb(
 {{> rest_handler}}
 {{/root_path}}
 
-{{#has_events}}
-{{#events}}
-{{> event_function_decl}}
-	)
-{
-	RAII_VAR(struct ast_json *, message, NULL, ast_json_unref);
-	RAII_VAR(struct ast_json *, event, NULL, ast_json_unref);
-{{#has_properties}}
-	struct ast_json *validator;
-{{/has_properties}}
-{{#channel}}
-	int ret;
-{{/channel}}
-{{#bridge}}
-{{^channel}}
-	int ret;
-{{/channel}}
-{{/bridge}}
-
-{{#channel}}
-	ast_assert(channel_snapshot != NULL);
-{{/channel}}
-{{#bridge}}
-	ast_assert(bridge_snapshot != NULL);
-{{/bridge}}
-{{#has_properties}}
-	ast_assert(blob != NULL);
-{{#channel}}
-	ast_assert(ast_json_object_get(blob, "channel") == NULL);
-{{/channel}}
-{{#bridge}}
-	ast_assert(ast_json_object_get(blob, "bridge") == NULL);
-{{/bridge}}
-	ast_assert(ast_json_object_get(blob, "type") == NULL);
-{{#properties}}
-
-	validator = ast_json_object_get(blob, "{{name}}");
-	if (validator) {
-		/* do validation? XXX */
-{{#required}}
-	} else {
-		/* fail message generation if the required parameter doesn't exist */
-		return NULL;
-{{/required}}
-	}
-{{/properties}}
-
-	event = ast_json_deep_copy(blob);
-{{/has_properties}}
-{{^has_properties}}
-
-	event = ast_json_object_create();
-{{/has_properties}}
-	if (!event) {
-		return NULL;
-	}
-
-{{#channel}}
-	ret = ast_json_object_set(event,
-		"channel", ast_channel_snapshot_to_json(channel_snapshot));
-	if (ret) {
-		return NULL;
-	}
-
-{{/channel}}
-{{#bridge}}
-	ret = ast_json_object_set(event,
-		"bridge", ast_bridge_snapshot_to_json(bridge_snapshot));
-	if (ret) {
-		return NULL;
-	}
-
-{{/bridge}}
-	message = ast_json_pack("{s: o}", "{{c_id}}", ast_json_ref(event));
-	if (!message) {
-		return NULL;
-	}
-
-	return ast_json_ref(message);
-}
-
-{{/events}}
-{{/has_events}}
 static int load_module(void)
 {
 	stasis_app_ref();

@@ -47,6 +47,12 @@ API_TRANSFORMS = [
               'stasis_http/resource_{{name}}.h'),
     Transform(rel('stasis_http_resource.c.mustache'),
               'stasis_http/resource_{{name}}.c', False),
+    Transform(rel('res_stasis_json_resource.c.mustache'),
+              'res_stasis_json_{{name}}.c'),
+    Transform(rel('res_stasis_json_resource.exports.mustache'),
+              'res_stasis_json_{{name}}.exports.in'),
+    Transform(rel('stasis_json_resource.h.mustache'),
+              'stasis_json/resource_{{name}}.h'),
 ]
 
 RESOURCES_TRANSFORMS = [

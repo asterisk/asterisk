@@ -66,14 +66,4 @@ struct ast_get_stored_sound_args {
  */
 void stasis_http_get_stored_sound(struct ast_variable *headers, struct ast_get_stored_sound_args *args, struct stasis_http_response *response);
 
-/*
- * JSON models
- *
- * Sound
- * - lang: string (required)
- * - text: string
- * - id: string (required)
- * - formats: List[string] (required)
- */
-
 #endif /* _ASTERISK_RESOURCE_SOUNDS_H */

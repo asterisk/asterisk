@@ -1,0 +1,12 @@
+{
+{{#api_declaration}}
+{{#has_events}}
+	global:
+{{#events}}
+		LINKER_SYMBOL_PREFIXstasis_json_event_{{c_id}}_create;
+{{/events}}
+{{/has_events}}
+{{/api_declaration}}
+	local:
+		*;
+};

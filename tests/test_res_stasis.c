@@ -157,7 +157,7 @@ AST_TEST_DEFINE(app_replaced)
 
 	stasis_app_register(app_name, test_handler, app_data1);
 	stasis_app_register(app_name, test_handler, app_data2);
-	expected_message1 = ast_json_pack("[{s: {}}]", "application-replaced");
+	expected_message1 = ast_json_pack("[{s: {s: s}}]", "application_replaced", "application", app_name);
 	message = ast_json_pack("{ s: o }", "test-message", ast_json_null());
 	expected_message2 = ast_json_pack("[o]", ast_json_ref(message));
 

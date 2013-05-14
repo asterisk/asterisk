@@ -1,0 +1,18 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_snapshot_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_destroyed_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_caller_id_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_hangup_request_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_application_replaced_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_varset_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_userevent_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_created_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_stasis_start_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_dialplan_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_state_change_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_channel_dtmf_received_create;
+		LINKER_SYMBOL_PREFIXstasis_json_event_stasis_end_create;
+	local:
+		*;
+};

@@ -190,18 +190,4 @@ struct ast_unmute_recording_args {
  */
 void stasis_http_unmute_recording(struct ast_variable *headers, struct ast_unmute_recording_args *args, struct stasis_http_response *response);
 
-/*
- * JSON models
- *
- * Recording
- * - id: string (required)
- * StoredRecording
- * - durationSeconds: int
- * - time: Date
- * - id: string (required)
- * - formats: List[string] (required)
- * LiveRecording
- * - id: string (required)
- */
-
 #endif /* _ASTERISK_RESOURCE_RECORDINGS_H */

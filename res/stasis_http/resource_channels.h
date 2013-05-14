@@ -241,34 +241,4 @@ struct ast_record_channel_args {
  */
 void stasis_http_record_channel(struct ast_variable *headers, struct ast_record_channel_args *args, struct stasis_http_response *response);
 
-/*
- * JSON models
- *
- * Originated
- * DialplanCEP
- * - priority: long (required)
- * - exten: string (required)
- * - context: string (required)
- * Channel
- * - accountcode: string (required)
- * - linkedid: string (required)
- * - name: string (required)
- * - userfield: string (required)
- * - caller: CallerID (required)
- * - creationtime: Date (required)
- * - state: string (required)
- * - parkinglot: string (required)
- * - peeraccount: string (required)
- * - appl: string (required)
- * - connected: CallerID (required)
- * - uniqueid: string (required)
- * - hangupsource: string (required)
- * - dialplan: DialplanCEP (required)
- * - data: string (required)
- * CallerID
- * - name: string (required)
- * - number: string (required)
- * Dialed
- */
-
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

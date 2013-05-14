@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_stasis_json_events</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -41,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/callerid.h"
-#include "stasis_http/resource_events.h"
+#include "stasis_json/resource_events.h"
 
 /*! Time to wait for a frame in the application */
 #define MAX_WAIT_MS 200

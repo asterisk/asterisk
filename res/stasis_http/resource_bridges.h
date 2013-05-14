@@ -151,12 +151,4 @@ struct ast_record_bridge_args {
  */
 void stasis_http_record_bridge(struct ast_variable *headers, struct ast_record_bridge_args *args, struct stasis_http_response *response);
 
-/*
- * JSON models
- *
- * Bridge
- * - channels: List[string] (required)
- * - bridgeType: string (required)
- */
-
 #endif /* _ASTERISK_RESOURCE_BRIDGES_H */

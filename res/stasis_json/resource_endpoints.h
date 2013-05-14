@@ -19,9 +19,9 @@
 /*! \file
  *
  * \brief Generated file - declares stubs to be implemented in
- * res/stasis_http/resource_asterisk.c
+ * res/stasis_json/resource_endpoints.c
  *
- * Asterisk resources
+ * Endpoint resources
  *
  * \author David M. Lee, II <dlee@digium.com>
  */
@@ -34,23 +34,15 @@
  * template in rest-api-templates/stasis_http_resource.h.mustache
  */
 
-#ifndef _ASTERISK_RESOURCE_ASTERISK_H
-#define _ASTERISK_RESOURCE_ASTERISK_H
+#ifndef _ASTERISK_RESOURCE_ENDPOINTS_H
+#define _ASTERISK_RESOURCE_ENDPOINTS_H
 
-#include "asterisk/stasis_http.h"
-
-/*! \brief Argument struct for stasis_http_get_asterisk_info() */
-struct ast_get_asterisk_info_args {
-	/*! \brief Filter information returned */
-	const char *only;
-};
-/*!
- * \brief Gets Asterisk system information.
+/*
+ * JSON models
  *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
+ * Endpoint
+ * - resource: string (required)
+ * - technology: string (required)
  */
-void stasis_http_get_asterisk_info(struct ast_variable *headers, struct ast_get_asterisk_info_args *args, struct stasis_http_response *response);
 
-#endif /* _ASTERISK_RESOURCE_ASTERISK_H */
+#endif /* _ASTERISK_RESOURCE_ENDPOINTS_H */
