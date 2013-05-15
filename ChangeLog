@@ -1,3 +1,18 @@
+2013-05-15  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.4.0-rc3 Released.
+
+	* Fix VM snapshot handling for combined INBOX.
+
+	  The snapshot API contains an option that allow for combining of new
+	  and old messages within a single snapshot. New messages, however,
+	  include options beyond just 'INBOX' - it also includes the Urgent
+	  folder. A previous patch that combined INBOX and Urgent accidentally
+	  impacted snapshots that attempted to gain messages from just the Old
+	  folder. This patch fixes the snapshot gathering such that the API
+	  returns the appropriate messages for the folder selected, with and
+	  without the combine option.
+
 2013-05-09  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.4.0-rc2 Released.
