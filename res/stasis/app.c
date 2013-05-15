@@ -95,10 +95,7 @@ int app_add_channel(struct app *app, const struct ast_channel *chan)
 	ast_assert(app != NULL);
 
 	uniqueid = ast_channel_uniqueid(chan);
-	if (!ast_str_container_add(app->channels, uniqueid)) {
-		return -1;
-	}
-	return 0;
+	return ast_str_container_add(app->channels, uniqueid) ? -1 : 0;
 }
 
 void app_remove_channel(struct app* app, const struct ast_channel *chan)
