@@ -35,7 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/module.h"
 #include "asterisk/stasis_test.h"
 
-static struct stasis_message_type *test_message_type;
+STASIS_MESSAGE_TYPE_DEFN(stasis_test_message_type);
 
 static void stasis_message_sink_dtor(void *obj)
 {
@@ -259,23 +259,15 @@ struct stasis_message *stasis_test_message_create(void)
 	return stasis_message_create(stasis_test_message_type(), data);
 }
 
-struct stasis_message_type *stasis_test_message_type(void)
-{
-	return test_message_type;
-}
-
 static int unload_module(void)
 {
-	ao2_cleanup(test_message_type);
-	test_message_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(stasis_test_message_type);
 	return 0;
 }
 
 static int load_module(void)
 {
-	test_message_type = stasis_message_type_create(
-		"stasis_test_message");
-	if (!test_message_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_test_message_type) != 0) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

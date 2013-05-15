@@ -197,8 +197,9 @@ struct stasis_subscription *devstate_message_sub;
 
 static struct stasis_topic *device_state_topic_all;
 static struct stasis_caching_topic *device_state_topic_cached;
-static struct stasis_message_type *device_state_message_type;
 static struct stasis_topic_pool *device_state_topic_pool;
+
+STASIS_MESSAGE_TYPE_DEFN(ast_device_state_message_type);
 
 /* Forward declarations */
 static int getproviderstate(const char *provider, const char *address);
@@ -723,11 +724,6 @@ struct stasis_caching_topic *ast_device_state_topic_cached(void)
 	return device_state_topic_cached;
 }
 
-struct stasis_message_type *ast_device_state_message_type(void)
-{
-	return device_state_message_type;
-}
-
 struct stasis_topic *ast_device_state_topic(const char *device)
 {
 	return stasis_topic_pool_get_topic(device_state_topic_pool, device);
@@ -781,8 +777,7 @@ static void devstate_exit(void)
 	ao2_cleanup(device_state_topic_all);
 	device_state_topic_all = NULL;
 	device_state_topic_cached = stasis_caching_unsubscribe(device_state_topic_cached);
-	ao2_cleanup(device_state_message_type);
-	device_state_message_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_device_state_message_type);
 	ao2_cleanup(device_state_topic_pool);
 	device_state_topic_pool = NULL;
 }
@@ -797,8 +792,7 @@ int devstate_init(void)
 	if (!device_state_topic_cached) {
 		return -1;
 	}
-	device_state_message_type = stasis_message_type_create("ast_device_state_message");
-	if (!device_state_message_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(ast_device_state_message_type) != 0) {
 		return -1;
 	}
 	device_state_topic_pool = stasis_topic_pool_create(ast_device_state_topic_all());

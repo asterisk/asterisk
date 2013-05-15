@@ -84,8 +84,9 @@ static AST_LIST_HEAD_STATIC(zombies, zombie);
 
 static struct stasis_topic *mwi_topic_all;
 static struct stasis_caching_topic *mwi_topic_cached;
-static struct stasis_message_type *mwi_state_type;
 static struct stasis_topic_pool *mwi_topic_pool;
+
+STASIS_MESSAGE_TYPE_DEFN(stasis_mwi_state_type);
 
 static void *shaun_of_the_dead(void *data)
 {
@@ -2659,11 +2660,6 @@ struct stasis_caching_topic *stasis_mwi_topic_cached(void)
 	return mwi_topic_cached;
 }
 
-struct stasis_message_type *stasis_mwi_state_type(void)
-{
-	return mwi_state_type;
-}
-
 struct stasis_topic *stasis_mwi_topic(const char *uniqueid)
 {
 	return stasis_topic_pool_get_topic(mwi_topic_pool, uniqueid);
@@ -2732,8 +2728,7 @@ static void app_exit(void)
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
 	mwi_topic_cached = stasis_caching_unsubscribe(mwi_topic_cached);
-	ao2_cleanup(mwi_state_type);
-	mwi_state_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(stasis_mwi_state_type);
 	ao2_cleanup(mwi_topic_pool);
 	mwi_topic_pool = NULL;
 }
@@ -2748,8 +2743,7 @@ int app_init(void)
 	if (!mwi_topic_cached) {
 		return -1;
 	}
-	mwi_state_type = stasis_message_type_create("stasis_mwi_state");
-	if (!mwi_state_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_mwi_state_type) != 0) {
 		return -1;
 	}
 	mwi_topic_pool = stasis_topic_pool_create(mwi_topic_all);

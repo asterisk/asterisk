@@ -53,7 +53,7 @@ static const struct {
 	{ "dnd", AST_PRESENCE_DND},
 };
 
-struct stasis_message_type *presence_state_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_presence_state_message_type);
 struct stasis_topic *presence_state_topic_all;
 struct stasis_caching_topic *presence_state_topic_cached;
 
@@ -289,11 +289,6 @@ int ast_presence_state_changed(enum ast_presence_state state,
 	return ast_presence_state_changed_literal(state, subtype, message, buf);
 }
 
-struct stasis_message_type *ast_presence_state_message_type(void)
-{
-	return presence_state_type;
-}
-
 struct stasis_topic *ast_presence_state_topic_all(void)
 {
 	return presence_state_topic_all;
@@ -321,14 +316,12 @@ static void presence_state_engine_cleanup(void)
 	presence_state_topic_all = NULL;
 	ao2_cleanup(presence_state_topic_cached);
 	presence_state_topic_cached = NULL;
-	ao2_cleanup(presence_state_type);
-	presence_state_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_presence_state_message_type);
 }
 
 int ast_presence_state_engine_init(void)
 {
-	presence_state_type = stasis_message_type_create("ast_presence_state_message");
-	if (!presence_state_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(ast_presence_state_message_type) != 0) {
 		return -1;
 	}
 

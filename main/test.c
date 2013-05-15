@@ -57,7 +57,7 @@ struct stasis_topic *test_suite_topic;
 /*! \since 12
  * \brief The message type for test suite messages
  */
-static struct stasis_message_type *test_suite_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_test_suite_message_type);
 
 /*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
@@ -927,11 +927,6 @@ struct stasis_topic *ast_test_suite_topic(void)
 	return test_suite_topic;
 }
 
-struct stasis_message_type *ast_test_suite_message_type(void)
-{
-	return test_suite_type;
-}
-
 /*!
  * \since 12
  * \brief A wrapper object that can be ao2 ref counted around an \ref ast_json blob
@@ -1002,8 +997,7 @@ static void test_cleanup(void)
 {
 	ao2_cleanup(test_suite_topic);
 	test_suite_topic = NULL;
-	ao2_cleanup(test_suite_type);
-	test_suite_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_test_suite_message_type);
 }
 
 #endif
@@ -1013,10 +1007,14 @@ int ast_test_init(void)
 #ifdef TEST_FRAMEWORK
 	/* Create stasis topic */
 	test_suite_topic = stasis_topic_create("test_suite_topic");
-	test_suite_type = stasis_message_type_create("test_suite_type");
-	if (!test_suite_topic || !test_suite_type) {
+	if (!test_suite_topic) {
 		return -1;
 	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_test_suite_message_type) != 0) {
+		return -1;
+	}
+
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
 	ast_register_atexit(test_cleanup);

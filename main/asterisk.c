@@ -415,7 +415,7 @@ static struct {
 static struct stasis_topic *system_topic;
 
 /*!\ brief The \ref stasis_message_type for network changes */
-static struct stasis_message_type *network_change_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_network_change_type);
 
 #if !defined(LOW_MEMORY)
 struct file_version {
@@ -1063,18 +1063,12 @@ struct stasis_topic *ast_system_topic(void)
 	return system_topic;
 }
 
-struct stasis_message_type *ast_network_change_type(void)
-{
-	return network_change_type;
-}
-
 /*! \brief Cleanup the \ref stasis system level items */
 static void stasis_system_topic_cleanup(void)
 {
 	ao2_ref(system_topic, -1);
 	system_topic = NULL;
-	ao2_ref(network_change_type, -1);
-	network_change_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_network_change_type);
 }
 
 /*! \brief Initialize the system level items for \ref stasis */
@@ -1087,8 +1081,7 @@ static int stasis_system_topic_init(void)
 		return 1;
 	}
 
-	network_change_type = stasis_message_type_create("network_change");
-	if (!network_change_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(ast_network_change_type) != 0) {
 		return -1;
 	}
 	return 0;

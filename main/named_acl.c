@@ -360,7 +360,14 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
 static struct stasis_topic *acl_topic;
 
 /*! \brief Message type for named ACL changes */
-static struct stasis_message_type *named_acl_change_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_named_acl_change_type);
+
+static void acl_stasis_shutdown(void)
+{
+	ao2_cleanup(acl_topic);
+	acl_topic = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
+}
 
 /*!
  * \internal
@@ -368,18 +375,14 @@ static struct stasis_message_type *named_acl_change_type;
  */
 static void ast_acl_stasis_init(void)
 {
+	ast_register_atexit(acl_stasis_shutdown);
 	acl_topic = stasis_topic_create("ast_acl");
-	named_acl_change_type = stasis_message_type_create("ast_named_acl_change");
+	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
 }
 
 struct stasis_topic *ast_acl_topic(void)
 {
 	return acl_topic;
-}
-
-struct stasis_message_type *ast_named_acl_change_type(void)
-{
-	return named_acl_change_type;
 }
 
 /*!

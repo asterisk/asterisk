@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Threadpool for dispatching notifications to subscribers */
 static struct ast_threadpool *pool;
 
-static struct stasis_message_type *__subscription_change_message_type;
+STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 
 /*! \internal */
 struct stasis_topic {
@@ -438,11 +438,6 @@ static struct stasis_subscription_change *subscription_change_alloc(struct stasi
 	return change;
 }
 
-struct stasis_message_type *stasis_subscription_change_type(void)
-{
-	return __subscription_change_message_type;
-}
-
 static void send_subscription_change_message(struct stasis_topic *topic, char *uniqueid, char *description)
 {
 	RAII_VAR(struct stasis_subscription_change *, change, NULL, ao2_cleanup);
@@ -556,10 +551,9 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 /*! \brief Cleanup function */
 static void stasis_exit(void)
 {
-	ao2_cleanup(__subscription_change_message_type);
-	__subscription_change_message_type = NULL;
 	ast_threadpool_shutdown(pool);
 	pool = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 }
 
 int stasis_init(void)
@@ -593,8 +587,7 @@ int stasis_init(void)
 		return -1;
 	}
 
-	__subscription_change_message_type = stasis_message_type_create("stasis_subscription_change");
-	if (!__subscription_change_message_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_subscription_change_type) != 0) {
 		return -1;
 	}
 

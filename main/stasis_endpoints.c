@@ -35,16 +35,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
 
-static struct stasis_message_type *endpoint_snapshot_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_endpoint_snapshot_type);
 
 static struct stasis_topic *endpoint_topic_all;
 
 static struct stasis_caching_topic *endpoint_topic_all_cached;
-
-struct stasis_message_type *ast_endpoint_snapshot_type(void)
-{
-	return endpoint_snapshot_type;
-}
 
 struct stasis_topic *ast_endpoint_topic_all(void)
 {
@@ -176,12 +171,7 @@ int ast_endpoint_stasis_init(void)
 		return -1;
 	}
 
-	if (!endpoint_snapshot_type) {
-		endpoint_snapshot_type = stasis_message_type_create(
-			"ast_endpoint_snapshot");
-	}
-
-	if (!endpoint_snapshot_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_snapshot_type) != 0) {
 		return -1;
 	}
 

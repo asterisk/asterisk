@@ -565,10 +565,17 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
  */
 #define STASIS_MESSAGE_TYPE_INIT(name)					\
 	({								\
+		ast_assert(_priv_ ## name == NULL);			\
 		_priv_ ## name = stasis_message_type_create(#name);	\
 			_priv_ ## name ? 0 : -1;			\
 	})
 
+/*!
+ * \brief Boiler-plate removing macro for cleaning up message types.
+ *
+ * \param name Name of message type.
+ * \since 12
+ */
 #define STASIS_MESSAGE_TYPE_CLEANUP(name)	\
 	({					\
 		ao2_cleanup(_priv_ ## name);	\

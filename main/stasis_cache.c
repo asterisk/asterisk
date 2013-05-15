@@ -240,21 +240,8 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 	return cache_dump.cached;
 }
 
-static struct stasis_message_type *cache_clear_type;
-
-struct stasis_message_type *stasis_cache_clear_type(void)
-{
-	ast_assert(cache_clear_type != NULL);
-	return cache_clear_type;
-}
-
-static struct stasis_message_type *cache_update_type;
-
-struct stasis_message_type *stasis_cache_update_type(void)
-{
-	ast_assert(cache_update_type != NULL);
-	return cache_update_type;
-}
+STASIS_MESSAGE_TYPE_DEFN(stasis_cache_clear_type);
+STASIS_MESSAGE_TYPE_DEFN(stasis_cache_update_type);
 
 static void cache_clear_dtor(void *obj)
 {
@@ -442,30 +429,22 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 
 static void stasis_cache_exit(void)
 {
-	ao2_cleanup(cache_clear_type);
-	cache_clear_type = NULL;
-	ao2_cleanup(cache_update_type);
-	cache_update_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_clear_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_update_type);
 }
 
 int stasis_cache_init(void)
 {
 	ast_register_atexit(stasis_cache_exit);
 
-	if (cache_clear_type || cache_update_type) {
-		ast_log(LOG_ERROR, "Stasis cache double initialized\n");
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_cache_clear_type) != 0) {
 		return -1;
 	}
 
-	cache_update_type = stasis_message_type_create("stasis_cache_update");
-	if (!cache_update_type) {
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_cache_update_type) != 0) {
 		return -1;
 	}
 
-	cache_clear_type = stasis_message_type_create("StasisCacheClear");
-	if (!cache_clear_type) {
-		return -1;
-	}
 	return 0;
 }
 
