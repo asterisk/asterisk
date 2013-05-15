@@ -745,7 +745,7 @@ int __ast_rwlock_destroy(const char *filename, int lineno, const char *func, con
 		__ast_mutex_logger("%s line %d (%s): Error destroying rwlock %s: %s\n",
 				filename, lineno, func, rwlock_name, strerror(res));
 	}
-	if (t->tracking) {
+	if (t->tracking && lt) {
 		ast_reentrancy_lock(lt);
 		lt->file[0] = filename;
 		lt->lineno[0] = lineno;
