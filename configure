@@ -742,6 +742,10 @@ PBX_OPENSSL
 OPENSSL_DIR
 OPENSSL_INCLUDE
 OPENSSL_LIB
+PBX_SRTP_SHUTDOWN
+SRTP_SHUTDOWN_DIR
+SRTP_SHUTDOWN_INCLUDE
+SRTP_SHUTDOWN_LIB
 PBX_SRTP
 SRTP_DIR
 SRTP_INCLUDE
@@ -11187,6 +11191,18 @@ fi
 
 
 
+SRTP_SHUTDOWN_DESCRIP="SRTP Library Shutdown Function"
+SRTP_SHUTDOWN_OPTION=srtp
+SRTP_SHUTDOWN_DIR=${SRTP_DIR}
+
+PBX_SRTP_SHUTDOWN=0
+
+
+
+
+
+
+
     OPENSSL_DESCRIP="OpenSSL Secure Sockets Layer"
     OPENSSL_OPTION="ssl"
     PBX_OPENSSL=0
@@ -12103,9 +12119,9 @@ if test "x${PBX_TERMCAP}" != "x1" -a "${USE_TERMCAP}" != "no"; then
    # if --with-TERMCAP=DIR has been specified, use it.
    if test "x${TERMCAP_DIR}" != "x"; then
       if test -d ${TERMCAP_DIR}/lib; then
-      	 pbxlibdir="-L${TERMCAP_DIR}/lib"
+         pbxlibdir="-L${TERMCAP_DIR}/lib"
       else
-      	 pbxlibdir="-L${TERMCAP_DIR}"
+         pbxlibdir="-L${TERMCAP_DIR}"
       fi
    fi
    pbxfuncname="tgetent"
@@ -12207,9 +12223,9 @@ if test "x${PBX_TINFO}" != "x1" -a "${USE_TINFO}" != "no"; then
    # if --with-TINFO=DIR has been specified, use it.
    if test "x${TINFO_DIR}" != "x"; then
       if test -d ${TINFO_DIR}/lib; then
-      	 pbxlibdir="-L${TINFO_DIR}/lib"
+         pbxlibdir="-L${TINFO_DIR}/lib"
       else
-      	 pbxlibdir="-L${TINFO_DIR}"
+         pbxlibdir="-L${TINFO_DIR}"
       fi
    fi
    pbxfuncname="tgetent"
@@ -12311,9 +12327,9 @@ if test "x${PBX_CURSES}" != "x1" -a "${USE_CURSES}" != "no"; then
    # if --with-CURSES=DIR has been specified, use it.
    if test "x${CURSES_DIR}" != "x"; then
       if test -d ${CURSES_DIR}/lib; then
-      	 pbxlibdir="-L${CURSES_DIR}/lib"
+         pbxlibdir="-L${CURSES_DIR}/lib"
       else
-      	 pbxlibdir="-L${CURSES_DIR}"
+         pbxlibdir="-L${CURSES_DIR}"
       fi
    fi
    pbxfuncname="initscr"
@@ -12415,9 +12431,9 @@ if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
    # if --with-NCURSES=DIR has been specified, use it.
    if test "x${NCURSES_DIR}" != "x"; then
       if test -d ${NCURSES_DIR}/lib; then
-      	 pbxlibdir="-L${NCURSES_DIR}/lib"
+         pbxlibdir="-L${NCURSES_DIR}/lib"
       else
-      	 pbxlibdir="-L${NCURSES_DIR}"
+         pbxlibdir="-L${NCURSES_DIR}"
       fi
    fi
    pbxfuncname="initscr"
@@ -17571,9 +17587,9 @@ if test "x${PBX_ALSA}" != "x1" -a "${USE_ALSA}" != "no"; then
    # if --with-ALSA=DIR has been specified, use it.
    if test "x${ALSA_DIR}" != "x"; then
       if test -d ${ALSA_DIR}/lib; then
-      	 pbxlibdir="-L${ALSA_DIR}/lib"
+         pbxlibdir="-L${ALSA_DIR}/lib"
       else
-      	 pbxlibdir="-L${ALSA_DIR}"
+         pbxlibdir="-L${ALSA_DIR}"
       fi
    fi
    pbxfuncname="snd_spcm_init"
@@ -17676,9 +17692,9 @@ if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
    # if --with-BFD=DIR has been specified, use it.
    if test "x${BFD_DIR}" != "x"; then
       if test -d ${BFD_DIR}/lib; then
-      	 pbxlibdir="-L${BFD_DIR}/lib"
+         pbxlibdir="-L${BFD_DIR}/lib"
       else
-      	 pbxlibdir="-L${BFD_DIR}"
+         pbxlibdir="-L${BFD_DIR}"
       fi
    fi
    pbxfuncname="bfd_openr"
@@ -17783,9 +17799,9 @@ if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
    # if --with-BFD=DIR has been specified, use it.
    if test "x${BFD_DIR}" != "x"; then
       if test -d ${BFD_DIR}/lib; then
-      	 pbxlibdir="-L${BFD_DIR}/lib"
+         pbxlibdir="-L${BFD_DIR}/lib"
       else
-      	 pbxlibdir="-L${BFD_DIR}"
+         pbxlibdir="-L${BFD_DIR}"
       fi
    fi
    pbxfuncname="bfd_check_format"
@@ -17890,9 +17906,9 @@ if test "x${PBX_CAP}" != "x1" -a "${USE_CAP}" != "no"; then
    # if --with-CAP=DIR has been specified, use it.
    if test "x${CAP_DIR}" != "x"; then
       if test -d ${CAP_DIR}/lib; then
-      	 pbxlibdir="-L${CAP_DIR}/lib"
+         pbxlibdir="-L${CAP_DIR}/lib"
       else
-      	 pbxlibdir="-L${CAP_DIR}"
+         pbxlibdir="-L${CAP_DIR}"
       fi
    fi
    pbxfuncname="cap_from_text"
@@ -18525,9 +18541,9 @@ if test "x${PBX_ICONV}" != "x1" -a "${USE_ICONV}" != "no"; then
    # if --with-ICONV=DIR has been specified, use it.
    if test "x${ICONV_DIR}" != "x"; then
       if test -d ${ICONV_DIR}/lib; then
-      	 pbxlibdir="-L${ICONV_DIR}/lib"
+         pbxlibdir="-L${ICONV_DIR}/lib"
       else
-      	 pbxlibdir="-L${ICONV_DIR}"
+         pbxlibdir="-L${ICONV_DIR}"
       fi
    fi
    pbxfuncname="iconv_open"
@@ -18630,9 +18646,9 @@ if test "x${PBX_ICONV}" != "x1" -a "${USE_ICONV}" != "no"; then
    # if --with-ICONV=DIR has been specified, use it.
    if test "x${ICONV_DIR}" != "x"; then
       if test -d ${ICONV_DIR}/lib; then
-      	 pbxlibdir="-L${ICONV_DIR}/lib"
+         pbxlibdir="-L${ICONV_DIR}/lib"
       else
-      	 pbxlibdir="-L${ICONV_DIR}"
+         pbxlibdir="-L${ICONV_DIR}"
       fi
    fi
    pbxfuncname="libiconv_open"
@@ -18735,9 +18751,9 @@ if test "x${PBX_ICONV}" != "x1" -a "${USE_ICONV}" != "no"; then
    # if --with-ICONV=DIR has been specified, use it.
    if test "x${ICONV_DIR}" != "x"; then
       if test -d ${ICONV_DIR}/lib; then
-      	 pbxlibdir="-L${ICONV_DIR}/lib"
+         pbxlibdir="-L${ICONV_DIR}/lib"
       else
-      	 pbxlibdir="-L${ICONV_DIR}"
+         pbxlibdir="-L${ICONV_DIR}"
       fi
    fi
    pbxfuncname="iconv_close"
@@ -18841,9 +18857,9 @@ if test "x${PBX_ICAL}" != "x1" -a "${USE_ICAL}" != "no"; then
    # if --with-ICAL=DIR has been specified, use it.
    if test "x${ICAL_DIR}" != "x"; then
       if test -d ${ICAL_DIR}/lib; then
-      	 pbxlibdir="-L${ICAL_DIR}/lib"
+         pbxlibdir="-L${ICAL_DIR}/lib"
       else
-      	 pbxlibdir="-L${ICAL_DIR}"
+         pbxlibdir="-L${ICAL_DIR}"
       fi
    fi
    pbxfuncname="icaltimezone_get_utc_timezone"
@@ -18946,9 +18962,9 @@ if test "x${PBX_IKSEMEL}" != "x1" -a "${USE_IKSEMEL}" != "no"; then
    # if --with-IKSEMEL=DIR has been specified, use it.
    if test "x${IKSEMEL_DIR}" != "x"; then
       if test -d ${IKSEMEL_DIR}/lib; then
-      	 pbxlibdir="-L${IKSEMEL_DIR}/lib"
+         pbxlibdir="-L${IKSEMEL_DIR}/lib"
       else
-      	 pbxlibdir="-L${IKSEMEL_DIR}"
+         pbxlibdir="-L${IKSEMEL_DIR}"
       fi
    fi
    pbxfuncname="iks_start_sasl"
@@ -19679,9 +19695,9 @@ if test "x${PBX_IODBC}" != "x1" -a "${USE_IODBC}" != "no"; then
    # if --with-IODBC=DIR has been specified, use it.
    if test "x${IODBC_DIR}" != "x"; then
       if test -d ${IODBC_DIR}/lib; then
-      	 pbxlibdir="-L${IODBC_DIR}/lib"
+         pbxlibdir="-L${IODBC_DIR}/lib"
       else
-      	 pbxlibdir="-L${IODBC_DIR}"
+         pbxlibdir="-L${IODBC_DIR}"
       fi
    fi
    pbxfuncname="SQLConnect"
@@ -19784,9 +19800,9 @@ if test "x${PBX_INOTIFY}" != "x1" -a "${USE_INOTIFY}" != "no"; then
    # if --with-INOTIFY=DIR has been specified, use it.
    if test "x${INOTIFY_DIR}" != "x"; then
       if test -d ${INOTIFY_DIR}/lib; then
-      	 pbxlibdir="-L${INOTIFY_DIR}/lib"
+         pbxlibdir="-L${INOTIFY_DIR}/lib"
       else
-      	 pbxlibdir="-L${INOTIFY_DIR}"
+         pbxlibdir="-L${INOTIFY_DIR}"
       fi
    fi
    pbxfuncname="inotify_init"
@@ -19889,9 +19905,9 @@ if test "x${PBX_JACK}" != "x1" -a "${USE_JACK}" != "no"; then
    # if --with-JACK=DIR has been specified, use it.
    if test "x${JACK_DIR}" != "x"; then
       if test -d ${JACK_DIR}/lib; then
-      	 pbxlibdir="-L${JACK_DIR}/lib"
+         pbxlibdir="-L${JACK_DIR}/lib"
       else
-      	 pbxlibdir="-L${JACK_DIR}"
+         pbxlibdir="-L${JACK_DIR}"
       fi
    fi
    pbxfuncname="jack_activate"
@@ -19995,9 +20011,9 @@ if test "x${PBX_KQUEUE}" != "x1" -a "${USE_KQUEUE}" != "no"; then
    # if --with-KQUEUE=DIR has been specified, use it.
    if test "x${KQUEUE_DIR}" != "x"; then
       if test -d ${KQUEUE_DIR}/lib; then
-      	 pbxlibdir="-L${KQUEUE_DIR}/lib"
+         pbxlibdir="-L${KQUEUE_DIR}/lib"
       else
-      	 pbxlibdir="-L${KQUEUE_DIR}"
+         pbxlibdir="-L${KQUEUE_DIR}"
       fi
    fi
    pbxfuncname="kqueue"
@@ -20114,9 +20130,9 @@ if test "x${PBX_LTDL}" != "x1" -a "${USE_LTDL}" != "no"; then
    # if --with-LTDL=DIR has been specified, use it.
    if test "x${LTDL_DIR}" != "x"; then
       if test -d ${LTDL_DIR}/lib; then
-      	 pbxlibdir="-L${LTDL_DIR}/lib"
+         pbxlibdir="-L${LTDL_DIR}/lib"
       else
-      	 pbxlibdir="-L${LTDL_DIR}"
+         pbxlibdir="-L${LTDL_DIR}"
       fi
    fi
    pbxfuncname="lt_dlinit"
@@ -20219,9 +20235,9 @@ if test "x${PBX_LDAP}" != "x1" -a "${USE_LDAP}" != "no"; then
    # if --with-LDAP=DIR has been specified, use it.
    if test "x${LDAP_DIR}" != "x"; then
       if test -d ${LDAP_DIR}/lib; then
-      	 pbxlibdir="-L${LDAP_DIR}/lib"
+         pbxlibdir="-L${LDAP_DIR}/lib"
       else
-      	 pbxlibdir="-L${LDAP_DIR}"
+         pbxlibdir="-L${LDAP_DIR}"
       fi
    fi
    pbxfuncname="ldap_initialize"
@@ -20324,9 +20340,9 @@ if test "x${PBX_MISDN}" != "x1" -a "${USE_MISDN}" != "no"; then
    # if --with-MISDN=DIR has been specified, use it.
    if test "x${MISDN_DIR}" != "x"; then
       if test -d ${MISDN_DIR}/lib; then
-      	 pbxlibdir="-L${MISDN_DIR}/lib"
+         pbxlibdir="-L${MISDN_DIR}/lib"
       else
-      	 pbxlibdir="-L${MISDN_DIR}"
+         pbxlibdir="-L${MISDN_DIR}"
       fi
    fi
    pbxfuncname="mISDN_open"
@@ -20430,9 +20446,9 @@ if test "x${PBX_ISDNNET}" != "x1" -a "${USE_ISDNNET}" != "no"; then
    # if --with-ISDNNET=DIR has been specified, use it.
    if test "x${ISDNNET_DIR}" != "x"; then
       if test -d ${ISDNNET_DIR}/lib; then
-      	 pbxlibdir="-L${ISDNNET_DIR}/lib"
+         pbxlibdir="-L${ISDNNET_DIR}/lib"
       else
-      	 pbxlibdir="-L${ISDNNET_DIR}"
+         pbxlibdir="-L${ISDNNET_DIR}"
       fi
    fi
    pbxfuncname="init_manager"
@@ -20534,9 +20550,9 @@ if test "x${PBX_SUPPSERV}" != "x1" -a "${USE_SUPPSERV}" != "no"; then
    # if --with-SUPPSERV=DIR has been specified, use it.
    if test "x${SUPPSERV_DIR}" != "x"; then
       if test -d ${SUPPSERV_DIR}/lib; then
-      	 pbxlibdir="-L${SUPPSERV_DIR}/lib"
+         pbxlibdir="-L${SUPPSERV_DIR}/lib"
       else
-      	 pbxlibdir="-L${SUPPSERV_DIR}"
+         pbxlibdir="-L${SUPPSERV_DIR}"
       fi
    fi
    pbxfuncname="encodeFac"
@@ -20901,9 +20917,9 @@ if test "x${PBX_NBS}" != "x1" -a "${USE_NBS}" != "no"; then
    # if --with-NBS=DIR has been specified, use it.
    if test "x${NBS_DIR}" != "x"; then
       if test -d ${NBS_DIR}/lib; then
-      	 pbxlibdir="-L${NBS_DIR}/lib"
+         pbxlibdir="-L${NBS_DIR}/lib"
       else
-      	 pbxlibdir="-L${NBS_DIR}"
+         pbxlibdir="-L${NBS_DIR}"
       fi
    fi
    pbxfuncname="nbs_connect"
@@ -21465,9 +21481,9 @@ if test "x${PBX_NEWT}" != "x1" -a "${USE_NEWT}" != "no"; then
    # if --with-NEWT=DIR has been specified, use it.
    if test "x${NEWT_DIR}" != "x"; then
       if test -d ${NEWT_DIR}/lib; then
-      	 pbxlibdir="-L${NEWT_DIR}/lib"
+         pbxlibdir="-L${NEWT_DIR}/lib"
       else
-      	 pbxlibdir="-L${NEWT_DIR}"
+         pbxlibdir="-L${NEWT_DIR}"
       fi
    fi
    pbxfuncname="newtBell"
@@ -21570,9 +21586,9 @@ if test "x${PBX_UNIXODBC}" != "x1" -a "${USE_UNIXODBC}" != "no"; then
    # if --with-UNIXODBC=DIR has been specified, use it.
    if test "x${UNIXODBC_DIR}" != "x"; then
       if test -d ${UNIXODBC_DIR}/lib; then
-      	 pbxlibdir="-L${UNIXODBC_DIR}/lib"
+         pbxlibdir="-L${UNIXODBC_DIR}/lib"
       else
-      	 pbxlibdir="-L${UNIXODBC_DIR}"
+         pbxlibdir="-L${UNIXODBC_DIR}"
       fi
    fi
    pbxfuncname="SQLConnect"
@@ -21675,9 +21691,9 @@ if test "x${PBX_OGG}" != "x1" -a "${USE_OGG}" != "no"; then
    # if --with-OGG=DIR has been specified, use it.
    if test "x${OGG_DIR}" != "x"; then
       if test -d ${OGG_DIR}/lib; then
-      	 pbxlibdir="-L${OGG_DIR}/lib"
+         pbxlibdir="-L${OGG_DIR}/lib"
       else
-      	 pbxlibdir="-L${OGG_DIR}"
+         pbxlibdir="-L${OGG_DIR}"
       fi
    fi
    pbxfuncname="ogg_sync_init"
@@ -21781,9 +21797,9 @@ if test "x${PBX_BKTR}" != "x1" -a "${USE_BKTR}" != "no"; then
    # if --with-BKTR=DIR has been specified, use it.
    if test "x${BKTR_DIR}" != "x"; then
       if test -d ${BKTR_DIR}/lib; then
-      	 pbxlibdir="-L${BKTR_DIR}/lib"
+         pbxlibdir="-L${BKTR_DIR}/lib"
       else
-      	 pbxlibdir="-L${BKTR_DIR}"
+         pbxlibdir="-L${BKTR_DIR}"
       fi
    fi
    pbxfuncname="backtrace"
@@ -21886,9 +21902,9 @@ if test "x${PBX_BKTR}" != "x1" -a "${USE_BKTR}" != "no"; then
    # if --with-BKTR=DIR has been specified, use it.
    if test "x${BKTR_DIR}" != "x"; then
       if test -d ${BKTR_DIR}/lib; then
-      	 pbxlibdir="-L${BKTR_DIR}/lib"
+         pbxlibdir="-L${BKTR_DIR}/lib"
       else
-      	 pbxlibdir="-L${BKTR_DIR}"
+         pbxlibdir="-L${BKTR_DIR}"
       fi
    fi
    pbxfuncname="backtrace"
@@ -21991,9 +22007,9 @@ if test "x${PBX_BLUETOOTH}" != "x1" -a "${USE_BLUETOOTH}" != "no"; then
    # if --with-BLUETOOTH=DIR has been specified, use it.
    if test "x${BLUETOOTH_DIR}" != "x"; then
       if test -d ${BLUETOOTH_DIR}/lib; then
-      	 pbxlibdir="-L${BLUETOOTH_DIR}/lib"
+         pbxlibdir="-L${BLUETOOTH_DIR}/lib"
       else
-      	 pbxlibdir="-L${BLUETOOTH_DIR}"
+         pbxlibdir="-L${BLUETOOTH_DIR}"
       fi
    fi
    pbxfuncname="ba2str"
@@ -22097,9 +22113,9 @@ if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
    # if --with-OSS=DIR has been specified, use it.
    if test "x${OSS_DIR}" != "x"; then
       if test -d ${OSS_DIR}/lib; then
-      	 pbxlibdir="-L${OSS_DIR}/lib"
+         pbxlibdir="-L${OSS_DIR}/lib"
       else
-      	 pbxlibdir="-L${OSS_DIR}"
+         pbxlibdir="-L${OSS_DIR}"
       fi
    fi
    pbxfuncname=""
@@ -22201,9 +22217,9 @@ if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
    # if --with-OSS=DIR has been specified, use it.
    if test "x${OSS_DIR}" != "x"; then
       if test -d ${OSS_DIR}/lib; then
-      	 pbxlibdir="-L${OSS_DIR}/lib"
+         pbxlibdir="-L${OSS_DIR}/lib"
       else
-      	 pbxlibdir="-L${OSS_DIR}"
+         pbxlibdir="-L${OSS_DIR}"
       fi
    fi
    pbxfuncname=""
@@ -22305,9 +22321,9 @@ if test "x${PBX_OSS}" != "x1" -a "${USE_OSS}" != "no"; then
    # if --with-OSS=DIR has been specified, use it.
    if test "x${OSS_DIR}" != "x"; then
       if test -d ${OSS_DIR}/lib; then
-      	 pbxlibdir="-L${OSS_DIR}/lib"
+         pbxlibdir="-L${OSS_DIR}/lib"
       else
-      	 pbxlibdir="-L${OSS_DIR}"
+         pbxlibdir="-L${OSS_DIR}"
       fi
    fi
    pbxfuncname="oss_ioctl_mixer"
@@ -22739,9 +22755,9 @@ if test "x${PBX_POPT}" != "x1" -a "${USE_POPT}" != "no"; then
    # if --with-POPT=DIR has been specified, use it.
    if test "x${POPT_DIR}" != "x"; then
       if test -d ${POPT_DIR}/lib; then
-      	 pbxlibdir="-L${POPT_DIR}/lib"
+         pbxlibdir="-L${POPT_DIR}/lib"
       else
-      	 pbxlibdir="-L${POPT_DIR}"
+         pbxlibdir="-L${POPT_DIR}"
       fi
    fi
    pbxfuncname="poptStrerror"
@@ -22844,9 +22860,9 @@ if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
    # if --with-PORTAUDIO=DIR has been specified, use it.
    if test "x${PORTAUDIO_DIR}" != "x"; then
       if test -d ${PORTAUDIO_DIR}/lib; then
-      	 pbxlibdir="-L${PORTAUDIO_DIR}/lib"
+         pbxlibdir="-L${PORTAUDIO_DIR}/lib"
       else
-      	 pbxlibdir="-L${PORTAUDIO_DIR}"
+         pbxlibdir="-L${PORTAUDIO_DIR}"
       fi
    fi
    pbxfuncname="Pa_GetDeviceCount"
@@ -22949,9 +22965,9 @@ if test "x${PBX_PRI}" != "x1" -a "${USE_PRI}" != "no"; then
    # if --with-PRI=DIR has been specified, use it.
    if test "x${PRI_DIR}" != "x"; then
       if test -d ${PRI_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_DIR}/lib"
+         pbxlibdir="-L${PRI_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_DIR}"
+         pbxlibdir="-L${PRI_DIR}"
       fi
    fi
    pbxfuncname="pri_connected_line_update"
@@ -23053,9 +23069,9 @@ if test "x${PBX_PRI_L2_PERSISTENCE}" != "x1" -a "${USE_PRI_L2_PERSISTENCE}" != "
    # if --with-PRI_L2_PERSISTENCE=DIR has been specified, use it.
    if test "x${PRI_L2_PERSISTENCE_DIR}" != "x"; then
       if test -d ${PRI_L2_PERSISTENCE_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_L2_PERSISTENCE_DIR}/lib"
+         pbxlibdir="-L${PRI_L2_PERSISTENCE_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_L2_PERSISTENCE_DIR}"
+         pbxlibdir="-L${PRI_L2_PERSISTENCE_DIR}"
       fi
    fi
    pbxfuncname="pri_persistent_layer2_option"
@@ -23157,9 +23173,9 @@ if test "x${PBX_PRI_MWI}" != "x1" -a "${USE_PRI_MWI}" != "no"; then
    # if --with-PRI_MWI=DIR has been specified, use it.
    if test "x${PRI_MWI_DIR}" != "x"; then
       if test -d ${PRI_MWI_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_MWI_DIR}/lib"
+         pbxlibdir="-L${PRI_MWI_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_MWI_DIR}"
+         pbxlibdir="-L${PRI_MWI_DIR}"
       fi
    fi
    pbxfuncname="pri_mwi_indicate"
@@ -23261,9 +23277,9 @@ if test "x${PBX_PRI_MCID}" != "x1" -a "${USE_PRI_MCID}" != "no"; then
    # if --with-PRI_MCID=DIR has been specified, use it.
    if test "x${PRI_MCID_DIR}" != "x"; then
       if test -d ${PRI_MCID_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_MCID_DIR}/lib"
+         pbxlibdir="-L${PRI_MCID_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_MCID_DIR}"
+         pbxlibdir="-L${PRI_MCID_DIR}"
       fi
    fi
    pbxfuncname="pri_mcid_enable"
@@ -23365,9 +23381,9 @@ if test "x${PBX_PRI_CALL_WAITING}" != "x1" -a "${USE_PRI_CALL_WAITING}" != "no";
    # if --with-PRI_CALL_WAITING=DIR has been specified, use it.
    if test "x${PRI_CALL_WAITING_DIR}" != "x"; then
       if test -d ${PRI_CALL_WAITING_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_CALL_WAITING_DIR}/lib"
+         pbxlibdir="-L${PRI_CALL_WAITING_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_CALL_WAITING_DIR}"
+         pbxlibdir="-L${PRI_CALL_WAITING_DIR}"
       fi
    fi
    pbxfuncname="pri_connect_ack_enable"
@@ -23469,9 +23485,9 @@ if test "x${PBX_PRI_AOC_EVENTS}" != "x1" -a "${USE_PRI_AOC_EVENTS}" != "no"; the
    # if --with-PRI_AOC_EVENTS=DIR has been specified, use it.
    if test "x${PRI_AOC_EVENTS_DIR}" != "x"; then
       if test -d ${PRI_AOC_EVENTS_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_AOC_EVENTS_DIR}/lib"
+         pbxlibdir="-L${PRI_AOC_EVENTS_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_AOC_EVENTS_DIR}"
+         pbxlibdir="-L${PRI_AOC_EVENTS_DIR}"
       fi
    fi
    pbxfuncname="pri_aoc_events_enable"
@@ -23573,9 +23589,9 @@ if test "x${PBX_PRI_TRANSFER}" != "x1" -a "${USE_PRI_TRANSFER}" != "no"; then
    # if --with-PRI_TRANSFER=DIR has been specified, use it.
    if test "x${PRI_TRANSFER_DIR}" != "x"; then
       if test -d ${PRI_TRANSFER_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_TRANSFER_DIR}/lib"
+         pbxlibdir="-L${PRI_TRANSFER_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_TRANSFER_DIR}"
+         pbxlibdir="-L${PRI_TRANSFER_DIR}"
       fi
    fi
    pbxfuncname="pri_transfer_enable"
@@ -23677,9 +23693,9 @@ if test "x${PBX_PRI_CCSS}" != "x1" -a "${USE_PRI_CCSS}" != "no"; then
    # if --with-PRI_CCSS=DIR has been specified, use it.
    if test "x${PRI_CCSS_DIR}" != "x"; then
       if test -d ${PRI_CCSS_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_CCSS_DIR}/lib"
+         pbxlibdir="-L${PRI_CCSS_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_CCSS_DIR}"
+         pbxlibdir="-L${PRI_CCSS_DIR}"
       fi
    fi
    pbxfuncname="pri_cc_enable"
@@ -23781,9 +23797,9 @@ if test "x${PBX_PRI_HANGUP_FIX}" != "x1" -a "${USE_PRI_HANGUP_FIX}" != "no"; the
    # if --with-PRI_HANGUP_FIX=DIR has been specified, use it.
    if test "x${PRI_HANGUP_FIX_DIR}" != "x"; then
       if test -d ${PRI_HANGUP_FIX_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_HANGUP_FIX_DIR}/lib"
+         pbxlibdir="-L${PRI_HANGUP_FIX_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_HANGUP_FIX_DIR}"
+         pbxlibdir="-L${PRI_HANGUP_FIX_DIR}"
       fi
    fi
    pbxfuncname="pri_hangup_fix_enable"
@@ -23885,9 +23901,9 @@ if test "x${PBX_PRI_SUBADDR}" != "x1" -a "${USE_PRI_SUBADDR}" != "no"; then
    # if --with-PRI_SUBADDR=DIR has been specified, use it.
    if test "x${PRI_SUBADDR_DIR}" != "x"; then
       if test -d ${PRI_SUBADDR_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_SUBADDR_DIR}/lib"
+         pbxlibdir="-L${PRI_SUBADDR_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_SUBADDR_DIR}"
+         pbxlibdir="-L${PRI_SUBADDR_DIR}"
       fi
    fi
    pbxfuncname="pri_sr_set_called_subaddress"
@@ -23989,9 +24005,9 @@ if test "x${PBX_PRI_CALL_HOLD}" != "x1" -a "${USE_PRI_CALL_HOLD}" != "no"; then
    # if --with-PRI_CALL_HOLD=DIR has been specified, use it.
    if test "x${PRI_CALL_HOLD_DIR}" != "x"; then
       if test -d ${PRI_CALL_HOLD_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_CALL_HOLD_DIR}/lib"
+         pbxlibdir="-L${PRI_CALL_HOLD_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_CALL_HOLD_DIR}"
+         pbxlibdir="-L${PRI_CALL_HOLD_DIR}"
       fi
    fi
    pbxfuncname="pri_hold_enable"
@@ -24093,9 +24109,9 @@ if test "x${PBX_PRI_CALL_REROUTING}" != "x1" -a "${USE_PRI_CALL_REROUTING}" != "
    # if --with-PRI_CALL_REROUTING=DIR has been specified, use it.
    if test "x${PRI_CALL_REROUTING_DIR}" != "x"; then
       if test -d ${PRI_CALL_REROUTING_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_CALL_REROUTING_DIR}/lib"
+         pbxlibdir="-L${PRI_CALL_REROUTING_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_CALL_REROUTING_DIR}"
+         pbxlibdir="-L${PRI_CALL_REROUTING_DIR}"
       fi
    fi
    pbxfuncname="pri_reroute_enable"
@@ -24197,9 +24213,9 @@ if test "x${PBX_PRI_SETUP_KEYPAD}" != "x1" -a "${USE_PRI_SETUP_KEYPAD}" != "no";
    # if --with-PRI_SETUP_KEYPAD=DIR has been specified, use it.
    if test "x${PRI_SETUP_KEYPAD_DIR}" != "x"; then
       if test -d ${PRI_SETUP_KEYPAD_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_SETUP_KEYPAD_DIR}/lib"
+         pbxlibdir="-L${PRI_SETUP_KEYPAD_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_SETUP_KEYPAD_DIR}"
+         pbxlibdir="-L${PRI_SETUP_KEYPAD_DIR}"
       fi
    fi
    pbxfuncname="pri_sr_set_keypad_digits"
@@ -24305,9 +24321,9 @@ if test "x${PBX_PRI_PROG_W_CAUSE}" != "x1" -a "${USE_PRI_PROG_W_CAUSE}" != "no";
    # if --with-PRI_PROG_W_CAUSE=DIR has been specified, use it.
    if test "x${PRI_PROG_W_CAUSE_DIR}" != "x"; then
       if test -d ${PRI_PROG_W_CAUSE_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_PROG_W_CAUSE_DIR}/lib"
+         pbxlibdir="-L${PRI_PROG_W_CAUSE_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_PROG_W_CAUSE_DIR}"
+         pbxlibdir="-L${PRI_PROG_W_CAUSE_DIR}"
       fi
    fi
    pbxfuncname="pri_progress_with_cause"
@@ -24409,9 +24425,9 @@ if test "x${PBX_PRI_INBANDDISCONNECT}" != "x1" -a "${USE_PRI_INBANDDISCONNECT}" 
    # if --with-PRI_INBANDDISCONNECT=DIR has been specified, use it.
    if test "x${PRI_INBANDDISCONNECT_DIR}" != "x"; then
       if test -d ${PRI_INBANDDISCONNECT_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_INBANDDISCONNECT_DIR}/lib"
+         pbxlibdir="-L${PRI_INBANDDISCONNECT_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_INBANDDISCONNECT_DIR}"
+         pbxlibdir="-L${PRI_INBANDDISCONNECT_DIR}"
       fi
    fi
    pbxfuncname="pri_set_inbanddisconnect"
@@ -24513,9 +24529,9 @@ if test "x${PBX_PRI_SERVICE_MESSAGES}" != "x1" -a "${USE_PRI_SERVICE_MESSAGES}" 
    # if --with-PRI_SERVICE_MESSAGES=DIR has been specified, use it.
    if test "x${PRI_SERVICE_MESSAGES_DIR}" != "x"; then
       if test -d ${PRI_SERVICE_MESSAGES_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_SERVICE_MESSAGES_DIR}/lib"
+         pbxlibdir="-L${PRI_SERVICE_MESSAGES_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_SERVICE_MESSAGES_DIR}"
+         pbxlibdir="-L${PRI_SERVICE_MESSAGES_DIR}"
       fi
    fi
    pbxfuncname="pri_maintenance_service"
@@ -24617,9 +24633,9 @@ if test "x${PBX_PRI_REVERSE_CHARGE}" != "x1" -a "${USE_PRI_REVERSE_CHARGE}" != "
    # if --with-PRI_REVERSE_CHARGE=DIR has been specified, use it.
    if test "x${PRI_REVERSE_CHARGE_DIR}" != "x"; then
       if test -d ${PRI_REVERSE_CHARGE_DIR}/lib; then
-      	 pbxlibdir="-L${PRI_REVERSE_CHARGE_DIR}/lib"
+         pbxlibdir="-L${PRI_REVERSE_CHARGE_DIR}/lib"
       else
-      	 pbxlibdir="-L${PRI_REVERSE_CHARGE_DIR}"
+         pbxlibdir="-L${PRI_REVERSE_CHARGE_DIR}"
       fi
    fi
    pbxfuncname="pri_sr_set_reversecharge"
@@ -24723,9 +24739,9 @@ if test "x${PBX_RESAMPLE}" != "x1" -a "${USE_RESAMPLE}" != "no"; then
    # if --with-RESAMPLE=DIR has been specified, use it.
    if test "x${RESAMPLE_DIR}" != "x"; then
       if test -d ${RESAMPLE_DIR}/lib; then
-      	 pbxlibdir="-L${RESAMPLE_DIR}/lib"
+         pbxlibdir="-L${RESAMPLE_DIR}/lib"
       else
-      	 pbxlibdir="-L${RESAMPLE_DIR}"
+         pbxlibdir="-L${RESAMPLE_DIR}"
       fi
    fi
    pbxfuncname="resample_open"
@@ -24890,9 +24906,9 @@ if test "x${PBX_SPANDSP}" != "x1" -a "${USE_SPANDSP}" != "no"; then
    # if --with-SPANDSP=DIR has been specified, use it.
    if test "x${SPANDSP_DIR}" != "x"; then
       if test -d ${SPANDSP_DIR}/lib; then
-      	 pbxlibdir="-L${SPANDSP_DIR}/lib"
+         pbxlibdir="-L${SPANDSP_DIR}/lib"
       else
-      	 pbxlibdir="-L${SPANDSP_DIR}"
+         pbxlibdir="-L${SPANDSP_DIR}"
       fi
    fi
    pbxfuncname="span_set_message_handler"
@@ -24999,9 +25015,9 @@ if test "x${PBX_SPANDSP}" != "x1" -a "${USE_SPANDSP}" != "no"; then
    # if --with-SPANDSP=DIR has been specified, use it.
    if test "x${SPANDSP_DIR}" != "x"; then
       if test -d ${SPANDSP_DIR}/lib; then
-      	 pbxlibdir="-L${SPANDSP_DIR}/lib"
+         pbxlibdir="-L${SPANDSP_DIR}/lib"
       else
-      	 pbxlibdir="-L${SPANDSP_DIR}"
+         pbxlibdir="-L${SPANDSP_DIR}"
       fi
    fi
    pbxfuncname="t38_terminal_init"
@@ -25106,9 +25122,9 @@ if test "x${PBX_SS7}" != "x1" -a "${USE_SS7}" != "no"; then
    # if --with-SS7=DIR has been specified, use it.
    if test "x${SS7_DIR}" != "x"; then
       if test -d ${SS7_DIR}/lib; then
-      	 pbxlibdir="-L${SS7_DIR}/lib"
+         pbxlibdir="-L${SS7_DIR}/lib"
       else
-      	 pbxlibdir="-L${SS7_DIR}"
+         pbxlibdir="-L${SS7_DIR}"
       fi
    fi
    pbxfuncname="ss7_set_adjpc"
@@ -25211,9 +25227,9 @@ if test "x${PBX_OPENR2}" != "x1" -a "${USE_OPENR2}" != "no"; then
    # if --with-OPENR2=DIR has been specified, use it.
    if test "x${OPENR2_DIR}" != "x"; then
       if test -d ${OPENR2_DIR}/lib; then
-      	 pbxlibdir="-L${OPENR2_DIR}/lib"
+         pbxlibdir="-L${OPENR2_DIR}/lib"
       else
-      	 pbxlibdir="-L${OPENR2_DIR}"
+         pbxlibdir="-L${OPENR2_DIR}"
       fi
    fi
    pbxfuncname="openr2_chan_new"
@@ -26056,9 +26072,9 @@ if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    # if --with-LUA=DIR has been specified, use it.
    if test "x${LUA_DIR}" != "x"; then
       if test -d ${LUA_DIR}/lib; then
-      	 pbxlibdir="-L${LUA_DIR}/lib"
+         pbxlibdir="-L${LUA_DIR}/lib"
       else
-      	 pbxlibdir="-L${LUA_DIR}"
+         pbxlibdir="-L${LUA_DIR}"
       fi
    fi
    pbxfuncname="luaL_newstate"
@@ -26169,9 +26185,9 @@ if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    # if --with-LUA=DIR has been specified, use it.
    if test "x${LUA_DIR}" != "x"; then
       if test -d ${LUA_DIR}/lib; then
-      	 pbxlibdir="-L${LUA_DIR}/lib"
+         pbxlibdir="-L${LUA_DIR}/lib"
       else
-      	 pbxlibdir="-L${LUA_DIR}"
+         pbxlibdir="-L${LUA_DIR}"
       fi
    fi
    pbxfuncname="luaL_register"
@@ -26274,9 +26290,9 @@ if test "x${PBX_RADIUS}" != "x1" -a "${USE_RADIUS}" != "no"; then
    # if --with-RADIUS=DIR has been specified, use it.
    if test "x${RADIUS_DIR}" != "x"; then
       if test -d ${RADIUS_DIR}/lib; then
-      	 pbxlibdir="-L${RADIUS_DIR}/lib"
+         pbxlibdir="-L${RADIUS_DIR}/lib"
       else
-      	 pbxlibdir="-L${RADIUS_DIR}"
+         pbxlibdir="-L${RADIUS_DIR}"
       fi
    fi
    pbxfuncname="rc_read_config"
@@ -26388,9 +26404,9 @@ if test "x${PBX_OPENAIS}" != "x1" -a "${USE_OPENAIS}" != "no"; then
    # if --with-OPENAIS=DIR has been specified, use it.
    if test "x${OPENAIS_DIR}" != "x"; then
       if test -d ${OPENAIS_DIR}/lib; then
-      	 pbxlibdir="-L${OPENAIS_DIR}/lib"
+         pbxlibdir="-L${OPENAIS_DIR}/lib"
       else
-      	 pbxlibdir="-L${OPENAIS_DIR}"
+         pbxlibdir="-L${OPENAIS_DIR}"
       fi
    fi
    pbxfuncname="saClmInitialize"
@@ -26508,9 +26524,9 @@ if test "x${PBX_SPEEX}" != "x1" -a "${USE_SPEEX}" != "no"; then
    # if --with-SPEEX=DIR has been specified, use it.
    if test "x${SPEEX_DIR}" != "x"; then
       if test -d ${SPEEX_DIR}/lib; then
-      	 pbxlibdir="-L${SPEEX_DIR}/lib"
+         pbxlibdir="-L${SPEEX_DIR}/lib"
       else
-      	 pbxlibdir="-L${SPEEX_DIR}"
+         pbxlibdir="-L${SPEEX_DIR}"
       fi
    fi
    pbxfuncname="speex_encode"
@@ -26614,9 +26630,9 @@ if test "x${PBX_SPEEX_PREPROCESS}" != "x1" -a "${USE_SPEEX_PREPROCESS}" != "no";
    # if --with-SPEEX_PREPROCESS=DIR has been specified, use it.
    if test "x${SPEEX_PREPROCESS_DIR}" != "x"; then
       if test -d ${SPEEX_PREPROCESS_DIR}/lib; then
-      	 pbxlibdir="-L${SPEEX_PREPROCESS_DIR}/lib"
+         pbxlibdir="-L${SPEEX_PREPROCESS_DIR}/lib"
       else
-      	 pbxlibdir="-L${SPEEX_PREPROCESS_DIR}"
+         pbxlibdir="-L${SPEEX_PREPROCESS_DIR}"
       fi
    fi
    pbxfuncname="speex_preprocess_ctl"
@@ -26722,9 +26738,9 @@ if test "x${PBX_SPEEXDSP}" != "x1" -a "${USE_SPEEXDSP}" != "no"; then
    # if --with-SPEEXDSP=DIR has been specified, use it.
    if test "x${SPEEXDSP_DIR}" != "x"; then
       if test -d ${SPEEXDSP_DIR}/lib; then
-      	 pbxlibdir="-L${SPEEXDSP_DIR}/lib"
+         pbxlibdir="-L${SPEEXDSP_DIR}/lib"
       else
-      	 pbxlibdir="-L${SPEEXDSP_DIR}"
+         pbxlibdir="-L${SPEEXDSP_DIR}"
       fi
    fi
    pbxfuncname="speex_preprocess_ctl"
@@ -26832,9 +26848,9 @@ if test "x${PBX_SQLITE}" != "x1" -a "${USE_SQLITE}" != "no"; then
    # if --with-SQLITE=DIR has been specified, use it.
    if test "x${SQLITE_DIR}" != "x"; then
       if test -d ${SQLITE_DIR}/lib; then
-      	 pbxlibdir="-L${SQLITE_DIR}/lib"
+         pbxlibdir="-L${SQLITE_DIR}/lib"
       else
-      	 pbxlibdir="-L${SQLITE_DIR}"
+         pbxlibdir="-L${SQLITE_DIR}"
       fi
    fi
    pbxfuncname="sqlite_exec"
@@ -26937,9 +26953,9 @@ if test "x${PBX_SQLITE3}" != "x1" -a "${USE_SQLITE3}" != "no"; then
    # if --with-SQLITE3=DIR has been specified, use it.
    if test "x${SQLITE3_DIR}" != "x"; then
       if test -d ${SQLITE3_DIR}/lib; then
-      	 pbxlibdir="-L${SQLITE3_DIR}/lib"
+         pbxlibdir="-L${SQLITE3_DIR}/lib"
       else
-      	 pbxlibdir="-L${SQLITE3_DIR}"
+         pbxlibdir="-L${SQLITE3_DIR}"
       fi
    fi
    pbxfuncname="sqlite3_open"
@@ -27042,9 +27058,9 @@ if test "x${PBX_CRYPTO}" != "x1" -a "${USE_CRYPTO}" != "no"; then
    # if --with-CRYPTO=DIR has been specified, use it.
    if test "x${CRYPTO_DIR}" != "x"; then
       if test -d ${CRYPTO_DIR}/lib; then
-      	 pbxlibdir="-L${CRYPTO_DIR}/lib"
+         pbxlibdir="-L${CRYPTO_DIR}/lib"
       else
-      	 pbxlibdir="-L${CRYPTO_DIR}"
+         pbxlibdir="-L${CRYPTO_DIR}"
       fi
    fi
    pbxfuncname="AES_encrypt"
@@ -27149,9 +27165,9 @@ if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
    # if --with-OPENSSL=DIR has been specified, use it.
    if test "x${OPENSSL_DIR}" != "x"; then
       if test -d ${OPENSSL_DIR}/lib; then
-      	 pbxlibdir="-L${OPENSSL_DIR}/lib"
+         pbxlibdir="-L${OPENSSL_DIR}/lib"
       else
-      	 pbxlibdir="-L${OPENSSL_DIR}"
+         pbxlibdir="-L${OPENSSL_DIR}"
       fi
    fi
    pbxfuncname="SSL_connect"
@@ -27386,9 +27402,9 @@ if test "x${PBX_SRTP}" != "x1" -a "${USE_SRTP}" != "no"; then
    # if --with-SRTP=DIR has been specified, use it.
    if test "x${SRTP_DIR}" != "x"; then
       if test -d ${SRTP_DIR}/lib; then
-      	 pbxlibdir="-L${SRTP_DIR}/lib"
+         pbxlibdir="-L${SRTP_DIR}/lib"
       else
-      	 pbxlibdir="-L${SRTP_DIR}"
+         pbxlibdir="-L${SRTP_DIR}"
       fi
    fi
    pbxfuncname="srtp_init"
@@ -27546,6 +27562,111 @@ rm -f core conftest.err conftest.$ac_objext \
     LDFLAGS="${saved_ldflags}"
     CFLAGS="${saved_cflags}"
 fi
+
+
+if test "x${PBX_SRTP_SHUTDOWN}" != "x1" -a "${USE_SRTP_SHUTDOWN}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_SHUTDOWN=DIR has been specified, use it.
+   if test "x${SRTP_SHUTDOWN_DIR}" != "x"; then
+      if test -d ${SRTP_SHUTDOWN_DIR}/lib; then
+         pbxlibdir="-L${SRTP_SHUTDOWN_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_SHUTDOWN_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_shutdown"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_SHUTDOWN_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_SHUTDOWN_FOUND=yes
+else
+  AST_SRTP_SHUTDOWN_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_SHUTDOWN_FOUND}" = "yes"; then
+      SRTP_SHUTDOWN_LIB="${pbxlibdir} -lsrtp "
+      # if --with-SRTP_SHUTDOWN=DIR has been specified, use it.
+      if test "x${SRTP_SHUTDOWN_DIR}" != "x"; then
+         SRTP_SHUTDOWN_INCLUDE="-I${SRTP_SHUTDOWN_DIR}/include"
+      fi
+      SRTP_SHUTDOWN_INCLUDE="${SRTP_SHUTDOWN_INCLUDE} "
+      if test "xsrtp/srtp.h" = "x" ; then	# no header, assume found
+         SRTP_SHUTDOWN_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_SHUTDOWN_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "srtp/srtp.h" "ac_cv_header_srtp_srtp_h" "$ac_includes_default"
+if test "x$ac_cv_header_srtp_srtp_h" = xyes; then :
+  SRTP_SHUTDOWN_HEADER_FOUND=1
+else
+  SRTP_SHUTDOWN_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_SHUTDOWN_HEADER_FOUND}" = "x0" ; then
+         SRTP_SHUTDOWN_LIB=""
+         SRTP_SHUTDOWN_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_SHUTDOWN_LIB=""
+         fi
+         PBX_SRTP_SHUTDOWN=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_SHUTDOWN 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
 
 
     if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
@@ -27720,9 +27841,9 @@ if test "x${PBX_HOARD}" != "x1" -a "${USE_HOARD}" != "no"; then
    # if --with-HOARD=DIR has been specified, use it.
    if test "x${HOARD_DIR}" != "x"; then
       if test -d ${HOARD_DIR}/lib; then
-      	 pbxlibdir="-L${HOARD_DIR}/lib"
+         pbxlibdir="-L${HOARD_DIR}/lib"
       else
-      	 pbxlibdir="-L${HOARD_DIR}"
+         pbxlibdir="-L${HOARD_DIR}"
       fi
    fi
    pbxfuncname="malloc"
@@ -27825,9 +27946,9 @@ if test "x${PBX_FREETDS}" != "x1" -a "${USE_FREETDS}" != "no"; then
    # if --with-FREETDS=DIR has been specified, use it.
    if test "x${FREETDS_DIR}" != "x"; then
       if test -d ${FREETDS_DIR}/lib; then
-      	 pbxlibdir="-L${FREETDS_DIR}/lib"
+         pbxlibdir="-L${FREETDS_DIR}/lib"
       else
-      	 pbxlibdir="-L${FREETDS_DIR}"
+         pbxlibdir="-L${FREETDS_DIR}"
       fi
    fi
    pbxfuncname="dbinit"
@@ -27977,9 +28098,9 @@ if test "x${PBX_TONEZONE}" != "x1" -a "${USE_TONEZONE}" != "no"; then
    # if --with-TONEZONE=DIR has been specified, use it.
    if test "x${TONEZONE_DIR}" != "x"; then
       if test -d ${TONEZONE_DIR}/lib; then
-      	 pbxlibdir="-L${TONEZONE_DIR}/lib"
+         pbxlibdir="-L${TONEZONE_DIR}/lib"
       else
-      	 pbxlibdir="-L${TONEZONE_DIR}"
+         pbxlibdir="-L${TONEZONE_DIR}"
       fi
    fi
    pbxfuncname="tone_zone_find"
@@ -28084,9 +28205,9 @@ if test "x${PBX_VORBIS}" != "x1" -a "${USE_VORBIS}" != "no"; then
    # if --with-VORBIS=DIR has been specified, use it.
    if test "x${VORBIS_DIR}" != "x"; then
       if test -d ${VORBIS_DIR}/lib; then
-      	 pbxlibdir="-L${VORBIS_DIR}/lib"
+         pbxlibdir="-L${VORBIS_DIR}/lib"
       else
-      	 pbxlibdir="-L${VORBIS_DIR}"
+         pbxlibdir="-L${VORBIS_DIR}"
       fi
    fi
    pbxfuncname="vorbis_info_init"
@@ -28189,9 +28310,9 @@ if test "x${PBX_VORBIS}" != "x1" -a "${USE_VORBIS}" != "no"; then
    # if --with-VORBIS=DIR has been specified, use it.
    if test "x${VORBIS_DIR}" != "x"; then
       if test -d ${VORBIS_DIR}/lib; then
-      	 pbxlibdir="-L${VORBIS_DIR}/lib"
+         pbxlibdir="-L${VORBIS_DIR}/lib"
       else
-      	 pbxlibdir="-L${VORBIS_DIR}"
+         pbxlibdir="-L${VORBIS_DIR}"
       fi
    fi
    pbxfuncname="vorbis_info_init"
@@ -28410,9 +28531,9 @@ if test "x${PBX_ZLIB}" != "x1" -a "${USE_ZLIB}" != "no"; then
    # if --with-ZLIB=DIR has been specified, use it.
    if test "x${ZLIB_DIR}" != "x"; then
       if test -d ${ZLIB_DIR}/lib; then
-      	 pbxlibdir="-L${ZLIB_DIR}/lib"
+         pbxlibdir="-L${ZLIB_DIR}/lib"
       else
-      	 pbxlibdir="-L${ZLIB_DIR}"
+         pbxlibdir="-L${ZLIB_DIR}"
       fi
    fi
    pbxfuncname="compress"
@@ -28827,9 +28948,9 @@ if test "x${PBX_SDL_IMAGE}" != "x1" -a "${USE_SDL_IMAGE}" != "no"; then
    # if --with-SDL_IMAGE=DIR has been specified, use it.
    if test "x${SDL_IMAGE_DIR}" != "x"; then
       if test -d ${SDL_IMAGE_DIR}/lib; then
-      	 pbxlibdir="-L${SDL_IMAGE_DIR}/lib"
+         pbxlibdir="-L${SDL_IMAGE_DIR}/lib"
       else
-      	 pbxlibdir="-L${SDL_IMAGE_DIR}"
+         pbxlibdir="-L${SDL_IMAGE_DIR}"
       fi
    fi
    pbxfuncname="IMG_Load"
@@ -28931,9 +29052,9 @@ if test "x${PBX_FFMPEG}" != "x1" -a "${USE_FFMPEG}" != "no"; then
    # if --with-FFMPEG=DIR has been specified, use it.
    if test "x${FFMPEG_DIR}" != "x"; then
       if test -d ${FFMPEG_DIR}/lib; then
-      	 pbxlibdir="-L${FFMPEG_DIR}/lib"
+         pbxlibdir="-L${FFMPEG_DIR}/lib"
       else
-      	 pbxlibdir="-L${FFMPEG_DIR}"
+         pbxlibdir="-L${FFMPEG_DIR}"
       fi
    fi
    pbxfuncname="sws_getContext"
@@ -29049,9 +29170,9 @@ if test "x${PBX_X11}" != "x1" -a "${USE_X11}" != "no"; then
    # if --with-X11=DIR has been specified, use it.
    if test "x${X11_DIR}" != "x"; then
       if test -d ${X11_DIR}/lib; then
-      	 pbxlibdir="-L${X11_DIR}/lib"
+         pbxlibdir="-L${X11_DIR}/lib"
       else
-      	 pbxlibdir="-L${X11_DIR}"
+         pbxlibdir="-L${X11_DIR}"
       fi
    fi
    pbxfuncname="XOpenDisplay"
@@ -29157,9 +29278,9 @@ if test "x${PBX_X11}" != "x1" -a "${USE_X11}" != "no"; then
    # if --with-X11=DIR has been specified, use it.
    if test "x${X11_DIR}" != "x"; then
       if test -d ${X11_DIR}/lib; then
-      	 pbxlibdir="-L${X11_DIR}/lib"
+         pbxlibdir="-L${X11_DIR}/lib"
       else
-      	 pbxlibdir="-L${X11_DIR}"
+         pbxlibdir="-L${X11_DIR}"
       fi
    fi
    pbxfuncname="XOpenDisplay"

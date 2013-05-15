@@ -739,6 +739,9 @@
 /* Define to 1 if you have the Secure RTP library. */
 #undef HAVE_SRTP
 
+/* Define to 1 if SRTP has the SRTP Library Shutdown Function feature. */
+#undef HAVE_SRTP_SHUTDOWN
+
 /* Define to 1 if you have the ISDN SS7 library. */
 #undef HAVE_SS7
 
