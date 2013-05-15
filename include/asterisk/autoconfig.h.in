@@ -762,6 +762,9 @@
 /* Define to 1 if you have the Secure RTP library. */
 #undef HAVE_SRTP
 
+/* Define to 1 if SRTP has the SRTP Library Shutdown Function feature. */
+#undef HAVE_SRTP_SHUTDOWN
+
 /* Define to 1 if you have the ISDN SS7 library. */
 #undef HAVE_SS7
 
@@ -1228,6 +1231,11 @@
 
 /* Define to 1 if running on Darwin. */
 #undef _DARWIN_UNLIMITED_SELECT
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
