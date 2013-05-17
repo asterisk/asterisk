@@ -1,3 +1,79 @@
+2013-05-17  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.22.0 Released.
+
+2013-05-13  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.22.0-rc2 Released.
+
+	* Distributed Device State broken at sites using res_xmpp or res_jabber
+	  where Secuity Advisory AST-2012-015 is inplace
+
+	  res_jabber/res_xmpp were not adding AST_EVENT_IE_CACHABLE to the
+	  event as each message came in, then devstate_change_collector_cb()
+	  was unable to find AST_EVENT_IE_CACHABLE in the event, so defaulted
+	  incorrectly to AST_DEVSTATE_NOT_CACHABLE.
+
+	* Fix CDR not being created during an externally initiated blind
+	  transfer
+
+	  Way back when in the dark days of Asterisk 1.8.9, blind transferring
+	  a call in a context that included the 'h' extension would
+	  inadvertently execute the hangup code logic on the transferred
+	  channel. This was a "bad thing". The fix was to properly check for
+	  the softhangup flags on the channel and only execute the 'h'
+	  extension logic (and, in later versions, hangup handler logic) if
+	  the channel was well and truly dead (Jim).
+
+	  Unfortunately, CDRs are fickle. Setting the softhangup flag when we
+	  detected that the channel was leaving the bridge (but not to die)
+	  caused some crucial snippet of CDR code, lying in ambush in the
+	  middle of the bridging code, to not get executed. This had the
+	  effect of blowing away one of the CDRs that is typically created
+	  during a blind transfer.
+
+	  While we live and die by the adage "don't touch CDRs in release
+	  branches", this was our bad. The attached patch restores the CDR
+	  behavior, and still manages to not run the 'h' extension during a
+	  blind transfer (at least not when it's supposed to).
+
+	  Thanks to Steve Davies for diagnosing this and providing a fix.
+
+	* Prevent res_timing_pthread from blocking callers
+
+	  There were several reports of deadlock when using res_timing_pthread.
+	  Backtraces indicated that one thread was blocked waiting for the
+	  write to the pipe to complete and this thread held the container lock
+	  for the timers.  Therefore any thread that wanted to create a new
+	  timer or read an existing timer would block waiting for either the
+	  timer lock or the container lock and deadlock ensued.
+
+	  This patch changes the way the pipe is used to eliminate this source
+	  of deadlocks:
+
+	  1) The pipe is placed in non-blocking mode so that it would never
+	     block even if the following changes someone fail...
+
+	  2) Instead of writing bytes into the pipe for each "tick" that's
+	     fired the pipe now has two states--signaled and unsignaled. If
+	     signaled, the pipe is hot and any pollers of the read side
+	     filedescriptor will be woken up. If unsigned the pipe is idle.
+	     This eliminates even the chance of filling up the pipe and reduces
+	     the potential overhead of calling unnecessary writes.
+
+	  3) Since we're tracking the signaled / unsignaled state, we can
+	  eliminate the exta poll system call for every firing because we know
+	  that there is data to be read.
+
+	* Fix crash when AMI redirect action redirects two channels out of a
+	  bridge.
+
+	  The two party bridging loops were changing the bridge peer pointers
+	  without the channel locks held.  Thus when ast_channel_massquerade()
+	  tested and used the pointer there is a small window of opportunity
+	  for the pointers to become NULL even though the masquerade code has
+	  the channels locked.
+
 2013-03-28  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.22.0-rc1 Released.
