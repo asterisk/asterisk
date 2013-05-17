@@ -1,3 +1,7 @@
+2013-05-17  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.4.0 Released.
+
 2013-05-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.4.0-rc3 Released.
@@ -101,8 +105,6 @@
 	  tested and used the pointer there is a small window of opportunity
 	  for the pointers to become NULL even though the masquerade code has
 	  the channels locked.
-
-
 
 2013-03-28  Asterisk Development Team <asteriskteam@digium.com>
 
