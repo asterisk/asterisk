@@ -297,6 +297,15 @@ void ast_channel_publish_dial(struct ast_channel *caller,
 		const char *dialstring,
 		const char *dialstatus);
 
+/*!
+ * \since 12
+ * \brief Publish in the \ref ast_channel_topic a \ref ast_channel_snapshot
+ * message indicating a change in channel state
+ *
+ * \param chan The channel whose state has changed
+ */
+void ast_publish_channel_state(struct ast_channel *chan);
+
 /*! @} */
 
 /*!

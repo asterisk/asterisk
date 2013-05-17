@@ -816,26 +816,6 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
-static void publish_channel_state(struct ast_channel *chan)
-{
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-
-	snapshot = ast_channel_snapshot_create(chan);
-	if (!snapshot) {
-		ast_log(LOG_ERROR, "Allocation error\n");
-		return;
-	}
-
-	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-	if (!message) {
-		return;
-	}
-
-	ast_assert(ast_channel_topic(chan) != NULL);
-	stasis_publish(ast_channel_topic(chan), message);
-}
-
 static void publish_cache_clear(struct ast_channel *chan)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
@@ -1176,7 +1156,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * a lot of data into this func to do it here!
 	 */
 	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
-		publish_channel_state(tmp);
+		ast_publish_channel_state(tmp);
 	}
 
 	ast_channel_internal_finalize(tmp);
@@ -2885,7 +2865,7 @@ int ast_hangup(struct ast_channel *chan)
 
 	ast_cc_offer(chan);
 
-	publish_channel_state(chan);
+	ast_publish_channel_state(chan);
 	publish_cache_clear(chan);
 
 	if (ast_channel_cdr(chan) && !ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_BRIDGED) &&
@@ -7144,7 +7124,7 @@ void ast_do_masquerade(struct ast_channel *original)
 	ast_channel_redirecting_set(original, ast_channel_redirecting(clonechan));
 	ast_channel_redirecting_set(clonechan, &exchange.redirecting);
 
-	publish_channel_state(original);
+	ast_publish_channel_state(original);
 
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, ast_channel_timingfd(original));
@@ -7310,7 +7290,7 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 		ast_cdr_setcid(ast_channel_cdr(chan), chan);
 	}
 
-	publish_channel_state(chan);
+	ast_publish_channel_state(chan);
 
 	ast_channel_unlock(chan);
 }
@@ -7336,7 +7316,7 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 
 	ast_channel_lock(chan);
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
-	publish_channel_state(chan);
+	ast_publish_channel_state(chan);
 	if (ast_channel_cdr(chan)) {
 		ast_cdr_setcid(ast_channel_cdr(chan), chan);
 	}
@@ -7363,7 +7343,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	 * we override what they are saying the state is and things go amuck. */
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
-	publish_channel_state(chan);
+	ast_publish_channel_state(chan);
 
 	return 0;
 }

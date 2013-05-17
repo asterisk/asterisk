@@ -417,6 +417,30 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 	publish_message_for_channel_topics(msg, chan);
 }
 
+void ast_publish_channel_state(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	ast_assert(chan != NULL);
+	if (!chan) {
+		return;
+	}
+
+	snapshot = ast_channel_snapshot_create(chan);
+	if (!snapshot) {
+		return;
+	}
+
+	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
+	if (!message) {
+		return;
+	}
+
+	ast_assert(ast_channel_topic(chan) != NULL);
+	stasis_publish(ast_channel_topic(chan), message);
+}
+
 struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot)
 {
 	RAII_VAR(struct ast_json *, json_chan, NULL, ast_json_unref);

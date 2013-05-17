@@ -972,6 +972,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 
 		ast_channel_appl_set(c, "AppDial");
 		ast_channel_data_set(c, "(Outgoing Line)");
+		ast_publish_channel_state(c);
 
 		ast_channel_unlock(in);
 		if (single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
@@ -2453,6 +2454,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		ast_channel_appl_set(tc, "AppDial");
 		ast_channel_data_set(tc, "(Outgoing Line)");
+		ast_publish_channel_state(tc);
+
 		memset(ast_channel_whentohangup(tc), 0, sizeof(*ast_channel_whentohangup(tc)));
 
 		/* Determine CallerID to store in outgoing channel. */
