@@ -1,0 +1,411 @@
+                                Release Summary
+
+                               asterisk-1.8.22.0
+
+                                Date: 2013-05-17
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.21.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   6 mjordan                2 kmoore                 2 mjordan                
+   5 bebuild                1 andrea                 2 wdoekes                
+   5 rmudgett               1 Daniel Bohling         1 /dev/null              
+   5 wdoekes                1 jbigelow               1 aepshteyn              
+   4 kmoore                 1 Pavel Troller          1 avalentin              
+   3 dlee                   1 wdoekes                1 coriley                
+   2 elguero                                         1 dbohling               
+   2 kharwell                                        1 Demon                  
+   2 mmichelson                                      1 eelcob                 
+   2 tzafrir                                         1 ianc                   
+   1 avalentin                                       1 jbigelow               
+   1 coriley                                         1 johan                  
+   1 Dmitriy Serov                                   1 mmichelson             
+   1 eelcob                                          1 nbansal                
+   1 file                                            1 patrol-cz              
+   1 ianc                                            1 pgoergler              
+   1 igorg                                           1 rmudgett               
+   1 kmoore, wdoekes                                 1 serginuez              
+   1 nbansal                                         1 shmagin                
+   1 Pavel Troller                                   1 sickpig                
+   1 qwell                                           1 tomaso                 
+   1 russell                                         1 tsearle                
+   1 seanbright             
+   1 serginuez              
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/res_config_mysql
+
+   ASTERISK-21035: [patch] - features.conf in static realtime requires
+   distinct cat_metric for each parking lot
+   Revision: 382942
+   Reporter: aepshteyn
+   Coders: elguero
+
+  Category: Applications/app_db
+
+   ASTERISK-21070: DBdeltree throws spurious error under almost all cases
+   Revision: 381364
+   Reporter: ianc
+   Coders: ianc
+
+  Category: Applications/app_parkandannounce
+
+   ASTERISK-20113: ParkAndAnnounce doesn't return to n+1 when no
+   return_context defined
+   Revision: 381916
+   Reporter: serginuez
+   Coders: serginuez
+
+  Category: Applications/app_playback
+
+   ASTERISK-20800: 'module reload app_playback.so' won't load say.conf if it
+   didn't exist during module's first load
+   Revision: 381216
+   Reporter: pgoergler
+   Coders: kharwell
+
+  Category: Applications/app_queue
+
+   ASTERISK-19960: Incorrect data in queue_log, event TRANSFER, field data1
+   Revision: 381770
+   Reporter: shmagin
+   Coders: kharwell
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-21248: CALLERID(dnid-num-plan) does not get any value set.
+   Revision: 383796
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-21128: Locking inversion when attempting to set caller ID while
+   holding iaxsl lock causes deadlock
+   Revision: 382233
+   Reporter: patrol-cz
+   Testers: Pavel Troller
+   Coders: mjordan, Pavel Troller
+
+  Category: Channels/chan_jingle
+
+   ASTERISK-19341: Missing initialization on bind_addr
+   Revision: 381975
+   Reporter: avalentin
+   Coders: avalentin
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-20787: Asterisk should inspect Min-SE header in an INVITE even if
+   there is no Session-Expires present
+   Revision: 380696
+   Reporter: mmichelson
+   Coders: dlee
+
+   ASTERISK-21013: Security Vulnerability: sip username disclosure
+   Revision: 383981
+   Reporter: wdoekes
+   Testers: wdoekes, kmoore
+   Coders: kmoore, wdoekes
+
+   ASTERISK-21201: [patch] In Manager Interface, SIP registry event does not
+   show username on Status: Registered
+   Revision: 382847
+   Reporter: Demon
+   Coders: Dmitriy Serov
+
+   ASTERISK-21232: Asterisk sends AUDIO REINVITE when session timer expires
+   in T38 call
+   Revision: 383124
+   Reporter: nbansal
+   Coders: nbansal
+
+  Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-20638: SIP dialog matching is incorrect when multiple provisional
+   responses are received with pedantic SIP checking
+   Revision: 382171
+   Reporter: eelcob
+   Coders: eelcob
+
+  Category: Channels/chan_sip/SRTP
+
+   ASTERISK-21323: Asterisk 11 svn branch and srtp - white noise only
+   Revision: 384048
+   Reporter: sickpig
+   Testers: kmoore, andrea, jbigelow
+   Coders: kmoore
+
+  Category: Channels/chan_unistim
+
+   ASTERISK-21119: Asterisk system locks up with chan_unistim
+   Revision: 382409
+   Reporter: dbohling
+   Testers: Daniel Bohling
+   Coders: igorg
+
+  Category: Contrib/General
+
+   ASTERISK-21173: [patch] example sippeers sql hasn't been adapted for ipv6
+   and causes chan_sip to generate a warning message
+   Revision: 382939
+   Reporter: tsearle
+   Coders: elguero
+
+  Category: Core/BuildSystem
+
+   ASTERISK-20749: Cannot enable res_timing_kqueue via "make menuselect"
+   Revision: 381847
+   Reporter: /dev/null
+   Coders: mjordan
+
+  Category: Core/HTTP
+
+   ASTERISK-20967: Security Vulnerability: DoS attack possible due to fix for
+   CVE-2012-5976
+   Revision: 383976
+   Reporter: mjordan
+   Coders: mmichelson
+
+   ASTERISK-20967: Security Vulnerability: DoS attack possible due to fix for
+   CVE-2012-5976
+   Revision: 384118
+   Reporter: mjordan
+   Coders: wdoekes
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-20397: "manager show user " shows the "all" permission despite it
+   not being set
+   Revision: 381939
+   Reporter: johan
+   Coders: mjordan
+
+  Category: Functions/func_callerid
+
+   ASTERISK-21248: CALLERID(dnid-num-plan) does not get any value set.
+   Revision: 383796
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: General
+
+   ASTERISK-19451: va_start/va_copy and va_end do not always match up
+   Revision: 382021
+   Reporter: wdoekes
+   Coders: wdoekes
+
+  Category: PBX/pbx_spool
+
+   ASTERISK-21176: Call files on OS X, using KQueue, do not get processed
+   (load 100%)
+   Revision: 383120
+   Reporter: coriley
+   Coders: coriley
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                      | Issues          |
+   |          |            |                              | Referenced      |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | chan_dahdi: Fix "dahdi show  |                 |
+   | 380572   | rmudgett   | channels group" for groups   |                 |
+   |          |            | greater than 31.             |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380611   | rmudgett   | Make CHECK_BLOCKING() debug  |                 |
+   |          |            | message more useful.         |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380853   | rmudgett   | Separate option_types[] from |                 |
+   |          |            | the struct definition.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 380973   | dlee       | Fixed failing test from      | ASTERISK-20787  |
+   |          |            | r380696.                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Do not allow native RTP      |                 |
+   | 381281   | mmichelson | bridging if packetization of |                 |
+   |          |            | media streams differs.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | End stuck DTMF if            |                 |
+   | 381466   | rmudgett   | AST_SOFTHANGUP_ASYNCGOTO     | ASTERISK-20492  |
+   |          |            | because it isn't a real      |                 |
+   |          |            | hangup.                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Remove "registertrying" and  |                 |
+   | 381668   | wdoekes    | add "rtp_engine" from/to     |                 |
+   |          |            | sip.conf.sample              |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382087   | tzafrir    | Remove unneeded              |                 |
+   |          |            | linux-gnueabi*               |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382107   | wdoekes    | Correct RPID parsing for     |                 |
+   |          |            | unquoted display-name.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382110   | tzafrir    | Consider linux-gnuspe as     |                 |
+   |          |            | linux-gnu                    |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382153   | file       | Fix the configure script     |                 |
+   |          |            | over here as well.           |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 382513   | kmoore     | Correct app_page             |                 |
+   |          |            | documentation                |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383061   | qwell      | Fix whitespace in            |                 |
+   |          |            | AST_EXT_LIB_CHECK macro.     |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383340   | dlee       | Removed codecs/g722/*.i on   |                 |
+   |          |            | make clean                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383460   | wdoekes    | Have func_curl log a warning |                 |
+   |          |            | when a curl request fails.   |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383667   | seanbright | Properly delimit post data   |                 |
+   |          |            | in res_config_curl.          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 383835   | russell    | Fix multi-station answer     |                 |
+   |          |            | race condition.              |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Resolve deadlock between     |                 |
+   | 383839   | mjordan    | pending CDR and batch CDR    | ASTERISK-21162  |
+   |          |            | locks                        |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Resolve deadlock between SIP | ASTERISK-21068, |
+   | 383863   | mjordan    | registration and channel     | ASTERISK-20550, |
+   |          |            | based functions              | ASTERISK-21314, |
+   |          |            |                              | ASTERISK-21296  |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Address uninitialized        |                 |
+   | 384162   | kmoore     | conditional that valgrind    |                 |
+   |          |            | found                        |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 388166   | bebuild    | Create 1.8.22.0-rc2          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 388169   | bebuild    | Remove old summaries, update |                 |
+   |          |            | version                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 388176   | bebuild    | Importing release summary    |                 |
+   |          |            | for 1.8.22.0-rc2 release.    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            |                              | ASTERISK-21356, |
+   | 388195   | bebuild    | Merge blockers for           | ASTERISK-21389, |
+   |          |            | 1.8.22.0-rc2                 | ASTERISK-21394, |
+   |          |            |                              | ASTERISK-21429  |
+   |----------+------------+------------------------------+-----------------|
+   | 388197   | bebuild    | Importing release summary    |                 |
+   |          |            | for 1.8.22.0-rc2 release.    |                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                                 |    2
+ UPGRADE.txt                              |   11
+ addons/res_config_mysql.c                |   29 --
+ apps/app_db.c                            |    8
+ apps/app_meetme.c                        |   23 +
+ apps/app_page.c                          |    4
+ apps/app_parkandannounce.c               |    2
+ apps/app_playback.c                      |    2
+ asterisk-1.8.22.0-rc1-summary.html       |  299 ------------------------
+ asterisk-1.8.22.0-rc1-summary.txt        |  385 -------------------------------
+ asterisk-1.8.22.0-rc2-summary.html       |   65 +++++
+ asterisk-1.8.22.0-rc2-summary.txt        |  101 ++++++++
+ autoconf/ast_ext_lib.m4                  |    4
+ channels/chan_dahdi.c                    |    7
+ channels/chan_iax2.c                     |    4
+ channels/chan_jingle.c                   |    1
+ channels/chan_sip.c                      |  211 +++++++++++-----
+ channels/chan_unistim.c                  |    1
+ channels/sig_pri.c                       |    8
+ channels/sip/include/sip.h               |    1
+ codecs/Makefile                          |    2
+ configs/sip.conf.sample                  |    3
+ configure.ac                             |    6
+ contrib/realtime/mysql/sippeers.sql      |   14 -
+ contrib/realtime/postgresql/realtime.sql |    2
+ funcs/func_curl.c                        |   15 +
+ include/asterisk/autoconfig.h.in         |    5
+ include/asterisk/channel.h               |    4
+ main/Makefile                            |    2
+ main/cdr.c                               |   24 +
+ main/channel.c                           |   15 +
+ main/devicestate.c                       |   13 -
+ main/dial.c                              |   13 -
+ main/features.c                          |   36 +-
+ main/http.c                              |   32 ++
+ main/manager.c                           |   39 ++-
+ main/rtp_engine.c                        |   13 +
+ main/tcptls.c                            |    5
+ pbx/pbx_spool.c                          |   19 +
+ res/res_config_curl.c                    |    7
+ res/res_jabber.c                         |    5
+ res/res_rtp_asterisk.c                   |    2
+ res/res_timing_pthread.c                 |  121 ++++-----
+ 43 files changed, 658 insertions(+), 907 deletions(-)
+
+     ----------------------------------------------------------------------
