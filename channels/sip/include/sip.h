@@ -37,6 +37,7 @@
 #include "asterisk/features.h"
 #include "asterisk/http_websocket.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/netsock2.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -571,17 +572,6 @@ enum st_refresher_param {
 	SESSION_TIMER_REFRESHER_PARAM_UAS,
 };
 
-/*! \brief Define some implemented SIP transports
-	\note Asterisk does not support SCTP or UDP/DTLS
-*/
-enum sip_transport {
-	SIP_TRANSPORT_UDP = 1,         /*!< Unreliable transport for SIP, needs retransmissions */
-	SIP_TRANSPORT_TCP = 1 << 1,    /*!< Reliable, but unsecure */
-	SIP_TRANSPORT_TLS = 1 << 2,    /*!< TCP/TLS - reliable and secure transport for signalling */
-        SIP_TRANSPORT_WS  = 1 << 3,    /*!< WebSocket, unsecure */
-        SIP_TRANSPORT_WSS = 1 << 4,    /*!< WebSocket, secure */
-};
-
 /*! \brief Automatic peer registration behavior
 */
 enum autocreatepeer_mode {
@@ -713,7 +703,7 @@ struct sip_proxy {
 	struct ast_sockaddr ip;          /*!< Currently used IP address and port */
 	int port;
 	time_t last_dnsupdate;          /*!< When this was resolved */
-	enum sip_transport transport;
+	enum ast_transport transport;
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
 	/* Room for a SRV record chain based on the name */
 };
@@ -782,7 +772,7 @@ struct sip_settings {
 
 /*! \brief The SIP socket definition */
 struct sip_socket {
-	enum sip_transport type;  /*!< UDP, TCP or TLS */
+	enum ast_transport type;  /*!< UDP, TCP or TLS */
 	int fd;                   /*!< Filed descriptor, the actual socket */
 	uint16_t port;
 	struct ast_tcptls_session_instance *tcptls_session;  /* If tcp or tls, a socket manager */
@@ -1305,10 +1295,10 @@ struct sip_peer {
 		AST_STRING_FIELD(callback); /*!< Callback extension */
 		);
 	struct sip_socket socket;       /*!< Socket used for this peer */
-	enum sip_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
+	enum ast_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
 	                                                     If register expires, default should be reset. to this value */
 	/* things that don't belong in flags */
-	unsigned short transports:5;    /*!< Transports (enum sip_transport) that are acceptable for this peer */
+	unsigned short transports:5;    /*!< Transports (enum ast_transport) that are acceptable for this peer */
 	unsigned short is_realtime:1;   /*!< this is a 'realtime' peer */
 	unsigned short rt_fromcontact:1;/*!< copy fromcontact from realtime */
 	unsigned short host_dynamic:1;  /*!< Dynamic Peers register with Asterisk */
@@ -1414,7 +1404,7 @@ struct sip_registry {
 		AST_STRING_FIELD(callback);   /*!< Contact extension */
 		AST_STRING_FIELD(peername);   /*!< Peer registering to */
 	);
-	enum sip_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
+	enum ast_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
 	int portno;                     /*!< Optional port override */
 	int regdomainport;              /*!< Port override for domainport */
 	int expire;                     /*!< Sched ID of expiration */
@@ -1446,7 +1436,7 @@ struct sip_threadinfo {
 	int alert_pipe[2];          /*! Used to alert tcptls thread when packet is ready to be written */
 	pthread_t threadid;
 	struct ast_tcptls_session_instance *tcptls_session;
-	enum sip_transport type;    /*!< We keep a copy of the type here so we can display it in the connection list */
+	enum ast_transport type;    /*!< We keep a copy of the type here so we can display it in the connection list */
 	AST_LIST_HEAD_NOLOCK(, tcptls_packet) packet_q;
 };
 
@@ -1464,7 +1454,7 @@ struct sip_subscription_mwi {
 		AST_STRING_FIELD(secret);       /*!< Password in clear text */
 		AST_STRING_FIELD(mailbox);      /*!< Mailbox store to put MWI into */
 		);
-	enum sip_transport transport;    /*!< Transport to use */
+	enum ast_transport transport;    /*!< Transport to use */
 	int portno;                      /*!< Optional port override */
 	int resub;                       /*!< Sched ID of resubscription */
 	unsigned int subscribed:1;       /*!< Whether we are currently subscribed or not */
@@ -1922,7 +1912,7 @@ AST_THREADSTORAGE(check_auth_buf);
 struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport);
 void sip_auth_headers(enum sip_auth_type code, char **header, char **respheader);
 const char *sip_get_header(const struct sip_request *req, const char *name);
-const char *sip_get_transport(enum sip_transport t);
+const char *sip_get_transport(enum ast_transport t);
 
 #ifdef REF_DEBUG
 #define sip_ref_peer(arg1,arg2) _ref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)

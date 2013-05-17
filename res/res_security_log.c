@@ -37,16 +37,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
-#include "asterisk/event.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
 #include "asterisk/security_events.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 static const char LOG_SECURITY_NAME[] = "SECURITY";
 
 static int LOG_SECURITY;
 
-static struct ast_event_sub *security_event_sub;
+static struct stasis_subscription *security_stasis_sub;
 
 AST_THREADSTORAGE(security_event_buf);
 static const size_t SECURITY_EVENT_BUF_INIT_LEN = 256;
@@ -56,82 +57,80 @@ enum ie_required {
 	REQUIRED
 };
 
-static int ie_is_present(const struct ast_event *event,
-		const enum ast_event_ie_type ie_type)
-{
-	return (ast_event_get_ie_raw(event, ie_type) != NULL);
-}
-
-static void append_ie(struct ast_str **str, const struct ast_event *event,
+static void append_json_single(struct ast_str **str, struct ast_json *json,
 		const enum ast_event_ie_type ie_type, enum ie_required required)
 {
-	if (!required && !ie_is_present(event, ie_type)) {
-		/* Optional IE isn't present.  Ignore. */
+	const char *ie_type_key = ast_event_get_ie_type_name(ie_type);
+
+	struct ast_json *json_string;
+
+	json_string = ast_json_object_get(json, ie_type_key);
+
+	if (!required && !json_string) {
+		/* Optional IE isn't present. Ignore. */
 		return;
 	}
 
 	/* At this point, it _better_ be there! */
-	ast_assert(ie_is_present(event, ie_type));
+	ast_assert(json_string != NULL);
 
-	switch (ast_event_get_ie_pltype(ie_type)) {
-	case AST_EVENT_IE_PLTYPE_UINT:
-		ast_str_append(str, 0, ",%s=\"%u\"",
-				ast_event_get_ie_type_name(ie_type),
-				ast_event_get_ie_uint(event, ie_type));
-		break;
-	case AST_EVENT_IE_PLTYPE_STR:
-		ast_str_append(str, 0, ",%s=\"%s\"",
-				ast_event_get_ie_type_name(ie_type),
-				ast_event_get_ie_str(event, ie_type));
-		break;
-	case AST_EVENT_IE_PLTYPE_BITFLAGS:
-		ast_str_append(str, 0, ",%s=\"%u\"",
-				ast_event_get_ie_type_name(ie_type),
-				ast_event_get_ie_bitflags(event, ie_type));
-		break;
-	case AST_EVENT_IE_PLTYPE_UNKNOWN:
-	case AST_EVENT_IE_PLTYPE_EXISTS:
-	case AST_EVENT_IE_PLTYPE_RAW:
-		ast_log(LOG_WARNING, "Unexpected payload type for IE '%s'\n",
-				ast_event_get_ie_type_name(ie_type));
-		break;
-	}
+	ast_str_append(str, 0, ",%s=\"%s\"",
+			ie_type_key,
+			ast_json_string_get(json_string));
 }
 
-static void append_ies(struct ast_str **str, const struct ast_event *event,
+static void append_json(struct ast_str **str, struct ast_json *json,
 		const struct ast_security_event_ie_type *ies, enum ie_required required)
 {
 	unsigned int i;
 
 	for (i = 0; ies[i].ie_type != AST_EVENT_IE_END; i++) {
-		append_ie(str, event, ies[i].ie_type, required);
+		append_json_single(str, json, ies[i].ie_type, required);
 	}
 }
 
-static void security_event_cb(const struct ast_event *event, void *data)
+static void security_event_stasis_cb(struct ast_json *json)
 {
 	struct ast_str *str;
+	struct ast_json *event_type_json;
 	enum ast_security_event_type event_type;
+
+	event_type_json = ast_json_object_get(json, "SecurityEvent");
+	event_type = ast_json_integer_get(event_type_json);
+
+	ast_assert(event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
 
 	if (!(str = ast_str_thread_get(&security_event_buf,
 			SECURITY_EVENT_BUF_INIT_LEN))) {
 		return;
 	}
 
-	/* Note that the event type is guaranteed to be valid here. */
-	event_type = ast_event_get_ie_uint(event, AST_EVENT_IE_SECURITY_EVENT);
-	ast_assert(event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
-
 	ast_str_set(&str, 0, "%s=\"%s\"",
 			ast_event_get_ie_type_name(AST_EVENT_IE_SECURITY_EVENT),
 			ast_security_event_get_name(event_type));
 
-	append_ies(&str, event,
+	append_json(&str, json,
 			ast_security_event_get_required_ies(event_type), REQUIRED);
-	append_ies(&str, event,
+	append_json(&str, json,
 			ast_security_event_get_optional_ies(event_type), NOT_REQUIRED);
 
 	ast_log_dynamic_level(LOG_SECURITY, "%s\n", ast_str_buffer(str));
+}
+
+static void security_stasis_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+
+	if (stasis_message_type(message) != ast_security_event_type()) {
+		return;
+	}
+
+	if (!payload) {
+		return;
+	}
+
+	security_event_stasis_cb(payload->json);
 }
 
 static int load_module(void)
@@ -140,9 +139,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (!(security_event_sub = ast_event_subscribe(AST_EVENT_SECURITY,
-			security_event_cb, "Security Event Logger",
-			NULL, AST_EVENT_IE_END))) {
+	if (!(security_stasis_sub = stasis_subscribe(ast_security_topic(), security_stasis_cb, NULL))) {
 		ast_logger_unregister_level(LOG_SECURITY_NAME);
 		LOG_SECURITY = -1;
 		return AST_MODULE_LOAD_DECLINE;
@@ -155,8 +152,8 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	if (security_event_sub) {
-		security_event_sub = ast_event_unsubscribe(security_event_sub);
+	if (security_stasis_sub) {
+		security_stasis_sub = stasis_unsubscribe(security_stasis_sub);
 	}
 
 	ast_verb(3, "Security Logging Disabled\n");

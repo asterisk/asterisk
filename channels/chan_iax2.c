@@ -101,6 +101,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/data.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/security_events.h"
 
 #include "iax2/include/iax2.h"
 #include "iax2/include/firmware.h"
@@ -1341,7 +1342,7 @@ static void network_change_stasis_unsubscribe(void)
 static void acl_change_stasis_subscribe(void)
 {
 	if (!acl_change_sub) {
-		acl_change_sub = stasis_subscribe(ast_acl_topic(),
+		acl_change_sub = stasis_subscribe(ast_security_topic(),
 			acl_change_stasis_cb, NULL);
 	}
 }

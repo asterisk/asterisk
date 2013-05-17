@@ -58,7 +58,7 @@ static pj_bool_t nat_on_rx_request(pjsip_rx_data *rdata)
 /*! \brief Structure which contains information about a transport */
 struct request_transport_details {
 	/*! \brief Type of transport */
-	enum ast_sip_transport_type type;
+	enum ast_transport type;
 	/*! \brief Potential pointer to the transport itself, if UDP */
 	pjsip_transport *transport;
 	/*! \brief Potential pointer to the transport factory itself, if TCP/TLS */
@@ -139,13 +139,13 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		details.factory = tdata->tp_sel.u.listener;
 	} else if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP || tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
 		/* Connectionless uses the same transport for all requests */
-		details.type = AST_SIP_TRANSPORT_UDP;
+		details.type = AST_TRANSPORT_UDP;
 		details.transport = tdata->tp_info.transport;
 	} else {
 		if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TCP) {
-			details.type = AST_SIP_TRANSPORT_TCP;
+			details.type = AST_TRANSPORT_TCP;
 		} else if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS) {
-			details.type = AST_SIP_TRANSPORT_TLS;
+			details.type = AST_TRANSPORT_TLS;
 		} else {
 			/* Unknown transport type, we can't map and thus can't apply NAT changes */
 			return PJ_SUCCESS;
@@ -163,7 +163,7 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		}
 
 		if (!details.local_port) {
-			details.local_port = (details.type == AST_SIP_TRANSPORT_TLS) ? 5061 : 5060;
+			details.local_port = (details.type == AST_TRANSPORT_TLS) ? 5061 : 5060;
 		}
 	}
 

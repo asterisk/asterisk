@@ -41,7 +41,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
  * \retval 0 on success
  * \retval -1 on failure
  */
-int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport);
+int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum ast_transport *transport);
 
 /*! \brief Parse the comma-separated nat= option values
  * \param value The comma-separated value

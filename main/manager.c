@@ -1070,7 +1070,7 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, st
 static void acl_change_stasis_subscribe(void)
 {
 	if (!acl_change_sub) {
-		acl_change_sub = stasis_subscribe(ast_acl_topic(),
+		acl_change_sub = stasis_subscribe(ast_security_topic(),
 			acl_change_stasis_cb, NULL);
 	}
 }
@@ -2361,10 +2361,10 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 	return maskint;
 }
 
-static enum ast_security_event_transport_type mansession_get_transport(const struct mansession *s)
+static enum ast_transport mansession_get_transport(const struct mansession *s)
 {
-	return s->tcptls_session->parent->tls_cfg ? AST_SECURITY_EVENT_TRANSPORT_TLS :
-			AST_SECURITY_EVENT_TRANSPORT_TCP;
+	return s->tcptls_session->parent->tls_cfg ? AST_TRANSPORT_TLS :
+			AST_TRANSPORT_TCP;
 }
 
 static void report_invalid_user(const struct mansession *s, const char *username)

@@ -763,8 +763,8 @@ static char default_engine[256];                   /*!< Default RTP engine */
 static int default_maxcallbitrate;                 /*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;        /*!< Default codec prefs */
 static char default_zone[MAX_TONEZONE_COUNTRY];        /*!< Default tone zone for channels created from the SIP driver */
-static unsigned int default_transports;            /*!< Default Transports (enum sip_transport) that are acceptable */
-static unsigned int default_primary_transport;     /*!< Default primary Transport (enum sip_transport) for outbound connections to devices */
+static unsigned int default_transports;            /*!< Default Transports (enum ast_transport) that are acceptable */
+static unsigned int default_primary_transport;     /*!< Default primary Transport (enum ast_transport) for outbound connections to devices */
 
 static struct sip_settings sip_cfg;		/*!< SIP configuration data.
 					\note in the future we could have multiple of these (per domain, per device group etc) */
@@ -1145,7 +1145,7 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 static const char *sip_get_callid(struct ast_channel *chan);
 
 static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr);
-static int sip_standard_port(enum sip_transport type, int port);
+static int sip_standard_port(enum ast_transport type, int port);
 static int sip_prepare_socket(struct sip_pvt *p);
 static int get_address_family_filter(unsigned int transport);
 
@@ -2473,7 +2473,7 @@ static const char *sip_reason_code_to_str(struct ast_party_redirecting_reason *r
 			sip_get_transport(tmpl->socket.type), peer->name, get_transport_list(peer->transports) \
 			); \
 		ret = 1; \
-	} else if (peer->socket.type & SIP_TRANSPORT_TLS) { \
+	} else if (peer->socket.type & AST_TRANSPORT_TLS) { \
 		ast_log(LOG_WARNING, \
 			"peer '%s' HAS NOT USED (OR SWITCHED TO) TLS in favor of '%s' (but this was allowed in sip.conf)!\n", \
 			peer->name, sip_get_transport(tmpl->socket.type) \
@@ -2566,7 +2566,7 @@ static struct sip_threadinfo *sip_threadinfo_create(struct ast_tcptls_session_in
 	}
 	ao2_t_ref(tcptls_session, +1, "tcptls_session ref for sip_threadinfo object");
 	th->tcptls_session = tcptls_session;
-	th->type = transport ? transport : (tcptls_session->ssl ? SIP_TRANSPORT_TLS: SIP_TRANSPORT_TCP);
+	th->type = transport ? transport : (tcptls_session->ssl ? AST_TRANSPORT_TLS: AST_TRANSPORT_TCP);
 	ao2_t_link(threadt, th, "Adding new tcptls helper thread");
 	ao2_t_ref(th, -1, "Decrementing threadinfo ref from alloc, only table ref remains");
 	return th;
@@ -2671,7 +2671,7 @@ static void sip_websocket_callback(struct ast_websocket *session, struct ast_var
 			}
 
 			req.socket.fd = ast_websocket_fd(session);
-			set_socket_transport(&req.socket, ast_websocket_is_secure(session) ? SIP_TRANSPORT_WSS : SIP_TRANSPORT_WS);
+			set_socket_transport(&req.socket, ast_websocket_is_secure(session) ? AST_TRANSPORT_WSS : AST_TRANSPORT_WS);
 			req.socket.ws_session = session;
 
 			handle_request_do(&req, ast_websocket_remote_address(session));
@@ -3123,7 +3123,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			goto cleanup;
 		}
 
-		if (!(me = sip_threadinfo_create(tcptls_session, tcptls_session->ssl ? SIP_TRANSPORT_TLS : SIP_TRANSPORT_TCP))) {
+		if (!(me = sip_threadinfo_create(tcptls_session, tcptls_session->ssl ? AST_TRANSPORT_TLS : AST_TRANSPORT_TCP))) {
 			goto cleanup;
 		}
 		ao2_t_ref(me, +1, "Adding threadinfo ref for tcp_helper_thread");
@@ -3220,10 +3220,10 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			memset(buf, 0, sizeof(buf));
 
 			if (tcptls_session->ssl) {
-				set_socket_transport(&req.socket, SIP_TRANSPORT_TLS);
+				set_socket_transport(&req.socket, AST_TRANSPORT_TLS);
 				req.socket.port = htons(ourport_tls);
 			} else {
-				set_socket_transport(&req.socket, SIP_TRANSPORT_TCP);
+				set_socket_transport(&req.socket, AST_TRANSPORT_TCP);
 				req.socket.port = htons(ourport_tcp);
 			}
 			req.socket.fd = tcptls_session->fd;
@@ -3595,7 +3595,7 @@ static int proxy_update(struct sip_proxy *proxy)
 	if (!ast_sockaddr_parse(&proxy->ip, proxy->name, 0)) {
 		/* Ok, not an IP address, then let's check if it's a domain or host */
 		/* XXX Todo - if we have proxy port, don't do SRV */
-		proxy->ip.ss.ss_family = get_address_family_filter(SIP_TRANSPORT_UDP); /* Filter address family */
+		proxy->ip.ss.ss_family = get_address_family_filter(AST_TRANSPORT_UDP); /* Filter address family */
 		if (ast_get_ip_or_srv(&proxy->ip, proxy->name, sip_cfg.srvlookup ? "_sip._udp" : NULL) < 0) {
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", proxy->name);
 				return FALSE;
@@ -3788,19 +3788,19 @@ static int get_transport_str2enum(const char *transport)
 	}
 
 	if (!strcasecmp(transport, "udp")) {
-		res |= SIP_TRANSPORT_UDP;
+		res |= AST_TRANSPORT_UDP;
 	}
 	if (!strcasecmp(transport, "tcp")) {
-		res |= SIP_TRANSPORT_TCP;
+		res |= AST_TRANSPORT_TCP;
 	}
 	if (!strcasecmp(transport, "tls")) {
-		res |= SIP_TRANSPORT_TLS;
+		res |= AST_TRANSPORT_TLS;
 	}
 	if (!strcasecmp(transport, "ws")) {
-		res |= SIP_TRANSPORT_WS;
+		res |= AST_TRANSPORT_WS;
 	}
 	if (!strcasecmp(transport, "wss")) {
-		res |= SIP_TRANSPORT_WSS;
+		res |= AST_TRANSPORT_WSS;
 	}
 
 	return res;
@@ -3821,19 +3821,19 @@ static inline const char *get_transport_list(unsigned int transports)
 
 	memset(buf, 0, SIP_TRANSPORT_STR_BUFSIZE);
 
-	if (transports & SIP_TRANSPORT_UDP) {
+	if (transports & AST_TRANSPORT_UDP) {
 		strncat(buf, "UDP,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
 	}
-	if (transports & SIP_TRANSPORT_TCP) {
+	if (transports & AST_TRANSPORT_TCP) {
 		strncat(buf, "TCP,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
 	}
-	if (transports & SIP_TRANSPORT_TLS) {
+	if (transports & AST_TRANSPORT_TLS) {
 		strncat(buf, "TLS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
 	}
-	if (transports & SIP_TRANSPORT_WS) {
+	if (transports & AST_TRANSPORT_WS) {
 		strncat(buf, "WS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
 	}
-	if (transports & SIP_TRANSPORT_WSS) {
+	if (transports & AST_TRANSPORT_WSS) {
 		strncat(buf, "WSS,", SIP_TRANSPORT_STR_BUFSIZE - strlen(buf));
 	}
 
@@ -3846,17 +3846,17 @@ static inline const char *get_transport_list(unsigned int transports)
 }
 
 /*! \brief Return transport as string */
-const char *sip_get_transport(enum sip_transport t)
+const char *sip_get_transport(enum ast_transport t)
 {
 	switch (t) {
-	case SIP_TRANSPORT_UDP:
+	case AST_TRANSPORT_UDP:
 		return "UDP";
-	case SIP_TRANSPORT_TCP:
+	case AST_TRANSPORT_TCP:
 		return "TCP";
-	case SIP_TRANSPORT_TLS:
+	case AST_TRANSPORT_TLS:
 		return "TLS";
-	case SIP_TRANSPORT_WS:
-	case SIP_TRANSPORT_WSS:
+	case AST_TRANSPORT_WS:
+	case AST_TRANSPORT_WSS:
 		return "WS";
 	}
 
@@ -3864,17 +3864,17 @@ const char *sip_get_transport(enum sip_transport t)
 }
 
 /*! \brief Return protocol string for srv dns query */
-static inline const char *get_srv_protocol(enum sip_transport t)
+static inline const char *get_srv_protocol(enum ast_transport t)
 {
 	switch (t) {
-	case SIP_TRANSPORT_UDP:
+	case AST_TRANSPORT_UDP:
 		return "udp";
-	case SIP_TRANSPORT_WS:
+	case AST_TRANSPORT_WS:
 		return "ws";
-	case SIP_TRANSPORT_TLS:
-	case SIP_TRANSPORT_TCP:
+	case AST_TRANSPORT_TLS:
+	case AST_TRANSPORT_TCP:
 		return "tcp";
-	case SIP_TRANSPORT_WSS:
+	case AST_TRANSPORT_WSS:
 		return "wss";
 	}
 
@@ -3882,15 +3882,15 @@ static inline const char *get_srv_protocol(enum sip_transport t)
 }
 
 /*! \brief Return service string for srv dns query */
-static inline const char *get_srv_service(enum sip_transport t)
+static inline const char *get_srv_service(enum ast_transport t)
 {
 	switch (t) {
-	case SIP_TRANSPORT_TCP:
-	case SIP_TRANSPORT_UDP:
-	case SIP_TRANSPORT_WS:
+	case AST_TRANSPORT_TCP:
+	case AST_TRANSPORT_UDP:
+	case AST_TRANSPORT_WS:
 		return "sip";
-	case SIP_TRANSPORT_TLS:
-	case SIP_TRANSPORT_WSS:
+	case AST_TRANSPORT_TLS:
+	case AST_TRANSPORT_WSS:
 		return "sips";
 	}
 	return "sip";
@@ -3933,7 +3933,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data)
 		return XMIT_ERROR;
 	}
 
-	if (p->socket.type == SIP_TRANSPORT_UDP) {
+	if (p->socket.type == AST_TRANSPORT_UDP) {
 		res = ast_sendto(p->socket.fd, ast_str_buffer(data), ast_str_strlen(data), 0, dst);
 	} else if (p->socket.tcptls_session) {
 		res = sip_tcptls_write(p->socket.tcptls_session, ast_str_buffer(data), ast_str_strlen(data));
@@ -4031,17 +4031,17 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 		if (!ast_sockaddr_isnull(&externaddr)) {
 			ast_sockaddr_copy(us, &externaddr);
 			switch (p->socket.type) {
-			case SIP_TRANSPORT_TCP:
+			case AST_TRANSPORT_TCP:
 				if (!externtcpport && ast_sockaddr_port(&externaddr)) {
 					/* for consistency, default to the externaddr port */
 					externtcpport = ast_sockaddr_port(&externaddr);
 				}
 				ast_sockaddr_set_port(us, externtcpport);
 				break;
-			case SIP_TRANSPORT_TLS:
+			case AST_TRANSPORT_TLS:
 				ast_sockaddr_set_port(us, externtlsport);
 				break;
-			case SIP_TRANSPORT_UDP:
+			case AST_TRANSPORT_UDP:
 				if (!ast_sockaddr_port(&externaddr)) {
 					ast_sockaddr_set_port(us, ast_sockaddr_port(&bindaddr));
 				}
@@ -4055,7 +4055,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 	} else {
 		/* no remapping, but we bind to a specific address, so use it. */
 		switch (p->socket.type) {
-		case SIP_TRANSPORT_TCP:
+		case AST_TRANSPORT_TCP:
 			if (!ast_sockaddr_is_any(&sip_tcp_desc.local_address)) {
 				ast_sockaddr_copy(us,
 						  &sip_tcp_desc.local_address);
@@ -4064,7 +4064,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 						      ast_sockaddr_port(&sip_tcp_desc.local_address));
 			}
 			break;
-		case SIP_TRANSPORT_TLS:
+		case AST_TRANSPORT_TLS:
 			if (!ast_sockaddr_is_any(&sip_tls_desc.local_address)) {
 				ast_sockaddr_copy(us,
 						  &sip_tls_desc.local_address);
@@ -4073,7 +4073,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 						      ast_sockaddr_port(&sip_tls_desc.local_address));
 			}
 			break;
-		case SIP_TRANSPORT_UDP:
+		case AST_TRANSPORT_UDP:
 			/* fall through on purpose */
 		default:
 			if (!ast_sockaddr_is_any(&bindaddr)) {
@@ -4084,7 +4084,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 			}
 		}
 	}
-	ast_debug(3, "Setting SIP_TRANSPORT_%s with address %s\n", sip_get_transport(p->socket.type), ast_sockaddr_stringify(us));
+	ast_debug(3, "Setting AST_TRANSPORT_%s with address %s\n", sip_get_transport(p->socket.type), ast_sockaddr_stringify(us));
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -4342,7 +4342,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 	/* If the transport is something reliable (TCP or TLS) then don't really send this reliably */
 	/* I removed the code from retrans_pkt that does the same thing so it doesn't get loaded into the scheduler */
 	/*! \todo According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
-	if (!(p->socket.type & SIP_TRANSPORT_UDP)) {
+	if (!(p->socket.type & AST_TRANSPORT_UDP)) {
 		xmitres = __sip_xmit(p, data);	/* Send packet */
 		if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 			append_history(p, "XmitErr", "%s", fatal ? "(Critical)" : "(Non-critical)");
@@ -5482,7 +5482,7 @@ static int realtime_peer_by_name(const char *const *name, struct ast_sockaddr *a
 					if (ast_sockaddr_resolve(&addrs,
 								 tmp->value,
 								 PARSE_PORT_FORBID,
-								 get_address_family_filter(SIP_TRANSPORT_UDP)) <= 0 ||
+								 get_address_family_filter(AST_TRANSPORT_UDP)) <= 0 ||
 								 ast_sockaddr_cmp(&addrs[0], addr)) {
 						/* No match */
 						ast_variables_destroy(*var);
@@ -6080,7 +6080,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	copy_route(&dialog->route, peer->path);
 	if (dialog->route) {
 		/* Parse SIP URI of first route-set hop and use it as target address */
-		__set_address_from_contact(dialog->route->hop, &dialog->sa, dialog->socket.type == SIP_TRANSPORT_TLS ? 1 : 0);
+		__set_address_from_contact(dialog->route->hop, &dialog->sa, dialog->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 	}
 
 	if (dialog_initialize_rtp(dialog)) {
@@ -6213,9 +6213,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 }
 
 /*! \brief The default sip port for the given transport */
-static inline int default_sip_port(enum sip_transport type)
+static inline int default_sip_port(enum ast_transport type)
 {
-	return type == SIP_TRANSPORT_TLS ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+	return type == AST_TRANSPORT_TLS ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 }
 
 /*! \brief create address structure from device name
@@ -6300,7 +6300,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 			}
 		}
 
-		if (ast_sockaddr_resolve_first_transport(&dialog->sa, hostn, 0, dialog->socket.type ? dialog->socket.type : SIP_TRANSPORT_UDP)) {
+		if (ast_sockaddr_resolve_first_transport(&dialog->sa, hostn, 0, dialog->socket.type ? dialog->socket.type : AST_TRANSPORT_UDP)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
@@ -6311,7 +6311,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 	}
 
 	if (!dialog->socket.type)
-		set_socket_transport(&dialog->socket, SIP_TRANSPORT_UDP);
+		set_socket_transport(&dialog->socket, AST_TRANSPORT_UDP);
 	if (!dialog->socket.port) {
 		dialog->socket.port = htons(ast_sockaddr_port(&bindaddr));
 	}
@@ -6408,7 +6408,7 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 
 	/* Check to see if we should try to force encryption */
-	if (p->req_secure_signaling && p->socket.type != SIP_TRANSPORT_TLS) {
+	if (p->req_secure_signaling && p->socket.type != AST_TRANSPORT_TLS) {
 	   ast_log(LOG_WARNING, "Encrypted signaling is required\n");
 	   ast_channel_hangupcause_set(ast, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 	   return -1;
@@ -8592,7 +8592,7 @@ static char *generate_random_string(char *buf, size_t size)
 static char *generate_uri(struct sip_pvt *pvt, char *buf, size_t size)
 {
 	struct ast_str *uri = ast_str_alloca(size);
-	ast_str_set(&uri, 0, "%s", pvt->socket.type == SIP_TRANSPORT_TLS ? "sips:" : "sip:");
+	ast_str_set(&uri, 0, "%s", pvt->socket.type == AST_TRANSPORT_TLS ? "sips:" : "sip:");
 	/* Here would be a great place to generate a UUID, but for now we'll
 	 * use the handy random string generation function we already have
 	 */
@@ -8786,7 +8786,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		/* Later in ast_sip_ouraddrfor we need this to choose the right ip and port for the specific transport */
 		set_socket_transport(&p->socket, req->socket.type);
 	} else {
-		set_socket_transport(&p->socket, SIP_TRANSPORT_UDP);
+		set_socket_transport(&p->socket, AST_TRANSPORT_UDP);
 	}
 
 	p->socket.fd = -1;
@@ -9474,7 +9474,7 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 {
 	struct sip_subscription_mwi *mwi;
 	int portnum = 0;
-	enum sip_transport transport = SIP_TRANSPORT_UDP;
+	enum ast_transport transport = AST_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL, *hostname = NULL, *secret = NULL, *authuser = NULL, *porta = NULL, *mailbox = NULL;
 
@@ -11969,7 +11969,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	if (p->route &&
 			!(sipmethod == SIP_CANCEL ||
 				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
-		if (p->socket.type != SIP_TRANSPORT_UDP && p->socket.tcptls_session) {
+		if (p->socket.type != AST_TRANSPORT_UDP && p->socket.tcptls_session) {
 			/* For TCP/TLS sockets that are connected we won't need
 			 * to do any hostname/IP lookups */
 		} else if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) {
@@ -13794,7 +13794,7 @@ static void build_contact(struct sip_pvt *p)
 	char tmp[SIPBUFSIZE];
 	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), ast_uri_sip_user);
 
-	if (p->socket.type == SIP_TRANSPORT_UDP) {
+	if (p->socket.type == AST_TRANSPORT_UDP) {
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
 			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify_remote(&p->ourip));
 	} else {
@@ -14856,13 +14856,13 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 
 	if (!sip_standard_port(p->socket.type, ourport)) {
-		if (p->socket.type == SIP_TRANSPORT_UDP) {
+		if (p->socket.type == AST_TRANSPORT_UDP) {
 			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d\r\n", exten, domain, ourport);
 		} else {
 			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d;transport=%s\r\n", exten, domain, ourport, sip_get_transport(p->socket.type));
 		}
 	} else {
-		if (p->socket.type == SIP_TRANSPORT_UDP) {
+		if (p->socket.type == AST_TRANSPORT_UDP) {
 			ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, domain);
 		} else {
 			ast_str_append(&out, 0, "Message-Account: sip:%s@%s;transport=%s\r\n", exten, domain, sip_get_transport(p->socket.type));
@@ -15342,7 +15342,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		/* Set transport and port so the correct contact is built */
 		set_socket_transport(&p->socket, r->transport);
-		if (r->transport == SIP_TRANSPORT_TLS || r->transport == SIP_TRANSPORT_TCP) {
+		if (r->transport == AST_TRANSPORT_TLS || r->transport == AST_TRANSPORT_TCP) {
 			p->socket.port =
 			    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
 		}
@@ -15965,7 +15965,7 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 	if (!ast_sockaddr_port(addr)) {
 		ast_sockaddr_set_port(addr,
 				      (get_transport_str2enum(transport) ==
-				       SIP_TRANSPORT_TLS ||
+				       AST_TRANSPORT_TLS ||
 				       !strncasecmp(fullcontact, "sips", 4)) ?
 				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 	}
@@ -15984,7 +15984,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 		return 0;
 	}
 
-	return __set_address_from_contact(pvt->fullcontact, &pvt->sa, pvt->socket.type == SIP_TRANSPORT_TLS ? 1 : 0);
+	return __set_address_from_contact(pvt->fullcontact, &pvt->sa, pvt->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 }
 
 /*! \brief Parse contact header and save registration (peer registration) */
@@ -16095,7 +16095,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 	}
 
-	if ((transport_type != SIP_TRANSPORT_WS) && (transport_type != SIP_TRANSPORT_WSS) &&
+	if ((transport_type != AST_TRANSPORT_WS) && (transport_type != AST_TRANSPORT_WSS) &&
 	    (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) && !ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT))) {
 		/* use the data provided in the Contact header for call routing */
 		ast_debug(1, "Store REGISTER's Contact header for call routing.\n");
@@ -16750,7 +16750,7 @@ static void network_change_stasis_unsubscribe(void)
 static void acl_change_stasis_subscribe(void)
 {
 	if (!acl_change_sub) {
-		acl_change_sub = stasis_subscribe(ast_acl_topic(),
+		acl_change_sub = stasis_subscribe(ast_security_topic(),
 		acl_change_stasis_cb, NULL);
 	}
 
@@ -22110,11 +22110,11 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	struct sip_auth_container *credentials;
 
 	if (!ast_strlen_zero(p->domain))
-		snprintf(uri, sizeof(uri), "%s:%s", p->socket.type == SIP_TRANSPORT_TLS ? "sips" : "sip", p->domain);
+		snprintf(uri, sizeof(uri), "%s:%s", p->socket.type == AST_TRANSPORT_TLS ? "sips" : "sip", p->domain);
 	else if (!ast_strlen_zero(p->uri))
 		ast_copy_string(uri, p->uri, sizeof(uri));
 	else
-		snprintf(uri, sizeof(uri), "%s:%s@%s", p->socket.type == SIP_TRANSPORT_TLS ? "sips" : "sip", p->username, ast_sockaddr_stringify_host_remote(&p->sa));
+		snprintf(uri, sizeof(uri), "%s:%s@%s", p->socket.type == AST_TRANSPORT_TLS ? "sips" : "sip", p->username, ast_sockaddr_stringify_host_remote(&p->sa));
 
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
@@ -22543,7 +22543,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 	char *contact_number = NULL;
 	char *separator, *trans;
 	char *domain;
-	enum sip_transport transport = SIP_TRANSPORT_UDP;
+	enum ast_transport transport = AST_TRANSPORT_UDP;
 
 	ast_copy_string(contact, sip_get_header(req, "Contact"), sizeof(contact));
 	if ((separator = strchr(contact, ',')))
@@ -22557,14 +22557,14 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 			*separator = '\0';
 
 		if (!strncasecmp(trans, "tcp", 3))
-			transport = SIP_TRANSPORT_TCP;
+			transport = AST_TRANSPORT_TCP;
 		else if (!strncasecmp(trans, "tls", 3))
-			transport = SIP_TRANSPORT_TLS;
+			transport = AST_TRANSPORT_TLS;
 		else {
 			if (strncasecmp(trans, "udp", 3))
 				ast_debug(1, "received contact with an invalid transport, '%s'\n", contact_number);
 			/* This will assume UDP for all unknown transports */
-			transport = SIP_TRANSPORT_UDP;
+			transport = AST_TRANSPORT_UDP;
 		}
 	}
 	contact_number = remove_uri_parameters(contact_number);
@@ -24017,7 +24017,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			ast_channel_hangupcause_set(owner, hangup_sip2cause(resp));
 	}
 
-	if (p->socket.type == SIP_TRANSPORT_UDP) {
+	if (p->socket.type == AST_TRANSPORT_UDP) {
 		int ack_res = FALSE;
 
 		/* Acknowledge whatever it is destined for */
@@ -28636,7 +28636,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 
 	req.socket.fd = sipsock;
-	set_socket_transport(&req.socket, SIP_TRANSPORT_UDP);
+	set_socket_transport(&req.socket, AST_TRANSPORT_UDP);
 	req.socket.tcptls_session	= NULL;
 	req.socket.port = htons(ast_sockaddr_port(&bindaddr));
 
@@ -28743,9 +28743,9 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
  * \param port Port we are checking to see if it's the standard port.
  * \note port is expected in host byte order
  */
-static int sip_standard_port(enum sip_transport type, int port)
+static int sip_standard_port(enum ast_transport type, int port)
 {
-	if (type & SIP_TRANSPORT_TLS)
+	if (type & AST_TRANSPORT_TLS)
 		return port == STANDARD_TLS_PORT;
 	else
 		return port == STANDARD_SIP_PORT;
@@ -28790,11 +28790,11 @@ int get_address_family_filter(unsigned int transport)
 {
 	const struct ast_sockaddr *addr = NULL;
 
-	if ((transport == SIP_TRANSPORT_UDP) || !transport) {
+	if ((transport == AST_TRANSPORT_UDP) || !transport) {
 		addr = &bindaddr;
-	} else if (transport == SIP_TRANSPORT_TCP || transport == SIP_TRANSPORT_WS) {
+	} else if (transport == AST_TRANSPORT_TCP || transport == AST_TRANSPORT_WS) {
 		addr = &sip_tcp_desc.local_address;
-	} else if (transport == SIP_TRANSPORT_TLS || transport == SIP_TRANSPORT_WSS) {
+	} else if (transport == AST_TRANSPORT_TLS || transport == AST_TRANSPORT_WSS) {
 		addr = &sip_tls_desc.local_address;
 	}
 
@@ -28817,15 +28817,15 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	pthread_t launched;
 
 	/* check to see if a socket is already active */
-	if ((s->fd != -1) && (s->type == SIP_TRANSPORT_UDP)) {
+	if ((s->fd != -1) && (s->type == AST_TRANSPORT_UDP)) {
 		return s->fd;
 	}
-	if ((s->type & (SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS)) &&
+	if ((s->type & (AST_TRANSPORT_TCP | AST_TRANSPORT_TLS)) &&
 			(s->tcptls_session) &&
 			(s->tcptls_session->fd != -1)) {
 		return s->tcptls_session->fd;
 	}
-	if ((s->type & (SIP_TRANSPORT_WS | SIP_TRANSPORT_WSS))) {
+	if ((s->type & (AST_TRANSPORT_WS | AST_TRANSPORT_WSS))) {
 		return s->ws_session ? ast_websocket_fd(s->ws_session) : -1;
 	}
 
@@ -28836,7 +28836,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		s->type = p->outboundproxy->transport;
 	}
 
-	if (s->type == SIP_TRANSPORT_UDP) {
+	if (s->type == AST_TRANSPORT_UDP) {
 		s->fd = sipsock;
 		return s->fd;
 	}
@@ -28874,7 +28874,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	ca->accept_fd = -1;
 	ast_sockaddr_copy(&ca->remote_address,sip_real_dst(p));
 	/* if type is TLS, we need to create a tls cfg for this session arg */
-	if (s->type == SIP_TRANSPORT_TLS) {
+	if (s->type == AST_TRANSPORT_TLS) {
 		if (!(ca->tls_cfg = ast_calloc(1, sizeof(*ca->tls_cfg)))) {
 			goto create_tcptls_session_fail;
 		}
@@ -29657,13 +29657,13 @@ static int sip_send_keepalive(const void *data)
 	}
 
 	/* Send the packet out using the proper method for this peer */
-	if ((peer->socket.fd != -1) && (peer->socket.type == SIP_TRANSPORT_UDP)) {
+	if ((peer->socket.fd != -1) && (peer->socket.type == AST_TRANSPORT_UDP)) {
 		res = ast_sendto(peer->socket.fd, keepalive, sizeof(keepalive), 0, &peer->addr);
-	} else if ((peer->socket.type & (SIP_TRANSPORT_TCP | SIP_TRANSPORT_TLS)) &&
+	} else if ((peer->socket.type & (AST_TRANSPORT_TCP | AST_TRANSPORT_TLS)) &&
 		   (peer->socket.tcptls_session) &&
 		   (peer->socket.tcptls_session->fd != -1)) {
 		res = sip_tcptls_write(peer->socket.tcptls_session, keepalive, sizeof(keepalive));
-	} else if (peer->socket.type == SIP_TRANSPORT_UDP) {
+	} else if (peer->socket.type == AST_TRANSPORT_UDP) {
 		res = ast_sendto(sipsock, keepalive, sizeof(keepalive), 0, &peer->addr);
 	}
 
@@ -29783,7 +29783,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	copy_route(&p->route, peer->path);
 	if (p->route) {
 		/* Parse SIP URI of first route-set hop and use it as target address */
-		__set_address_from_contact(p->route->hop, &p->sa, p->socket.type == SIP_TRANSPORT_TLS ? 1 : 0);
+		__set_address_from_contact(p->route->hop, &p->sa, p->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 	}
 
 	/* Send OPTIONs to peer's fullcontact */
@@ -29964,7 +29964,7 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	char *trans = NULL;
 	char dialstring[256];
 	char *remote_address;
-	enum sip_transport transport = 0;
+	enum ast_transport transport = 0;
 	struct ast_callid *callid;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peerorhost);
@@ -30056,16 +30056,16 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	if (trans) {
 		*trans++ = '\0';
 		if (!strcasecmp(trans, "tcp"))
-			transport = SIP_TRANSPORT_TCP;
+			transport = AST_TRANSPORT_TCP;
 		else if (!strcasecmp(trans, "tls"))
-			transport = SIP_TRANSPORT_TLS;
+			transport = AST_TRANSPORT_TLS;
 		else {
 			if (strcasecmp(trans, "udp"))
 				ast_log(LOG_WARNING, "'%s' is not a valid transport option to Dial() for SIP calls, using udp by default.\n", trans);
-			transport = SIP_TRANSPORT_UDP;
+			transport = AST_TRANSPORT_UDP;
 		}
 	} else { /* use default */
-		transport = SIP_TRANSPORT_UDP;
+		transport = AST_TRANSPORT_UDP;
 	}
 
 	if (!host) {
@@ -30608,7 +30608,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 		peer->keepalivesend = -1;
-		set_socket_transport(&peer->socket, SIP_TRANSPORT_UDP);
+		set_socket_transport(&peer->socket, AST_TRANSPORT_UDP);
 	}
 	peer->type = SIP_TYPE_PEER;
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
@@ -30876,15 +30876,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					trans = ast_skip_blanks(trans);
 
 					if (!strncasecmp(trans, "udp", 3)) {
-						peer->transports |= SIP_TRANSPORT_UDP;
+						peer->transports |= AST_TRANSPORT_UDP;
 					} else if (!strncasecmp(trans, "wss", 3)) {
-						peer->transports |= SIP_TRANSPORT_WSS;
+						peer->transports |= AST_TRANSPORT_WSS;
 					} else if (!strncasecmp(trans, "ws", 2)) {
-						peer->transports |= SIP_TRANSPORT_WS;
+						peer->transports |= AST_TRANSPORT_WS;
 					} else if (sip_cfg.tcp_enabled && !strncasecmp(trans, "tcp", 3)) {
-						peer->transports |= SIP_TRANSPORT_TCP;
+						peer->transports |= AST_TRANSPORT_TCP;
 					} else if (default_tls_cfg.enabled && !strncasecmp(trans, "tls", 3)) {
-						peer->transports |= SIP_TRANSPORT_TLS;
+						peer->transports |= AST_TRANSPORT_TLS;
 					} else if (!strncasecmp(trans, "tcp", 3) || !strncasecmp(trans, "tls", 3)) {
 						ast_log(LOG_WARNING, "'%.3s' is not a valid transport type when %.3senable=no. If no other is specified, the defaults from general will be used.\n", trans, trans);
 					} else {
@@ -31401,16 +31401,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	if (ast_sockaddr_port(&peer->addr) == 0) {
 		ast_sockaddr_set_port(&peer->addr,
-				      (peer->socket.type & SIP_TRANSPORT_TLS) ?
+				      (peer->socket.type & AST_TRANSPORT_TLS) ?
 				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 	}
 	if (ast_sockaddr_port(&peer->defaddr) == 0) {
 		ast_sockaddr_set_port(&peer->defaddr,
-				      (peer->socket.type & SIP_TRANSPORT_TLS) ?
+				      (peer->socket.type & AST_TRANSPORT_TLS) ?
 				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 	}
 	if (!peer->socket.port) {
-		peer->socket.port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+		peer->socket.port = htons(((peer->socket.type & AST_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
 	}
 
 	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
@@ -31668,8 +31668,8 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
 	sip_cfg.outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
-	default_transports = SIP_TRANSPORT_UDP;
-	default_primary_transport = SIP_TRANSPORT_UDP;
+	default_transports = AST_TRANSPORT_UDP;
+	default_primary_transport = AST_TRANSPORT_UDP;
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
 	externtcpport = STANDARD_SIP_PORT;
@@ -31885,15 +31885,15 @@ static int reload_config(enum channelreloadreason reason)
 				trans = ast_skip_blanks(trans);
 
 				if (!strncasecmp(trans, "udp", 3)) {
-					default_transports |= SIP_TRANSPORT_UDP;
+					default_transports |= AST_TRANSPORT_UDP;
 				} else if (!strncasecmp(trans, "tcp", 3)) {
-					default_transports |= SIP_TRANSPORT_TCP;
+					default_transports |= AST_TRANSPORT_TCP;
 				} else if (!strncasecmp(trans, "tls", 3)) {
-					default_transports |= SIP_TRANSPORT_TLS;
+					default_transports |= AST_TRANSPORT_TLS;
 				} else if (!strncasecmp(trans, "wss", 3)) {
-					default_transports |= SIP_TRANSPORT_WSS;
+					default_transports |= AST_TRANSPORT_WSS;
 				} else if (!strncasecmp(trans, "ws", 2)) {
-					default_transports |= SIP_TRANSPORT_WS;
+					default_transports |= AST_TRANSPORT_WS;
 				} else {
 					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
 				}
@@ -32398,22 +32398,22 @@ static int reload_config(enum channelreloadreason reason)
 		sip_cfg.allow_external_domains = 1;
 	}
 	/* If not or badly configured, set default transports */
-	if (!sip_cfg.tcp_enabled && (default_transports & SIP_TRANSPORT_TCP)) {
+	if (!sip_cfg.tcp_enabled && (default_transports & AST_TRANSPORT_TCP)) {
 		ast_log(LOG_WARNING, "Cannot use 'tcp' transport with tcpenable=no. Removing from available transports.\n");
-		default_primary_transport &= ~SIP_TRANSPORT_TCP;
-		default_transports &= ~SIP_TRANSPORT_TCP;
+		default_primary_transport &= ~AST_TRANSPORT_TCP;
+		default_transports &= ~AST_TRANSPORT_TCP;
 	}
-	if (!default_tls_cfg.enabled && (default_transports & SIP_TRANSPORT_TLS)) {
+	if (!default_tls_cfg.enabled && (default_transports & AST_TRANSPORT_TLS)) {
 		ast_log(LOG_WARNING, "Cannot use 'tls' transport with tlsenable=no. Removing from available transports.\n");
-		default_primary_transport &= ~SIP_TRANSPORT_TLS;
-		default_transports &= ~SIP_TRANSPORT_TLS;
+		default_primary_transport &= ~AST_TRANSPORT_TLS;
+		default_transports &= ~AST_TRANSPORT_TLS;
 	}
 	if (!default_transports) {
 		ast_log(LOG_WARNING, "No valid transports available, falling back to 'udp'.\n");
-		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
+		default_transports = default_primary_transport = AST_TRANSPORT_UDP;
 	} else if (!default_primary_transport) {
 		ast_log(LOG_WARNING, "No valid default transport. Selecting 'udp' as default.\n");
-		default_primary_transport = SIP_TRANSPORT_UDP;
+		default_primary_transport = AST_TRANSPORT_UDP;
 	}
 
 	/* Build list of authentication to various SIP realms, i.e. service providers */
@@ -33552,7 +33552,7 @@ static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 				      const char* name, int flag)
 {
-	return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(SIP_TRANSPORT_UDP));
+	return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(AST_TRANSPORT_UDP));
 }
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
@@ -33644,7 +33644,7 @@ static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags)
 	}
 
 	/* We matched the IP, check to see if we need to match by port as well. */
-	if ((peer->transports & peer2->transports) & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_TCP)) {
+	if ((peer->transports & peer2->transports) & (AST_TRANSPORT_TLS | AST_TRANSPORT_TCP)) {
 		/* peer matching on port is not possible with TCP/TLS */
 		return CMP_MATCH | CMP_STOP;
 	} else if (ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {

@@ -19,6 +19,8 @@
 #ifndef _ASTERISK_JSON_H
 #define _ASTERISK_JSON_H
 
+#include "asterisk/netsock2.h"
+
 /*! \file
  *
  * \brief Asterisk JSON abstraction layer.
@@ -861,6 +863,18 @@ struct ast_json *ast_json_name_number(const char *name, const char *number);
  * \return \c NULL on error.
  */
 struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone);
+
+/*!
+ * \brief Construct an IP address as JSON
+ *
+ * XXX some comments describing the need for this here
+ *
+ * \param addr ast_sockaddr to encode
+ * \param transport_type ast_transport to include in the address string if any. Should just be one.
+ * \return JSON string containing the IP address with optional transport information
+ * \return \c NULL on error.
+ */
+struct ast_json *ast_json_ipaddr(const struct ast_sockaddr *addr, enum ast_transport transport_type);
 
 /*!
  * \brief Construct a context/exten/priority as JSON.

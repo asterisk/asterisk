@@ -37,8 +37,48 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/network.h"
 #include "asterisk/security_events.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
+#include "asterisk/astobj2.h"
 
 static const size_t TIMESTAMP_STR_LEN = 32;
+
+/*! \brief Security Topic */
+static struct stasis_topic *security_topic;
+
+struct stasis_topic *ast_security_topic(void)
+{
+	return security_topic;
+}
+
+/*! \brief Message type for security events */
+STASIS_MESSAGE_TYPE_DEFN(ast_security_event_type);
+
+int ast_security_stasis_init(void)
+{
+	security_topic = stasis_topic_create("ast_security");
+	if (!security_topic) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_security_event_type)) {
+		return -1;
+	}
+
+	if (ast_register_atexit(ast_security_stasis_cleanup)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_security_stasis_cleanup(void)
+{
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_security_event_type);
+
+	ao2_cleanup(security_topic);
+	security_topic = NULL;
+}
 
 static const struct {
 	const char *name;
@@ -464,72 +504,17 @@ const struct ast_security_event_ie_type *ast_security_event_get_optional_ies(
 	return sec_events[event_type].optional_ies;
 }
 
-static void encode_timestamp(struct ast_str **str, const struct timeval *tv)
-{
-	ast_str_set(str, 0, "%u-%u",
-			(unsigned int) tv->tv_sec,
-			(unsigned int) tv->tv_usec);
-}
-
-static struct ast_event *alloc_event(const struct ast_security_event_common *sec)
-{
-	struct ast_str *str = ast_str_alloca(TIMESTAMP_STR_LEN);
-	struct timeval tv = ast_tvnow();
-	const char *severity_str;
-
-	if (check_event_type(sec->event_type)) {
-		return NULL;
-	}
-
-	encode_timestamp(&str, &tv);
-
-	severity_str = S_OR(
-		ast_security_event_severity_get_name(sec_events[sec->event_type].severity),
-		"Unknown"
-	);
-
-	return ast_event_new(AST_EVENT_SECURITY,
-		AST_EVENT_IE_SECURITY_EVENT, AST_EVENT_IE_PLTYPE_UINT, sec->event_type,
-		AST_EVENT_IE_EVENT_VERSION, AST_EVENT_IE_PLTYPE_UINT, sec->version,
-		AST_EVENT_IE_EVENT_TV, AST_EVENT_IE_PLTYPE_STR, ast_str_buffer(str),
-		AST_EVENT_IE_SERVICE, AST_EVENT_IE_PLTYPE_STR, sec->service,
-		AST_EVENT_IE_SEVERITY, AST_EVENT_IE_PLTYPE_STR, severity_str,
-		AST_EVENT_IE_END);
-}
-
-static int add_timeval_ie(struct ast_event **event, enum ast_event_ie_type ie_type,
-		const struct timeval *tv)
-{
-	struct ast_str *str = ast_str_alloca(TIMESTAMP_STR_LEN);
-
-	encode_timestamp(&str, tv);
-
-	return ast_event_append_ie_str(event, ie_type, ast_str_buffer(str));
-}
-
-static int add_ip_ie(struct ast_event **event, enum ast_event_ie_type ie_type,
+static int add_ip_json_object(struct ast_json *json, enum ast_event_ie_type ie_type,
 		const struct ast_security_event_ip_addr *addr)
 {
-	struct ast_str *str = ast_str_alloca(64);
+	struct ast_json *json_ip;
 
-	ast_str_set(&str, 0, (ast_sockaddr_is_ipv4(addr->addr) || ast_sockaddr_is_ipv4_mapped(addr->addr)) ? "IPV4/" : "IPV6/");
-
-	switch (addr->transport) {
-	case AST_SECURITY_EVENT_TRANSPORT_UDP:
-		ast_str_append(&str, 0, "UDP/");
-		break;
-	case AST_SECURITY_EVENT_TRANSPORT_TCP:
-		ast_str_append(&str, 0, "TCP/");
-		break;
-	case AST_SECURITY_EVENT_TRANSPORT_TLS:
-		ast_str_append(&str, 0, "TLS/");
-		break;
+	json_ip = ast_json_ipaddr(addr->addr, addr->transport);
+	if (!json_ip) {
+		return -1;
 	}
 
-	ast_str_append(&str, 0, "%s", ast_sockaddr_stringify_addr(addr->addr));
-	ast_str_append(&str, 0, "/%s", ast_sockaddr_stringify_port(addr->addr));
-
-	return ast_event_append_ie_str(event, ie_type, ast_str_buffer(str));
+	return ast_json_object_set(json, ast_event_get_ie_type_name(ie_type), json_ip);
 }
 
 enum ie_required {
@@ -537,7 +522,7 @@ enum ie_required {
 	REQUIRED
 };
 
-static int add_ie(struct ast_event **event, const struct ast_security_event_common *sec,
+static int add_json_object(struct ast_json *json, const struct ast_security_event_common *sec,
 		const struct ast_security_event_ie_type *ie_type, enum ie_required req)
 {
 	int res = 0;
@@ -559,6 +544,7 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 	case AST_EVENT_IE_ATTEMPTED_TRANSPORT:
 	{
 		const char *str;
+		struct ast_json *json_string;
 
 		str = *((const char **)(((const char *) sec) + ie_type->offset));
 
@@ -567,20 +553,36 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 					"type '%d' not present\n", ie_type->ie_type,
 					sec->event_type);
 			res = -1;
+			break;
 		}
 
-		if (str) {
-			res = ast_event_append_ie_str(event, ie_type->ie_type, str);
+		if (!str) {
+			break;
 		}
 
+		json_string = ast_json_string_create(str);
+		if (!json_string) {
+			res = -1;
+			break;
+		}
+
+		res = ast_json_object_set(json, ast_event_get_ie_type_name(ie_type->ie_type), json_string);
 		break;
 	}
 	case AST_EVENT_IE_EVENT_VERSION:
 	case AST_EVENT_IE_USING_PASSWORD:
 	{
+		struct ast_json *json_string;
 		uint32_t val;
 		val = *((const uint32_t *)(((const char *) sec) + ie_type->offset));
-		res = ast_event_append_ie_uint(event, ie_type->ie_type, val);
+
+		json_string = ast_json_stringf("%d", val);
+		if (!json_string) {
+			res = -1;
+			break;
+		}
+
+		res = ast_json_object_set(json, ast_event_get_ie_type_name(ie_type->ie_type), json_string);
 		break;
 	}
 	case AST_EVENT_IE_LOCAL_ADDR:
@@ -599,8 +601,9 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 		}
 
 		if (addr->addr) {
-			res = add_ip_ie(event, ie_type->ie_type, addr);
+			res = add_ip_json_object(json, ie_type->ie_type, addr);
 		}
+
 		break;
 	}
 	case AST_EVENT_IE_SESSION_TV:
@@ -617,7 +620,12 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 		}
 
 		if (tval) {
-			add_timeval_ie(event, ie_type->ie_type, tval);
+			struct ast_json *json_tval = ast_json_timeval(*tval, NULL);
+			if (!json_tval) {
+				res = -1;
+				break;
+			}
+			res = ast_json_object_set(json, ast_event_get_ie_type_name(ie_type->ie_type), json_tval);
 		}
 
 		break;
@@ -635,20 +643,78 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 	return res;
 }
 
+static struct ast_json *alloc_security_event_json_object(const struct ast_security_event_common *sec)
+{
+	struct timeval tv = ast_tvnow();
+	const char *severity_str;
+	struct ast_json *json_temp;
+	RAII_VAR(struct ast_json *, json_object, ast_json_object_create(), ast_json_unref);
+
+	if (!json_object) {
+		return NULL;
+	}
+
+	/* NOTE: Every time ast_json_object_set is used, json_temp becomes a stale pointer since the reference is taken.
+	 *       This is true even if ast_json_object_set fails.
+	 */
+
+	/* AST_EVENT_IE_SECURITY_EVENT */
+	json_temp = ast_json_integer_create(sec->event_type);
+	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_SECURITY_EVENT), json_temp)) {
+		return NULL;
+	}
+
+	/* AST_EVENT_IE_EVENT_VERSION */
+	json_temp = ast_json_stringf("%d", sec->version);
+	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_EVENT_VERSION), json_temp)) {
+		return NULL;
+	}
+
+	/* AST_EVENT_IE_EVENT_TV */
+	json_temp  = ast_json_timeval(tv, NULL);
+	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_EVENT_TV), json_temp)) {
+		return NULL;
+	}
+
+	/* AST_EVENT_IE_SERVICE */
+	json_temp = ast_json_string_create(sec->service);
+	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_SERVICE), json_temp)) {
+		return NULL;
+	}
+
+	/* AST_EVENT_IE_SEVERITY */
+	severity_str = S_OR(
+		ast_security_event_severity_get_name(sec_events[sec->event_type].severity),
+		"Unknown"
+	);
+
+	json_temp = ast_json_string_create(severity_str);
+	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_SEVERITY), json_temp)) {
+		return NULL;
+	}
+
+	return ast_json_ref(json_object);
+}
+
 static int handle_security_event(const struct ast_security_event_common *sec)
 {
-	struct ast_event *event;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+
 	const struct ast_security_event_ie_type *ies;
 	unsigned int i;
 
-	if (!(event = alloc_event(sec))) {
+	json_object = alloc_security_event_json_object(sec);
+
+	if (!json_object) {
 		return -1;
 	}
 
 	for (ies = ast_security_event_get_required_ies(sec->event_type), i = 0;
 			ies[i].ie_type != AST_EVENT_IE_END;
 			i++) {
-		if (add_ie(&event, sec, ies + i, REQUIRED)) {
+		if (add_json_object(json_object, sec, ies + i, REQUIRED)) {
 			goto return_error;
 		}
 	}
@@ -656,30 +722,32 @@ static int handle_security_event(const struct ast_security_event_common *sec)
 	for (ies = ast_security_event_get_optional_ies(sec->event_type), i = 0;
 			ies[i].ie_type != AST_EVENT_IE_END;
 			i++) {
-		if (add_ie(&event, sec, ies + i, NOT_REQUIRED)) {
+		if (add_json_object(json_object, sec, ies + i, NOT_REQUIRED)) {
 			goto return_error;
 		}
 	}
 
-
-	if (ast_event_queue(event)) {
+	/* The json blob is ready.  Throw it in the payload and send it out over stasis. */
+	if (!(json_payload = ast_json_payload_create(json_object))) {
 		goto return_error;
 	}
+
+	msg = stasis_message_create(ast_security_event_type(), json_payload);
+
+	if (!msg) {
+		goto return_error;
+	}
+
+	stasis_publish(ast_security_topic(), msg);
 
 	return 0;
 
 return_error:
-	if (event) {
-		ast_event_destroy(event);
-	}
-
 	return -1;
 }
 
 int ast_security_event_report(const struct ast_security_event_common *sec)
 {
-	int res;
-
 	if (sec->event_type < 0 || sec->event_type >= AST_SECURITY_EVENT_NUM_TYPES) {
 		ast_log(LOG_ERROR, "Invalid security event type\n");
 		return -1;
@@ -697,9 +765,12 @@ int ast_security_event_report(const struct ast_security_event_common *sec)
 		return -1;
 	}
 
-	res = handle_security_event(sec);
+	if (handle_security_event(sec)) {
+		ast_log(LOG_ERROR, "Failed to issue security event of type %s.\n",
+				ast_security_event_get_name(sec->event_type));
+	}
 
-	return res;
+	return 0;
 }
 
 

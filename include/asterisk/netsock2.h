@@ -42,6 +42,14 @@ enum {
 	AST_AF_INET6	= 10,
 };
 
+enum ast_transport {
+	AST_TRANSPORT_UDP   = 1,
+	AST_TRANSPORT_TCP   = 1 << 1,
+	AST_TRANSPORT_TLS   = 1 << 2,
+	AST_TRANSPORT_WS    = 1 << 3,
+	AST_TRANSPORT_WSS   = 1 << 4,
+};
+
 /*!
  * \brief Socket address structure.
  *

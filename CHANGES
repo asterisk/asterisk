@@ -147,6 +147,11 @@ XMPP
    If no resources exist or all are unavailable the device state is considered
    to be unavailable.
 
+Security Events Framework
+-------------------------
+ * Security Event timestamps now use ISO 8601 formatted date/time instead of the
+   "seconds-microseconds" format that it was using previously.
+
 Sorcery
 ------------------
  * All future modules which utilize Sorcery for object persistence must have a

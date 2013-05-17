@@ -539,10 +539,10 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 			return -1;
 		}
 
-		if (transport->type == AST_SIP_TRANSPORT_UDP) {
+		if (transport->type == AST_TRANSPORT_UDP) {
 			selector.type = PJSIP_TPSELECTOR_TRANSPORT;
 			selector.u.transport = transport->state->transport;
-		} else if (transport->type == AST_SIP_TRANSPORT_TCP || transport->type == AST_SIP_TRANSPORT_TLS) {
+		} else if (transport->type == AST_TRANSPORT_TCP || transport->type == AST_TRANSPORT_TLS) {
 			selector.type = PJSIP_TPSELECTOR_LISTENER;
 			selector.u.listener = transport->state->factory;
 		} else {

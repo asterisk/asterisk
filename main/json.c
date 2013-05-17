@@ -527,6 +527,50 @@ struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone)
 	return ast_json_string_create(buf);
 }
 
+struct ast_json *ast_json_ipaddr(const struct ast_sockaddr *addr, enum ast_transport transport_type)
+{
+	struct ast_str *string = ast_str_alloca(64);
+
+	if (!string) {
+		return NULL;
+	}
+
+	ast_str_set(&string, 0, (ast_sockaddr_is_ipv4(addr) ||
+		ast_sockaddr_is_ipv4_mapped(addr)) ? "IPV4/" : "IPV6/");
+
+	if (transport_type) {
+		char *transport_string = NULL;
+
+		/* NOTE: None will be applied if multiple transport types are specified in transport_type */
+		switch(transport_type) {
+		case AST_TRANSPORT_UDP:
+			transport_string = "UDP";
+			break;
+		case AST_TRANSPORT_TCP:
+			transport_string = "TCP";
+			break;
+		case AST_TRANSPORT_TLS:
+			transport_string = "TLS";
+			break;
+		case AST_TRANSPORT_WS:
+			transport_string = "WS";
+			break;
+		case AST_TRANSPORT_WSS:
+			transport_string = "WSS";
+			break;
+		}
+
+		if (transport_string) {
+			ast_str_append(&string, 0, "%s/", transport_string);
+		}
+	}
+
+	ast_str_append(&string, 0, "%s", ast_sockaddr_stringify_addr(addr));
+	ast_str_append(&string, 0, "/%s", ast_sockaddr_stringify_port(addr));
+
+	return ast_json_string_create(ast_str_buffer(string));
+}
+
 void ast_json_init(void)
 {
 	/* Setup to use Asterisk custom allocators */

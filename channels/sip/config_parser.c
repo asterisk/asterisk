@@ -40,7 +40,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 {
 	int portnum = 0;
 	int domainport = 0;
-	enum sip_transport transport = SIP_TRANSPORT_UDP;
+	enum ast_transport transport = AST_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *userpart = NULL, *hostpart = NULL;
 	/* register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] */
@@ -230,21 +230,21 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 
 	/* set transport type */
 	if (!pre2.transport) {
-		transport = SIP_TRANSPORT_UDP;
+		transport = AST_TRANSPORT_UDP;
 	} else if (!strncasecmp(pre2.transport, "tcp", 3)) {
-		transport = SIP_TRANSPORT_TCP;
+		transport = AST_TRANSPORT_TCP;
 	} else if (!strncasecmp(pre2.transport, "tls", 3)) {
-		transport = SIP_TRANSPORT_TLS;
+		transport = AST_TRANSPORT_TLS;
 	} else if (!strncasecmp(pre2.transport, "udp", 3)) {
-		transport = SIP_TRANSPORT_UDP;
+		transport = AST_TRANSPORT_UDP;
 	} else {
-		transport = SIP_TRANSPORT_UDP;
+		transport = AST_TRANSPORT_UDP;
 		ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", pre2.transport, lineno);
 	}
 
 	/* if no portnum specified, set default for transport */
 	if (!portnum) {
-		if (transport == SIP_TRANSPORT_TLS) {
+		if (transport == AST_TRANSPORT_TLS) {
 			portnum = STANDARD_TLS_PORT;
 		} else {
 			portnum = STANDARD_SIP_PORT;
@@ -314,7 +314,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "")           ||
 		strcmp(reg->secret, "")             ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -343,7 +343,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -372,7 +372,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -401,7 +401,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -430,7 +430,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_TCP ||
+		reg->transport != AST_TRANSPORT_TCP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -459,7 +459,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_TLS ||
+		reg->transport != AST_TRANSPORT_TLS ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != 111 ||
@@ -488,7 +488,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "peer")           ||
-		reg->transport != SIP_TRANSPORT_TCP ||
+		reg->transport != AST_TRANSPORT_TCP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != 111 ||
@@ -517,7 +517,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "peer")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != 111 ||
@@ -587,7 +587,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "authuser")           ||
 		strcmp(reg->secret, "pass")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -616,7 +616,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		strcmp(reg->authuser, "")           ||
 		strcmp(reg->secret, "")         ||
 		strcmp(reg->peername, "")           ||
-		reg->transport != SIP_TRANSPORT_UDP ||
+		reg->transport != AST_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
 		reg->refresh != default_expiry ||
@@ -641,7 +641,7 @@ alloc_fail:
 	return res;
 }
 
-int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport)
+int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum ast_transport *transport)
 {
 	char *port;
 
@@ -653,11 +653,11 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 		*hostname += 3;
 
 		if (!strncasecmp(line, "tcp", 3)) {
-			*transport = SIP_TRANSPORT_TCP;
+			*transport = AST_TRANSPORT_TCP;
 		} else if (!strncasecmp(line, "tls", 3)) {
-			*transport = SIP_TRANSPORT_TLS;
+			*transport = AST_TRANSPORT_TLS;
 		} else if (!strncasecmp(line, "udp", 3)) {
-			*transport = SIP_TRANSPORT_UDP;
+			*transport = AST_TRANSPORT_UDP;
 		} else if (lineno) {
 			ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", line, lineno);
 		} else {
@@ -665,7 +665,7 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 		}
 	} else {
 		*hostname = line;
-		*transport = SIP_TRANSPORT_UDP;
+		*transport = AST_TRANSPORT_UDP;
 	}
 
 	if ((line = strrchr(*hostname, '@')))
@@ -695,7 +695,7 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 	}
 
 	if (!port) {
-		if (*transport & SIP_TRANSPORT_TLS) {
+		if (*transport & AST_TRANSPORT_TLS) {
 			*portnum = STANDARD_TLS_PORT;
 		} else {
 			*portnum = STANDARD_SIP_PORT;
@@ -710,7 +710,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	int res = AST_TEST_PASS;
 	char *host;
 	int port;
-	enum sip_transport transport;
+	enum ast_transport transport;
 	char host1[] = "www.blah.com";
 	char host2[] = "tcp://www.blah.com";
 	char host3[] = "tls://10.10.10.10";
@@ -734,7 +734,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	sip_parse_host(host1, 1, &host, &port, &transport);
 	if (port != STANDARD_SIP_PORT ||
 			ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
-			transport != SIP_TRANSPORT_UDP) {
+			transport != AST_TRANSPORT_UDP) {
 		ast_test_status_update(test, "Test 1: simple host failed.\n");
 		res = AST_TEST_FAIL;
 	}
@@ -743,7 +743,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	sip_parse_host(host2, 1, &host, &port, &transport);
 	if (port != STANDARD_SIP_PORT ||
 			ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
-			transport != SIP_TRANSPORT_TCP) {
+			transport != AST_TRANSPORT_TCP) {
 		ast_test_status_update(test, "Test 2: tcp host failed.\n");
 		res = AST_TEST_FAIL;
 	}
@@ -752,7 +752,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	sip_parse_host(host3, 1, &host, &port, &transport);
 	if (port != STANDARD_TLS_PORT ||
 			ast_strlen_zero(host) || strcmp(host, "10.10.10.10") ||
-			transport != SIP_TRANSPORT_TLS) {
+			transport != AST_TRANSPORT_TLS) {
 		ast_test_status_update(test, "Test 3: tls host failed. \n");
 		res = AST_TEST_FAIL;
 	}
@@ -761,7 +761,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	sip_parse_host(host4, 1, &host, &port, &transport);
 	if (port != 1234 || ast_strlen_zero(host) ||
 			strcmp(host, "10.10.10.10") ||
-			transport != SIP_TRANSPORT_TLS) {
+			transport != AST_TRANSPORT_TLS) {
 		ast_test_status_update(test, "Test 4: tls host with custom port failed.\n");
 		res = AST_TEST_FAIL;
 	}
@@ -770,7 +770,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	sip_parse_host(host5, 1, &host, &port, &transport);
 	if (port != 1234 || ast_strlen_zero(host) ||
 			strcmp(host, "10.10.10.10") ||
-			transport != SIP_TRANSPORT_UDP) {
+			transport != AST_TRANSPORT_UDP) {
 		ast_test_status_update(test, "Test 5: simple host with custom port failed.\n");
 		res = AST_TEST_FAIL;
 	}

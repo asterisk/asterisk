@@ -242,6 +242,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/security_events.h"
 #include "asterisk/stasis_endpoints.h"
 
 #include "../defaults.h"
@@ -4259,6 +4260,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_security_stasis_init()) {		/* Initialize Security Stasis Topic and Events */
+		ast_security_stasis_cleanup();
 		printf("%s", term_quit());
 		exit(1);
 	}

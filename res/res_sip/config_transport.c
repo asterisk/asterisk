@@ -103,7 +103,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 	/* Set default port if not present */
 	if (!pj_sockaddr_get_port(&transport->host)) {
-		pj_sockaddr_set_port(&transport->host, (transport->type == AST_SIP_TRANSPORT_TLS) ? 5061 : 5060);
+		pj_sockaddr_set_port(&transport->host, (transport->type == AST_TRANSPORT_TLS) ? 5061 : 5060);
 	}
 
 	/* Now that we know what address family we can set up a dnsmgr refresh for the external media address if present */
@@ -124,13 +124,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	}
 
-	if (transport->type == AST_SIP_TRANSPORT_UDP) {
+	if (transport->type == AST_TRANSPORT_UDP) {
 		if (transport->host.addr.sa_family == pj_AF_INET()) {
 			res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(), &transport->host.ipv4, NULL, transport->async_operations, &transport->state->transport);
 		} else if (transport->host.addr.sa_family == pj_AF_INET6()) {
 			res = pjsip_udp_transport_start6(ast_sip_get_pjsip_endpoint(), &transport->host.ipv6, NULL, transport->async_operations, &transport->state->transport);
 		}
-	} else if (transport->type == AST_SIP_TRANSPORT_TCP) {
+	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
 
 		pjsip_tcp_transport_cfg_default(&cfg, transport->host.addr.sa_family);
@@ -138,7 +138,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		cfg.async_cnt = transport->async_operations;
 
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &transport->state->factory);
-	} else if (transport->type == AST_SIP_TRANSPORT_TLS) {
+	} else if (transport->type == AST_TRANSPORT_TLS) {
 		transport->tls.ca_list_file = pj_str((char*)transport->ca_list_file);
 		transport->tls.cert_file = pj_str((char*)transport->cert_file);
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
@@ -163,11 +163,11 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 	struct ast_sip_transport *transport = obj;
 
 	if (!strcasecmp(var->value, "udp")) {
-		transport->type = AST_SIP_TRANSPORT_UDP;
+		transport->type = AST_TRANSPORT_UDP;
 	} else if (!strcasecmp(var->value, "tcp")) {
-		transport->type = AST_SIP_TRANSPORT_TCP;
+		transport->type = AST_TRANSPORT_TCP;
 	} else if (!strcasecmp(var->value, "tls")) {
-		transport->type = AST_SIP_TRANSPORT_TLS;
+		transport->type = AST_TRANSPORT_TLS;
 	} else {
 		/* TODO: Implement websockets */
 		return -1;

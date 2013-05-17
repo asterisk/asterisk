@@ -315,10 +315,10 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 		return -1;
 	}
 
-	if (transport->type == AST_SIP_TRANSPORT_UDP) {
+	if (transport->type == AST_TRANSPORT_UDP) {
 		selector->type = PJSIP_TPSELECTOR_TRANSPORT;
 		selector->u.transport = transport->state->transport;
-	} else if (transport->type == AST_SIP_TRANSPORT_TCP || transport->type == AST_SIP_TRANSPORT_TLS) {
+	} else if (transport->type == AST_TRANSPORT_TCP || transport->type == AST_TRANSPORT_TLS) {
 		selector->type = PJSIP_TPSELECTOR_LISTENER;
 		selector->u.listener = transport->state->factory;
 	} else {

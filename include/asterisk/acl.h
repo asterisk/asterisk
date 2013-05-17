@@ -386,20 +386,14 @@ int ast_named_acl_init(void);
 int ast_named_acl_reload(void);
 
 /*!
- * \brief accessor for the ACL stasis topic
+ * \brief a \ref stasis_message_type for changes against a named ACL or the set of all named ACLs
  * \since 12
  *
- * \retval NULL if the stasis topic hasn't been created or has been disabled
- * \retval a pointer to the ACL stasis topic
- */
-struct stasis_topic *ast_acl_topic(void);
-
-/*!
- * \brief accessor for the named ACL change stasis message type
- * \since 12
+ * \retval NULL on error
+ * \retval \ref stasis_message_type for named ACL changes
  *
- * \retval NULL if the ACL change message type hasn't been created or has been canceled
- * \retval a pointer to the ACL change message type
+ * \note Messages of this type should always be issued on and expected from the
+ *       \ref ast_security_topic \ref stasis_topic
  */
 struct stasis_message_type *ast_named_acl_change_type(void);
 

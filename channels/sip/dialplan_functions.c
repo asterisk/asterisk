@@ -226,7 +226,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			return -1;
 		}
 	} else if (!strcasecmp(args.param, "secure_signaling")) {
-		snprintf(buf, buflen, "%s", p->socket.type == SIP_TRANSPORT_TLS ? "1" : "");
+		snprintf(buf, buflen, "%s", p->socket.type == AST_TRANSPORT_TLS ? "1" : "");
 	} else if (!strcasecmp(args.param, "secure_media")) {
 		snprintf(buf, buflen, "%s", p->srtp ? "1" : "");
 	} else {

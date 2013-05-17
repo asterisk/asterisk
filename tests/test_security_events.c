@@ -89,11 +89,11 @@ static void evt_gen_failed_acl(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 
 		.acl_name   = "TEST_ACL",
@@ -127,11 +127,11 @@ static void evt_gen_inval_acct_id(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 	};
 
@@ -163,11 +163,11 @@ static void evt_gen_session_limit(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TLS,
+			.transport  = AST_TRANSPORT_TLS,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TLS,
+			.transport  = AST_TRANSPORT_TLS,
 		},
 	};
 
@@ -199,11 +199,11 @@ static void evt_gen_mem_limit(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 	};
 
@@ -235,11 +235,11 @@ static void evt_gen_load_avg(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 	};
 
@@ -271,11 +271,11 @@ static void evt_gen_req_no_support(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 
 		.request_type = "MakeMeDinner",
@@ -309,11 +309,11 @@ static void evt_gen_req_not_allowed(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 
 		.request_type = "MakeMeBreakfast",
@@ -348,11 +348,11 @@ static void evt_gen_auth_method_not_allowed(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 
 		.auth_method = "PlainText"
@@ -386,11 +386,11 @@ static void evt_gen_req_bad_format(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 
 		.request_type = "CheeseBurger",
@@ -425,11 +425,11 @@ static void evt_gen_successful_auth(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 	};
 
@@ -462,16 +462,16 @@ static void evt_gen_unexpected_addr(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 
 		.expected_addr = {
 			.addr = &addr_expected,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_UDP,
+			.transport  = AST_TRANSPORT_UDP,
 		},
 	};
 
@@ -506,11 +506,11 @@ static void evt_gen_chal_resp_failed(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 
 		.challenge         = "8adf8a9sd8fas9df23ljk4",
@@ -546,11 +546,11 @@ static void evt_gen_inval_password(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.challenge          = "GoOdChAlLeNgE",
 		.received_challenge = "BaDcHaLlEnGe",
@@ -585,11 +585,11 @@ static void evt_gen_chal_sent(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.challenge         = "IcHaLlEnGeYoU",
 	};
@@ -622,11 +622,11 @@ static void evt_gen_inval_transport(void)
 		.common.session_tv = &session_tv,
 		.common.local_addr = {
 			.addr  = &addr_local,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.common.remote_addr = {
 			.addr = &addr_remote,
-			.transport  = AST_SECURITY_EVENT_TRANSPORT_TCP,
+			.transport  = AST_TRANSPORT_TCP,
 		},
 		.transport          = "UDP",
 	};

@@ -57,6 +57,42 @@ struct ast_security_event_ie_type {
 };
 
 /*!
+ * \brief A \ref stasis_topic which publishes messages for security related issues.
+ * \since 12
+ *
+ * \retval \ref stasis_topic for security related issues.
+ * \retval NULL on error
+ */
+struct stasis_topic *ast_security_topic(void);
+
+/*!
+ * \brief A \ref stasis_message_type for security events
+ * \since 12
+ *
+ * \retval NULL on error
+ * \retval \ref stasis_message_type for security events
+ *
+ * \note Messages of this type should always be issued on and expected from
+ *       the \ref ast_security_topic \ref stasis_topic
+ */
+struct stasis_message_type *ast_security_event_type(void);
+
+/*!
+ * \brief initializes stasis topic/event types for \ref ast_security_topic and \ref ast_security_event_type
+ * \since 12
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_security_stasis_init(void);
+
+/*!
+ * \brief removes stasis topic/event types for \ref ast_security_topic and \ref ast_security_event_type
+ * \since 12
+ */
+void ast_security_stasis_cleanup(void);
+
+/*!
  * \brief Get the list of required IEs for a given security event sub-type
  *
  * \param[in] event_type security event sub-type

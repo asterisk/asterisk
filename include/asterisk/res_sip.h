@@ -68,16 +68,6 @@ struct ast_sip_domain_alias {
 	);
 };
 
-/*!
- * \brief Types of supported transports
- */
-enum ast_sip_transport_type {
-	AST_SIP_TRANSPORT_UDP,
-	AST_SIP_TRANSPORT_TCP,
-	AST_SIP_TRANSPORT_TLS,
-	/* XXX Websocket ? */
-};
-
 /*! \brief Maximum number of ciphers supported for a TLS transport */
 #define SIP_TLS_MAX_CIPHERS 64
 
@@ -104,7 +94,7 @@ struct ast_sip_transport {
 		AST_STRING_FIELD(domain);
 		);
 	/*! Type of transport */
-	enum ast_sip_transport_type type;
+	enum ast_transport type;
 	/*! Address and port to bind to */
 	pj_sockaddr host;
 	/*! Number of simultaneous asynchronous operations */

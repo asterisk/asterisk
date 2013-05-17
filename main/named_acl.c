@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/security_events.h"
 
 #define NACL_CONFIG "acl.conf"
 #define ACL_FAMILY "acls"
@@ -356,16 +357,11 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
 	return ha;
 }
 
-/*! \brief Topic for ACLs */
-static struct stasis_topic *acl_topic;
-
 /*! \brief Message type for named ACL changes */
 STASIS_MESSAGE_TYPE_DEFN(ast_named_acl_change_type);
 
 static void acl_stasis_shutdown(void)
 {
-	ao2_cleanup(acl_topic);
-	acl_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
 }
 
@@ -376,22 +372,16 @@ static void acl_stasis_shutdown(void)
 static void ast_acl_stasis_init(void)
 {
 	ast_register_atexit(acl_stasis_shutdown);
-	acl_topic = stasis_topic_create("ast_acl");
 	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
-}
-
-struct stasis_topic *ast_acl_topic(void)
-{
-	return acl_topic;
 }
 
 /*!
  * \internal
  * \brief Sends a stasis message corresponding to a given named ACL that has changed or
  *        that all ACLs have been updated and old copies must be refreshed. Consumers of
- *        named ACLs should subscribe to the ast_acl_topic and respond to messages of the
- *        ast_named_acl_change_type stasis message type in order to be able to accomodate
- *        changes to named ACLs.
+ *        named ACLs should subscribe to the ast_security_topic and respond to messages
+ *        of the ast_named_acl_change_type stasis message type in order to be able to
+ *        accommodate changes to named ACLs.
  *
  * \param name Name of the ACL that has changed. May be an empty string (but not NULL)
  *        If name is an empty string, then all ACLs must be refreshed.
@@ -423,7 +413,7 @@ static int publish_acl_change(const char *name)
 		goto publish_failure;
 	}
 
-	stasis_publish(ast_acl_topic(), msg);
+	stasis_publish(ast_security_topic(), msg);
 
 	return 0;
 
