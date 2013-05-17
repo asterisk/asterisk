@@ -1334,9 +1334,7 @@ static void network_change_stasis_subscribe(void)
 
 static void network_change_stasis_unsubscribe(void)
 {
-	if (network_change_sub) {
-		network_change_sub = stasis_unsubscribe(network_change_sub);
-	}
+	network_change_sub = stasis_unsubscribe_and_join(network_change_sub);
 }
 
 static void acl_change_stasis_subscribe(void)
@@ -1349,9 +1347,7 @@ static void acl_change_stasis_subscribe(void)
 
 static void acl_change_stasis_unsubscribe(void)
 {
-	if (acl_change_sub) {
-		acl_change_sub = stasis_unsubscribe(acl_change_sub);
-	}
+	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 }
 
 static int network_change_sched_cb(const void *data)
@@ -12424,9 +12420,7 @@ static void peer_destructor(void *obj)
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
 
-	if (peer->mwi_event_sub) {
-		peer->mwi_event_sub = stasis_unsubscribe(peer->mwi_event_sub);
-	}
+	peer->mwi_event_sub = stasis_unsubscribe(peer->mwi_event_sub);
 
 	ast_string_field_free_memory(peer);
 }

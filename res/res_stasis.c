@@ -722,7 +722,7 @@ static int unload_module(void)
 {
 	int r = 0;
 
-	stasis_message_router_unsubscribe(channel_router);
+	stasis_message_router_unsubscribe_and_join(channel_router);
 	channel_router = NULL;
 
 	ao2_cleanup(apps_registry);

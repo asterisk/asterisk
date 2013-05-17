@@ -4770,12 +4770,8 @@ static int unload_module(void)
 	ast_unregister_application(app_ajileave);
 	ast_manager_unregister("JabberSend");
 	ast_custom_function_unregister(&jabberstatus_function);
-	if (mwi_sub) {
-		mwi_sub = stasis_unsubscribe(mwi_sub);
-	}
-	if (device_state_sub) {
-		device_state_sub = stasis_unsubscribe(device_state_sub);
-	}
+	mwi_sub = stasis_unsubscribe_and_join(mwi_sub);
+	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
 	ast_custom_function_unregister(&jabberreceive_function);
 
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {

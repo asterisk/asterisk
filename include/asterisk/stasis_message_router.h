@@ -57,10 +57,34 @@ struct stasis_message_router *stasis_message_router_create(
 
 /*!
  * \brief Unsubscribe the router from the upstream topic.
+ *
  * \param router Router to unsubscribe.
  * \since 12
  */
 void stasis_message_router_unsubscribe(struct stasis_message_router *router);
+
+/*!
+ * \brief Unsubscribe the router from the upstream topic, blocking until the
+ * final message has been processed.
+ *
+ * See stasis_unsubscribe_and_join() for info on when to use this
+ * vs. stasis_message_router_unsubscribe().
+ *
+ * \param router Router to unsubscribe.
+ * \since 12
+ */
+void stasis_message_router_unsubscribe_and_join(
+	struct stasis_message_router *router);
+
+/*!
+ * \brief Returns whether \a router has received its final message.
+ *
+ * \param router Router.
+ * \return True (non-zero) if stasis_subscription_final_message() has been
+ *         received.
+ * \return False (zero) if waiting for the end.
+ */
+int stasis_message_router_is_done(struct stasis_message_router *router);
 
 /*!
  * \brief Add a route to a message router.

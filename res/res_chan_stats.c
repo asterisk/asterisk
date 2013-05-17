@@ -172,9 +172,9 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	stasis_unsubscribe(sub);
+	stasis_unsubscribe_and_join(sub);
 	sub = NULL;
-	stasis_message_router_unsubscribe(router);
+	stasis_message_router_unsubscribe_and_join(router);
 	router = NULL;
 	return 0;
 }

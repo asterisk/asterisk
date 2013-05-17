@@ -1077,9 +1077,7 @@ static void acl_change_stasis_subscribe(void)
 
 static void acl_change_stasis_unsubscribe(void)
 {
-	if (acl_change_sub) {
-		acl_change_sub = stasis_unsubscribe(acl_change_sub);
-	}
+	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 }
 
 /* In order to understand what the heck is going on with the

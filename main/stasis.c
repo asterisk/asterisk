@@ -114,16 +114,30 @@ struct stasis_subscription {
 	stasis_subscription_cb callback;
 	/*! Data pointer to be handed to the callback. */
 	void *data;
+
+	/*! Lock for joining with subscription. */
+	ast_mutex_t join_lock;
+	/*! Condition for joining with subscription. */
+	ast_cond_t join_cond;
+	/*! Flag set when final message for sub has been received.
+	 *  Be sure join_lock is held before reading/setting. */
+	int final_message_rxed;
+	/*! Flag set when final message for sub has been processed.
+	 *  Be sure join_lock is held before reading/setting. */
+	int final_message_processed;
 };
 
 static void subscription_dtor(void *obj)
 {
 	struct stasis_subscription *sub = obj;
 	ast_assert(!stasis_subscription_is_subscribed(sub));
+	ast_assert(stasis_subscription_is_done(sub));
 	ao2_cleanup(sub->topic);
 	sub->topic = NULL;
 	ast_taskprocessor_unreference(sub->mailbox);
 	sub->mailbox = NULL;
+	ast_mutex_destroy(&sub->join_lock);
+	ast_cond_destroy(&sub->join_cond);
 }
 
 /*!
@@ -136,11 +150,22 @@ static void subscription_invoke(struct stasis_subscription *sub,
 				  struct stasis_topic *topic,
 				  struct stasis_message *message)
 {
-	/* Since sub->topic doesn't change, no need to lock sub */
-	sub->callback(sub->data,
-		      sub,
-		      topic,
-		      message);
+	/* Notify that the final message has been received */
+	if (stasis_subscription_final_message(sub, message)) {
+		SCOPED_MUTEX(lock, &sub->join_lock);
+		sub->final_message_rxed = 1;
+		ast_cond_signal(&sub->join_cond);
+	}
+
+	/* Since sub is mostly immutable, no need to lock sub */
+	sub->callback(sub->data, sub, topic, message);
+
+	/* Notify that the final message has been processed */
+	if (stasis_subscription_final_message(sub, message)) {
+		SCOPED_MUTEX(lock, &sub->join_lock);
+		sub->final_message_processed = 1;
+		ast_cond_signal(&sub->join_cond);
+	}
 }
 
 static void send_subscription_change_message(struct stasis_topic *topic, char *uniqueid, char *description);
@@ -171,6 +196,8 @@ static struct stasis_subscription *__stasis_subscribe(
 	sub->topic = topic;
 	sub->callback = callback;
 	sub->data = data;
+	ast_mutex_init(&sub->join_lock);
+	ast_cond_init(&sub->join_cond, NULL);
 
 	if (topic_add_subscription(topic, sub) != 0) {
 		return NULL;
@@ -209,6 +236,50 @@ struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 
 		ast_log(LOG_ERROR, "Internal error: subscription has invalid topic\n");
 	}
+	return NULL;
+}
+
+/*!
+ * \brief Block until the final message has been received on a subscription.
+ *
+ * \param subscription Subscription to wait on.
+ */
+void stasis_subscription_join(struct stasis_subscription *subscription)
+{
+	if (subscription) {
+		SCOPED_MUTEX(lock, &subscription->join_lock);
+		/* Wait until the processed flag has been set */
+		while (!subscription->final_message_processed) {
+			ast_cond_wait(&subscription->join_cond,
+				&subscription->join_lock);
+		}
+	}
+}
+
+int stasis_subscription_is_done(struct stasis_subscription *subscription)
+{
+	if (subscription) {
+		SCOPED_MUTEX(lock, &subscription->join_lock);
+		return subscription->final_message_rxed;
+	}
+
+	/* Null subscription is about as done as you can get */
+	return 1;
+}
+
+struct stasis_subscription *stasis_unsubscribe_and_join(
+	struct stasis_subscription *subscription)
+{
+	if (!subscription) {
+		return NULL;
+	}
+
+	/* Bump refcount to hold it past the unsubscribe */
+	ao2_ref(subscription, +1);
+	stasis_unsubscribe(subscription);
+	stasis_subscription_join(subscription);
+	/* Now decrement the refcount back */
+	ao2_cleanup(subscription);
 	return NULL;
 }
 

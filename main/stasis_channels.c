@@ -505,6 +505,9 @@ int ast_channel_snapshot_caller_id_equal(
 
 void ast_stasis_channels_shutdown(void)
 {
+	channel_topic_all_cached = stasis_caching_unsubscribe_and_join(channel_topic_all_cached);
+	ao2_cleanup(channel_topic_all);
+	channel_topic_all = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dial_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_varset_type);
@@ -512,9 +515,6 @@ void ast_stasis_channels_shutdown(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
-	ao2_cleanup(channel_topic_all);
-	channel_topic_all = NULL;
-	channel_topic_all_cached = stasis_caching_unsubscribe(channel_topic_all_cached);
 }
 
 void ast_stasis_channels_init(void)

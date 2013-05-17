@@ -706,7 +706,7 @@ AST_TEST_DEFINE(test_presence_state_change)
 		return AST_TEST_FAIL;
 	}
 
-	test_sub = stasis_unsubscribe(test_sub);
+	test_sub = stasis_unsubscribe_and_join(test_sub);
 
 	ao2_cleanup(cb_data->presence_state);
 	ast_free((char *)cb_data);

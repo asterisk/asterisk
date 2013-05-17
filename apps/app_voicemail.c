@@ -12689,9 +12689,7 @@ static void stop_poll_thread(void)
 {
 	poll_thread_run = 0;
 
-	if (mwi_sub_sub) {
-		mwi_sub_sub = stasis_unsubscribe(mwi_sub_sub);
-	}
+	mwi_sub_sub = stasis_unsubscribe_and_join(mwi_sub_sub);
 
 	ast_mutex_lock(&poll_lock);
 	ast_cond_signal(&poll_cond);

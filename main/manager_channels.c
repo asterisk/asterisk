@@ -805,7 +805,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 static void manager_channels_shutdown(void)
 {
-	stasis_message_router_unsubscribe(channel_state_router);
+	stasis_message_router_unsubscribe_and_join(channel_state_router);
 	channel_state_router = NULL;
 }
 

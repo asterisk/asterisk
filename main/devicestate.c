@@ -776,7 +776,7 @@ static void devstate_exit(void)
 {
 	ao2_cleanup(device_state_topic_all);
 	device_state_topic_all = NULL;
-	device_state_topic_cached = stasis_caching_unsubscribe(device_state_topic_cached);
+	device_state_topic_cached = stasis_caching_unsubscribe_and_join(device_state_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_device_state_message_type);
 	ao2_cleanup(device_state_topic_pool);
 	device_state_topic_pool = NULL;

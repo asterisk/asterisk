@@ -106,7 +106,9 @@ static void endpoint_dtor(void *obj)
 	struct ast_endpoint *endpoint = obj;
 
 	/* The router should be shut down already */
-	ast_assert(endpoint->router == NULL);
+	ast_assert(stasis_message_router_is_done(endpoint->router));
+	ao2_cleanup(endpoint->router);
+	endpoint->router = NULL;
 
 	stasis_unsubscribe(endpoint->forward);
 	endpoint->forward = NULL;
@@ -258,8 +260,9 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 		stasis_publish(endpoint->topic, message);
 	}
 
+	/* Bump refcount to hold on to the router */
+	ao2_ref(endpoint->router, +1);
 	stasis_message_router_unsubscribe(endpoint->router);
-	endpoint->router = NULL;
 }
 
 const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint)

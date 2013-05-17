@@ -74,6 +74,7 @@ static void router_dtor(void *obj)
 	size_t i;
 
 	ast_assert(!stasis_subscription_is_subscribed(router->subscription));
+	ast_assert(stasis_subscription_is_done(router->subscription));
 	router->subscription = NULL;
 	for (i = 0; i < router->num_routes_current; ++i) {
 		ao2_cleanup(router->routes[i]);
@@ -164,6 +165,26 @@ void stasis_message_router_unsubscribe(struct stasis_message_router *router)
 
 	stasis_unsubscribe(router->subscription);
 }
+
+void stasis_message_router_unsubscribe_and_join(
+	struct stasis_message_router *router)
+{
+	if (!router) {
+		return;
+	}
+	stasis_unsubscribe_and_join(router->subscription);
+}
+
+int stasis_message_router_is_done(struct stasis_message_router *router)
+{
+	if (!router) {
+		/* Null router is about as done as you can get */
+		return 1;
+	}
+
+	return stasis_subscription_is_done(router->subscription);
+}
+
 
 static struct stasis_message_route *route_create(
 	struct stasis_message_type *message_type,

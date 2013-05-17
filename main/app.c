@@ -2727,7 +2727,7 @@ static void app_exit(void)
 {
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
-	mwi_topic_cached = stasis_caching_unsubscribe(mwi_topic_cached);
+	mwi_topic_cached = stasis_caching_unsubscribe_and_join(mwi_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_mwi_state_type);
 	ao2_cleanup(mwi_topic_pool);
 	mwi_topic_pool = NULL;

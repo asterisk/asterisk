@@ -16742,25 +16742,21 @@ static void network_change_stasis_subscribe(void)
 
 static void network_change_stasis_unsubscribe(void)
 {
-	if (network_change_sub) {
-		network_change_sub = stasis_unsubscribe(network_change_sub);
-	}
+	network_change_sub = stasis_unsubscribe_and_join(network_change_sub);
 }
 
 static void acl_change_stasis_subscribe(void)
 {
 	if (!acl_change_sub) {
 		acl_change_sub = stasis_subscribe(ast_security_topic(),
-		acl_change_stasis_cb, NULL);
+			acl_change_stasis_cb, NULL);
 	}
 
 }
 
 static void acl_change_event_stasis_unsubscribe(void)
 {
-	if (acl_change_sub) {
-		acl_change_sub = stasis_unsubscribe(acl_change_sub);
-	}
+	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 }
 
 static int network_change_sched_cb(const void *data)

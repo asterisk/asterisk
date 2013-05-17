@@ -101,15 +101,6 @@ static const char *endpoint_snapshot_get_id(struct stasis_message *message)
 }
 
 
-static void endpoints_stasis_shutdown(void)
-{
-	ao2_cleanup(endpoint_topic_all);
-	endpoint_topic_all = NULL;
-
-	stasis_caching_unsubscribe(endpoint_topic_all_cached);
-	endpoint_topic_all_cached = NULL;
-}
-
 struct ast_json *ast_endpoint_snapshot_to_json(
 	const struct ast_endpoint_snapshot *snapshot)
 {
@@ -147,6 +138,15 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 	}
 
 	return ast_json_ref(json);
+}
+
+static void endpoints_stasis_shutdown(void)
+{
+	stasis_caching_unsubscribe_and_join(endpoint_topic_all_cached);
+	endpoint_topic_all_cached = NULL;
+
+	ao2_cleanup(endpoint_topic_all);
+	endpoint_topic_all = NULL;
 }
 
 int ast_endpoint_stasis_init(void)

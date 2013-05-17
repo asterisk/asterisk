@@ -9866,9 +9866,7 @@ static int unload_module(void)
 
 	res |= ast_data_unregister(NULL);
 
-	if (device_state_sub) {
-		device_state_sub = stasis_unsubscribe(device_state_sub);
-	}
+	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
 
 	ast_extension_state_del(0, extension_state_cb);
 

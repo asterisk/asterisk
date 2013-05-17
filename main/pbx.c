@@ -11700,12 +11700,8 @@ static void unload_pbx(void)
 {
 	int x;
 
-	if (presence_state_sub) {
-		presence_state_sub = stasis_unsubscribe(presence_state_sub);
-	}
-	if (device_state_sub) {
-		device_state_sub = stasis_unsubscribe(device_state_sub);
-	}
+	presence_state_sub = stasis_unsubscribe_and_join(presence_state_sub);
+	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
 
 	/* Unregister builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {

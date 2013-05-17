@@ -53,6 +53,8 @@ struct stasis_caching_topic {
 static void stasis_caching_topic_dtor(void *obj) {
 	struct stasis_caching_topic *caching_topic = obj;
 	ast_assert(!stasis_subscription_is_subscribed(caching_topic->sub));
+	ast_assert(stasis_subscription_is_done(caching_topic->sub));
+	ao2_cleanup(caching_topic->sub);
 	caching_topic->sub = NULL;
 	ao2_cleanup(caching_topic->cache);
 	caching_topic->cache = NULL;
@@ -69,11 +71,28 @@ struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_to
 {
 	if (caching_topic) {
 		if (stasis_subscription_is_subscribed(caching_topic->sub)) {
+			/* Increment the reference to hold on to it past the
+			 * unsubscribe */
+			ao2_ref(caching_topic->sub, +1);
 			stasis_unsubscribe(caching_topic->sub);
 		} else {
 			ast_log(LOG_ERROR, "stasis_caching_topic unsubscribed multiple times\n");
 		}
 	}
+	return NULL;
+}
+
+struct stasis_caching_topic *stasis_caching_unsubscribe_and_join(struct stasis_caching_topic *caching_topic)
+{
+	if (!caching_topic) {
+		return NULL;
+	}
+
+	/* Hold a ref past the unsubscribe */
+	ao2_ref(caching_topic, +1);
+	stasis_caching_unsubscribe(caching_topic);
+	stasis_subscription_join(caching_topic->sub);
+	ao2_cleanup(caching_topic);
 	return NULL;
 }
 
