@@ -9963,10 +9963,11 @@ static void pbx_outgoing_destroy(void *obj)
 static void *pbx_outgoing_exec(void *data)
 {
 	RAII_VAR(struct pbx_outgoing *, outgoing, data, ao2_cleanup);
-	enum ast_dial_result res = ast_dial_run(outgoing->dial, NULL, 0);
+	enum ast_dial_result res;
 
 	/* Notify anyone interested that dialing is complete */
 	ast_mutex_lock(&outgoing->lock);
+	res = ast_dial_run(outgoing->dial, NULL, 0);
 	outgoing->dialed = 1;
 	ast_cond_signal(&outgoing->cond);
 	ast_mutex_unlock(&outgoing->lock);
@@ -9976,6 +9977,7 @@ static void *pbx_outgoing_exec(void *data)
 		return NULL;
 	}
 
+	ast_mutex_lock(&outgoing->lock);
 	if (!ast_strlen_zero(outgoing->app)) {
 		struct ast_app *app = pbx_findapp(outgoing->app);
 
@@ -10010,7 +10012,6 @@ static void *pbx_outgoing_exec(void *data)
 	}
 
 	/* Notify anyone else again that may be interested that execution is complete */
-	ast_mutex_lock(&outgoing->lock);
 	outgoing->executed = 1;
 	ast_cond_signal(&outgoing->cond);
 	ast_mutex_unlock(&outgoing->lock);
@@ -10126,8 +10127,14 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	/* Wait for dialing to complete */
 	if (synchronous) {
 		ast_mutex_lock(&outgoing->lock);
+		if (channel) {
+			ast_channel_unlock(*channel);
+		}
 		while (!outgoing->dialed) {
 			ast_cond_wait(&outgoing->cond, &outgoing->lock);
+		}
+		if (channel) {
+			ast_channel_lock(*channel);
 		}
 		ast_mutex_unlock(&outgoing->lock);
 	}
