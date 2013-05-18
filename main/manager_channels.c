@@ -774,33 +774,30 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
-	if (caller) {
-		caller_event_string = ast_manager_build_channel_state_string(caller);
-		if (!caller_event_string) {
-			return;
-		}
-		dialstatus = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstatus"));
-		dialstring = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstring"));
-		if (ast_strlen_zero(dialstatus)) {
-			manager_event(EVENT_FLAG_CALL, "DialBegin",
-					"%s"
-					"%s"
-					"DialString: %s\r\n",
-					ast_str_buffer(caller_event_string),
-					ast_str_buffer(peer_event_string),
-					S_OR(dialstring, "unknown"));
-		} else {
-			manager_event(EVENT_FLAG_CALL, "DialEnd",
-					"%s"
-					"%s"
-					"DialStatus: %s\r\n",
-					ast_str_buffer(caller_event_string),
-					ast_str_buffer(peer_event_string),
-					S_OR(dialstatus, "unknown"));
-		}
-	} else {
-		/* TODO: If we don't have a caller, this should be treated as an Originate */
+	if (caller && !(caller_event_string = ast_manager_build_channel_state_string(caller))) {
+		return;
 	}
+
+	dialstatus = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstatus"));
+	dialstring = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstring"));
+	if (ast_strlen_zero(dialstatus)) {
+		manager_event(EVENT_FLAG_CALL, "DialBegin",
+				"%s"
+				"%s"
+				"DialString: %s\r\n",
+				caller_event_string ? ast_str_buffer(caller_event_string) : "",
+				ast_str_buffer(peer_event_string),
+				S_OR(dialstring, "unknown"));
+	} else {
+		manager_event(EVENT_FLAG_CALL, "DialEnd",
+				"%s"
+				"%s"
+				"DialStatus: %s\r\n",
+				caller_event_string ? ast_str_buffer(caller_event_string) : "",
+				ast_str_buffer(peer_event_string),
+				S_OR(dialstatus, "unknown"));
+	}
+
 }
 
 static void manager_channels_shutdown(void)

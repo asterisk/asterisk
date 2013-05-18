@@ -258,18 +258,19 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
 	return channel->num;
 }
 
-/*! \brief Helper function that does the beginning dialing per-appended channel */
-static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan)
+/*! \brief Helper function that requests all channels */
+static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channel *chan, struct ast_format_cap *cap)
 {
 	char numsubst[AST_MAX_EXTENSION];
-	int res = 1;
 	struct ast_format_cap *cap_all_audio = NULL;
 	struct ast_format_cap *cap_request;
 
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
-	if (chan) {
+	if (!ast_format_cap_is_empty(cap)) {
+		cap_request = cap;
+	} else if (chan) {
 		cap_request = ast_channel_nativeformats(chan);
 	} else {
 		cap_all_audio = ast_format_cap_alloc_nolock();
@@ -310,6 +311,39 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_channel_adsicpe_set(channel->owner, ast_channel_adsicpe(chan));
 		ast_channel_transfercapability_set(channel->owner, ast_channel_transfercapability(chan));
 	}
+
+	return 0;
+}
+
+int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_format_cap *cap)
+{
+	struct ast_dial_channel *channel;
+	int res = -1;
+
+	AST_LIST_LOCK(&dial->channels);
+	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
+		if ((res = begin_dial_prerun(channel, chan, cap))) {
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&dial->channels);
+
+	return res;
+}
+
+/*! \brief Helper function that does the beginning dialing per-appended channel */
+static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan)
+{
+	char numsubst[AST_MAX_EXTENSION];
+	int res = 1;
+
+	/* If no owner channel exists yet execute pre-run */
+	if (!channel->owner && begin_dial_prerun(channel, chan, NULL)) {
+		return 0;
+	}
+
+	/* Copy device string over */
+	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
 	/* Attempt to actually call this device */
 	if ((res = ast_call(channel->owner, numsubst, 0))) {
@@ -554,6 +588,11 @@ static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
 	struct ast_dial_channel *channel = NULL;
 	int diff = ast_tvdiff_ms(ast_tvnow(), start), lowest_timeout = -1, new_timeout = -1;
 
+	/* If there is no difference yet return the dial timeout so we can go again, we were likely interrupted */
+	if (!diff) {
+		return dial->timeout;
+	}
+
 	/* If the global dial timeout tripped switch the state to timeout so our channel loop will drop every channel */
 	if (diff >= dial->timeout) {
 		set_state(dial, AST_DIAL_RESULT_TIMEOUT);
@@ -771,7 +810,7 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 	enum ast_dial_result res = AST_DIAL_RESULT_TRYING;
 
 	/* Ensure required arguments are passed */
-	if (!dial || (!chan && !async)) {
+	if (!dial) {
 		ast_debug(1, "invalid #1\n");
 		return AST_DIAL_RESULT_INVALID;
 	}
@@ -1100,6 +1139,28 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
 	channel->options[option] = NULL;
 
 	return 0;
+}
+
+int ast_dial_reason(struct ast_dial *dial, int num)
+{
+	struct ast_dial_channel *channel;
+
+	if (!dial || AST_LIST_EMPTY(&dial->channels) || !(channel = find_dial_channel(dial, num))) {
+		return -1;
+	}
+
+	return channel->cause;
+}
+
+struct ast_channel *ast_dial_get_channel(struct ast_dial *dial, int num)
+{
+	struct ast_dial_channel *channel;
+
+	if (!dial || AST_LIST_EMPTY(&dial->channels) || !(channel = find_dial_channel(dial, num))) {
+		return NULL;
+	}
+
+	return channel->owner;
 }
 
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback)

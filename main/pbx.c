@@ -73,6 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/xmldoc.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/dial.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -9919,473 +9920,275 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	return 0;
 }
 
-struct async_stat {
-	pthread_t p;
-	struct ast_channel *chan;
+/*! \brief Structure which contains information about an outgoing dial */
+struct pbx_outgoing {
+	/*! \brief Dialing structure being used */
+	struct ast_dial *dial;
+	/*! \brief Mutex lock for synchronous dialing */
+	ast_mutex_t lock;
+	/*! \brief Condition for synchronous dialing */
+	ast_cond_t cond;
+	/*! \brief Application to execute */
+	char app[AST_MAX_APP];
+	/*! \brief Application data to pass to application */
+	char *appdata;
+	/*! \brief Dialplan context */
 	char context[AST_MAX_CONTEXT];
+	/*! \brief Dialplan extension */
 	char exten[AST_MAX_EXTENSION];
+	/*! \brief Dialplan priority */
 	int priority;
-	int timeout;
-	char app[AST_MAX_EXTENSION];
-	char appdata[1024];
-	int early_media;			/* Connect the bridge if early media arrives, don't wait for answer */
+	/*! \brief Set when dialing is completed */
+	unsigned int dialed:1;
+	/*! \brief Set when execution is completed */
+	unsigned int executed:1;
 };
 
-static void *async_wait(void *data)
+/*! \brief Destructor for outgoing structure */
+static void pbx_outgoing_destroy(void *obj)
 {
-	struct async_stat *as = data;
-	struct ast_channel *chan = as->chan;
-	int timeout = as->timeout;
-	int res;
-	struct ast_frame *f;
-	struct ast_app *app;
-	int have_early_media = 0;
-	struct timeval start = ast_tvnow();
-	int ms;
+	struct pbx_outgoing *outgoing = obj;
 
-	if (chan) {
-		struct ast_callid *callid = ast_channel_callid(chan);
-		if (callid) {
-			ast_callid_threadassoc_add(callid);
-			ast_callid_unref(callid);
-		}
+	if (outgoing->dial) {
+		ast_dial_destroy(outgoing->dial);
 	}
 
-	while ((ms = ast_remaining_ms(start, timeout)) &&
-			ast_channel_state(chan) != AST_STATE_UP) {
-		res = ast_waitfor(chan, ms);
-		if (res < 1)
-			break;
+	ast_mutex_destroy(&outgoing->lock);
+	ast_cond_destroy(&outgoing->cond);
 
-		f = ast_read(chan);
-		if (!f)
-			break;
-		if (f->frametype == AST_FRAME_CONTROL) {
-			if ((f->subclass.integer == AST_CONTROL_BUSY)  ||
-			    (f->subclass.integer == AST_CONTROL_CONGESTION) ) {
-				ast_frfree(f);
-				break;
-			}
-			if (as->early_media && f->subclass.integer == AST_CONTROL_PROGRESS) {
-				have_early_media = 1;
-				ast_frfree(f);
-				break;
-			}
-		}
-		ast_frfree(f);
+	ast_free(outgoing->appdata);
+}
+
+/*! \brief Internal function which dials an outgoing leg and sends it to a provided extension or application */
+static void *pbx_outgoing_exec(void *data)
+{
+	RAII_VAR(struct pbx_outgoing *, outgoing, data, ao2_cleanup);
+	enum ast_dial_result res = ast_dial_run(outgoing->dial, NULL, 0);
+
+	/* Notify anyone interested that dialing is complete */
+	ast_mutex_lock(&outgoing->lock);
+	outgoing->dialed = 1;
+	ast_cond_signal(&outgoing->cond);
+	ast_mutex_unlock(&outgoing->lock);
+
+	/* If the outgoing leg was not answered we can immediately return and go no further */
+	if (res != AST_DIAL_RESULT_ANSWERED) {
+		return NULL;
 	}
-	if (ast_channel_state(chan) == AST_STATE_UP || have_early_media) {
-		if (have_early_media) {
-			ast_debug(2, "Activating pbx since we have early media \n");
-		}
-		if (!ast_strlen_zero(as->app)) {
-			app = pbx_findapp(as->app);
-			if (app) {
-				ast_verb(3, "Launching %s(%s) on %s\n", as->app, as->appdata, ast_channel_name(chan));
-				pbx_exec(chan, app, as->appdata);
-			} else
-				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
+
+	if (!ast_strlen_zero(outgoing->app)) {
+		struct ast_app *app = pbx_findapp(outgoing->app);
+
+		if (app) {
+			ast_verb(4, "Launching %s(%s) on %s\n", outgoing->app, outgoing->appdata,
+				ast_channel_name(ast_dial_answered(outgoing->dial)));
+			pbx_exec(ast_dial_answered(outgoing->dial), app, outgoing->appdata);
 		} else {
-			if (!ast_strlen_zero(as->context))
-				ast_channel_context_set(chan, as->context);
-			if (!ast_strlen_zero(as->exten))
-				ast_channel_exten_set(chan, as->exten);
-			if (as->priority > 0)
-				ast_channel_priority_set(chan, as->priority);
-			/* Run the PBX */
-			if (ast_pbx_run(chan)) {
-				ast_log(LOG_ERROR, "Failed to start PBX on %s\n", ast_channel_name(chan));
-			} else {
-				/* PBX will have taken care of this */
-				chan = NULL;
-			}
+			ast_log(LOG_WARNING, "No such application '%s'\n", outgoing->app);
+		}
+	} else {
+		struct ast_channel *answered = ast_dial_answered(outgoing->dial);
+
+		if (!ast_strlen_zero(outgoing->context)) {
+			ast_channel_context_set(answered, outgoing->context);
+		}
+
+		if (!ast_strlen_zero(outgoing->exten)) {
+			ast_channel_exten_set(answered, outgoing->exten);
+		}
+
+		if (outgoing->priority > 0) {
+			ast_channel_priority_set(answered, outgoing->priority);
+		}
+
+		if (ast_pbx_run(answered)) {
+			ast_log(LOG_ERROR, "Failed to start PBX on %s\n", ast_channel_name(answered));
+		} else {
+			/* PBX will have taken care of hanging up, so we steal the answered channel so dial doesn't do it */
+			ast_dial_answered_steal(outgoing->dial);
 		}
 	}
-	ast_free(as);
-	if (chan)
-		ast_hangup(chan);
+
+	/* Notify anyone else again that may be interested that execution is complete */
+	ast_mutex_lock(&outgoing->lock);
+	outgoing->executed = 1;
+	ast_cond_signal(&outgoing->cond);
+	ast_mutex_unlock(&outgoing->lock);
+
 	return NULL;
 }
 
-/*!
- * \brief Function to post an empty cdr after a spool call fails.
- * \note This function posts an empty cdr for a failed spool call
-*/
-static int ast_pbx_outgoing_cdr_failed(void)
+/*! \brief Internal dialing state callback which causes early media to trigger an answer */
+static void pbx_outgoing_state_callback(struct ast_dial *dial)
 {
-	/* allocate a channel */
-	struct ast_channel *chan = ast_dummy_channel_alloc();
+	struct ast_channel *channel;
 
-	if (!chan)
-		return -1;  /* failure */
-
-	ast_channel_cdr_set(chan, ast_cdr_alloc());
-	if (!ast_channel_cdr(chan)) {
-		/* allocation of the cdr failed */
-		chan = ast_channel_unref(chan);   /* free the channel */
-		return -1;                /* return failure */
+	if (ast_dial_state(dial) != AST_DIAL_RESULT_PROGRESS) {
+		return;
 	}
 
-	/* allocation of the cdr was successful */
-	ast_cdr_init(ast_channel_cdr(chan), chan);  /* initialize our channel's cdr */
-	ast_cdr_start(ast_channel_cdr(chan));       /* record the start and stop time */
-	ast_cdr_end(ast_channel_cdr(chan));
-	ast_cdr_failed(ast_channel_cdr(chan));      /* set the status to failed */
-	ast_cdr_detach(ast_channel_cdr(chan));      /* post and free the record */
-	ast_channel_cdr_set(chan, NULL);
-	chan = ast_channel_unref(chan);         /* free the channel */
+	if (!(channel = ast_dial_get_channel(dial, 0))) {
+		return;
+	}
 
-	return 0;  /* success */
+	ast_verb(4, "Treating progress as answer on '%s' due to early media option\n",
+		ast_channel_name(channel));
+
+	ast_queue_control(channel, AST_CONTROL_ANSWER);
+}
+
+static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context,
+	const char *exten, int priority, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num,
+	const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media)
+{
+	RAII_VAR(struct pbx_outgoing *, outgoing, ao2_alloc(sizeof(*outgoing), pbx_outgoing_destroy), ao2_cleanup);
+	struct ast_channel *dialed;
+	pthread_t thread;
+
+	if (!outgoing) {
+		return -1;
+	}
+
+	if (channel) {
+		*channel = NULL;
+	}
+
+	if (!ast_strlen_zero(app)) {
+		ast_copy_string(outgoing->app, app, sizeof(outgoing->app));
+		outgoing->appdata = ast_strdup(appdata);
+	} else {
+		ast_copy_string(outgoing->context, context, sizeof(outgoing->context));
+		ast_copy_string(outgoing->exten, exten, sizeof(outgoing->exten));
+		outgoing->priority = priority;
+	}
+
+	if (!(outgoing->dial = ast_dial_create())) {
+		return -1;
+	}
+
+	if (ast_dial_append(outgoing->dial, type, addr)) {
+		return -1;
+	}
+
+	ast_dial_set_global_timeout(outgoing->dial, timeout);
+
+	if (ast_dial_prerun(outgoing->dial, NULL, cap)) {
+		return -1;
+	}
+
+	dialed = ast_dial_get_channel(outgoing->dial, 0);
+
+	ast_set_variables(dialed, vars);
+
+	if (account) {
+		ast_cdr_setaccount(dialed, account);
+	}
+
+	if (!ast_strlen_zero(cid_num) && !ast_strlen_zero(cid_name)) {
+		struct ast_party_connected_line connected;
+
+		ast_party_connected_line_set_init(&connected, ast_channel_connected(dialed));
+
+		ast_set_callerid(dialed, cid_num, cid_name, cid_num);
+		connected.id.number.valid = 1;
+		connected.id.number.str = (char *) cid_num;
+		connected.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		connected.id.name.valid = 1;
+		connected.id.name.str = (char *) cid_name;
+		connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+
+		ast_channel_set_connected_line(dialed, &connected, NULL);
+	}
+
+	if (early_media) {
+		ast_dial_set_state_callback(outgoing->dial, &pbx_outgoing_state_callback);
+	}
+
+	if (channel) {
+		*channel = dialed;
+		ast_channel_lock(*channel);
+	}
+
+	ast_mutex_init(&outgoing->lock);
+	ast_cond_init(&outgoing->cond, NULL);
+
+	ao2_ref(outgoing, +1);
+
+	if (ast_pthread_create_detached(&thread, NULL, pbx_outgoing_exec, outgoing)) {
+		ast_log(LOG_WARNING, "Unable to spawn dialing thread for '%s/%s'\n", type, addr);
+		if (channel) {
+			ast_channel_unlock(*channel);
+		}
+		ao2_ref(outgoing, -1);
+		return -1;
+	}
+
+	/* Wait for dialing to complete */
+	if (synchronous) {
+		ast_mutex_lock(&outgoing->lock);
+		while (!outgoing->dialed) {
+			ast_cond_wait(&outgoing->cond, &outgoing->lock);
+		}
+		ast_mutex_unlock(&outgoing->lock);
+	}
+
+	/* Wait for execution to complete */
+	if (synchronous > 1) {
+		ast_mutex_lock(&outgoing->lock);
+		while (!outgoing->executed) {
+			ast_cond_wait(&outgoing->cond, &outgoing->lock);
+		}
+		ast_mutex_unlock(&outgoing->lock);
+	}
+
+	if (reason) {
+		*reason = ast_dial_reason(outgoing->dial, 0);
+	}
+
+	if ((synchronous > 1) && ast_dial_state(outgoing->dial) != AST_DIAL_RESULT_ANSWERED &&
+		ast_strlen_zero(app) &&	ast_exists_extension(NULL, context, "failed", 1, NULL)) {
+		struct ast_channel *failed = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, 0, "OutgoingSpoolFailed");
+
+		if (failed) {
+			char failed_reason[4] = "";
+
+			if (!ast_strlen_zero(context)) {
+				ast_channel_context_set(failed, context);
+			}
+
+			if (account) {
+				ast_cdr_setaccount(failed, account);
+			}
+
+			set_ext_pri(failed, "failed", 1);
+			ast_set_variables(failed, vars);
+			snprintf(failed_reason, sizeof(failed_reason), "%d", ast_dial_reason(outgoing->dial, 0));
+			pbx_builtin_setvar_helper(failed, "REASON", failed_reason);
+
+			if (ast_pbx_run(failed)) {
+				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n", ast_channel_name(failed));
+				ast_hangup(failed);
+			}
+		}
+	}
+
+	return 0;
 }
 
 int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media)
 {
-	struct ast_channel *chan;
-	struct async_stat *as;
-	struct ast_callid *callid;
-	int callid_created = 0;
-	int res = -1, cdr_res = -1;
-	struct outgoing_helper oh;
-
-	oh.connect_on_early_media = early_media;
-
-	callid_created = ast_callid_threadstorage_auto(&callid);
-
-	if (synchronous) {
-		oh.context = context;
-		oh.exten = exten;
-		oh.priority = priority;
-		oh.cid_num = cid_num;
-		oh.cid_name = cid_name;
-		oh.account = account;
-		oh.vars = vars;
-		oh.parent_channel = NULL;
-
-		chan = __ast_request_and_dial(type, cap, NULL, addr, timeout, reason, cid_num, cid_name, &oh);
-		if (channel) {
-			*channel = chan;
-			if (chan)
-				ast_channel_lock(chan);
-		}
-		if (chan) {
-			/* Bind the callid to the channel if it doesn't already have one on creation */
-			struct ast_callid *channel_callid = ast_channel_callid(chan);
-			if (channel_callid) {
-				ast_callid_unref(channel_callid);
-			} else {
-				if (callid) {
-					ast_channel_callid_set(chan, callid);
-				}
-			}
-
-			if (ast_channel_state(chan) == AST_STATE_UP || (early_media && *reason == AST_CONTROL_PROGRESS)) {
-					res = 0;
-				ast_verb(4, "Channel %s %s\n", ast_channel_name(chan), ast_channel_state(chan) == AST_STATE_UP ? "was answered" : "got early media");
-
-				if (synchronous > 1) {
-					if (channel)
-						ast_channel_unlock(chan);
-					if (ast_pbx_run(chan)) {
-						ast_log(LOG_ERROR, "Unable to run PBX on %s\n", ast_channel_name(chan));
-						if (channel)
-							*channel = NULL;
-						ast_hangup(chan);
-						chan = NULL;
-						res = -1;
-					}
-				} else {
-					if (ast_pbx_start(chan)) {
-						ast_log(LOG_ERROR, "Unable to start PBX on %s\n", ast_channel_name(chan));
-						if (channel) {
-							*channel = NULL;
-							ast_channel_unlock(chan);
-						}
-						ast_hangup(chan);
-						res = -1;
-					}
-					chan = NULL;
-				}
-			} else {
-				ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(chan));
-
-				if (ast_channel_cdr(chan)) { /* update the cdr */
-					/* here we update the status of the call, which sould be busy.
-					 * if that fails then we set the status to failed */
-					if (ast_cdr_disposition(ast_channel_cdr(chan), ast_channel_hangupcause(chan)))
-						ast_cdr_failed(ast_channel_cdr(chan));
-				}
-
-				if (channel) {
-					*channel = NULL;
-					ast_channel_unlock(chan);
-				}
-				ast_hangup(chan);
-				chan = NULL;
-			}
-		}
-
-		if (res < 0) { /* the call failed for some reason */
-			if (*reason == 0) { /* if the call failed (not busy or no answer)
-				            * update the cdr with the failed message */
-				cdr_res = ast_pbx_outgoing_cdr_failed();
-				if (cdr_res != 0) {
-					res = cdr_res;
-					goto outgoing_exten_cleanup;
-				}
-			}
-
-			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
-			/* check if "failed" exists */
-			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
-				chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, 0, "OutgoingSpoolFailed");
-				if (chan) {
-					char failed_reason[4] = "";
-					if (!ast_strlen_zero(context))
-						ast_channel_context_set(chan, context);
-					set_ext_pri(chan, "failed", 1);
-					ast_set_variables(chan, vars);
-					snprintf(failed_reason, sizeof(failed_reason), "%d", *reason);
-					pbx_builtin_setvar_helper(chan, "REASON", failed_reason);
-					if (account)
-						ast_cdr_setaccount(chan, account);
-					if (ast_pbx_run(chan)) {
-						ast_log(LOG_ERROR, "Unable to run PBX on %s\n", ast_channel_name(chan));
-						ast_hangup(chan);
-					}
-					chan = NULL;
-				}
-			}
-		}
-	} else {
-		struct ast_callid *channel_callid;
-		if (!(as = ast_calloc(1, sizeof(*as)))) {
-			res = -1;
-			goto outgoing_exten_cleanup;
-		}
-		chan = ast_request_and_dial(type, cap, NULL, addr, timeout, reason, cid_num, cid_name);
-		if (channel) {
-			*channel = chan;
-			if (chan)
-				ast_channel_lock(chan);
-		}
-		if (!chan) {
-			ast_free(as);
-			res = -1;
-			goto outgoing_exten_cleanup;
-		}
-
-		/* Bind the newly created callid to the channel if it doesn't already have one on creation. */
-		channel_callid = ast_channel_callid(chan);
-		if (channel_callid) {
-			ast_callid_unref(channel_callid);
-		} else {
-			if (callid) {
-				ast_channel_callid_set(chan, callid);
-			}
-		}
-
-		as->chan = chan;
-		ast_copy_string(as->context, context, sizeof(as->context));
-		set_ext_pri(as->chan,  exten, priority);
-		as->timeout = timeout;
-		ast_set_variables(chan, vars);
-		if (account)
-			ast_cdr_setaccount(chan, account);
-		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
-			ast_log(LOG_WARNING, "Failed to start async wait\n");
-			ast_free(as);
-			if (channel) {
-				*channel = NULL;
-				ast_channel_unlock(chan);
-			}
-			ast_hangup(chan);
-			res = -1;
-			goto outgoing_exten_cleanup;
-		}
-		res = 0;
-	}
-
-outgoing_exten_cleanup:
-	ast_callid_threadstorage_auto_clean(callid, callid_created);
-	ast_variables_destroy(vars);
-	return res;
-}
-
-struct app_tmp {
-	struct ast_channel *chan;
-	pthread_t t;
-	AST_DECLARE_STRING_FIELDS (
-		AST_STRING_FIELD(app);
-		AST_STRING_FIELD(data);
-	);
-};
-
-/*! \brief run the application and free the descriptor once done */
-static void *ast_pbx_run_app(void *data)
-{
-	struct app_tmp *tmp = data;
-	struct ast_app *app;
-	app = pbx_findapp(tmp->app);
-	if (app) {
-		ast_verb(4, "Launching %s(%s) on %s\n", tmp->app, tmp->data, ast_channel_name(tmp->chan));
-		pbx_exec(tmp->chan, app, tmp->data);
-	} else
-		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
-	ast_hangup(tmp->chan);
-	ast_string_field_free_memory(tmp);
-	ast_free(tmp);
-	return NULL;
+	return pbx_outgoing_attempt(type, cap, addr, timeout, context, exten, priority, NULL, NULL, reason, synchronous, cid_num,
+		cid_name, vars, account, channel, early_media);
 }
 
 int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
 {
-	struct ast_channel *chan;
-	struct app_tmp *tmp;
-	struct ast_callid *callid;
-	int callid_created;
-	int res = -1, cdr_res = -1;
-	struct outgoing_helper oh;
-
-	/* Start by checking for a callid in threadstorage, and if none is found, bind one. */
-	callid_created = ast_callid_threadstorage_auto(&callid);
-
-	memset(&oh, 0, sizeof(oh));
-	oh.vars = vars;
-	oh.account = account;
-
-	if (locked_channel)
-		*locked_channel = NULL;
 	if (ast_strlen_zero(app)) {
-		res = -1;
-		goto outgoing_app_cleanup;
-	}
-	if (synchronous) {
-		chan = __ast_request_and_dial(type, cap, NULL, addr, timeout, reason, cid_num, cid_name, &oh);
-		if (chan) {
-			/* Bind the newly created callid to the channel if it doesn't already have one on creation */
-			struct ast_callid *channel_callid = ast_channel_callid(chan);
-			if (channel_callid) {
-				ast_callid_unref(channel_callid);
-			} else {
-				if (callid) {
-					ast_channel_callid_set(chan, callid);
-				}
-			}
-
-			ast_set_variables(chan, vars);
-			if (account)
-				ast_cdr_setaccount(chan, account);
-			if (ast_channel_state(chan) == AST_STATE_UP) {
-				res = 0;
-				ast_verb(4, "Channel %s was answered.\n", ast_channel_name(chan));
-				tmp = ast_calloc(1, sizeof(*tmp));
-				if (!tmp || ast_string_field_init(tmp, 252)) {
-					if (tmp) {
-						ast_free(tmp);
-					}
-					res = -1;
-				} else {
-					ast_string_field_set(tmp, app, app);
-					ast_string_field_set(tmp, data, appdata);
-					tmp->chan = chan;
-					if (synchronous > 1) {
-						if (locked_channel)
-							ast_channel_unlock(chan);
-						ast_pbx_run_app(tmp);
-					} else {
-						if (locked_channel)
-							ast_channel_lock(chan);
-						if (ast_pthread_create_detached(&tmp->t, NULL, ast_pbx_run_app, tmp)) {
-							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", ast_channel_name(chan), strerror(errno));
-							ast_string_field_free_memory(tmp);
-							ast_free(tmp);
-							if (locked_channel)
-								ast_channel_unlock(chan);
-							ast_hangup(chan);
-							res = -1;
-						} else {
-							if (locked_channel)
-								*locked_channel = chan;
-						}
-					}
-				}
-			} else {
-				ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(chan));
-				if (ast_channel_cdr(chan)) { /* update the cdr */
-					/* here we update the status of the call, which sould be busy.
-					 * if that fails then we set the status to failed */
-					if (ast_cdr_disposition(ast_channel_cdr(chan), ast_channel_hangupcause(chan)))
-						ast_cdr_failed(ast_channel_cdr(chan));
-				}
-				ast_hangup(chan);
-			}
-		}
-
-		if (res < 0) { /* the call failed for some reason */
-			if (*reason == 0) { /* if the call failed (not busy or no answer)
-				            * update the cdr with the failed message */
-				cdr_res = ast_pbx_outgoing_cdr_failed();
-				if (cdr_res != 0) {
-					res = cdr_res;
-					goto outgoing_app_cleanup;
-				}
-			}
-		}
-
-	} else {
-		struct async_stat *as;
-		struct ast_callid *channel_callid;
-		if (!(as = ast_calloc(1, sizeof(*as)))) {
-			res = -1;
-			goto outgoing_app_cleanup;
-		}
-		chan = __ast_request_and_dial(type, cap, NULL, addr, timeout, reason, cid_num, cid_name, &oh);
-		if (!chan) {
-			ast_free(as);
-			res = -1;
-			goto outgoing_app_cleanup;
-		}
-
-		/* Bind the newly created callid to the channel if it doesn't already have one on creation. */
-		channel_callid = ast_channel_callid(chan);
-		if (channel_callid) {
-			ast_callid_unref(channel_callid);
-		} else {
-			if (callid) {
-				ast_channel_callid_set(chan, callid);
-			}
-		}
-
-		as->chan = chan;
-		ast_copy_string(as->app, app, sizeof(as->app));
-		if (appdata)
-			ast_copy_string(as->appdata,  appdata, sizeof(as->appdata));
-		as->timeout = timeout;
-		ast_set_variables(chan, vars);
-		if (account)
-			ast_cdr_setaccount(chan, account);
-		/* Start a new thread, and get something handling this channel. */
-		if (locked_channel)
-			ast_channel_lock(chan);
-		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
-			ast_log(LOG_WARNING, "Failed to start async wait\n");
-			ast_free(as);
-			if (locked_channel)
-				ast_channel_unlock(chan);
-			ast_hangup(chan);
-			res = -1;
-			goto outgoing_app_cleanup;
-		} else {
-			if (locked_channel)
-				*locked_channel = chan;
-		}
-		res = 0;
+		return -1;
 	}
 
-outgoing_app_cleanup:
-	ast_callid_threadstorage_auto_clean(callid, callid_created);
-	ast_variables_destroy(vars);
-	return res;
+	return pbx_outgoing_attempt(type, cap, addr, timeout, NULL, NULL, 0, app, appdata, reason, synchronous, cid_num,
+		cid_name, vars, account, locked_channel, 0);
 }
 
 /* this is the guts of destroying a context --
