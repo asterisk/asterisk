@@ -919,6 +919,7 @@ static const uint8_t soft_key_default_onhook[] = {
 	SOFTKEY_NEWCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
+	SOFTKEY_CFWDNOANSWER,
 	SOFTKEY_DND,
 	SOFTKEY_GPICKUP,
 	/*SOFTKEY_CONFRN,*/
@@ -931,6 +932,7 @@ static const uint8_t soft_key_default_connected[] = {
 	SOFTKEY_PARK,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
+	SOFTKEY_CFWDNOANSWER,
 };
 
 static const uint8_t soft_key_default_onhold[] = {
@@ -951,6 +953,7 @@ static const uint8_t soft_key_default_offhook[] = {
 	SOFTKEY_ENDCALL,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
+	SOFTKEY_CFWDNOANSWER,
 	SOFTKEY_GPICKUP,
 };
 
@@ -961,6 +964,7 @@ static const uint8_t soft_key_default_connwithtrans[] = {
 	SOFTKEY_PARK,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
+	SOFTKEY_CFWDNOANSWER,
 };
 
 static const uint8_t soft_key_default_dadfd[] = {
@@ -1361,6 +1365,9 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_PROGRESS 12
 #define SUBSTATE_DIALING 101
 
+#define DIALTYPE_NORMAL      1<<0
+#define DIALTYPE_CFWD        1<<1
+
 struct skinny_subchannel {
 	ast_mutex_t lock;
 	struct ast_channel *owner;
@@ -1382,6 +1389,9 @@ struct skinny_subchannel {
 	int aa_beep;
 	int aa_mute;
 	int dialer_sched;
+	int cfwd_sched;
+	int dialType;
+	int getforward;
 	char *origtonum;
 	char *origtoname;
 
@@ -1424,7 +1434,7 @@ struct skinny_subchannel {
 	int threewaycalling;				\
 	int mwiblink;					\
 	int cancallforward;				\
-	int getforward;					\
+	int callfwdtimeout;				\
 	int dnd;					\
 	int hidecallerid;				\
 	int amaflags;					\
@@ -1467,7 +1477,7 @@ static struct skinny_line_options{
 	.instance = 0,
 	.directmedia = 0,
 	.nat = 0,
-	.getforward = 0,
+	.callfwdtimeout = 20000,
 	.prune = 0,
 };
 static struct skinny_line_options *default_line = &default_line_struct;
@@ -2257,7 +2267,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				l->prefs = d->prefs; */
 				l->instance = instance;
 				l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
-				set_callforwards(l, NULL, 0);
+				set_callforwards(l, NULL, SKINNY_CFWD_ALL|SKINNY_CFWD_BUSY|SKINNY_CFWD_NOANSWER);
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
 				register_exten(l);
 				/* initialize MWI on line and device */
@@ -4464,6 +4474,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				ast_cli(fd, "CFwdAll:          %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
 				ast_cli(fd, "CFwdBusy:         %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_BUSY), l->call_forward_busy, "<not set>"));
 				ast_cli(fd, "CFwdNoAnswer:     %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_NOANSWER), l->call_forward_noanswer, "<not set>"));
+				ast_cli(fd, "CFwdTimeout:      %dms\n", l->callfwdtimeout);
 				ast_cli(fd, "VoicemailBox:     %s\n", S_OR(l->mailbox, "<not set>"));
 				ast_cli(fd, "VoicemailNumber:  %s\n", S_OR(l->vmexten, "<not set>"));
 				ast_cli(fd, "MWIblink:         %d\n", l->mwiblink);
@@ -4879,6 +4890,17 @@ static int skinny_autoanswer_cb(const void *data)
 	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
 	sub->aa_sched = 0;
 	setsubstate(sub, SKINNY_CONNECTED);
+	return 0;
+}
+
+static int skinny_cfwd_cb(const void *data)
+{
+	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
+	struct skinny_line *l = sub->line;
+	sub->cfwd_sched = 0;
+	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - CFWDNOANS to %s.\n", sub->callid, l->call_forward_noanswer);
+	ast_channel_call_forward_set(sub->owner, l->call_forward_noanswer);
+	ast_queue_control(sub->owner, AST_CONTROL_REDIRECTING);
 	return 0;
 }
 
@@ -5380,6 +5402,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			sub->calldirection = direction;
 			sub->aa_sched = 0;
 			sub->dialer_sched = 0;
+			sub->cfwd_sched = 0;
+			sub->dialType = DIALTYPE_NORMAL;
+			sub->getforward = 0;
 
 			if (subline) {
 				sub->subline = subline;
@@ -5429,13 +5454,15 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		ast_channel_named_callgroups_set(tmp, l->named_callgroups);
 		ast_channel_named_pickupgroups_set(tmp, l->named_pickupgroups);
 
-		/* XXX Need to figure out how to handle CFwdNoAnswer */
 		if (l->cfwdtype & SKINNY_CFWD_ALL) {
+			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - CFWDALL to %s.\n", sub->callid, l->call_forward_all);
 			ast_channel_call_forward_set(tmp, l->call_forward_all);
-		} else if (l->cfwdtype & SKINNY_CFWD_BUSY) {
-			if (get_devicestate(l) != AST_DEVICE_NOT_INUSE) {
-				ast_channel_call_forward_set(tmp, l->call_forward_busy);
-			}
+		} else if ((l->cfwdtype & SKINNY_CFWD_BUSY) && (get_devicestate(l) != AST_DEVICE_NOT_INUSE)) {
+			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - CFWDBUSY to %s.\n", sub->callid, l->call_forward_busy);
+			ast_channel_call_forward_set(tmp, l->call_forward_busy);
+		} else if (l->cfwdtype & SKINNY_CFWD_NOANSWER) {
+			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - CFWDNOANS Scheduling for %d seconds.\n", sub->callid, l->callfwdtimeout/1000);
+			sub->cfwd_sched = skinny_sched_add(l->callfwdtimeout, skinny_cfwd_cb, sub);
 		}
 
 		if (subline) {
@@ -5533,6 +5560,19 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		sub->aa_sched = 0;
 		sub->aa_beep = 0;
 		sub->aa_mute = 0;
+	}
+
+	if (sub->cfwd_sched) {
+		if (state == SUBSTATE_CONNECTED) {
+			if (skinny_sched_del(sub->cfwd_sched, sub)) {
+				SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - trying to change state from %s to %s, but already forwarded because no answer.\n",
+					sub->callid, substate2str(sub->substate), substate2str(actualstate));
+				return;
+			}
+			sub->cfwd_sched = 0;
+		} else if (state == SUBSTATE_ONHOOK) {
+			skinny_sched_del(sub->cfwd_sched, sub);
+		}
 	}
 
 	if ((state == SUBSTATE_RINGIN) && ((d->hookstate == SKINNY_OFFHOOK) || (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)))) {
@@ -5665,8 +5705,6 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		sub->callid, substate2str(sub->substate), substate2str(actualstate));
 
 	if (actualstate == sub->substate) {
-		send_callinfo(sub);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_HOLD);
 		return;
 	}
 
@@ -6001,26 +6039,19 @@ static void activatesub(struct skinny_subchannel *sub, int state)
 
 static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
 {
-	if (sub->line->getforward) {
-		struct skinny_line *l = sub->line;
-		struct skinny_device *d = l->device;
-
-		// FIXME: needs some love and remove sleeps
-		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Set callforward to %s\n", sub->callid, exten);
-		set_callforwards(l, sub->exten, l->getforward);
-		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-		transmit_lamp_indication(d, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
-		transmit_displaynotify(d, "CFwd enabled", 10);
-		transmit_cfwdstate(d, l);
-		ast_safe_sleep(sub->owner, 500);
-		ast_indicate(sub->owner, -1);
-		ast_safe_sleep(sub->owner, 1000);
-		l->getforward = 0;
-		dumpsub(sub, 0);
-	} else {
+	struct skinny_line *l = sub->line;
+	struct skinny_device *d = l->device;
+	
+	if (sub->dialType == DIALTYPE_NORMAL) {
 		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Dial %s and Activate\n", sub->callid, exten);
 		ast_copy_string(sub->exten, exten, sizeof(sub->exten));
 		activatesub(sub, SUBSTATE_DIALING);
+	} else if (sub->dialType == DIALTYPE_CFWD) {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Set callforward(%d) to %s\n", sub->callid, sub->getforward, exten);
+		set_callforwards(l, sub->exten, sub->getforward);
+		dumpsub(sub, 1);
+		transmit_cfwdstate(d, l);
+		transmit_displaynotify(d, "CFwd enabled", 10);
 	}
 }
 
@@ -6099,48 +6130,38 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	return 0;
 }
 
-static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype)
+static void handle_callforward_button(struct skinny_line *l, struct skinny_subchannel *sub, int cfwdtype)
 {
-	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	struct ast_channel *c = sub->owner;
+	struct ast_channel *c;
 
 	if (!d->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
-		return 0;
+		return;
 	}
 
-	if (d->hookstate == SKINNY_ONHOOK) {
-		d->hookstate = SKINNY_OFFHOOK;
-		transmit_speaker_mode(d, SKINNY_SPEAKERON);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-		transmit_activatecallplane(d, l);
-	}
-	transmit_clear_display_message(d, l->instance, sub->callid);
-
-	if (l->cfwdtype & cfwdtype) {
+	if (!sub && (l->cfwdtype & cfwdtype)) {
 		set_callforwards(l, NULL, cfwdtype);
-		ast_safe_sleep(c, 500);
-		transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
-		transmit_closereceivechannel(d, sub);
-		transmit_stopmediatransmission(d, sub);
-		transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
-		transmit_clearpromptmessage(d, l->instance, sub->callid);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
-		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK, KEYMASK_ALL);
-		transmit_activatecallplane(d, l);
-		transmit_displaynotify(d, "CFwd disabled", 10);
-		if (sub->owner && ast_channel_state(sub->owner) != AST_STATE_UP) {
-			ast_indicate(c, -1);
-			ast_hangup(c);
+		if (sub) {
+			dumpsub(sub, 1);
 		}
 		transmit_cfwdstate(d, l);
+		transmit_displaynotify(d, "CFwd disabled", 10);
 	} else {
-		l->getforward = cfwdtype;
-		setsubstate(sub, SUBSTATE_OFFHOOK);
+		if (!sub || !sub->owner) {
+			if (!(c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING))) {
+				ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+				return;
+			}
+			sub = ast_channel_tech_pvt(c);
+			l->activesub = sub;
+			setsubstate(sub, SUBSTATE_OFFHOOK);
+		}
+		sub->getforward |= cfwdtype;
+		sub->dialType = DIALTYPE_CFWD;
 	}
-	return 0;
 }
+
 static int handle_ip_port_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* no response necessary */
@@ -6400,55 +6421,17 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	case STIMULUS_FORWARDALL:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_FORWARDALL from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = ast_channel_tech_pvt(c);
-			handle_callforward_button(sub, SKINNY_CFWD_ALL);
-		}
+		handle_callforward_button(l, sub, SKINNY_CFWD_ALL);
 		break;
 	case STIMULUS_FORWARDBUSY:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_FORWARDBUSY from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = ast_channel_tech_pvt(c);
-			handle_callforward_button(sub, SKINNY_CFWD_BUSY);
-		}
+		handle_callforward_button(l, sub, SKINNY_CFWD_BUSY);
 		break;
 	case STIMULUS_FORWARDNOANSWER:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_FORWARDNOANSWER from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-#if 0 /* Not sure how to handle this yet */
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = c->tech_pvt;
-			handle_callforward_button(sub, SKINNY_CFWD_NOANSWER);
-		}
-#endif
+		handle_callforward_button(l, sub, SKINNY_CFWD_NOANSWER);
 		break;
 	case STIMULUS_DISPLAY:
 		/* Not sure what this is */
@@ -7037,58 +7020,17 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_CFWDALL:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_CFWDALL from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = ast_channel_tech_pvt(c);
-			l->activesub = sub;
-			handle_callforward_button(sub, SKINNY_CFWD_ALL);
-		}
+		handle_callforward_button(l, sub, SKINNY_CFWD_ALL);
 		break;
 	case SOFTKEY_CFWDBUSY:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_CFWDBUSY from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = ast_channel_tech_pvt(c);
-			l->activesub = sub;
-			handle_callforward_button(sub, SKINNY_CFWD_BUSY);
-		}
+		handle_callforward_button(l, sub, SKINNY_CFWD_BUSY);
 		break;
 	case SOFTKEY_CFWDNOANSWER:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_CFWDNOANSWER from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-
-#if 0 /* Not sure how to handle this yet */
-		if (!sub || !sub->owner) {
-			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
-		} else {
-			c = sub->owner;
-		}
-
-		if (!c) {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = c->tech_pvt;
-			l->activesub = sub;
-			handle_callforward_button(sub, SKINNY_CFWD_NOANSWER);
-		}
-#endif
+		handle_callforward_button(l, sub, SKINNY_CFWD_NOANSWER);
 		break;
 	case SOFTKEY_BKSPC:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_BKSPC from %s, inst %d, callref %d\n",
@@ -7948,6 +7890,11 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 		} else if (!strcasecmp(v->name, "cancallforward")) {
 			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
 				CLINE_OPTS->cancallforward = ast_true(v->value);
+				continue;
+			}
+		} else if (!strcasecmp(v->name, "callfwdtimeout")) {
+			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
+				CLINE_OPTS->callfwdtimeout = atoi(v->value);
 				continue;
 			}
 		} else if (!strcasecmp(v->name, "mailbox")) {

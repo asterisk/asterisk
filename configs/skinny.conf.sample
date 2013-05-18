@@ -100,6 +100,7 @@ keepalive=120
 ;                            ; (earlyrtp=1) or device generated (earlyrtp=0). default=yes
 ;transfer=1                  ; whether the device is allowed to transfer. default=yes
 ;context=default             ; context to use for this line.
+;callfwdtimeout=20000        ; ms before cfwd_noans occurs (default 20 secs)
 ;------------------------------- SPECIFIC LINE OPTIONS -----------------------------
 ;setvar=        	     ; allows for the setting of chanvars.
 ;-----------------------------------------------------------------------------------
