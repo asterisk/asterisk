@@ -64,6 +64,7 @@
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/udptl.h"
+#include "asterisk/stasis_channels.h"
 
 #include "ootypes.h"
 #include "ooUtils.h"

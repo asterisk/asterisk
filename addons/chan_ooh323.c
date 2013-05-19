@@ -490,9 +490,8 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	 	}
 
 		if (ch) {
-			manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", 
-				"Channel: %s\r\nChanneltype: %s\r\n"
-				"CallRef: %d\r\n", ast_channel_name(ch), "OOH323", i->call_reference);
+			ast_publish_channel_state(ch);
+
 		}
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
@@ -2149,8 +2148,7 @@ int onCallEstablished(ooCallData *call)
 
 			ast_queue_control(c, AST_CONTROL_ANSWER);
    			ast_channel_unlock(p->owner);
-			manager_event(EVENT_FLAG_SYSTEM,"ChannelUpdate","Channel: %s\r\nChanneltype: %s\r\n"
-				"CallRef: %d\r\n", ast_channel_name(c), "OOH323", p->call_reference);
+			ast_publish_channel_state(c);
 		}
 		ast_mutex_unlock(&p->lock);
 
