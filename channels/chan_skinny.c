@@ -704,6 +704,7 @@ struct bksp_req_message {
 #define KEYDEF_UNKNOWN 10
 #define KEYDEF_SLAHOLD 11
 #define KEYDEF_SLACONNECTEDNOTACTIVE 12
+#define KEYDEF_RINGOUTWITHTRANS 13
 
 #define SOFTKEY_NONE 0x00
 #define SOFTKEY_REDIAL 0x01
@@ -982,6 +983,12 @@ static const uint8_t soft_key_default_ringout[] = {
 	SOFTKEY_ENDCALL,
 };
 
+static const uint8_t soft_key_default_ringoutwithtransfer[] = {
+	SOFTKEY_NONE,
+	SOFTKEY_ENDCALL,
+	SOFTKEY_TRNSFER,
+};
+
 static const uint8_t soft_key_default_offhookwithfeat[] = {
 	SOFTKEY_REDIAL,
 	SOFTKEY_ENDCALL,
@@ -1014,6 +1021,7 @@ static const struct soft_key_definitions soft_key_default_definitions[] = {
 	{KEYDEF_DADFD, soft_key_default_dadfd, sizeof(soft_key_default_dadfd) / sizeof(uint8_t)},
 	{KEYDEF_CONNWITHCONF, soft_key_default_connwithconf, sizeof(soft_key_default_connwithconf) / sizeof(uint8_t)},
 	{KEYDEF_RINGOUT, soft_key_default_ringout, sizeof(soft_key_default_ringout) / sizeof(uint8_t)},
+	{KEYDEF_RINGOUTWITHTRANS, soft_key_default_ringoutwithtransfer, sizeof(soft_key_default_ringoutwithtransfer) / sizeof(uint8_t)},
 	{KEYDEF_OFFHOOKWITHFEAT, soft_key_default_offhookwithfeat, sizeof(soft_key_default_offhookwithfeat) / sizeof(uint8_t)},
 	{KEYDEF_UNKNOWN, soft_key_default_unknown, sizeof(soft_key_default_unknown) / sizeof(uint8_t)},
 	{KEYDEF_SLAHOLD, soft_key_default_SLAhold, sizeof(soft_key_default_SLAhold) / sizeof(uint8_t)},
@@ -5287,7 +5295,6 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 					ast_channel_name(ast_bridged_channel(xferee->owner)), ast_channel_name(xferor->owner));
 				return -1;
 			}
-			return 0;
 		} else {
 			ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 				ast_channel_name(xferor->owner), ast_channel_name(xferee->owner));
@@ -5814,6 +5821,11 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
 		}
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
+		if (sub->related) {
+			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUTWITHTRANS, KEYMASK_ALL);
+		} else {
+			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT, KEYMASK_ALL);
+		}
 		transmit_dialednumber(d, sub->exten, l->instance, sub->callid);
 		send_displaypromptstatus(d, OCTAL_RINGOUT, "", 0, l->instance, sub->callid);
 		send_callinfo(sub);
