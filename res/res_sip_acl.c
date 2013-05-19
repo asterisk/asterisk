@@ -32,6 +32,58 @@
 #include "asterisk/sorcery.h"
 #include "asterisk/acl.h"
 
+/*** DOCUMENTATION
+	<configInfo name="res_sip_acl" language="en_US">
+		<synopsis>SIP ACL module</synopsis>
+		<description><para>
+			<emphasis>ACL</emphasis>
+			</para>
+			<para>The ACL module used by <literal>res_sip</literal>. This module is
+			independent of <literal>endpoints</literal> and operates on all inbound
+			SIP communication using res_sip.
+			</para><para>
+			It should be noted that this module can also reference ACLs from
+			<filename>acl.conf</filename>.
+			</para><para>
+			There are two main ways of creating an access list: <literal>IP-Domain</literal>
+			and <literal>Contact Header</literal>. It is possible to create a combined ACL using
+			both IP and Contact.
+		</para></description>
+		<configFile name="res_sip.conf">
+			<configObject name="acl">
+				<synopsis>Access Control List</synopsis>
+				<configOption name="acl">
+					<synopsis>Name of IP ACL</synopsis>
+					<description><para>
+						This matches sections configured in <literal>acl.conf</literal>
+					</para></description>
+				</configOption>
+				<configOption name="contactacl">
+					<synopsis>Name of Contact ACL</synopsis>
+					<description><para>
+						This matches sections configured in <literal>acl.conf</literal>
+					</para></description>
+				</configOption>
+				<configOption name="contactdeny">
+					<synopsis>List of Contact Header addresses to Deny</synopsis>
+				</configOption>
+				<configOption name="contactpermit">
+					<synopsis>List of Contact Header addresses to Permit</synopsis>
+				</configOption>
+				<configOption name="deny">
+					<synopsis>List of IP-domains to deny access from</synopsis>
+				</configOption>
+				<configOption name="permit">
+					<synopsis>List of IP-domains to allow access from</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'acl'.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
 struct sip_acl {
 	SORCERY_OBJECT(details);
 	struct ast_acl_list *acl;

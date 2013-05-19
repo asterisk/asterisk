@@ -30,6 +30,25 @@
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
 
+/*** DOCUMENTATION
+	<configInfo name="res_sip_endpoint_identifier_ip" language="en_US">
+		<synopsis>Module that identifies endpoints via source IP address</synopsis>
+		<configFile name="res_sip.conf">
+			<configObject name="identify">
+				<configOption name="endpoint">
+					<synopsis>Name of Endpoint</synopsis>
+				</configOption>
+				<configOption name="match">
+					<synopsis>IP addresses or networks to match against</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'identify'.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
 /*! \brief Structure for an IP identification matching object */
 struct ip_identify_match {
 	/*! \brief Sorcery object details */

@@ -31,6 +31,67 @@
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
 
+/*** DOCUMENTATION
+	<configInfo name="res_sip_outbound_registration" language="en_US">
+		<synopsis>SIP resource for outbound registrations</synopsis>
+		<description><para>
+			<emphasis>Outbound Registration</emphasis>
+			</para>
+			<para>This module allows <literal>res_sip</literal> to register to other SIP servers.</para>
+		</description>
+		<configFile name="res_sip.conf">
+			<configObject name="registration">
+				<synopsis>The configuration for outbound registration</synopsis>
+				<description><para>
+					Registration is <emphasis>COMPLETELY</emphasis> separate from the rest of
+					<literal>res_sip.conf</literal>. A minimal configuration consists of
+					setting a <literal>server_uri</literal>	and a <literal>client_uri</literal>.
+				</para></description>
+				<configOption name="auth_rejection_permanent" default="yes">
+					<synopsis>Determines whether failed authentication challenges are treated
+					as permanent failures.</synopsis>
+					<description><para>If this option is enabled and an authentication challenge fails,
+					registration will not be attempted again until the configuration is reloaded.</para></description>
+				</configOption>
+				<configOption name="client_uri">
+					<synopsis>Client SIP URI used when attemping outbound registration</synopsis>
+				</configOption>
+				<configOption name="contact_user">
+					<synopsis>Contact User to use in request</synopsis>
+				</configOption>
+				<configOption name="expiration" default="3600">
+					<synopsis>Expiration time for registrations in seconds</synopsis>
+				</configOption>
+				<configOption name="max_retries" default="10">
+					<synopsis>Maximum number of registration attempts.</synopsis>
+				</configOption>
+				<configOption name="outbound_auth" default="">
+					<synopsis>Authentication object to be used for outbound registrations.</synopsis>
+				</configOption>
+				<configOption name="outbound_proxy" default="">
+					<synopsis>Outbound Proxy used to send registrations</synopsis>
+				</configOption>
+				<configOption name="retry_interval" default="60">
+					<synopsis>Interval in seconds between retries if outbound registration is unsuccessful</synopsis>
+				</configOption>
+				<configOption name="server_uri">
+					<synopsis>SIP URI of the server to register against</synopsis>
+				</configOption>
+				<configOption name="transport">
+					<synopsis>Transport used for outbound authentication</synopsis>
+					<description>
+						<note><para>A <replaceable>transport</replaceable> configured in
+						<literal>res_sip.conf</literal>. As with other <literal>res_sip</literal> modules, this will use the first available transport of the appropriate type if unconfigured.</para></note>
+					</description>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'registration'.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
 /*! \brief Amount of buffer time (in seconds) before expiration that we re-register at */
 #define REREGISTER_BUFFER_TIME 10
 

@@ -42,6 +42,512 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<configInfo name="res_sip" language="en_US">
+		<synopsis>SIP Resource using PJProject</synopsis>
+		<configFile name="res_sip.conf">
+			<configObject name="endpoint">
+				<synopsis>Endpoint</synopsis>
+				<description><para>
+					The <emphasis>Endpoint</emphasis> is the primary configuration object.
+					It contains the core SIP related options only, endpoints are <emphasis>NOT</emphasis>
+					dialable entries of their own. Communication with another SIP device is
+					accomplished via Addresses of Record (AoRs) which have one or more
+					contacts assicated with them. Endpoints <emphasis>NOT</emphasis> configured to 
+					use a <literal>transport</literal> will default to first transport found
+					in <filename>res_sip.conf</filename> that matches its type.
+					</para>
+					<para>Example: An Endpoint has been configured with no transport.
+					When it comes time to call an AoR, PJSIP will find the
+					first transport that matches the type. A SIP URI of <literal>sip:5000@[11::33]</literal>
+					will use the first IPv6 transport and try to send the request.
+					</para>
+				</description>
+				<configOption name="100rel" default="yes">
+					<synopsis>Allow support for RFC3262 provisional ACK tags</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no" />
+							<enum name="required" />
+							<enum name="yes" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="aggregate_mwi" default="yes">
+					<synopsis></synopsis>
+					<description><para>When enabled, <replaceable>aggregate_mwi</replaceable> condenses message
+					waiting notifications from multiple mailboxes into a single NOTIFY. If it is disabled,
+					individual NOTIFYs are sent for each mailbox.</para></description>
+				</configOption>
+				<configOption name="allow">
+					<synopsis>Media Codec(s) to allow</synopsis>
+				</configOption>
+				<configOption name="aors">
+					<synopsis>AoR(s) to be used with the endpoint</synopsis>
+					<description><para>
+						List of comma separated AoRs that the endpoint should be associated with.
+					</para></description>
+				</configOption>
+				<configOption name="auth">
+					<synopsis>Authentication Object(s) associated with the endpoint</synopsis>
+					<description><para>
+						This is a comma-delimited list of <replaceable>auth</replaceable> sections defined
+						in <filename>res_sip.conf</filename> to be used to verify inbound connection attempts.
+						</para><para>
+						Endpoints without an <literal>authentication</literal> object
+						configured will allow connections without vertification.
+					</para></description>
+				</configOption>
+				<configOption name="callerid">
+					<synopsis>CallerID information for the endpoint</synopsis>
+					<description><para>
+						Must be in the format <literal>Name &lt;Number&gt;</literal>,
+						or only <literal>&lt;Number&gt;</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="callerid_privacy">
+					<synopsis>Default privacy level</synopsis>
+					<description>
+						<enumlist>
+							<enum name="allowed_not_screened" />
+							<enum name="allowed_passed_screened" />
+							<enum name="allowed_failed_screened" />
+							<enum name="allowed" />
+							<enum name="prohib_not_screened" />
+							<enum name="prohib_passed_screened" />
+							<enum name="prohib_failed_screened" />
+							<enum name="prohib" />
+							<enum name="unavailable" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="callerid_tag">
+					<synopsis>Internal id_tag for the endpoint</synopsis>
+				</configOption>
+				<configOption name="context">
+					<synopsis>Dialplan context for inbound sessions</synopsis>
+				</configOption>
+				<configOption name="direct_media_glare_mitigation" default="none">
+					<synopsis>Mitigation of direct media (re)INVITE glare</synopsis>
+					<description>
+						<para>
+						This setting attempts to avoid creating INVITE glare scenarios
+						by disabling direct media reINVITEs in one direction thereby allowing
+						designated servers (according to this option) to initiate direct
+						media reINVITEs without contention and significantly reducing call
+						setup time.
+						</para>
+						<para>
+						A more detailed description of how this option functions can be found on
+						the Asterisk wiki https://wiki.asterisk.org/wiki/display/AST/SIP+Direct+Media+Reinvite+Glare+Avoidance
+						</para>
+						<enumlist>
+							<enum name="none" />
+							<enum name="outgoing" />
+							<enum name="incoming" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="direct_media_method" default="invite">
+					<synopsis>Direct Media method type</synopsis>
+					<description>
+						<para>Method for setting up Direct Media between endpoints.</para>
+						<enumlist>
+							<enum name="invite" />
+							<enum name="reinvite">
+								<para>Alias for the <literal>invite</literal> value.</para>
+							</enum>
+							<enum name="update" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="direct_media" default="yes">
+					<synopsis>Determines whether media may flow directly between endpoints.</synopsis>
+				</configOption>
+				<configOption name="disable_direct_media_on_nat" default="no">
+					<synopsis>Disable direct media session refreshes when NAT obstructs the media session</synopsis>
+				</configOption>
+				<configOption name="disallow">
+					<synopsis>Media Codec(s) to disallow</synopsis>
+				</configOption>
+				<configOption name="dtmfmode" default="rfc4733">
+					<synopsis>DTMF mode</synopsis>
+					<description>
+						<para>This setting allows to choose the DTMF mode for endpoint communication.</para>
+						<enumlist>
+							<enum name="rfc4733">
+								<para>DTMF is sent out of band of the main audio stream.This
+								supercedes the older <emphasis>RFC-2833</emphasis> used within
+								the older <literal>chan_sip</literal>.</para>
+							</enum>
+							<enum name="inband">
+								<para>DTMF is sent as part of audio stream.</para>
+							</enum>
+							<enum name="info">
+								<para>DTMF is sent as SIP INFO packets.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="external_media_address">
+					<synopsis>IP used for External Media handling</synopsis>
+				</configOption>
+				<configOption name="force_rport" default="yes">
+					<synopsis>Force use of return port</synopsis>
+				</configOption>
+				<configOption name="ice_support" default="no">
+					<synopsis>Enable the ICE mechanism to help traverse NAT</synopsis>
+				</configOption>
+				<configOption name="identify_by" default="username,location">
+					<synopsis>Way(s) for Endpoint to be identified</synopsis>
+					<description><para>
+						There are currently two methods to identify an endpoint. By default
+						both are used to identify an endpoint.
+						</para>
+						<enumlist>
+							<enum name="username" />
+							<enum name="location" />
+							<enum name="username,location" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="mailboxes">
+					<synopsis>Mailbox(es) to be associated with</synopsis>
+				</configOption>
+				<configOption name="mohsuggest" default="default">
+					<synopsis>Default Music On Hold class</synopsis>
+				</configOption>
+				<configOption name="outbound_auth">
+					<synopsis>Authentication object used for outbound requests</synopsis>
+				</configOption>
+				<configOption name="outbound_proxy">
+					<synopsis>Proxy through which to send requests</synopsis>
+				</configOption>
+				<configOption name="qualify_frequency" default="0">
+					<synopsis>Interval at which to qualify an endpoint</synopsis>
+					<description><para>
+						Interval between attempts to qualify the endpoint for reachability.
+						If <literal>0</literal> never qualify. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="rewrite_contact">
+					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
+				</configOption>
+				<configOption name="rtp_ipv6" default="no">
+					<synopsis>Allow use of IPv6 for RTP traffic</synopsis>
+				</configOption>
+				<configOption name="rtp_symmetric" default="no">
+					<synopsis>Enforce that RTP must be symmetric</synopsis>
+				</configOption>
+				<configOption name="send_pai" default="no">
+					<synopsis>Send the P-Asserted-Identity header</synopsis>
+				</configOption>
+				<configOption name="send_rpid" default="no">
+					<synopsis>Send the Remote-Party-ID header</synopsis>
+				</configOption>
+				<configOption name="timers_min_se" default="90">
+					<synopsis>Minimum session timers expiration period</synopsis>
+					<description><para>
+						Minimium session timer expiration period. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="timers" default="yes">
+					<synopsis>Session timers for SIP packets</synopsis>
+					<description>
+						<enumlist>
+							<enum name="forced" />
+							<enum name="no" />
+							<enum name="required" />
+							<enum name="yes" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="timers_sess_expires" default="1800">
+					<synopsis>Maximum session timer expiration period</synopsis>
+					<description><para>
+						Maximium session timer expiration period. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="transport">
+					<synopsis>Desired transport configuration</synopsis>
+					<description><para>
+						This will set the desired transport configuration to send SIP data through.
+						</para>
+						<warning><para>Not specifying a transport will <emphasis>DEFAULT</emphasis>
+						to the first configured transport in <filename>res_sip.conf</filename> which is
+						valid for the URI we are trying to contact.
+						</para></warning>
+					</description>
+				</configOption>
+				<configOption name="trust_id_inbound" default="no">
+					<synopsis>Trust inbound CallerID information from endpoint</synopsis>
+					<description><para>This option determines whether res_sip will accept identification from the endpoint
+					received in a P-Asserted-Identity or Remote-Party-ID header. If <literal>no</literal>,
+					the configured Caller-ID from res_sip.conf will always be used as the identity for the
+					endpoint.</para></description>
+				</configOption>
+				<configOption name="trust_id_outbound" default="no">
+					<synopsis>Trust endpoint with private CallerID information</synopsis>
+					<description><para>This option determines whether res_sip will send identification
+					information to the endpoint that has been marked as private. If <literal>no</literal>,
+					private Caller-ID information will not be forwarded to the endpoint.</para></description>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'endpoint'.</synopsis>
+				</configOption>
+				<configOption name="use_ptime" default="no">
+					<synopsis>Use Endpoint's requested packetisation interval</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="auth">
+				<synopsis>Authentication type</synopsis>
+				<description><para>
+					Authentication objects hold the authenitcation information for use
+					by <literal>endpoints</literal>. This also allows for multiple <literal>
+					endpoints</literal> to use the same information. Choice of MD5/plaintext
+					and setting of username.
+				</para></description>
+				<configOption name="auth_type" default="userpass">
+					<synopsis>Authentication type</synopsis>
+					<description><para>
+						This option specifies which of the password style config options should be read,
+						either 'password' or 'md5_cred' when trying to authenticate an endpoint inbound request.
+						</para>
+						<enumlist>
+							<enum name="md5"/>
+							<enum name="userpass"/>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="nonce_lifetime" default="32">
+					<synopsis>Lifetime of a nonce associated with this authentication config.</synopsis>
+				</configOption>
+				<configOption name="md5_cred">
+					<synopsis>MD5 Hash used for authentication.</synopsis>
+					<description><para>Only used when auth_type is <literal>md5</literal>.</para></description>
+				</configOption>
+				<configOption name="password">
+					<synopsis>PlainText password used for authentication.</synopsis>
+					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
+				</configOption>
+				<configOption name="realm" default="asterisk">
+					<synopsis>SIP realm for endpoint</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be 'auth'</synopsis>
+				</configOption>
+				<configOption name="username">
+					<synopsis>Username to use for account</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="nat_hook">
+				<synopsis>XXX This exists only to prevent XML documentation errors.</synopsis>
+				<configOption name="external_media_address">
+					<synopsis>I should be undocumented or hidden</synopsis>
+				</configOption>
+				<configOption name="method">
+					<synopsis>I should be undocumented or hidden</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="domain_alias">
+				<synopsis>Domain Alias</synopsis>
+				<description><para>
+					Signifies that a domain is an alias. Used for checking the domain of
+					the AoR to which the endpoint is binding.
+				</para></description>
+				<configOption name="type">
+					<synopsis>Must be of type 'domain_alias'.</synopsis>
+				</configOption>
+				<configOption name="domain">
+					<synopsis>Domain to be aliased</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="transport">
+				<synopsis>SIP Transport</synopsis>
+				<description><para>
+					<emphasis>Transports</emphasis>
+					</para>
+					<para>There are different transports and protocol derivatives
+						supported by <literal>res_sip</literal>. They are in order of
+						preference: UDP, TCP, and WebSocket (WS).</para>
+					<warning><para>
+						Multiple endpoints using the same connection is	<emphasis>NOT</emphasis>
+						supported. Doing so may	result in broken calls.
+					</para></warning>
+				</description>
+				<configOption name="async_operations" default="1">
+					<synopsis>Number of simultaneous Asynchronous Operations</synopsis>
+				</configOption>
+				<configOption name="bind">
+					<synopsis>IP Address and optional port to bind to for this transport</synopsis>
+				</configOption>
+				<configOption name="ca_list_file">
+					<synopsis>File containing a list of certificates to read (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="cert_file">
+					<synopsis>Certificate file for endpoint (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="cipher">
+					<synopsis>Preferred Cryptography Cipher (TLS ONLY)</synopsis>
+					<description><para>
+						Many options for acceptable ciphers see link for more:
+						http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+					</para></description>
+				</configOption>
+				<configOption name="domain">
+					<synopsis>Domain the transport comes from</synopsis>
+				</configOption>
+				<configOption name="external_media_address">
+					<synopsis>External Address to use in RTP handling</synopsis>
+				</configOption>
+				<configOption name="external_signaling_address">
+					<synopsis>External address for SIP signalling</synopsis>
+				</configOption>
+				<configOption name="external_signaling_port" default="0">
+					<synopsis>External port for SIP signalling</synopsis>
+				</configOption>
+				<configOption name="method">
+					<synopsis>Method of SSL transport (TLS ONLY)</synopsis>
+					<description>
+						<enumlist>
+							<enum name="default" />
+							<enum name="unspecified" />
+							<enum name="tlsv1" />
+							<enum name="sslv2" />
+							<enum name="sslv3" />
+							<enum name="sslv23" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="localnet">
+					<synopsis>Network to consider local (used for NAT purposes).</synopsis>
+					<description><para>This must be in CIDR or dotted decimal format with the IP
+					and mask separated with a slash ('/').</para></description>
+				</configOption>
+				<configOption name="password">
+					<synopsis>Password required for transport</synopsis>
+				</configOption>
+				<configOption name="privkey_file">
+					<synopsis>Private key file (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="protocol" default="udp">
+					<synopsis>Protocol to use for SIP traffic</synopsis>
+					<description>
+						<enumlist>
+							<enum name="udp" />
+							<enum name="tcp" />
+							<enum name="tls" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="require_client_cert" default="false">
+					<synopsis>Require client certificate (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'transport'.</synopsis>
+				</configOption>
+				<configOption name="verify_client" default="false">
+					<synopsis>Require verification of client certificate (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="verify_server" default="false">
+					<synopsis>Require verification of server certificate (TLS ONLY)</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="contact">
+				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>
+				<description><para>
+					Contacts are a way to hide SIP URIs from the dialplan directly.
+					They are also used to make a group of contactable parties when
+					in use with <literal>AoR</literal> lists.
+				</para></description>
+				<configOption name="type">
+					<synopsis>Must be of type 'contact'.</synopsis>
+				</configOption>
+				<configOption name="uri">
+					<synopsis>SIP URI to contact peer</synopsis>
+				</configOption>
+				<configOption name="expiration_time">
+					<synopsis>Time to keep alive a contact</synopsis>
+					<description><para>
+						Time to keep alive a contact. String style specification.
+					</para></description>
+				</configOption>
+			</configObject>
+			<configObject name="aor">
+				<synopsis>The configuration for a location of an endpoint</synopsis>
+				<description><para>
+					An AoR is what allows Asterisk to contact an endpoint via res_sip. If no
+					AoRs are specified, an endpoint will not be reachable by Asterisk.
+					Beyond that, an AoR has other uses within Asterisk.
+					</para><para>
+					An <literal>AoR</literal> is a way to allow dialing a group
+					of <literal>Contacts</literal> that all use the same
+					<literal>endpoint</literal> for calls.
+					</para><para>
+					This can be used as another way of grouping a list of contacts to dial
+					rather than specifing them each directly when dialing via the dialplan.
+					This must be used in conjuction with the <literal>PJSIP_DIAL_CONTACTS</literal>.
+				</para></description>
+				<configOption name="contact">
+					<synopsis>Permanent contacts assigned to AoR</synopsis>
+					<description><para>
+						Contacts included in this list will be called whenever referenced
+						by <literal>chan_pjsip</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="default_expiration" default="3600">
+					<synopsis>Default expiration time in seconds for contacts that are dynamically bound to an AoR.</synopsis>
+				</configOption>
+				<configOption name="mailboxes">
+					<synopsis>Mailbox(es) to be associated with</synopsis>
+					<description><para>This option applies when an external entity subscribes to an AoR
+					for message waiting indications. The mailboxes specified here will be
+					subscribed to.</para></description>
+				</configOption>
+				<configOption name="maximum_expiration" default="7200">
+					<synopsis>Maximum time to keep an AoR</synopsis>
+					<description><para>
+						Maximium time to keep a peer with explicit expiration. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="max_contacts" default="0">
+					<synopsis>Maximum number of contacts that can bind to an AoR</synopsis>
+					<description><para>
+						Maximum number of contacts that can associate with this AoR.
+						</para>
+						<note><para>This should be set to <literal>1</literal> and
+						<replaceable>remove_existing</replaceable> set to <literal>yes</literal> if you
+						wish to stick with the older <literal>chan_sip</literal> behaviour.
+						</para></note>
+					</description>
+				</configOption>
+				<configOption name="minimum_expiration" default="60">
+					<synopsis>Minimum keep alive time for an AoR</synopsis>
+					<description><para>
+						Minimum time to keep a peer with an explict expiration. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="remove_existing" default="no">
+					<synopsis>Determines whether new contacts replace existing ones.</synopsis>
+					<description><para>
+						On receiving a new registration to the AoR should it remove
+						the existing contact that was registered against it?
+						</para>
+						<note><para>This should be set to <literal>yes</literal> and
+						<replaceable>max_contacts</replaceable> set to <literal>1</literal> if you
+						wish to stick with the older <literal>chan_sip</literal> behaviour.
+						</para></note>
+					</description>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'aor'.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
+
 static pjsip_endpoint *ast_pjsip_endpoint;
 
 static struct ast_threadpool *sip_threadpool;
