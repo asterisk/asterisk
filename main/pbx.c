@@ -9977,7 +9977,6 @@ static void *pbx_outgoing_exec(void *data)
 		return NULL;
 	}
 
-	ast_mutex_lock(&outgoing->lock);
 	if (!ast_strlen_zero(outgoing->app)) {
 		struct ast_app *app = pbx_findapp(outgoing->app);
 
@@ -10012,6 +10011,7 @@ static void *pbx_outgoing_exec(void *data)
 	}
 
 	/* Notify anyone else again that may be interested that execution is complete */
+	ast_mutex_lock(&outgoing->lock);
 	outgoing->executed = 1;
 	ast_cond_signal(&outgoing->cond);
 	ast_mutex_unlock(&outgoing->lock);
