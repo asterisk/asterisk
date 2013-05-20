@@ -292,6 +292,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						with a unique filename starting with the 'confbridge' prefix.
 					</para></description>
 				</configOption>
+				<configOption name="record_file_append" default="yes">
+					<synopsis>Append record file when starting/stopping on same conference recording</synopsis>
+					<description><para>
+						When record_file_append is set to yes, stopping and starting recording on a
+						conference adds the new portion to end of current record_file. When this is
+						set to no, a new record_file is generated every time you start then stop recording
+						on a conference.
+					</para></description>
+				</configOption>
 				<configOption name="video_mode">
 					<synopsis>Sets how confbridge handles video distribution to the conference participants</synopsis>
 					<description><para>
