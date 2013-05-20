@@ -1,0 +1,6 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXstasis_app_control_answer;
+	local:
+		*;
+};
