@@ -10084,6 +10084,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	if (account) {
 		ast_cdr_setaccount(dialed, account);
 	}
+	ast_set_flag(ast_channel_cdr(dialed), AST_CDR_FLAG_ORIGINATED);
 
 	if (!ast_strlen_zero(cid_num) && !ast_strlen_zero(cid_name)) {
 		struct ast_party_connected_line connected;
