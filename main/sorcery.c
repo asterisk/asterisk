@@ -983,7 +983,7 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 	struct ast_sorcery_object_details *details;
 
 	if (!object_type || !object_type->type.item_alloc ||
-	    !(details = object_type->type.item_alloc(""))) {
+	    !(details = object_type->type.item_alloc(id))) {
 		return NULL;
 	}
 
