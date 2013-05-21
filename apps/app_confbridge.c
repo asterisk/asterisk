@@ -2332,7 +2332,13 @@ static int generic_mute_unmute_helper(int mute, const char *conference_name, con
 	}
 	if (user) {
 		user->features.mute = mute;
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(user->chan), user->features.mute ? "muted" : "unmuted", conference->b_profile.name, ast_channel_name(user->chan));
+		ast_channel_lock(user->chan);
+		if (user->features.mute) {
+			send_mute_event(user->chan, conference);
+		} else {
+			send_unmute_event(user->chan, conference);
+		}
+		ast_channel_unlock(user->chan);
 	} else {
 		res = -2;;
 	}
