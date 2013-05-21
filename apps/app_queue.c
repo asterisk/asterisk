@@ -1317,7 +1317,9 @@ static void update_realtime_members(struct call_queue *q);
 static struct member *interface_exists(struct call_queue *q, const char *interface);
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 
+#if 0	// BUGBUG
 static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
+#endif	// BUGBUG
 
 static struct member *find_member_by_queuename_and_interface(const char *queuename, const char *interface);
 /*! \brief sets the QUEUESTATUS channel variable */
@@ -4781,6 +4783,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	return res;
 }
 
+#if 0	// BUGBUG
 /*!
  * \brief update the queue status
  * \retval Always 0
@@ -4825,6 +4828,7 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	ao2_unlock(q);
 	return 0;
 }
+#endif	// BUGBUG
 
 /*! \brief Calculate the metric of each member in the outgoing callattempts
  *
@@ -4979,19 +4983,24 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 }
 #endif	// BUGBUG
 
+#if 0	// BUGBUG
 struct queue_transfer_ds {
 	struct queue_ent *qe;
 	struct member *member;
 	time_t starttime;
 	int callcompletedinsl;
 };
+#endif	// BUGBUG
 
+#if 0	// BUGBUG
 static void queue_transfer_destroy(void *data)
 {
 	struct queue_transfer_ds *qtds = data;
 	ast_free(qtds);
 }
+#endif	// BUGBUG
 
+#if 0	// BUGBUG
 /*! \brief a datastore used to help correctly log attended transfers of queue callers
  */
 static const struct ast_datastore_info queue_transfer_info = {
@@ -4999,7 +5008,9 @@ static const struct ast_datastore_info queue_transfer_info = {
 	.chan_fixup = queue_transfer_fixup,
 	.destroy = queue_transfer_destroy,
 };
+#endif	// BUGBUG
 
+#if 0	// BUGBUG
 /*! \brief Log an attended transfer when a queue caller channel is masqueraded
  *
  * When a caller is masqueraded, we want to log a transfer. Fixup time is the closest we can come to when
@@ -5031,6 +5042,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
 	}
 }
+#endif	// BUGBUG
 
 #if 0	// BUGBUG
 /*! \brief mechanism to tell if a queue caller was atxferred by a queue member.
@@ -5047,6 +5059,7 @@ static int attended_transfer_occurred(struct ast_channel *chan)
 }
 #endif	// BUGBUG
 
+#if 0	// BUGBUG
 /*! \brief create a datastore for storing relevant info to log attended transfers in the queue_log
  */
 static struct ast_datastore *setup_transfer_datastore(struct queue_ent *qe, struct member *member, time_t starttime, int callcompletedinsl)
@@ -5077,6 +5090,7 @@ static struct ast_datastore *setup_transfer_datastore(struct queue_ent *qe, stru
 	ast_channel_unlock(qe->chan);
 	return ds;
 }
+#endif	// BUGBUG
 
 struct queue_end_bridge {
 	struct call_queue *q;
@@ -5181,7 +5195,9 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	int x=0;
 	char *announce = NULL;
 	char digit = 0;
+#if 0	// BUGBUG
 	time_t callstart;
+#endif	// BUGBUG
 	time_t now = time(NULL);
 	struct ast_bridge_config bridge_config;
 	char nondataquality = 1;
@@ -5199,9 +5215,14 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char vars[2048];
 	int forwardsallowed = 1;
 	int block_connected_line = 0;
+#if 0	// BUGBUG
 	int callcompletedinsl;
+#endif	// BUGBUG
 	struct ao2_iterator memi;
-	struct ast_datastore *datastore, *transfer_ds;
+	struct ast_datastore *datastore;
+#if 0	// BUGBUG
+	struct ast_datastore *transfer_ds;
+#endif	// BUGBUG
 	struct queue_end_bridge *queue_end_bridge = NULL;
 
 	ast_channel_lock(qe->chan);
@@ -5481,7 +5502,9 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		time(&now);
 		recalc_holdtime(qe, (now - qe->start));
 		ao2_lock(qe->parent);
+#if 0	// BUGBUG
 		callcompletedinsl = ((now - qe->start) <= qe->parent->servicelevel);
+#endif	// BUGBUG
 		ao2_unlock(qe->parent);
 		member = lpeer->member;
 		/* Increment the refcount for this member, since we're going to be using it for awhile in here. */
@@ -5902,8 +5925,10 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			queue_t_ref(qe->parent, "For bridge_config reference");
 		}
 
+#if 0	// BUGBUG
 		time(&callstart);
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
+#endif	// BUGBUG
 		bridge = ast_bridge_call(qe->chan, peer, &bridge_config);
 
 /* BUGBUG need to do this queue logging a different way because we cannot reference peer anymore.  Likely needs to be made a subscriber of stasis transfer events. */
@@ -5942,11 +5967,11 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			/* We already logged the TRANSFER on the queue_log, but we still need to send the AgentComplete event */
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 		}
-#endif	// BUGBUG
 
 		if (transfer_ds) {
 			ast_datastore_free(transfer_ds);
 		}
+#endif	// BUGBUG
 
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
