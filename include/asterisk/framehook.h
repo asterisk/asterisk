@@ -228,7 +228,7 @@ struct ast_framehook_interface {
  * provide it during the event and destruction callbacks.  It is entirely up to the
  * application using this API to manage the memory associated with the data pointer.
  *
- * \retval On success, positive id representing this hook on the channel 
+ * \retval On success, non-negative id representing this hook on the channel
  * \retval On failure, -1
  */
 int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interface *i);

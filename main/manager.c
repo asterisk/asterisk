@@ -94,6 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/test.h"
 #include "asterisk/json.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -965,6 +966,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>The filters displayed are for the current session.  Only those filters defined in
                         manager.conf will be present upon starting a new session.</para>
 		</description>
+	</manager>
+	<manager name="BlindTransfer" language="en_US">
+		<synopsis>
+			Blind transfer channel(s) to the given destination
+		</synopsis>
+		<syntax>
+			<parameter name="Channel" required="true">
+			</parameter>
+			<parameter name="Context">
+			</parameter>
+			<parameter name="Exten">
+			</parameter>
+		</syntax>
+		<description>
+			<para>Redirect all channels currently bridged to the specified channel to the specified destination.</para>
+		</description>
+		<see-also>
+			<ref type="manager">Redirect</ref>
+		</see-also>
 	</manager>
  ***/
 
@@ -3538,7 +3558,8 @@ static int action_status(struct mansession *s, const struct message *m)
 	const char *cvariables = astman_get_header(m, "Variables");
 	char *variables = ast_strdupa(S_OR(cvariables, ""));
 	struct ast_channel *c;
-	char bridge[256];
+	struct ast_bridge *bridge;
+	char bridge_text[256];
 	struct timeval now = ast_tvnow();
 	long elapsed_seconds = 0;
 	int channels = 0;
@@ -3607,44 +3628,52 @@ static int action_status(struct mansession *s, const struct message *m)
 		}
 
 		channels++;
-		if (ast_channel_internal_bridged_channel(c)) {
-			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", ast_channel_name(ast_channel_internal_bridged_channel(c)), ast_channel_uniqueid(ast_channel_internal_bridged_channel(c)));
+		bridge = ast_channel_get_bridge(c);
+		if (bridge) {
+			snprintf(bridge_text, sizeof(bridge_text), "BridgeID: %s\r\n",
+				bridge->uniqueid);
+			ao2_ref(bridge, -1);
 		} else {
-			bridge[0] = '\0';
+			bridge_text[0] = '\0';
 		}
 		if (ast_channel_pbx(c)) {
 			if (ast_channel_cdr(c)) {
 				elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
 			}
 			astman_append(s,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n"
-			"Accountcode: %s\r\n"
-			"ChannelState: %d\r\n"
-			"ChannelStateDesc: %s\r\n"
-			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"Seconds: %ld\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"%s"
-			"\r\n",
-			ast_channel_name(c),
-			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
-			S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
-			S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
-			S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
-			ast_channel_accountcode(c),
-			ast_channel_state(c),
-			ast_state2str(ast_channel_state(c)), ast_channel_context(c),
-			ast_channel_exten(c), ast_channel_priority(c), (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
+				"Event: Status\r\n"
+				"Privilege: Call\r\n"
+				"Channel: %s\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n"
+				"ConnectedLineNum: %s\r\n"
+				"ConnectedLineName: %s\r\n"
+				"Accountcode: %s\r\n"
+				"ChannelState: %d\r\n"
+				"ChannelStateDesc: %s\r\n"
+				"Context: %s\r\n"
+				"Extension: %s\r\n"
+				"Priority: %d\r\n"
+				"Seconds: %ld\r\n"
+				"%s"
+				"Uniqueid: %s\r\n"
+				"%s"
+				"%s"
+				"\r\n",
+				ast_channel_name(c),
+				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
+				S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
+				S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
+				ast_channel_accountcode(c),
+				ast_channel_state(c),
+				ast_state2str(ast_channel_state(c)),
+				ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c),
+				(long) elapsed_seconds,
+				bridge_text,
+				ast_channel_uniqueid(c),
+				ast_str_buffer(str),
+				idText);
 		} else {
 			astman_append(s,
 				"Event: Status\r\n"
@@ -3667,8 +3696,11 @@ static int action_status(struct mansession *s, const struct message *m)
 				S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
 				S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
 				ast_channel_accountcode(c),
-				ast_state2str(ast_channel_state(c)), bridge, ast_channel_uniqueid(c),
-				ast_str_buffer(str), idText);
+				ast_state2str(ast_channel_state(c)),
+				bridge_text,
+				ast_channel_uniqueid(c),
+				ast_str_buffer(str),
+				idText);
 		}
 
 		ast_channel_unlock(c);
@@ -3804,12 +3836,6 @@ static int action_redirect(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(name2)) {
 		/* Single channel redirect in progress. */
-		if (ast_channel_pbx(chan)) {
-			ast_channel_lock(chan);
-			/* don't let the after-bridge code run the h-exten */
-			ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT);
-			ast_channel_unlock(chan);
-		}
 		res = ast_async_goto(chan, context, exten, pi);
 		if (!res) {
 			astman_send_ack(s, m, "Redirect successful");
@@ -3837,16 +3863,12 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	/* Dual channel redirect in progress. */
 	if (ast_channel_pbx(chan)) {
 		ast_channel_lock(chan);
-		/* don't let the after-bridge code run the h-exten */
-		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT
-			| AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 		ast_channel_unlock(chan);
 	}
 	if (ast_channel_pbx(chan2)) {
 		ast_channel_lock(chan2);
-		/* don't let the after-bridge code run the h-exten */
-		ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_HANGUP_DONT
-			| AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 		ast_channel_unlock(chan2);
 	}
 	res = ast_async_goto(chan, context, exten, pi);
@@ -3879,6 +3901,51 @@ static int action_redirect(struct mansession *s, const struct message *m)
 
 	chan2 = ast_channel_unref(chan2);
 	chan = ast_channel_unref(chan);
+	return 0;
+}
+
+static int action_blind_transfer(struct mansession *s, const struct message *m)
+{
+	const char *name = astman_get_header(m, "Channel");
+	const char *exten = astman_get_header(m, "Exten");
+	const char *context = astman_get_header(m, "Context");
+	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+
+	if (ast_strlen_zero(exten)) {
+		astman_send_error(s, m, "No extension specified");
+		return 0;
+	}
+
+	chan = ast_channel_get_by_name(name);
+	if (!chan) {
+		astman_send_error(s, m, "Channel specified does not exist");
+		return 0;
+	}
+
+	if (ast_strlen_zero(context)) {
+		context = ast_channel_context(chan);
+	}
+
+	switch (ast_bridge_transfer_blind(chan, exten, context, NULL, NULL)) {
+	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
+		astman_send_error(s, m, "Transfer not permitted");
+		break;
+	case AST_BRIDGE_TRANSFER_INVALID:
+		astman_send_error(s, m, "Transfer invalid");
+		break;
+	case AST_BRIDGE_TRANSFER_FAIL:
+		astman_send_error(s, m, "Transfer failed");
+		break;
+	case AST_BRIDGE_TRANSFER_SUCCESS:
+		astman_send_ack(s, m, "Transfer succeeded");
+		break;
+	}
+
 	return 0;
 }
 
@@ -5683,7 +5750,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		return -1;
 	}
 
-	cat_str = authority_to_str (category, &auth);
+	cat_str = authority_to_str(category, &auth);
 	ast_str_set(&buf, 0,
 			"Event: %s\r\nPrivilege: %s\r\n",
 			 event, cat_str);
@@ -7510,6 +7577,10 @@ static int __init_manager(int reload, int by_external_config)
 		return -1;
 	}
 
+	if (manager_bridging_init()) {
+		return -1;
+	}
+
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register_xml_core("Ping", 0, action_ping);
@@ -7547,6 +7618,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 		ast_manager_register_xml_core("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
 		ast_manager_register_xml_core("Filter", EVENT_FLAG_SYSTEM, action_filter);
+		ast_manager_register_xml_core("BlindTransfer", EVENT_FLAG_CALL, action_blind_transfer);
 
 #ifdef TEST_FRAMEWORK
 		stasis_subscribe(ast_test_suite_topic(), test_suite_event_cb, NULL);
@@ -8024,4 +8096,45 @@ struct ast_datastore *astman_datastore_find(struct mansession *s, const struct a
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	return datastore;
+}
+
+static void manager_event_blob_dtor(void *obj)
+{
+	struct ast_manager_event_blob *ev = obj;
+	ast_string_field_free_memory(ev);
+}
+
+struct ast_manager_event_blob *
+__attribute__((format(printf, 3, 4)))
+ast_manager_event_blob_create(
+	int event_flags,
+	const char *manager_event,
+	const char *extra_fields_fmt,
+	...)
+{
+	RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
+	va_list argp;
+
+	ast_assert(extra_fields_fmt != NULL);
+	ast_assert(manager_event != NULL);
+
+	ev = ao2_alloc(sizeof(*ev), manager_event_blob_dtor);
+	if (!ev) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(ev, 20)) {
+		return NULL;
+	}
+
+	ev->manager_event = manager_event;
+	ev->event_flags = event_flags;
+
+	va_start(argp, extra_fields_fmt);
+	ast_string_field_ptr_build_va(ev, &ev->extra_fields, extra_fields_fmt,
+				      argp);
+	va_end(argp);
+
+	ao2_ref(ev, +1);
+	return ev;
 }

@@ -222,6 +222,11 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
 	return 0;
 }
 
+unsigned int aco_option_get_flags(const struct aco_option *option)
+{
+	return option->flags;
+}
+
 #ifdef AST_XML_DOCS
 /*! \internal
  * \brief Find a particular ast_xml_doc_item from it's parent config_info, types, and name

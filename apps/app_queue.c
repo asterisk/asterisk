@@ -106,6 +106,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
 #include "asterisk/term.h"
+#include "asterisk/bridging.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
 /* #define REF_DEBUG_ONLY_QUEUES */
@@ -4912,6 +4913,7 @@ enum agent_complete_reason {
 	TRANSFER
 };
 
+#if 0	// BUGBUG
 /*! \brief Send out AMI message with member call completion status information */
 static void send_agent_complete(const struct queue_ent *qe, const char *queuename,
 	const struct ast_channel *peer, const struct member *member, time_t callstart,
@@ -4975,6 +4977,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		(long)(callstart - qe->start), (long)(time(NULL) - callstart), reason,
 		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
 }
+#endif	// BUGBUG
 
 struct queue_transfer_ds {
 	struct queue_ent *qe;
@@ -5029,6 +5032,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	}
 }
 
+#if 0	// BUGBUG
 /*! \brief mechanism to tell if a queue caller was atxferred by a queue member.
  *
  * When a caller is atxferred, then the queue_transfer_info datastore
@@ -5041,6 +5045,7 @@ static int attended_transfer_occurred(struct ast_channel *chan)
 {
 	return ast_channel_datastore_find(chan, &queue_transfer_info, NULL) ? 0 : 1;
 }
+#endif	// BUGBUG
 
 /*! \brief create a datastore for storing relevant info to log attended transfers in the queue_log
  */
@@ -5100,6 +5105,35 @@ static void end_bridge_callback(void *data)
 
 /*!
  * \internal
+ * \brief Setup the after bridge goto location on the peer.
+ * \since 12.0.0
+ *
+ * \param chan Calling channel for bridge.
+ * \param peer Peer channel for bridge.
+ * \param opts Dialing option flags.
+ * \param opt_args Dialing option argument strings.
+ *
+ * \return Nothing
+ */
+static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_channel *peer, struct ast_flags *opts, char *opt_args[])
+{
+	const char *context;
+	const char *extension;
+	int priority;
+
+	if (ast_test_flag(opts, OPT_CALLEE_GO_ON)) {
+		ast_channel_lock(chan);
+		context = ast_strdupa(ast_channel_context(chan));
+		extension = ast_strdupa(ast_channel_exten(chan));
+		priority = ast_channel_priority(chan);
+		ast_channel_unlock(chan);
+		ast_after_bridge_set_go_on(peer, context, extension, priority,
+			opt_args[OPT_ARG_CALLEE_GO_ON]);
+	}
+}
+
+/*!
+ * \internal
  * \brief A large function which calls members, updates statistics, and bridges the caller and a member
  *
  * Here is the process of this function
@@ -5128,7 +5162,7 @@ static void end_bridge_callback(void *data)
  * \param[in] gosub the gosub passed as the seventh parameter to the Queue() application
  * \param[in] ringing 1 if the 'r' option is set, otherwise 0
  */
-static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char **opt_args, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *macro, const char *gosub, int ringing)
+static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_args, char *announceoverride, const char *url, int *tries, int *noption, const char *agi, const char *macro, const char *gosub, int ringing)
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
@@ -5200,9 +5234,6 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 	if (ast_test_flag(&opts, OPT_CALLER_AUTOMON)) {
 		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
 	}
-	if (ast_test_flag(&opts, OPT_GO_ON)) {
-		ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_NO_H_EXTEN);
-	}
 	if (ast_test_flag(&opts, OPT_DATA_QUALITY)) {
 		nondataquality = 0;
 	}
@@ -5244,7 +5275,7 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 	}
 
 	/* if the calling channel has AST_CAUSE_ANSWERED_ELSEWHERE set, make sure this is inherited.
-		(this is mainly to support chan_local)
+		(this is mainly to support unreal/local channels)
 	*/
 	if (ast_channel_hangupcause(qe->chan) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 		qe->cancel_answered_elsewhere = 1;
@@ -5437,11 +5468,6 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 			}
 		}
 	} else { /* peer is valid */
-		/* These variables are used with the F option without arguments (callee jumps to next priority after queue) */
-		char *caller_context;
-		char *caller_extension;
-		int caller_priority;
-
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -5595,11 +5621,8 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		set_queue_variables(qe->parent, qe->chan);
 		set_queue_variables(qe->parent, peer);
 
+		setup_peer_after_bridge_goto(qe->chan, peer, &opts, opt_args);
 		ast_channel_lock(qe->chan);
-		/* Copy next destination data for 'F' option (no args) */
-		caller_context = ast_strdupa(ast_channel_context(qe->chan));
-		caller_extension = ast_strdupa(ast_channel_exten(qe->chan));
-		caller_priority = ast_channel_priority(qe->chan);
 		if ((monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME"))) {
 				monitorfilename = ast_strdupa(monitorfilename);
 		}
@@ -5883,6 +5906,8 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan, peer, &bridge_config);
 
+/* BUGBUG need to do this queue logging a different way because we cannot reference peer anymore.  Likely needs to be made a subscriber of stasis transfer events. */
+#if 0	// BUGBUG
 		/* If the queue member did an attended transfer, then the TRANSFER already was logged in the queue_log
 		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary, except for
 		 * the AgentComplete manager event
@@ -5917,26 +5942,10 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 			/* We already logged the TRANSFER on the queue_log, but we still need to send the AgentComplete event */
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 		}
+#endif	// BUGBUG
 
 		if (transfer_ds) {
 			ast_datastore_free(transfer_ds);
-		}
-
-		if (!ast_check_hangup(peer) && ast_test_flag(&opts, OPT_CALLEE_GO_ON)) {
-			int goto_res;
-
-			if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-				ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-				goto_res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-			} else { /* F() */
-				goto_res = ast_goto_if_exists(peer, caller_context, caller_extension,
-					caller_priority + 1);
-			}
-			if (goto_res || ast_pbx_start(peer)) {
-				ast_autoservice_chan_hangup_peer(qe->chan, peer);
-			}
-		} else {
-			ast_autoservice_chan_hangup_peer(qe->chan, peer);
 		}
 
 		res = bridge ? bridge : 1;

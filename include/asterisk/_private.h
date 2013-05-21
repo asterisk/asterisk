@@ -52,6 +52,24 @@ void ast_msg_shutdown(void);        /*!< Provided by message.c */
 int aco_init(void);             /*!< Provided by config_options.c */
 
 /*!
+ * \brief Initialize the bridging system.
+ * \since 12.0.0
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_bridging_init(void);
+
+/*!
+ * \brief Initialize the local proxy channel.
+ * \since 12.0.0
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_local_init(void);
+
+/*!
  * \brief Reload asterisk modules.
  * \param name the name of the module to reload
  *

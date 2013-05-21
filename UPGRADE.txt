@@ -69,6 +69,9 @@ chan_dahdi:
    pauses dialing for one second.
  - The default for inband_on_proceeding has changed to no.
 
+chan_local:
+ - The /b option is removed.
+
 Dialplan:
  - All channel and global variable names are evaluated in a case-sensitive manner.
    In previous versions of Asterisk, variables created and evaluated in the
@@ -80,6 +83,18 @@ Dialplan:
  - BRIDGE_FEATURES channel variable is now casesensitive for feature letter codes.
    Uppercase variants apply them to the calling party while lowercase variants
    apply them to the called party.
+
+Features:
+ - The features.conf [applicationmap] <FeatureName>  ActivatedBy option is
+   no longer honored.  The feature is activated by which channel
+   DYNAMIC_FEATURES includes the feature is on.  Use predial to set different
+   values of DYNAMIC_FEATURES on the channels
+
+Parking:
+ - The arguments for the Park, ParkedCall, and ParkAndAnnounce applications have
+   been modified significantly. See the application documents for specific details.
+   Also parking lot configuration is now done in res_parking.conf instead of
+   features.conf
 
 From 10 to 11:
 

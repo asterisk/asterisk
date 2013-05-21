@@ -50,6 +50,19 @@ AMI (Asterisk Manager Interface)
  * The AMI event 'UserEvent' from app_userevent now contains the channel state
    fields. The channel state fields will come before the body fields.
 
+ * The AMI events 'ParkedCall', 'ParkedCallTimeOut', 'ParkedCallGiveUp', and
+   'UnParkedCall' have changed significantly in the new res_parking module.
+   First, channel snapshot data is included for both the parker and the parkee
+   in lieu of the "From" and "Channel" fields. They follow standard channel
+   snapshot format but each field is suffixed with 'Parker' or 'Parkee'
+   depending on which side it applies to. The 'Exten' field is replaced with
+   'ParkingSpace' since the registration of extensions as for parking spaces
+   is no longer mandatory.
+
+ * The AMI event 'Parkinglot' (response to 'Parkinglots' command) in a similar
+   fashion has changed the field names 'StartExten' and 'StopExten' to
+   'StartSpace' and 'StopSpace' respectively.
+
  * The deprecated use of | (pipe) as a separator in the channelvars setting in
    manager.conf has been removed.
 
@@ -59,8 +72,23 @@ AMI (Asterisk Manager Interface)
    event, the various ChanVariable fields will contain a suffix that specifies
    which channel they correspond to.
 
+ * The AMI 'Status' response event to the AMI Status action replaces the
+   BridgedChannel and BridgedUniqueid headers with the BridgeID header to
+   indicate what bridge the channel is currently in.
+
 Channel Drivers
 ------------------
+ * When a channel driver is configured to enable jiterbuffers, they are now
+   applied unconditionally when a channel joins a bridge. If a jitterbuffer
+   is already set for that channel when it enters, such as by the JITTERBUFFER
+   function, then the existing jitterbuffer will be used and the one set by
+   the channel driver will not be applied.
+
+chan_local
+------------------
+ * The /b option is removed.
+
+ * chan_local moved into the system core and is no longer a loadable module.
 
 chan_mobile
 ------------------
@@ -86,12 +114,18 @@ Features
 
  * Add support for automixmonitor to the BRIDGE_FEATURES channel variable.
 
- * PARKINGSLOT and PARKEDLOT channel variables will now be set for a parked
-   channel even when comebactoorigin=yes
+ * Parking has been pulled from core and placed into a separate module called
+   res_parking. See Parking changes below for more details.
 
  * You can now have the settings for a channel updated using the FEATURE()
    and FEATUREMAP() functions inherited to child channels by setting
    FEATURE(inherit)=yes.
+
+Functions
+------------------
+ * JITTERBUFFER now accepts an argument of 'disabled' which can be used
+   to remove jitterbuffers previously set on a channel with JITTERBUFFER.
+   The value of this setting is ignored when disabled is used for the argument.
 
 Logging
 -------------------
@@ -109,6 +143,51 @@ MeetMe
   of audio samples in a voice frame will experience significant quality problems
   if a denoiser is attached to the channel; this option gives them the ability
   to remove the denoiser without having to unload func_speex.
+
+Parking
+-------------------
+ * Parking is now implemented as a module instead of as core functionality.
+   The preferred way to configure parking is now through res_parking.conf while
+   configuration through features.conf is not currently supported.
+
+ * Parked calls are now placed in bridges. This is a largely architectural change,
+   but it could have some implications in allowing for new parked call retrieval
+   methods and the contents of parking lots will be visible though certain bridge
+   commands.
+
+ * The order of arguments for the new parking applications are different from the
+   old ones to be more intuitive. Timeout and return context/exten/priority are now
+   implemented as options. parking_lot_name is now the first parameter. See the
+   application documentation for Park, ParkedCall, and ParkAndAnnounce for more
+   in-depth information as well as syntax.
+
+ * Extensions are no longer automatically created in the dialplan to park calls,
+   pickup parked calls, etc by default.
+
+ * adsipark is no longer supported under the new parking model
+
+ * The PARKINGSLOT channel variable has been deprecated in favor of PARKING_SPACE
+   to match the naming scheme of the new system.
+
+ * PARKING_SPACE and PARKEDLOT channel variables will now be set for a parked
+   channel even when comebactoorigin=yes
+
+ * New CLI command 'parking show' allows you to inspect the currently in use
+   parking lots. 'parking show <parkinglot>' will also show the parked calls
+   in that specific parking lot.
+
+ * The CLI command 'parkedcalls' is now deprecated in favor of
+   'parking show <parkinglot>'.
+
+ * The AMI command 'ParkedCalls' will now accept a 'ParkingLot' argument which
+   can be used to get a list of parked calls only for a specific parking lot.
+
+ * The ParkAndAnnounce application is now provided through res_parking instead
+   of through the separate app_parkandannounce module.
+
+ * ParkAndAnnounce will no longer go to the next position in dialplan on timeout
+   by default. Instead, it will follow the timeout rules of the parking lot. The
+   old behavior can be reproduced by using the 'c' option.
 
 Queue
 -------------------

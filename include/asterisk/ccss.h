@@ -1485,10 +1485,12 @@ int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan);
  * \verbatim extension@context \endverbatim as a starting point
  *
  * \details
- * The CC_INTERFACES channel variable will have the interfaces that should be
- * called back for a specific PBX instance. This version of the function is used
- * mainly by chan_local, wherein we need to set CC_INTERFACES based on an extension
- * and context that appear in the middle of the tree of dialed interfaces
+ * The CC_INTERFACES channel variable will have the interfaces
+ * that should be called back for a specific PBX instance.  This
+ * version of the function is used mainly by local channels,
+ * wherein we need to set CC_INTERFACES based on an extension
+ * and context that appear in the middle of the tree of dialed
+ * interfaces.
  *
  * \note
  * This function will lock the channel as well as the list of monitors stored

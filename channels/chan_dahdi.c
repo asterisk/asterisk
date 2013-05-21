@@ -1553,6 +1553,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 static int dahdi_devicestate(const char *data);
 static int dahdi_cc_callback(struct ast_channel *inbound, const char *dest, ast_cc_callback_fn callback);
 
+/* BUGBUG The DAHDI channel driver needs its own native bridge technology. */
 static struct ast_channel_tech dahdi_tech = {
 	.type = "DAHDI",
 	.description = tdesc,

@@ -1,0 +1,48 @@
+[general]
+;parkeddynamic = yes        ; Enables dynamically created parkinglots. (default is no)
+
+
+; A parking lot named 'default' will automatically be used when no other
+; named parking lot is indicated for use by the park application or a
+; channel's parkinglot function and PARKINGLOT channel variable.
+
+[default]                                 ; based on the old default from features.conf.sample
+parkext => 700
+;parkext_exclusive=yes
+parkpos => 701-720
+context => parkedcalls
+;parkinghints = no
+;parkingtime => 45
+;comebacktoorigin = yes
+;comebackdialtime = 30
+;comebackcontext = parkedcallstimeout
+;courtesytone = beep
+;parkedplay = caller
+;parkedcalltransfers = caller
+;parkedcallreparking = caller
+;parkedcallhangup = caller
+;findslot => next
+;parkedmusicclass = default
+
+; Parking lots can now be any named configuration category aside from
+; 'general' which is reserved for general options.
+;
+; You can set parkinglot with the CHANNEL dialplan function or by setting
+; 'parkinglot' directly in the channel configuration file.
+;
+; (Note: Leading '0's and any non-numerical characters on parkpos
+; extensions will be ignored. Parkext on the other hand can be any string.)
+;
+;[edvina2]
+;context => edvina2_park
+;parkpos => 800-850
+;findslot => next
+;comebacktoorigin = no
+;comebackdialtime = 90
+;comebackcontext = edvina2_park-timeout
+;parkedmusicclass = edvina
+;
+; Since edvina2 doesn't define parkext, extensions won't automatically be
+; created for parking to it or for retrieving calls from it. These can be
+; created manually in the dial plan by using the Park and ParkedCall
+; applications.

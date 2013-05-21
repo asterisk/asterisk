@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "stasis_json/resource_{{name}}.h"
 {{#has_events}}
 #include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_bridging.h"
 
 {{#events}}
 {{> event_function_decl}}

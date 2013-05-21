@@ -120,6 +120,8 @@ enum ast_frame_type {
 	AST_FRAME_MODEM,
 	/*! DTMF begin event, subclass is the digit */
 	AST_FRAME_DTMF_BEGIN,
+	/*! Internal bridge module action. */
+	AST_FRAME_BRIDGE_ACTION,
 };
 #define AST_FRAME_DTMF AST_FRAME_DTMF_END
 

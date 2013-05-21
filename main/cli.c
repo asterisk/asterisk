@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
+#include "asterisk/bridging.h"
 
 /*!
  * \brief List of restrictions per user.
@@ -899,7 +900,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			ast_cli(a->fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
 		else if (verbose)
 			ast_cli(a->fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data",
-				"CallerID", "Duration", "Accountcode", "PeerAccount", "BridgedTo");
+				"CallerID", "Duration", "Accountcode", "PeerAccount", "BridgeID");
 	}
 
 	if (!count && !(iter = ast_channel_iterator_all_new())) {
@@ -907,12 +908,12 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	}
 
 	for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
-		struct ast_channel *bc;
+		struct ast_bridge *bridge;
 		char durbuf[10] = "-";
 
 		ast_channel_lock(c);
 
-		bc = ast_bridged_channel(c);
+		bridge = ast_channel_get_bridge(c);
 
 		if (!count) {
 			if ((concise || verbose)  && ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
@@ -935,7 +936,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					S_OR(ast_channel_peeraccount(c), ""),
 					ast_channel_amaflags(c),
 					durbuf,
-					bc ? ast_channel_name(bc) : "(None)",
+					bridge ? bridge->uniqueid : "(Not bridged)",
 					ast_channel_uniqueid(c));
 			} else if (verbose) {
 				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_state2str(ast_channel_state(c)),
@@ -945,7 +946,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					durbuf,
 					S_OR(ast_channel_accountcode(c), ""),
 					S_OR(ast_channel_peeraccount(c), ""),
-					bc ? ast_channel_name(bc) : "(None)");
+					bridge ? bridge->uniqueid : "(Not bridged)");
 			} else {
 				char locbuf[40] = "(None)";
 				char appdata[40] = "(None)";
@@ -958,6 +959,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			}
 		}
 		ast_channel_unlock(c);
+		ao2_cleanup(bridge);
 	}
 
 	if (iter) {
@@ -1412,6 +1414,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #ifdef CHANNEL_TRACE
 	int trace_enabled;
 #endif
+	struct ast_bridge *bridge;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1463,6 +1466,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	}
 
 	effective_connected_id = ast_channel_connected_effective_id(c);
+	bridge = ast_channel_get_bridge(c);
 
 	ast_str_append(&output, 0,
 		" -- General --\n"
@@ -1490,8 +1494,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"     Frames out: %d%s\n"
 		" Time to Hangup: %ld\n"
 		"   Elapsed Time: %s\n"
-		"  Direct Bridge: %s\n"
-		"Indirect Bridge: %s\n"
+		"      Bridge ID: %s\n"
 		" --   PBX   --\n"
 		"        Context: %s\n"
 		"      Extension: %s\n"
@@ -1502,7 +1505,10 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"           Data: %s\n"
 		"    Blocking in: %s\n"
 		" Call Identifer: %s\n",
-		ast_channel_name(c), ast_channel_tech(c)->type, ast_channel_uniqueid(c), ast_channel_linkedid(c),
+		ast_channel_name(c),
+		ast_channel_tech(c)->type,
+		ast_channel_uniqueid(c),
+		ast_channel_linkedid(c),
 		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "(N/A)"),
 		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "(N/A)"),
 		S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "(N/A)"),
@@ -1511,7 +1517,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		S_COR(effective_connected_id.name.valid, effective_connected_id.name.str, "(N/A)"),
 		S_OR(ast_channel_dialed(c)->number.str, "(N/A)"),
 		ast_channel_language(c),
-		ast_state2str(ast_channel_state(c)), ast_channel_state(c), ast_channel_rings(c),
+		ast_state2str(ast_channel_state(c)),
+		ast_channel_state(c),
+		ast_channel_rings(c),
 		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
 		ast_getformatname(ast_channel_writeformat(c)),
 		ast_getformatname(ast_channel_readformat(c)),
@@ -1520,11 +1528,19 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_channel_readtrans(c) ? "Yes" : "No",
 		ast_translate_path_to_str(ast_channel_readtrans(c), &read_transpath),
 		ast_channel_fd(c, 0),
-		ast_channel_fin(c) & ~DEBUGCHAN_FLAG, (ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		ast_channel_fout(c) & ~DEBUGCHAN_FLAG, (ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		(long)ast_channel_whentohangup(c)->tv_sec,
-		cdrtime, ast_channel_internal_bridged_channel(c) ? ast_channel_name(ast_channel_internal_bridged_channel(c)) : "<none>", ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>",
-		ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_callgroup(c), ast_channel_pickupgroup(c), (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
+		ast_channel_fin(c) & ~DEBUGCHAN_FLAG,
+		(ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		ast_channel_fout(c) & ~DEBUGCHAN_FLAG,
+		(ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		(long) ast_channel_whentohangup(c)->tv_sec,
+		cdrtime,
+		bridge ? bridge->uniqueid : "(Not bridged)",
+		ast_channel_context(c),
+		ast_channel_exten(c),
+		ast_channel_priority(c),
+		ast_channel_callgroup(c),
+		ast_channel_pickupgroup(c),
+		(ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
 		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
 		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"),
 		S_OR(call_identifier_str, "(None)"));
@@ -1548,6 +1564,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	ast_channel_unlock(c);
 	c = ast_channel_unref(c);
+	ao2_cleanup(bridge);
 
 	ast_cli(a->fd, "%s", ast_str_buffer(output));
 	ast_free(output);

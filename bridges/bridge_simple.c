@@ -66,32 +66,26 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 	return ast_channel_make_compatible(c0, c1);
 }
 
-static enum ast_bridge_write_result simple_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+static int simple_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct ast_bridge_channel *other;
 
-	/* If this is the only channel in this bridge then immediately exit */
-	if (AST_LIST_FIRST(&bridge->channels) == AST_LIST_LAST(&bridge->channels)) {
-		return AST_BRIDGE_WRITE_FAILED;
-	}
-
 	/* Find the channel we actually want to write to */
-	if (!(other = (AST_LIST_FIRST(&bridge->channels) == bridge_channel ? AST_LIST_LAST(&bridge->channels) : AST_LIST_FIRST(&bridge->channels)))) {
-		return AST_BRIDGE_WRITE_FAILED;
+	other = ast_bridge_channel_peer(bridge_channel);
+	if (!other) {
+		return -1;
 	}
 
-	/* Write the frame out if they are in the waiting state... don't worry about freeing it, the bridging core will take care of it */
-	if (other->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
-		ast_write(other->chan, frame);
-	}
+	/* The bridging core takes care of freeing the passed in frame. */
+	ast_bridge_channel_queue_frame(other, frame);
 
-	return AST_BRIDGE_WRITE_SUCCESS;
+	return 0;
 }
 
 static struct ast_bridge_technology simple_bridge = {
 	.name = "simple_bridge",
-	.capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_THREAD,
-	.preference = AST_BRIDGE_PREFERENCE_MEDIUM,
+	.capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX,
+	.preference = AST_BRIDGE_PREFERENCE_BASE_1TO1MIX,
 	.join = simple_bridge_join,
 	.write = simple_bridge_write,
 };

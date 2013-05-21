@@ -360,7 +360,6 @@ static struct ast_channel_tech jingle_tech = {
 	.send_text = jingle_sendtext,
 	.send_digit_begin = jingle_digit_begin,
 	.send_digit_end = jingle_digit_end,
-	.bridge = ast_rtp_instance_bridge,
 	.call = jingle_call,
 	.hangup = jingle_hangup,
 	.answer = jingle_answer,

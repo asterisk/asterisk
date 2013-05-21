@@ -83,6 +83,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/chanvars.h"
 #include "asterisk/pktccops.h"
 #include "asterisk/stasis.h"
+#include "asterisk/bridging.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -480,7 +481,6 @@ static struct ast_channel_tech mgcp_tech = {
 	.fixup = mgcp_fixup,
 	.send_digit_begin = mgcp_senddigit_begin,
 	.send_digit_end = mgcp_senddigit_end,
-	.bridge = ast_rtp_instance_bridge,
 	.func_channel_read = acf_channel_read,
 };
 
@@ -3213,56 +3213,55 @@ static void *mgcp_ss(void *data)
 	return NULL;
 }
 
-static int attempt_transfer(struct mgcp_endpoint *p)
+/*! \brief Complete an attended transfer
+ *
+ * \param p The endpoint performing the attended transfer
+ * \param sub The sub-channel completing the attended transfer
+ *
+ * \note p->sub is the currently active sub-channel (the channel the phone is using)
+ * \note p->sub->next is the sub-channel not in use, potentially on hold
+ *
+ * \retval 0 when channel should be hung up
+ * \retval 1 when channel should not be hung up
+ */
+static int attempt_transfer(struct mgcp_endpoint *p, struct mgcp_subchannel *sub)
 {
-	/* *************************
-	 * I hope this works.
-	 * Copied out of chan_zap
-	 * Cross your fingers
-	 * *************************/
+	enum ast_transfer_result res;
 
-	/* In order to transfer, we need at least one of the channels to
-	   actually be in a call bridge.  We can't conference two applications
-	   together (but then, why would we want to?) */
-	if (ast_bridged_channel(p->sub->owner)) {
-		/* The three-way person we're about to transfer to could still be in MOH, so
-		   stop it now */
-		ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
-		if (ast_channel_state(p->sub->owner) == AST_STATE_RINGING) {
-			ast_queue_control(p->sub->next->owner, AST_CONTROL_RINGING);
-		}
-		if (ast_channel_masquerade(p->sub->next->owner, ast_bridged_channel(p->sub->owner))) {
-			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-				ast_channel_name(ast_bridged_channel(p->sub->owner)), ast_channel_name(p->sub->next->owner));
-			return -1;
-		}
-		/* Orphan the channel */
-		unalloc_sub(p->sub->next);
-	} else if (ast_bridged_channel(p->sub->next->owner)) {
-		if (ast_channel_state(p->sub->owner) == AST_STATE_RINGING) {
-			ast_queue_control(p->sub->next->owner, AST_CONTROL_RINGING);
-		}
-		ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
-		if (ast_channel_masquerade(p->sub->owner, ast_bridged_channel(p->sub->next->owner))) {
-			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-				ast_channel_name(ast_bridged_channel(p->sub->next->owner)), ast_channel_name(p->sub->owner));
-			return -1;
-		}
-		/*swap_subs(p, SUB_THREEWAY, SUB_REAL);*/
-		ast_verb(3, "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
-		p->sub = p->sub->next;
-		unalloc_sub(p->sub->next);
-		/* Tell the caller not to hangup */
-		return 1;
-	} else {
-		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-			ast_channel_name(p->sub->owner), ast_channel_name(p->sub->next->owner));
-		ast_channel_softhangup_internal_flag_add(p->sub->next->owner, AST_SOFTHANGUP_DEV);
-		if (p->sub->next->owner) {
-			p->sub->next->alreadygone = 1;
-			mgcp_queue_hangup(p->sub->next);
-		}
+	/* Ensure that the other channel goes off hold and that it is indicating properly */
+	ast_queue_control(sub->next->owner, AST_CONTROL_UNHOLD);
+	if (ast_channel_state(sub->owner) == AST_STATE_RINGING) {
+		ast_queue_control(sub->next->owner, AST_CONTROL_RINGING);
 	}
+
+	ast_mutex_unlock(&p->sub->next->lock);
+	ast_mutex_unlock(&p->sub->lock);
+	res = ast_bridge_transfer_attended(sub->owner, sub->next->owner, NULL);
+
+	/* Subs are only freed when the endpoint itself is destroyed, so they will continue to exist
+	 * after ast_bridge_transfer_attended returns making this safe without reference counting
+	 */
+	ast_mutex_lock(&p->sub->lock);
+	ast_mutex_lock(&p->sub->next->lock);
+
+	if (res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		/* If transferring fails hang up the other channel if present and us */
+		if (sub->next->owner) {
+			ast_channel_softhangup_internal_flag_add(sub->next->owner, AST_SOFTHANGUP_DEV);
+			mgcp_queue_hangup(sub->next);
+		}
+		sub->next->alreadygone = 1;
+		return 0;
+	}
+
+	unalloc_sub(sub->next);
+
+	/* If the active sub is NOT the one completing the transfer change it to be, and hang up the other sub */
+	if (p->sub != sub) {
+		p->sub = sub;
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -3511,13 +3510,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				/* We're allowed to transfer, we have two avtive calls and */
 				/* we made at least one of the calls.  Let's try and transfer */
 				ast_mutex_lock(&p->sub->next->lock);
-				res = attempt_transfer(p);
-				if (res < 0) {
-					if (p->sub->next->owner) {
-						sub->next->alreadygone = 1;
-						mgcp_queue_hangup(sub->next);
-					}
-				} else if (res) {
+				res = attempt_transfer(p, sub);
+				if (res) {
 					ast_log(LOG_WARNING, "Transfer attempt failed\n");
 					ast_mutex_unlock(&p->sub->next->lock);
 					return -1;

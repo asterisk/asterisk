@@ -284,83 +284,18 @@ struct ast_str *ast_manager_build_channel_state_string_suffix(
 }
 
 struct ast_str *ast_manager_build_channel_state_string(
-	const struct ast_channel_snapshot *snapshot)
+		const struct ast_channel_snapshot *snapshot)
 {
 	return ast_manager_build_channel_state_string_suffix(snapshot, "");
 }
 
-/*! \brief Struct containing info for an AMI channel event to send out. */
-struct snapshot_manager_event {
-	/*! event_flags manager_event() flags parameter. */
-	int event_flags;
-	/*!  manager_event manager_event() category. */
-	const char *manager_event;
-	AST_DECLARE_STRING_FIELDS(
-		/* extra fields to include in the event. */
-		AST_STRING_FIELD(extra_fields);
-		);
-};
-
-static void snapshot_manager_event_dtor(void *obj)
-{
-	struct snapshot_manager_event *ev = obj;
-	ast_string_field_free_memory(ev);
-}
-
-/*!
- * \brief Construct a \ref snapshot_manager_event.
- * \param event_flags manager_event() flags parameter.
- * \param manager_event manager_event() category.
- * \param extra_fields_fmt Format string for extra fields to include.
- *                         Or NO_EXTRA_FIELDS for no extra fields.
- * \return New \ref snapshot_manager_event object.
- * \return \c NULL on error.
- */
-static struct snapshot_manager_event *
-__attribute__((format(printf, 3, 4)))
-snapshot_manager_event_create(
-	int event_flags,
-	const char *manager_event,
-	const char *extra_fields_fmt,
-	...)
-{
-	RAII_VAR(struct snapshot_manager_event *, ev, NULL, ao2_cleanup);
-	va_list argp;
-
-	ast_assert(extra_fields_fmt != NULL);
-	ast_assert(manager_event != NULL);
-
-	ev = ao2_alloc(sizeof(*ev), snapshot_manager_event_dtor);
-	if (!ev) {
-		return NULL;
-	}
-
-	if (ast_string_field_init(ev, 20)) {
-		return NULL;
-	}
-
-	ev->manager_event = manager_event;
-	ev->event_flags = event_flags;
-
-	va_start(argp, extra_fields_fmt);
-	ast_string_field_ptr_build_va(ev, &ev->extra_fields, extra_fields_fmt,
-				      argp);
-	va_end(argp);
-
-	ao2_ref(ev, +1);
-	return ev;
-}
-
-/*! GCC warns about blank or NULL format strings. So, shenanigans! */
-#define NO_EXTRA_FIELDS "%s", ""
-
 /*! \brief Typedef for callbacks that get called on channel snapshot updates */
-typedef struct snapshot_manager_event *(*snapshot_monitor)(
+typedef struct ast_manager_event_blob *(*channel_snapshot_monitor)(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot);
 
 /*! \brief Handle channel state changes */
-static struct snapshot_manager_event *channel_state_change(
+static struct ast_manager_event_blob *channel_state_change(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
@@ -377,7 +312,7 @@ static struct snapshot_manager_event *channel_state_change(
 	 */
 
 	if (!old_snapshot) {
-		return snapshot_manager_event_create(
+		return ast_manager_event_blob_create(
 			EVENT_FLAG_CALL, "Newchannel", NO_EXTRA_FIELDS);
 	}
 
@@ -385,7 +320,7 @@ static struct snapshot_manager_event *channel_state_change(
 	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
 
 	if (!was_hungup && is_hungup) {
-		return snapshot_manager_event_create(
+		return ast_manager_event_blob_create(
 			EVENT_FLAG_CALL, "Hangup",
 			"Cause: %d\r\n"
 			"Cause-txt: %s\r\n",
@@ -394,7 +329,7 @@ static struct snapshot_manager_event *channel_state_change(
 	}
 
 	if (old_snapshot->state != new_snapshot->state) {
-		return snapshot_manager_event_create(
+		return ast_manager_event_blob_create(
 			EVENT_FLAG_CALL, "Newstate", NO_EXTRA_FIELDS);
 	}
 
@@ -402,7 +337,7 @@ static struct snapshot_manager_event *channel_state_change(
 	return NULL;
 }
 
-static struct snapshot_manager_event *channel_newexten(
+static struct ast_manager_event_blob *channel_newexten(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
@@ -421,7 +356,7 @@ static struct snapshot_manager_event *channel_newexten(
 	}
 
 	/* DEPRECATED: Extension field deprecated in 12; remove in 14 */
-	return snapshot_manager_event_create(
+	return ast_manager_event_blob_create(
 		EVENT_FLAG_CALL, "Newexten",
 		"Extension: %s\r\n"
 		"Application: %s\r\n"
@@ -431,7 +366,7 @@ static struct snapshot_manager_event *channel_newexten(
 		new_snapshot->data);
 }
 
-static struct snapshot_manager_event *channel_new_callerid(
+static struct ast_manager_event_blob *channel_new_callerid(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
@@ -444,14 +379,14 @@ static struct snapshot_manager_event *channel_new_callerid(
 		return NULL;
 	}
 
-	return snapshot_manager_event_create(
+	return ast_manager_event_blob_create(
 		EVENT_FLAG_CALL, "NewCallerid",
 		"CID-CallingPres: %d (%s)\r\n",
 		new_snapshot->caller_pres,
 		ast_describe_caller_presentation(new_snapshot->caller_pres));
 }
 
-snapshot_monitor monitors[] = {
+channel_snapshot_monitor channel_monitors[] = {
 	channel_state_change,
 	channel_newexten,
 	channel_new_callerid
@@ -476,9 +411,9 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
 
-	for (i = 0; i < ARRAY_LEN(monitors); ++i) {
-		RAII_VAR(struct snapshot_manager_event *, ev, NULL, ao2_cleanup);
-		ev = monitors[i](old_snapshot, new_snapshot);
+	for (i = 0; i < ARRAY_LEN(channel_monitors); ++i) {
+		RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
+		ev = channel_monitors[i](old_snapshot, new_snapshot);
 
 		if (!ev) {
 			continue;

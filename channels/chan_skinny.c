@@ -1653,7 +1653,6 @@ static struct ast_channel_tech skinny_tech = {
 	.fixup = skinny_fixup,
 	.send_digit_begin = skinny_senddigit_begin,
 	.send_digit_end = skinny_senddigit_end,
-	.bridge = ast_rtp_instance_bridge,
 };
 
 static int skinny_extensionstate_cb(char *context, char *id, struct ast_state_cb_info *info, void *data);

@@ -575,6 +575,16 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
  */
 int aco_option_register_deprecated(struct aco_info *info, const char *name, struct aco_type **types, const char *aliased_to);
 
+/*!
+ * \brief Read the flags of a config option - useful when using a custom callback for a config option
+ * \since 12
+ *
+ * \param option Pointer to the aco_option struct
+ *
+ * \retval value of the flags on the config option
+ */
+unsigned int aco_option_get_flags(const struct aco_option *option);
+
 /*! \note  Everything below this point is to handle converting varargs
  * containing field names, to varargs containing a count of args, followed
  * by the offset of each of the field names in the struct type that is

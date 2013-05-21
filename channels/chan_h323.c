@@ -275,7 +275,6 @@ static struct ast_channel_tech oh323_tech = {
 	.write = oh323_write,
 	.indicate = oh323_indicate,
 	.fixup = oh323_fixup,
-	.bridge = ast_rtp_instance_bridge,
 };
 
 static const char* redirectingreason2str(int redirectingreason)

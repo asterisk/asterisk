@@ -1,8 +1,9 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007 - 2009, Digium, Inc.
+ * Copyright (C) 2007 - 2009, 2013 Digium, Inc.
  *
+ * Richard Mudgett <rmudgett@digium.com>
  * Joshua Colp <jcolp@digium.com>
  *
  * See http://www.asterisk.org for more information about
@@ -16,10 +17,16 @@
  * at the top of the source tree.
  */
 
-/*! \file
+/*!
+ * \file
  * \brief Channel Bridging API
+ *
+ * \author Richard Mudgett <rmudgett@digium.com>
  * \author Joshua Colp <jcolp@digium.com>
  * \ref AstBridging
+ *
+ * See Also:
+ * \arg \ref AstCREDITS
  */
 
 /*!
@@ -63,54 +70,41 @@ extern "C" {
 #endif
 
 #include "asterisk/bridging_features.h"
+#include "asterisk/bridging_roles.h"
 #include "asterisk/dsp.h"
+#include "asterisk/uuid.h"
 
 /*! \brief Capabilities for a bridge technology */
 enum ast_bridge_capability {
-	/*! Bridge is only capable of mixing 2 channels */
-	AST_BRIDGE_CAPABILITY_1TO1MIX = (1 << 1),
-	/*! Bridge is capable of mixing 2 or more channels */
-	AST_BRIDGE_CAPABILITY_MULTIMIX = (1 << 2),
-	/*! Bridge should natively bridge two channels if possible */
-	AST_BRIDGE_CAPABILITY_NATIVE = (1 << 3),
-	/*! Bridge should run using the multithreaded model */
-	AST_BRIDGE_CAPABILITY_MULTITHREADED = (1 << 4),
-	/*! Bridge should run a central bridge thread */
-	AST_BRIDGE_CAPABILITY_THREAD = (1 << 5),
-	/*! Bridge technology can do video mixing (or something along those lines) */
-	AST_BRIDGE_CAPABILITY_VIDEO = (1 << 6),
-	/*! Bridge technology can optimize things based on who is talking */
-	AST_BRIDGE_CAPABILITY_OPTIMIZE = (1 << 7),
+	/*! Bridge technology can service calls on hold. */
+	AST_BRIDGE_CAPABILITY_HOLDING = (1 << 0),
+	/*! Bridge waits for channel to answer.  Passes early media. (XXX Not supported yet) */
+	AST_BRIDGE_CAPABILITY_EARLY = (1 << 1),
+	/*! Bridge is capable of natively bridging two channels. (Smart bridge only) */
+	AST_BRIDGE_CAPABILITY_NATIVE = (1 << 2),
+	/*! Bridge is capable of mixing at most two channels. (Smart bridgeable) */
+	AST_BRIDGE_CAPABILITY_1TO1MIX = (1 << 3),
+	/*! Bridge is capable of mixing an arbitrary number of channels. (Smart bridgeable) */
+	AST_BRIDGE_CAPABILITY_MULTIMIX = (1 << 4),
 };
 
 /*! \brief State information about a bridged channel */
 enum ast_bridge_channel_state {
 	/*! Waiting for a signal (Channel in the bridge) */
 	AST_BRIDGE_CHANNEL_STATE_WAIT = 0,
-	/*! Bridged channel has ended itself (it has hung up) */
+	/*! Bridged channel was forced out and should be hung up (Bridge may dissolve.) */
 	AST_BRIDGE_CHANNEL_STATE_END,
 	/*! Bridged channel was forced out and should be hung up */
 	AST_BRIDGE_CHANNEL_STATE_HANGUP,
-	/*! Bridged channel was ast_bridge_depart() from the bridge without being hung up */
-	AST_BRIDGE_CHANNEL_STATE_DEPART,
-	/*! Bridged channel is executing a feature hook */
-	AST_BRIDGE_CHANNEL_STATE_FEATURE,
-	/*! Bridged channel is sending a DTMF stream out */
-	AST_BRIDGE_CHANNEL_STATE_DTMF,
-	/*! Bridged channel began talking */
-	AST_BRIDGE_CHANNEL_STATE_START_TALKING,
-	/*! Bridged channel has stopped talking */
-	AST_BRIDGE_CHANNEL_STATE_STOP_TALKING,
 };
 
-/*! \brief Return values for bridge technology write function */
-enum ast_bridge_write_result {
-	/*! Bridge technology wrote out frame fine */
-	AST_BRIDGE_WRITE_SUCCESS = 0,
-	/*! Bridge technology attempted to write out the frame but failed */
-	AST_BRIDGE_WRITE_FAILED,
-	/*! Bridge technology does not support writing out a frame of this type */
-	AST_BRIDGE_WRITE_UNSUPPORTED,
+enum ast_bridge_channel_thread_state {
+	/*! Bridge channel thread is idle/waiting. */
+	AST_BRIDGE_CHANNEL_THREAD_IDLE,
+	/*! Bridge channel thread is writing a normal/simple frame. */
+	AST_BRIDGE_CHANNEL_THREAD_SIMPLE,
+	/*! Bridge channel thread is processing a frame. */
+	AST_BRIDGE_CHANNEL_THREAD_FRAME,
 };
 
 struct ast_bridge_technology;
@@ -136,6 +130,7 @@ struct ast_bridge_tech_optimizations {
  * \brief Structure that contains information regarding a channel in a bridge
  */
 struct ast_bridge_channel {
+/* BUGBUG cond is only here because of external party suspend/unsuspend support. */
 	/*! Condition, used if we want to wake up a thread waiting on the bridged channel */
 	ast_cond_t cond;
 	/*! Current bridged channel state */
@@ -144,29 +139,103 @@ struct ast_bridge_channel {
 	struct ast_channel *chan;
 	/*! Asterisk channel we are swapping with (if swapping) */
 	struct ast_channel *swap;
-	/*! Bridge this channel is participating in */
+	/*!
+	 * \brief Bridge this channel is participating in
+	 *
+	 * \note The bridge pointer cannot change while the bridge or
+	 * bridge_channel is locked.
+	 */
 	struct ast_bridge *bridge;
-	/*! Private information unique to the bridge technology */
+	/*!
+	 * \brief Bridge class private channel data.
+	 *
+	 * \note This information is added when the channel is pushed
+	 * into the bridge and removed when it is pulled from the
+	 * bridge.
+	 */
 	void *bridge_pvt;
-	/*! Thread handling the bridged channel */
+	/*!
+	 * \brief Private information unique to the bridge technology.
+	 *
+	 * \note This information is added when the channel joins the
+	 * bridge's technology and removed when it leaves the bridge's
+	 * technology.
+	 */
+	void *tech_pvt;
+	/*! Thread handling the bridged channel (Needed by ast_bridge_depart) */
 	pthread_t thread;
-	/*! Additional file descriptors to look at */
-	int fds[4];
-	/*! Bit to indicate whether the channel is suspended from the bridge or not */
+	/* v-- These flags change while the bridge is locked or before the channel is in the bridge. */
+	/*! TRUE if the channel is in a bridge. */
+	unsigned int in_bridge:1;
+	/*! TRUE if the channel just joined the bridge. */
+	unsigned int just_joined:1;
+	/*! TRUE if the channel is suspended from the bridge. */
 	unsigned int suspended:1;
-	/*! Bit to indicate if a imparted channel is allowed to get hungup after leaving the bridge by the bridging core. */
-	unsigned int allow_impart_hangup:1;
+	/*! TRUE if the channel must wait for an ast_bridge_depart to reclaim the channel. */
+	unsigned int depart_wait:1;
+	/* ^-- These flags change while the bridge is locked or before the channel is in the bridge. */
 	/*! Features structure for features that are specific to this channel */
 	struct ast_bridge_features *features;
 	/*! Technology optimization parameters used by bridging technologies capable of
 	 *  optimizing based upon talk detection. */
 	struct ast_bridge_tech_optimizations tech_args;
-	/*! Queue of DTMF digits used for DTMF streaming */
-	char dtmf_stream_q[8];
+	/*! Copy of read format used by chan before join */
+	struct ast_format read_format;
+	/*! Copy of write format used by chan before join */
+	struct ast_format write_format;
 	/*! Call ID associated with bridge channel */
 	struct ast_callid *callid;
+	/*! A clone of the roles living on chan when the bridge channel joins the bridge. This may require some opacification */
+	struct bridge_roles_datastore *bridge_roles;
 	/*! Linked list information */
 	AST_LIST_ENTRY(ast_bridge_channel) entry;
+	/*! Queue of outgoing frames to the channel. */
+	AST_LIST_HEAD_NOLOCK(, ast_frame) wr_queue;
+	/*! Pipe to alert thread when frames are put into the wr_queue. */
+	int alert_pipe[2];
+	/*! TRUE if the bridge channel thread is waiting on channels (needs to be atomically settable) */
+	int waiting;
+	/*!
+	 * \brief The bridge channel thread activity.
+	 *
+	 * \details Used by local channel optimization to determine if
+	 * the thread is in an acceptable state to optimize.
+	 *
+	 * \note Needs to be atomically settable.
+	 */
+	enum ast_bridge_channel_thread_state activity;
+};
+
+enum ast_bridge_action_type {
+	/*! Bridged channel is to detect a feature hook */
+	AST_BRIDGE_ACTION_FEATURE,
+	/*! Bridged channel is to act on an interval hook */
+	AST_BRIDGE_ACTION_INTERVAL,
+	/*! Bridged channel is to send a DTMF stream out */
+	AST_BRIDGE_ACTION_DTMF_STREAM,
+	/*! Bridged channel is to indicate talking start */
+	AST_BRIDGE_ACTION_TALKING_START,
+	/*! Bridged channel is to indicate talking stop */
+	AST_BRIDGE_ACTION_TALKING_STOP,
+	/*! Bridge channel is to play the indicated sound file. */
+	AST_BRIDGE_ACTION_PLAY_FILE,
+	/*! Bridge channel is to get parked. */
+	AST_BRIDGE_ACTION_PARK,
+	/*! Bridge channel is to run the indicated application. */
+	AST_BRIDGE_ACTION_RUN_APP,
+	/*! Bridge channel is to execute a blind transfer. */
+	AST_BRIDGE_ACTION_BLIND_TRANSFER,
+
+	/*
+	 * Bridge actions put after this comment must never be put onto
+	 * the bridge_channel wr_queue because they have other resources
+	 * that must be freed.
+	 */
+
+	/*! Bridge reconfiguration deferred technology destruction. */
+	AST_BRIDGE_ACTION_DEFERRED_TECH_DESTROY = 1000,
+	/*! Bridge deferred dissolving. */
+	AST_BRIDGE_ACTION_DEFERRED_DISSOLVING,
 };
 
 enum ast_bridge_video_mode_type {
@@ -207,13 +276,151 @@ struct ast_bridge_video_mode {
 };
 
 /*!
+ * \brief Destroy the bridge.
+ *
+ * \param self Bridge to operate upon.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_destructor_fn)(struct ast_bridge *self);
+
+/*!
+ * \brief The bridge is being dissolved.
+ *
+ * \param self Bridge to operate upon.
+ *
+ * \details
+ * The bridge is being dissolved.  Remove any external
+ * references to the bridge so it can be destroyed.
+ *
+ * \note On entry, self must NOT be locked.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_dissolving_fn)(struct ast_bridge *self);
+
+/*!
+ * \brief Push this channel into the bridge.
+ *
+ * \param self Bridge to operate upon.
+ * \param bridge_channel Bridge channel to push.
+ * \param swap Bridge channel to swap places with if not NULL.
+ *
+ * \details
+ * Setup any channel hooks controlled by the bridge.  Allocate
+ * bridge_channel->bridge_pvt and initialize any resources put
+ * in bridge_channel->bridge_pvt if needed.  If there is a swap
+ * channel, use it as a guide to setting up the bridge_channel.
+ *
+ * \note On entry, self is already locked.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.  The channel did not get pushed.
+ */
+typedef int (*ast_bridge_push_channel_fn)(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+
+/*!
+ * \brief Pull this channel from the bridge.
+ *
+ * \param self Bridge to operate upon.
+ * \param bridge_channel Bridge channel to pull.
+ *
+ * \details
+ * Remove any channel hooks controlled by the bridge.  Release
+ * any resources held by bridge_channel->bridge_pvt and release
+ * bridge_channel->bridge_pvt.
+ *
+ * \note On entry, self is already locked.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_pull_channel_fn)(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Notify the bridge that this channel was just masqueraded.
+ *
+ * \param self Bridge to operate upon.
+ * \param bridge_channel Bridge channel that was masqueraded.
+ *
+ * \details
+ * A masquerade just happened to this channel.  The bridge needs
+ * to re-evaluate this a channel in the bridge.
+ *
+ * \note On entry, self is already locked.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_notify_masquerade_fn)(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Get the merge priority of this bridge.
+ *
+ * \param self Bridge to operate upon.
+ *
+ * \note On entry, self is already locked.
+ *
+ * \return Merge priority
+ */
+typedef int (*ast_bridge_merge_priority_fn)(struct ast_bridge *self);
+
+/*!
+ * \brief Bridge virtual methods table definition.
+ *
+ * \note Any changes to this struct must be reflected in
+ * ast_bridge_alloc() validity checking.
+ */
+struct ast_bridge_methods {
+	/*! Bridge class name for log messages. */
+	const char *name;
+	/*! Destroy the bridge. */
+	ast_bridge_destructor_fn destroy;
+	/*! The bridge is being dissolved.  Remove any references to the bridge. */
+	ast_bridge_dissolving_fn dissolving;
+	/*! Push the bridge channel into the bridge. */
+	ast_bridge_push_channel_fn push;
+	/*! Pull the bridge channel from the bridge. */
+	ast_bridge_pull_channel_fn pull;
+	/*! Notify the bridge of a masquerade with the channel. */
+	ast_bridge_notify_masquerade_fn notify_masquerade;
+	/*! Get the bridge merge priority. */
+	ast_bridge_merge_priority_fn get_merge_priority;
+};
+
+/*!
  * \brief Structure that contains information about a bridge
  */
 struct ast_bridge {
-	/*! Number of channels participating in the bridge */
-	int num;
+	/*! Bridge virtual method table. */
+	const struct ast_bridge_methods *v_table;
+	/*! Immutable bridge UUID. */
+	char uniqueid[AST_UUID_STR_LEN];
+	/*! Bridge technology that is handling the bridge */
+	struct ast_bridge_technology *technology;
+	/*! Private information unique to the bridge technology */
+	void *tech_pvt;
+	/*! Call ID associated with the bridge */
+	struct ast_callid *callid;
+	/*! Linked list of channels participating in the bridge */
+	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
+	/*! Queue of actions to perform on the bridge. */
+	AST_LIST_HEAD_NOLOCK(, ast_frame) action_queue;
 	/*! The video mode this bridge is using */
 	struct ast_bridge_video_mode video_mode;
+	/*! Bridge flags to tweak behavior */
+	struct ast_flags feature_flags;
+	/*! Allowed bridge technology capabilities when AST_BRIDGE_FLAG_SMART enabled. */
+	uint32_t allowed_capabilities;
+	/*! Number of channels participating in the bridge */
+	unsigned int num_channels;
+	/*! Number of active channels in the bridge. */
+	unsigned int num_active;
+	/*!
+	 * \brief Count of the active temporary requests to inhibit bridge merges.
+	 * Zero if merges are allowed.
+	 *
+	 * \note Temporary as in try again in a moment.
+	 */
+	unsigned int inhibit_merge;
 	/*! The internal sample rate this bridge is mixed at when multiple channels are being mixed.
 	 *  If this value is 0, the bridge technology may auto adjust the internal mixing rate. */
 	unsigned int internal_sample_rate;
@@ -221,36 +428,83 @@ struct ast_bridge {
 	 * for bridge technologies that mix audio. When set to 0, the bridge tech must choose a
 	 * default interval for itself. */
 	unsigned int internal_mixing_interval;
-	/*! Bit to indicate that the bridge thread is waiting on channels in the bridge array */
-	unsigned int waiting:1;
-	/*! Bit to indicate the bridge thread should stop */
-	unsigned int stop:1;
-	/*! Bit to indicate the bridge thread should refresh itself */
-	unsigned int refresh:1;
-	/*! Bridge flags to tweak behavior */
-	struct ast_flags feature_flags;
-	/*! Bridge technology that is handling the bridge */
-	struct ast_bridge_technology *technology;
-	/*! Private information unique to the bridge technology */
-	void *bridge_pvt;
-	/*! Thread running the bridge */
-	pthread_t thread;
-	/*! Enabled features information */
-	struct ast_bridge_features features;
-	/*! Array of channels that the bridge thread is currently handling */
-	struct ast_channel **array;
-	/*! Number of channels in the above array */
-	size_t array_num;
-	/*! Number of channels the array can handle */
-	size_t array_size;
-	/*! Call ID associated with the bridge */
-	struct ast_callid *callid;
-	/*! Linked list of channels participating in the bridge */
-	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
-	};
+	/*! TRUE if the bridge was reconfigured. */
+	unsigned int reconfigured:1;
+	/*! TRUE if the bridge has been dissolved.  Any channel that now tries to join is immediately ejected. */
+	unsigned int dissolved:1;
+};
 
 /*!
- * \brief Create a new bridge
+ * \brief Register the new bridge with the system.
+ * \since 12.0.0
+ *
+ * \param bridge What to register. (Tolerates a NULL pointer)
+ *
+ * \code
+ * struct ast_bridge *ast_bridge_basic_new(uint32_t capabilities, int flags, uint32 dtmf_features)
+ * {
+ *     void *bridge;
+ *
+ *     bridge = ast_bridge_alloc(sizeof(struct ast_bridge_basic), &ast_bridge_basic_v_table);
+ *     bridge = ast_bridge_base_init(bridge, capabilities, flags);
+ *     bridge = ast_bridge_basic_init(bridge, dtmf_features);
+ *     bridge = ast_bridge_register(bridge);
+ *     return bridge;
+ * }
+ * \endcode
+ *
+ * \note This must be done after a bridge constructor has
+ * completed setting up the new bridge but before it returns.
+ *
+ * \note After a bridge is registered, ast_bridge_destroy() must
+ * eventually be called to get rid of the bridge.
+ *
+ * \retval bridge on success.
+ * \retval NULL on error.
+ */
+struct ast_bridge *ast_bridge_register(struct ast_bridge *bridge);
+
+/*!
+ * \internal
+ * \brief Allocate the bridge class object memory.
+ * \since 12.0.0
+ *
+ * \param size Size of the bridge class structure to allocate.
+ * \param v_table Bridge class virtual method table.
+ *
+ * \retval bridge on success.
+ * \retval NULL on error.
+ */
+struct ast_bridge *ast_bridge_alloc(size_t size, const struct ast_bridge_methods *v_table);
+
+/*! \brief Bridge base class virtual method table. */
+extern struct ast_bridge_methods ast_bridge_base_v_table;
+
+/*!
+ * \brief Initialize the base class of the bridge.
+ *
+ * \param self Bridge to operate upon. (Tolerates a NULL pointer)
+ * \param capabilities The capabilities that we require to be used on the bridge
+ * \param flags Flags that will alter the behavior of the bridge
+ *
+ * \retval self on success
+ * \retval NULL on failure, self is already destroyed
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_bridge *bridge;
+ * bridge = ast_bridge_alloc(sizeof(*bridge), &ast_bridge_base_v_table);
+ * bridge = ast_bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE_HANGUP);
+ * \endcode
+ *
+ * This creates a no frills two party bridge that will be
+ * destroyed once one of the channels hangs up.
+ */
+struct ast_bridge *ast_bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags);
+
+/*!
+ * \brief Create a new base class bridge
  *
  * \param capabilities The capabilities that we require to be used on the bridge
  * \param flags Flags that will alter the behavior of the bridge
@@ -262,13 +516,27 @@ struct ast_bridge {
  *
  * \code
  * struct ast_bridge *bridge;
- * bridge = ast_bridge_new(AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE);
+ * bridge = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE_HANGUP);
  * \endcode
  *
- * This creates a simple two party bridge that will be destroyed once one of
- * the channels hangs up.
+ * This creates a no frills two party bridge that will be
+ * destroyed once one of the channels hangs up.
  */
-struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags);
+struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags);
+
+/*!
+ * \brief Try locking the bridge.
+ *
+ * \param bridge Bridge to try locking
+ *
+ * \retval 0 on success.
+ * \retval non-zero on error.
+ */
+#define ast_bridge_trylock(bridge)	_ast_bridge_trylock(bridge, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge)
+static inline int _ast_bridge_trylock(struct ast_bridge *bridge, const char *file, const char *function, int line, const char *var)
+{
+	return __ao2_trylock(bridge, AO2_LOCK_REQ_MUTEX, file, function, line, var);
+}
 
 /*!
  * \brief Lock the bridge.
@@ -296,24 +564,18 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
 	__ao2_unlock(bridge, file, function, line, var);
 }
 
-/*!
- * \brief See if it is possible to create a bridge
- *
- * \param capabilities The capabilities that the bridge will use
- *
- * \retval 1 if possible
- * \retval 0 if not possible
- *
- * Example usage:
- *
- * \code
- * int possible = ast_bridge_check(AST_BRIDGE_CAPABILITY_1TO1MIX);
- * \endcode
- *
- * This sees if it is possible to create a bridge capable of bridging two channels
- * together.
- */
-int ast_bridge_check(uint32_t capabilities);
+/*! \brief Lock two bridges. */
+#define ast_bridge_lock_both(bridge1, bridge2)		\
+	do {											\
+		for (;;) {									\
+			ast_bridge_lock(bridge1);				\
+			if (!ast_bridge_trylock(bridge2)) {		\
+				break;								\
+			}										\
+			ast_bridge_unlock(bridge1);				\
+			sched_yield();							\
+		}											\
+	} while (0)
 
 /*!
  * \brief Destroy a bridge
@@ -329,9 +591,19 @@ int ast_bridge_check(uint32_t capabilities);
  * ast_bridge_destroy(bridge);
  * \endcode
  *
- * This destroys a bridge that was previously created using ast_bridge_new.
+ * This destroys a bridge that was previously created.
  */
 int ast_bridge_destroy(struct ast_bridge *bridge);
+
+/*!
+ * \brief Notify bridging that this channel was just masqueraded.
+ * \since 12.0.0
+ *
+ * \param chan Channel just involved in a masquerade
+ *
+ * \return Nothing
+ */
+void ast_bridge_notify_masquerade(struct ast_channel *chan);
 
 /*!
  * \brief Join (blocking) a channel to a bridge
@@ -341,13 +613,17 @@ int ast_bridge_destroy(struct ast_bridge *bridge);
  * \param swap Channel to swap out if swapping
  * \param features Bridge features structure
  * \param tech_args Optional Bridging tech optimization parameters for this channel.
+ * \param pass_reference TRUE if the bridge reference is being passed by the caller.
+ *
+ * \note Absolutely _NO_ locks should be held before calling
+ * this function since it blocks.
  *
  * \retval state that channel exited the bridge with
  *
  * Example usage:
  *
  * \code
- * ast_bridge_join(bridge, chan, NULL, NULL);
+ * ast_bridge_join(bridge, chan, NULL, NULL, NULL, 0);
  * \endcode
  *
  * This adds a channel pointed to by the chan pointer to the bridge pointed to by
@@ -365,16 +641,23 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *chan,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
-	struct ast_bridge_tech_optimizations *tech_args);
+	struct ast_bridge_tech_optimizations *tech_args,
+	int pass_reference);
 
 /*!
  * \brief Impart (non-blocking) a channel onto a bridge
  *
  * \param bridge Bridge to impart on
  * \param chan Channel to impart
- * \param swap Channel to swap out if swapping
- * \param features Bridge features structure
- * \param allow_hangup  Indicates if the bridge thread should manage hanging up of the channel or not.
+ * \param swap Channel to swap out if swapping.  NULL if not swapping.
+ * \param features Bridge features structure.
+ * \param independent TRUE if caller does not want to reclaim the channel using ast_bridge_depart().
+ *
+ * \note The features parameter must be NULL or obtained by
+ * ast_bridge_features_new().  You must not dereference features
+ * after calling even if the call fails.
+ *
+ * \note chan is locked by this function.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -385,24 +668,42 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  * ast_bridge_impart(bridge, chan, NULL, NULL, 0);
  * \endcode
  *
- * This adds a channel pointed to by the chan pointer to the bridge pointed to by
- * the bridge pointer. This function will return immediately and will not wait
- * until the channel is no longer part of the bridge.
+ * \details
+ * This adds a channel pointed to by the chan pointer to the
+ * bridge pointed to by the bridge pointer.  This function will
+ * return immediately and will not wait until the channel is no
+ * longer part of the bridge.
  *
- * If this channel will be replacing another channel the other channel can be specified
- * in the swap parameter. The other channel will be thrown out of the bridge in an
- * atomic fashion.
+ * If this channel will be replacing another channel the other
+ * channel can be specified in the swap parameter.  The other
+ * channel will be thrown out of the bridge in an atomic
+ * fashion.
  *
- * If channel specific features are enabled a pointer to the features structure
- * can be specified in the features parameter.
+ * If channel specific features are enabled, a pointer to the
+ * features structure can be specified in the features
+ * parameter.
+ *
+ * \note If you impart a channel as not independent you MUST
+ * ast_bridge_depart() the channel if this call succeeds.  The
+ * bridge channel thread is created join-able.  The implication
+ * is that the channel is special and will not behave like a
+ * normal channel.
+ *
+ * \note If you impart a channel as independent you must not
+ * ast_bridge_depart() the channel.  The bridge channel thread
+ * is created non-join-able.  The channel must be treated as if
+ * it were placed into the bridge by ast_bridge_join().
+ * Channels placed into a bridge by ast_bridge_join() are
+ * removed by a third party using ast_bridge_remove().
  */
-int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup);
+int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int independent);
 
 /*!
  * \brief Depart a channel from a bridge
  *
- * \param bridge Bridge to depart from
  * \param chan Channel to depart
+ *
+ * \note chan is locked by this function.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -410,17 +711,17 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
  * Example usage:
  *
  * \code
- * ast_bridge_depart(bridge, chan);
+ * ast_bridge_depart(chan);
  * \endcode
  *
- * This removes the channel pointed to by the chan pointer from the bridge
- * pointed to by the bridge pointer and gives control to the calling thread.
+ * This removes the channel pointed to by the chan pointer from any bridge
+ * it may be in and gives control to the calling thread.
  * This does not hang up the channel.
  *
  * \note This API call can only be used on channels that were added to the bridge
- *       using the ast_bridge_impart API call.
+ *       using the ast_bridge_impart API call with the independent flag FALSE.
  */
-int ast_bridge_depart(struct ast_bridge *bridge, struct ast_channel *chan);
+int ast_bridge_depart(struct ast_channel *chan);
 
 /*!
  * \brief Remove a channel from a bridge
@@ -449,8 +750,14 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan);
 /*!
  * \brief Merge two bridges together
  *
- * \param bridge0 First bridge
- * \param bridge1 Second bridge
+ * \param dst_bridge Destination bridge of merge.
+ * \param src_bridge Source bridge of merge.
+ * \param merge_best_direction TRUE if don't care about which bridge merges into the other.
+ * \param kick_me Array of channels to kick from the bridges.
+ * \param num_kick Number of channels in the kick_me array.
+ *
+ * \note Absolutely _NO_ bridge or channel locks should be held
+ * before calling this function.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -458,16 +765,57 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan);
  * Example usage:
  *
  * \code
- * ast_bridge_merge(bridge0, bridge1);
+ * ast_bridge_merge(dst_bridge, src_bridge, 0, NULL, 0);
  * \endcode
  *
- * This merges the bridge pointed to by bridge1 with the bridge pointed to by bridge0.
- * In reality all of the channels in bridge1 are simply moved to bridge0.
- *
- * \note The second bridge specified is not destroyed when this operation is
- *       completed.
+ * This moves the channels in src_bridge into the bridge pointed
+ * to by dst_bridge.
  */
-int ast_bridge_merge(struct ast_bridge *bridge0, struct ast_bridge *bridge1);
+int ast_bridge_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, int merge_best_direction, struct ast_channel **kick_me, unsigned int num_kick);
+
+/*!
+ * \brief Move a channel from one bridge to another.
+ * \since 12.0.0
+ *
+ * \param dst_bridge Destination bridge of bridge channel move.
+ * \param src_bridge Source bridge of bridge channel move.
+ * \param chan Channel to move.
+ * \param swap Channel to replace in dst_bridge.
+ * \param attempt_recovery TRUE if failure attempts to push channel back into original bridge.
+ *
+ * \note Absolutely _NO_ bridge or channel locks should be held
+ * before calling this function.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+int ast_bridge_move(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_channel *chan, struct ast_channel *swap, int attempt_recovery);
+
+/*!
+ * \brief Adjust the bridge merge inhibit request count.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ * \param request Inhibit request increment.
+ *     (Positive to add requests.  Negative to remove requests.)
+ *
+ * \return Nothing
+ */
+void ast_bridge_merge_inhibit(struct ast_bridge *bridge, int request);
+
+/*!
+ * \brief Adjust the bridge_channel's bridge merge inhibit request count.
+ * \since 12.0.0
+ *
+ * \param bridge_channel What to operate on.
+ * \param request Inhibit request increment.
+ *     (Positive to add requests.  Negative to remove requests.)
+ *
+ * \note This API call is meant for internal bridging operations.
+ *
+ * \retval bridge adjusted merge inhibit with reference count.
+ */
+struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request);
 
 /*!
  * \brief Suspend a channel temporarily from a bridge
@@ -517,7 +865,94 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan);
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
 
 /*!
- * \brief Change the state of a bridged channel
+ * \brief Check and optimize out the unreal channels between bridges.
+ * \since 12.0.0
+ *
+ * \param chan Unreal channel writing a frame into the channel driver.
+ * \param peer Other unreal channel in the pair.
+ *
+ * \note It is assumed that chan is already locked.
+ *
+ * \retval 0 if unreal channels were not optimized out.
+ * \retval non-zero if unreal channels were optimized out.
+ */
+int ast_bridge_unreal_optimized_out(struct ast_channel *chan, struct ast_channel *peer);
+
+/*!
+ * \brief Try locking the bridge_channel.
+ *
+ * \param bridge_channel What to try locking
+ *
+ * \retval 0 on success.
+ * \retval non-zero on error.
+ */
+#define ast_bridge_channel_trylock(bridge_channel)	_ast_bridge_channel_trylock(bridge_channel, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge_channel)
+static inline int _ast_bridge_channel_trylock(struct ast_bridge_channel *bridge_channel, const char *file, const char *function, int line, const char *var)
+{
+	return __ao2_trylock(bridge_channel, AO2_LOCK_REQ_MUTEX, file, function, line, var);
+}
+
+/*!
+ * \brief Lock the bridge_channel.
+ *
+ * \param bridge_channel What to lock
+ *
+ * \return Nothing
+ */
+#define ast_bridge_channel_lock(bridge_channel)	_ast_bridge_channel_lock(bridge_channel, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge_channel)
+static inline void _ast_bridge_channel_lock(struct ast_bridge_channel *bridge_channel, const char *file, const char *function, int line, const char *var)
+{
+	__ao2_lock(bridge_channel, AO2_LOCK_REQ_MUTEX, file, function, line, var);
+}
+
+/*!
+ * \brief Unlock the bridge_channel.
+ *
+ * \param bridge_channel What to unlock
+ *
+ * \return Nothing
+ */
+#define ast_bridge_channel_unlock(bridge_channel)	_ast_bridge_channel_unlock(bridge_channel, __FILE__, __PRETTY_FUNCTION__, __LINE__, #bridge_channel)
+static inline void _ast_bridge_channel_unlock(struct ast_bridge_channel *bridge_channel, const char *file, const char *function, int line, const char *var)
+{
+	__ao2_unlock(bridge_channel, file, function, line, var);
+}
+
+/*!
+ * \brief Lock the bridge associated with the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel that wants to lock the bridge.
+ *
+ * \details
+ * This is an upstream lock operation.  The defined locking
+ * order is bridge then bridge_channel.
+ *
+ * \note On entry, neither the bridge nor bridge_channel is locked.
+ *
+ * \note The bridge_channel->bridge pointer changes because of a
+ * bridge-merge/channel-move operation between bridges.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Set bridge channel state to leave bridge (if not leaving already) with no lock.
+ *
+ * \param bridge_channel Channel to change the state on
+ * \param new_state The new state to place the channel into
+ *
+ * \note This API call is only meant to be used within the
+ * bridging module and hook callbacks to request the channel
+ * exit the bridge.
+ *
+ * \note This function assumes the bridge_channel is locked.
+ */
+void ast_bridge_change_state_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+
+/*!
+ * \brief Set bridge channel state to leave bridge (if not leaving already).
  *
  * \param bridge_channel Channel to change the state on
  * \param new_state The new state to place the channel into
@@ -525,16 +960,264 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
  * Example usage:
  *
  * \code
- * ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_WAIT);
+ * ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
  * \endcode
  *
- * This places the channel pointed to by bridge_channel into the state
- * AST_BRIDGE_CHANNEL_STATE_WAIT.
+ * This places the channel pointed to by bridge_channel into the
+ * state AST_BRIDGE_CHANNEL_STATE_HANGUP if it was
+ * AST_BRIDGE_CHANNEL_STATE_WAIT before.
  *
- * \note This API call is only meant to be used in feature hook callbacks to
- *       make sure the channel either hangs up or returns to the bridge.
+ * \note This API call is only meant to be used within the
+ * bridging module and hook callbacks to request the channel
+ * exit the bridge.
  */
 void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+
+/*!
+ * \brief Put an action onto the specified bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to queue the action on.
+ * \param action What to do.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ *
+ * \note This API call is meant for internal bridging operations.
+ * \note BUGBUG This may get moved.
+ */
+int ast_bridge_queue_action(struct ast_bridge *bridge, struct ast_frame *action);
+
+/*!
+ * \brief Write a frame to the specified bridge_channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to queue the frame.
+ * \param fr Frame to write.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ *
+ * \note This API call is meant for internal bridging operations.
+ * \note BUGBUG This may get moved.
+ */
+int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr);
+
+/*!
+ * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel work with.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+
+/*!
+ * \brief Queue an action frame onto the bridge channel with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+
+/*!
+ * \brief Write an action frame into the bridge with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the frame into the bridge.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+
+/*!
+ * \brief Queue a control frame onto the bridge channel with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param control Type of control frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
+
+/*!
+ * \brief Write a control frame into the bridge with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the frame into the bridge.
+ * \param control Type of control frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
+
+/*!
+ * \brief Run an application on the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to run the application on.
+ * \param app_name Dialplan application name.
+ * \param app_args Arguments for the application. (NULL tolerant)
+ * \param moh_class MOH class to request bridge peers to hear while application is running.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
+
+/*!
+ * \brief Write a bridge action run application frame into the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the frame into the bridge
+ * \param app_name Dialplan application name.
+ * \param app_args Arguments for the application. (NULL or empty for no arguments)
+ * \param moh_class MOH class to request bridge peers to hear while application is running.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
+
+/*!
+ * \brief Queue a bridge action run application frame onto the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to put the frame onto
+ * \param app_name Dialplan application name.
+ * \param app_args Arguments for the application. (NULL or empty for no arguments)
+ * \param moh_class MOH class to request bridge peers to hear while application is running.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
+
+/*!
+ * \brief Custom interpretation of the playfile name.
+ *
+ * \param bridge_channel Which channel to play the file on
+ * \param playfile Sound filename to play.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_custom_play_fn)(struct ast_bridge_channel *bridge_channel, const char *playfile);
+
+/*!
+ * \brief Play a file on the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to play the file on
+ * \param custom_play Call this function to play the playfile. (NULL if normal sound file to play)
+ * \param playfile Sound filename to play.
+ * \param moh_class MOH class to request bridge peers to hear while file is played.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+
+/*!
+ * \brief Have a bridge channel park a channel in the bridge
+ * \since 12.0.0
+ *
+ * \param bridge_channel Bridge channel performing the parking
+ * \param parkee_uuid Unique id of the channel we want to park
+ * \param parker_uuid Unique id of the channel parking the call
+ * \param app_data string indicating data used for park application (NULL allowed)
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
+	const char *parker_uuid, const char *app_data);
+
+/*!
+ * \brief Write a bridge action play file frame into the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the frame into the bridge
+ * \param custom_play Call this function to play the playfile. (NULL if normal sound file to play)
+ * \param playfile Sound filename to play.
+ * \param moh_class MOH class to request bridge peers to hear while file is played.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+
+/*!
+ * \brief Queue a bridge action play file frame onto the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to put the frame onto.
+ * \param custom_play Call this function to play the playfile. (NULL if normal sound file to play)
+ * \param playfile Sound filename to play.
+ * \param moh_class MOH class to request bridge peers to hear while file is played.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+
+/*!
+ * \brief Restore the formats of a bridge channel's channel to how they were before bridge_channel_join
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to restore
+ */
+void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Get the peer bridge channel of a two party bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel What to get the peer of.
+ *
+ * \note On entry, bridge_channel->bridge is already locked.
+ *
+ * \note This is an internal bridge function.
+ *
+ * \retval peer on success.
+ * \retval NULL no peer channel.
+ */
+struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \brief Adjust the internal mixing sample rate of a bridge
@@ -594,8 +1277,297 @@ int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan)
  */
 void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *chan);
 
+enum ast_transfer_result {
+	/*! The transfer completed successfully */
+	AST_BRIDGE_TRANSFER_SUCCESS,
+	/*! A bridge involved does not permit transferring */
+	AST_BRIDGE_TRANSFER_NOT_PERMITTED,
+	/*! The current bridge setup makes transferring an invalid operation */
+	AST_BRIDGE_TRANSFER_INVALID,
+	/*! The transfer operation failed for a miscellaneous reason */
+	AST_BRIDGE_TRANSFER_FAIL,
+};
+
+typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data);
+
+/*!
+ * \brief Blind transfer target to the extension and context provided
+ *
+ * The channel given is bridged to one or multiple channels. Depending on
+ * the bridge and the number of participants, the entire bridge could be
+ * transferred to the given destination, or a single channel may be redirected.
+ *
+ * Callers may also provide a callback to be called on the channel that will
+ * be running dialplan. The user data passed into ast_bridge_transfer_blind
+ * will be given as the argument to the callback to be interpreted as desired.
+ * This callback is guaranteed to be called in the same thread as
+ * ast_bridge_transfer_blind() and before ast_bridge_transfer_blind() returns.
+ *
+ * \note Absolutely _NO_ channel locks should be held before
+ * calling this function.
+ *
+ * \param transferer The channel performing the blind transfer
+ * \param exten The dialplan extension to send the call to
+ * \param context The dialplan context to send the call to
+ * \param new_channel_cb A callback to be called on the channel that will
+ *        be executing dialplan
+ * \param user_data Argument for new_channel_cb
+ * \return The success or failure result of the blind transfer
+ */
+enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transferer,
+		const char *exten, const char *context,
+		transfer_channel_cb new_channel_cb, void *user_data);
+
+/*!
+ * \brief Attended transfer
+ *
+ * The two channels are both transferer channels. The first is the channel
+ * that is bridged to the transferee (or if unbridged, the 'first' call of
+ * the transfer). The second is the channel that is bridged to the transfer
+ * target (or if unbridged, the 'second' call of the transfer).
+ *
+ * Like with a blind transfer, a frame hook can be provided to monitor the
+ * resulting call after the transfer completes. If the transfer fails, the
+ * hook will not be attached to any call.
+ *
+ * \note Absolutely _NO_ channel locks should be held before
+ * calling this function.
+ *
+ * \param to_transferee Transferer channel on initial call (presumably bridged to transferee)
+ * \param to_transfer_target Transferer channel on consultation call (presumably bridged to transfer target)
+ * \param hook A frame hook to attach to the resultant call
+ * \return The success or failure of the attended transfer
+ */
+enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_transferee,
+		struct ast_channel *to_transfer_target, struct ast_framehook *hook);
+/*!
+ * \brief Set channel to goto specific location after the bridge.
+ * \since 12.0.0
+ *
+ * \param chan Channel to setup after bridge goto location.
+ * \param context Context to goto after bridge.
+ * \param exten Exten to goto after bridge.
+ * \param priority Priority to goto after bridge.
+ *
+ * \note chan is locked by this function.
+ *
+ * \details Add a channel datastore to setup the goto location
+ * when the channel leaves the bridge and run a PBX from there.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_set_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
+
+/*!
+ * \brief Set channel to run the h exten after the bridge.
+ * \since 12.0.0
+ *
+ * \param chan Channel to setup after bridge goto location.
+ * \param context Context to goto after bridge.
+ *
+ * \note chan is locked by this function.
+ *
+ * \details Add a channel datastore to setup the goto location
+ * when the channel leaves the bridge and run a PBX from there.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_set_h(struct ast_channel *chan, const char *context);
+
+/*!
+ * \brief Set channel to go on in the dialplan after the bridge.
+ * \since 12.0.0
+ *
+ * \param chan Channel to setup after bridge goto location.
+ * \param context Current context of the caller channel.
+ * \param exten Current exten of the caller channel.
+ * \param priority Current priority of the caller channel
+ * \param parseable_goto User specified goto string from dialplan.
+ *
+ * \note chan is locked by this function.
+ *
+ * \details Add a channel datastore to setup the goto location
+ * when the channel leaves the bridge and run a PBX from there.
+ *
+ * If parseable_goto then use the given context/exten/priority
+ *   as the relative position for the parseable_goto.
+ * Else goto the given context/exten/priority+1.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_set_go_on(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *parseable_goto);
+
+/*!
+ * \brief Setup any after bridge goto location to begin execution.
+ * \since 12.0.0
+ *
+ * \param chan Channel to setup after bridge goto location.
+ *
+ * \note chan is locked by this function.
+ *
+ * \details Pull off any after bridge goto location datastore and
+ * setup for dialplan execution there.
+ *
+ * \retval 0 on success.  The goto location is set for a PBX to run it.
+ * \retval non-zero on error or no goto location.
+ *
+ * \note If the after bridge goto is set to run an h exten it is
+ * run here immediately.
+ */
+int ast_after_bridge_goto_setup(struct ast_channel *chan);
+
+/*!
+ * \brief Run a PBX on any after bridge goto location.
+ * \since 12.0.0
+ *
+ * \param chan Channel to execute after bridge goto location.
+ *
+ * \note chan is locked by this function.
+ *
+ * \details Pull off any after bridge goto location datastore
+ * and run a PBX at that location.
+ *
+ * \note On return, the chan pointer is no longer valid because
+ * the channel has hung up.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_goto_run(struct ast_channel *chan);
+
+/*!
+ * \brief Discard channel after bridge goto location.
+ * \since 12.0.0
+ *
+ * \param chan Channel to discard after bridge goto location.
+ *
+ * \note chan is locked by this function.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_goto_discard(struct ast_channel *chan);
+
+/*! Reason the the after bridge callback will not be called. */
+enum ast_after_bridge_cb_reason {
+	/*! The datastore is being destroyed.  Likely due to hangup. */
+	AST_AFTER_BRIDGE_CB_REASON_DESTROY,
+	/*! Something else replaced the callback with another. */
+	AST_AFTER_BRIDGE_CB_REASON_REPLACED,
+	/*! The callback was removed because of a masquerade. (fixup) */
+	AST_AFTER_BRIDGE_CB_REASON_MASQUERADE,
+	/*! The channel departed bridge. */
+	AST_AFTER_BRIDGE_CB_REASON_DEPART,
+	/*! Was explicitly removed by external code. */
+	AST_AFTER_BRIDGE_CB_REASON_REMOVED,
+};
+
+/*!
+ * \brief After bridge callback failed.
+ * \since 12.0.0
+ *
+ * \param reason Reason callback is failing.
+ * \param data Extra data what setup the callback wanted to pass.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_after_bridge_cb_failed)(enum ast_after_bridge_cb_reason reason, void *data);
+
+/*!
+ * \brief After bridge callback function.
+ * \since 12.0.0
+ *
+ * \param chan Channel just leaving bridging system.
+ * \param data Extra data what setup the callback wanted to pass.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_after_bridge_cb)(struct ast_channel *chan, void *data);
+
+/*!
+ * \brief Discard channel after bridge callback.
+ * \since 12.0.0
+ *
+ * \param chan Channel to discard after bridge callback.
+ * \param reason Why are we doing this.
+ *
+ * \note chan is locked by this function.
+ *
+ * \return Nothing
+ */
+void ast_after_bridge_callback_discard(struct ast_channel *chan, enum ast_after_bridge_cb_reason reason);
+
+/*!
+ * \brief Setup an after bridge callback for when the channel leaves the bridging system.
+ * \since 12.0.0
+ *
+ * \param chan Channel to setup an after bridge callback on.
+ * \param callback Function to call when the channel leaves the bridging system.
+ * \param failed Function to call when it will not be calling the callback.
+ * \param data Extra data to pass with the callback.
+ *
+ * \note chan is locked by this function.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_after_bridge_callback_set(struct ast_channel *chan, ast_after_bridge_cb callback, ast_after_bridge_cb_failed failed, void *data);
+
+/*!
+ * \brief Get a container of all channels in the bridge
+ * \since 12.0.0
+ *
+ * \param bridge The bridge which is already locked.
+ *
+ * \retval NULL Failed to create container
+ * \retval non-NULL Container of channels in the bridge
+ */
+struct ao2_container *ast_bridge_peers_nolock(struct ast_bridge *bridge);
+
+/*!
+ * \brief Get a container of all channels in the bridge
+ * \since 12.0.0
+ *
+ * \param bridge The bridge
+ *
+ * \note The returned container is a snapshot of channels in the
+ * bridge when called.
+ *
+ * \retval NULL Failed to create container
+ * \retval non-NULL Container of channels in the bridge
+ */
+struct ao2_container *ast_bridge_peers(struct ast_bridge *bridge);
+
+/*!
+ * \brief Get the channel's bridge peer only if the bridge is two-party.
+ * \since 12.0.0
+ *
+ * \param bridge The bridge which is already locked.
+ * \param chan Channel desiring the bridge peer channel.
+ *
+ * \note The returned peer channel is the current peer in the
+ * bridge when called.
+ *
+ * \retval NULL Channel not in a bridge or the bridge is not two-party.
+ * \retval non-NULL Reffed peer channel at time of calling.
+ */
+struct ast_channel *ast_bridge_peer_nolock(struct ast_bridge *bridge, struct ast_channel *chan);
+
+/*!
+ * \brief Get the channel's bridge peer only if the bridge is two-party.
+ * \since 12.0.0
+ *
+ * \param bridge The bridge
+ * \param chan Channel desiring the bridge peer channel.
+ *
+ * \note The returned peer channel is the current peer in the
+ * bridge when called.
+ *
+ * \retval NULL Channel not in a bridge or the bridge is not two-party.
+ * \retval non-NULL Reffed peer channel at time of calling.
+ */
+struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channel *chan);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 
-#endif /* _ASTERISK_BRIDGING_H */
+#endif	/* _ASTERISK_BRIDGING_H */

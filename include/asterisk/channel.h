@@ -643,6 +643,7 @@ struct ast_channel_tech {
 	/*! \brief Handle an exception, reading a frame */
 	struct ast_frame * (* const exception)(struct ast_channel *chan);
 
+/* BUGBUG this tech callback is to be removed. */
 	/*! \brief Bridge two channels of the same type together */
 	enum ast_bridge_result (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
 						struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
@@ -671,6 +672,7 @@ struct ast_channel_tech {
 	/*! \brief Write a text frame, in standard format */
 	int (* const write_text)(struct ast_channel *chan, struct ast_frame *frame);
 
+/* BUGBUG this tech callback is to be removed. */
 	/*! \brief Find bridged channel */
 	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 
@@ -686,6 +688,7 @@ struct ast_channel_tech {
 	 */
 	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
 
+/* BUGBUG this tech callback is to be removed. */
 	/*! \brief Retrieve base channel (agent and local) */
 	struct ast_channel* (* get_base_channel)(struct ast_channel *chan);
 
@@ -896,10 +899,6 @@ enum {
 	 *  a message aimed at preventing a subsequent hangup exten being run at the pbx_run
 	 *  level */
 	AST_FLAG_BRIDGE_HANGUP_RUN = (1 << 17),
-	/*! This flag indicates that the hangup exten should NOT be run when the
-	 *  bridge terminates, this will allow the hangup in the pbx loop to be run instead.
-	 *  */
-	AST_FLAG_BRIDGE_HANGUP_DONT = (1 << 18),
 	/*! Disable certain workarounds.  This reintroduces certain bugs, but allows
 	 *  some non-traditional dialplans (like AGI) to continue to function.
 	 */
@@ -928,7 +927,6 @@ enum {
 	AST_FEATURE_AUTOMON =      (1 << 4),
 	AST_FEATURE_PARKCALL =     (1 << 5),
 	AST_FEATURE_AUTOMIXMON =   (1 << 6),
-	AST_FEATURE_NO_H_EXTEN =   (1 << 7),
 	AST_FEATURE_WARNING_ACTIVE = (1 << 8),
 };
 
@@ -4038,6 +4036,9 @@ void ast_channel_timingfunc_set(struct ast_channel *chan, ast_timing_func_t valu
 struct ast_bridge *ast_channel_internal_bridge(const struct ast_channel *chan);
 void ast_channel_internal_bridge_set(struct ast_channel *chan, struct ast_bridge *value);
 
+struct ast_bridge_channel *ast_channel_internal_bridge_channel(const struct ast_channel *chan);
+void ast_channel_internal_bridge_channel_set(struct ast_channel *chan, struct ast_bridge_channel *value);
+
 struct ast_channel *ast_channel_internal_bridged_channel(const struct ast_channel *chan);
 void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct ast_channel *value);
 
@@ -4137,5 +4138,70 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
  * \retval ast_channel_topic_all() if \a chan is \c NULL.
  */
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan);
+
+/*!
+ * \brief Get the bridge associated with a channel
+ * \since 12.0.0
+ *
+ * \param chan The channel whose bridge we want
+ *
+ * \details
+ * The bridge returned has its reference count incremented.  Use
+ * ao2_cleanup() or ao2_ref() in order to decrement the
+ * reference count when you are finished with the bridge.
+ *
+ * \note This function expects the channel to be locked prior to
+ * being called and will not grab the channel lock.
+ *
+ * \retval NULL No bridge present on the channel
+ * \retval non-NULL The bridge the channel is in
+ */
+struct ast_bridge *ast_channel_get_bridge(const struct ast_channel *chan);
+
+/*!
+ * \brief Determine if a channel is in a bridge
+ * \since 12.0.0
+ *
+ * \param chan The channel to test
+ *
+ * \note This function expects the channel to be locked prior to
+ * being called and will not grab the channel lock.
+ *
+ * \retval 0 The channel is not bridged
+ * \retval non-zero The channel is bridged
+ */
+int ast_channel_is_bridged(const struct ast_channel *chan);
+
+/*!
+ * \brief Get the channel's bridge peer only if the bridge is two-party.
+ * \since 12.0.0
+ *
+ * \param chan Channel desiring the bridge peer channel.
+ *
+ * \note The returned peer channel is the current peer in the
+ * bridge when called.
+ *
+ * \retval NULL Channel not in a bridge or the bridge is not two-party.
+ * \retval non-NULL Reffed peer channel at time of calling.
+ */
+struct ast_channel *ast_channel_bridge_peer(struct ast_channel *chan);
+
+/*!
+ * \brief Get a reference to the channel's bridge pointer.
+ * \since 12.0.0
+ *
+ * \param chan The channel whose bridge channel is desired
+ *
+ * \note This increases the reference count of the bridge_channel.
+ * Use ao2_ref() or ao2_cleanup() to decrement the refcount when
+ * you are finished with it.
+ *
+ * \note It is expected that the channel is locked prior to
+ * placing this call.
+ *
+ * \retval NULL The channel has no bridge_channel
+ * \retval non-NULL A reference to the bridge_channel
+ */
+struct ast_bridge_channel *ast_channel_get_bridge_channel(struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */

@@ -1541,24 +1541,6 @@ int ast_rtp_instance_fd(struct ast_rtp_instance *instance, int rtcp);
 struct ast_rtp_glue *ast_rtp_instance_get_glue(const char *type);
 
 /*!
- * \brief Bridge two channels that use RTP instances
- *
- * \param c0 First channel part of the bridge
- * \param c1 Second channel part of the bridge
- * \param flags Bridging flags
- * \param fo If a frame needs to be passed up it is stored here
- * \param rc Channel that passed the above frame up
- * \param timeoutms How long the channels should be bridged for
- *
- * \retval Bridge result
- *
- * \note This should only be used by channel drivers in their technology declaration.
- *
- * \since 1.8
- */
-enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
-
-/*!
  * \brief Get the other RTP instance that an instance is bridged to
  *
  * \param instance The RTP instance that we want
@@ -1577,6 +1559,16 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
  * \since 1.8
  */
 struct ast_rtp_instance *ast_rtp_instance_get_bridged(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Set the other RTP instance that an instance is bridged to
+ *
+ * \param instance The RTP instance that we want to set the bridged value on
+ * \param bridged The RTP instance they are bridged to
+ *
+ * \since 12
+ */
+void ast_rtp_instance_set_bridged(struct ast_rtp_instance *instance, struct ast_rtp_instance *bridged);
 
 /*!
  * \brief Make two channels compatible for early bridging

@@ -117,7 +117,6 @@ static struct ast_channel_tech ooh323_tech = {
 	.fixup = ooh323_fixup,
 	.send_html = 0,
 	.queryoption = ooh323_queryoption,
-	.bridge = ast_rtp_instance_bridge,		/* XXX chan unlocked ? */
 	.early_bridge = ast_rtp_instance_early_bridge,
 	.func_channel_read = function_ooh323_read,
 	.func_channel_write = function_ooh323_write,

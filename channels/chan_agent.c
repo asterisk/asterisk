@@ -31,7 +31,6 @@
  * \ingroup channel_drivers
  */
 /*** MODULEINFO
-        <depend>chan_local</depend>
         <depend>res_monitor</depend>
 	<support_level>core</support_level>
  ***/
@@ -346,6 +345,7 @@ static char *complete_agent_logoff_cmd(const char *line, const char *word, int p
 static struct ast_channel* agent_get_base_channel(struct ast_channel *chan);
 static int agent_logoff(const char *agent, int soft);
 
+/* BUGBUG This channel driver is totally hosed until it is rewritten. */
 /*! \brief Channel interface description for PBX integration */
 static struct ast_channel_tech agent_tech = {
 	.type = "Agent",
@@ -2589,5 +2589,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Agent Proxy Channel",
 		.unload = unload_module,
 		.reload = reload,
 		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-		.nonoptreq = "res_monitor,chan_local",
+		.nonoptreq = "res_monitor",
 	       );

@@ -376,6 +376,10 @@ static void print_frame(struct ast_frame *frame)
 		ast_verbose("Digit: 0x%02X '%c'\n", frame->subclass.integer,
 			frame->subclass.integer < ' ' ? ' ' : frame->subclass.integer);
 		break;
+	case AST_FRAME_BRIDGE_ACTION:
+		ast_verbose("FrameType: Bridge\n");
+		ast_verbose("SubClass: %d\n", frame->subclass.integer);
+		break;
 	}
 
 	ast_verbose("Src: %s\n", ast_strlen_zero(frame->src) ? "NOT PRESENT" : frame->src);

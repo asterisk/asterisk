@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk/translate.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<application name="DumpChan" language="en_US">
@@ -77,6 +78,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	char pgrp[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
+	struct ast_bridge *bridge;
 
 	now = ast_tvnow();
 	memset(buf, 0, size);
@@ -90,6 +92,9 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		sec = elapsed_seconds % 60;
 	}
 
+	ast_channel_lock(c);
+	bridge = ast_channel_get_bridge(c);
+	ast_channel_unlock(c);
 	snprintf(buf,size,
 		"Name=               %s\n"
 		"Type=               %s\n"
@@ -117,8 +122,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		"Framesout=          %d %s\n"
 		"TimetoHangup=       %ld\n"
 		"ElapsedTime=        %dh%dm%ds\n"
-		"DirectBridge=       %s\n"
-		"IndirectBridge=     %s\n"
+		"BridgeID=           %s\n"
 		"Context=            %s\n"
 		"Extension=          %s\n"
 		"Priority=           %d\n"
@@ -158,8 +162,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		hour,
 		min,
 		sec,
-		ast_channel_internal_bridged_channel(c) ? ast_channel_name(ast_channel_internal_bridged_channel(c)) : "<none>",
-		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
+		bridge ? bridge->uniqueid : "(Not bridged)",
 		ast_channel_context(c),
 		ast_channel_exten(c),
 		ast_channel_priority(c),
@@ -169,6 +172,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)",
 		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
 
+	ao2_cleanup(bridge);
 	return 0;
 }
 

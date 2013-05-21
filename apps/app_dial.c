@@ -26,7 +26,6 @@
  */
 
 /*** MODULEINFO
-	<depend>chan_local</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -67,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ccss.h"
 #include "asterisk/indications.h"
 #include "asterisk/framehook.h"
+#include "asterisk/bridging.h"
 #include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
@@ -2037,6 +2037,40 @@ static int dial_handle_playtones(struct ast_channel *chan, const char *data)
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Setup the after bridge goto location on the peer.
+ * \since 12.0.0
+ *
+ * \param chan Calling channel for bridge.
+ * \param peer Peer channel for bridge.
+ * \param opts Dialing option flags.
+ * \param opt_args Dialing option argument strings.
+ *
+ * \return Nothing
+ */
+static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_channel *peer, struct ast_flags64 *opts, char *opt_args[])
+{
+	const char *context;
+	const char *extension;
+	int priority;
+
+	if (ast_test_flag64(opts, OPT_PEER_H)) {
+		ast_channel_lock(chan);
+		context = ast_strdupa(ast_channel_context(chan));
+		ast_channel_unlock(chan);
+		ast_after_bridge_set_h(peer, context);
+	} else if (ast_test_flag64(opts, OPT_CALLEE_GO_ON)) {
+		ast_channel_lock(chan);
+		context = ast_strdupa(ast_channel_context(chan));
+		extension = ast_strdupa(ast_channel_exten(chan));
+		priority = ast_channel_priority(chan);
+		ast_channel_unlock(chan);
+		ast_after_bridge_set_go_on(peer, context, extension, priority,
+			opt_args[OPT_ARG_CALLEE_GO_ON]);
+	}
+}
+
 static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast_flags64 *peerflags, int *continue_exec)
 {
 	int res = -1; /* default: error */
@@ -2974,6 +3008,14 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 
 		if (res) { /* some error */
+			if (!ast_check_hangup(chan) && ast_check_hangup(peer)) {
+				ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
+			}
+			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
+			if (ast_after_bridge_goto_setup(peer)
+				|| ast_pbx_start(peer)) {
+				ast_autoservice_chan_hangup_peer(chan, peer);
+			}
 			res = -1;
 		} else {
 			if (ast_test_flag64(peerflags, OPT_CALLEE_TRANSFER))
@@ -2996,8 +3038,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMIXMON);
 			if (ast_test_flag64(peerflags, OPT_CALLER_MIXMONITOR))
 				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMIXMON);
-			if (ast_test_flag64(peerflags, OPT_GO_ON))
-				ast_set_flag(&(config.features_caller), AST_FEATURE_NO_H_EXTEN);
 
 			config.end_bridge_callback = end_bridge_callback;
 			config.end_bridge_callback_data = chan;
@@ -3029,38 +3069,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
+/* BUGBUG bridge needs to set hangup cause on chan when peer breaks the bridge. */
+			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
 			res = ast_bridge_call(chan, peer, &config);
 		}
-
-		ast_channel_context_set(peer, ast_channel_context(chan));
-
-		if (ast_test_flag64(&opts, OPT_PEER_H)
-			&& ast_exists_extension(peer, ast_channel_context(peer), "h", 1,
-				S_COR(ast_channel_caller(peer)->id.number.valid, ast_channel_caller(peer)->id.number.str, NULL))) {
-			ast_autoservice_start(chan);
-			ast_pbx_h_exten_run(peer, ast_channel_context(peer));
-			ast_autoservice_stop(chan);
-		}
-		if (!ast_check_hangup(peer)) {
-			if (ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
-				int goto_res;
-
-				if (!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
-					ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-					goto_res = ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-				} else { /* F() */
-					goto_res = ast_goto_if_exists(peer, ast_channel_context(chan),
-						ast_channel_exten(chan), ast_channel_priority(chan) + 1);
-				}
-				if (!goto_res && !ast_pbx_start(peer)) {
-					/* The peer is now running its own PBX. */
-					goto out;
-				}
-			}
-		} else if (!ast_check_hangup(chan)) {
-			ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
-		}
-		ast_autoservice_chan_hangup_peer(chan, peer);
 	}
 out:
 	if (moh) {

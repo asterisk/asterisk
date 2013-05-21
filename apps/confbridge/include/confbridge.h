@@ -222,6 +222,8 @@ struct confbridge_conference {
 	AST_LIST_HEAD_NOLOCK(, confbridge_user) waiting_list;             /*!< List of users waiting to join the conference bridge */
 };
 
+extern struct ao2_container *conference_bridges;
+
 struct post_join_action {
 	int (*func)(struct confbridge_user *user);
 	AST_LIST_ENTRY(post_join_action) list;
@@ -460,4 +462,65 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
  * \retval non-zero failure
  */
 int conf_add_post_join_action(struct confbridge_user *user, int (*func)(struct confbridge_user *user));
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge stasis message type
+ *
+ * \retval stasis message type for confbridge messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_message_type(void);
+
+/*!
+ * \since 12.0
+ * \brief register stasis message routers to handle manager events for confbridge messages
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int manager_confbridge_init(void);
+
+/*!
+ * \since 12.0
+ * \brief unregister stasis message routers to handle manager events for confbridge messages
+ */
+void manager_confbridge_shutdown(void);
+
+/*!
+ * \brief Get ConfBridge record channel technology struct.
+ * \since 12.0.0
+ *
+ * \return ConfBridge record channel technology.
+ */
+struct ast_channel_tech *conf_record_get_tech(void);
+
+/*!
+ * \brief Get ConfBridge announce channel technology struct.
+ * \since 12.0.0
+ *
+ * \return ConfBridge announce channel technology.
+ */
+struct ast_channel_tech *conf_announce_get_tech(void);
+
+/*!
+ * \brief Remove the announcer channel from the conference.
+ * \since 12.0.0
+ *
+ * \param chan Either channel in the announcer channel pair.
+ *
+ * \return Nothing
+ */
+void conf_announce_channel_depart(struct ast_channel *chan);
+
+/*!
+ * \brief Push the announcer channel into the conference.
+ * \since 12.0.0
+ *
+ * \param ast Either channel in the announcer channel pair.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int conf_announce_channel_push(struct ast_channel *ast);
 #endif

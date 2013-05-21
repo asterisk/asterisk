@@ -708,7 +708,6 @@ static struct ast_channel_tech unistim_tech = {
 	.send_digit_begin = unistim_senddigit_begin,
 	.send_digit_end = unistim_senddigit_end,
 	.send_text = unistim_sendtext,
-	.bridge = ast_rtp_instance_bridge,
 };
 
 static void send_start_rtp(struct unistim_subchannel *);
@@ -5826,7 +5825,6 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct unistim_line *line;
 	struct unistim_subchannel *sub;
 	struct unistimsession *s;
-	struct ast_channel *tmp;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -5870,14 +5868,9 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			if (!sub) {
 				continue;
 			}
-			if (!sub->owner) {
-				tmp = (void *) -42;
-			} else {
-				tmp = ast_channel_internal_bridged_channel(sub->owner);
-			}
 			ast_cli(a->fd,
-					"-->subtype=%s chan=%p rtp=%p bridge=%p line=%p alreadygone=%d softkey=%d\n",
-					subtype_tostr(sub->subtype), sub->owner, sub->rtp, tmp, sub->parent,
+					"-->subtype=%s chan=%p rtp=%p line=%p alreadygone=%d softkey=%d\n",
+					subtype_tostr(sub->subtype), sub->owner, sub->rtp, sub->parent,
 					sub->alreadygone, sub->softkey);
 		}
 		AST_LIST_UNLOCK(&device->subs);

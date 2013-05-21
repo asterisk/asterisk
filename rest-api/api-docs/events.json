@@ -54,9 +54,13 @@
 					"required": true
 				},
 				"application_replaced": { "type": "ApplicationReplaced" },
+				"bridge_created": { "type": "BridgeCreated" },
+				"bridge_destroyed": { "type": "BridgeDestroyed" },
 				"channel_created": { "type": "ChannelCreated" },
 				"channel_destroyed": { "type": "ChannelDestroyed" },
 				"channel_snapshot": { "type": "ChannelSnapshot" },
+				"channel_entered_bridge": { "type": "ChannelEnteredBridge" },
+				"channel_left_bridge": { "type": "ChannelLeftBridge" },
 				"channel_state_change": { "type": "ChannelStateChange" },
 				"channel_dtmf_received": { "type": "ChannelDtmfReceived" },
 				"channel_dialplan": { "type": "ChannelDialplan" },
@@ -76,6 +80,26 @@
 				"application": {
 					"required": true,
 					"type": "string"
+				}
+			}
+		},
+		"BridgeCreated": {
+			"id": "BridgeCreated",
+			"description": "Notification that a bridge has been created.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeDestroyed": {
+			"id": "BridgeDestroyed",
+			"description": "Notification that a bridge has been destroyed.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
 				}
 			}
 		},
@@ -112,6 +136,33 @@
 					"required": true,
 					"description": "Text representation of the cause of the hangup",
 					"type": "string"
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel"
+				}
+			}
+		},
+		"ChannelEnteredBridge": {
+			"id": "ChannelEnteredBridge",
+			"description": "Notification that a channel has entered a bridge.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
+				},
+				"channel": {
+					"type": "Channel"
+				}
+			}
+		},
+		"ChannelLeftBridge": {
+			"id": "ChannelLeftBridge",
+			"description": "Notification that a channel has left a bridge.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
 				},
 				"channel": {
 					"required": true,

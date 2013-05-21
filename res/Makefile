@@ -75,6 +75,10 @@ ael/pval.o: ael/pval.c
 clean::
 	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] stasis_http/*.[oi]
 	rm -f res_sip/*.[oi] stasis/*.[oi]
+	rm -f parking/*.o parking/*.i
+
+$(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
+$(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
 
 # Dependencies for res_stasis_http_*.so are generated, so they're in this file
 include stasis_http.make

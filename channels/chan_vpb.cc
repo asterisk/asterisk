@@ -2267,13 +2267,7 @@ static void *do_chanreads(void *pvt)
 			else 
 				bridgerec = 0;
 		} else {
-			ast_verb(5, "%s: chanreads: No native bridge.\n", p->dev);
-			if (ast_channel_internal_bridged_channel(p->owner)) {
-				ast_verb(5, "%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev, ast_channel_name(ast_channel_internal_bridged_channel(p->owner)));
-				bridgerec = 1;
-			} else {
-				bridgerec = 0;
-			}
+			bridgerec = ast_channel_is_bridged(p->owner) ? 1 : 0;
 		}
 
 /*		if ((p->owner->_state != AST_STATE_UP) || !bridgerec) */

@@ -134,7 +134,6 @@ static struct ast_channel_tech gulp_tech = {
 	.send_text = gulp_sendtext,
 	.send_digit_begin = gulp_digit_begin,
 	.send_digit_end = gulp_digit_end,
-	.bridge = ast_rtp_instance_bridge,
 	.call = gulp_call,
 	.hangup = gulp_hangup,
 	.answer = gulp_answer,

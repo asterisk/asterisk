@@ -28,14 +28,17 @@
 extern "C" {
 #endif
 
-/*! \brief Preference for choosing the bridge technology */
+/*!
+ * \brief Base preference values for choosing a bridge technology.
+ *
+ * \note Higher is more preference.
+ */
 enum ast_bridge_preference {
-	/*! Bridge technology should have high precedence over other bridge technologies */
-	AST_BRIDGE_PREFERENCE_HIGH = 0,
-	/*! Bridge technology is decent, not the best but should still be considered over low */
-	AST_BRIDGE_PREFERENCE_MEDIUM,
-	/*! Bridge technology is low, it should not be considered unless it is absolutely needed */
-	AST_BRIDGE_PREFERENCE_LOW,
+	AST_BRIDGE_PREFERENCE_BASE_HOLDING  = 50,
+	AST_BRIDGE_PREFERENCE_BASE_EARLY    = 100,
+	AST_BRIDGE_PREFERENCE_BASE_NATIVE   = 90,
+	AST_BRIDGE_PREFERENCE_BASE_1TO1MIX  = 50,
+	AST_BRIDGE_PREFERENCE_BASE_MULTIMIX = 10,
 };
 
 /*!
@@ -49,31 +52,68 @@ struct ast_bridge_technology {
 	uint32_t capabilities;
 	/*! Preference level that should be used when determining whether to use this bridge technology or not */
 	enum ast_bridge_preference preference;
-	/*! Callback for when a bridge is being created */
+	/*!
+	 * \brief Callback for when a bridge is being created.
+	 *
+	 * \retval 0 on success
+	 * \retval -1 on failure
+	 *
+	 * \note On entry, bridge may or may not already be locked.
+	 * However, it can be accessed as if it were locked.
+	 */
 	int (*create)(struct ast_bridge *bridge);
-	/*! Callback for when a bridge is being destroyed */
-	int (*destroy)(struct ast_bridge *bridge);
-	/*! Callback for when a channel is being added to a bridge */
+	/*!
+	 * \brief Callback for when a bridge is being destroyed
+	 *
+	 * \note On entry, bridge must NOT be locked.
+	 */
+	void (*destroy)(struct ast_bridge *bridge);
+	/*!
+	 * \brief Callback for when a channel is being added to a bridge.
+	 *
+	 * \retval 0 on success
+	 * \retval -1 on failure
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
 	int (*join)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-	/*! Callback for when a channel is leaving a bridge */
-	int (*leave)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-	/*! Callback for when a channel is suspended from the bridge */
+	/*!
+	 * \brief Callback for when a channel is leaving a bridge
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
+	void (*leave)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+	/*!
+	 * \brief Callback for when a channel is suspended from the bridge
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
 	void (*suspend)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-	/*! Callback for when a channel is unsuspended from the bridge */
+	/*!
+	 * \brief Callback for when a channel is unsuspended from the bridge
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
 	void (*unsuspend)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-	/*! Callback to see if a channel is compatible with the bridging technology */
-	int (*compatible)(struct ast_bridge_channel *bridge_channel);
-	/*! Callback for writing a frame into the bridging technology */
-	enum ast_bridge_write_result (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridged_channel, struct ast_frame *frame);
-	/*! Callback for when a file descriptor trips */
-	int (*fd)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, int fd);
-	/*! Callback for replacement thread function */
-	int (*thread)(struct ast_bridge *bridge);
-	/*! Callback for poking a bridge thread */
-	int (*poke)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+	/*!
+	 * \brief Callback to see if the bridge is compatible with the bridging technology.
+	 *
+	 * \retval 0 if not compatible
+	 * \retval non-zero if compatible
+	 */
+	int (*compatible)(struct ast_bridge *bridge);
+	/*!
+	 * \brief Callback for writing a frame into the bridging technology.
+	 *
+	 * \retval 0 on success
+	 * \retval -1 on failure
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
+	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridged_channel, struct ast_frame *frame);
 	/*! Formats that the bridge technology supports */
 	struct ast_format_cap *format_capabilities;
-	/*! Bit to indicate whether the bridge technology is currently suspended or not */
+	/*! TRUE if the bridge technology is currently suspended. */
 	unsigned int suspended:1;
 	/*! Module this bridge technology belongs to. Is used for reference counting when creating/destroying a bridge. */
 	struct ast_module *mod;
@@ -126,27 +166,6 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 int ast_bridge_technology_unregister(struct ast_bridge_technology *technology);
 
 /*!
- * \brief Feed notification that a frame is waiting on a channel into the bridging core
- *
- * \param bridge The bridge that the notification should influence
- * \param bridge_channel Bridge channel the notification was received on (if known)
- * \param chan Channel the notification was received on (if known)
- * \param outfd File descriptor that the notification was received on (if known)
- *
- * Example usage:
- *
- * \code
- * ast_bridge_handle_trip(bridge, NULL, chan, -1);
- * \endcode
- *
- * This tells the bridging core that a frame has been received on
- * the channel pointed to by chan and that it should be read and handled.
- *
- * \note This should only be used by bridging technologies.
- */
-void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_channel *chan, int outfd);
-
-/*!
  * \brief Lets the bridging indicate when a bridge channel has stopped or started talking.
  *
  * \note All DSP functionality on the bridge has been pushed down to the lowest possible
@@ -155,12 +174,11 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
  * application, this function has been created to allow the bridging technology to communicate
  * that information with the bridging core.
  *
- * \param bridge The bridge that the channel is a part of.
  * \param bridge_channel The bridge channel that has either started or stopped talking.
  * \param started_talking set to 1 when this indicates the channel has started talking set to 0
  * when this indicates the channel has stopped talking.
  */
-void ast_bridge_notify_talking(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, int started_talking);
+void ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking);
 
 /*!
  * \brief Suspend a bridge technology from consideration

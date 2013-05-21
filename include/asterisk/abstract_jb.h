@@ -246,6 +246,14 @@ void ast_jb_destroy(struct ast_channel *chan);
  */
 int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *value);
 
+/*!
+ * \since 12.0
+ * \brief Sets a jitterbuffer frame hook on the channel based on the channel's stored
+ *        jitterbuffer configuration
+ *
+ * \param chan Which channel is being set up
+ */
+void ast_jb_enable_for_channel(struct ast_channel *chan);
 
 /*!
  * \brief Configures a jitterbuffer on a channel.
@@ -256,7 +264,6 @@ int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *
  * to be configured.
  */
 void ast_jb_configure(struct ast_channel *chan, const struct ast_jb_conf *conf);
-
 
 /*!
  * \brief Copies a channel's jitterbuffer configuration.
@@ -273,6 +280,25 @@ void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf)
 void ast_jb_empty_and_reset(struct ast_channel *c0, struct ast_channel *c1);
 
 const struct ast_jb_impl *ast_jb_get_impl(enum ast_jb_type type);
+
+/*!
+ * \since 12
+ * \brief Sets the contents of an ast_jb_conf struct to the default jitterbuffer settings
+ *
+ * \param conf Which jitterbuffer is being set
+ */
+void ast_jb_conf_default(struct ast_jb_conf *conf);
+
+/*!
+ * \since 12
+ * \brief Applies a jitterbuffer framehook to a channel based on a provided jitterbuffer config
+ *
+ * \param chan Which channel the jitterbuffer is being set on
+ * \param jb_conf Configuration to use for the jitterbuffer
+ * \param prefer_existing If this is true and a jitterbuffer already exists for the channel,
+ *        use the existing jitterbuffer
+ */
+void ast_jb_create_framehook(struct ast_channel *chan, struct ast_jb_conf *jb_conf, int prefer_existing);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

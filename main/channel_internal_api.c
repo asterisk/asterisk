@@ -65,6 +65,7 @@ struct ast_channel {
 	void *music_state;				/*!< Music State*/
 	void *generatordata;				/*!< Current generator data if there is any */
 	struct ast_generator *generator;		/*!< Current active data generator */
+/* BUGBUG bridged_channel must be eliminated from ast_channel */
 	struct ast_channel * bridged_channel;			/*!< Who are we bridged to, if we're bridged.
 							 *   Who is proxying for us, if we are proxied (i.e. chan_agent).
 							 *   Do not access directly, use ast_bridged_channel(chan) */
@@ -188,7 +189,9 @@ struct ast_channel {
 
 	unsigned short transfercapability;		/*!< ISDN Transfer Capability - AST_FLAG_DIGITAL is not enough */
 
+/* BUGBUG the bridge pointer must change to an ast_channel_bridge pointer because it will never change while the channel is in the bridging system whereas the bridge could change. */
 	struct ast_bridge *bridge;                      /*!< Bridge this channel is participating in */
+	struct ast_bridge_channel *bridge_channel;/*!< The bridge_channel this channel is linked with. */
 	struct ast_timer *timer;			/*!< timer object that provided timingfd */
 
 	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
@@ -267,7 +270,6 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "END_DTMF_ONLY", ast_test_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY));
 	ast_data_add_bool(tree, "MASQ_NOSTREAM", ast_test_flag(ast_channel_flags(chan), AST_FLAG_MASQ_NOSTREAM));
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_RUN", ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_RUN));
-	ast_data_add_bool(tree, "BRIDGE_HANGUP_DONT", ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_DONT));
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS));
 	ast_data_add_bool(tree, "DISABLE_DEVSTATE_CACHE", ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE));
 }
@@ -1255,6 +1257,15 @@ struct ast_bridge *ast_channel_internal_bridge(const struct ast_channel *chan)
 void ast_channel_internal_bridge_set(struct ast_channel *chan, struct ast_bridge *value)
 {
 	chan->bridge = value;
+}
+
+struct ast_bridge_channel *ast_channel_internal_bridge_channel(const struct ast_channel *chan)
+{
+	return chan->bridge_channel;
+}
+void ast_channel_internal_bridge_channel_set(struct ast_channel *chan, struct ast_bridge_channel *value)
+{
+	chan->bridge_channel = value;
 }
 
 struct ast_channel *ast_channel_internal_bridged_channel(const struct ast_channel *chan)

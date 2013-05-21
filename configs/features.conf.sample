@@ -157,7 +157,7 @@ context => parkedcalls          ; Which context parked calls are in (default par
 ;
 ;    Set(__DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
 ;
-; (Note: The two leading underscores allow these feature settings to be set on
+; (Note: The two leading underscores allow these feature settings to be set
 ;  on the outbound channels, as well.  Otherwise, only the original channel
 ;  will have access to these features.)
 ;
@@ -176,10 +176,10 @@ context => parkedcalls          ; Which context parked calls are in (default par
 ;                   application on the same channel that activated the feature. "peer"
 ;                   means run the application on the opposite channel from the one that
 ;                   has activated the feature.
-;  ActivatedBy   -> This is which channel is allowed to activate this feature. Valid
-;                   values are "caller", "callee", and "both". "both" is the default.
-;                   The "caller" is the channel that executed the Dial application, while
-;                   the "callee" is the channel called by the Dial application.
+;  ActivatedBy   -> ActivatedBy is no longer honored.  The feature is activated by which
+;                   channel DYNAMIC_FEATURES includes the feature is on.  Use predial
+;                   to set different values of DYNAMIC_FEATURES on the channels.
+;                   Historic values are: "caller", "callee", and "both".
 ;  Application   -> This is the application to execute.
 ;  AppArguments  -> These are the arguments to be passed into the application.  If you need
 ;                   commas in your arguments, you should use either the second or third
@@ -194,8 +194,9 @@ context => parkedcalls          ; Which context parked calls are in (default par
 ;   applications. When applications are used in extensions.conf, they are executed
 ;   by the PBX core. In this case, these applications are executed outside of the
 ;   PBX core, so it does *not* make sense to use any application which has any
-;   concept of dialplan flow. Examples of this would be things like Macro, Goto,
-;   Background, WaitExten, and many more.
+;   concept of dialplan flow. Examples of this would be things like Goto,
+;   Background, WaitExten, and many more.  The exceptions to this are Gosub and
+;   Macro routines which must complete for the call to continue.
 ;
 ; Enabling these features means that the PBX needs to stay in the media flow and
 ; media will not be re-directed if DTMF is sent in the media stream.

@@ -38,17 +38,33 @@
 #define _ASTERISK_RESOURCE_EVENTS_H
 
 struct ast_channel_snapshot;
+struct ast_bridge_snapshot;
 
 /*!
- * \brief Some part of channel state changed.
+ * \brief User-generated event with additional user-defined fields in the object.
  *
- * \param channel The channel to be used to generate this event
+ * \param channel The channel that signaled the user event.
+ * \param blob JSON blob containing the following parameters:
+ * - eventname: string - The name of the user event. (required)
  *
  * \retval NULL on error
  * \retval JSON (ast_json) describing the event
  */
-struct ast_json *stasis_json_event_channel_snapshot_create(
-	struct ast_channel_snapshot *channel_snapshot
+struct ast_json *stasis_json_event_channel_userevent_create(
+	struct ast_channel_snapshot *channel_snapshot,
+	struct ast_json *blob
+	);
+
+/*!
+ * \brief Notification that a bridge has been created.
+ *
+ * \param bridge The bridge to be used to generate this event
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_bridge_created_create(
+	struct ast_bridge_snapshot *bridge_snapshot
 	);
 
 /*!
@@ -65,6 +81,18 @@ struct ast_json *stasis_json_event_channel_snapshot_create(
 struct ast_json *stasis_json_event_channel_destroyed_create(
 	struct ast_channel_snapshot *channel_snapshot,
 	struct ast_json *blob
+	);
+
+/*!
+ * \brief Some part of channel state changed.
+ *
+ * \param channel The channel to be used to generate this event
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_channel_snapshot_create(
+	struct ast_channel_snapshot *channel_snapshot
 	);
 
 /*!
@@ -100,6 +128,18 @@ struct ast_json *stasis_json_event_channel_hangup_request_create(
 	);
 
 /*!
+ * \brief Notification that a bridge has been destroyed.
+ *
+ * \param bridge The bridge to be used to generate this event
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_bridge_destroyed_create(
+	struct ast_bridge_snapshot *bridge_snapshot
+	);
+
+/*!
  * \brief Notification that another WebSocket has taken over for an application.
  *
  * \param blob JSON blob containing the following parameters:
@@ -129,18 +169,17 @@ struct ast_json *stasis_json_event_channel_varset_create(
 	);
 
 /*!
- * \brief User-generated event with additional user-defined fields in the object.
+ * \brief Notification that a channel has left a bridge.
  *
- * \param channel The channel that signaled the user event.
- * \param blob JSON blob containing the following parameters:
- * - eventname: string - The name of the user event. (required)
+ * \param channel The channel to be used to generate this event
+ * \param bridge The bridge to be used to generate this event
  *
  * \retval NULL on error
  * \retval JSON (ast_json) describing the event
  */
-struct ast_json *stasis_json_event_channel_userevent_create(
-	struct ast_channel_snapshot *channel_snapshot,
-	struct ast_json *blob
+struct ast_json *stasis_json_event_channel_left_bridge_create(
+	struct ast_bridge_snapshot *bridge_snapshot,
+	struct ast_channel_snapshot *channel_snapshot
 	);
 
 /*!
@@ -199,6 +238,20 @@ struct ast_json *stasis_json_event_channel_state_change_create(
 	);
 
 /*!
+ * \brief Notification that a channel has entered a bridge.
+ *
+ * \param channel The channel to be used to generate this event
+ * \param bridge The bridge to be used to generate this event
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_channel_entered_bridge_create(
+	struct ast_bridge_snapshot *bridge_snapshot,
+	struct ast_channel_snapshot *channel_snapshot
+	);
+
+/*!
  * \brief DTMF received on a channel.
  *
  * \param channel The channel on which DTMF was received
@@ -228,23 +281,26 @@ struct ast_json *stasis_json_event_stasis_end_create(
 /*
  * JSON models
  *
- * ChannelSnapshot
+ * ChannelUserevent
+ * - eventname: string (required)
+ * BridgeCreated
  * ChannelDestroyed
  * - cause: integer (required)
  * - cause_txt: string (required)
+ * ChannelSnapshot
  * ChannelCallerId
  * - caller_presentation_txt: string (required)
  * - caller_presentation: integer (required)
  * ChannelHangupRequest
  * - soft: boolean
  * - cause: integer
+ * BridgeDestroyed
  * ApplicationReplaced
  * - application: string (required)
  * ChannelVarset
  * - variable: string (required)
  * - value: string (required)
- * ChannelUserevent
- * - eventname: string (required)
+ * ChannelLeftBridge
  * ChannelCreated
  * StasisStart
  * - args: List[string] (required)
@@ -252,22 +308,27 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * - application: string (required)
  * - application_data: string (required)
  * ChannelStateChange
+ * ChannelEnteredBridge
  * ChannelDtmfReceived
  * - digit: string (required)
  * Event
+ * - stasis_start: StasisStart
  * - channel_created: ChannelCreated
  * - channel_destroyed: ChannelDestroyed
+ * - channel_entered_bridge: ChannelEnteredBridge
+ * - channel_left_bridge: ChannelLeftBridge
  * - channel_dialplan: ChannelDialplan
  * - channel_varset: ChannelVarset
  * - application_replaced: ApplicationReplaced
  * - channel_state_change: ChannelStateChange
- * - stasis_start: StasisStart
+ * - bridge_created: BridgeCreated
  * - application: string (required)
  * - channel_hangup_request: ChannelHangupRequest
  * - channel_userevent: ChannelUserevent
  * - channel_snapshot: ChannelSnapshot
  * - channel_dtmf_received: ChannelDtmfReceived
  * - channel_caller_id: ChannelCallerId
+ * - bridge_destroyed: BridgeDestroyed
  * - stasis_end: StasisEnd
  * StasisEnd
  */

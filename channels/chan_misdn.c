@@ -8091,6 +8091,7 @@ static int misdn_send_text(struct ast_channel *chan, const char *text)
 	return 0;
 }
 
+/* BUGBUG The mISDN channel driver needs its own native bridge technology. (More like just never give it one.) */
 static struct ast_channel_tech misdn_tech = {
 	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",

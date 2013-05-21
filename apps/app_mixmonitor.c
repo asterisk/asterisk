@@ -411,7 +411,6 @@ static void destroy_monitor_audiohook(struct mixmonitor *mixmonitor)
 
 static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
 {
-	struct ast_channel *peer = NULL;
 	int res = 0;
 
 	if (!chan)
@@ -419,8 +418,13 @@ static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 
 	ast_audiohook_attach(chan, audiohook);
 
-	if (!res && ast_test_flag(ast_channel_flags(chan), AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
-		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
+	if (!res) {
+		ast_channel_lock(chan);
+		if (ast_channel_is_bridged(chan)) {
+			ast_softhangup_nolock(chan, AST_SOFTHANGUP_UNBRIDGE);
+		}
+		ast_channel_unlock(chan);
+	}
 
 	return res;
 }
