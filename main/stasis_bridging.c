@@ -321,15 +321,17 @@ struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *s
 
 void ast_stasis_bridging_shutdown(void)
 {
+	ao2_cleanup(bridge_topic_all);
+	bridge_topic_all = NULL;
+	bridge_topic_all_cached = stasis_caching_unsubscribe_and_join(
+		bridge_topic_all_cached);
+	ao2_cleanup(bridge_topic_pool);
+	bridge_topic_pool = NULL;
+
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_bridge_snapshot_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_bridge_merge_message_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_entered_bridge_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_left_bridge_type);
-	ao2_cleanup(bridge_topic_all);
-	bridge_topic_all = NULL;
-	bridge_topic_all_cached = stasis_caching_unsubscribe(bridge_topic_all_cached);
-	ao2_cleanup(bridge_topic_pool);
-	bridge_topic_pool = NULL;
 }
 
 /*! \brief snapshot ID getter for caching topic */
