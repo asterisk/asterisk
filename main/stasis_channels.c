@@ -174,8 +174,7 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 	struct ast_channel_snapshot *peer_snapshot;
 
 	ast_assert(peer != NULL);
-	blob = ast_json_pack("{s: s, s: s, s: s}",
-			     "type", "dial",
+	blob = ast_json_pack("{s: s, s: s}",
 			     "dialstatus", S_OR(dialstatus, ""),
 			     "dialstring", S_OR(dialstring, ""));
 	if (!blob) {
@@ -398,8 +397,7 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 	ast_assert(name != NULL);
 	ast_assert(value != NULL);
 
-	blob = ast_json_pack("{s: s, s: s, s: s}",
-			     "type", "varset",
+	blob = ast_json_pack("{s: s, s: s}",
 			     "variable", name,
 			     "value", value);
 	if (!blob) {

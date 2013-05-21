@@ -87,8 +87,7 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	blob = ast_json_pack("{s: s, s: s}",
-			     "type", "userevent",
+	blob = ast_json_pack("{s: s}",
 			     "eventname", args.eventname);
 	if (!blob) {
 		return -1;
