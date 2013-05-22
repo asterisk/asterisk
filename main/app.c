@@ -2735,15 +2735,15 @@ static void app_exit(void)
 
 int app_init(void)
 {
+	if (STASIS_MESSAGE_TYPE_INIT(stasis_mwi_state_type) != 0) {
+		return -1;
+	}
 	mwi_topic_all = stasis_topic_create("stasis_mwi_topic");
 	if (!mwi_topic_all) {
 		return -1;
 	}
 	mwi_topic_cached = stasis_caching_topic_create(mwi_topic_all, mwi_state_get_id);
 	if (!mwi_topic_cached) {
-		return -1;
-	}
-	if (STASIS_MESSAGE_TYPE_INIT(stasis_mwi_state_type) != 0) {
 		return -1;
 	}
 	mwi_topic_pool = stasis_topic_pool_create(mwi_topic_all);
