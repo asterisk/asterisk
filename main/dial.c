@@ -616,10 +616,7 @@ static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
 	return new_timeout;
 }
 
-/*! \since 12
- * \internal \brief Convert a hangup cause to a publishable dial status
- */
-static const char *hangup_cause_to_dial_status(int hangup_cause)
+const char *ast_hangup_cause_to_dial_status(int hangup_cause)
 {
 	switch(hangup_cause) {
 	case AST_CAUSE_BUSY:
@@ -728,7 +725,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			}
 			if (chan)
 				ast_poll_channel_del(chan, channel->owner);
-			ast_channel_publish_dial(chan, who, channel->device, hangup_cause_to_dial_status(ast_channel_hangupcause(who)));
+			ast_channel_publish_dial(chan, who, channel->device, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(who)));
 			ast_hangup(who);
 			channel->owner = NULL;
 			continue;

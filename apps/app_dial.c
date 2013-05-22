@@ -66,8 +66,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ccss.h"
 #include "asterisk/indications.h"
 #include "asterisk/framehook.h"
-#include "asterisk/bridging.h"
+#include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -1014,9 +1015,15 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			num->nochan++;
 		} else {
 			ast_channel_lock_both(c, in);
-			ast_channel_publish_dial(c, in, stuff, NULL);
+			ast_channel_publish_dial(in, c, stuff, NULL);
 			ast_channel_unlock(in);
 			ast_channel_unlock(c);
+
+			ast_channel_lock_both(original, in);
+			ast_channel_publish_dial(in, original, NULL, "CANCEL");
+			ast_channel_unlock(in);
+			ast_channel_unlock(original);
+
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
 		}
@@ -1034,22 +1041,6 @@ struct privacy_args {
 	char privintro[1024];
 	char status[256];
 };
-
-static const char *hangup_cause_to_dial_status(int hangup_cause)
-{
-	switch(hangup_cause) {
-	case AST_CAUSE_BUSY:
-		return "BUSY";
-	case AST_CAUSE_CONGESTION:
-		return "CONGESTION";
-	case AST_CAUSE_NO_ROUTE_DESTINATION:
-	case AST_CAUSE_UNREGISTERED:
-		return "CHANUNAVAIL";
-	case AST_CAUSE_NO_ANSWER:
-	default:
-		return "NOANSWER";
-	}
-}
 
 static void publish_dial_end_event(struct ast_channel *in, struct dial_head *out_chans, struct ast_channel *exception, const char *status)
 {
@@ -1266,7 +1257,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #ifdef HAVE_EPOLL
 				ast_poll_channel_del(in, c);
 #endif
-				ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
+				ast_channel_publish_dial(in, c, NULL, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 				ast_hangup(c);
 				c = o->chan = NULL;
 				ast_clear_flag64(o, DIAL_STILLGOING);
@@ -1334,7 +1325,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_BUSY:
 					ast_verb(3, "%s is busy\n", ast_channel_name(c));
 					ast_channel_hangupcause_set(in, ast_channel_hangupcause(c));
-					ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
+					ast_channel_publish_dial(in, c, NULL, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag64(o, DIAL_STILLGOING);
@@ -1343,7 +1334,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_CONGESTION:
 					ast_verb(3, "%s is circuit-busy\n", ast_channel_name(c));
 					ast_channel_hangupcause_set(in, ast_channel_hangupcause(c));
-					ast_channel_publish_dial(in, c, NULL, hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
+					ast_channel_publish_dial(in, c, NULL, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag64(o, DIAL_STILLGOING);

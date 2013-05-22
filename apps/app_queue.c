@@ -106,6 +106,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
 #include "asterisk/term.h"
+#include "asterisk/dial.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/bridging.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
@@ -3330,8 +3332,19 @@ static void callattempt_free(struct callattempt *doomed)
 	ast_free(doomed);
 }
 
+static void publish_dial_end_event(struct ast_channel *in, struct callattempt *outgoing, struct ast_channel *exception, const char *status)
+{
+	struct callattempt *cur;
+
+	for (cur = outgoing; cur; cur = cur->q_next) {
+                if (cur->chan && cur->chan != exception) {
+			ast_channel_publish_dial(in, cur->chan, NULL, status);
+                }
+        }
+}
+
 /*! \brief Hang up a list of outgoing calls */
-static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception, int cancel_answered_elsewhere)
+static void hangupcalls(struct queue_ent *qe, struct callattempt *outgoing, struct ast_channel *exception, int cancel_answered_elsewhere)
 {
 	struct callattempt *oo;
 
@@ -3342,6 +3355,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 			if (exception || cancel_answered_elsewhere) {
 				ast_channel_hangupcause_set(outgoing->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 			}
+			ast_channel_publish_dial(qe->chan, outgoing->chan, outgoing->interface, "CANCEL");
 			ast_hangup(outgoing->chan);
 		}
 		oo = outgoing;
@@ -3712,10 +3726,10 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 
+	ast_channel_lock_both(tmp->chan, qe->chan);
+
 	if (qe->parent->eventwhencalled) {
 		char vars[2048];
-
-		ast_channel_lock_both(tmp->chan, qe->chan);
 
 		/*** DOCUMENTATION
 		<managerEventInstance>
@@ -3761,12 +3775,14 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
 			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), ast_channel_priority(qe->chan), ast_channel_uniqueid(qe->chan),
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-
-		ast_channel_unlock(tmp->chan);
-		ast_channel_unlock(qe->chan);
-
-		ast_verb(3, "Called %s\n", tmp->interface);
 	}
+
+	ast_channel_publish_dial(qe->chan, tmp->chan, tmp->interface, NULL);
+
+	ast_channel_unlock(tmp->chan);
+	ast_channel_unlock(qe->chan);
+
+	ast_verb(3, "Called %s\n", tmp->interface);
 
 	member_call_pending_clear(tmp->member);
 	return 1;
@@ -4334,6 +4350,15 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							numnochan++;
 						}
 					}
+					ast_channel_lock_both(qe->chan, o->chan);
+					ast_channel_publish_dial(qe->chan, o->chan, stuff, NULL);
+					ast_channel_unlock(o->chan);
+					ast_channel_unlock(qe->chan);
+
+					ast_channel_lock_both(qe->chan, original);
+					ast_channel_publish_dial(qe->chan, original, NULL, "CANCEL");
+					ast_channel_unlock(original);
+					ast_channel_unlock(qe->chan);
 					/* Hangup the original channel now, in case we needed it */
 					ast_hangup(winner);
 					continue;
@@ -4346,6 +4371,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							/* This is our guy if someone answered. */
 							if (!peer) {
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
+								ast_channel_publish_dial(qe->chan, o->chan, on, "ANSWER");
+								publish_dial_end_event(qe->chan, outgoing, o->chan, "CANCEL");
 								if (!o->block_connected_update) {
 									if (o->pending_connected_update) {
 										if (ast_channel_connected_line_sub(o->chan, in, &o->connected, 0) &&
@@ -4380,6 +4407,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (ast_channel_cdr(in)) {
 								ast_cdr_busy(ast_channel_cdr(in));
 							}
+							ast_channel_publish_dial(qe->chan, o->chan, on, "BUSY");
 							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
@@ -4401,6 +4429,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (ast_channel_cdr(in)) {
 								ast_cdr_failed(ast_channel_cdr(in));
 							}
+							ast_channel_publish_dial(qe->chan, o->chan, on, "CONGESTION");
 							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime * 1000, qe, on, membername, qe->parent->autopauseunavail);
@@ -4498,6 +4527,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_frfree(f);
 				} else { /* ast_read() returned NULL */
 					endtime = (long) time(NULL) - starttime;
+					ast_channel_publish_dial(qe->chan, o->chan, on, "NOANSWER");
 					rna(endtime * 1000, qe, on, membername, 1);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
@@ -4519,6 +4549,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to = -1;
+				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				if (f) {
 					if (f->data.uint32) {
 						ast_channel_hangupcause_set(in, f->data.uint32);
@@ -4531,6 +4562,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
 				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
+				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				ast_frfree(f);
 				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
 					ast_cdr_noanswer(ast_channel_cdr(in));
@@ -4540,6 +4572,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass.integer)) {
 				ast_verb(3, "User pressed digit: %c\n", f->subclass.integer);
 				*to = 0;
+				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				*digit = f->subclass.integer;
 				ast_frfree(f);
 				if (ast_channel_cdr(in) && ast_channel_state(in) != AST_STATE_UP) {
@@ -4600,6 +4633,7 @@ skip_frame:;
 			rna(orig, qe, o->interface, o->member->membername, 1);
 		}
 
+		publish_dial_end_event(qe->chan, outgoing, NULL, "NOANSWER");
 		if (ast_channel_cdr(in)
 			&& ast_channel_state(in) != AST_STATE_UP
 			&& (!*to || ast_check_hangup(in))) {
@@ -5509,7 +5543,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		member = lpeer->member;
 		/* Increment the refcount for this member, since we're going to be using it for awhile in here. */
 		ao2_ref(member, 1);
-		hangupcalls(outgoing, peer, qe->cancel_answered_elsewhere);
+		hangupcalls(qe, outgoing, peer, qe->cancel_answered_elsewhere);
 		outgoing = NULL;
 		if (announce || qe->parent->reportholdtime || qe->parent->memberdelay) {
 			int res2;
@@ -5552,7 +5586,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "AGENTDUMP", "%s", "");
-				if (qe->parent->eventwhencalled)
+				if (qe->parent->eventwhencalled) {
 					/*** DOCUMENTATION
 					<managerEventInstance>
 						<synopsis>Raised when an agent hangs up on a member in the queue.</synopsis>
@@ -5577,6 +5611,8 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 							"%s",
 							queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
 							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+				}
+				ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 				ao2_ref(member, -1);
 				goto out;
@@ -5585,6 +5621,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
+				ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 				ao2_ref(member, -1);
 				return -1;
@@ -5877,7 +5914,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			}
 		}
 
-		if (qe->parent->eventwhencalled)
+		if (qe->parent->eventwhencalled) {
 			/*** DOCUMENTATION
 			<managerEventInstance>
 				<synopsis>Raised when an agent answers and is bridged to a member in the queue.</synopsis>
@@ -5909,6 +5946,8 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 					queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
 					(long) time(NULL) - qe->start, ast_channel_uniqueid(peer), (long)(orig - to > 0 ? (orig - to) / 1000 : 0),
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+		}
+
 		ast_copy_string(oldcontext, ast_channel_context(qe->chan), sizeof(oldcontext));
 		ast_copy_string(oldexten, ast_channel_exten(qe->chan), sizeof(oldexten));
 	
@@ -5977,7 +6016,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		ao2_ref(member, -1);
 	}
 out:
-	hangupcalls(outgoing, NULL, qe->cancel_answered_elsewhere);
+	hangupcalls(qe, outgoing, NULL, qe->cancel_answered_elsewhere);
 
 	return res;
 }

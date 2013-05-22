@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="FollowMe" language="en_US">
@@ -556,6 +557,17 @@ static int reload_followme(int reload)
 	return 1;
 }
 
+static void publish_dial_end_event(struct ast_channel *in, struct findme_user_listptr *findme_user_list, struct ast_channel *exception, const char *status)
+{
+	struct findme_user *tmpuser;
+
+	AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
+		if (tmpuser->ochan && tmpuser->ochan != exception) {
+			ast_channel_publish_dial(in, tmpuser->ochan, NULL, status);
+		}
+	}
+}
+
 static void clear_caller(struct findme_user *tmpuser)
 {
 	struct ast_channel *outbound;
@@ -777,6 +789,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						}
 						if (!tmpuser) {
 							ast_verb(3, "The calling channel hungup. Need to drop everyone.\n");
+							publish_dial_end_event(caller, findme_user_list, NULL, "CANCEL");
 							ast_frfree(f);
 							return NULL;
 						}
@@ -788,6 +801,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							break;
 						}
 						ast_verb(3, "%s answered %s\n", ast_channel_name(winner), ast_channel_name(caller));
+						ast_channel_publish_dial(caller, winner, NULL, "ANSWER");
+						publish_dial_end_event(caller, findme_user_list, winner, "CANCEL");
 						tmpuser->answered = 1;
 						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
 						ast_channel_hangupcause_set(winner, AST_CAUSE_NORMAL_CLEARING);
@@ -815,6 +830,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_verb(3, "%s is busy\n", ast_channel_name(winner));
 						if (tmpuser) {
 							/* Outbound call was busy.  Drop it. */
+							ast_channel_publish_dial(caller, winner, NULL, "BUSY");
 							clear_caller(tmpuser);
 						}
 						break;
@@ -822,6 +838,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_verb(3, "%s is circuit-busy\n", ast_channel_name(winner));
 						if (tmpuser) {
 							/* Outbound call was congested.  Drop it. */
+							ast_channel_publish_dial(caller, winner, NULL, "CONGESTION");
 							clear_caller(tmpuser);
 						}
 						break;
@@ -970,6 +987,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					return NULL;
 				}
 				/* Outgoing channel hung up. */
+				ast_channel_publish_dial(caller, winner, NULL, "NOANSWER");
 				clear_caller(tmpuser);
 			}
 		} else {
@@ -1141,7 +1159,10 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 				}
 				ast_channel_unlock(tmpuser->ochan);
 				destroy_calling_node(tmpuser);
+				continue;
 			}
+
+			ast_channel_publish_dial(caller, tmpuser->ochan, tmpuser->dialarg, NULL);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
 

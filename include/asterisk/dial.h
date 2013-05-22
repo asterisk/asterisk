@@ -206,6 +206,11 @@ void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
  */
 void ast_dial_set_timeout(struct ast_dial *dial, int num, int timeout);
 
+/*! \since 12
+ * \brief Convert a hangup cause to a publishable dial status
+ */
+const char *ast_hangup_cause_to_dial_status(int hangup_cause);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
