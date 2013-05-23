@@ -29,6 +29,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/say.h"
+#include "asterisk/term.h"
 
 struct ast_bridge_parking
 {
@@ -283,6 +284,11 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 	/* Set this to the bridge pvt so that we don't have to refind the parked user associated with this bridge channel again. */
 	bridge_channel->bridge_pvt = pu;
+
+	ast_verb(3, "Parking '" COLORIZE_FMT "' in '" COLORIZE_FMT "' at space %d\n",
+		COLORIZE(COLOR_BRMAGENTA, 0, ast_channel_name(bridge_channel->chan)),
+		COLORIZE(COLOR_BRMAGENTA, 0, self->lot->name),
+		pu->parking_space);
 
 	return 0;
 }
