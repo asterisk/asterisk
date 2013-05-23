@@ -887,6 +887,10 @@ static void session_destructor(void *obj)
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
 	ast_format_cap_destroy(session->req_caps);
+
+	if (session->inv_session) {
+		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
+	}
 }
 
 static int add_supplements(struct ast_sip_session *session)
@@ -945,6 +949,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 	ast_sip_dialog_set_serializer(inv_session->dlg, session->serializer);
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
+	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
 	ao2_ref(endpoint, +1);
 	inv_session->mod_data[session_module.id] = session;
 	session->endpoint = endpoint;
