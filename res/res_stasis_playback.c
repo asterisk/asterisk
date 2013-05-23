@@ -266,7 +266,7 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 		stasis_app_control_get_channel_id(control), uri);
 
 	playback = ao2_alloc(sizeof(*playback), playback_dtor);
-	if (!playback || ast_string_field_init(playback, 128) ){
+	if (!playback || ast_string_field_init(playback, 128)) {
 		return NULL;
 	}
 
@@ -329,7 +329,6 @@ struct ast_json *stasis_app_playback_to_json(
 	if (playback == NULL) {
 		return NULL;
 	}
-
 
 	json = ast_json_pack("{s: s, s: s, s: s, s: s}",
 		"id", playback->id,

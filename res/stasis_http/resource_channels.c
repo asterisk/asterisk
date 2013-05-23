@@ -145,6 +145,7 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	RAII_VAR(char *, playback_url, NULL, ast_free);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	const char *language;
 
 	ast_assert(response != NULL);
@@ -197,7 +198,15 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 		return;
 	}
 
-	stasis_http_response_created(response, playback_url);
+	json = stasis_app_playback_to_json(playback);
+	if (!json) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+		return;
+	}
+
+	stasis_http_response_created(response, playback_url, json);
 }
 void stasis_http_record_channel(struct ast_variable *headers, struct ast_record_channel_args *args, struct stasis_http_response *response)
 {

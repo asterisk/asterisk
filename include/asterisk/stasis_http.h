@@ -166,7 +166,7 @@ void stasis_http_response_no_content(struct stasis_http_response *response);
  * \brief Fill in a <tt>Created</tt> (201) \a stasis_http_response.
  */
 void stasis_http_response_created(struct stasis_http_response *response,
-	const char *url);
+	const char *url, struct ast_json *message);
 
 /*!
  * \brief Fill in \a response with a 500 message for allocation failures.

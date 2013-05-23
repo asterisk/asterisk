@@ -311,7 +311,7 @@ void stasis_http_response_error(struct stasis_http_response *response,
 void stasis_http_response_ok(struct stasis_http_response *response,
 			     struct ast_json *message)
 {
-	response->message = message;
+	response->message = ast_json_ref(message);
 	response->response_code = 200;
 	response->response_text = "OK";
 }
@@ -331,9 +331,9 @@ void stasis_http_response_alloc_failed(struct stasis_http_response *response)
 }
 
 void stasis_http_response_created(struct stasis_http_response *response,
-	const char *url)
+	const char *url, struct ast_json *message)
 {
-	response->message = ast_json_null();
+	response->message = ast_json_ref(message);
 	response->response_code = 201;
 	response->response_text = "Created";
 	ast_str_append(&response->headers, 0, "Location: %s\r\n", url);
