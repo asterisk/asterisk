@@ -1035,6 +1035,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	}
 
 	pjsip_inv_set_local_sdp(inv_session, offer);
+	pjmedia_sdp_neg_set_prefer_remote_codec_order(inv_session->neg, PJ_FALSE);
 
 	ao2_ref(session, +1);
 	return session;
@@ -1195,6 +1196,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	} else {
 		pjsip_inv_set_local_sdp(inv_session, local);
+		pjmedia_sdp_neg_set_prefer_remote_codec_order(inv_session->neg, PJ_FALSE);
 	}
 
 	pjsip_timer_setting_default(&timer);
