@@ -653,6 +653,17 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms, long *offsetms);
 
 /*!
+ * \brief Version of ast_control_streamfile() which allows the language of the
+ * media file to be specified.
+ *
+ * \retval 0 on success
+ * \retval Non-zero on failure
+ */
+int ast_control_streamfile_lang(struct ast_channel *chan, const char *file,
+	const char *fwd, const char *rev, const char *stop, const char *suspend,
+	const char *restart, int skipms, const char *lang, long *offsetms);
+
+/*!
  * \brief Stream a file with fast forward, pause, reverse, restart.
  * \param chan
  * \param file filename

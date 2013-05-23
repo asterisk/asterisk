@@ -46,8 +46,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Number of hash buckets for playback container. Keep it prime! */
 #define PLAYBACK_BUCKETS 127
 
-/*! Number of milliseconds of media to skip */
-#define PLAYBACK_SKIPMS 250
+/*! Default number of milliseconds of media to skip */
+#define PLAYBACK_DEFAULT_SKIPMS 3000
 
 #define SOUND_URI_SCHEME "sound:"
 #define RECORDING_URI_SCHEME "recording:"
@@ -64,10 +64,17 @@ struct stasis_app_playback {
 		AST_STRING_FIELD(media);	/*!< Playback media uri */
 		AST_STRING_FIELD(language);	/*!< Preferred language */
 		);
-	/*! Current playback state */
-	enum stasis_app_playback_state state;
 	/*! Control object for the channel we're playing back to */
 	struct stasis_app_control *control;
+	/*! Number of milliseconds to skip before playing */
+	long offsetms;
+	/*! Number of milliseconds to skip for forward/reverse operations */
+	int skipms;
+
+	/*! Number of milliseconds of media that has been played */
+	long playedms;
+	/*! Current playback state */
+	enum stasis_app_playback_state state;
 };
 
 static int playback_hash(const void *obj, int flags)
@@ -97,28 +104,19 @@ static const char *state_to_string(enum stasis_app_playback_state state)
 		return "queued";
 	case STASIS_PLAYBACK_STATE_PLAYING:
 		return "playing";
+	case STASIS_PLAYBACK_STATE_PAUSED:
+		return "paused";
+	case STASIS_PLAYBACK_STATE_STOPPED:
 	case STASIS_PLAYBACK_STATE_COMPLETE:
+	case STASIS_PLAYBACK_STATE_CANCELED:
+		/* It doesn't really matter how we got here, but all of these
+		 * states really just mean 'done' */
 		return "done";
+	case STASIS_PLAYBACK_STATE_MAX:
+		break;
 	}
 
 	return "?";
-}
-
-static struct ast_json *playback_to_json(struct stasis_app_playback *playback)
-{
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
-
-	if (playback == NULL) {
-		return NULL;
-	}
-
-	json = ast_json_pack("{s: s, s: s, s: s, s: s}",
-		"id", playback->id,
-		"media_uri", playback->media,
-		"language", playback->language,
-		"state", state_to_string(playback->state));
-
-	return ast_json_ref(json);
 }
 
 static void playback_publish(struct stasis_app_playback *playback)
@@ -129,7 +127,7 @@ static void playback_publish(struct stasis_app_playback *playback)
 
 	ast_assert(playback != NULL);
 
-	json = playback_to_json(playback);
+	json = stasis_app_playback_to_json(playback);
 	if (json == NULL) {
 		return;
 	}
@@ -144,24 +142,54 @@ static void playback_publish(struct stasis_app_playback *playback)
 	stasis_app_control_publish(playback->control, message);
 }
 
-static void playback_set_state(struct stasis_app_playback *playback,
-	enum stasis_app_playback_state state)
-{
-	SCOPED_AO2LOCK(lock, playback);
-
-	playback->state = state;
-	playback_publish(playback);
-}
-
 static void playback_cleanup(struct stasis_app_playback *playback)
 {
-	playback_set_state(playback, STASIS_PLAYBACK_STATE_COMPLETE);
-
 	ao2_unlink_flags(playbacks, playback,
 		OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
 }
 
-static void *__app_control_play_uri(struct stasis_app_control *control,
+static int playback_first_update(struct stasis_app_playback *playback,
+	const char *uniqueid)
+{
+	int res;
+	SCOPED_AO2LOCK(lock, playback);
+
+	if (playback->state == STASIS_PLAYBACK_STATE_CANCELED) {
+		ast_log(LOG_NOTICE, "%s: Playback canceled for %s\n",
+			uniqueid, playback->media);
+		res = -1;
+	} else {
+		res = 0;
+		playback->state = STASIS_PLAYBACK_STATE_PLAYING;
+	}
+
+	playback_publish(playback);
+	return res;
+}
+
+static void playback_final_update(struct stasis_app_playback *playback,
+	long playedms, int res, const char *uniqueid)
+{
+	SCOPED_AO2LOCK(lock, playback);
+
+	playback->playedms = playedms;
+	if (res == 0) {
+		playback->state = STASIS_PLAYBACK_STATE_COMPLETE;
+	} else {
+		if (playback->state == STASIS_PLAYBACK_STATE_STOPPED) {
+			ast_log(LOG_NOTICE, "%s: Playback stopped for %s\n",
+				uniqueid, playback->media);
+		} else {
+			ast_log(LOG_WARNING, "%s: Playback failed for %s\n",
+				uniqueid, playback->media);
+			playback->state = STASIS_PLAYBACK_STATE_STOPPED;
+		}
+	}
+
+	playback_publish(playback);
+}
+
+static void *play_uri(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL,
@@ -169,6 +197,8 @@ static void *__app_control_play_uri(struct stasis_app_control *control,
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	const char *file;
 	int res;
+	long offsetms;
+
 	/* Even though these local variables look fairly pointless, the avoid
 	 * having a bunch of NULL's passed directly into
 	 * ast_control_streamfile() */
@@ -177,13 +207,17 @@ static void *__app_control_play_uri(struct stasis_app_control *control,
 	const char *stop = NULL;
 	const char *pause = NULL;
 	const char *restart = NULL;
-	int skipms = PLAYBACK_SKIPMS;
-	long offsetms = 0;
 
 	playback = data;
 	ast_assert(playback != NULL);
 
-	playback_set_state(playback, STASIS_PLAYBACK_STATE_PLAYING);
+	offsetms = playback->offsetms;
+
+	res = playback_first_update(playback, ast_channel_uniqueid(chan));
+
+	if (res != 0) {
+		return NULL;
+	}
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
@@ -201,13 +235,11 @@ static void *__app_control_play_uri(struct stasis_app_control *control,
 		return NULL;
 	}
 
-	res = ast_control_streamfile(chan, file, fwd, rev, stop, pause,
-		restart, skipms, &offsetms);
+	res = ast_control_streamfile_lang(chan, file, fwd, rev, stop, pause,
+		restart, playback->skipms, playback->language, &offsetms);
 
-	if (res != 0) {
-		ast_log(LOG_WARNING, "%s: Playback failed for %s",
-			ast_channel_uniqueid(chan), playback->media);
-	}
+	playback_final_update(playback, offsetms, res,
+		ast_channel_uniqueid(chan));
 
 	return NULL;
 }
@@ -221,10 +253,14 @@ static void playback_dtor(void *obj)
 
 struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char *uri,
-	const char *language)
+	const char *language, int skipms, long offsetms)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	char id[AST_UUID_STR_LEN];
+
+	if (skipms < 0 || offsetms < 0) {
+		return NULL;
+	}
 
 	ast_debug(3, "%s: Sending play(%s) command\n",
 		stasis_app_control_get_channel_id(control), uri);
@@ -234,20 +270,26 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 		return NULL;
 	}
 
+	if (skipms == 0) {
+		skipms = PLAYBACK_DEFAULT_SKIPMS;
+	}
+
 	ast_uuid_generate_str(id, sizeof(id));
 	ast_string_field_set(playback, id, id);
 	ast_string_field_set(playback, media, uri);
 	ast_string_field_set(playback, language, language);
 	playback->control = control;
+	playback->skipms = skipms;
+	playback->offsetms = offsetms;
 	ao2_link(playbacks, playback);
 
-	playback_set_state(playback, STASIS_PLAYBACK_STATE_QUEUED);
+	playback->state = STASIS_PLAYBACK_STATE_QUEUED;
+	playback_publish(playback);
 
-	ao2_ref(playback, +1);
-	stasis_app_send_command_async(
-		control, __app_control_play_uri, playback);
+	/* A ref is kept in the playbacks container; no need to bump */
+	stasis_app_send_command_async(control, play_uri, playback);
 
-
+	/* Although this should be bumped for the caller */
 	ao2_ref(playback, +1);
 	return playback;
 }
@@ -266,26 +308,152 @@ const char *stasis_app_playback_get_id(
 	return control->id;
 }
 
-struct ast_json *stasis_app_playback_find_by_id(const char *id)
+struct stasis_app_playback *stasis_app_playback_find_by_id(const char *id)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 
 	playback = ao2_find(playbacks, id, OBJ_KEY);
 	if (playback == NULL) {
 		return NULL;
 	}
 
-	json = playback_to_json(playback);
+	ao2_ref(playback, +1);
+	return playback;
+}
+
+struct ast_json *stasis_app_playback_to_json(
+	const struct stasis_app_playback *playback)
+{
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
+	if (playback == NULL) {
+		return NULL;
+	}
+
+
+	json = ast_json_pack("{s: s, s: s, s: s, s: s}",
+		"id", playback->id,
+		"media_uri", playback->media,
+		"language", playback->language,
+		"state", state_to_string(playback->state));
+
 	return ast_json_ref(json);
 }
 
-int stasis_app_playback_control(struct stasis_app_playback *playback,
-	enum stasis_app_playback_media_control control)
+typedef int (*playback_opreation_cb)(struct stasis_app_playback *playback);
+
+static int playback_noop(struct stasis_app_playback *playback)
+{
+	return 0;
+}
+
+static int playback_cancel(struct stasis_app_playback *playback)
 {
 	SCOPED_AO2LOCK(lock, playback);
-	ast_assert(0); /* TODO */
-	return -1;
+	playback->state = STASIS_PLAYBACK_STATE_CANCELED;
+	return 0;
+}
+
+static int playback_stop(struct stasis_app_playback *playback)
+{
+	SCOPED_AO2LOCK(lock, playback);
+	playback->state = STASIS_PLAYBACK_STATE_STOPPED;
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_STOP);
+}
+
+static int playback_restart(struct stasis_app_playback *playback)
+{
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_RESTART);
+}
+
+static int playback_pause(struct stasis_app_playback *playback)
+{
+	SCOPED_AO2LOCK(lock, playback);
+	playback->state = STASIS_PLAYBACK_STATE_PAUSED;
+	playback_publish(playback);
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_SUSPEND);
+}
+
+static int playback_unpause(struct stasis_app_playback *playback)
+{
+	SCOPED_AO2LOCK(lock, playback);
+	playback->state = STASIS_PLAYBACK_STATE_PLAYING;
+	playback_publish(playback);
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_SUSPEND);
+}
+
+static int playback_reverse(struct stasis_app_playback *playback)
+{
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_REVERSE);
+}
+
+static int playback_forward(struct stasis_app_playback *playback)
+{
+	return stasis_app_control_queue_control(playback->control,
+		AST_CONTROL_STREAM_FORWARD);
+}
+
+/*!
+ * \brief A sparse array detailing how commands should be handled in the
+ * various playback states. Unset entries imply invalid operations.
+ */
+playback_opreation_cb operations[STASIS_PLAYBACK_STATE_MAX][STASIS_PLAYBACK_MEDIA_OP_MAX] = {
+	[STASIS_PLAYBACK_STATE_QUEUED][STASIS_PLAYBACK_STOP] = playback_cancel,
+	[STASIS_PLAYBACK_STATE_QUEUED][STASIS_PLAYBACK_RESTART] = playback_noop,
+
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_STOP] = playback_stop,
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_RESTART] = playback_restart,
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_PAUSE] = playback_pause,
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_UNPAUSE] = playback_noop,
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_REVERSE] = playback_reverse,
+	[STASIS_PLAYBACK_STATE_PLAYING][STASIS_PLAYBACK_FORWARD] = playback_forward,
+
+	[STASIS_PLAYBACK_STATE_PAUSED][STASIS_PLAYBACK_STOP] = playback_stop,
+	[STASIS_PLAYBACK_STATE_PAUSED][STASIS_PLAYBACK_PAUSE] = playback_noop,
+	[STASIS_PLAYBACK_STATE_PAUSED][STASIS_PLAYBACK_UNPAUSE] = playback_unpause,
+
+	[STASIS_PLAYBACK_STATE_COMPLETE][STASIS_PLAYBACK_STOP] = playback_noop,
+	[STASIS_PLAYBACK_STATE_CANCELED][STASIS_PLAYBACK_STOP] = playback_noop,
+	[STASIS_PLAYBACK_STATE_STOPPED][STASIS_PLAYBACK_STOP] = playback_noop,
+};
+
+enum stasis_playback_oper_results stasis_app_playback_operation(
+	struct stasis_app_playback *playback,
+	enum stasis_app_playback_media_operation operation)
+{
+	playback_opreation_cb cb;
+	SCOPED_AO2LOCK(lock, playback);
+
+	ast_assert(playback->state >= 0 && playback->state < STASIS_PLAYBACK_STATE_MAX);
+
+	if (operation < 0 || operation >= STASIS_PLAYBACK_MEDIA_OP_MAX) {
+		ast_log(LOG_ERROR, "Invalid playback operation %d\n", operation);
+		return -1;
+	}
+
+	cb = operations[playback->state][operation];
+
+	if (!cb) {
+		if (playback->state != STASIS_PLAYBACK_STATE_PLAYING) {
+			/* So we can be specific in our error message. */
+			return STASIS_PLAYBACK_OPER_NOT_PLAYING;
+		} else {
+			/* And, really, all operations should be valid during
+			 * playback */
+			ast_log(LOG_ERROR,
+				"Unhandled operation during playback: %d\n",
+				operation);
+			return STASIS_PLAYBACK_OPER_FAILED;
+		}
+	}
+
+	return cb(playback) ?
+		STASIS_PLAYBACK_OPER_FAILED : STASIS_PLAYBACK_OPER_OK;
 }
 
 static int load_module(void)

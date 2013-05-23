@@ -175,6 +175,18 @@ void stasis_app_control_publish(
 	struct stasis_app_control *control, struct stasis_message *message);
 
 /*!
+ * \brief Queue a control frame without payload.
+ *
+ * \param control Control to publish to.
+ * \param frame_type type of control frame.
+ *
+ * \return zero on success
+ * \return non-zero on failure
+ */
+int stasis_app_control_queue_control(struct stasis_app_control *control,
+	enum ast_control_frame_type frame_type);
+
+/*!
  * \brief Increment the res_stasis reference count.
  *
  * This ensures graceful shutdown happens in the proper order.

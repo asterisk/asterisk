@@ -39,18 +39,34 @@ enum stasis_app_playback_state {
 	STASIS_PLAYBACK_STATE_QUEUED,
 	/*! The media is currently playing */
 	STASIS_PLAYBACK_STATE_PLAYING,
+	/*! The media is currently playing */
+	STASIS_PLAYBACK_STATE_PAUSED,
 	/*! The media has stopped playing */
 	STASIS_PLAYBACK_STATE_COMPLETE,
+	/*! The playback was canceled. */
+	STASIS_PLAYBACK_STATE_CANCELED,
+	/*! The playback was stopped. */
+	STASIS_PLAYBACK_STATE_STOPPED,
+	/*! Enum end sentinel. */
+	STASIS_PLAYBACK_STATE_MAX,
 };
 
-enum stasis_app_playback_media_control {
+/*! Valid operation for controlling a playback. */
+enum stasis_app_playback_media_operation {
+	/*! Stop the playback operation. */
 	STASIS_PLAYBACK_STOP,
+	/*! Restart the media from the beginning. */
+	STASIS_PLAYBACK_RESTART,
+	/*! Pause playback. */
 	STASIS_PLAYBACK_PAUSE,
-	STASIS_PLAYBACK_PLAY,
-	STASIS_PLAYBACK_REWIND,
-	STASIS_PLAYBACK_FAST_FORWARD,
-	STASIS_PLAYBACK_SPEED_UP,
-	STASIS_PLAYBACK_SLOW_DOWN,
+	/*! Resume paused playback. */
+	STASIS_PLAYBACK_UNPAUSE,
+	/*! Rewind playback. */
+	STASIS_PLAYBACK_REVERSE,
+	/*! Fast forward playback. */
+	STASIS_PLAYBACK_FORWARD,
+	/*! Enum end sentinel. */
+	STASIS_PLAYBACK_MEDIA_OP_MAX,
 };
 
 /*!
@@ -62,12 +78,15 @@ enum stasis_app_playback_media_control {
  *
  * \param control Control for \c res_stasis.
  * \param file Base filename for the file to play.
+ * \param language Selects the file based on language.
+ * \param skipms Number of milliseconds to skip for forward/reverse operations.
+ * \param offsetms Number of milliseconds to skip before playing.
  * \return Playback control object.
  * \return \c NULL on error.
  */
 struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char *file,
-	const char *language);
+	const char *language, int skipms, long offsetms);
 
 /*!
  * \brief Gets the current state of a playback operation.
@@ -95,18 +114,27 @@ const char *stasis_app_playback_get_id(
  * \return Associated \ref stasis_app_playback object.
  * \return \c NULL if \a id not found.
  */
-struct ast_json *stasis_app_playback_find_by_id(const char *id);
+struct stasis_app_playback *stasis_app_playback_find_by_id(const char *id);
 
+struct ast_json *stasis_app_playback_to_json(
+	const struct stasis_app_playback *playback);
+
+enum stasis_playback_oper_results {
+	STASIS_PLAYBACK_OPER_OK,
+	STASIS_PLAYBACK_OPER_FAILED,
+	STASIS_PLAYBACK_OPER_NOT_PLAYING,
+};
 /*!
  * \brief Controls the media for a given playback operation.
  *
  * \param playback Playback control object.
  * \param control Media control operation.
- * \return 0 on success
- * \return non-zero on error.
+ * \return \c STASIS_PLAYBACK_OPER_OK on success.
+ * \return \ref stasis_playback_oper_results indicating failure.
  */
-int stasis_app_playback_control(struct stasis_app_playback *playback,
-	enum stasis_app_playback_media_control control);
+enum stasis_playback_oper_results stasis_app_playback_operation(
+	struct stasis_app_playback *playback,
+	enum stasis_app_playback_media_operation operation);
 
 /*!
  * \brief Message type for playback updates. The data is an

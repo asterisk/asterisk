@@ -408,11 +408,28 @@
 						},
 						{
 							"name": "lang",
-							"description": "For sounds, selects language for sound",
+							"description": "For sounds, selects language for sound.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "offsetms",
+							"description": "Number of media to skip before playing.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int"
+						},
+						{
+							"name": "skipms",
+							"description": "Number of milliseconds to skip for forward/reverse operations.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 3000
 						}
 					],
 					"errorResponses": [

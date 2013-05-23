@@ -200,8 +200,12 @@ struct ast_play_on_channel_args {
 	const char *channel_id;
 	/*! \brief Media's URI to play. */
 	const char *media;
-	/*! \brief For sounds, selects language for sound */
+	/*! \brief For sounds, selects language for sound. */
 	const char *lang;
+	/*! \brief Number of media to skip before playing. */
+	int offsetms;
+	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	int skipms;
 };
 /*!
  * \brief Start playback of media.

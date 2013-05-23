@@ -174,6 +174,12 @@ void stasis_app_control_publish(
 	stasis_publish(ast_channel_topic(control->channel), message);
 }
 
+int stasis_app_control_queue_control(struct stasis_app_control *control,
+	enum ast_control_frame_type frame_type)
+{
+	return ast_queue_control(control->channel, frame_type);
+}
+
 int control_dispatch_all(struct stasis_app_control *control,
 	struct ast_channel *chan)
 {

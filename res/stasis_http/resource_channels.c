@@ -163,13 +163,28 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 		return;
 	}
 
+	if (args->skipms < 0) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"skipms cannot be negative");
+		return;
+	}
+
+	if (args->offsetms < 0) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"offsetms cannot be negative");
+		return;
+	}
+
 	language = S_OR(args->lang, snapshot->language);
 
-	playback = stasis_app_control_play_uri(control, args->media, language);
+	playback = stasis_app_control_play_uri(control, args->media, language,
+		args->skipms, args->offsetms);
 	if (!playback) {
 		stasis_http_response_error(
 			response, 500, "Internal Server Error",
-			"Failed to answer channel");
+			"Failed to queue media for playback");
 		return;
 	}
 

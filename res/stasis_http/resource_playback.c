@@ -34,7 +34,9 @@ void stasis_http_get_playback(struct ast_variable *headers,
 	struct ast_get_playback_args *args,
 	struct stasis_http_response *response)
 {
-	RAII_VAR(struct ast_json *, playback, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
 	playback = stasis_app_playback_find_by_id(args->playback_id);
 	if (playback == NULL) {
 		stasis_http_response_error(response, 404, "Not Found",
@@ -42,13 +44,94 @@ void stasis_http_get_playback(struct ast_variable *headers,
 		return;
 	}
 
-	stasis_http_response_ok(response, ast_json_ref(playback));
+	json = stasis_app_playback_to_json(playback);
+	if (json == NULL) {
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Error building response");
+		return;
+	}
+
+	stasis_http_response_ok(response, ast_json_ref(json));
 }
-void stasis_http_stop_playback(struct ast_variable *headers, struct ast_stop_playback_args *args, struct stasis_http_response *response)
+void stasis_http_stop_playback(struct ast_variable *headers,
+	struct ast_stop_playback_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_stop_playback\n");
+	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
+	enum stasis_playback_oper_results res;
+
+	playback = stasis_app_playback_find_by_id(args->playback_id);
+	if (playback == NULL) {
+		stasis_http_response_error(response, 404, "Not Found",
+			"Playback not found");
+		return;
+	}
+
+	res = stasis_app_playback_operation(playback, STASIS_PLAYBACK_STOP);
+
+	switch (res) {
+	case STASIS_PLAYBACK_OPER_OK:
+		stasis_http_response_no_content(response);
+		return;
+	case STASIS_PLAYBACK_OPER_FAILED:
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Could not stop playback");
+		return;
+	case STASIS_PLAYBACK_OPER_NOT_PLAYING:
+		/* Stop operation should be valid even when not playing */
+		ast_assert(0);
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Could not stop playback");
+		return;
+	}
 }
-void stasis_http_control_playback(struct ast_variable *headers, struct ast_control_playback_args *args, struct stasis_http_response *response)
+void stasis_http_control_playback(struct ast_variable *headers,
+	struct ast_control_playback_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_control_playback\n");
+	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
+	enum stasis_app_playback_media_operation oper;
+	enum stasis_playback_oper_results res;
+
+	if (strcmp(args->operation, "unpause") == 0) {
+		oper = STASIS_PLAYBACK_UNPAUSE;
+	} else if (strcmp(args->operation, "pause") == 0) {
+		oper = STASIS_PLAYBACK_PAUSE;
+	} else if (strcmp(args->operation, "restart") == 0) {
+		oper = STASIS_PLAYBACK_RESTART;
+	} else if (strcmp(args->operation, "reverse") == 0) {
+		oper = STASIS_PLAYBACK_REVERSE;
+	} else if (strcmp(args->operation, "forward") == 0) {
+		oper = STASIS_PLAYBACK_FORWARD;
+	} else {
+		stasis_http_response_error(response, 400,
+			"Bad Request", "Invalid operation %s",
+			args->operation);
+		return;
+
+	}
+
+	playback = stasis_app_playback_find_by_id(args->playback_id);
+	if (playback == NULL) {
+		stasis_http_response_error(response, 404, "Not Found",
+			"Playback not found");
+		return;
+	}
+
+	res = stasis_app_playback_operation(playback, oper);
+
+	switch (res) {
+	case STASIS_PLAYBACK_OPER_OK:
+		stasis_http_response_no_content(response);
+		return;
+	case STASIS_PLAYBACK_OPER_FAILED:
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Could not %s playback",
+			args->operation);
+		return;
+	case STASIS_PLAYBACK_OPER_NOT_PLAYING:
+		stasis_http_response_error(response, 409, "Conflict",
+			"Can only %s while media is playing", args->operation);
+		return;
+	}
 }

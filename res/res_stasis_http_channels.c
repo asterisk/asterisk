@@ -330,6 +330,12 @@ static void stasis_http_play_on_channel_cb(
 		if (strcmp(i->name, "lang") == 0) {
 			args.lang = (i->value);
 		} else
+		if (strcmp(i->name, "offsetms") == 0) {
+			args.offsetms = atoi(i->value);
+		} else
+		if (strcmp(i->name, "skipms") == 0) {
+			args.skipms = atoi(i->value);
+		} else
 		{}
 	}
 	for (i = path_vars; i; i = i->next) {

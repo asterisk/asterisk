@@ -930,6 +930,7 @@ static int control_streamfile(struct ast_channel *chan,
 	const char *restart,
 	int skipms,
 	long *offsetms,
+	const char *lang,
 	ast_waitstream_fr_cb cb)
 {
 	char *breaks = NULL;
@@ -944,6 +945,9 @@ static int control_streamfile(struct ast_channel *chan,
 	}
 	if (offsetms) {
 		offset = *offsetms * 8; /* XXX Assumes 8kHz */
+	}
+	if (lang == NULL) {
+		lang = ast_channel_language(chan);
 	}
 
 	if (stop) {
@@ -982,7 +986,7 @@ static int control_streamfile(struct ast_channel *chan,
 
 	for (;;) {
 		ast_stopstream(chan);
-		res = ast_streamfile(chan, file, ast_channel_language(chan));
+		res = ast_streamfile(chan, file, lang);
 		if (!res) {
 			if (pause_restart_point) {
 				ast_seekstream(ast_channel_stream(chan), pause_restart_point, SEEK_SET);
@@ -1093,7 +1097,7 @@ int ast_control_streamfile_w_cb(struct ast_channel *chan,
 	long *offsetms,
 	ast_waitstream_fr_cb cb)
 {
-	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, cb);
+	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, NULL, cb);
 }
 
 int ast_control_streamfile(struct ast_channel *chan, const char *file,
@@ -1101,7 +1105,14 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			   const char *stop, const char *suspend,
 			   const char *restart, int skipms, long *offsetms)
 {
-	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, NULL);
+	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, NULL, NULL);
+}
+
+int ast_control_streamfile_lang(struct ast_channel *chan, const char *file,
+	const char *fwd, const char *rev, const char *stop, const char *suspend,
+	const char *restart, int skipms, const char *lang, long *offsetms)
+{
+	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, lang, NULL);
 }
 
 int ast_play_and_wait(struct ast_channel *chan, const char *fn)

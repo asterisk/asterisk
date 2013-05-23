@@ -73,16 +73,29 @@
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [
-									"play",
+									"restart",
 									"pause",
-									"rewind",
-									"fast-forward",
-									"speed-up",
-									"slow-down"
+									"unpause",
+									"reverse",
+									"forward"
 								]
 							}
 						}
-					]
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "The provided operation parameter was invalid"
+						},
+						{
+							"code": 404,
+							"reason": "The playback cannot be found"
+						},
+						{
+							"code": 409,
+							"reason": "The operation cannot be performed in the playback's current state"
+						}
+]
 				}
 			]
 		}

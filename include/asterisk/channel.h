@@ -1203,7 +1203,7 @@ int ast_queue_hangup(struct ast_channel *chan);
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause);
 
 /*!
- * \brief Queue a control frame with payload
+ * \brief Queue a control frame without payload
  *
  * \param chan channel to queue frame onto
  * \param control type of control frame
