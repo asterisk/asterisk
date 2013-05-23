@@ -4181,7 +4181,7 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 	}
 	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT)) {
 		builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf));
-		if (ast_strlen_zero(dtmf)) {
+		if (!ast_strlen_zero(dtmf)) {
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf, NULL, NULL, 1);
 		}
 	}
