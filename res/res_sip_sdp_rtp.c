@@ -121,6 +121,12 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ice->stop(session_media->rtp);
 	}
 
+	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) {
+		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
+	} else if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+	}
+
 	return 0;
 }
 
