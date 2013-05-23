@@ -330,6 +330,15 @@ void stasis_http_response_alloc_failed(struct stasis_http_response *response)
 	response->response_text = "Internal Server Error";
 }
 
+void stasis_http_response_created(struct stasis_http_response *response,
+	const char *url)
+{
+	response->message = ast_json_null();
+	response->response_code = 201;
+	response->response_text = "Created";
+	ast_str_append(&response->headers, 0, "Location: %s\r\n", url);
+}
+
 static void add_allow_header(struct stasis_rest_handlers *handler,
 			     struct stasis_http_response *response)
 {

@@ -414,15 +414,17 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree,
 
 /* ACCESSORS */
 
-#define DEFINE_STRINGFIELD_SETTERS_FOR(field) \
+#define DEFINE_STRINGFIELD_SETTERS_FOR(field, publish)			\
 void ast_channel_##field##_set(struct ast_channel *chan, const char *value) \
 { \
 	ast_string_field_set(chan, field, value); \
+	if (publish) ast_channel_publish_snapshot(chan); \
 } \
   \
 void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) \
 { \
 	ast_string_field_build_va(chan, field, fmt, ap); \
+	if (publish) ast_channel_publish_snapshot(chan); \
 } \
 void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) \
 { \
@@ -430,19 +432,20 @@ void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...)
 	va_start(ap, fmt); \
 	ast_channel_##field##_build_va(chan, fmt, ap); \
 	va_end(ap); \
+	if (publish) ast_channel_publish_snapshot(chan); \
 }
 
-DEFINE_STRINGFIELD_SETTERS_FOR(name);
-DEFINE_STRINGFIELD_SETTERS_FOR(language);
-DEFINE_STRINGFIELD_SETTERS_FOR(musicclass);
-DEFINE_STRINGFIELD_SETTERS_FOR(accountcode);
-DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount);
-DEFINE_STRINGFIELD_SETTERS_FOR(userfield);
-DEFINE_STRINGFIELD_SETTERS_FOR(call_forward);
-DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid);
-DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot);
-DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource);
-DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext);
+DEFINE_STRINGFIELD_SETTERS_FOR(name, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(language, 1);
+DEFINE_STRINGFIELD_SETTERS_FOR(musicclass, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(accountcode, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(userfield, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(call_forward, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext, 0);
 
 #define DEFINE_STRINGFIELD_GETTER_FOR(field) const char *ast_channel_##field(const struct ast_channel *chan) \
 { \

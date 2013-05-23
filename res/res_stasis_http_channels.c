@@ -327,6 +327,9 @@ static void stasis_http_play_on_channel_cb(
 		if (strcmp(i->name, "media") == 0) {
 			args.media = (i->value);
 		} else
+		if (strcmp(i->name, "lang") == 0) {
+			args.lang = (i->value);
+		} else
 		{}
 	}
 	for (i = path_vars; i; i = i->next) {

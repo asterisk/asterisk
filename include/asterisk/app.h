@@ -636,14 +636,19 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 
 /*!
  * \brief Stream a file with fast forward, pause, reverse, restart.
- * \param chan
- * \param file filename
- * \param fwd, rev, stop, pause, restart, skipms, offsetms
+ * \param chan Channel
+ * \param file File to play.
+ * \param fwd, rev, stop, pause, restart DTMF keys for media control
+ * \param skipms Number of milliseconds to skip for fwd/rev.
+ * \param offsetms Number of milliseconds to skip when starting the media.
  *
  * Before calling this function, set this to be the number
  * of ms to start from the beginning of the file.  When the function
  * returns, it will be the number of ms from the beginning where the
  * playback stopped.  Pass NULL if you don't care.
+ *
+ * \retval 0 on success
+ * \retval Non-zero on failure
  */
 int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms, long *offsetms);
 

@@ -40,7 +40,17 @@
 /*
  * JSON models
  *
+ * CallerID
+ * - name: string (required)
+ * - number: string (required)
+ * Dialed
  * Originated
+ * Playback
+ * - language: string
+ * - media_uri: string (required)
+ * - id: string (required)
+ * - target_uri: string (required)
+ * - state: string (required)
  * DialplanCEP
  * - priority: long (required)
  * - exten: string (required)
@@ -61,10 +71,6 @@
  * - hangupsource: string (required)
  * - dialplan: DialplanCEP (required)
  * - data: string (required)
- * CallerID
- * - name: string (required)
- * - number: string (required)
- * Dialed
  */
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

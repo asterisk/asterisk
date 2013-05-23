@@ -69,7 +69,31 @@
 				"channel_hangup_request": { "type": "ChannelHangupRequest" },
 				"channel_varset": { "type": "ChannelVarset" },
 				"stasis_end": { "type": "StasisEnd" },
-				"stasis_start": { "type": "StasisStart" }
+				"stasis_start": { "type": "StasisStart" },
+				"playback_started": { "type": "PlaybackStarted" },
+				"playback_finished": { "type": "PlaybackFinished" }
+			}
+		},
+		"PlaybackStarted": {
+			"id": "PlaybackStarted",
+			"description": "Event showing the start of a media playback operation.",
+			"properties": {
+				"playback": {
+					"type": "Playback",
+					"description": "Playback control object",
+					"required": true
+				}
+			}
+		},
+		"PlaybackFinished": {
+			"id": "PlaybackFinished",
+			"description": "Event showing the completion of a media playback operation.",
+			"properties": {
+				"playback": {
+					"type": "Playback",
+					"description": "Playback control object",
+					"required": true
+				}
 			}
 		},
 		"ApplicationReplaced": {

@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<depend type="module">res_stasis_app_playback</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -31,9 +32,13 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/file.h"
 #include "asterisk/stasis_app.h"
+#include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_channels.h"
 #include "resource_channels.h"
+
+#include <limits.h>
 
 /*!
  * \brief Finds the control object for a channel, filling the response with an
@@ -131,9 +136,53 @@ void stasis_http_unhold_channel(struct ast_variable *headers, struct ast_unhold_
 {
 	ast_log(LOG_ERROR, "TODO: stasis_http_unhold_channel\n");
 }
-void stasis_http_play_on_channel(struct ast_variable *headers, struct ast_play_on_channel_args *args, struct stasis_http_response *response)
+
+void stasis_http_play_on_channel(struct ast_variable *headers,
+	struct ast_play_on_channel_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_play_on_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
+	RAII_VAR(char *, playback_url, NULL, ast_free);
+	const char *language;
+
+	ast_assert(response != NULL);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	snapshot = stasis_app_control_get_snapshot(control);
+	if (!snapshot) {
+		stasis_http_response_error(
+			response, 404, "Not Found",
+			"Channel not found");
+		return;
+	}
+
+	language = S_OR(args->lang, snapshot->language);
+
+	playback = stasis_app_control_play_uri(control, args->media, language);
+	if (!playback) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Failed to answer channel");
+		return;
+	}
+
+	ast_asprintf(&playback_url, "/playback/%s",
+		stasis_app_playback_get_id(playback));
+	if (!playback_url) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+		return;
+	}
+
+	stasis_http_response_created(response, playback_url);
 }
 void stasis_http_record_channel(struct ast_variable *headers, struct ast_record_channel_args *args, struct stasis_http_response *response)
 {
@@ -143,8 +192,8 @@ void stasis_http_get_channel(struct ast_variable *headers,
 			     struct ast_get_channel_args *args,
 			     struct stasis_http_response *response)
 {
-	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct stasis_caching_topic *caching_topic;
 	struct ast_channel_snapshot *snapshot;
 
 	caching_topic = ast_channel_topic_all_cached();
@@ -154,7 +203,6 @@ void stasis_http_get_channel(struct ast_variable *headers,
 			"Message bus not initialized");
 		return;
 	}
-	ao2_ref(caching_topic, +1);
 
 	msg = stasis_cache_get(caching_topic, ast_channel_snapshot_type(),
 			       args->channel_id);

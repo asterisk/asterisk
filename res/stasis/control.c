@@ -56,7 +56,8 @@ struct stasis_app_control *control_create(struct ast_channel *channel)
 		return NULL;
 	}
 
-	control->command_queue = ao2_container_alloc_list(0, 0, NULL, NULL);
+	control->command_queue = ao2_container_alloc_list(
+		AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 
 	control->channel = channel;
 
@@ -75,10 +76,8 @@ static struct stasis_app_command *exec_command(
 		return NULL;
 	}
 
-	ao2_lock(control);
-	ao2_ref(command, +1);
+	/* command_queue is a thread safe list; no lock needed */
 	ao2_link(control->command_queue, command);
-	ao2_unlock(control);
 
 	ao2_ref(command, +1);
 	return command;
@@ -181,8 +180,6 @@ int control_dispatch_all(struct stasis_app_control *control,
 	int count = 0;
 	struct ao2_iterator i;
 	void *obj;
-
-	SCOPED_AO2LOCK(lock, control);
 
 	ast_assert(control->channel == chan);
 

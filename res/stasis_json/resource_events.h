@@ -68,18 +68,15 @@ struct ast_json *stasis_json_event_bridge_created_create(
 	);
 
 /*!
- * \brief Notification that a channel has been destroyed.
+ * \brief Event showing the completion of a media playback operation.
  *
- * \param channel The channel to be used to generate this event
  * \param blob JSON blob containing the following parameters:
- * - cause: integer - Integer representation of the cause of the hangup (required)
- * - cause_txt: string - Text representation of the cause of the hangup (required)
+ * - playback: Playback - Playback control object (required)
  *
  * \retval NULL on error
  * \retval JSON (ast_json) describing the event
  */
-struct ast_json *stasis_json_event_channel_destroyed_create(
-	struct ast_channel_snapshot *channel_snapshot,
+struct ast_json *stasis_json_event_playback_finished_create(
 	struct ast_json *blob
 	);
 
@@ -112,18 +109,15 @@ struct ast_json *stasis_json_event_channel_caller_id_create(
 	);
 
 /*!
- * \brief A hangup was requested on the channel.
+ * \brief Event showing the start of a media playback operation.
  *
- * \param channel The channel on which the hangup was requested.
  * \param blob JSON blob containing the following parameters:
- * - soft: boolean - Whether the hangup request was a soft hangup request.
- * - cause: integer - Integer representation of the cause of the hangup.
+ * - playback: Playback - Playback control object (required)
  *
  * \retval NULL on error
  * \retval JSON (ast_json) describing the event
  */
-struct ast_json *stasis_json_event_channel_hangup_request_create(
-	struct ast_channel_snapshot *channel_snapshot,
+struct ast_json *stasis_json_event_playback_started_create(
 	struct ast_json *blob
 	);
 
@@ -149,6 +143,22 @@ struct ast_json *stasis_json_event_bridge_destroyed_create(
  * \retval JSON (ast_json) describing the event
  */
 struct ast_json *stasis_json_event_application_replaced_create(
+	struct ast_json *blob
+	);
+
+/*!
+ * \brief Notification that a channel has been destroyed.
+ *
+ * \param channel The channel to be used to generate this event
+ * \param blob JSON blob containing the following parameters:
+ * - cause: integer - Integer representation of the cause of the hangup (required)
+ * - cause_txt: string - Text representation of the cause of the hangup (required)
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_channel_destroyed_create(
+	struct ast_channel_snapshot *channel_snapshot,
 	struct ast_json *blob
 	);
 
@@ -238,6 +248,22 @@ struct ast_json *stasis_json_event_channel_state_change_create(
 	);
 
 /*!
+ * \brief A hangup was requested on the channel.
+ *
+ * \param channel The channel on which the hangup was requested.
+ * \param blob JSON blob containing the following parameters:
+ * - soft: boolean - Whether the hangup request was a soft hangup request.
+ * - cause: integer - Integer representation of the cause of the hangup.
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_channel_hangup_request_create(
+	struct ast_channel_snapshot *channel_snapshot,
+	struct ast_json *blob
+	);
+
+/*!
  * \brief Notification that a channel has entered a bridge.
  *
  * \param channel The channel to be used to generate this event
@@ -284,19 +310,20 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * ChannelUserevent
  * - eventname: string (required)
  * BridgeCreated
- * ChannelDestroyed
- * - cause: integer (required)
- * - cause_txt: string (required)
+ * PlaybackFinished
+ * - playback: Playback (required)
  * ChannelSnapshot
  * ChannelCallerId
  * - caller_presentation_txt: string (required)
  * - caller_presentation: integer (required)
- * ChannelHangupRequest
- * - soft: boolean
- * - cause: integer
+ * PlaybackStarted
+ * - playback: Playback (required)
  * BridgeDestroyed
  * ApplicationReplaced
  * - application: string (required)
+ * ChannelDestroyed
+ * - cause: integer (required)
+ * - cause_txt: string (required)
  * ChannelVarset
  * - variable: string (required)
  * - value: string (required)
@@ -308,6 +335,9 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * - application: string (required)
  * - application_data: string (required)
  * ChannelStateChange
+ * ChannelHangupRequest
+ * - soft: boolean
+ * - cause: integer
  * ChannelEnteredBridge
  * ChannelDtmfReceived
  * - digit: string (required)
@@ -325,10 +355,12 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * - application: string (required)
  * - channel_hangup_request: ChannelHangupRequest
  * - channel_userevent: ChannelUserevent
+ * - playback_started: PlaybackStarted
  * - channel_snapshot: ChannelSnapshot
  * - channel_dtmf_received: ChannelDtmfReceived
  * - channel_caller_id: ChannelCallerId
  * - bridge_destroyed: BridgeDestroyed
+ * - playback_finished: PlaybackFinished
  * - stasis_end: StasisEnd
  * StasisEnd
  */

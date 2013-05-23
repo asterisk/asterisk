@@ -405,6 +405,14 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "lang",
+							"description": "For sounds, selects language for sound",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -638,6 +646,44 @@
 					"required": true,
 					"type": "Date",
 					"description": "Timestamp when channel was created"
+				}
+			}
+		},
+		"Playback": {
+			"id": "Playback",
+			"description": "Object representing the playback of media to a channel",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "ID for this playback operation",
+					"required": true
+				},
+				"media_uri": {
+					"type": "string",
+					"description": "URI for the media to play back.",
+					"required": true
+				},
+				"target_uri": {
+					"type": "string",
+					"description": "URI for the channel or bridge to play the media on",
+					"required": true
+				},
+				"language": {
+					"type": "string",
+					"description": "For media types that support multiple languages, the language requested for playback."
+				},
+				"state": {
+					"type": "string",
+					"description": "Current state of the playback operation.",
+					"required": true,
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"queued",
+							"playing",
+							"complete"
+						]
+					}
 				}
 			}
 		}

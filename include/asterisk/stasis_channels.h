@@ -54,6 +54,7 @@ struct ast_channel_snapshot {
 		AST_STRING_FIELD(caller_number);	/*!< Caller ID Number */
 		AST_STRING_FIELD(connected_name);	/*!< Connected Line Name */
 		AST_STRING_FIELD(connected_number);	/*!< Connected Line Number */
+		AST_STRING_FIELD(language);		/*!< The default spoken language for the channel */
 	);
 
 	struct timeval creationtime;	/*!< The time of channel creation */
@@ -124,6 +125,17 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(
 
 /*!
  * \since 12
+ * \brief Get the most recent snapshot for channel with the given \a uniqueid.
+ *
+ * \param uniqueid Uniqueid of the snapshot to fetch.
+ * \return Most recent channel snapshot
+ * \return \c NULL on error
+ */
+struct ast_channel_snapshot *ast_channel_snapshot_get_latest(
+	const char *uniqueid);
+
+/*!
+ * \since 12
  * \brief Creates a \ref ast_channel_blob message.
  *
  * The given \a blob should be treated as immutable and not modified after it is
@@ -139,6 +151,23 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(
  */
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 	struct stasis_message_type *type, struct ast_json *blob);
+
+/*!
+ * \since 12
+ * \brief Create a \ref ast_channel_blob message, pulling channel state from
+ *        the cache.
+ *
+ * \param uniqueid Uniqueid of the channel.
+ * \param type Message type for this blob.
+ * \param blob JSON object representing the data, or \c NULL for no data. If
+ *             \c NULL, ast_json_null() is put into the object.
+ *
+ * \return \ref ast_channel_blob message.
+ * \return \c NULL on error
+ */
+struct stasis_message *ast_channel_blob_create_from_cache(
+	const char *uniqueid, struct stasis_message_type *type,
+	struct ast_json *blob);
 
 /*!
  * \since 12
@@ -220,6 +249,14 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
  */
 void ast_multi_channel_blob_add_channel(struct ast_multi_channel_blob *obj,
 	const char *role, struct ast_channel_snapshot *snapshot);
+
+/*!
+ * \since 12
+ * \brief Publish a \ref ast_channel_snapshot for a channel.
+ *
+ * \param chan Channel to publish.
+ */
+void ast_channel_publish_snapshot(struct ast_channel *chan);
 
 /*!
  * \since 12

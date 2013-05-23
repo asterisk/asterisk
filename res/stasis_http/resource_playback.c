@@ -27,11 +27,22 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/stasis_app_playback.h"
 #include "resource_playback.h"
 
-void stasis_http_get_playback(struct ast_variable *headers, struct ast_get_playback_args *args, struct stasis_http_response *response)
+void stasis_http_get_playback(struct ast_variable *headers,
+	struct ast_get_playback_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_get_playback\n");
+	RAII_VAR(struct ast_json *, playback, NULL, ast_json_unref);
+	playback = stasis_app_playback_find_by_id(args->playback_id);
+	if (playback == NULL) {
+		stasis_http_response_error(response, 404, "Not Found",
+			"Playback not found");
+		return;
+	}
+
+	stasis_http_response_ok(response, ast_json_ref(playback));
 }
 void stasis_http_stop_playback(struct ast_variable *headers, struct ast_stop_playback_args *args, struct stasis_http_response *response)
 {

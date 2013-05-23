@@ -200,6 +200,8 @@ struct ast_play_on_channel_args {
 	const char *channel_id;
 	/*! \brief Media's URI to play. */
 	const char *media;
+	/*! \brief For sounds, selects language for sound */
+	const char *lang;
 };
 /*!
  * \brief Start playback of media.
