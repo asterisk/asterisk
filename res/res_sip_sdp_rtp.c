@@ -224,11 +224,11 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	if (session->channel) {
 		ast_format_cap_copy(caps, ast_channel_nativeformats(session->channel));
 		ast_format_cap_remove_bytype(caps, media_type);
-		ast_format_cap_append(caps, joint);
+		ast_codec_choose(&session->endpoint->prefs, joint, 1, &fmt);
+		ast_format_cap_add(caps, &fmt);
 
 		/* Apply the new formats to the channel, potentially changing read/write formats while doing so */
-		ast_format_cap_append(ast_channel_nativeformats(session->channel), caps);
-		ast_codec_choose(&session->endpoint->prefs, caps, 0, &fmt);
+		ast_format_cap_copy(ast_channel_nativeformats(session->channel), caps);
 		ast_format_copy(ast_channel_rawwriteformat(session->channel), &fmt);
 		ast_format_copy(ast_channel_rawreadformat(session->channel), &fmt);
 		ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
