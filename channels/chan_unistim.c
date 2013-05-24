@@ -4840,7 +4840,7 @@ static int unistim_hangup(struct ast_channel *ast)
 			break;
 		}
 	}
-	refresh_all_favorite(s); /* Update favicons in case of DND keys */
+	/*refresh_all_favorite(s); */ /* TODO: Update favicons in case of DND keys */
 	if (s->state == STATE_RINGING && sub->subtype == SUB_RING) {
 		send_no_ring(s);
 		if (ast_channel_hangupcause(ast) != AST_CAUSE_ANSWERED_ELSEWHERE) {
@@ -4849,6 +4849,13 @@ static int unistim_hangup(struct ast_channel *ast)
 		}
 		if (!sub_real) {
 			show_main_page(s);
+		} else { /* hangup on a ringing line: reset status to reflect that we're still on an active call */
+				s->state = STATE_CALL;
+				send_callerid_screen(s, sub_real);
+				send_text(TEXT_LINE2, TEXT_NORMAL, s, ustmtext("is on-line", s));
+				send_text_status(s, ustmtext("       Transf        Hangup", s));
+				send_favorite_short(sub->softkey, FAV_ICON_OFFHOOK_BLACK, s);
+			
 		}
 	}
 	if (s->state == STATE_CALL && sub->subtype == SUB_REAL) {
@@ -5789,6 +5796,15 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
+	if (d->session->state == STATE_DIALPAGE) {
+		if (unistimdebug) {
+			ast_verb(0, "Can't create channel, user on dialpage: Busy!\n");
+		}
+		unistim_unalloc_sub(d, sub);
+		*cause = AST_CAUSE_BUSY;
+		return NULL;
+	}
+
         if (get_avail_softkey(d->session, sub->parent->name) == -1) {
 		if (unistimdebug) {
 			ast_verb(0, "Can't create channel for line %s, all lines busy\n", sub->parent->name);
