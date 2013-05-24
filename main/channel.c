@@ -1353,9 +1353,11 @@ static void publish_channel_blob(struct ast_channel *chan,
 	struct stasis_message_type *type, struct ast_json *blob)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	if (blob) {
-		message = ast_channel_blob_create(chan, type, blob);
+	if (!blob) {
+		blob = ast_json_null();
 	}
+
+	message = ast_channel_blob_create(chan, type, blob);
 	if (message) {
 		stasis_publish(ast_channel_topic(chan), message);
 	}
@@ -1402,6 +1404,39 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 
 	res = ast_queue_frame(chan, &f);
 	ast_channel_unlock(chan);
+	return res;
+}
+
+int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HOLD };
+	int res;
+
+	if (!ast_strlen_zero(musicclass)) {
+		f.data.ptr = (void *) musicclass;
+		f.datalen = strlen(musicclass) + 1;
+
+		blob = ast_json_pack("{s: s}",
+				     "musicclass", musicclass);
+	}
+
+	publish_channel_blob(chan, ast_channel_hold_type(), blob);
+
+	res = ast_queue_frame(chan, &f);
+	return res;
+}
+
+int ast_queue_unhold(struct ast_channel *chan)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_UNHOLD };
+	int res;
+
+	publish_channel_blob(chan, ast_channel_unhold_type(), NULL);
+
+	res = ast_queue_frame(chan, &f);
 	return res;
 }
 
@@ -6694,7 +6729,7 @@ static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer
 
 	/* Release any hold on the target. */
 	if (colp->target_held) {
-		ast_queue_control(transferee, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(transferee);
 	}
 
 	/*

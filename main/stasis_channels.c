@@ -48,6 +48,8 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_stop_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);
@@ -585,6 +587,8 @@ void ast_stasis_channels_shutdown(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hold_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_unhold_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_chanspy_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_chanspy_stop_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_fax_type);
@@ -604,6 +608,8 @@ void ast_stasis_channels_init(void)
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_end_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_hold_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_unhold_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_chanspy_start_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_chanspy_stop_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_fax_type);
@@ -612,6 +618,7 @@ void ast_stasis_channels_init(void)
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_stop_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_start_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_stop_type);
+
 	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
 }

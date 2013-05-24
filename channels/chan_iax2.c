@@ -3095,6 +3095,52 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 }
 
 /*!
+ * \brief Queue a hold frame on the ast_channel owner
+ *
+ * This function queues a hold frame on the owner of the IAX2 pvt struct that
+ * is active for the given call number.
+ *
+ * \pre Assumes lock for callno is already held.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function may unlock and lock the mutex associated with this callno,
+ * meaning that another thread may grab it and destroy the call.
+ */
+static int iax2_queue_hold(int callno, const char *musicclass)
+{
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_hold(iaxs[callno]->owner, musicclass);
+		ast_channel_unlock(iaxs[callno]->owner);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Queue an unhold frame on the ast_channel owner
+ *
+ * This function queues an unhold frame on the owner of the IAX2 pvt struct that
+ * is active for the given call number.
+ *
+ * \pre Assumes lock for callno is already held.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function may unlock and lock the mutex associated with this callno,
+ * meaning that another thread may grab it and destroy the call.
+ */
+static int iax2_queue_unhold(int callno)
+{
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_unhold(iaxs[callno]->owner);
+		ast_channel_unlock(iaxs[callno]->owner);
+	}
+	return 0;
+}
+
+/*!
  * \brief Queue a hangup frame on the ast_channel owner
  *
  * This function queues a hangup frame on the owner of the IAX2 pvt struct that
@@ -3112,30 +3158,6 @@ static int iax2_queue_hangup(int callno)
 	iax2_lock_owner(callno);
 	if (iaxs[callno] && iaxs[callno]->owner) {
 		ast_queue_hangup(iaxs[callno]->owner);
-		ast_channel_unlock(iaxs[callno]->owner);
-	}
-	return 0;
-}
-
-/*!
- * \brief Queue a control frame on the ast_channel owner
- *
- * This function queues a control frame on the owner of the IAX2 pvt struct that
- * is active for the given call number.
- *
- * \pre Assumes lock for callno is already held.
- *
- * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
- * was valid before calling it, it may no longer be valid after calling it.
- * This function may unlock and lock the mutex associated with this callno,
- * meaning that another thread may grab it and destroy the call.
- */
-static int iax2_queue_control_data(int callno, 
-	enum ast_control_frame_type control, const void *data, size_t datalen)
-{
-	iax2_lock_owner(callno);
-	if (iaxs[callno] && iaxs[callno]->owner) {
-		ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
 		ast_channel_unlock(iaxs[callno]->owner);
 	}
 	return 0;
@@ -10302,16 +10324,6 @@ static int socket_process_helper(struct iax2_thread *thread)
 				break;
 			case IAX_COMMAND_QUELCH:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
-				        /* Generate Manager Hold event, if necessary*/
-					if (iaxs[fr->callno]->owner) {
-						ast_manager_event(iaxs[fr->callno]->owner, EVENT_FLAG_CALL, "Hold",
-							"Status: On\r\n"
-							"Channel: %s\r\n"
-							"Uniqueid: %s\r\n",
-							ast_channel_name(iaxs[fr->callno]->owner),
-							ast_channel_uniqueid(iaxs[fr->callno]->owner));
-					}
-
 					ast_set_flag64(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
 						const char *moh_suggest;
@@ -10326,9 +10338,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 						 * need to check iaxs[fr->callno] after it returns.
 						 */
 						moh_suggest = iaxs[fr->callno]->mohsuggest;
-						iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD,
-							S_OR(moh_suggest, NULL),
-							!ast_strlen_zero(moh_suggest) ? strlen(moh_suggest) + 1 : 0);
+						iax2_queue_hold(fr->callno, moh_suggest);
 						ast_channel_unlock(iaxs[fr->callno]->owner);
 					}
 				}
@@ -10338,15 +10348,6 @@ static int socket_process_helper(struct iax2_thread *thread)
 					iax2_lock_owner(fr->callno);
 					if (!iaxs[fr->callno]) {
 						break;
-					}
-					/* Generate Manager Unhold event, if necessary */
-					if (iaxs[fr->callno]->owner && ast_test_flag64(iaxs[fr->callno], IAX_QUELCH)) {
-						ast_manager_event(iaxs[fr->callno]->owner, EVENT_FLAG_CALL, "Hold",
-							"Status: Off\r\n"
-							"Channel: %s\r\n"
-							"Uniqueid: %s\r\n",
-							ast_channel_name(iaxs[fr->callno]->owner),
-							ast_channel_uniqueid(iaxs[fr->callno]->owner));
 					}
 
 					ast_clear_flag64(iaxs[fr->callno], IAX_QUELCH);
@@ -10358,7 +10359,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 					 * We already hold the owner lock so we do not
 					 * need to check iaxs[fr->callno] after it returns.
 					 */
-					iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
+					iax2_queue_unhold(fr->callno);
 					ast_channel_unlock(iaxs[fr->callno]->owner);
 				}
 				break;

@@ -3229,7 +3229,7 @@ static int attempt_transfer(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 	enum ast_transfer_result res;
 
 	/* Ensure that the other channel goes off hold and that it is indicating properly */
-	ast_queue_control(sub->next->owner, AST_CONTROL_UNHOLD);
+	ast_queue_unhold(sub->next->owner);
 	if (ast_channel_state(sub->owner) == AST_STATE_RINGING) {
 		ast_queue_control(sub->next->owner, AST_CONTROL_RINGING);
 	}
@@ -3275,7 +3275,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 	if (sub->outgoing) {
 		/* Answered */
 		if (sub->owner) {
-			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(sub->owner);
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
 				start_rtp(sub);
@@ -3331,7 +3331,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				ast_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
 				ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?\n");
 			}
-			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(sub->owner);
 			sub->cxmode = MGCP_CX_SENDRECV;
 			if (!sub->rtp) {
 				start_rtp(sub);
@@ -3448,8 +3448,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					sub->cxmode = MGCP_CX_MUTE;
 					ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 					transmit_modify_request(sub);
-					if (sub->owner)
-						ast_queue_control(sub->owner, AST_CONTROL_HOLD);
+					if (sub->owner) {
+						ast_queue_hold(sub->owner, NULL);
+					}
 					sub->next->cxmode = MGCP_CX_RECVONLY;
 					handle_hd_hf(sub->next, ev);
 				} else if (sub->owner && sub->next->owner) {
@@ -3460,7 +3461,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 								sub->id, sub->next->id, p->name, p->parent->name);
 						sub->cxmode = MGCP_CX_CONF;
 						sub->next->cxmode = MGCP_CX_CONF;
-						ast_queue_control(sub->next->owner, AST_CONTROL_UNHOLD);
+						ast_queue_unhold(sub->next->owner);
 						transmit_modify_request(sub);
 						transmit_modify_request(sub->next);
 					} else {
@@ -3473,8 +3474,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 						transmit_modify_request(sub);
 
-						ast_queue_control(sub->owner, AST_CONTROL_HOLD);
-						ast_queue_control(sub->next->owner, AST_CONTROL_HOLD);
+						ast_queue_hold(sub->owner, NULL);
+						ast_queue_hold(sub->next->owner, NULL);
 
 						handle_hd_hf(sub->next, ev);
 					}
@@ -3489,7 +3490,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						/* XXX - What do we do now? */
 						return -1;
 					}
-					ast_queue_control(p->sub->owner, AST_CONTROL_UNHOLD);
+					ast_queue_unhold(p->sub->owner);
 					p->sub->cxmode = MGCP_CX_SENDRECV;
 					transmit_modify_request(p->sub);
 				}

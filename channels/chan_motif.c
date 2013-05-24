@@ -2481,9 +2481,9 @@ static void jingle_action_session_info(struct jingle_endpoint *endpoint, struct 
 			ast_setstate(chan, AST_STATE_RINGING);
 		}
 	} else if (iks_find_with_attrib(pak->query, "hold", "xmlns", JINGLE_RTP_INFO_NS)) {
-		ast_queue_control(chan, AST_CONTROL_HOLD);
+		ast_queue_hold(chan, NULL);
 	} else if (iks_find_with_attrib(pak->query, "unhold", "xmlns", JINGLE_RTP_INFO_NS)) {
-		ast_queue_control(chan, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(chan);
 	}
 
 	ast_channel_unlock(chan);

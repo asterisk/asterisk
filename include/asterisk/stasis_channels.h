@@ -341,6 +341,22 @@ struct stasis_message_type *ast_channel_dtmf_end_type(void);
 
 /*!
  * \since 12
+ * \brief Message type for when a channel is placed on hold.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_hold_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a channel is removed from hold.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_unhold_type(void);
+
+/*!
+ * \since 12
  * \brief Message type for when a channel starts spying on another channel
  *
  * \retval A stasis message type

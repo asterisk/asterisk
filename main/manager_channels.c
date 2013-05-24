@@ -228,6 +228,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="Hold">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel goes on hold.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="MusicClass">
+					<para>The suggested MusicClass, if provided.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="Unhold">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel goes off hold.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="ChanSpyStart">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when one channel begins spying on another channel.</synopsis>
@@ -1180,6 +1199,48 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 }
 
+static void channel_hold_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	const char *musicclass;
+	RAII_VAR(struct ast_str *, musicclass_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+
+	if (!(musicclass_string = ast_str_create(32))) {
+		return;
+	}
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+
+	if (obj->blob) {
+		musicclass = ast_json_string_get(ast_json_object_get(obj->blob, "musicclass"));
+
+		if (!ast_strlen_zero(musicclass)) {
+			ast_str_set(&musicclass_string, 0, "MusicClass: %s\r\n", musicclass);
+		}
+	}
+
+	manager_event(EVENT_FLAG_CALL, "Hold",
+		"%s"
+		"%s",
+		ast_str_buffer(channel_event_string),
+		ast_str_buffer(musicclass_string));
+}
+
+static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+
+	manager_event(EVENT_FLAG_CALL, "Unhold",
+		"%s",
+		ast_str_buffer(channel_event_string));
+}
+
 static void manager_channels_shutdown(void)
 {
 	stasis_unsubscribe(topic_forwarder);
@@ -1246,6 +1307,16 @@ int manager_channels_init(void)
 	ret |= stasis_message_router_add(message_router,
 					 ast_channel_dial_type(),
 					 channel_dial_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_hold_type(),
+					 channel_hold_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_unhold_type(),
+					 channel_unhold_cb,
 					 NULL);
 
 	ret |= stasis_message_router_add(message_router,

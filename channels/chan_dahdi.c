@@ -6560,7 +6560,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				p->owner = p->subs[SUB_REAL].owner;
 				if (ast_channel_state(p->owner) != AST_STATE_UP)
 					p->subs[SUB_REAL].needanswer = 1;
-				ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->subs[SUB_REAL].owner);
 			} else if (p->subs[SUB_THREEWAY].dfd > -1) {
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				unalloc_sub(p, SUB_THREEWAY);
@@ -6582,9 +6582,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
 				if (p->subs[SUB_THREEWAY].owner) {
-					ast_queue_control_data(p->subs[SUB_THREEWAY].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[SUB_THREEWAY].owner, p->mohsuggest);
 				}
 				p->subs[SUB_THREEWAY].inthreeway = 0;
 				/* Make it the call wait now */
@@ -6597,9 +6595,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
 				if (p->subs[SUB_CALLWAIT].owner) {
-					ast_queue_control_data(p->subs[SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[SUB_CALLWAIT].owner, p->mohsuggest);
 				}
 				p->subs[SUB_CALLWAIT].inthreeway = 0;
 			}
@@ -7851,7 +7847,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 	if (ast_bridged_channel(p->subs[SUB_REAL].owner)) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop it now */
-		ast_queue_control(p->subs[SUB_THREEWAY].owner, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(p->subs[SUB_THREEWAY].owner);
 		if (ast_channel_state(p->subs[SUB_REAL].owner) == AST_STATE_RINGING) {
 			ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_RINGING);
 		}
@@ -7867,7 +7863,7 @@ static int attempt_transfer(struct dahdi_pvt *p)
 		ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
-		ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(p->subs[SUB_REAL].owner);
 		if (ast_channel_state(p->subs[SUB_THREEWAY].owner) == AST_STATE_RINGING) {
 			ast_queue_control(p->subs[SUB_THREEWAY].owner, AST_CONTROL_RINGING);
 		}
@@ -8535,7 +8531,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				/* Make sure it stops ringing */
 				dahdi_set_hook(p->subs[idx].dfd, DAHDI_OFFHOOK);
 				/* Okay -- probably call waiting*/
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->owner);
 				p->subs[idx].needunhold = 1;
 				break;
 			case AST_STATE_RESERVED:
@@ -8690,14 +8686,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				p->cid_suppress_expire = 0;
 				/* Start music on hold if appropriate */
 				if (!p->subs[SUB_CALLWAIT].inthreeway) {
-					ast_queue_control_data(p->subs[SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[SUB_CALLWAIT].owner, p->mohsuggest);
 				}
 				p->subs[SUB_CALLWAIT].needhold = 1;
-				ast_queue_control_data(p->subs[SUB_REAL].owner, AST_CONTROL_HOLD,
-					S_OR(p->mohsuggest, NULL),
-					!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+				ast_queue_hold(p->subs[SUB_REAL].owner, p->mohsuggest);
 				p->subs[SUB_REAL].needunhold = 1;
 			} else if (!p->subs[SUB_THREEWAY].owner) {
 				if (!p->threewaycalling) {
@@ -8775,9 +8767,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						ast_verb(3, "Started three way call on channel %d\n", p->channel);
 
 						/* Start music on hold */
-						ast_queue_control_data(p->subs[SUB_THREEWAY].owner, AST_CONTROL_HOLD,
-							S_OR(p->mohsuggest, NULL),
-							!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+						ast_queue_hold(p->subs[SUB_THREEWAY].owner, p->mohsuggest);
 						p->subs[SUB_THREEWAY].needhold = 1;
 					}
 					ast_callid_threadstorage_auto_clean(callid, callid_created);
@@ -8814,8 +8804,9 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							otherindex = SUB_REAL;
 						}
-						if (p->subs[otherindex].owner)
-							ast_queue_control(p->subs[otherindex].owner, AST_CONTROL_UNHOLD);
+						if (p->subs[otherindex].owner) {
+							ast_queue_unhold(p->subs[otherindex].owner);
+						}
 						p->subs[otherindex].needunhold = 1;
 						p->owner = p->subs[SUB_REAL].owner;
 					} else {
@@ -8823,8 +8814,9 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						swap_subs(p, SUB_THREEWAY, SUB_REAL);
 						ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						p->owner = p->subs[SUB_REAL].owner;
-						if (p->subs[SUB_REAL].owner)
-							ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
+						if (p->subs[SUB_REAL].owner) {
+							ast_queue_unhold(p->subs[SUB_REAL].owner);
+						}
 						p->subs[SUB_REAL].needunhold = 1;
 						dahdi_enable_ec(p);
 					}
@@ -9017,8 +9009,9 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 			(res != DAHDI_EVENT_HOOKCOMPLETE)) {
 			ast_debug(1, "Restoring owner of channel %d on event %d\n", p->channel, res);
 			p->owner = p->subs[SUB_REAL].owner;
-			if (p->owner)
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+			if (p->owner) {
+				ast_queue_unhold(p->owner);
+			}
 			p->subs[SUB_REAL].needunhold = 1;
 		}
 		switch (res) {
@@ -9062,7 +9055,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
 				p->cid_suppress_expire = 0;
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->owner);
 				p->subs[SUB_REAL].needunhold = 1;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
@@ -10699,7 +10692,7 @@ static void *analog_ss_thread(void *data)
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
-					ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
+					ast_queue_unhold(p->subs[SUB_REAL].owner);
 					ast_hangup(chan);
 					goto quit;
 				} else {

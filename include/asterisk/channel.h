@@ -1203,6 +1203,31 @@ int ast_queue_hangup(struct ast_channel *chan);
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause);
 
 /*!
+ * \brief Queue a hold frame
+ *
+ * \param chan channel to queue frame onto
+ * \param musicclass The suggested musicclass for the other end to use
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_queue_hold(struct ast_channel *chan, const char *musicclass);
+
+/*!
+ * \brief Queue an unhold frame
+ *
+ * \param chan channel to queue frame onto
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_queue_unhold(struct ast_channel *chan);
+
+/*!
  * \brief Queue a control frame without payload
  *
  * \param chan channel to queue frame onto

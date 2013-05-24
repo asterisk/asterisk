@@ -96,6 +96,10 @@ AMI (Asterisk Manager Interface)
    BridgedChannel and BridgedUniqueid headers with the BridgeID header to
    indicate what bridge the channel is currently in.
 
+ * The AMI 'Hold' event has been moved out of individual channel drivers, into
+   core, and is now two events: Hold and Unhold.  The status field has been
+   removed.
+
 Channel Drivers
 ------------------
  * When a channel driver is configured to enable jiterbuffers, they are now

@@ -1247,6 +1247,50 @@ static void pri_queue_frame(struct sig_pri_span *pri, int chanpos, struct ast_fr
 
 /*!
  * \internal
+ * \brief Queue a hold frame onto the owner channel.
+ * \since 12
+ *
+ * \param pri PRI span control structure.
+ * \param chanpos Channel position in the span.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_queue_hold(struct sig_pri_span *pri, int chanpos)
+{
+	sig_pri_lock_owner(pri, chanpos);
+	if (pri->pvts[chanpos]->owner) {
+		ast_queue_hold(pri->pvts[chanpos]->owner, NULL);
+		ast_channel_unlock(pri->pvts[chanpos]->owner);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Queue an unhold frame onto the owner channel.
+ * \since 12
+ *
+ * \param pri PRI span control structure.
+ * \param chanpos Channel position in the span.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_queue_unhold(struct sig_pri_span *pri, int chanpos)
+{
+	sig_pri_lock_owner(pri, chanpos);
+	if (pri->pvts[chanpos]->owner) {
+		ast_queue_unhold(pri->pvts[chanpos]->owner);
+		ast_channel_unlock(pri->pvts[chanpos]->owner);
+	}
+}
+
+/*!
+ * \internal
  * \brief Queue a control frame of the specified subclass onto the owner channel.
  * \since 1.8
  *
@@ -5177,42 +5221,6 @@ static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan 
 		(orig_state == next_state) ? "$" : sig_pri_moh_state_str(next_state));
 }
 
-#if defined(HAVE_PRI_CALL_HOLD)
-/*!
- * \internal
- * \brief Post an AMI hold event.
- * \since 10.0
- *
- * \param chan Channel to post event to
- * \param is_held TRUE if the call was placed on hold.
- *
- * \return Nothing
- */
-static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
-{
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a PRI channel is put on Hold.</synopsis>
-			<syntax>
-				<parameter name="Status">
-					<enumlist>
-						<enum name="On"/>
-						<enum name="Off"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "Hold",
-		"Status: %s\r\n"
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n",
-		is_held ? "On" : "Off",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan));
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
-
 /*!
  * \internal
  * \brief Set callid threadstorage for the pri_dchannel thread when a new call is created
@@ -5327,13 +5335,11 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 		goto done_with_owner;
 	}
 	sig_pri_handle_subcmds(pri, chanpos_old, ev->e, ev->hold.subcmds, ev->hold.call);
-	pri_queue_control(pri, chanpos_old, AST_CONTROL_HOLD);
+	sig_pri_queue_hold(pri, chanpos_old);
 	chanpos_new = pri_fixup_principle(pri, chanpos_new, ev->hold.call);
 	if (chanpos_new < 0) {
 		/* Should never happen. */
-		pri_queue_control(pri, chanpos_old, AST_CONTROL_UNHOLD);
-	} else {
-		sig_pri_ami_hold_event(owner, 1);
+		sig_pri_queue_unhold(pri, chanpos_old);
 	}
 
 done_with_owner:;
@@ -5521,12 +5527,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 	sig_pri_lock_private(pri->pvts[chanpos]);
 	callid = func_pri_dchannel_chanpos_callid(pri, chanpos);
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.subcmds, ev->retrieve.call);
-	sig_pri_lock_owner(pri, chanpos);
-	pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
-	if (pri->pvts[chanpos]->owner) {
-		sig_pri_ami_hold_event(pri->pvts[chanpos]->owner, 0);
-		ast_channel_unlock(pri->pvts[chanpos]->owner);
-	}
+	sig_pri_queue_unhold(pri, chanpos);
 	pri_retrieve_ack(pri->pri, ev->retrieve.call,
 		PVT_TO_CHANNEL(pri->pvts[chanpos]));
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
@@ -7428,12 +7429,12 @@ static void *pri_dchannel(void *vpri)
 				switch (e->notify.info) {
 				case PRI_NOTIFY_REMOTE_HOLD:
 					if (!pri->discardremoteholdretrieval) {
-						pri_queue_control(pri, chanpos, AST_CONTROL_HOLD);
+						sig_pri_queue_hold(pri, chanpos);
 					}
 					break;
 				case PRI_NOTIFY_REMOTE_RETRIEVAL:
 					if (!pri->discardremoteholdretrieval) {
-						pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
+						sig_pri_queue_unhold(pri, chanpos);
 					}
 					break;
 				}

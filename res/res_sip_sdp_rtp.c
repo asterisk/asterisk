@@ -698,15 +698,14 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	    (!ast_sockaddr_isnull(addrs) ||
 	     !pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL))) {
 		/* The remote side has taken us off hold */
-		ast_queue_control(session->channel, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(session->channel);
 		ast_queue_frame(session->channel, &ast_null_frame);
 		session_media->held = 0;
 	} else if (ast_sockaddr_isnull(addrs) ||
 		   ast_sockaddr_is_any(addrs) ||
 		   pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
 		/* The remote side has put us on hold */
-		ast_queue_control_data(session->channel, AST_CONTROL_HOLD, S_OR(session->endpoint->mohsuggest, NULL),
-				       !ast_strlen_zero(session->endpoint->mohsuggest) ? strlen(session->endpoint->mohsuggest) + 1 : 0);
+		ast_queue_hold(session->channel, session->endpoint->mohsuggest);
 		ast_rtp_instance_stop(session_media->rtp);
 		ast_queue_frame(session->channel, &ast_null_frame);
 		session_media->held = 1;

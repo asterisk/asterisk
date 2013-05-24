@@ -5263,7 +5263,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			ast_channel_name(xferor->owner), ast_bridged_channel(xferor->owner) ? ast_channel_name(ast_bridged_channel(xferor->owner)) : "");
 
 		if (ast_bridged_channel(xferor->owner)) {
-			ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(xferee->owner);
 			if (ast_channel_state(xferor->owner) == AST_STATE_RING) {
 				/* play ringing inband */
 				if ((ts = ast_get_indication_tone(ast_channel_zone(xferor->owner), "ring"))) {
@@ -5279,7 +5279,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 				return -1;
 			}
 		} else if (ast_bridged_channel(xferee->owner)) {
-			ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(xferee->owner);
 			if (ast_channel_state(xferor->owner) == AST_STATE_RING) {
 				/* play ringing inband */
 				if ((ts = ast_get_indication_tone(ast_channel_zone(xferor->owner), "ring"))) {
@@ -5690,9 +5690,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 			sub->substate = SUBSTATE_HOLD;
 
-			ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
-				S_OR(l->mohsuggest, NULL),
-				!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
+			ast_queue_hold(sub->owner, l->mohsuggest);
 
 			return;
 		default:
@@ -5874,7 +5872,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 		}
 		if (sub->substate == SUBSTATE_HOLD) {
-			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(sub->owner);
 			transmit_connect(d, sub);
 		}
 		transmit_ringer_mode(d, SKINNY_RING_OFF);
@@ -5952,9 +5950,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_HOLD from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
 			return;
 		}
-		ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
-			S_OR(l->mohsuggest, NULL),
-			!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
+		ast_queue_hold(sub->owner, l->mohsuggest);
 
 		transmit_activatecallplane(d, l);
 		transmit_closereceivechannel(d, sub);

@@ -1354,7 +1354,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				if (ast_channel_state(p->owner) != AST_STATE_UP) {
 					ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_ANSWER);
 				}
-				ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->subs[ANALOG_SUB_REAL].owner);
 				/* Unlock the call-waiting call that we swapped to real-call. */
 				ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner);
 			} else if (p->subs[ANALOG_SUB_THREEWAY].allocd) {
@@ -1382,9 +1382,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
 				if (p->subs[ANALOG_SUB_THREEWAY].owner) {
-					ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[ANALOG_SUB_THREEWAY].owner, p->mohsuggest);
 				}
 				analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 				/* Make it the call wait now */
@@ -1406,9 +1404,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				   Start music on hold for them, and take the main guy out of the third call */
 				analog_set_inthreeway(p, ANALOG_SUB_CALLWAIT, 0);
 				if (p->subs[ANALOG_SUB_CALLWAIT].owner) {
-					ast_queue_control_data(p->subs[ANALOG_SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[ANALOG_SUB_CALLWAIT].owner, p->mohsuggest);
 				}
 			}
 			if (p->subs[ANALOG_SUB_CALLWAIT].owner) {
@@ -2323,7 +2319,7 @@ static void *__analog_ss_thread(void *data)
 					analog_swap_subs(p, ANALOG_SUB_REAL, ANALOG_SUB_THREEWAY);
 					analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
 					analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
-					ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
+					ast_queue_unhold(p->subs[ANALOG_SUB_REAL].owner);
 					ast_hangup(chan);
 					goto quit;
 				} else {
@@ -3024,7 +3020,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				/* Make sure it stops ringing */
 				analog_off_hook(p);
 				/* Okay -- probably call waiting */
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->owner);
 				break;
 			case AST_STATE_RESERVED:
 				/* Start up dialtone */
@@ -3183,14 +3179,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 				/* Start music on hold if appropriate */
 				if (!p->subs[ANALOG_SUB_CALLWAIT].inthreeway) {
-					ast_queue_control_data(p->subs[ANALOG_SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
-						S_OR(p->mohsuggest, NULL),
-						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					ast_queue_hold(p->subs[ANALOG_SUB_CALLWAIT].owner, p->mohsuggest);
 				}
-				ast_queue_control_data(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_HOLD,
-					S_OR(p->mohsuggest, NULL),
-					!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
-				ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
+				ast_queue_hold(p->subs[ANALOG_SUB_REAL].owner, p->mohsuggest);
+				ast_queue_unhold(p->subs[ANALOG_SUB_REAL].owner);
 
 				/* Unlock the call-waiting call that we swapped to real-call. */
 				ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner);
@@ -3282,9 +3274,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						ast_verb(3, "Started three way call on channel %d\n", p->channel);
 
 						/* Start music on hold */
-						ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD,
-							S_OR(p->mohsuggest, NULL),
-							!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+						ast_queue_hold(p->subs[ANALOG_SUB_THREEWAY].owner, p->mohsuggest);
 					}
 					ast_callid_threadstorage_auto_clean(callid, callid_created);
 				}
@@ -3334,7 +3324,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 							analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 							orig_3way_sub = ANALOG_SUB_REAL;
 						}
-						ast_queue_control(p->subs[orig_3way_sub].owner, AST_CONTROL_UNHOLD);
+						ast_queue_unhold(p->subs[orig_3way_sub].owner);
 						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					} else {
 						ast_verb(3, "Dumping incomplete call on %s\n", ast_channel_name(p->subs[ANALOG_SUB_THREEWAY].owner));
@@ -3342,7 +3332,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						orig_3way_sub = ANALOG_SUB_REAL;
 						ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
-						ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
+						ast_queue_unhold(p->subs[ANALOG_SUB_REAL].owner);
 						analog_set_echocanceller(p, 1);
 					}
 				}
@@ -3585,7 +3575,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 					analog_event2str(res), ast_channel_name(ast), ast_channel_name(p->owner));
 			}
 			if (p->owner) {
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->owner);
 			}
 		}
 		switch (res) {
@@ -3624,7 +3614,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 					ast_setstate(p->owner, AST_STATE_UP);
 				}
 				analog_stop_callwait(p);
-				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(p->owner);
 			} else {
 				ast_log(LOG_WARNING, "Absorbed %s, but nobody is left!?!?\n",
 					analog_event2str(res));

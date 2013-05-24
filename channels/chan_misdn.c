@@ -10943,7 +10943,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->hold.port = 0;
 		ch->hold.channel = 0;
 
-		ast_queue_control(ch->ast, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(ch->ast);
 
 		if (misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0) {
 			chan_misdn_log(4, bc->port, " --> RETRIEVE_ACK failed\n");
@@ -10973,7 +10973,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			ch->hold.port = bc->port;
 			ch->hold.channel = bc->channel;
 
-			ast_queue_control(ch->ast, AST_CONTROL_HOLD);
+			ast_queue_hold(ch->ast, NULL);
 
 			misdn_lib_send_event(bc, EVENT_HOLD_ACKNOWLEDGE);
 		} else {

@@ -2453,7 +2453,7 @@ static void sub_hold(struct unistimsession *pte, struct unistim_subchannel *sub)
 	send_select_output(pte, pte->device->output, pte->device->volume, MUTE_ON);
 	send_stop_timer(pte);
 	if (sub->owner) {
-		ast_queue_control_data(sub->owner, AST_CONTROL_HOLD, NULL, 0);
+		ast_queue_hold(sub->owner, NULL);
 		send_end_call(pte);
 	}
 	return;
@@ -2474,7 +2474,7 @@ static void sub_unhold(struct unistimsession *pte, struct unistim_subchannel *su
 	send_select_output(pte, pte->device->output, pte->device->volume, MUTE_OFF);
 	send_start_timer(pte);
 	if (sub->owner) {
-		ast_queue_control_data(sub->owner, AST_CONTROL_UNHOLD, NULL, 0);
+		ast_queue_unhold(sub->owner);
 		if (sub->rtp) {
 			send_start_rtp(sub);
 		}
@@ -2961,8 +2961,7 @@ static void transfer_call_step1(struct unistimsession *pte)
 	if (sub->moh) {
 		ast_log(LOG_WARNING, "Transfer with peer already listening music on hold\n");
 	} else {
-		ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
-			sub->parent->musicclass, strlen(sub->parent->musicclass) + 1);
+		ast_queue_hold(sub->owner, sub->parent->musicclass);
 		sub->moh = 1;
 		sub->subtype = SUB_THREEWAY;
 	}
@@ -2988,7 +2987,7 @@ static void transfer_cancel_step2(struct unistimsession *pte)
 		}
 		if (sub->owner) {
 			swap_subs(sub, sub_trans);
-			ast_queue_control(sub_trans->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(sub_trans->owner);
 			sub_trans->moh = 0;
 			sub_trans->subtype = SUB_REAL;
 			sub->subtype = SUB_THREEWAY;
@@ -3498,7 +3497,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 		if (sub && sub->owner) {
 			sub_stop_silence(pte, sub);
 			send_tone(pte, 0, 0);
-			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			ast_queue_unhold(sub->owner);
 			sub->moh = 0;
 			sub->subtype = SUB_REAL;
 			pte->state = STATE_CALL;
@@ -4789,7 +4788,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		if (unistimdebug) {
 			ast_verb(0, "Threeway call disconnected, switching to real call\n");
 		}
-		ast_queue_control(sub_trans->owner, AST_CONTROL_UNHOLD);
+		ast_queue_unhold(sub_trans->owner);
 		sub_trans->moh = 0;
 		sub_trans->subtype = SUB_REAL;
 		swap_subs(sub_trans, sub);

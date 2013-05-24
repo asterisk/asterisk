@@ -2096,18 +2096,17 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 				ast_queue_control(pvt->owner, AST_CONTROL_PROGRESS);
 			switch (rtp_change) {
 			case NEED_HOLD:
-				ast_queue_control(pvt->owner, AST_CONTROL_HOLD);
+				ast_queue_hold(pvt->owner, NULL);
 				break;
 			case NEED_UNHOLD:
-				ast_queue_control(pvt->owner, AST_CONTROL_UNHOLD);
+				ast_queue_unhold(pvt->owner);
 				break;
 			default:
 				break;
 			}
 			ast_channel_unlock(pvt->owner);
 			pvt_native = ast_format_cap_destroy(pvt_native);
-		}
-		else {
+		} else {
 			if (pvt->options.progress_audio)
 				pvt->newcontrol = AST_CONTROL_PROGRESS;
 			else if (rtp_change == NEED_HOLD)
@@ -2599,10 +2598,11 @@ static void remote_hold(unsigned call_reference, const char *token, int is_hold)
 	if (!pvt)
 		return;
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
-		if (is_hold)
-			ast_queue_control(pvt->owner, AST_CONTROL_HOLD);
-		else
-			ast_queue_control(pvt->owner, AST_CONTROL_UNHOLD);
+		if (is_hold) {
+			ast_queue_hold(pvt->owner, NULL);
+		} else {
+			ast_queue_unhold(pvt->owner);
+		}
 		ast_channel_unlock(pvt->owner);
 	}
 	else {
