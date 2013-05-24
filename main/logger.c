@@ -1087,10 +1087,6 @@ static void *logger_thread(void *data)
 			/* Free the data since we are done */
 			ast_free(msg);
 		}
-
-		/* If we should stop, then stop */
-		if (close_logger_thread)
-			break;
 	}
 
 	return NULL;
