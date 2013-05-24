@@ -83,11 +83,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
-#include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/indications.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/translate.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="ReceiveFAX" language="en_US" module="res_fax">
@@ -383,12 +384,6 @@ AST_APP_OPTIONS(fax_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('s', OPT_STATUS),
 	AST_APP_OPTION('z', OPT_REQUEST_T38),
 END_OPTIONS);
-
-struct manager_event_info {
-	char context[AST_MAX_CONTEXT];
-	char exten[AST_MAX_EXTENSION];
-	char cid[128];
-};
 
 static void debug_check_frame_for_silence(struct ast_fax_session *s, unsigned int c2s, struct ast_frame *frame)
 {
@@ -1091,13 +1086,39 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 	return s;
 }
 
-static void get_manager_event_info(struct ast_channel *chan, struct manager_event_info *info)
+/*!
+ * \internal
+ * \brief Convert the filenames in a fax session into a JSON array
+ * \retval NULL on error
+ * \retval A \ref ast_json array on success
+ */
+static struct ast_json *generate_filenames_json(struct ast_fax_session_details *details)
 {
-	pbx_substitute_variables_helper(chan, "${CONTEXT}", info->context, sizeof(info->context));
-	pbx_substitute_variables_helper(chan, "${EXTEN}", info->exten, sizeof(info->exten));
-	pbx_substitute_variables_helper(chan, "${CALLERID(num)}", info->cid, sizeof(info->cid));
-}
+	RAII_VAR(struct ast_json *, json_array, ast_json_array_create(), ast_json_unref);
+	struct ast_fax_document *doc;
 
+	if (!details || !json_array) {
+		return NULL;
+	}
+
+	/* don't process empty lists */
+	if (AST_LIST_EMPTY(&details->documents)) {
+		return NULL;
+	}
+
+	AST_LIST_TRAVERSE(&details->documents, doc, next) {
+		struct ast_json *entry = ast_json_string_create(doc->filename);
+		if (!entry) {
+			return NULL;
+		}
+		if (ast_json_array_append(json_array, entry)) {
+			return NULL;
+		}
+	}
+
+	ast_json_ref(json_array);
+	return json_array;
+}
 
 /* \brief Generate a string of filenames using the given prefix and separator.
  * \param details the fax session details
@@ -1149,39 +1170,39 @@ static char *generate_filenames_string(struct ast_fax_session_details *details, 
 /*! \brief send a FAX status manager event */
 static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_details *details, const char *status)
 {
-	char *filenames = generate_filenames_string(details, "FileName: ", "\r\n");
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_json *json_filenames = NULL;
 
-	ast_channel_lock(chan);
-	if (details->option.statusevents) {
-		struct manager_event_info info;
-
-		get_manager_event_info(chan, &info);
-		manager_event(EVENT_FLAG_CALL,
-			      "FAXStatus",
-			      "Operation: %s\r\n"
-			      "Status: %s\r\n"
-			      "Channel: %s\r\n"
-			      "Context: %s\r\n"
-			      "Exten: %s\r\n"
-			      "CallerID: %s\r\n"
-			      "LocalStationID: %s\r\n"
-			      "%s%s",
-			      (details->caps & AST_FAX_TECH_GATEWAY) ? "gateway" : (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
-			      status,
-			      ast_channel_name(chan),
-			      info.context,
-			      info.exten,
-			      info.cid,
-			      details->localstationid,
-			      S_OR(filenames, ""),
-			      filenames ? "\r\n" : "");
-	}
-	ast_channel_unlock(chan);
-
-	if (filenames) {
-		ast_free(filenames);
+	if (!details->option.statusevents) {
+		return 0;
 	}
 
+	json_filenames = generate_filenames_json(details);
+	if (!json_filenames) {
+		return -1;
+	}
+
+	json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: o}",
+			"type", "status",
+			"operation", (details->caps & AST_FAX_TECH_GATEWAY) ? "gateway" : (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
+			"status", status,
+			"local_station_id", details->localstationid,
+			"filenames", json_filenames);
+	if (!json_object) {
+		return -1;
+	}
+
+	{
+		SCOPED_CHANNELLOCK(lock, chan);
+
+		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_object);
+		if (!message) {
+			return -1;
+		}
+		stasis_publish(ast_channel_topic(chan), message);
+	}
 	return 0;
 }
 
@@ -1738,13 +1759,53 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 	return 0;
 }
 
+/*! \brief Report on the final state of a receive fax operation
+ * \note This will lock the \ref ast_channel
+ */
+static int report_receive_fax_status(struct ast_channel *chan, const char *filename)
+{
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_array, ast_json_array_create(), ast_json_unref);
+	struct ast_json *json_filename = ast_json_string_create(filename);
+
+	if (!json_array || !json_filename) {
+		return -1;
+	}
+	ast_json_array_append(json_array, json_filename);
+
+	{
+		SCOPED_CHANNELLOCK(lock, chan);
+
+		json_object = ast_json_pack("s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: o",
+				"type", "receive"
+				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
+				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
+				"fax_pages", S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
+				"fax_resolution", S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
+				"fax_bitrate", S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
+				"filenames", json_array);
+		if (!json_object) {
+			return -1;
+		}
+
+		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_object);
+		if (!message) {
+			return -1;
+		}
+
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+	return 0;
+}
+
 /*! \brief initiate a receive FAX session */
 static int receivefax_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse, modems[128] = "";
 	int channel_alive;
-	struct ast_fax_session_details *details;
-	struct ast_fax_session *s;
+	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_fax_session *, s, NULL, ao2_cleanup);
 	struct ast_fax_tech_token *token = NULL;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
@@ -1752,7 +1813,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 	struct ast_flags opts = { 0, };
-	struct manager_event_info info;
 	enum ast_t38_state t38state;
 
 	/* initialize output channel variables */
@@ -1780,7 +1840,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "can't receive a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing ReceiveFAX on a channel with a T.38 Gateway is not supported\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1789,7 +1848,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1799,7 +1857,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1809,7 +1866,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1818,7 +1874,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_receivefax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -1829,7 +1884,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	if (ast_strlen_zero(args.filename)) {
@@ -1837,7 +1891,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_receivefax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1847,7 +1900,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_receivefax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1861,7 +1913,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "error allocating memory");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1894,7 +1945,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "Unable to reserve FAX session.\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -1905,8 +1955,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			set_channel_variables(chan, details);
 			ast_log(LOG_WARNING, "Channel '%s' failed answer attempt.\n", ast_channel_name(chan));
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	}
@@ -1917,8 +1965,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	} else {
@@ -1931,8 +1977,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -1948,36 +1992,9 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	/* send out the AMI completion event */
-	ast_channel_lock(chan);
-
-	get_manager_event_info(chan, &info);
-	manager_event(EVENT_FLAG_CALL,
-		      "ReceiveFAX",
-		      "Channel: %s\r\n"
-		      "Context: %s\r\n"
-		      "Exten: %s\r\n"
-		      "CallerID: %s\r\n"
-		      "RemoteStationID: %s\r\n"
-		      "LocalStationID: %s\r\n"
-		      "PagesTransferred: %s\r\n"
-		      "Resolution: %s\r\n"
-		      "TransferRate: %s\r\n"
-		      "FileName: %s\r\n",
-		      ast_channel_name(chan),
-		      info.context,
-		      info.exten,
-		      info.cid,
-		      S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
-		      args.filename);
-	ast_channel_unlock(chan);
-
-	ao2_ref(s, -1);
-	ao2_ref(details, -1);
+	if (report_receive_fax_status(chan, args.filename)) {
+		ast_log(AST_LOG_ERROR, "Error publishing ReceiveFax status message\n");
+	}
 
 	/* If the channel hungup return -1; otherwise, return 0 to continue in the dialplan */
 	return (!channel_alive) ? -1 : 0;
@@ -2223,14 +2240,53 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 	return 0;
 }
 
+/*!
+ * \brief Report on the status of a completed fax send attempt
+ * \note This will lock the \ref ast_channel
+ */
+static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_session_details *details)
+{
+	RAII_VAR(struct ast_json *, json_obj, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_json *json_filenames;
+
+	json_filenames = generate_filenames_json(details);
+	if (!json_filenames) {
+		return -1;
+	}
+
+	{
+		SCOPED_CHANNELLOCK(lock, chan);
+		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
+				"type", "send"
+				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
+				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
+				"fax_pages", S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
+				"fax_resolution", S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
+				"fax_bitrate", S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
+				"filenames", json_filenames);
+		if (!json_obj) {
+			return -1;
+		}
+
+		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_obj);
+		if (!message) {
+			return -1;
+		}
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+	return 0;
+}
+
+
 
 /*! \brief initiate a send FAX session */
 static int sendfax_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse, *filenames, *c, modems[128] = "";
 	int channel_alive, file_count;
-	struct ast_fax_session_details *details;
-	struct ast_fax_session *s;
+	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_fax_session *, s, NULL, ao2_cleanup);
 	struct ast_fax_tech_token *token = NULL;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
@@ -2238,7 +2294,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 	struct ast_flags opts = { 0, };
-	struct manager_event_info info;
 	enum ast_t38_state t38state;
 
 	/* initialize output channel variables */
@@ -2266,7 +2321,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "can't send a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing SendFAX on a channel with a T.38 Gateway is not supported\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2275,7 +2329,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2285,7 +2338,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2295,7 +2347,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2304,7 +2355,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]][,options])\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -2316,7 +2366,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	if (ast_strlen_zero(args.filenames)) {
@@ -2324,7 +2373,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]],options])\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2334,7 +2382,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2348,7 +2395,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error reading file");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filenames);
-			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2357,7 +2403,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error allocating memory");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2402,7 +2447,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "Unable to reserve FAX session.\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2413,8 +2457,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			set_channel_variables(chan, details);
 			ast_log(LOG_WARNING, "Channel '%s' failed answer attempt.\n", ast_channel_name(chan));
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	}
@@ -2425,8 +2467,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	} else {
@@ -2439,8 +2479,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -2460,42 +2498,13 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 
 	if (!(filenames = generate_filenames_string(details, "FileName: ", "\r\n"))) {
 		ast_log(LOG_ERROR, "Error generating SendFAX manager event\n");
-		ao2_ref(s, -1);
-		ao2_ref(details, -1);
 		return (!channel_alive) ? -1 : 0;
 	}
 
 	/* send out the AMI completion event */
-	ast_channel_lock(chan);
-	get_manager_event_info(chan, &info);
-	manager_event(EVENT_FLAG_CALL,
-		      "SendFAX",
-		      "Channel: %s\r\n"
-		      "Context: %s\r\n"
-		      "Exten: %s\r\n"
-		      "CallerID: %s\r\n"
-		      "RemoteStationID: %s\r\n"
-		      "LocalStationID: %s\r\n"
-		      "PagesTransferred: %s\r\n"
-		      "Resolution: %s\r\n"
-		      "TransferRate: %s\r\n"
-		      "%s\r\n",
-		      ast_channel_name(chan),
-		      info.context,
-		      info.exten,
-		      info.cid,
-		      S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
-		      S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
-		      filenames);
-	ast_channel_unlock(chan);
-
-	ast_free(filenames);
-
-	ao2_ref(s, -1);
-	ao2_ref(details, -1);
+	if (report_send_fax_status(chan, details)) {
+		ast_log(AST_LOG_ERROR, "Error publishing SendFAX status message\n");
+	}
 
 	/* If the channel hungup return -1; otherwise, return 0 to continue in the dialplan */
 	return (!channel_alive) ? -1 : 0;

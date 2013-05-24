@@ -277,14 +277,14 @@ static struct ast_str *manager_build_parked_call_string(const struct ast_parked_
 		return NULL;
 	}
 
-	parkee_string = ast_manager_build_channel_state_string_suffix(payload->parkee, "Parkee");
+	parkee_string = ast_manager_build_channel_state_string_prefix(payload->parkee, "Parkee");
 
 	if (payload->parker) {
-		parker_string = ast_manager_build_channel_state_string_suffix(payload->parker, "Parker");
+		parker_string = ast_manager_build_channel_state_string_prefix(payload->parker, "Parker");
 	}
 
 	if (payload->retriever) {
-		retriever_string = ast_manager_build_channel_state_string_suffix(payload->retriever, "Retriever");
+		retriever_string = ast_manager_build_channel_state_string_prefix(payload->retriever, "Retriever");
 	}
 
 	ast_str_set(&out, 0,

@@ -125,6 +125,8 @@ struct ast_json *ast_json_ref(struct ast_json *value);
 /*!
  * \brief Decrease refcount on \a value. If refcount reaches zero, \a value is freed.
  * \since 12.0.0
+ *
+ * \note It is safe to pass \c NULL to this function.
  */
 void ast_json_unref(struct ast_json *value);
 
@@ -602,6 +604,15 @@ struct ast_json_iter *ast_json_object_iter_next(struct ast_json *object, struct 
 const char *ast_json_object_iter_key(struct ast_json_iter *iter);
 
 /*!
+ * \brief Retrieve the iterator object for a particular key
+ * \since 12.0.0
+ *
+ * \param key Key of the field the \c ast_json_iter points to
+ * \return \ref ast_json_iter object that points to \a key
+ */
+struct ast_json_iter *ast_json_object_key_to_iter(const char *key);
+
+/*!
  * \brief Get the value from an iterator.
  * \since 12.0.0
  *
@@ -627,6 +638,23 @@ struct ast_json *ast_json_object_iter_value(struct ast_json_iter *iter);
  * \return -1 on error.
  */
 int ast_json_object_iter_set(struct ast_json *object, struct ast_json_iter *iter, struct ast_json *value);
+
+/*!
+ * \brief Iterate over key/value pairs
+ *
+ * \note This is a reproduction of the jansson library's \ref json_object_foreach
+ * using the equivalent ast_* wrapper functions. This creates a for loop using the various
+ * iteration function calls.
+ *
+ * \param object The \ref ast_json object that contains key/value tuples to iterate over
+ * \param key A \c const char pointer key for the key/value tuple
+ * \param value A \ref ast_json object for the key/value tuple
+ */
+#define ast_json_object_foreach(object, key, value) \
+	for (key = ast_json_object_iter_key(ast_json_object_iter(object)); \
+		key && (value = ast_json_object_iter_value(ast_json_object_key_to_iter(key))); \
+		key = ast_json_object_iter_key(ast_json_object_iter_next(object, ast_json_object_key_to_iter(key))))
+
 
 /*!@}*/
 

@@ -3535,8 +3535,8 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		return;
 	}
 
-	if (msg && stasis_mwi_state_type() == stasis_message_type(msg)) {
-		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+	if (msg && ast_mwi_state_type() == stasis_message_type(msg)) {
+		struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 		l->newmsgs = mwi_state->new_msgs;
 	}
 
@@ -8214,7 +8214,7 @@ static struct skinny_line *config_line(const char *lname, struct ast_variable *v
 
 		ast_str_set(&uniqueid, 0, "%s@%s", cfg_mailbox, cfg_context);
 
-		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 		if (mailbox_specific_topic) {
 			l->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, l);
 		}

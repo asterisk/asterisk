@@ -8772,10 +8772,10 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			}
 
 			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-			msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
+			msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 
 			if (msg) {
-				struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+				struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 				new = mwi_state->new_msgs;
 				old = mwi_state->old_msgs;
 			} else { /* Fall back on checking the mailbox directly */
@@ -12555,7 +12555,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 
 		ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
 
-		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 		if (mailbox_specific_topic) {
 			peer->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 		}

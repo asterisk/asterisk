@@ -1007,7 +1007,6 @@ static int private_enum_init(int reload)
 		ast_config_destroy(cfg);
 	}
 	ast_mutex_unlock(&enumlock);
-	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: Enum\r\nStatus: Enabled\r\nMessage: ENUM reload Requested\r\n");
 	return 0;
 }
 

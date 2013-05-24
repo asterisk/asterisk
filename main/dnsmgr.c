@@ -514,7 +514,6 @@ static int do_reload(int loading)
 	}
 
 	ast_mutex_unlock(&refresh_lock);
-	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: DNSmgr\r\nStatus: %s\r/nMessage: DNSmgr reload Requested\r\n", enabled ? "Enabled" : "Disabled");
 
 	return 0;
 }

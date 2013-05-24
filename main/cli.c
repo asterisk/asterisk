@@ -303,14 +303,30 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return CLI_SUCCESS;
 	}
 	for (x = e->args; x < a->argc; x++) {
-		int res = ast_module_reload(a->argv[x]);
-		/* XXX reload has multiple error returns, including -1 on error and 2 on success */
+		enum ast_module_reload_result res = ast_module_reload(a->argv[x]);
 		switch (res) {
-		case 0:
+		case AST_MODULE_RELOAD_NOT_FOUND:
 			ast_cli(a->fd, "No such module '%s'\n", a->argv[x]);
 			break;
-		case 1:
-			ast_cli(a->fd, "Module '%s' does not support reload\n", a->argv[x]);
+		case AST_MODULE_RELOAD_NOT_IMPLEMENTED:
+			ast_cli(a->fd, "The module '%s' does not support reloads\n", a->argv[x]);
+			break;
+		case AST_MODULE_RELOAD_QUEUED:
+			ast_cli(a->fd, "Asterisk cannot reload a module yet; request queued\n");
+			break;
+		case AST_MODULE_RELOAD_ERROR:
+			ast_cli(a->fd, "The module '%s' reported a reload failure\n", a->argv[x]);
+			break;
+		case AST_MODULE_RELOAD_IN_PROGRESS:
+			ast_cli(a->fd, "A module reload request is already in progress; please be patient\n");
+			break;
+		case AST_MODULE_RELOAD_UNINITIALIZED:
+			ast_cli(a->fd, "The module '%s' was not properly initialized. Before reloading"
+					" the module, you must run \"module load %s\" and fix whatever is"
+					" preventing the module from being initialized.\n", a->argv[x], a->argv[x]);
+			break;
+		case AST_MODULE_RELOAD_SUCCESS:
+			ast_cli(a->fd, "Module '%s' reloaded successfully.\n", a->argv[x]);
 			break;
 		}
 	}

@@ -72,6 +72,26 @@ AMI (Asterisk Manager Interface)
    event, the various ChanVariable fields will contain a suffix that specifies
    which channel they correspond to.
 
+ * All "Reload" events have been consolidated into a single event type. This
+   event will always contain a Module field specifying the name of the module
+   and a Status field denoting the result of the reload. All modules now issue
+   this event when being reloaded.
+
+ * The "ModuleLoadReport" event has been removed. Most AMI connections would
+   fail to receive this event due to being connected after modules have loaded.
+   AMI connections that want to know when Asterisk is ready should listen for
+   the "FullyBooted" event.
+
+ * app_fax now sends the same send fax/receive fax events as res_fax. The
+   "FaxSent" event is now the "SendFAX" event, and the "FaxReceived" event is
+   now the "ReceiveFAX" event.
+
+ * The MusicOnHold event is now two events: MusicOnHoldStart and
+   MusicOnHoldStop. The sub type field has been removed.
+
+ * The JabberEvent event has been removed. It is not AMI's purpose to be a
+   carrier for another protocol.
+
  * The AMI 'Status' response event to the AMI Status action replaces the
    BridgedChannel and BridgedUniqueid headers with the BridgeID header to
    indicate what bridge the channel is currently in.

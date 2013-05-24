@@ -242,12 +242,44 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
-#include "asterisk/security_events.h"
 #include "asterisk/stasis_endpoints.h"
 
 #include "../defaults.h"
 
 /*** DOCUMENTATION
+	<managerEvent language="en_US" name="FullyBooted">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when all Asterisk initialization procedures have finished.</synopsis>
+			<syntax>
+				<parameter name="Status">
+					<para>Informational message</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="Shutdown">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when Asterisk is shutdown or restarted.</synopsis>
+			<syntax>
+				<parameter name="Shutdown">
+					<para>Whether the shutdown is proceeding cleanly (all channels
+					were hungup successfully) or uncleanly (channels will be
+					terminated)</para>
+					<enumlist>
+						<enum name="Uncleanly"/>
+						<enum name="Cleanly"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Restart">
+					<para>Whether or not a restart will occur.</para>
+					<enumlist>
+						<enum name="True"/>
+						<enum name="False"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #ifndef AF_LOCAL
@@ -424,6 +456,9 @@ struct file_version {
 	const char *file;
 	char *version;
 };
+
+/*! \brief The \ref stasis topic for system level changes */
+static struct stasis_topic *system_topic;
 
 static AST_RWLIST_HEAD_STATIC(file_versions, file_version);
 
@@ -1067,7 +1102,7 @@ struct stasis_topic *ast_system_topic(void)
 /*! \brief Cleanup the \ref stasis system level items */
 static void stasis_system_topic_cleanup(void)
 {
-	ao2_ref(system_topic, -1);
+	ao2_cleanup(system_topic);
 	system_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_network_change_type);
 }
@@ -1085,7 +1120,52 @@ static int stasis_system_topic_init(void)
 	if (STASIS_MESSAGE_TYPE_INIT(ast_network_change_type) != 0) {
 		return -1;
 	}
+
 	return 0;
+}
+
+/*!
+ * \brief Publish a \ref system_status_type message over \ref stasis
+ *
+ * \param payload The JSON payload to send with the message
+ */
+static void publish_system_message(const char *message_type, struct ast_json *obj)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, event_info, NULL, ast_json_unref);
+
+	if (!obj) {
+		return;
+	}
+
+	event_info = ast_json_pack("{s: s, s: i, s: o}",
+			"type", message_type,
+			"class_type", EVENT_FLAG_SYSTEM,
+			"event", obj);
+	if (!event_info) {
+		return;
+	}
+
+	payload = ast_json_payload_create(event_info);
+	if (!payload) {
+		return;
+	}
+
+	message = stasis_message_create(ast_manager_get_generic_type(), payload);
+	if (!message) {
+		return;
+	}
+	stasis_publish(ast_manager_get_topic(), message);
+}
+
+static void publish_fully_booted(void)
+{
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+
+	json_object = ast_json_pack("{s: s}",
+			"Status", "Fully Booted");
+	publish_system_message("FullyBooted", json_object);
 }
 
 static void ast_run_atexits(void)
@@ -1897,6 +1977,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 static void really_quit(int num, shutdown_nice_t niceness, int restart)
 {
 	int active_channels;
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 
 	if (niceness >= SHUTDOWN_NICE) {
 		ast_module_shutdown();
@@ -1925,33 +2006,10 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		}
 	}
 	active_channels = ast_active_channels();
-	/* The manager event for shutdown must happen prior to ast_run_atexits, as
-	 * the manager interface will dispose of its sessions as part of its
-	 * shutdown.
-	 */
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when Asterisk is shutdown or restarted.</synopsis>
-			<syntax>
-				<parameter name="Shutdown">
-					<enumlist>
-						<enum name="Uncleanly"/>
-						<enum name="Cleanly"/>
-					</enumlist>
-				</parameter>
-				<parameter name="Restart">
-					<enumlist>
-						<enum name="True"/>
-						<enum name="False"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\n"
-		"Restart: %s\r\n",
-		active_channels ? "Uncleanly" : "Cleanly",
-		restart ? "True" : "False");
+	json_object = ast_json_pack("{s: s, s: s}",
+			"Shutdown", active_channels ? "Uncleanly" : "Cleanly",
+			"Restart", restart ? "True" : "False");
+	publish_system_message("Shutdown", json_object);
 	ast_verb(0, "Asterisk %s ending (%d).\n",
 		active_channels ? "uncleanly" : "cleanly", num);
 
@@ -4226,13 +4284,13 @@ int main(int argc, char *argv[])
 
 	aco_init();
 
-	if (devstate_init()) {
-		printf("Device state core initialization failed.\n%s", term_quit());
+	if (app_init()) {
+		printf("App core initialization failed.\n%s", term_quit());
 		exit(1);
 	}
 
-	if (app_init()) {
-		printf("App core initialization failed.\n%s", term_quit());
+	if (devstate_init()) {
+		printf("Device state core initialization failed.\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4260,12 +4318,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_security_stasis_init()) {		/* Initialize Security Stasis Topic and Events */
-		ast_security_stasis_cleanup();
 		printf("%s", term_quit());
 		exit(1);
 	}
@@ -4374,12 +4426,7 @@ int main(int argc, char *argv[])
 	}
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when all Asterisk initialization procedures have finished.</synopsis>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+	publish_fully_booted();
 
 	ast_process_pending_reloads();
 

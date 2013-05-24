@@ -55,6 +55,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 #include "asterisk/autochan.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/json.h"
 
 #define AST_NAME_STRLEN 256
 #define NUM_SPYGROUPS 128
@@ -188,6 +190,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">ExtenSpy</ref>
+			<ref type="managerEvent">ChanSpyStart</ref>
+			<ref type="managerEvent">ChanSpyStop</ref>
 		</see-also>
 	</application>
 	<application name="ExtenSpy" language="en_US">
@@ -322,9 +326,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">ChanSpy</ref>
+			<ref type="managerEvent">ChanSpyStart</ref>
+			<ref type="managerEvent">ChanSpyStop</ref>
 		</see-also>
 	</application>
-	
 	<application name="DAHDIScan" language="en_US">
 		<synopsis>
 			Scan DAHDI channels to monitor calls.
@@ -338,6 +343,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Allows a call center manager to monitor DAHDI channels in a
 			convenient way.  Use <literal>#</literal> to select the next channel and use <literal>*</literal> to exit.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">ChanSpyStart</ref>
+			<ref type="managerEvent">ChanSpyStop</ref>
+		</see-also>
 	</application>
  ***/
 
@@ -512,6 +521,68 @@ static void change_spy_mode(const char digit, struct ast_flags *flags)
 	}
 }
 
+static int pack_channel_into_message(struct ast_channel *chan, const char *role,
+									 struct ast_multi_channel_blob *payload)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot,
+			ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan)),
+			ao2_cleanup);
+
+	if (!snapshot) {
+		return -1;
+	}
+	ast_multi_channel_blob_add_channel(payload, role, snapshot);
+	return 0;
+}
+
+/*! \internal
+ * \brief Publish the chanspy message over Stasis-Core
+ * \param spyer The channel doing the spying
+ * \param spyee Who is being spied upon
+ * \start start If non-zero, the spying is starting. Otherwise, the spyer is
+ * finishing
+ */
+static void publish_chanspy_message(struct ast_channel *spyer,
+									struct ast_channel *spyee,
+									int start)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	if (!spyer) {
+		ast_log(AST_LOG_WARNING, "Attempt to publish ChanSpy message for NULL spyer channel\n");
+		return;
+	}
+	blob = ast_json_null();
+	if (!blob) {
+		return;
+	}
+
+	payload = ast_multi_channel_blob_create(blob);
+	if (!payload) {
+		return;
+	}
+
+	if (pack_channel_into_message(spyer, "spyer_channel", payload)) {
+		return;
+	}
+
+	if (spyee) {
+		if (pack_channel_into_message(spyee, "spyee_channel", payload)) {
+			return;
+		}
+	}
+
+	message = stasis_message_create(
+			start ? ast_channel_chanspy_start_type(): ast_channel_chanspy_stop_type(),
+					payload);
+	if (!message) {
+		return;
+	}
+	stasis_publish(ast_channel_topic(spyer), message);
+}
+
 static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_autochan,
 	int *volfactor, int fd, struct spy_dtmf_options *user_options, struct ast_flags *flags,
 	char *exitcontext)
@@ -524,38 +595,22 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	struct ast_silence_generator *silgen = NULL;
 	struct ast_autochan *spyee_bridge_autochan = NULL;
 	const char *spyer_name;
-	struct ast_channel *chans[] = { chan, spyee_autochan->chan };
-
-	ast_channel_lock(chan);
-	spyer_name = ast_strdupa(ast_channel_name(chan));
-	ast_channel_unlock(chan);
-
-	/* We now hold the channel lock on spyee */
 
 	if (ast_check_hangup(chan) || ast_check_hangup(spyee_autochan->chan) ||
 			ast_test_flag(ast_channel_flags(spyee_autochan->chan), AST_FLAG_ZOMBIE)) {
 		return 0;
 	}
 
+	ast_channel_lock(chan);
+	spyer_name = ast_strdupa(ast_channel_name(chan));
+	ast_channel_unlock(chan);
+
 	ast_channel_lock(spyee_autochan->chan);
 	name = ast_strdupa(ast_channel_name(spyee_autochan->chan));
 	ast_channel_unlock(spyee_autochan->chan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel has started spying on another channel.</synopsis>
-			<see-also>
-				<ref type="application">ChanSpy</ref>
-				<ref type="application">ExtenSpy</ref>
-				<ref type="managerEvent">ChanSpyStop</ref>
-			</see-also>
-		</managerEventInstance>
-	***/
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "ChanSpyStart", 2, chans,
-			"SpyerChannel: %s\r\n"
-			"SpyeeChannel: %s\r\n",
-			spyer_name, name);
+	publish_chanspy_message(chan, spyee_autochan->chan, 1);
 
 	memset(&csth, 0, sizeof(csth));
 	ast_copy_flags(&csth.flags, flags, AST_FLAGS_ALL);
@@ -740,15 +795,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	}
 
 	ast_verb(2, "Done Spying on channel %s\n", name);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel has stopped spying on another channel.</synopsis>
-			<see-also>
-				<ref type="managerEvent">ChanSpyStart</ref>
-			</see-also>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "ChanSpyStop", "SpyeeChannel: %s\r\n", name);
+	publish_chanspy_message(chan, NULL, 0);
 
 	return running;
 }

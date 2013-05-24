@@ -67,7 +67,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/manager.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/paths.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/timing.h"
@@ -1373,6 +1374,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct mohclass *mohclass = NULL;
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 	int res;
 	int realtime_possible = ast_check_realtime("musiconhold");
 
@@ -1567,20 +1570,26 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
-	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
-		"State: Start\r\n"
-		"Channel: %s\r\n"
-		"UniqueID: %s\r\n"
-		"Class: %s\r\n",
-		ast_channel_name(chan), ast_channel_uniqueid(chan),
-		mohclass->name);
-
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 
 	if (mohclass->total_files) {
 		res = ast_activate_generator(chan, &moh_file_stream, mohclass);
 	} else {
 		res = ast_activate_generator(chan, &mohgen, mohclass);
+	}
+
+	json_object = ast_json_pack("{s: s}",
+			"class", mohclass->name);
+	if (!json_object) {
+		mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
+		return -1;
+	}
+
+	message = ast_channel_cached_blob_create(chan,
+			ast_channel_moh_start_type(),
+			json_object);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
 	}
 
 	mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
@@ -1590,6 +1599,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
@@ -1601,11 +1611,10 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		}
 	}
 
-	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
-		"State: Stop\r\n"
-		"Channel: %s\r\n"
-		"UniqueID: %s\r\n",
-		ast_channel_name(chan), ast_channel_uniqueid(chan));
+	message = ast_channel_cached_blob_create(chan, ast_channel_moh_stop_type(), NULL);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
 	ast_channel_unlock(chan);
 }
 

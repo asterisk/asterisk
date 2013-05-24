@@ -43,7 +43,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/dsp.h"
 #include "asterisk/module.h"
-#include "asterisk/manager.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="SendFAX" language="en_US" module="app_fax">
@@ -202,6 +203,9 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 
 static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 {
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, json_filenames, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	const char *local_ident;
 	const char *far_ident;
 	char buf[20];
@@ -251,32 +255,24 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	ast_debug(1, "  Image resolution:  %d x %d\n", stat.x_resolution, stat.y_resolution);
 	ast_debug(1, "  Transfer Rate:     %d\n", stat.bit_rate);
 
-	ast_manager_event(s->chan, EVENT_FLAG_CALL,
-		s->direction ? "FaxSent" : "FaxReceived",
-		"Channel: %s\r\n"
-		"Exten: %s\r\n"
-		"CallerID: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"ConnectedLineNum: %s\r\n"
-		"ConnectedLineName: %s\r\n"
-		"RemoteStationID: %s\r\n"
-		"LocalStationID: %s\r\n"
-		"PagesTransferred: %d\r\n"
-		"Resolution: %d\r\n"
-		"TransferRate: %d\r\n"
-		"FileName: %s\r\n",
-		ast_channel_name(s->chan),
-		ast_channel_exten(s->chan),
-		S_COR(ast_channel_caller(s->chan)->id.number.valid, ast_channel_caller(s->chan)->id.number.str, ""),
-		S_COR(ast_channel_caller(s->chan)->id.name.valid, ast_channel_caller(s->chan)->id.name.str, ""),
-		S_COR(ast_channel_connected(s->chan)->id.number.valid, ast_channel_connected(s->chan)->id.number.str, ""),
-		S_COR(ast_channel_connected(s->chan)->id.name.valid, ast_channel_connected(s->chan)->id.name.str, ""),
-		far_ident,
-		local_ident,
-		pages_transferred,
-		stat.y_resolution,
-		stat.bit_rate,
-		s->file_name);
+	json_filenames = ast_json_pack("[s]", s->file_name);
+	if (!json_filenames) {
+		return;
+	}
+	ast_json_ref(json_filenames);
+	json_object = ast_json_pack("{s: s, s: s, s: s, s: i, s: i, s: i, s: o}",
+			"type", s->direction ? "send" : "receive",
+			"remote_station_id", far_ident,
+			"local_station_id", local_ident,
+			"fax_pages", pages_transferred,
+			"fax_resolution", stat.y_resolution,
+			"fax_bitrate", stat.bit_rate,
+			"filenames", json_filenames);
+	message = ast_channel_cached_blob_create(s->chan, ast_channel_fax_type(), json_object);
+	if (!message) {
+		return;
+	}
+	stasis_publish(ast_channel_topic(s->chan), message);
 }
 
 /* === Helper functions to configure fax === */

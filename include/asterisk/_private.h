@@ -52,6 +52,20 @@ void ast_msg_shutdown(void);        /*!< Provided by message.c */
 int aco_init(void);             /*!< Provided by config_options.c */
 
 /*!
+ * \since 12
+ * \brief Possible return types for \ref ast_module_reload
+ */
+enum ast_module_reload_result {
+	AST_MODULE_RELOAD_SUCCESS = 0,      /*!< The module was reloaded succesfully */
+	AST_MODULE_RELOAD_QUEUED,           /*!< The module reload request was queued */
+	AST_MODULE_RELOAD_NOT_FOUND,        /*!< The requested module was not found */
+	AST_MODULE_RELOAD_ERROR,            /*!< An error occurred while reloading the module */
+	AST_MODULE_RELOAD_IN_PROGRESS,      /*!< A module reload request is already in progress */
+	AST_MODULE_RELOAD_UNINITIALIZED,    /*!< The module has not been initialized */
+	AST_MODULE_RELOAD_NOT_IMPLEMENTED,  /*!< This module doesn't support reloading */
+};
+
+/*!
  * \brief Initialize the bridging system.
  * \since 12.0.0
  *
@@ -78,13 +92,10 @@ int ast_local_init(void);
  *
  * \note Modules are reloaded using their reload() functions, not unloading
  * them and loading them again.
- * 
- * \return 0 if the specified module was not found.
- * \retval 1 if the module was found but cannot be reloaded.
- * \retval -1 if a reload operation is already in progress.
- * \retval 2 if the specfied module was found and reloaded.
+ *
+ * \retval The \ref ast_module_reload_result status of the module load request
  */
-int ast_module_reload(const char *name);
+enum ast_module_reload_result ast_module_reload(const char *name);
 
 /*!
  * \brief Process reload requests received during startup.

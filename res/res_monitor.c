@@ -40,8 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
-#include "asterisk/manager.h"
 #include "asterisk/cli.h"
+#include "asterisk/manager.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 #define AST_API_MODULE
 #include "asterisk/monitor.h"
 #include "asterisk/app.h"
@@ -291,6 +293,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 					     const char *fname_base, int need_lock, int stream_action)
 {
 	int res = 0;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	LOCK_IF_NEEDED(chan, need_lock);
 
@@ -393,11 +396,12 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 
-		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStart",
-			                "Channel: %s\r\n"
-					        "Uniqueid: %s\r\n",
-	                        ast_channel_name(chan),
-			                ast_channel_uniqueid(chan));
+		message = ast_channel_cached_blob_create(chan,
+				ast_channel_monitor_start_type(),
+				NULL);
+		if (message) {
+			stasis_publish(ast_channel_topic(chan), message);
+		}
 	} else {
 		ast_debug(1,"Cannot start monitoring %s, already monitored\n", ast_channel_name(chan));
 		res = -1;
@@ -437,6 +441,7 @@ static const char *get_soxmix_format(const char *format)
 int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_lock)
 {
 	int delfiles = 0;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	LOCK_IF_NEEDED(chan, need_lock);
 
@@ -511,12 +516,12 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 		ast_free(ast_channel_monitor(chan));
 		ast_channel_monitor_set(chan, NULL);
 
-		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStop",
-			                "Channel: %s\r\n"
-	                        "Uniqueid: %s\r\n",
-	                        ast_channel_name(chan),
-	                        ast_channel_uniqueid(chan)
-	                        );
+		message = ast_channel_cached_blob_create(chan,
+				ast_channel_monitor_stop_type(),
+				NULL);
+		if (message) {
+			stasis_publish(ast_channel_topic(chan), message);
+		}
 		pbx_builtin_setvar_helper(chan, "MONITORED", NULL);
 	}
 	pbx_builtin_setvar_helper(chan, "AUTO_MONITOR", NULL);

@@ -5769,6 +5769,30 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 	ast_channel_unlock(chan);
 }
 
+/*!
+ * \internal
+ * \brief Publish a hangup handler related message to \ref stasis
+ */
+static void publish_hangup_handler_message(const char *action, struct ast_channel *chan, const char *handler)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	blob = ast_json_pack("{s: s, s: s}",
+			"type", action,
+			"handler", S_OR(handler, ""));
+	if (!blob) {
+		return;
+	}
+
+	message = ast_channel_blob_create(chan, ast_channel_hangup_handler_type(), blob);
+	if (!message) {
+		return;
+	}
+
+	stasis_publish(ast_channel_topic(chan), message);
+}
+
 int ast_pbx_hangup_handler_run(struct ast_channel *chan)
 {
 	struct ast_hangup_handler_list *handlers;
@@ -5798,23 +5822,7 @@ int ast_pbx_hangup_handler_run(struct ast_channel *chan)
 			break;
 		}
 
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a hangup handler is about to be called.</synopsis>
-				<syntax>
-					<parameter name="Handler">
-						<para>Hangup handler parameter string passed to the Gosub application.</para>
-					</parameter>
-				</syntax>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerRun",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Handler: %s\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			h_handler->args);
+		publish_hangup_handler_message("run", chan, h_handler->args);
 		ast_channel_unlock(chan);
 
 		ast_app_exec_sub(NULL, chan, h_handler->args, 1);
@@ -5859,30 +5867,7 @@ int ast_pbx_hangup_handler_pop(struct ast_channel *chan)
 	handlers = ast_channel_hangup_handlers(chan);
 	h_handler = AST_LIST_REMOVE_HEAD(handlers, node);
 	if (h_handler) {
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>
-					Raised when a hangup handler is removed from the handler
-					stack by the CHANNEL() function.
-				</synopsis>
-				<syntax>
-					<parameter name="Handler">
-						<para>Hangup handler parameter string passed to the Gosub application.</para>
-					</parameter>
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">HangupHandlerPush</ref>
-					<ref type="function">CHANNEL</ref>
-				</see-also>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerPop",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Handler: %s\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			h_handler->args);
+		publish_hangup_handler_message("pop", chan, h_handler->args);
 	}
 	ast_channel_unlock(chan);
 	if (h_handler) {
@@ -5918,32 +5903,7 @@ void ast_pbx_hangup_handler_push(struct ast_channel *chan, const char *handler)
 
 	handlers = ast_channel_hangup_handlers(chan);
 	AST_LIST_INSERT_HEAD(handlers, h_handler, node);
-
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>
-				Raised when a hangup handler is added to the handler
-				stack by the CHANNEL() function.
-			</synopsis>
-			<syntax>
-				<parameter name="Handler">
-					<para>Hangup handler parameter string passed to the Gosub application.</para>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">HangupHandlerPop</ref>
-				<ref type="function">CHANNEL</ref>
-			</see-also>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_DIALPLAN, "HangupHandlerPush",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Handler: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		h_handler->args);
-
+	publish_hangup_handler_message("push", chan, h_handler->args);
 	ast_channel_unlock(chan);
 }
 

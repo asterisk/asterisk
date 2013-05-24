@@ -330,7 +330,7 @@ struct ast_channel_snapshot;
  * \retval NULL on error
  * \retval ast_str* on success (must be ast_freed by caller)
  */
-struct ast_str *ast_manager_build_channel_state_string_suffix(
+struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
 		const char *suffix);
 
@@ -349,6 +349,32 @@ struct ast_str *ast_manager_build_channel_state_string(
 
 /*! \brief Struct representing a snapshot of bridge state */
 struct ast_bridge_snapshot;
+
+/*!
+ * \since 12
+ * \brief Callback used to determine whether a key should be skipped when converting a
+ *  JSON object to a manager blob
+ * \param key Key from JSON blob to be evaluated
+ * \retval non-zero if the key should be excluded
+ * \retval zero if the key should not be excluded
+ */
+typedef int (*key_exclusion_cb)(const char *key);
+
+struct ast_json;
+
+/*!
+ * \since 12
+ * \brief Convert a JSON object into an AMI compatible string
+ *
+ * \param blob The JSON blob containing key/value pairs to convert
+ * \param exclusion_cb A \ref key_exclusion_cb pointer to a function that will exclude
+ * keys from the final AMI string
+ *
+ * \retval A malloc'd \ref ast_str object. Callers of this function should free
+ * the returned \ref ast_str object
+ * \retval NULL on error
+ */
+struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_exclusion_cb exclusion_cb);
 
 /*!
  * \brief Generate the AMI message body from a bridge snapshot
@@ -398,11 +424,19 @@ ast_manager_event_blob_create(
 
 /*!
  * \brief Initialize support for AMI channel events.
- * \return 0 on success.
- * \return non-zero on error.
+ * \retval 0 on success.
+ * \retval non-zero on error.
  * \since 12
  */
 int manager_channels_init(void);
+
+/*!
+ * \since 12
+ * \brief Initialize support for AMI MWI events.
+ * \retval 0 on success
+ * \retval non-zero on error
+ */
+int manager_mwi_init(void);
 
 /*!
  * \brief Initialize support for AMI channel events.
@@ -411,5 +445,55 @@ int manager_channels_init(void);
  * \since 12
  */
 int manager_bridging_init(void);
+
+/*!
+ * \since 12
+ * \brief Get the \ref stasis_message_type for generic messages
+ *
+ * A generic AMI message expects a JSON only payload. The payload must have the following
+ * structure:
+ * {type: s, class_type: i, event: [ {s: s}, ...] }
+ *
+ * - type is the AMI event type
+ * - class_type is the class authorization type for the event
+ * - event is a list of key/value tuples to be sent out in the message
+ *
+ * \retval A \ref stasis_message_type for AMI messages
+ */
+struct stasis_message_type *ast_manager_get_generic_type(void);
+
+/*!
+ * \since 12
+ * \brief Get the \ref stasis topic for AMI
+ *
+ * \retval The \ref stasis topic for AMI
+ * \retval NULL on error
+ */
+struct stasis_topic *ast_manager_get_topic(void);
+
+struct ast_json;
+
+/*!
+ * \since 12
+ * \brief Publish a generic \ref stasis_message_type to the \ref stasis_topic for AMI
+ *
+ * Publishes a message to the \ref stasis message bus solely for the consumption of AMI.
+ * The message will be of the type provided by \ref ast_manager_get_type, and will be
+ * published to the topic provided by \ref ast_manager_get_topic. As such, the JSON must
+ * be constructed as defined by the \ref ast_manager_get_type message.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_manager_publish_message(struct ast_json *json);
+
+/*!
+ * \since 12
+ * \brief Get the \ref stasis_message_router for AMI
+ *
+ * \retval The \ref stasis_message_router for AMI
+ * \retval NULL on error
+ */
+struct stasis_message_router *ast_manager_get_message_router(void);
 
 #endif /* _ASTERISK_MANAGER_H */

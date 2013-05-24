@@ -1536,10 +1536,6 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 
-	if (!ast_strlen_zero(xmpp)) {
-		manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\nPacket: %s\r\n", client->name, xmpp);
-	}
-
 	if (client->debug) {
 		if (is_incoming) {
 			ast_verbose("\nJABBER: %s INCOMING: %s\n", client->name, xmpp);
@@ -3247,9 +3243,9 @@ static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasi
 	char oldmsgs[10];
 	char newmsgs[10];
 	struct aji_client *client = data;
-	struct stasis_mwi_state *mwi_state;
+	struct ast_mwi_state *mwi_state;
 
-	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state_type() != stasis_message_type(msg)) {
+	if (!stasis_subscription_is_subscribed(sub) || ast_mwi_state_type() != stasis_message_type(msg)) {
 		return;
 	}
 
@@ -3308,7 +3304,7 @@ static int cached_devstate_cb(void *obj, void *arg, int flags)
 static void aji_init_event_distribution(struct aji_client *client)
 {
 	if (!mwi_sub) {
-		mwi_sub = stasis_subscribe(stasis_mwi_topic_all(), aji_mwi_cb, client);
+		mwi_sub = stasis_subscribe(ast_mwi_topic_all(), aji_mwi_cb, client);
 	}
 	if (!device_state_sub) {
 		RAII_VAR(struct ao2_container *, cached, NULL, ao2_cleanup);
@@ -3369,7 +3365,7 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
 
-		stasis_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, &pubsub_eid);
+		ast_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, NULL, &pubsub_eid);
 
 		return IKS_FILTER_EAT;
 	} else {

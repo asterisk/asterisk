@@ -1324,9 +1324,9 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
 	struct ast_xmpp_client *client = data;
 	const char *mailbox, *context;
 	char oldmsgs[10], newmsgs[10];
-	struct stasis_mwi_state *mwi_state;
+	struct ast_mwi_state *mwi_state;
 
-	if (!stasis_subscription_is_subscribed(sub) || stasis_mwi_state_type() != stasis_message_type(msg)) {
+	if (!stasis_subscription_is_subscribed(sub) || ast_mwi_state_type() != stasis_message_type(msg)) {
 		return;
 	}
 
@@ -1484,7 +1484,7 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
 
-		stasis_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, &pubsub_eid);
+		ast_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, NULL, &pubsub_eid);
 
 		return IKS_FILTER_EAT;
 	} else {
@@ -1596,7 +1596,7 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 	xmpp_pubsub_unsubscribe(client, "device_state");
 	xmpp_pubsub_unsubscribe(client, "message_waiting");
 
-	if (!(client->mwi_sub = stasis_subscribe(stasis_mwi_topic_all(), xmpp_pubsub_mwi_cb, client))) {
+	if (!(client->mwi_sub = stasis_subscribe(ast_mwi_topic_all(), xmpp_pubsub_mwi_cb, client))) {
 		return;
 	}
 
@@ -2545,10 +2545,6 @@ static void xmpp_log_hook(void *data, const char *xmpp, size_t size, int incomin
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
 	struct ast_xmpp_client *client = data;
-
-	if (!ast_strlen_zero(xmpp)) {
-		manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\nPacket: %s\r\n", client->name, xmpp);
-	}
 
 	if (!debug && (!cfg || !cfg->clients || !(clientcfg = xmpp_config_find(cfg->clients, client->name)) || !ast_test_flag(&clientcfg->flags, XMPP_DEBUG))) {
 		return;

@@ -7741,7 +7741,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	return cmd;
 }
 
-static void queue_mwi_event(const char *box, int urgent, int new, int old)
+static void queue_mwi_event(const char *channel_id, const char *box, int urgent, int new, int old)
 {
 	char *mailbox, *context;
 
@@ -7752,7 +7752,7 @@ static void queue_mwi_event(const char *box, int urgent, int new, int old)
 		context = "default";
 	}
 
-	stasis_publish_mwi_state(mailbox, context, new + urgent, old);
+	ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
 }
 
 /*!
@@ -7842,32 +7842,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	if (ast_app_has_voicemail(ext_context, NULL)) 
 		ast_app_inboxcount2(ext_context, &urgentmsgs, &newmsgs, &oldmsgs);
 
-	queue_mwi_event(ext_context, urgentmsgs, newmsgs, oldmsgs);
-
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a new message has been left in a voicemail mailbox.</synopsis>
-			<syntax>
-				<parameter name="Mailbox">
-					<para>The mailbox with the new message, specified as <emphasis>mailbox</emphasis>@<emphasis>context</emphasis></para>
-				</parameter>
-				<parameter name="Waiting">
-					<para>Whether or not the mailbox has access to a voicemail application.</para>
-				</parameter>
-				<parameter name="New">
-					<para>The number of new messages.</para>
-				</parameter>
-				<parameter name="Old">
-					<para>The number of old messages.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "MessageWaiting",
-			"Mailbox: %s@%s\r\n"
-			"Waiting: %d\r\n"
-			"New: %d\r\n"
-			"Old: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
+	queue_mwi_event(ast_channel_uniqueid(chan), ext_context, urgentmsgs, newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox, flag);
 
 #ifdef IMAP_STORAGE
@@ -11538,16 +11513,10 @@ out:
 	if (valid) {
 		int new = 0, old = 0, urgent = 0;
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a user has finished listening to their messages.</synopsis>
-			</managerEventInstance>
-		***/
-		ast_manager_event(chan, EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 		/* Urgent flag not passwd to externnotify here */
 		run_externnotify(vmu->context, vmu->mailbox, NULL);
 		ast_app_inboxcount2(ext_context, &urgent, &new, &old);
-		queue_mwi_event(ext_context, urgent, new, old);
+		queue_mwi_event(ast_channel_uniqueid(chan), ext_context, urgent, new, old);
 	}
 #ifdef IMAP_STORAGE
 	/* expunge message - use UID Expunge if supported on IMAP server*/
@@ -11766,7 +11735,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	strcat(mailbox_full, context);
 
 	inboxcount2(mailbox_full, &urgent, &new, &old);
-	queue_mwi_event(mailbox_full, urgent, new, old);
+	queue_mwi_event(NULL, mailbox_full, urgent, new, old);
 
 	return 0;
 }
@@ -12502,7 +12471,7 @@ static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
 		mwi_sub->old_urgent = urgent;
 		mwi_sub->old_new = new;
 		mwi_sub->old_old = old;
-		queue_mwi_event(mwi_sub->mailbox, urgent, new, old);
+		queue_mwi_event(NULL, mwi_sub->mailbox, urgent, new, old);
 		run_externnotify(NULL, mwi_sub->mailbox, NULL);
 	}
 }
@@ -12647,7 +12616,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 	}
 
 	change = stasis_message_data(msg);
-	if (change->topic == stasis_mwi_topic_all()) {
+	if (change->topic == ast_mwi_topic_all()) {
 		return;
 	}
 
@@ -12668,10 +12637,10 @@ static int dump_cache(void *obj, void *arg, int flags)
 static void start_poll_thread(void)
 {
 	int errcode;
-	mwi_sub_sub = stasis_subscribe(stasis_mwi_topic_all(), mwi_event_cb, NULL);
+	mwi_sub_sub = stasis_subscribe(ast_mwi_topic_all(), mwi_event_cb, NULL);
 
 	if (mwi_sub_sub) {
-		struct ao2_container *cached = stasis_cache_dump(stasis_mwi_topic_cached(), stasis_subscription_change_type());
+		struct ao2_container *cached = stasis_cache_dump(ast_mwi_topic_cached(), stasis_subscription_change_type());
 		if (cached) {
 			ao2_callback(cached, OBJ_MULTIPLE | OBJ_NODATA, dump_cache, NULL);
 		}
@@ -15263,7 +15232,7 @@ static void notify_new_state(struct ast_vm_user *vmu)
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 	run_externnotify(vmu->context, vmu->mailbox, NULL);
 	ast_app_inboxcount2(ext_context, &urgent, &new, &old);
-	queue_mwi_event(ext_context, urgent, new, old);
+	queue_mwi_event(NULL, ext_context, urgent, new, old);
 }
 
 static int vm_msg_forward(const char *from_mailbox,

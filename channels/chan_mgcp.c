@@ -507,10 +507,10 @@ static int has_voicemail(struct mgcp_endpoint *p)
 
 	ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
 
-	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
+	msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 
 	if (msg) {
-		struct stasis_mwi_state *mwi_state = stasis_message_data(msg);
+		struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 		new_msgs = mwi_state->new_msgs;
 	} else {
 		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
@@ -4169,7 +4169,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_str_reset(uniqueid);
 					ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
 
-					mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+					mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 					if (mailbox_specific_topic) {
 						e->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 					}

@@ -48,6 +48,14 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_stop_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_handler_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_stop_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_stop_type);
 /*! @} */
 
 /*! \brief Topic for all channels */
@@ -150,28 +158,6 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	return snapshot;
 }
 
-struct ast_channel_snapshot *ast_channel_snapshot_get_latest(
-	const char *uniqueid)
-{
-        RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_channel_snapshot *snapshot;
-
-	msg = stasis_cache_get(ast_channel_topic_all_cached(),
-		ast_channel_snapshot_type(), uniqueid);
-
-	if (!msg) {
-		return NULL;
-	}
-
-	snapshot = stasis_message_data(msg);
-	if (!snapshot) {
-		return NULL;
-	}
-
-	ao2_ref(snapshot, +1);
-	return snapshot;
-}
-
 static void publish_message_for_channel_topics(struct stasis_message *message, struct ast_channel *chan)
 {
 	if (chan) {
@@ -230,12 +216,13 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 	publish_message_for_channel_topics(msg, caller);
 }
 
-static struct stasis_message *channel_blob_create(
-	struct ast_channel_snapshot *snapshot,
-	struct stasis_message_type *type, struct ast_json *blob)
+static struct stasis_message *create_channel_blob_message(struct ast_channel_snapshot *snapshot,
+		struct stasis_message_type *type,
+		struct ast_json *blob)
+
 {
-	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
 
 	if (blob == NULL) {
 		blob = ast_json_null();
@@ -247,10 +234,9 @@ static struct stasis_message *channel_blob_create(
 	}
 
 	if (snapshot) {
-		ao2_ref(snapshot, +1);
 		obj->snapshot = snapshot;
+		ao2_ref(obj->snapshot, +1);
 	}
-
 	obj->blob = ast_json_ref(blob);
 
 	msg = stasis_message_create(type, obj);
@@ -262,33 +248,27 @@ static struct stasis_message *channel_blob_create(
 	return msg;
 }
 
+struct stasis_message *ast_channel_cached_blob_create(struct ast_channel *chan,
+					       struct stasis_message_type *type,
+					       struct ast_json *blob)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot,
+			ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan)),
+			ao2_cleanup);
+
+	return create_channel_blob_message(snapshot, type, blob);
+}
+
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 	struct stasis_message_type *type, struct ast_json *blob)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 
-	if (chan != NULL) {
+	if (chan) {
 		snapshot = ast_channel_snapshot_create(chan);
-		if (snapshot == NULL) {
-			return NULL;
-		}
 	}
 
-	return channel_blob_create(snapshot, type, blob);
-}
-
-struct stasis_message *ast_channel_blob_create_from_cache(
-	const char *uniqueid, struct stasis_message_type *type,
-	struct ast_json *blob)
-{
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-
-	snapshot = ast_channel_snapshot_get_latest(uniqueid);
-	if (snapshot == NULL) {
-		return NULL;
-	}
-
-	return channel_blob_create(snapshot, type, blob);
+	return create_channel_blob_message(snapshot, type, blob);
 }
 
 /*! \brief A channel snapshot wrapper object used in \ref ast_multi_channel_blob objects */
@@ -360,6 +340,28 @@ struct ast_multi_channel_blob *ast_multi_channel_blob_create(struct ast_json *bl
 
 	ao2_ref(obj, +1);
 	return obj;
+}
+
+struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniqueid)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+
+	ast_assert(!ast_strlen_zero(uniqueid));
+
+	message = stasis_cache_get(ast_channel_topic_all_cached(),
+			ast_channel_snapshot_type(),
+			uniqueid);
+	if (!message) {
+		return NULL;
+	}
+
+	snapshot = stasis_message_data(message);
+	if (!snapshot) {
+		return NULL;
+	}
+	ao2_ref(snapshot, +1);
+	return snapshot;
 }
 
 static void channel_role_snapshot_dtor(void *obj)
@@ -458,7 +460,6 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 	ast_assert(ast_channel_topic(chan) != NULL);
 	stasis_publish(ast_channel_topic(chan), message);
 }
-
 
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
 {
@@ -584,6 +585,14 @@ void ast_stasis_channels_shutdown(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_chanspy_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_chanspy_stop_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_fax_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_handler_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_moh_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_moh_stop_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_stop_type);
 }
 
 void ast_stasis_channels_init(void)
@@ -595,7 +604,14 @@ void ast_stasis_channels_init(void)
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_end_type);
-
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_chanspy_start_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_chanspy_stop_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_fax_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_handler_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_start_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_stop_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_start_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_stop_type);
 	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
 }

@@ -16724,7 +16724,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 		ao2_cleanup(peer);
 		return;
 	}
-	if (stasis_mwi_state_type() == stasis_message_type(msg)) {
+	if (ast_mwi_state_type() == stasis_message_type(msg)) {
 		sip_send_mwi_to_peer(peer, 0);
 	}
 }
@@ -24767,7 +24767,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 			char *old = strsep(&c, " ");
 			char *new = strsep(&old, "/");
 
-			stasis_publish_mwi_state(mailbox, "SIP_Remote", atoi(new), atoi(old));
+			ast_publish_mwi_state(mailbox, "SIP_Remote", atoi(new), atoi(old));
 
 			transmit_response(p, "200 OK", req);
 		} else {
@@ -27420,7 +27420,7 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 		ast_str_reset(uniqueid);
 		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
 
-		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 		if (mailbox_specific_topic) {
 			ao2_ref(peer, +1);
 			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer);
@@ -28630,12 +28630,12 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 	in_cache = 0;
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-		struct stasis_mwi_state *mwi_state;
+		struct ast_mwi_state *mwi_state;
 
 		ast_str_reset(uniqueid);
 		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
 
-		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 		if (!msg) {
 			continue;
 		}

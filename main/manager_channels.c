@@ -37,8 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/stasis_channels.h"
 
-static struct stasis_message_router *channel_state_router;
-
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="Newchannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
@@ -160,12 +158,12 @@ static struct stasis_message_router *channel_state_router;
 			<synopsis>Raised when a dial action has started.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
-				<parameter name="ChannelDest">
+				<parameter name="DestChannel">
 				</parameter>
-				<parameter name="ChannelStateDest">
-					<para>A numeric code for the channel's current state, related to ChannelStateDescDest</para>
+				<parameter name="DestChannelState">
+					<para>A numeric code for the channel's current state, related to DestChannelStateDesc</para>
 				</parameter>
-				<parameter name="ChannelStateDescDest">
+				<parameter name="DestChannelStateDesc">
 					<enumlist>
 						<enum name="Down"/>
 						<enum name="Rsrvd"/>
@@ -180,23 +178,23 @@ static struct stasis_message_router *channel_state_router;
 						<enum name="Unknown"/>
 					</enumlist>
 				</parameter>
-				<parameter name="CallerIDNumDest">
+				<parameter name="DestCallerIDNum">
 				</parameter>
-				<parameter name="CallerIDNameDest">
+				<parameter name="DestCallerIDName">
 				</parameter>
-				<parameter name="ConnectedLineNumDest">
+				<parameter name="DestConnectedLineNum">
 				</parameter>
-				<parameter name="ConnectedLineNameDest">
+				<parameter name="DestConnectedLineName">
 				</parameter>
-				<parameter name="AccountCodeDest">
+				<parameter name="DestAccountCode">
 				</parameter>
-				<parameter name="ContextDest">
+				<parameter name="DestContext">
 				</parameter>
-				<parameter name="ExtenDest">
+				<parameter name="DestExten">
 				</parameter>
-				<parameter name="PriorityDest">
+				<parameter name="DestPriority">
 				</parameter>
-				<parameter name="UniqueidDest">
+				<parameter name="DestUniqueid">
 				</parameter>
 				<parameter name="DialString">
 					<para>The non-technology specific device being dialed.</para>
@@ -230,11 +228,270 @@ static struct stasis_message_router *channel_state_router;
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
- ***/
+	<managerEvent language="en_US" name="ChanSpyStart">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when one channel begins spying on another channel.</synopsis>
+			<syntax>
+				<parameter name="SpyerChannel">
+					<para>The channel performing the spying.</para>
+				</parameter>
+				<parameter name="SpyerChannelState">
+					<para>A numeric code for the channel's current state, related to SpyerChannelStateDesc</para>
+				</parameter>
+				<parameter name="SpyerChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="SpyerCallerIDNum">
+				</parameter>
+				<parameter name="SpyerCallerIDName">
+				</parameter>
+				<parameter name="SpyerConnectedLineNum">
+				</parameter>
+				<parameter name="SpyerConnectedLineName">
+				</parameter>
+				<parameter name="SpyerAccountCode">
+				</parameter>
+				<parameter name="SpyerContext">
+				</parameter>
+				<parameter name="SpyerExten">
+				</parameter>
+				<parameter name="SpyerPriority">
+				</parameter>
+				<parameter name="SpyerUniqueid">
+				</parameter>
+				<parameter name="SpyeeChannel">
+					<para>The channel being spied upon.</para>
+				</parameter>
+				<parameter name="SpyeeChannelState">
+					<para>A numeric code for the channel's current state, related to SpyeeChannelStateDesc</para>
+				</parameter>
+				<parameter name="SpyeeChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="SpyeeCallerIDNum">
+				</parameter>
+				<parameter name="SpyeeCallerIDName">
+				</parameter>
+				<parameter name="SpyeeConnectedLineNum">
+				</parameter>
+				<parameter name="SpyeeConnectedLineName">
+				</parameter>
+				<parameter name="SpyeeAccountCode">
+				</parameter>
+				<parameter name="SpyeeContext">
+				</parameter>
+				<parameter name="SpyeeExten">
+				</parameter>
+				<parameter name="SpyeePriority">
+				</parameter>
+				<parameter name="SpyeeUniqueid">
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">ChanSpyStop</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ChanSpyStop">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel has stopped spying.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ChanSpyStart']/managerEventInstance/syntax/parameter[contains(@name, 'Spyer')])" />
+			</syntax>
+			<see-also>
+				<ref type="application">ChanSpyStart</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="HangupHandlerRun">
+		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<synopsis>Raised when a hangup handler is about to be called.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Handler">
+					<para>Hangup handler parameter string passed to the Gosub application.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="HangupHandlerPop">
+		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<synopsis>
+				Raised when a hangup handler is removed from the handler stack
+				by the CHANNEL() function.
+			</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='HangupHandlerRun']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">HangupHandlerPush</ref>
+				<ref type="function">CHANNEL</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="HangupHandlerPush">
+		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<synopsis>
+				Raised when a hangup handler is added to the handler stack by
+				the CHANNEL() function.
+			</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='HangupHandlerRun']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">HangupHandlerPop</ref>
+				<ref type="function">CHANNEL</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="FAXStatus">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>
+				Raised periodically during a fax transmission.
+			</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Operation">
+					<enumlist>
+						<enum name="gateway"/>
+						<enum name="receive"/>
+						<enum name="send"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Status">
+					<para>A text message describing the current status of the fax</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ReceiveFAX']/managerEventInstance/syntax/parameter[@name='LocalStationID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ReceiveFAX']/managerEventInstance/syntax/parameter[@name='FileName'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ReceiveFAX">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>
+				Raised when a receive fax operation has completed.
+			</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="LocalStationID">
+					<para>The value of the <variable>LOCALSTATIONID</variable> channel variable</para>
+				</parameter>
+				<parameter name="RemoteStationID">
+					<para>The value of the <variable>REMOTESTATIONID</variable> channel variable</para>
+				</parameter>
+				<parameter name="PagesTransferred">
+					<para>The number of pages that have been transferred</para>
+				</parameter>
+				<parameter name="Resolution">
+					<para>The negotiated resolution</para>
+				</parameter>
+				<parameter name="TransferRate">
+					<para>The negotiated transfer rate</para>
+				</parameter>
+				<parameter name="FileName" multiple="yes">
+					<para>The files being affected by the fax operation</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SendFAX">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>
+				Raised when a send fax operation has completed.
+			</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ReceiveFAX']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MusicOnHoldStart">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when music on hold has started on a channel.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Class">
+					<para>The class of music being played on the channel</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">MusicOnHoldStop</ref>
+				<ref type="application">MusicOnHold</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MusicOnHoldStop">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when music on hold has stopped on a channel.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">MusicOnHoldStart</ref>
+				<ref type="application">StopMusicOnHold</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MonitorStart">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when monitoring has started on a channel.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">MonitorStop</ref>
+				<ref type="application">Monitor</ref>
+				<ref type="manager">Monitor</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MonitorStop">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+		</syntax>
+		<see-also>
+			<ref type="managerEvent">MonitorStart</ref>
+			<ref type="application">StopMonitor</ref>
+			<ref type="manager">StopMonitor</ref>
+		</see-also>
+		</managerEventInstance>
+	</managerEvent>
+***/
 
-struct ast_str *ast_manager_build_channel_state_string_suffix(
+/*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
+ * to the manager topic
+ */
+static struct stasis_subscription *topic_forwarder;
+
+struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
-		const char *suffix)
+		const char *prefix)
 {
 	struct ast_str *out = ast_str_create(1024);
 	int res = 0;
@@ -242,30 +499,30 @@ struct ast_str *ast_manager_build_channel_state_string_suffix(
 		return NULL;
 	}
 	res = ast_str_set(&out, 0,
-		"Channel%s: %s\r\n"
-		"ChannelState%s: %d\r\n"
-		"ChannelStateDesc%s: %s\r\n"
-		"CallerIDNum%s: %s\r\n"
-		"CallerIDName%s: %s\r\n"
-		"ConnectedLineNum%s: %s\r\n"
-		"ConnectedLineName%s: %s\r\n"
-		"AccountCode%s: %s\r\n"
-		"Context%s: %s\r\n"
-		"Exten%s: %s\r\n"
-		"Priority%s: %d\r\n"
-		"Uniqueid%s: %s\r\n",
-		suffix, snapshot->name,
-		suffix, snapshot->state,
-		suffix, ast_state2str(snapshot->state),
-		suffix, S_OR(snapshot->caller_number, "<unknown>"),
-		suffix, S_OR(snapshot->caller_name, "<unknown>"),
-		suffix, S_OR(snapshot->connected_number, "<unknown>"),
-		suffix, S_OR(snapshot->connected_name, "<unknown>"),
-		suffix, snapshot->accountcode,
-		suffix, snapshot->context,
-		suffix, snapshot->exten,
-		suffix, snapshot->priority,
-		suffix, snapshot->uniqueid);
+		"%sChannel: %s\r\n"
+		"%sChannelState: %d\r\n"
+		"%sChannelStateDesc: %s\r\n"
+		"%sCallerIDNum: %s\r\n"
+		"%sCallerIDName: %s\r\n"
+		"%sConnectedLineNum: %s\r\n"
+		"%sConnectedLineName: %s\r\n"
+		"%sAccountCode: %s\r\n"
+		"%sContext: %s\r\n"
+		"%sExten: %s\r\n"
+		"%sPriority: %d\r\n"
+		"%sUniqueid: %s\r\n",
+		prefix, snapshot->name,
+		prefix, snapshot->state,
+		prefix, ast_state2str(snapshot->state),
+		prefix, S_OR(snapshot->caller_number, "<unknown>"),
+		prefix, S_OR(snapshot->caller_name, "<unknown>"),
+		prefix, S_OR(snapshot->connected_number, "<unknown>"),
+		prefix, S_OR(snapshot->connected_name, "<unknown>"),
+		prefix, snapshot->accountcode,
+		prefix, snapshot->context,
+		prefix, snapshot->exten,
+		prefix, snapshot->priority,
+		prefix, snapshot->uniqueid);
 
 	if (!res) {
 		return NULL;
@@ -274,8 +531,8 @@ struct ast_str *ast_manager_build_channel_state_string_suffix(
 	if (snapshot->manager_vars) {
 		struct ast_var_t *var;
 		AST_LIST_TRAVERSE(snapshot->manager_vars, var, entries) {
-			ast_str_append(&out, 0, "ChanVariable%s: %s=%s\r\n",
-				       suffix,
+			ast_str_append(&out, 0, "%sChanVariable: %s=%s\r\n",
+				       prefix,
 				       var->name, var->value);
 		}
 	}
@@ -286,7 +543,7 @@ struct ast_str *ast_manager_build_channel_state_string_suffix(
 struct ast_str *ast_manager_build_channel_state_string(
 		const struct ast_channel_snapshot *snapshot)
 {
-	return ast_manager_build_channel_state_string_suffix(snapshot, "");
+	return ast_manager_build_channel_state_string_prefix(snapshot, "");
 }
 
 /*! \brief Typedef for callbacks that get called on channel snapshot updates */
@@ -477,38 +734,6 @@ static void channel_varset_cb(void *data, struct stasis_subscription *sub,
 		      variable, value);
 }
 
-/*!
- * \brief Callback used to determine whether a key should be skipped when converting a JSON object to a manager blob
- * \param key Key from JSON blob to be evaluated
- * \retval non-zero if the key should be excluded
- * \retval zero if the key should not be excluded
- */
-typedef int (*key_exclusion_cb)(const char *key);
-
-static struct ast_str *manager_str_from_json_object(struct ast_json *blob, key_exclusion_cb exclusion_cb)
-{
-	struct ast_str *output_str = ast_str_create(32);
-	struct ast_json_iter *blob_iter = ast_json_object_iter(blob);
-	if (!output_str || !blob_iter) {
-		return NULL;
-	}
-
-	do {
-		const char *key = ast_json_object_iter_key(blob_iter);
-		const char *value = ast_json_string_get(ast_json_object_iter_value(blob_iter));
-		if (exclusion_cb && exclusion_cb(key)) {
-			continue;
-		}
-
-		ast_str_append(&output_str, 0, "%s: %s\r\n", key, value);
-		if (!output_str) {
-			return NULL;
-		}
-	} while ((blob_iter = ast_json_object_iter_next(blob, blob_iter)));
-
-	return output_str;
-}
-
 static int userevent_exclusion_cb(const char *key)
 {
 	if (!strcmp("type", key)) {
@@ -529,7 +754,7 @@ static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
 	const char *eventname;
 
 	eventname = ast_json_string_get(ast_json_object_get(obj->blob, "eventname"));
-	body = manager_str_from_json_object(obj->blob, userevent_exclusion_cb);
+	body = ast_manager_str_from_json_object(obj->blob, userevent_exclusion_cb);
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 
 	if (!channel_event_string || !body) {
@@ -555,6 +780,20 @@ static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
 		      "UserEvent: %s\r\n"
 		      "%s",
 		      ast_str_buffer(channel_event_string), eventname, ast_str_buffer(body));
+}
+
+static void publish_basic_channel_event(const char *event, int class, struct ast_channel_snapshot *snapshot)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+
+	channel_event_string = ast_manager_build_channel_state_string(snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	manager_event(class, event,
+		"%s",
+		ast_str_buffer(channel_event_string));
 }
 
 static void channel_hangup_request_cb(void *data,
@@ -595,6 +834,64 @@ static void channel_hangup_request_cb(void *data,
 		      "%s%s",
 		      ast_str_buffer(channel_event_string),
 		      ast_str_buffer(extra));
+}
+
+static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_channel_snapshot *, spyer, NULL, ao2_cleanup);
+	struct ast_multi_channel_blob *payload = stasis_message_data(message);
+
+	spyer = ast_multi_channel_blob_get_channel(payload, "spyer_channel");
+	if (!spyer) {
+		ast_log(AST_LOG_WARNING, "Received ChanSpy Start event with no spyer channel!\n");
+		return;
+	}
+
+	spyer_channel_string = ast_manager_build_channel_state_string_prefix(spyer, "Spyer");
+	if (!spyer_channel_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_CALL, "ChanSpyStop",
+		      "%s",
+		      ast_str_buffer(spyer_channel_string));
+}
+
+static void channel_chanspy_start_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, spyee_channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_channel_snapshot *, spyer, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, spyee, NULL, ao2_cleanup);
+	struct ast_multi_channel_blob *payload = stasis_message_data(message);
+
+	spyer = ast_multi_channel_blob_get_channel(payload, "spyer_channel");
+	if (!spyer) {
+		ast_log(AST_LOG_WARNING, "Received ChanSpy Start event with no spyer channel!\n");
+		return;
+	}
+	spyee = ast_multi_channel_blob_get_channel(payload, "spyee_channel");
+	if (!spyee) {
+		ast_log(AST_LOG_WARNING, "Received ChanSpy Start event with no spyee channel!\n");
+		return;
+	}
+
+	spyer_channel_string = ast_manager_build_channel_state_string_prefix(spyer, "Spyer");
+	if (!spyer_channel_string) {
+		return;
+	}
+	spyee_channel_string = ast_manager_build_channel_state_string_prefix(spyee, "Spyee");
+	if (!spyee_channel_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_CALL, "ChanSpyStart",
+		      "%s%s",
+		      ast_str_buffer(spyer_channel_string),
+		      ast_str_buffer(spyee_channel_string));
 }
 
 static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
@@ -685,6 +982,154 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 		digit, duration_ms, direction);
 }
 
+static void channel_hangup_handler_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	struct ast_channel_blob *payload = stasis_message_data(message);
+	const char *action = ast_json_string_get(ast_json_object_get(payload->blob, "type"));
+	const char *handler = ast_json_string_get(ast_json_object_get(payload->blob, "handler"));
+	const char *event;
+
+	channel_event_string = ast_manager_build_channel_state_string(payload->snapshot);
+
+	if (!channel_event_string) {
+		return;
+	}
+
+	if (!strcmp(action, "type")) {
+		event = "HangupHandlerRun";
+	} else if (!strcmp(action, "type")) {
+		event = "HangupHandlerPop";
+	} else if (!strcmp(action, "type")) {
+		event = "HangupHandlerPush";
+	} else {
+		return;
+	}
+	manager_event(EVENT_FLAG_DIALPLAN, event,
+		"%s"
+		"Handler: %s\r\n",
+		ast_str_buffer(channel_event_string),
+		handler);
+}
+
+static void channel_fax_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, event_buffer, ast_str_create(256), ast_free);
+	struct ast_channel_blob *payload = stasis_message_data(message);
+	const char *type = ast_json_string_get(ast_json_object_get(payload->blob, "type"));
+	struct ast_json *operation = ast_json_object_get(payload->blob, "operation");
+	struct ast_json *status = ast_json_object_get(payload->blob, "status");
+	struct ast_json *local_station_id = ast_json_object_get(payload->blob, "local_station_id");
+	struct ast_json *remote_station_id = ast_json_object_get(payload->blob, "remote_station_id");
+	struct ast_json *fax_pages = ast_json_object_get(payload->blob, "fax_pages");
+	struct ast_json *fax_resolution = ast_json_object_get(payload->blob, "fax_resolution");
+	struct ast_json *fax_bitrate = ast_json_object_get(payload->blob, "fax_bitrate");
+	struct ast_json *filenames = ast_json_object_get(payload->blob, "filenames");
+	const char *event;
+	size_t array_len;
+	size_t i;
+
+	if (!event_buffer) {
+		return;
+	}
+
+	channel_event_string = ast_manager_build_channel_state_string(payload->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	if (!strcmp(type, "status")) {
+		event = "FAXStatus";
+	} else if (!strcmp(type, "receive")) {
+		event = "ReceiveFAX";
+	} else if (!strcmp(type, "send")) {
+		event = "SendFAX";
+	} else {
+		return;
+	}
+
+	if (operation) {
+		ast_str_append(&event_buffer, 0, "Operation: %s\r\n", ast_json_string_get(operation));
+	}
+	if (status) {
+		ast_str_append(&event_buffer, 0, "Status: %s\r\n", ast_json_string_get(status));
+	}
+	if (local_station_id) {
+		ast_str_append(&event_buffer, 0, "LocalStationID: %s\r\n", ast_json_string_get(local_station_id));
+	}
+	if (remote_station_id) {
+		ast_str_append(&event_buffer, 0, "RemoteStationID: %s\r\n", ast_json_string_get(remote_station_id));
+	}
+	if (fax_pages) {
+		ast_str_append(&event_buffer, 0, "PagesTransferred: %s\r\n", ast_json_string_get(fax_pages));
+	}
+	if (fax_resolution) {
+		ast_str_append(&event_buffer, 0, "Resolution: %s\r\n", ast_json_string_get(fax_resolution));
+	}
+	if (fax_bitrate) {
+		ast_str_append(&event_buffer, 0, "TransferRate: %s\r\n", ast_json_string_get(fax_bitrate));
+	}
+	if (filenames) {
+		array_len = ast_json_array_size(filenames);
+		for (i = 0; i < array_len; i++) {
+			ast_str_append(&event_buffer, 0, "FileName: %s\r\n", ast_json_string_get(ast_json_array_get(filenames, i)));
+		}
+	}
+
+	manager_event(EVENT_FLAG_CALL, event,
+		"%s"
+		"%s",
+		ast_str_buffer(channel_event_string),
+		ast_str_buffer(event_buffer));
+}
+
+static void channel_moh_start_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+	struct ast_json *blob = payload->blob;
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+
+	channel_event_string = ast_manager_build_channel_state_string(payload->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_CALL, "MusicOnHoldStart",
+		"%s"
+		"Class: %s\r\n",
+		ast_str_buffer(channel_event_string),
+		ast_json_string_get(ast_json_object_get(blob, "class")));
+
+}
+
+static void channel_moh_stop_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+
+	publish_basic_channel_event("MusicOnHoldStop", EVENT_FLAG_CALL, payload->snapshot);
+}
+
+static void channel_monitor_start_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+
+	publish_basic_channel_event("MonitorStart", EVENT_FLAG_CALL, payload->snapshot);
+}
+
+static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+
+	publish_basic_channel_event("MonitorStop", EVENT_FLAG_CALL, payload->snapshot);
+}
+
 /*!
  * \brief Callback processing messages for channel dialing
  */
@@ -704,7 +1149,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 	/* Peer is required - otherwise, who are we dialing? */
 	ast_assert(peer != NULL);
-	peer_event_string = ast_manager_build_channel_state_string_suffix(peer, "Dest");
+	peer_event_string = ast_manager_build_channel_state_string_prefix(peer, "Dest");
 	if (!peer_event_string) {
 		return;
 	}
@@ -737,61 +1182,110 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 static void manager_channels_shutdown(void)
 {
-	stasis_message_router_unsubscribe_and_join(channel_state_router);
-	channel_state_router = NULL;
+	stasis_unsubscribe(topic_forwarder);
+	topic_forwarder = NULL;
 }
 
 int manager_channels_init(void)
 {
 	int ret = 0;
+	struct stasis_topic *manager_topic;
+	struct stasis_topic *channel_topic;
+	struct stasis_message_router *message_router;
 
-	if (channel_state_router) {
-		/* Already initialized */
-		return 0;
+	manager_topic = ast_manager_get_topic();
+	if (!manager_topic) {
+		return -1;
+	}
+	message_router = ast_manager_get_message_router();
+	if (!message_router) {
+		return -1;
+	}
+	channel_topic = stasis_caching_get_topic(ast_channel_topic_all_cached());
+	if (!channel_topic) {
+		return -1;
+	}
+
+	topic_forwarder = stasis_forward_all(channel_topic, manager_topic);
+	if (!topic_forwarder) {
+		return -1;
 	}
 
 	ast_register_atexit(manager_channels_shutdown);
 
-	channel_state_router = stasis_message_router_create(
-		stasis_caching_get_topic(ast_channel_topic_all_cached()));
-
-	if (!channel_state_router) {
-		return -1;
-	}
-
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 stasis_cache_update_type(),
 					 channel_snapshot_update,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_varset_type(),
 					 channel_varset_cb,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_user_event_type(),
 					 channel_user_event_cb,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_dtmf_begin_type(),
 					 channel_dtmf_begin_cb,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_dtmf_end_type(),
 					 channel_dtmf_end_cb,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_hangup_request_type(),
 					 channel_hangup_request_cb,
 					 NULL);
 
-	ret |= stasis_message_router_add(channel_state_router,
+	ret |= stasis_message_router_add(message_router,
 					 ast_channel_dial_type(),
 					 channel_dial_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_fax_type(),
+					 channel_fax_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_chanspy_start_type(),
+					 channel_chanspy_start_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_chanspy_stop_type(),
+					 channel_chanspy_stop_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_hangup_handler_type(),
+					 channel_hangup_handler_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_moh_start_type(),
+					 channel_moh_start_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_moh_stop_type(),
+					 channel_moh_stop_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_monitor_start_type(),
+					 channel_monitor_start_cb,
+					 NULL);
+
+	ret |= stasis_message_router_add(message_router,
+					 ast_channel_monitor_stop_type(),
+					 channel_monitor_stop_cb,
 					 NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole

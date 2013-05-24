@@ -1674,7 +1674,6 @@ static void do_reload(int reload)
 
 	ast_mutex_unlock(&cdr_batch_lock);
 	ast_config_destroy(config);
-	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: CDR\r\nMessage: CDR subsystem reload requested\r\n");
 }
 
 static void cdr_engine_shutdown(void)

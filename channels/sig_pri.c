@@ -8768,9 +8768,9 @@ static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub
 	const char *mbox_number;
 	int num_messages;
 	int idx;
-	struct stasis_mwi_state *mwi_state;
+	struct ast_mwi_state *mwi_state;
 
-	if (stasis_mwi_state_type() != stasis_message_type(msg)) {
+	if (ast_mwi_state_type() != stasis_message_type(msg)) {
 		return;
 	}
 
@@ -8816,7 +8816,7 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 {
 	int idx;
 	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
-	struct stasis_mwi_state *mwi_state;
+	struct ast_mwi_state *mwi_state;
 
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -8828,7 +8828,7 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 		ast_str_reset(uniqueid);
 		ast_str_set(&uniqueid, 0, "%s@%s", pri->mbox[idx].number, pri->mbox[idx].context);
 
-		msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 		if (!msg) {
 			/* No cached event for this mailbox. */
 			continue;
@@ -9002,7 +9002,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 		ast_str_set(&mwi_description, -1, "%s span %d[%d] MWI mailbox %s@%s",
 			sig_pri_cc_type_name, pri->span, i, mbox_number, mbox_context);
 
-		mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 		if (mailbox_specific_topic) {
 			pri->mbox[i].sub = stasis_subscribe(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
 		}

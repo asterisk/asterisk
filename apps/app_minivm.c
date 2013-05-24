@@ -166,14 +166,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
-#include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/localtime.h"
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/callerid.h"
-#include "asterisk/event.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/json.h"
 
 /*** DOCUMENTATION
 <application name="MinivmRecord" language="en_US">
@@ -495,7 +496,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<ref type="function">MINIVMCOUNTER</ref>
 	</see-also>
 </function>
-
+	<managerEvent language="en_US" name="MiniVoiceMail">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a notification is sent out by a MiniVoiceMail application</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Action">
+					<para>What action was taken. Currently, this will always be <literal>SentNotification</literal></para>
+				</parameter>
+				<parameter name="Mailbox">
+					<para>The mailbox that the notification was about, specified as <literal>mailbox</literal>@<literal>context</literal></para>
+				</parameter>
+				<parameter name="Counter">
+					<para>A message counter derived from the <literal>MVM_COUNTER</literal> channel variable.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 ***/
 
 #ifndef TRUE
@@ -1761,6 +1778,9 @@ static void run_externnotify(struct ast_channel *chan, struct minivm_account *vm
  * \brief Send message to voicemail account owner */
 static int notify_new_message(struct ast_channel *chan, const char *templatename, struct minivm_account *vmu, const char *filename, long duration, const char *format, char *cidnum, char *cidname)
 {
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_mwi_state *, mwi_state, NULL, ao2_cleanup);
 	char *stringp;
 	struct minivm_template *etemplate;
 	char *messageformat;
@@ -1826,8 +1846,26 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 		res = sendmail(etemplate, vmu, cidnum, cidname, filename, messageformat, duration, etemplate->attachment, MVM_MESSAGE_PAGE, counter);
 	}
 
-	ast_manager_event(chan, EVENT_FLAG_CALL, "MiniVoiceMail", "Action: SentNotification\rn\nMailbox: %s@%s\r\nCounter: %s\r\n", vmu->username, vmu->domain, counter);
+	mwi_state = ast_mwi_create(vmu->username, vmu->domain);
+	if (!mwi_state) {
+		goto notify_cleanup;
+	}
+	mwi_state->snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 
+	json_object = ast_json_pack("{s: s, s: s}",
+			"Event", "MiniVoiceMail"
+			"Action", "SentNotification",
+			"Counter", counter);
+	if (!json_object) {
+		goto notify_cleanup;
+	}
+	message = ast_mwi_blob_create(mwi_state, ast_mwi_vm_app_type(), json_object);
+	if (!message) {
+		goto notify_cleanup;
+	}
+	stasis_publish(ast_mwi_topic(mwi_state->uniqueid), message);
+
+notify_cleanup:
 	run_externnotify(chan, vmu);		/* Run external notification */
 
 	if (etemplate->locale) {
@@ -2011,7 +2049,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 
 /*!\internal
  * \brief Queue a message waiting event */
-static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int new, int old)
+static void queue_mwi_event(const char *channel_id, const char *mbx, const char *ctx, int urgent, int new, int old)
 {
 	char *mailbox, *context;
 
@@ -2021,7 +2059,7 @@ static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int ne
 		context = "default";
 	}
 
-	stasis_publish_mwi_state(mailbox, context, new + urgent, old);
+	ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
 }
 
 /*!\internal
@@ -2056,7 +2094,7 @@ static int minivm_mwi_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_ERROR, "Need mailbox@context as argument. Sorry. Argument 0 %s\n", argv[0]);
 		return -1;
 	}
-	queue_mwi_event(mailbox, domain, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+	queue_mwi_event(ast_channel_uniqueid(chan), mailbox, domain, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
 
 	return res;
 }
@@ -2078,7 +2116,6 @@ static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 	const char *filename;
 	const char *format;
 	const char *duration_string;
-
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
 		return -1;

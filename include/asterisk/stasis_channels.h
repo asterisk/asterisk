@@ -125,14 +125,15 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(
 
 /*!
  * \since 12
- * \brief Get the most recent snapshot for channel with the given \a uniqueid.
+ * \brief Obtain the latest \ref ast_channel_snapshot from the \ref stasis cache. This is
+ * an ao2 object, so use \ref ao2_cleanup() to deallocate.
  *
- * \param uniqueid Uniqueid of the snapshot to fetch.
- * \return Most recent channel snapshot
- * \return \c NULL on error
+ * \param unique_id The channel's unique ID
+ *
+ * \retval A \ref ast_channel_snapshot on success
+ * \retval NULL on error
  */
-struct ast_channel_snapshot *ast_channel_snapshot_get_latest(
-	const char *uniqueid);
+struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniqueid);
 
 /*!
  * \since 12
@@ -150,6 +151,27 @@ struct ast_channel_snapshot *ast_channel_snapshot_get_latest(
  * \return \c NULL on error
  */
 struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
+	struct stasis_message_type *type, struct ast_json *blob);
+
+/*!
+ * \since 12
+ * \brief Creates a \ref ast_channel_blob message using the current cached
+ * \ref ast_channel_snapshot for the passed in \ref ast_channel
+ *
+ * The given \a blob should be treated as immutable and not modified after it is
+ * put into the message.
+ *
+ * \param chan Channel blob is associated with, or \c NULL for global/all channels.
+ * \param type Message type for this blob.
+ * \param blob JSON object representing the data, or \c NULL for no data. If
+ *             \c NULL, ast_json_null() is put into the object.
+ *
+ * \param chan Channel blob is associated with
+ * \param blob JSON object representing the data.
+ * \return \ref ast_channel_blob message.
+ * \return \c NULL on error
+ */
+struct stasis_message *ast_channel_cached_blob_create(struct ast_channel *chan,
 	struct stasis_message_type *type, struct ast_json *blob);
 
 /*!
@@ -316,6 +338,70 @@ struct stasis_message_type *ast_channel_dtmf_begin_type(void);
  * \retval A stasis message type
  */
 struct stasis_message_type *ast_channel_dtmf_end_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a channel starts spying on another channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_chanspy_start_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for when a channel stops spying on another channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_chanspy_stop_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for a fax operation
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_fax_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for hangup handler related actions
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_hangup_handler_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for starting monitor on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_monitor_start_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for stopping monitor on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_monitor_stop_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for starting music on hold on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_moh_start_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for stopping music on hold on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_moh_stop_type(void);
 
 /*!
  * \since 12

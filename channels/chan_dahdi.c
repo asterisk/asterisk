@@ -3762,7 +3762,7 @@ static void notify_message(char *mailbox_full, int thereornot)
 	if (ast_strlen_zero(context))
 		context = "default";
 
-	stasis_publish_mwi_state(mailbox, context, thereornot, thereornot);
+	ast_publish_mwi_state(mailbox, context, thereornot, thereornot);
 
 	if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(mwimonitornotify)) {
 		snprintf(s, sizeof(s), "%s %s %d", mwimonitornotify, mailbox, thereornot);
@@ -5427,10 +5427,10 @@ static int has_voicemail(struct dahdi_pvt *p)
 	}
 
 	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-	mwi_message = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), ast_str_buffer(uniqueid));
+	mwi_message = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 
 	if (mwi_message) {
-		struct stasis_mwi_state *mwi_state = stasis_message_data(mwi_message);
+		struct ast_mwi_state *mwi_state = stasis_message_data(mwi_message);
 		new_msgs = mwi_state->new_msgs;
 	} else {
 		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
@@ -13235,7 +13235,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
 
-			mailbox_specific_topic = stasis_mwi_topic(ast_str_buffer(uniqueid));
+			mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
 			if (mailbox_specific_topic) {
 				tmp->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 			}

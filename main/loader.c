@@ -63,6 +63,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 /*** DOCUMENTATION
+	<managerEvent language="en_US" name="Reload">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when a module has been reloaded in Asterisk.</synopsis>
+			<syntax>
+				<parameter name="Module">
+					<para>The name of the module that was reloaded, or
+					<literal>All</literal> if all modules were reloaded</para>
+				</parameter>
+				<parameter name="Status">
+					<para>The numeric status code denoting the success or failure
+					of the reload request.</para>
+					<enumlist>
+						<enum name="0"><para>Success</para></enum>
+						<enum name="1"><para>Request queued</para></enum>
+						<enum name="2"><para>Module not found</para></enum>
+						<enum name="3"><para>Error</para></enum>
+						<enum name="4"><para>Reload already in progress</para></enum>
+						<enum name="5"><para>Module uninitialized</para></enum>
+						<enum name="6"><para>Reload not supported</para></enum>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #ifndef RTLD_NOW
@@ -709,22 +733,63 @@ static void queue_reload_request(const char *module)
 	AST_LIST_UNLOCK(&reload_queue);
 }
 
-int ast_module_reload(const char *name)
+/*!
+ * \since 12
+ * \internal
+ * \brief Publish a \ref stasis message regarding the reload result
+ */
+static void publish_reload_message(const char *name, enum ast_module_reload_result result)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, event_object, NULL, ast_json_unref);
+	char res_buffer[8];
+
+	snprintf(res_buffer, sizeof(res_buffer), "%d", result);
+	event_object = ast_json_pack("{s: s, s: s}",
+			"Module", S_OR(name, "All"),
+			"Status", res_buffer);
+	json_object = ast_json_pack("{s: s, s: i, s: o}",
+			"type", "Reload",
+			"class_type", EVENT_FLAG_SYSTEM,
+			"event", event_object);
+
+	if (!json_object) {
+		return;
+	}
+
+	payload = ast_json_payload_create(json_object);
+	if (!payload) {
+		return;
+	}
+
+	message = stasis_message_create(ast_manager_get_generic_type(), payload);
+	if (!message) {
+		return;
+	}
+
+	stasis_publish(ast_manager_get_topic(), message);
+}
+
+enum ast_module_reload_result ast_module_reload(const char *name)
 {
 	struct ast_module *cur;
-	int res = 0; /* return value. 0 = not found, others, see below */
+	enum ast_module_reload_result res = AST_MODULE_RELOAD_NOT_FOUND;
 	int i;
 
 	/* If we aren't fully booted, we just pretend we reloaded but we queue this
 	   up to run once we are booted up. */
 	if (!ast_fully_booted) {
 		queue_reload_request(name);
-		return 0;
+		res = AST_MODULE_RELOAD_QUEUED;
+		goto module_reload_exit;
 	}
 
 	if (ast_mutex_trylock(&reloadlock)) {
 		ast_verbose("The previous reload command didn't finish yet\n");
-		return -1;	/* reload already in progress */
+		res = AST_MODULE_RELOAD_IN_PROGRESS;
+		goto module_reload_exit;
 	}
 	ast_lastreloadtime = ast_tvnow();
 
@@ -740,26 +805,26 @@ int ast_module_reload(const char *name)
 		if (res != AST_LOCK_SUCCESS) {
 			ast_verbose("Cannot grab lock on %s\n", ast_config_AST_CONFIG_DIR);
 			ast_mutex_unlock(&reloadlock);
-			return -1;
+			res = AST_MODULE_RELOAD_ERROR;
+			goto module_reload_exit;
 		}
 	}
 
 	/* Call "predefined" reload here first */
 	for (i = 0; reload_classes[i].name; i++) {
 		if (!name || !strcasecmp(name, reload_classes[i].name)) {
-			if (!reload_classes[i].reload_fn()) {
-				ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", name);
+			if (reload_classes[i].reload_fn() == AST_MODULE_LOAD_SUCCESS) {
+				res = AST_MODULE_RELOAD_SUCCESS;
 			}
-			res = 2;	/* found and reloaded */
 		}
 	}
 
-	if (name && res) {
+	if (name && res == AST_MODULE_RELOAD_SUCCESS) {
 		if (ast_opt_lock_confdir) {
 			ast_unlock_path(ast_config_AST_CONFIG_DIR);
 		}
 		ast_mutex_unlock(&reloadlock);
-		return res;
+		goto module_reload_exit;
 	}
 
 	AST_LIST_LOCK(&module_list);
@@ -770,28 +835,30 @@ int ast_module_reload(const char *name)
 			continue;
 
 		if (!cur->flags.running || cur->flags.declined) {
-			if (!name)
+			if (res == AST_MODULE_RELOAD_NOT_FOUND) {
+				res = AST_MODULE_RELOAD_UNINITIALIZED;
+			}
+			if (!name) {
 				continue;
-			ast_log(LOG_NOTICE, "The module '%s' was not properly initialized.  "
-				"Before reloading the module, you must run \"module load %s\" "
-				"and fix whatever is preventing the module from being initialized.\n",
-				name, name);
-			res = 2; /* Don't report that the module was not found */
+			}
 			break;
 		}
 
 		if (!info->reload) {	/* cannot be reloaded */
-			/* Nothing to reload, so reload is successful */
-			ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", cur->resource);
-			if (res < 1)	/* store result if possible */
-				res = 1;	/* 1 = no reload() method */
-			continue;
+			if (res == AST_MODULE_RELOAD_NOT_FOUND) {
+				res = AST_MODULE_RELOAD_NOT_IMPLEMENTED;
+			}
+			if (!name) {
+				continue;
+			}
+			break;
 		}
-
-		res = 2;
 		ast_verb(3, "Reloading module '%s' (%s)\n", cur->resource, info->description);
-		if (!info->reload()) {
-			ast_test_suite_event_notify("MODULE_RELOAD", "Message: %s", cur->resource);
+		if (info->reload() == AST_MODULE_LOAD_SUCCESS) {
+			res = AST_MODULE_RELOAD_SUCCESS;
+		}
+		if (name) {
+			break;
 		}
 	}
 	AST_LIST_UNLOCK(&module_list);
@@ -801,6 +868,8 @@ int ast_module_reload(const char *name)
 	}
 	ast_mutex_unlock(&reloadlock);
 
+module_reload_exit:
+	publish_reload_message(name, res);
 	return res;
 }
 
@@ -1212,25 +1281,6 @@ done:
 	}
 
 	AST_LIST_UNLOCK(&module_list);
-
-	/* Tell manager clients that are aggressive at logging in that we're done
-	   loading modules. If there's a DNS problem in chan_sip, we might not
-	   even reach this */
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when all dynamic modules have finished their initial loading.</synopsis>
-			<syntax>
-				<parameter name="ModuleSelection">
-					<enumlist>
-						<enum name="Preload"/>
-						<enum name="All"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_SYSTEM, "ModuleLoadReport", "ModuleLoadStatus: Done\r\nModuleSelection: %s\r\nModuleCount: %d\r\n", preload_only ? "Preload" : "All", modulecount);
-
 	return res;
 }
 

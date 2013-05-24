@@ -133,7 +133,7 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 		return NULL;
 	}
 
-	topic = stasis_mwi_topic(mailbox);
+	topic = ast_mwi_topic(mailbox);
 
 	/* Safe strcpy */
 	strcpy(mwi_stasis_sub->mailbox, mailbox);
@@ -237,9 +237,9 @@ static int get_message_count(void *obj, void *arg, int flags)
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct mwi_stasis_subscription *mwi_stasis = obj;
 	struct message_accumulator *counter = arg;
-	struct stasis_mwi_state *mwi_state;
+	struct ast_mwi_state *mwi_state;
 
-	msg = stasis_cache_get(stasis_mwi_topic_cached(), stasis_mwi_state_type(), mwi_stasis->mailbox);
+	msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), mwi_stasis->mailbox);
 	if (!msg) {
 		return 0;
 	}
@@ -604,7 +604,7 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
 		return;
 	}
 
-	if (stasis_mwi_state_type() == stasis_message_type(msg)) {
+	if (ast_mwi_state_type() == stasis_message_type(msg)) {
 		struct ast_taskprocessor *serializer = mwi_sub->is_solicited ? ast_sip_subscription_get_serializer(mwi_sub->sip_sub) : NULL;
 		ao2_ref(mwi_sub, +1);
 		ast_sip_push_task(serializer, serialized_notify, mwi_sub);
