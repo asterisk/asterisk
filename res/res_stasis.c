@@ -83,12 +83,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CONTROLS_NUM_BUCKETS 127
 
 /*!
- * \brief Number of buckets for the blob_handlers container.  Remember to keep
- * it a prime number!
- */
-#define BLOB_HANDLER_BUCKETS 7
-
-/*!
  * \brief Stasis application container.
  */
 struct ao2_container *apps_registry;
