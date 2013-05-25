@@ -243,6 +243,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/security_events.h"
 
 #include "../defaults.h"
 
@@ -4322,6 +4323,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_security_stasis_init()) {		/* Initialize Security Stasis Topic and Events */
+		ast_security_stasis_cleanup();
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_named_acl_init()) { /* Initialize the Named ACL system */
 		printf("%s", term_quit());
 		exit(1);
@@ -4382,6 +4389,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_local_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (init_manager()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -4393,11 +4405,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_cc_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_local_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}
