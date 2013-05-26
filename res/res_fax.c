@@ -1804,8 +1804,8 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse, modems[128] = "";
 	int channel_alive;
-	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_fax_session *, s, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
 	struct ast_fax_tech_token *token = NULL;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
@@ -2285,8 +2285,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse, *filenames, *c, modems[128] = "";
 	int channel_alive, file_count;
-	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_fax_session *, s, NULL, ao2_cleanup);
+	struct ast_fax_session_details *details;
+	struct ast_fax_session *s;
 	struct ast_fax_tech_token *token = NULL;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
@@ -2321,6 +2321,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "can't send a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing SendFAX on a channel with a T.38 Gateway is not supported\n");
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2329,6 +2330,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2338,6 +2340,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2347,6 +2350,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2355,6 +2359,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]][,options])\n", app_sendfax);
+		ao2_ref(details, -1);
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -2366,6 +2371,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
 		return -1;
 	}
 	if (ast_strlen_zero(args.filenames)) {
@@ -2373,6 +2379,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]],options])\n", app_sendfax);
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2382,6 +2389,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_sendfax);
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2395,6 +2403,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error reading file");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filenames);
+			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2403,6 +2412,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error allocating memory");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
+			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2447,6 +2457,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "Unable to reserve FAX session.\n");
+		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2457,6 +2468,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			set_channel_variables(chan, details);
 			ast_log(LOG_WARNING, "Channel '%s' failed answer attempt.\n", ast_channel_name(chan));
 			fax_session_release(s, token);
+			ao2_ref(s, -1);
+			ao2_ref(details, -1);
 			return -1;
 		}
 	}
@@ -2467,6 +2480,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
+			ao2_ref(s, -1);
+			ao2_ref(details, -1);
 			return -1;
 		}
 	} else {
@@ -2479,6 +2494,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
+			ao2_ref(s, -1);
+			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -2505,6 +2522,9 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	if (report_send_fax_status(chan, details)) {
 		ast_log(AST_LOG_ERROR, "Error publishing SendFAX status message\n");
 	}
+
+	ao2_ref(s, -1);
+	ao2_ref(details, -1);
 
 	/* If the channel hungup return -1; otherwise, return 0 to continue in the dialplan */
 	return (!channel_alive) ? -1 : 0;
@@ -2977,8 +2997,9 @@ static void fax_gateway_framehook_destroy(void *data) {
  */
 static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data) {
 	struct fax_gateway *gateway = data;
-	struct ast_channel *peer, *active;
-	struct ast_fax_session_details *details;
+	struct ast_channel *active;
+	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, peer, NULL, ao2_cleanup);
 
 	if (gateway->s) {
 		details = gateway->s->details;
@@ -2999,31 +3020,26 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_set_read_format(chan, &gateway->chan_read_format);
 			ast_set_read_format(chan, &gateway->chan_write_format);
 
-			if ((peer = ast_bridged_channel(chan))) {
+			if ((peer = ast_channel_bridge_peer(chan))) {
 				ast_set_read_format(peer, &gateway->peer_read_format);
 				ast_set_read_format(peer, &gateway->peer_write_format);
 				ast_channel_make_compatible(chan, peer);
 			}
 		}
-
-		ao2_ref(details, -1);
 		return NULL;
 	}
 
 	if (!f || (event == AST_FRAMEHOOK_EVENT_ATTACHED)) {
-		ao2_ref(details, -1);
 		return NULL;
 	};
 
 	/* this frame was generated by the fax gateway, pass it on */
 	if (ast_test_flag(f, AST_FAX_FRFLAG_GATEWAY)) {
-		ao2_ref(details, -1);
 		return f;
 	}
 
-	if (!(peer = ast_bridged_channel(chan))) {
-		/* not bridged, don't do anything */
-		ao2_ref(details, -1);
+	/* If we aren't bridged or we don't have a peer, don't do anything */
+	if (!(peer = ast_channel_bridge_peer(chan))) {
 		return f;
 	}
 
@@ -3038,7 +3054,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_string_field_set(details, resultstr, "neither channel supports T.38");
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
 			set_channel_variables(chan, details);
-			ao2_ref(details, -1);
 			return f;
 		}
 
@@ -3074,7 +3089,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_string_field_build(details, resultstr, "no fax activity after %d ms", details->gateway_timeout);
 			ast_string_field_set(details, error, "TIMEOUT");
 			set_channel_variables(chan, details);
-			ao2_ref(details, -1);
 			return f;
 		}
 	}
@@ -3088,7 +3102,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		case AST_FORMAT_ULAW:
 			break;
 		default:
-			ao2_ref(details, -1);
 			return f;
 		}
 		break;
@@ -3096,16 +3109,13 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		if (f->subclass.integer == AST_MODEM_T38) {
 			break;
 		}
-		ao2_ref(details, -1);
 		return f;
 	case AST_FRAME_CONTROL:
 		if (f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
 			break;
 		}
-		ao2_ref(details, -1);
 		return f;
 	default:
-		ao2_ref(details, -1);
 		return f;
 	}
 
@@ -3119,20 +3129,17 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		break;
 	default:
 		ast_log(LOG_WARNING, "unhandled framehook event %i\n", event);
-		ao2_ref(details, -1);
 		return f;
 	}
 
 	/* handle control frames */
 	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
-		ao2_ref(details, -1);
 		return fax_gateway_detect_t38(gateway, chan, peer, active, f);
 	}
 
 	if (!gateway->detected_v21 && gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
 		/* not in gateway mode and have not detected v21 yet, listen
 		 * for v21 */
-		ao2_ref(details, -1);
 		return fax_gateway_detect_v21(gateway, chan, peer, active, f);
 	}
 
@@ -3143,7 +3150,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR)) {
 			if (ast_channel_readtrans(active) && (f = ast_translate(ast_channel_readtrans(active), f, 1)) == NULL) {
 				f = &ast_null_frame;
-				ao2_ref(details, -1);
 				return f;
 			}
 		}
@@ -3159,7 +3165,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_frfree(f);
 		}
 		f = &ast_null_frame;
-		ao2_ref(details, -1);
 		return f;
 	}
 
@@ -3175,16 +3180,12 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			};
 			ast_format_set(&silence_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 			memset(silence_buf, 0, sizeof(silence_buf));
-
-			ao2_ref(details, -1);
 			return ast_frisolate(&silence_frame);
 		} else {
-			ao2_ref(details, -1);
 			return &ast_null_frame;
 		}
 	}
 
-	ao2_ref(details, -1);
 	return f;
 }
 
@@ -3308,7 +3309,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	struct fax_detect *faxdetect = data;
 	struct ast_fax_session_details *details;
 	struct ast_control_t38_parameters *control_params;
-	struct ast_channel *peer;
+	RAII_VAR(struct ast_channel *, peer, NULL, ao2_cleanup);
 	int result = 0;
 
 	details = faxdetect->details;
@@ -3333,7 +3334,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	case AST_FRAMEHOOK_EVENT_DETACHED:
 		/* restore audio formats when we are detached */
 		ast_set_read_format(chan, &faxdetect->orig_format);
-		if ((peer = ast_bridged_channel(chan))) {
+		if ((peer = ast_channel_bridge_peer(chan))) {
 			ast_channel_make_compatible(chan, peer);
 		}
 		return NULL;
