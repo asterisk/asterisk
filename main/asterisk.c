@@ -1140,6 +1140,7 @@ static void publish_system_message(const char *message_type, struct ast_json *ob
 		return;
 	}
 
+	ast_json_ref(obj);
 	event_info = ast_json_pack("{s: s, s: i, s: o}",
 			"type", message_type,
 			"class_type", EVENT_FLAG_SYSTEM,
@@ -2007,10 +2008,15 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		}
 	}
 	active_channels = ast_active_channels();
-	json_object = ast_json_pack("{s: s, s: s}",
-			"Shutdown", active_channels ? "Uncleanly" : "Cleanly",
-			"Restart", restart ? "True" : "False");
-	publish_system_message("Shutdown", json_object);
+	/* Don't publish messages if we're a remote console - we won't have all of the Stasis
+	 * topics or message types
+	 */
+	if (!ast_opt_remote) {
+		json_object = ast_json_pack("{s: s, s: s}",
+				"Shutdown", active_channels ? "Uncleanly" : "Cleanly",
+				"Restart", restart ? "True" : "False");
+		publish_system_message("Shutdown", json_object);
+	}
 	ast_verb(0, "Asterisk %s ending (%d).\n",
 		active_channels ? "uncleanly" : "cleanly", num);
 

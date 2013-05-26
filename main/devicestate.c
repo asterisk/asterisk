@@ -784,15 +784,15 @@ static void devstate_exit(void)
 
 int devstate_init(void)
 {
+	if (STASIS_MESSAGE_TYPE_INIT(ast_device_state_message_type) != 0) {
+		return -1;
+	}
 	device_state_topic_all = stasis_topic_create("ast_device_state_topic");
 	if (!device_state_topic_all) {
 		return -1;
 	}
 	device_state_topic_cached = stasis_caching_topic_create(device_state_topic_all, device_state_get_id);
 	if (!device_state_topic_cached) {
-		return -1;
-	}
-	if (STASIS_MESSAGE_TYPE_INIT(ast_device_state_message_type) != 0) {
 		return -1;
 	}
 	device_state_topic_pool = stasis_topic_pool_create(ast_device_state_topic_all());

@@ -2246,7 +2246,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
  */
 static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
-	RAII_VAR(struct ast_json *, json_obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_json *json_filenames;
 
@@ -2257,7 +2257,7 @@ static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_sessi
 
 	{
 		SCOPED_CHANNELLOCK(lock, chan);
-		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
+		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
 				"type", "send"
 				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
 				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
