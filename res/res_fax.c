@@ -2285,8 +2285,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse, *filenames, *c, modems[128] = "";
 	int channel_alive, file_count;
-	struct ast_fax_session_details *details;
-	struct ast_fax_session *s;
+	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_fax_session *, s, NULL, ao2_cleanup);
 	struct ast_fax_tech_token *token = NULL;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
@@ -2321,7 +2321,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "can't send a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing SendFAX on a channel with a T.38 Gateway is not supported\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2330,7 +2329,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2340,7 +2338,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2350,7 +2347,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2359,7 +2355,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]][,options])\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -2367,11 +2362,10 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 
 
 	if (!ast_strlen_zero(args.options) &&
-	    ast_app_parse_options(fax_exec_options, &opts, NULL, args.options)) {
+		ast_app_parse_options(fax_exec_options, &opts, NULL, args.options)) {
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
 		return -1;
 	}
 	if (ast_strlen_zero(args.filenames)) {
@@ -2379,7 +2373,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]],options])\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2389,7 +2382,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "invalid arguments");
 		set_channel_variables(chan, details);
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_sendfax);
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2403,7 +2395,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error reading file");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filenames);
-			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2412,7 +2403,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error allocating memory");
 			set_channel_variables(chan, details);
 			ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-			ao2_ref(details, -1);
 			return -1;
 		}
 
@@ -2457,7 +2447,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "Unable to reserve FAX session.\n");
-		ao2_ref(details, -1);
 		return -1;
 	}
 
@@ -2468,8 +2457,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			set_channel_variables(chan, details);
 			ast_log(LOG_WARNING, "Channel '%s' failed answer attempt.\n", ast_channel_name(chan));
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	}
@@ -2480,8 +2467,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			return -1;
 		}
 	} else {
@@ -2494,8 +2479,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			set_channel_variables(chan, details);
 			fax_session_release(s, token);
-			ao2_ref(s, -1);
-			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", ast_channel_name(chan));
 			return -1;
 		}
@@ -2522,9 +2505,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	if (report_send_fax_status(chan, details)) {
 		ast_log(AST_LOG_ERROR, "Error publishing SendFAX status message\n");
 	}
-
-	ao2_ref(s, -1);
-	ao2_ref(details, -1);
 
 	/* If the channel hungup return -1; otherwise, return 0 to continue in the dialplan */
 	return (!channel_alive) ? -1 : 0;

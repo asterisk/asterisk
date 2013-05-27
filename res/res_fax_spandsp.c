@@ -761,7 +761,7 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 	struct spandsp_pvt *p = s->tech_pvt;
 	struct ast_fax_t38_parameters *t38_param;
 	int i;
-	struct ast_channel *peer;
+	RAII_VAR(struct ast_channel *, peer, NULL, ao2_cleanup);
 	static struct ast_generator t30_gen = {
 		.alloc = spandsp_fax_gw_gen_alloc,
 		.release = spandsp_fax_gw_gen_release,
@@ -782,7 +782,7 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 
 	p->ist38 = 1;
 	p->ast_t38_state = ast_channel_get_t38_state(s->chan);
-	if (!(peer = ast_bridged_channel(s->chan))) {
+	if (!(peer = ast_channel_bridge_peer(s->chan))) {
 		ast_channel_unlock(s->chan);
 		return -1;
 	}
