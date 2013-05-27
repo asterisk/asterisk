@@ -153,6 +153,10 @@ int ast_endpoint_stasis_init(void)
 {
 	ast_register_atexit(endpoints_stasis_shutdown);
 
+	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_snapshot_type) != 0) {
+		return -1;
+	}
+
 	if (!endpoint_topic_all) {
 		endpoint_topic_all = stasis_topic_create("endpoint_topic_all");
 	}
@@ -168,10 +172,6 @@ int ast_endpoint_stasis_init(void)
 	}
 
 	if (!endpoint_topic_all_cached) {
-		return -1;
-	}
-
-	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_snapshot_type) != 0) {
 		return -1;
 	}
 
