@@ -147,7 +147,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 
 		if (sf->holdlen) {
 			if (sf->holdlen <= ineed) {
-				memcpy(offset, sf->hold, sf->holdlen * sizeof(*offset));
+				memcpy(offset, sf->offset, sf->holdlen * sizeof(*offset));
 				sofar += sf->holdlen;
 				offset += sf->holdlen;
 				sf->holdlen = 0;
