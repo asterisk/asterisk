@@ -139,7 +139,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	return x;
 }
 
-int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples) 
+int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 {
 	struct ast_frame *frame_ptr;
 	unsigned int sofar = 0, ineed, remain;
@@ -150,7 +150,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 
 		if (sf->holdlen) {
 			if (sf->holdlen <= ineed) {
-				memcpy(offset, sf->hold, sf->holdlen * sizeof(*offset));
+				memcpy(offset, sf->offset, sf->holdlen * sizeof(*offset));
 				sofar += sf->holdlen;
 				offset += sf->holdlen;
 				sf->holdlen = 0;
@@ -164,10 +164,10 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 			}
 			continue;
 		}
-		
+
 		if ((frame_ptr = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list))) {
 			frame_data = frame_ptr->data.ptr;
-			
+
 			if (frame_ptr->samples <= ineed) {
 				memcpy(offset, frame_data, frame_ptr->samples * sizeof(*offset));
 				sofar += frame_ptr->samples;
