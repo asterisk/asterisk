@@ -3236,7 +3236,7 @@ static int attempt_transfer(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 
 	ast_mutex_unlock(&p->sub->next->lock);
 	ast_mutex_unlock(&p->sub->lock);
-	res = ast_bridge_transfer_attended(sub->owner, sub->next->owner, NULL);
+	res = ast_bridge_transfer_attended(sub->owner, sub->next->owner);
 
 	/* Subs are only freed when the endpoint itself is destroyed, so they will continue to exist
 	 * after ast_bridge_transfer_attended returns making this safe without reference counting

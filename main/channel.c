@@ -11261,3 +11261,58 @@ struct ast_bridge_channel *ast_channel_get_bridge_channel(struct ast_channel *ch
 	}
 	return bridge_channel;
 }
+
+struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
+{
+	struct ast_channel *yanked_chan;
+	struct {
+		char *accountcode;
+		char *exten;
+		char *context;
+		char *linkedid;
+		char *name;
+		int amaflags;
+		struct ast_format readformat;
+		struct ast_format writeformat;
+	} my_vars = { 0, };
+
+	ast_channel_lock(yankee);
+	my_vars.accountcode = ast_strdupa(ast_channel_accountcode(yankee));
+	my_vars.exten = ast_strdupa(ast_channel_exten(yankee));
+	my_vars.context = ast_strdupa(ast_channel_context(yankee));
+	my_vars.linkedid = ast_strdupa(ast_channel_linkedid(yankee));
+	my_vars.name = ast_strdupa(ast_channel_name(yankee));
+	my_vars.amaflags = ast_channel_amaflags(yankee);
+	ast_format_copy(&my_vars.writeformat, ast_channel_writeformat(yankee));
+	ast_format_copy(&my_vars.readformat, ast_channel_readformat(yankee));
+	ast_channel_unlock(yankee);
+
+	/* Do not hold any channel locks while calling channel_alloc() since the function
+	 * locks the channel container when linking the new channel in. */
+	if (!(yanked_chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, my_vars.accountcode,
+					my_vars.exten, my_vars.context, my_vars.linkedid, my_vars.amaflags,
+					"Surrogate/%s", my_vars.name))) {
+		return NULL;
+	}
+
+	/* Make formats okay */
+	ast_format_copy(ast_channel_readformat(yanked_chan), &my_vars.readformat);
+	ast_format_copy(ast_channel_writeformat(yanked_chan), &my_vars.writeformat);
+
+	if (ast_channel_move(yanked_chan, yankee)) {
+		ast_hangup(yanked_chan);
+		return NULL;
+	}
+
+	return yanked_chan;
+}
+
+int ast_channel_move(struct ast_channel *dest, struct ast_channel *source)
+{
+	if (ast_channel_masquerade(dest, source)) {
+		return -1;
+	}
+
+	ast_do_masquerade(dest);
+	return 0;
+}

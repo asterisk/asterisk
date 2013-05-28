@@ -92,6 +92,12 @@ AMI (Asterisk Manager Interface)
  * The JabberEvent event has been removed. It is not AMI's purpose to be a
    carrier for another protocol.
 
+ * The Bridge Manager action's Playtone header now accepts more fine-grained
+   options. "Channel1" and "Channel2" may be specified in order to play a tone
+   to the specific channel. "Both" may be specified to play a tone to both
+   channels. The old "yes" option is still accepted as a way of playing the
+   tone to Channel2 only.
+
  * The AMI 'Status' response event to the AMI Status action replaces the
    BridgedChannel and BridgedUniqueid headers with the BridgeID header to
    indicate what bridge the channel is currently in.

@@ -95,6 +95,16 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	return res;
 }
 
+static void copy_caller_data(struct ast_channel *dest, struct ast_channel *caller)
+{
+	ast_channel_lock_both(caller, dest);
+	ast_connected_line_copy_from_caller(ast_channel_connected(dest), ast_channel_caller(caller));
+	ast_channel_inherit_variables(caller, dest);
+	ast_channel_datastore_inherit(caller, dest);
+	ast_channel_unlock(dest);
+	ast_channel_unlock(caller);
+}
+
 /*! \brief Helper function that creates an outgoing channel and returns it immediately */
 static struct ast_channel *dial_transfer(struct ast_channel *caller, const char *exten, const char *context)
 {
@@ -113,12 +123,7 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 	}
 
 	/* Before we actually dial out let's inherit appropriate information. */
-	ast_channel_lock_both(caller, chan);
-	ast_connected_line_copy_from_caller(ast_channel_connected(chan), ast_channel_caller(caller));
-	ast_channel_inherit_variables(caller, chan);
-	ast_channel_datastore_inherit(caller, chan);
-	ast_channel_unlock(chan);
-	ast_channel_unlock(caller);
+	copy_caller_data(chan, caller);
 
 	/* Since the above worked fine now we actually call it and return the channel */
 	if (ast_call(chan, destination, 0)) {
@@ -159,19 +164,30 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
 	return "default";
 }
 
+static void blind_transfer_cb(struct ast_channel *new_channel, void *user_data,
+		enum ast_transfer_type transfer_type)
+{
+	struct ast_channel *transferer_channel = user_data;
+
+	if (transfer_type == AST_BRIDGE_TRANSFER_MULTI_PARTY) {
+		copy_caller_data(new_channel, transferer_channel);
+	}
+}
+
 /*! \brief Internal built in feature for blind transfers */
 static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	char exten[AST_MAX_EXTENSION] = "";
-	struct ast_channel *chan = NULL;
 	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
 	const char *context;
-	struct ast_exten *park_exten;
+	char *goto_on_blindxfr;
 
 /* BUGBUG the peer needs to be put on hold for the transfer. */
 	ast_channel_lock(bridge_channel->chan);
 	context = ast_strdupa(get_transfer_context(bridge_channel->chan,
 		blind_transfer ? blind_transfer->context : NULL));
+	goto_on_blindxfr = ast_strdupa(S_OR(pbx_builtin_getvar_helper(bridge_channel->chan,
+		"GOTO_ON_BLINDXFR"), ""));
 	ast_channel_unlock(bridge_channel->chan);
 
 	/* Grab the extension to transfer to */
@@ -179,30 +195,16 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 		return 0;
 	}
 
-	/* Parking blind transfer override - phase this out for something more general purpose in the future. */
-	park_exten = ast_get_parking_exten(exten, bridge_channel->chan, context);
-	if (park_exten) {
-		/* We are transfering the transferee to a parking lot. */
-		if (ast_park_blind_xfer(bridge, bridge_channel, park_exten)) {
-			ast_log(LOG_ERROR, "%s attempted to transfer to park application and failed.\n", ast_channel_name(bridge_channel->chan));
-		};
-		return 0;
+	if (!ast_strlen_zero(goto_on_blindxfr)) {
+		ast_debug(1, "After transfer, transferer %s goes to %s\n",
+				ast_channel_name(bridge_channel->chan), goto_on_blindxfr);
+		ast_after_bridge_set_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
 	}
 
-/* BUGBUG just need to ast_async_goto the peer so this bridge will go away and not accumulate local channels and bridges if the destination is to an application. */
-/* ast_async_goto actually is a blind transfer. */
-/* BUGBUG Use the bridge count to determine if can do DTMF transfer features.  If count is not 2 then don't allow it. */
-
-	/* Get a channel that is the destination we wish to call */
-	chan = dial_transfer(bridge_channel->chan, exten, context);
-	if (!chan) {
-		return 0;
-	}
-
-	/* Impart the new channel onto the bridge, and have it take our place. */
-	if (ast_bridge_impart(bridge_channel->bridge, chan, bridge_channel->chan, NULL, 1)) {
-		ast_hangup(chan);
-		return 0;
+	if (ast_bridge_transfer_blind(bridge_channel->chan, exten, context, blind_transfer_cb,
+			bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS &&
+			!ast_strlen_zero(goto_on_blindxfr)) {
+		ast_after_bridge_goto_discard(bridge_channel->chan);
 	}
 
 	return 0;

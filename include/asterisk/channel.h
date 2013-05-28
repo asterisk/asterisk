@@ -4229,4 +4229,55 @@ struct ast_channel *ast_channel_bridge_peer(struct ast_channel *chan);
  */
 struct ast_bridge_channel *ast_channel_get_bridge_channel(struct ast_channel *chan);
 
+/*!
+ * \since 12
+ * \brief Gain control of a channel in the system
+ *
+ * The intention of this function is to take a channel that currently
+ * is running in one thread and gain control of it in the current thread.
+ * This can be used to redirect a channel to a different place in the dialplan,
+ * for instance.
+ *
+ * \note This function is NOT intended to be used on bridged channels. If you
+ * need to control a bridged channel, you can set a callback to be called
+ * once the channel exits the bridge, and run your controlling logic in that
+ * callback
+ *
+ * XXX Put name of callback-setting function in above paragraph once it is written
+ *
+ * \note When this function returns successfully, the yankee channel is in a state where
+ * it cannot be used any further. Always use the returned channel instead.
+ *
+ * \note absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \param yankee The channel to gain control of
+ * \retval NULL Could not gain control of the channel
+ * \retval non-NULL The channel
+ */
+struct ast_channel *ast_channel_yank(struct ast_channel *yankee);
+
+/*!
+ * \since 12
+ * \brief Move a channel from its current location to a new location
+ *
+ * The intention of this function is to have the destination channel
+ * take on the identity of the source channel.
+ *
+ * \note This function is NOT intended to be used on bridged channels. If you
+ * wish to move an unbridged channel into the place of a bridged channel, then
+ * use ast_bridge_join() or ast_bridge_impart(). If you wish to move a bridged
+ * channel into the place of another bridged channel, then use ast_bridge_move().
+ *
+ * \note When this function returns succesfully, the source channel is in a
+ * state where its continued use is unreliable.
+ *
+ * \note absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \param dest The place to move the source channel
+ * \param source The channel to move
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_channel_move(struct ast_channel *dest, struct ast_channel *source);
+
 #endif /* _ASTERISK_CHANNEL_H */

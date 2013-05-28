@@ -225,6 +225,8 @@ enum ast_bridge_action_type {
 	AST_BRIDGE_ACTION_RUN_APP,
 	/*! Bridge channel is to execute a blind transfer. */
 	AST_BRIDGE_ACTION_BLIND_TRANSFER,
+	/*! Bridge channel is to execute an attended transfer */
+	AST_BRIDGE_ACTION_ATTENDED_TRANSFER,
 
 	/*
 	 * Bridge actions put after this comment must never be put onto
@@ -879,6 +881,45 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
 int ast_bridge_unreal_optimized_out(struct ast_channel *chan, struct ast_channel *peer);
 
 /*!
+ * \brief Tells, if optimization is allowed, how the optimization would be performed
+ */
+enum ast_bridge_optimization {
+	/*! Optimization would swap peer into the chan_bridge */
+	AST_BRIDGE_OPTIMIZE_SWAP_TO_CHAN_BRIDGE,
+	/*! Optimization would swap chan into the peer_bridge */
+	AST_BRIDGE_OPTIMIZE_SWAP_TO_PEER_BRIDGE,
+	/*! Optimization would merge peer_bridge into chan_bridge */
+	AST_BRIDGE_OPTIMIZE_MERGE_TO_CHAN_BRIDGE,
+	/*! Optimization would merge chan_bridge into peer_bridge */
+	AST_BRIDGE_OPTIMIZE_MERGE_TO_PEER_BRIDGE,
+	/*! Optimization is not permitted on one or both bridges */
+	AST_BRIDGE_OPTIMIZE_PROHIBITED,
+};
+
+/*!
+ * \brief Determine if bridges allow for optimization to occur betweem them
+ * \since 12.0.0
+ *
+ * \param chan_bridge First bridge being tested
+ * \param peer_bridge Second bridge being tested
+ *
+ * This determines if two bridges allow for unreal channel optimization
+ * to occur between them. The function does not require for unreal channels
+ * to already be in the bridges when called.
+ *
+ * \note It is assumed that both bridges are locked prior to calling this function
+ *
+ * \note A return other than AST_BRIDGE_OPTIMIZE_PROHIBITED does not guarantee
+ * that an optimization attempt will succeed. However, a return of
+ * AST_BRIDGE_OPTIMIZE_PROHIBITED guarantees that an optimization attempt will
+ * never succeed.
+ *
+ * \returns Optimization allowability for the bridges
+ */
+enum ast_bridge_optimization ast_bridges_allow_optimization(struct ast_bridge *chan_bridge,
+		struct ast_bridge *peer_bridge);
+
+/*!
  * \brief Try locking the bridge_channel.
  *
  * \param bridge_channel What to try locking
@@ -1288,7 +1329,26 @@ enum ast_transfer_result {
 	AST_BRIDGE_TRANSFER_FAIL,
 };
 
-typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data);
+enum ast_transfer_type {
+	/*! Transfer of a single party */
+	AST_BRIDGE_TRANSFER_SINGLE_PARTY,
+	/*! Transfer of multiple parties */
+	AST_BRIDGE_TRANSFER_MULTI_PARTY,
+};
+
+/*!
+ * \brief Callback function type called during blind transfers
+ *
+ * A caller of ast_bridge_transfer_blind() may wish to set data on
+ * the channel that ends up running dialplan. For instance, it may
+ * be useful to set channel variables on the channel.
+ *
+ * \param chan The involved channel
+ * \param user_data User-provided data needed in the callback
+ * \param transfer_type The type of transfer being completed
+ */
+typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data,
+		enum ast_transfer_type transfer_type);
 
 /*!
  * \brief Blind transfer target to the extension and context provided
@@ -1326,20 +1386,15 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
  * the transfer). The second is the channel that is bridged to the transfer
  * target (or if unbridged, the 'second' call of the transfer).
  *
- * Like with a blind transfer, a frame hook can be provided to monitor the
- * resulting call after the transfer completes. If the transfer fails, the
- * hook will not be attached to any call.
- *
  * \note Absolutely _NO_ channel locks should be held before
  * calling this function.
  *
  * \param to_transferee Transferer channel on initial call (presumably bridged to transferee)
  * \param to_transfer_target Transferer channel on consultation call (presumably bridged to transfer target)
- * \param hook A frame hook to attach to the resultant call
  * \return The success or failure of the attended transfer
  */
 enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_transferee,
-		struct ast_channel *to_transfer_target, struct ast_framehook *hook);
+		struct ast_channel *to_transfer_target);
 /*!
  * \brief Set channel to goto specific location after the bridge.
  * \since 12.0.0
@@ -1510,6 +1565,16 @@ void ast_after_bridge_callback_discard(struct ast_channel *chan, enum ast_after_
  * \retval -1 on error.
  */
 int ast_after_bridge_callback_set(struct ast_channel *chan, ast_after_bridge_cb callback, ast_after_bridge_cb_failed failed, void *data);
+
+/*!
+ * \brief Get a string representation of an after bridge callback reason
+ * \since 12.0.0
+ *
+ * \param reason The reason to interpret to a string
+ * \retval NULL Unrecognized reason
+ * \retval non-NULL String representation of reason
+ */
+const char *ast_after_bridge_cb_reason_string(enum ast_after_bridge_cb_reason reason);
 
 /*!
  * \brief Get a container of all channels in the bridge

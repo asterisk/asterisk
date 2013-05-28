@@ -161,6 +161,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+
 	<managerEvent language="en_US" name="ConfbridgeTalking">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a confbridge participant unmutes.</synopsis>

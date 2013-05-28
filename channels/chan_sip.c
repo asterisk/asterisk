@@ -26234,9 +26234,11 @@ struct blind_transfer_cb_data {
  * we may send out.
  *
  * \param chan The new outbound channel
- * \user_data A blind_transfer_cb_data struct
+ * \param user_data A blind_transfer_cb_data struct
+ * \param transfer_type Unused
  */
-static void blind_transfer_cb(struct ast_channel *chan, void *user_data)
+static void blind_transfer_cb(struct ast_channel *chan, void *user_data,
+		enum ast_transfer_type transfer_type)
 {
 	struct blind_transfer_cb_data *cb_data = user_data;
 
