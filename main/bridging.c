@@ -5509,6 +5509,10 @@ static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
 	bridge = ast_channel_get_bridge(chan);
 	ast_channel_unlock(chan);
 
+	if (!bridge) {
+		return NULL;
+	}
+
 	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY)) {
 		ao2_ref(bridge, -1);
 		bridge = NULL;
