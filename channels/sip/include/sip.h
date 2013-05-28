@@ -834,16 +834,6 @@ struct sip_request {
  */
 #define REQ_OFFSET_TO_STR(req,offset) (ast_str_buffer((req)->data) + ((req)->offset))
 
-/*! \brief structure used in transfers */
-struct sip_dual {
-	struct ast_channel *chan1;   /*!< First channel involved */
-	struct ast_channel *chan2;   /*!< Second channel involved */
-	struct sip_request req;      /*!< Request that caused the transfer (REFER) */
-	uint32_t seqno;              /*!< Sequence number */
-	char *park_exten;
-	char *park_context;
-};
-
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
 	int addsipheaders;          /*!< Add extra SIP headers */
@@ -935,10 +925,6 @@ struct sip_refer {
 		AST_STRING_FIELD(replaces_callid_totag);   /*!< Replace info: to-tag */
 		AST_STRING_FIELD(replaces_callid_fromtag); /*!< Replace info: from-tag */
 	);
-	struct sip_pvt *refer_call;                     /*!< Call we are referring. This is just a reference to a
-							 * dialog owned by someone else, so we should not destroy
-							 * it when the sip_refer object goes.
-							 */
 	int attendedtransfer;                           /*!< Attended or blind transfer? */
 	int localtransfer;                              /*!< Transfer to local domain? */
 	enum referstatus status;                        /*!< REFER status */

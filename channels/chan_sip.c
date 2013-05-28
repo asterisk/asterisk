@@ -1200,7 +1200,8 @@ static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_reque
 static int copy_route(struct sip_route **dst, const struct sip_route *src);
 static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
 					      struct sip_request *req, const char *uri);
-static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
+static int get_sip_pvt_from_replaces(const char *callid, const char *totag, const char *fromtag,
+		struct sip_pvt **out_pvt, struct ast_channel **out_chan);
 static void check_pendings(struct sip_pvt *p);
 
 static void *sip_pickup_thread(void *stuff);
@@ -1271,8 +1272,6 @@ static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_alloc(struct sip_pvt *p);
 static int sip_notify_alloc(struct sip_pvt *p);
-static void ast_quiet_chan(struct ast_channel *chan);
-static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
 static void set_peer_nat(const struct sip_pvt *p, struct sip_peer *peer);
 static void check_for_nat(const struct ast_sockaddr *them, struct sip_pvt *p);
@@ -1475,9 +1474,10 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req, st
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, const char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e);
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, int *nounlock);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
+		int *nounlock, struct sip_pvt *replaces_pvt, struct ast_channel *replaces_chan);
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, const char *e);
-static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, uint32_t seqno, int *nounlock);
+static int local_attended_transfer(struct sip_pvt *transferer, struct ast_channel *transferer_chan, uint32_t seqno, int *nounlock);
 
 /*------Response handling functions */
 static void handle_response_publish(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno);
@@ -6654,9 +6654,6 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->udptl = NULL;
 	}
 	if (p->refer) {
-		if (p->refer->refer_call) {
-			p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
-		}
 		ast_string_field_free_memory(p->refer);
 		ast_free(p->refer);
 		p->refer = NULL;
@@ -17811,10 +17808,25 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	return SIP_GET_DEST_EXTEN_NOT_FOUND;
 }
 
-/*! \brief Lock dialog lock and find matching pvt lock
-	\return a reference, remember to release it when done
-*/
-static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag)
+/*! \brief Find a companion dialog based on Replaces information
+ *
+ * This information may come from a Refer-To header in a REFER or from
+ * a Replaces header in an INVITE.
+ *
+ * This function will find the appropriate sip_pvt and increment the refcount
+ * of both the sip_pvt and its owner channel. These two references are returned
+ * in the out parameters
+ *
+ * \param callid Callid to search for
+ * \param totag to-tag parameter from Replaces
+ * \param fromtag from-tag parameter from Replaces
+ * \param[out] out_pvt The found sip_pvt.
+ * \param[out] out_chan The found sip_pvt's owner channel.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int get_sip_pvt_from_replaces(const char *callid, const char *totag,
+		const char *fromtag, struct sip_pvt **out_pvt, struct ast_channel **out_chan)
 {
 	struct sip_pvt *sip_pvt_ptr;
 	struct sip_pvt tmp_dialog = {
@@ -17830,22 +17842,20 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 	sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find of dialog in dialogs table");
 	if (sip_pvt_ptr) {
 		/* Go ahead and lock it (and its owner) before returning */
-		sip_pvt_lock(sip_pvt_ptr);
+		SCOPED_LOCK(lock, sip_pvt_ptr, sip_pvt_lock, sip_pvt_unlock);
 		if (sip_cfg.pedanticsipchecking) {
 			unsigned char frommismatch = 0, tomismatch = 0;
 
 			if (ast_strlen_zero(fromtag)) {
-				sip_pvt_unlock(sip_pvt_ptr);
 				ast_debug(4, "Matched %s call for callid=%s - no from tag specified, pedantic check fails\n",
 					  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid);
-				return NULL;
+				return -1;
 			}
 
 			if (ast_strlen_zero(totag)) {
-				sip_pvt_unlock(sip_pvt_ptr);
 				ast_debug(4, "Matched %s call for callid=%s - no to tag specified, pedantic check fails\n",
 					  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid);
-				return NULL;
+				return -1;
 			}
 			/* RFC 3891
 			 * > 3.  User Agent Server Behavior: Receiving a Replaces Header
@@ -17864,11 +17874,10 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 			frommismatch = !!strcmp(fromtag, sip_pvt_ptr->theirtag);
 			tomismatch = !!strcmp(totag, sip_pvt_ptr->tag);
 
-                        /* Don't check from if the dialog is not established, due to multi forking the from
-                         * can change when the call is not answered yet.
-                         */
+			/* Don't check from if the dialog is not established, due to multi forking the from
+			 * can change when the call is not answered yet.
+			 */
 			if ((frommismatch && ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) || tomismatch) {
-				sip_pvt_unlock(sip_pvt_ptr);
 				if (frommismatch) {
 					ast_debug(4, "Matched %s call for callid=%s - pedantic from tag check fails; their tag is %s our tag is %s\n",
 						  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid,
@@ -17879,7 +17888,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 						  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING", sip_pvt_ptr->callid,
 						  totag, sip_pvt_ptr->tag);
 				}
-				return NULL;
+				return -1;
 			}
 		}
 
@@ -17888,15 +17897,13 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 					  sip_pvt_ptr->outgoing_call == TRUE ? "OUTGOING": "INCOMING",
 					  sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
 
-		/* deadlock avoidance... */
-		while (sip_pvt_ptr->owner && ast_channel_trylock(sip_pvt_ptr->owner)) {
-			sip_pvt_unlock(sip_pvt_ptr);
-			usleep(1);
-			sip_pvt_lock(sip_pvt_ptr);
+		*out_pvt = sip_pvt_ptr;
+		if (out_chan) {
+			*out_chan = sip_pvt_ptr->owner ? ast_channel_ref(sip_pvt_ptr->owner) : NULL;
 		}
 	}
 
-	return sip_pvt_ptr;
+	return 0;
 }
 
 /*! \brief Call transfer support (the REFER method)
@@ -24451,90 +24458,6 @@ static int sip_pickup(struct ast_channel *chan)
 	return 0;
 }
 
-
-/*! \brief Turn off generator data
-	XXX Does this function belong in the SIP channel?
-*/
-static void ast_quiet_chan(struct ast_channel *chan)
-{
-	if (chan && ast_channel_state(chan) == AST_STATE_UP) {
-		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH))
-			ast_moh_stop(chan);
-		else if (ast_channel_generatordata(chan))
-			ast_deactivate_generator(chan);
-	}
-}
-
-/*! \brief Attempt transfer of SIP call
-	This fix for attended transfers on a local PBX */
-static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target)
-{
-	int res = 0;
-	struct ast_channel *peera = NULL,
-		*peerb = NULL,
-		*peerc = NULL,
-		*peerd = NULL;
-
-
-	/* We will try to connect the transferee with the target and hangup
-	   all channels to the transferer */
-	ast_debug(4, "Sip transfer:--------------------\n");
-	if (transferer->chan1)
-		ast_debug(4, "-- Transferer to PBX channel: %s State %s\n", ast_channel_name(transferer->chan1), ast_state2str(ast_channel_state(transferer->chan1)));
-	else
-		ast_debug(4, "-- No transferer first channel - odd??? \n");
-	if (target->chan1)
-		ast_debug(4, "-- Transferer to PBX second channel (target): %s State %s\n", ast_channel_name(target->chan1), ast_state2str(ast_channel_state(target->chan1)));
-	else
-		ast_debug(4, "-- No target first channel ---\n");
-	if (transferer->chan2)
-		ast_debug(4, "-- Bridged call to transferee: %s State %s\n", ast_channel_name(transferer->chan2), ast_state2str(ast_channel_state(transferer->chan2)));
-	else
-		ast_debug(4, "-- No bridged call to transferee\n");
-	if (target->chan2)
-		ast_debug(4, "-- Bridged call to transfer target: %s State %s\n", target->chan2 ? ast_channel_name(target->chan2) : "<none>", target->chan2 ? ast_state2str(ast_channel_state(target->chan2)) : "(none)");
-	else
-		ast_debug(4, "-- No target second channel ---\n");
-	ast_debug(4, "-- END Sip transfer:--------------------\n");
-	if (transferer->chan2) { /* We have a bridge on the transferer's channel */
-		peera = transferer->chan1;	/* Transferer - PBX -> transferee channel * the one we hangup */
-		peerb = target->chan1;		/* Transferer - PBX -> target channel - This will get lost in masq */
-		peerc = transferer->chan2;	/* Asterisk to Transferee */
-		peerd = target->chan2;		/* Asterisk to Target */
-		ast_debug(3, "SIP transfer: Four channels to handle\n");
-	} else if (target->chan2) {	/* Transferer has no bridge (IVR), but transferee */
-		peera = target->chan1;		/* Transferer to PBX -> target channel */
-		peerb = transferer->chan1;	/* Transferer to IVR*/
-		peerc = target->chan2;		/* Asterisk to Target */
-		peerd = transferer->chan2;	/* Nothing */
-		ast_debug(3, "SIP transfer: Three channels to handle\n");
-	}
-
-	if (peera && peerb && peerc && (peerb != peerc)) {
-		ast_quiet_chan(peera);		/* Stop generators */
-		ast_quiet_chan(peerb);
-		ast_quiet_chan(peerc);
-		if (peerd)
-			ast_quiet_chan(peerd);
-
-		ast_debug(4, "SIP transfer: trying to masquerade %s into %s\n", ast_channel_name(peerc), ast_channel_name(peerb));
-		if (ast_channel_masquerade(peerb, peerc)) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", ast_channel_name(peerb), ast_channel_name(peerc));
-			res = -1;
-		} else
-			ast_debug(4, "SIP transfer: Succeeded to masquerade channels.\n");
-		return res;
-	} else {
-		ast_log(LOG_NOTICE, "SIP Transfer attempted with no appropriate bridged calls to transfer\n");
-		if (transferer->chan1)
-			ast_softhangup_nolock(transferer->chan1, AST_SOFTHANGUP_DEV);
-		if (target->chan1)
-			ast_softhangup_nolock(target->chan1, AST_SOFTHANGUP_DEV);
-		return -1;
-	}
-	return 0;
-}
-
 /*! \brief Get tag from packet
  *
  * \return Returns the pointer to the provided tag buffer,
@@ -24850,132 +24773,68 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 }
 
 /*! \brief Handle the transfer part of INVITE with a replaces: header,
-    meaning a target pickup or an attended transfer.
-    Used only once.
-	XXX 'ignore' is unused.
-
-	\note this function is called by handle_request_invite(). Four locks
-	held at the beginning of this function, p, p->owner, p->refer->refer_call and
-	p->refere->refer_call->owner.  only p's lock should remain at the end of this
-	function.  p's lock as well as the channel p->owner's lock are held by
-	handle_request_do(), we unlock p->owner before the masq.  By setting nounlock
-	we are indicating to handle_request_do() that we have already unlocked the owner.
+ *
+ * This is used for call-pickup and for attended transfers initiated on
+ * remote endpoints (i.e. a REFER received on a remote server).
+ *
+ * \note p and p->owner are locked upon entering this function. If the
+ * call pickup or attended transfer is successful, then p->owner will
+ * be unlocked upon exiting this function. This is communicated to the
+ * caller through the nounlock parameter.
+ *
+ * \param p The sip_pvt where the INVITE with Replaces was received
+ * \param req The incoming INVITE
+ * \param[out] nounlock Indicator if p->owner should remained locked. On successful transfer, this will be set true.
+ * \param replaces_pvt sip_pvt referenced by Replaces header
+ * \param replaces_chan replaces_pvt's owner channel
+ * \retval 0 Success
+ * \retval non-zero Failure
  */
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, int *nounlock)
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
+		int *nounlock, struct sip_pvt *replaces_pvt, struct ast_channel *replaces_chan)
 {
-	int earlyreplace = 0;
-	int oneleggedreplace = 0;		/* Call with no bridge, propably IVR or voice message */
-	struct ast_channel *c = p->owner;	/* Our incoming call */
-	struct ast_channel *replacecall = p->refer->refer_call->owner;	/* The channel we're about to take over */
-	struct ast_channel *targetcall;		/* The bridge to the take-over target */
-
-	/* Check if we're in ring state */
-	if (ast_channel_state(replacecall) == AST_STATE_RING)
-		earlyreplace = 1;
-
-	/* Check if we have a bridge */
-	if (!(targetcall = ast_bridged_channel(replacecall))) {
-		/* We have no bridge */
-		if (!earlyreplace) {
-			ast_debug(2, "	Attended transfer attempted to replace call with no bridge (maybe ringing). Channel %s!\n", ast_channel_name(replacecall));
-			oneleggedreplace = 1;
-		}
-	}
-	if (targetcall && ast_channel_state(targetcall) == AST_STATE_RINGING)
-		ast_debug(4, "SIP transfer: Target channel is in ringing state\n");
-
-	if (targetcall)
-		ast_debug(4, "SIP transfer: Invite Replace incoming channel should bridge to channel %s while hanging up channel %s\n", ast_channel_name(targetcall), ast_channel_name(replacecall));
-	else
-		ast_debug(4, "SIP transfer: Invite Replace incoming channel should replace and hang up channel %s (one call leg)\n", ast_channel_name(replacecall));
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, c, NULL, ao2_cleanup);
 
 	if (req->ignore) {
-		ast_log(LOG_NOTICE, "Ignoring this INVITE with replaces in a stupid way.\n");
-		/* We should answer something here. If we are here, the
-			call we are replacing exists, so an accepted
-			can't harm */
-		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE, FALSE);
-		/* Do something more clever here */
-		if (c) {
-			*nounlock = 1;
-			ast_channel_unlock(c);
-		}
-		ast_channel_unlock(replacecall);
-		sip_pvt_unlock(p->refer->refer_call);
-		return 1;
+		return 0;
 	}
-	if (!c) {
+
+	if (!p->owner) {
 		/* What to do if no channel ??? */
 		ast_log(LOG_ERROR, "Unable to create new channel.  Invite/replace failed.\n");
 		transmit_response_reliable(p, "503 Service Unavailable", req);
 		append_history(p, "Xfer", "INVITE/Replace Failed. No new channel.");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		ast_channel_unlock(replacecall);
-		sip_pvt_unlock(p->refer->refer_call);
 		return 1;
 	}
 	append_history(p, "Xfer", "INVITE/Replace received");
-	/* We have three channels to play with
-		channel c: New incoming call
-		targetcall: Call from PBX to target
-		p->refer->refer_call: SIP pvt dialog from transferer to pbx.
-		replacecall: The owner of the previous
-		We need to masq C into refer_call to connect to
-		targetcall;
-		If we are talking to internal audio stream, target call is null.
-	*/
+
+	c = ast_channel_ref(p->owner);
 
 	/* Fake call progress */
 	transmit_response(p, "100 Trying", req);
 	ast_setstate(c, AST_STATE_RING);
 
-	/* Masquerade the new call into the referred call to connect to target call
-	   Targetcall is not touched by the masq */
+	ast_debug(4, "Invite/Replaces: preparing to replace %s with %s\n", ast_channel_name(replaces_chan), ast_channel_name(c));
 
-	/* Answer the incoming call and set channel to UP state */
-	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE, FALSE);
-
-	ast_setstate(c, AST_STATE_UP);
-
-	/* Stop music on hold and other generators */
-	ast_quiet_chan(replacecall);
-	ast_quiet_chan(targetcall);
-	ast_debug(4, "Invite/Replaces: preparing to masquerade %s into %s\n", ast_channel_name(c), ast_channel_name(replacecall));
-
-	/* Make sure that the masq does not free our PVT for the old call */
-	if (! earlyreplace && ! oneleggedreplace )
-		ast_set_flag(&p->refer->refer_call->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
-
-	/* Prepare the masquerade - if this does not happen, we will be gone */
-	if(ast_channel_masquerade(replacecall, c))
-		ast_log(LOG_ERROR, "Failed to masquerade C into Replacecall\n");
-	else
-		ast_debug(4, "Invite/Replaces: Going to masquerade %s into %s\n", ast_channel_name(c), ast_channel_name(replacecall));
-
-	/* C should now be in place of replacecall. all channel locks and pvt locks should be removed
-	 * before issuing the masq.  Since we are unlocking both the pvt (p) and its owner channel (c)
-	 * it is possible for channel c to be destroyed on us.  To prevent this, we must give c a reference
-	 * before any unlocking takes place and remove it only once we are completely done with it */
-	ast_channel_ref(c);
-	ast_channel_unlock(replacecall);
-	ast_channel_unlock(c);
-	sip_pvt_unlock(p->refer->refer_call);
-	sip_pvt_unlock(p);
-	ast_do_masquerade(replacecall);
-	ast_channel_lock(c);
-	if (earlyreplace || oneleggedreplace ) {
-		ast_channel_hangupcause_set(c, AST_CAUSE_SWITCH_CONGESTION);
-	}
-	ast_setstate(c, AST_STATE_DOWN);
-	ast_channel_unlock(c);
-
-	/* c and c's tech pvt must be unlocked at this point for ast_hangup */
-	ast_hangup(c);
-	/* this indicates to handle_request_do that the owner channel has already been unlocked */
 	*nounlock = 1;
-	/* lock PVT structure again after hangup */
+	ast_channel_unlock(c);
+	sip_pvt_unlock(p);
+
+	ast_raw_answer(c, 1);
+
+	ast_channel_lock(replaces_chan);
+	bridge = ast_channel_get_bridge(replaces_chan);
+	ast_channel_unlock(replaces_chan);
+
+	if (bridge) {
+		ast_bridge_impart(bridge, c, replaces_chan, NULL, 1);
+	} else {
+		ast_channel_move(replaces_chan, c);
+		ast_hangup(c);
+	}
 	sip_pvt_lock(p);
-	ast_channel_unref(c);
 	return 0;
 }
 
@@ -25085,7 +24944,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	int gotdest;
 	const char *p_replaces;
 	char *replace_id = NULL;
-	int refer_locked = 0;
 	const char *required;
 	unsigned int required_profile = 0;
 	struct ast_channel *c = NULL;		/* New channel */
@@ -25110,6 +24968,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	} pickup = {
 			.exten = "",
 	};
+	RAII_VAR(struct sip_pvt *, replaces_pvt, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, replaces_chan, NULL, ao2_cleanup);
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -25287,45 +25147,41 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		   First we cheat a little and look for a magic call-id from phones that support
 		   dialog-info+xml so we can do technology independent pickup... */
 		if (strncmp(replace_id, "pickup-", 7) == 0) {
-			struct sip_pvt *subscription = NULL;
+			RAII_VAR(struct sip_pvt *, subscription, NULL, ao2_cleanup);
+			RAII_VAR(struct ast_channel *, subscription_chan, NULL, ao2_cleanup);
+
 			replace_id += 7; /* Worst case we are looking at \0 */
 
-			if ((subscription = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
+			if (get_sip_pvt_from_replaces(replace_id, totag, fromtag, &subscription, &subscription_chan)) {
 				ast_log(LOG_NOTICE, "Unable to find subscription with call-id: %s\n", replace_id);
 				transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 				error = 1;
 			} else {
+				SCOPED_LOCK(lock, subscription, sip_pvt_lock, sip_pvt_unlock);
 				ast_log(LOG_NOTICE, "Trying to pick up %s@%s\n", subscription->exten, subscription->context);
 				ast_copy_string(pickup.exten, subscription->exten, sizeof(pickup.exten));
 				ast_copy_string(pickup.context, subscription->context, sizeof(pickup.context));
-				sip_pvt_unlock(subscription);
-				if (subscription->owner) {
-					ast_channel_unlock(subscription->owner);
-				}
-				subscription = dialog_unref(subscription, "unref dialog subscription");
 			}
 		}
 
-		/* This locks both refer_call pvt and refer_call pvt's owner!!!*/
-		if (!error && ast_strlen_zero(pickup.exten) && (p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
+		if (!error && ast_strlen_zero(pickup.exten) && get_sip_pvt_from_replaces(replace_id,
+					totag, fromtag, &replaces_pvt, &replaces_chan)) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
-		} else {
-			refer_locked = 1;
 		}
 
 		/* The matched call is the call from the transferer to Asterisk .
 			We want to bridge the bridged part of the call to the
 			incoming invite, thus taking over the refered call */
 
-		if (p->refer->refer_call == p) {
+		if (replaces_pvt == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
 			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			error = 1;
 		}
 
-		if (!error && ast_strlen_zero(pickup.exten) && !p->refer->refer_call->owner) {
+		if (!error && ast_strlen_zero(pickup.exten) && !replaces_chan) {
 			/* Oops, someting wrong anyway, no owner, no call */
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existing call id (%s)!\n", replace_id);
 			/* Check for better return code */
@@ -25333,7 +25189,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			error = 1;
 		}
 
-		if (!error && ast_strlen_zero(pickup.exten) && ast_channel_state(p->refer->refer_call->owner) != AST_STATE_RINGING && ast_channel_state(p->refer->refer_call->owner) != AST_STATE_RING && ast_channel_state(p->refer->refer_call->owner) != AST_STATE_UP) {
+		if (!error && ast_strlen_zero(pickup.exten) &&
+				ast_channel_state(replaces_chan) != AST_STATE_RINGING &&
+				ast_channel_state(replaces_chan) != AST_STATE_RING &&
+				ast_channel_state(replaces_chan) != AST_STATE_UP) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "603 Declined (Replaces)", req);
 			error = 1;
@@ -25342,15 +25201,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		if (error) {	/* Give up this dialog */
 			append_history(p, "Xfer", "INVITE/Replace Failed.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			sip_pvt_unlock(p);
-			if (p->refer->refer_call) {
-				sip_pvt_unlock(p->refer->refer_call);
-				if (p->refer->refer_call->owner) {
-					ast_channel_unlock(p->refer->refer_call->owner);
-				}
-				p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
-			}
-			refer_locked = 0;
 			p->invitestate = INV_COMPLETED;
 			res = INV_REQ_ERROR;
 			check_via(p, req);
@@ -25791,9 +25641,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		} else {
 			/* Go and take over the target call */
 			if (sipdebug)
-				ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-			res = handle_invite_replaces(p, req, addr, seqno, nounlock);
-			refer_locked = 0;
+				ast_debug(4, "Sending this call to the invite/replaces handler %s\n", p->callid);
+			res = handle_invite_replaces(p, req, nounlock, replaces_pvt, replaces_chan);
 			goto request_invite_cleanup;
 		}
 	}
@@ -25932,13 +25781,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 request_invite_cleanup:
 
-	if (refer_locked && p->refer && p->refer->refer_call) {
-		sip_pvt_unlock(p->refer->refer_call);
-		if (p->refer->refer_call->owner) {
-			ast_channel_unlock(p->refer->refer_call->owner);
-		}
-		p->refer->refer_call = dialog_unref(p->refer->refer_call, "unref dialog p->refer->refer_call");
-	}
 	if (authpeer) {
 		authpeer = sip_unref_peer(authpeer, "sip_unref_peer, from handle_request_invite authpeer");
 	}
@@ -26004,24 +25846,17 @@ static void parse_oli(struct sip_request *req, struct ast_channel *chan)
  *	If this function is successful, only the transferer pvt lock will remain on return.  Setting nounlock indicates
  *	to handle_request_do() that the pvt's owner it locked does not require an unlock.
  */
-
-/* XXX XXX XXX XXX XXX XXX
- * This function is COMPLETELY broken at the moment. It *will* crash if called
- */
-static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, uint32_t seqno, int *nounlock)
+static int local_attended_transfer(struct sip_pvt *transferer, struct ast_channel *transferer_chan, uint32_t seqno, int *nounlock)
 {
-	struct sip_dual target;		/* Chan 1: Call from tranferer to Asterisk */
-					/* Chan 2: Call from Asterisk to target */
-	int res = 0;
-	struct sip_pvt *targetcall_pvt;
-	struct ast_party_connected_line connected_to_transferee;
-	struct ast_party_connected_line connected_to_target;
-	char transferer_linkedid[32];
-	struct ast_channel *chans[2];
+	RAII_VAR(struct sip_pvt *, targetcall_pvt, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, targetcall_chan, NULL, ao2_cleanup);
+	enum ast_transfer_result transfer_res;
 
 	/* Check if the call ID of the replaces header does exist locally */
-	if (!(targetcall_pvt = get_sip_pvt_byid_locked(transferer->refer->replaces_callid, transferer->refer->replaces_callid_totag,
-		transferer->refer->replaces_callid_fromtag))) {
+	if (get_sip_pvt_from_replaces(transferer->refer->replaces_callid,
+				transferer->refer->replaces_callid_totag,
+				transferer->refer->replaces_callid_fromtag,
+				&targetcall_pvt, &targetcall_chan)) {
 		if (transferer->refer->localtransfer) {
 			/* We did not find the refered call. Sorry, can't accept then */
 			/* Let's fake a response from someone else in order
@@ -26037,174 +25872,51 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		return 0;
 	}
 
-	/* Ok, we can accept this transfer */
-	append_history(transferer, "Xfer", "Refer accepted");
-	if (!targetcall_pvt->owner) {	/* No active channel */
+	if (!targetcall_chan) {	/* No active channel */
 		ast_debug(4, "SIP attended transfer: Error: No owner of target call\n");
 		/* Cancel transfer */
 		transmit_notify_with_sipfrag(transferer, seqno, "503 Service Unavailable", TRUE);
 		append_history(transferer, "Xfer", "Refer failed");
 		ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);
 		transferer->refer->status = REFER_FAILED;
-		sip_pvt_unlock(targetcall_pvt);
-		if (targetcall_pvt)
-			ao2_t_ref(targetcall_pvt, -1, "Drop targetcall_pvt pointer");
 		return -1;
-	}
-
-	/* We have a channel, find the bridge */
-	target.chan1 = ast_channel_ref(targetcall_pvt->owner);				/* Transferer to Asterisk */
-	target.chan2 = ast_bridged_channel(targetcall_pvt->owner);	/* Asterisk to target */
-	if (target.chan2) {
-		ast_channel_ref(target.chan2);
-	}
-
-	if (!target.chan2 || !(ast_channel_state(target.chan2) == AST_STATE_UP || ast_channel_state(target.chan2) == AST_STATE_RINGING) ) {
-		/* Wrong state of new channel */
-		if (target.chan2)
-			ast_debug(4, "SIP attended transfer: Error: Wrong state of target call: %s\n", ast_state2str(ast_channel_state(target.chan2)));
-		else if (ast_channel_state(target.chan1) != AST_STATE_RING)
-			ast_debug(4, "SIP attended transfer: Error: No target channel\n");
-		else
-			ast_debug(4, "SIP attended transfer: Attempting transfer in ringing state\n");
-	}
-
-	/* Transfer */
-	if (sipdebug) {
-		if (current->chan2)	/* We have two bridges */
-			ast_debug(4, "SIP attended transfer: trying to bridge %s and %s\n", ast_channel_name(target.chan1), ast_channel_name(current->chan2));
-		else			/* One bridge, propably transfer of IVR/voicemail etc */
-			ast_debug(4, "SIP attended transfer: trying to make %s take over (masq) %s\n", ast_channel_name(target.chan1), ast_channel_name(current->chan1));
 	}
 
 	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
-	ast_copy_string(transferer_linkedid, ast_channel_linkedid(transferer->owner), sizeof(transferer_linkedid));
+	sip_pvt_unlock(transferer);
+	ast_channel_unlock(transferer_chan);
+	*nounlock = 1;
 
-	/* Perform the transfer */
-	chans[0] = transferer->owner;
-	chans[1] = target.chan1;
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
-		"TransferMethod: SIP\r\n"
-		"TransferType: Attended\r\n"
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"SIP-Callid: %s\r\n"
-		"TargetChannel: %s\r\n"
-		"TargetUniqueid: %s\r\n",
-		ast_channel_name(transferer->owner),
-		ast_channel_uniqueid(transferer->owner),
-		transferer->callid,
-		ast_channel_name(target.chan1),
-		ast_channel_uniqueid(target.chan1));
-	ast_party_connected_line_init(&connected_to_transferee);
-	ast_party_connected_line_init(&connected_to_target);
-	/* No need to lock current->chan1 here since it was locked in sipsock_read */
-	ast_party_connected_line_copy(&connected_to_transferee, ast_channel_connected(current->chan1));
-	/* No need to lock target.chan1 here since it was locked in get_sip_pvt_byid_locked */
-	ast_party_connected_line_copy(&connected_to_target, ast_channel_connected(target.chan1));
-	/* Reset any earlier private connected id representation */
-	ast_party_id_reset(&connected_to_transferee.priv);
-	ast_party_id_reset(&connected_to_target.priv);
-	connected_to_target.source = connected_to_transferee.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-	res = attempt_transfer(current, &target);
-	if (res) {
-		/* Failed transfer */
-		transmit_notify_with_sipfrag(transferer, seqno, "486 Busy Here", TRUE);
-		append_history(transferer, "Xfer", "Refer failed");
-		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
-		/* if transfer failed, go ahead and unlock targetcall_pvt and it's owner channel */
-		sip_pvt_unlock(targetcall_pvt);
-		ast_channel_unlock(target.chan1);
-	} else {
-		/* Transfer succeeded! */
-		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+	transfer_res = ast_bridge_transfer_attended(transferer_chan, targetcall_chan);
 
-		/* target.chan1 was locked in get_sip_pvt_byid_locked, do not unlock target.chan1 before this */
-		ast_cel_report_event(target.chan1, AST_CEL_ATTENDEDTRANSFER, NULL, transferer_linkedid, target.chan2);
+	sip_pvt_lock(transferer);
 
-		/* Tell transferer that we're done. */
+	switch (transfer_res) {
+	case AST_BRIDGE_TRANSFER_SUCCESS:
+		transferer->refer->status = REFER_200OK;
 		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
 		append_history(transferer, "Xfer", "Refer succeeded");
-		transferer->refer->status = REFER_200OK;
-		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, ast_channel_language(target.chan2)) >= 0) {
-			ast_waitstream(target.chan2, "");
-		}
-
-		/* By forcing the masquerade, we know that target.chan1 and target.chan2 are bridged. We then
-		 * can queue connected line updates where they need to go.
-		 *
-		 * before a masquerade, all channel and pvt locks must be unlocked.  Any recursive
-		 * channel locks held before this function invalidates channel container locking order.
-		 * Since we are unlocking both the pvt (transferer) and its owner channel (current.chan1)
-		 * it is possible for current.chan1 to be destroyed in the pbx thread.  To prevent this
-		 * we must give c a reference before any unlocking takes place.
-		 */
-
-		ast_channel_ref(current->chan1);
-		ast_channel_unlock(current->chan1); /* current.chan1 is p->owner before the masq, it was locked by socket_read()*/
-		ast_channel_unlock(target.chan1);
-		*nounlock = 1;  /* we just unlocked the dialog's channel and have no plans of locking it again. */
-		sip_pvt_unlock(targetcall_pvt);
-		sip_pvt_unlock(transferer);
-
-		ast_do_masquerade(target.chan1);
-
-		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
-		if (target.chan2) {
-			ast_indicate(target.chan2, AST_CONTROL_UNHOLD);
-		}
-
-		if (current->chan2 && ast_channel_state(current->chan2) == AST_STATE_RING) {
-			ast_indicate(target.chan1, AST_CONTROL_RINGING);
-		}
-
-		if (target.chan2) {
-			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee, NULL);
-			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target, NULL);
-		} else {
-			/* Since target.chan1 isn't actually connected to another channel, there is no way for us
-			 * to queue a frame so that its connected line status will be updated.
-			 *
-			 * Instead, we use the somewhat hackish approach of using a special control frame type that
-			 * instructs ast_read to perform a specific action. In this case, the frame we queue tells
-			 * ast_read to call the connected line interception macro configured for target.chan1.
-			 */
-			struct ast_control_read_action_payload *frame_payload;
-			int payload_size;
-			int frame_size;
-			unsigned char connected_line_data[1024];
-			payload_size = ast_connected_line_build_data(connected_line_data,
-				sizeof(connected_line_data), &connected_to_target, NULL);
-			frame_size = payload_size + sizeof(*frame_payload);
-			if (payload_size != -1) {
-				frame_payload = ast_alloca(frame_size);
-				frame_payload->payload_size = payload_size;
-				memcpy(frame_payload->payload, connected_line_data, payload_size);
-				frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
-				ast_queue_control_data(target.chan1, AST_CONTROL_READ_ACTION, frame_payload, frame_size);
-			}
-			/* In addition to queueing the read action frame so that target.chan1's connected line info
-			 * will be updated, we also are going to queue a plain old connected line update on target.chan1. This
-			 * way, either Dial or Queue can apply this connected line update to the outgoing ringing channel.
-			 */
-			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee, NULL);
-
-		}
-		sip_pvt_lock(transferer); /* the transferer pvt is expected to remain locked on return */
-
-		ast_channel_unref(current->chan1);
+		return 1;
+	case AST_BRIDGE_TRANSFER_FAIL:
+		transferer->refer->status = REFER_FAILED;
+		transmit_notify_with_sipfrag(transferer, seqno, "500 Internal Server Error", TRUE);
+		append_history(transferer, "Xfer", "Refer failed (internal error)");
+		return -1;
+	case AST_BRIDGE_TRANSFER_INVALID:
+		transferer->refer->status = REFER_FAILED;
+		transmit_notify_with_sipfrag(transferer, seqno, "503 Service Unavailable", TRUE);
+		append_history(transferer, "Xfer", "Refer failed (invalid bridge state)");
+		return -1;
+	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
+		transferer->refer->status = REFER_FAILED;
+		transmit_notify_with_sipfrag(transferer, seqno, "403 Forbidden", TRUE);
+		append_history(transferer, "Xfer", "Refer failed (operation not permitted)");
+		return -1;
+	default:
+		break;
 	}
 
-	/* at this point if the transfer is successful only the transferer pvt should be locked. */
-	ast_party_connected_line_free(&connected_to_target);
-	ast_party_connected_line_free(&connected_to_transferee);
-	ast_channel_unref(target.chan1);
-	if (target.chan2) {
-		ast_channel_unref(target.chan2);
-	}
-	if (targetcall_pvt)
-		ao2_t_ref(targetcall_pvt, -1, "drop targetcall_pvt");
 	return 1;
 }
 
@@ -26438,7 +26150,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 	/* Attended transfer: Find all call legs and bridge transferee with target*/
 	if (p->refer->attendedtransfer) {
 		/* both p and p->owner _MUST_ be locked while calling local_attended_transfer */
-		if ((res = local_attended_transfer(p, NULL, req, seqno, nounlock))) {
+		if ((res = local_attended_transfer(p, transferer, seqno, nounlock))) {
 			ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 			return res;
 		}
