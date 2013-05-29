@@ -6638,14 +6638,14 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(peer));
 	if (ast_channel_internal_bridged_channel(chan)) {
 		bridged = ast_bridged_channel(chan);
-		if (bridged != peer) {
+		if (bridged && bridged != peer) {
 			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
 			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
 		}
 	}
 	if (ast_channel_internal_bridged_channel(peer)) {
 		bridged = ast_bridged_channel(peer);
-		if (bridged != chan) {
+		if (bridged && bridged != chan) {
 			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
 			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
 		}
@@ -6658,13 +6658,13 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 	ast_channel_change_linkedid(peer, linkedid);
 	if (ast_channel_internal_bridged_channel(chan)) {
 		bridged = ast_bridged_channel(chan);
-		if (bridged != peer) {
+		if (bridged && bridged != peer) {
 			ast_channel_change_linkedid(bridged, linkedid);
 		}
 	}
 	if (ast_channel_internal_bridged_channel(peer)) {
 		bridged = ast_bridged_channel(peer);
-		if (bridged != chan) {
+		if (bridged && bridged != chan) {
 			ast_channel_change_linkedid(bridged, linkedid);
 		}
 	}
