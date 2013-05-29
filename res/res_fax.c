@@ -1184,7 +1184,7 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 		return -1;
 	}
 
-	json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: o}",
+	json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: o}",
 			"type", "status",
 			"operation", (details->caps & AST_FAX_TECH_GATEWAY) ? "gateway" : (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
 			"status", status,
@@ -1777,7 +1777,7 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 	{
 		SCOPED_CHANNELLOCK(lock, chan);
 
-		json_object = ast_json_pack("s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: o",
+		json_object = ast_json_pack("s: s, s: s, s: s, s: s, s: s, s: s, s: o",
 				"type", "receive"
 				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
 				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
