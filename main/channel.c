@@ -1366,7 +1366,6 @@ static void publish_channel_blob(struct ast_channel *chan,
 /*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	int res;
 
@@ -1384,7 +1383,6 @@ int ast_queue_hangup(struct ast_channel *chan)
 int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HANGUP };
 	int res;
 
@@ -1410,7 +1408,6 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HOLD };
 	int res;
 
@@ -1430,7 +1427,6 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 
 int ast_queue_unhold(struct ast_channel *chan)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_UNHOLD };
 	int res;
 
