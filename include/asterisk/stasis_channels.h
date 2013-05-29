@@ -155,27 +155,6 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 
 /*!
  * \since 12
- * \brief Creates a \ref ast_channel_blob message using the current cached
- * \ref ast_channel_snapshot for the passed in \ref ast_channel
- *
- * The given \a blob should be treated as immutable and not modified after it is
- * put into the message.
- *
- * \param chan Channel blob is associated with, or \c NULL for global/all channels.
- * \param type Message type for this blob.
- * \param blob JSON object representing the data, or \c NULL for no data. If
- *             \c NULL, ast_json_null() is put into the object.
- *
- * \param chan Channel blob is associated with
- * \param blob JSON object representing the data.
- * \return \ref ast_channel_blob message.
- * \return \c NULL on error
- */
-struct stasis_message *ast_channel_cached_blob_create(struct ast_channel *chan,
-	struct stasis_message_type *type, struct ast_json *blob);
-
-/*!
- * \since 12
  * \brief Create a \ref ast_channel_blob message, pulling channel state from
  *        the cache.
  *

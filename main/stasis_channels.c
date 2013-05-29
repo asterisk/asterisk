@@ -250,12 +250,12 @@ static struct stasis_message *create_channel_blob_message(struct ast_channel_sna
 	return msg;
 }
 
-struct stasis_message *ast_channel_cached_blob_create(struct ast_channel *chan,
+struct stasis_message *ast_channel_blob_create_from_cache(const char *channel_id,
 					       struct stasis_message_type *type,
 					       struct ast_json *blob)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot,
-			ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan)),
+			ast_channel_snapshot_get_latest(channel_id),
 			ao2_cleanup);
 
 	return create_channel_blob_message(snapshot, type, blob);

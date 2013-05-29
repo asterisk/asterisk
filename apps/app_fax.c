@@ -268,7 +268,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 			"fax_resolution", stat.y_resolution,
 			"fax_bitrate", stat.bit_rate,
 			"filenames", json_filenames);
-	message = ast_channel_cached_blob_create(s->chan, ast_channel_fax_type(), json_object);
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(s->chan), ast_channel_fax_type(), json_object);
 	if (!message) {
 		return;
 	}

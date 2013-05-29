@@ -396,7 +396,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 
-		message = ast_channel_cached_blob_create(chan,
+		message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 				ast_channel_monitor_start_type(),
 				NULL);
 		if (message) {
@@ -516,7 +516,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 		ast_free(ast_channel_monitor(chan));
 		ast_channel_monitor_set(chan, NULL);
 
-		message = ast_channel_cached_blob_create(chan,
+		message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 				ast_channel_monitor_stop_type(),
 				NULL);
 		if (message) {

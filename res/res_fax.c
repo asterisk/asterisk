@@ -1197,7 +1197,7 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 	{
 		SCOPED_CHANNELLOCK(lock, chan);
 
-		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_object);
+		message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_fax_type(), json_object);
 		if (!message) {
 			return -1;
 		}
@@ -1789,7 +1789,7 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 			return -1;
 		}
 
-		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_object);
+		message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_fax_type(), json_object);
 		if (!message) {
 			return -1;
 		}
@@ -2269,7 +2269,7 @@ static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_sessi
 			return -1;
 		}
 
-		message = ast_channel_cached_blob_create(chan, ast_channel_fax_type(), json_obj);
+		message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_fax_type(), json_obj);
 		if (!message) {
 			return -1;
 		}

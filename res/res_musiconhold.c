@@ -1585,7 +1585,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		return -1;
 	}
 
-	message = ast_channel_cached_blob_create(chan,
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 			ast_channel_moh_start_type(),
 			json_object);
 	if (message) {
@@ -1611,7 +1611,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		}
 	}
 
-	message = ast_channel_cached_blob_create(chan, ast_channel_moh_stop_type(), NULL);
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_moh_stop_type(), NULL);
 	if (message) {
 		stasis_publish(ast_channel_topic(chan), message);
 	}
