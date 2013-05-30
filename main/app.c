@@ -2816,7 +2816,7 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 	return msg;
 }
 
-static void app_exit(void)
+static void app_cleanup(void)
 {
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
@@ -2829,6 +2829,8 @@ static void app_exit(void)
 
 int app_init(void)
 {
+	ast_register_atexit(app_cleanup);
+
 	if (STASIS_MESSAGE_TYPE_INIT(ast_mwi_state_type) != 0) {
 		return -1;
 	}
@@ -2848,7 +2850,6 @@ int app_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(app_exit);
 	return 0;
 }
 

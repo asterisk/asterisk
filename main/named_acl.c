@@ -360,7 +360,7 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
 /*! \brief Message type for named ACL changes */
 STASIS_MESSAGE_TYPE_DEFN(ast_named_acl_change_type);
 
-static void acl_stasis_shutdown(void)
+static void acl_stasis_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
 }
@@ -371,7 +371,7 @@ static void acl_stasis_shutdown(void)
  */
 static void ast_acl_stasis_init(void)
 {
-	ast_register_atexit(acl_stasis_shutdown);
+	ast_register_cleanup(acl_stasis_cleanup);
 	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
 }
 

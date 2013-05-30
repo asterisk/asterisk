@@ -1005,6 +1005,8 @@ static void test_cleanup(void)
 int ast_test_init(void)
 {
 #ifdef TEST_FRAMEWORK
+	ast_register_cleanup(test_cleanup);
+
 	/* Create stasis topic */
 	test_suite_topic = stasis_topic_create("test_suite_topic");
 	if (!test_suite_topic) {
@@ -1017,7 +1019,6 @@ int ast_test_init(void)
 
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
-	ast_register_atexit(test_cleanup);
 #endif
 
 	return 0;

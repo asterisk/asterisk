@@ -633,6 +633,12 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 /*! @{ */
 
 /*!
+ * \internal
+ * \brief Log a message about invalid attempt to access a type.
+ */
+void stasis_log_bad_type_access(const char *name);
+
+/*!
  * \brief Boiler-plate removing macro for defining message types.
  *
  * \param name Name of message type.
@@ -641,7 +647,9 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 #define STASIS_MESSAGE_TYPE_DEFN(name)				\
 	static struct stasis_message_type *_priv_ ## name;	\
 	struct stasis_message_type *name(void) {		\
-		ast_assert(_priv_ ## name != NULL);		\
+		if (_priv_ ## name == NULL) {			\
+			stasis_log_bad_type_access(#name);	\
+		}						\
 		return _priv_ ## name;				\
 	}
 
@@ -662,6 +670,15 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 
 /*!
  * \brief Boiler-plate removing macro for cleaning up message types.
+ *
+ * Note that if your type is defined in core instead of a loadable module, you
+ * should call message type cleanup from an ast_register_cleanup() handler
+ * instead of an ast_register_atexit() handler.
+ *
+ * The reason is that during an immediate shutdown, loadable modules (which may
+ * refer to core message types) are not unloaded. While the atexit handlers are
+ * run, there's a window of time where a module subscription might reference a
+ * core message type after it's been cleaned up. Which is bad.
  *
  * \param name Name of message type.
  * \since 12

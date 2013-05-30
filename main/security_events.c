@@ -54,8 +54,18 @@ struct stasis_topic *ast_security_topic(void)
 /*! \brief Message type for security events */
 STASIS_MESSAGE_TYPE_DEFN(ast_security_event_type);
 
+static void security_stasis_cleanup(void)
+{
+	ao2_cleanup(security_topic);
+	security_topic = NULL;
+
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_security_event_type);
+}
+
 int ast_security_stasis_init(void)
 {
+	ast_register_cleanup(security_stasis_cleanup);
+
 	security_topic = stasis_topic_create("ast_security");
 	if (!security_topic) {
 		return -1;
@@ -65,19 +75,8 @@ int ast_security_stasis_init(void)
 		return -1;
 	}
 
-	if (ast_register_atexit(ast_security_stasis_cleanup)) {
-		return -1;
-	}
 
 	return 0;
-}
-
-void ast_security_stasis_cleanup(void)
-{
-	STASIS_MESSAGE_TYPE_CLEANUP(ast_security_event_type);
-
-	ao2_cleanup(security_topic);
-	security_topic = NULL;
 }
 
 static const struct {

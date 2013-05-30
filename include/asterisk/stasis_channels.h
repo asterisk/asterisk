@@ -462,11 +462,6 @@ int ast_channel_snapshot_caller_id_equal(
 	const struct ast_channel_snapshot *new_snapshot);
 
 /*!
- * \brief Dispose of the stasis channel topics and message types
- */
-void ast_stasis_channels_shutdown(void);
-
-/*!
  * \brief Initialize the stasis channel topic and message types
  */
 void ast_stasis_channels_init(void);

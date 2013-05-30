@@ -321,6 +321,8 @@ static void presence_state_engine_cleanup(void)
 
 int ast_presence_state_engine_init(void)
 {
+	ast_register_cleanup(presence_state_engine_cleanup);
+
 	if (STASIS_MESSAGE_TYPE_INIT(ast_presence_state_message_type) != 0) {
 		return -1;
 	}
@@ -334,7 +336,6 @@ int ast_presence_state_engine_init(void)
 	if (!presence_state_topic_cached) {
 		return -1;
 	}
-	ast_register_atexit(presence_state_engine_cleanup);
 
 	return 0;
 }

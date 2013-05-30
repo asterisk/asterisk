@@ -87,12 +87,6 @@ struct stasis_message_type *ast_security_event_type(void);
 int ast_security_stasis_init(void);
 
 /*!
- * \brief removes stasis topic/event types for \ref ast_security_topic and \ref ast_security_event_type
- * \since 12
- */
-void ast_security_stasis_cleanup(void);
-
-/*!
  * \brief Get the list of required IEs for a given security event sub-type
  *
  * \param[in] event_type security event sub-type

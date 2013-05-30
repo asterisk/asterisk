@@ -446,7 +446,7 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 	return caching_topic;
 }
 
-static void stasis_cache_exit(void)
+static void stasis_cache_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_clear_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_update_type);
@@ -454,7 +454,7 @@ static void stasis_cache_exit(void)
 
 int stasis_cache_init(void)
 {
-	ast_register_atexit(stasis_cache_exit);
+	ast_register_cleanup(stasis_cache_cleanup);
 
 	if (STASIS_MESSAGE_TYPE_INIT(stasis_cache_clear_type) != 0) {
 		return -1;

@@ -220,11 +220,6 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot);
 
 /*!
- * \brief Dispose of the stasis bridging topics and message types
- */
-void ast_stasis_bridging_shutdown(void);
-
-/*!
  * \brief Initialize the stasis bridging topic and message types
  * \retval 0 on success
  * \retval -1 on failure

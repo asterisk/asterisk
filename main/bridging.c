@@ -6247,26 +6247,24 @@ static void bridge_shutdown(void)
 	bridges = NULL;
 	ao2_cleanup(bridge_manager);
 	bridge_manager = NULL;
-	ast_stasis_bridging_shutdown();
 }
 
 int ast_bridging_init(void)
 {
+	ast_register_atexit(bridge_shutdown);
+
 	if (ast_stasis_bridging_init()) {
-		bridge_shutdown();
 		return -1;
 	}
 
 	bridge_manager = bridge_manager_create();
 	if (!bridge_manager) {
-		bridge_shutdown();
 		return -1;
 	}
 
 	bridges = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_MUTEX,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, bridge_sort_cmp, NULL);
 	if (!bridges) {
-		bridge_shutdown();
 		return -1;
 	}
 
@@ -6275,6 +6273,5 @@ int ast_bridging_init(void)
 /* BUGBUG need AMI action equivalents to the CLI commands. */
 	ast_cli_register_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
 
-	ast_register_atexit(bridge_shutdown);
 	return 0;
 }

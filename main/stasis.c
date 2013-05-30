@@ -619,11 +619,21 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 	return topic_pool_entry->topic;
 }
 
+void stasis_log_bad_type_access(const char *name)
+{
+	ast_log(LOG_ERROR, "Use of %s() before init/after destruction\n", name);
+}
+
 /*! \brief Cleanup function */
 static void stasis_exit(void)
 {
 	ast_threadpool_shutdown(pool);
 	pool = NULL;
+}
+
+/*! \brief Cleanup function for graceful shutdowns */
+static void stasis_cleanup(void)
+{
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 }
 
@@ -640,6 +650,8 @@ int stasis_init(void)
 		.max_size = 200
 	};
 
+	/* Be sure the types are cleaned up after the message bus */
+	ast_register_cleanup(stasis_cleanup);
 	ast_register_atexit(stasis_exit);
 
 	if (pool) {

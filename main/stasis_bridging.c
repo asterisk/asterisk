@@ -319,7 +319,7 @@ struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *s
 	return ast_json_ref(json_chan);
 }
 
-void ast_stasis_bridging_shutdown(void)
+static void stasis_bridging_cleanup(void)
 {
 	ao2_cleanup(bridge_topic_all);
 	bridge_topic_all = NULL;
@@ -347,6 +347,8 @@ static const char *bridge_snapshot_get_id(struct stasis_message *msg)
 
 int ast_stasis_bridging_init(void)
 {
+	ast_register_cleanup(stasis_bridging_cleanup);
+
 	STASIS_MESSAGE_TYPE_INIT(ast_bridge_snapshot_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_bridge_merge_message_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_entered_bridge_type);
