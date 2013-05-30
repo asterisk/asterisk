@@ -2829,7 +2829,7 @@ static void app_cleanup(void)
 
 int app_init(void)
 {
-	ast_register_atexit(app_cleanup);
+	ast_register_cleanup(app_cleanup);
 
 	if (STASIS_MESSAGE_TYPE_INIT(ast_mwi_state_type) != 0) {
 		return -1;
