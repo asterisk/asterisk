@@ -273,6 +273,19 @@ void ast_multi_channel_blob_add_channel(struct ast_multi_channel_blob *obj,
 	const char *role, struct ast_channel_snapshot *snapshot);
 
 /*!
+ * \brief Publish a channel blob message.
+ * \since 12.0.0
+ *
+ * \param chan Channel publishing the blob.
+ * \param type Type of stasis message.
+ * \param blob The blob being published. (NULL if no blob)
+ *
+ * \return Nothing
+ */
+void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_type *type,
+	struct ast_json *blob);
+
+/*!
  * \since 12
  * \brief Publish a \ref ast_channel_snapshot for a channel.
  *

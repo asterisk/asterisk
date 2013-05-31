@@ -484,6 +484,20 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
 	return obj->blob;
 }
 
+void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	if (!blob) {
+		blob = ast_json_null();
+	}
+
+	message = ast_channel_blob_create(chan, type, blob);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+}
+
 void ast_channel_publish_snapshot(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);

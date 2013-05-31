@@ -1110,6 +1110,27 @@ void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_cha
 void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
 
 /*!
+ * \brief Write a hold frame into the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the hold into the bridge.
+ * \param moh_class The suggested music class for the other end to use.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class);
+
+/*!
+ * \brief Write an unhold frame into the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the hold into the bridge.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel);
+
+/*!
  * \brief Run an application on the bridge channel.
  * \since 12.0.0
  *

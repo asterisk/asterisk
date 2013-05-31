@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging_basic.h"
 #include "asterisk/bridging_technology.h"
 #include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/app.h"
 #include "asterisk/file.h"
 #include "asterisk/module.h"
@@ -714,6 +715,32 @@ void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_cha
 	bridge_channel_write_frame(bridge_channel, &frame);
 }
 
+void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	size_t datalen;
+
+	if (!ast_strlen_zero(moh_class)) {
+		datalen = strlen(moh_class) + 1;
+
+		blob = ast_json_pack("{s: s}",
+			"musicclass", moh_class);
+	} else {
+		moh_class = NULL;
+		datalen = 0;
+	}
+
+	ast_channel_publish_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
+	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD, moh_class,
+		datalen);
+}
+
+void ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
+{
+	ast_channel_publish_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
+	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
+}
+
 static int run_app_helper(struct ast_channel *chan, const char *app_name, const char *app_args)
 {
 	int res = 0;
@@ -738,21 +765,14 @@ static int run_app_helper(struct ast_channel *chan, const char *app_name, const 
 void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
 	if (moh_class) {
-		if (ast_strlen_zero(moh_class)) {
-			ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
-				NULL, 0);
-		} else {
-			ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
-				moh_class, strlen(moh_class) + 1);
-		}
+		ast_bridge_channel_write_hold(bridge_channel, moh_class);
 	}
 	if (run_app_helper(bridge_channel->chan, app_name, S_OR(app_args, ""))) {
 		/* Break the bridge if the app returns non-zero. */
 		bridge_handle_hangup(bridge_channel);
 	}
 	if (moh_class) {
-		ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD,
-			NULL, 0);
+		ast_bridge_channel_write_unhold(bridge_channel);
 	}
 }
 
@@ -821,13 +841,7 @@ void ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, con
 void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
 	if (moh_class) {
-		if (ast_strlen_zero(moh_class)) {
-			ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
-				NULL, 0);
-		} else {
-			ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
-				moh_class, strlen(moh_class) + 1);
-		}
+		ast_bridge_channel_write_hold(bridge_channel, moh_class);
 	}
 	if (custom_play) {
 		custom_play(bridge_channel, playfile);
@@ -835,8 +849,7 @@ void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_
 		ast_stream_and_wait(bridge_channel->chan, playfile, AST_DIGIT_NONE);
 	}
 	if (moh_class) {
-		ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD,
-			NULL, 0);
+		ast_bridge_channel_write_unhold(bridge_channel);
 	}
 
 	/*
@@ -5428,24 +5441,48 @@ static void set_blind_transfer_variables(struct ast_channel *transferer, struct 
 	ao2_iterator_destroy(&iter);
 }
 
+static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
+{
+	struct ast_bridge *bridge;
+
+	ast_channel_lock(chan);
+	bridge = ast_channel_get_bridge(chan);
+	ast_channel_unlock(chan);
+
+	if (bridge
+		&& ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY)) {
+		ao2_ref(bridge, -1);
+		bridge = NULL;
+	}
+
+	return bridge;
+}
+
 enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transferer,
 		const char *exten, const char *context,
 		transfer_channel_cb new_channel_cb, void *user_data)
 {
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, transferee, NULL, ao2_cleanup);
 	int do_bridge_transfer;
 	int transfer_prohibited;
 	enum try_parking_result parking_result;
 
-	ast_channel_lock(transferer);
-	bridge = ast_channel_get_bridge(transferer);
-	ast_channel_unlock(transferer);
-
+	bridge = acquire_bridge(transferer);
 	if (!bridge) {
 		return AST_BRIDGE_TRANSFER_INVALID;
 	}
+	ast_channel_lock(transferer);
+	bridge_channel = ast_channel_get_bridge_channel(transferer);
+	ast_channel_unlock(transferer);
+	if (!bridge_channel) {
+		return AST_BRIDGE_TRANSFER_INVALID;
+	}
+
+	/* Take off hold if they are on hold. */
+	ast_bridge_channel_write_unhold(bridge_channel);
 
 	parking_result = try_parking(bridge, transferer, exten, context);
 	switch (parking_result) {
@@ -5499,26 +5536,6 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 
 	ast_bridge_remove(bridge, transferer);
 	return AST_BRIDGE_TRANSFER_SUCCESS;
-}
-
-static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
-{
-	struct ast_bridge *bridge;
-
-	ast_channel_lock(chan);
-	bridge = ast_channel_get_bridge(chan);
-	ast_channel_unlock(chan);
-
-	if (!bridge) {
-		return NULL;
-	}
-
-	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY)) {
-		ao2_ref(bridge, -1);
-		bridge = NULL;
-	}
-
-	return bridge;
 }
 
 /*!
@@ -5613,6 +5630,8 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 {
 	RAII_VAR(struct ast_bridge *, to_transferee_bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge *, to_target_bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge_channel *, to_transferee_bridge_channel, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge_channel *, to_target_bridge_channel, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, transferee, NULL, ao2_cleanup);
 	struct ast_bridge *the_bridge;
@@ -5629,19 +5648,31 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		return AST_BRIDGE_TRANSFER_INVALID;
 	}
 
+	ast_channel_lock(to_transferee);
+	to_transferee_bridge_channel = ast_channel_get_bridge_channel(to_transferee);
+	ast_channel_unlock(to_transferee);
+
+	ast_channel_lock(to_transfer_target);
+	to_target_bridge_channel = ast_channel_get_bridge_channel(to_transfer_target);
+	ast_channel_unlock(to_transfer_target);
+
+	if (to_transferee_bridge_channel) {
+		/* Take off hold if they are on hold. */
+		ast_bridge_channel_write_unhold(to_transferee_bridge_channel);
+	}
+
+	if (to_target_bridge_channel) {
+		/* Take off hold if they are on hold. */
+		ast_bridge_channel_write_unhold(to_target_bridge_channel);
+	}
+
 	/* Let's get the easy one out of the way first */
 	if (to_transferee_bridge && to_target_bridge) {
-		RAII_VAR(struct ast_bridge_channel *, to_transferee_bridge_channel, NULL, ao2_cleanup);
-		RAII_VAR(struct ast_bridge_channel *, to_target_bridge_channel, NULL, ao2_cleanup);
 		enum ast_transfer_result res;
 
-		ast_channel_lock(to_transferee);
-		to_transferee_bridge_channel = ast_channel_get_bridge_channel(to_transferee);
-		ast_channel_unlock(to_transferee);
-
-		ast_channel_lock(to_transfer_target);
-		to_target_bridge_channel = ast_channel_get_bridge_channel(to_transfer_target);
-		ast_channel_unlock(to_transfer_target);
+		if (!to_transferee_bridge_channel || !to_target_bridge_channel) {
+			return AST_BRIDGE_TRANSFER_INVALID;
+		}
 
 		ast_bridge_lock_both(to_transferee_bridge, to_target_bridge);
 		res = two_bridge_attended_transfer(to_transferee, to_transferee_bridge_channel,
