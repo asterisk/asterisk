@@ -104,6 +104,15 @@ struct stasis_caching_topic *ast_channel_topic_all_cached(void);
 
 /*!
  * \since 12
+ * \brief A caching topic which caches \ref ast_channel_snapshot messages from
+ * ast_channel_events_all(void) and indexes them by name.
+ *
+ * \retval Topic for all channel events.
+ */
+struct stasis_caching_topic *ast_channel_topic_all_cached_by_name(void);
+
+/*!
+ * \since 12
  * \brief Message type for \ref ast_channel_snapshot.
  *
  * \retval Message type for \ref ast_channel_snapshot.
@@ -134,6 +143,18 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(
  * \retval NULL on error
  */
 struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniqueid);
+
+/*!
+ * \since 12
+ * \brief Obtain the latest \ref ast_channel_snapshot from the \ref stasis cache. This is
+ * an ao2 object, so use \ref ao2_cleanup() to deallocate.
+ *
+ * \param name The channel's name
+ *
+ * \retval A \ref ast_channel_snapshot on success
+ * \retval NULL on error
+ */
+struct ast_channel_snapshot *ast_channel_snapshot_get_latest_by_name(const char *name);
 
 /*!
  * \since 12

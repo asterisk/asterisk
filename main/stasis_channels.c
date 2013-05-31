@@ -66,6 +66,9 @@ struct stasis_topic *channel_topic_all;
 /*! \brief Caching topic for all channels */
 struct stasis_caching_topic *channel_topic_all_cached;
 
+/*! \brief Caching topic for all channels indexed by name */
+struct stasis_caching_topic *channel_topic_all_cached_by_name;
+
 struct stasis_topic *ast_channel_topic_all(void)
 {
 	return channel_topic_all;
@@ -84,6 +87,21 @@ static const char *channel_snapshot_get_id(struct stasis_message *message)
 	}
 	snapshot = stasis_message_data(message);
 	return snapshot->uniqueid;
+}
+
+struct stasis_caching_topic *ast_channel_topic_all_cached_by_name(void)
+{
+	return channel_topic_all_cached_by_name;
+}
+
+static const char *channel_snapshot_get_name(struct stasis_message *message)
+{
+	struct ast_channel_snapshot *snapshot;
+	if (ast_channel_snapshot_type() != stasis_message_type(message)) {
+		return NULL;
+	}
+	snapshot = stasis_message_data(message);
+	return snapshot->name;
 }
 
 /*! \internal \brief Hash function for \ref ast_channel_snapshot objects */
@@ -366,6 +384,28 @@ struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniquei
 	return snapshot;
 }
 
+struct ast_channel_snapshot *ast_channel_snapshot_get_latest_by_name(const char *name)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+
+	ast_assert(!ast_strlen_zero(name));
+
+	message = stasis_cache_get(ast_channel_topic_all_cached_by_name(),
+			ast_channel_snapshot_type(),
+			name);
+	if (!message) {
+		return NULL;
+	}
+
+	snapshot = stasis_message_data(message);
+	if (!snapshot) {
+		return NULL;
+	}
+	ao2_ref(snapshot, +1);
+	return snapshot;
+}
+
 static void channel_role_snapshot_dtor(void *obj)
 {
 	struct channel_role_snapshot *role_snapshot = obj;
@@ -578,6 +618,7 @@ int ast_channel_snapshot_caller_id_equal(
 static void stasis_channels_cleanup(void)
 {
 	channel_topic_all_cached = stasis_caching_unsubscribe_and_join(channel_topic_all_cached);
+	channel_topic_all_cached_by_name = stasis_caching_unsubscribe_and_join(channel_topic_all_cached_by_name);
 	ao2_cleanup(channel_topic_all);
 	channel_topic_all = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);
@@ -623,4 +664,5 @@ void ast_stasis_channels_init(void)
 
 	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);
+	channel_topic_all_cached_by_name = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_name);
 }
