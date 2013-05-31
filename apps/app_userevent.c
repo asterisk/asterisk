@@ -76,7 +76,6 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(extra)[100];
 	);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname,optional event body)\n");
@@ -115,14 +114,7 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	msg = ast_channel_blob_create(
-		chan, ast_channel_user_event_type(), blob);
-	if (!msg) {
-		return -1;
-	}
-
-	stasis_publish(ast_channel_topic(chan), msg);
-
+	ast_channel_publish_blob(chan, ast_channel_user_event_type(), blob);
 	return 0;
 }
 

@@ -5776,7 +5776,6 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 static void publish_hangup_handler_message(const char *action, struct ast_channel *chan, const char *handler)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	blob = ast_json_pack("{s: s, s: s}",
 			"type", action,
@@ -5785,12 +5784,7 @@ static void publish_hangup_handler_message(const char *action, struct ast_channe
 		return;
 	}
 
-	message = ast_channel_blob_create(chan, ast_channel_hangup_handler_type(), blob);
-	if (!message) {
-		return;
-	}
-
-	stasis_publish(ast_channel_topic(chan), message);
+	ast_channel_publish_blob(chan, ast_channel_hangup_handler_type(), blob);
 }
 
 int ast_pbx_hangup_handler_run(struct ast_channel *chan)
