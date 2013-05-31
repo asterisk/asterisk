@@ -286,6 +286,8 @@ int onCallEstablished(ooCallData *call);
 int onCallCleared(ooCallData *call);
 void onModeChanged(ooCallData *call, int t38mode);
 
+extern OOH323EndPoint gH323ep;
+
 static char gLogFile[256] = DEFAULT_LOGFILE;
 static int  gPort = 1720;
 static char gIP[20];
@@ -629,6 +631,7 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		ooh323_destroy(p);
 		ast_mutex_unlock(&iflock);
 		ast_log(LOG_ERROR, "Destination format is not supported\n");
+		*cause = AST_CAUSE_INVALID_NUMBER_FORMAT;
 		return NULL;
 	}
 
@@ -671,6 +674,10 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 			ast_mutex_unlock(&p->lock);
 			ooh323_destroy(p);
 			ast_mutex_unlock(&iflock);
+			return NULL;
+		} else if (gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered) {
+			ast_log(LOG_ERROR, "Gatekeeper client is configured but not registered\n");
+			*cause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 			return NULL;
 		}
 		p->g729onlyA = g729onlyA;
