@@ -2625,8 +2625,6 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 
 static int ooh323_do_reload(void)
 {
-	extern OOH323EndPoint gH323ep;
-
 	if (gH323Debug) {
 		ast_verb(0, "---   ooh323_do_reload\n");
 	}
@@ -3379,7 +3377,6 @@ static int ooh323_show_channels(int fd, int argc, char *argv[])
 static char *handle_cli_ooh323_show_gk(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char value[FORMAT_STRING_SIZE];
-	extern OOH323EndPoint gH323ep;
 
 	switch (cmd) {
 	case CLI_INIT:
