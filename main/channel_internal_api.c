@@ -262,7 +262,6 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "EXCEPTION", ast_test_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION));
 	ast_data_add_bool(tree, "MOH", ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH));
 	ast_data_add_bool(tree, "SPYING", ast_test_flag(ast_channel_flags(chan), AST_FLAG_SPYING));
-	ast_data_add_bool(tree, "NBRIDGE", ast_test_flag(ast_channel_flags(chan), AST_FLAG_NBRIDGE));
 	ast_data_add_bool(tree, "IN_AUTOLOOP", ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP));
 	ast_data_add_bool(tree, "OUTGOING", ast_test_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING));
 	ast_data_add_bool(tree, "IN_DTMF", ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_DTMF));

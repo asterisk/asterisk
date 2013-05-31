@@ -872,8 +872,6 @@ enum {
 	AST_FLAG_MOH =           (1 << 6),
 	/*! This channel is spying on another channel */
 	AST_FLAG_SPYING =        (1 << 7),
-	/*! This channel is in a native bridge */
-	AST_FLAG_NBRIDGE =       (1 << 8),
 	/*! the channel is in an auto-incrementing dialplan processor,
 	 *  so when ->priority is set, it will get incremented before
 	 *  finding the next priority to run */
@@ -927,7 +925,6 @@ enum {
 	AST_FEATURE_AUTOMON =      (1 << 4),
 	AST_FEATURE_PARKCALL =     (1 << 5),
 	AST_FEATURE_AUTOMIXMON =   (1 << 6),
-	AST_FEATURE_WARNING_ACTIVE = (1 << 8),
 };
 
 /*! \brief bridge configuration */
@@ -2003,21 +2000,6 @@ int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
  * \return Returns 0 on success and -1 if it could not be done
  */
 int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
-
-/*!
- * \brief Bridge two channels together
- * \param c0 first channel to bridge
- * \param c1 second channel to bridge
- * \param config config for the channels
- * \param fo destination frame(?)
- * \param rc destination channel(?)
- * \details
- * Bridge two channels (c0 and c1) together.  If an important frame occurs, we return that frame in
- * *rf (remember, it could be NULL) and which channel (0 or 1) in rc
- */
-/* int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc); */
-int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,
-	struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc);
 
 /*!
  * \brief Weird function made for call transfers
