@@ -475,17 +475,18 @@ struct ast_json;
 
 /*!
  * \since 12
- * \brief Publish a generic \ref stasis_message_type to the \ref stasis_topic for AMI
+ * \brief Publish an event to AMI
+ *
+ * \param type The type of AMI event to publish
+ * \param class_type The class on which to publish the event
+ * \param obj The event data to be published.
  *
  * Publishes a message to the \ref stasis message bus solely for the consumption of AMI.
  * The message will be of the type provided by \ref ast_manager_get_type, and will be
  * published to the topic provided by \ref ast_manager_get_topic. As such, the JSON must
  * be constructed as defined by the \ref ast_manager_get_type message.
- *
- * \retval 0 on success
- * \retval -1 on failure
  */
-int ast_manager_publish_message(struct ast_json *json);
+void ast_manager_publish_event(const char *type, int class_type, struct ast_json *obj);
 
 /*!
  * \since 12

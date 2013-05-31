@@ -1126,49 +1126,13 @@ static int stasis_system_topic_init(void)
 	return 0;
 }
 
-/*!
- * \brief Publish a \ref system_status_type message over \ref stasis
- *
- * \param payload The JSON payload to send with the message
- */
-static void publish_system_message(const char *message_type, struct ast_json *obj)
-{
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, event_info, NULL, ast_json_unref);
-
-	if (!obj) {
-		return;
-	}
-
-	ast_json_ref(obj);
-	event_info = ast_json_pack("{s: s, s: i, s: o}",
-			"type", message_type,
-			"class_type", EVENT_FLAG_SYSTEM,
-			"event", obj);
-	if (!event_info) {
-		return;
-	}
-
-	payload = ast_json_payload_create(event_info);
-	if (!payload) {
-		return;
-	}
-
-	message = stasis_message_create(ast_manager_get_generic_type(), payload);
-	if (!message) {
-		return;
-	}
-	stasis_publish(ast_manager_get_topic(), message);
-}
-
 static void publish_fully_booted(void)
 {
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 
 	json_object = ast_json_pack("{s: s}",
 			"Status", "Fully Booted");
-	publish_system_message("FullyBooted", json_object);
+	ast_manager_publish_event("FullyBooted", EVENT_FLAG_SYSTEM, json_object);
 }
 
 static void ast_run_atexits(int run_cleanups)
@@ -2028,7 +1992,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		json_object = ast_json_pack("{s: s, s: s}",
 				"Shutdown", active_channels ? "Uncleanly" : "Cleanly",
 				"Restart", restart ? "True" : "False");
-		publish_system_message("Shutdown", json_object);
+		ast_manager_publish_event("Shutdown", EVENT_FLAG_SYSTEM, json_object);
 	}
 	ast_verb(0, "Asterisk %s ending (%d).\n",
 		active_channels ? "uncleanly" : "cleanly", num);

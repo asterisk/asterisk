@@ -1312,37 +1312,34 @@ static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 	manager_event(class_type, type, "%s", ast_str_buffer(event_buffer));
 }
 
-int ast_manager_publish_message(struct ast_json *obj)
+void ast_manager_publish_event(const char *type, int class_type, struct ast_json *obj)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, event_info, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
-	struct ast_json *type = ast_json_object_get(obj, "type");
-	struct ast_json *class_type = ast_json_object_get(obj, "class_type");
-	struct ast_json *event = ast_json_object_get(obj, "event");
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
-	if (!type) {
-		ast_log(AST_LOG_ERROR, "Attempt to send generic manager event without type field\n");
-		return -1;
-	}
-	if (!class_type) {
-		ast_log(AST_LOG_ERROR, "Attempt to send generic manager event without class type field\n");
-		return -1;
-	}
-	if (!event) {
-		ast_log(AST_LOG_ERROR, "Attempt to send generic manager event without event payload\n");
-		return -1;
+	if (!obj) {
+		return;
 	}
 
-	payload = ast_json_payload_create(obj);
+	ast_json_ref(obj);
+	event_info = ast_json_pack("{s: s, s: i, s: o}",
+			"type", type,
+			"class_type", class_type,
+			"event", obj);
+	if (!event_info) {
+		return;
+	}
+
+	payload = ast_json_payload_create(event_info);
 	if (!payload) {
-		return -1;
+		return;
 	}
 	message = stasis_message_create(ast_manager_get_generic_type(), payload);
 	if (!message) {
-		return -1;
+		return;
 	}
 	stasis_publish(ast_manager_get_topic(), message);
-	return 0;
 }
 
 /*! \brief Add a custom hook to be called when an event is fired */
