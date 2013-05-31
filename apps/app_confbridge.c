@@ -415,13 +415,12 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 	return "";
 }
 
-static void send_conf_stasis(struct confbridge_conference *conference, struct ast_channel *chan, const char *type, struct ast_json *extras, int channel_topic)
+static void send_conf_stasis(struct confbridge_conference *conference, struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *extras, int channel_topic)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 
-	json_object = ast_json_pack("{s: s, s: s}",
-		"type", type,
+	json_object = ast_json_pack("{s: s}",
 		"conference", conference->name);
 
 	if (!json_object) {
@@ -432,10 +431,10 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 		ast_json_object_update(json_object, extras);
 	}
 
-	msg = ast_bridge_blob_create(confbridge_message_type(),
-					 conference->bridge,
-					 chan,
-					 json_object);
+	msg = ast_bridge_blob_create(type,
+		conference->bridge,
+		chan,
+		json_object);
 	if (!msg) {
 		return;
 	}
@@ -450,42 +449,42 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 
 static void send_conf_start_event(struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, NULL, "confbridge_start", NULL, 0);
+	send_conf_stasis(conference, NULL, confbridge_start_type(), NULL, 0);
 }
 
 static void send_conf_end_event(struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, NULL, "confbridge_end", NULL, 0);
+	send_conf_stasis(conference, NULL, confbridge_end_type(), NULL, 0);
 }
 
 static void send_join_event(struct ast_channel *chan, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, "confbridge_join", NULL, 0);
+	send_conf_stasis(conference, chan, confbridge_join_type(), NULL, 0);
 }
 
 static void send_leave_event(struct ast_channel *chan, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, "confbridge_leave", NULL, 0);
+	send_conf_stasis(conference, chan, confbridge_leave_type(), NULL, 0);
 }
 
 static void send_start_record_event(struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, NULL, "confbridge_record", NULL, 0);
+	send_conf_stasis(conference, NULL, confbridge_start_record_type(), NULL, 0);
 }
 
 static void send_stop_record_event(struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, NULL, "confbridge_stop_record", NULL, 0);
+	send_conf_stasis(conference, NULL, confbridge_stop_record_type(), NULL, 0);
 }
 
 static void send_mute_event(struct ast_channel *chan, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, "confbridge_mute", NULL, 1);
+	send_conf_stasis(conference, chan, confbridge_mute_type(), NULL, 1);
 }
 
 static void send_unmute_event(struct ast_channel *chan, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, "confbridge_unmute", NULL, 1);
+	send_conf_stasis(conference, chan, confbridge_unmute_type(), NULL, 1);
 }
 
 static void set_rec_filename(struct confbridge_conference *conference, struct ast_str **filename, int is_new)
@@ -1420,7 +1419,7 @@ static void conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, voi
 		return;
 	}
 
-	send_conf_stasis(conference, bridge_channel->chan, "confbridge_talking", talking_extras, 0);
+	send_conf_stasis(conference, bridge_channel->chan, confbridge_talking_type(), talking_extras, 0);
 	ast_json_unref(talking_extras);
 }
 

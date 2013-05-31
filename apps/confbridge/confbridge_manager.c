@@ -206,61 +206,24 @@ static void append_event_header(struct ast_str **fields_string,
 		header, value);
 }
 
-static void stasis_confbridge_cb(void *data, struct stasis_subscription *sub,
-					struct stasis_topic *topic,
-					struct stasis_message *message)
+static void confbridge_publish_manager_event(
+	struct stasis_message *message,
+	const char *event,
+	struct ast_str *extra_text)
 {
 	struct ast_bridge_blob *blob = stasis_message_data(message);
-	const char *type = ast_bridge_blob_json_type(blob);
 	const char *conference_name;
-	RAII_VAR(struct ast_str *, bridge_text, NULL, ast_free);
+	RAII_VAR(struct ast_str *, bridge_text,
+		ast_manager_build_bridge_state_string(blob->bridge, ""),
+		ast_free);
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
-	RAII_VAR(struct ast_str *, extra_text, NULL, ast_free);
-	char *event;
 
-	if (!blob || !type) {
-		ast_assert(0);
-		return;
-	}
-
-	if (!strcmp("confbridge_start", type)) {
-		event = "ConfbridgeStart";
-	} else if (!strcmp("confbridge_end", type)) {
-		event = "ConfbridgeEnd";
-	} else if (!strcmp("confbridge_leave", type)) {
-		event = "ConfbridgeLeave";
-	} else if (!strcmp("confbridge_join", type)) {
-		event = "ConfbridgeJoin";
-	} else if (!strcmp("confbridge_record", type)) {
-		event = "ConfbridgeRecord";
-	} else if (!strcmp("confbridge_stop_record", type)) {
-		event = "ConfbridgeStopRecord";
-	} else if (!strcmp("confbridge_mute", type)) {
-		event = "ConfbridgeMute";
-	} else if (!strcmp("confbridge_unmute", type)) {
-		event = "ConfbridgeUnmute";
-	} else if (!strcmp("confbridge_talking", type)) {
-		const char *talking_status = ast_json_string_get(ast_json_object_get(blob->blob, "talking_status"));
-		event = "ConfbridgeTalking";
-
-		if (!talking_status) {
-			return;
-		}
-
-		append_event_header(&extra_text, "TalkingStatus", talking_status);
-
-	} else {
-		return;
-	}
+	ast_assert(blob != NULL);
+	ast_assert(event != NULL);
 
 	conference_name = ast_json_string_get(ast_json_object_get(blob->blob, "conference"));
+	ast_assert(conference_name != NULL);
 
-	if (!conference_name) {
-		ast_assert(0);
-		return;
-	}
-
-	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
 	if (blob->channel) {
 		channel_text = ast_manager_build_channel_state_string(blob->channel);
 	}
@@ -272,20 +235,105 @@ static void stasis_confbridge_cb(void *data, struct stasis_subscription *sub,
 		"%s",
 		conference_name,
 		ast_str_buffer(bridge_text),
-		channel_text ? ast_str_buffer(channel_text) : "",
-		extra_text ? ast_str_buffer(extra_text) : "");
+		S_COR(channel_text, ast_str_buffer(channel_text), ""),
+		S_COR(extra_text, ast_str_buffer(extra_text), ""));
 }
 
-static struct stasis_message_type *confbridge_msg_type;
-
-struct stasis_message_type *confbridge_message_type(void)
+static void confbridge_start_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
 {
-	return confbridge_msg_type;
+	confbridge_publish_manager_event(message, "ConfbridgeStart", NULL);
 }
+
+static void confbridge_end_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeEnd", NULL);
+}
+
+static void confbridge_leave_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeLeave", NULL);
+}
+
+static void confbridge_join_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeJoin", NULL);
+}
+
+static void confbridge_start_record_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeRecord", NULL);
+}
+
+static void confbridge_stop_record_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeStopRecord", NULL);
+}
+
+static void confbridge_mute_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeMute", NULL);
+}
+
+static void confbridge_unmute_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeUnmute", NULL);
+}
+
+static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, extra_text, NULL, ast_free);
+	struct ast_bridge_blob *blob = stasis_message_data(message);
+	const char *talking_status = ast_json_string_get(ast_json_object_get(blob->blob, "talking_status"));
+	if (!talking_status) {
+		return;
+	}
+
+	append_event_header(&extra_text, "TalkingStatus", talking_status);
+	if (!extra_text) {
+		return;
+	}
+
+	confbridge_publish_manager_event(message, "ConfbridgeTalking", extra_text);
+}
+
+STASIS_MESSAGE_TYPE_DEFN(confbridge_start_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_end_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_join_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_leave_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_start_record_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_stop_record_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_mute_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_unmute_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_talking_type);
 
 void manager_confbridge_shutdown(void) {
-	ao2_cleanup(confbridge_msg_type);
-	confbridge_msg_type = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_join_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_leave_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_start_record_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_stop_record_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_mute_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_unmute_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_talking_type);
 
 	if (bridge_state_router) {
 		stasis_message_router_unsubscribe(bridge_state_router);
@@ -300,9 +348,15 @@ void manager_confbridge_shutdown(void) {
 
 int manager_confbridge_init(void)
 {
-	if (!(confbridge_msg_type = stasis_message_type_create("confbridge"))) {
-		return -1;
-	}
+	STASIS_MESSAGE_TYPE_INIT(confbridge_start_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_end_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_join_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_leave_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_start_record_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_stop_record_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_mute_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_unmute_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_talking_type);
 
 	bridge_state_router = stasis_message_router_create(
 		stasis_caching_get_topic(ast_bridge_topic_all_cached()));
@@ -312,9 +366,65 @@ int manager_confbridge_init(void)
 	}
 
 	if (stasis_message_router_add(bridge_state_router,
-					 confbridge_message_type(),
-					 stasis_confbridge_cb,
-					 NULL)) {
+			confbridge_start_type(),
+			confbridge_start_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_end_type(),
+			confbridge_end_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_join_type(),
+			confbridge_join_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_leave_type(),
+			confbridge_leave_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_start_record_type(),
+			confbridge_start_record_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_stop_record_type(),
+			confbridge_stop_record_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_mute_type(),
+			confbridge_mute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_unmute_type(),
+			confbridge_unmute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_talking_type(),
+			confbridge_talking_cb,
+			NULL)) {
 		manager_confbridge_shutdown();
 		return -1;
 	}
@@ -328,9 +438,65 @@ int manager_confbridge_init(void)
 	}
 
 	if (stasis_message_router_add(channel_state_router,
-					 confbridge_message_type(),
-					 stasis_confbridge_cb,
-					 NULL)) {
+			confbridge_start_type(),
+			confbridge_start_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_end_type(),
+			confbridge_end_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_join_type(),
+			confbridge_join_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_leave_type(),
+			confbridge_leave_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_start_record_type(),
+			confbridge_start_record_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_stop_record_type(),
+			confbridge_stop_record_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_mute_type(),
+			confbridge_mute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_unmute_type(),
+			confbridge_unmute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_talking_type(),
+			confbridge_talking_cb,
+			NULL)) {
 		manager_confbridge_shutdown();
 		return -1;
 	}

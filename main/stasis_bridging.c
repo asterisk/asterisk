@@ -262,15 +262,6 @@ struct stasis_message *ast_bridge_blob_create(
 	return msg;
 }
 
-const char *ast_bridge_blob_json_type(struct ast_bridge_blob *obj)
-{
-	if (obj == NULL) {
-		return NULL;
-	}
-
-	return ast_json_string_get(ast_json_object_get(obj->blob, "type"));
-}
-
 void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);

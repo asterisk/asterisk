@@ -183,19 +183,6 @@ struct stasis_message *ast_bridge_blob_create(struct stasis_message_type *type,
 
 /*!
  * \since 12
- * \brief Extracts the type field from a \ref ast_bridge_blob.
- *
- * Returned \c char* is still owned by \a obj
- *
- * \param obj Channel blob object.
- *
- * \retval Type field value from the blob.
- * \retval \c NULL on error.
- */
-const char *ast_bridge_blob_json_type(struct ast_bridge_blob *obj);
-
-/*!
- * \since 12
  * \brief Publish a bridge channel enter event
  *
  * \param bridge The bridge a channel entered

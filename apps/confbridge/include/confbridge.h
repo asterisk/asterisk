@@ -465,12 +465,84 @@ int conf_add_post_join_action(struct confbridge_user *user, int (*func)(struct c
 
 /*!
  * \since 12.0
- * \brief get the confbridge stasis message type
+ * \brief get the confbridge start stasis message type
  *
- * \retval stasis message type for confbridge messages if it's available
+ * \retval stasis message type for confbridge start messages if it's available
  * \retval NULL if it isn't
  */
-struct stasis_message_type *confbridge_message_type(void);
+struct stasis_message_type *confbridge_start_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge end stasis message type
+ *
+ * \retval stasis message type for confbridge end messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_end_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge join stasis message type
+ *
+ * \retval stasis message type for confbridge join messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_join_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge leave stasis message type
+ *
+ * \retval stasis message type for confbridge leave messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_leave_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge start_record stasis message type
+ *
+ * \retval stasis message type for confbridge start_record messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_start_record_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge stop_record stasis message type
+ *
+ * \retval stasis message type for confbridge stop_record messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_stop_record_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge mute stasis message type
+ *
+ * \retval stasis message type for confbridge mute messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_mute_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge unmute stasis message type
+ *
+ * \retval stasis message type for confbridge unmute messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_unmute_type(void);
+
+/*!
+ * \since 12.0
+ * \brief get the confbridge talking stasis message type
+ *
+ * \retval stasis message type for confbridge talking messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_talking_type(void);
 
 /*!
  * \since 12.0
