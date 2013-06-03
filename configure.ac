@@ -497,8 +497,6 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
-AST_EXT_LIB_CHECK([UUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [-luuid])
-AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
@@ -514,9 +512,31 @@ else
 fi
 AC_SUBST(EDITLINE_LIB)
 
-if test "x$UUID_LIB" == "x"; then
+# Find required UUID support.
+#  * -luuid on Linux
+#  * -le2fs-uuid on OpenBSD
+#  * in libsystem on OS X
+AST_EXT_LIB_CHECK([LIBUUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [])
+AST_EXT_LIB_CHECK([E2FSUUID], [e2fs-uuid], [uuid_generate_random], [uuid/uuid.h], [])
+AC_CHECK_FUNCS([uuid_generate_random], [SYSUUID=true], [SYSUUID=""])
+
+if test "x$LIBUUID_LIB" != "x" ; then
+  UUID_INCLUDE="$LIBUUID_INCLUDE"
+  UUID_LIB="$LIBUUID_LIB"
+elif test "x$E2FSUUID_LIB" != "x" ; then
+  UUID_INCLUDE="$E2FSUUID_INCLUDE"
+  UUID_LIB="$E2FSUUID_LIB"
+elif test "x$SYSUUID" != "x" ; then
+  UUID_INCLUDE=""
+  UUID_LIB=""
+else
   AC_MSG_ERROR([*** uuid support not found (this typically means the uuid development package is missing)])
 fi
+AC_SUBST(UUID_INCLUDE)
+AC_SUBST(UUID_LIB)
+
+# Find required JSON support.
+AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 if test "x$JANSSON_LIB" == "x"; then
   AC_MSG_ERROR([*** JSON support not found (this typically means the libjansson development package is missing)])

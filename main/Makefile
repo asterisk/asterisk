@@ -36,6 +36,7 @@ AST_LIBS+=$(LIBXML2_LIB)
 AST_LIBS+=$(SQLITE3_LIB)
 AST_LIBS+=$(ASTSSL_LIBS)
 AST_LIBS+=$(JANSSON_LIB)
+AST_LIBS+=$(UUID_LIB)
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc kfreebsd-gnu),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
@@ -44,7 +45,7 @@ ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc kfreebsd-gnu),)
   ifneq (x$(CAP_LIB),x)
     AST_LIBS+=$(CAP_LIB)
   endif
-  AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv -luuid
+  AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv
 else
   AST_LIBS+=$(EDITLINE_LIB) -lm
 endif
@@ -152,6 +153,7 @@ db.o: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
 asterisk.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
 cli.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
 json.o: _ASTCFLAGS+=$(JANSSON_INCLUDE)
+uuid.o: _ASTCFLAGS+=$(UUID_INCLUDE)
 
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
 http.o: _ASTCFLAGS+=$(GMIME_INCLUDE)

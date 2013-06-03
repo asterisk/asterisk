@@ -1022,6 +1022,9 @@
 /* Define to 1 if `utime(file, NULL)' sets file's timestamp to the present. */
 #undef HAVE_UTIME_NULL
 
+/* Define to 1 if you have the `uuid_generate_random' function. */
+#undef HAVE_UUID_GENERATE_RANDOM
+
 /* Define to 1 if your system can support larger than default select bitmasks.
    */
 #undef HAVE_VARIABLE_FDSET
