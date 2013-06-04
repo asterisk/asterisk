@@ -258,6 +258,14 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 		return -1;
 	}
 
+/*
+ * BUGBUG The RTP native bridge technology should use tech_pvt not bridge_pvt.
+ *
+ * This technology needs to be reworked to not change the
+ * tech_pvt of channels other than the one that is currently
+ * entering/leaving before it can actually use the correct
+ * pointer.
+ */
 	bridge_channel->bridge_pvt = data;
 
 	return 0;
