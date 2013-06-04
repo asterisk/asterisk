@@ -401,7 +401,9 @@ struct ast_manager_event_blob {
 
 /*!
  * \since 12
- * \brief Construct a \ref snapshot_manager_event.
+ * \brief Construct a \ref ast_manager_event_blob.
+ *
+ * The returned object is AO2 managed, so clean up with ao2_cleanup().
  *
  * \param event_flags Flags the event should be raised with.
  * \param manager_event The event to be raised, should be a string literal.
