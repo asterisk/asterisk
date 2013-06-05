@@ -182,7 +182,7 @@ struct ast_bridge_hook_timer {
 
 enum ast_bridge_hook_remove_flags {
 	/*! The hook is removed when the channel is pulled from the bridge. */
-	AST_BRIDGE_HOOK_REMOVE_ON_PULL,
+	AST_BRIDGE_HOOK_REMOVE_ON_PULL = (1 << 0),
 };
 
 /* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
