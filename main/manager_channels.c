@@ -859,7 +859,7 @@ static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
 		struct stasis_topic *topic, struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
-	RAII_VAR(struct ast_channel_snapshot *, spyer, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *spyer;
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 
 	spyer = ast_multi_channel_blob_get_channel(payload, "spyer_channel");
@@ -883,8 +883,8 @@ static void channel_chanspy_start_cb(void *data, struct stasis_subscription *sub
 {
 	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, spyee_channel_string, NULL, ast_free);
-	RAII_VAR(struct ast_channel_snapshot *, spyer, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, spyee, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *spyer;
+	struct ast_channel_snapshot *spyee;
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 
 	spyer = ast_multi_channel_blob_get_channel(payload, "spyer_channel");
