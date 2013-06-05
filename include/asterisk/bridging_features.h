@@ -180,6 +180,11 @@ struct ast_bridge_hook_timer {
 	unsigned int seqno;
 };
 
+enum ast_bridge_hook_remove_flags {
+	/*! The hook is removed when the channel is pulled from the bridge. */
+	AST_BRIDGE_HOOK_REMOVE_ON_PULL,
+};
+
 /* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
 /*! \brief Structure that is the essence of a feature hook. */
 struct ast_bridge_hook {
@@ -191,8 +196,8 @@ struct ast_bridge_hook {
 	ast_bridge_hook_pvt_destructor destructor;
 	/*! Unique data that was passed into us */
 	void *hook_pvt;
-	/*! TRUE if the hook is removed when the channel is pulled from the bridge. */
-	unsigned int remove_on_pull:1;
+	/*! Flags determining when hooks should be removed from a bridge channel */
+	struct ast_flags remove_flags;
 	/*! Extra hook parameters. */
 	union {
 		/*! Extra parameters for a DTMF feature hook. */

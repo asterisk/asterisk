@@ -75,7 +75,7 @@ static AST_RWLIST_HEAD_STATIC(bridge_technologies, ast_bridge_technology);
 
 static void cleanup_video_mode(struct ast_bridge *bridge);
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-static void bridge_features_remove_on_pull(struct ast_bridge_features *features);
+static void bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags flags);
 
 /*! Default DTMF keys for built in features */
 static char builtin_features_dtmf[AST_BRIDGE_BUILTIN_END][MAXIMUM_DTMF_FEATURE_STRING];
@@ -1398,7 +1398,7 @@ static int bridge_base_push(struct ast_bridge *self, struct ast_bridge_channel *
  */
 static void bridge_base_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
 {
-	bridge_features_remove_on_pull(bridge_channel->features);
+	bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 }
 
 /*!
@@ -4391,7 +4391,7 @@ static struct ast_bridge_hook *bridge_hook_generic(size_t size,
 		hook->callback = callback;
 		hook->destructor = destructor;
 		hook->hook_pvt = hook_pvt;
-		hook->remove_on_pull = remove_on_pull;
+		ast_set_flag(&hook->remove_flags, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
 
 	return hook;
@@ -4619,17 +4619,18 @@ void ast_bridge_features_set_flag(struct ast_bridge_features *features, unsigned
  * \since 12.0.0
  *
  * \param obj Feature hook object.
- * \param arg Not used
- * \param flags Not used
+ * \param arg Removal flags
+ * \param unused Not used
  *
- * \retval CMP_MATCH if hook has remove_on_pull set.
+ * \retval CMP_MATCH if hook's remove_flags match the removal flags set.
  * \retval 0 if not match.
  */
-static int hook_remove_on_pull_match(void *obj, void *arg, int flags)
+static int hook_remove_match(void *obj, void *arg, int unused)
 {
 	struct ast_bridge_hook *hook = obj;
+	enum ast_bridge_hook_remove_flags *flags = arg;
 
-	if (hook->remove_on_pull) {
+	if (ast_test_flag(&hook->remove_flags, *flags)) {
 		return CMP_MATCH;
 	} else {
 		return 0;
@@ -4642,13 +4643,14 @@ static int hook_remove_on_pull_match(void *obj, void *arg, int flags)
  * \since 12.0.0
  *
  * \param hooks Hooks container to work on.
+ * \param flags Determinator for whether hook is removed
  *
  * \return Nothing
  */
-static void hooks_remove_on_pull_container(struct ao2_container *hooks)
+static void hooks_remove_container(struct ao2_container *hooks, enum ast_bridge_hook_remove_flags flags)
 {
 	ao2_callback(hooks, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
-		hook_remove_on_pull_match, NULL);
+		hook_remove_match, &flags);
 }
 
 /*!
@@ -4657,10 +4659,11 @@ static void hooks_remove_on_pull_container(struct ao2_container *hooks)
  * \since 12.0.0
  *
  * \param hooks Hooks heap to work on.
+ * \param flags Determinator for whether hook is removed
  *
  * \return Nothing
  */
-static void hooks_remove_on_pull_heap(struct ast_heap *hooks)
+static void hooks_remove_heap(struct ast_heap *hooks, enum ast_bridge_hook_remove_flags flags)
 {
 	struct ast_bridge_hook *hook;
 	int changed;
@@ -4672,7 +4675,7 @@ static void hooks_remove_on_pull_heap(struct ast_heap *hooks)
 		changed = 0;
 		for (idx = ast_heap_size(hooks); idx; --idx) {
 			hook = ast_heap_peek(hooks, idx);
-			if (hook->remove_on_pull) {
+			if (ast_test_flag(&hook->remove_flags, flags)) {
 				ast_heap_remove(hooks, hook);
 				ao2_ref(hook, -1);
 				changed = 1;
@@ -4687,17 +4690,18 @@ static void hooks_remove_on_pull_heap(struct ast_heap *hooks)
  * \brief Remove marked bridge channel feature hooks.
  * \since 12.0.0
  *
- * \param features Bridge featues structure
+ * \param features Bridge features structure
+ * \param flags Determinator for whether hook is removed.
  *
  * \return Nothing
  */
-static void bridge_features_remove_on_pull(struct ast_bridge_features *features)
+static void bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags flags)
 {
-	hooks_remove_on_pull_container(features->dtmf_hooks);
-	hooks_remove_on_pull_container(features->hangup_hooks);
-	hooks_remove_on_pull_container(features->join_hooks);
-	hooks_remove_on_pull_container(features->leave_hooks);
-	hooks_remove_on_pull_heap(features->interval_hooks);
+	hooks_remove_container(features->dtmf_hooks, flags);
+	hooks_remove_container(features->hangup_hooks, flags);
+	hooks_remove_container(features->join_hooks, flags);
+	hooks_remove_container(features->leave_hooks, flags);
+	hooks_remove_heap(features->interval_hooks, flags);
 }
 
 static int interval_hook_time_cmp(void *a, void *b)
