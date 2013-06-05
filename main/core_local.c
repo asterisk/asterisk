@@ -445,9 +445,8 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	case LOCAL_CALL_ACTION_MASQUERADE:
 		local_bridge_event(p);
 		ast_answer(chan);
-		res = ast_channel_masquerade(p->action.masq, chan);
+		res = ast_channel_move(p->action.masq, chan);
 		if (!res) {
-			ast_do_masquerade(p->action.masq);
 			/* Chan is now an orphaned zombie.  Destroy it. */
 			ast_hangup(chan);
 		}
