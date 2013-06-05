@@ -1409,21 +1409,8 @@ struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 	struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-
 	ast_assert(chan != NULL);
 	ast_assert(endpoint != NULL);
-
-	snapshot = ast_channel_snapshot_create(chan);
-	if (!snapshot) {
-		return -1;
-	}
-
-	msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-	if (!msg) {
-		return -1;
-	}
 
 	chan->endpoint_forward =
 		stasis_forward_all(chan->topic, ast_endpoint_topic(endpoint));
@@ -1432,7 +1419,7 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 		return -1;
 	}
 
-	stasis_publish(ast_endpoint_topic(endpoint), msg);
+	ast_publish_channel_state(chan);
 
 	return 0;
 }
