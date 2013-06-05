@@ -7308,12 +7308,12 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 
 	ast_channel_state_set(chan, state);
 
+	ast_publish_channel_state(chan);
+
 	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
 	 * for this channel is using the callback method for device state. If we pass in an actual state here
 	 * we override what they are saying the state is and things go amuck. */
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
-
-	ast_publish_channel_state(chan);
 
 	return 0;
 }
