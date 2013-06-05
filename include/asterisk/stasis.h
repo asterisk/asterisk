@@ -605,11 +605,13 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
 
 /*!
  * \brief Retrieve an item from the cache.
+ *
+ * The returned item is AO2 managed, so ao2_cleanup() when you're done with it.
+ *
  * \param caching_topic The topic returned from stasis_caching_topic_create().
  * \param type Type of message to retrieve.
  * \param id Identity of the snapshot to retrieve.
- * \return Message from the cache. The cache still owns the message, so
- *         ao2_ref() if you want to keep it.
+ * \return Message from the cache.
  * \return \c NULL if message is not found.
  * \since 12
  */
