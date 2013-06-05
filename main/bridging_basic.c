@@ -126,7 +126,7 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
  */
 static int bridge_basic_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
-	if (ast_bridge_hangup_hook(bridge_channel->features, basic_hangup_hook, NULL, NULL, 1)
+	if (ast_bridge_hangup_hook(bridge_channel->features, basic_hangup_hook, NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)
 		|| ast_bridge_channel_setup_features(bridge_channel)) {
 		return -1;
 	}

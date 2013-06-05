@@ -4173,36 +4173,42 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 		builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
 /* BUGBUG need to supply a blind transfer structure and destructor to use other than defaults */
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 		builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
 /* BUGBUG need to supply an attended transfer structure and destructor to use other than defaults */
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
 	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT)) {
 		builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
 	if (ast_test_flag(flags, AST_FEATURE_PARKCALL)) {
 		builtin_feature_get_exten(chan, "parkcall", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
 	if (ast_test_flag(flags, AST_FEATURE_AUTOMON)) {
 		builtin_feature_get_exten(chan, "automon", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
 	if (ast_test_flag(flags, AST_FEATURE_AUTOMIXMON)) {
 		builtin_feature_get_exten(chan, "automixmon", dtmf, sizeof(dtmf));
 		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf, NULL, NULL, 1);
+			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf,
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
 	ast_unlock_call_features();

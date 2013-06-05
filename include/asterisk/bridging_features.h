@@ -336,12 +336,13 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  *
  * \param features Bridge features structure
  * \param limits Configured limits applicable to the channel
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-typedef int (*ast_bridge_builtin_set_limits_fn)(struct ast_bridge_features *features, struct ast_bridge_features_limits *limits, int remove_on_pull);
+typedef int (*ast_bridge_builtin_set_limits_fn)(struct ast_bridge_features *features,
+		struct ast_bridge_features_limits *limits, enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Register a handler for a built in interval feature
@@ -388,7 +389,7 @@ int ast_bridge_interval_unregister(enum ast_bridge_builtin_interval interval);
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
  * \param destructor Optional destructor callback for hook_pvt data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -409,7 +410,7 @@ int ast_bridge_join_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Attach a bridge channel leave hook to a bridge features structure
@@ -418,7 +419,7 @@ int ast_bridge_join_hook(struct ast_bridge_features *features,
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
  * \param destructor Optional destructor callback for hook_pvt data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -439,7 +440,7 @@ int ast_bridge_leave_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Attach a hangup hook to a bridge features structure
@@ -448,7 +449,7 @@ int ast_bridge_leave_hook(struct ast_bridge_features *features,
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
  * \param destructor Optional destructor callback for hook_pvt data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -469,7 +470,7 @@ int ast_bridge_hangup_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Attach a DTMF hook to a bridge features structure
@@ -479,7 +480,7 @@ int ast_bridge_hangup_hook(struct ast_bridge_features *features,
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
  * \param destructor Optional destructor callback for hook_pvt data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -501,7 +502,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief attach an interval hook to a bridge features structure
@@ -511,7 +512,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
  * \param destructor Optional destructor callback for hook_pvt data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -530,7 +531,7 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Set a callback on the features structure to receive talking notifications on.
@@ -555,7 +556,7 @@ void ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
  * \param dtmf Optionally the DTMF stream to trigger the feature, if not specified it will be the default
  * \param config Configuration structure unique to the built in type
  * \param destructor Optional destructor callback for config data
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -577,7 +578,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features,
 	const char *dtmf,
 	void *config,
 	ast_bridge_hook_pvt_destructor destructor,
-	int remove_on_pull);
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Constructor function for ast_bridge_features_limits
@@ -604,7 +605,7 @@ void ast_bridge_features_limits_destroy(struct ast_bridge_features_limits *limit
  *
  * \param features Bridge features structure
  * \param limits Configured limits applicable to the channel
- * \param remove_on_pull TRUE if remove the hook when the channel is pulled from the bridge.
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -625,7 +626,7 @@ void ast_bridge_features_limits_destroy(struct ast_bridge_features_limits *limit
  * \note This API call can only be used on a features structure that will be used in association with a bridge channel.
  * \note The ast_bridge_features_limits structure must remain accessible for the lifetime of the features structure.
  */
-int ast_bridge_features_set_limits(struct ast_bridge_features *features, struct ast_bridge_features_limits *limits, int remove_on_pull);
+int ast_bridge_features_set_limits(struct ast_bridge_features *features, struct ast_bridge_features_limits *limits, enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Set a flag on a bridge channel features structure
