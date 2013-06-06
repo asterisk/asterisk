@@ -96,6 +96,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/json.h"
 #include "asterisk/bridging.h"
+#include "asterisk/features_config.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -4048,8 +4049,8 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	const char *exten = astman_get_header(m, "Exten");
 	const char *context = astman_get_header(m, "Context");
 	struct ast_channel *chan = NULL;
-	struct ast_call_feature *atxfer_feature = NULL;
-	char *feature_code = NULL;
+	char feature_code[AST_FEATURE_MAX_LEN];
+	const char *digit;
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -4060,31 +4061,33 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_rdlock_call_features();
-	atxfer_feature = ast_find_call_feature("atxfer");
-	ast_unlock_call_features();
-	if (!atxfer_feature) {
-		astman_send_error(s, m, "No attended transfer feature found");
-		return 0;
-	}
-
 	if (!(chan = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "Channel specified does not exist");
 		return 0;
 	}
+
+	ast_channel_lock(chan);
+	if (ast_get_builtin_feature(chan, "atxfer", feature_code, sizeof(feature_code)) ||
+			ast_strlen_zero(feature_code)) {
+		ast_channel_unlock(chan);
+		astman_send_error(s, m, "No attended transfer feature code found");
+		ast_channel_unref(chan);
+		return 0;
+	}
+	ast_channel_unlock(chan);
 
 	if (!ast_strlen_zero(context)) {
 		pbx_builtin_setvar_helper(chan, "TRANSFER_CONTEXT", context);
 	}
 
 /* BUGBUG action_atxfer() is broken because the bridge DTMF hooks need both begin and end events to match correctly. */
-	for (feature_code = atxfer_feature->exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *feature_code };
+	for (digit = feature_code; *digit; ++digit) {
+		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *digit };
 		ast_queue_frame(chan, &f);
 	}
 
-	for (feature_code = (char *)exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *feature_code };
+	for (digit = exten; *digit; ++digit) {
+		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *digit };
 		ast_queue_frame(chan, &f);
 	}
 

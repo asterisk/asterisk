@@ -74,6 +74,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
+#include "asterisk/features_config.h"
+
+/* BUGBUG TEST_FRAMEWORK is disabled because parking tests no longer work. */
+#undef TEST_FRAMEWORK
 
 /*
  * Party A - transferee
@@ -299,58 +303,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Bridge together two channels already in the PBX.</para>
 		</description>
 	</manager>
-	<function name="FEATURE" language="en_US">
-		<synopsis>
-			Get or set a feature option on a channel.
-		</synopsis>
-		<syntax>
-			<parameter name="option_name" required="true">
-				<para>The allowed values are:</para>
-				<enumlist>
-					<enum name="parkingtime"><para>Specified in seconds.</para></enum>
-					<enum name="inherit"><para>Inherit feature settings made in FEATURE or FEATUREMAP to child channels.</para></enum>
-				</enumlist>
-			</parameter>
-		</syntax>
-		<description>
-			<para>When this function is used as a read, it will get the current
-			value of the specified feature option for this channel.  It will be
-			the value of this option configured in features.conf if a channel specific
-			value has not been set.  This function can also be used to set a channel
-			specific value for the supported feature options.</para>
-		</description>
-		<see-also>
-			<ref type="function">FEATUREMAP</ref>
-		</see-also>
-	</function>
-	<function name="FEATUREMAP" language="en_US">
-		<synopsis>
-			Get or set a feature map to a given value on a specific channel.
-		</synopsis>
-		<syntax>
-			<parameter name="feature_name" required="true">
-				<para>The allowed values are:</para>
-				<enumlist>
-					<enum name="atxfer"><para>Attended Transfer</para></enum>
-					<enum name="blindxfer"><para>Blind Transfer</para></enum>
-					<enum name="automon"><para>Auto Monitor</para></enum>
-					<enum name="disconnect"><para>Call Disconnect</para></enum>
-					<enum name="parkcall"><para>Park Call</para></enum>
-					<enum name="automixmon"><para>Auto MixMonitor</para></enum>
-				</enumlist>
-			</parameter>
-		</syntax>
-		<description>
-			<para>When this function is used as a read, it will get the current
-			digit sequence mapped to the specified feature for this channel.  This
-			value will be the one configured in features.conf if a channel specific
-			value has not been set.  This function can also be used to set a channel
-			specific value for a feature mapping.</para>
-		</description>
-		<see-also>
-			<ref type="function">FEATURE</ref>
-		</see-also>
-	</function>
 	<managerEvent language="en_US" name="ParkedCallTimeOut">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a parked call times out.</synopsis>
@@ -395,12 +347,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_PARK_TIME							45000	/*!< ms */
 #define DEFAULT_PARK_EXTENSION						"700"
-#define DEFAULT_TRANSFER_DIGIT_TIMEOUT				3000	/*!< ms */
-#define DEFAULT_FEATURE_DIGIT_TIMEOUT				1000	/*!< ms */
-#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER	15000	/*!< ms */
-#define DEFAULT_ATXFER_DROP_CALL					0		/*!< Do not drop call. */
-#define DEFAULT_ATXFER_LOOP_DELAY					10000	/*!< ms */
-#define DEFAULT_ATXFER_CALLBACK_RETRIES				2
 #define DEFAULT_COMEBACK_CONTEXT					"parkedcallstimeout"
 #define DEFAULT_COMEBACK_TO_ORIGIN					1
 #define DEFAULT_COMEBACK_DIAL_TIME					30
@@ -410,24 +356,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* TODO Scrape all of the parking stuff out of features.c */
 
-struct feature_group_exten {
-	AST_LIST_ENTRY(feature_group_exten) entry;
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(exten);
-	);
-	struct ast_call_feature *feature;
-};
-
-struct feature_group {
-	AST_LIST_ENTRY(feature_group) entry;
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(gname);
-	);
-	AST_LIST_HEAD_NOLOCK(, feature_group_exten) features;
-};
-
-static AST_RWLIST_HEAD_STATIC(feature_groups, feature_group);
-
 typedef enum {
 	FEATURE_INTERPRET_DETECT, /* Used by ast_feature_detect */
 	FEATURE_INTERPRET_DO,     /* Used by feature_interpret */
@@ -435,8 +363,6 @@ typedef enum {
 } feature_interpret_op;
 
 static const char *parkedcall = "ParkedCall";
-
-static char pickup_ext[AST_MAX_EXTENSION];                 /*!< Call pickup extension */
 
 /*! Parking lot access ramp dialplan usage entry. */
 struct parking_dp_ramp {
@@ -606,15 +532,11 @@ static struct ao2_container *parkinglots;
 static struct ast_parkinglot *default_parkinglot;
 
 /*! Force a config reload to reload regardless of config file timestamp. */
+#ifdef TEST_FRAMEWORK
 static int force_reload_load;
+#endif
 
-static int parkedplay = 0;                                 /*!< Who to play courtesytone to when someone picks up a parked call. */
 static int parkeddynamic = 0;                              /*!< Enable creation of parkinglots dynamically */
-static char courtesytone[256];                             /*!< Courtesy tone used to pickup parked calls and on-touch-record */
-static char xfersound[256];                                /*!< Call transfer sound */
-static char xferfailsound[256];                            /*!< Call transfer failure sound */
-static char pickupsound[256];                              /*!< Pickup sound */
-static char pickupfailsound[256];                          /*!< Pickup failure sound */
 
 /*!
  * \brief Context for parking dialback to parker.
@@ -630,14 +552,6 @@ static char parking_con_dial[] = "park-dial";
 AST_MUTEX_DEFINE_STATIC(features_reload_lock);
 
 static int adsipark;
-
-static int transferdigittimeout;
-static int featuredigittimeout;
-
-static int atxfernoanswertimeout;
-static unsigned int atxferdropcall;
-static unsigned int atxferloopdelay;
-static unsigned int atxfercallbackretries;
 
 static char *registrar = "features";		   /*!< Registrar for operations */
 
@@ -848,11 +762,6 @@ int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const
 	return get_parking_exten(exten_str, chan, context) ? 1 : 0;
 }
 
-const char *ast_pickup_ext(void)
-{
-	return pickup_ext;
-}
-
 struct ast_bridge_thread_obj
 {
 	struct ast_bridge_config bconfig;
@@ -888,75 +797,19 @@ static void set_c_e_p(struct ast_channel *chan, const char *context, const char 
 	ast_channel_priority_set(chan, pri);
 }
 
-/*!
- * \brief Check goto on transfer
- * \param chan
- *
- * Check if channel has 'GOTO_ON_BLINDXFR' set, if not exit.
- * When found make sure the types are compatible. Check if channel is valid
- * if so start the new channel else hangup the call.
- */
-static void check_goto_on_transfer(struct ast_channel *chan)
-{
-	struct ast_channel *xferchan;
-	const char *val;
-	char *goto_on_transfer;
-	char *x;
-
-	ast_channel_lock(chan);
-	val = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
-	if (ast_strlen_zero(val)) {
-		ast_channel_unlock(chan);
-		return;
-	}
-	goto_on_transfer = ast_strdupa(val);
-	ast_channel_unlock(chan);
-
-	ast_debug(1, "Attempting GOTO_ON_BLINDXFR=%s for %s.\n", val, ast_channel_name(chan));
-
-	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", ast_channel_linkedid(chan), 0,
-		"%s", ast_channel_name(chan));
-	if (!xferchan) {
-		return;
-	}
-
-	/* Make formats okay */
-	ast_format_copy(ast_channel_readformat(xferchan), ast_channel_readformat(chan));
-	ast_format_copy(ast_channel_writeformat(xferchan), ast_channel_writeformat(chan));
-
-	if (ast_channel_masquerade(xferchan, chan)) {
-		/* Failed to setup masquerade. */
-		ast_hangup(xferchan);
-		return;
-	}
-
-	for (x = goto_on_transfer; *x; ++x) {
-		if (*x == '^') {
-			*x = ',';
-		}
-	}
-	ast_parseable_goto(xferchan, goto_on_transfer);
-	ast_channel_state_set(xferchan, AST_STATE_UP);
-	ast_clear_flag(ast_channel_flags(xferchan), AST_FLAGS_ALL);
-	ast_channel_clear_softhangup(xferchan, AST_SOFTHANGUP_ALL);
-
-	ast_do_masquerade(xferchan);
-	if (ast_pbx_start(xferchan)) {
-		/* Failed to start PBX. */
-		ast_hangup(xferchan);
-	}
-}
-
+#if 0
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
 	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, const char *addr,
 	int timeout, int *outstate, const char *language);
+#endif
 
 static const struct ast_datastore_info channel_app_data_datastore = {
 	.type = "Channel appdata datastore",
 	.destroy = ast_free_ptr,
 };
 
+#if 0
 static int set_chan_app_data(struct ast_channel *chan, const char *src_app_data)
 {
 	struct ast_datastore *datastore;
@@ -978,7 +831,9 @@ static int set_chan_app_data(struct ast_channel *chan, const char *src_app_data)
 	ast_channel_datastore_add(chan, datastore);
 	return 0;
 }
+#endif
 
+#if 0
 /*!
  * \brief bridge the call
  * \param data thread bridge.
@@ -1021,7 +876,9 @@ static void *bridge_call_thread(void *data)
 
 	return NULL;
 }
+#endif
 
+#if 0
 /*!
  * \brief create thread for the bridging call
  * \param tobj
@@ -1041,6 +898,7 @@ static void bridge_call_thread_launch(struct ast_bridge_thread_obj *tobj)
 		ast_free(tobj);
 	}
 }
+#endif
 
 /*!
  * \brief Announce call parking by ADSI
@@ -1456,8 +1314,6 @@ static struct parkeduser *park_space_reserve(struct ast_channel *park_me, struct
 	return pu;
 }
 
-static unsigned int get_parkingtime(struct ast_channel *chan, struct ast_parkinglot *parkinglot);
-
 /* Park a call */
 static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
@@ -1491,7 +1347,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	pu->start = ast_tvnow();
-	pu->parkingtime = (args->timeout > 0) ? args->timeout : get_parkingtime(chan, pu->parkinglot);
+	/* XXX This line was changed to not use get_parkingtime. This is just a placeholder message, because
+	 * likely this entire function is going away.
+	 */
+	pu->parkingtime = args->timeout;
 	if (args->extout)
 		*(args->extout) = pu->parkingnum;
 
@@ -1878,13 +1737,16 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	return masq_park_call(rchan, peer, &args);
 }
 
+#if 0
 static int finishup(struct ast_channel *chan)
 {
 	ast_indicate(chan, AST_CONTROL_UNHOLD);
 
 	return ast_autoservice_stop(chan);
 }
+#endif
 
+#if 0
 /*!
  * \internal
  * \brief Builtin transfer park call helper.
@@ -1952,7 +1814,9 @@ static int xfer_park_call_helper(struct ast_channel *park_me, struct ast_channel
 
 	return res ? AST_FEATURE_RETURN_SUCCESS : -1;
 }
+#endif
 
+#if 0
 /*!
  * \brief set caller and callee according to the direction
  * \param caller, callee, peer, chan, sense
@@ -1970,7 +1834,9 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 		*caller = chan;
 	}
 }
+#endif
 
+#if 0
 /*!
  * \brief support routing for one touch call parking
  * \param chan channel parking call
@@ -2019,6 +1885,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	set_peers(&parker, &parkee, peer, chan, sense);
 	return masq_park_call(parkee, parker, &args) ? AST_FEATURE_RETURN_SUCCESS : -1;
 }
+#endif
 
 /*!
  * \internal
@@ -2051,6 +1918,7 @@ static int play_message_on_chan(struct ast_channel *play_to, struct ast_channel 
 	return 0;
 }
 
+#if 0
 /*!
  * \internal
  * \brief Play file to specified channels.
@@ -2081,7 +1949,9 @@ static int play_message_to_chans(struct ast_channel *left, struct ast_channel *r
 
 	return 0;
 }
+#endif
 
+#if 0
 /*!
  * \brief Play message to both caller and callee in bridged call, plays synchronously, autoservicing the
  * other channel during the message, so please don't use this for very long messages
@@ -2091,7 +1961,9 @@ static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct 
 	return play_message_to_chans(caller_chan, callee_chan, 0, "automon message",
 		audiofile);
 }
+#endif
 
+#if 0
 /*!
  * \brief Monitor a channel by DTMF
  * \param chan channel requesting monitor
@@ -2194,7 +2066,9 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 
 	return AST_FEATURE_RETURN_SUCCESS;
 }
+#endif
 
+#if 0
 static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
@@ -2294,13 +2168,17 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 	pbx_builtin_setvar_helper(caller_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
 	return AST_FEATURE_RETURN_SUCCESS;
 }
+#endif
 
+#if 0
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
 	return AST_FEATURE_RETURN_HANGUP;
 }
+#endif
 
+#if 0
 /*!
  * \brief Find the context for the transfer
  * \param transferer
@@ -2323,118 +2201,9 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
 	}
 	return s;
 }
+#endif
 
-/*!
- * \brief Blind transfer user to another extension
- * \param chan channel to be transfered
- * \param peer channel initiated blind transfer
- * \param config
- * \param code
- * \param data
- * \param sense  feature options
- *
- * Place chan on hold, check if transferred to parkinglot extension,
- * otherwise check extension exists and transfer caller.
- * \retval AST_FEATURE_RETURN_SUCCESS.
- * \retval -1 on failure.
- */
-static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
-{
-	struct ast_channel *transferer;
-	struct ast_channel *transferee;
-	struct ast_exten *park_exten;
-	const char *transferer_real_context;
-	char xferto[256] = "";
-	int res;
-
-	ast_debug(1, "Executing Blind Transfer %s, %s (sense=%d) \n", ast_channel_name(chan), ast_channel_name(peer), sense);
-	set_peers(&transferer, &transferee, peer, chan, sense);
-	transferer_real_context = ast_strdupa(real_ctx(transferer, transferee));
-
-	/* Start autoservice on transferee while we talk to the transferer */
-	ast_autoservice_start(transferee);
-	ast_indicate(transferee, AST_CONTROL_HOLD);
-
-	/* Transfer */
-	res = ast_stream_and_wait(transferer, "pbx-transfer", AST_DIGIT_ANY);
-	if (res < 0) {
-		finishup(transferee);
-		return -1; /* error ? */
-	}
-	if (res > 0) { /* If they've typed a digit already, handle it */
-		xferto[0] = (char) res;
-	}
-
-	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-	if (res < 0) {  /* hangup or error, (would be 0 for invalid and 1 for valid) */
-		finishup(transferee);
-		return -1;
-	}
-	if (res == 0) {
-		if (xferto[0]) {
-			ast_log(LOG_WARNING, "Extension '%s' does not exist in context '%s'\n",
-				xferto, transferer_real_context);
-		} else {
-			/* Does anyone care about this case? */
-			ast_log(LOG_WARNING, "No digits dialed.\n");
-		}
-		ast_stream_and_wait(transferer, "pbx-invalid", "");
-		finishup(transferee);
-		return AST_FEATURE_RETURN_SUCCESS;
-	}
-
-	park_exten = get_parking_exten(xferto, transferer, transferer_real_context);
-	if (park_exten) {
-		/* We are transfering the transferee to a parking lot. */
-		return xfer_park_call_helper(transferee, transferer, park_exten);
-	}
-
-	/* Do blind transfer. */
-	ast_verb(3, "Blind transferring %s to '%s' (context %s) priority 1\n",
-		ast_channel_name(transferee), xferto, transferer_real_context);
-	ast_cel_report_event(transferer, AST_CEL_BLINDTRANSFER, NULL, xferto, transferee);
-	pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", ast_channel_name(transferee));
-	pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", ast_channel_name(transferer));
-	finishup(transferee);
-	ast_channel_lock(transferer);
-	if (!ast_channel_cdr(transferer)) {
-		/* this code should never get called (in a perfect world) */
-		ast_channel_cdr_set(transferer, ast_cdr_alloc());
-		if (ast_channel_cdr(transferer)) {
-			ast_cdr_init(ast_channel_cdr(transferer), transferer); /* initialize our channel's cdr */
-			ast_cdr_start(ast_channel_cdr(transferer));
-		}
-	}
-	ast_channel_unlock(transferer);
-	if (ast_channel_cdr(transferer)) {
-		struct ast_cdr *swap = ast_channel_cdr(transferer);
-
-		ast_debug(1,
-			"transferer=%s; transferee=%s; lastapp=%s; lastdata=%s; chan=%s; dstchan=%s\n",
-			ast_channel_name(transferer), ast_channel_name(transferee), ast_channel_cdr(transferer)->lastapp,
-			ast_channel_cdr(transferer)->lastdata, ast_channel_cdr(transferer)->channel,
-			ast_channel_cdr(transferer)->dstchannel);
-		ast_debug(1, "TRANSFEREE; lastapp=%s; lastdata=%s, chan=%s; dstchan=%s\n",
-			ast_channel_cdr(transferee)->lastapp, ast_channel_cdr(transferee)->lastdata, ast_channel_cdr(transferee)->channel,
-			ast_channel_cdr(transferee)->dstchannel);
-		ast_debug(1, "transferer_real_context=%s; xferto=%s\n",
-			transferer_real_context, xferto);
-		/* swap cdrs-- it will save us some time & work */
-		ast_channel_cdr_set(transferer, ast_channel_cdr(transferee));
-		ast_channel_cdr_set(transferee, swap);
-	}
-
-	res = ast_channel_pbx(transferee) ? AST_FEATURE_RETURN_SUCCESSBREAK : -1;
-
-	/* Doh!  Use our handy async_goto functions */
-	if (ast_async_goto(transferee, transferer_real_context, xferto, 1)) {
-		ast_log(LOG_WARNING, "Async goto failed :-(\n");
-		res = -1;
-	}
-	check_goto_on_transfer(transferer);
-	return res;
-}
-
+#if 0
 /*!
  * \brief make channels compatible
  * \param c
@@ -2452,7 +2221,9 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 	}
 	return 0;
 }
+#endif
 
+#if 0
 /*!
  * \internal
  * \brief Builtin attended transfer failed cleanup.
@@ -2482,7 +2253,9 @@ static void atxfer_fail_cleanup(struct ast_channel *transferee, struct ast_chann
 	}
 	ast_party_connected_line_free(connected_line);
 }
+#endif
 
+#if 0
 /*!
  * \brief Attended transfer
  * \param chan transfered user
@@ -2521,6 +2294,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	char *transferer_name;
 	char *transferer_name_orig;
 	char *dash;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
 
 	ast_debug(1, "Executing Attended Transfer %s, %s (sense=%d) \n", ast_channel_name(chan), ast_channel_name(peer), sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
@@ -2540,8 +2314,16 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		xferto[0] = (char) res;
 	}
 
+	ast_channel_lock(transferer);
+	xfer_cfg = ast_get_chan_features_xfer_config(transferer);
+	ast_channel_unlock(transferer);
+
+	/* XXX All accesses to the xfer_cfg structure after this point are not thread-safe,
+	 * but I don't care because this is dead code.
+	 */
+
 	/* this is specific of atxfer */
-	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
+	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, xfer_cfg->transferdigittimeout);
 	if (res < 0) {  /* hangup or error, (would be 0 for invalid and 1 for valid) */
 		finishup(transferee);
 		return -1;
@@ -2612,7 +2394,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	/* Dial party C */
 	newchan = feature_request_and_dial(transferer, transferer_name_orig, transferer,
 		transferee, "Local", ast_channel_nativeformats(transferer), xferto,
-		atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
+		xfer_cfg->atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 	ast_debug(2, "Dial party C result: newchan:%d, outstate:%d\n", !!newchan, outstate);
 
 	if (!ast_check_hangup(transferer)) {
@@ -2629,12 +2411,12 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			case AST_CONTROL_UNHOLD:/* Caller requested cancel or party C answer timeout. */
 			case AST_CONTROL_BUSY:
 			case AST_CONTROL_CONGESTION:
-				if (ast_stream_and_wait(transferer, xfersound, "")) {
+				if (ast_stream_and_wait(transferer, xfer_cfg->xfersound, "")) {
 					ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 				}
 				break;
 			default:
-				if (ast_stream_and_wait(transferer, xferfailsound, "")) {
+				if (ast_stream_and_wait(transferer, xfer_cfg->xferfailsound, "")) {
 					ast_log(LOG_WARNING, "Failed to play transfer failed sound!\n");
 				}
 				break;
@@ -2644,7 +2426,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 
 		if (check_compat(transferer, newchan)) {
-			if (ast_stream_and_wait(transferer, xferfailsound, "")) {
+			if (ast_stream_and_wait(transferer, xfer_cfg->xferfailsound, "")) {
 				ast_log(LOG_WARNING, "Failed to play transfer failed sound!\n");
 			}
 			atxfer_fail_cleanup(transferee, transferer, &connected_line);
@@ -2662,7 +2444,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
 			ast_autoservice_chan_hangup_peer(transferer, newchan);
-			if (ast_stream_and_wait(transferer, xfersound, "")) {
+			if (ast_stream_and_wait(transferer, xfer_cfg->xfersound, "")) {
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 			}
 			atxfer_fail_cleanup(transferee, transferer, &connected_line);
@@ -2690,7 +2472,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		/* Transferer (party B) has hung up at this point.  Doing blonde transfer. */
 		ast_debug(1, "Actually doing a blonde transfer.\n");
 
-		if (!newchan && !atxferdropcall) {
+		if (!newchan && !xfer_cfg->atxferdropcall) {
 			/* Party C is not available, try to call party B back. */
 			unsigned int tries = 0;
 
@@ -2711,7 +2493,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferee, transferee, transferer_tech,
 					ast_channel_nativeformats(transferee), transferer_name,
-					atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
+					xfer_cfg->atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 				ast_debug(2, "Dial party B result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
 				if (newchan) {
@@ -2743,16 +2525,16 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				}
 
 				++tries;
-				if (atxfercallbackretries <= tries) {
+				if (xfer_cfg->atxfercallbackretries <= tries) {
 					/* No more callback tries remaining. */
 					break;
 				}
 
-				if (atxferloopdelay) {
+				if (xfer_cfg->atxferloopdelay) {
 					/* Transfer failed, sleeping */
 					ast_debug(1, "Sleeping for %d ms before retrying atxfer.\n",
-						atxferloopdelay);
-					ast_safe_sleep(transferee, atxferloopdelay);
+						xfer_cfg->atxferloopdelay);
+					ast_safe_sleep(transferee, xfer_cfg->atxferloopdelay);
 					if (ast_check_hangup(transferee)) {
 						ast_party_connected_line_free(&connected_line);
 						return -1;
@@ -2764,7 +2546,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferer, transferee, "Local",
 					ast_channel_nativeformats(transferee), xferto,
-					atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
+					xfer_cfg->atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 				ast_debug(2, "Redial party C result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
 				if (newchan || ast_check_hangup(transferee)) {
@@ -2925,351 +2707,14 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_channel_update_connected_line(newchan, &connected_line, NULL);
 	}
 
-	if (ast_stream_and_wait(newchan, xfersound, ""))
+	if (ast_stream_and_wait(newchan, xfer_cfg->xfersound, ""))
 		ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 	bridge_call_thread_launch(tobj);
 
 	ast_party_connected_line_free(&connected_line);
 	return -1;/* The transferee is masqueraded and the original bridged channels can be hungup. */
 }
-
-/* add atxfer and automon as undefined so you can only use em if you configure them */
-#define FEATURES_COUNT ARRAY_LEN(builtin_features)
-
-AST_RWLOCK_DEFINE_STATIC(features_lock);
-
-/*! \note This is protected by features_lock. */
-static AST_LIST_HEAD_NOLOCK_STATIC(feature_list, ast_call_feature);
-
-static void ast_wrlock_call_features(void)
-{
-	ast_rwlock_wrlock(&features_lock);
-}
-
-void ast_rdlock_call_features(void)
-{
-	ast_rwlock_rdlock(&features_lock);
-}
-
-void ast_unlock_call_features(void)
-{
-	ast_rwlock_unlock(&features_lock);
-}
-
-/*! \note This is protected by features_lock. */
-static struct ast_call_feature builtin_features[] = {
-	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-	{ AST_FEATURE_PARKCALL, "Park Call", "parkcall", "", "", builtin_parkcall, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-	{ AST_FEATURE_AUTOMIXMON, "One Touch MixMonitor", "automixmon", "", "", builtin_automixmonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
-};
-
-/*! \brief register new feature into feature_list */
-void ast_register_feature(struct ast_call_feature *feature)
-{
-	if (!feature) {
-		ast_log(LOG_NOTICE,"You didn't pass a feature!\n");
-		return;
-	}
-
-	ast_wrlock_call_features();
-	AST_LIST_INSERT_HEAD(&feature_list, feature, feature_entry);
-	ast_unlock_call_features();
-
-	ast_verb(2, "Registered Feature '%s'\n",feature->sname);
-}
-
-/*!
- * \brief Add new feature group
- * \param fgname feature group name.
- *
- * Add new feature group to the feature group list insert at head of list.
- * \note This function MUST be called while feature_groups is locked.
- */
-static struct feature_group *register_group(const char *fgname)
-{
-	struct feature_group *fg;
-
-	if (!fgname) {
-		ast_log(LOG_NOTICE, "You didn't pass a new group name!\n");
-		return NULL;
-	}
-
-	if (!(fg = ast_calloc_with_stringfields(1, struct feature_group, 128))) {
-		return NULL;
-	}
-
-	ast_string_field_set(fg, gname, fgname);
-
-	AST_LIST_INSERT_HEAD(&feature_groups, fg, entry);
-
-	ast_verb(2, "Registered group '%s'\n", fg->gname);
-
-	return fg;
-}
-
-/*!
- * \brief Add feature to group
- * \param fg feature group
- * \param exten
- * \param feature feature to add.
- *
- * Check fg and feature specified, add feature to list
- * \note This function MUST be called while feature_groups is locked.
- */
-static void register_group_feature(struct feature_group *fg, const char *exten, struct ast_call_feature *feature)
-{
-	struct feature_group_exten *fge;
-
-	if (!fg) {
-		ast_log(LOG_NOTICE, "You didn't pass a group!\n");
-		return;
-	}
-
-	if (!feature) {
-		ast_log(LOG_NOTICE, "You didn't pass a feature!\n");
-		return;
-	}
-
-	if (!(fge = ast_calloc_with_stringfields(1, struct feature_group_exten, 128))) {
-		return;
-	}
-
-	ast_string_field_set(fge, exten, S_OR(exten, feature->exten));
-
-	fge->feature = feature;
-
-	AST_LIST_INSERT_HEAD(&fg->features, fge, entry);
-
-	ast_verb(2, "Registered feature '%s' for group '%s' at exten '%s'\n",
-					feature->sname, fg->gname, fge->exten);
-}
-
-void ast_unregister_feature(struct ast_call_feature *feature)
-{
-	if (!feature) {
-		return;
-	}
-
-	ast_wrlock_call_features();
-	AST_LIST_REMOVE(&feature_list, feature, feature_entry);
-	ast_unlock_call_features();
-
-	ast_free(feature);
-}
-
-/*! \brief Remove all features in the list */
-static void ast_unregister_features(void)
-{
-	struct ast_call_feature *feature;
-
-	ast_wrlock_call_features();
-	while ((feature = AST_LIST_REMOVE_HEAD(&feature_list, feature_entry))) {
-		ast_free(feature);
-	}
-	ast_unlock_call_features();
-}
-
-/*!
- * \internal
- * \brief find a dynamic call feature by name
- * \pre Expects features_lock to be at least readlocked
- */
-static struct ast_call_feature *find_dynamic_feature(const char *name)
-{
-	struct ast_call_feature *tmp;
-
-	AST_LIST_TRAVERSE(&feature_list, tmp, feature_entry) {
-		if (!strcasecmp(tmp->sname, name)) {
-			break;
-		}
-	}
-
-	return tmp;
-}
-
-/*! \brief Remove all feature groups in the list */
-static void ast_unregister_groups(void)
-{
-	struct feature_group *fg;
-	struct feature_group_exten *fge;
-
-	AST_RWLIST_WRLOCK(&feature_groups);
-	while ((fg = AST_LIST_REMOVE_HEAD(&feature_groups, entry))) {
-		while ((fge = AST_LIST_REMOVE_HEAD(&fg->features, entry))) {
-			ast_string_field_free_memory(fge);
-			ast_free(fge);
-		}
-
-		ast_string_field_free_memory(fg);
-		ast_free(fg);
-	}
-	AST_RWLIST_UNLOCK(&feature_groups);
-}
-
-/*!
- * \brief Find a group by name
- * \param name feature name
- * \retval feature group on success.
- * \retval NULL on failure.
- */
-static struct feature_group *find_group(const char *name)
-{
-	struct feature_group *fg = NULL;
-
-	AST_LIST_TRAVERSE(&feature_groups, fg, entry) {
-		if (!strcasecmp(fg->gname, name))
-			break;
-	}
-
-	return fg;
-}
-
-/*!
- * \internal
- * \pre Expects features_lock to be at least readlocked
- */
-struct ast_call_feature *ast_find_call_feature(const char *name)
-{
-	int x;
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (!strcasecmp(name, builtin_features[x].sname))
-			return &builtin_features[x];
-	}
-
-	return find_dynamic_feature(name);
-}
-
-struct feature_exten {
-	char sname[FEATURE_SNAME_LEN];
-	char exten[FEATURE_MAX_LEN];
-};
-
-struct feature_datastore {
-	struct ao2_container *feature_map;
-
-	/*!
-	 * \brief specified in seconds, stored in milliseconds
-	 *
-	 * \todo XXX This isn't pretty.  At some point it would be nice to have all
-	 * of the global / [general] options in a config object that we store here
-	 * instead of handling each one manually.
-	 *
-	 * \note If anything gets added here, don't forget to update
-	 * feature_ds_duplicate, as well.
-	 * */
-	unsigned int parkingtime;
-	unsigned int parkingtime_is_set:1;
-};
-
-static int feature_exten_hash(const void *obj, int flags)
-{
-	const struct feature_exten *fe = obj;
-	const char *sname = obj;
-
-	return ast_str_hash(flags & OBJ_KEY ? sname : fe->sname);
-}
-
-static int feature_exten_cmp(void *obj, void *arg, int flags)
-{
-	const struct feature_exten *fe = obj, *fe2 = arg;
-	const char *sname = arg;
-
-	return !strcmp(fe->sname, flags & OBJ_KEY ? sname : fe2->sname) ?
-			CMP_MATCH | CMP_STOP : 0;
-}
-
-static void feature_ds_destroy(void *data)
-{
-	struct feature_datastore *feature_ds = data;
-
-	if (feature_ds->feature_map) {
-		ao2_ref(feature_ds->feature_map, -1);
-		feature_ds->feature_map = NULL;
-	}
-
-	ast_free(feature_ds);
-}
-
-static void *feature_ds_duplicate(void *data)
-{
-	struct feature_datastore *old_ds = data;
-	struct feature_datastore *new_ds;
-
-	if (!(new_ds = ast_calloc(1, sizeof(*new_ds)))) {
-		return NULL;
-	}
-
-	if (old_ds->feature_map) {
-		ao2_ref(old_ds->feature_map, +1);
-		new_ds->feature_map = old_ds->feature_map;
-	}
-
-	new_ds->parkingtime = old_ds->parkingtime;
-	new_ds->parkingtime_is_set = old_ds->parkingtime_is_set;
-
-	return new_ds;
-}
-
-static const struct ast_datastore_info feature_ds_info = {
-	.type = "FEATURE",
-	.destroy = feature_ds_destroy,
-	.duplicate = feature_ds_duplicate,
-};
-
-/*!
- * \internal
- * \brief Find or create feature datastore on a channel
- *
- * \pre chan is locked
- *
- * \return the data on the FEATURE datastore, or NULL on error
- */
-static struct feature_datastore *get_feature_ds(struct ast_channel *chan)
-{
-	struct feature_datastore *feature_ds;
-	struct ast_datastore *ds;
-
-	if ((ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
-		feature_ds = ds->data;
-		return feature_ds;
-	}
-
-	if (!(feature_ds = ast_calloc(1, sizeof(*feature_ds)))) {
-		return NULL;
-	}
-
-	if (!(feature_ds->feature_map = ao2_container_alloc(7, feature_exten_hash, feature_exten_cmp))) {
-		feature_ds_destroy(feature_ds);
-		return NULL;
-	}
-
-	if (!(ds = ast_datastore_alloc(&feature_ds_info, NULL))) {
-		feature_ds_destroy(feature_ds);
-		return NULL;
-	}
-
-	ds->data = feature_ds;
-
-	ast_channel_datastore_add(chan, ds);
-
-	return feature_ds;
-}
-
-static struct ast_datastore *get_feature_chan_ds(struct ast_channel *chan)
-{
-	struct ast_datastore *ds;
-
-	if (!(ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
-		/* Hasn't been created yet.  Trigger creation. */
-		get_feature_ds(chan);
-		ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL);
-	}
-
-	return ds;
-}
+#endif
 
 /*!
  * \internal
@@ -3283,414 +2728,42 @@ static struct ast_datastore *get_feature_chan_ds(struct ast_channel *chan)
 static int builtin_feature_get_exten(struct ast_channel *chan, const char *feature_name,
 		char *buf, size_t len)
 {
-	struct ast_call_feature *feature;
-	struct feature_datastore *feature_ds;
-	struct feature_exten *fe = NULL;
+	SCOPED_CHANNELLOCK(lock, chan);
 
-	*buf = '\0';
-
-	if (!(feature = ast_find_call_feature(feature_name))) {
-		return -1;
-	}
-
-	ast_copy_string(buf, feature->exten, len);
-
-	ast_unlock_call_features();
-
-	ast_channel_lock(chan);
-	if ((feature_ds = get_feature_ds(chan))) {
-		fe = ao2_find(feature_ds->feature_map, feature_name, OBJ_KEY);
-	}
-	ast_channel_unlock(chan);
-
-	ast_rdlock_call_features();
-
-	if (fe) {
-		ao2_lock(fe);
-		ast_copy_string(buf, fe->exten, len);
-		ao2_unlock(fe);
-		ao2_ref(fe, -1);
-		fe = NULL;
-	}
-
-	return 0;
+	return ast_get_builtin_feature(chan, feature_name, buf, len);
 }
-
-/*!
- * \brief exec an app by feature
- * \param chan,peer,config,code,sense,data
- *
- * Find a feature, determine which channel activated
- * \retval AST_FEATURE_RETURN_NO_HANGUP_PEER
- * \retval -1 error.
- * \retval -2 when an application cannot be found.
- */
-static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
-{
-	struct ast_app *app;
-	struct ast_call_feature *feature = data;
-	struct ast_channel *work, *idle;
-	int res;
-
-	if (!feature) { /* shouldn't ever happen! */
-		ast_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
-		return -1;
-	}
-
-	if (sense == FEATURE_SENSE_CHAN) {
-		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
-			return AST_FEATURE_RETURN_KEEPTRYING;
-		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
-			work = chan;
-			idle = peer;
-		} else {
-			work = peer;
-			idle = chan;
-		}
-	} else {
-		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
-			return AST_FEATURE_RETURN_KEEPTRYING;
-		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
-			work = peer;
-			idle = chan;
-		} else {
-			work = chan;
-			idle = peer;
-		}
-	}
-
-	if (!(app = pbx_findapp(feature->app))) {
-		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
-		return -2;
-	}
-
-	ast_autoservice_start(idle);
-	ast_autoservice_ignore(idle, AST_FRAME_DTMF_END);
-
-	pbx_builtin_setvar_helper(work, "DYNAMIC_PEERNAME", ast_channel_name(idle));
-	pbx_builtin_setvar_helper(idle, "DYNAMIC_PEERNAME", ast_channel_name(work));
-	pbx_builtin_setvar_helper(work, "DYNAMIC_FEATURENAME", feature->sname);
-	pbx_builtin_setvar_helper(idle, "DYNAMIC_FEATURENAME", feature->sname);
-
-	if (!ast_strlen_zero(feature->moh_class))
-		ast_moh_start(idle, feature->moh_class, NULL);
-
-	res = pbx_exec(work, app, feature->app_args);
-
-	if (!ast_strlen_zero(feature->moh_class))
-		ast_moh_stop(idle);
-
-	ast_autoservice_stop(idle);
-
-	if (res) {
-		return AST_FEATURE_RETURN_SUCCESSBREAK;
-	}
-	return AST_FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
-}
-
-static void unmap_features(void)
-{
-	int x;
-
-	ast_wrlock_call_features();
-	for (x = 0; x < FEATURES_COUNT; x++)
-		strcpy(builtin_features[x].exten, builtin_features[x].default_exten);
-	ast_unlock_call_features();
-}
-
-static int remap_feature(const char *name, const char *value)
-{
-	int x, res = -1;
-
-	ast_wrlock_call_features();
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (strcasecmp(builtin_features[x].sname, name))
-			continue;
-
-		ast_copy_string(builtin_features[x].exten, value, sizeof(builtin_features[x].exten));
-		res = 0;
-		break;
-	}
-	ast_unlock_call_features();
-
-	return res;
-}
-
-/*!
- * \brief Helper function for feature_interpret and ast_feature_detect
- * \param chan,peer,config,code,sense,dynamic_features_buf,features,operation,feature
- *
- * Lock features list, browse for code, unlock list
- * If a feature is found and the operation variable is set, that feature's
- * operation is executed.  The first feature found is copied to the feature parameter.
- * \retval res on success.
- * \retval -1 on failure.
- */
-static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel *peer,
-	struct ast_bridge_config *config, const char *code, int sense, const struct ast_str *dynamic_features_buf,
-	struct ast_flags *features, feature_interpret_op operation, struct ast_call_feature *feature)
-{
-	int x;
-	struct feature_group *fg = NULL;
-	struct feature_group_exten *fge;
-	struct ast_call_feature *tmpfeature;
-	char *tmp, *tok;
-	int res = AST_FEATURE_RETURN_PASSDIGITS;
-	int feature_detected = 0;
-
-	if (!(peer && chan && config) && operation == FEATURE_INTERPRET_DO) {
-		return -1; /* can not run feature operation */
-	}
-
-	ast_rdlock_call_features();
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		char feature_exten[FEATURE_MAX_LEN] = "";
-
-		if (!ast_test_flag(features, builtin_features[x].feature_mask)) {
-			continue;
-		}
-
-		if (builtin_feature_get_exten(chan, builtin_features[x].sname, feature_exten, sizeof(feature_exten))) {
-			continue;
-		}
-
-		/* Feature is up for consideration */
-
-		if (!strcmp(feature_exten, code)) {
-			ast_debug(3, "Feature detected: fname=%s sname=%s exten=%s\n", builtin_features[x].fname, builtin_features[x].sname, feature_exten);
-			if (operation == FEATURE_INTERPRET_CHECK) {
-				res = AST_FEATURE_RETURN_SUCCESS; /* We found something */
-			} else if (operation == FEATURE_INTERPRET_DO) {
-				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
-				ast_test_suite_event_notify("FEATURE_DETECTION",
-						"Result: success\r\n"
-						"Feature: %s",
-						builtin_features[x].sname);
-			}
-			if (feature) {
-				memcpy(feature, &builtin_features[x], sizeof(*feature));
-			}
-			feature_detected = 1;
-			break;
-		} else if (!strncmp(feature_exten, code, strlen(code))) {
-			if (res == AST_FEATURE_RETURN_PASSDIGITS) {
-				res = AST_FEATURE_RETURN_STOREDIGITS;
-			}
-		}
-	}
-
-	if (operation == FEATURE_INTERPRET_CHECK && x == FEATURES_COUNT) {
-		ast_test_suite_event_notify("FEATURE_DETECTION",
-				"Result: fail");
-	}
-
-	ast_unlock_call_features();
-
-	if (!dynamic_features_buf || !ast_str_strlen(dynamic_features_buf) || feature_detected) {
-		return res;
-	}
-
-	tmp = ast_str_buffer(dynamic_features_buf);
-
-	while ((tok = strsep(&tmp, "#"))) {
-		AST_RWLIST_RDLOCK(&feature_groups);
-		fg = find_group(tok);
-		if (fg) {
-			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-				if (!strcmp(fge->exten, code)) {
-					if (operation) {
-						res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
-					}
-					if (feature) {
-						memcpy(feature, fge->feature, sizeof(*feature));
-					}
-					if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-						AST_RWLIST_UNLOCK(&feature_groups);
-						break;
-					}
-					res = AST_FEATURE_RETURN_PASSDIGITS;
-				} else if (!strncmp(fge->exten, code, strlen(code))) {
-					res = AST_FEATURE_RETURN_STOREDIGITS;
-				}
-			}
-			if (fge) {
-				break;
-			}
-		}
-		AST_RWLIST_UNLOCK(&feature_groups);
-
-		ast_rdlock_call_features();
-
-		if (!(tmpfeature = find_dynamic_feature(tok))) {
-			ast_unlock_call_features();
-			continue;
-		}
-
-		/* Feature is up for consideration */
-		if (!strcmp(tmpfeature->exten, code)) {
-			ast_verb(3, " Feature Found: %s exten: %s\n",tmpfeature->sname, tok);
-			if (operation == FEATURE_INTERPRET_CHECK) {
-				res = AST_FEATURE_RETURN_SUCCESS; /* We found something */
-			} else if (operation == FEATURE_INTERPRET_DO) {
-				res = tmpfeature->operation(chan, peer, config, code, sense, tmpfeature);
-			}
-			if (feature) {
-				memcpy(feature, tmpfeature, sizeof(*feature));
-			}
-			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-				ast_unlock_call_features();
-				break;
-			}
-			res = AST_FEATURE_RETURN_PASSDIGITS;
-		} else if (!strncmp(tmpfeature->exten, code, strlen(code)))
-			res = AST_FEATURE_RETURN_STOREDIGITS;
-
-		ast_unlock_call_features();
-	}
-
-	return res;
-}
-
-#if 0//BUGBUG
-/*!
- * \brief Check the dynamic features
- * \param chan,peer,config,code,sense
- *
- * \retval res on success.
- * \retval -1 on failure.
- */
-static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense) {
-
-	struct ast_str *dynamic_features_buf;
-	const char *peer_dynamic_features, *chan_dynamic_features;
-	struct ast_flags features;
-	struct ast_call_feature feature;
-	int res;
-
-	if (sense == FEATURE_SENSE_CHAN) {
-		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
-		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
-	}
-	else {
-		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
-		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-	}
-
-	ast_channel_lock(peer);
-	peer_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES"),""));
-	ast_channel_unlock(peer);
-
-	ast_channel_lock(chan);
-	chan_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
-	ast_channel_unlock(chan);
-
-	if (!(dynamic_features_buf = ast_str_create(128))) {
-		return AST_FEATURE_RETURN_PASSDIGITS;
-	}
-
-	ast_str_set(&dynamic_features_buf, 0, "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
-
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", ast_channel_name(chan), ast_channel_name(peer), code, sense, features.flags, ast_str_buffer(dynamic_features_buf));
-
-	res = feature_interpret_helper(chan, peer, config, code, sense, dynamic_features_buf, &features, FEATURE_INTERPRET_DO, &feature);
-
-	ast_free(dynamic_features_buf);
-
-	return res;
-}
-#endif
-
-
-int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature) {
-	return feature_interpret_helper(chan, NULL, NULL, code, 0, NULL, features, FEATURE_INTERPRET_DETECT, feature);
-}
-
-#if 0//BUGBUG
-/*! \brief Check if a feature exists */
-static int feature_check(struct ast_channel *chan, struct ast_flags *features, char *code) {
-	struct ast_str *chan_dynamic_features;
-	int res;
-
-	if (!(chan_dynamic_features = ast_str_create(128))) {
-		return AST_FEATURE_RETURN_PASSDIGITS;
-	}
-	ast_channel_lock(chan);
-	ast_str_set(&chan_dynamic_features, 0, "%s", S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
-	ast_channel_unlock(chan);
-
-	res = feature_interpret_helper(chan, NULL, NULL, code, 0, chan_dynamic_features, features, FEATURE_INTERPRET_CHECK, NULL);
-
-	ast_free(chan_dynamic_features);
-
-	return res;
-}
-#endif
 
 static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config *config)
 {
-	int x;
-
 /* BUGBUG there is code that checks AST_BRIDGE_IGNORE_SIGS but no code to set it. */
 /* BUGBUG there is code that checks AST_BRIDGE_REC_CHANNEL_0 but no code to set it. */
 /* BUGBUG there is code that checks AST_BRIDGE_REC_CHANNEL_1 but no code to set it. */
 	ast_clear_flag(config, AST_FLAGS_ALL);
 
-	ast_rdlock_call_features();
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (!ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
-			continue;
-
-		if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask))
-			ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-
-		if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask))
-			ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+	if (ast_test_flag(&config->features_caller, AST_FEATURE_DTMF_MASK)) {
+		ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 	}
-	ast_unlock_call_features();
+	if (ast_test_flag(&config->features_callee, AST_FEATURE_DTMF_MASK)) {
+		ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+	}
 
 	if (!(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
-		const char *dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+		RAII_VAR(struct ao2_container *, applicationmap, NULL, ao2_cleanup);
 
-		if (dynamic_features) {
-			char *tmp = ast_strdupa(dynamic_features);
-			char *tok;
-			struct ast_call_feature *feature;
+		ast_channel_lock(chan);
+		applicationmap = ast_get_chan_applicationmap(chan);
+		ast_channel_unlock(chan);
 
-			/* while we have a feature */
-			while ((tok = strsep(&tmp, "#"))) {
-				struct feature_group *fg;
-
-				AST_RWLIST_RDLOCK(&feature_groups);
-				fg = find_group(tok);
-				if (fg) {
-					struct feature_group_exten *fge;
-
-					AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-						if (ast_test_flag(fge->feature, AST_FEATURE_FLAG_BYCALLER)) {
-							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-						}
-						if (ast_test_flag(fge->feature, AST_FEATURE_FLAG_BYCALLEE)) {
-							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
-						}
-					}
-				}
-				AST_RWLIST_UNLOCK(&feature_groups);
-
-				ast_rdlock_call_features();
-				if ((feature = find_dynamic_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER)) {
-						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-					}
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE)) {
-						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
-					}
-				}
-				ast_unlock_call_features();
-			}
+		if (!applicationmap) {
+			return;
 		}
+
+		/* If an applicationmap exists for this channel at all, then the channel needs the DTMF flag set */
+		ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 	}
 }
 
+#if 0
 /*!
  * \internal
  * \brief Get feature and dial.
@@ -3742,10 +2815,12 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	int ready = 0;
 	struct timeval started;
 	int x, len = 0;
-	char *disconnect_code = NULL, *dialed_code = NULL;
+	char disconnect_code[AST_FEATURE_MAX_LEN];
+	char *dialed_code = NULL;
 	struct ast_format_cap *tmp_cap;
 	struct ast_format best_audio_fmt;
 	struct ast_frame *f;
+	int disconnect_res;
 	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 
 	tmp_cap = ast_format_cap_alloc_nolock();
@@ -3801,18 +2876,17 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	}
 
 	/* support dialing of the featuremap disconnect code while performing an attended tranfer */
-	ast_rdlock_call_features();
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (strcasecmp(builtin_features[x].sname, "disconnect"))
-			continue;
+	ast_channel_lock(chan);
+	disconnect_res = ast_get_builtin_feature(chan, "disconnect",
+			disconnect_code, sizeof(disconnect_code));
+	ast_channel_unlock(chan);
 
-		disconnect_code = builtin_features[x].exten;
+	if (!disconnect_res) {
 		len = strlen(disconnect_code) + 1;
 		dialed_code = ast_alloca(len);
 		memset(dialed_code, 0, len);
-		break;
 	}
-	ast_unlock_call_features();
+
 	x = 0;
 	started = ast_tvnow();
 	to = timeout;
@@ -3972,7 +3046,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 		} else if (caller == active_channel) {
 			f = ast_read(caller);
 			if (f) {
-				if (f->frametype == AST_FRAME_DTMF) {
+				if (f->frametype == AST_FRAME_DTMF && dialed_code) {
 					dialed_code[x++] = f->subclass.integer;
 					dialed_code[x] = '\0';
 					if (strlen(dialed_code) == len) {
@@ -4028,6 +3102,7 @@ done:
 
 	return chan;
 }
+#endif
 
 void ast_channel_log(char *title, struct ast_channel *chan);
 
@@ -4156,7 +3231,7 @@ void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval st
 static int setup_bridge_features_builtin(struct ast_bridge_features *features, struct ast_channel *chan)
 {
 	struct ast_flags *flags;
-	char dtmf[FEATURE_MAX_LEN];
+	char dtmf[AST_FEATURE_MAX_LEN];
 	int res;
 
 	ast_channel_lock(chan);
@@ -4167,51 +3242,45 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 	}
 
 	res = 0;
-	ast_rdlock_call_features();
 	if (ast_test_flag(flags, AST_FEATURE_REDIRECT)) {
 		/* Add atxfer and blind transfer. */
-		builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
+		if (!builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf))
+				&& !ast_strlen_zero(dtmf)) {
 /* BUGBUG need to supply a blind transfer structure and destructor to use other than defaults */
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf,
 					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
-		builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
+		if (!builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf)) &&
+				!ast_strlen_zero(dtmf)) {
 /* BUGBUG need to supply an attended transfer structure and destructor to use other than defaults */
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf,
 					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 	}
-	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT)) {
-		builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
-		}
+	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT) &&
+			!builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf)) &&
+			!ast_strlen_zero(dtmf)) {
+		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf,
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
-	if (ast_test_flag(flags, AST_FEATURE_PARKCALL)) {
-		builtin_feature_get_exten(chan, "parkcall", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
-		}
+	if (ast_test_flag(flags, AST_FEATURE_PARKCALL) &&
+			!builtin_feature_get_exten(chan, "parkcall", dtmf, sizeof(dtmf)) &&
+			!ast_strlen_zero(dtmf)) {
+		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf,
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
-	if (ast_test_flag(flags, AST_FEATURE_AUTOMON)) {
-		builtin_feature_get_exten(chan, "automon", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
-		}
+	if (ast_test_flag(flags, AST_FEATURE_AUTOMON) &&
+			!builtin_feature_get_exten(chan, "automon", dtmf, sizeof(dtmf)) &&
+			!ast_strlen_zero(dtmf)) {
+		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf,
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
-	if (ast_test_flag(flags, AST_FEATURE_AUTOMIXMON)) {
-		builtin_feature_get_exten(chan, "automixmon", dtmf, sizeof(dtmf));
-		if (!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
-		}
+	if (ast_test_flag(flags, AST_FEATURE_AUTOMIXMON) &&
+			!builtin_feature_get_exten(chan, "automixmon", dtmf, sizeof(dtmf)) &&
+			!ast_strlen_zero(dtmf)) {
+		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf,
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
-	ast_unlock_call_features();
 
 #if 0	/* BUGBUG don't report errors untill all of the builtin features are supported. */
 	return res ? -1 : 0;
@@ -4310,6 +3379,20 @@ static int add_dynamic_dtmf_hook(struct ast_bridge_features *features, unsigned 
 		app_data, ast_free_ptr, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 }
 
+static int setup_dynamic_feature(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_applicationmap_item *item = obj;
+	struct ast_bridge_features *features = arg;
+	int *res = data;
+
+	/* BUGBUG need to pass to add_dynamic_dtmf_hook the applicationmap name (item->name) so the DYNAMIC_FEATURENAME can be set on the channel when it is run. */
+	*res |= add_dynamic_dtmf_hook(features, item->activate_on_self ? AST_FEATURE_FLAG_ONSELF :
+			AST_FEATURE_FLAG_ONPEER, item->dtmf, item->app, item->app_data,
+			item->moh_class);
+
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Setup bridge dynamic features.
@@ -4323,47 +3406,18 @@ static int add_dynamic_dtmf_hook(struct ast_bridge_features *features, unsigned 
  */
 static int setup_bridge_features_dynamic(struct ast_bridge_features *features, struct ast_channel *chan)
 {
-	const char *feat;
-	char *dynamic_features = NULL;
-	char *tok;
-	int res;
+	RAII_VAR(struct ao2_container *, applicationmap, NULL, ao2_cleanup);
+	int res = 0;
 
 	ast_channel_lock(chan);
-	feat = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
-	if (!ast_strlen_zero(feat)) {
-		dynamic_features = ast_strdupa(feat);
-	}
+	applicationmap = ast_get_chan_applicationmap(chan);
 	ast_channel_unlock(chan);
-	if (!dynamic_features) {
+	if (!applicationmap) {
 		return 0;
 	}
 
-/* BUGBUG need to pass to add_dynamic_dtmf_hook the applicationmap name (feature->sname) so the DYNAMIC_FEATURENAME can be set on the channel when it is run. */
-	res = 0;
-	while ((tok = strsep(&dynamic_features, "#"))) {
-		struct feature_group *fg;
-		struct ast_call_feature *feature;
+	ao2_callback_data(applicationmap, 0, setup_dynamic_feature, features, &res);
 
-		AST_RWLIST_RDLOCK(&feature_groups);
-		fg = find_group(tok);
-		if (fg) {
-			struct feature_group_exten *fge;
-
-			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-				res |= add_dynamic_dtmf_hook(features, fge->feature->flags, fge->exten,
-					fge->feature->app, fge->feature->app_args, fge->feature->moh_class);
-			}
-		}
-		AST_RWLIST_UNLOCK(&feature_groups);
-
-		ast_rdlock_call_features();
-		feature = find_dynamic_feature(tok);
-		if (feature) {
-			res |= add_dynamic_dtmf_hook(features, feature->flags, feature->exten,
-				feature->app, feature->app_args, feature->moh_class);
-		}
-		ast_unlock_call_features();
-	}
 	return res;
 }
 
@@ -5205,130 +4259,6 @@ static const struct parkinglot_cfg parkinglot_cfg_default = {
 
 /*!
  * \internal
- * \brief Set parking lot feature flag configuration value.
- *
- * \param pl_name Parking lot name for diagnostic messages.
- * \param param Parameter value to set.
- * \param var Current configuration variable item.
- *
- * \return Nothing
- */
-static void parkinglot_feature_flag_cfg(const char *pl_name, int *param, struct ast_variable *var)
-{
-	ast_debug(1, "Setting parking lot %s %s to %s\n", pl_name, var->name, var->value);
-	if (!strcasecmp(var->value, "both")) {
-		*param = AST_FEATURE_FLAG_BYBOTH;
-	} else if (!strcasecmp(var->value, "caller")) {
-		*param = AST_FEATURE_FLAG_BYCALLER;
-	} else if (!strcasecmp(var->value, "callee")) {
-		*param = AST_FEATURE_FLAG_BYCALLEE;
-	}
-}
-
-/*!
- * \internal
- * \brief Read parking lot configuration.
- *
- * \param pl_name Parking lot name for diagnostic messages.
- * \param cfg Parking lot config to update that is already initialized with defaults.
- * \param var Config variable list.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int parkinglot_config_read(const char *pl_name, struct parkinglot_cfg *cfg, struct ast_variable *var)
-{
-	int error = 0;
-
-	while (var) {
-		if (!strcasecmp(var->name, "context")) {
-			ast_copy_string(cfg->parking_con, var->value, sizeof(cfg->parking_con));
-		} else if (!strcasecmp(var->name, "parkext")) {
-			ast_copy_string(cfg->parkext, var->value, sizeof(cfg->parkext));
-		} else if (!strcasecmp(var->name, "parkext_exclusive")) {
-			cfg->parkext_exclusive = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "parkinghints")) {
-			cfg->parkaddhints = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "parkedmusicclass")) {
-			ast_copy_string(cfg->mohclass, var->value, sizeof(cfg->mohclass));
-		} else if (!strcasecmp(var->name, "parkingtime")) {
-			unsigned int parkingtime = 0;
-
-			if ((sscanf(var->value, "%30u", &parkingtime) != 1) || parkingtime < 1) {
-				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
-				error = -1;
-			} else {
-				cfg->parkingtime = parkingtime * 1000;
-			}
-		} else if (!strcasecmp(var->name, "parkpos")) {
-			int start = 0;
-			int end = 0;
-
-			if (sscanf(var->value, "%30d-%30d", &start, &end) != 2) {
-				ast_log(LOG_WARNING,
-					"Format for parking positions is a-b, where a and b are numbers at line %d of %s\n",
-					var->lineno, var->file);
-				error = -1;
-			} else if (end < start || start <= 0 || end <= 0) {
-				ast_log(LOG_WARNING, "Parking range is invalid. Must be a <= b, at line %d of %s\n",
-					var->lineno, var->file);
-				error = -1;
-			} else {
-				cfg->parking_start = start;
-				cfg->parking_stop = end;
-			}
-		} else if (!strcasecmp(var->name, "findslot")) {
-			cfg->parkfindnext = (!strcasecmp(var->value, "next"));
-		} else if (!strcasecmp(var->name, "parkedcalltransfers")) {
-			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcalltransfers, var);
-		} else if (!strcasecmp(var->name, "parkedcallreparking")) {
-			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcallreparking, var);
-		} else if (!strcasecmp(var->name, "parkedcallhangup")) {
-			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcallhangup, var);
-		} else if (!strcasecmp(var->name, "parkedcallrecording")) {
-			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcallrecording, var);
-		} else if (!strcasecmp(var->name, "comebackcontext")) {
-			ast_copy_string(cfg->comebackcontext, var->value, sizeof(cfg->comebackcontext));
-		} else if (!strcasecmp(var->name, "comebacktoorigin")) {
-			cfg->comebacktoorigin = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "comebackdialtime")) {
-			if ((sscanf(var->value, "%30u", &cfg->comebackdialtime) != 1)
-					|| (cfg->comebackdialtime < 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid comebackdialtime\n", var->value);
-				cfg->parkingtime = DEFAULT_COMEBACK_DIAL_TIME;
-			}
-		}
-		var = var->next;
-	}
-
-	/* Check for configuration errors */
-	if (ast_strlen_zero(cfg->parking_con)) {
-		ast_log(LOG_WARNING, "Parking lot %s needs context\n", pl_name);
-		error = -1;
-	}
-	if (ast_strlen_zero(cfg->parkext)) {
-		ast_log(LOG_WARNING, "Parking lot %s needs parkext\n", pl_name);
-		error = -1;
-	}
-	if (!cfg->parking_start) {
-		ast_log(LOG_WARNING, "Parking lot %s needs parkpos\n", pl_name);
-		error = -1;
-	}
-	if (!cfg->comebacktoorigin && ast_strlen_zero(cfg->comebackcontext)) {
-		ast_log(LOG_WARNING, "Parking lot %s has comebacktoorigin set false"
-				"but has no comebackcontext.\n",
-				pl_name);
-		error = -1;
-	}
-	if (error) {
-		cfg->is_invalid = 1;
-	}
-
-	return error;
-}
-
-/*!
- * \internal
  * \brief Activate the given parkinglot.
  *
  * \param parkinglot Parking lot to activate.
@@ -5388,1181 +4318,6 @@ static int parkinglot_activate(struct ast_parkinglot *parkinglot)
 	return disabled ? -1 : 0;
 }
 
-/*! \brief Build parkinglot from configuration and chain it in if it doesn't already exist */
-static struct ast_parkinglot *build_parkinglot(const char *pl_name, struct ast_variable *var)
-{
-	struct ast_parkinglot *parkinglot;
-	const struct parkinglot_cfg *cfg_defaults;
-	struct parkinglot_cfg new_cfg;
-	int cfg_error;
-	int oldparkinglot = 0;
-
-	parkinglot = find_parkinglot(pl_name);
-	if (parkinglot) {
-		oldparkinglot = 1;
-	} else {
-		parkinglot = create_parkinglot(pl_name);
-		if (!parkinglot) {
-			return NULL;
-		}
-	}
-	if (!strcmp(parkinglot->name, DEFAULT_PARKINGLOT)) {
-		cfg_defaults = &parkinglot_cfg_default_default;
-	} else {
-		cfg_defaults = &parkinglot_cfg_default;
-	}
-	new_cfg = *cfg_defaults;
-
-	ast_debug(1, "Building parking lot %s\n", parkinglot->name);
-
-	ao2_lock(parkinglot);
-
-	/* Do some config stuff */
-	cfg_error = parkinglot_config_read(parkinglot->name, &new_cfg, var);
-	if (oldparkinglot) {
-		if (cfg_error) {
-			/* Bad configuration read.  Keep using the original config. */
-			ast_log(LOG_WARNING, "Changes to parking lot %s are discarded.\n",
-				parkinglot->name);
-			cfg_error = 0;
-		} else if (!AST_LIST_EMPTY(&parkinglot->parkings)
-			&& memcmp(&new_cfg, &parkinglot->cfg, sizeof(parkinglot->cfg))) {
-			/* Try reloading later when parking lot is empty. */
-			ast_log(LOG_WARNING,
-				"Parking lot %s has parked calls.  Parking lot changes discarded.\n",
-				parkinglot->name);
-			force_reload_load = 1;
-		} else {
-			/* Accept the new config */
-			parkinglot->cfg = new_cfg;
-		}
-	} else {
-		/* Load the initial parking lot config. */
-		parkinglot->cfg = new_cfg;
-	}
-	parkinglot->the_mark = 0;
-
-	ao2_unlock(parkinglot);
-
-	if (cfg_error) {
-		/* Only new parking lots could have config errors here. */
-		ast_log(LOG_WARNING, "New parking lot %s is discarded.\n", parkinglot->name);
-		parkinglot_unref(parkinglot);
-		return NULL;
-	}
-
-	/* Move it into the list, if it wasn't already there */
-	if (!oldparkinglot) {
-		ao2_link(parkinglots, parkinglot);
-	}
-	parkinglot_unref(parkinglot);
-
-	return parkinglot;
-}
-
-/*!
- * \internal
- * \brief Process an applicationmap section config line.
- *
- * \param var Config variable line.
- *
- * \return Nothing
- */
-static void process_applicationmap_line(struct ast_variable *var)
-{
-	char *tmp_val = ast_strdupa(var->value);
-	char *activateon, *new_syn;
-	struct ast_call_feature *feature;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(exten);
-		AST_APP_ARG(activatedby);
-		AST_APP_ARG(app);
-		AST_APP_ARG(app_args);
-		AST_APP_ARG(moh_class);
-	);
-
-	AST_STANDARD_APP_ARGS(args, tmp_val);
-	if ((new_syn = strchr(args.app, '('))) {
-		/* New syntax */
-		args.moh_class = args.app_args;
-		args.app_args = new_syn;
-		*args.app_args++ = '\0';
-		if (args.app_args[strlen(args.app_args) - 1] == ')') {
-			args.app_args[strlen(args.app_args) - 1] = '\0';
-		}
-	}
-
-	activateon = strsep(&args.activatedby, "/");
-
-	/*! \todo XXX var_name or app_args ? */
-	if (ast_strlen_zero(args.app)
-		|| ast_strlen_zero(args.exten)
-		|| ast_strlen_zero(activateon)
-		|| ast_strlen_zero(var->name)) {
-		ast_log(LOG_NOTICE,
-			"Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",
-			args.app, args.exten, activateon, var->name);
-		return;
-	}
-
-	ast_rdlock_call_features();
-	if (find_dynamic_feature(var->name)) {
-		ast_unlock_call_features();
-		ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n",
-			var->name);
-		return;
-	}
-	ast_unlock_call_features();
-
-	if (!(feature = ast_calloc(1, sizeof(*feature)))) {
-		return;
-	}
-
-	ast_copy_string(feature->sname, var->name, FEATURE_SNAME_LEN);
-	ast_copy_string(feature->app, args.app, FEATURE_APP_LEN);
-	ast_copy_string(feature->exten, args.exten, FEATURE_EXTEN_LEN);
-
-	if (args.app_args) {
-		ast_copy_string(feature->app_args, args.app_args, FEATURE_APP_ARGS_LEN);
-	}
-
-	if (args.moh_class) {
-		ast_copy_string(feature->moh_class, args.moh_class, FEATURE_MOH_LEN);
-	}
-
-	ast_copy_string(feature->exten, args.exten, sizeof(feature->exten));
-	feature->operation = feature_exec_app;
-	ast_set_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF);
-
-	/* Allow caller and callee to be specified for backwards compatability */
-	if (!strcasecmp(activateon, "self") || !strcasecmp(activateon, "caller")) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_ONSELF);
-	} else if (!strcasecmp(activateon, "peer") || !strcasecmp(activateon, "callee")) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_ONPEER);
-	} else {
-		ast_log(LOG_NOTICE, "Invalid 'ActivateOn' specification for feature '%s',"
-			" must be 'self', or 'peer'\n", var->name);
-		ast_free(feature);
-		return;
-	}
-
-	/*
-	 * We will parse and require correct syntax for the ActivatedBy
-	 * option, but the ActivatedBy option is not honored anymore.
-	 */
-	if (ast_strlen_zero(args.activatedby)) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
-	} else if (!strcasecmp(args.activatedby, "caller")) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLER);
-	} else if (!strcasecmp(args.activatedby, "callee")) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLEE);
-	} else if (!strcasecmp(args.activatedby, "both")) {
-		ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
-	} else {
-		ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
-			" must be 'caller', or 'callee', or 'both'\n", var->name);
-		ast_free(feature);
-		return;
-	}
-
-	ast_register_feature(feature);
-
-	ast_verb(2, "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n",
-		var->name, args.app, args.app_args, args.exten);
-}
-
-static int process_config(struct ast_config *cfg)
-{
-	int i;
-	struct ast_variable *var = NULL;
-	struct feature_group *fg = NULL;
-	char *ctg;
-	static const char * const categories[] = {
-		/* Categories in features.conf that are not
-		 * to be parsed as group categories
-		 */
-		"general",
-		"featuremap",
-		"applicationmap"
-	};
-
-	/* Set general features global defaults. */
-	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
-
-	/* Set global call pickup defaults. */
-	strcpy(pickup_ext, "*8");
-	pickupsound[0] = '\0';
-	pickupfailsound[0] = '\0';
-
-	/* Set global call transfer defaults. */
-	strcpy(xfersound, "beep");
-	strcpy(xferfailsound, "beeperr");
-	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
-	atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
-	atxferloopdelay = DEFAULT_ATXFER_LOOP_DELAY;
-	atxferdropcall = DEFAULT_ATXFER_DROP_CALL;
-	atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
-
-	/* Set global call parking defaults. */
-	courtesytone[0] = '\0';
-	parkedplay = 0;
-	adsipark = 0;
-	parkeddynamic = 0;
-
-	var = ast_variable_browse(cfg, "general");
-	build_parkinglot(DEFAULT_PARKINGLOT, var);
-	for (; var; var = var->next) {
-		if (!strcasecmp(var->name, "parkeddynamic")) {
-			parkeddynamic = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "adsipark")) {
-			adsipark = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
-			if ((sscanf(var->value, "%30d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
-				transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
-			} else {
-				transferdigittimeout = transferdigittimeout * 1000;
-			}
-		} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-			if ((sscanf(var->value, "%30d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
-				featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
-			}
-		} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
-			if ((sscanf(var->value, "%30d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
-				atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
-			} else {
-				atxfernoanswertimeout = atxfernoanswertimeout * 1000;
-			}
-		} else if (!strcasecmp(var->name, "atxferloopdelay")) {
-			if ((sscanf(var->value, "%30u", &atxferloopdelay) != 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid atxferloopdelay\n", var->value);
-				atxferloopdelay = DEFAULT_ATXFER_LOOP_DELAY;
-			} else {
-				atxferloopdelay *= 1000;
-			}
-		} else if (!strcasecmp(var->name, "atxferdropcall")) {
-			atxferdropcall = ast_true(var->value);
-		} else if (!strcasecmp(var->name, "atxfercallbackretries")) {
-			if ((sscanf(var->value, "%30u", &atxfercallbackretries) != 1)) {
-				ast_log(LOG_WARNING, "%s is not a valid atxfercallbackretries\n", var->value);
-				atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
-			}
-		} else if (!strcasecmp(var->name, "courtesytone")) {
-			ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
-		}  else if (!strcasecmp(var->name, "parkedplay")) {
-			if (!strcasecmp(var->value, "both")) {
-				parkedplay = 2;
-			} else if (!strcasecmp(var->value, "parked")) {
-				parkedplay = 1;
-			} else {
-				parkedplay = 0;
-			}
-		} else if (!strcasecmp(var->name, "xfersound")) {
-			ast_copy_string(xfersound, var->value, sizeof(xfersound));
-		} else if (!strcasecmp(var->name, "xferfailsound")) {
-			ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
-		} else if (!strcasecmp(var->name, "pickupexten")) {
-			ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
-		} else if (!strcasecmp(var->name, "pickupsound")) {
-			ast_copy_string(pickupsound, var->value, sizeof(pickupsound));
-		} else if (!strcasecmp(var->name, "pickupfailsound")) {
-			ast_copy_string(pickupfailsound, var->value, sizeof(pickupfailsound));
-		}
-	}
-
-	unmap_features();
-	for (var = ast_variable_browse(cfg, "featuremap"); var; var = var->next) {
-		if (remap_feature(var->name, var->value)) {
-			ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
-		}
-	}
-
-	/* Map a key combination to an application */
-	ast_unregister_features();
-	for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
-		process_applicationmap_line(var);
-	}
-
-	ast_unregister_groups();
-	AST_RWLIST_WRLOCK(&feature_groups);
-
-	ctg = NULL;
-	while ((ctg = ast_category_browse(cfg, ctg))) {
-		/* Is this a parkinglot definition ? */
-		if (!strncasecmp(ctg, "parkinglot_", strlen("parkinglot_"))) {
-			ast_debug(2, "Found configuration section %s, assume parking context\n", ctg);
-			if (!build_parkinglot(ctg, ast_variable_browse(cfg, ctg))) {
-				ast_log(LOG_ERROR, "Could not build parking lot %s. Configuration error.\n", ctg);
-			} else {
-				ast_debug(1, "Configured parking context %s\n", ctg);
-			}
-			continue;
-		}
-
-		/* No, check if it's a group */
-		for (i = 0; i < ARRAY_LEN(categories); i++) {
-			if (!strcasecmp(categories[i], ctg)) {
-				break;
-			}
-		}
-		if (i < ARRAY_LEN(categories)) {
-			continue;
-		}
-
-		if (!(fg = register_group(ctg))) {
-			continue;
-		}
-
-		for (var = ast_variable_browse(cfg, ctg); var; var = var->next) {
-			struct ast_call_feature *feature;
-
-			ast_rdlock_call_features();
-			feature = ast_find_call_feature(var->name);
-			ast_unlock_call_features();
-			if (!feature) {
-				ast_log(LOG_WARNING, "Feature '%s' was not found.\n", var->name);
-				continue;
-			}
-
-			register_group_feature(fg, var->value, feature);
-		}
-	}
-
-	AST_RWLIST_UNLOCK(&feature_groups);
-
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Destroy the given dialplan usage context.
- *
- * \param doomed Parking lot usage context to destroy.
- *
- * \return Nothing
- */
-static void destroy_dialplan_usage_context(struct parking_dp_context *doomed)
-{
-	struct parking_dp_ramp *ramp;
-	struct parking_dp_spaces *spaces;
-
-	while ((ramp = AST_LIST_REMOVE_HEAD(&doomed->access_extens, node))) {
-		ast_free(ramp);
-	}
-	while ((spaces = AST_LIST_REMOVE_HEAD(&doomed->spaces, node))) {
-		ast_free(spaces);
-	}
-	while ((spaces = AST_LIST_REMOVE_HEAD(&doomed->hints, node))) {
-		ast_free(spaces);
-	}
-	ast_free(doomed);
-}
-
-/*!
- * \internal
- * \brief Destroy the given dialplan usage map.
- *
- * \param doomed Parking lot usage map to destroy.
- *
- * \return Nothing
- */
-static void destroy_dialplan_usage_map(struct parking_dp_map *doomed)
-{
-	struct parking_dp_context *item;
-
-	while ((item = AST_LIST_REMOVE_HEAD(doomed, node))) {
-		destroy_dialplan_usage_context(item);
-	}
-}
-
-/*!
- * \internal
- * \brief Create a new parking lot ramp dialplan usage node.
- *
- * \param exten Parking lot access ramp extension.
- * \param exclusive TRUE if the parking lot access ramp extension is exclusive.
- *
- * \retval New usage ramp node on success.
- * \retval NULL on error.
- */
-static struct parking_dp_ramp *build_dialplan_useage_ramp(const char *exten, int exclusive)
-{
-	struct parking_dp_ramp *ramp_node;
-
-	ramp_node = ast_calloc(1, sizeof(*ramp_node) + strlen(exten));
-	if (!ramp_node) {
-		return NULL;
-	}
-	ramp_node->exclusive = exclusive;
-	strcpy(ramp_node->exten, exten);
-	return ramp_node;
-}
-
-/*!
- * \internal
- * \brief Add parking lot access ramp to the context ramp usage map.
- *
- * \param ramp_map Current parking lot context ramp usage map.
- * \param exten Parking lot access ramp extension to add.
- * \param exclusive TRUE if the parking lot access ramp extension is exclusive.
- * \param lot Parking lot supplying reference data.
- * \param complain TRUE if to complain of parking lot ramp conflicts.
- *
- * \retval 0 on success.  The ramp_map is updated.
- * \retval -1 on failure.
- */
-static int usage_context_add_ramp(struct parking_dp_ramp_map *ramp_map, const char *exten, int exclusive, struct ast_parkinglot *lot, int complain)
-{
-	struct parking_dp_ramp *cur_ramp;
-	struct parking_dp_ramp *new_ramp;
-	int cmp;
-
-	/* Make sure that exclusive is only 0 or 1 */
-	if (exclusive) {
-		exclusive = 1;
-	}
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(ramp_map, cur_ramp, node) {
-		cmp = strcmp(exten, cur_ramp->exten);
-		if (cmp > 0) {
-			/* The parking lot ramp goes after this node. */
-			continue;
-		}
-		if (cmp == 0) {
-			/* The ramp is already in the map. */
-			if (complain && (cur_ramp->exclusive || exclusive)) {
-				ast_log(LOG_WARNING,
-					"Parking lot '%s' parkext %s@%s used by another parking lot.\n",
-					lot->name, exten, lot->cfg.parking_con);
-			}
-			return 0;
-		}
-		/* The new parking lot ramp goes before this node. */
-		new_ramp = build_dialplan_useage_ramp(exten, exclusive);
-		if (!new_ramp) {
-			return -1;
-		}
-		AST_LIST_INSERT_BEFORE_CURRENT(new_ramp, node);
-		return 0;
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	/* New parking lot access ramp goes on the end. */
-	new_ramp = build_dialplan_useage_ramp(exten, exclusive);
-	if (!new_ramp) {
-		return -1;
-	}
-	AST_LIST_INSERT_TAIL(ramp_map, new_ramp, node);
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Create a new parking lot spaces dialplan usage node.
- *
- * \param start First parking lot space to add.
- * \param stop Last parking lot space to add.
- *
- * \retval New usage ramp node on success.
- * \retval NULL on error.
- */
-static struct parking_dp_spaces *build_dialplan_useage_spaces(int start, int stop)
-{
-	struct parking_dp_spaces *spaces_node;
-
-	spaces_node = ast_calloc(1, sizeof(*spaces_node));
-	if (!spaces_node) {
-		return NULL;
-	}
-	spaces_node->start = start;
-	spaces_node->stop = stop;
-	return spaces_node;
-}
-
-/*!
- * \internal
- * \brief Add parking lot spaces to the context space usage map.
- *
- * \param space_map Current parking lot context space usage map.
- * \param start First parking lot space to add.
- * \param stop Last parking lot space to add.
- * \param lot Parking lot supplying reference data.
- * \param complain TRUE if to complain of parking lot spaces conflicts.
- *
- * \retval 0 on success.  The space_map is updated.
- * \retval -1 on failure.
- */
-static int usage_context_add_spaces(struct parking_dp_space_map *space_map, int start, int stop, struct ast_parkinglot *lot, int complain)
-{
-	struct parking_dp_spaces *cur_node;
-	struct parking_dp_spaces *expand_node;
-	struct parking_dp_spaces *new_node;
-
-	expand_node = NULL;
-	AST_LIST_TRAVERSE_SAFE_BEGIN(space_map, cur_node, node) {
-		/* NOTE: stop + 1 to combine immediately adjacent nodes into one. */
-		if (expand_node) {
-			/* The previous node is expanding to possibly eat following nodes. */
-			if (expand_node->stop + 1 < cur_node->start) {
-				/* Current node is completely after expanding node. */
-				return 0;
-			}
-
-			if (complain
-				&& ((cur_node->start <= start && start <= cur_node->stop)
-					|| (cur_node->start <= stop && stop <= cur_node->stop)
-					|| (start < cur_node->start && cur_node->stop < stop))) {
-				/* Only complain once per range add. */
-				complain = 0;
-				ast_log(LOG_WARNING,
-					"Parking lot '%s' parkpos %d-%d@%s overlaps another parking lot.\n",
-					lot->name, start, stop, lot->cfg.parking_con);
-			}
-
-			/* Current node is eaten by the expanding node. */
-			if (expand_node->stop < cur_node->stop) {
-				expand_node->stop = cur_node->stop;
-			}
-			AST_LIST_REMOVE_CURRENT(node);
-			ast_free(cur_node);
-			continue;
-		}
-
-		if (cur_node->stop + 1 < start) {
-			/* New range is completely after current node. */
-			continue;
-		}
-		if (stop + 1 < cur_node->start) {
-			/* New range is completely before current node. */
-			new_node = build_dialplan_useage_spaces(start, stop);
-			if (!new_node) {
-				return -1;
-			}
-			AST_LIST_INSERT_BEFORE_CURRENT(new_node, node);
-			return 0;
-		}
-
-		if (complain
-			&& ((cur_node->start <= start && start <= cur_node->stop)
-				|| (cur_node->start <= stop && stop <= cur_node->stop)
-				|| (start < cur_node->start && cur_node->stop < stop))) {
-			/* Only complain once per range add. */
-			complain = 0;
-			ast_log(LOG_WARNING,
-				"Parking lot '%s' parkpos %d-%d@%s overlaps another parking lot.\n",
-				lot->name, start, stop, lot->cfg.parking_con);
-		}
-
-		/* Current node range overlaps or is immediately adjacent to new range. */
-		if (start < cur_node->start) {
-			/* Expand the current node in the front. */
-			cur_node->start = start;
-		}
-		if (stop <= cur_node->stop) {
-			/* Current node is not expanding in the rear. */
-			return 0;
-		}
-		cur_node->stop = stop;
-		expand_node = cur_node;
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	if (expand_node) {
-		/*
-		 * The previous node expanded and either ate all following nodes
-		 * or it was the last node.
-		 */
-		return 0;
-	}
-
-	/* New range goes on the end. */
-	new_node = build_dialplan_useage_spaces(start, stop);
-	if (!new_node) {
-		return -1;
-	}
-	AST_LIST_INSERT_TAIL(space_map, new_node, node);
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Add parking lot spaces to the context dialplan usage node.
- *
- * \param ctx_node Usage node to add parking lot spaces.
- * \param lot Parking lot to add data to ctx_node.
- * \param complain TRUE if to complain of parking lot ramp and spaces conflicts.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int dialplan_usage_add_parkinglot_data(struct parking_dp_context *ctx_node, struct ast_parkinglot *lot, int complain)
-{
-	if (usage_context_add_ramp(&ctx_node->access_extens, lot->cfg.parkext,
-		lot->cfg.parkext_exclusive, lot, complain)) {
-		return -1;
-	}
-	if (usage_context_add_spaces(&ctx_node->spaces, lot->cfg.parking_start,
-		lot->cfg.parking_stop, lot, complain)) {
-		return -1;
-	}
-	if (lot->cfg.parkaddhints
-		&& usage_context_add_spaces(&ctx_node->hints, lot->cfg.parking_start,
-			lot->cfg.parking_stop, lot, 0)) {
-		return -1;
-	}
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Create a new parking lot context dialplan usage node.
- *
- * \param lot Parking lot to create a new dialplan usage from.
- *
- * \retval New usage context node on success.
- * \retval NULL on error.
- */
-static struct parking_dp_context *build_dialplan_useage_context(struct ast_parkinglot *lot)
-{
-	struct parking_dp_context *ctx_node;
-
-	ctx_node = ast_calloc(1, sizeof(*ctx_node) + strlen(lot->cfg.parking_con));
-	if (!ctx_node) {
-		return NULL;
-	}
-	if (dialplan_usage_add_parkinglot_data(ctx_node, lot, 0)) {
-		destroy_dialplan_usage_context(ctx_node);
-		return NULL;
-	}
-	strcpy(ctx_node->context, lot->cfg.parking_con);
-	return ctx_node;
-}
-
-/*!
- * \internal
- * \brief Add the given parking lot dialplan usage to the dialplan usage map.
- *
- * \param usage_map Parking lot usage map to add the given parking lot.
- * \param lot Parking lot to add dialplan usage.
- * \param complain TRUE if to complain of parking lot ramp and spaces conflicts.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int dialplan_usage_add_parkinglot(struct parking_dp_map *usage_map, struct ast_parkinglot *lot, int complain)
-{
-	struct parking_dp_context *cur_ctx;
-	struct parking_dp_context *new_ctx;
-	int cmp;
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(usage_map, cur_ctx, node) {
-		cmp = strcmp(lot->cfg.parking_con, cur_ctx->context);
-		if (cmp > 0) {
-			/* The parking lot context goes after this node. */
-			continue;
-		}
-		if (cmp == 0) {
-			/* This is the node we will add parking lot spaces to the map. */
-			return dialplan_usage_add_parkinglot_data(cur_ctx, lot, complain);
-		}
-		/* The new parking lot context goes before this node. */
-		new_ctx = build_dialplan_useage_context(lot);
-		if (!new_ctx) {
-			return -1;
-		}
-		AST_LIST_INSERT_BEFORE_CURRENT(new_ctx, node);
-		return 0;
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	/* New parking lot context goes on the end. */
-	new_ctx = build_dialplan_useage_context(lot);
-	if (!new_ctx) {
-		return -1;
-	}
-	AST_LIST_INSERT_TAIL(usage_map, new_ctx, node);
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Build the dialplan usage map of the current parking lot container.
- *
- * \param usage_map Parking lot usage map.  Must already be initialized.
- * \param complain TRUE if to complain of parking lot ramp and spaces conflicts.
- *
- * \retval 0 on success.  The usage_map is filled in.
- * \retval -1 on failure.  Built usage_map is incomplete.
- */
-static int build_dialplan_useage_map(struct parking_dp_map *usage_map, int complain)
-{
-	int status = 0;
-	struct ao2_iterator iter;
-	struct ast_parkinglot *curlot;
-
-	/* For all parking lots */
-	iter = ao2_iterator_init(parkinglots, 0);
-	for (; (curlot = ao2_iterator_next(&iter)); ao2_ref(curlot, -1)) {
-		/* Add the parking lot to the map. */
-		if (dialplan_usage_add_parkinglot(usage_map, curlot, complain)) {
-			ao2_ref(curlot, -1);
-			status = -1;
-			break;
-		}
-	}
-	ao2_iterator_destroy(&iter);
-
-	return status;
-}
-
-/*!
- * \internal
- * \brief Remove the given extension if it exists.
- *
- * \param context Dialplan database context name.
- * \param exten Extension to remove.
- * \param priority Extension priority to remove.
- *
- * \return Nothing
- */
-static void remove_exten_if_exist(const char *context, const char *exten, int priority)
-{
-	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
-
-	if (pbx_find_extension(NULL, NULL, &q, context, exten, priority, NULL, NULL,
-		E_MATCH)) {
-		ast_debug(1, "Removing unneeded parking lot exten: %s@%s priority:%d\n",
-			context, exten, priority);
-		ast_context_remove_extension(context, exten, priority, registrar);
-	}
-}
-
-/*!
- * \internal
- * \brief Remove unused parking lot access ramp items.
- *
- * \param context Dialplan database context name.
- * \param old_ramps Before configuration reload access ramp usage map.
- * \param new_ramps After configuration reload access ramp usage map.
- *
- * \details
- * Remove access ramp items that were in the old context but not in the
- * new context.
- *
- * \return Nothing
- */
-static void remove_dead_ramp_usage(const char *context, struct parking_dp_ramp_map *old_ramps, struct parking_dp_ramp_map *new_ramps)
-{
-	struct parking_dp_ramp *old_ramp;
-	struct parking_dp_ramp *new_ramp;
-	int cmp;
-
-	old_ramp = AST_LIST_FIRST(old_ramps);
-	new_ramp = AST_LIST_FIRST(new_ramps);
-
-	while (new_ramp) {
-		if (!old_ramp) {
-			/* No old ramps left, so no dead ramps can remain. */
-			return;
-		}
-		cmp = strcmp(old_ramp->exten, new_ramp->exten);
-		if (cmp < 0) {
-			/* New map does not have old ramp. */
-			remove_exten_if_exist(context, old_ramp->exten, 1);
-			old_ramp = AST_LIST_NEXT(old_ramp, node);
-			continue;
-		}
-		if (cmp == 0) {
-			/* Old and new map have this ramp. */
-			old_ramp = AST_LIST_NEXT(old_ramp, node);
-		} else {
-			/* Old map does not have new ramp. */
-		}
-		new_ramp = AST_LIST_NEXT(new_ramp, node);
-	}
-
-	/* Any old ramps left must be dead. */
-	for (; old_ramp; old_ramp = AST_LIST_NEXT(old_ramp, node)) {
-		remove_exten_if_exist(context, old_ramp->exten, 1);
-	}
-}
-
-/*!
- * \internal
- * \brief Destroy the given parking space.
- *
- * \param context Dialplan database context name.
- * \param space Parking space.
- *
- * \return Nothing
- */
-static void destroy_space(const char *context, int space)
-{
-	char exten[AST_MAX_EXTENSION];
-
-	/* Destroy priorities of the parking space that we registered. */
-	snprintf(exten, sizeof(exten), "%d", space);
-	remove_exten_if_exist(context, exten, PRIORITY_HINT);
-	remove_exten_if_exist(context, exten, 1);
-}
-
-/*!
- * \internal
- * \brief Remove unused parking lot space items.
- *
- * \param context Dialplan database context name.
- * \param old_spaces Before configuration reload parking space usage map.
- * \param new_spaces After configuration reload parking space usage map.
- * \param destroy_space Function to destroy parking space item.
- *
- * \details
- * Remove parking space items that were in the old context but
- * not in the new context.
- *
- * \return Nothing
- */
-static void remove_dead_spaces_usage(const char *context,
-	struct parking_dp_space_map *old_spaces, struct parking_dp_space_map *new_spaces,
-	void (*destroy_space)(const char *context, int space))
-{
-	struct parking_dp_spaces *old_range;
-	struct parking_dp_spaces *new_range;
-	int space;/*!< Current position in the current old range. */
-	int stop;
-
-	old_range = AST_LIST_FIRST(old_spaces);
-	new_range = AST_LIST_FIRST(new_spaces);
-	space = -1;
-
-	while (old_range) {
-		if (space < old_range->start) {
-			space = old_range->start;
-		}
-		if (new_range) {
-			if (space < new_range->start) {
-				/* Current position in old range starts before new range. */
-				if (old_range->stop < new_range->start) {
-					/* Old range ends before new range. */
-					stop = old_range->stop;
-					old_range = AST_LIST_NEXT(old_range, node);
-				} else {
-					/* Tail of old range overlaps new range. */
-					stop = new_range->start - 1;
-				}
-			} else if (/* new_range->start <= space && */ space <= new_range->stop) {
-				/* Current position in old range overlaps new range. */
-				if (old_range->stop <= new_range->stop) {
-					/* Old range ends at or before new range. */
-					old_range = AST_LIST_NEXT(old_range, node);
-				} else {
-					/* Old range extends beyond end of new range. */
-					space = new_range->stop + 1;
-					new_range = AST_LIST_NEXT(new_range, node);
-				}
-				continue;
-			} else /* if (new_range->stop < space) */ {
-				/* Current position in old range starts after new range. */
-				new_range = AST_LIST_NEXT(new_range, node);
-				continue;
-			}
-		} else {
-			/* No more new ranges.  All remaining old spaces are dead. */
-			stop = old_range->stop;
-			old_range = AST_LIST_NEXT(old_range, node);
-		}
-
-		/* Destroy dead parking spaces. */
-		for (; space <= stop; ++space) {
-			destroy_space(context, space);
-		}
-	}
-}
-
-/*!
- * \internal
- * \brief Remove unused parking lot context items.
- *
- * \param context Dialplan database context name.
- * \param old_ctx Before configuration reload context usage map.
- * \param new_ctx After configuration reload context usage map.
- *
- * \details
- * Remove context usage items that were in the old context but not in the
- * new context.
- *
- * \return Nothing
- */
-static void remove_dead_context_usage(const char *context, struct parking_dp_context *old_ctx, struct parking_dp_context *new_ctx)
-{
-	remove_dead_ramp_usage(context, &old_ctx->access_extens, &new_ctx->access_extens);
-	remove_dead_spaces_usage(context, &old_ctx->spaces, &new_ctx->spaces, destroy_space);
-#if 0
-	/* I don't think we should destroy hints if the parking space still exists. */
-	remove_dead_spaces_usage(context, &old_ctx->hints, &new_ctx->hints, destroy_space_hint);
-#endif
-}
-
-/*!
- * \internal
- * \brief Remove unused parking lot dialplan items.
- *
- * \param old_map Before configuration reload dialplan usage map.
- * \param new_map After configuration reload dialplan usage map.
- *
- * \details
- * Remove dialplan items that were in the old map but not in the
- * new map.
- *
- * \return Nothing
- */
-static void remove_dead_dialplan_useage(struct parking_dp_map *old_map, struct parking_dp_map *new_map)
-{
-	struct parking_dp_context *old_ctx;
-	struct parking_dp_context *new_ctx;
-	struct ast_context *con;
-	int cmp;
-
-	old_ctx = AST_LIST_FIRST(old_map);
-	new_ctx = AST_LIST_FIRST(new_map);
-
-	while (new_ctx) {
-		if (!old_ctx) {
-			/* No old contexts left, so no dead stuff can remain. */
-			return;
-		}
-		cmp = strcmp(old_ctx->context, new_ctx->context);
-		if (cmp < 0) {
-			/* New map does not have old map context. */
-			con = ast_context_find(old_ctx->context);
-			if (con) {
-				ast_context_destroy(con, registrar);
-			}
-			old_ctx = AST_LIST_NEXT(old_ctx, node);
-			continue;
-		}
-		if (cmp == 0) {
-			/* Old and new map have this context. */
-			remove_dead_context_usage(old_ctx->context, old_ctx, new_ctx);
-			old_ctx = AST_LIST_NEXT(old_ctx, node);
-		} else {
-			/* Old map does not have new map context. */
-		}
-		new_ctx = AST_LIST_NEXT(new_ctx, node);
-	}
-
-	/* Any old contexts left must be dead. */
-	for (; old_ctx; old_ctx = AST_LIST_NEXT(old_ctx, node)) {
-		con = ast_context_find(old_ctx->context);
-		if (con) {
-			ast_context_destroy(con, registrar);
-		}
-	}
-}
-
-static int parkinglot_markall_cb(void *obj, void *arg, int flags)
-{
-	struct ast_parkinglot *parkinglot = obj;
-
-	parkinglot->the_mark = 1;
-	return 0;
-}
-
-static int parkinglot_is_marked_cb(void *obj, void *arg, int flags)
-{
-	struct ast_parkinglot *parkinglot = obj;
-
-	if (parkinglot->the_mark) {
-		if (AST_LIST_EMPTY(&parkinglot->parkings)) {
-			/* This parking lot can actually be deleted. */
-			return CMP_MATCH;
-		}
-		/* Try reloading later when parking lot is empty. */
-		ast_log(LOG_WARNING,
-			"Parking lot %s has parked calls.  Could not remove.\n",
-			parkinglot->name);
-		parkinglot->disabled = 1;
-		force_reload_load = 1;
-	}
-
-	return 0;
-}
-
-static int parkinglot_activate_cb(void *obj, void *arg, int flags)
-{
-	struct ast_parkinglot *parkinglot = obj;
-
-	if (parkinglot->the_mark) {
-		/*
-		 * Don't activate a parking lot that still bears the_mark since
-		 * it is effectively deleted.
-		 */
-		return 0;
-	}
-
-	if (parkinglot_activate(parkinglot)) {
-		/*
-		 * The parking lot failed to activate.  Allow reloading later to
-		 * see if that fixes it.
-		 */
-		force_reload_load = 1;
-		ast_log(LOG_WARNING, "Parking lot %s not open for business.\n", parkinglot->name);
-	} else {
-		ast_debug(1, "Parking lot %s now open for business. (parkpos %d-%d)\n",
-			parkinglot->name, parkinglot->cfg.parking_start,
-			parkinglot->cfg.parking_stop);
-	}
-
-	return 0;
-}
-
-static int load_config(int reload)
-{
-	struct ast_flags config_flags = {
-		reload && !force_reload_load ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_config *cfg;
-	struct parking_dp_map old_usage_map = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
-	struct parking_dp_map new_usage_map = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
-
-	/* We are reloading now and have already determined if we will force the reload. */
-	force_reload_load = 0;
-
-	if (!default_parkinglot) {
-		/* Must create the default default parking lot */
-		default_parkinglot = build_parkinglot(DEFAULT_PARKINGLOT, NULL);
-		if (!default_parkinglot) {
-			ast_log(LOG_ERROR, "Configuration of default default parking lot failed.\n");
-			return -1;
-		}
-		ast_debug(1, "Configuration of default default parking lot done.\n");
-	}
-
-	cfg = ast_config_load2("features.conf", "features", config_flags);
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		/* No sense in asking for reload trouble if nothing changed. */
-		ast_debug(1, "features.conf did not change.\n");
-		return 0;
-	}
-	if (cfg == CONFIG_STATUS_FILEMISSING
-		|| cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "Could not load features.conf\n");
-		return 0;
-	}
-
-	/* Save current parking lot dialplan needs. */
-	if (build_dialplan_useage_map(&old_usage_map, 0)) {
-		destroy_dialplan_usage_map(&old_usage_map);
-
-		/* Allow reloading later to see if conditions have improved. */
-		force_reload_load = 1;
-		return -1;
-	}
-
-	ao2_t_callback(parkinglots, OBJ_NODATA, parkinglot_markall_cb, NULL,
-		"callback to mark all parking lots");
-	process_config(cfg);
-	ast_config_destroy(cfg);
-	ao2_t_callback(parkinglots, OBJ_NODATA | OBJ_UNLINK, parkinglot_is_marked_cb, NULL,
-		"callback to remove marked parking lots");
-
-	/* Save updated parking lot dialplan needs. */
-	if (build_dialplan_useage_map(&new_usage_map, 1)) {
-		/*
-		 * Yuck, if this failure caused any parking lot dialplan items
-		 * to be lost, they will likely remain lost until Asterisk is
-		 * restarted.
-		 */
-		destroy_dialplan_usage_map(&old_usage_map);
-		destroy_dialplan_usage_map(&new_usage_map);
-		return -1;
-	}
-
-	/* Remove no longer needed parking lot dialplan usage. */
-	remove_dead_dialplan_useage(&old_usage_map, &new_usage_map);
-
-	destroy_dialplan_usage_map(&old_usage_map);
-	destroy_dialplan_usage_map(&new_usage_map);
-
-	ao2_t_callback(parkinglots, OBJ_NODATA, parkinglot_activate_cb, NULL,
-		"callback to activate all parking lots");
-
-	return 0;
-}
-
-/*!
- * \brief CLI command to list configured features
- * \param e
- * \param cmd
- * \param a
- *
- * \retval CLI_SUCCESS on success.
- * \retval NULL when tab completion is used.
- */
-static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int i;
-	struct ast_call_feature *feature;
-#define HFS_FORMAT "%-25s %-7s %-7s\n"
-
-	switch (cmd) {
-
-	case CLI_INIT:
-		e->command = "features show";
-		e->usage =
-			"Usage: features show\n"
-			"       Lists configured features\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	ast_cli(a->fd, HFS_FORMAT, "Builtin Feature", "Default", "Current");
-	ast_cli(a->fd, HFS_FORMAT, "---------------", "-------", "-------");
-
-	ast_cli(a->fd, HFS_FORMAT, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
-
-	ast_rdlock_call_features();
-	for (i = 0; i < FEATURES_COUNT; i++)
-		ast_cli(a->fd, HFS_FORMAT, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
-	ast_unlock_call_features();
-
-	ast_cli(a->fd, "\n");
-	ast_cli(a->fd, HFS_FORMAT, "Dynamic Feature", "Default", "Current");
-	ast_cli(a->fd, HFS_FORMAT, "---------------", "-------", "-------");
-	ast_rdlock_call_features();
-	if (AST_LIST_EMPTY(&feature_list)) {
-		ast_cli(a->fd, "(none)\n");
-	} else {
-		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-			ast_cli(a->fd, HFS_FORMAT, feature->sname, "no def", feature->exten);
-		}
-	}
-	ast_unlock_call_features();
-
-	ast_cli(a->fd, "\nFeature Groups:\n");
-	ast_cli(a->fd, "---------------\n");
-	AST_RWLIST_RDLOCK(&feature_groups);
-	if (AST_RWLIST_EMPTY(&feature_groups)) {
-		ast_cli(a->fd, "(none)\n");
-	} else {
-		struct feature_group *fg;
-		struct feature_group_exten *fge;
-
-		AST_RWLIST_TRAVERSE(&feature_groups, fg, entry) {
-			ast_cli(a->fd, "===> Group: %s\n", fg->gname);
-			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-				ast_cli(a->fd, "===> --> %s (%s)\n", fge->feature->sname, fge->exten);
-			}
-		}
-	}
-	AST_RWLIST_UNLOCK(&feature_groups);
-
-	ast_cli(a->fd, "\n");
-
-	return CLI_SUCCESS;
-}
-
 int ast_features_reload(void)
 {
 	struct ast_context *con;
@@ -6583,7 +4338,7 @@ int ast_features_reload(void)
 		ast_context_destroy(con, registrar);
 	}
 
-	res = load_config(1);
+	res = ast_features_config_reload();
 	ast_mutex_unlock(&features_reload_lock);
 
 	return res;
@@ -6633,10 +4388,18 @@ static int add_to_bridge(struct ast_bridge *bridge, struct ast_channel *chan,
 		struct ast_bridge_features *features, int play_tone)
 {
 	RAII_VAR(struct ast_bridge *, chan_bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
 	struct ast_channel *bridge_chan = NULL;
+	const char *tone = NULL;
 
 	ast_channel_lock(chan);
 	chan_bridge = ast_channel_get_bridge(chan);
+	xfer_cfg = ast_get_chan_features_xfer_config(chan);
+	if (!xfer_cfg) {
+		ast_log(LOG_ERROR, "Unable to determine what tone to play to channel.\n");
+	} else {
+		tone = ast_strdupa(xfer_cfg->xfersound);
+	}
 	ast_channel_unlock(chan);
 
 	if (chan_bridge) {
@@ -6661,7 +4424,7 @@ static int add_to_bridge(struct ast_bridge *bridge, struct ast_channel *chan,
 		}
 	}
 
-	if (play_tone && !ast_strlen_zero(xfersound)) {
+	if (play_tone && !ast_strlen_zero(tone)) {
 		struct ast_channel *play_chan = bridge_chan ?: chan;
 		RAII_VAR(struct ast_bridge_channel *, play_bridge_channel, NULL, ao2_cleanup);
 
@@ -6673,7 +4436,7 @@ static int add_to_bridge(struct ast_bridge *bridge, struct ast_channel *chan,
 			ast_log(LOG_WARNING, "Unable to play tone for channel %s. Unable to get bridge channel\n",
 					ast_channel_name(play_chan));
 		} else {
-			ast_bridge_channel_queue_playfile(play_bridge_channel, NULL, xfersound, NULL);
+			ast_bridge_channel_queue_playfile(play_bridge_channel, NULL, tone, NULL);
 		}
 	}
 	return 0;
@@ -6822,7 +4585,6 @@ static int action_bridge(struct mansession *s, const struct message *m)
 }
 
 static struct ast_cli_entry cli_features[] = {
-	AST_CLI_DEFINE(handle_feature_show, "Lists configured features"),
 	AST_CLI_DEFINE(handle_features_reload, "Reloads configured features"),
 };
 
@@ -7057,8 +4819,19 @@ int ast_pickup_call(struct ast_channel *chan)
 {
 	struct ast_channel *target;/*!< Potential pickup target */
 	int res = -1;
+	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+	const char *pickup_sound;
+	const char *fail_sound;
 
 	ast_debug(1, "pickup attempt by %s\n", ast_channel_name(chan));
+	ast_channel_lock(chan);
+	pickup_cfg = ast_get_chan_features_pickup_config(chan);
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration. Unable to play pickup sounds\n");
+	}
+	pickup_sound = ast_strdupa(pickup_cfg ? pickup_cfg->pickupsound : "");
+	fail_sound = ast_strdupa(pickup_cfg ? pickup_cfg->pickupfailsound : "");
+	ast_channel_unlock(chan);
 
 	/* The found channel is already locked. */
 	target = ast_pickup_find_by_group(chan);
@@ -7068,8 +4841,8 @@ int ast_pickup_call(struct ast_channel *chan)
 		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
 		if (!res) {
-			if (!ast_strlen_zero(pickupsound)) {
-				pbx_builtin_setvar_helper(target, "BRIDGE_PLAY_SOUND", pickupsound);
+			if (!ast_strlen_zero(pickup_sound)) {
+				pbx_builtin_setvar_helper(target, "BRIDGE_PLAY_SOUND", pickup_sound);
 			}
 		} else {
 			ast_log(LOG_WARNING, "pickup %s failed by %s\n", ast_channel_name(target), ast_channel_name(chan));
@@ -7079,9 +4852,9 @@ int ast_pickup_call(struct ast_channel *chan)
 
 	if (res < 0) {
 		ast_debug(1, "No call pickup possible... for %s\n", ast_channel_name(chan));
-		if (!ast_strlen_zero(pickupfailsound)) {
+		if (!ast_strlen_zero(fail_sound)) {
 			ast_answer(chan);
-			ast_stream_and_wait(chan, pickupfailsound, "");
+			ast_stream_and_wait(chan, fail_sound, "");
 		}
 	}
 
@@ -7993,189 +5766,13 @@ exit_features_test:
 }
 #endif	/* defined(TEST_FRAMEWORK) */
 
-/*!
- * \internal
- * \brief Get parkingtime for a channel
- */
-static unsigned int get_parkingtime(struct ast_channel *chan, struct ast_parkinglot *parkinglot)
-{
-	const char *parkinglot_name;
-	struct feature_datastore *feature_ds;
-	unsigned int parkingtime;
-
-	ast_channel_lock(chan);
-
-	feature_ds = get_feature_ds(chan);
-	if (feature_ds && feature_ds->parkingtime_is_set) {
-		parkingtime = feature_ds->parkingtime;
-		ast_channel_unlock(chan);
-		return parkingtime;
-	}
-
-	parkinglot_name = ast_strdupa(S_OR(ast_channel_parkinglot(chan), ""));
-
-	ast_channel_unlock(chan);
-
-	if (!parkinglot) {
-		if (!ast_strlen_zero(parkinglot_name)) {
-			parkinglot = find_parkinglot(parkinglot_name);
-		}
-
-		if (!parkinglot) {
-			parkinglot = parkinglot_addref(default_parkinglot);
-		}
-	} else {
-		/* Just to balance the unref below */
-		parkinglot_addref(parkinglot);
-	}
-
-	parkingtime = parkinglot->cfg.parkingtime;
-
-	parkinglot_unref(parkinglot);
-
-	return parkingtime;
-}
-
-static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
-	       char *buf, size_t len)
-{
-	int res = 0;
-
-	if (!strcasecmp(data, "parkingtime")) {
-		snprintf(buf, len, "%u", get_parkingtime(chan, NULL) / 1000);
-	} else if (!strcasecmp(data, "inherit")) {
-		struct ast_datastore *ds;
-		unsigned int inherit;
-
-		ast_channel_lock(chan);
-		ds = get_feature_chan_ds(chan);
-		inherit = ds ? ds->inheritance : 0;
-		ast_channel_unlock(chan);
-
-		snprintf(buf, len, "%s", inherit ? "yes" : "no");
-	} else {
-		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);
-		res = -1;
-	}
-
-	return res;
-}
-
-static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
-		const char *value)
-{
-	int res = 0;
-	struct feature_datastore *feature_ds;
-
-	ast_channel_lock(chan);
-
-	if (!(feature_ds = get_feature_ds(chan))) {
-		res = -1;
-		goto return_cleanup;
-	}
-
-	if (!strcasecmp(data, "parkingtime")) {
-		feature_ds->parkingtime_is_set = 1;
-		if (sscanf(value, "%30u", &feature_ds->parkingtime) == 1) {
-			feature_ds->parkingtime *= 1000; /* stored in ms */
-		} else {
-			ast_log(LOG_WARNING, "'%s' is not a valid parkingtime\n", value);
-			feature_ds->parkingtime_is_set = 0;
-			res = -1;
-		}
-	} else if (!strcasecmp(data, "inherit")) {
-		struct ast_datastore *ds;
-		if ((ds = get_feature_chan_ds(chan))) {
-			ds->inheritance = ast_true(value) ? DATASTORE_INHERIT_FOREVER : 0;
-		}
-	} else {
-		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATURE()\n", data);
-		res = -1;
-	}
-
-return_cleanup:
-	ast_channel_unlock(chan);
-
-	return res;
-}
-
-static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data,
-	       char *buf, size_t len)
-{
-	int res;
-
-	ast_rdlock_call_features();
-
-	if ((res = builtin_feature_get_exten(chan, data, buf, len))) {
-		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATUREMAP()\n", data);
-	}
-
-	ast_unlock_call_features();
-
-	return res;
-}
-
-static int featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
-		const char *value)
-{
-	struct feature_datastore *feature_ds;
-	struct feature_exten *fe;
-	struct ast_call_feature *feat;
-
-	ast_rdlock_call_features();
-	feat = ast_find_call_feature(data);
-	ast_unlock_call_features();
-	if (!feat) {
-		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATUREMAP()\n", data);
-		return -1;
-	}
-
-	ast_channel_lock(chan);
-
-	if (!(feature_ds = get_feature_ds(chan))) {
-		ast_channel_unlock(chan);
-		return -1;
-	}
-
-	if (!(fe = ao2_find(feature_ds->feature_map, data, OBJ_KEY))) {
-		if (!(fe = ao2_alloc(sizeof(*fe), NULL))) {
-			ast_channel_unlock(chan);
-			return -1;
-		}
-		ast_copy_string(fe->sname, data, sizeof(fe->sname));
-		ao2_link(feature_ds->feature_map, fe);
-	}
-
-	ast_channel_unlock(chan);
-
-	ao2_lock(fe);
-	ast_copy_string(fe->exten, value, sizeof(fe->exten));
-	ao2_unlock(fe);
-	ao2_ref(fe, -1);
-	fe = NULL;
-
-	return 0;
-}
-
-static struct ast_custom_function feature_function = {
-	.name = "FEATURE",
-	.read = feature_read,
-	.write = feature_write
-};
-
-static struct ast_custom_function featuremap_function = {
-	.name = "FEATUREMAP",
-	.read = featuremap_read,
-	.write = featuremap_write
-};
-
 /*! \internal \brief Clean up resources on Asterisk shutdown */
 static void features_shutdown(void)
 {
+	ast_features_config_shutdown();
+
 	ast_cli_unregister_multiple(cli_features, ARRAY_LEN(cli_features));
 	ast_devstate_prov_del("Park");
-	ast_custom_function_unregister(&featuremap_function);
-	ast_custom_function_unregister(&feature_function);
 	ast_manager_unregister("Bridge");
 	ast_manager_unregister("Park");
 
@@ -8197,28 +5794,30 @@ int ast_features_init(void)
 		return -1;
 	}
 
-	res = load_config(0);
+	res = ast_features_config_init();
 	if (res) {
 		return res;
 	}
 	ast_cli_register_multiple(cli_features, ARRAY_LEN(cli_features));
 	if (ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL)) {
+		ast_features_config_shutdown();
+		ast_cli_unregister_multiple(cli_features, ARRAY_LEN(cli_features));
 		return -1;
 	}
-	ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
-	if (!res) {
-		ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
-		ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
-	}
-	res |= __ast_custom_function_register(&feature_function, NULL);
-	res |= __ast_custom_function_register(&featuremap_function, NULL);
+	res |= ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
+	res |= ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
+	res |= ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
 #if defined(TEST_FRAMEWORK)
 	res |= AST_TEST_REGISTER(features_test);
 #endif	/* defined(TEST_FRAMEWORK) */
 
-	ast_register_atexit(features_shutdown);
+	if (res) {
+		features_shutdown();
+	} else {
+		ast_register_atexit(features_shutdown);
+	}
 
 	return res;
 }

@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/bridging.h"
+#include "asterisk/features_config.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -1074,7 +1075,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int caller_entertained = outgoing
 		&& ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK);
 	struct ast_party_connected_line connected_caller;
-	struct ast_str *featurecode = ast_str_alloca(FEATURE_MAX_LEN + 1);
+	struct ast_str *featurecode = ast_str_alloca(AST_FEATURE_MAX_LEN + 1);
 	int cc_recall_core_id;
 	int is_cc_recall;
 	int cc_frame_received = 0;
@@ -1701,22 +1702,31 @@ skip_frame:;
 
 static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str **featurecode)
 {
-	struct ast_flags features = { AST_FEATURE_DISCONNECT }; /* only concerned with disconnect feature */
-	struct ast_call_feature feature = { 0, };
+	char disconnect_code[AST_FEATURE_MAX_LEN];
 	int res;
 
 	ast_str_append(featurecode, 1, "%c", code);
 
-	res = ast_feature_detect(chan, &features, ast_str_buffer(*featurecode), &feature);
-
-	if (res != AST_FEATURE_RETURN_STOREDIGITS) {
+	res = ast_get_builtin_feature(chan, "disconnect", disconnect_code, sizeof(disconnect_code));
+	if (res) {
 		ast_str_reset(*featurecode);
-	}
-	if (feature.feature_mask & AST_FEATURE_DISCONNECT) {
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	if (strlen(disconnect_code) > ast_str_strlen(*featurecode)) {
+		/* Could be a partial match, anyway */
+		if (strncmp(disconnect_code, ast_str_buffer(*featurecode), ast_str_strlen(*featurecode))) {
+			ast_str_reset(*featurecode);
+		}
+		return 0;
+	}
+
+	if (strcmp(disconnect_code, ast_str_buffer(*featurecode))) {
+		ast_str_reset(*featurecode);
+		return 0;
+	}
+
+	return 1;
 }
 
 /* returns true if there is a valid privacy reply */

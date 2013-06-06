@@ -84,6 +84,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pktccops.h"
 #include "asterisk/stasis.h"
 #include "asterisk/bridging.h"
+#include "asterisk/features_config.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -2971,8 +2972,20 @@ static void *mgcp_ss(void *data)
 	int res= 0;
 	int getforward = 0;
 	int loop_pause = 100;
+	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+	const char *pickupexten;
 
 	len = strlen(p->dtmf_buf);
+
+	ast_channel_lock(chan);
+	pickup_cfg = ast_get_chan_features_pickup_config(chan);
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+		pickupexten = "";
+	} else {
+		pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+	}
+	ast_channel_unlock(chan);
 
 	while (len < AST_MAX_EXTENSION - 1) {
 		ast_debug(1, "Dtmf buffer '%s' for '%s@%s'\n", p->dtmf_buf, p->name, p->parent->name);
@@ -3065,7 +3078,7 @@ static void *mgcp_ss(void *data)
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			timeout = firstdigittimeout;
-		} else if (!strcmp(p->dtmf_buf,ast_pickup_ext())) {
+		} else if (!strcmp(p->dtmf_buf, pickupexten)) {
 			/* Scan all channels and see if any there
 			 * ringing channqels with that have call groups
 			 * that equal this channels pickup group

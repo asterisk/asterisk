@@ -102,6 +102,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
+#include "asterisk/features_config.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -10071,6 +10072,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		if (ch->state == MISDN_WAITING4DIGS) {
+			RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+			const char *pickupexten;
+
 			/*  Ok, incomplete Setup, waiting till extension exists */
 			if (ast_strlen_zero(bc->info_dad) && ! ast_strlen_zero(bc->keypad)) {
 				chan_misdn_log(1, bc->port, " --> using keypad as info\n");
@@ -10080,8 +10084,18 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			strncat(bc->dialed.number, bc->info_dad, sizeof(bc->dialed.number) - strlen(bc->dialed.number) - 1);
 			ast_channel_exten_set(ch->ast, bc->dialed.number);
 
+			ast_channel_lock(ch->ast);
+			pickup_cfg = ast_get_chan_features_pickup_config(ch->ast);
+			if (!pickup_cfg) {
+				ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+				pickupexten = "";
+			} else {
+				pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+			}
+			ast_channel_unlock(ch->ast);
+
 			/* Check for Pickup Request first */
-			if (!strcmp(ast_channel_exten(ch->ast), ast_pickup_ext())) {
+			if (!strcmp(ast_channel_exten(ch->ast), pickupexten)) {
 				if (ast_pickup_call(ch->ast)) {
 					hangup_chan(ch, bc);
 				} else {
@@ -10169,6 +10183,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int ai;
 		int im;
 		int append_msn = 0;
+		RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+		const char *pickupexten;
 
 		if (ch) {
 			switch (ch->state) {
@@ -10223,6 +10239,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			ast_log(LOG_ERROR, "cb_events: misdn_new failed!\n");
 			return RESPONSE_RELEASE_SETUP;
 		}
+
+		ast_channel_lock(chan);
+		pickup_cfg = ast_get_chan_features_pickup_config(chan);
+		if (!pickup_cfg) {
+			ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+			pickupexten = "";
+		} else {
+			pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+		}
+		ast_channel_unlock(chan);
 
 		if ((exceed = add_in_calls(bc->port))) {
 			char tmp[16];
@@ -10315,7 +10341,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		/* Check for Pickup Request first */
-		if (!strcmp(ast_channel_exten(chan), ast_pickup_ext())) {
+		if (!strcmp(ast_channel_exten(chan), pickupexten)) {
 			if (!ch->noautorespond_on_setup) {
 				/* Sending SETUP_ACK */
 				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);

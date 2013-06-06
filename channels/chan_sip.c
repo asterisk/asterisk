@@ -296,6 +296,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/bridging.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/features_config.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -17662,6 +17663,16 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
 	char *decoded_uri;
+	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, ast_get_chan_features_pickup_config(p->owner), ao2_cleanup);
+	const char *pickupexten;
+
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+		pickupexten = "";
+	} else {
+		/* Don't need to duplicate since channel is locked for the duration of this function */
+		pickupexten = pickup_cfg->pickupexten;
+	}
 
 	req = oreq;
 	if (!req) {
@@ -17772,7 +17783,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 			return SIP_GET_DEST_EXTEN_FOUND;
 		}
 		if (ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))
-			|| !strcmp(decoded_uri, ast_pickup_ext())) {
+			|| !strcmp(decoded_uri, pickupexten)) {
 			if (!oreq) {
 				ast_string_field_set(p, exten, decoded_uri);
 			}
@@ -17800,7 +17811,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	if (ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)
 		&& (ast_canmatch_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from))
 			|| ast_canmatch_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))
-			|| !strncmp(decoded_uri, ast_pickup_ext(), strlen(decoded_uri)))) {
+			|| !strncmp(decoded_uri, pickupexten, strlen(decoded_uri)))) {
 		/* Overlap dialing is enabled and we need more digits to match an extension. */
 		return SIP_GET_DEST_EXTEN_MATCHMORE;
 	}
@@ -21699,7 +21710,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		 * on phone calls.
 		 */
 
-		struct ast_call_feature *feat = NULL;
+		char feat[AST_FEATURE_MAX_LEN];
+		int feat_res = -1;
 		int j;
 		struct ast_frame f = { AST_FRAME_DTMF, };
 		int suppress_warning = 0; /* Supress warning if the feature is blank */
@@ -21711,43 +21723,40 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		}
 
 		/* first, get the feature string, if it exists */
-		ast_rdlock_call_features();
 		if (p->relatedpeer) {
 			if (!strcasecmp(c, "on")) {
 				if (ast_strlen_zero(p->relatedpeer->record_on_feature)) {
 					suppress_warning = 1;
 				} else {
-					feat = ast_find_call_feature(p->relatedpeer->record_on_feature);
+					feat_res = ast_get_feature(p->owner, p->relatedpeer->record_on_feature, feat, sizeof(feat));
 				}
 			} else if (!strcasecmp(c, "off")) {
 				if (ast_strlen_zero(p->relatedpeer->record_off_feature)) {
 					suppress_warning = 1;
 				} else {
-					feat = ast_find_call_feature(p->relatedpeer->record_off_feature);
+					feat_res = ast_get_feature(p->owner, p->relatedpeer->record_off_feature, feat, sizeof(feat));
 				}
 			} else {
 				ast_log(LOG_ERROR, "Received INFO requesting to record with invalid value: %s\n", c);
 			}
 		}
-		if (!feat || ast_strlen_zero(feat->exten)) {
+		if (feat_res || ast_strlen_zero(feat)) {
 			if (!suppress_warning) {
 				ast_log(LOG_WARNING, "Recording requested, but no One Touch Monitor registered. (See features.conf)\n");
 			}
 			/* 403 means that we don't support this feature, so don't request it again */
 			transmit_response(p, "403 Forbidden", req);
-			ast_unlock_call_features();
 			return;
 		}
 		/* Send the feature code to the PBX as DTMF, just like the handset had sent it */
 		f.len = 100;
-		for (j = 0; j < strlen(feat->exten); j++) {
-			f.subclass.integer = feat->exten[j];
+		for (j = 0; j < strlen(feat); j++) {
+			f.subclass.integer = feat[j];
 			ast_queue_frame(p->owner, &f);
 			if (sipdebug) {
 				ast_verbose("* DTMF-relay event faked: %c\n", f.subclass.integer);
 			}
 		}
-		ast_unlock_call_features();
 
 		ast_debug(1, "Got a Request to Record the channel, state %s\n", c);
 		transmit_response(p, "200 OK", req);
@@ -25650,6 +25659,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 	if (c) {	/* We have a call  -either a new call or an old one (RE-INVITE) */
 		enum ast_channel_state c_state = ast_channel_state(c);
+		RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, ast_get_chan_features_pickup_config(c), ao2_cleanup);
+		const char *pickupexten;
+
+		if (!pickup_cfg) {
+			ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+			pickupexten = "";
+		} else {
+			pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+		}
 
 		if (c_state != AST_STATE_UP && reinvite &&
 			(p->invitestate == INV_TERMINATED || p->invitestate == INV_CONFIRMED)) {
@@ -25671,7 +25689,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			transmit_provisional_response(p, "100 Trying", req, 0);
 			p->invitestate = INV_PROCEEDING;
 			ast_setstate(c, AST_STATE_RING);
-			if (strcmp(p->exten, ast_pickup_ext())) {	/* Call to extension -start pbx on this call */
+			if (strcmp(p->exten, pickupexten)) {	/* Call to extension -start pbx on this call */
 				enum ast_pbx_result result;
 
 				result = ast_pbx_start(c);

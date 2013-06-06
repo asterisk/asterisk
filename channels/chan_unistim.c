@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/astdb.h"
+#include "asterisk/features_config.h"
 
 
 #define DEFAULTCONTEXT	  "default"
@@ -3086,11 +3087,25 @@ static void handle_call_outgoing(struct unistimsession *s)
 	send_favorite_short(sub->softkey, FAV_ICON_OFFHOOK_BLACK, s);
 	s->device->selected = -1;
 	if (!sub->owner) {		      /* A call is already in progress ? */
+		RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+		const char *pickupexten;
+
 		c = unistim_new(sub, AST_STATE_DOWN, NULL);   /* No, starting a new one */
 		if (!sub->rtp) { /* Need to start RTP before calling ast_pbx_run */
 			start_rtp(sub);
 		}
-		if (c && !strcmp(s->device->phone_number, ast_pickup_ext())) {
+		if (c) {
+			ast_channel_lock(c);
+			pickup_cfg = ast_get_chan_features_pickup_config(c);
+			if (!pickup_cfg) {
+				ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+				pickupexten = "";
+			} else {
+				pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+			}
+			ast_channel_unlock(c);
+		}
+		if (c && !strcmp(s->device->phone_number, pickupexten)) {
 			if (unistimdebug) {
 				ast_verb(0, "Try to pickup in unistim_new\n");
 			}
@@ -4099,8 +4114,17 @@ static void key_main_page(struct unistimsession *pte, char keycode)
 			ast_mutex_unlock(&devicelock);
 			show_extension_page(pte);
 		} else { /* Pickup function */
+			/* XXX Is there a way to get a specific channel here? */
+			RAII_VAR(struct ast_features_pickup_config *, pickup_cfg,
+					ast_get_chan_features_pickup_config(NULL), ao2_cleanup);
+
+			if (!pickup_cfg) {
+				ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+				break;
+			}
+
 			pte->device->selected = -1;
-			ast_copy_string(pte->device->phone_number, ast_pickup_ext(),
+			ast_copy_string(pte->device->phone_number, pickup_cfg->pickupexten,
 						sizeof(pte->device->phone_number));
 			handle_call_outgoing(pte);
                 }

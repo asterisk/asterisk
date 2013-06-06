@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/pbx.h"
 #include "asterisk/parking.h"
+#include "asterisk/features_config.h"
 
 /*!
  * \brief Helper function that presents dialtone and grabs extension
@@ -59,6 +60,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len, const char *context)
 {
 	int res;
+	int digit_timeout;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+
+	ast_channel_lock(chan);
+	xfer_cfg = ast_get_chan_features_xfer_config(chan);
+	if (!xfer_cfg) {
+		ast_log(LOG_ERROR, "Unable to get transfer configuration\n");
+		ast_channel_unlock(chan);
+		return -1;
+	}
+	digit_timeout = xfer_cfg->transferdigittimeout;
+	ast_channel_unlock(chan);
 
 	/* Play the simple "transfer" prompt out and wait */
 	res = ast_stream_and_wait(chan, "pbx-transfer", AST_DIGIT_ANY);
@@ -73,8 +86,7 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	}
 
 	/* Drop to dialtone so they can enter the extension they want to transfer to */
-/* BUGBUG the timeout needs to be configurable from features.conf. */
-	res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, 3000);
+	res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, digit_timeout);
 	if (res < 0) {
 		/* Hangup or error */
 		res = -1;
@@ -265,6 +277,11 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	struct ast_bridge_features_attended_transfer *attended_transfer = hook_pvt;
 	const char *context;
 	enum atxfer_code transfer_code = ATXFER_INCOMPLETE;
+	const char *atxfer_abort;
+	const char *atxfer_threeway;
+	const char *atxfer_complete;
+	const char *fail_sound;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
 
@@ -273,6 +290,22 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	ast_channel_lock(bridge_channel->chan);
 	context = ast_strdupa(get_transfer_context(bridge_channel->chan,
 		attended_transfer ? attended_transfer->context : NULL));
+	xfer_cfg = ast_get_chan_features_xfer_config(bridge_channel->chan);
+	if (!xfer_cfg) {
+		ast_log(LOG_ERROR, "Unable to get transfer configuration options\n");
+		ast_channel_unlock(bridge_channel->chan);
+		return 0;
+	}
+	if (attended_transfer) {
+		atxfer_abort = ast_strdupa(S_OR(attended_transfer->abort, xfer_cfg->atxferabort));
+		atxfer_threeway = ast_strdupa(S_OR(attended_transfer->threeway, xfer_cfg->atxferthreeway));
+		atxfer_complete = ast_strdupa(S_OR(attended_transfer->complete, xfer_cfg->atxfercomplete));
+	} else {
+		atxfer_abort = ast_strdupa(xfer_cfg->atxferabort);
+		atxfer_threeway = ast_strdupa(xfer_cfg->atxferthreeway);
+		atxfer_complete = ast_strdupa(xfer_cfg->atxfercomplete);
+	}
+	fail_sound = ast_strdupa(xfer_cfg->xferfailsound);
 	ast_channel_unlock(bridge_channel->chan);
 
 	/* Grab the extension to transfer to */
@@ -288,36 +321,27 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	if (!peer) {
 		ast_bridge_merge_inhibit(bridge, -1);
 		ao2_ref(bridge, -1);
-/* BUGBUG beeperr needs to be configurable from features.conf */
-		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_NONE);
+		ast_stream_and_wait(bridge_channel->chan, fail_sound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		return 0;
 	}
 
-/* BUGBUG bridging API features does not support features.conf featuremap */
 /* BUGBUG bridging API features does not support the features.conf atxfer bounce between C & B channels */
 	/* Setup a DTMF menu to control the transfer. */
 	if (ast_bridge_features_init(&caller_features)
 		|| ast_bridge_hangup_hook(&caller_features,
 			attended_transfer_complete, &transfer_code, NULL, 0)
-		|| ast_bridge_dtmf_hook(&caller_features,
-			attended_transfer && !ast_strlen_zero(attended_transfer->abort)
-				? attended_transfer->abort : "*1",
+		|| ast_bridge_dtmf_hook(&caller_features, atxfer_abort,
 			attended_transfer_abort, &transfer_code, NULL, 0)
-		|| ast_bridge_dtmf_hook(&caller_features,
-			attended_transfer && !ast_strlen_zero(attended_transfer->complete)
-				? attended_transfer->complete : "*2",
+		|| ast_bridge_dtmf_hook(&caller_features, atxfer_complete,
 			attended_transfer_complete, &transfer_code, NULL, 0)
-		|| ast_bridge_dtmf_hook(&caller_features,
-			attended_transfer && !ast_strlen_zero(attended_transfer->threeway)
-				? attended_transfer->threeway : "*3",
+		|| ast_bridge_dtmf_hook(&caller_features, atxfer_threeway,
 			attended_transfer_threeway, &transfer_code, NULL, 0)) {
 		ast_bridge_features_cleanup(&caller_features);
 		ast_hangup(peer);
 		ast_bridge_merge_inhibit(bridge, -1);
 		ao2_ref(bridge, -1);
-/* BUGBUG beeperr needs to be configurable from features.conf */
-		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_NONE);
+		ast_stream_and_wait(bridge_channel->chan, fail_sound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		return 0;
 	}
@@ -330,8 +354,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 		ast_hangup(peer);
 		ast_bridge_merge_inhibit(bridge, -1);
 		ao2_ref(bridge, -1);
-/* BUGBUG beeperr needs to be configurable from features.conf */
-		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_NONE);
+		ast_stream_and_wait(bridge_channel->chan, fail_sound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		return 0;
 	}
@@ -345,8 +368,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 		ast_hangup(peer);
 		ast_bridge_merge_inhibit(bridge, -1);
 		ao2_ref(bridge, -1);
-/* BUGBUG beeperr needs to be configurable from features.conf */
-		ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_NONE);
+		ast_stream_and_wait(bridge_channel->chan, fail_sound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		return 0;
 	}
@@ -415,7 +437,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	if (xfer_failed) {
 		ast_hangup(peer);
 		if (!ast_check_hangup_locked(bridge_channel->chan)) {
-			ast_stream_and_wait(bridge_channel->chan, "beeperr", AST_DIGIT_NONE);
+			ast_stream_and_wait(bridge_channel->chan, fail_sound, AST_DIGIT_NONE);
 		}
 		ast_bridge_channel_write_unhold(bridge_channel);
 	}

@@ -43,6 +43,7 @@
 #include "asterisk/features.h"
 #include "asterisk/cel.h"
 #include "asterisk/causes.h"
+#include "asterisk/features_config.h"
 
 #include "sig_analog.h"
 
@@ -1708,15 +1709,13 @@ static int analog_get_sub_fd(struct analog_pvt *p, enum analog_sub sub)
 
 #define ANALOG_NEED_MFDETECT(p) (((p)->sig == ANALOG_SIG_FEATDMF) || ((p)->sig == ANALOG_SIG_FEATDMF_TA) || ((p)->sig == ANALOG_SIG_E911) || ((p)->sig == ANALOG_SIG_FGC_CAMA) || ((p)->sig == ANALOG_SIG_FGC_CAMAMF) || ((p)->sig == ANALOG_SIG_FEATB))
 
-static int analog_canmatch_featurecode(const char *exten)
+static int analog_canmatch_featurecode(const char *pickupexten, const char *exten)
 {
 	int extlen = strlen(exten);
-	const char *pickup_ext;
 	if (!extlen) {
 		return 1;
 	}
-	pickup_ext = ast_pickup_ext();
-	if (extlen < strlen(pickup_ext) && !strncmp(pickup_ext, exten, extlen)) {
+	if (extlen < strlen(pickupexten) && !strncmp(pickupexten, exten, extlen)) {
 		return 1;
 	}
 	/* hardcoded features are *60, *67, *69, *70, *72, *73, *78, *79, *82, *0 */
@@ -1756,6 +1755,8 @@ static void *__analog_ss_thread(void *data)
 	int res;
 	int idx;
 	struct ast_callid *callid;
+	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+	const char *pickupexten;
 
 	analog_increase_ss_count();
 
@@ -1786,6 +1787,17 @@ static void *__analog_ss_thread(void *data)
 		ast_hangup(chan);
 		goto quit;
 	}
+
+	ast_channel_lock(chan);
+	pickup_cfg = ast_get_chan_features_pickup_config(chan);
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+		pickupexten = "";
+	} else {
+		pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+	}
+	ast_channel_unlock(chan);
+
 	analog_dsp_reset_and_flush_digits(p);
 	switch (p->sig) {
 	case ANALOG_SIG_FEATD:
@@ -2190,7 +2202,7 @@ static void *__analog_ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = analog_firstdigittimeout;
 
-			} else if (!strcmp(exten,ast_pickup_ext())) {
+			} else if (!strcmp(exten, pickupexten)) {
 				/* Scan all channels and see if there are any
 				 * ringing channels that have call groups
 				 * that equal this channels pickup group
@@ -2334,7 +2346,7 @@ static void *__analog_ss_thread(void *data)
 				}
 			} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), exten, 1,
 				ast_channel_caller(chan)->id.number.valid ? ast_channel_caller(chan)->id.number.str : NULL)
-				&& !analog_canmatch_featurecode(exten)) {
+				&& !analog_canmatch_featurecode(pickupexten, exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
 					ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str
 						? ast_channel_caller(chan)->id.number.str : "<Unknown Caller>",

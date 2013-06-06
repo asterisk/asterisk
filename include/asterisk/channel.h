@@ -927,6 +927,9 @@ enum {
 	AST_FEATURE_AUTOMIXMON =   (1 << 6),
 };
 
+#define AST_FEATURE_DTMF_MASK (AST_FEATURE_REDIRECT | AST_FEATURE_DISCONNECT |\
+	AST_FEATURE_ATXFER | AST_FEATURE_AUTOMON | AST_FEATURE_PARKCALL | AST_FEATURE_AUTOMIXMON)
+
 /*! \brief bridge configuration */
 struct ast_bridge_config {
 	struct ast_flags features_caller;

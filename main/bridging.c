@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/parking.h"
 #include "asterisk/core_local.h"
+#include "asterisk/features_config.h"
 
 /*! All bridges container. */
 static struct ao2_container *bridges;
@@ -1914,6 +1915,18 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 	struct ast_bridge_hook *hook = NULL;
 	char dtmf[MAXIMUM_DTMF_FEATURE_STRING] = "";
 	size_t dtmf_len = 0;
+	unsigned int digit_timeout;
+	RAII_VAR(struct ast_features_general_config *, gen_cfg, NULL, ao2_cleanup);
+
+	ast_channel_lock(bridge_channel->chan);
+	gen_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	if (!gen_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve features configuration.\n");
+		ast_channel_unlock(bridge_channel->chan);
+		return;
+	}
+	digit_timeout = gen_cfg->featuredigittimeout;
+	ast_channel_unlock(bridge_channel->chan);
 
 	/* The channel is now under our control and we don't really want any begin frames to do our DTMF matching so disable 'em at the core level */
 	ast_set_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_END_DTMF_ONLY);
@@ -1923,7 +1936,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 		int res;
 
 		/* If the above timed out simply exit */
-		res = ast_waitfordigit(bridge_channel->chan, 3000);
+		res = ast_waitfordigit(bridge_channel->chan, digit_timeout);
 		if (!res) {
 			ast_debug(1, "DTMF feature string collection on %p(%s) timed out\n",
 				bridge_channel, ast_channel_name(bridge_channel->chan));

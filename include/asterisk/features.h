@@ -62,20 +62,6 @@ enum {
 	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
 };
 
-struct ast_call_feature {
-	int feature_mask;
-	char *fname;
-	char sname[FEATURE_SNAME_LEN];
-	char exten[FEATURE_MAX_LEN];
-	char default_exten[FEATURE_MAX_LEN];
-	ast_feature_operation operation;
-	unsigned int flags;
-	char app[FEATURE_APP_LEN];		
-	char app_args[FEATURE_APP_ARGS_LEN];
-	char moh_class[FEATURE_MOH_LEN];
-	AST_LIST_ENTRY(ast_call_feature) feature_entry;
-};
-
 /*!
  * \brief Park a call and read back parked location
  *
@@ -166,9 +152,6 @@ int ast_masq_park_call_exten(struct ast_channel *park_me, struct ast_channel *pa
 */
 int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const char *context);
 
-/*! \brief Determine system call pickup extension */
-const char *ast_pickup_ext(void);
-
 /*!
  * \brief Simulate a DTMF end on a broken bridge channel.
  *
@@ -220,39 +203,6 @@ int ast_pickup_call(struct ast_channel *chan);
  * \retval -1 on failure.
  */
 int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target);
-
-/*! 
- * \brief register new feature into feature_set 
- * \param feature an ast_call_feature object which contains a keysequence
- * and a callback function which is called when this keysequence is pressed
- * during a call. 
-*/
-void ast_register_feature(struct ast_call_feature *feature);
-
-/*! 
- * \brief unregister feature from feature_set
- * \param feature the ast_call_feature object which was registered before
-*/
-void ast_unregister_feature(struct ast_call_feature *feature);
-
-/*! 
- * \brief detect a feature before bridging 
- * \param chan
- * \param features an ast_flags ptr
- * \param code ptr of input code
- * \param feature
- * \retval ast_call_feature ptr to be set if found 
-*/
-int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature);
-
-/*! 
- * \brief look for a call feature entry by its sname
- * \param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. 
-*/
-struct ast_call_feature *ast_find_call_feature(const char *name);
-
-void ast_rdlock_call_features(void);
-void ast_unlock_call_features(void);
 
 /*! \brief Reload call features from features.conf */
 int ast_features_reload(void);

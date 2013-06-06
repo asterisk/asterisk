@@ -38,6 +38,7 @@
 #include "asterisk/http_websocket.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/features_config.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -762,8 +763,8 @@ struct sip_settings {
 	struct sip_proxy outboundproxy; /*!< Outbound proxy */
 	char default_context[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
-	char default_record_on_feature[FEATURE_MAX_LEN];
-	char default_record_off_feature[FEATURE_MAX_LEN];
+	char default_record_on_feature[AST_FEATURE_MAX_LEN];
+	char default_record_off_feature[AST_FEATURE_MAX_LEN];
 	struct ast_acl_list *contact_acl;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 	struct ast_format_cap *caps; /*!< Supported codecs */
 	int tcp_enabled;
