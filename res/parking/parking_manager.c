@@ -68,12 +68,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel is parked.</synopsis>
 			<syntax>
-				<parameter name="ChannelParkee">
+				<parameter name="ParkeeChannel">
 				</parameter>
-				<parameter name="ChannelStateParkee">
+				<parameter name="ParkeeChannelState">
 					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
 				</parameter>
-				<parameter name="ChannelStateDescParkee">
+				<parameter name="ParkeeChannelStateDesc">
 					<enumlist>
 						<enum name="Down"/>
 						<enum name="Rsrvd"/>
@@ -88,30 +88,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="Unknown"/>
 					</enumlist>
 				</parameter>
-				<parameter name="CallerIDNumParkee">
+				<parameter name="ParkeeCallerIDNum">
 				</parameter>
-				<parameter name="CallerIDNameParkee">
+				<parameter name="ParkeeCallerIDName">
 				</parameter>
-				<parameter name="ConnectedLineNumParkee">
+				<parameter name="ParkeeConnectedLineNum">
 				</parameter>
-				<parameter name="ConnectedLineNameParkee">
+				<parameter name="ParkeeConnectedLineName">
 				</parameter>
-				<parameter name="AccountCodeParkee">
+				<parameter name="ParkeeAccountCode">
 				</parameter>
-				<parameter name="ContextParkee">
+				<parameter name="ParkeeContext">
 				</parameter>
-				<parameter name="ExtenParkee">
+				<parameter name="ParkeeExten">
 				</parameter>
-				<parameter name="PriorityParkee">
+				<parameter name="ParkeePriority">
 				</parameter>
-				<parameter name="UniqueidParkee">
+				<parameter name="ParkeeUniqueid">
 				</parameter>
-				<parameter name="ChannelParker">
+				<parameter name="ParkerChannel">
 				</parameter>
-				<parameter name="ChannelStateParker">
+				<parameter name="ParkerChannelState">
 				<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
 				</parameter>
-				<parameter name="ChannelStateDescParker">
+				<parameter name="ParkerChannelStateDesc">
 					<enumlist>
 						<enum name="Down"/>
 						<enum name="Rsrvd"/>
@@ -126,23 +126,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="Unknown"/>
 					</enumlist>
 				</parameter>
-				<parameter name="CallerIDNumParker">
+				<parameter name="ParkerCallerIDNum">
 				</parameter>
-				<parameter name="CallerIDNameParker">
+				<parameter name="ParkerCallerIDName">
 				</parameter>
-				<parameter name="ConnectedLineNumParker">
+				<parameter name="ParkerConnectedLineNum">
 				</parameter>
-				<parameter name="ConnectedLineNameParker">
+				<parameter name="ParkerConnectedLineName">
 				</parameter>
-				<parameter name="AccountCodeParker">
+				<parameter name="ParkerAccountCode">
 				</parameter>
-				<parameter name="ContextParker">
+				<parameter name="ParkerContext">
 				</parameter>
-				<parameter name="ExtenParker">
+				<parameter name="ParkerExten">
 				</parameter>
-				<parameter name="PriorityParker">
+				<parameter name="ParkerPriority">
 				</parameter>
-				<parameter name="UniqueidParker">
+				<parameter name="ParkerUniqueid">
 				</parameter>
 				<parameter name="Parkinglot">
 					<para>Name of the parking lot that the parkee is parked in</para>
@@ -180,12 +180,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a channel leaves a parking lot because it was retrieved from the parking lot and reconnected.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter)" />
-				<parameter name="ChannelRetriever">
+				<parameter name="RetrieverChannel">
 				</parameter>
-				<parameter name="ChannelStateRetriever">
+				<parameter name="RetrieverChannelState">
 					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
 				</parameter>
-				<parameter name="ChannelStateDescRetriever">
+				<parameter name="RetrieverChannelStateDesc">
 					<enumlist>
 						<enum name="Down"/>
 						<enum name="Rsrvd"/>
@@ -200,23 +200,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="Unknown"/>
 					</enumlist>
 				</parameter>
-				<parameter name="CallerIDNumRetriever">
+				<parameter name="RetrieverCallerIDNum">
 				</parameter>
-				<parameter name="CallerIDNameRetriever">
+				<parameter name="RetrieverCallerIDName">
 				</parameter>
-				<parameter name="ConnectedLineNumRetriever">
+				<parameter name="RetrieverConnectedLineNum">
 				</parameter>
-				<parameter name="ConnectedLineNameRetriever">
+				<parameter name="RetrieverConnectedLineName">
 				</parameter>
-				<parameter name="AccountCodeRetriever">
+				<parameter name="RetrieverAccountCode">
 				</parameter>
-				<parameter name="ContextRetriever">
+				<parameter name="RetrieverContext">
 				</parameter>
-				<parameter name="ExtenRetriever">
+				<parameter name="RetrieverExten">
 				</parameter>
-				<parameter name="PriorityRetriever">
+				<parameter name="RetrieverPriority">
 				</parameter>
-				<parameter name="UniqueidRetriever">
+				<parameter name="RetrieverUniqueid">
 				</parameter>
 			</syntax>
 		</managerEventInstance>
