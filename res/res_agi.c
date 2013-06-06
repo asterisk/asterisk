@@ -985,10 +985,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AGIExecStart']/managerEventInstance/syntax/parameter)" />
 				<parameter name="ResultCode">
 					<para>The numeric result code from AGI</para>
-				</parameter
+				</parameter>
 				<parameter name="Result">
 					<para>The text result reason from AGI</para>
-				</parameter
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
