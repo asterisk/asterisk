@@ -418,10 +418,11 @@ static struct features_global_config *global_config_alloc(void)
 	return cfg;
 }
 
-static struct ao2_container *applicationmap_alloc(void)
+static struct ao2_container *applicationmap_alloc(int reject_duplicates)
 {
 	return ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
-			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, applicationmap_sort, NULL);
+			reject_duplicates ? AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT : AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW,
+			applicationmap_sort, NULL);
 }
 
 /*!
@@ -457,7 +458,7 @@ static struct features_config *__features_config_alloc(int allocate_applicationm
 	}
 
 	if (allocate_applicationmap) {
-		cfg->applicationmap = applicationmap_alloc();
+		cfg->applicationmap = applicationmap_alloc(1);
 		if (!cfg->applicationmap) {
 			return NULL;
 		}
@@ -999,7 +1000,7 @@ struct ao2_container *ast_get_chan_applicationmap(struct ast_channel *chan)
 		return NULL;
 	}
 
-	applicationmap = applicationmap_alloc();
+	applicationmap = applicationmap_alloc(0);
 	if (!applicationmap) {
 		return NULL;
 	}
