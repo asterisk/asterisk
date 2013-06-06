@@ -4307,7 +4307,7 @@ static int add_dynamic_dtmf_hook(struct ast_bridge_features *features, unsigned 
 	}
 
 	return ast_bridge_dtmf_hook(features, dtmf, app_dtmf_feature_hook,
-		app_data, ast_free_ptr, 1);
+		app_data, ast_free_ptr, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 }
 
 /*!
