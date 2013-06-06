@@ -2020,7 +2020,10 @@ static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_chan
 static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
-	ast_channel_move(chan_target, chan_bridged);
+
+	if (ast_channel_move(chan_target, chan_bridged)) {
+		ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
+	}
 }
 
 static void after_bridge_move_channel_fail(enum ast_after_bridge_cb_reason reason, void *data)
@@ -2028,7 +2031,8 @@ static void after_bridge_move_channel_fail(enum ast_after_bridge_cb_reason reaso
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
 
 	ast_log(LOG_WARNING, "Unable to complete transfer: %s\n",
-			ast_after_bridge_cb_reason_string(reason));
+		ast_after_bridge_cb_reason_string(reason));
+	ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
 }
 
 static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_channel,
@@ -2040,21 +2044,22 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 	chan_target = ast_channel_get_by_name(target_chan_name);
 	if (!chan_target) {
 		/* Dang, it disappeared somehow */
+		bridge_handle_hangup(bridge_channel);
 		return;
 	}
 
-	{
-		SCOPED_CHANNELLOCK(lock, bridge_channel);
-		chan_bridged = bridge_channel->chan;
-		if (!chan_bridged) {
-			return;
-		}
-		ao2_ref(chan_bridged, +1);
-	}
+	ast_bridge_channel_lock(bridge_channel);
+	chan_bridged = bridge_channel->chan;
+	ast_assert(chan_bridged != NULL);
+	ao2_ref(chan_bridged, +1);
+	ast_bridge_channel_unlock(bridge_channel);
 
 	if (ast_after_bridge_callback_set(chan_bridged, after_bridge_move_channel,
-			after_bridge_move_channel_fail, ast_channel_ref(chan_target))) {
-		return;
+		after_bridge_move_channel_fail, ast_channel_ref(chan_target))) {
+		ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
+
+		/* Release the ref we tried to pass to ast_after_bridge_callback_set(). */
+		ast_channel_unref(chan_target);
 	}
 	bridge_handle_hangup(bridge_channel);
 }
@@ -5363,11 +5368,11 @@ static int bridge_channel_queue_attended_transfer(struct ast_channel *transferee
 	}
 
 	ast_copy_string(unbridged_chan_name, ast_channel_name(unbridged_chan),
-			sizeof(unbridged_chan_name));
+		sizeof(unbridged_chan_name));
 
 	ast_bridge_channel_queue_action_data(transferee_bridge_channel,
-			AST_BRIDGE_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
-			sizeof(unbridged_chan_name));
+		AST_BRIDGE_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
+		sizeof(unbridged_chan_name));
 
 	return 0;
 }
@@ -5502,6 +5507,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 
 	{
 		SCOPED_LOCK(lock, bridge, ast_bridge_lock, ast_bridge_unlock);
+
 		channels = ast_bridge_peers_nolock(bridge);
 		if (!channels) {
 			return AST_BRIDGE_TRANSFER_FAIL;
@@ -5564,11 +5570,17 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 	struct ast_bridge_channel *bridged_to_source;
 
 	bridged_to_source = ast_bridge_channel_peer(source_bridge_channel);
-	if (bridged_to_source && bridged_to_source->state == AST_BRIDGE_CHANNEL_STATE_WAIT
-			&& !ast_test_flag(&bridged_to_source->features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE)) {
+	if (bridged_to_source
+		&& bridged_to_source->state == AST_BRIDGE_CHANNEL_STATE_WAIT
+		&& !ast_test_flag(&bridged_to_source->features->feature_flags,
+			AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE)) {
 		bridged_to_source->swap = swap_channel;
-		return bridge_move_do(dest_bridge, bridged_to_source, 1) ?
-			AST_BRIDGE_TRANSFER_FAIL : AST_BRIDGE_TRANSFER_SUCCESS;
+		if (bridge_move_do(dest_bridge, bridged_to_source, 1)) {
+			return AST_BRIDGE_TRANSFER_FAIL;
+		}
+		/* Must kick the source channel out of its bridge. */
+		ast_bridge_change_state(source_bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		return AST_BRIDGE_TRANSFER_SUCCESS;
 	} else {
 		return AST_BRIDGE_TRANSFER_INVALID;
 	}
