@@ -5386,30 +5386,22 @@ enum try_parking_result {
 static enum try_parking_result try_parking(struct ast_bridge *bridge, struct ast_channel *transferer,
 		const char *exten, const char *context)
 {
-	/* BUGBUG The following is all commented out because the functionality is not
-	 * present yet. The functions referenced here are available at team/jrose/bridge_projects.
-	 * Once the code there has been merged into team/group/bridge_construction,
-	 * this can be uncommented and tested
-	 */
-
-#if 0
 	RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
 	struct ast_exten *parking_exten;
 
 	ast_channel_lock(transferer);
-	transfer_bridge_channel = ast_channel_get_bridge_channel(transferer);
+	transferer_bridge_channel = ast_channel_get_bridge_channel(transferer);
 	ast_channel_unlock(transferer);
 
-	if (!transfer_bridge_channel) {
+	if (!transferer_bridge_channel) {
 		return PARKING_FAILURE;
 	}
 
 	parking_exten = ast_get_parking_exten(exten, NULL, context);
 	if (parking_exten) {
-		return ast_park_blind_xfer(bridge, transferer, parking_exten) == 0 ?
+		return ast_park_blind_xfer(bridge, transferer_bridge_channel, parking_exten) == 0 ?
 			PARKING_SUCCESS : PARKING_FAILURE;
 	}
-#endif
 
 	return PARKING_NOT_APPLICABLE;
 }
