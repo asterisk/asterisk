@@ -66,6 +66,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/srv.h"
 #include "asterisk/test.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_message_router.h"
 
 #define AST_API_MODULE
 #include "asterisk/agi.h"
@@ -928,6 +930,68 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Add an AGI command to the execute queue of the channel in Async AGI.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="AsyncAGIStart">
+		<managerEventInstance class="EVENT_FLAG_AGI">
+			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Env">
+					<para>URL encoded string read from the AsyncAGI server.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AsyncAGIEnd">
+		<managerEventInstance class="EVENT_FLAG_AGI">
+			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AsyncAGIExec">
+		<managerEventInstance class="EVENT_FLAG_AGI">
+			<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="CommandID" required="false">
+					<para>Optional command ID sent by the AsyncAGI server to identify the command.</para>
+				</parameter>
+				<parameter name="Result">
+					<para>URL encoded result string from the executed AGI command.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AGIExecStart">
+		<managerEventInstance class="EVENT_FLAG_AGI">
+			<synopsis>Raised when a received AGI command starts processing.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Command">
+					<para>The AGI command as received from the external source.</para>
+				</parameter>
+				<parameter name="CommandId">
+					<para>Random identification number assigned to the execution of this command.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AGIExecEnd">
+		<managerEventInstance class="EVENT_FLAG_AGI">
+			<synopsis>Raised when a received AGI command completes processing.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AGIExecStart']/managerEventInstance/syntax/parameter)" />
+				<parameter name="ResultCode">
+					<para>The numeric result code from AGI</para>
+				</parameter
+				<parameter name="Result">
+					<para>The text result reason from AGI</para>
+				</parameter
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #define MAX_ARGS 128
@@ -962,6 +1026,44 @@ enum agi_result {
 	AGI_RESULT_NOTFOUND,
 	AGI_RESULT_HANGUP,
 };
+
+struct stasis_message_type *agi_exec_start_type(void);
+struct stasis_message_type *agi_exec_end_type(void);
+struct stasis_message_type *agi_async_start_type(void);
+struct stasis_message_type *agi_async_exec_type(void);
+struct stasis_message_type *agi_async_end_type(void);
+
+STASIS_MESSAGE_TYPE_DEFN(agi_exec_start_type);
+STASIS_MESSAGE_TYPE_DEFN(agi_exec_end_type);
+STASIS_MESSAGE_TYPE_DEFN(agi_async_start_type);
+STASIS_MESSAGE_TYPE_DEFN(agi_async_exec_type);
+STASIS_MESSAGE_TYPE_DEFN(agi_async_end_type);
+
+static void agi_channel_manager_event(void *data,
+	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	const char *type = data;
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	event_string = ast_manager_str_from_json_object(obj->blob, NULL);
+	if (!event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_AGI, type,
+		"%s"
+		"%s",
+		ast_str_buffer(channel_event_string),
+		ast_str_buffer(event_string));
+}
 
 static agi_command *find_command(const char * const cmds[], int exact);
 
@@ -1300,6 +1402,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	char ami_buffer[AMI_BUF_SIZE];
 	enum agi_result returnstatus = AGI_RESULT_SUCCESS;
 	AGI async_agi;
+	RAII_VAR(struct ast_json *, startblob, NULL, ast_json_unref);
 
 	if (efd) {
 		ast_log(LOG_WARNING, "Async AGI does not support Enhanced AGI yet\n");
@@ -1349,32 +1452,9 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
-			<syntax>
-				<parameter name="SubEvent">
-					<para>A sub event type, specifying the channel AsyncAGI processing status.</para>
-					<enumlist>
-						<enum name="Start"/>
-						<enum name="Exec"/>
-						<enum name="End"/>
-					</enumlist>
-				</parameter>
-				<parameter name="Env">
-					<para>URL encoded string read from the AsyncAGI server.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
-		"SubEvent: Start\r\n"
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Env: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		ami_buffer);
+	startblob = ast_json_pack("{s: s}", "Env", ami_buffer);
+	ast_channel_publish_blob(chan, agi_async_start_type(), startblob);
+
 	hungup = ast_check_hangup(chan);
 	for (;;) {
 		/*
@@ -1382,6 +1462,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		 * the manager or the cli threads.
 		 */
 		while (!hungup) {
+			RAII_VAR(struct ast_json *, execblob, NULL, ast_json_unref);
 			res = get_agi_cmd(chan, &cmd);
 
 			if (res) {
@@ -1413,40 +1494,13 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			 */
 			agi_buffer[res] = '\0';
 			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
-			if (ast_strlen_zero(cmd->cmd_id)) {
-				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
-					"SubEvent: Exec\r\n"
-					"Channel: %s\r\n"
-					"Uniqueid: %s\r\n"
-					"Result: %s\r\n",
-					ast_channel_name(chan),
-					ast_channel_uniqueid(chan),
-					ami_buffer);
-			} else {
-				/*** DOCUMENTATION
-					<managerEventInstance>
-						<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
-						<syntax>
-							<parameter name="CommandID" required="false">
-								<para>Optional command ID sent by the AsyncAGI server to identify the command.</para>
-							</parameter>
-							<parameter name="Result">
-								<para>URL encoded result string from the executed AGI command.</para>
-							</parameter>
-						</syntax>
-					</managerEventInstance>
-				***/
-				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
-					"SubEvent: Exec\r\n"
-					"Channel: %s\r\n"
-					"Uniqueid: %s\r\n"
-					"CommandID: %s\r\n"
-					"Result: %s\r\n",
-					ast_channel_name(chan),
-					ast_channel_uniqueid(chan),
-					cmd->cmd_id,
-					ami_buffer);
+
+			execblob = ast_json_pack("{s: s}", "Result", ami_buffer);
+			if (execblob && !ast_strlen_zero(cmd->cmd_id)) {
+				ast_json_object_set(execblob, "CommandId", ast_json_string_create(cmd->cmd_id));
 			}
+			ast_channel_publish_blob(chan, agi_async_exec_type(), execblob);
+
 			free_agi_cmd(cmd);
 
 			/*
@@ -1505,17 +1559,7 @@ async_agi_done:
 		ast_speech_destroy(async_agi.speech);
 	}
 	/* notify manager users this channel cannot be controlled anymore by Async AGI */
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
-		"SubEvent: End\r\n"
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan));
+	ast_channel_publish_blob(chan, agi_async_end_type(), NULL);
 
 async_agi_abort:
 	/* close the pipe */
@@ -3546,47 +3590,34 @@ normal:
 	return 0;
 }
 
+static void publish_async_exec_end(struct ast_channel *chan, int command_id, const char *command, int result_code, const char *result)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	blob = ast_json_pack("{s: i, s: s, s: i, s: s}",
+			     "CommandId", command_id,
+			     "Command", command,
+			     "ResultCode", result_code,
+			     "Result", result);
+	ast_channel_publish_blob(chan, agi_exec_end_type(), blob);
+}
+
 static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int dead)
 {
 	const char *argv[MAX_ARGS];
 	int argc = MAX_ARGS;
 	int res;
 	agi_command *c;
-	const char *ami_res;
 	char *ami_cmd = ast_strdupa(buf);
+	const char *ami_res;
 	int command_id = ast_random();
-	int resultcode;
+	int resultcode = 0;
+	RAII_VAR(struct ast_json *, startblob, NULL, ast_json_unref);
 
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a received AGI command starts processing.</synopsis>
-			<syntax>
-				<parameter name="SubEvent">
-					<para>A sub event type, specifying whether the AGI command has begun or ended.</para>
-					<enumlist>
-						<enum name="Start"/>
-						<enum name="End"/>
-					</enumlist>
-				</parameter>
-				<parameter name="CommandId">
-					<para>Random identification number assigned to the execution of this command.</para>
-				</parameter>
-				<parameter name="Command">
-					<para>The AGI command as received from the external source.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGI, "AGIExec",
-		"SubEvent: Start\r\n"
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"CommandId: %d\r\n"
-		"Command: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		command_id,
-		ami_cmd);
+	startblob = ast_json_pack("{s: i, s: s}",
+			     "CommandId", command_id,
+			     "Command", ami_cmd);
+	ast_channel_publish_blob(chan, agi_exec_start_type(), startblob);
+
 	parse_args(buf, &argc, argv);
 	c = find_command(argv, 0);
 	if (c && (!dead || (dead && c->dead))) {
@@ -3606,42 +3637,9 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 		case RESULT_SHOWUSAGE:
 			ami_res = "Usage";
 			resultcode = 520;
-			break;
-		case RESULT_FAILURE:
-			ami_res = "Failure";
-			resultcode = -1;
-			break;
-		case ASYNC_AGI_BREAK:
-		case RESULT_SUCCESS:
-			ami_res = "Success";
-			resultcode = 200;
-			break;
-		default:
-			ami_res = "Unknown Result";
-			resultcode = 200;
-			break;
-		}
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a received AGI command completes processing.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGI, "AGIExec",
-			"SubEvent: End\r\n"
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"CommandId: %d\r\n"
-			"Command: %s\r\n"
-			"ResultCode: %d\r\n"
-			"Result: %s\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			command_id,
-			ami_cmd,
-			resultcode,
-			ami_res);
-		switch (res) {
-		case RESULT_SHOWUSAGE:
+
+			publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
 			if (ast_strlen_zero(c->usage)) {
 				ast_agi_send(agi->fd, chan, "520 Invalid command syntax.  Proper usage not available.\n");
 			} else {
@@ -3649,44 +3647,54 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 				ast_agi_send(agi->fd, chan, "%s", c->usage);
 				ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
 			}
+
 			break;
-		case ASYNC_AGI_BREAK:
-			return AGI_RESULT_SUCCESS_ASYNC;
 		case RESULT_FAILURE:
+			ami_res = "Failure";
+			resultcode = -1;
+
+			publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
 			/* The RESULT_FAILURE code is usually because the channel hungup. */
 			return AGI_RESULT_FAILURE;
+		case ASYNC_AGI_BREAK:
+			ami_res = "Success";
+			resultcode = 200;
+
+			publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
+			return AGI_RESULT_SUCCESS_ASYNC;
+		case RESULT_SUCCESS:
+			ami_res = "Success";
+			resultcode = 200;
+
+			publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
+			break;
 		default:
+			ami_res = "Unknown Result";
+			resultcode = 200;
+
+			publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
 			break;
 		}
 	} else if (c) {
-		ast_agi_send(agi->fd, chan, "511 Command Not Permitted on a dead channel\n");
-		manager_event(EVENT_FLAG_AGI, "AGIExec",
-			"SubEvent: End\r\n"
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"CommandId: %d\r\n"
-			"Command: %s\r\n"
-			"ResultCode: 511\r\n"
-			"Result: Command not permitted on a dead channel\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			command_id,
-			ami_cmd);
+		ami_res = "Command Not Permitted on a dead channel";
+		resultcode = 511;
+
+		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
+
+		publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
 	} else {
-		ast_agi_send(agi->fd, chan, "510 Invalid or unknown command\n");
-		manager_event(EVENT_FLAG_AGI, "AGIExec",
-			"SubEvent: End\r\n"
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"CommandId: %d\r\n"
-			"Command: %s\r\n"
-			"ResultCode: 510\r\n"
-			"Result: Invalid or unknown command\r\n",
-			ast_channel_name(chan),
-			ast_channel_uniqueid(chan),
-			command_id,
-			ami_cmd);
+		ami_res = "Invalid or unknown command";
+		resultcode = 510;
+
+		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
+
+		publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
 	}
+
 	return AGI_RESULT_SUCCESS;
 }
 static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead, int argc, char *argv[])
@@ -4228,6 +4236,23 @@ AST_TEST_DEFINE(test_agi_null_docs)
 
 static int unload_module(void)
 {
+	struct stasis_message_router *message_router;
+
+	message_router = ast_manager_get_message_router();
+	if (message_router) {
+		stasis_message_router_remove(message_router, agi_exec_start_type());
+		stasis_message_router_remove(message_router, agi_exec_end_type());
+		stasis_message_router_remove(message_router, agi_async_start_type());
+		stasis_message_router_remove(message_router, agi_async_exec_type());
+		stasis_message_router_remove(message_router, agi_async_end_type());
+	}
+
+	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_start_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_exec_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_end_type);
+
 	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	/* we can safely ignore the result of ast_agi_unregister_multiple() here, since it cannot fail, as
 	   we know that these commands were registered by this module and are still registered
@@ -4242,6 +4267,44 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct stasis_message_router *message_router;
+
+	message_router = ast_manager_get_message_router();
+	if (!message_router) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	STASIS_MESSAGE_TYPE_INIT(agi_exec_start_type);
+	STASIS_MESSAGE_TYPE_INIT(agi_exec_end_type);
+	STASIS_MESSAGE_TYPE_INIT(agi_async_start_type);
+	STASIS_MESSAGE_TYPE_INIT(agi_async_exec_type);
+	STASIS_MESSAGE_TYPE_INIT(agi_async_end_type);
+
+	stasis_message_router_add(message_router,
+				  agi_exec_start_type(),
+				  agi_channel_manager_event,
+				  "AGIExecStart");
+
+	stasis_message_router_add(message_router,
+				  agi_exec_end_type(),
+				  agi_channel_manager_event,
+				  "AGIExecEnd");
+
+	stasis_message_router_add(message_router,
+				  agi_async_start_type(),
+				  agi_channel_manager_event,
+				  "AsyncAGIStart");
+
+	stasis_message_router_add(message_router,
+				  agi_async_exec_type(),
+				  agi_channel_manager_event,
+				  "AsyncAGIExec");
+
+	stasis_message_router_add(message_router,
+				  agi_async_end_type(),
+				  agi_channel_manager_event,
+				  "AsyncAGIEnd");
+
 	ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	/* we can safely ignore the result of ast_agi_register_multiple() here, since it cannot fail, as
 	   no other commands have been registered yet

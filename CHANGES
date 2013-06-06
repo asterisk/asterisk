@@ -106,6 +106,13 @@ AMI (Asterisk Manager Interface)
    core, and is now two events: Hold and Unhold.  The status field has been
    removed.
 
+AGI (Asterisk Gateway Interface)
+------------------
+ * The manager event AGIExec has been split into AGIExecStart and AGIExecEnd.
+
+ * The manager event AsyncAGI has been split into AsyncAGIStart, AsyncAGIExec,
+   and AsyncAGIEnd.
+
 Channel Drivers
 ------------------
  * When a channel driver is configured to enable jiterbuffers, they are now
