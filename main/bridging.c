@@ -588,6 +588,9 @@ static int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 		bridge_channel_pull(swap);
 	}
 
+	/* Clear any BLINDTRANSFER since the transfer has completed. */
+	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", NULL);
+
 	bridge->reconfigured = 1;
 	ast_bridge_publish_enter(bridge, bridge_channel->chan);
 	return 0;
@@ -920,6 +923,68 @@ void ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel
 {
 	payload_helper_playfile(ast_bridge_channel_queue_action_data,
 		bridge_channel, custom_play, playfile, moh_class);
+}
+
+struct bridge_custom_callback {
+	/*! Call this function on the bridge channel thread. */
+	ast_bridge_custom_callback_fn callback;
+	/*! Size of the payload if it exists.  A number otherwise. */
+	size_t payload_size;
+	/*! Nonzero if the payload exists. */
+	char payload_exists;
+	/*! Payload to give to callback. */
+	char payload[0];
+};
+
+/*!
+ * \internal
+ * \brief Handle the do custom callback bridge action.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to run the application on.
+ * \param data Action frame data to run the application.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel, struct bridge_custom_callback *data)
+{
+	data->callback(bridge_channel, data->payload_exists ? data->payload : NULL, data->payload_size);
+}
+
+static void payload_helper_cb(ast_bridge_channel_post_action_data post_it,
+	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+{
+	struct bridge_custom_callback *cb_data;
+	size_t len_data = sizeof(*cb_data) + (payload ? payload_size : 0);
+
+	/* Sanity check. */
+	if (!callback) {
+		ast_assert(0);
+		return;
+	}
+
+	/* Fill in custom callback frame data. */
+	cb_data = alloca(len_data);
+	cb_data->callback = callback;
+	cb_data->payload_size = payload_size;
+	cb_data->payload_exists = payload && payload_size;
+	if (cb_data->payload_exists) {
+		memcpy(cb_data->payload, payload, payload_size);/* Safe */
+	}
+
+	post_it(bridge_channel, AST_BRIDGE_ACTION_CALLBACK, cb_data, len_data);
+}
+
+void ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+{
+	payload_helper_cb(ast_bridge_channel_write_action_data,
+		bridge_channel, callback, payload, payload_size);
+}
+
+void ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+{
+	payload_helper_cb(ast_bridge_channel_queue_action_data,
+		bridge_channel, callback, payload, payload_size);
 }
 
 struct bridge_park {
@@ -1715,6 +1780,253 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 
 /*!
  * \internal
+ * \brief Bridge channel to check if a BRIDGE_PLAY_SOUND needs to be played.
+ * \since 12.0.0
+ *
+ * \param bridge_channel What to check.
+ *
+ * \return Nothing
+ */
+static void check_bridge_play_sound(struct ast_bridge_channel *bridge_channel)
+{
+	const char *play_file;
+
+	ast_channel_lock(bridge_channel->chan);
+	play_file = pbx_builtin_getvar_helper(bridge_channel->chan, "BRIDGE_PLAY_SOUND");
+	if (!ast_strlen_zero(play_file)) {
+		play_file = ast_strdupa(play_file);
+		pbx_builtin_setvar_helper(bridge_channel->chan, "BRIDGE_PLAY_SOUND", NULL);
+	} else {
+		play_file = NULL;
+	}
+	ast_channel_unlock(bridge_channel->chan);
+
+	if (play_file) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, play_file, NULL);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Check for any BRIDGE_PLAY_SOUND channel variables in the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ *
+ * \note On entry, the bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void check_bridge_play_sounds(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *bridge_channel;
+
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		check_bridge_play_sound(bridge_channel);
+	}
+}
+
+static void update_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid)
+{
+	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", name);
+	pbx_builtin_setvar_helper(chan, "BRIDGEPVTCALLID", pvtid);
+}
+
+/*!
+ * \internal
+ * \brief Set BRIDGEPEER and BRIDGEPVTCALLID channel variables in a 2 party bridge.
+ * \since 12.0.0
+ *
+ * \param c0 Party of the first part.
+ * \param c1 Party of the second part.
+ *
+ * \note On entry, the bridge is already locked.
+ * \note The bridge is expected to have exactly two parties.
+ *
+ * \return Nothing
+ */
+static void set_bridge_peer_vars_2party(struct ast_channel *c0, struct ast_channel *c1)
+{
+	const char *c0_name;
+	const char *c1_name;
+	const char *c0_pvtid = NULL;
+	const char *c1_pvtid = NULL;
+#define UPDATE_BRIDGE_VARS_GET(chan, name, pvtid)									\
+	do {																			\
+		name = ast_strdupa(ast_channel_name(chan));									\
+		if (ast_channel_tech(chan)->get_pvt_uniqueid) {								\
+			pvtid = ast_strdupa(ast_channel_tech(chan)->get_pvt_uniqueid(chan));	\
+		}																			\
+	} while (0)
+
+	ast_channel_lock(c1);
+	UPDATE_BRIDGE_VARS_GET(c1, c1_name, c1_pvtid);
+	ast_channel_unlock(c1);
+
+	ast_channel_lock(c0);
+	update_bridge_vars_set(c0, c1_name, c1_pvtid);
+	UPDATE_BRIDGE_VARS_GET(c0, c0_name, c0_pvtid);
+	ast_channel_unlock(c0);
+
+	ast_channel_lock(c1);
+	update_bridge_vars_set(c1, c0_name, c0_pvtid);
+	ast_channel_unlock(c1);
+}
+
+/*!
+ * \internal
+ * \brief Fill the BRIDGEPEER value buffer with a comma separated list of channel names.
+ * \since 12.0.0
+ *
+ * \param buf Buffer to fill.  The caller must guarantee the buffer is large enough.
+ * \param cur_idx Which index into names[] to skip.
+ * \param names Channel names to put in the buffer.
+ * \param num_names Number of names in the array.
+ *
+ * \return Nothing
+ */
+static void fill_bridgepeer_buf(char *buf, unsigned int cur_idx, const char *names[], unsigned int num_names)
+{
+	int need_separator = 0;
+	unsigned int idx;
+	const char *src;
+	char *pos;
+
+	pos = buf;
+	for (idx = 0; idx < num_names; ++idx) {
+		if (idx == cur_idx) {
+			continue;
+		}
+
+		if (need_separator) {
+			*pos++ = ',';
+		}
+		need_separator = 1;
+
+		/* Copy name into buffer. */
+		src = names[idx];
+		while (*src) {
+			*pos++ = *src++;
+		}
+	}
+	*pos = '\0';
+}
+
+/*!
+ * \internal
+ * \brief Set BRIDGEPEER and BRIDGEPVTCALLID channel variables in a multi-party bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ *
+ * \note On entry, the bridge is already locked.
+ * \note The bridge is expected to have more than two parties.
+ *
+ * \return Nothing
+ */
+static void set_bridge_peer_vars_multiparty(struct ast_bridge *bridge)
+{
+/*
+ * Set a maximum number of channel names for the BRIDGEPEER
+ * list.  The plus one is for the current channel which is not
+ * put in the list.
+ */
+#define MAX_BRIDGEPEER_CHANS	(10 + 1)
+
+	unsigned int idx;
+	unsigned int num_names;
+	unsigned int len;
+	const char **names;
+	char *buf;
+	struct ast_bridge_channel *bridge_channel;
+
+	/* Get first MAX_BRIDGEPEER_CHANS channel names. */
+	num_names = MIN(bridge->num_channels, MAX_BRIDGEPEER_CHANS);
+	names = ast_alloca(num_names * sizeof(*names));
+	idx = 0;
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		if (num_names <= idx) {
+			break;
+		}
+		ast_channel_lock(bridge_channel->chan);
+		names[idx++] = ast_strdupa(ast_channel_name(bridge_channel->chan));
+		ast_channel_unlock(bridge_channel->chan);
+	}
+
+	/* Determine maximum buf size needed. */
+	len = num_names;
+	for (idx = 0; idx < num_names; ++idx) {
+		len += strlen(names[idx]);
+	}
+	buf = ast_alloca(len);
+
+	/* Set the bridge channel variables. */
+	idx = 0;
+	buf[0] = '\0';
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		if (idx < num_names) {
+			fill_bridgepeer_buf(buf, idx, names, num_names);
+		}
+		++idx;
+
+		ast_channel_lock(bridge_channel->chan);
+		update_bridge_vars_set(bridge_channel->chan, buf, NULL);
+		ast_channel_unlock(bridge_channel->chan);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set BRIDGEPEER and BRIDGEPVTCALLID channel variables in a holding bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ *
+ * \note On entry, the bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void set_bridge_peer_vars_holding(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *bridge_channel;
+
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		ast_channel_lock(bridge_channel->chan);
+		update_bridge_vars_set(bridge_channel->chan, NULL, NULL);
+		ast_channel_unlock(bridge_channel->chan);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set BRIDGEPEER and BRIDGEPVTCALLID channel variables in the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ *
+ * \note On entry, the bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void set_bridge_peer_vars(struct ast_bridge *bridge)
+{
+	if (bridge->technology->capabilities & AST_BRIDGE_CAPABILITY_HOLDING) {
+		set_bridge_peer_vars_holding(bridge);
+		return;
+	}
+	if (bridge->num_channels < 2) {
+		return;
+	}
+	if (bridge->num_channels == 2) {
+		set_bridge_peer_vars_2party(AST_LIST_FIRST(&bridge->channels)->chan,
+			AST_LIST_LAST(&bridge->channels)->chan);
+	} else {
+		set_bridge_peer_vars_multiparty(bridge);
+	}
+}
+
+/*!
+ * \internal
  * \brief Notify the bridge that it has been reconfigured.
  * \since 12.0.0
  *
@@ -1743,6 +2055,12 @@ static void bridge_reconfigured(struct ast_bridge *bridge)
 		return;
 	}
 	bridge_complete_join(bridge);
+
+	if (bridge->dissolved) {
+		return;
+	}
+	check_bridge_play_sounds(bridge);
+	set_bridge_peer_vars(bridge);
 }
 
 /*!
@@ -2123,17 +2441,24 @@ static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_chann
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_PARK:
-		bridge_channel_suspend(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_park(bridge_channel, action->data.ptr);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_unsuspend(bridge_channel);
-		break;
 	case AST_BRIDGE_ACTION_RUN_APP:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_run_app(bridge_channel, action->data.ptr);
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_unsuspend(bridge_channel);
+		break;
+	case AST_BRIDGE_ACTION_CALLBACK:
+		bridge_channel_suspend(bridge_channel);
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_do_callback(bridge_channel, action->data.ptr);
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_unsuspend(bridge_channel);
+		break;
+	case AST_BRIDGE_ACTION_PARK:
+		bridge_channel_suspend(bridge_channel);
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_park(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
@@ -5684,8 +6009,36 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	}
 
 	if (to_target_bridge_channel) {
+		const char *target_complete_sound;
+
 		/* Take off hold if they are on hold. */
 		ast_bridge_channel_write_unhold(to_target_bridge_channel);
+
+		/* Is there a courtesy sound to play to the target? */
+		ast_channel_lock(to_transfer_target);
+		target_complete_sound = pbx_builtin_getvar_helper(to_transfer_target,
+			"ATTENDED_TRANSFER_COMPLETE_SOUND");
+		if (!ast_strlen_zero(target_complete_sound)) {
+			target_complete_sound = ast_strdupa(target_complete_sound);
+		} else {
+			target_complete_sound = NULL;
+		}
+		ast_channel_unlock(to_transfer_target);
+		if (!target_complete_sound) {
+			ast_channel_lock(to_transferee);
+			target_complete_sound = pbx_builtin_getvar_helper(to_transferee,
+				"ATTENDED_TRANSFER_COMPLETE_SOUND");
+			if (!ast_strlen_zero(target_complete_sound)) {
+				target_complete_sound = ast_strdupa(target_complete_sound);
+			} else {
+				target_complete_sound = NULL;
+			}
+			ast_channel_unlock(to_transferee);
+		}
+		if (target_complete_sound) {
+			ast_bridge_channel_write_playfile(to_target_bridge_channel, NULL,
+				target_complete_sound, NULL);
+		}
 	}
 
 	/* Let's get the easy one out of the way first */

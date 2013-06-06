@@ -550,7 +550,8 @@ inkeys=freeworlddialup
 ;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
                                                 ; cause the given audio file to
                                                 ; be played upon completion of
-                                                ; an attended transfer.
+                                                ; an attended transfer to the
+                                                ; target of the transfer.
 ;dbsecret=mysecrets/place    ; Secrets can be stored in astdb, too
 ;transfer=no                 ; Disable IAX2 native transfer
 ;transfer=mediaonly          ; When doing IAX2 native transfers, transfer only

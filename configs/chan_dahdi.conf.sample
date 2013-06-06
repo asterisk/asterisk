@@ -863,12 +863,13 @@ pickupgroup=1
 ;namedcallgroup=engineering,sales,netgroup,protgroup
 ;namedpickupgroup=sales
 
-; Channel variable to be set for all calls from this channel
+; Channel variables to be set for all calls from this channel
 ;setvar=CHANNEL=42
 ;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
                                                 ; cause the given audio file to
                                                 ; be played upon completion of
-                                                ; an attended transfer.
+                                                ; an attended transfer to the
+                                                ; target of the transfer.
 
 ;
 ; Specify whether the channel should be answered immediately or if the simple

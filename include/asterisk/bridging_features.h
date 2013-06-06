@@ -249,8 +249,7 @@ struct ast_bridge_features {
  * \brief Structure that contains configuration information for the blind transfer built in feature
  */
 struct ast_bridge_features_blind_transfer {
-/* BUGBUG the context should be figured out based upon TRANSFER_CONTEXT channel variable of A/B or current context of A/B. More appropriate for when channel moved to other bridges. */
-	/*! Context to use for transfers */
+	/*! Context to use for transfers (If not empty.) */
 	char context[AST_MAX_CONTEXT];
 };
 
@@ -258,14 +257,13 @@ struct ast_bridge_features_blind_transfer {
  * \brief Structure that contains configuration information for the attended transfer built in feature
  */
 struct ast_bridge_features_attended_transfer {
-/* BUGBUG the context should be figured out based upon TRANSFER_CONTEXT channel variable of A/B or current context of A/B. More appropriate for when channel moved to other bridges. */
-	/*! Context to use for transfers */
+	/*! Context to use for transfers (If not empty.) */
 	char context[AST_MAX_CONTEXT];
-	/*! DTMF string used to abort the transfer */
+	/*! DTMF string used to abort the transfer (If not empty.) */
 	char abort[MAXIMUM_DTMF_FEATURE_STRING];
-	/*! DTMF string used to turn the transfer into a three way conference */
+	/*! DTMF string used to turn the transfer into a three way conference (If not empty.) */
 	char threeway[MAXIMUM_DTMF_FEATURE_STRING];
-	/*! DTMF string used to complete the transfer */
+	/*! DTMF string used to complete the transfer (If not empty.) */
 	char complete[MAXIMUM_DTMF_FEATURE_STRING];
 };
 

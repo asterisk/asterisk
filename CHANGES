@@ -240,6 +240,31 @@ Core
    reason to any string. It also allows for custom strings to be read as the
    redirecting reason from SIP Diversion headers.
 
+ * For DTMF blind and attended transfers, the channel variable TRANSFER_CONTEXT
+   must be on the channel initiating the transfer to have any effect.
+
+ * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND is no longer channel
+   driver specific.  If the channel variable is set on the transferrer channel,
+   the sound will be played to the target of an attended transfer.
+
+ * The channel variable BRIDGEPEER becomes a comma separated list of peers in
+   a multi-party bridge.  The BRIDGEPEER value can have a maximum of 10 peers
+   listed.  Any more peers in the bridge will not be included in the list.
+   BRIDGEPEER is not valid in holding bridges like parking since those channels
+   do not talk to each other even though they are in a bridge.
+
+ * The channel variable BRIDGEPVTCALLID is only valid for two party bridges
+   and will contain a value if the BRIDGEPEER's channel driver supports it.
+
+ * The channel variable DYNAMIC_PEERNAME is redundant with BRIDGEPEER and is
+   removed.  The more useful DYNAMIC_WHO_ACTIVATED gives the channel name that
+   activated the dynamic feature.
+
+ * The channel variables DYNAMIC_FEATURENAME and DYNAMIC_WHO_ACTIVATED are set
+   only on the channel executing the dynamic feature.  Executing a dynamic
+   feature on the bridge peer in a multi-party bridge will execute it on all
+   peers of the activating channel.
+
 Realtime
 ------------------
  * Dynamic realtime tables for SIP Users can now include a 'path' field. This
@@ -247,7 +272,7 @@ Realtime
    tables can also use the 'supportpath' field to enable Path header support.
 
  * LDAP realtime configurations for SIP Users now have the AstAccountPathSupport
-   objectIdentifier. This maps to the supportpath option in sip.conf. 
+   objectIdentifier. This maps to the supportpath option in sip.conf.
 
 RTP
 ------------------

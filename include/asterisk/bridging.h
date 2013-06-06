@@ -219,10 +219,12 @@ enum ast_bridge_action_type {
 	AST_BRIDGE_ACTION_TALKING_STOP,
 	/*! Bridge channel is to play the indicated sound file. */
 	AST_BRIDGE_ACTION_PLAY_FILE,
-	/*! Bridge channel is to get parked. */
-	AST_BRIDGE_ACTION_PARK,
 	/*! Bridge channel is to run the indicated application. */
 	AST_BRIDGE_ACTION_RUN_APP,
+	/*! Bridge channel is to run the custom callback routine. */
+	AST_BRIDGE_ACTION_CALLBACK,
+	/*! Bridge channel is to get parked. */
+	AST_BRIDGE_ACTION_PARK,
 	/*! Bridge channel is to execute a blind transfer. */
 	AST_BRIDGE_ACTION_BLIND_TRANSFER,
 	/*! Bridge channel is to execute an attended transfer */
@@ -1209,22 +1211,6 @@ typedef void (*ast_bridge_custom_play_fn)(struct ast_bridge_channel *bridge_chan
 void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
 
 /*!
- * \brief Have a bridge channel park a channel in the bridge
- * \since 12.0.0
- *
- * \param bridge_channel Bridge channel performing the parking
- * \param parkee_uuid Unique id of the channel we want to park
- * \param parker_uuid Unique id of the channel parking the call
- * \param app_data string indicating data used for park application (NULL allowed)
- *
- * \note This is intended to be called by bridge hooks.
- *
- * \return Nothing
- */
-void ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
-	const char *parker_uuid, const char *app_data);
-
-/*!
  * \brief Write a bridge action play file frame into the bridge.
  * \since 12.0.0
  *
@@ -1257,6 +1243,69 @@ void ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel
  * \return Nothing
  */
 void ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+
+/*!
+ * \brief Custom callback run on a bridge channel.
+ *
+ * \param bridge_channel Which channel to operate on.
+ * \param payload Data to pass to the callback. (NULL if none).
+ * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
+ *
+ * \note The payload MUST NOT have any resources that need to be freed.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_bridge_custom_callback_fn)(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size);
+
+/*!
+ * \brief Write a bridge action custom callback frame into the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is putting the frame into the bridge
+ * \param callback Custom callback run on a bridge channel.
+ * \param payload Data to pass to the callback. (NULL if none).
+ * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
+ *
+ * \note The payload MUST NOT have any resources that need to be freed.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+
+/*!
+ * \brief Queue a bridge action custom callback frame onto the bridge channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to put the frame onto.
+ * \param callback Custom callback run on a bridge channel.
+ * \param payload Data to pass to the callback. (NULL if none).
+ * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
+ *
+ * \note The payload MUST NOT have any resources that need to be freed.
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+
+/*!
+ * \brief Have a bridge channel park a channel in the bridge
+ * \since 12.0.0
+ *
+ * \param bridge_channel Bridge channel performing the parking
+ * \param parkee_uuid Unique id of the channel we want to park
+ * \param parker_uuid Unique id of the channel parking the call
+ * \param app_data string indicating data used for park application (NULL allowed)
+ *
+ * \note This is intended to be called by bridge hooks.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
+	const char *parker_uuid, const char *app_data);
 
 /*!
  * \brief Restore the formats of a bridge channel's channel to how they were before bridge_channel_join

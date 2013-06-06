@@ -38,6 +38,11 @@ CEL:
  - The Uniqueid field for a channel is now a stable identifier, and will not
    change due to transfers, parking, etc.
 
+Core:
+ - The following channel variables have changed behavior which is described in
+   the CHANGES file: TRANSFER_CONTEXT, BRIDGEPEER, BRIDGEPVTCALLID,
+   ATTENDED_TRANSFER_COMPLETE_SOUND, DYNAMIC_FEATURENAME, and DYNAMIC_PEERNAME.
+
 Queues:
  - Queue logging for PAUSEALL/UNPAUSEALL now only occurs if the interface this is
    performed on is a member of at least one queue.
@@ -86,9 +91,12 @@ Dialplan:
 
 Features:
  - The features.conf [applicationmap] <FeatureName>  ActivatedBy option is
-   no longer honored.  The feature is activated by which channel
-   DYNAMIC_FEATURES includes the feature is on.  Use predial to set different
-   values of DYNAMIC_FEATURES on the channels
+   no longer honored.  The feature is always activated by the channel that has
+   DYNAMIC_FEATURES defined on it when it enters the bridge.  Use predial to set
+   different values of DYNAMIC_FEATURES on the channels
+
+ - Executing a dynamic feature on the bridge peer in a multi-party bridge will
+   execute it on all peers of the activating channel.
 
 Parking:
  - The arguments for the Park, ParkedCall, and ParkAndAnnounce applications have

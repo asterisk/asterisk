@@ -134,6 +134,9 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 		return NULL;
 	}
 
+	/* Who is transferring the call. */
+	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", ast_channel_name(caller));
+
 	/* Before we actually dial out let's inherit appropriate information. */
 	copy_caller_data(chan, caller);
 
@@ -275,6 +278,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	struct ast_bridge_features caller_features;
 	int xfer_failed;
 	struct ast_bridge_features_attended_transfer *attended_transfer = hook_pvt;
+	const char *complete_sound;
 	const char *context;
 	enum atxfer_code transfer_code = ATXFER_INCOMPLETE;
 	const char *atxfer_abort;
@@ -406,6 +410,20 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	/* Now that all channels are out of it we can destroy the bridge and the feature structures */
 	ast_bridge_destroy(attended_bridge);
 	ast_bridge_features_cleanup(&caller_features);
+
+	/* Is there a courtesy sound to play to the peer? */
+	ast_channel_lock(bridge_channel->chan);
+	complete_sound = pbx_builtin_getvar_helper(bridge_channel->chan,
+		"ATTENDED_TRANSFER_COMPLETE_SOUND");
+	if (!ast_strlen_zero(complete_sound)) {
+		complete_sound = ast_strdupa(complete_sound);
+	} else {
+		complete_sound = NULL;
+	}
+	ast_channel_unlock(bridge_channel->chan);
+	if (complete_sound) {
+		pbx_builtin_setvar_helper(peer, "BRIDGE_PLAY_SOUND", complete_sound);
+	}
 
 	xfer_failed = -1;
 	switch (transfer_code) {

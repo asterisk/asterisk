@@ -131,7 +131,8 @@ keepalive=120
 ;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
                                                 ; cause the given audio file to
                                                 ; be played upon completion of
-                                                ; an attended transfer.
+                                                ; an attended transfer to the
+                                                ; target of the transfer.
 ;mailbox=500
 ;callwaiting=yes
 ;transfer=yes
