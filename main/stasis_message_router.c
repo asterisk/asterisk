@@ -208,8 +208,8 @@ static struct stasis_message_route *route_create(
 static int add_route(struct stasis_message_router *router,
 		     struct stasis_message_route *route)
 {
-	SCOPED_AO2LOCK(lock, router);
 	RAII_VAR(struct stasis_message_route *, existing_route, NULL, ao2_cleanup);
+	SCOPED_AO2LOCK(lock, router);
 
 	if ((existing_route = find_route(router, route->message_type))) {
 		return -1;
