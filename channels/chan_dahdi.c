@@ -131,6 +131,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ccss.h"
 #include "asterisk/data.h"
 #include "asterisk/features_config.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<application name="DAHDISendKeypadFacility" language="en_US">
@@ -7841,55 +7842,49 @@ static int dahdi_ring_phone(struct dahdi_pvt *p)
 
 static void *analog_ss_thread(void *data);
 
+/*!
+ * \internal
+ * \brief Attempt to transfer 3-way call.
+ *
+ * \param p DAHDI private structure.
+ *
+ * \note On entry these locks are held: real-call, private, 3-way call.
+ * \note On exit these locks are held: real-call, private.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
 static int attempt_transfer(struct dahdi_pvt *p)
 {
-	/* In order to transfer, we need at least one of the channels to
-	   actually be in a call bridge.  We can't conference two applications
-	   together (but then, why would we want to?) */
-	if (ast_bridged_channel(p->subs[SUB_REAL].owner)) {
-		/* The three-way person we're about to transfer to could still be in MOH, so
-		   stop it now */
-		ast_queue_unhold(p->subs[SUB_THREEWAY].owner);
-		if (ast_channel_state(p->subs[SUB_REAL].owner) == AST_STATE_RINGING) {
-			ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_RINGING);
-		}
-		if (ast_channel_state(p->subs[SUB_THREEWAY].owner) == AST_STATE_RING) {
-			tone_zone_play_tone(p->subs[SUB_THREEWAY].dfd, DAHDI_TONE_RINGTONE);
-		}
-		 if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, ast_bridged_channel(p->subs[SUB_REAL].owner))) {
-			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_channel_name(ast_bridged_channel(p->subs[SUB_REAL].owner)), ast_channel_name(p->subs[SUB_THREEWAY].owner));
-			return -1;
-		}
-		/* Orphan the channel after releasing the lock */
-		ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
-		unalloc_sub(p, SUB_THREEWAY);
-	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
-		ast_queue_unhold(p->subs[SUB_REAL].owner);
-		if (ast_channel_state(p->subs[SUB_THREEWAY].owner) == AST_STATE_RINGING) {
-			ast_queue_control(p->subs[SUB_THREEWAY].owner, AST_CONTROL_RINGING);
-		}
-		if (ast_channel_state(p->subs[SUB_REAL].owner) == AST_STATE_RING) {
-			tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
-		}
-		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, ast_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
-			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_channel_name(ast_bridged_channel(p->subs[SUB_THREEWAY].owner)), ast_channel_name(p->subs[SUB_REAL].owner));
-			return -1;
-		}
-		/* Three-way is now the REAL */
-		swap_subs(p, SUB_THREEWAY, SUB_REAL);
-		ast_channel_unlock(p->subs[SUB_REAL].owner);
-		unalloc_sub(p, SUB_THREEWAY);
-		/* Tell the caller not to hangup */
-		return 1;
-	} else {
-		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-			ast_channel_name(p->subs[SUB_REAL].owner), ast_channel_name(p->subs[SUB_THREEWAY].owner));
-		ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
-		return -1;
+	struct ast_channel *owner_real;
+	struct ast_channel *owner_3way;
+	enum ast_transfer_result xfer_res;
+	int res = 0;
+
+	owner_real = ast_channel_ref(p->subs[SUB_REAL].owner);
+	owner_3way = ast_channel_ref(p->subs[SUB_THREEWAY].owner);
+
+	ast_verb(3, "TRANSFERRING %s to %s\n",
+		ast_channel_name(owner_3way), ast_channel_name(owner_real));
+
+	ast_channel_unlock(owner_real);
+	ast_channel_unlock(owner_3way);
+	ast_mutex_unlock(&p->lock);
+
+	xfer_res = ast_bridge_transfer_attended(owner_3way, owner_real);
+	if (xfer_res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		ast_softhangup(owner_3way, AST_SOFTHANGUP_DEV);
+		res = -1;
 	}
-	return 0;
+
+	/* Must leave with these locked. */
+	ast_channel_lock(owner_real);
+	ast_mutex_lock(&p->lock);
+
+	ast_channel_unref(owner_real);
+	ast_channel_unref(owner_3way);
+
+	return res;
 }
 
 static int check_for_conference(struct dahdi_pvt *p)
@@ -8399,17 +8394,13 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 								p->owner = NULL;
 								/* Ring the phone */
 								dahdi_ring_phone(p);
-							} else {
-								if ((res = attempt_transfer(p)) < 0) {
-									ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
-									if (p->subs[SUB_THREEWAY].owner)
-										ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
-								} else if (res) {
-									/* Don't actually hang up at this point */
-									if (p->subs[SUB_THREEWAY].owner)
-										ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
-									break;
-								}
+							} else if (!attempt_transfer(p)) {
+								/*
+								 * Transfer successful.  Don't actually hang up at this point.
+								 * Let our channel legs of the calls die off as the transfer
+								 * percolates through the core.
+								 */
+								break;
 							}
 						} else {
 							ast_channel_softhangup_internal_flag_add(p->subs[SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);

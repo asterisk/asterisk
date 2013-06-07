@@ -172,6 +172,7 @@ enum sig_pri_reset_state {
 };
 
 struct sig_pri_span;
+struct xfer_rsp_data;
 
 struct sig_pri_callback {
 	/* Unlock the private in the signalling private structure.  This is used for three way calling madness. */
@@ -353,6 +354,10 @@ struct sig_pri_chan {
 	enum sig_pri_call_level call_level;
 	/*! \brief Channel reset/restart state. */
 	enum sig_pri_reset_state resetting;
+#if defined(HAVE_PRI_TRANSFER)
+	/*! If non-NULL, send transfer disconnect successfull response to first call disconnecting. */
+	struct xfer_rsp_data *xfer_data;
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 	int prioffset;					/*!< channel number in span */
 	int logicalspan;				/*!< logical span number within trunk group */
 	int mastertrunkgroup;			/*!< what trunk group is our master */

@@ -50,6 +50,7 @@
 #include "asterisk/transcap.h"
 #include "asterisk/features.h"
 #include "asterisk/aoc.h"
+#include "asterisk/bridging.h"
 
 #include "sig_pri.h"
 #ifndef PRI_EVENT_FACILITY
@@ -1587,6 +1588,10 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 		strcpy(new_chan->moh_suggested, old_chan->moh_suggested);
 		new_chan->moh_state = old_chan->moh_state;
 		old_chan->moh_state = SIG_PRI_MOH_STATE_IDLE;
+#if defined(HAVE_PRI_TRANSFER)
+		new_chan->xfer_data = old_chan->xfer_data;
+		old_chan->xfer_data = NULL;
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
@@ -2396,6 +2401,8 @@ struct xfer_rsp_data {
 	q931_call *call;
 	/*! Invocation ID to use when sending a reply to the transfer request. */
 	int invoke_id;
+	/*! TRUE if the transfer response has been made. */
+	int responded;
 };
 #endif	/* defined(HAVE_PRI_TRANSFER) */
 
@@ -2405,31 +2412,23 @@ struct xfer_rsp_data {
  * \brief Send the transfer success/fail response message.
  * \since 1.8
  *
- * \param data Callback user data pointer
+ * \param rsp Transfer response data.
  * \param is_successful TRUE if the transfer was successful.
+ *
+ * \note Assumes the rsp->pri->lock is already obtained.
  *
  * \return Nothing
  */
-static void sig_pri_transfer_rsp(void *data, int is_successful)
+static void sig_pri_transfer_rsp(struct xfer_rsp_data *rsp, int is_successful)
 {
-	struct xfer_rsp_data *rsp = data;
+	if (rsp->responded) {
+		return;
+	}
+	rsp->responded = 1;
 
 	pri_transfer_rsp(rsp->pri->pri, rsp->call, rsp->invoke_id, is_successful);
 }
 #endif	/* defined(HAVE_PRI_TRANSFER) */
-
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-/*!
- * \brief Protocol callback to indicate if transfer will happen.
- * \since 1.8
- *
- * \param data Callback user data pointer
- * \param is_successful TRUE if the transfer will happen.
- *
- * \return Nothing
- */
-typedef void (*xfer_rsp_callback)(void *data, int is_successful);
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
@@ -2442,15 +2441,14 @@ typedef void (*xfer_rsp_callback)(void *data, int is_successful);
  * \param call_1_held TRUE if call_1_pri is on hold.
  * \param call_2_pri Second call involved in the transfer. (target; usually active/ringing)
  * \param call_2_held TRUE if call_2_pri is on hold.
- * \param rsp_callback Protocol callback to indicate if transfer will happen. NULL if not used.
- * \param data Callback user data pointer
+ * \param xfer_data Transfer response data if non-NULL.
  *
  * \note Assumes the pri->lock is already obtained.
  *
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_pri, int call_1_held, q931_call *call_2_pri, int call_2_held, xfer_rsp_callback rsp_callback, void *data)
+static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_pri, int call_1_held, q931_call *call_2_pri, int call_2_held, struct xfer_rsp_data *xfer_data)
 {
 	struct attempt_xfer_call {
 		q931_call *pri;
@@ -2459,10 +2457,9 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 		int chanpos;
 	};
 	int retval;
-	struct ast_channel *transferee;
+	enum ast_transfer_result xfer_res;
 	struct attempt_xfer_call *call_1;
 	struct attempt_xfer_call *call_2;
-	struct attempt_xfer_call *swap_call;
 	struct attempt_xfer_call c1;
 	struct attempt_xfer_call c2;
 
@@ -2478,118 +2475,104 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	call_2->chanpos = pri_find_principle_by_call(pri, call_2->pri);
 	if (call_1->chanpos < 0 || call_2->chanpos < 0) {
 		/* Calls not found in span control. */
-		if (rsp_callback) {
+#if defined(HAVE_PRI_TRANSFER)
+		if (xfer_data) {
 			/* Transfer failed. */
-			rsp_callback(data, 0);
+			sig_pri_transfer_rsp(xfer_data, 0);
 		}
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 		return -1;
 	}
 
-	/* Attempt to make transferee and target consistent. */
-	if (!call_1->held && call_2->held) {
-		/*
-		 * Swap call_1 and call_2 to make call_1 the transferee(held call)
-		 * and call_2 the target(active call).
-		 */
-		swap_call = call_1;
-		call_1 = call_2;
-		call_2 = swap_call;
-	}
-
-	/* Deadlock avoidance is attempted. */
+	/* Get call_1 owner. */
 	sig_pri_lock_private(pri->pvts[call_1->chanpos]);
 	sig_pri_lock_owner(pri, call_1->chanpos);
+	call_1->ast = pri->pvts[call_1->chanpos]->owner;
+	if (call_1->ast) {
+		ast_channel_ref(call_1->ast);
+		ast_channel_unlock(call_1->ast);
+	}
+	sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
+
+	/* Get call_2 owner. */
 	sig_pri_lock_private(pri->pvts[call_2->chanpos]);
 	sig_pri_lock_owner(pri, call_2->chanpos);
-
-	call_1->ast = pri->pvts[call_1->chanpos]->owner;
 	call_2->ast = pri->pvts[call_2->chanpos]->owner;
+	if (call_2->ast) {
+		ast_channel_ref(call_2->ast);
+		ast_channel_unlock(call_2->ast);
+	}
+	sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
+
 	if (!call_1->ast || !call_2->ast) {
 		/* At least one owner is not present. */
 		if (call_1->ast) {
-			ast_channel_unlock(call_1->ast);
+			ast_channel_unref(call_1->ast);
 		}
 		if (call_2->ast) {
-			ast_channel_unlock(call_2->ast);
+			ast_channel_unref(call_2->ast);
 		}
-		sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
-		sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
-		if (rsp_callback) {
+#if defined(HAVE_PRI_TRANSFER)
+		if (xfer_data) {
 			/* Transfer failed. */
-			rsp_callback(data, 0);
+			sig_pri_transfer_rsp(xfer_data, 0);
 		}
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 		return -1;
 	}
 
-	for (;;) {
-		transferee = ast_bridged_channel(call_1->ast);
-		if (transferee) {
-			break;
-		}
+	ast_verb(3, "TRANSFERRING %s to %s\n",
+		ast_channel_name(call_1->ast), ast_channel_name(call_2->ast));
 
-		/* Try masquerading the other way. */
-		swap_call = call_1;
-		call_1 = call_2;
-		call_2 = swap_call;
-
-		transferee = ast_bridged_channel(call_1->ast);
-		if (transferee) {
-			break;
-		}
-
-		/* Could not transfer.  Neither call is bridged. */
-		ast_channel_unlock(call_1->ast);
-		ast_channel_unlock(call_2->ast);
-		sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
-		sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
-
-		if (rsp_callback) {
-			/* Transfer failed. */
-			rsp_callback(data, 0);
-		}
-		return -1;
-	}
-
-	ast_verb(3, "TRANSFERRING %s to %s\n", ast_channel_name(call_1->ast), ast_channel_name(call_2->ast));
-
-	/*
-	 * Setup transfer masquerade.
-	 *
-	 * Note:  There is an extremely nasty deadlock avoidance issue
-	 * with ast_channel_transfer_masquerade().  Deadlock may be possible if
-	 * the channels involved are proxies (chan_agent channels) and
-	 * it is called with locks.  Unfortunately, there is no simple
-	 * or even merely difficult way to guarantee deadlock avoidance
-	 * and still be able to send an ECT success response without the
-	 * possibility of the bridged channel hanging up on us.
-	 */
-	ast_mutex_unlock(&pri->lock);
-	retval = ast_channel_transfer_masquerade(
-		call_2->ast,
-		ast_channel_connected(call_2->ast),
-		call_2->held,
-		transferee,
-		ast_channel_connected(call_1->ast),
-		call_1->held);
-
-	/* Reacquire the pri->lock to hold off completion of the transfer masquerade. */
-	ast_mutex_lock(&pri->lock);
-
-	ast_channel_unlock(call_1->ast);
-	ast_channel_unlock(call_2->ast);
-	sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
-	sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
-
-	if (rsp_callback) {
+#if defined(HAVE_PRI_TRANSFER)
+	if (xfer_data) {
 		/*
-		 * Report transfer status.
-		 *
-		 * Must do the callback before the masquerade completes to ensure
-		 * that the protocol message goes out before the call leg is
-		 * disconnected.
+		 * Add traps on the transferer channels in case threading causes
+		 * them to hangup before ast_bridge_transfer_attended() returns
+		 * and we can get the pri->lock back.
 		 */
-		rsp_callback(data, retval ? 0 : 1);
+		sig_pri_lock_private(pri->pvts[call_1->chanpos]);
+		pri->pvts[call_1->chanpos]->xfer_data = xfer_data;
+		sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
+		sig_pri_lock_private(pri->pvts[call_2->chanpos]);
+		pri->pvts[call_2->chanpos]->xfer_data = xfer_data;
+		sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
 	}
+#endif	/* defined(HAVE_PRI_TRANSFER) */
+
+	ast_mutex_unlock(&pri->lock);
+	xfer_res = ast_bridge_transfer_attended(call_1->ast, call_2->ast);
+	ast_mutex_lock(&pri->lock);
+	retval = (xfer_res != AST_BRIDGE_TRANSFER_SUCCESS) ? -1 : 0;
+
+#if defined(HAVE_PRI_TRANSFER)
+	if (xfer_data) {
+		int rsp_chanpos;
+
+		/*
+		 * Remove the transferrer channel traps.
+		 *
+		 * We must refind chanpos because we released pri->lock.
+		 */
+		rsp_chanpos = pri_find_principle_by_call(pri, call_1->pri);
+		if (0 <= rsp_chanpos) {
+			sig_pri_lock_private(pri->pvts[rsp_chanpos]);
+			pri->pvts[rsp_chanpos]->xfer_data = NULL;
+			sig_pri_unlock_private(pri->pvts[rsp_chanpos]);
+		}
+		rsp_chanpos = pri_find_principle_by_call(pri, call_2->pri);
+		if (0 <= rsp_chanpos) {
+			sig_pri_lock_private(pri->pvts[rsp_chanpos]);
+			pri->pvts[rsp_chanpos]->xfer_data = NULL;
+			sig_pri_unlock_private(pri->pvts[rsp_chanpos]);
+		}
+
+		/* Report transfer status. */
+		sig_pri_transfer_rsp(xfer_data, retval ? 0 : 1);
+	}
+#endif	/* defined(HAVE_PRI_TRANSFER) */
+	ast_channel_unref(call_1->ast);
+	ast_channel_unref(call_2->ast);
 	return retval;
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
@@ -4457,10 +4440,11 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			xfer_rsp.pri = pri;
 			xfer_rsp.call = call_rsp;
 			xfer_rsp.invoke_id = subcmd->u.transfer.invoke_id;
+			xfer_rsp.responded = 0;
 			sig_pri_attempt_transfer(pri,
 				subcmd->u.transfer.call_1, subcmd->u.transfer.is_call_1_held,
 				subcmd->u.transfer.call_2, subcmd->u.transfer.is_call_2_held,
-				sig_pri_transfer_rsp, &xfer_rsp);
+				&xfer_rsp);
 			sig_pri_lock_private(pri->pvts[chanpos]);
 			break;
 #endif	/* defined(HAVE_PRI_TRANSFER) */
@@ -7114,7 +7098,7 @@ static void *pri_dchannel(void *vpri)
 					/* We are to transfer the call instead of simply hanging up. */
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 					if (!sig_pri_attempt_transfer(pri, e->hangup.call_held, 1,
-						e->hangup.call_active, 0, NULL, NULL)) {
+						e->hangup.call_active, 0, NULL)) {
 						break;
 					}
 					sig_pri_lock_private(pri->pvts[chanpos]);
@@ -7595,6 +7579,20 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 		}
 #endif	/* defined(SUPPORT_USERUSER) */
 
+#if defined(HAVE_PRI_TRANSFER)
+		if (p->xfer_data) {
+			/*
+			 * The transferrer call leg is disconnecting.  It must mean that
+			 * the transfer was successful and the core is disconnecting the
+			 * call legs involved.
+			 *
+			 * The transfer protocol response message must go out before the
+			 * call leg is disconnected.
+			 */
+			sig_pri_transfer_rsp(p->xfer_data, 1);
+		}
+#endif	/* defined(HAVE_PRI_TRANSFER) */
+
 #if defined(HAVE_PRI_AOC_EVENTS)
 		if (p->holding_aoce) {
 			pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
@@ -7623,6 +7621,9 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 			pri_hangup(p->pri->pri, p->call, icause);
 		}
 	}
+#if defined(HAVE_PRI_TRANSFER)
+	p->xfer_data = NULL;
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 #if defined(HAVE_PRI_AOC_EVENTS)
 	p->aoc_s_request_invoke_id_valid = 0;
 	p->holding_aoce = 0;

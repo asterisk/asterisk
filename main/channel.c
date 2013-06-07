@@ -6384,6 +6384,12 @@ static const struct ast_datastore_info xfer_ds_info = {
 	.destroy = xfer_ds_destroy,
 };
 
+/*
+ * BUGBUG ast_channel_transfer_masquerade() can be deleted when bridging COLP has been reimplemented.
+ *
+ * ast_bridge_transfer_attended() will need to do something like
+ * this when it has to do a masquerade into an application.
+ */
 int ast_channel_transfer_masquerade(
 	struct ast_channel *target_chan,
 	const struct ast_party_connected_line *target_id,

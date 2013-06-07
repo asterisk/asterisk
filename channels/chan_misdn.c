@@ -103,6 +103,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/features_config.h"
+#include "asterisk/bridging.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -8592,10 +8593,9 @@ static void release_chan_early(struct chan_list *ch)
 static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list *held_ch)
 {
 	int retval;
-	struct ast_channel *target;
-	struct ast_channel *transferee;
-	struct ast_party_connected_line target_colp;
-	struct ast_party_connected_line transferee_colp;
+	enum ast_transfer_result xfer_res;
+	struct ast_channel *to_target;
+	struct ast_channel *to_transferee;
 
 	switch (active_ch->state) {
 	case MISDN_PROCEEDING:
@@ -8608,59 +8608,24 @@ static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list 
 	}
 
 	ast_channel_lock_both(held_ch->ast, active_ch->ast);
+	to_target = active_ch->ast;
+	to_transferee = held_ch->ast;
+	chan_misdn_log(1, held_ch->hold.port, "TRANSFERRING %s to %s\n",
+		ast_channel_name(to_transferee), ast_channel_name(to_target));
+	held_ch->hold.state = MISDN_HOLD_TRANSFER;
+	ast_channel_ref(to_target);
+	ast_channel_ref(to_transferee);
+	ast_channel_unlock(to_target);
+	ast_channel_unlock(to_transferee);
 
-	transferee = ast_bridged_channel(held_ch->ast);
-	if (!transferee) {
-		/*
-		 * Could not transfer.  Held channel is not bridged anymore.
-		 * Held party probably got tired of waiting and hung up.
-		 */
-		ast_channel_unlock(held_ch->ast);
-		ast_channel_unlock(active_ch->ast);
-		return -1;
+	retval = 0;
+	xfer_res = ast_bridge_transfer_attended(to_transferee, to_target);
+	if (xfer_res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		retval = -1;
 	}
 
-	target = active_ch->ast;
-	chan_misdn_log(1, held_ch->hold.port, "TRANSFERRING %s to %s\n",
-		ast_channel_name(held_ch->ast), ast_channel_name(target));
-
-	ast_party_connected_line_init(&target_colp);
-	ast_party_connected_line_copy(&target_colp, ast_channel_connected(target));
-
-	/* Reset any earlier private connected id representation */
-	ast_party_id_reset(&target_colp.priv);
-
-	ast_party_connected_line_init(&transferee_colp);
-	ast_party_connected_line_copy(&transferee_colp, ast_channel_connected(held_ch->ast));
-
-	/* Reset any earlier private connected id representation*/
-	ast_party_id_reset(&transferee_colp.priv);
-
-	held_ch->hold.state = MISDN_HOLD_TRANSFER;
-
-	/*
-	 * Before starting a masquerade, all channel and pvt locks must
-	 * be unlocked.  Any recursive channel locks held before
-	 * ast_channel_transfer_masquerade() invalidates deadlock
-	 * avoidance.  Since we are unlocking both the pvt and its owner
-	 * channel it is possible for "target" and "transferee" to be
-	 * destroyed by their pbx threads.  To prevent this we must give
-	 * "target" and "transferee" a reference before any unlocking
-	 * takes place.
-	 */
-	ao2_ref(target, +1);
-	ao2_ref(transferee, +1);
-	ast_channel_unlock(held_ch->ast);
-	ast_channel_unlock(active_ch->ast);
-
-	/* Setup transfer masquerade. */
-	retval = ast_channel_transfer_masquerade(target, &target_colp, 0,
-		transferee, &transferee_colp, 1);
-
-	ast_party_connected_line_free(&target_colp);
-	ast_party_connected_line_free(&transferee_colp);
-	ao2_ref(target, -1);
-	ao2_ref(transferee, -1);
+	ast_channel_unref(to_target);
+	ast_channel_unref(to_transferee);
 	return retval;
 }
 
