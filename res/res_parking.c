@@ -191,6 +191,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
+#include "asterisk/pbx.h"
 
 #define PARKED_CALL_APPLICATION "ParkedCall"
 #define PARK_AND_ANNOUNCE_APPLICATION "ParkAndAnnounce"
@@ -375,7 +376,7 @@ static void parking_lot_disable(struct parking_lot *lot)
 static void parking_lot_cfg_destructor(void *obj)
 {
 	struct parking_lot_cfg *lot_cfg = obj;
-
+	parking_lot_cfg_remove_extensions(lot_cfg);
 	ast_string_field_free_memory(lot_cfg);
 }
 
@@ -607,6 +608,219 @@ static struct parking_lot *alloc_new_parking_lot(struct parking_lot_cfg *lot_cfg
 	return lot;
 }
 
+void parking_lot_cfg_remove_extensions(struct parking_lot_cfg *lot_cfg)
+{
+	if (!ast_strlen_zero(lot_cfg->registrar)) {
+		/* Although the function is called ast_context_destroy, the use of this funtion is
+		 * intended only to remove extensions, hints, etc registered by the parking lot's registrar.
+		 * It won't actually destroy the context unless that context is empty afterwards and it is
+		 * unreferenced.
+		 */
+		ast_context_destroy(NULL, lot_cfg->registrar);
+	}
+}
+
+static void remove_all_configured_parking_lot_extensions(void)
+{
+	RAII_VAR(struct parking_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
+	struct parking_lot_cfg *lot_cfg;
+	struct ao2_iterator iter;
+
+	if (!cfg) {
+		return;
+	}
+
+	for (iter = ao2_iterator_init(cfg->parking_lots, 0); (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
+		parking_lot_cfg_remove_extensions(lot_cfg);
+	}
+
+	ast_context_destroy(NULL, BASE_REGISTRAR);
+
+	ao2_iterator_destroy(&iter);
+}
+
+/*!
+ * \internal
+ * \since 12
+ * \brief Create an extension using ast_add_extension2_nolock. This function automatically allocates a duplicate
+ *        of the data string so that whatever calls it doesn't have to deal with freeing it if the ast_add_extension2_nolock
+ *        fails.
+ *
+ * \param context a write locked ast_context. Make certain it is write locked prior to calling this function
+ * \param replace whether the extension should replace existing extensions
+ * \param extension name of the extension desired
+ * \param priority priority of the extension we are registering
+ * \param application name of the application being used for the extension
+ * \param data application arguments
+ * \param registrar name of the registrar you should use for the extension.
+ *        Make sure this string doesn't go anywhere while there are still extensions using it.
+ */
+static int parking_add_extension(struct ast_context *context, int replace, const char *extension,
+	int priority, const char *application, const char *data, const char *registrar)
+{
+	char *data_duplicate = ast_strdup(data);
+
+	if (!data_duplicate) {
+		return -1;
+	}
+
+	if (ast_add_extension2_nolock(context, replace, extension, priority, NULL, NULL,
+			application, data_duplicate, ast_free_ptr, registrar)) {
+		ast_free(data_duplicate);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int extension_is_compatible(struct parking_lot_cfg *lot_cfg, const char *app_type, struct ast_exten *extension)
+{
+	RAII_VAR(struct parking_lot_cfg *, owner, NULL, ao2_cleanup);
+	const char *extension_registrar = ast_get_extension_registrar(extension);
+	const char *extension_context = ast_get_context_name(ast_get_extension_context(extension));
+	const char *extension_name = ast_get_extension_name(extension);
+	const char *extension_application = ast_get_extension_app(extension);
+
+	ast_assert(extension_registrar && extension_context && extension_name && extension_application);
+
+	if (strcmp(extension_registrar, BASE_REGISTRAR)) {
+		ast_log(LOG_ERROR, "Parking lot '%s' -- Needs an extension '%s@%s', but that extension is already owned by %s.\n",
+		        lot_cfg->name, extension_name, extension_context, extension_registrar);
+		return 0;
+	}
+
+	if (strcmp(extension_application, app_type)) {
+		ast_log(LOG_ERROR, "Parking lot '%s' -- Needs an extension '%s@%s' with a non-exclusive %s application, "
+		        "but a/an %s application is already registered to that extension by %s.\n",
+		        lot_cfg->name, extension_name, extension_context, app_type,
+		        extension_application, BASE_REGISTRAR);
+		return 0;
+	}
+
+	ast_debug(3, "Parking lot '%s' -- extension '%s@%s' with application %s is compatible.\n",
+	          lot_cfg->name, extension_name, extension_context, app_type);
+	return 1;
+}
+
+int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
+{
+	int parkingspace;
+	struct ast_exten *existing_exten;
+	struct ast_context *lot_context;
+	struct pbx_find_info find_info = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
+	const char *registrar_pointer;
+
+	if (ast_strlen_zero(lot_cfg->parkext)) {
+		return 0;
+	}
+
+	if (lot_cfg->parkext_exclusive) {
+		ast_string_field_build(lot_cfg, registrar, "%s/%s", BASE_REGISTRAR, lot_cfg->name);
+		registrar_pointer = lot_cfg->registrar;
+	} else {
+		registrar_pointer = BASE_REGISTRAR;
+	}
+
+	/* We need the contexts list locked to safely be able to both read and lock the specific context within */
+	if (ast_wrlock_contexts()) {
+		ast_log(LOG_ERROR, "Failed to lock the contexts list.\n");
+		return -1;
+	}
+
+	if (!(lot_context = ast_context_find_or_create(NULL, NULL, lot_cfg->parking_con, registrar_pointer))) {
+		ast_log(LOG_ERROR, "Parking lot '%s' -- Needs a context '%s' which does not exist and Asterisk was unable to create\n",
+			lot_cfg->name, lot_cfg->parking_con);
+		if (ast_unlock_contexts()) {
+			ast_assert(0);
+		}
+		return -1;
+	}
+
+	/* Once we know what context we will be modifying, we need to write lock it because we will be reading extensions
+	 * and we don't want something else to destroy them while we are looking at them.
+	 */
+	if (ast_wrlock_context(lot_context)) {
+		ast_log(LOG_ERROR, "failed to obtain write lock on context\n");
+		return -1;
+	}
+
+	if (ast_unlock_contexts()) {
+		ast_assert(0);
+	}
+
+	/* Handle generation/confirmation for the Park extension */
+	if ((existing_exten = pbx_find_extension(NULL, NULL, &find_info, lot_cfg->parking_con, lot_cfg->parkext, 1, NULL, NULL, E_MATCH))) {
+		if (lot_cfg->parkext_exclusive || !extension_is_compatible(lot_cfg, PARK_APPLICATION, existing_exten)) {
+			ast_unlock_context(lot_context);
+			return -1;
+		}
+	} else if (parking_add_extension(lot_context, 0, lot_cfg->parkext, 1, PARK_APPLICATION,
+	           lot_cfg->parkext_exclusive ? lot_cfg->name : "", registrar_pointer)) {
+		ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add %s extension '%s@%s' to the PBX.\n",
+		        lot_cfg->name, PARK_APPLICATION, lot_cfg->parkext, lot_cfg->parking_con);
+		ast_unlock_context(lot_context);
+		return -1;
+	}
+
+	/* Handle generation/confirmation for the ParkedCall extensions and hints */
+	for (parkingspace = lot_cfg->parking_start; parkingspace <= lot_cfg->parking_stop; parkingspace++) {
+		char space[AST_MAX_EXTENSION];
+		RAII_VAR(struct ast_str *, arguments_string, NULL, ast_free);
+		find_info.stacklen = 0; /* reset for pbx_find_exten */
+
+		snprintf(space, sizeof(space), "%d", parkingspace);
+
+		/* Unlike the Park extensions, ParkedCall extensions and their hints may never be shared for any reason. */
+		if ((existing_exten = pbx_find_extension(NULL, NULL, &find_info, lot_cfg->parking_con, space, 1, NULL, NULL, E_MATCH))) {
+			ast_unlock_context(lot_context);
+			return -1;
+		}
+
+		arguments_string = ast_str_create(32);
+		if (!arguments_string) {
+			ast_unlock_context(lot_context);
+			return -1;
+		}
+
+		ast_str_set(&arguments_string, 0, "%s,%s", lot_cfg->name, space);
+		if (parking_add_extension(lot_context, 0, space, 1, PARKED_CALL_APPLICATION,
+		    ast_str_buffer(arguments_string), registrar_pointer)) {
+			ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add %s extension '%s@%s' to the PBX.\n",
+			        lot_cfg->name, PARKED_CALL_APPLICATION, space, lot_cfg->parking_con);
+			ast_unlock_context(lot_context);
+			return -1;
+		}
+
+		find_info.stacklen = 0; /* reset for pbx_find_exten */
+
+		if (lot_cfg->parkaddhints) {
+			char hint_device[AST_MAX_EXTENSION];
+
+			snprintf(hint_device, sizeof(hint_device), "park:%s@%s", space, lot_cfg->parking_con);
+
+			if ((existing_exten = pbx_find_extension(NULL, NULL, &find_info, lot_cfg->parking_con, space, PRIORITY_HINT, NULL, NULL, E_MATCH))) {
+				ast_log(LOG_ERROR, "Parking lot '%s' -- Needs to add a hint '%s' at '%s@%s' but one already exists owned by %s\n",
+			        lot_cfg->name, hint_device, space, lot_cfg->parking_con, ast_get_extension_registrar(existing_exten));
+					ast_unlock_context(lot_context);
+					return -1;
+			}
+
+			if (parking_add_extension(lot_context, 0, space, PRIORITY_HINT, hint_device, "", registrar_pointer)) {
+				ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add hint '%s@%s' to the PBX.\n",
+				        lot_cfg->name, space, lot_cfg->parking_con);
+				ast_unlock_context(lot_context);
+				return -1;
+			}
+		}
+	}
+
+	if (ast_unlock_context(lot_context)) {
+		ast_assert(0);
+	}
+
+	return 0;
+}
+
 struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *lot_cfg)
 {
 	struct parking_lot *lot;
@@ -688,6 +902,54 @@ static int verify_default_parking_lot(void)
 	return 0;
 }
 
+static void remove_pending_parking_lot_extensions(struct parking_config *cfg_pending)
+{
+	struct parking_lot_cfg *lot_cfg;
+	struct ao2_iterator iter;
+
+	for (iter = ao2_iterator_init(cfg_pending->parking_lots, 0); (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
+		parking_lot_cfg_remove_extensions(lot_cfg);
+	}
+
+	ao2_iterator_destroy(&iter);
+
+	ast_context_destroy(NULL, BASE_REGISTRAR);
+
+}
+
+static int configure_parking_extensions(void)
+{
+	struct parking_config *cfg = aco_pending_config(&cfg_info);
+	struct ao2_iterator iter;
+	RAII_VAR(struct parking_lot_cfg *, lot_cfg, NULL, ao2_cleanup);
+	int res = 0;
+
+	if (!cfg) {
+		return 0;
+	}
+
+	/* Clear existing extensions */
+	remove_all_configured_parking_lot_extensions();
+
+	/* Attempt to build new extensions for each lot */
+	for (iter = ao2_iterator_init(cfg->parking_lots, 0); (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
+		if (parking_lot_cfg_create_extensions(lot_cfg)) {
+			ao2_cleanup(lot_cfg);
+			lot_cfg = NULL;
+			res = -1;
+			break;
+		}
+	}
+	ao2_iterator_destroy(&iter);
+
+	if (res) {
+		remove_pending_parking_lot_extensions(cfg);
+		ast_log(LOG_ERROR, "Extension registration failed. Previously configured lot extensions were removed and can not be safely restored.\n");
+	}
+
+	return res;
+}
+
 static void mark_lots_as_disabled(void)
 {
 	struct ao2_iterator iter;
@@ -708,7 +970,16 @@ static void mark_lots_as_disabled(void)
 static int config_parking_preapply(void)
 {
 	mark_lots_as_disabled();
-	return verify_default_parking_lot();
+
+	if (verify_default_parking_lot()) {
+		return -1;
+	}
+
+	if (configure_parking_extensions()) {
+		return -1;
+	}
+
+	return 0;
 }
 
 static void disable_marked_lots(void)
@@ -797,12 +1068,14 @@ static int load_module(void)
 		goto error;
 	}
 
-	/* TODO Dialplan generation for parking lots that set parkext */
-	/* TODO Generate hints for parking lots that set parkext and have hints enabled */
+	if (load_parking_devstate()) {
+		goto error;
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 
 error:
+	ao2_cleanup(parking_lot_container);
 	aco_info_destroy(&cfg_info);
 	return AST_MODULE_LOAD_DECLINE;
 }
@@ -818,10 +1091,17 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-	/* XXX Parking is currently unloadable due to the fact that it loads features which could cause
+	/* XXX Parking is currently not unloadable due to the fact that it loads features which could cause
 	 *     significant problems if they disappeared while a channel still had access to them.
 	 */
 	return -1;
+
+	/* TODO Things we will need to do here:
+	 *
+	 *  destroy existing parking lots
+	 *  uninstall parking related bridge features
+	 *  remove extensions owned by the parking registrar
+	 */
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Call Parking Resource",

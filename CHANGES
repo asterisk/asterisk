@@ -187,6 +187,11 @@ Parking
    The preferred way to configure parking is now through res_parking.conf while
    configuration through features.conf is not currently supported.
 
+ * res_parking uses the configuration framework. If an invalid configuration is
+   supplied, res_parking will fail to load or fail to reload. Previously parking
+   lots that were misconfigured would generally be accepted with certain
+   configuration problems leading to individual disabled parking lots.
+
  * Parked calls are now placed in bridges. This is a largely architectural change,
    but it could have some implications in allowing for new parked call retrieval
    methods and the contents of parking lots will be visible though certain bridge
@@ -225,6 +230,11 @@ Parking
  * ParkAndAnnounce will no longer go to the next position in dialplan on timeout
    by default. Instead, it will follow the timeout rules of the parking lot. The
    old behavior can be reproduced by using the 'c' option.
+
+ * Added a channel variable PARKER_FLAT which stores the name of the extension
+   that would be used to come back to if comebacktoorigin was set to use. This can
+   be useful when comebacktoorigin is off if you still want to use the extensions
+   in the park-dial context that are generated to redial the parker on timeout.
 
 Queue
 -------------------

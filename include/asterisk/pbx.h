@@ -470,6 +470,17 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
 /*!
+ * \brief Same as ast_add_extension2, but assumes you have already locked context
+ * \since 12.0.0
+ *
+ * \note con must be write locked prior to calling. For details about the arguments,
+ *       check ast_add_extension2()
+ */
+int ast_add_extension2_nolock(struct ast_context *con, int replace, const char *extension,
+	int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *), const char *registrar);
+
+/*!
  * \brief Map devstate to an extension state.
  *
  * \param[in] devstate device state

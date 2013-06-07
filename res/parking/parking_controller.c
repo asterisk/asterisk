@@ -254,9 +254,6 @@ int comeback_goto(struct parked_user *pu, struct parking_lot *lot)
 
 	peername = blindtransfer ? ast_strdupa(blindtransfer) : ast_strdupa(pu->parker->name);
 
-	/* XXX Comeback to origin mode: Generate an extension in park-dial to Dial the peer */
-
-
 	/* Flatten the peername so that it can be used for performing the timeout PBX operations */
 	flatten_peername(peername);
 

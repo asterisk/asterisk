@@ -9612,6 +9612,16 @@ int ast_add_extension2(struct ast_context *con,
 		application, data, datad, registrar, 1);
 }
 
+int ast_add_extension2_nolock(struct ast_context *con,
+	int replace, const char *extension, int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *),
+	const char *registrar)
+{
+	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid,
+		application, data, datad, registrar, 0);
+}
+
+
 /*!
  * \brief Same as ast_add_extension2() but controls the context locking.
  *

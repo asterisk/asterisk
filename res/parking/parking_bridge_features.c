@@ -367,6 +367,23 @@ static void parking_duration_cb_destroyer(void *hook_pvt)
 	ao2_ref(user, -1);
 }
 
+/*!
+ * \brief Removes the identification information from a channel name string
+ * \since 12.0
+ *
+ * \param channel name string that you wish to turn into a dial string. This will be edited in place.
+ */
+static void channel_name_to_dial_string(char *peername)
+{
+	char *dash;
+
+	/* Truncate after the dash */
+	dash = strrchr(peername, '-');
+	if (dash) {
+		*dash = '\0';
+	}
+}
+
 /*! \internal
  * \brief Interval hook. Pulls a parked call from the parking bridge after the timeout is passed and sets the resolution to timeout.
  *
@@ -378,8 +395,16 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 {
 	struct parked_user *user = hook_pvt;
 	struct ast_channel *chan = user->chan;
+	struct ast_context *park_dial_context;
 	char *peername;
+	char *peername_flat;
 	char parking_space[AST_MAX_EXTENSION];
+
+	char returnexten[AST_MAX_EXTENSION];
+	char *duplicate_returnexten;
+	struct ast_exten *existing_exten;
+	struct pbx_find_info pbx_finder = { .stacklen = 0 }; /* The rest is reset in pbx_find_extension */
+
 
 	/* We are still in the bridge, so it's possible for other stuff to mess with the parked call before we leave the bridge
 	   to deal with this, lock the parked user, check and set resolution. */
@@ -402,11 +427,68 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 	pbx_builtin_setvar_helper(chan, "PARKEDLOT", user->lot->name);
 
 	peername = ast_strdupa(user->parker->name);
-	flatten_peername(peername);
+	channel_name_to_dial_string(peername);
+
+	peername_flat = ast_strdupa(user->parker->name);
+	flatten_peername(peername_flat);
 
 	pbx_builtin_setvar_helper(chan, "PARKER", peername);
+	pbx_builtin_setvar_helper(chan, "PARKER_FLAT", peername_flat);
 
-	/* TODO Dialplan generation for park-dial extensions */
+	/* Dialplan generation for park-dial extensions */
+
+	if (ast_wrlock_contexts()) {
+		ast_log(LOG_ERROR, "Failed to lock the contexts list. Can't add the park-dial extension.\n");
+		return -1;
+	}
+
+	if (!(park_dial_context = ast_context_find_or_create(NULL, NULL, PARK_DIAL_CONTEXT, BASE_REGISTRAR))) {
+		ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", PARK_DIAL_CONTEXT);
+		if (ast_unlock_contexts()) {
+			ast_assert(0);
+		}
+		goto abandon_extension_creation;
+	}
+
+	if (ast_wrlock_context(park_dial_context)) {
+		ast_log(LOG_ERROR, "failed to obtain write lock on context '%s'\n", PARK_DIAL_CONTEXT);
+		if (ast_unlock_contexts()) {
+			ast_assert(0);
+		}
+		goto abandon_extension_creation;
+	}
+
+	if (ast_unlock_contexts()) {
+		ast_assert(0);
+	}
+
+	snprintf(returnexten, sizeof(returnexten), "%s,%u", peername,
+		user->lot->cfg->comebackdialtime);
+
+	duplicate_returnexten = ast_strdup(returnexten);
+
+	if (!duplicate_returnexten) {
+		ast_log(LOG_ERROR, "Failed to create parking redial parker extension %s@%s - Dial(%s)\n",
+			peername_flat, PARK_DIAL_CONTEXT, returnexten);
+	}
+
+	/* If an extension already exists here because we registered it for another parked call timing out, then we may overwrite it. */
+	if ((existing_exten = pbx_find_extension(NULL, NULL, &pbx_finder, PARK_DIAL_CONTEXT, peername_flat, 1, NULL, NULL, E_MATCH)) &&
+	    (strcmp(ast_get_extension_registrar(existing_exten), BASE_REGISTRAR))) {
+		ast_debug(3, "An extension for '%s@%s' was already registered by another registrar '%s'\n",
+			peername_flat, PARK_DIAL_CONTEXT, ast_get_extension_registrar(existing_exten));
+	} else if (ast_add_extension2_nolock(park_dial_context, 1, peername_flat, 1, NULL, NULL,
+			"Dial", duplicate_returnexten, ast_free_ptr, BASE_REGISTRAR)) {
+			ast_free(duplicate_returnexten);
+		ast_log(LOG_ERROR, "Failed to create parking redial parker extension %s@%s - Dial(%s)\n",
+			peername_flat, PARK_DIAL_CONTEXT, returnexten);
+	}
+
+	if (ast_unlock_context(park_dial_context)) {
+		ast_assert(0);
+	}
+
+abandon_extension_creation:
 
 	/* async_goto the proper PBX destination - this should happen when we come out of the bridge */
 	if (!ast_strlen_zero(user->comeback)) {

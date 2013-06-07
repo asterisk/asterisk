@@ -290,6 +290,8 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 		COLORIZE(COLOR_BRMAGENTA, 0, self->lot->name),
 		pu->parking_space);
 
+	parking_notify_metermaids(pu->parking_space, self->lot->cfg->parking_con, AST_DEVICE_INUSE);
+
 	return 0;
 }
 
@@ -327,6 +329,8 @@ static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_brid
 		pu->resolution = PARK_ABANDON;
 	}
 	ao2_unlock(pu);
+
+	parking_notify_metermaids(pu->parking_space, self->lot->cfg->parking_con, AST_DEVICE_NOT_INUSE);
 
 	switch (pu->resolution) {
 	case PARK_UNSET:

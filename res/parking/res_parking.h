@@ -30,6 +30,7 @@
 
 #define DEFAULT_PARKING_LOT "default"
 #define DEFAULT_PARKING_EXTEN "700"
+#define BASE_REGISTRAR "res_parking"
 #define PARK_DIAL_CONTEXT "park-dial"
 
 enum park_call_resolution {
@@ -75,6 +76,7 @@ struct parking_lot_cfg {
 
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);               /*!< Name of the parking lot configuration object */
+		AST_STRING_FIELD(registrar);          /*!< Which registrar the lot uses if it isn't the default registrar */
 		AST_STRING_FIELD(mohclass);           /*!< Analogous to mohclass config option */
 		AST_STRING_FIELD(parkext);            /*!< Analogous to parkext config option */
 		AST_STRING_FIELD(parking_con);        /*!< Analogous to context config option */
@@ -109,7 +111,7 @@ struct parked_user {
 };
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief If a parking lot exists in the parking lot list already, update its status to match the provided
  *        configuration and return a reference return a reference to it. Otherwise, create a parking lot
  *        struct based on a parking lot configuration and return a reference to the new one.
@@ -125,7 +127,7 @@ struct parked_user {
 struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *cfg);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Remove a parking lot from the usable lists if it is no longer involved in any calls and no configuration currently claims it
  *
  * \param lot Which parking lot is being checked for elimination
@@ -136,7 +138,7 @@ struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *cfg);
 void parking_lot_remove_if_unused(struct parking_lot *lot);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Create a new parking bridge
  *
  * \param bridge_lot Parking lot which the new bridge should be based on
@@ -147,7 +149,7 @@ void parking_lot_remove_if_unused(struct parking_lot *lot);
 struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Get a reference to a parking lot's bridge. If it doesn't exist, create it and get a reference.
  *
  * \param lot Which parking lot we need the bridge from. This parking lot must be locked before calling this function.
@@ -160,7 +162,7 @@ struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot);
 struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Get an available parking space within a parking lot.
  *
  * \param lot Which parking lot we are getting a space from
@@ -175,7 +177,7 @@ struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot);
 int parking_lot_get_space(struct parking_lot *lot, int target_override);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Determine if there is a parked user in a parking space and pull it from the parking lot if there is.
  *
  * \param lot Parking lot being pulled from
@@ -191,7 +193,7 @@ int parking_lot_get_space(struct parking_lot *lot, int target_override);
 struct parked_user *parking_lot_retrieve_parked_user(struct parking_lot *lot, int target);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Apply features based on the parking lot feature options
  *
  * \param chan Which channel's feature set is being modified
@@ -202,7 +204,7 @@ struct parked_user *parking_lot_retrieve_parked_user(struct parking_lot *lot, in
 void parked_call_retrieve_enable_features(struct ast_channel *chan, struct parking_lot *lot, int recipient_mode);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Set necessary bridge roles on a channel that is about to enter a parking lot
  *
  * \param chan Entering channel
@@ -212,14 +214,14 @@ void parked_call_retrieve_enable_features(struct ast_channel *chan, struct parki
 void parking_channel_set_roles(struct ast_channel *chan, struct parking_lot *lot, int force_ringing);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief custom callback function for ast_bridge_channel_queue_playfile which plays a parking space
  *        and optionally hangs up the call afterwards based on the payload in playfile.
  */
 void say_parking_space(struct ast_bridge_channel *bridge_channel, const char *payload);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Setup timeout interval feature on an ast_bridge_features for parking
  *
  * \param features The ast_bridge_features we are establishing the interval hook on
@@ -228,7 +230,7 @@ void say_parking_space(struct ast_bridge_channel *bridge_channel, const char *pa
 void parking_set_duration(struct ast_bridge_features *features, struct parked_user *user);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Get a pointer to the parking lot container for purposes such as iteration
  *
  * \retval pointer to the parking lot container.
@@ -236,7 +238,7 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 struct ao2_container *get_parking_lot_container(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Find a parking lot based on its name
  *
  * \param lot_name Name of the parking lot sought
@@ -249,7 +251,7 @@ struct ao2_container *get_parking_lot_container(void);
 struct parking_lot *parking_lot_find_by_name(const char *lot_name);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Find parking lot name from channel
  *
  * \param chan The channel we want the parking lot name for
@@ -262,7 +264,7 @@ struct parking_lot *parking_lot_find_by_name(const char *lot_name);
 const char *find_channel_parking_lot_name(struct ast_channel *chan);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Flattens a peer name so that it can be written to/found from PBX extensions
  *
  * \param peername unflattened peer name. This will be flattened in place, so expect it to change.
@@ -270,7 +272,7 @@ const char *find_channel_parking_lot_name(struct ast_channel *chan);
 void flatten_peername(char *peername);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Set a channel's position in the PBX after timeout using the parking lot settings
  *
  * \param pu Parked user who is entering/reentering the PBX
@@ -282,7 +284,30 @@ void flatten_peername(char *peername);
 int comeback_goto(struct parked_user *pu, struct parking_lot *lot);
 
 /*!
- * \since 12
+ * \since 12.0.0
+ * \brief Add extensions for a parking lot configuration
+ *
+ * \param lot_cfg parking lot configuration to generate extensions for
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
+int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg);
+
+/*!
+ * \since 12.0.0
+ * \brief Remove extensions belonging to a parking lot configuration
+ *
+ * \param lot_cfg parking lot configuratin to remove extensions from
+ *
+ * \note This will not remove extensions registered non-exclusively even
+ *       if those extensions were registered by lot_cfg. Those are only
+ *       purged on a res_parking module reload.
+ */
+void parking_lot_cfg_remove_extensions(struct parking_lot_cfg *lot_cfg);
+
+/*!
+ * \since 12.0.0
  * \brief Pull a parked user out of its parking lot. Use this when you don't want to use the parked user afterwards.
  * \param user The parked user being pulled.
  *
@@ -292,7 +317,7 @@ int comeback_goto(struct parked_user *pu, struct parking_lot *lot);
 int unpark_parked_user(struct parked_user *user);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Publish a stasis parked call message for the channel indicating failure to park.
  *
  * \param parkee channel belonging to the failed parkee
@@ -300,7 +325,7 @@ int unpark_parked_user(struct parked_user *user);
 void publish_parked_call_failure(struct ast_channel *parkee);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Publish a stasis parked call message for a given parked user
  *
  * \param pu pointer to a parked_user that we are generating the message for
@@ -309,7 +334,7 @@ void publish_parked_call_failure(struct ast_channel *parkee);
 void publish_parked_call(struct parked_user *pu, enum ast_parked_call_event_type event_type);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Function to prepare a channel for parking by determining which parking bridge should
  *        be used, setting up a park common datastore so that the parking bridge will have access
  *        to necessary parking information when joining, and applying various bridge roles to the
@@ -338,7 +363,7 @@ struct park_common_datastore {
 };
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Function that pulls data from the park common datastore on a channel in order to apply it to
  *        the parked user struct upon bridging.
  *
@@ -354,7 +379,17 @@ void get_park_common_datastore_data(struct ast_channel *parkee,
 		int *randomize, int *time_limit, int *silence_announce);
 
 /*!
- * \since 12
+ * \since 12.0.0
+ * \brief Notify metermaids that we've changed an extension
+ *
+ * \param exten Extension of the call parked/unparked
+ * \param context Context of the call parked/unparked
+ * \param state new device state
+ */
+void parking_notify_metermaids(int exten, const char *context, enum ast_device_state state);
+
+/*!
+ * \since 12.0.0
  * \brief Execution function for the parking application
  *
  * \param chan ast_channel entering the application
@@ -368,7 +403,7 @@ void get_park_common_datastore_data(struct ast_channel *parkee,
 int park_app_exec(struct ast_channel *chan, const char *data);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Execution function for the parked call application
  *
  * \param chan ast_channel entering the application
@@ -380,7 +415,7 @@ int park_app_exec(struct ast_channel *chan, const char *data);
 int parked_call_app_exec(struct ast_channel *chan, const char *data);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Execution function for the park and retrieve application
  *
  * \param chan ast_channel entering the application
@@ -394,7 +429,7 @@ int parked_call_app_exec(struct ast_channel *chan, const char *data);
 int park_and_announce_app_exec(struct ast_channel *chan, const char *data);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Register CLI commands
  *
  * \retval 0 if successful
@@ -403,25 +438,25 @@ int park_and_announce_app_exec(struct ast_channel *chan, const char *data);
 int load_parking_ui(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Unregister CLI commands
  */
 void unload_parking_ui(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Register manager actions and setup subscriptions for stasis events
  */
 int load_parking_manager(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Unregister manager actions and remove subscriptions for stasis events
  */
 void unload_parking_manager(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Register bridge features for parking
  *
  * \retval 0 on success
@@ -430,7 +465,19 @@ void unload_parking_manager(void);
 int load_parking_bridge_features(void);
 
 /*!
- * \since 12
+ * \since 12.0.0
  * \brief Unregister features registered by load_parking_bridge_features
  */
 void unload_parking_bridge_features(void);
+
+/*!
+ * \since 12.0.0
+ * \brief Register Parking devstate handler
+ */
+int load_parking_devstate(void);
+
+/*!
+ * \since 12.0.0
+ * \brief Unregister Parking devstate handler
+ */
+void unload_parking_devstate(void);

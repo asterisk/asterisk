@@ -362,8 +362,6 @@ typedef enum {
 	FEATURE_INTERPRET_CHECK,  /* Used by feature_check */
 } feature_interpret_op;
 
-static const char *parkedcall = "ParkedCall";
-
 /*! Parking lot access ramp dialplan usage entry. */
 struct parking_dp_ramp {
 	/*! Next node in the parking lot spaces dialplan list. */
@@ -1482,13 +1480,6 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 
 	snprintf(app_data, sizeof(app_data), "%s,%s", pu->parkingexten,
 		pu->parkinglot->name);
-	if (ast_add_extension(pu->parkinglot->cfg.parking_con, 1, pu->parkingexten, 1,
-		NULL, NULL, parkedcall, ast_strdup(app_data), ast_free_ptr, registrar)) {
-		ast_log(LOG_ERROR, "Could not create parked call exten: %s@%s\n",
-			pu->parkingexten, pu->parkinglot->cfg.parking_con);
-	} else {
-		notify_metermaids(pu->parkingexten, pu->parkinglot->cfg.parking_con, AST_DEVICE_INUSE);
-	}
 
 	AST_LIST_UNLOCK(&pu->parkinglot->parkings);
 
@@ -3939,12 +3930,6 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 
 				pbx_builtin_setvar_helper(chan, "PARKER", peername);
 
-				if (ast_add_extension(parking_con_dial, 1, peername_flat, 1, NULL, NULL,
-					"Dial", ast_strdup(returnexten), ast_free_ptr, registrar)) {
-					ast_log(LOG_ERROR,
-						"Could not create parking return dial exten: %s@%s\n",
-						peername_flat, parking_con_dial);
-				}
 			}
 
 			snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
@@ -4274,25 +4259,6 @@ static struct ast_parkinglot *create_parkinglot(const char *name)
 	return newlot;
 }
 
-/*!
- * \brief Add parking hints for all defined parking spaces.
- * \param context Dialplan context to add the hints.
- * \param start Starting space in parkinglot.
- * \param stop Ending space in parkinglot.
- */
-static void park_add_hints(const char *context, int start, int stop)
-{
-	int numext;
-	char device[AST_MAX_EXTENSION];
-	char exten[10];
-
-	for (numext = start; numext <= stop; numext++) {
-		snprintf(exten, sizeof(exten), "%d", numext);
-		snprintf(device, sizeof(device), "park:%s@%s", exten, context);
-		ast_add_extension(context, 1, exten, PRIORITY_HINT, NULL, NULL, device, NULL, NULL, registrar);
-	}
-}
-
 /*! Default configuration for default parking lot. */
 static const struct parkinglot_cfg parkinglot_cfg_default_default = {
 	.mohclass = "default",
@@ -4330,50 +4296,9 @@ static const struct parkinglot_cfg parkinglot_cfg_default = {
  */
 static int parkinglot_activate(struct ast_parkinglot *parkinglot)
 {
-	int disabled = 0;
-	char app_data[5 + AST_MAX_CONTEXT];
-
-	/* Create Park option list.  Must match with struct park_app_args options. */
-	if (parkinglot->cfg.parkext_exclusive) {
-		/* Specify the parking lot this parking extension parks calls. */
-		snprintf(app_data, sizeof(app_data), ",,,,,%s", parkinglot->name);
-	} else {
-		/* The dialplan must specify which parking lot to use. */
-		app_data[0] = '\0';
-	}
-
-	/* Create context */
-	if (!ast_context_find_or_create(NULL, NULL, parkinglot->cfg.parking_con, registrar)) {
-		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n",
-			parkinglot->cfg.parking_con);
-		disabled = 1;
-
-	/* Add a parking extension into the context */
-	} else if (ast_add_extension(parkinglot->cfg.parking_con, 1, parkinglot->cfg.parkext,
-		1, NULL, NULL, parkcall, ast_strdup(app_data), ast_free_ptr, registrar)) {
-		ast_log(LOG_ERROR, "Could not create parking lot %s access exten %s@%s\n",
-			parkinglot->name, parkinglot->cfg.parkext, parkinglot->cfg.parking_con);
-		disabled = 1;
-	} else {
-		/* Add parking hints */
-		if (parkinglot->cfg.parkaddhints) {
-			park_add_hints(parkinglot->cfg.parking_con, parkinglot->cfg.parking_start,
-				parkinglot->cfg.parking_stop);
-		}
-
-		/*
-		 * XXX Not sure why we should need to notify the metermaids for
-		 * this exten.  It was originally done for the default parking
-		 * lot entry exten only but should be done for all entry extens
-		 * if we do it for one.
-		 */
-		/* Notify metermaids about parking lot entry exten state. */
-		notify_metermaids(parkinglot->cfg.parkext, parkinglot->cfg.parking_con,
-			AST_DEVICE_INUSE);
-	}
-
-	parkinglot->disabled = disabled;
-	return disabled ? -1 : 0;
+	/* XXX All parking stuff is being replaced by res_parking */
+	parkinglot->disabled = 1;
+	return -1;
 }
 
 int ast_features_reload(void)
