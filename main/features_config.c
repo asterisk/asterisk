@@ -281,7 +281,7 @@ static void *featuregroup_alloc(const char *cat)
 	}
 
 	group->items = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
-			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, group_item_sort, NULL);
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, group_item_sort, NULL);
 	if (!group->items) {
 		ao2_cleanup(group);
 		return NULL;
@@ -418,11 +418,11 @@ static struct features_global_config *global_config_alloc(void)
 	return cfg;
 }
 
-static struct ao2_container *applicationmap_alloc(int reject_duplicates)
+static struct ao2_container *applicationmap_alloc(int replace_duplicates)
 {
 	return ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
-			reject_duplicates ? AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT : AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW,
-			applicationmap_sort, NULL);
+		replace_duplicates ? AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE : AO2_CONTAINER_ALLOC_OPT_DUPS_ALLOW,
+		applicationmap_sort, NULL);
 }
 
 /*!
@@ -902,13 +902,13 @@ int ast_get_feature(struct ast_channel *chan, const char *feature, char *buf, si
 {
 	RAII_VAR(struct ao2_container *, applicationmap, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_applicationmap_item *, item, NULL, ao2_cleanup);
+
 	if (!ast_get_builtin_feature(chan, feature, buf, len)) {
 		return 0;
 	}
 
 	/* Dang, must be in the application map */
 	applicationmap = ast_get_chan_applicationmap(chan);
-
 	if (!applicationmap) {
 		return -1;
 	}
@@ -969,10 +969,7 @@ static int add_item(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	if (!ao2_link(applicationmap, appmap_item)) {
-		ast_log(LOG_WARNING, "Unable to add applicationmap item %s. Possible duplicate\n",
-				fg_item->appmap_item_name);
-	}
+	ao2_link(applicationmap, appmap_item);
 	return 0;
 }
 
@@ -1007,10 +1004,15 @@ struct ao2_container *ast_get_chan_applicationmap(struct ast_channel *chan)
 
 	while ((name = strsep(&group_names, "#"))) {
 		RAII_VAR(struct featuregroup *, group, ao2_find(cfg->featuregroups, name, OBJ_KEY), ao2_cleanup);
+
 		if (!group) {
 			RAII_VAR(struct ast_applicationmap_item *, item, ao2_find(cfg->applicationmap, name, OBJ_KEY), ao2_cleanup);
-			if (item && !ao2_link(applicationmap, item)) {
-				ast_log(LOG_WARNING, "Unable to add applicationmap item %s. Possible duplicate.\n", item->name);
+
+			if (item) {
+				ao2_link(applicationmap, item);
+			} else {
+				ast_log(LOG_WARNING, "Unknown DYNAMIC_FEATURES item '%s' on channel %s.\n",
+					name, ast_channel_name(chan));
 			}
 		} else {
 			ao2_callback(group->items, 0, add_item, applicationmap);
@@ -1110,7 +1112,7 @@ static int applicationmap_handler(const struct aco_option *opt,
 	}
 
 	if (!ao2_link(applicationmap, item)) {
-		ast_log(LOG_WARNING, "Unable to add applicationmap item %s. Possible duplicate\n", item->name);
+		return -1;
 	}
 
 	return 0;
@@ -1131,7 +1133,7 @@ static int featuregroup_handler(const struct aco_option *opt,
 	ast_string_field_set(item, dtmf_override, var->value);
 
 	if (!ao2_link(group->items, item)) {
-		ast_log(LOG_WARNING, "Unable to add featuregroup item %s. Possible duplicate\n", item->appmap_item_name);
+		return -1;
 	}
 
 	/* We wait to look up the application map item in the preapply callback */
