@@ -316,6 +316,21 @@ int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastor
  */
 struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid);
 
+/*!
+ * \brief append an event header to an ast string
+ * \since 12
+ *
+ * \param fields_string pointer to an ast_string pointer. It may be a pointer to a
+ *        NULL ast_str pointer, in which case the ast_str will be initialized.
+ * \param header The header being applied
+ * \param value the value of the header
+ *
+ * \retval 0 if successful
+ * \retval non-zero on failure
+ */
+int ast_str_append_event_header(struct ast_str **fields_string,
+	const char *header, const char *value);
+
 /*! \brief Struct representing a snapshot of channel state */
 struct ast_channel_snapshot;
 

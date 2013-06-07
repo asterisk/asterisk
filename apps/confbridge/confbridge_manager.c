@@ -188,24 +188,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static struct stasis_message_router *bridge_state_router;
 static struct stasis_message_router *channel_state_router;
 
-static void append_event_header(struct ast_str **fields_string,
-					const char *header, const char *value)
-{
-	struct ast_str *working_str = *fields_string;
-
-	if (!working_str) {
-		working_str = ast_str_create(128);
-		if (!working_str) {
-			return;
-		}
-		*fields_string = working_str;
-	}
-
-	ast_str_append(&working_str, 0,
-		"%s: %s\r\n",
-		header, value);
-}
-
 static void confbridge_publish_manager_event(
 	struct stasis_message *message,
 	const char *event,
@@ -306,7 +288,7 @@ static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
-	append_event_header(&extra_text, "TalkingStatus", talking_status);
+	ast_str_append_event_header(&extra_text, "TalkingStatus", talking_status);
 	if (!extra_text) {
 		return;
 	}

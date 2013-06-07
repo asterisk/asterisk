@@ -89,6 +89,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/security_events.h"
 #include "asterisk/event.h"
 #include "asterisk/aoc.h"
+#include "asterisk/strings.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
 #include "asterisk/stasis.h"
@@ -8240,6 +8241,26 @@ struct ast_datastore *astman_datastore_find(struct mansession *s, const struct a
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	return datastore;
+}
+
+int ast_str_append_event_header(struct ast_str **fields_string,
+					const char *header, const char *value)
+{
+	struct ast_str *working_str = *fields_string;
+
+	if (!working_str) {
+		working_str = ast_str_create(128);
+		if (!working_str) {
+			return -1;
+		}
+		*fields_string = working_str;
+	}
+
+	ast_str_append(&working_str, 0,
+		"%s: %s\r\n",
+		header, value);
+
+	return 0;
 }
 
 static void manager_event_blob_dtor(void *obj)
