@@ -716,7 +716,7 @@ AST_TEST_DEFINE(cache)
 	ao2_ref(test_message2_2, -1);
 
 	/* Clear snapshot 1 */
-	test_message1_clear = stasis_cache_clear_create(cache_type, "1");
+	test_message1_clear = stasis_cache_clear_create(test_message1_1);
 	ast_test_validate(test, NULL != test_message1_clear);
 	stasis_publish(topic, test_message1_clear);
 
@@ -811,7 +811,7 @@ AST_TEST_DEFINE(cache_dump)
 	}
 
 	/* Clear snapshot 1 */
-	test_message1_clear = stasis_cache_clear_create(cache_type, "1");
+	test_message1_clear = stasis_cache_clear_create(test_message1_1);
 	ast_test_validate(test, NULL != test_message1_clear);
 	stasis_publish(topic, test_message1_clear);
 

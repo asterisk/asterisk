@@ -145,18 +145,25 @@ static void endpoint_channel_snapshot(void *data,
 	}
 }
 
+/*! \brief Handler for channel snapshot cache clears */
 static void endpoint_cache_clear(void *data,
 	struct stasis_subscription *sub, struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_endpoint *endpoint = data;
-	struct stasis_cache_clear *clear = stasis_message_data(message);
+	struct stasis_message *clear_msg = stasis_message_data(message);
+	struct ast_channel_snapshot *clear_snapshot;
+
+	if (stasis_message_type(clear_msg) != ast_channel_snapshot_type()) {
+		return;
+	}
+
+	clear_snapshot = stasis_message_data(clear_msg);
 
 	ast_assert(endpoint != NULL);
-	ast_assert(clear != NULL);
 
 	ao2_lock(endpoint);
-	ao2_find(endpoint->channel_ids, clear->id, OBJ_POINTER | OBJ_NODATA | OBJ_UNLINK);
+	ast_str_container_remove(endpoint->channel_ids, clear_snapshot->uniqueid);
 	ao2_unlock(endpoint);
 	endpoint_publish_snapshot(endpoint);
 }
@@ -247,17 +254,32 @@ const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint)
 	return endpoint->tech;
 }
 
+static struct stasis_message *create_endpoint_snapshot_message(struct ast_endpoint *endpoint)
+{
+	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
+	snapshot = ast_endpoint_snapshot_create(endpoint);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	return stasis_message_create(ast_endpoint_snapshot_type(), snapshot);
+}
+
 void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
 
 	if (endpoint == NULL) {
 		return;
 	}
 
-	message = stasis_cache_clear_create(ast_endpoint_snapshot_type(), endpoint->id);
-	if (message) {
-		stasis_publish(endpoint->topic, message);
+	clear_msg = create_endpoint_snapshot_message(endpoint);
+	if (clear_msg) {
+		RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+		message = stasis_cache_clear_create(clear_msg);
+		if (message) {
+			stasis_publish(endpoint->topic, message);
+		}
 	}
 
 	/* Bump refcount to hold on to the router */

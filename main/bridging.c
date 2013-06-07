@@ -1283,17 +1283,32 @@ static void bridge_handle_actions(struct ast_bridge *bridge)
 	}
 }
 
+static struct stasis_message *create_bridge_snapshot_message(struct ast_bridge *bridge)
+{
+	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
+	snapshot = ast_bridge_snapshot_create(bridge);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	return stasis_message_create(ast_bridge_snapshot_type(), snapshot);
+}
+
 static void destroy_bridge(void *obj)
 {
 	struct ast_bridge *bridge = obj;
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
 
 	ast_debug(1, "Bridge %s: actually destroying %s bridge, nobody wants it anymore\n",
 		bridge->uniqueid, bridge->v_table->name);
 
-	msg = stasis_cache_clear_create(ast_bridge_snapshot_type(), bridge->uniqueid);
-	if (msg) {
-		stasis_publish(ast_bridge_topic(bridge), msg);
+	clear_msg = create_bridge_snapshot_message(bridge);
+	if (clear_msg) {
+		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+		msg = stasis_cache_clear_create(clear_msg);
+		if (msg) {
+			stasis_publish(ast_bridge_topic(bridge), msg);
+		}
 	}
 
 	/* Do any pending actions in the context of destruction. */

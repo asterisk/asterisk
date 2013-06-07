@@ -131,6 +131,11 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 
+	/* no snapshots for dummy channels */
+	if (!ast_channel_tech(chan)) {
+		return NULL;
+	}
+
 	snapshot = ao2_alloc(sizeof(*snapshot), channel_snapshot_dtor);
 	if (!snapshot || ast_string_field_init(snapshot, 1024)) {
 		return NULL;

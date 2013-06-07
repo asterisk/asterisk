@@ -817,11 +817,28 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
+static struct stasis_message *create_channel_snapshot_message(struct ast_channel *channel)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	snapshot = ast_channel_snapshot_create(channel);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	return stasis_message_create(ast_channel_snapshot_type(), snapshot);
+}
+
 static void publish_cache_clear(struct ast_channel *chan)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
 
-	message = stasis_cache_clear_create(ast_channel_snapshot_type(), ast_channel_uniqueid(chan));
+	clear_msg = create_channel_snapshot_message(chan);
+	if (!clear_msg) {
+		return;
+	}
+
+	message = stasis_cache_clear_create(clear_msg);
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
@@ -1161,6 +1178,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	ast_channel_internal_finalize(tmp);
+	ast_publish_channel_state(tmp);
 	return tmp;
 }
 
@@ -2369,6 +2387,8 @@ static void ast_channel_destructor(void *obj)
 	char device_name[AST_CHANNEL_NAME];
 	struct ast_callid *callid;
 
+	publish_cache_clear(chan);
+
 	if (ast_channel_internal_is_finalized(chan)) {
 		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
 		ast_cel_check_retire_linkedid(chan);
@@ -2884,7 +2904,6 @@ int ast_hangup(struct ast_channel *chan)
 	ast_cc_offer(chan);
 
 	ast_publish_channel_state(chan);
-	publish_cache_clear(chan);
 
 	if (ast_channel_cdr(chan) && !ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_BRIDGED) &&
 		!ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_POST_DISABLED) &&

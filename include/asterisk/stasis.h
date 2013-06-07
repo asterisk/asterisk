@@ -502,30 +502,10 @@ struct stasis_cache_update {
 };
 
 /*!
- * \brief Cache clear message.
- */
-struct stasis_cache_clear {
-	/*! Type of object being cleared from the cache */
-	struct stasis_message_type *type;
-	/*! Id of the object being cleared from the cache */
-	char id[];
-};
-
-/*!
- * \brief Message type for \ref stasis_cache_clear.
+ * \brief Message type for clearing a message from a stasis cache.
  * \since 12
  */
 struct stasis_message_type *stasis_cache_clear_type(void);
-
-/*!
- * \brief A message which instructs the caching topic to remove an entry from its cache.
- * \param type Message type.
- * \param id Unique id of the snapshot to clear.
- * \return Message which, when sent to the \a topic, will clear the item from the cache.
- * \return \c NULL on error.
- * \since 12
- */
-struct stasis_message *stasis_cache_clear_create(struct stasis_message_type *type, const char *id);
 
 /*! @} */
 
@@ -536,6 +516,18 @@ struct stasis_message *stasis_cache_clear_create(struct stasis_message_type *typ
  * \since 12
  */
 struct stasis_caching_topic;
+
+/*!
+ * \brief A message which instructs the caching topic to remove an entry from its cache.
+ *
+ * \param message Message representative of the cache entry that should be cleared.
+ *     This will become the data held in the stasis_cache_clear message.
+ *
+ * \return Message which, when sent to the \a topic, will clear the item from the cache.
+ * \return \c NULL on error.
+ * \since 12
+ */
+struct stasis_message *stasis_cache_clear_create(struct stasis_message *message);
 
 /*!
  * \brief Callback extract a unique identity from a snapshot message.

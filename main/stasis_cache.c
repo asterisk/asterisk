@@ -262,30 +262,11 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_clear_type);
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_update_type);
 
-static void cache_clear_dtor(void *obj)
+struct stasis_message *stasis_cache_clear_create(struct stasis_message *id_message)
 {
-	struct stasis_cache_clear *ev = obj;
-	ao2_cleanup(ev->type);
-	ev->type = NULL;
-}
-
-struct stasis_message *stasis_cache_clear_create(struct stasis_message_type *type, const char *id)
-{
-	RAII_VAR(struct stasis_cache_clear *, ev, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
-	ev = ao2_alloc(sizeof(*ev) + strlen(id) + 1, cache_clear_dtor);
-	if (!ev) {
-		return NULL;
-	}
-
-	/* strcpy safe */
-	strcpy(ev->id, id);
-	ao2_ref(type, +1);
-	ev->type = type;
-
-	msg = stasis_message_create(stasis_cache_clear_type(), ev);
-
+	msg = stasis_message_create(stasis_cache_clear_type(), id_message);
 	if (!msg) {
 		return NULL;
 	}
@@ -363,21 +344,25 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 	if (stasis_cache_clear_type() == stasis_message_type(message)) {
 		RAII_VAR(struct stasis_message *, old_snapshot, NULL, ao2_cleanup);
 		RAII_VAR(struct stasis_message *, update, NULL, ao2_cleanup);
-		struct stasis_cache_clear *clear = stasis_message_data(message);
-		ast_assert(clear->type != NULL);
-		ast_assert(clear->id != NULL);
-		old_snapshot = cache_put(caching_topic, clear->type, clear->id, NULL);
-		if (old_snapshot) {
-			update = update_create(topic, old_snapshot, NULL);
-			stasis_publish(caching_topic->topic, update);
-		} else {
-			/* While this could be a problem, it's very likely to
-			 * happen with message forwarding */
-			ast_debug(1,
-				"Attempting to remove an item from the cache that isn't there: %s %s\n",
-				stasis_message_type_name(clear->type), clear->id);
+		struct stasis_message *clear_msg = stasis_message_data(message);
+		const char *clear_id = caching_topic->id_fn(clear_msg);
+		struct stasis_message_type *clear_type = stasis_message_type(clear_msg);
+
+		ast_assert(clear_type != NULL);
+
+		if (clear_id) {
+			old_snapshot = cache_put(caching_topic, clear_type, clear_id, NULL);
+			if (old_snapshot) {
+				update = update_create(topic, old_snapshot, NULL);
+				stasis_publish(caching_topic->topic, update);
+				return;
+			}
+
+			ast_log(LOG_ERROR,
+				"Attempting to remove an item from the %s cache that isn't there: %s %s\n",
+				stasis_topic_name(caching_topic->topic), stasis_message_type_name(clear_type), clear_id);
+			return;
 		}
-		return;
 	}
 
 	id = caching_topic->id_fn(message);
