@@ -106,6 +106,11 @@ AMI (Asterisk Manager Interface)
    core, and is now two events: Hold and Unhold.  The status field has been
    removed.
 
+ * The AMI events in app_queue have been made more consistent with each other.
+   Events that reference channels (QueueCaller* and Agent*) will show
+   information about each channel.  The (infamous) "Join" and "Leave" AMI
+   events have been changed to "QueueCallerJoin" and "QueueCallerLeave".
+
 AGI (Asterisk Gateway Interface)
 ------------------
  * The manager event AGIExec has been split into AGIExecStart and AGIExecEnd.
@@ -242,6 +247,11 @@ Queue
    Note: the suffix '_avail' after the queuename.
    Reports 'InUse' for no logged in agents or no free agents.
    Reports 'Idle' when an agent is free.
+
+ * The configuration options eventwhencalled and eventmemberstatus have been
+   removed.  As a result, the AMI events QueueMemberStatus, AgentCalled,
+   AgentConnect, AgentComplete, AgentDump, and AgentRingNoAnswer will always be
+   sent.  The "Variable" fields will also no longer exist on the Agent* events.
 
 Core
 ------------------

@@ -1287,7 +1287,24 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 		if (exclusion_cb && exclusion_cb(key)) {
 			continue;
 		}
-		ast_str_append(&output_str, 0, "%s: %s\r\n", key, ast_json_string_get(value));
+		switch (ast_json_typeof(value)) {
+		case AST_JSON_STRING:
+			ast_str_append(&output_str, 0, "%s: %s\r\n", key, ast_json_string_get(value));
+			break;
+		case AST_JSON_INTEGER:
+			ast_str_append(&output_str, 0, "%s: %jd\r\n", key, ast_json_integer_get(value));
+			break;
+		case AST_JSON_TRUE:
+			ast_str_append(&output_str, 0, "%s: True\r\n", key);
+			break;
+		case AST_JSON_FALSE:
+			ast_str_append(&output_str, 0, "%s: False\r\n", key);
+			break;
+		default:
+			ast_str_append(&output_str, 0, "%s: \r\n", key);
+			break;
+		}
+
 		if (!output_str) {
 			return NULL;
 		}

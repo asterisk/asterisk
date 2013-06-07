@@ -108,6 +108,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_message_router.h"
 #include "asterisk/bridging.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
@@ -827,7 +828,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
-
 	<manager name="QueueMemberRingInUse" language="en_US">
 		<synopsis>
 			Set the ringinuse value for a queue member.
@@ -841,7 +841,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
-
 	<manager name="QueueRule" language="en_US">
 		<synopsis>
 			Queue Rules.
@@ -893,6 +892,275 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
+
+	<managerEvent language="en_US" name="QueueMemberStatus">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a Queue member's status has changed.</synopsis>
+			<syntax>
+				<parameter name="Queue">
+					<para>The name of the queue.</para>
+				</parameter>
+				<parameter name="MemberName">
+					<para>The name of the queue member.</para>
+				</parameter>
+				<parameter name="Interface">
+					<para>The queue member's channel technology or location.</para>
+				</parameter>
+				<parameter name="StateInterface">
+					<para>Channel technology or location from which to read device state changes.</para>
+				</parameter>
+				<parameter name="Membership">
+					<enumlist>
+						<enum name="dynamic"/>
+						<enum name="realtime"/>
+						<enum name="static"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Penalty">
+					<para>The penalty associated with the queue member.</para>
+				</parameter>
+				<parameter name="CallsTaken">
+					<para>The number of calls this queue member has serviced.</para>
+				</parameter>
+				<parameter name="LastCall">
+					<para>The time this member last took a call, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
+				<parameter name="Status">
+					<para>The numeric device state status of the queue member.</para>
+					<enumlist>
+						<enum name="0"><para>AST_DEVICE_UNKNOWN</para></enum>
+						<enum name="1"><para>AST_DEVICE_NOT_INUSE</para></enum>
+						<enum name="2"><para>AST_DEVICE_INUSE</para></enum>
+						<enum name="3"><para>AST_DEVICE_BUSY</para></enum>
+						<enum name="4"><para>AST_DEVICE_INVALID</para></enum>
+						<enum name="5"><para>AST_DEVICE_UNAVAILABLE</para></enum>
+						<enum name="6"><para>AST_DEVICE_RINGING</para></enum>
+						<enum name="7"><para>AST_DEVICE_RINGINUSE</para></enum>
+						<enum name="8"><para>AST_DEVICE_ONHOLD</para></enum>
+					</enumlist>
+				</parameter>
+				<parameter name="Paused">
+					<enumlist>
+						<enum name="0"/>
+						<enum name="1"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Ringinuse">
+					<enumlist>
+						<enum name="0"/>
+						<enum name="1"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueMemberAdded">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a member is added to the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueMemberRemoved</ref>
+				<ref type="application">AddQueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueMemberRemoved">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a member is removed from the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueMemberAdded</ref>
+				<ref type="application">RemoveQueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueMemberPaused">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a member is paused/unpaused in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Reason">
+					<para>The reason a member was paused.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">PauseQueueMember</ref>
+				<ref type="application">UnPauseQueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueMemberPenalty">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a member's penalty is changed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="function">QUEUE_MEMBER</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueMemberRinginuse">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<see-also>
+				<ref type="function">QUEUE_MEMBER</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueCallerJoin">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a caller joins a Queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<parameter name="Position">
+					<para>This channel's current position in the queue.</para>
+				</parameter>
+				<parameter name="Count">
+					<para>The total number of channels in the queue.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueCallerLeave</ref>
+				<ref type="application">Queue</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueCallerLeave">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a caller leaves a Queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerJoin']/managerEventInstance/syntax/parameter[@name='Count'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerJoin']/managerEventInstance/syntax/parameter[@name='Position'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">QueueCallerJoin</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="QueueCallerAbandon">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a caller abandons the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerJoin']/managerEventInstance/syntax/parameter[@name='Position'])" />
+				<parameter name="OriginalPosition">
+					<para>The channel's original position in the queue.</para>
+				</parameter>
+				<parameter name="HoldTime">
+					<para>The time the channel was in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentCalled">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when an queue member is notified of a caller in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Interface'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentRingNoAnswer</ref>
+				<ref type="managerEvent">AgentComplete</ref>
+				<ref type="managerEvent">AgentConnect</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentRingNoAnswer">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a queue member is notified of a caller in the queue and fails to answer.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Interface'])" />
+				<parameter name="RingTime">
+					<para>The time the queue member was rung, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentCalled</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentComplete">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a queue member has finished servicing a caller in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Interface'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
+				<parameter name="TalkTime">
+					<para>The time the queue member talked with the caller in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
+				</parameter>
+				<parameter name="Reason">
+					<enumlist>
+						<enum name="caller"/>
+						<enum name="agent"/>
+						<enum name="transfer"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentCalled</ref>
+				<ref type="managerEvent">AgentConnect</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentDump">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a queue member hangs up on a caller in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Interface'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentCalled</ref>
+				<ref type="managerEvent">AgentConnect</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentConnect">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when a queue member answers and is bridged to a caller in the queue.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Interface'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='RingTime'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentCalled</ref>
+				<ref type="managerEvent">AgentComplete</ref>
+				<ref type="managerEvent">AgentDump</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 enum {
@@ -1248,7 +1516,6 @@ struct call_queue {
 	/*! Sound files: Custom announce, no default */
 	struct ast_str *sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS];
 	unsigned int dead:1;
-	unsigned int eventwhencalled:2;
 	unsigned int ringinuse:1;
 	unsigned int setinterfacevar:1;
 	unsigned int setqueuevar:1;
@@ -1259,7 +1526,6 @@ struct call_queue {
 	unsigned int announceholdtime:2;
 	unsigned int announceposition:3;
 	int strategy:4;
-	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	unsigned int found:1;
 	unsigned int relativeperiodicannounce:1;
@@ -1512,7 +1778,7 @@ static void set_queue_variables(struct call_queue *q, struct ast_channel *chan)
 			q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 
 		ao2_unlock(q);
-	
+
 		pbx_builtin_setvar_multiple(chan, interfacevar); 
 	} else {
 		ao2_unlock(q);
@@ -1542,6 +1808,184 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 	new->parent = q;
 	new->pos = ++(*pos);
 	new->opos = *pos;
+}
+
+struct stasis_message_type *queue_caller_join_type(void);
+struct stasis_message_type *queue_caller_leave_type(void);
+struct stasis_message_type *queue_caller_abandon_type(void);
+
+struct stasis_message_type *queue_member_status_type(void);
+struct stasis_message_type *queue_member_added_type(void);
+struct stasis_message_type *queue_member_removed_type(void);
+struct stasis_message_type *queue_member_pause_type(void);
+struct stasis_message_type *queue_member_penalty_type(void);
+struct stasis_message_type *queue_member_ringinuse_type(void);
+
+struct stasis_message_type *queue_agent_called_type(void);
+struct stasis_message_type *queue_agent_connect_type(void);
+struct stasis_message_type *queue_agent_complete_type(void);
+struct stasis_message_type *queue_agent_dump_type(void);
+struct stasis_message_type *queue_agent_ringnoanswer_type(void);
+
+STASIS_MESSAGE_TYPE_DEFN(queue_caller_join_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_caller_leave_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_caller_abandon_type);
+
+STASIS_MESSAGE_TYPE_DEFN(queue_member_status_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_member_added_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_member_removed_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_member_pause_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_member_penalty_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_member_ringinuse_type);
+
+STASIS_MESSAGE_TYPE_DEFN(queue_agent_called_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_agent_connect_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_agent_complete_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_agent_dump_type);
+STASIS_MESSAGE_TYPE_DEFN(queue_agent_ringnoanswer_type);
+
+static void queue_channel_manager_event(void *data,
+	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	const char *type = data;
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	event_string = ast_manager_str_from_json_object(obj->blob, NULL);
+	if (!event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_AGENT, type,
+		"%s"
+		"%s",
+		ast_str_buffer(channel_event_string),
+		ast_str_buffer(event_string));
+}
+
+static void queue_multi_channel_manager_event(void *data,
+	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	const char *type = data;
+	struct ast_multi_channel_blob *obj = stasis_message_data(message);
+	struct ast_channel_snapshot *caller;
+	struct ast_channel_snapshot *agent;
+	RAII_VAR(struct ast_str *, caller_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, agent_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
+
+	caller = ast_multi_channel_blob_get_channel(obj, "caller");
+	agent = ast_multi_channel_blob_get_channel(obj, "agent");
+
+	caller_event_string = ast_manager_build_channel_state_string(caller);
+	agent_event_string = ast_manager_build_channel_state_string_prefix(agent, "Dest");
+
+	if (!caller_event_string || !agent_event_string) {
+		return;
+	}
+
+	event_string = ast_manager_str_from_json_object(ast_multi_channel_blob_get_json(obj), NULL);
+	if (!event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_AGENT, type,
+		"%s"
+		"%s"
+		"%s",
+		ast_str_buffer(caller_event_string),
+		ast_str_buffer(agent_event_string),
+		ast_str_buffer(event_string));
+}
+
+static void queue_member_manager_event(void *data,
+	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	const char *type = data;
+	struct ast_json_payload *payload = stasis_message_data(message);
+	struct ast_json *event = payload->json;
+	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
+
+	event_string = ast_manager_str_from_json_object(event, NULL);
+	if (!event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_AGENT, type,
+		"%s", ast_str_buffer(event_string));
+}
+
+static void queue_publish_multi_channel_blob(struct ast_channel *caller, struct ast_channel *agent, struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *caller_snapshot;
+	struct ast_channel_snapshot *agent_snapshot;
+
+	payload = ast_multi_channel_blob_create(blob);
+	if (!payload) {
+		return;
+	}
+
+	caller_snapshot = ast_channel_snapshot_create(caller);
+	agent_snapshot = ast_channel_snapshot_create(agent);
+
+	if (!caller_snapshot || !agent_snapshot) {
+		return;
+	}
+
+	ast_multi_channel_blob_add_channel(payload, "caller", caller_snapshot);
+	ast_multi_channel_blob_add_channel(payload, "agent", agent_snapshot);
+
+	msg = stasis_message_create(type, payload);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_channel_topic(caller), msg);
+}
+
+static void queue_publish_member_blob(struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	payload = ast_json_payload_create(blob);
+	if (!payload) {
+		return;
+	}
+
+	msg = stasis_message_create(type, payload);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_manager_get_topic(), msg);
+}
+
+static struct ast_json *queue_member_blob_create(struct call_queue *q, struct member *mem)
+{
+	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i}",
+		"Queue", q->name,
+		"MemberName", mem->membername,
+		"Interface", mem->interface,
+		"StateInterface", mem->state_interface,
+		"Membership", (mem->dynamic ? "dynamic" : (mem->realtime ? "realtime" : "static")),
+		"Penalty", mem->penalty,
+		"CallsTaken", mem->calls,
+		"LastCall", (int)mem->lastcall,
+		"Status", mem->status,
+		"Paused", mem->paused,
+		"Ringinuse", mem->ringinuse);
 }
 
 /*! \brief Check if members are available
@@ -1629,79 +2073,7 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 {
 	m->status = status;
 
-	if (q->maskmemberstatus) {
-		return;
-	}
-
-	/*** DOCUMENTATION
-	<managerEventInstance>
-		<synopsis>Raised when a Queue member's status has changed.</synopsis>
-		<syntax>
-			<parameter name="Queue">
-				<para>The name of the queue.</para>
-			</parameter>
-			<parameter name="Location">
-				<para>The queue member's channel technology or location.</para>
-			</parameter>
-			<parameter name="MemberName">
-				<para>The name of the queue member.</para>
-			</parameter>
-			<parameter name="StateInterface">
-				<para>Channel technology or location from which to read device state changes.</para>
-			</parameter>
-			<parameter name="Membership">
-				<enumlist>
-					<enum name="dynamic"/>
-					<enum name="realtime"/>
-					<enum name="static"/>
-				</enumlist>
-			</parameter>
-			<parameter name="Penalty">
-				<para>The penalty associated with the queue member.</para>
-			</parameter>
-			<parameter name="CallsTaken">
-				<para>The number of calls this queue member has serviced.</para>
-			</parameter>
-			<parameter name="LastCall">
-				<para>The time this member last took call, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
-			</parameter>
-			<parameter name="Status">
-				<para>The numeric device state status of the queue member.</para>
-				<enumlist>
-					<enum name="0"><para>AST_DEVICE_UNKNOWN</para></enum>
-					<enum name="1"><para>AST_DEVICE_NOT_INUSE</para></enum>
-					<enum name="2"><para>AST_DEVICE_INUSE</para></enum>
-					<enum name="3"><para>AST_DEVICE_BUSY</para></enum>
-					<enum name="4"><para>AST_DEVICE_INVALID</para></enum>
-					<enum name="5"><para>AST_DEVICE_UNAVAILABLE</para></enum>
-					<enum name="6"><para>AST_DEVICE_RINGING</para></enum>
-					<enum name="7"><para>AST_DEVICE_RINGINUSE</para></enum>
-					<enum name="8"><para>AST_DEVICE_ONHOLD</para></enum>
-				</enumlist>
-			</parameter>
-			<parameter name="Paused">
-				<enumlist>
-					<enum name="0"/>
-					<enum name="1"/>
-				</enumlist>
-			</parameter>
-		</syntax>
-	</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-		"Queue: %s\r\n"
-		"Location: %s\r\n"
-		"MemberName: %s\r\n"
-		"StateInterface: %s\r\n"
-		"Membership: %s\r\n"
-		"Penalty: %d\r\n"
-		"CallsTaken: %d\r\n"
-		"LastCall: %d\r\n"
-		"Status: %d\r\n"
-		"Paused: %d\r\n",
-		q->name, m->interface, m->membername, m->state_interface, m->dynamic ? "dynamic" : m->realtime ? "realtime" : "static",
-		m->penalty, m->calls, (int)m->lastcall, m->status, m->paused
-	);
+	queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
 }
 
 /*!
@@ -2010,8 +2382,6 @@ static void init_queue(struct call_queue *q)
 	q->joinempty = 0;
 	q->leavewhenempty = 0;
 	q->memberdelay = 0;
-	q->maskmemberstatus = 0;
-	q->eventwhencalled = 0;
 	q->weight = 0;
 	q->timeoutrestart = 0;
 	q->periodicannouncefrequency = 0;
@@ -2399,14 +2769,6 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		parse_empty_options(val, &q->joinempty, 1);
 	} else if (!strcasecmp(param, "leavewhenempty")) {
 		parse_empty_options(val, &q->leavewhenempty, 0);
-	} else if (!strcasecmp(param, "eventmemberstatus")) {
-		q->maskmemberstatus = !ast_true(val);
-	} else if (!strcasecmp(param, "eventwhencalled")) {
-		if (!strcasecmp(val, "vars")) {
-			q->eventwhencalled = QUEUE_EVENT_VARIABLES;
-		} else {
-			q->eventwhencalled = ast_true(val) ? 1 : 0;
-		}
 	} else if (!strcasecmp(param, "reportholdtime")) {
 		q->reportholdtime = ast_true(val);
 	} else if (!strcasecmp(param, "memberdelay")) {
@@ -2909,6 +3271,8 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	if (*reason == QUEUE_UNKNOWN && q->maxlen && (q->count >= q->maxlen)) {
 		*reason = QUEUE_FULL;
 	} else if (*reason == QUEUE_UNKNOWN) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		/* There's space for us, put us at the right position inside
 		 * the queue.
 		 * Take into account the priority of the calling user */
@@ -2951,40 +3315,12 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		}
 
 		res = 0;
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a channel joins a Queue.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<parameter name="Position">
-					<para>This channel's current position in the queue.</para>
-				</parameter>
-				<parameter name="Count">
-					<para>The total number of channels in the queue.</para>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">Leave</ref>
-				<ref type="application">Queue</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		ast_manager_event(qe->chan, EVENT_FLAG_CALL, "Join",
-			"Channel: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n"
-			"Queue: %s\r\n"
-			"Position: %d\r\n"
-			"Count: %d\r\n"
-			"Uniqueid: %s\r\n",
-			ast_channel_name(qe->chan),
-			S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
-			S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
-			S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
-			S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
-			q->name, qe->pos, q->count, ast_channel_uniqueid(qe->chan));
+
+		blob = ast_json_pack("{s: s, s: i, s: i}",
+				     "Queue", q->name,
+				     "Position", qe->pos,
+				     "Count", q->count);
+		ast_channel_publish_blob(qe->chan, queue_caller_join_type(), blob);
 		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, ast_channel_name(qe->chan), qe->pos );
 	}
 	ao2_unlock(q);
@@ -3252,29 +3588,18 @@ static void leave_queue(struct queue_ent *qe)
 	prev = NULL;
 	for (current = q->head; current; current = current->next) {
 		if (current == qe) {
+			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 			char posstr[20];
 			q->count--;
 			if (!q->count) {
 				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s", q->name);
 			}
 
-			/* Take us out of the queue */
-			/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a channel leaves a Queue.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Count'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Position'])" />
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">Join</ref>
-				</see-also>
-			</managerEventInstance>
-			***/
-			ast_manager_event(qe->chan, EVENT_FLAG_CALL, "Leave",
-				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\nPosition: %d\r\nUniqueid: %s\r\n",
-				ast_channel_name(qe->chan), q->name,  q->count, qe->pos, ast_channel_uniqueid(qe->chan));
+			blob = ast_json_pack("{s: s, s: i, s: i}",
+					     "Queue", q->name,
+					     "Position", qe->pos,
+					     "Count", q->count);
+			ast_channel_publish_blob(qe->chan, queue_caller_leave_type(), blob);
 			ast_debug(1, "Queue '%s' Leave, Channel '%s'\n", q->name, ast_channel_name(qe->chan));
 			/* Take us out of the queue */
 			if (prev) {
@@ -3448,46 +3773,6 @@ static void do_hang(struct callattempt *o)
 	o->chan = NULL;
 }
 
-/*! \brief convert "\n" to "\nVariable: " ready for manager to use */
-static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
-{
-	struct ast_str *buf = ast_str_thread_get(&ast_str_thread_global_buf, len + 1);
-	const char *tmp;
-
-	if (pbx_builtin_serialize_variables(chan, &buf)) {
-		int i, j;
-
-		/* convert "\n" to "\nVariable: " */
-		strcpy(vars, "Variable: ");
-		tmp = ast_str_buffer(buf);
-
-		for (i = 0, j = 10; (i < len - 1) && (j < len - 1); i++, j++) {
-			vars[j] = tmp[i];
-
-			if (tmp[i + 1] == '\0') {
-				break;
-			}
-			if (tmp[i] == '\n') {
-				vars[j++] = '\r';
-				vars[j++] = '\n';
-
-				ast_copy_string(&(vars[j]), "Variable: ", len - j);
-				j += 9;
-			}
-		}
-		if (j > len - 3) {
-			j = len - 3;
-		}
-		vars[j++] = '\r';
-		vars[j++] = '\n';
-		vars[j] = '\0';
-	} else {
-		/* there are no channel variables; leave it blank */
-		*vars = '\0';
-	}
-	return vars;
-}
-
 /*!
  * \internal
  * \brief Check if the member status is available.
@@ -3615,6 +3900,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char tech[256];
 	char *location;
 	const char *macrocontext, *macroexten;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	/* on entry here, we know that tmp->chan == NULL */
 	if (!can_ring_entry(qe, tmp)) {
@@ -3728,54 +4014,11 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	ast_channel_lock_both(tmp->chan, qe->chan);
 
-	if (qe->parent->eventwhencalled) {
-		char vars[2048];
-
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when an Agent is notified of a member in the queue.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<parameter name="AgentCalled">
-					<para>The agent's technology or location.</para>
-				</parameter>
-				<parameter name="AgentName">
-					<para>The name of the agent.</para>
-				</parameter>
-				<parameter name="Variable" required="no" multiple="yes">
-					<para>Optional channel variables from the ChannelCalling channel</para>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">AgentRingNoAnswer</ref>
-				<ref type="managerEvent">AgentComplete</ref>
-				<ref type="managerEvent">AgentConnect</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
-			"Queue: %s\r\n"
-			"AgentCalled: %s\r\n"
-			"AgentName: %s\r\n"
-			"ChannelCalling: %s\r\n"
-			"DestinationChannel: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n"
-			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"Uniqueid: %s\r\n"
-			"%s",
-			qe->parent->name, tmp->interface, tmp->member->membername, ast_channel_name(qe->chan), ast_channel_name(tmp->chan),
-			S_COR(ast_channel_caller(qe->chan)->id.number.valid, ast_channel_caller(qe->chan)->id.number.str, "unknown"),
-			S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
-			S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),
-			S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
-			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), ast_channel_priority(qe->chan), ast_channel_uniqueid(qe->chan),
-			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-	}
+	blob = ast_json_pack("{s: s, s: s, s: s}",
+			     "Queue", qe->parent->name,
+			     "Interface", tmp->interface,
+			     "MemberName", tmp->member->membername);
+	queue_publish_multi_channel_blob(qe->chan, tmp->chan, queue_agent_called_type(), blob);
 
 	ast_channel_publish_dial(qe->chan, tmp->chan, tmp->interface, NULL);
 
@@ -3955,45 +4198,33 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	if (!qe->parent->randomperiodicannounce) {
 		qe->last_periodic_announce_sound++;
 	}
-	
+
 	return res;
 }
 
 /*! \brief Record that a caller gave up on waiting in queue */
 static void record_abandoned(struct queue_ent *qe)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 	set_queue_variables(qe->parent, qe->chan);
 	ao2_lock(qe->parent);
-	/*** DOCUMENTATION
-	<managerEventInstance>
-		<synopsis>Raised when an caller abandons the queue.</synopsis>
-		<syntax>
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='Join']/managerEventInstance/syntax/parameter[@name='Position'])" />
-			<parameter name="OriginalPosition">
-				<para>The channel's original position in the queue.</para>
-			</parameter>
-			<parameter name="HoldTime">
-				<para>The time the channel was in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
-			</parameter>
-		</syntax>
-	</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
-		"Queue: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Position: %d\r\n"
-		"OriginalPosition: %d\r\n"
-		"HoldTime: %d\r\n",
-		qe->parent->name, ast_channel_uniqueid(qe->chan), qe->pos, qe->opos, (int)(time(NULL) - qe->start));
+	blob = ast_json_pack("{s: s, s: i, s: i}",
+			     "Queue", qe->parent->name,
+			     "Position", qe->pos,
+			     "OriginalPosition", qe->opos,
+			     "HoldTime", (int)(time(NULL) - qe->start));
+	ast_channel_publish_blob(qe->chan, queue_caller_abandon_type(), blob);
 
 	qe->parent->callsabandoned++;
 	ao2_unlock(qe->parent);
 }
 
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
-static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername, int autopause)
+static void rna(int rnatime, struct queue_ent *qe, struct ast_channel *peer, char *interface, char *membername, int autopause)
 {
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
 
 	/* Stop ringing, and resume MOH if specified */
@@ -4002,43 +4233,13 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 		ast_moh_start(qe->chan, qe->moh, NULL);
 	}
 
-	if (qe->parent->eventwhencalled) {
-		char vars[2048];
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when an agent is notified of a member in the queue and fails to answer.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
-				<parameter name="Member">
-					<para>The queue member's channel technology or location.</para>
-				</parameter>
-				<parameter name="RingTime">
-					<para>The time the agent was rung, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">AgentCalled</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGENT, "AgentRingNoAnswer",
-						"Queue: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Channel: %s\r\n"
-						"Member: %s\r\n"
-						"MemberName: %s\r\n"
-						"RingTime: %d\r\n"
-						"%s",
-						qe->parent->name,
-						ast_channel_uniqueid(qe->chan),
-						ast_channel_name(qe->chan),
-						interface,
-						membername,
-						rnatime,
-						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-	}
+	blob = ast_json_pack("{s: s, s: s, s: s, s: i}",
+			     "Queue", qe->parent->name,
+			     "Interface", interface,
+			     "MemberName", membername,
+			     "RingTime", rnatime);
+	queue_publish_multi_channel_blob(qe->chan, peer, queue_agent_ringnoanswer_type(), blob);
+
 	ast_queue_log(qe->parent->name, ast_channel_uniqueid(qe->chan), membername, "RINGNOANSWER", "%d", rnatime);
 	if (qe->parent->autopause != QUEUE_AUTOPAUSE_OFF && autopause) {
 		if (qe->parent->autopausedelay > 0) {
@@ -4411,7 +4612,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
-							rna(endtime * 1000, qe, on, membername, qe->parent->autopausebusy);
+							rna(endtime * 1000, qe, o->chan, on, membername, qe->parent->autopausebusy);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart) {
 									start_time_tv = ast_tvnow();
@@ -4432,7 +4633,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_channel_publish_dial(qe->chan, o->chan, on, "CONGESTION");
 							endtime = (long) time(NULL);
 							endtime -= starttime;
-							rna(endtime * 1000, qe, on, membername, qe->parent->autopauseunavail);
+							rna(endtime * 1000, qe, o->chan, on, membername, qe->parent->autopauseunavail);
 							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart) {
@@ -4528,7 +4729,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				} else { /* ast_read() returned NULL */
 					endtime = (long) time(NULL) - starttime;
 					ast_channel_publish_dial(qe->chan, o->chan, on, "NOANSWER");
-					rna(endtime * 1000, qe, on, membername, 1);
+					rna(endtime * 1000, qe, o->chan, on, membername, 1);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 						if (qe->parent->timeoutrestart) {
@@ -4630,7 +4831,7 @@ skip_frame:;
  
 	if (!*to) {
 		for (o = start; o; o = o->call_next) {
-			rna(orig, qe, o->interface, o->member->membername, 1);
+			rna(orig, qe, o->chan, o->interface, o->member->membername, 1);
 		}
 
 		publish_dial_end_event(qe->chan, outgoing, NULL, "NOANSWER");
@@ -4958,10 +5159,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 	char *vars, size_t vars_len, enum agent_complete_reason rsn)
 {
 	const char *reason = NULL;	/* silence dumb compilers */
-
-	if (!qe->parent->eventwhencalled) {
-		return;
-	}
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	switch (rsn) {
 	case CALLER:
@@ -4975,45 +5173,14 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		break;
 	}
 
-	/*** DOCUMENTATION
-	<managerEventInstance>
-		<synopsis>Raised when an agent has finished servicing a member in the queue.</synopsis>
-		<syntax>
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
-			<parameter name="TalkTime">
-				<para>The time the agent talked with the member in the queue, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
-			</parameter>
-			<parameter name="Reason">
-				<enumlist>
-					<enum name="caller"/>
-					<enum name="agent"/>
-					<enum name="transfer"/>
-				</enumlist>
-			</parameter>
-		</syntax>
-		<see-also>
-			<ref type="managerEvent">AgentCalled</ref>
-			<ref type="managerEvent">AgentConnect</ref>
-		</see-also>
-	</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-		"Queue: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"Channel: %s\r\n"
-		"Member: %s\r\n"
-		"MemberName: %s\r\n"
-		"HoldTime: %ld\r\n"
-		"TalkTime: %ld\r\n"
-		"Reason: %s\r\n"
-		"%s",
-		queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
-		(long)(callstart - qe->start), (long)(time(NULL) - callstart), reason,
-		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
+	blob = ast_json_pack("{s: s, s: s, s: s, s: i, s: i, s: s}",
+			     "Queue", queuename,
+			     "Interface", member->interface,
+			     "MemberName", member->membername,
+			     "HoldTime", (long)(callstart - qe->start)
+			     "TalkTime", (long)(time(NULL) - callstart)
+			     "Reason", reason);
+	queue_publish_multi_channel_blob(qe->chan, peer, queue_agent_complete_type(), blob);
 }
 #endif	// BUGBUG
 
@@ -5246,7 +5413,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char mixmonargs[1512];
 	struct ast_app *mixmonapp = NULL;
 	char *p;
-	char vars[2048];
 	int forwardsallowed = 1;
 	int block_connected_line = 0;
 #if 0	// BUGBUG
@@ -5523,6 +5689,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			}
 		}
 	} else { /* peer is valid */
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -5586,32 +5753,13 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", ast_channel_name(peer));
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "AGENTDUMP", "%s", "");
-				if (qe->parent->eventwhencalled) {
-					/*** DOCUMENTATION
-					<managerEventInstance>
-						<synopsis>Raised when an agent hangs up on a member in the queue.</synopsis>
-						<syntax>
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
-						</syntax>
-						<see-also>
-							<ref type="managerEvent">AgentCalled</ref>
-							<ref type="managerEvent">AgentConnect</ref>
-						</see-also>
-					</managerEventInstance>
-					***/
-					manager_event(EVENT_FLAG_AGENT, "AgentDump",
-							"Queue: %s\r\n"
-							"Uniqueid: %s\r\n"
-							"Channel: %s\r\n"
-							"Member: %s\r\n"
-							"MemberName: %s\r\n"
-							"%s",
-							queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
-							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-				}
+
+				blob = ast_json_pack("{s: s, s: s, s: s}",
+						     "Queue", queuename,
+						     "Interface", member->interface,
+						     "MemberName", member->membername);
+				queue_publish_multi_channel_blob(qe->chan, peer, queue_agent_dump_type(), blob);
+
 				ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 				ast_autoservice_chan_hangup_peer(qe->chan, peer);
 				ao2_ref(member, -1);
@@ -5914,43 +6062,17 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			}
 		}
 
-		if (qe->parent->eventwhencalled) {
-			/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an agent answers and is bridged to a member in the queue.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='Member'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentRingNoAnswer']/managerEventInstance/syntax/parameter[@name='RingTime'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueCallerAbandon']/managerEventInstance/syntax/parameter[@name='HoldTime'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentCalled']/managerEventInstance/syntax/parameter[@name='Variable'])" />
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">AgentCalled</ref>
-					<ref type="managerEvent">AgentComplete</ref>
-					<ref type="managerEvent">AgentDump</ref>
-				</see-also>
-			</managerEventInstance>
-			***/
-			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
-					"Queue: %s\r\n"
-					"Uniqueid: %s\r\n"
-					"Channel: %s\r\n"
-					"Member: %s\r\n"
-					"MemberName: %s\r\n"
-					"HoldTime: %ld\r\n"
-					"BridgedChannel: %s\r\n"
-					"RingTime: %ld\r\n"
-					"%s",
-					queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
-					(long) time(NULL) - qe->start, ast_channel_uniqueid(peer), (long)(orig - to > 0 ? (orig - to) / 1000 : 0),
-					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-		}
+		blob = ast_json_pack("{s: s, s: s, s: s, s: i, s: i}",
+				     "Queue", queuename,
+				     "Interface", member->interface,
+				     "MemberName", member->membername,
+				     "HoldTime", (long) time(NULL) - qe->start,
+				     "RingTime", (long)(orig - to > 0 ? (orig - to) / 1000 : 0));
+		queue_publish_multi_channel_blob(qe->chan, peer, queue_agent_connect_type(), blob);
 
 		ast_copy_string(oldcontext, ast_channel_context(qe->chan), sizeof(oldcontext));
 		ast_copy_string(oldexten, ast_channel_exten(qe->chan), sizeof(oldexten));
-	
+
 		if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
 			queue_end_bridge->q = qe->parent;
 			queue_end_bridge->chan = qe->chan;
@@ -6136,25 +6258,8 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				queue_t_unref(q, "Interface wasn't dynamic, expiring temporary reference");
 				return RES_NOT_DYNAMIC;
 			}
-			/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a member is removed from the queue.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">QueueMemberAdded</ref>
-					<ref type="application">RemoveQueueMember</ref>
-				</see-also>
-			</managerEventInstance>
-			***/
-			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
-				"Queue: %s\r\n"
-				"Location: %s\r\n"
-				"MemberName: %s\r\n",
-				q->name, mem->interface, mem->membername);
+			queue_publish_member_blob(queue_member_removed_type(), queue_member_blob_create(q, mem));
+
 			member_remove_from_queue(q, mem);
 			ao2_ref(mem, -1);
 
@@ -6202,42 +6307,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 			new_member->ringinuse = q->ringinuse;
 			new_member->dynamic = 1;
 			member_add_to_queue(q, new_member);
-			/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a member is added to the queue.</synopsis>
-				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='StateInterface'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Membership'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Penalty'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='CallsTaken'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='LastCall'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Status'])" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-				</syntax>
-				<see-also>
-					<ref type="managerEvent">QueueMemberRemoved</ref>
-					<ref type="application">AddQueueMember</ref>
-				</see-also>
-			</managerEventInstance>
-			***/
-			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
-				"Queue: %s\r\n"
-				"Location: %s\r\n"
-				"MemberName: %s\r\n"
-				"StateInterface: %s\r\n"
-				"Membership: %s\r\n"
-				"Penalty: %d\r\n"
-				"CallsTaken: %d\r\n"
-				"LastCall: %d\r\n"
-				"Status: %d\r\n"
-				"Paused: %d\r\n",
-				q->name, new_member->interface, new_member->membername, state_interface,
-				"dynamic",
-				new_member->penalty, new_member->calls, (int) new_member->lastcall,
-				new_member->status, new_member->paused);
+			queue_publish_member_blob(queue_member_added_type(), queue_member_blob_create(q, new_member));
 
 			if (is_member_available(new_member)) {
 				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
@@ -6264,35 +6334,51 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	return res;
 }
 
+static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason) {
+	struct ast_json *json_blob = queue_member_blob_create(q, member);
+
+	if (!json_blob) {
+		return -1;
+	}
+
+	if (!ast_strlen_zero(reason)) {
+		ast_json_object_set(json_blob, "Reason", ast_json_string_create(reason));
+	}
+
+	queue_publish_member_blob(queue_member_pause_type(), json_blob);
+
+	return 0;
+}
+
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)
 {
 	int found = 0;
 	struct call_queue *q;
-	struct member *mem;
 	struct ao2_iterator queue_iter;
-	int failed;
 
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate over queues"))) {
 		ao2_lock(q);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
+			struct member *mem;
+
 			if ((mem = interface_exists(q, interface))) {
 				if (mem->paused == paused) {
 					ast_debug(1, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
 				}
 
-				failed = 0;
 				if (mem->realtime) {
-					failed = update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
+					if (update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0")) {
+						ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
+						ao2_ref(mem, -1);
+						ao2_unlock(q);
+						queue_t_unref(q, "Done with iterator");
+						continue;
+					}
 				}
 
-				if (failed) {
-					ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
-					ao2_ref(mem, -1);
-					ao2_unlock(q);
-					queue_t_unref(q, "Done with iterator");
-					continue;
-				}
+				mem->paused = paused;
+
 				found++;
 
 				/* Before we do the PAUSE/UNPAUSE log, if this was a PAUSEALL/UNPAUSEALL, log that here, but only on the first found entry. */
@@ -6303,8 +6389,6 @@ static int set_member_paused(const char *queuename, const char *interface, const
 						ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
 					}
 				}
-
-				mem->paused = paused;
 
 				if (queue_persistent_members) {
 					dump_queue_members(q);
@@ -6318,52 +6402,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 
-				/*** DOCUMENTATION
-				<managerEventInstance>
-					<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
-					<syntax>
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-					</syntax>
-					<see-also>
-						<ref type="application">PauseQueueMember</ref>
-						<ref type="application">UnPauseQueueMember</ref>
-					</see-also>
-				</managerEventInstance>
-				***/
-				if (!ast_strlen_zero(reason)) {
-					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-						"Queue: %s\r\n"
-						"Location: %s\r\n"
-						"MemberName: %s\r\n"
-						"Paused: %d\r\n"
-						"Reason: %s\r\n",
-							q->name, mem->interface, mem->membername, paused, reason);
-				} else {
-					/*** DOCUMENTATION
-					<managerEventInstance>
-						<synopsis>Raised when a member is paused/unpaused in the queue without a reason.</synopsis>
-						<syntax>
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-						</syntax>
-						<see-also>
-							<ref type="application">PauseQueueMember</ref>
-							<ref type="application">UnPauseQueueMember</ref>
-						</see-also>
-					</managerEventInstance>
-					***/
-					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-						"Queue: %s\r\n"
-						"Location: %s\r\n"
-						"MemberName: %s\r\n"
-						"Paused: %d\r\n",
-							q->name, mem->interface, mem->membername, paused);
-				}
+				publish_queue_member_pause(q, mem, reason);
 				ao2_ref(mem, -1);
 			}
 		}
@@ -6395,36 +6434,21 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
 {
 	struct member *mem;
 	int foundinterface = 0;
-	char rtpenalty[80];
 
 	ao2_lock(q);
 	if ((mem = interface_exists(q, interface))) {
 		foundinterface++;
-		if (!mem->realtime) {
-			mem->penalty = penalty;
-		} else {
+		if (mem->realtime) {
+			char rtpenalty[80];
+
 			sprintf(rtpenalty, "%i", penalty);
 			update_realtime_member_field(mem, q->name, "penalty", rtpenalty);
 		}
+
+		mem->penalty = penalty;
+
 		ast_queue_log(q->name, "NONE", interface, "PENALTY", "%d", penalty);
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a member's penalty is changed.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Penalty'])" />
-			</syntax>
-			<see-also>
-				<ref type="function">QUEUE_MEMBER</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGENT, "QueueMemberPenalty",
-			"Queue: %s\r\n"
-			"Location: %s\r\n"
-			"Penalty: %d\r\n",
-			q->name, mem->interface, penalty);
+		queue_publish_member_blob(queue_member_penalty_type(), queue_member_blob_create(q, mem));
 		ao2_ref(mem, -1);
 	}
 	ao2_unlock(q);
@@ -6436,41 +6460,21 @@ static int set_member_ringinuse_help_members(struct call_queue *q, const char *i
 {
 	struct member *mem;
 	int foundinterface = 0;
-	char rtringinuse[80];
 
 	ao2_lock(q);
 	if ((mem = interface_exists(q, interface))) {
 		foundinterface++;
-		if (!mem->realtime) {
-			mem->ringinuse = ringinuse;
-		} else {
+		if (mem->realtime) {
+			char rtringinuse[80];
+
 			sprintf(rtringinuse, "%i", ringinuse);
 			update_realtime_member_field(mem, q->name, realtime_ringinuse_field, rtringinuse);
 		}
+
+		mem->ringinuse = ringinuse;
+
 		ast_queue_log(q->name, "NONE", interface, "RINGINUSE", "%d", ringinuse);
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-				<parameter name="Ringinuse">
-					<enumlist>
-						<enum name="0"/>
-						<enum name="1"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="function">QUEUE_MEMBER</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGENT, "QueueMemberRinginuse",
-			"Queue: %s\r\n"
-			"Location: %s\r\n"
-			"Ringinuse: %d\r\n",
-			q->name, mem->interface, ringinuse);
+		queue_publish_member_blob(queue_member_ringinuse_type(), queue_member_blob_create(q, mem));
 		ao2_ref(mem, -1);
 	}
 	ao2_unlock(q);
@@ -7509,15 +7513,15 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 			if (!strcasecmp(args.option, "paused")) {
 				if (m->realtime) {
 					update_realtime_member_field(m, q->name, args.option, rtvalue);
-				} else {
-					m->paused = (memvalue <= 0) ? 0 : 1;
 				}
+
+				m->paused = (memvalue <= 0) ? 0 : 1;
 			} else if ((!strcasecmp(args.option, "ignorebusy")) || (!strcasecmp(args.option, "ringinuse"))) {
 				if (m->realtime) {
 					update_realtime_member_field(m, q->name, args.option, rtvalue);
-				} else {
-					m->ringinuse = (memvalue <= 0) ? 0 : 1;
 				}
+
+				m->ringinuse = (memvalue <= 0) ? 0 : 1;
 			} else {
 				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ringinuse/ignorebusy are valid\n");
 				ao2_ref(m, -1);
@@ -9656,7 +9660,6 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, sound_callerannounce, AST_DATA_STRING)	\
 	MEMBER(call_queue, sound_reporthold, AST_DATA_STRING)		\
 	MEMBER(call_queue, dead, AST_DATA_BOOLEAN)			\
-	MEMBER(call_queue, eventwhencalled, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, ringinuse, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, setinterfacevar, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, setqueuevar, AST_DATA_BOOLEAN)		\
@@ -9665,7 +9668,6 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, wrapped, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, timeoutrestart, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, announceholdtime, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, maskmemberstatus, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, realtime, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, found, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, announcepositionlimit, AST_DATA_INTEGER)	\
@@ -9910,6 +9912,43 @@ static int unload_module(void)
 	struct ao2_iterator q_iter;
 	struct call_queue *q = NULL;
 
+	struct stasis_message_router *message_router;
+
+	message_router = ast_manager_get_message_router();
+	if (message_router) {
+		stasis_message_router_remove(message_router, queue_caller_join_type());
+		stasis_message_router_remove(message_router, queue_caller_leave_type());
+		stasis_message_router_remove(message_router, queue_caller_abandon_type());
+		stasis_message_router_remove(message_router, queue_member_status_type());
+		stasis_message_router_remove(message_router, queue_member_added_type());
+		stasis_message_router_remove(message_router, queue_member_removed_type());
+		stasis_message_router_remove(message_router, queue_member_pause_type());
+		stasis_message_router_remove(message_router, queue_member_penalty_type());
+		stasis_message_router_remove(message_router, queue_member_ringinuse_type());
+		stasis_message_router_remove(message_router, queue_agent_called_type());
+		stasis_message_router_remove(message_router, queue_agent_connect_type());
+		stasis_message_router_remove(message_router, queue_agent_complete_type());
+		stasis_message_router_remove(message_router, queue_agent_dump_type());
+		stasis_message_router_remove(message_router, queue_agent_ringnoanswer_type());
+	}
+
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_join_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_leave_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_abandon_type);
+
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_status_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_added_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_removed_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_pause_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_penalty_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_member_ringinuse_type);
+
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_called_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_connect_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_complete_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_dump_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_ringnoanswer_type);
+
 	ast_cli_unregister_multiple(cli_queue, ARRAY_LEN(cli_queue));
 	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
@@ -9960,8 +9999,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
@@ -9969,6 +10008,7 @@ static int load_module(void)
 	int res;
 	struct ast_flags mask = {AST_FLAGS_ALL, };
 	struct ast_config *member_config;
+	struct stasis_message_router *message_router;
 
 	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
 
@@ -10038,6 +10078,98 @@ static int load_module(void)
 	if (!(device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL))) {
 		res = -1;
 	}
+
+	message_router = ast_manager_get_message_router();
+	if (!message_router) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	STASIS_MESSAGE_TYPE_INIT(queue_caller_join_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_caller_leave_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_caller_abandon_type);
+
+	STASIS_MESSAGE_TYPE_INIT(queue_member_status_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_member_added_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_member_removed_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_member_pause_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_member_penalty_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_member_ringinuse_type);
+
+	STASIS_MESSAGE_TYPE_INIT(queue_agent_called_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_agent_connect_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_agent_complete_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_agent_dump_type);
+	STASIS_MESSAGE_TYPE_INIT(queue_agent_ringnoanswer_type);
+
+	stasis_message_router_add(message_router,
+				  queue_caller_join_type(),
+				  queue_channel_manager_event,
+				  "QueueCallerJoin");
+
+	stasis_message_router_add(message_router,
+				  queue_caller_leave_type(),
+				  queue_channel_manager_event,
+				  "QueueCallerLeave");
+
+	stasis_message_router_add(message_router,
+				  queue_caller_abandon_type(),
+				  queue_channel_manager_event,
+				  "QueueCallerAbandon");
+
+	stasis_message_router_add(message_router,
+				  queue_member_status_type(),
+				  queue_member_manager_event,
+				  "QueueMemberStatus");
+
+	stasis_message_router_add(message_router,
+				  queue_member_added_type(),
+				  queue_member_manager_event,
+				  "QueueMemberAdded");
+
+	stasis_message_router_add(message_router,
+				  queue_member_removed_type(),
+				  queue_member_manager_event,
+				  "QueueMemberRemoved");
+
+	stasis_message_router_add(message_router,
+				  queue_member_pause_type(),
+				  queue_member_manager_event,
+				  "QueueMemberPause");
+
+	stasis_message_router_add(message_router,
+				  queue_member_penalty_type(),
+				  queue_member_manager_event,
+				  "QueueMemberPenalty");
+
+	stasis_message_router_add(message_router,
+				  queue_member_ringinuse_type(),
+				  queue_member_manager_event,
+				  "QueueMemberRinginuse");
+
+	stasis_message_router_add(message_router,
+				  queue_agent_called_type(),
+				  queue_multi_channel_manager_event,
+				  "AgentCalled");
+
+	stasis_message_router_add(message_router,
+				  queue_agent_connect_type(),
+				  queue_multi_channel_manager_event,
+				  "AgentConnect");
+
+	stasis_message_router_add(message_router,
+				  queue_agent_complete_type(),
+				  queue_multi_channel_manager_event,
+				  "AgentComplete");
+
+	stasis_message_router_add(message_router,
+				  queue_agent_dump_type(),
+				  queue_multi_channel_manager_event,
+				  "AgentDump");
+
+	stasis_message_router_add(message_router,
+				  queue_agent_ringnoanswer_type(),
+				  queue_multi_channel_manager_event,
+				  "AgentRingNoAnswer");
 
 	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
 
