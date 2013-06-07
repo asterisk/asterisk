@@ -384,7 +384,7 @@ static int remove_device_states_cb(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	msg = stasis_cache_clear_create(ast_device_state_message_type(), device_state->cache_id);
+	msg = stasis_cache_clear_create(msg);
 	/* topic guaranteed to have been created by this point */
 	stasis_publish(ast_device_state_topic(device_state->device), msg);
 	return 0;
