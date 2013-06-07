@@ -21,7 +21,7 @@
 					"httpMethod": "POST",
 					"summary": "Create a new channel (originate).",
 					"nickname": "originate",
-					"responseClass": "Originated",
+					"responseClass": "void",
 					"parameters": [
 						{
 							"name": "endpoint",
@@ -33,7 +33,7 @@
 						},
 						{
 							"name": "extension",
-							"description": "Extension to dial",
+							"description": "When routing via dialplan, the extension to dial",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -41,7 +41,40 @@
 						},
 						{
 							"name": "context",
-							"description": "When routing via dialplan, the context use. If omitted, uses 'default'",
+							"description": "When routing via dialplan, the context to use. If omitted, uses 'default'",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "callerId",
+							"description": "CallerID to use when dialing the endpoint or extension.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "timeout",
+							"description": "Timeout (in seconds) before giving up dialing, or -1 for no timeout.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 30
+						},
+						{
+							"name": "app",
+							"description": "Application name to pass to the Stasis application.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "appArgs",
+							"description": "Application arguments to pass to the Stasis application.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -554,10 +587,6 @@
 		}
 	],
 	"models": {
-		"Originated": {
-			"id": "Originated",
-			"properties": {}
-		},
 		"Dialed": {
 			"id": "Dialed",
 			"properties": {}

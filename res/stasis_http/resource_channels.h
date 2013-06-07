@@ -54,10 +54,18 @@ void stasis_http_get_channels(struct ast_variable *headers, struct ast_get_chann
 struct ast_originate_args {
 	/*! \brief Endpoint to call. If not specified, originate is routed via dialplan */
 	const char *endpoint;
-	/*! \brief Extension to dial */
+	/*! \brief When routing via dialplan, the extension to dial */
 	const char *extension;
-	/*! \brief When routing via dialplan, the context use. If omitted, uses 'default' */
+	/*! \brief When routing via dialplan, the context to use. If omitted, uses 'default' */
 	const char *context;
+	/*! \brief CallerID to use when dialing the endpoint or extension. */
+	const char *caller_id;
+	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
+	int timeout;
+	/*! \brief Application name to pass to the Stasis application. */
+	const char *app;
+	/*! \brief Application arguments to pass to the Stasis application. */
+	const char *app_args;
 };
 /*!
  * \brief Create a new channel (originate).

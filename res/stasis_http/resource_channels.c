@@ -33,6 +33,8 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/file.h"
+#include "asterisk/pbx.h"
+#include "asterisk/callerid.h"
 #include "asterisk/stasis_app.h"
 #include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_channels.h"
@@ -314,10 +316,69 @@ void stasis_http_originate(struct ast_variable *headers,
 			   struct ast_originate_args *args,
 			   struct stasis_http_response *response)
 {
-	if (args->endpoint) {
-		ast_log(LOG_DEBUG, "Dialing specific endpoint %s\n", args->endpoint);
+	const char *dialtech = NULL;
+	char dialdevice[AST_CHANNEL_NAME];
+	char *caller_id = NULL;
+	char *cid_num = NULL;
+	char *cid_name = NULL;
+	int timeout = 30000;
+
+	const char *app = "Stasis";
+	RAII_VAR(struct ast_str *, appdata, ast_str_create(64), ast_free);
+
+	if (!appdata) {
+		stasis_http_response_alloc_failed(response);
+		return;
 	}
 
-	ast_log(LOG_DEBUG, "Dialing %s@%s\n", args->extension, args->context);
-	/* ast_pbx_outgoing_app - originates a channel, putting it into an application */
+	ast_str_set(&appdata, 0, "%s", args->app);
+	if (!ast_strlen_zero(args->app_args)) {
+		ast_str_append(&appdata, 0, ",%s", args->app_args);
+	}
+
+	if (args->timeout > 0) {
+		timeout = args->timeout * 1000;
+	} else if (args->timeout == -1) {
+		timeout = -1;
+	}
+
+	if (!ast_strlen_zero(args->endpoint)) {
+		char *tmp = ast_strdupa(args->endpoint);
+		char *stuff;
+
+		if ((stuff = strchr(tmp, '/'))) {
+			*stuff++ = '\0';
+			dialtech = tmp;
+			ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+	        }
+	} else if (!ast_strlen_zero(args->extension) && !ast_strlen_zero(args->context)) {
+		dialtech = "Local";
+		snprintf(dialdevice, sizeof(dialdevice), "%s@%s", args->extension, args->context);
+	}
+
+	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
+		stasis_http_response_error(
+			response, 500, "Internal server error",
+			"Invalid endpoint or extension and context specified");
+		return;
+	}
+
+	if (!ast_strlen_zero(args->caller_id)) {
+		caller_id = ast_strdupa(args->caller_id);
+		ast_callerid_parse(caller_id, &cid_name, &cid_num);
+
+		if (ast_is_shrinkable_phonenumber(cid_num)) {
+			ast_shrink_phone_number(cid_num);
+		}
+	}
+
+	ast_debug(1, "Dialing %s/%s\n", dialtech, dialdevice);
+
+	/* originate a channel, putting it into an application */
+	if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, NULL)) {
+		stasis_http_response_alloc_failed(response);
+		return;
+	}
+
+	stasis_http_response_no_content(response);
 }
