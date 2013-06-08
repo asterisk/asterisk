@@ -1095,6 +1095,39 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 
 /*!
  * \internal
+ * \brief Complete joining a channel to the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate upon.
+ * \param bridge_channel What is joining the bridge technology.
+ *
+ * \note On entry, bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_complete_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	/* Make the channel compatible with the bridge */
+	bridge_make_compatible(bridge, bridge_channel);
+
+	/* Tell the bridge technology we are joining so they set us up */
+	ast_debug(1, "Bridge %s: %p(%s) is joining %s technology\n",
+		bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
+		bridge->technology->name);
+	if (bridge->technology->join
+		&& bridge->technology->join(bridge, bridge_channel)) {
+		ast_debug(1, "Bridge %s: %p(%s) failed to join %s technology\n",
+			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
+			bridge->technology->name);
+		bridge_channel->just_joined = 1;
+		return;
+	}
+
+	bridge_channel->just_joined = 0;
+}
+
+/*!
+ * \internal
  * \brief Complete joining new channels to the bridge.
  * \since 12.0.0
  *
@@ -1123,22 +1156,7 @@ static void bridge_complete_join(struct ast_bridge *bridge)
 		if (!bridge_channel->just_joined) {
 			continue;
 		}
-
-		/* Make the channel compatible with the bridge */
-		bridge_make_compatible(bridge, bridge_channel);
-
-		/* Tell the bridge technology we are joining so they set us up */
-		ast_debug(1, "Bridge %s: %p(%s) is joining %s technology\n",
-			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-			bridge->technology->name);
-		if (bridge->technology->join
-			&& bridge->technology->join(bridge, bridge_channel)) {
-			ast_debug(1, "Bridge %s: %p(%s) failed to join %s technology\n",
-				bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-				bridge->technology->name);
-		}
-
-		bridge_channel->just_joined = 0;
+		bridge_channel_complete_join(bridge, bridge_channel);
 	}
 }
 
@@ -1410,6 +1428,14 @@ struct ast_bridge *ast_bridge_base_init(struct ast_bridge *self, uint32_t capabi
 		self->uniqueid, self->technology->name);
 	if (self->technology->create && self->technology->create(self)) {
 		ast_debug(1, "Bridge %s: failed to setup %s technology\n",
+			self->uniqueid, self->technology->name);
+		ao2_ref(self, -1);
+		return NULL;
+	}
+	ast_debug(1, "Bridge %s: calling %s technology start\n",
+		self->uniqueid, self->technology->name);
+	if (self->technology->start && self->technology->start(self)) {
+		ast_debug(1, "Bridge %s: failed to start %s technology\n",
 			self->uniqueid, self->technology->name);
 		ao2_ref(self, -1);
 		return NULL;
@@ -1756,36 +1782,30 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		old_technology->stop(&dummy_bridge);
 	}
 
-	/* Move existing channels over to the new technology. */
+	/*
+	 * Move existing channels over to the new technology and
+	 * complete joining any new channels to the bridge.
+	 */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		if (bridge_channel->just_joined) {
-			/*
-			 * This channel has not completed joining the bridge so it is
-			 * not in the old bridge technology.
-			 */
-			continue;
+		if (!bridge_channel->just_joined) {
+			/* Take existing channel from the old technology. */
+			ast_debug(1, "Bridge %s: %p(%s) is leaving %s technology (dummy)\n",
+				dummy_bridge.uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
+				old_technology->name);
+			if (old_technology->leave) {
+				old_technology->leave(&dummy_bridge, bridge_channel);
+			}
 		}
 
-		/* First we part them from the old technology */
-		ast_debug(1, "Bridge %s: %p(%s) is leaving %s technology (dummy)\n",
-			dummy_bridge.uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-			old_technology->name);
-		if (old_technology->leave) {
-			old_technology->leave(&dummy_bridge, bridge_channel);
-		}
+		/* Add any new channels or re-add an existing channel to the bridge. */
+		bridge_channel_complete_join(bridge, bridge_channel);
+	}
 
-		/* Second we make them compatible again with the bridge */
-		bridge_make_compatible(bridge, bridge_channel);
-
-		/* Third we join them to the new technology */
-		ast_debug(1, "Bridge %s: %p(%s) is joining %s technology\n",
-			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-			new_technology->name);
-		if (new_technology->join && new_technology->join(bridge, bridge_channel)) {
-			ast_debug(1, "Bridge %s: %p(%s) failed to join %s technology\n",
-				bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-				new_technology->name);
-		}
+	ast_debug(1, "Bridge %s: calling %s technology start\n",
+		bridge->uniqueid, new_technology->name);
+	if (new_technology->start && new_technology->start(bridge)) {
+		ast_log(LOG_WARNING, "Bridge %s: failed to start bridge technology %s\n",
+			bridge->uniqueid, new_technology->name);
 	}
 
 	/*

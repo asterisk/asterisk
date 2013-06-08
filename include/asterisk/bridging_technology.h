@@ -63,6 +63,16 @@ struct ast_bridge_technology {
 	 */
 	int (*create)(struct ast_bridge *bridge);
 	/*!
+	 * \brief Request a bridge technology instance start operations.
+	 *
+	 * \retval 0 on success
+	 * \retval -1 on failure
+	 *
+	 * \note On entry, bridge may or may not already be locked.
+	 * However, it can be accessed as if it were locked.
+	 */
+	int (*start)(struct ast_bridge *bridge);
+	/*!
 	 * \brief Request a bridge technology instance stop in preparation for being destroyed.
 	 *
 	 * \note On entry, bridge is already locked.
@@ -106,6 +116,9 @@ struct ast_bridge_technology {
 	 *
 	 * \retval 0 if not compatible
 	 * \retval non-zero if compatible
+	 *
+	 * \note On entry, bridge may or may not already be locked.
+	 * However, it can be accessed as if it were locked.
 	 */
 	int (*compatible)(struct ast_bridge *bridge);
 	/*!
