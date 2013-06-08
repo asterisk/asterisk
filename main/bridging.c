@@ -1325,6 +1325,13 @@ static void destroy_bridge(void *obj)
 
 	/* Pass off the bridge to the technology to destroy if needed */
 	if (bridge->technology) {
+		ast_debug(1, "Bridge %s: calling %s technology stop\n",
+			bridge->uniqueid, bridge->technology->name);
+		if (bridge->technology->stop) {
+			ast_bridge_lock(bridge);
+			bridge->technology->stop(bridge);
+			ast_bridge_unlock(bridge);
+		}
 		ast_debug(1, "Bridge %s: calling %s technology destructor\n",
 			bridge->uniqueid, bridge->technology->name);
 		if (bridge->technology->destroy) {
@@ -1743,6 +1750,12 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		return -1;
 	}
 
+	ast_debug(1, "Bridge %s: calling %s technology stop\n",
+		dummy_bridge.uniqueid, old_technology->name);
+	if (old_technology->stop) {
+		old_technology->stop(&dummy_bridge);
+	}
+
 	/* Move existing channels over to the new technology. */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 		if (bridge_channel->just_joined) {
@@ -1782,11 +1795,11 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	 */
 	if (old_technology->destroy) {
 		ast_debug(1, "Bridge %s: deferring %s technology destructor\n",
-			bridge->uniqueid, old_technology->name);
+			dummy_bridge.uniqueid, old_technology->name);
 		bridge_queue_action_nodup(bridge, deferred_action);
 	} else {
 		ast_debug(1, "Bridge %s: calling %s technology destructor\n",
-			bridge->uniqueid, old_technology->name);
+			dummy_bridge.uniqueid, old_technology->name);
 		ast_module_unref(old_technology->mod);
 	}
 

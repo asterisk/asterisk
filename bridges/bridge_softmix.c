@@ -1064,6 +1064,29 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Request the softmix mixing thread stop.
+ * \since 12.0.0
+ *
+ * \param bridge Which bridge is being stopped.
+ *
+ * \return Nothing
+ */
+static void softmix_bridge_stop(struct ast_bridge *bridge)
+{
+	struct softmix_bridge_data *softmix_data;
+
+	softmix_data = bridge->tech_pvt;
+	if (!softmix_data) {
+		return;
+	}
+
+	ast_mutex_lock(&softmix_data->lock);
+	softmix_data->stop = 1;
+	ast_mutex_unlock(&softmix_data->lock);
+}
+
 /*! \brief Function called when a bridge is destroyed */
 static void softmix_bridge_destroy(struct ast_bridge *bridge)
 {
@@ -1096,6 +1119,7 @@ static struct ast_bridge_technology softmix_bridge = {
 	.capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX,
 	.preference = AST_BRIDGE_PREFERENCE_BASE_MULTIMIX,
 	.create = softmix_bridge_create,
+	.stop = softmix_bridge_stop,
 	.destroy = softmix_bridge_destroy,
 	.join = softmix_bridge_join,
 	.leave = softmix_bridge_leave,

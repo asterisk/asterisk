@@ -63,6 +63,12 @@ struct ast_bridge_technology {
 	 */
 	int (*create)(struct ast_bridge *bridge);
 	/*!
+	 * \brief Request a bridge technology instance stop in preparation for being destroyed.
+	 *
+	 * \note On entry, bridge is already locked.
+	 */
+	void (*stop)(struct ast_bridge *bridge);
+	/*!
 	 * \brief Destroy a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge must NOT be locked.
