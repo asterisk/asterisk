@@ -53,7 +53,7 @@ struct ast_bridge_technology {
 	/*! Preference level that should be used when determining whether to use this bridge technology or not */
 	enum ast_bridge_preference preference;
 	/*!
-	 * \brief Callback for when a bridge is being created.
+	 * \brief Create a bridge technology instance for a bridge.
 	 *
 	 * \retval 0 on success
 	 * \retval -1 on failure
@@ -63,13 +63,13 @@ struct ast_bridge_technology {
 	 */
 	int (*create)(struct ast_bridge *bridge);
 	/*!
-	 * \brief Callback for when a bridge is being destroyed
+	 * \brief Destroy a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge must NOT be locked.
 	 */
 	void (*destroy)(struct ast_bridge *bridge);
 	/*!
-	 * \brief Callback for when a channel is being added to a bridge.
+	 * \brief Add a channel to a bridging technology instance for a bridge.
 	 *
 	 * \retval 0 on success
 	 * \retval -1 on failure
@@ -78,32 +78,32 @@ struct ast_bridge_technology {
 	 */
 	int (*join)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
-	 * \brief Callback for when a channel is leaving a bridge
+	 * \brief Remove a channel from a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge is already locked.
 	 */
 	void (*leave)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
-	 * \brief Callback for when a channel is suspended from the bridge
+	 * \brief Suspend a channel on a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge is already locked.
 	 */
 	void (*suspend)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
-	 * \brief Callback for when a channel is unsuspended from the bridge
+	 * \brief Unsuspend a channel on a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge is already locked.
 	 */
 	void (*unsuspend)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
-	 * \brief Callback to see if the bridge is compatible with the bridging technology.
+	 * \brief Check if a bridge is compatible with the bridging technology.
 	 *
 	 * \retval 0 if not compatible
 	 * \retval non-zero if compatible
 	 */
 	int (*compatible)(struct ast_bridge *bridge);
 	/*!
-	 * \brief Callback for writing a frame into the bridging technology.
+	 * \brief Write a frame into the bridging technology instance for a bridge.
 	 *
 	 * \retval 0 on success
 	 * \retval -1 on failure
@@ -115,7 +115,7 @@ struct ast_bridge_technology {
 	struct ast_format_cap *format_capabilities;
 	/*! TRUE if the bridge technology is currently suspended. */
 	unsigned int suspended:1;
-	/*! Module this bridge technology belongs to. Is used for reference counting when creating/destroying a bridge. */
+	/*! Module this bridge technology belongs to. It is used for reference counting bridges using the technology. */
 	struct ast_module *mod;
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_bridge_technology) entry;
