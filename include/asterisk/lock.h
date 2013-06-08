@@ -59,6 +59,7 @@
 #include "asterisk/time.h"
 #endif
 
+#include "asterisk/backtrace.h"
 #include "asterisk/logger.h"
 #include "asterisk/compiler.h"
 

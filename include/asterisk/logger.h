@@ -80,7 +80,10 @@ struct ast_callid;
 void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
 	__attribute__((format(printf, 6, 7)));
 
-void ast_backtrace(void);
+/*!
+ * \brief Log a backtrace of the current thread's execution stack to the Asterisk log
+ */
+void ast_log_backtrace(void);
 
 /*! \brief Reload logger without rotating log files */
 int logger_reload(void);
@@ -361,63 +364,6 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *c
 
 #define ast_verb(level, ...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__)
 #define ast_verb_callid(level, callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__)
-
-#ifndef _LOGGER_BACKTRACE_H
-#define _LOGGER_BACKTRACE_H
-#ifdef HAVE_BKTR
-#define AST_MAX_BT_FRAMES 32
-/* \brief
- *
- * A structure to hold backtrace information. This structure provides an easy means to
- * store backtrace information or pass backtraces to other functions.
- */
-struct ast_bt {
-	/*! The addresses of the stack frames. This is filled in by calling the glibc backtrace() function */
-	void *addresses[AST_MAX_BT_FRAMES];
-	/*! The number of stack frames in the backtrace */
-	int num_frames;
-	/*! Tells if the ast_bt structure was dynamically allocated */
-	unsigned int alloced:1;
-};
-
-/* \brief
- * Allocates memory for an ast_bt and stores addresses and symbols.
- *
- * \return Returns NULL on failure, or the allocated ast_bt on success
- * \since 1.6.1
- */
-struct ast_bt *ast_bt_create(void);
-
-/* \brief
- * Fill an allocated ast_bt with addresses
- *
- * \retval 0 Success
- * \retval -1 Failure
- * \since 1.6.1
- */
-int ast_bt_get_addresses(struct ast_bt *bt);
-
-/* \brief
- *
- * Free dynamically allocated portions of an ast_bt
- *
- * \retval NULL.
- * \since 1.6.1
- */
-void *ast_bt_destroy(struct ast_bt *bt);
-
-/* \brief Retrieve symbols for a set of backtrace addresses
- *
- * \param addresses A list of addresses, such as the ->addresses structure element of struct ast_bt.
- * \param num_frames Number of addresses in the addresses list
- * \retval NULL Unable to allocate memory
- * \return List of strings
- * \since 1.6.2.16
- */
-char **ast_bt_get_symbols(void **addresses, size_t num_frames);
-
-#endif /* HAVE_BKTR */
-#endif /* _LOGGER_BACKTRACE_H */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

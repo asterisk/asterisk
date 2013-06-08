@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/backtrace.h"
 
 /*!
  * The larger the number the faster memory can be freed.
@@ -78,13 +79,13 @@ static FILE *mmlog;
 
 struct ast_region {
 	AST_LIST_ENTRY(ast_region) node;
+	struct ast_bt *bt;
 	size_t len;
 	unsigned int cache;		/* region was allocated as part of a cache pool */
 	unsigned int lineno;
 	enum func_type which;
 	char file[64];
 	char func[40];
-
 	/*!
 	 * \brief Lower guard fence.
 	 *
@@ -157,6 +158,25 @@ AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 		}                                    \
 	} while (0)
 
+static void print_backtrace(struct ast_bt *bt)
+{
+	int i = 0;
+	char **strings;
+
+	if (!bt) {
+		return;
+	}
+
+	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
+		astmm_log("Memory allocation backtrace:\n");
+		for (i = 3; i < bt->num_frames - 2; i++) {
+			astmm_log("#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
+		}
+		free(strings);
+	}
+}
+
+
 /*!
  * \internal
  *
@@ -191,6 +211,7 @@ static void *__ast_alloc_region(size_t size, const enum func_type which, const c
 	reg->cache = cache;
 	reg->lineno = lineno;
 	reg->which = which;
+	reg->bt = ast_bt_create();
 	ast_copy_string(reg->file, file, sizeof(reg->file));
 	ast_copy_string(reg->func, func, sizeof(reg->func));
 
@@ -262,6 +283,7 @@ static void region_data_check(struct ast_region *reg)
 		if (*pos != FREED_MAGIC) {
 			astmm_log("WARNING: Memory corrupted after free of %p allocated at %s %s() line %d\n",
 				reg->data, reg->file, reg->func, reg->lineno);
+			print_backtrace(reg->bt);
 			my_do_crash();
 			break;
 		}
@@ -321,6 +343,9 @@ static void region_free(struct ast_freed_regions *freed, struct ast_region *reg)
 
 	if (old) {
 		region_data_check(old);
+		if (old->bt) {
+			old->bt = ast_bt_destroy(old->bt);
+		}
 		free(old);
 	}
 }
@@ -380,12 +405,14 @@ static void region_check_fences(struct ast_region *reg)
 	if (*fence != FENCE_MAGIC) {
 		astmm_log("WARNING: Low fence violation of %p allocated at %s %s() line %d\n",
 			reg->data, reg->file, reg->func, reg->lineno);
+		print_backtrace(reg->bt);
 		my_do_crash();
 	}
 	fence = (unsigned int *) (reg->data + reg->len);
 	if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
 		astmm_log("WARNING: High fence violation of %p allocated at %s %s() line %d\n",
 			reg->data, reg->file, reg->func, reg->lineno);
+		print_backtrace(reg->bt);
 		my_do_crash();
 	}
 }

@@ -110,7 +110,7 @@ struct ast_channel
 #define VERBOSE_PREFIX_3 "    -- "
 #define VERBOSE_PREFIX_4 "       > "
 
-void ast_backtrace(void);
+void ast_log_backtrace(void);
 
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
