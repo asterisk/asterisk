@@ -7739,10 +7739,9 @@ static int __init_manager(int reload, int by_external_config)
 			ast_log(AST_LOG_ERROR, "Failed to initialize manager MWI handling\n");
 			return -1;
 		}
-	}
-
-	if (manager_bridging_init()) {
-		return -1;
+		if (manager_bridging_init()) {
+			return -1;
+		}
 	}
 
 	if (!registered) {
