@@ -1083,11 +1083,7 @@ static void softmix_bridge_destroy(struct ast_bridge *bridge)
 	softmix_data->thread = AST_PTHREADT_NULL;
 	ast_mutex_unlock(&softmix_data->lock);
 	if (thread != AST_PTHREADT_NULL) {
-		/*
-		 * We cannot use bridge->uniqueid in the message because the
-		 * bridge pointer is likely a dummy from a deferred destruction.
-		 */
-		ast_debug(1, "Waiting for mixing thread to die.\n");
+		ast_debug(1, "Bridge %s: Waiting for mixing thread to die.\n", bridge->uniqueid);
 		pthread_join(thread, NULL);
 	}
 
