@@ -844,7 +844,9 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			 * all the memcpys used during this process depend on this assumption.  Rather
 			 * than checking this over and over again through out the code, this single
 			 * verification is done on each iteration. */
-			ast_log(LOG_WARNING, "Conference mixing error, requested mixing length greater than mixing buffer.\n");
+			ast_log(LOG_WARNING,
+				"Bridge %s: Conference mixing error, requested mixing length greater than mixing buffer.\n",
+				bridge->uniqueid);
 			goto softmix_cleanup;
 		}
 
@@ -944,7 +946,8 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		/* Wait for the timing source to tell us to wake up and get things done */
 		ast_waitfor_n_fd(&timingfd, 1, &timeout, NULL);
 		if (ast_timer_ack(timer, 1) < 0) {
-			ast_log(LOG_ERROR, "Failed to acknowledge timer in softmix bridge.\n");
+			ast_log(LOG_ERROR, "Bridge %s: Failed to acknowledge timer in softmix.\n",
+				bridge->uniqueid);
 			ast_bridge_lock(bridge);
 			goto softmix_cleanup;
 		}
@@ -1080,6 +1083,10 @@ static void softmix_bridge_destroy(struct ast_bridge *bridge)
 	softmix_data->thread = AST_PTHREADT_NULL;
 	ast_mutex_unlock(&softmix_data->lock);
 	if (thread != AST_PTHREADT_NULL) {
+		/*
+		 * We cannot use bridge->uniqueid in the message because the
+		 * bridge pointer is likely a dummy from a deferred destruction.
+		 */
 		ast_debug(1, "Waiting for mixing thread to die.\n");
 		pthread_join(thread, NULL);
 	}
