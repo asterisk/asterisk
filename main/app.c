@@ -2818,13 +2818,13 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 
 static void app_cleanup(void)
 {
+	ao2_cleanup(mwi_topic_pool);
+	mwi_topic_pool = NULL;
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
 	mwi_topic_cached = stasis_caching_unsubscribe_and_join(mwi_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_mwi_state_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_mwi_vm_app_type);
-	ao2_cleanup(mwi_topic_pool);
-	mwi_topic_pool = NULL;
 }
 
 int app_init(void)
