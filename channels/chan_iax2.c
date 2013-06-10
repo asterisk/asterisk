@@ -11530,9 +11530,9 @@ immediatedial:
 				}
 
 				if (iaxs[fr->callno]->transferring == TRANSFER_BEGIN) {
-					iaxs[fr->callno]->transferring = TRANSFER_MREADY;
-				} else if (iaxs[fr->callno]->transferring == TRANSFER_MBEGIN) {
 					iaxs[fr->callno]->transferring = TRANSFER_READY;
+				} else if (iaxs[fr->callno]->transferring == TRANSFER_MBEGIN) {
+					iaxs[fr->callno]->transferring = TRANSFER_MREADY;
 				} else {
 					if (iaxs[fr->callno]->bridgecallno) {
 						ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
