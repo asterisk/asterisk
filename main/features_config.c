@@ -1168,6 +1168,13 @@ static int pickup_handler(const struct aco_option *opt,
 	return pickup_set(pickup, var->name, var->value);
 }
 
+static int unsupported_handler(const struct aco_option *opt,
+		struct ast_variable *var, void *obj)
+{
+	ast_log(LOG_WARNING, "The option '%s' is no longer configurable in features.conf.\n", var->name);
+	return 0;
+}
+
 static int featuremap_handler(const struct aco_option *opt,
 		struct ast_variable *var, void *obj)
 {
@@ -1377,6 +1384,41 @@ static int load_config(int reload)
 			DEFAULT_PICKUPSOUND, pickup_handler, 0);
 	aco_option_register_custom(&cfg_info, "pickupfailsound", ACO_EXACT, global_options,
 			DEFAULT_PICKUPFAILSOUND, pickup_handler, 0);
+
+	aco_option_register_custom(&cfg_info, "context", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkext", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkext_exclusive", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkinghints", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkedmusicclass", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkingtime", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkpos", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "findslot", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkedcalltransfers", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkedcallreparking", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkedcallhangup", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkedcallrecording", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "comebackcontext", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "comebacktoorigin", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "comebackdialtime", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "parkeddynamic", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
+	aco_option_register_custom(&cfg_info, "adsipark", ACO_EXACT, global_options,
+			"", unsupported_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "blindxfer", ACO_EXACT, featuremap_options,
 			DEFAULT_FEATUREMAP_BLINDXFER, featuremap_handler, 0);
