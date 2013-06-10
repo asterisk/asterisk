@@ -81,6 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<manager name="SKINNYdevices" language="en_US">
@@ -952,6 +953,7 @@ static const uint8_t soft_key_default_ringin[] = {
 static const uint8_t soft_key_default_offhook[] = {
 	SOFTKEY_REDIAL,
 	SOFTKEY_ENDCALL,
+	SOFTKEY_TRNSFER,
 	SOFTKEY_CFWDALL,
 	SOFTKEY_CFWDBUSY,
 	SOFTKEY_CFWDNOANSWER,
@@ -971,6 +973,7 @@ static const uint8_t soft_key_default_connwithtrans[] = {
 static const uint8_t soft_key_default_dadfd[] = {
 	SOFTKEY_BKSPC,
 	SOFTKEY_ENDCALL,
+	SOFTKEY_TRNSFER,
 	SOFTKEY_FORCEDIAL,
 };
 
@@ -1375,6 +1378,7 @@ static int matchdigittimeout = 3000;
 
 #define DIALTYPE_NORMAL      1<<0
 #define DIALTYPE_CFWD        1<<1
+#define DIALTYPE_XFER        1<<2
 
 struct skinny_subchannel {
 	ast_mutex_t lock;
@@ -1656,7 +1660,6 @@ static struct ast_channel_tech skinny_tech = {
 };
 
 static int skinny_extensionstate_cb(char *context, char *id, struct ast_state_cb_info *info, void *data);
-static int skinny_transfer(struct skinny_subchannel *sub);
 
 static struct skinny_line *skinny_line_alloc(void)
 {
@@ -5008,14 +5011,6 @@ static int skinny_answer(struct ast_channel *ast)
 	int res = 0;
 	struct skinny_subchannel *sub = ast_channel_tech_pvt(ast);
 
-	if (sub->blindxfer) {
-		SKINNY_DEBUG(DEBUG_SUB, 3, "skinny_answer(%s) on %s@%s-%d with BlindXFER, transferring\n",
-			ast_channel_name(ast), sub->line->name, sub->line->device->name, sub->callid);
-		ast_setstate(ast, AST_STATE_UP);
-		skinny_transfer(sub);
-		return 0;
-	}
-
 	sub->cxmode = SKINNY_CX_SENDRECV;
 
 	SKINNY_DEBUG(DEBUG_SUB, 3, "skinny_answer(%s) on %s@%s-%d\n",
@@ -5242,64 +5237,52 @@ static char *control2str(int ind) {
 	}
 }
 
-static int skinny_transfer(struct skinny_subchannel *sub)
+static void skinny_transfer_attended(struct skinny_subchannel *sub)
 {
-	struct skinny_subchannel *xferor; /* the sub doing the transferring */
-	struct skinny_subchannel *xferee; /* the sub being transferred */
-	struct ast_tone_zone_sound *ts = NULL;
+	struct skinny_subchannel *xferee;
+	struct skinny_subchannel *xferor;
+	enum ast_transfer_result res;
 
-	if (ast_bridged_channel(sub->owner) || ast_bridged_channel(sub->related->owner)) {
-		if (sub->xferor) {
-			xferor = sub;
-			xferee = sub->related;
-		} else {
-			xferor = sub;
-			xferee = sub->related;
-		}
-
-		SKINNY_DEBUG(DEBUG_SUB, 3, "Transferee channels (local/remote): %s and %s\n",
-			ast_channel_name(xferee->owner), ast_bridged_channel(xferee->owner) ? ast_channel_name(ast_bridged_channel(xferee->owner)) : "");
-		SKINNY_DEBUG(DEBUG_SUB, 3, "Transferor channels (local/remote): %s and %s\n",
-			ast_channel_name(xferor->owner), ast_bridged_channel(xferor->owner) ? ast_channel_name(ast_bridged_channel(xferor->owner)) : "");
-
-		if (ast_bridged_channel(xferor->owner)) {
-			ast_queue_unhold(xferee->owner);
-			if (ast_channel_state(xferor->owner) == AST_STATE_RING) {
-				/* play ringing inband */
-				if ((ts = ast_get_indication_tone(ast_channel_zone(xferor->owner), "ring"))) {
-					ast_playtones_start(xferor->owner, 0, ts->data, 1);
-					ts = ast_tone_zone_sound_unref(ts);
-				}
-			}
-			SKINNY_DEBUG(DEBUG_SUB, 3, "Transfer Masquerading %s to %s\n",
-				ast_channel_name(xferee->owner), ast_bridged_channel(xferor->owner) ? ast_channel_name(ast_bridged_channel(xferor->owner)) : "");
-			if (ast_channel_masquerade(xferee->owner, ast_bridged_channel(xferor->owner))) {
-				ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_channel_name(ast_bridged_channel(xferor->owner)), ast_channel_name(xferee->owner));
-				return -1;
-			}
-		} else if (ast_bridged_channel(xferee->owner)) {
-			ast_queue_unhold(xferee->owner);
-			if (ast_channel_state(xferor->owner) == AST_STATE_RING) {
-				/* play ringing inband */
-				if ((ts = ast_get_indication_tone(ast_channel_zone(xferor->owner), "ring"))) {
-					ast_playtones_start(xferor->owner, 0, ts->data, 1);
-					ts = ast_tone_zone_sound_unref(ts);
-				}
-			}
-			SKINNY_DEBUG(DEBUG_SUB, 3, "Transfer Masquerading %s to %s\n",
-				ast_channel_name(xferor->owner), ast_bridged_channel(xferee->owner) ? ast_channel_name(ast_bridged_channel(xferee->owner)) : "");
-			if (ast_channel_masquerade(xferor->owner, ast_bridged_channel(xferee->owner))) {
-				ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_channel_name(ast_bridged_channel(xferee->owner)), ast_channel_name(xferor->owner));
-				return -1;
-			}
-		} else {
-			ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-				ast_channel_name(xferor->owner), ast_channel_name(xferee->owner));
-		}
+	if (sub->xferor) {
+		xferor = sub;
+		xferee = sub->related;
+	} else {
+		xferor = sub;
+		xferee = sub->related;
 	}
-	return 0;
+
+	ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
+	if (ast_channel_state(xferor->owner) == AST_STATE_RINGING) {
+		ast_queue_control(xferee->owner, AST_CONTROL_RINGING);
+	}
+	res = ast_bridge_transfer_attended(xferee->owner, xferor->owner);
+
+	if (res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d failed to transfer %d to '%s'@'%s' - %d\n",
+			xferor->callid, xferee->callid, xferor->exten, xferor->line->context, res);
+		send_displayprinotify(xferor->line->device, "Transfer failed", NULL, 10, 5);
+		ast_queue_control(xferee->owner, AST_CONTROL_HOLD);
+	}
+}
+
+static void skinny_transfer_blind(struct skinny_subchannel *sub)
+{
+	struct skinny_subchannel *xferee = sub->related;
+	enum ast_transfer_result res;
+
+	sub->related = NULL;
+	xferee->related = NULL;
+
+	ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
+	res = ast_bridge_transfer_blind(xferee->owner, sub->exten, sub->line->context, NULL, NULL);
+
+	if (res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d failed to blind transfer %d to '%s'@'%s' - %d\n",
+			sub->callid, xferee->callid, sub->exten, sub->line->context, res);
+		send_displayprinotify(sub->line->device, "Transfer failed", NULL, 10, 5);
+		ast_queue_control(xferee->owner, AST_CONTROL_HOLD);
+	}
+	dumpsub(sub, 1);
 }
 
 static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen)
@@ -5318,12 +5301,6 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		control2str(ind), ast_channel_name(ast), sub->callid);
 	switch(ind) {
 	case AST_CONTROL_RINGING:
-		if (sub->blindxfer) {
-			SKINNY_DEBUG(DEBUG_SUB, 3, "Channel %s (Sub %d) set up for Blind Xfer, so Xfer rather than ring device\n",
-				ast_channel_name(ast), sub->callid);
-			skinny_transfer(sub);
-			break;
-		}
 		setsubstate(sub, SUBSTATE_RINGOUT);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_BUSY:
@@ -6059,6 +6036,9 @@ static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX
 		dumpsub(sub, 1);
 		transmit_cfwdstate(d, l);
 		transmit_displaynotify(d, "CFwd enabled", 10);
+	} else if (sub->dialType == DIALTYPE_XFER) {
+		ast_copy_string(sub->exten, exten, sizeof(sub->exten));
+		skinny_transfer_blind(sub);
 	}
 }
 
@@ -6117,21 +6097,14 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 		}
 	} else {
 		/* We already have a related sub so we can either complete XFER or go into BLINDXFER (or cancel BLINDXFER */
-		if (sub->blindxfer) {
-			/* toggle blindxfer off */
-			sub->blindxfer = 0;
-			sub->related->blindxfer = 0;
-			/* we really need some indications */
-		} else {
-			/* We were doing attended transfer */
-			if (ast_channel_state(sub->owner) == AST_STATE_DOWN || ast_channel_state(sub->related->owner) == AST_STATE_DOWN) {
-				/* one of the subs so we cant transfer yet, toggle blindxfer on */
-				sub->blindxfer = 1;
-				sub->related->blindxfer = 1;
+		if (sub->substate == SUBSTATE_OFFHOOK) {
+			if (sub->dialType == DIALTYPE_XFER) {
+				sub->dialType = DIALTYPE_NORMAL;
 			} else {
-				/* big assumption we have two channels, lets transfer */
-				skinny_transfer(sub);
+				sub->dialType = DIALTYPE_XFER;
 			}
+		} else {
+			skinny_transfer_attended(sub);
 		}
 	}
 	return 0;
