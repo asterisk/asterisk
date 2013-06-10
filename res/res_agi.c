@@ -1371,7 +1371,7 @@ static enum agi_result async_agi_read_frame(struct ast_channel *chan)
 	return AGI_RESULT_SUCCESS;
 }
 
-static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], int *efd)
+static enum agi_result launch_asyncagi(struct ast_channel *chan, int argc, char *argv[], int *efd)
 {
 /* This buffer sizes might cause truncation if the AGI command writes more data
    than AGI_BUF_SIZE as result. But let's be serious, is there an AGI command
@@ -1438,7 +1438,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 
 	/* notify possible manager users of a new channel ready to
 	   receive commands */
-	setup_env(chan, "async", fds[1], 0, 0, NULL);
+	setup_env(chan, "async", fds[1], 0, argc, argv);
 	/* read the environment */
 	res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
 	if (res <= 0) {
@@ -1794,7 +1794,7 @@ static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
 	return AGI_RESULT_FAILURE;
 }
 
-static enum agi_result launch_script(struct ast_channel *chan, char *script, char *argv[], int *fds, int *efd, int *opid)
+static enum agi_result launch_script(struct ast_channel *chan, char *script, int argc, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
 	int pid, toast[2], fromast[2], audio[2], res;
@@ -1807,7 +1807,7 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 		return (efd == NULL) ? launch_ha_netscript(script, argv, fds) : AGI_RESULT_FAILURE;
 	}
 	if (!strncasecmp(script, "agi:async", sizeof("agi:async") - 1)) {
-		return launch_asyncagi(chan, argv, efd);
+		return launch_asyncagi(chan, argc, argv, efd);
 	}
 
 	if (script[0] != '/') {
@@ -4110,7 +4110,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 			return -1;
 	}
 #endif
-	res = launch_script(chan, args.argv[0], args.argv, fds, enhanced ? &efd : NULL, &pid);
+	res = launch_script(chan, args.argv[0], args.argc, args.argv, fds, enhanced ? &efd : NULL, &pid);
 	/* Async AGI do not require run_agi(), so just proceed if normal AGI
 	   or Fast AGI are setup with success. */
 	if (res == AGI_RESULT_SUCCESS || res == AGI_RESULT_SUCCESS_FAST) {
