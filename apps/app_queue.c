@@ -1126,6 +1126,7 @@ struct call_queue {
 	unsigned int dead:1;
 	unsigned int eventwhencalled:2;
 	unsigned int ringinuse:1;
+	unsigned int announce_to_first_user:1; /*!< Whether or not we announce to the first user in a queue */
 	unsigned int setinterfacevar:1;
 	unsigned int setqueuevar:1;
 	unsigned int setqueueentryvar:1;
@@ -1730,6 +1731,7 @@ static void init_queue(struct call_queue *q)
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
 	q->ringinuse = 1;
+	q->announce_to_first_user = 0;
 	q->setinterfacevar = 0;
 	q->setqueuevar = 0;
 	q->setqueueentryvar = 0;
@@ -1992,6 +1994,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_string_field_set(q, sound_reporthold, val);
 	} else if (!strcasecmp(param, "announce-frequency")) {
 		q->announcefrequency = atoi(val);
+	} else if (!strcasecmp(param, "announce-to-first-user")) {
+		q->announce_to_first_user = ast_true(val);
 	} else if (!strcasecmp(param, "min-announce-frequency")) {
 		q->minannouncefrequency = atoi(val);
 		ast_debug(1, "%s=%s for queue '%s'\n", param, val, q->name);
@@ -4088,12 +4092,12 @@ skip_frame:;
 	}
 
 	/* Make a position announcement, if enabled */
- 	if (qe->parent->announcefrequency) {
+ 	if (qe->parent->announcefrequency && qe->parent->announce_to_first_user) {
 		say_position(qe, ringing);
 	}
 
  	/* Make a periodic announcement, if enabled */
- 	if (qe->parent->periodicannouncefrequency) {
+ 	if (qe->parent->periodicannouncefrequency && qe->parent->announce_to_first_user) {
  		say_periodic_announcement(qe, ringing);
  	}
  
@@ -8439,6 +8443,7 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, dead, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, eventwhencalled, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, ringinuse, AST_DATA_BOOLEAN)			\
+	MEMBER(call_queue, announce_to_first_user, AST_DATA_BOOLEAN)	\
 	MEMBER(call_queue, setinterfacevar, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, setqueuevar, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, setqueueentryvar, AST_DATA_BOOLEAN)		\
