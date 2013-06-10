@@ -24,6 +24,12 @@ From 11.4 to 11.5:
 * The default settings for chan_sip are now overriden properly by the general
   settings in sip.conf.  Please look over your settings upon upgrading.
 
+* It is now possible to play the Queue prompts to the first user waiting in a call queue.
+  Note that this may impact the ability for agents to talk with users, as a prompt may
+  still be playing when an agent connects to the user. This ability is disabled by
+  default but can be enabled on an individual queue using the 'announce-to-first-user'
+  option.
+
 From 11.3 to 11.4:
 * Added the 'n' option to MeetMe to prevent application of the DENOISE function
   to a channel joining a conference. Some channel drivers that vary the number
