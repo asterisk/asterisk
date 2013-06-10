@@ -11547,6 +11547,7 @@ immediatedial:
 
 				if (!(iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_READY) &&
 				    !(iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_MREADY)) {
+					ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
 					break;
 				}
 
