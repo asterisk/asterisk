@@ -310,6 +310,28 @@ struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *s
 	return ast_json_ref(json_chan);
 }
 
+struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(const char *uniqueid)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_bridge_snapshot *snapshot;
+
+	ast_assert(!ast_strlen_zero(uniqueid));
+
+	message = stasis_cache_get(ast_bridge_topic_all_cached(),
+			ast_bridge_snapshot_type(),
+			uniqueid);
+	if (!message) {
+		return NULL;
+	}
+
+	snapshot = stasis_message_data(message);
+	if (!snapshot) {
+		return NULL;
+	}
+	ao2_ref(snapshot, +1);
+	return snapshot;
+}
+
 static void stasis_bridging_cleanup(void)
 {
 	ao2_cleanup(bridge_topic_all);

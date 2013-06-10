@@ -187,6 +187,56 @@ int stasis_app_control_queue_control(struct stasis_app_control *control,
 	enum ast_control_frame_type frame_type);
 
 /*!
+ * \brief Create a bridge of the specified type.
+ *
+ * \param type The type of bridge to be created
+ *
+ * \return New bridge.
+ * \return \c NULL on error.
+ */
+struct ast_bridge *stasis_app_bridge_create(const char *type);
+
+/*!
+ * \brief Returns the bridge with the given id.
+ * \param bridge_id Uniqueid of the bridge.
+ * \return NULL bridge not created by a Stasis application, or bridge does not exist.
+ * \return Pointer to bridge.
+ */
+struct ast_bridge *stasis_app_bridge_find_by_id(
+	const char *bridge_id);
+
+/*!
+ * \brief Add a channel to the bridge.
+ *
+ * \param control Control whose channel should be added to the bridge
+ * \param bridge Pointer to the bridge
+ */
+void stasis_app_control_add_channel_to_bridge(
+	struct stasis_app_control *control, struct ast_bridge *bridge);
+
+/*!
+ * \brief Remove a channel from the bridge.
+ *
+ * \param control Control whose channel should be removed from the bridge
+ * \param bridge Pointer to the bridge
+ *
+ * \retval non-zero on failure
+ * \retval zero on success
+ */
+int stasis_app_control_remove_channel_from_bridge(
+	struct stasis_app_control *control, struct ast_bridge *bridge);
+
+/*!
+ * \brief Destroy the bridge.
+ *
+ * \param bridge_id Uniqueid of bridge to be destroyed
+ *
+ * \retval non-zero on failure
+ * \retval zero on success
+ */
+void stasis_app_bridge_destroy(const char *bridge_id);
+
+/*!
  * \brief Increment the res_stasis reference count.
  *
  * This ensures graceful shutdown happens in the proper order.

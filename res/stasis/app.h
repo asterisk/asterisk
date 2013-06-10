@@ -135,4 +135,32 @@ int app_add_channel(struct app *app, const struct ast_channel *chan);
  */
 void app_remove_channel(struct app *app, const struct ast_channel *chan);
 
+/*!
+ * \brief Add a bridge to an application's watch list by uniqueid.
+ *
+ * \param app Application.
+ * \param bridge Bridge to watch.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int app_add_bridge(struct app *app, const char *uniqueid);
+
+/*!
+ * \brief Remove a bridge from an application's watch list by uniqueid.
+ *
+ * \param app Application.
+ * \param bridge Bridge to remove.
+ */
+void app_remove_bridge(struct app* app, const char *uniqueid);
+
+/*!
+ * \brief Checks if an application is watching a given bridge.
+ *
+ * \param app Application.
+ * \param uniqueid Uniqueid of the bridge to check.
+ * \return True (non-zero) if \a app is watching bridge with given \a uniqueid
+ * \return False (zero) if \a app isn't.
+ */
+int app_is_watching_bridge(struct app *app, const char *uniqueid);
+
 #endif /* _ASTERISK_RES_STASIS_APP_H */

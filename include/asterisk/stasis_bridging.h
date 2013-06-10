@@ -207,6 +207,18 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot);
 
 /*!
+ * \brief Returns the most recent snapshot for the bridge.
+ *
+ * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
+ *
+ * \param bridge_id Uniqueid of the bridge for which to get the snapshot.
+ * \return Most recent snapshot. ao2_cleanup() when done.
+ * \return \c NULL if channel isn't in cache.
+ */
+struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(
+	const char *bridge_id);
+
+/*!
  * \brief Initialize the stasis bridging topic and message types
  * \retval 0 on success
  * \retval -1 on failure

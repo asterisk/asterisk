@@ -259,6 +259,56 @@ struct ast_json *stasis_json_event_playback_started_create(
 	return ast_json_ref(message);
 }
 
+struct ast_json *stasis_json_event_channel_varset_create(
+	struct ast_channel_snapshot *channel_snapshot,
+	struct ast_json *blob
+	)
+{
+	RAII_VAR(struct ast_json *, message, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, event, NULL, ast_json_unref);
+	struct ast_json *validator;
+	int ret;
+
+	ast_assert(channel_snapshot != NULL);
+	ast_assert(blob != NULL);
+	ast_assert(ast_json_object_get(blob, "channel") == NULL);
+	ast_assert(ast_json_object_get(blob, "type") == NULL);
+
+	validator = ast_json_object_get(blob, "variable");
+	if (validator) {
+		/* do validation? XXX */
+	} else {
+		/* fail message generation if the required parameter doesn't exist */
+		return NULL;
+	}
+
+	validator = ast_json_object_get(blob, "value");
+	if (validator) {
+		/* do validation? XXX */
+	} else {
+		/* fail message generation if the required parameter doesn't exist */
+		return NULL;
+	}
+
+	event = ast_json_deep_copy(blob);
+	if (!event) {
+		return NULL;
+	}
+
+	ret = ast_json_object_set(event,
+		"channel", ast_channel_snapshot_to_json(channel_snapshot));
+	if (ret) {
+		return NULL;
+	}
+
+	message = ast_json_pack("{s: o}", "channel_varset", ast_json_ref(event));
+	if (!message) {
+		return NULL;
+	}
+
+	return ast_json_ref(message);
+}
+
 struct ast_json *stasis_json_event_bridge_destroyed_create(
 	struct ast_bridge_snapshot *bridge_snapshot
 	)
@@ -370,8 +420,8 @@ struct ast_json *stasis_json_event_channel_destroyed_create(
 	return ast_json_ref(message);
 }
 
-struct ast_json *stasis_json_event_channel_varset_create(
-	struct ast_channel_snapshot *channel_snapshot,
+struct ast_json *stasis_json_event_bridge_merged_create(
+	struct ast_bridge_snapshot *bridge_snapshot,
 	struct ast_json *blob
 	)
 {
@@ -380,20 +430,12 @@ struct ast_json *stasis_json_event_channel_varset_create(
 	struct ast_json *validator;
 	int ret;
 
-	ast_assert(channel_snapshot != NULL);
+	ast_assert(bridge_snapshot != NULL);
 	ast_assert(blob != NULL);
-	ast_assert(ast_json_object_get(blob, "channel") == NULL);
+	ast_assert(ast_json_object_get(blob, "bridge") == NULL);
 	ast_assert(ast_json_object_get(blob, "type") == NULL);
 
-	validator = ast_json_object_get(blob, "variable");
-	if (validator) {
-		/* do validation? XXX */
-	} else {
-		/* fail message generation if the required parameter doesn't exist */
-		return NULL;
-	}
-
-	validator = ast_json_object_get(blob, "value");
+	validator = ast_json_object_get(blob, "bridge_from");
 	if (validator) {
 		/* do validation? XXX */
 	} else {
@@ -407,12 +449,12 @@ struct ast_json *stasis_json_event_channel_varset_create(
 	}
 
 	ret = ast_json_object_set(event,
-		"channel", ast_channel_snapshot_to_json(channel_snapshot));
+		"bridge", ast_bridge_snapshot_to_json(bridge_snapshot));
 	if (ret) {
 		return NULL;
 	}
 
-	message = ast_json_pack("{s: o}", "channel_varset", ast_json_ref(event));
+	message = ast_json_pack("{s: o}", "bridge_merged", ast_json_ref(event));
 	if (!message) {
 		return NULL;
 	}

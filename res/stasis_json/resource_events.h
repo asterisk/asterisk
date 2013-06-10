@@ -122,6 +122,22 @@ struct ast_json *stasis_json_event_playback_started_create(
 	);
 
 /*!
+ * \brief Channel variable changed.
+ *
+ * \param channel The channel on which the variable was set.
+ * \param blob JSON blob containing the following parameters:
+ * - variable: string - The variable that changed. (required)
+ * - value: string - The new value of the variable. (required)
+ *
+ * \retval NULL on error
+ * \retval JSON (ast_json) describing the event
+ */
+struct ast_json *stasis_json_event_channel_varset_create(
+	struct ast_channel_snapshot *channel_snapshot,
+	struct ast_json *blob
+	);
+
+/*!
  * \brief Notification that a bridge has been destroyed.
  *
  * \param bridge The bridge to be used to generate this event
@@ -163,18 +179,17 @@ struct ast_json *stasis_json_event_channel_destroyed_create(
 	);
 
 /*!
- * \brief Channel variable changed.
+ * \brief Notification that one bridge has merged into another.
  *
- * \param channel The channel on which the variable was set.
+ * \param bridge The bridge to be used to generate this event
  * \param blob JSON blob containing the following parameters:
- * - variable: string - The variable that changed. (required)
- * - value: string - The new value of the variable. (required)
+ * - bridge_from: Bridge  (required)
  *
  * \retval NULL on error
  * \retval JSON (ast_json) describing the event
  */
-struct ast_json *stasis_json_event_channel_varset_create(
-	struct ast_channel_snapshot *channel_snapshot,
+struct ast_json *stasis_json_event_bridge_merged_create(
+	struct ast_bridge_snapshot *bridge_snapshot,
 	struct ast_json *blob
 	);
 
@@ -318,15 +333,17 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * - caller_presentation: integer (required)
  * PlaybackStarted
  * - playback: Playback (required)
+ * ChannelVarset
+ * - variable: string (required)
+ * - value: string (required)
  * BridgeDestroyed
  * ApplicationReplaced
  * - application: string (required)
  * ChannelDestroyed
  * - cause: integer (required)
  * - cause_txt: string (required)
- * ChannelVarset
- * - variable: string (required)
- * - value: string (required)
+ * BridgeMerged
+ * - bridge_from: Bridge (required)
  * ChannelLeftBridge
  * ChannelCreated
  * StasisStart
@@ -342,24 +359,25 @@ struct ast_json *stasis_json_event_stasis_end_create(
  * ChannelDtmfReceived
  * - digit: string (required)
  * Event
- * - stasis_start: StasisStart
+ * - channel_varset: ChannelVarset
  * - channel_created: ChannelCreated
  * - channel_destroyed: ChannelDestroyed
  * - channel_entered_bridge: ChannelEnteredBridge
  * - channel_left_bridge: ChannelLeftBridge
+ * - bridge_merged: BridgeMerged
  * - channel_dialplan: ChannelDialplan
- * - channel_varset: ChannelVarset
  * - application_replaced: ApplicationReplaced
  * - channel_state_change: ChannelStateChange
  * - bridge_created: BridgeCreated
  * - application: string (required)
  * - channel_hangup_request: ChannelHangupRequest
  * - channel_userevent: ChannelUserevent
- * - playback_started: PlaybackStarted
+ * - stasis_start: StasisStart
  * - channel_snapshot: ChannelSnapshot
  * - channel_dtmf_received: ChannelDtmfReceived
  * - channel_caller_id: ChannelCallerId
  * - bridge_destroyed: BridgeDestroyed
+ * - playback_started: PlaybackStarted
  * - playback_finished: PlaybackFinished
  * - stasis_end: StasisEnd
  * StasisEnd

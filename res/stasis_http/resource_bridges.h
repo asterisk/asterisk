@@ -84,7 +84,7 @@ struct ast_delete_bridge_args {
 	const char *bridge_id;
 };
 /*!
- * \brief Shut down a bridge bridge.
+ * \brief Shut down a bridge.
  *
  * If any channels are in this bridge, they will be removed and resume whatever they were doing beforehand.
  *

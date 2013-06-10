@@ -56,6 +56,7 @@
 				"application_replaced": { "type": "ApplicationReplaced" },
 				"bridge_created": { "type": "BridgeCreated" },
 				"bridge_destroyed": { "type": "BridgeDestroyed" },
+				"bridge_merged": { "type": "BridgeMerged" },
 				"channel_created": { "type": "ChannelCreated" },
 				"channel_destroyed": { "type": "ChannelDestroyed" },
 				"channel_snapshot": { "type": "ChannelSnapshot" },
@@ -122,6 +123,20 @@
 			"description": "Notification that a bridge has been destroyed.",
 			"properties": {
 				"bridge": {
+					"required": true,
+					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeMerged": {
+			"id": "BridgeMerged",
+			"description": "Notification that one bridge has merged into another.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
+				},
+				"bridge_from": {
 					"required": true,
 					"type": "Bridge"
 				}

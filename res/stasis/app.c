@@ -38,6 +38,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 #define APP_CHANNELS_BUCKETS 7
 
+/*!
+ * \brief Number of buckets for the bridges container for app instances.  Remember
+ * to keep it a prime number!
+ */
+#define APP_BRIDGES_BUCKETS 7
+
 struct app {
 	/*! Callback function for this application. */
 	stasis_app_cb handler;
@@ -45,6 +51,8 @@ struct app {
 	void *data;
 	/*! List of channel identifiers this app instance is interested in */
 	struct ao2_container *channels;
+	/*! List of bridge identifiers this app instance owns */
+	struct ao2_container *bridges;
 	/*! Name of the Stasis application */
 	char name[];
 };
@@ -57,6 +65,8 @@ static void app_dtor(void *obj)
 	app->data = NULL;
 	ao2_cleanup(app->channels);
 	app->channels = NULL;
+	ao2_cleanup(app->bridges);
+	app->bridges = NULL;
 }
 
 struct app *app_create(const char *name, stasis_app_cb handler, void *data)
@@ -84,6 +94,11 @@ struct app *app_create(const char *name, stasis_app_cb handler, void *data)
 		return NULL;
 	}
 
+	app->bridges = ast_str_container_alloc(APP_BRIDGES_BUCKETS);
+	if (!app->bridges) {
+		return NULL;
+	}
+
 	ao2_ref(app, +1);
 	return app;
 }
@@ -104,6 +119,22 @@ void app_remove_channel(struct app* app, const struct ast_channel *chan)
 	ast_assert(app != NULL);
 
 	ao2_find(app->channels, ast_channel_uniqueid(chan), OBJ_KEY | OBJ_NODATA | OBJ_UNLINK);
+}
+
+int app_add_bridge(struct app *app, const char *uniqueid)
+{
+	ast_assert(uniqueid != NULL);
+	ast_assert(app != NULL);
+
+	return ast_str_container_add(app->bridges, uniqueid) ? -1 : 0;
+}
+
+void app_remove_bridge(struct app* app, const char *uniqueid)
+{
+	ast_assert(uniqueid != NULL);
+	ast_assert(app != NULL);
+
+	ao2_find(app->bridges, uniqueid, OBJ_KEY | OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE);
 }
 
 /*!
@@ -135,5 +166,12 @@ int app_is_watching_channel(struct app *app, const char *uniqueid)
 {
 	RAII_VAR(char *, found, NULL, ao2_cleanup);
 	found = ao2_find(app->channels, uniqueid, OBJ_KEY);
+	return found != NULL;
+}
+
+int app_is_watching_bridge(struct app *app, const char *uniqueid)
+{
+	RAII_VAR(char *, found, NULL, ao2_cleanup);
+	found = ao2_find(app->bridges, uniqueid, OBJ_KEY);
 	return found != NULL;
 }

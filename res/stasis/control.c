@@ -31,6 +31,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "command.h"
 #include "control.h"
+#include "asterisk/bridging.h"
+#include "asterisk/bridging_features.h"
 
 struct stasis_app_control {
 	/*! Queue of commands to dispatch on the channel */
@@ -199,4 +201,11 @@ int control_dispatch_all(struct stasis_app_control *control,
 
 	ao2_iterator_destroy(&i);
 	return count;
+}
+
+/* Must be defined here since it must operate on the channel outside of the queue */
+int stasis_app_control_remove_channel_from_bridge(
+	struct stasis_app_control *control, struct ast_bridge *bridge)
+{
+	return ast_bridge_remove(bridge, control->channel);
 }
