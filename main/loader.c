@@ -750,7 +750,7 @@ static void publish_reload_message(const char *name, enum ast_module_reload_resu
 	event_object = ast_json_pack("{s: s, s: s}",
 			"Module", S_OR(name, "All"),
 			"Status", res_buffer);
-	json_object = ast_json_pack("{s: s, s: i, s: o}",
+	json_object = ast_json_pack("{s: s, s: i, s: O}",
 			"type", "Reload",
 			"class_type", EVENT_FLAG_SYSTEM,
 			"event", event_object);
