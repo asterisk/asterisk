@@ -11520,6 +11520,15 @@ immediatedial:
 				}
 				break;
 			case IAX_COMMAND_TXREADY:
+				if (iaxs[fr->callno]->bridgecallno) {
+					while (ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
+						DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
+					}
+					if (!iaxs[fr->callno]) {
+						break;
+					}
+				}
+
 				if ((iaxs[fr->callno]->transferring == TRANSFER_BEGIN) ||
 				    (iaxs[fr->callno]->transferring == TRANSFER_MBEGIN)) {
 					if (iaxs[fr->callno]->transferring == TRANSFER_MBEGIN)
@@ -11567,6 +11576,9 @@ immediatedial:
 
 						}
 					}
+				}
+				if (iaxs[fr->callno]->bridgecallno) {
+					ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
 				}
 				break;
 			case IAX_COMMAND_TXREQ:
