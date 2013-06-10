@@ -21,7 +21,6 @@
 ===
 ===========================================================
 
-
 AMI:
  - The SIP SIPqualifypeer action now sends a response indicating it will qualify
    a peer once a peer has been found to qualify.  Once the qualify has been
@@ -55,6 +54,11 @@ Queues:
    Queue member being paused would result in a disposition of BUSY.
  - Removed the queues.conf check_state_unknown option.  It is no longer
    necessary.
+ - It is now possible to play the Queue prompts to the first user waiting in a
+   call queue. Note that this may impact the ability for agents to talk with
+   users, as a prompt may still be playing when an agent connects to the user.
+   This ability is disabled by default but can be enabled on an individual
+   queue using the 'announce-to-first-user' option.
 
 Dial:
  - Now recognizes 'W' to pause sending DTMF for one second in addition to

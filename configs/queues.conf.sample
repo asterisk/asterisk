@@ -317,6 +317,13 @@ monitor-type = MixMonitor
 ;
 ;announce-position = yes
 ;
+; If enabled, play announcements to the first user waiting in the Queue. This may mean
+; that announcements are played when an agent attempts to connect to the waiting user,
+; which may delay the time before the agent and the user can communicate. Disabled by
+; default.
+;
+; announce-to-first-user = no
+;
 ; If you have specified "limit" or "more" for the announce-position option, then the following
 ; value is what is used to determine what announcement to play to waiting callers. If you have
 ; set the announce-position option to anything else, then this will have no bearing on queue operation
