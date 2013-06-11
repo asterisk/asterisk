@@ -5610,8 +5610,7 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
  * attempt.
  *
  * If two bridges exist, then a local channel is created to link the two
- * bridges together. Local channel optimization may result in the bridges
- * merging.
+ * bridges together.
  *
  * If only one bridge exists, then a local channel is created with one end
  * placed into the existing bridge and the other end masquerading into
