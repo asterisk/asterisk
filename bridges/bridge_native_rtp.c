@@ -317,7 +317,8 @@ static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_c
 		glue1->get_codec(c1->chan, cap1);
 	}
 
-	if (native_type == AST_RTP_GLUE_RESULT_LOCAL) {
+	switch (native_type) {
+	case AST_RTP_GLUE_RESULT_LOCAL:
 		if (ast_rtp_instance_get_engine(instance0)->local_bridge) {
 			ast_rtp_instance_get_engine(instance0)->local_bridge(instance0, instance1);
 		}
@@ -326,9 +327,14 @@ static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 		ast_rtp_instance_set_bridged(instance0, instance1);
 		ast_rtp_instance_set_bridged(instance1, instance0);
-	} else {
+		break;
+
+	case AST_RTP_GLUE_RESULT_REMOTE:
 		glue0->update_peer(c0->chan, instance1, vinstance1, tinstance1, cap1, 0);
 		glue1->update_peer(c1->chan, instance0, vinstance0, tinstance0, cap0, 0);
+		break;
+	case AST_RTP_GLUE_RESULT_FORBID:
+		break;
 	}
 
 	return 0;
@@ -354,7 +360,8 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 
 	native_type = native_rtp_bridge_get(c0->chan, c1 ? c1->chan : NULL, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
 
-	if (native_type == AST_RTP_GLUE_RESULT_LOCAL) {
+	switch (native_type) {
+	case AST_RTP_GLUE_RESULT_LOCAL:
 		if (ast_rtp_instance_get_engine(instance0)->local_bridge) {
 			ast_rtp_instance_get_engine(instance0)->local_bridge(instance0, NULL);
 		}
@@ -365,11 +372,15 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 		if (instance1) {
 			ast_rtp_instance_set_bridged(instance1, instance0);
 		}
-	} else {
+		break;
+	case AST_RTP_GLUE_RESULT_REMOTE:
 		glue0->update_peer(c0->chan, NULL, NULL, NULL, NULL, 0);
 		if (glue1) {
 			glue1->update_peer(c1->chan, NULL, NULL, NULL, NULL, 0);
 		}
+		break;
+	case AST_RTP_GLUE_RESULT_FORBID:
+		break;
 	}
 }
 
