@@ -154,6 +154,8 @@
  * certain loads.
  */
 
+#include "asterisk/json.h"
+#include "asterisk/manager.h"
 #include "asterisk/utils.h"
 
 /*! @{ */
@@ -165,17 +167,58 @@
 struct stasis_message_type;
 
 /*!
- * \brief Register a new message type.
+ * \brief Opaque type for a Stasis message.
+ * \since 12
+ */
+struct stasis_message;
+
+/*!
+ * \brief Virtual table providing methods for messages.
+ * \since 12
+ */
+struct stasis_message_vtable {
+	/*!
+	 * \brief Build the JSON representation of the message.
+	 *
+	 * May be \c NULL, or may return \c NULL, to indicate no representation.
+	 * The returned object should be ast_json_unref()'ed.
+	 *
+	 * \param message Message to convert to JSON string.
+	 * \return Newly allocated JSON message.
+	 * \return \c NULL on error.
+	 * \return \c NULL if JSON format is not supported.
+	 */
+	struct ast_json *(*to_json)(struct stasis_message *message);
+
+	/*!
+	 * \brief Build the AMI representation of the message.
+	 *
+	 * May be \c NULL, or may return \c NULL, to indicate no representation.
+	 * The returned object should be ao2_cleankup()'ed.
+	 *
+	 * \param message Message to convert to AMI string.
+	 * \return Newly allocated \ref ast_manager_event_blob.
+	 * \return \c NULL on error.
+	 * \return \c NULL if AMI format is not supported.
+	 */
+	struct ast_manager_event_blob *(*to_ami)(
+		struct stasis_message *message);
+};
+
+/*!
+ * \brief Create a new message type.
  *
  * \ref stasis_message_type is an AO2 object, so ao2_cleanup() when you're done
  * with it.
  *
  * \param name Name of the new type.
+ * \param vtable Virtual table of message methods. May be \c NULL.
  * \return Pointer to the new type.
  * \return \c NULL on error.
  * \since 12
  */
-struct stasis_message_type *stasis_message_type_create(const char *name);
+struct stasis_message_type *stasis_message_type_create(const char *name,
+	struct stasis_message_vtable *vtable);
 
 /*!
  * \brief Gets the name of a given message type
@@ -185,12 +228,6 @@ struct stasis_message_type *stasis_message_type_create(const char *name);
  * \since 12
  */
 const char *stasis_message_type_name(const struct stasis_message_type *type);
-
-/*!
- * \brief Opaque type for a Stasis message.
- * \since 12
- */
-struct stasis_message;
 
 /*!
  * \brief Create a new message.
@@ -233,6 +270,32 @@ void *stasis_message_data(const struct stasis_message *msg);
  * \since 12
  */
 const struct timeval *stasis_message_timestamp(const struct stasis_message *msg);
+
+/*!
+ * \brief Build the JSON representation of the message.
+ *
+ * May return \c NULL, to indicate no representation. The returned object should
+ * be ast_json_unref()'ed.
+ *
+ * \param message Message to convert to JSON string.
+ * \return Newly allocated string with JSON message.
+ * \return \c NULL on error.
+ * \return \c NULL if JSON format is not supported.
+ */
+struct ast_json *stasis_message_to_json(struct stasis_message *message);
+
+/*!
+ * \brief Build the AMI representation of the message.
+ *
+ * May return \c NULL, to indicate no representation. The returned object should
+ * be ao2_cleanup()'ed.
+ *
+ * \param message Message to convert to AMI.
+ * \return \c NULL on error.
+ * \return \c NULL if AMI format is not supported.
+ */
+struct ast_manager_event_blob *stasis_message_to_ami(
+	struct stasis_message *message);
 
 /*! @} */
 
@@ -635,20 +698,37 @@ void stasis_log_bad_type_access(const char *name);
 /*!
  * \brief Boiler-plate removing macro for defining message types.
  *
+ * \code
+ *	STASIS_MESSAGE_TYPE_DEFN(ast_foo_type,
+ *		.to_ami = foo_to_ami,
+ *		.to_json = foo_to_json,
+ *		);
+ * \endcode
+ *
  * \param name Name of message type.
+ * \param ... Virtual table methods for messages of this type.
  * \since 12
  */
-#define STASIS_MESSAGE_TYPE_DEFN(name)				\
-	static struct stasis_message_type *_priv_ ## name;	\
-	struct stasis_message_type *name(void) {		\
-		if (_priv_ ## name == NULL) {			\
-			stasis_log_bad_type_access(#name);	\
-		}						\
-		return _priv_ ## name;				\
+#define STASIS_MESSAGE_TYPE_DEFN(name, ...)				\
+	static struct stasis_message_vtable _priv_ ## name ## _v = {	\
+		__VA_ARGS__						\
+	};								\
+	static struct stasis_message_type *_priv_ ## name;		\
+	struct stasis_message_type *name(void) {			\
+		if (_priv_ ## name == NULL) {				\
+			stasis_log_bad_type_access(#name);		\
+		}							\
+		return _priv_ ## name;					\
 	}
 
 /*!
- * \brief Boiler-plate removing macro for initializing message types.
+* \brief Boiler-plate removing macro for initializing message types.
+ *
+ * \code
+ *	if (STASIS_MESSAGE_TYPE_INIT(ast_foo_type) != 0) {
+ *		return -1;
+ *	}
+ * \endcode
  *
  * \param name Name of message type.
  * \return 0 if initialization is successful.
@@ -658,8 +738,9 @@ void stasis_log_bad_type_access(const char *name);
 #define STASIS_MESSAGE_TYPE_INIT(name)					\
 	({								\
 		ast_assert(_priv_ ## name == NULL);			\
-		_priv_ ## name = stasis_message_type_create(#name);	\
-			_priv_ ## name ? 0 : -1;			\
+		_priv_ ## name = stasis_message_type_create(#name,	\
+			&_priv_ ## name ## _v);				\
+		_priv_ ## name ? 0 : -1;				\
 	})
 
 /*!

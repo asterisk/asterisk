@@ -35,7 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 
 /*! \brief Message type for parked calls */
-static struct stasis_message_type *parked_call_type;
+STASIS_MESSAGE_TYPE_DEFN(ast_parked_call_type);
 
 /*! \brief Topic for parking lots */
 static struct stasis_topic *parking_topic;
@@ -48,26 +48,20 @@ static ast_bridge_channel_park_fn ast_bridge_channel_park_func = NULL;
 
 void ast_parking_stasis_init(void)
 {
-	parked_call_type = stasis_message_type_create("ast_parked_call");
+	STASIS_MESSAGE_TYPE_INIT(ast_parked_call_type);
 	parking_topic = stasis_topic_create("ast_parking");
 }
 
 void ast_parking_stasis_disable(void)
 {
-	ao2_cleanup(parked_call_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_parked_call_type);
 	ao2_cleanup(parking_topic);
-	parked_call_type = NULL;
 	parking_topic = NULL;
 }
 
 struct stasis_topic *ast_parking_topic(void)
 {
 	return parking_topic;
-}
-
-struct stasis_message_type *ast_parked_call_type(void)
-{
-	return parked_call_type;
 }
 
 /*! \brief Destructor for parked_call_payload objects */

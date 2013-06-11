@@ -36,29 +36,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_channels.h"
 
-#define NUM_MULTI_CHANNEL_BLOB_BUCKETS 7
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="VarSet">
+		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
+			<synopsis>Raised when a variable is set to a particular value.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Variable">
+					<para>The variable being set.</para>
+				</parameter>
+				<parameter name="Value">
+					<para>The new value of the variable.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+***/
 
-/*!
- * @{ \brief Define channel message types.
- */
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_snapshot_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_dial_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_varset_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_stop_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_handler_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_start_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_stop_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_start_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_stop_type);
-/*! @} */
+#define NUM_MULTI_CHANNEL_BLOB_BUCKETS 7
 
 /*! \brief Topic for all channels */
 struct stasis_topic *channel_topic_all;
@@ -540,6 +535,36 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 	ast_channel_publish_blob(chan, ast_channel_varset_type(), blob);
 }
 
+static struct ast_manager_event_blob *varset_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+	const char *variable =
+		ast_json_string_get(ast_json_object_get(obj->blob, "variable"));
+	const char *value =
+		ast_json_string_get(ast_json_object_get(obj->blob, "value"));
+
+	if (obj->snapshot) {
+		channel_event_string =
+			ast_manager_build_channel_state_string(obj->snapshot);
+	} else {
+		channel_event_string = ast_str_create(35);
+		ast_str_set(&channel_event_string, 0,
+			    "Channel: none\r\n"
+			    "Uniqueid: none\r\n");
+	}
+
+	if (!channel_event_string) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_DIALPLAN, "VarSet",
+		"%s"
+		"Variable: %s\r\n"
+		"Value: %s\r\n",
+		ast_str_buffer(channel_event_string), variable, value);
+}
+
 void ast_publish_channel_state(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
@@ -625,6 +650,31 @@ int ast_channel_snapshot_caller_id_equal(
 	return strcmp(old_snapshot->caller_number, new_snapshot->caller_number) == 0 &&
 		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
 }
+
+/*!
+ * @{ \brief Define channel message types.
+ */
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_snapshot_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dial_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_varset_type,
+	.to_ami = varset_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_stop_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_handler_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_stop_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_start_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_stop_type);
+
+/*! @} */
 
 static void stasis_channels_cleanup(void)
 {

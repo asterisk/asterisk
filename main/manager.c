@@ -1313,6 +1313,23 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 	return output_str;
 }
 
+static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
+				    struct stasis_topic *topic,
+				    struct stasis_message *message)
+{
+	RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
+
+	ev = stasis_message_to_ami(message);
+
+	if (ev == NULL) {
+		/* Not and AMI message; disregard */
+		return;
+	}
+
+	manager_event(ev->event_flags, ev->manager_event, "%s",
+		ev->extra_fields);
+}
+
 static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_topic *topic,
 				    struct stasis_message *message)
@@ -7686,7 +7703,12 @@ static void manager_shutdown(void)
  */
 static int manager_subscriptions_init(void)
 {
-	STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
+	int res;
+
+	res = STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
+	if (res != 0) {
+		return -1;
+	}
 	manager_topic = stasis_topic_create("manager_topic");
 	if (!manager_topic) {
 		return -1;
@@ -7696,10 +7718,13 @@ static int manager_subscriptions_init(void)
 		return -1;
 	}
 
-	if (stasis_message_router_add(stasis_router,
-					 ast_manager_get_generic_type(),
-					 manager_generic_msg_cb,
-					 NULL)) {
+	res |= stasis_message_router_set_default(stasis_router,
+		manager_default_msg_cb, NULL);
+
+	res |= stasis_message_router_add(stasis_router,
+		ast_manager_get_generic_type(), manager_generic_msg_cb, NULL);
+
+	if (res != 0) {
 		return -1;
 	}
 	return 0;

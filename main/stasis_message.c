@@ -37,8 +37,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \internal */
 struct stasis_message_type {
+	struct stasis_message_vtable *vtable;
 	char *name;
 };
+
+static struct stasis_message_vtable null_vtable = {};
 
 static void message_type_dtor(void *obj)
 {
@@ -47,7 +50,8 @@ static void message_type_dtor(void *obj)
 	type->name = NULL;
 }
 
-struct stasis_message_type *stasis_message_type_create(const char *name)
+struct stasis_message_type *stasis_message_type_create(const char *name,
+	struct stasis_message_vtable *vtable)
 {
 	RAII_VAR(struct stasis_message_type *, type, NULL, ao2_cleanup);
 
@@ -55,11 +59,16 @@ struct stasis_message_type *stasis_message_type_create(const char *name)
 	if (!type) {
 		return NULL;
 	}
+	if (!vtable) {
+		/* Null object pattern, FTW! */
+		vtable = &null_vtable;
+	}
 
 	type->name = ast_strdup(name);
 	if (!type->name) {
 		return NULL;
 	}
+	type->vtable = vtable;
 
 	ao2_ref(type, +1);
 	return type;
@@ -132,4 +141,27 @@ const struct timeval *stasis_message_timestamp(const struct stasis_message *msg)
 		return NULL;
 	}
 	return &msg->timestamp;
+}
+
+#define INVOKE_VIRTUAL(fn, ...)				\
+	({						\
+		if (msg == NULL) {			\
+			return NULL;			\
+		}					\
+		ast_assert(msg->type != NULL);		\
+		ast_assert(msg->type->vtable != NULL);	\
+		if (msg->type->vtable->fn == NULL) {	\
+			return NULL;			\
+		}					\
+		msg->type->vtable->fn(__VA_ARGS__);	\
+	})
+
+struct ast_manager_event_blob *stasis_message_to_ami(struct stasis_message *msg)
+{
+	return INVOKE_VIRTUAL(to_ami, msg);
+}
+
+struct ast_json *stasis_message_to_json(struct stasis_message *msg)
+{
+	return INVOKE_VIRTUAL(to_json, msg);
 }

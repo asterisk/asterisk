@@ -710,49 +710,6 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 	}
 }
 
-static void channel_varset_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
-{
-	struct ast_channel_blob *obj = stasis_message_data(message);
-	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
-	const char *variable = ast_json_string_get(ast_json_object_get(obj->blob, "variable"));
-	const char *value = ast_json_string_get(ast_json_object_get(obj->blob, "value"));
-
-	if (obj->snapshot) {
-		channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
-	} else {
-		channel_event_string = ast_str_create(35);
-		ast_str_set(&channel_event_string, 0,
-			    "Channel: none\r\n"
-			    "Uniqueid: none\r\n");
-	}
-
-	if (!channel_event_string) {
-		return;
-	}
-
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a variable is set to a particular value.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
-				<parameter name="Variable">
-					<para>The variable being set.</para>
-				</parameter>
-				<parameter name="Value">
-					<para>The new value of the variable.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
-		      "%s"
-		      "Variable: %s\r\n"
-		      "Value: %s\r\n",
-		      ast_str_buffer(channel_event_string),
-		      variable, value);
-}
-
 static int userevent_exclusion_cb(const char *key)
 {
 	if (!strcmp("type", key)) {
@@ -1277,11 +1234,6 @@ int manager_channels_init(void)
 	ret |= stasis_message_router_add(message_router,
 					 stasis_cache_update_type(),
 					 channel_snapshot_update,
-					 NULL);
-
-	ret |= stasis_message_router_add(message_router,
-					 ast_channel_varset_type(),
-					 channel_varset_cb,
 					 NULL);
 
 	ret |= stasis_message_router_add(message_router,

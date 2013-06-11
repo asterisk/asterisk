@@ -71,7 +71,7 @@ AST_TEST_DEFINE(channel_blob_create)
 		break;
 	}
 
-	type = stasis_message_type_create("test-type");
+	type = stasis_message_type_create("test-type", NULL);
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
 	json = ast_json_pack("{s: s}",
 		     "foo", "bar");
@@ -123,7 +123,7 @@ AST_TEST_DEFINE(null_blob)
 		break;
 	}
 
-	type = stasis_message_type_create("test-type");
+	type = stasis_message_type_create("test-type", NULL);
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
 	json = ast_json_pack("{s: s}",
 		     "foo", "bar");
