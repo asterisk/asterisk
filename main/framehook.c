@@ -181,6 +181,28 @@ int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks)
 	return AST_LIST_EMPTY(&framehooks->list) ? 1 : 0;
 }
 
+int ast_framehook_list_contains_no_active(struct ast_framehook_list *framehooks)
+{
+	struct ast_framehook *cur;
+
+	if (!framehooks) {
+		return 1;
+	}
+
+	if (AST_LIST_EMPTY(&framehooks->list)) {
+		return 1;
+	}
+
+	AST_LIST_TRAVERSE(&framehooks->list, cur, list) {
+		if (cur->detach_and_destroy_me) {
+			continue;
+		}
+		return 0;
+	}
+
+	return 1;
+}
+
 struct ast_frame *ast_framehook_list_write_event(struct ast_framehook_list *framehooks, struct ast_frame *frame)
 {
 	return framehook_list_push_event(framehooks, frame, AST_FRAMEHOOK_EVENT_WRITE);

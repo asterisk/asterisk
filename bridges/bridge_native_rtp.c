@@ -87,7 +87,7 @@ static int native_rtp_bridge_capable(struct ast_channel *chan)
 {
 	if (ast_channel_monitor(chan) || (ast_channel_audiohooks(chan) &&
 		!ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))) ||
-		!ast_framehook_list_is_empty(ast_channel_framehooks(chan))) {
+		!ast_framehook_list_contains_no_active(ast_channel_framehooks(chan))) {
 		return 0;
 	} else {
 		return 1;
