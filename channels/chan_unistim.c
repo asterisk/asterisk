@@ -4777,7 +4777,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	struct unistim_line *l;
 	struct unistim_device *d;
 	struct unistimsession *s;
-	int i;
+	int i,end_call = 1;
 
 	s = channel_to_session(ast);
 	sub = ast_channel_tech_pvt(ast);
@@ -4822,10 +4822,8 @@ static int unistim_hangup(struct ast_channel *ast)
 		unistim_unalloc_sub(d, sub);
 		return 0;
 	}
-
 	if (sub->subtype == SUB_REAL) {
 		sub_stop_silence(s, sub);
-		send_end_call(s); /* Send end call packet only if ending active call, in other way sound should be loosed */
 	} else if (sub->subtype == SUB_RING) {
 		send_no_ring(s);
 		for (i = 0; i < FAVNUM; i++) {
@@ -4836,8 +4834,16 @@ static int unistim_hangup(struct ast_channel *ast)
 			if (is_key_line(d, i) && !strcmp(l->name, d->sline[i]->name)) {
 				send_favorite_short(i, FAV_LINE_ICON, s);
 				d->ssub[i] = NULL;
+				continue;
+			}
+			if (d->ssub[i] != NULL) { /* Found other subchannel active other then hangup'ed one */
+				ast_log(LOG_WARNING, "There is not only one call here %p %p %i\n",d->ssub[i], sub, i);
+				end_call = 0;
 			}
 		}
+	}
+	if (end_call) {
+		send_end_call(s); /* Send end call packet only if ending active call, in other way sound should be loosed */
 	}
 	sub->moh = 0;
 	if (sub->softkey >= 0) {
@@ -6132,7 +6138,7 @@ static int parse_bookmark(const char *text, struct unistim_device *d)
 			return 0;
 		}
 		if (d->softkeyicon[p] != 0) {
-			ast_log(LOG_WARNING, "Invalid position %d for bookmark : already used\n:", p);
+			ast_log(LOG_WARNING, "Invalid position %d for bookmark : already used:\n", p);
 			return 0;
 		}
 		memmove(line, line + 2, sizeof(line) - 2);
