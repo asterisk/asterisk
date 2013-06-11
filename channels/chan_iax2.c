@@ -11369,15 +11369,28 @@ immediatedial:
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
-				iaxs[fr->callno]->transferring = 0;
-				ast_verb(3, "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
-				memset(&iaxs[fr->callno]->transfer, 0, sizeof(iaxs[fr->callno]->transfer));
 				if (iaxs[fr->callno]->bridgecallno) {
-					if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
-						iaxs[iaxs[fr->callno]->bridgecallno]->transferring = 0;
-						send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
+					while (ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
+						DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
+					}
+					if (!iaxs[fr->callno]) {
+						break;
 					}
 				}
+
+				iaxs[fr->callno]->transferring = TRANSFER_NONE;
+				ast_verb(3, "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+				memset(&iaxs[fr->callno]->transfer, 0, sizeof(iaxs[fr->callno]->transfer));
+
+				if (!iaxs[fr->callno]->bridgecallno) {
+					break;
+				}
+
+				if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
+					iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_NONE;
+					send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
+				}
+				ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
 				break;
 			case IAX_COMMAND_TXREADY:
 				if (iaxs[fr->callno]->bridgecallno) {
