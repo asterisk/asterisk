@@ -912,7 +912,7 @@ static struct ast_cli_entry my_clis[] = {
 
 static int format_list_add_custom(struct ast_format_list *new)
 {
-	struct ast_format_list *entry;
+	RAII_VAR(struct ast_format_list *, entry, NULL, ao2_cleanup);
 	if (!(entry = ao2_alloc(sizeof(*entry), NULL))) {
 		return -1;
 	}

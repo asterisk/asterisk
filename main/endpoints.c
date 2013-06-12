@@ -116,6 +116,9 @@ static void endpoint_dtor(void *obj)
 	ao2_cleanup(endpoint->topic);
 	endpoint->topic = NULL;
 
+	ao2_cleanup(endpoint->channel_ids);
+	endpoint->channel_ids = NULL;
+
 	ast_string_field_free_memory(endpoint);
 }
 
@@ -357,6 +360,7 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 		RAII_VAR(char *, channel_id, obj, ao2_cleanup);
 		snapshot->channel_ids[snapshot->num_channels++] = channel_id;
 	}
+	ao2_iterator_destroy(&i);
 
 	ao2_ref(snapshot, +1);
 	return snapshot;
