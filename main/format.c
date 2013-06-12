@@ -916,7 +916,7 @@ int init_framer(void)
 
 static int format_list_add_custom(struct ast_format_list *new)
 {
-	struct ast_format_list *entry;
+	RAII_VAR(struct ast_format_list *, entry, NULL, ao2_cleanup);
 	if (!(entry = ao2_alloc(sizeof(*entry), NULL))) {
 		return -1;
 	}

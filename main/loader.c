@@ -1035,6 +1035,8 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			break;
 		case AST_MODULE_LOAD_PRIORITY:
 			AST_LIST_REMOVE_CURRENT(entry);
+			ast_free(order->resource);
+			ast_free(order);
 			break;
 		}
 	}
