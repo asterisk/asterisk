@@ -544,8 +544,17 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 		/* Version 7 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07 */
 		/* Version 8 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10 */
 		/* Version 13 defined in specification http://tools.ietf.org/html/rfc6455 */
-		char combined[strlen(key) + strlen(WEBSOCKET_GUID) + 1], base64[64];
+		char *combined, base64[64];
+		unsigned combined_length;
 		uint8_t sha[20];
+
+		combined_length = (key ? strlen(key) : 0) + strlen(WEBSOCKET_GUID) + 1;
+		if (!key || combined_length > 8192) { /* no stack overflows please */
+			fputs("HTTP/1.1 400 Bad Request\r\n"
+			      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+			ao2_ref(protocol_handler, -1);
+			return 0;
+		}
 
 		if (!(session = ao2_alloc(sizeof(*session), session_destroy_fn))) {
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted\n",
@@ -556,7 +565,8 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 			return 0;
 		}
 
-		snprintf(combined, sizeof(combined), "%s%s", key, WEBSOCKET_GUID);
+		combined = ast_alloca(combined_length);
+		snprintf(combined, combined_length, "%s%s", key, WEBSOCKET_GUID);
 		ast_sha1_hash_uint(sha, combined);
 		ast_base64encode(base64, (const unsigned char*)sha, 20, sizeof(base64));
 
