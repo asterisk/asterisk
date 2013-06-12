@@ -155,7 +155,10 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1;
-	struct ast_rtp_instance *instance0 = NULL, *instance1 = NULL, *vinstance0 = NULL, *vinstance1 = NULL;
+	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
 	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
 	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
