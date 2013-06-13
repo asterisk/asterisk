@@ -71,14 +71,14 @@ void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
     /* not a lot to do in a standalone w/o threading! */
 }
 
-int ast_bt_get_addresses(struct ast_bt *bt);
-int ast_bt_get_addresses(struct ast_bt *bt)
+int __ast_bt_get_addresses(struct ast_bt *bt);
+int __ast_bt_get_addresses(struct ast_bt *bt)
 {
 	/* Suck it, you stupid utils directory! */
 	return 0;
 }
-char **ast_bt_get_symbols(void **addresses, size_t num_frames);
-char **ast_bt_get_symbols(void **addresses, size_t num_frames)
+char **__ast_bt_get_symbols(void **addresses, size_t num_frames);
+char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
 	char **foo = calloc(num_frames, sizeof(char *) + 1);
 	if (foo) {

@@ -20,6 +20,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/backtrace.h"
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/module.h"
@@ -621,12 +622,12 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 {
 }
 
-int ast_bt_get_addresses(struct ast_bt *bt)
+int __ast_bt_get_addresses(struct ast_bt *bt)
 {
 	return 0;
 }
 
-char **ast_bt_get_symbols(void **addresses, size_t num_frames)
+char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
 	char **foo = calloc(num_frames, sizeof(char *) + 1);
 	if (foo) {

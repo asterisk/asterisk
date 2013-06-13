@@ -280,20 +280,20 @@ void ast_unregister_thread(void *id)
 {
 }
 #ifdef HAVE_BKTR
-struct ast_bt *ast_bt_create(void);
-struct ast_bt *ast_bt_create(void) 
+struct ast_bt *__ast_bt_create(void);
+struct ast_bt *__ast_bt_create(void)
 {
 	return NULL;
 }
 
-int ast_bt_get_addresses(struct ast_bt *bt);
-int ast_bt_get_addresses(struct ast_bt *bt)
+int __ast_bt_get_addresses(struct ast_bt *bt);
+int __ast_bt_get_addresses(struct ast_bt *bt)
 {
 	return 0;
 }
 
-char **ast_bt_get_symbols(void **addresses, size_t num_frames);
-char **ast_bt_get_symbols(void **addresses, size_t num_frames)
+char **__ast_bt_get_symbols(void **addresses, size_t num_frames);
+char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
 	char **foo = calloc(num_frames, sizeof(char *) + 1);
 	if (foo) {
@@ -305,8 +305,8 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 	return foo;
 }
 
-void *ast_bt_destroy(struct ast_bt *bt);
-void *ast_bt_destroy(struct ast_bt *bt)
+void *__ast_bt_destroy(struct ast_bt *bt);
+void *__ast_bt_destroy(struct ast_bt *bt)
 {
 	return NULL;
 }
