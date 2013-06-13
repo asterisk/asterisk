@@ -45,6 +45,8 @@ struct ast_bridge_snapshot {
 	struct ao2_container *channels;
 	/*! Bridge flags to tweak behavior */
 	struct ast_flags feature_flags;
+	/*! Bridge capabilities */
+	uint32_t capabilities;
 	/*! Number of channels participating in the bridge */
 	unsigned int num_channels;
 	/*! Number of active channels in the bridge. */

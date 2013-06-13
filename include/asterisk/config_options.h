@@ -146,10 +146,11 @@ typedef void *(*aco_snapshot_alloc)(void);
 
 /*! \brief The representation of a single configuration file to be processed */
 struct aco_file {
-	const char *filename; /*!< \brief The filename to be processed */
-	const char *alias;    /*!< \brief An alias filename to be tried if 'filename' cannot be found */
-	const char **preload; /*!< \brief A null-terminated oredered array of categories to be loaded first */
-	struct aco_type *types[]; /*!< The list of types for this config. Required. Use a sentinel! */
+	const char *filename;       /*!< The filename to be processed */
+	const char *alias;          /*!< An alias filename to be tried if 'filename' cannot be found */
+	const char **preload;       /*!< A null-terminated ordered array of categories to be loaded first */
+	const char *skip_category;  /*!< A regular expression of categories to skip in the file. Use when a file is processed by multiple modules */
+	struct aco_type *types[];   /*!< The list of types for this config. Required. Use a sentinel! */
 };
 
 struct aco_info {

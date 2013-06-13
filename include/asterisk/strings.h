@@ -1067,4 +1067,46 @@ static force_inline int attribute_pure ast_str_case_hash(const char *str)
 	return abs(hash);
 }
 
+/*!
+ * \brief Convert a string to all lower-case
+ *
+ * \param str The string to be converted to lower case
+ *
+ * \retval str for convenience
+ */
+static force_inline char *attribute_pure ast_str_to_lower(char *str)
+{
+	char *str_orig = str;
+	if (!str) {
+		return str;
+	}
+
+	for (; *str; ++str) {
+		*str = tolower(*str);
+	}
+
+	return str_orig;
+}
+
+/*!
+ * \brief Convert a string to all upper-case
+ *
+ * \param str The string to be converted to upper case
+ *
+ * \retval str for convenience
+ */
+static force_inline char *attribute_pure ast_str_to_upper(char *str)
+{
+	char *str_orig = str;
+	if (!str) {
+		return str;
+	}
+
+	for (; *str; ++str) {
+		*str = toupper(*str);
+	}
+
+	return str_orig;
+}
+
 #endif /* _ASTERISK_STRINGS_H */

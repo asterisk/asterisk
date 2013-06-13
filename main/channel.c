@@ -1058,14 +1058,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_timingfd_set(tmp, ast_timer_fd(ast_channel_timer(tmp)));
 	}
 
-	/*
-	 * This is the last place the channel constructor can fail.
-	 *
-	 * The destructor takes advantage of this fact to ensure that the
-	 * AST_CEL_CHANNEL_END is not posted if we have not posted the
-	 * AST_CEL_CHANNEL_START yet.
-	 */
-
 	if (needqueue && ast_channel_internal_alertpipe_init(tmp)) {
 		return ast_channel_unref(tmp);
 	}
@@ -1151,7 +1143,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_cdr_start(ast_channel_cdr(tmp));
 
 	ast_atomic_fetchadd_int(&chancount, +1);
-	ast_cel_report_event(tmp, AST_CEL_CHANNEL_START, NULL, NULL, NULL);
 
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
@@ -2389,11 +2380,6 @@ static void ast_channel_destructor(void *obj)
 
 	publish_cache_clear(chan);
 
-	if (ast_channel_internal_is_finalized(chan)) {
-		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
-		ast_cel_check_retire_linkedid(chan);
-	}
-
 	ast_pbx_hangup_handler_destroy(chan);
 
 	ast_channel_lock(chan);
@@ -2808,8 +2794,6 @@ static void destroy_hooks(struct ast_channel *chan)
 /*! \brief Hangup a channel */
 int ast_hangup(struct ast_channel *chan)
 {
-	char extra_str[64]; /* used for cel logging below */
-
 	ast_autoservice_stop(chan);
 
 	ast_channel_lock(chan);
@@ -2884,9 +2868,6 @@ int ast_hangup(struct ast_channel *chan)
 	ast_channel_generatordata_set(chan, NULL);
 	ast_channel_generator_set(chan, NULL);
 
-	snprintf(extra_str, sizeof(extra_str), "%d,%s,%s", ast_channel_hangupcause(chan), ast_channel_hangupsource(chan), S_OR(pbx_builtin_getvar_helper(chan, "DIALSTATUS"), ""));
-	ast_cel_report_event(chan, AST_CEL_HANGUP, NULL, extra_str, NULL);
-
 	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING)) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 			"is blocked by thread %ld in procedure %s!  Expect a failure\n",
@@ -2951,11 +2932,9 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 		if (cdr_answer) {
 			ast_cdr_answer(ast_channel_cdr(chan));
 		}
-		ast_cel_report_event(chan, AST_CEL_ANSWER, NULL, NULL, NULL);
 		ast_channel_unlock(chan);
 		break;
 	case AST_STATE_UP:
-		ast_cel_report_event(chan, AST_CEL_ANSWER, NULL, NULL, NULL);
 		/* Calling ast_cdr_answer when it it has previously been called
 		 * is essentially a no-op, so it is safe.
 		 */
@@ -4101,8 +4080,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				} else {
 					/* Answer the CDR */
 					ast_setstate(chan, AST_STATE_UP);
-					/* removed a call to ast_cdr_answer(chan->cdr) from here. */
-					ast_cel_report_event(chan, AST_CEL_ANSWER, NULL, NULL, NULL);
 				}
 			} else if (f->subclass.integer == AST_CONTROL_READ_ACTION) {
 				read_action_payload = f->data.ptr;
@@ -6611,7 +6588,6 @@ static void ast_channel_change_linkedid(struct ast_channel *chan, const char *li
 		return;
 	}
 
-	ast_cel_check_retire_linkedid(chan);
 	ast_channel_linkedid_set(chan, linkedid);
 	ast_cel_linkedid_ref(linkedid);
 }

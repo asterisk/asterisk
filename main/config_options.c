@@ -435,10 +435,21 @@ static int process_category(struct ast_config *cfg, struct aco_info *info, struc
 	 * We do not grab a reference to these objects, as the info already holds references to them. This
 	 * pointer is just a convenience. Do not actually store it somewhere. */
 	void **field;
+	regex_t *regex_skip;
 
 	/* Skip preloaded categories if we aren't preloading */
 	if (!preload && is_preload(file, cat)) {
 		return 0;
+	}
+
+	/* Skip the category if we've been told to ignore it */
+	if (!ast_strlen_zero(file->skip_category)) {
+		regex_skip = build_regex(file->skip_category);
+		if (!regexec(regex_skip, cat, 0, NULL, 0)) {
+			ast_free(regex_skip);
+			return 0;
+		}
+		ast_free(regex_skip);
 	}
 
 	/* Find aco_type by category, if not found it is an error */

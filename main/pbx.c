@@ -1574,14 +1574,12 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 
 	ast_channel_appl_set(c, app->name);
 	ast_channel_data_set(c, data);
-	ast_cel_report_event(c, AST_CEL_APP_START, NULL, NULL, NULL);
 
 	if (app->module)
 		u = __ast_module_user_add(app->module, c);
 	res = app->execute(c, S_OR(data, ""));
 	if (app->module && u)
 		__ast_module_user_remove(app->module, u);
-	ast_cel_report_event(c, AST_CEL_APP_END, NULL, NULL, NULL);
 	/* restore channel values */
 	ast_channel_appl_set(c, saved_c_appl);
 	ast_channel_data_set(c, saved_c_data);

@@ -94,6 +94,7 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	ast_string_field_set(snapshot, technology, bridge->technology->name);
 
 	snapshot->feature_flags = bridge->feature_flags;
+	snapshot->capabilities = bridge->technology->capabilities;
 	snapshot->num_channels = bridge->num_channels;
 	snapshot->num_active = bridge->num_active;
 

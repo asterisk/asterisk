@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/pbx.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
@@ -158,6 +159,13 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
 	ast_string_field_set(snapshot, caller_number,
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
+
+	ast_string_field_set(snapshot, caller_ani,
+		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""));
+	ast_string_field_set(snapshot, caller_rdnis,
+		S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, ""));
+	ast_string_field_set(snapshot, caller_dnid,
+		S_OR(ast_channel_dialed(chan)->number.str, ""));
 
 	ast_string_field_set(snapshot, connected_name,
 		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, ""));

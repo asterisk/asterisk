@@ -4323,11 +4323,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ast_cel_engine_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 	if (ast_device_state_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -4367,6 +4362,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_bridging_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_cel_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

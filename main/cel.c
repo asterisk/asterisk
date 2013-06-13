@@ -53,21 +53,94 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
+#include "asterisk/config_options.h"
 #include "asterisk/cli.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis_message_router.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_bridging.h"
+#include "asterisk/bridging.h"
 
-/*! Is the CEL subsystem enabled ? */
-static unsigned char cel_enabled;
+/*** DOCUMENTATION
+	<configInfo name="cel" language="en_US">
+		<configFile name="cel.conf">
+			<configObject name="general">
+				<synopsis>Options that apply globally to Channel Event Logging (CEL)</synopsis>
+				<configOption name="enable">
+					<synopsis>Determines whether CEL is enabled</synopsis>
+				</configOption>
+				<configOption name="dateformat">
+					<synopsis>The format to be used for dates when logging</synopsis>
+				</configOption>
+				<configOption name="apps">
+					<synopsis>List of apps for CEL to track</synopsis>
+					<description><para>A case-insensitive, comma-separated list of applications
+					to track when one or both of APP_START and APP_END events are flagged for
+					tracking</para></description>
+				</configOption>
+				<configOption name="events">
+					<synopsis>List of events for CEL to track</synopsis>
+					<description><para>A case-sensitive, comma-separated list of event names
+					to track. These event names do not include the leading <literal>AST_CEL</literal>.
+					</para>
+					<enumlist>
+						<enum name="ALL">
+							<para>Special value which tracks all events.</para>
+						</enum>
+						<enum name="CHAN_START"/>
+						<enum name="CHAN_END"/>
+						<enum name="ANSWER"/>
+						<enum name="HANGUP"/>
+						<enum name="APP_START"/>
+						<enum name="APP_END"/>
+						<enum name="BRIDGE_START"/>
+						<enum name="BRIDGE_END"/>
+						<enum name="BRIDGE_UPDATE"/>
+						<enum name="CONF_START"/>
+						<enum name="CONF_END"/>
+						<enum name="PARK_START"/>
+						<enum name="PARK_END"/>
+						<enum name="TRANSFER"/>
+						<enum name="USER_DEFINED"/>
+						<enum name="CONF_ENTER"/>
+						<enum name="CONF_EXIT"/>
+						<enum name="BLINDTRANSFER"/>
+						<enum name="ATTENDEDTRANSFER"/>
+						<enum name="PICKUP"/>
+						<enum name="FORWARD"/>
+						<enum name="3WAY_START"/>
+						<enum name="3WAY_END"/>
+						<enum name="HOOKFLASH"/>
+						<enum name="LINKEDID_END"/>
 
-/*! \brief CEL is off by default */
-#define CEL_ENABLED_DEFAULT		0
+					</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
 
-/*!
- * \brief which events we want to track
- *
- * \note bit field, up to 64 events
- */
-static int64_t eventset;
+/*! Message router for state that CEL needs to know about */
+static struct stasis_message_router *cel_state_router;
+
+/*! Aggregation topic for all topics CEL needs to know about */
+static struct stasis_topic *cel_state_topic;
+
+/*! Subscription for forwarding the channel caching topic */
+static struct stasis_subscription *cel_channel_forwarder;
+
+/*! Subscription for forwarding the channel caching topic */
+static struct stasis_subscription *cel_bridge_forwarder;
+
+/*! Container for primary channel/bridge ID listing for 2 party bridges */
+static struct ao2_container *bridge_primaries;
+
+/*! The number of buckets into which primary channel uniqueids will be hashed */
+#define BRIDGE_PRIMARY_BUCKETS 251
+
+/*! Container for dial end multichannel blobs for holding on to dial statuses */
+static struct ao2_container *cel_dialstatus_store;
 
 /*!
  * \brief Maximum possible CEL event IDs
@@ -76,14 +149,14 @@ static int64_t eventset;
 #define CEL_MAX_EVENT_IDS 64
 
 /*!
- * \brief Track no events by default.
- */
-#define CEL_DEFAULT_EVENTS	0
-
-/*!
  * \brief Number of buckets for the appset container
  */
 #define NUM_APP_BUCKETS		97
+
+/*!
+ * \brief Number of buckets for the dialstatus container
+ */
+#define NUM_DIALSTATUS_BUCKETS	251
 
 /*!
  * \brief Container of Asterisk application names
@@ -92,13 +165,127 @@ static int64_t eventset;
  * in the configuration as applications that CEL events should be generated
  * for when they start and end on a channel.
  */
-static struct ao2_container *appset;
 static struct ao2_container *linkedids;
 
-/*!
- * \brief Configured date format for event timestamps
- */
-static char cel_dateformat[256];
+/*! \brief A structure to hold global configuration-related options */
+struct cel_general_config {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(date_format); /*!< The desired date format for logging */
+	);
+	int enable;			/*!< Whether CEL is enabled */
+	int64_t events;			/*!< The events to be logged */
+	struct ao2_container *apps;	/*!< The apps for which to log app start and end events */
+};
+
+/*! \brief Destructor for cel_config */
+static void cel_general_config_dtor(void *obj)
+{
+	struct cel_general_config *cfg = obj;
+	ast_string_field_free_memory(cfg);
+	ao2_cleanup(cfg->apps);
+	cfg->apps = NULL;
+}
+
+static void *cel_general_config_alloc(void)
+{
+	RAII_VAR(struct cel_general_config *, cfg, NULL, ao2_cleanup);
+
+	if (!(cfg = ao2_alloc(sizeof(*cfg), cel_general_config_dtor))) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(cfg, 64)) {
+		return NULL;
+	}
+
+	if (!(cfg->apps = ast_str_container_alloc(NUM_APP_BUCKETS))) {
+		return NULL;
+	}
+
+	ao2_ref(cfg, +1);
+	return cfg;
+}
+
+/*! \brief A container that holds all config-related information */
+struct cel_config {
+	struct cel_general_config *general;
+};
+
+
+static AO2_GLOBAL_OBJ_STATIC(cel_configs);
+
+/*! \brief Destructor for cel_config */
+static void cel_config_dtor(void *obj)
+{
+	struct cel_config *cfg = obj;
+	ao2_cleanup(cfg->general);
+	cfg->general = NULL;
+}
+
+static void *cel_config_alloc(void)
+{
+	RAII_VAR(struct cel_config *, cfg, NULL, ao2_cleanup);
+
+	if (!(cfg = ao2_alloc(sizeof(*cfg), cel_config_dtor))) {
+		return NULL;
+	}
+
+	if (!(cfg->general = cel_general_config_alloc())) {
+		return NULL;
+	}
+
+	ao2_ref(cfg, +1);
+	return cfg;
+}
+
+/*! \brief An aco_type structure to link the "general" category to the cel_general_config type */
+static struct aco_type general_option = {
+	.type = ACO_GLOBAL,
+	.name = "general",
+	.item_offset = offsetof(struct cel_config, general),
+	.category_match = ACO_WHITELIST,
+	.category = "^general$",
+};
+
+/*! \brief The config file to be processed for the module. */
+static struct aco_file cel_conf = {
+	.filename = "cel.conf",                  /*!< The name of the config file */
+	.types = ACO_TYPES(&general_option),     /*!< The mapping object types to be processed */
+	.skip_category = "(^manager$|^radius$)", /*!< Config sections used by existing modules. Do not add to this list. */
+};
+
+static int cel_pre_apply_config(void);
+
+CONFIG_INFO_CORE("cel", cel_cfg_info, cel_configs, cel_config_alloc,
+	.files = ACO_FILES(&cel_conf),
+	.pre_apply_config = cel_pre_apply_config,
+);
+
+static int cel_pre_apply_config(void)
+{
+	struct cel_config *cfg = aco_pending_config(&cel_cfg_info);
+
+	if (!cfg->general) {
+		return -1;
+	}
+
+	if (!ao2_container_count(cfg->general->apps)) {
+		return 0;
+	}
+
+	if (cfg->general->events & ((int64_t) 1 << AST_CEL_APP_START)) {
+		return 0;
+	}
+
+	if (cfg->general->events & ((int64_t) 1 << AST_CEL_APP_END)) {
+		return 0;
+	}
+
+	ast_log(LOG_ERROR, "Applications are listed to be tracked, but APP events are not tracked\n");
+	return -1;
+}
+
+static struct aco_type *general_options[] = ACO_TYPES(&general_option);
 
 /*!
  * \brief Map of ast_cel_event_type to strings
@@ -132,6 +319,109 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_LINKEDID_END]     = "LINKEDID_END",
 };
 
+struct bridge_assoc {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(channel_id);	/*!< UniqueID of the primary/dialing channel */
+		AST_STRING_FIELD(bridge_id);	/*!< UniqueID of the bridge */
+		AST_STRING_FIELD(secondary_id);	/*!< UniqueID of the secondary/dialed channel */
+	);
+};
+
+static void bridge_assoc_dtor(void *obj)
+{
+	struct bridge_assoc *assoc = obj;
+	ast_string_field_free_memory(assoc);
+}
+
+static struct bridge_assoc *bridge_assoc_alloc(const char *channel_id, const char *bridge_id, const char *secondary_id)
+{
+	RAII_VAR(struct bridge_assoc *, assoc, ao2_alloc(sizeof(*assoc), bridge_assoc_dtor), ao2_cleanup);
+	if (!assoc || ast_string_field_init(assoc, 64)) {
+		return NULL;
+	}
+
+	ast_string_field_set(assoc, channel_id, channel_id);
+	ast_string_field_set(assoc, bridge_id, bridge_id);
+	ast_string_field_set(assoc, secondary_id, secondary_id);
+
+	ao2_ref(assoc, +1);
+	return assoc;
+}
+
+static int add_bridge_primary(const char *channel_id, const char *bridge_id, const char *secondary_id)
+{
+	RAII_VAR(struct bridge_assoc *, assoc, bridge_assoc_alloc(channel_id, bridge_id, secondary_id), ao2_cleanup);
+	if (!assoc) {
+		return -1;
+	}
+
+	ao2_link(bridge_primaries, assoc);
+	return 0;
+}
+
+static void remove_bridge_primary(const char *channel_id)
+{
+	ao2_find(bridge_primaries, channel_id, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK | OBJ_KEY);
+}
+
+/*! \brief Hashing function for bridge_assoc */
+static int bridge_assoc_hash(const void *obj, int flags)
+{
+	const struct bridge_assoc *assoc = obj;
+	const char *uniqueid = obj;
+	if (!(flags & OBJ_KEY)) {
+		uniqueid = assoc->channel_id;
+	}
+
+	return ast_str_hash(uniqueid);
+}
+
+/*! \brief Comparator function for bridge_assoc */
+static int bridge_assoc_cmp(void *obj, void *arg, int flags)
+{
+	struct bridge_assoc *assoc1 = obj, *assoc2 = arg;
+	const char *assoc2_id = arg, *assoc1_id = assoc1->channel_id;
+	if (!(flags & OBJ_KEY)) {
+		assoc2_id = assoc2->channel_id;
+	}
+
+	return !strcmp(assoc1_id, assoc2_id) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static const char *get_caller_uniqueid(struct ast_multi_channel_blob *blob)
+{
+	struct ast_channel_snapshot *caller = ast_multi_channel_blob_get_channel(blob, "caller");
+	if (!caller) {
+		return NULL;
+	}
+
+	return caller->uniqueid;
+}
+
+/*! \brief Hashing function for dialstatus container */
+static int dialstatus_hash(const void *obj, int flags)
+{
+	struct ast_multi_channel_blob *blob = (void *) obj;
+	const char *uniqueid = obj;
+	if (!(flags & OBJ_KEY)) {
+		uniqueid = get_caller_uniqueid(blob);
+	}
+
+	return ast_str_hash(uniqueid);
+}
+
+/*! \brief Comparator function for dialstatus container */
+static int dialstatus_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_multi_channel_blob *blob1 = obj, *blob2 = arg;
+	const char *blob2_id = arg, *blob1_id = get_caller_uniqueid(blob1);
+	if (!(flags & OBJ_KEY)) {
+		blob2_id = get_caller_uniqueid(blob2);
+	}
+
+	return !strcmp(blob1_id, blob2_id) ? CMP_MATCH | CMP_STOP : 0;
+}
+
 /*!
  * \brief Map of ast_cel_ama_flags to strings
  */
@@ -144,7 +434,13 @@ static const char * const cel_ama_flags[AST_CEL_AMA_FLAG_TOTAL] = {
 
 unsigned int ast_cel_check_enabled(void)
 {
-	return cel_enabled;
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg || !cfg->general) {
+		return 0;
+	}
+
+	return cfg->general->enable;
 }
 
 static int print_app(void *obj, void *arg, int flags)
@@ -168,6 +464,11 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 {
 	unsigned int i;
 	struct ast_event_sub *sub;
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg || !cfg->general) {
+		return CLI_FAILURE;
+	}
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -186,16 +487,16 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli(a->fd, "CEL Logging: %s\n", cel_enabled ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "CEL Logging: %s\n", ast_cel_check_enabled() ? "Enabled" : "Disabled");
 
-	if (!cel_enabled) {
+	if (!cfg->general->enable) {
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < (sizeof(eventset) * 8); i++) {
+	for (i = 0; i < (sizeof(cfg->general->events) * 8); i++) {
 		const char *name;
 
-		if (!(eventset & ((int64_t) 1 << i))) {
+		if (!(cfg->general->events & ((int64_t) 1 << i))) {
 			continue;
 		}
 
@@ -205,7 +506,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		}
 	}
 
-	ao2_callback(appset, OBJ_NODATA, print_app, a);
+	ao2_callback(cfg->general->apps, OBJ_NODATA, print_app, a);
 
 	if (!(sub = ast_event_subscribe_new(AST_EVENT_SUB, print_cel_sub, a))) {
 		return CLI_FAILURE;
@@ -239,12 +540,19 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name)
 
 static int ast_cel_track_event(enum ast_cel_event_type et)
 {
-	return (eventset & ((int64_t) 1 << et));
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg || !cfg->general) {
+		return 0;
+	}
+
+	return (cfg->general->events & ((int64_t) 1 << et));
 }
 
-static void parse_events(const char *val)
+static int events_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
-	char *events = ast_strdupa(val);
+	struct cel_general_config *cfg = obj;
+	char *events = ast_strdupa(var->value);
 	char *cur_event;
 
 	while ((cur_event = strsep(&events, ","))) {
@@ -259,102 +567,46 @@ static void parse_events(const char *val)
 
 		if (event_type == 0) {
 			/* All events */
-			eventset = (int64_t) -1;
+			cfg->events = (int64_t) -1;
 		} else if (event_type == -1) {
-			ast_log(LOG_WARNING, "Unknown event name '%s'\n",
-					cur_event);
+			ast_log(LOG_ERROR, "Unknown event name '%s'\n", cur_event);
+			return -1;
 		} else {
-			eventset |= ((int64_t) 1 << event_type);
+			cfg->events |= ((int64_t) 1 << event_type);
 		}
 	}
+
+	return 0;
 }
 
-static void parse_apps(const char *val)
+static int apps_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
-	char *apps = ast_strdupa(val);
+	struct cel_general_config *cfg = obj;
+	char *apps = ast_strdupa(var->value);
 	char *cur_app;
 
-	if (!ast_cel_track_event(AST_CEL_APP_START) && !ast_cel_track_event(AST_CEL_APP_END)) {
-		ast_log(LOG_WARNING, "An apps= config line, but not tracking APP events\n");
-		return;
-	}
-
 	while ((cur_app = strsep(&apps, ","))) {
-		char *app;
-
 		cur_app = ast_strip(cur_app);
 		if (ast_strlen_zero(cur_app)) {
 			continue;
 		}
 
-		if (!(app = ao2_alloc(strlen(cur_app) + 1, NULL))) {
-			continue;
-		}
-		strcpy(app, cur_app);
-
-		ao2_link(appset, app);
-		ao2_ref(app, -1);
-		app = NULL;
+		cur_app = ast_str_to_lower(cur_app);
+		ast_str_container_add(cfg->apps, cur_app);
 	}
-}
 
-AST_MUTEX_DEFINE_STATIC(reload_lock);
+	return 0;
+}
 
 static int do_reload(void)
 {
-	struct ast_config *config;
-	const char *enabled_value;
-	const char *val;
-	int res = 0;
-	struct ast_flags config_flags = { 0, };
-	const char *s;
-
-	ast_mutex_lock(&reload_lock);
-
-	/* Reset all settings before reloading configuration */
-	cel_enabled = CEL_ENABLED_DEFAULT;
-	eventset = CEL_DEFAULT_EVENTS;
-	*cel_dateformat = '\0';
-	ao2_callback(appset, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
-
-	config = ast_config_load2("cel.conf", "cel", config_flags);
-
-	if (config == CONFIG_STATUS_FILEMISSING) {
-		config = NULL;
-		goto return_cleanup;
+	if (aco_process_config(&cel_cfg_info, 1)) {
+		return -1;
 	}
 
-	if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
-		cel_enabled = ast_true(enabled_value);
-	}
+	ast_verb(3, "CEL logging %sabled.\n", ast_cel_check_enabled() ? "en" : "dis");
 
-	if (!cel_enabled) {
-		goto return_cleanup;
-	}
-
-	/* get the date format for logging */
-	if ((s = ast_variable_retrieve(config, "general", "dateformat"))) {
-		ast_copy_string(cel_dateformat, s, sizeof(cel_dateformat));
-	}
-
-	if ((val = ast_variable_retrieve(config, "general", "events"))) {
-		parse_events(val);
-	}
-
-	if ((val = ast_variable_retrieve(config, "general", "apps"))) {
-		parse_apps(val);
-	}
-
-return_cleanup:
-	ast_verb(3, "CEL logging %sabled.\n", cel_enabled ? "en" : "dis");
-
-	ast_mutex_unlock(&reload_lock);
-
-	if (config) {
-		ast_config_destroy(config);
-	}
-
-	return res;
+	return 0;
 }
 
 const char *ast_cel_get_type_name(enum ast_cel_event_type type)
@@ -372,29 +624,127 @@ const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
 	return S_OR(cel_ama_flags[flag], "Unknown");
 }
 
+static int cel_track_app(const char *const_app)
+{
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	RAII_VAR(char *, app, NULL, ao2_cleanup);
+	char *app_lower;
+
+	if (!cfg || !cfg->general) {
+		return 0;
+	}
+
+	app_lower = ast_str_to_lower(ast_strdupa(const_app));
+	app = ao2_find(cfg->general->apps, app_lower, OBJ_KEY);
+	if (!app) {
+		return 0;
+	}
+
+	return 1;
+}
+
+static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
+		enum ast_cel_event_type event_type, const char *userdefevname,
+		const char *extra)
+{
+	struct timeval eventtime;
+	struct ast_event *ev;
+	char *linkedid = ast_strdupa(snapshot->linkedid);
+	char *peer_name = "";
+	RAII_VAR(struct bridge_assoc *, assoc, NULL, ao2_cleanup);
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg || !cfg->general) {
+		return 0;
+	}
+
+	if (!cfg->general->enable) {
+		return 0;
+	}
+
+	assoc = ao2_find(bridge_primaries, snapshot->uniqueid, OBJ_KEY);
+	if (assoc) {
+		RAII_VAR(struct ast_channel_snapshot *, bridged_snapshot, NULL, ao2_cleanup);
+		bridged_snapshot = ast_channel_snapshot_get_latest(assoc->secondary_id);
+		if (bridged_snapshot) {
+			peer_name = ast_strdupa(bridged_snapshot->name);
+		}
+	}
+
+	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
+	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
+	if (ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
+		if (ast_cel_linkedid_ref(linkedid)) {
+			return -1;
+		}
+	}
+
+	if (!ast_cel_track_event(event_type)) {
+		return 0;
+	}
+
+	if ((event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END)
+		&& !cel_track_app(snapshot->appl)) {
+		return 0;
+	}
+
+	eventtime = ast_tvnow();
+
+	ev = ast_event_new(AST_EVENT_CEL,
+		AST_EVENT_IE_CEL_EVENT_TYPE, AST_EVENT_IE_PLTYPE_UINT, event_type,
+		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
+		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, S_OR(userdefevname, ""),
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_name,
+		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_number,
+		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_ani,
+		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_rdnis,
+		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_dnid,
+		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, snapshot->exten,
+		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, snapshot->context,
+		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->name,
+		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->appl,
+		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, snapshot->data,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, snapshot->amaflags,
+		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, snapshot->accountcode,
+		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, snapshot->peeraccount,
+		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->uniqueid,
+		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->linkedid,
+		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->userfield,
+		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra, ""),
+		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, peer_name,
+		AST_EVENT_IE_END);
+
+	if (ev && ast_event_queue(ev)) {
+		ast_event_destroy(ev);
+		return -1;
+	}
+
+	return 0;
+}
+
 /* called whenever a channel is destroyed or a linkedid is changed to
  * potentially emit a CEL_LINKEDID_END event */
-void ast_cel_check_retire_linkedid(struct ast_channel *chan)
+static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 {
-	const char *linkedid = ast_channel_linkedid(chan);
 	char *lid;
 
 	/* make sure we need to do all this work */
 
-	if (ast_strlen_zero(linkedid) || !ast_cel_track_event(AST_CEL_LINKEDID_END)) {
+	if (ast_strlen_zero(snapshot->linkedid) || !ast_cel_track_event(AST_CEL_LINKEDID_END)) {
 		return;
 	}
 
-	if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
-		ast_log(LOG_ERROR, "Something weird happened, couldn't find linkedid %s\n", linkedid);
+	if (!(lid = ao2_find(linkedids, (void *) snapshot->linkedid, OBJ_POINTER))) {
+		ast_log(LOG_ERROR, "Something weird happened, couldn't find linkedid %s\n", snapshot->linkedid);
 		return;
 	}
 
 	/* We have a ref for each channel with this linkedid, the link and the above find, so if
 	 * before unreffing the channel we have a refcount of 3, we're done. Unlink and report. */
 	if (ao2_ref(lid, -1) == 3) {
-		ao2_unlink(linkedids, lid);
-		ast_cel_report_event(chan, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
+		ast_str_container_remove(linkedids, lid);
+		report_event_snapshot(snapshot, AST_CEL_LINKEDID_END, NULL, NULL);
 	}
 	ao2_ref(lid, -1);
 }
@@ -419,6 +769,11 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	};
 	struct ast_datastore *datastore;
 	char *app_data;
+	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+
+	if (!cfg || !cfg->general) {
+		return NULL;
+	}
 
 	/* do not call ast_channel_alloc because this is not really a real channel */
 	if (!(tchan = ast_dummy_channel_alloc())) {
@@ -440,13 +795,13 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
-	if (ast_strlen_zero(cel_dateformat)) {
+	if (ast_strlen_zero(cfg->general->date_format)) {
 		snprintf(timebuf, sizeof(timebuf), "%ld.%06ld", (long) record.event_time.tv_sec,
 				(long) record.event_time.tv_usec);
 	} else {
 		struct ast_tm tm;
 		ast_localtime(&record.event_time, &tm, NULL);
-		ast_strftime(timebuf, sizeof(timebuf), cel_dateformat, &tm);
+		ast_strftime(timebuf, sizeof(timebuf), cfg->general->date_format, &tm);
 	}
 
 	if ((newvariable = ast_var_assign("eventtime", timebuf))) {
@@ -558,35 +913,26 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 	struct ast_channel *peer;
 	char *linkedid = ast_strdupa(ast_channel_linkedid(chan));
 
-	/* Make sure a reload is not occurring while we're checking to see if this
-	 * is an event that we care about.  We could lose an important event in this
-	 * process otherwise. */
-	ast_mutex_lock(&reload_lock);
+	if (!ast_cel_check_enabled()) {
+		return 0;
+	}
 
 	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
-	if (cel_enabled && ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
+	if (ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
 		if (ast_cel_linkedid_ref(linkedid)) {
-			ast_mutex_unlock(&reload_lock);
 			return -1;
 		}
 	}
 
-	if (!cel_enabled || !ast_cel_track_event(event_type)) {
-		ast_mutex_unlock(&reload_lock);
+	if (!ast_cel_track_event(event_type)) {
 		return 0;
 	}
 
-	if (event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END) {
-		char *app;
-		if (!(app = ao2_find(appset, (char *) ast_channel_appl(chan), OBJ_POINTER))) {
-			ast_mutex_unlock(&reload_lock);
-			return 0;
-		}
-		ao2_ref(app, -1);
+	if ((event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END)
+		&& !cel_track_app(ast_channel_appl(chan))) {
+		return 0;
 	}
-
-	ast_mutex_unlock(&reload_lock);
 
 	ast_channel_lock(chan);
 	peer = ast_bridged_channel(chan);
@@ -704,49 +1050,323 @@ int ast_cel_fill_record(const struct ast_event *e, struct ast_cel_event_record *
 	return 0;
 }
 
-static int app_hash(const void *obj, const int flags)
+/*! \brief Typedef for callbacks that get called on channel snapshot updates */
+typedef void (*cel_channel_snapshot_monitor)(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot);
+
+static struct ast_multi_channel_blob *get_dialstatus_blob(const char *uniqueid)
 {
-	return ast_str_case_hash((const char *) obj);
+	return ao2_find(cel_dialstatus_store, uniqueid, OBJ_KEY | OBJ_UNLINK);
 }
 
-static int app_cmp(void *obj, void *arg, int flags)
+static const char *get_caller_dialstatus(struct ast_multi_channel_blob *blob)
 {
-	const char *app1 = obj, *app2 = arg;
+	struct ast_json *json = ast_multi_channel_blob_get_json(blob);
+	if (!json) {
+		return NULL;
+	}
 
-	return !strcasecmp(app1, app2) ? CMP_MATCH | CMP_STOP : 0;
+	json = ast_json_object_get(json, "dialstatus");
+	if (!json) {
+		return NULL;
+	}
+
+	return ast_json_string_get(json);
 }
 
-#define lid_hash app_hash
-#define lid_cmp app_cmp
+/*! \brief Handle channel state changes */
+static void cel_channel_state_change(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot)
+{
+	int is_hungup, was_hungup;
+
+	if (!new_snapshot) {
+		report_event_snapshot(old_snapshot, AST_CEL_CHANNEL_END, NULL, NULL);
+		check_retire_linkedid(old_snapshot);
+		return;
+	}
+
+	if (!old_snapshot) {
+		report_event_snapshot(new_snapshot, AST_CEL_CHANNEL_START, NULL, NULL);
+		return;
+	}
+
+	was_hungup = ast_test_flag(&old_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
+	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
+
+	if (!was_hungup && is_hungup) {
+		RAII_VAR(struct ast_str *, extra_str, ast_str_create(128), ast_free);
+		RAII_VAR(struct ast_multi_channel_blob *, blob, get_dialstatus_blob(new_snapshot->uniqueid), ao2_cleanup);
+		const char *dialstatus = "";
+		if (blob && !ast_strlen_zero(get_caller_dialstatus(blob))) {
+			dialstatus = get_caller_dialstatus(blob);
+		}
+		ast_str_set(&extra_str, 0, "%d,%s,%s",
+			new_snapshot->hangupcause,
+			new_snapshot->hangupsource,
+			dialstatus);
+		report_event_snapshot(new_snapshot, AST_CEL_HANGUP, NULL, ast_str_buffer(extra_str));
+		return;
+	}
+
+	if (old_snapshot->state != new_snapshot->state && new_snapshot->state == AST_STATE_UP) {
+		report_event_snapshot(new_snapshot, AST_CEL_ANSWER, NULL, NULL);
+		return;
+	}
+}
+
+static void cel_channel_linkedid_change(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot)
+{
+	if (!old_snapshot || !new_snapshot) {
+		return;
+	}
+
+	if (strcmp(old_snapshot->linkedid, new_snapshot->linkedid)) {
+		check_retire_linkedid(old_snapshot);
+	}
+}
+
+static void cel_channel_app_change(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot)
+{
+	if (new_snapshot && old_snapshot
+		&& !strcmp(old_snapshot->appl, new_snapshot->appl)) {
+		return;
+	}
+
+	/* old snapshot has an application, end it */
+	if (old_snapshot && !ast_strlen_zero(old_snapshot->appl)) {
+		report_event_snapshot(old_snapshot, AST_CEL_APP_END, NULL, NULL);
+	}
+
+	/* new snapshot has an application, start it */
+	if (new_snapshot && !ast_strlen_zero(new_snapshot->appl)) {
+		report_event_snapshot(new_snapshot, AST_CEL_APP_START, NULL, NULL);
+	}
+}
+
+cel_channel_snapshot_monitor cel_channel_monitors[] = {
+	cel_channel_state_change,
+	cel_channel_app_change,
+	cel_channel_linkedid_change,
+};
+
+static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct stasis_cache_update *update = stasis_message_data(message);
+	if (ast_channel_snapshot_type() == update->type) {
+		struct ast_channel_snapshot *old_snapshot;
+		struct ast_channel_snapshot *new_snapshot;
+		size_t i;
+
+		old_snapshot = stasis_message_data(update->old_snapshot);
+		new_snapshot = stasis_message_data(update->new_snapshot);
+
+		for (i = 0; i < ARRAY_LEN(cel_channel_monitors); ++i) {
+			cel_channel_monitors[i](old_snapshot, new_snapshot);
+		}
+	}
+}
+
+static void cel_bridge_enter_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_bridge_blob *blob = stasis_message_data(message);
+	struct ast_bridge_snapshot *snapshot = blob->bridge;
+	struct ast_channel_snapshot *chan_snapshot = blob->channel;
+
+	if (snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) {
+		if (ao2_container_count(snapshot->channels) == 2) {
+			struct ao2_iterator i;
+			RAII_VAR(char *, channel_id, NULL, ao2_cleanup);
+
+			/* get the name of the channel in the container we don't already know the name of */
+			i = ao2_iterator_init(snapshot->channels, 0);
+			while ((channel_id = ao2_iterator_next(&i))) {
+				if (strcmp(channel_id, chan_snapshot->uniqueid)) {
+					break;
+				}
+				ao2_cleanup(channel_id);
+				channel_id = NULL;
+			}
+			ao2_iterator_destroy(&i);
+
+			add_bridge_primary(channel_id, snapshot->uniqueid, chan_snapshot->uniqueid);
+		}
+	}
+}
+
+static void cel_bridge_leave_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_bridge_blob *blob = stasis_message_data(message);
+	struct ast_bridge_snapshot *snapshot = blob->bridge;
+	struct ast_channel_snapshot *chan_snapshot = blob->channel;
+
+	if ((snapshot->capabilities | AST_BRIDGE_CAPABILITY_1TO1MIX)
+		|| (snapshot->capabilities | AST_BRIDGE_CAPABILITY_NATIVE)) {
+		if (ao2_container_count(snapshot->channels) == 1) {
+			RAII_VAR(struct bridge_assoc *, ao2_primary, ao2_find(bridge_primaries, chan_snapshot->uniqueid, OBJ_KEY), ao2_cleanup);
+			RAII_VAR(char *, channel_id_in_bridge, NULL, ao2_cleanup);
+			const char *primary;
+			struct ao2_iterator i;
+
+			/* get the only item in the container */
+			i = ao2_iterator_init(snapshot->channels, 0);
+			while ((channel_id_in_bridge = ao2_iterator_next(&i))) {
+				break;
+			}
+			ao2_iterator_destroy(&i);
+
+			if (ao2_primary) {
+				primary = chan_snapshot->uniqueid;
+			} else {
+				primary = channel_id_in_bridge;
+			}
+
+			remove_bridge_primary(primary);
+		}
+	}
+}
+
+static void save_dialstatus(struct ast_multi_channel_blob *blob)
+{
+	ao2_link(cel_dialstatus_store, blob);
+}
+
+static void cel_dial_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *blob = stasis_message_data(message);
+
+	if (!get_caller_uniqueid(blob)) {
+		return;
+	}
+
+	if (ast_strlen_zero(get_caller_dialstatus(blob))) {
+		return;
+	}
+
+	save_dialstatus(blob);
+}
 
 static void ast_cel_engine_term(void)
 {
-	if (appset) {
-		ao2_ref(appset, -1);
-		appset = NULL;
-	}
-	if (linkedids) {
-		ao2_ref(linkedids, -1);
-		linkedids = NULL;
-	}
+	stasis_message_router_unsubscribe_and_join(cel_state_router);
+	cel_state_router = NULL;
+	ao2_cleanup(cel_state_topic);
+	cel_state_topic = NULL;
+	cel_channel_forwarder = stasis_unsubscribe_and_join(cel_channel_forwarder);
+	cel_bridge_forwarder = stasis_unsubscribe_and_join(cel_bridge_forwarder);
+	ao2_cleanup(linkedids);
+	linkedids = NULL;
 	ast_cli_unregister(&cli_status);
+	ao2_cleanup(bridge_primaries);
+	bridge_primaries = NULL;
 }
 
 int ast_cel_engine_init(void)
 {
-	if (!(appset = ao2_container_alloc(NUM_APP_BUCKETS, app_hash, app_cmp))) {
-		return -1;
-	}
-	if (!(linkedids = ao2_container_alloc(NUM_APP_BUCKETS, lid_hash, lid_cmp))) {
-		ao2_ref(appset, -1);
+	int ret = 0;
+	if (!(linkedids = ast_str_container_alloc(NUM_APP_BUCKETS))) {
 		return -1;
 	}
 
-	if (do_reload() || ast_cli_register(&cli_status)) {
-		ao2_ref(appset, -1);
-		appset = NULL;
-		ao2_ref(linkedids, -1);
-		linkedids = NULL;
+	if (!(cel_dialstatus_store = ao2_container_alloc(NUM_DIALSTATUS_BUCKETS, dialstatus_hash, dialstatus_cmp))) {
+		return -1;
+	}
+
+	if (aco_info_init(&cel_cfg_info)) {
+		return -1;
+	}
+
+	aco_option_register(&cel_cfg_info, "enable", ACO_EXACT, general_options, "no", OPT_BOOL_T, 1, FLDSET(struct cel_general_config, enable));
+	aco_option_register(&cel_cfg_info, "dateformat", ACO_EXACT, general_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct cel_general_config, date_format));
+	aco_option_register_custom(&cel_cfg_info, "apps", ACO_EXACT, general_options, "", apps_handler, 0);
+	aco_option_register_custom(&cel_cfg_info, "events", ACO_EXACT, general_options, "", events_handler, 0);
+
+	if (aco_process_config(&cel_cfg_info, 0)) {
+		return -1;
+	}
+
+	if (ast_cli_register(&cli_status)) {
+		return -1;
+	}
+
+	cel_state_topic = stasis_topic_create("cel_state_topic");
+	if (!cel_state_topic) {
+		return -1;
+	}
+
+	cel_channel_forwarder = stasis_forward_all(
+		stasis_caching_get_topic(ast_channel_topic_all_cached()),
+		cel_state_topic);
+	if (!cel_channel_forwarder) {
+		return -1;
+	}
+
+	cel_bridge_forwarder = stasis_forward_all(
+		stasis_caching_get_topic(ast_bridge_topic_all_cached()),
+		cel_state_topic);
+	if (!cel_bridge_forwarder) {
+		return -1;
+	}
+
+	cel_state_router = stasis_message_router_create(cel_state_topic);
+	if (!cel_state_router) {
+		return -1;
+	}
+
+	ret |= stasis_message_router_add(cel_state_router,
+		stasis_cache_update_type(),
+		cel_snapshot_update_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_channel_dial_type(),
+		cel_dial_cb,
+		NULL);
+
+	/* If somehow we failed to add any routes, just shut down the whole
+	 * thing and fail it.
+	 */
+	if (ret) {
+		ast_cel_engine_term();
+		return -1;
+	}
+
+	bridge_primaries = ao2_container_alloc(BRIDGE_PRIMARY_BUCKETS, bridge_assoc_hash, bridge_assoc_cmp);
+	if (!bridge_primaries) {
+		return -1;
+	}
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_channel_entered_bridge_type(),
+		cel_bridge_enter_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_channel_left_bridge_type(),
+		cel_bridge_leave_cb,
+		NULL);
+
+	/* If somehow we failed to add any routes, just shut down the whole
+	 * thing and fail it.
+	 */
+	if (ret) {
+		ast_cel_engine_term();
 		return -1;
 	}
 
