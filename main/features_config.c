@@ -1345,9 +1345,9 @@ static struct ast_custom_function featuremap_function = {
 	.write = featuremap_write
 };
 
-static int load_config(int reload)
+static int load_config(void)
 {
-	if (!reload && aco_info_init(&cfg_info)) {
+	if (aco_info_init(&cfg_info)) {
 		ast_log(LOG_ERROR, "Unable to initialize configuration info for features\n");
 		return -1;
 	}
@@ -1441,10 +1441,8 @@ static int load_config(int reload)
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		ast_log(LOG_ERROR, "Failed to process features.conf configuration!\n");
-		if (!reload) {
-			aco_info_destroy(&cfg_info);
-			ao2_global_obj_release(globals);
-		}
+		aco_info_destroy(&cfg_info);
+		ao2_global_obj_release(globals);
 		return -1;
 	}
 
@@ -1559,14 +1557,17 @@ void ast_features_config_shutdown(void)
 
 int ast_features_config_reload(void)
 {
-	return load_config(1);
+	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
+		return -1;
+	}
+	return load_config();
 }
 
 int ast_features_config_init(void)
 {
 	int res;
 
-	res = load_config(0);
+	res = load_config();
 	res |= __ast_custom_function_register(&feature_function, NULL);
 	res |= __ast_custom_function_register(&featuremap_function, NULL);
 	res |= ast_cli_register_multiple(cli_features_config, ARRAY_LEN(cli_features_config));
