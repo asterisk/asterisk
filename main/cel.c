@@ -477,10 +477,6 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct ast_event_sub *sub;
 	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
 
-	if (!cfg || !cfg->general) {
-		return CLI_FAILURE;
-	}
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "cel show status";
@@ -499,6 +495,10 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	}
 
 	ast_cli(a->fd, "CEL Logging: %s\n", ast_cel_check_enabled() ? "Enabled" : "Disabled");
+
+	if (!cfg || !cfg->general) {
+		return CLI_SUCCESS;
+	}
 
 	if (!cfg->general->enable) {
 		return CLI_SUCCESS;
@@ -611,7 +611,7 @@ static int apps_handler(const struct aco_option *opt, struct ast_variable *var, 
 
 static int do_reload(void)
 {
-	if (aco_process_config(&cel_cfg_info, 1)) {
+	if (aco_process_config(&cel_cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return -1;
 	}
 
@@ -1444,19 +1444,6 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	if (aco_info_init(&cel_cfg_info)) {
-		return -1;
-	}
-
-	aco_option_register(&cel_cfg_info, "enable", ACO_EXACT, general_options, "no", OPT_BOOL_T, 1, FLDSET(struct cel_general_config, enable));
-	aco_option_register(&cel_cfg_info, "dateformat", ACO_EXACT, general_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct cel_general_config, date_format));
-	aco_option_register_custom(&cel_cfg_info, "apps", ACO_EXACT, general_options, "", apps_handler, 0);
-	aco_option_register_custom(&cel_cfg_info, "events", ACO_EXACT, general_options, "", events_handler, 0);
-
-	if (aco_process_config(&cel_cfg_info, 0)) {
-		return -1;
-	}
-
 	if (ast_cli_register(&cli_status)) {
 		return -1;
 	}
@@ -1529,6 +1516,17 @@ int ast_cel_engine_init(void)
 		ast_cel_engine_term();
 		return -1;
 	}
+
+	if (aco_info_init(&cel_cfg_info)) {
+		return -1;
+	}
+
+	aco_option_register(&cel_cfg_info, "enable", ACO_EXACT, general_options, "no", OPT_BOOL_T, 1, FLDSET(struct cel_general_config, enable));
+	aco_option_register(&cel_cfg_info, "dateformat", ACO_EXACT, general_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct cel_general_config, date_format));
+	aco_option_register_custom(&cel_cfg_info, "apps", ACO_EXACT, general_options, "", apps_handler, 0);
+	aco_option_register_custom(&cel_cfg_info, "events", ACO_EXACT, general_options, "", events_handler, 0);
+
+	aco_process_config(&cel_cfg_info, 0);
 
 	ast_register_cleanup(ast_cel_engine_term);
 
