@@ -1278,12 +1278,16 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 {
 	struct ast_str *output_str = ast_str_create(32);
 	struct ast_json *value;
+	struct ast_json_iter *iter;
 	const char *key;
 	if (!output_str) {
 		return NULL;
 	}
 
-	ast_json_object_foreach(blob, key, value) {
+	for (iter = ast_json_object_iter(blob); iter; iter = ast_json_object_iter_next(blob, iter)) {
+		key = ast_json_object_iter_key(iter);
+		value = ast_json_object_iter_value(iter);
+
 		if (exclusion_cb && exclusion_cb(key)) {
 			continue;
 		}

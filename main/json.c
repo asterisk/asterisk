@@ -330,10 +330,6 @@ const char *ast_json_object_iter_key(struct ast_json_iter *iter)
 {
 	return json_object_iter_key(iter);
 }
-struct ast_json_iter *ast_json_object_key_to_iter(const char *key)
-{
-	return (struct ast_json_iter *)json_object_key_to_iter(key);
-}
 struct ast_json *ast_json_object_iter_value(struct ast_json_iter *iter)
 {
 	return (struct ast_json *)json_object_iter_value(iter);
