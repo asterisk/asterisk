@@ -1560,7 +1560,7 @@ int ast_features_config_reload(void)
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return -1;
 	}
-	return load_config();
+	return 0;
 }
 
 int ast_features_config_init(void)
