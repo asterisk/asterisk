@@ -78,18 +78,6 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 		unsigned int parkingspace, unsigned long int timeout, unsigned long int duration);
 
 /*!
- * \brief initialize parking stasis types
- * \since 12
- */
-void ast_parking_stasis_init(void);
-
-/*!
- * \brief disable parking stasis types
- * \since 12
- */
-void ast_parking_stasis_disable(void);
-
-/*!
  * \brief accessor for the parking stasis topic
  * \since 12
  *

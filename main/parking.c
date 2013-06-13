@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/parking.h"
 #include "asterisk/channel.h"
+#include "asterisk/_private.h"
 
 /*! \brief Message type for parked calls */
 STASIS_MESSAGE_TYPE_DEFN(ast_parked_call_type);
@@ -46,17 +47,25 @@ static ast_park_blind_xfer_fn ast_park_blind_xfer_func = NULL;
 /*! \brief Function Callback for handling a bridge channel trying to park itself */
 static ast_bridge_channel_park_fn ast_bridge_channel_park_func = NULL;
 
-void ast_parking_stasis_init(void)
-{
-	STASIS_MESSAGE_TYPE_INIT(ast_parked_call_type);
-	parking_topic = stasis_topic_create("ast_parking");
-}
-
-void ast_parking_stasis_disable(void)
+static void parking_stasis_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_parked_call_type);
 	ao2_cleanup(parking_topic);
 	parking_topic = NULL;
+}
+
+int ast_parking_stasis_init(void)
+{
+	if (STASIS_MESSAGE_TYPE_INIT(ast_parked_call_type)) {
+		return -1;
+	}
+
+	parking_topic = stasis_topic_create("ast_parking");
+	if (!parking_topic) {
+		return -1;
+	}
+	ast_register_cleanup(parking_stasis_cleanup);
+	return 0;
 }
 
 struct stasis_topic *ast_parking_topic(void)

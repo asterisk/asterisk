@@ -579,7 +579,6 @@ static void parking_event_cb(void *data, struct stasis_subscription *sub, struct
 
 static void parking_manager_enable_stasis(void)
 {
-	ast_parking_stasis_init();
 	if (!parking_sub) {
 		parking_sub = stasis_subscribe(ast_parking_topic(), parking_event_cb, NULL);
 	}
@@ -599,7 +598,6 @@ int load_parking_manager(void)
 static void parking_manager_disable_stasis(void)
 {
 	parking_sub = stasis_unsubscribe(parking_sub);
-	ast_parking_stasis_disable();
 }
 
 void unload_parking_manager(void)

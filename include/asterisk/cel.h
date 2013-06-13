@@ -103,6 +103,8 @@ enum ast_cel_event_type {
 	AST_CEL_PICKUP = 24,
 	/*! \brief this call was forwarded somewhere else  */
 	AST_CEL_FORWARD = 25,
+	/*! \brief a bridge turned into a conference and will be treated as such until it is torn down */
+	AST_CEL_BRIDGE_TO_CONF = 26,
 };
 
 /*! 

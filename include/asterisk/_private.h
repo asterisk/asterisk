@@ -134,4 +134,10 @@ int ast_format_list_init(void);
 
 /*! \brief initializes the rtp engine arrays */
 int ast_rtp_engine_init(void);
+
+/*!
+ * \brief initializes the rtp engine arrays
+ * \since 12.0.0
+ */
+int ast_parking_stasis_init(void);
 #endif /* _ASTERISK__PRIVATE_H */

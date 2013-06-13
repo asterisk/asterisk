@@ -1425,7 +1425,6 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_channel_name(chan), pu->parkingnum, pu->parkinglot->name,
 		pu->context, pu->exten, pu->priority, (pu->parkingtime / 1000));
 
-	ast_cel_report_event(chan, AST_CEL_PARK_START, NULL, pu->parkinglot->name, peer);
 	/*** DOCUMENTATION
 		<managerEventInstance>
 			<synopsis>Raised when a call has been parked.</synopsis>
@@ -3969,7 +3968,6 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 			set_c_e_p(chan, pu->context, pu->exten, pu->priority);
 		}
 		post_manager_event("ParkedCallTimeOut", pu);
-		ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallTimeOut", NULL);
 
 		ast_verb(2, "Timeout for %s parked on %d (%s). Returning to %s,%s,%d\n",
 			ast_channel_name(pu->chan), pu->parkingnum, pu->parkinglot->name, ast_channel_context(pu->chan),
@@ -4029,8 +4027,6 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 					ast_frfree(f);
 				}
 				post_manager_event("ParkedCallGiveUp", pu);
-				ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp",
-					NULL);
 
 				/* There's a problem, hang them up */
 				ast_verb(2, "%s got tired of being parked\n", ast_channel_name(chan));
