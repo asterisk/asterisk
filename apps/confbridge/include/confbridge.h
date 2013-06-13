@@ -247,7 +247,10 @@ struct confbridge_user {
 };
 
 /*! \brief load confbridge.conf file */
-int conf_load_config(int reload);
+int conf_load_config(void);
+
+/*! \brief reload confbridge.conf file */
+int conf_reload_config(void);
 
 /*! \brief destroy the information loaded from the confbridge.conf file*/
 void conf_destroy_config(void);
