@@ -122,12 +122,14 @@ struct stasis_caching_topic *ast_endpoint_topic_all_cached(void);
  *
  * \param tech Name of the endpoint's technology.
  * \param resource Resource name of the endpoint.
+ * \param guaranteed Whether to require all pending messages to have been processed or not.
  * \return Snapshot of the endpoint with the given name.
  * \return \c NULL if endpoint is not found, or on error.
  * \since 12
  */
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
-	const char *resource
+	const char *resource,
+	unsigned int guaranteed
 );
 
 /*! @} */

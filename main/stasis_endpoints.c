@@ -52,7 +52,7 @@ struct stasis_caching_topic *ast_endpoint_topic_all_cached(void)
 }
 
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
-	const char *name)
+	const char *name, unsigned int guaranteed)
 {
 	RAII_VAR(char *, id, NULL, ast_free);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -63,8 +63,8 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 		return NULL;
 	}
 
-	msg = stasis_cache_get(ast_endpoint_topic_all_cached(),
-		ast_endpoint_snapshot_type(), id);
+	msg = stasis_cache_get_extended(ast_endpoint_topic_all_cached(),
+		ast_endpoint_snapshot_type(), id, guaranteed);
 	if (!msg) {
 		return NULL;
 	}

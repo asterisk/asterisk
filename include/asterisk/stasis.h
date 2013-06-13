@@ -670,9 +670,23 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
  * \return \c NULL if message is not found.
  * \since 12
  */
-struct stasis_message *stasis_cache_get(struct stasis_caching_topic *caching_topic,
+#define stasis_cache_get(caching_topic, type, id) stasis_cache_get_extended(caching_topic, type, id, 0)
+
+/*!
+ * \brief Retrieve an item from the cache.
+ * \param caching_topic The topic returned from stasis_caching_topic_create().
+ * \param type Type of message to retrieve.
+ * \param id Identity of the snapshot to retrieve.
+ * \param guaranteed If set to 1 it is guaranteed that any pending messages have been processed.
+ * \return Message from the cache. The cache still owns the message, so
+ *         ao2_ref() if you want to keep it.
+ * \return \c NULL if message is not found.
+ * \since 12
+ */
+struct stasis_message *stasis_cache_get_extended(struct stasis_caching_topic *caching_topic,
 					struct stasis_message_type *type,
-					const char *id);
+					const char *id,
+					unsigned int guaranteed);
 
 /*!
  * \brief Dump cached items to a subscription

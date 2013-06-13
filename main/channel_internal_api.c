@@ -1406,8 +1406,7 @@ struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 	return chan ? chan->topic : ast_channel_topic_all();
 }
 
-int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
-	struct ast_channel *chan)
+int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *endpoint)
 {
 	ast_assert(chan != NULL);
 	ast_assert(endpoint != NULL);
@@ -1418,8 +1417,6 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 	if (chan->endpoint_forward == NULL) {
 		return -1;
 	}
-
-	ast_publish_channel_state(chan);
 
 	return 0;
 }

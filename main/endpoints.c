@@ -122,30 +122,23 @@ static void endpoint_dtor(void *obj)
 	ast_string_field_free_memory(endpoint);
 }
 
-static void endpoint_channel_snapshot(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
-	struct stasis_message *message)
-{
-	struct ast_endpoint *endpoint = data;
-	struct ast_channel_snapshot *snapshot = stasis_message_data(message);
-	RAII_VAR(char *, existing_id, NULL, ao2_cleanup);
-	int publish = 0;
 
+int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
+	struct ast_channel *chan)
+{
+	ast_assert(chan != NULL);
 	ast_assert(endpoint != NULL);
-	ast_assert(snapshot != NULL);
+
+	ast_channel_forward_endpoint(chan, endpoint);
 
 	ao2_lock(endpoint);
-	existing_id = ao2_find(endpoint->channel_ids, snapshot->uniqueid,
-		OBJ_POINTER);
-	if (!existing_id) {
-		ast_str_container_add(endpoint->channel_ids,
-			snapshot->uniqueid);
-		publish = 1;
-	}
+	ast_str_container_add(endpoint->channel_ids, ast_channel_uniqueid(chan));
 	ao2_unlock(endpoint);
-	if (publish) {
-		endpoint_publish_snapshot(endpoint);
-	}
+
+	ast_publish_channel_state(chan);
+	endpoint_publish_snapshot(endpoint);
+
+	return 0;
 }
 
 /*! \brief Handler for channel snapshot cache clears */
@@ -236,9 +229,6 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 	if (!endpoint->router) {
 		return NULL;
 	}
-	r |= stasis_message_router_add(endpoint->router,
-		ast_channel_snapshot_type(), endpoint_channel_snapshot,
-		endpoint);
 	r |= stasis_message_router_add(endpoint->router,
 		stasis_cache_clear_type(), endpoint_cache_clear,
 		endpoint);

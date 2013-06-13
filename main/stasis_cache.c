@@ -46,9 +46,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct stasis_caching_topic {
 	struct ao2_container *cache;
 	struct stasis_topic *topic;
+	struct stasis_topic *original_topic;
 	struct stasis_subscription *sub;
 	snapshot_get_id id_fn;
 };
+
+static struct stasis_message_type *cache_guarantee_type(void);
 
 static void stasis_caching_topic_dtor(void *obj) {
 	struct stasis_caching_topic *caching_topic = obj;
@@ -60,6 +63,8 @@ static void stasis_caching_topic_dtor(void *obj) {
 	caching_topic->cache = NULL;
 	ao2_cleanup(caching_topic->topic);
 	caching_topic->topic = NULL;
+	ao2_cleanup(caching_topic->original_topic);
+	caching_topic->original_topic = NULL;
 }
 
 struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *caching_topic)
@@ -204,12 +209,61 @@ static struct stasis_message *cache_put(struct stasis_caching_topic *caching_top
 	return old_snapshot;
 }
 
-struct stasis_message *stasis_cache_get(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type, const char *id)
+/*! \internal */
+struct caching_guarantee {
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	unsigned int done:1;
+};
+
+static void caching_guarantee_dtor(void *obj)
+{
+	struct caching_guarantee *guarantee = obj;
+
+	ast_assert(guarantee->done == 1);
+
+	ast_mutex_destroy(&guarantee->lock);
+	ast_cond_destroy(&guarantee->cond);
+}
+
+static struct stasis_message *caching_guarantee_create(void)
+{
+	RAII_VAR(struct caching_guarantee *, guarantee, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!(guarantee = ao2_alloc(sizeof(*guarantee), caching_guarantee_dtor))) {
+		return NULL;
+	}
+
+	ast_mutex_init(&guarantee->lock);
+	ast_cond_init(&guarantee->cond, NULL);
+
+	if (!(msg = stasis_message_create(cache_guarantee_type(), guarantee))) {
+		return NULL;
+	}
+
+	ao2_ref(msg, +1);
+	return msg;
+}
+
+struct stasis_message *stasis_cache_get_extended(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type, const char *id, unsigned int guaranteed)
 {
 	RAII_VAR(struct cache_entry *, search_entry, NULL, ao2_cleanup);
 	RAII_VAR(struct cache_entry *, cached_entry, NULL, ao2_cleanup);
 
 	ast_assert(caching_topic->cache != NULL);
+
+	if (guaranteed) {
+		RAII_VAR(struct stasis_message *, msg, caching_guarantee_create(), ao2_cleanup);
+		struct caching_guarantee *guarantee = stasis_message_data(msg);
+
+		ast_mutex_lock(&guarantee->lock);
+		stasis_publish(caching_topic->original_topic, msg);
+		while (!guarantee->done) {
+			ast_cond_wait(&guarantee->cond, &guarantee->lock);
+		}
+		ast_mutex_unlock(&guarantee->lock);
+	}
 
 	search_entry = cache_entry_create(type, id, NULL);
 	if (search_entry == NULL) {
@@ -261,6 +315,7 @@ struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_top
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_clear_type);
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_update_type);
+STASIS_MESSAGE_TYPE_DEFN(cache_guarantee_type);
 
 struct stasis_message *stasis_cache_clear_create(struct stasis_message *id_message)
 {
@@ -338,6 +393,18 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 
 	if (stasis_subscription_final_message(sub, message)) {
 		caching_topic_needs_unref = caching_topic;
+	}
+
+	/* Handle cache guarantee event */
+	if (cache_guarantee_type() == stasis_message_type(message)) {
+		struct caching_guarantee *guarantee = stasis_message_data(message);
+
+		ast_mutex_lock(&guarantee->lock);
+		guarantee->done = 1;
+		ast_cond_signal(&guarantee->cond);
+		ast_mutex_unlock(&guarantee->lock);
+
+		return;
 	}
 
 	/* Handle cache clear event */
@@ -423,6 +490,10 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 	if (sub == NULL) {
 		return NULL;
 	}
+
+	ao2_ref(original_topic, +1);
+	caching_topic->original_topic = original_topic;
+
 	/* This is for the reference contained in the subscription above */
 	ao2_ref(caching_topic, +1);
 	caching_topic->sub = sub;
@@ -435,6 +506,7 @@ static void stasis_cache_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_clear_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_update_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(cache_guarantee_type);
 }
 
 int stasis_cache_init(void)
@@ -446,6 +518,10 @@ int stasis_cache_init(void)
 	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(stasis_cache_update_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(cache_guarantee_type) != 0) {
 		return -1;
 	}
 

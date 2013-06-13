@@ -152,6 +152,7 @@ extern "C" {
 #include "asterisk/framehook.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/endpoints.h"
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
@@ -4264,5 +4265,17 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee);
  * \retval non-zero Failure
  */
 int ast_channel_move(struct ast_channel *dest, struct ast_channel *source);
+
+/*!
+ * \since 12
+ * \brief Forward channel stasis messages to the given endpoint
+ *
+ * \param chan The channel to forward from
+ * \param endpoint The endpoint to forward to
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *endpoint);
 
 #endif /* _ASTERISK_CHANNEL_H */
