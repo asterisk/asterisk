@@ -1320,12 +1320,10 @@ static int verify_default_profiles(void)
 	return 0;
 }
 
-int conf_load_config(int reload)
+int conf_load_config(void)
 {
-	if (!reload) {
-		if (aco_info_init(&cfg_info)) {
-			return -1;
-		}
+	if (aco_info_init(&cfg_info)) {
+		return -1;
 	}
 
 	/* User options */
@@ -1373,21 +1371,27 @@ int conf_load_config(int reload)
 	/* Menu options */
 	aco_option_register_custom(&cfg_info, "^[0-9A-D*#]+$", ACO_REGEX, menu_types, NULL, menu_option_handler, 0);
 
-	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
+	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		goto error;
 	}
 
-	if (!reload && ast_cli_register_multiple(cli_confbridge_parser, ARRAY_LEN(cli_confbridge_parser))) {
+	if (ast_cli_register_multiple(cli_confbridge_parser, ARRAY_LEN(cli_confbridge_parser))) {
 		goto error;
 	}
 
 	return 0;
 error:
-	/* On a reload, just keep the config we already have in place. */
-	if (!reload) {
-		conf_destroy_config();
-	}
+	conf_destroy_config();
 	return -1;
+}
+
+int conf_reload_config(void)
+{
+	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
+		/* On a reload, just keep the config we already have in place. */
+		return -1;
+	}
+	return 0;
 }
 
 static void conf_user_profile_copy(struct user_profile *dst, struct user_profile *src)
