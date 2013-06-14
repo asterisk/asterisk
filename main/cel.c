@@ -1187,7 +1187,6 @@ static int bridge_match_cb(void *obj, void *arg, int flags)
 {
 	struct bridge_assoc *assoc = obj;
 	char *bridge_id = arg;
-	ast_assert(flags & OBJ_KEY);
 	if (!strcmp(bridge_id, assoc->bridge_id)) {
 		return CMP_MATCH;
 	}
@@ -1197,7 +1196,7 @@ static int bridge_match_cb(void *obj, void *arg, int flags)
 static struct bridge_assoc *find_bridge_primary_by_bridge_id(const char *bridge_id)
 {
 	char *dup_id = ast_strdupa(bridge_id);
-	return ao2_callback(bridge_primaries, OBJ_KEY, bridge_match_cb, dup_id);
+	return ao2_callback(bridge_primaries, 0, bridge_match_cb, dup_id);
 }
 
 static void clear_bridge_primary(const char *bridge_id)
@@ -1251,6 +1250,10 @@ static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 		if ((old_snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE))
 			&& (new_snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX)) {
 			assoc = find_bridge_primary_by_bridge_id(new_snapshot->uniqueid);
+			if (!assoc) {
+				ast_log(LOG_ERROR, "No association found for bridge %s\n", new_snapshot->uniqueid);
+				return;
+			}
 
 			/* this bridge will no longer be treated like a bridge, so mark the bridge_assoc as such */
 			assoc->track_as_conf = 1;
