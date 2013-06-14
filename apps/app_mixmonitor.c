@@ -740,6 +740,8 @@ static void *mixmonitor_thread(void *obj)
 	}
 
 	mixmonitor_free(mixmonitor);
+
+	ast_module_unref(ast_module_info->self);
 	return NULL;
 }
 
@@ -779,7 +781,7 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 	return 0;
 }
 
-static void launch_monitor_thread(struct ast_channel *chan, const char *filename,
+static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				  unsigned int flags, int readvol, int writevol,
 				  const char *post_process, const char *filename_write,
 				  char *filename_read, const char *uid_channel_var,
@@ -806,33 +808,33 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Pre-allocate mixmonitor structure and spy */
 	if (!(mixmonitor = ast_calloc(1, sizeof(*mixmonitor)))) {
-		return;
+		return -1;
 	}
 
 	/* Now that the struct has been calloced, go ahead and initialize the string fields. */
 	if (ast_string_field_init(mixmonitor, 512)) {
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	/* Setup the actual spy before creating our thread */
 	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type, 0)) {
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
 	if (!(mixmonitor->autochan = ast_autochan_setup(chan))) {
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	if (setup_mixmonitor_ds(mixmonitor, chan, &datastore_id)) {
 		ast_autochan_destroy(mixmonitor->autochan);
 		mixmonitor_free(mixmonitor);
 		ast_free(datastore_id);
-		return;
+		return -1;
 	}
 
 	if (!ast_strlen_zero(uid_channel_var)) {
@@ -901,13 +903,13 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 			mixmonitor_spy_type, ast_channel_name(chan));
 		ast_audiohook_destroy(&mixmonitor->audiohook);
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	/* reference be released at mixmonitor destruction */
 	mixmonitor->callid = ast_read_threadstorage_callid();
 
-	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
+	return ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 }
 
 /* a note on filename_parse: creates directory structure and assigns absolute path from relative paths for filenames */
@@ -1028,7 +1030,10 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	}
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
-	launch_monitor_thread(chan,
+
+	/* If launch_monitor_thread works, the module reference must not be released until it is finished. */
+	ast_module_ref(ast_module_info->self);
+	if (launch_monitor_thread(chan,
 			args.filename,
 			flags.flags,
 			readvol,
@@ -1037,7 +1042,9 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 			filename_write,
 			filename_read,
 			uid_channel_var,
-			recipients);
+			recipients)) {
+		ast_module_unref(ast_module_info->self);
+	}
 
 	return 0;
 }
