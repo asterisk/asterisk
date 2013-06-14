@@ -381,6 +381,8 @@ static void *mixmonitor_thread(void *obj)
 
 	ast_verb(2, "End MixMonitor Recording %s\n", mixmonitor->name);
 	mixmonitor_free(mixmonitor);
+
+	ast_module_unref(ast_module_info->self);
 	return NULL;
 }
 
@@ -414,7 +416,7 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 	return 0;
 }
 
-static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
+static int launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
 				  int readvol, int writevol, const char *post_process) 
 {
 	pthread_t thread;
@@ -442,26 +444,26 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Pre-allocate mixmonitor structure and spy */
 	if (!(mixmonitor = ast_calloc(1, len))) {
-		return;
+		return -1;
 	}
 
 	/* Setup the actual spy before creating our thread */
 	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type)) {
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
 	if (!(mixmonitor->autochan = ast_autochan_setup(chan))) {
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
 	if (setup_mixmonitor_ds(mixmonitor, chan)) {
 		ast_autochan_destroy(mixmonitor->autochan);
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
 	strcpy(mixmonitor->name, chan->name);
@@ -485,10 +487,10 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 			mixmonitor_spy_type, chan->name);
 		ast_audiohook_destroy(&mixmonitor->audiohook);
 		mixmonitor_free(mixmonitor);
-		return;
+		return -1;
 	}
 
-	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
+	return ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 }
 
 static int mixmonitor_exec(struct ast_channel *chan, const char *data)
@@ -567,7 +569,12 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	ast_mkdir(tmp, 0777);
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
-	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
+
+	/* If launch_monitor_thread works, the module reference must not be released until it is finished. */
+	ast_module_ref(ast_module_info->self);
+	if (launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process)) {
+		ast_module_unref(ast_module_info->self);
+	}
 
 	return 0;
 }
