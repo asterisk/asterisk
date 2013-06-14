@@ -34,7 +34,8 @@
 							"allowedValues": {
 								"type": "LIST",
 								"values": [
-									"mixing",
+									"two-party",
+									"multi-party",
 									"holding"
 								]
 							}
@@ -239,7 +240,8 @@
 					"allowedValues": {
 						"type": "LIST",
 						"values": [
-							"mixing",
+							"two-party",
+							"multi-party",
 							"holding"
 						]
 					}
