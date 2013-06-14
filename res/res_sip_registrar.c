@@ -259,7 +259,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	if (((added - deleted) + (!aor->remove_existing ? ao2_container_count(contacts) : 0)) > aor->max_contacts) {
+	if ((MAX(added - deleted, 0) + (!aor->remove_existing ? ao2_container_count(contacts) : 0)) > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		return PJ_TRUE;
