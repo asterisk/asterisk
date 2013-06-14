@@ -92,6 +92,7 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 
 	ast_string_field_set(snapshot, uniqueid, bridge->uniqueid);
 	ast_string_field_set(snapshot, technology, bridge->technology->name);
+	ast_string_field_set(snapshot, subclass, bridge->v_table->name);
 
 	snapshot->feature_flags = bridge->feature_flags;
 	snapshot->capabilities = bridge->technology->capabilities;
@@ -291,24 +292,68 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 	stasis_publish(ast_bridge_topic(bridge), msg);
 }
 
+typedef struct ast_json *(*json_item_serializer_cb)(void *obj);
+
+static struct ast_json *container_to_json_array(struct ao2_container *items, json_item_serializer_cb item_cb)
+{
+	RAII_VAR(struct ast_json *, json_items, ast_json_array_create(), ast_json_unref);
+	void *item;
+	struct ao2_iterator it;
+	if (!json_items) {
+		return NULL;
+	}
+
+	it = ao2_iterator_init(items, 0);
+	while ((item = ao2_iterator_next(&it))) {
+		if (ast_json_array_append(json_items, item_cb(item))) {
+			ao2_iterator_destroy(&it);
+			return NULL;
+		}
+	}
+	ao2_iterator_destroy(&it);
+
+	return ast_json_ref(json_items);
+}
+
+static const char *capability2str(uint32_t capabilities)
+{
+	if (capabilities & AST_BRIDGE_CAPABILITY_HOLDING) {
+		return "holding";
+	} else {
+		return "mixing";
+	}
+}
+
 struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot)
 {
-	RAII_VAR(struct ast_json *, json_chan, NULL, ast_json_unref);
-	int r = 0;
+	RAII_VAR(struct ast_json *, json_bridge, NULL, ast_json_unref);
+	struct ast_json *json_channels;
 
 	if (snapshot == NULL) {
 		return NULL;
 	}
 
-	json_chan = ast_json_object_create();
-	if (!json_chan) { ast_log(LOG_ERROR, "Error creating channel json object\n"); return NULL; }
+	json_channels = container_to_json_array(snapshot->channels,
+		(json_item_serializer_cb)ast_json_string_create);
+	if (!json_channels) {
+		return NULL;
+	}
 
-	r = ast_json_object_set(json_chan, "bridge-uniqueid", ast_json_string_create(snapshot->uniqueid));
-	if (r) { ast_log(LOG_ERROR, "Error adding attrib to channel json object\n"); return NULL; }
-	r = ast_json_object_set(json_chan, "bridge-technology", ast_json_string_create(snapshot->technology));
-	if (r) { ast_log(LOG_ERROR, "Error adding attrib to channel json object\n"); return NULL; }
+	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
+		"bridgeUniqueid", snapshot->uniqueid,
+		"bridgeTechnology", snapshot->technology,
+		"bridgeType", capability2str(snapshot->capabilities),
+		"one_to_one", (snapshot->capabilities & AST_BRIDGE_CAPABILITY_1TO1MIX) ? "yes" : "no",
+		"multimix", (snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) ? "yes" : "no",
+		"native", (snapshot->capabilities & AST_BRIDGE_CAPABILITY_NATIVE) ? "yes" : "no",
+		"holding", (snapshot->capabilities & AST_BRIDGE_CAPABILITY_HOLDING) ? "yes" : "no",
+		"bridgeClass", snapshot->subclass,
+		"channels", json_channels);
+	if (!json_bridge) {
+		return NULL;
+	}
 
-	return ast_json_ref(json_chan);
+	return ast_json_ref(json_bridge);
 }
 
 struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(const char *uniqueid)

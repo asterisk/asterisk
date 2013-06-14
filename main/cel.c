@@ -1283,6 +1283,10 @@ static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 
 			/* create a bridge_assoc for this bridge and mark it as being tracked appropriately */
 			chan_snapshot = ast_channel_snapshot_get_latest(channel_id);
+			if (!chan_snapshot) {
+				return;
+			}
+
 			ast_assert(chan_snapshot != NULL);
 			assoc = bridge_assoc_alloc(chan_snapshot, new_snapshot->uniqueid, chan_snapshot->name);
 			if (!assoc) {
@@ -1329,6 +1333,10 @@ static void cel_bridge_enter_cb(
 			ao2_iterator_destroy(&i);
 
 			latest_primary = ast_channel_snapshot_get_latest(channel_id);
+			if (!latest_primary) {
+				return;
+			}
+
 			add_bridge_primary(latest_primary, snapshot->uniqueid, chan_snapshot->name);
 			report_event_snapshot(latest_primary, AST_CEL_BRIDGE_START, NULL, NULL, chan_snapshot->name);
 		}
