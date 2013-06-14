@@ -2083,7 +2083,7 @@ static void set_bridge_peer_vars(struct ast_bridge *bridge)
  * \details
  * After a series of bridge_channel_push and
  * bridge_channel_pull calls, you need to call this function
- * to cause the bridge to complete restruturing for the change
+ * to cause the bridge to complete restructuring for the change
  * in the channel makeup of the bridge.
  *
  * \note On entry, the bridge is already locked.
@@ -2109,6 +2109,7 @@ static void bridge_reconfigured(struct ast_bridge *bridge)
 	}
 	check_bridge_play_sounds(bridge);
 	set_bridge_peer_vars(bridge);
+	ast_bridge_publish_state(bridge);
 }
 
 /*!
