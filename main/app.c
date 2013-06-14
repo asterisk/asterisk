@@ -2727,7 +2727,6 @@ int ast_publish_mwi_state_full(
 {
 	RAII_VAR(struct ast_mwi_state *, mwi_state, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 	struct stasis_topic *mailbox_specific_topic;
 
 	mwi_state = ast_mwi_create(mailbox, context);
@@ -2758,7 +2757,7 @@ int ast_publish_mwi_state_full(
 
 	message = stasis_message_create(ast_mwi_state_type(), mwi_state);
 
-	mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+	mailbox_specific_topic = ast_mwi_topic(mwi_state->uniqueid);
 	if (!mailbox_specific_topic) {
 		return -1;
 	}
