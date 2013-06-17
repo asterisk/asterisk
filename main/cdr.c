@@ -942,7 +942,7 @@ static long cdr_object_get_billsec(struct cdr_object *cdr)
  */
 static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 {
-	struct ast_cdr *pub_cdr = NULL, *cdr_prev;
+	struct ast_cdr *pub_cdr = NULL, *cdr_prev = NULL;
 	struct ast_var_t *it_var, *it_copy_var;
 	struct ast_channel_snapshot *party_a;
 	struct ast_channel_snapshot *party_b;
