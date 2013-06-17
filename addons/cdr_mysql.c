@@ -251,7 +251,7 @@ db_reconnect:
 					char timestr[128];
 					ast_localtime(&tv, &tm, ast_str_strlen(cdrzone) ? ast_str_buffer(cdrzone) : NULL);
 					ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
-					ast_cdr_setvar(cdr, "calldate", timestr);
+					value = ast_strdupa(timestr);
 					cdrname = "calldate";
 				} else {
 					cdrname = "start";
@@ -278,6 +278,8 @@ db_reconnect:
 				 strstr(entry->type, "numeric") ||
 				 strstr(entry->type, "fixed"))) {
 				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 1);
+			} else if (!strcmp(cdrname, "calldate")) {
+				/* Skip calldate - the value has already been dup'd */
 			} else {
 				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 0);
 			}
