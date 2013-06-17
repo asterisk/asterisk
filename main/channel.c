@@ -1158,7 +1158,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 					const char *cid_name, const char *acctcode,
 					const char *exten, const char *context,
-					const char *linkedid, const enum ama_flags amaflag,
+					const char *linkedid, enum ama_flags amaflag,
 					const char *file, int line, const char *function,
 					const char *name_fmt, ...)
 {

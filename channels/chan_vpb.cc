@@ -2446,8 +2446,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	    return NULL;
 	}
 	ast_verb(4, "%s: New call for context [%s]\n", me->dev, context);
-	    
-	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, linkedid, 0, "%s", me->dev);
+
+	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, linkedid, AST_AMA_NONE, "%s", me->dev);
 	if (tmp) {
 		if (use_ast_ind == 1){
 			ast_channel_tech_set(tmp, &vpb_tech_indicate);
