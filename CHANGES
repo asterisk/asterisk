@@ -80,6 +80,11 @@ Queue
    Reports 'InUse' for no logged in agents or no free agents.
    Reports 'Idle' when an agent is free.
 
+ * The configuration options eventwhencalled and eventmemberstatus have been
+   removed.  As a result, the AMI events QueueMemberStatus, AgentCalled,
+   AgentConnect, AgentComplete, AgentDump, and AgentRingNoAnswer will always be
+   sent.  The "Variable" fields will also no longer exist on the Agent* events.
+
 ResetCDR
 ------------------
  * The 'e' option has been deprecated. Use the CDR_PROP function to re-enable
@@ -92,6 +97,12 @@ SetAMAFlags
 ------------------
  * This application is deprecated in favor of the CHANNEL function.
 
+UserEvent
+------------------
+ * UserEvent will now handle duplicate keys by overwriting the previous value
+   assigned to the key. UserEvent invocations will also be distributed to any
+   interested res_stasis applications.
+
 
 Core
 ------------------
@@ -99,6 +110,31 @@ Core
    that the REDIRECTING dialplan function can be used to set the redirecting
    reason to any string. It also allows for custom strings to be read as the
    redirecting reason from SIP Diversion headers.
+
+ * For DTMF blind and attended transfers, the channel variable TRANSFER_CONTEXT
+   must be on the channel initiating the transfer to have any effect.
+
+ * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND is no longer channel
+   driver specific.  If the channel variable is set on the transferrer channel,
+   the sound will be played to the target of an attended transfer.
+
+ * The channel variable BRIDGEPEER becomes a comma separated list of peers in
+   a multi-party bridge.  The BRIDGEPEER value can have a maximum of 10 peers
+   listed.  Any more peers in the bridge will not be included in the list.
+   BRIDGEPEER is not valid in holding bridges like parking since those channels
+   do not talk to each other even though they are in a bridge.
+
+ * The channel variable BRIDGEPVTCALLID is only valid for two party bridges
+   and will contain a value if the BRIDGEPEER's channel driver supports it.
+
+ * The channel variable DYNAMIC_PEERNAME is redundant with BRIDGEPEER and is
+   removed.  The more useful DYNAMIC_WHO_ACTIVATED gives the channel name that
+   activated the dynamic feature.
+
+ * The channel variables DYNAMIC_FEATURENAME and DYNAMIC_WHO_ACTIVATED are set
+   only on the channel executing the dynamic feature.  Executing a dynamic
+   feature on the bridge peer in a multi-party bridge will execute it on all
+   peers of the activating channel.
 
 AMI (Asterisk Manager Interface)
 ------------------
@@ -257,6 +293,11 @@ Parking
    The preferred way to configure parking is now through res_parking.conf while
    configuration through features.conf is not currently supported.
 
+ * res_parking uses the configuration framework. If an invalid configuration is
+   supplied, res_parking will fail to load or fail to reload. Previously parking
+   lots that were misconfigured would generally be accepted with certain
+   configuration problems leading to individual disabled parking lots.
+
  * Parked calls are now placed in bridges. This is a largely architectural change,
    but it could have some implications in allowing for new parked call retrieval
    methods and the contents of parking lots will be visible though certain bridge
@@ -296,6 +337,11 @@ Parking
    by default. Instead, it will follow the timeout rules of the parking lot. The
    old behavior can be reproduced by using the 'c' option.
 
+ * Added a channel variable PARKER_FLAT which stores the name of the extension
+   that would be used to come back to if comebacktoorigin was set to use. This can
+   be useful when comebacktoorigin is off if you still want to use the extensions
+   in the park-dial context that are generated to redial the parker on timeout.
+
 Realtime
 ------------------
  * Dynamic realtime tables for SIP Users can now include a 'path' field. This
@@ -310,6 +356,11 @@ Sorcery
  * All future modules which utilize Sorcery for object persistence must have a
    column named "id" within their schema when using the Sorcery realtime module.
    This column must be able to contain a string of up to 128 characters in length.
+
+Security Events Framework
+-------------------------
+ * Security Event timestamps now use ISO 8601 formatted date/time instead of the
+   "seconds-microseconds" format that it was using previously.
 
 
 Channel Drivers
@@ -401,22 +452,6 @@ XMPP
    If no resources exist or all are unavailable the device state is considered
    to be unavailable.
 
-Security Events Framework
--------------------------
- * Security Event timestamps now use ISO 8601 formatted date/time instead of the
-   "seconds-microseconds" format that it was using previously.
-
-Sorcery
-------------------
- * All future modules which utilize Sorcery for object persistence must have a
-   column named "id" within their schema when using the Sorcery realtime module.
-   This column must be able to contain a string of up to 128 characters in length.
-
-app_userevent
-------------------
- * UserEvent will now handle duplicate keys by overwriting the previous value
-   assigned to the key. UserEvent invocations will also be distributed to any
-   interested res_stasis applications.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
