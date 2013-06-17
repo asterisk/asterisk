@@ -10134,7 +10134,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if (digits) {
 					strncat(bc->dialed.number, bc->info_dad, sizeof(bc->dialed.number) - strlen(bc->dialed.number) - 1);
 					ast_channel_exten_set(ch->ast, bc->dialed.number);
-					ast_cdr_update(ch->ast);
 				}
 
 				ast_queue_frame(ch->ast, &fr);
