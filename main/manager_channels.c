@@ -638,6 +638,11 @@ static struct ast_manager_event_blob *channel_newexten(
 		return NULL;
 	}
 
+	/* Ignore any updates if we're hungup */
+	if (ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE)) {
+		return NULL;
+	}
+
 	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)
 		&& !strcmp(old_snapshot->appl, new_snapshot->appl)) {
 		return NULL;
