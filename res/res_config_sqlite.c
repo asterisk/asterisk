@@ -791,7 +791,7 @@ static int cdr_handler(struct ast_cdr *cdr)
 
 	AST_RWLIST_TRAVERSE(&(tbl->columns), col, list) {
 		if (col->isint) {
-			ast_cdr_getvar(cdr, col->name, &tmp, workspace, sizeof(workspace), 0, 1);
+			ast_cdr_format_var(cdr, col->name, &tmp, workspace, sizeof(workspace), 1);
 			if (!tmp) {
 				continue;
 			}
@@ -800,7 +800,7 @@ static int cdr_handler(struct ast_cdr *cdr)
 				ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", scannum);
 			}
 		} else {
-			ast_cdr_getvar(cdr, col->name, &tmp, workspace, sizeof(workspace), 0, 0);
+			ast_cdr_format_var(cdr, col->name, &tmp, workspace, sizeof(workspace), 0);
 			if (!tmp) {
 				continue;
 			}

@@ -170,12 +170,12 @@ static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 		return -1;
 
 	/* Disposition */
-	tmp = ast_cdr_disp2str(cdr->disposition);
+	tmp = ast_strdupa(ast_cdr_disp2str(cdr->disposition));
 	if (!rc_avpair_add(rh, tosend, PW_AST_DISPOSITION, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
 
 	/* AMA Flags */
-	tmp = ast_cdr_flags2str(cdr->amaflags);
+	tmp = ast_strdupa(ast_channel_amaflags2string(cdr->amaflags));
 	if (!rc_avpair_add(rh, tosend, PW_AST_AMA_FLAGS, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
 

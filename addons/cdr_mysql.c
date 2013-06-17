@@ -251,7 +251,7 @@ db_reconnect:
 					char timestr[128];
 					ast_localtime(&tv, &tm, ast_str_strlen(cdrzone) ? ast_str_buffer(cdrzone) : NULL);
 					ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
-					ast_cdr_setvar(cdr, "calldate", timestr, 0);
+					ast_cdr_setvar(cdr, "calldate", timestr);
 					cdrname = "calldate";
 				} else {
 					cdrname = "start";
@@ -277,9 +277,9 @@ db_reconnect:
 				 strstr(entry->type, "real") ||
 				 strstr(entry->type, "numeric") ||
 				 strstr(entry->type, "fixed"))) {
-				ast_cdr_getvar(cdr, cdrname, &value, workspace, sizeof(workspace), 0, 1);
+				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 1);
 			} else {
-				ast_cdr_getvar(cdr, cdrname, &value, workspace, sizeof(workspace), 0, 0);
+				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 0);
 			}
 
 			if (value) {

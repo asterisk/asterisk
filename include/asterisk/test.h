@@ -238,13 +238,39 @@ struct ast_test_info {
 /*!
  * \brief Generic test callback function
  *
- * \param error buffer string for failure results
+ * \param info The test info object
+ * \param cmd What to perform in the test
+ * \param test The actual test object being manipulated
  *
  * \retval AST_TEST_PASS for pass
  * \retval AST_TEST_FAIL for failure
  */
 typedef enum ast_test_result_state (ast_test_cb_t)(struct ast_test_info *info,
 	enum ast_test_command cmd, struct ast_test *test);
+
+/*!
+ * \since 12
+ * \brief A test initialization callback function
+ *
+ * \param info The test info object
+ * \param test The actual test object that will be manipulated
+ *
+ * \retval 0 success
+ * \retval other failure. This will fail the test.
+ */
+typedef int (ast_test_init_cb_t)(struct ast_test_info *info, struct ast_test *test);
+
+/*!
+ * \since 12
+ * \brief A test cleanup callback function
+ *
+ * \param info The test info object
+ * \param test The actual test object that was executed
+ *
+ * \retval 0 success
+ * \retval other failure. This will fail the test.
+ */
+typedef int (ast_test_cleanup_cb_t)(struct ast_test_info *info, struct ast_test *test);
 
 /*!
  * \brief unregisters a test with the test framework
@@ -267,6 +293,40 @@ int ast_test_unregister(ast_test_cb_t *cb);
 int ast_test_register(ast_test_cb_t *cb);
 
 /*!
+ * \since 12
+ * \brief Register an initialization function to be run before each test
+ * executes
+ *
+ * This function lets a registered test have an initialization function that
+ * will be run prior to test execution. Each category may have a single init
+ * function.
+ *
+ * If the initialization function returns a non-zero value, the test will not
+ * be executed and the result will be set to \ref AST_TEST_FAIL.
+ *
+ * \retval 0 success
+ * \retval other failure
+ */
+int ast_test_register_init(const char *category, ast_test_init_cb_t *cb);
+
+/*!
+ * \since 12
+ * \brief Register a cleanup function to be run after each test executes
+ *
+ * This function lets a registered test have a cleanup function that will be
+ * run immediately after test execution. Each category may have a single
+ * cleanup function.
+ *
+ * If the cleanup function returns a non-zero value, the test result will be
+ * set to \ref AST_TEST_FAIL.
+ *
+ * \retval 0 success
+ * \retval other failure
+ */
+int ast_test_register_cleanup(const char *category, ast_test_cleanup_cb_t *cb);
+
+
+/*!
  * \brief Unit test debug output.
  * \since 12.0.0
  *
@@ -276,6 +336,17 @@ int ast_test_register(ast_test_cb_t *cb);
  * \return Nothing
  */
 void ast_test_debug(struct ast_test *test, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
+/*!
+ * \brief Set the result of a test.
+ *
+ * If the caller of this function sets the result to AST_TEST_FAIL, returning
+ * AST_TEST_PASS from the test will not pass the test. This lets a test writer
+ * end and fail a test and continue on with logic, catching multiple failure
+ * conditions within a single test.
+ */
+void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state);
+
 
 /*!
  * \brief update test's status during testing.

@@ -36,20 +36,6 @@ extern "C" {
 #include "asterisk/event.h"
 
 /*!
- * \brief AMA Flags
- *
- * \note This must much up with the AST_CDR_* defines for AMA flags.
- */
-enum ast_cel_ama_flag {
-	AST_CEL_AMA_FLAG_NONE,
-	AST_CEL_AMA_FLAG_OMIT,
-	AST_CEL_AMA_FLAG_BILLING,
-	AST_CEL_AMA_FLAG_DOCUMENTATION,
-	/*! \brief Must be final entry */
-	AST_CEL_AMA_FLAG_TOTAL,
-};
-
-/*!
  * \brief CEL event types
  */
 enum ast_cel_event_type {
@@ -161,17 +147,6 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type);
  * \return the ast_cel_event_type given by the string
  */
 enum ast_cel_event_type ast_cel_str_to_event_type(const char *name);
-
-/*!
- * \brief Convert AMA flag to printable string
- * 
- * \param[in] flag the flag to convert to a string
- *
- * \since 1.8
- *
- * \return the string representation of the flag
- */
-const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag);
 
 /*! 
  * \brief Check and potentially retire a Linked ID

@@ -643,7 +643,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  -------------\n");
 	ast_cli(a->fd, "  Manager (AMI):               %s\n", check_manager_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", check_webmanager_enabled() ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Call data records:           %s\n", check_cdr_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Call data records:           %s\n", ast_cdr_is_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Realtime Architecture (ARA): %s\n", ast_realtime_enabled() ? "Enabled" : "Disabled");
 
 	/*! \todo we could check musiconhold, voicemail, smdi, adsi, queues  */
@@ -4318,6 +4318,21 @@ int main(int argc, char *argv[])
 
 	ast_http_init();		/* Start the HTTP server, if needed */
 
+	if (ast_indications_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_features_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_bridging_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_cdr_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -4347,21 +4362,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (load_pbx()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_indications_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_features_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_bridging_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

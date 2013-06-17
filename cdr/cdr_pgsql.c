@@ -222,9 +222,9 @@ static int pgsql_log(struct ast_cdr *cdr)
 		AST_RWLIST_RDLOCK(&psql_columns);
 		AST_RWLIST_TRAVERSE(&psql_columns, cur, list) {
 			/* For fields not set, simply skip them */
-			ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
+			ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 			if (strcmp(cur->name, "calldate") == 0 && !value) {
-				ast_cdr_getvar(cdr, "start", &value, buf, sizeof(buf), 0, 0);
+				ast_cdr_format_var(cdr, "start", &value, buf, sizeof(buf), 0);
 			}
 			if (!value) {
 				if (cur->notnull && !cur->hasdefault) {
@@ -286,7 +286,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			} else if (strcmp(cur->name, "duration") == 0 || strcmp(cur->name, "billsec") == 0) {
 				if (cur->type[0] == 'i') {
 					/* Get integer, no need to escape anything */
-					ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
+					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 					LENGTHEN_BUF2(13);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", value);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
@@ -302,18 +302,18 @@ static int pgsql_log(struct ast_cdr *cdr)
 			} else if (strcmp(cur->name, "disposition") == 0 || strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					/* Integer, no need to escape anything */
-					ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 1);
+					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 1);
 					LENGTHEN_BUF2(13);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", value);
 				} else {
 					/* Although this is a char field, there are no special characters in the values for these fields */
-					ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
+					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 					LENGTHEN_BUF2(31);
 					ast_str_append(&sql2, 0, "%s'%s'", first ? "" : ",", value);
 				}
 			} else {
 				/* Arbitrary field, could be anything */
-				ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
+				ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 				if (strncmp(cur->type, "int", 3) == 0) {
 					long long whatever;
 					if (value && sscanf(value, "%30lld", &whatever) == 1) {

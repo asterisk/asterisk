@@ -48,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 /*! \since 12
  * \brief The topic for test suite messages
@@ -80,9 +82,11 @@ struct ast_test {
 	 * CLI in addition to being saved off in status_str.
 	 */
 	struct ast_cli_args *cli;
-	enum ast_test_result_state state; /*!< current test state */
-	unsigned int time;                /*!< time in ms test took */
-	ast_test_cb_t *cb;                /*!< test callback function */
+	enum ast_test_result_state state;   /*!< current test state */
+	unsigned int time;                  /*!< time in ms test took */
+	ast_test_cb_t *cb;                  /*!< test callback function */
+	ast_test_init_cb_t *init_cb;        /*!< test init function */
+	ast_test_cleanup_cb_t *cleanup_cb;  /*!< test cleanup function */
 	AST_LIST_ENTRY(ast_test) entry;
 };
 
@@ -159,6 +163,40 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
 	return 0;
 }
 
+int ast_test_register_init(const char *category, ast_test_init_cb_t *cb)
+{
+	struct ast_test *test;
+	int registered = 1;
+
+	AST_LIST_LOCK(&tests);
+	AST_LIST_TRAVERSE(&tests, test, entry) {
+		if (!(test_cat_cmp(test->info.category, category))) {
+			test->init_cb = cb;
+			registered = 0;
+		}
+	}
+	AST_LIST_UNLOCK(&tests);
+
+	return registered;
+}
+
+int ast_test_register_cleanup(const char *category, ast_test_cleanup_cb_t *cb)
+{
+	struct ast_test *test;
+	int registered = 1;
+
+	AST_LIST_LOCK(&tests);
+	AST_LIST_TRAVERSE(&tests, test, entry) {
+		if (!(test_cat_cmp(test->info.category, category))) {
+			test->cleanup_cb = cb;
+			registered = 0;
+		}
+	}
+	AST_LIST_UNLOCK(&tests);
+
+	return registered;
+}
+
 int ast_test_register(ast_test_cb_t *cb)
 {
 	struct ast_test *test;
@@ -203,12 +241,32 @@ int ast_test_unregister(ast_test_cb_t *cb)
 static void test_execute(struct ast_test *test)
 {
 	struct timeval begin;
+	enum ast_test_result_state result;
 
 	ast_str_reset(test->status_str);
 
 	begin = ast_tvnow();
-	test->state = test->cb(&test->info, TEST_EXECUTE, test);
+	if (test->init_cb && test->init_cb(&test->info, test)) {
+		test->state = AST_TEST_FAIL;
+		goto exit;
+	}
+	result = test->cb(&test->info, TEST_EXECUTE, test);
+	if (test->state != AST_TEST_FAIL) {
+		test->state = result;
+	}
+	if (test->cleanup_cb && test->cleanup_cb(&test->info, test)) {
+		test->state = AST_TEST_FAIL;
+	}
+exit:
 	test->time = ast_tvdiff_ms(ast_tvnow(), begin);
+}
+
+void ast_test_set_result(struct ast_test *test, enum ast_test_result_state state)
+{
+	if (test->state == AST_TEST_FAIL || state == AST_TEST_NOT_RUN) {
+		return;
+	}
+	test->state = state;
 }
 
 static void test_xml_entry(struct ast_test *test, FILE *f)

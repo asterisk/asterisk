@@ -3770,8 +3770,8 @@ static int action_status(struct mansession *s, const struct message *m)
 			bridge_text[0] = '\0';
 		}
 		if (ast_channel_pbx(c)) {
-			if (ast_channel_cdr(c)) {
-				elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
+			if (!ast_tvzero(ast_channel_creationtime(c))) {
+				elapsed_seconds = now.tv_sec - ast_channel_creationtime(c).tv_sec;
 			}
 			astman_append(s,
 				"Event: Status\r\n"
@@ -5120,7 +5120,7 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			ast_config_AST_RUN_GROUP,
 			option_maxfiles,
 			AST_CLI_YESNO(ast_realtime_enabled()),
-			AST_CLI_YESNO(check_cdr_enabled()),
+			AST_CLI_YESNO(ast_cdr_is_enabled()),
 			AST_CLI_YESNO(check_webmanager_enabled())
 			);
 	return 0;
@@ -5228,8 +5228,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		ast_channel_lock(c);
 
 		bc = ast_bridged_channel(c);
-		if (ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_cdr(c)->start) / 1000);
+		if (!ast_tvzero(ast_channel_creationtime(c))) {
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(c)) / 1000);
 			durh = duration / 3600;
 			durm = (duration % 3600) / 60;
 			durs = duration % 60;

@@ -150,7 +150,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cel_event_record *r
 		return -1;
 	}
 	/* AMA Flags */
-	amaflags = ast_strdupa(ast_cel_get_ama_flag_name(record->amaflag));
+	amaflags = ast_strdupa(ast_channel_amaflags2string(record->amaflag));
 	if (!rc_avpair_add(rh, send, PW_AST_AMA_FLAGS, amaflags, strlen(amaflags), VENDOR_CODE)) {
 		return -1;
 	}

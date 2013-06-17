@@ -153,6 +153,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="NewAccountCode">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a Channel's AccountCode is changed.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="OldAccountCode">
+					<para>The channel's previous account code</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="DialBegin">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a dial action has started.</synopsis>
@@ -627,7 +638,8 @@ static struct ast_manager_event_blob *channel_newexten(
 		return NULL;
 	}
 
-	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)) {
+	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)
+		&& !strcmp(old_snapshot->appl, new_snapshot->appl)) {
 		return NULL;
 	}
 
@@ -662,10 +674,28 @@ static struct ast_manager_event_blob *channel_new_callerid(
 		ast_describe_caller_presentation(new_snapshot->caller_pres));
 }
 
+static struct ast_manager_event_blob *channel_new_accountcode(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot)
+{
+	if (!old_snapshot || !new_snapshot) {
+		return NULL;
+	}
+
+	if (!strcmp(old_snapshot->accountcode, new_snapshot->accountcode)) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(
+		EVENT_FLAG_CALL, "NewAccountCode",
+		"OldAccountCode: %s\r\n", old_snapshot->accountcode);
+}
+
 channel_snapshot_monitor channel_monitors[] = {
 	channel_state_change,
 	channel_newexten,
-	channel_new_callerid
+	channel_new_callerid,
+	channel_new_accountcode
 };
 
 static void channel_snapshot_update(void *data, struct stasis_subscription *sub,

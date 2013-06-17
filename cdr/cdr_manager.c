@@ -203,7 +203,7 @@ static int manager_log(struct ast_cdr *cdr)
 	    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
 	    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
 	    cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition),
-	    ast_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield,buf);
+	    ast_channel_amaflags2string(cdr->amaflags), cdr->uniqueid, cdr->userfield,buf);
 
 	return 0;
 }

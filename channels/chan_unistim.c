@@ -6392,7 +6392,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			ast_copy_string(lt->accountcode, v->value, sizeof(lt->accountcode));
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			int y;
-			y = ast_cdr_amaflags2int(v->value);
+			y = ast_channel_string2amaflag(v->value);
 			if (y < 0) {
 				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value,
 						v->lineno);

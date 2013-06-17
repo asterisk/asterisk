@@ -332,7 +332,7 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 }
 
 /*! \brief Helper function that does the beginning dialing per-appended channel */
-static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan)
+static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async)
 {
 	char numsubst[AST_MAX_EXTENSION];
 	int res = 1;
@@ -351,9 +351,10 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 	} else {
-		if (chan)
+		if (chan) {
 			ast_poll_channel_add(chan, channel->owner);
-		ast_channel_publish_dial(chan, channel->owner, channel->device, NULL);
+		}
+		ast_channel_publish_dial(async ? NULL : chan, channel->owner, channel->device, NULL);
 		res = 1;
 		ast_verb(3, "Called %s\n", numsubst);
 	}
@@ -362,7 +363,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 }
 
 /*! \brief Helper function that does the beginning dialing per dial structure */
-static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
+static int begin_dial(struct ast_dial *dial, struct ast_channel *chan, int async)
 {
 	struct ast_dial_channel *channel = NULL;
 	int success = 0;
@@ -370,7 +371,7 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 	/* Iterate through channel list, requesting and calling each one */
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		success += begin_dial_channel(channel, chan);
+		success += begin_dial_channel(channel, chan, async);
 	}
 	AST_LIST_UNLOCK(&dial->channels);
 
@@ -409,7 +410,7 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	AST_LIST_UNLOCK(&dial->channels);
 
 	/* Finally give it a go... send it out into the world */
-	begin_dial_channel(channel, chan);
+	begin_dial_channel(channel, chan, chan ? 0 : 1);
 
 	/* Drop the original channel */
 	ast_hangup(original);
@@ -819,7 +820,7 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 	}
 
 	/* Dial each requested channel */
-	if (!begin_dial(dial, chan))
+	if (!begin_dial(dial, chan, async))
 		return AST_DIAL_RESULT_FAILED;
 
 	/* If we are running async spawn a thread and send it away... otherwise block here */

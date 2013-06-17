@@ -292,6 +292,75 @@ int ast_bridge_queue_action(struct ast_bridge *bridge, struct ast_frame *action)
 	return 0;
 }
 
+void ast_bridge_update_accountcodes(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	struct ast_bridge_channel *other = NULL;
+
+	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+		if (other == swap) {
+			continue;
+		}
+
+		if (!ast_strlen_zero(ast_channel_accountcode(bridge_channel->chan)) && ast_strlen_zero(ast_channel_peeraccount(other->chan))) {
+			ast_debug(1, "Setting peeraccount to %s for %s from data on channel %s\n",
+					ast_channel_accountcode(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
+			ast_channel_peeraccount_set(other->chan, ast_channel_accountcode(bridge_channel->chan));
+		}
+		if (!ast_strlen_zero(ast_channel_accountcode(other->chan)) && ast_strlen_zero(ast_channel_peeraccount(bridge_channel->chan))) {
+			ast_debug(1, "Setting peeraccount to %s for %s from data on channel %s\n",
+					ast_channel_accountcode(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
+			ast_channel_peeraccount_set(bridge_channel->chan, ast_channel_accountcode(other->chan));
+		}
+		if (!ast_strlen_zero(ast_channel_peeraccount(bridge_channel->chan)) && ast_strlen_zero(ast_channel_accountcode(other->chan))) {
+			ast_debug(1, "Setting accountcode to %s for %s from data on channel %s\n",
+					ast_channel_peeraccount(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
+			ast_channel_accountcode_set(other->chan, ast_channel_peeraccount(bridge_channel->chan));
+		}
+		if (!ast_strlen_zero(ast_channel_peeraccount(other->chan)) && ast_strlen_zero(ast_channel_accountcode(bridge_channel->chan))) {
+			ast_debug(1, "Setting accountcode to %s for %s from data on channel %s\n",
+					ast_channel_peeraccount(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
+			ast_channel_accountcode_set(bridge_channel->chan, ast_channel_peeraccount(other->chan));
+		}
+		if (bridge->num_channels == 2) {
+			if (strcmp(ast_channel_accountcode(bridge_channel->chan), ast_channel_peeraccount(other->chan))) {
+				ast_debug(1, "Changing peeraccount from %s to %s on %s to match channel %s\n",
+						ast_channel_peeraccount(other->chan), ast_channel_peeraccount(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
+				ast_channel_peeraccount_set(other->chan, ast_channel_accountcode(bridge_channel->chan));
+			}
+			if (strcmp(ast_channel_accountcode(other->chan), ast_channel_peeraccount(bridge_channel->chan))) {
+				ast_debug(1, "Changing peeraccount from %s to %s on %s to match channel %s\n",
+						ast_channel_peeraccount(bridge_channel->chan), ast_channel_peeraccount(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
+				ast_channel_peeraccount_set(bridge_channel->chan, ast_channel_accountcode(other->chan));
+			}
+		}
+	}
+}
+
+void ast_bridge_update_linkedids(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	struct ast_bridge_channel *other = NULL;
+	const char *oldest_linkedid = ast_channel_linkedid(bridge_channel->chan);
+
+	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+		if (other == swap) {
+			continue;
+		}
+		oldest_linkedid = ast_channel_oldest_linkedid(oldest_linkedid, ast_channel_linkedid(other->chan));
+	}
+
+	if (ast_strlen_zero(oldest_linkedid)) {
+		return;
+	}
+
+	ast_channel_linkedid_set(bridge_channel->chan, oldest_linkedid);
+	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+		if (other == swap) {
+			continue;
+		}
+		ast_channel_linkedid_set(other->chan, oldest_linkedid);
+	}
+}
+
 int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr)
 {
 	struct ast_frame *dup;
@@ -528,6 +597,14 @@ static void bridge_channel_pull(struct ast_bridge_channel *bridge_channel)
 	bridge->v_table->pull(bridge, bridge_channel);
 
 	ast_bridge_channel_clear_roles(bridge_channel);
+
+	/* If we are not going to be hung up after leaving a bridge, and we were an
+	 * outgoing channel, clear the outgoing flag.
+	 */
+	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING)
+			&& (ast_channel_softhangup_internal_flag(bridge_channel->chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE))) {
+		ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING);
+	}
 
 	bridge_dissolve_check(bridge_channel);
 

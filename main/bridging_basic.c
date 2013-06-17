@@ -131,6 +131,9 @@ static int bridge_basic_push(struct ast_bridge *self, struct ast_bridge_channel 
 		return -1;
 	}
 
+	ast_bridge_update_accountcodes(self, bridge_channel, swap);
+	ast_bridge_update_linkedids(self, bridge_channel, swap);
+
 	return ast_bridge_base_v_table.push(self, bridge_channel, swap);
 }
 

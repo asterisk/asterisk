@@ -77,7 +77,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/translate.h"
 #include "asterisk/md5.h"
-#include "asterisk/cdr.h"
 #include "asterisk/crypto.h"
 #include "asterisk/acl.h"
 #include "asterisk/manager.h"
@@ -12802,7 +12801,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "language")) {
 				ast_string_field_set(user, language, v->value);
 			} else if (!strcasecmp(v->name, "amaflags")) {
-				format = ast_cdr_amaflags2int(v->value);
+				format = ast_channel_string2amaflag(v->value);
 				if (format < 0) {
 					ast_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 				} else {
@@ -13273,7 +13272,7 @@ static int set_config(const char *config_file, int reload, int forced)
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(mohsuggest, v->value, sizeof(mohsuggest));
 		} else if (!strcasecmp(v->name, "amaflags")) {
-			format = ast_cdr_amaflags2int(v->value);
+			format = ast_channel_string2amaflag(v->value);
 			if (format < 0) {
 				ast_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 			} else {
@@ -14513,7 +14512,7 @@ static int users_data_provider_get(const struct ast_data_search *search,
 			continue;
 		}
 		ast_data_add_int(data_enum_node, "value", user->amaflags);
-		ast_data_add_str(data_enum_node, "text", ast_cdr_flags2str(user->amaflags));
+		ast_data_add_str(data_enum_node, "text", ast_channel_amaflags2string(user->amaflags));
 
 		ast_data_add_bool(data_user, "access-control", ast_acl_list_is_empty(user->acl) ? 0 : 1);
 

@@ -60,7 +60,7 @@ AST_THREADSTORAGE(syslog_buf);
 
 static const char name[] = "cdr-syslog";
 
-struct cdr_config {
+struct cdr_syslog_config {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(ident);
 		AST_STRING_FIELD(format);
@@ -68,14 +68,14 @@ struct cdr_config {
 	int facility;
 	int priority;
 	ast_mutex_t lock;
-	AST_LIST_ENTRY(cdr_config) list;
+	AST_LIST_ENTRY(cdr_syslog_config) list;
 };
 
-static AST_RWLIST_HEAD_STATIC(sinks, cdr_config);
+static AST_RWLIST_HEAD_STATIC(sinks, cdr_syslog_config);
 
 static void free_config(void)
 {
-	struct cdr_config *sink;
+	struct cdr_syslog_config *sink;
 	while ((sink = AST_RWLIST_REMOVE_HEAD(&sinks, list))) {
 		ast_mutex_destroy(&sink->lock);
 		ast_free(sink);
@@ -86,7 +86,7 @@ static int syslog_log(struct ast_cdr *cdr)
 {
 	struct ast_channel *dummy;
 	struct ast_str *str;
-	struct cdr_config *sink;
+	struct cdr_syslog_config *sink;
 
 	/* Batching saves memory management here.  Otherwise, it's the same as doing an
 	   allocation and free each time. */
@@ -174,7 +174,7 @@ static int load_config(int reload)
 	}
 
 	while ((catg = ast_category_browse(cfg, catg))) {
-		struct cdr_config *sink;
+		struct cdr_syslog_config *sink;
 
 		if (!strcasecmp(catg, "general")) {
 			continue;
@@ -186,7 +186,7 @@ static int load_config(int reload)
 			continue;
 		}
 
-		sink = ast_calloc_with_stringfields(1, struct cdr_config, 1024);
+		sink = ast_calloc_with_stringfields(1, struct cdr_syslog_config, 1024);
 
 		if (!sink) {
 			ast_log(AST_LOG_ERROR,

@@ -124,10 +124,13 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
 	}
 
-	if (ast_test_flag(&config, CONFIG_DISPOSITIONSTRING))
-		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
-	else
+	if (ast_test_flag(&config, CONFIG_DISPOSITIONSTRING)) {
+		char *disposition;
+		disposition = ast_strdupa(ast_cdr_disp2str(cdr->disposition));
+		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(disposition) + 1, 0, disposition, 0, NULL);
+	} else {
 		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+	}
 	SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(stmt, 13, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 

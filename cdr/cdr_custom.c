@@ -67,20 +67,20 @@ AST_THREADSTORAGE(custom_buf);
 
 static const char name[] = "cdr-custom";
 
-struct cdr_config {
+struct cdr_custom_config {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(filename);
 		AST_STRING_FIELD(format);
 		);
 	ast_mutex_t lock;
-	AST_RWLIST_ENTRY(cdr_config) list;
+	AST_RWLIST_ENTRY(cdr_custom_config) list;
 };
 
-static AST_RWLIST_HEAD_STATIC(sinks, cdr_config);
+static AST_RWLIST_HEAD_STATIC(sinks, cdr_custom_config);
 
 static void free_config(void)
 {
-	struct cdr_config *sink;
+	struct cdr_custom_config *sink;
 	while ((sink = AST_RWLIST_REMOVE_HEAD(&sinks, list))) {
 		ast_mutex_destroy(&sink->lock);
 		ast_free(sink);
@@ -103,7 +103,7 @@ static int load_config(void)
 	var = ast_variable_browse(cfg, "mappings");
 	while (var) {
 		if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
-			struct cdr_config *sink = ast_calloc_with_stringfields(1, struct cdr_config, 1024);
+			struct cdr_custom_config *sink = ast_calloc_with_stringfields(1, struct cdr_custom_config, 1024);
 
 			if (!sink) {
 				ast_log(LOG_ERROR, "Unable to allocate memory for configuration settings.\n");
@@ -130,7 +130,7 @@ static int custom_log(struct ast_cdr *cdr)
 {
 	struct ast_channel *dummy;
 	struct ast_str *str;
-	struct cdr_config *config;
+	struct cdr_custom_config *config;
 
 	/* Batching saves memory management here.  Otherwise, it's the same as doing an allocation and free each time. */
 	if (!(str = ast_str_thread_get(&custom_buf, 16))) {

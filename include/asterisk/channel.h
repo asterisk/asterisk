@@ -131,11 +131,13 @@ References:
 extern "C" {
 #endif
 
-#define AST_MAX_EXTENSION	80	/*!< Max length of an extension */
-#define AST_MAX_CONTEXT		80	/*!< Max length of a context */
-#define AST_CHANNEL_NAME	80	/*!< Max length of an ast_channel name */
-#define MAX_LANGUAGE		40	/*!< Max length of the language setting */
-#define MAX_MUSICCLASS		80	/*!< Max length of the music class setting */
+#define AST_MAX_EXTENSION       80  /*!< Max length of an extension */
+#define AST_MAX_CONTEXT         80  /*!< Max length of a context */
+#define AST_MAX_ACCOUNT_CODE    20  /*!< Max length of an account code */
+#define AST_CHANNEL_NAME        80  /*!< Max length of an ast_channel name */
+#define MAX_LANGUAGE            40  /*!< Max length of the language setting */
+#define MAX_MUSICCLASS          80  /*!< Max length of the music class setting */
+#define AST_MAX_USER_FIELD      256 /*!< Max length of the channel user field */
 
 #include "asterisk/frame.h"
 #include "asterisk/chanvars.h"
@@ -915,6 +917,10 @@ enum {
 	 * to continue.
 	 */
 	AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT = (1 << 22),
+	/*!
+	 * This flag indicates that the channel was originated.
+	 */
+	AST_FLAG_ORIGINATED = (1 << 23),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -1028,6 +1034,16 @@ enum channelreloadreason {
 };
 
 /*!
+ * \brief Channel AMA Flags
+ */
+enum ama_flags {
+	AST_AMA_NONE = 0,
+	AST_AMA_OMIT,
+	AST_AMA_BILLING,
+	AST_AMA_DOCUMENTATION,
+};
+
+/*!
  * \note None of the datastore API calls lock the ast_channel they are using.
  *       So, the channel should be locked before calling the functions that
  *       take a channel argument.
@@ -1100,7 +1116,7 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 			    const char *cid_name, const char *acctcode,
 			    const char *exten, const char *context,
-			    const char *linkedid, const int amaflag,
+			    const char *linkedid, enum ama_flags amaflag,
 			    const char *file, int line, const char *function,
 			    const char *name_fmt, ...);
 
@@ -1591,7 +1607,6 @@ int ast_answer(struct ast_channel *chan);
  * \brief Answer a channel
  *
  * \param chan channel to answer
- * \param cdr_answer flag to control whether any associated CDR should be marked as 'answered'
  *
  * This function answers a channel and handles all necessary call
  * setup functions.
@@ -1607,14 +1622,13 @@ int ast_answer(struct ast_channel *chan);
  * \retval 0 on success
  * \retval non-zero on failure
  */
-int ast_raw_answer(struct ast_channel *chan, int cdr_answer);
+int ast_raw_answer(struct ast_channel *chan);
 
 /*!
  * \brief Answer a channel, with a selectable delay before returning
  *
  * \param chan channel to answer
  * \param delay maximum amount of time to wait for incoming media
- * \param cdr_answer flag to control whether any associated CDR should be marked as 'answered'
  *
  * This function answers a channel and handles all necessary call
  * setup functions.
@@ -1630,7 +1644,7 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer);
  * \retval 0 on success
  * \retval non-zero on failure
  */
-int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
+int __ast_answer(struct ast_channel *chan, unsigned int delay);
 
 /*!
  * \brief Execute a Gosub call on the channel before a call is placed.
@@ -2197,6 +2211,28 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 void ast_deactivate_generator(struct ast_channel *chan);
 
 /*!
+ * \since 12
+ * \brief Obtain how long the channel since the channel was created
+ *
+ * \param chan The channel object
+ *
+ * \retval 0 if the time value cannot be computed (or you called this really fast)
+ * \retval The number of seconds the channel has been up
+ */
+int ast_channel_get_duration(struct ast_channel *chan);
+
+/*!
+ * \since 12
+ * \brief Obtain how long it has been since the channel was answered
+ *
+ * \param chan The channel object
+ *
+ * \retval 0 if the channel isn't answered (or you called this really fast)
+ * \retval The number of seconds the channel has been up
+ */
+int ast_channel_get_up_time(struct ast_channel *chan);
+
+/*!
  * \brief Set caller ID number, name and ANI and generate AMI event.
  *
  * \note Use ast_channel_set_caller() and ast_channel_set_caller_event() instead.
@@ -2726,12 +2762,6 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
 
 /*! @} End channel search functions. */
-
-/*!
-  \brief propagate the linked id between chan and peer
- */
-void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *peer);
-
 
 /*!
  * \brief Initialize the given name structure.
@@ -3806,6 +3836,26 @@ void ast_channel_unlink(struct ast_channel *chan);
  */
 void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast_control_pvt_cause_code *cause_code, int datalen);
 
+/*!
+ * \since 12
+ * \brief Convert a string to a detail record AMA flag
+ *
+ * \param flag string form of flag
+ *
+ * \retval the enum (integer) form of the flag
+ */
+enum ama_flags ast_channel_string2amaflag(const char *flag);
+
+/*!
+ * \since 12
+ * \brief Convert the enum representation of an AMA flag to a string representation
+ *
+ * \param flags integer flag
+ *
+ * \retval A string representation of the flag
+ */
+const char *ast_channel_amaflags2string(enum ama_flags flags);
+
 /* ACCESSOR FUNTIONS */
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);
@@ -3863,8 +3913,8 @@ char ast_channel_sending_dtmf_digit(const struct ast_channel *chan);
 void ast_channel_sending_dtmf_digit_set(struct ast_channel *chan, char value);
 struct timeval ast_channel_sending_dtmf_tv(const struct ast_channel *chan);
 void ast_channel_sending_dtmf_tv_set(struct ast_channel *chan, struct timeval value);
-int ast_channel_amaflags(const struct ast_channel *chan);
-void ast_channel_amaflags_set(struct ast_channel *chan, int value);
+enum ama_flags ast_channel_amaflags(const struct ast_channel *chan);
+void ast_channel_amaflags_set(struct ast_channel *chan, enum ama_flags value);
 int ast_channel_epfd(const struct ast_channel *chan);
 void ast_channel_epfd_set(struct ast_channel *chan, int value);
 int ast_channel_fdno(const struct ast_channel *chan);
@@ -3988,6 +4038,8 @@ void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *valu
 void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value);
 struct timeval ast_channel_creationtime(struct ast_channel *chan);
 void ast_channel_creationtime_set(struct ast_channel *chan, struct timeval *value);
+struct timeval ast_channel_answertime(struct ast_channel *chan);
+void ast_channel_answertime_set(struct ast_channel *chan, struct timeval *value);
 
 /* List getters */
 struct ast_hangup_handler_list *ast_channel_hangup_handlers(struct ast_channel *chan);
@@ -4277,5 +4329,28 @@ int ast_channel_move(struct ast_channel *dest, struct ast_channel *source);
  * \retval non-zero Failure
  */
 int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *endpoint);
+
+/*!
+ * \brief Return the oldest linkedid between two channels.
+ *
+ * A channel linkedid is derived from the channel uniqueid which is formed like this:
+ * [systemname-]ctime.seq
+ *
+ * The systemname, and the dash are optional, followed by the epoch time followed by an
+ * integer sequence.  Note that this is not a decimal number, since 1.2 is less than 1.11
+ * in uniqueid land.
+ *
+ * To compare two uniqueids, we parse out the integer values of the time and the sequence
+ * numbers and compare them, with time trumping sequence.
+ *
+ * \param a The linkedid value of the first channel to compare
+ * \param b The linkedid value of the second channel to compare
+ *
+ * \retval NULL on failure
+ * \retval The oldest linkedid value
+ * \since 12.0.0
+*/
+const char *ast_channel_oldest_linkedid(const char *a, const char *b);
+
 
 #endif /* _ASTERISK_CHANNEL_H */

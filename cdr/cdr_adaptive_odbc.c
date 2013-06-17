@@ -433,7 +433,7 @@ static int odbc_log(struct ast_cdr *cdr)
 				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S", &tm);
 				colptr = colbuf;
 			} else {
-				ast_cdr_getvar(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), 0, datefield ? 0 : 1);
+				ast_cdr_format_var(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), datefield ? 0 : 1);
 			}
 
 			if (colptr) {
@@ -472,9 +472,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					 * form (but only when we're dealing with a character-based field).
 					 */
 					if (strcasecmp(entry->name, "disposition") == 0) {
-						ast_cdr_getvar(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0, 0);
+						ast_cdr_format_var(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0);
 					} else if (strcasecmp(entry->name, "amaflags") == 0) {
-						ast_cdr_getvar(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0, 0);
+						ast_cdr_format_var(cdr, entry->name, &colptr, colbuf, sizeof(colbuf), 0);
 					}
 
 					/* Truncate too-long fields */

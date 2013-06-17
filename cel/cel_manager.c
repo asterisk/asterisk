@@ -129,7 +129,7 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		record.application_name,
 		record.application_data,
 		start_time,
-		ast_cel_get_ama_flag_name(record.amaflag),
+		ast_channel_amaflags2string(record.amaflag),
 		record.unique_id,
 		record.linked_id,
 		record.user_field,

@@ -1032,6 +1032,37 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
 int ast_bridge_queue_action(struct ast_bridge *bridge, struct ast_frame *action);
 
 /*!
+ * \brief Update the linkedid for all channels in a bridge
+ * \since 12.0.0
+ *
+ * \param bridge The bridge to update the linkedids on
+ * \param bridge_channel The channel joining the bridge
+ * \param swap The channel being swapped out of the bridge. May be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function.
+ * \note This API call is meant for internal bridging operations.
+ */
+void ast_bridge_update_linkedids(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+
+/*!
+ * \brief Update the accountcodes for a channel entering a bridge
+ * \since 12.0.0
+ *
+ * This function updates the accountcode and peeraccount on channels in two-party
+ * bridges. In multi-party bridges, peeraccount is not set - it doesn't make much sense -
+ * however accountcode propagation will still occur if the channel joining has an
+ * accountcode.
+ *
+ * \param bridge The bridge to update the accountcodes in
+ * \param bridge_channel The channel joining the bridge
+ * \param swap The channel being swapped out of the bridge. May be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function.
+ * \note This API call is meant for internal bridging operations.
+ */
+void ast_bridge_update_accountcodes(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+
+/*!
  * \brief Write a frame to the specified bridge_channel.
  * \since 12.0.0
  *

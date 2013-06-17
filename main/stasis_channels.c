@@ -156,10 +156,17 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	ast_string_field_set(snapshot, exten, ast_channel_exten(chan));
 
 	ast_string_field_set(snapshot, caller_name,
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
+		S_COR(ast_channel_caller(chan)->ani.name.valid, ast_channel_caller(chan)->ani.name.str,
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "")));
 	ast_string_field_set(snapshot, caller_number,
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
-
+		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str,
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "")));
+	ast_string_field_set(snapshot, caller_dnid, S_OR(ast_channel_dialed(chan)->number.str, ""));
+	ast_string_field_set(snapshot, caller_subaddr,
+		S_COR(ast_channel_caller(chan)->ani.subaddress.valid, ast_channel_caller(chan)->ani.subaddress.str,
+		S_COR(ast_channel_caller(chan)->id.subaddress.valid, ast_channel_caller(chan)->id.subaddress.str, "")));
+	ast_string_field_set(snapshot, dialed_subaddr,
+		S_COR(ast_channel_dialed(chan)->subaddress.valid, ast_channel_dialed(chan)->subaddress.str, ""));
 	ast_string_field_set(snapshot, caller_ani,
 		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""));
 	ast_string_field_set(snapshot, caller_rdnis,
@@ -493,20 +500,6 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
 	return obj->blob;
 }
 
-void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob)
-{
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-
-	if (!blob) {
-		blob = ast_json_null();
-	}
-
-	message = ast_channel_blob_create(chan, type, blob);
-	if (message) {
-		stasis_publish(ast_channel_topic(chan), message);
-	}
-}
-
 void ast_channel_publish_snapshot(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
@@ -524,6 +517,20 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 
 	ast_assert(ast_channel_topic(chan) != NULL);
 	stasis_publish(ast_channel_topic(chan), message);
+}
+
+void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	if (!blob) {
+		blob = ast_json_null();
+	}
+
+	message = ast_channel_blob_create(chan, type, blob);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
 }
 
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)

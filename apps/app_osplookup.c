@@ -2814,7 +2814,7 @@ static int ospfinished_exec(
 	int inhandle = OSP_INVALID_HANDLE;
 	int outhandle = OSP_INVALID_HANDLE;
 	int recorded = 0;
-	time_t start, connect, end;
+	time_t start = 0, connect = 0, end = 0;
 	unsigned int release;
 	char buffer[OSP_SIZE_INTSTR];
 	char inqos[OSP_SIZE_QOSSTR] = { 0 };
@@ -2866,19 +2866,18 @@ static int ospfinished_exec(
 	}
 	ast_debug(1, "OSPFinish: cause '%d'\n", cause);
 
-	if (ast_channel_cdr(chan)) {
-		start = ast_channel_cdr(chan)->start.tv_sec;
-		connect = ast_channel_cdr(chan)->answer.tv_sec;
-		if (connect) {
-			end = time(NULL);
-		} else {
-			end = connect;
-		}
-	} else {
-		start = 0;
-		connect = 0;
-		end = 0;
+	if (!ast_tvzero(ast_channel_creationtime(chan))) {
+		start = ast_channel_creationtime(chan).tv_sec;
 	}
+	if (!ast_tvzero(ast_channel_answertime(chan))) {
+		connect = ast_channel_answertime(chan).tv_sec;
+	}
+	if (connect) {
+		end = time(NULL);
+	} else {
+		end = connect;
+	}
+
 	ast_debug(1, "OSPFinish: start '%ld'\n", start);
 	ast_debug(1, "OSPFinish: connect '%ld'\n", connect);
 	ast_debug(1, "OSPFinish: end '%ld'\n", end);

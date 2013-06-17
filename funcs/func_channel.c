@@ -343,13 +343,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-/*
- * BUGBUG add CHANNEL(after_bridge_goto)=<parseable-goto> Sets an after bridge goto datastore property on the channel.
- * CHANNEL(after_bridge_goto)=<empty> Deletes any after bridge goto datastore property on the channel.
- *
- * BUGBUG add CHANNEL(dtmf_features)=tkhwx sets channel dtmf features to specified. (transfer, park, hangup, monitor, mixmonitor)
- */
-
 #define locked_copy_string(chan, dest, source, len) \
 	do { \
 		ast_channel_lock(chan); \
@@ -450,7 +443,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 
 		ast_channel_lock(chan);
 		p = ast_bridged_channel(chan);
-		if (p || ast_channel_tech(chan) || ast_channel_cdr(chan)) /* dummy channel? if so, we hid the peer name in the language */
+		if (p || ast_channel_tech(chan)) /* dummy channel? if so, we hid the peer name in the language */
 			ast_copy_string(buf, (p ? ast_channel_name(p) : ""), len);
 		else {
 			/* a dummy channel can still pass along bridged peer info via
@@ -525,7 +518,7 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		locked_string_field_set(chan, userfield, value);
 	else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);
-		if(isdigit(*value)) {
+		if (isdigit(*value)) {
 			int amaflags;
 			sscanf(value, "%30d", &amaflags);
 			ast_channel_amaflags_set(chan, amaflags);

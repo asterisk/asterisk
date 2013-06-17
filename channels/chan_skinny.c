@@ -67,7 +67,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/say.h"
-#include "asterisk/cdr.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features.h"
 #include "asterisk/app.h"
@@ -4477,7 +4476,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				ast_str_reset(tmp_str);
 				ast_cli(fd, "Language:         %s\n", S_OR(l->language, "<not set>"));
 				ast_cli(fd, "Accountcode:      %s\n", S_OR(l->accountcode, "<not set>"));
-				ast_cli(fd, "AmaFlag:          %s\n", ast_cdr_flags2str(l->amaflags));
+				ast_cli(fd, "AmaFlag:          %s\n", ast_channel_amaflags2string(l->amaflags));
 				ast_cli(fd, "CallerId Number:  %s\n", S_OR(l->cid_num, "<not set>"));
 				ast_cli(fd, "CallerId Name:    %s\n", S_OR(l->cid_name, "<not set>"));
 				ast_cli(fd, "Hide CallerId:    %s\n", (l->hidecallerid ? "Yes" : "No"));
@@ -4535,7 +4534,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				ast_str_reset(tmp_str);
 				astman_append(s, "Language: %s\r\n", S_OR(l->language, "<not set>"));
 				astman_append(s, "Accountcode: %s\r\n", S_OR(l->accountcode, "<not set>"));
-				astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(l->amaflags));
+				astman_append(s, "AMAflags: %s\r\n", ast_channel_amaflags2string(l->amaflags));
 				astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), l->cid_name, l->cid_num, ""));
 				astman_append(s, "HideCallerId: %s\r\n", (l->hidecallerid ? "Yes" : "No"));
 				astman_append(s, "CFwdAll: %s\r\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
@@ -7809,7 +7808,7 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 			}
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
-				int tempamaflags = ast_cdr_amaflags2int(v->value);
+				int tempamaflags = ast_channel_string2amaflag(v->value);
 				if (tempamaflags < 0) {
 					ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 				} else {

@@ -152,6 +152,17 @@ struct timeval ast_tvadd(struct timeval a, struct timeval b);
 struct timeval ast_tvsub(struct timeval a, struct timeval b);
 
 /*!
+ * \since 12
+ * \brief Formats a duration into HH:MM:SS
+ *
+ * \param duration The time (in seconds) to format
+ * \param buf A buffer to hold the formatted string'
+ * \param length The size of the buffer
+ */
+void ast_format_duration_hh_mm_ss(int duration, char *buf, size_t length);
+
+
+/*!
  * \brief Calculate remaining milliseconds given a starting timestamp
  * and upper bound
  *

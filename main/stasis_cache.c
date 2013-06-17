@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj2.h"
 #include "asterisk/hashtab.h"
+#include "asterisk/stasis_internal.h"
 #include "asterisk/stasis.h"
 #include "asterisk/utils.h"
 
@@ -486,7 +487,7 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 
 	caching_topic->id_fn = id_fn;
 
-	sub = stasis_subscribe(original_topic, caching_topic_exec, caching_topic);
+	sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0);
 	if (sub == NULL) {
 		return NULL;
 	}

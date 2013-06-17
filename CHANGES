@@ -11,6 +11,94 @@
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------
 
+Applications
+------------------
+
+AgentMonitorOutgoing
+------------------
+ * The 'c' option has been removed. It is not possible to modify the name of a
+   channel involved in a CDR.
+
+ForkCDR
+------------------
+ * ForkCDR no longer automatically resets the forked CDR. See the 'r' option
+   for more information.
+
+ * Variables are no longer purged from the original CDR. See the 'v' option for
+   more information.
+
+ * The 'A' option has been removed. The Answer time on a CDR is never updated
+   once set.
+
+ * The 'd' option has been removed. The disposition on a CDR is a function of
+   the state of the channel and cannot be altered.
+
+ * The 'D' option has been removed. Who the Party B is on a CDR is a function
+   of the state of the respective channels, and cannot be altered.
+
+ * The 'r' option has been changed. Previously, ForkCDR always reset the CDR
+   such that the start time and, if applicable, the answer time was updated.
+   Now, by default, ForkCDR simply forks the CDR, maintaining any times. The
+   'r' option now triggers the Reset, setting the start time (and answer time
+   if applicable) to the current time.
+
+ * The 's' option has been removed. A variable can be set on the original CDR
+   if desired using the CDR function, and removed from a forked CDR using the
+   same function.
+
+ * The 'T' option has been removed. The concept of DONT_TOUCH and LOCKED no
+   longer applies in the CDR engine.
+
+ * The 'v' option now prevents the copy of the variables from the original CDR
+   to the forked CDR. Previously the variables were always copied but were
+   removed from the original. Removing variables from a CDR can have unintended
+   side effects - this option allows the user to prevent propagation of
+   variables from the original to the forked without modifying the original.
+
+MeetMe
+-------------------
+* Added the 'n' option to MeetMe to prevent application of the DENOISE function
+  to a channel joining a conference. Some channel drivers that vary the number
+  of audio samples in a voice frame will experience significant quality problems
+  if a denoiser is attached to the channel; this option gives them the ability
+  to remove the denoiser without having to unload func_speex.
+
+NoCDR
+------------------
+ * The NoCDR application is deprecated. Please use the CDR_PROP function to
+   disable CDRs.
+ * While the NoCDR application will prevent CDRs for a channel from being
+   propagated to registered CDR backends, it will not prevent that data from
+   being collected. Hence, a subsequent call to ResetCDR or the CDR_PROP
+   function that enables CDRs on a channel will restore those records that have
+   not yet been finalized.
+
+Queue
+-------------------
+ * Add queue available hint.  exten => 8501,hint,Queue:markq_avail
+   Note: the suffix '_avail' after the queuename.
+   Reports 'InUse' for no logged in agents or no free agents.
+   Reports 'Idle' when an agent is free.
+
+ResetCDR
+------------------
+ * The 'e' option has been deprecated. Use the CDR_PROP function to re-enable
+   CDRs when they were previously disabled on a channel.
+ * The 'w' and 'a' options have been removed. Dispatching CDRs to registered
+   backends occurs on an as-needed basis in order to preserve linkedid
+   propagation and other needed behavior.
+
+SetAMAFlags
+------------------
+ * This application is deprecated in favor of the CHANNEL function.
+
+
+Core
+------------------
+ * Redirecting reasons can now be set to arbitrary strings. This means
+   that the REDIRECTING dialplan function can be used to set the redirecting
+   reason to any string. It also allows for custom strings to be read as the
+   redirecting reason from SIP Diversion headers.
 
 AMI (Asterisk Manager Interface)
 ------------------
@@ -72,6 +160,9 @@ AMI (Asterisk Manager Interface)
    event, the various ChanVariable fields will contain a suffix that specifies
    which channel they correspond to.
 
+* The NewPeerAccount AMI event is no longer raised. The NewAccountCode AMI
+  event always conveys the AMI event for a particular channel.
+
  * All "Reload" events have been consolidated into a single event type. This
    event will always contain a Module field specifying the name of the module
    and a Status field denoting the result of the reload. All modules now issue
@@ -118,33 +209,21 @@ AGI (Asterisk Gateway Interface)
  * The manager event AsyncAGI has been split into AsyncAGIStart, AsyncAGIExec,
    and AsyncAGIEnd.
 
-Channel Drivers
+CDR (Call Detail Records)
 ------------------
- * When a channel driver is configured to enable jiterbuffers, they are now
-   applied unconditionally when a channel joins a bridge. If a jitterbuffer
-   is already set for that channel when it enters, such as by the JITTERBUFFER
-   function, then the existing jitterbuffer will be used and the one set by
-   the channel driver will not be applied.
+ * Significant changes have been made to the behavior of CDRs. For a full
+   definition of CDR behavior in Asterisk 12, please read the specification
+   on the Asterisk wiki (wiki.asterisk.org).
 
-chan_local
-------------------
- * The /b option is removed.
+ * CDRs will now be created between all participants in a bridge. For each
+   pair of channels in a bridge, a CDR is created to represent the path of
+   communication between those two endpoints. This lets an end user choose who
+   to bill for what during multi-party bridges or bridge operations during
+   transfer scenarios.
 
- * chan_local moved into the system core and is no longer a loadable module.
-
-chan_mobile
-------------------
- * Added general support for busy detection.
-
- * Added ECAM command support for Sony Ericsson phones.
-
-chan_sip
-------------------
- * Added support for RFC 3327 "Path" headers. This can be enabled in sip.conf
-   using the 'supportpath' setting, either on a global basis or on a peer basis.
-   This setting enables Asterisk to route outgoing out-of-dialog requests via a
-   set of proxies by using a pre-loaded route-set defined by the Path headers in
-   the REGISTER request. See Realtime updates for more configuration information.
+ * When a CDR is dispatched, user defined CDR variables from both parties are
+   included in the resulting CDR. If both parties have the same variable, only
+   the Party A value is provided.
 
 Features
 -------------------
@@ -163,12 +242,6 @@ Features
    and FEATUREMAP() functions inherited to child channels by setting
    FEATURE(inherit)=yes.
 
-Functions
-------------------
- * JITTERBUFFER now accepts an argument of 'disabled' which can be used
-   to remove jitterbuffers previously set on a channel with JITTERBUFFER.
-   The value of this setting is ignored when disabled is used for the argument.
-
 Logging
 -------------------
  * When performing queue pause/unpause on an interface without specifying an
@@ -178,24 +251,11 @@ Logging
  * Added the 'queue_log_realtime_use_gmt' option to have timestamps in GMT
    for realtime queue log entries.
 
-MeetMe
--------------------
-* Added the 'n' option to MeetMe to prevent application of the DENOISE function
-  to a channel joining a conference. Some channel drivers that vary the number
-  of audio samples in a voice frame will experience significant quality problems
-  if a denoiser is attached to the channel; this option gives them the ability
-  to remove the denoiser without having to unload func_speex.
-
 Parking
 -------------------
  * Parking is now implemented as a module instead of as core functionality.
    The preferred way to configure parking is now through res_parking.conf while
    configuration through features.conf is not currently supported.
-
- * res_parking uses the configuration framework. If an invalid configuration is
-   supplied, res_parking will fail to load or fail to reload. Previously parking
-   lots that were misconfigured would generally be accepted with certain
-   configuration problems leading to individual disabled parking lots.
 
  * Parked calls are now placed in bridges. This is a largely architectural change,
    but it could have some implications in allowing for new parked call retrieval
@@ -236,55 +296,6 @@ Parking
    by default. Instead, it will follow the timeout rules of the parking lot. The
    old behavior can be reproduced by using the 'c' option.
 
- * Added a channel variable PARKER_FLAT which stores the name of the extension
-   that would be used to come back to if comebacktoorigin was set to use. This can
-   be useful when comebacktoorigin is off if you still want to use the extensions
-   in the park-dial context that are generated to redial the parker on timeout.
-
-Queue
--------------------
- * Add queue available hint.  exten => 8501,hint,Queue:markq_avail
-   Note: the suffix '_avail' after the queuename.
-   Reports 'InUse' for no logged in agents or no free agents.
-   Reports 'Idle' when an agent is free.
-
- * The configuration options eventwhencalled and eventmemberstatus have been
-   removed.  As a result, the AMI events QueueMemberStatus, AgentCalled,
-   AgentConnect, AgentComplete, AgentDump, and AgentRingNoAnswer will always be
-   sent.  The "Variable" fields will also no longer exist on the Agent* events.
-
-Core
-------------------
- * Redirecting reasons can now be set to arbitrary strings. This means
-   that the REDIRECTING dialplan function can be used to set the redirecting
-   reason to any string. It also allows for custom strings to be read as the
-   redirecting reason from SIP Diversion headers.
-
- * For DTMF blind and attended transfers, the channel variable TRANSFER_CONTEXT
-   must be on the channel initiating the transfer to have any effect.
-
- * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND is no longer channel
-   driver specific.  If the channel variable is set on the transferrer channel,
-   the sound will be played to the target of an attended transfer.
-
- * The channel variable BRIDGEPEER becomes a comma separated list of peers in
-   a multi-party bridge.  The BRIDGEPEER value can have a maximum of 10 peers
-   listed.  Any more peers in the bridge will not be included in the list.
-   BRIDGEPEER is not valid in holding bridges like parking since those channels
-   do not talk to each other even though they are in a bridge.
-
- * The channel variable BRIDGEPVTCALLID is only valid for two party bridges
-   and will contain a value if the BRIDGEPEER's channel driver supports it.
-
- * The channel variable DYNAMIC_PEERNAME is redundant with BRIDGEPEER and is
-   removed.  The more useful DYNAMIC_WHO_ACTIVATED gives the channel name that
-   activated the dynamic feature.
-
- * The channel variables DYNAMIC_FEATURENAME and DYNAMIC_WHO_ACTIVATED are set
-   only on the channel executing the dynamic feature.  Executing a dynamic
-   feature on the bridge peer in a multi-party bridge will execute it on all
-   peers of the activating channel.
-
 Realtime
 ------------------
  * Dynamic realtime tables for SIP Users can now include a 'path' field. This
@@ -293,6 +304,88 @@ Realtime
 
  * LDAP realtime configurations for SIP Users now have the AstAccountPathSupport
    objectIdentifier. This maps to the supportpath option in sip.conf.
+
+Sorcery
+------------------
+ * All future modules which utilize Sorcery for object persistence must have a
+   column named "id" within their schema when using the Sorcery realtime module.
+   This column must be able to contain a string of up to 128 characters in length.
+
+
+Channel Drivers
+------------------
+ * When a channel driver is configured to enable jiterbuffers, they are now
+   applied unconditionally when a channel joins a bridge. If a jitterbuffer
+   is already set for that channel when it enters, such as by the JITTERBUFFER
+   function, then the existing jitterbuffer will be used and the one set by
+   the channel driver will not be applied.
+
+chan_agent
+------------------
+ * The updatecdr option has been removed. Altering the names of channels on a
+   CDR is not supported - the name of the channel is the name of the channel,
+   and pretending otherwise helps no one.
+ * The AGENTUPDATECDR channel variable has also been removed, for the same
+   reason as the updatecdr option.
+
+chan_local
+------------------
+ * The /b option is removed.
+
+ * chan_local moved into the system core and is no longer a loadable module.
+
+chan_mobile
+------------------
+ * Added general support for busy detection.
+
+ * Added ECAM command support for Sony Ericsson phones.
+
+chan_sip
+------------------
+ * Added support for RFC 3327 "Path" headers. This can be enabled in sip.conf
+   using the 'supportpath' setting, either on a global basis or on a peer basis.
+   This setting enables Asterisk to route outgoing out-of-dialog requests via a
+   set of proxies by using a pre-loaded route-set defined by the Path headers in
+   the REGISTER request. See Realtime updates for more configuration information.
+
+
+Functions
+------------------
+
+JITTERBUFFER
+------------------
+ * JITTERBUFFER now accepts an argument of 'disabled' which can be used
+   to remove jitterbuffers previously set on a channel with JITTERBUFFER.
+   The value of this setting is ignored when disabled is used for the argument.
+
+CDR (function)
+------------------
+ * The 'amaflags' and 'accountcode' attributes for the CDR function are
+   deprecated. Use the CHANNEL function instead to access these attributes.
+ * The 'l' option has been removed. When reading a CDR attribute, the most
+   recent record is always used. When writing a CDR attribute, all non-finalized
+   CDRs are updated.
+ * The 'r' option has been removed, for the same reason as the 'l' option.
+ * The 's' option has been removed, as LOCKED semantics no longer exist in the
+   CDR engine.
+
+CDR_PROP
+------------------
+ * A new function CDR_PROP has been added. This function lets you set properties
+   on a channel's active CDRs. This function is write-only. Properties accept
+   boolean values to set/clear them on the channel's CDRs. Valid properties
+   include:
+   * 'party_a' - make this channel the preferred Party A in any CDR between two
+     channels. If two channels have this property set, the creation time of the
+     channel is used to determine who is Party A. Note that dialed channels are
+     never Party A in a CDR.
+   * 'disable' - disable CDRs on this channel. This is analogous to the NoCDR
+     application when set to True, and analogous to the 'e' option in ResetCDR
+     when set to False.
+
+
+Resources
+------------------
 
 RTP
 ------------------

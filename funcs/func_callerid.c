@@ -1142,9 +1142,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		ast_channel_redirecting(chan)->from.number.valid = 1;
 		ast_free(ast_channel_redirecting(chan)->from.number.str);
 		ast_channel_redirecting(chan)->from.number.str = ast_strdup(value);
-		if (ast_channel_cdr(chan)) {
-			ast_cdr_setcid(ast_channel_cdr(chan), chan);
-		}
 	} else if (!strcasecmp("dnid", member.argv[0])) {
 		ast_party_dialed_set_init(&dialed, ast_channel_dialed(chan));
 		if (member.argc == 1) {
@@ -1162,9 +1159,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 				dialed.number.str = ast_strdup(value);
 				ast_trim_blanks(dialed.number.str);
 				ast_party_dialed_set(ast_channel_dialed(chan), &dialed);
-				if (ast_channel_cdr(chan)) {
-					ast_cdr_setcid(ast_channel_cdr(chan), chan);
-				}
 			} else if (member.argc == 3 && !strcasecmp("plan", member.argv[2])) {
 				/* dnid-num-plan */
 				val = ast_strdupa(value);
@@ -1172,9 +1166,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 
 				if (('0' <= val[0]) && (val[0] <= '9')) {
 					ast_channel_dialed(chan)->number.plan = atoi(val);
-					if (ast_channel_cdr(chan)) {
-						ast_cdr_setcid(ast_channel_cdr(chan), chan);
-					}
 				} else {
 					ast_log(LOG_ERROR,
 						"Unknown type-of-number/numbering-plan '%s', value unchanged\n", val);
@@ -1192,9 +1183,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 			switch (status) {
 			case ID_FIELD_VALID:
 				ast_party_dialed_set(ast_channel_dialed(chan), &dialed);
-				if (ast_channel_cdr(chan)) {
-					ast_cdr_setcid(ast_channel_cdr(chan), chan);
-				}
 				break;
 			case ID_FIELD_INVALID:
 				break;
@@ -1212,9 +1200,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 
 		if (('0' <= val[0]) && (val[0] <= '9')) {
 			ast_channel_caller(chan)->ani2 = atoi(val);
-			if (ast_channel_cdr(chan)) {
-				ast_cdr_setcid(ast_channel_cdr(chan), chan);
-			}
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid ani2 '%s', value unchanged\n", val);
 		}
@@ -1229,9 +1214,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		switch (status) {
 		case ID_FIELD_VALID:
 			ast_party_caller_set(ast_channel_caller(chan), &caller, NULL);
-			if (ast_channel_cdr(chan)) {
-				ast_cdr_setcid(ast_channel_cdr(chan), chan);
-			}
 			break;
 		case ID_FIELD_INVALID:
 			break;
@@ -1246,9 +1228,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		switch (status) {
 		case ID_FIELD_VALID:
 			ast_party_caller_set(ast_channel_caller(chan), &caller, NULL);
-			if (ast_channel_cdr(chan)) {
-				ast_cdr_setcid(ast_channel_cdr(chan), chan);
-			}
 			break;
 		case ID_FIELD_INVALID:
 			break;
@@ -1263,9 +1242,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		switch (status) {
 		case ID_FIELD_VALID:
 			ast_channel_set_caller_event(chan, &caller, NULL);
-			if (ast_channel_cdr(chan)) {
-				ast_cdr_setcid(ast_channel_cdr(chan), chan);
-			}
 			break;
 		case ID_FIELD_INVALID:
 			break;

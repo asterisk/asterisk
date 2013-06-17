@@ -206,7 +206,7 @@ retry:
 		ciddnid_ai, exten_ai, context_ai, channel_ai, app_ai, appdata_ai, start,
 		(record.event_type == AST_CEL_USER_DEFINED)
 			? record.user_defined_name : record.event_name,
-		ast_cel_get_ama_flag_name(record.amaflag), uniqueid_ai, linkedid_ai,
+					ast_channel_amaflags2string(record.amaflag), uniqueid_ai, linkedid_ai,
 		userfield_ai, peer_ai);
 
 	if (erc == FAIL) {

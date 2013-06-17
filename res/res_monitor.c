@@ -692,18 +692,10 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_strlen_zero(urlprefix) && !ast_strlen_zero(args.fname_base)) {
-		struct ast_cdr *chan_cdr;
 		snprintf(tmp, sizeof(tmp), "%s/%s.%s", urlprefix, args.fname_base,
 			((strcmp(args.format, "gsm")) ? "wav" : "gsm"));
 		ast_channel_lock(chan);
-		if (!ast_channel_cdr(chan)) {
-			if (!(chan_cdr = ast_cdr_alloc())) {
-				ast_channel_unlock(chan);
-				return -1;
-			}
-			ast_channel_cdr_set(chan, chan_cdr);
-		}
-		ast_cdr_setuserfield(chan, tmp);
+		ast_cdr_setuserfield(ast_channel_name(chan), tmp);
 		ast_channel_unlock(chan);
 	}
 	if (waitforbridge) {

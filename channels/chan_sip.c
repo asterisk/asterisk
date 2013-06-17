@@ -20224,7 +20224,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Tonezone     : %s\n", peer->zone[0] != '\0' ? peer->zone : "<Not set>");
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
-		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(peer->amaflags));
+		ast_cli(fd, "  AMA flags    : %s\n", ast_channel_amaflags2string(peer->amaflags));
 		ast_cli(fd, "  Transfer mode: %s\n", transfermode2str(peer->allowtransfer));
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(peer->callingpres));
 		if (!ast_strlen_zero(peer->fromuser))
@@ -20362,7 +20362,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "ToneZone: %s\r\n", peer->zone[0] != '\0' ? peer->zone : "<Not set>");
 		if (!ast_strlen_zero(peer->accountcode))
 			astman_append(s, "Accountcode: %s\r\n", peer->accountcode);
-		astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(peer->amaflags));
+		astman_append(s, "AMAflags: %s\r\n", ast_channel_amaflags2string(peer->amaflags));
 		astman_append(s, "CID-CallingPres: %s\r\n", ast_describe_caller_presentation(peer->callingpres));
 		if (!ast_strlen_zero(peer->fromuser))
 			astman_append(s, "SIP-FromUser: %s\r\n", peer->fromuser);
@@ -20537,7 +20537,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		ast_cli(a->fd, "  Language     : %s\n", user->language);
 		if (!ast_strlen_zero(user->accountcode))
 			ast_cli(a->fd, "  Accountcode  : %s\n", user->accountcode);
-		ast_cli(a->fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(a->fd, "  AMA flags    : %s\n", ast_channel_amaflags2string(user->amaflags));
 		ast_cli(a->fd, "  Tonezone     : %s\n", user->zone[0] != '\0' ? user->zone : "<Not set>");
 		ast_cli(a->fd, "  Transfer mode: %s\n", transfermode2str(user->allowtransfer));
 		ast_cli(a->fd, "  MaxCallBR    : %d kbps\n", user->maxcallbitrate);
@@ -20724,8 +20724,6 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 	struct sip_pvt *cur = __cur;
 	struct ast_rtp_instance_stats stats;
 	char durbuf[10];
-	int duration;
-	int durh, durm, durs;
 	struct ast_channel *c;
 	struct __show_chan_arg *arg = __arg;
 	int fd = arg->fd;
@@ -20756,12 +20754,8 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		return 0;
 	}
 
-	if (c && ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
-		duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_cdr(c)->start) / 1000);
-		durh = duration / 3600;
-		durm = (duration % 3600) / 60;
-		durs = duration % 60;
-		snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+	if (c) {
+		ast_format_duration_hh_mm_ss(ast_channel_get_duration(c), durbuf, sizeof(durbuf));
 	} else {
 		durbuf[0] = '\0';
 	}
@@ -21694,11 +21688,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	} else if (!ast_strlen_zero(c = sip_get_header(req, "X-ClientCode"))) {
 		/* Client code (from SNOM phone) */
 		if (ast_test_flag(&p->flags[0], SIP_USECLIENTCODE)) {
-			if (p->owner && ast_channel_cdr(p->owner)) {
-				ast_cdr_setuserfield(p->owner, c);
-			}
-			if (p->owner && ast_bridged_channel(p->owner) && ast_channel_cdr(ast_bridged_channel(p->owner))) {
-				ast_cdr_setuserfield(ast_bridged_channel(p->owner), c);
+			if (p->owner) {
+				ast_cdr_setuserfield(ast_channel_name(p->owner), c);
 			}
 			transmit_response(p, "200 OK", req);
 		} else {
@@ -24831,7 +24822,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 	ast_channel_unlock(c);
 	sip_pvt_unlock(p);
 
-	ast_raw_answer(c, 1);
+	ast_raw_answer(c);
 
 	ast_channel_lock(replaces_chan);
 	bridge = ast_channel_get_bridge(replaces_chan);
@@ -30458,7 +30449,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "callbackextension")) {
 				ast_string_field_set(peer, callback, v->value);
 			} else if (!strcasecmp(v->name, "amaflags")) {
-				format = ast_cdr_amaflags2int(v->value);
+				format = ast_channel_string2amaflag(v->value);
 				if (format < 0) {
 					ast_log(LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
 				} else {
@@ -34023,7 +34014,7 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 			continue;
 		}
 		ast_data_add_int(enum_node, "value", peer->amaflags);
-		ast_data_add_str(enum_node, "text", ast_cdr_flags2str(peer->amaflags));
+		ast_data_add_str(enum_node, "text", ast_channel_amaflags2string(peer->amaflags));
 
 		/* sip options */
 		data_sip_options = ast_data_add_node(data_peer, "sipoptions");

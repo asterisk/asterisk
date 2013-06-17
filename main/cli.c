@@ -932,8 +932,8 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		bridge = ast_channel_get_bridge(c);
 
 		if (!count) {
-			if ((concise || verbose)  && ast_channel_cdr(c) && !ast_tvzero(ast_channel_cdr(c)->start)) {
-				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_cdr(c)->start) / 1000);
+			if ((concise || verbose)  && !ast_tvzero(ast_channel_creationtime(c))) {
+				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(c)) / 1000);
 				if (verbose) {
 					int durh = duration / 3600;
 					int durm = (duration % 3600) / 60;
@@ -1465,8 +1465,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	ast_channel_lock(c);
 
-	if (ast_channel_cdr(c)) {
-		elapsed_seconds = now.tv_sec - ast_channel_cdr(c)->start.tv_sec;
+	if (!ast_tvzero(ast_channel_creationtime(c))) {
+		elapsed_seconds = now.tv_sec - ast_channel_creationtime(c).tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
@@ -1565,7 +1565,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
-	if (ast_channel_cdr(c) && ast_cdr_serialize_variables(ast_channel_cdr(c), &obuf, '=', '\n', 1)) {
+	if (ast_cdr_serialize_variables(ast_channel_name(c), &obuf, '=', '\n')) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 

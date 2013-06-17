@@ -362,7 +362,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 
 	if (k == 3) {
 		int recheck = 0;
-		struct ast_flags cdr_flags = { AST_CDR_FLAG_POSTED };
+		struct ast_flags cdr_flags = { AST_CDR_FLAG_DISABLE, };
 
 		if (!ast_exists_extension(chan, args.context, exten, 1,
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
@@ -384,8 +384,10 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			if (!ast_strlen_zero(acctcode))
 				ast_channel_accountcode_set(chan, acctcode);
 
-			if (special_noanswer) cdr_flags.flags = 0;
-			ast_cdr_reset(ast_channel_cdr(chan), &cdr_flags);
+			if (special_noanswer) {
+				ast_clear_flag(&cdr_flags, AST_CDR_FLAG_DISABLE);
+			}
+			ast_cdr_reset(ast_channel_name(chan), &cdr_flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
 			return 0;
 		}

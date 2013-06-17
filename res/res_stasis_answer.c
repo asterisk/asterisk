@@ -42,10 +42,9 @@ static void *app_control_answer(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	const int delay = 0;
-	const int cdr_answer = 1;
 	ast_debug(3, "%s: Answering",
 		stasis_app_control_get_channel_id(control));
-	return __ast_answer(chan, delay, cdr_answer) == 0 ? &OK : &FAIL;
+	return __ast_answer(chan, delay) == 0 ? &OK : &FAIL;
 }
 
 int stasis_app_control_answer(struct stasis_app_control *control)

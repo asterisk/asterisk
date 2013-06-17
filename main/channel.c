@@ -104,7 +104,6 @@ struct ast_epoll_data {
 /*! \brief Prevent new channel allocation if shutting down. */
 static int shutting_down;
 
-static int uniqueint;
 static int chancount;
 
 unsigned long global_fin, global_fout;
@@ -115,6 +114,8 @@ AST_THREADSTORAGE(state2str_threadbuf);
 /*! Default amount of time to use when emulating a digit as a begin and end
  *  100ms */
 #define AST_DEFAULT_EMULATE_DTMF_DURATION 100
+
+#define DEFAULT_AMA_FLAGS AST_AMA_DOCUMENTATION
 
 /*! Minimum amount of time between the end of the last digit and the beginning
  *  of a new one - 45ms */
@@ -984,7 +985,7 @@ static void ast_dummy_channel_destructor(void *obj);
 static struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
 		       const char *acctcode, const char *exten, const char *context,
-		       const char *linkedid, const int amaflag, const char *file, int line,
+		       const char *linkedid, enum ama_flags amaflag, const char *file, int line,
 		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
@@ -1001,7 +1002,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return NULL;
 	}
 
-	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor))) {
+	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor, linkedid))) {
 		/* Channel structure allocation failure. */
 		return NULL;
 	}
@@ -1078,20 +1079,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	now = ast_tvnow();
 	ast_channel_creationtime_set(tmp, &now);
 
-	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-		ast_channel_uniqueid_build(tmp, "%li.%d", (long) time(NULL),
-			ast_atomic_fetchadd_int(&uniqueint, 1));
-	} else {
-		ast_channel_uniqueid_build(tmp, "%s-%li.%d", ast_config_AST_SYSTEM_NAME,
-			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
-	}
-
-	if (!ast_strlen_zero(linkedid)) {
-		ast_channel_linkedid_set(tmp, linkedid);
-	} else {
-		ast_channel_linkedid_set(tmp, ast_channel_uniqueid(tmp));
-	}
-
 	ast_channel_internal_setup_topics(tmp);
 
 	if (!ast_strlen_zero(name_fmt)) {
@@ -1123,24 +1110,19 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
 
 	/* These 4 variables need to be set up for the cdr_init() to work right */
-	if (amaflag) {
+	if (amaflag != AST_AMA_NONE) {
 		ast_channel_amaflags_set(tmp, amaflag);
 	} else {
-		ast_channel_amaflags_set(tmp, ast_default_amaflags);
+		ast_channel_amaflags_set(tmp, DEFAULT_AMA_FLAGS);
 	}
 
-	if (!ast_strlen_zero(acctcode))
+	if (!ast_strlen_zero(acctcode)) {
 		ast_channel_accountcode_set(tmp, acctcode);
-	else
-		ast_channel_accountcode_set(tmp, ast_default_accountcode);
+	}
 
 	ast_channel_context_set(tmp, S_OR(context, "default"));
 	ast_channel_exten_set(tmp, S_OR(exten, "s"));
 	ast_channel_priority_set(tmp, 1);
-
-	ast_channel_cdr_set(tmp, ast_cdr_alloc());
-	ast_cdr_init(ast_channel_cdr(tmp), tmp);
-	ast_cdr_start(ast_channel_cdr(tmp));
 
 	ast_atomic_fetchadd_int(&chancount, +1);
 
@@ -1165,7 +1147,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * a lot of data into this func to do it here!
 	 */
 	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
-		ast_publish_channel_state(tmp);
+		ast_channel_publish_snapshot(tmp);
 	}
 
 	ast_channel_internal_finalize(tmp);
@@ -1176,7 +1158,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 					const char *cid_name, const char *acctcode,
 					const char *exten, const char *context,
-					const char *linkedid, const int amaflag,
+					const char *linkedid, const enum ama_flags amaflag,
 					const char *file, int line, const char *function,
 					const char *name_fmt, ...)
 {
@@ -1202,7 +1184,7 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	struct ast_channel *tmp;
 	struct varshead *headp;
 
-	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor))) {
+	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor, NULL))) {
 		/* Dummy channel structure allocation failure. */
 		return NULL;
 	}
@@ -2470,7 +2452,7 @@ static void ast_channel_destructor(void *obj)
 	ast_jb_destroy(chan);
 
 	if (ast_channel_cdr(chan)) {
-		ast_cdr_discard(ast_channel_cdr(chan));
+		ast_cdr_free(ast_channel_cdr(chan));
 		ast_channel_cdr_set(chan, NULL);
 	}
 
@@ -2530,7 +2512,7 @@ static void ast_dummy_channel_destructor(void *obj)
 		ast_var_delete(vardata);
 
 	if (ast_channel_cdr(chan)) {
-		ast_cdr_discard(ast_channel_cdr(chan));
+		ast_cdr_free(ast_channel_cdr(chan));
 		ast_channel_cdr_set(chan, NULL);
 	}
 
@@ -2884,26 +2866,17 @@ int ast_hangup(struct ast_channel *chan)
 
 	ast_cc_offer(chan);
 
-	ast_publish_channel_state(chan);
-
-	if (ast_channel_cdr(chan) && !ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_BRIDGED) &&
-		!ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_POST_DISABLED) &&
-		(ast_channel_cdr(chan)->disposition != AST_CDR_NULL || ast_test_flag(ast_channel_cdr(chan), AST_CDR_FLAG_DIALED))) {
-		ast_channel_lock(chan);
-		ast_cdr_end(ast_channel_cdr(chan));
-		ast_cdr_detach(ast_channel_cdr(chan));
-		ast_channel_cdr_set(chan, NULL);
-		ast_channel_unlock(chan);
-	}
+	ast_channel_publish_snapshot(chan);
 
 	ast_channel_unref(chan);
 
 	return 0;
 }
 
-int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
+int ast_raw_answer(struct ast_channel *chan)
 {
 	int res = 0;
+	struct timeval answertime;
 
 	ast_channel_lock(chan);
 
@@ -2919,6 +2892,9 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 		return -1;
 	}
 
+	answertime = ast_tvnow();
+	ast_channel_answertime_set(chan, &answertime);
+
 	ast_channel_unlock(chan);
 
 	switch (ast_channel_state(chan)) {
@@ -2929,18 +2905,9 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 			res = ast_channel_tech(chan)->answer(chan);
 		}
 		ast_setstate(chan, AST_STATE_UP);
-		if (cdr_answer) {
-			ast_cdr_answer(ast_channel_cdr(chan));
-		}
 		ast_channel_unlock(chan);
 		break;
 	case AST_STATE_UP:
-		/* Calling ast_cdr_answer when it it has previously been called
-		 * is essentially a no-op, so it is safe.
-		 */
-		if (cdr_answer) {
-			ast_cdr_answer(ast_channel_cdr(chan));
-		}
 		break;
 	default:
 		break;
@@ -2951,13 +2918,13 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 	return res;
 }
 
-int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
+int __ast_answer(struct ast_channel *chan, unsigned int delay)
 {
 	int res = 0;
 	enum ast_channel_state old_state;
 
 	old_state = ast_channel_state(chan);
-	if ((res = ast_raw_answer(chan, cdr_answer))) {
+	if ((res = ast_raw_answer(chan))) {
 		return res;
 	}
 
@@ -3059,7 +3026,27 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 
 int ast_answer(struct ast_channel *chan)
 {
-	return __ast_answer(chan, 0, 1);
+	return __ast_answer(chan, 0);
+}
+
+int ast_channel_get_duration(struct ast_channel *chan)
+{
+	ast_assert(NULL != chan);
+
+	if (ast_tvzero(ast_channel_creationtime(chan))) {
+		return 0;
+	}
+	return (ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(chan)) / 1000);
+}
+
+int ast_channel_get_up_time(struct ast_channel *chan)
+{
+	ast_assert(NULL != chan);
+
+	if (ast_tvzero(ast_channel_answertime(chan))) {
+		return 0;
+	}
+	return (ast_tvdiff_ms(ast_tvnow(), ast_channel_answertime(chan)) / 1000);
 }
 
 void ast_deactivate_generator(struct ast_channel *chan)
@@ -4472,6 +4459,33 @@ void ast_channel_hangupcause_hash_set(struct ast_channel *chan, const struct ast
 	}
 }
 
+enum ama_flags ast_channel_string2amaflag(const char *flag)
+{
+	if (!strcasecmp(flag, "default"))
+		return DEFAULT_AMA_FLAGS;
+	if (!strcasecmp(flag, "omit"))
+		return AST_AMA_OMIT;
+	if (!strcasecmp(flag, "billing"))
+		return AST_AMA_BILLING;
+	if (!strcasecmp(flag, "documentation"))
+		return AST_AMA_DOCUMENTATION;
+	return AST_AMA_NONE;
+}
+
+const char *ast_channel_amaflags2string(enum ama_flags flag)
+{
+	switch (flag) {
+	case AST_AMA_OMIT:
+		return "OMIT";
+	case AST_AMA_BILLING:
+		return "BILLING";
+	case AST_AMA_DOCUMENTATION:
+		return "DOCUMENTATION";
+	default:
+		return "Unknown";
+	}
+}
+
 int ast_indicate_data(struct ast_channel *chan, int _condition,
 		const void *data, size_t datalen)
 {
@@ -5625,15 +5639,15 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		}
 		if (oh->account) {
 			ast_channel_lock(new_chan);
-			ast_cdr_setaccount(new_chan, oh->account);
+			ast_channel_accountcode_set(new_chan, oh->account);
 			ast_channel_unlock(new_chan);
 		}
 	} else if (caller) { /* no outgoing helper so use caller if avaliable */
 		call_forward_inherit(new_chan, caller, orig);
 	}
+	ast_set_flag(ast_channel_flags(new_chan), AST_FLAG_ORIGINATED);
 
 	ast_channel_lock_both(orig, new_chan);
-	ast_copy_flags(ast_channel_cdr(new_chan), ast_channel_cdr(orig), AST_CDR_FLAG_ORIGINATED);
 	ast_channel_accountcode_set(new_chan, ast_channel_accountcode(orig));
 	ast_party_connected_line_copy(ast_channel_connected(new_chan), ast_channel_connected(orig));
 	ast_party_redirecting_copy(ast_channel_redirecting(new_chan), ast_channel_redirecting(orig));
@@ -5699,7 +5713,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 		}
 		if (oh->account) {
 			ast_channel_lock(chan);
-			ast_cdr_setaccount(chan, oh->account);
+			ast_channel_accountcode_set(chan, oh->account);
 			ast_channel_unlock(chan);
 		}
 	}
@@ -5714,7 +5728,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	 */
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
-	ast_set_flag(ast_channel_cdr(chan), AST_CDR_FLAG_ORIGINATED);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ORIGINATED);
 	ast_party_connected_line_set_init(&connected, ast_channel_connected(chan));
 	if (cid_num) {
 		connected.id.number.valid = 1;
@@ -5764,25 +5778,21 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 					break;
 
 				case AST_CONTROL_BUSY:
-					ast_cdr_busy(ast_channel_cdr(chan));
 					*outstate = f->subclass.integer;
 					timeout = 0;
 					break;
 
 				case AST_CONTROL_INCOMPLETE:
-					ast_cdr_failed(ast_channel_cdr(chan));
 					*outstate = AST_CONTROL_CONGESTION;
 					timeout = 0;
 					break;
 
 				case AST_CONTROL_CONGESTION:
-					ast_cdr_failed(ast_channel_cdr(chan));
 					*outstate = f->subclass.integer;
 					timeout = 0;
 					break;
 
 				case AST_CONTROL_ANSWER:
-					ast_cdr_answer(ast_channel_cdr(chan));
 					*outstate = f->subclass.integer;
 					timeout = 0;		/* trick to force exit from the while() */
 					break;
@@ -5833,27 +5843,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 		*outstate = AST_CONTROL_ANSWER;
 
 	if (res <= 0) {
-		struct ast_cdr *chancdr;
 		ast_channel_lock(chan);
 		if (AST_CONTROL_RINGING == last_subclass) {
 			ast_channel_hangupcause_set(chan, AST_CAUSE_NO_ANSWER);
-		}
-		if (!ast_channel_cdr(chan) && (chancdr = ast_cdr_alloc())) {
-			ast_channel_cdr_set(chan, chancdr);
-			ast_cdr_init(ast_channel_cdr(chan), chan);
-		}
-		if (ast_channel_cdr(chan)) {
-			char tmp[256];
-
-			snprintf(tmp, sizeof(tmp), "%s/%s", type, addr);
-			ast_cdr_setapp(ast_channel_cdr(chan), "Dial", tmp);
-			ast_cdr_update(chan);
-			ast_cdr_start(ast_channel_cdr(chan));
-			ast_cdr_end(ast_channel_cdr(chan));
-			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(ast_channel_cdr(chan), ast_channel_hangupcause(chan))) {
-				ast_cdr_failed(ast_channel_cdr(chan));
-			}
 		}
 		ast_channel_unlock(chan);
 		ast_hangup(chan);
@@ -6024,9 +6016,6 @@ int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
 	if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
-		if (ast_channel_cdr(chan)) {
-			ast_set_flag(ast_channel_cdr(chan), AST_CDR_FLAG_DIALED);
-		}
 		if (ast_channel_tech(chan)->call)
 			res = ast_channel_tech(chan)->call(chan, addr, timeout);
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING);
@@ -6517,32 +6506,20 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 	}
 }
 
-
-
-/* return the oldest of two linkedids.  linkedid is derived from
-   uniqueid which is formed like this: [systemname-]ctime.seq
-
-   The systemname, and the dash are optional, followed by the epoch
-   time followed by an integer sequence.  Note that this is not a
-   decimal number, since 1.2 is less than 1.11 in uniqueid land.
-
-   To compare two uniqueids, we parse out the integer values of the
-   time and the sequence numbers and compare them, with time trumping
-   sequence.
-*/
-static const char *oldest_linkedid(const char *a, const char *b)
+const char *ast_channel_oldest_linkedid(const char *a, const char *b)
 {
 	const char *satime, *saseq;
 	const char *sbtime, *sbseq;
 	const char *dash;
-
 	unsigned int atime, aseq, btime, bseq;
 
-	if (ast_strlen_zero(a))
+	if (ast_strlen_zero(a)) {
 		return b;
+	}
 
-	if (ast_strlen_zero(b))
+	if (ast_strlen_zero(b)) {
 		return a;
+	}
 
 	satime = a;
 	sbtime = b;
@@ -6558,8 +6535,9 @@ static const char *oldest_linkedid(const char *a, const char *b)
 	/* the sequence comes after the '.' */
 	saseq = strchr(satime, '.');
 	sbseq = strchr(sbtime, '.');
-	if (!saseq || !sbseq)
+	if (!saseq || !sbseq) {
 		return NULL;
+	}
 	saseq++;
 	sbseq++;
 
@@ -6577,122 +6555,6 @@ static const char *oldest_linkedid(const char *a, const char *b)
 		return (atime < btime) ? a : b;
 	}
 }
-
-/*! Set the channel's linkedid to the given string, and also check to
- *  see if the channel's old linkedid is now being retired */
-static void ast_channel_change_linkedid(struct ast_channel *chan, const char *linkedid)
-{
-	ast_assert(linkedid != NULL);
-	/* if the linkedid for this channel is being changed from something, check... */
-	if (ast_channel_linkedid(chan) && !strcmp(ast_channel_linkedid(chan), linkedid)) {
-		return;
-	}
-
-	ast_channel_linkedid_set(chan, linkedid);
-	ast_cel_linkedid_ref(linkedid);
-}
-
-/*! \brief Propagate the oldest linkedid between associated channels */
-void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *peer)
-{
-	const char* linkedid=NULL;
-	struct ast_channel *bridged;
-
-/*
- * BUGBUG this needs to be updated to not use ast_channel_internal_bridged_channel().
- * BUGBUG this needs to be updated to not use ast_bridged_channel().
- *
- * We may be better off making this a function of the bridging
- * framework.  Essentially, as each channel joins a bridge, the
- * oldest linkedid should be propagated between all pairs of
- * channels.  This should be handled by bridging (unless you're
- * in an infinite wait bridge...) just like the BRIDGEPEER
- * channel variable.
- *
- * This is currently called in two places:
- *
- * (1) In channel masquerade. To some extent this shouldn't
- * really be done any longer - we don't really want a channel to
- * have its linkedid change, even if it replaces a channel that
- * had an older linkedid.  The two channels aren't really
- * 'related', they're simply swapping with each other.
- *
- * (2) In features.c as two channels are bridged.
- */
-	linkedid = oldest_linkedid(ast_channel_linkedid(chan), ast_channel_linkedid(peer));
-	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(chan));
-	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(peer));
-	if (ast_channel_internal_bridged_channel(chan)) {
-		bridged = ast_bridged_channel(chan);
-		if (bridged && bridged != peer) {
-			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
-			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
-		}
-	}
-	if (ast_channel_internal_bridged_channel(peer)) {
-		bridged = ast_bridged_channel(peer);
-		if (bridged && bridged != chan) {
-			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
-			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
-		}
-	}
-
-	/* just in case setting a stringfield to itself causes problems */
-	linkedid = ast_strdupa(linkedid);
-
-	ast_channel_change_linkedid(chan, linkedid);
-	ast_channel_change_linkedid(peer, linkedid);
-	if (ast_channel_internal_bridged_channel(chan)) {
-		bridged = ast_bridged_channel(chan);
-		if (bridged && bridged != peer) {
-			ast_channel_change_linkedid(bridged, linkedid);
-		}
-	}
-	if (ast_channel_internal_bridged_channel(peer)) {
-		bridged = ast_bridged_channel(peer);
-		if (bridged && bridged != chan) {
-			ast_channel_change_linkedid(bridged, linkedid);
-		}
-	}
-}
-
-#if 0	//BUGBUG setting up peeraccount needs to be removed.
-/* copy accountcode and peeraccount across during a link */
-static void ast_set_owners_and_peers(struct ast_channel *chan1,
-									 struct ast_channel *chan2)
-{
-	if (!ast_strlen_zero(ast_channel_accountcode(chan1)) && ast_strlen_zero(ast_channel_peeraccount(chan2))) {
-		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
-				ast_channel_accountcode(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_channel_peeraccount_set(chan2, ast_channel_accountcode(chan1));
-	}
-	if (!ast_strlen_zero(ast_channel_accountcode(chan2)) && ast_strlen_zero(ast_channel_peeraccount(chan1))) {
-		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
-				ast_channel_accountcode(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_channel_peeraccount_set(chan1, ast_channel_accountcode(chan2));
-	}
-	if (!ast_strlen_zero(ast_channel_peeraccount(chan1)) && ast_strlen_zero(ast_channel_accountcode(chan2))) {
-		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
-				ast_channel_peeraccount(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_channel_accountcode_set(chan2, ast_channel_peeraccount(chan1));
-	}
-	if (!ast_strlen_zero(ast_channel_peeraccount(chan2)) && ast_strlen_zero(ast_channel_accountcode(chan1))) {
-		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
-				ast_channel_peeraccount(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_channel_accountcode_set(chan1, ast_channel_peeraccount(chan2));
-	}
-	if (0 != strcmp(ast_channel_accountcode(chan1), ast_channel_peeraccount(chan2))) {
-		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
-				ast_channel_peeraccount(chan2), ast_channel_peeraccount(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_channel_peeraccount_set(chan2, ast_channel_accountcode(chan1));
-	}
-	if (0 != strcmp(ast_channel_accountcode(chan2), ast_channel_peeraccount(chan1))) {
-		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
-				ast_channel_peeraccount(chan1), ast_channel_peeraccount(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_channel_peeraccount_set(chan1, ast_channel_accountcode(chan2));
-	}
-}
-#endif	//BUGBUG
 
 /*!
  * \internal
@@ -6775,7 +6637,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	} exchange;
 	struct ast_channel *clonechan, *chans[2];
 	struct ast_channel *bridged;
-	struct ast_cdr *cdr;
 	struct ast_datastore *xfer_ds;
 	struct xfer_masquerade_ds *xfer_colp;
 	struct ast_format rformat;
@@ -6943,9 +6804,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	snprintf(tmp_name, sizeof(tmp_name), "%s<ZOMBIE>", ast_channel_name(clonechan)); /* quick, hide the brains! */
 	__ast_change_name_nolink(clonechan, tmp_name);
 
-	/* share linked id's */
-	ast_channel_set_linkgroup(original, clonechan);
-
 	/* Swap the technologies */
 	t = ast_channel_tech(original);
 	ast_channel_tech_set(original, ast_channel_tech(clonechan));
@@ -6954,11 +6812,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	t_pvt = ast_channel_tech_pvt(original);
 	ast_channel_tech_pvt_set(original, ast_channel_tech_pvt(clonechan));
 	ast_channel_tech_pvt_set(clonechan, t_pvt);
-
-	/* Swap the cdrs */
-	cdr = ast_channel_cdr(original);
-	ast_channel_cdr_set(original, ast_channel_cdr(clonechan));
-	ast_channel_cdr_set(clonechan, cdr);
 
 	/* Swap the alertpipes */
 	ast_channel_internal_alertpipe_swap(original, clonechan);
@@ -7098,7 +6951,7 @@ void ast_do_masquerade(struct ast_channel *original)
 	ast_channel_redirecting_set(original, ast_channel_redirecting(clonechan));
 	ast_channel_redirecting_set(clonechan, &exchange.redirecting);
 
-	ast_publish_channel_state(original);
+	ast_channel_publish_snapshot(original);
 
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, ast_channel_timingfd(original));
@@ -7257,11 +7110,8 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 		ast_free(ast_channel_caller(chan)->ani.number.str);
 		ast_channel_caller(chan)->ani.number.str = ast_strdup(cid_ani);
 	}
-	if (ast_channel_cdr(chan)) {
-		ast_cdr_setcid(ast_channel_cdr(chan), chan);
-	}
 
-	ast_publish_channel_state(chan);
+	ast_channel_publish_snapshot(chan);
 
 	ast_channel_unlock(chan);
 }
@@ -7287,10 +7137,7 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 
 	ast_channel_lock(chan);
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
-	ast_publish_channel_state(chan);
-	if (ast_channel_cdr(chan)) {
-		ast_cdr_setcid(ast_channel_cdr(chan), chan);
-	}
+	ast_channel_publish_snapshot(chan);
 	ast_channel_unlock(chan);
 }
 

@@ -26,33 +26,216 @@
 #ifndef _ASTERISK_CDR_H
 #define _ASTERISK_CDR_H
 
-#include <sys/time.h>
+#include "asterisk/channel.h"
 
-#include "asterisk/data.h"
+/*! \file
+ *
+ * \since 12
+ *
+ * \brief Call Detail Record Engine.
+ *
+ * \page CDR Call Detail Record Engine
+ *
+ * \par Intro
+ *
+ * The Call Detail Record (CDR) engine uses the \ref stasis Stasis Message Bus
+ * to build records for the channels in Asterisk. As the state of a channel and
+ * the bridges it participates in changes, notifications are sent over the
+ * Stasis Message Bus. The CDR engine consumes these notifications and builds
+ * records that reflect that state. Over the lifetime of a channel, many CDRs
+ * may be generated for that channel or that involve that channel.
+ *
+ * CDRs have a lifecycle that is a subset of the channel that they reflect. A
+ * single CDR for a channel represents a path of communication between the
+ * endpoint behind a channel and Asterisk, or between two endpoints. When a
+ * channel establishes a new path of communication, a new CDR is created for the
+ * channel. Likewise, when a path of communication is terminated, a CDR is
+ * finalized. Finally, when a channel is no longer present in Asterisk, all CDRs
+ * for that channel are dispatched for recording.
+ *
+ * Dispatching of CDRs occurs to registered CDR backends. CDR backends register
+ * through \ref ast_cdr_register and are responsible for taking the produced
+ * CDRs and storing them in permanent storage.
+ *
+ * \par CDR attributes
+ *
+ * While a CDR can have many attributes, all CDRs have two parties: a Party A
+ * and a Party B. The Party A is \em always the channel that owns the CDR. A CDR
+ * may or may not have a Party B, depending on its state.
+ *
+ * For the most part, attributes on a CDR are reflective of those same
+ * attributes on the channel at the time when the CDR was finalized. Specific
+ * CDR attributes include:
+ * \li \c start The time when the CDR was created
+ * \li \c answer The time when the Party A was answered, or when the path of
+ * communication between Party A and Party B was established
+ * \li \c end The time when the CDR was finalized
+ * \li \c duration \c end - \c start. If \c end is not known, the current time
+ * is used
+ * \li \c billsec \c end - \c answer. If \c end is not known, the current time
+ * is used
+ * \li \c userfield User set data on some party in the CDR
+ *
+ * Note that \c accountcode and \c amaflags are actually properties of a
+ * channel, not the CDR.
+ *
+ * \par CDR States
+ *
+ * CDRs go through various states during their lifetime. State transitions occur
+ * due to messages received over the \ref stasis Stasis Message Bus. The
+ * following describes the possible states a CDR can be in, and how it
+ * transitions through the states.
+ *
+ * \par Single
+ *
+ * When a CDR is created, it is put into the Single state. The Single state
+ * represents a CDR for a channel that has no Party B. CDRs can be unanswered
+ * or answered while in the Single state.
+ *
+ * The following transitions can occur while in the Single state:
+ * \li If a \ref ast_channel_dial_type indicating a Dial Begin is received, the
+ * state transitions to Dial
+ * \li If a \ref ast_channel_snapshot is received indicating that the channel
+ * has hung up, the state transitions to Finalized
+ * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * state transitions to Bridge
+ *
+ * \par Dial
+ *
+ * This state represents a dial that is occurring within Asterisk. The Party A
+ * can either be the caller for a two party dial, or it can be the dialed party
+ * if the calling party is Asterisk (that is, an Originated channel). In the
+ * first case, the Party B is \em always the dialed channel; in the second case,
+ * the channel is not considered to be a "dialed" channel as it is alone in the
+ * dialed operation.
+ *
+ * While in the Dial state, multiple CDRs can be created for the Party A if a
+ * parallel dial occurs. Each dialed party receives its own CDR with Party A.
+ *
+ * The following transitions can occur while in the Dial state:
+ * \li If a \ref ast_channel_dial_type indicating a Dial End is received where
+ * the \ref dial_status is not ANSWER, the state transitions to Finalized
+ * \li If a \ref ast_channel_snapshot is received indicating that the channel
+ * has hung up, the state transitions to Finalized
+ * \li If a \ref ast_channel_dial_type indicating a Dial End is received where
+ * the \ref dial_status is ANSWER, the state transitions to DialedPending
+ * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * state transitions to Bridge
+ *
+ * \par DialedPending
+ *
+ * Technically, after being dialed, a CDR does not have to transition to the
+ * Bridge state. If the channel being dialed was originated, the channel may
+ * being executing dialplan. Strangely enough, it is also valid to have both
+ * Party A and Party B - after a dial - to not be bridged and instead execute
+ * dialplan. DialedPending handles the state where we figure out if the CDR
+ * showing the dial needs to move to the Bridge state; if the CDR should show
+ * that we started executing dialplan; of if we need a new CDR.
+ *
+ * The following transition can occur while in the DialedPending state:
+ * \li If a \ref ast_channel_snapshot is received that indicates that the
+ * channel has begun executing dialplan, we transition to the Finalized state
+ * if we have a Party B. Otherwise, we transition to the Single state.
+ * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
+ * state transitions to Bridge (through the Dial state)
+ *
+ * \par Bridge
+ *
+ * The Bridge state represents a path of communication between Party A and one
+ * or more other parties. When a CDR enters into the Bridge state, the following
+ * occurs:
+ * \li The CDR attempts to find a Party B. If the CDR has a Party B, it looks
+ * for that channel in the bridge and updates itself accordingly. If the CDR
+ * does not yet have a Party B, it attempts to find a channel that can be its
+ * Party B. If it finds one, it updates itself; otherwise, the CDR is
+ * temporarily finalized.
+ * \li Once the CDR has a Party B or it is determined that it cannot have a
+ * Party B, new CDRs are created for each pairing of channels with the CDR's
+ * Party A.
+ *
+ * As an example, consider the following:
+ * \li A Dials B - both answer
+ * \li B joins a bridge. Since no one is in the bridge and it was a dialed
+ * channel, it cannot have a Party B.
+ * \li A joins the bridge. Since A's Party B is B, A updates itself with B.
+ * \li Now say an Originated channel, C, joins the bridge. The bridge becomes
+ * a multi-party bridge.
+ * \li C attempts to get a Party B. A cannot be C's Party B, as it was created
+ * before it. B is a dialed channel and can thus be C's Party B, so C's CDR
+ * updates its Party B to B.
+ * \li New CDRs are now generated. A gets a new CDR for A -> C. B is dialed, and
+ * hence cannot get any CDR.
+ * \li Now say another Originated channel, D, joins the bridge. Say D has the
+ * \ref party_a flag set on it, such that it is always the preferred Party A.
+ * As such, it takes A as its Party B.
+ * \li New CDRs are generated. D gets new CDRs for D -> B and D -> C.
+ *
+ * The following transitions can occur while in the Bridge state:
+ * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
+ * the state transitions to the Pending state
+ *
+ * \par Pending
+ *
+ * After a channel leaves a bridge, we often don't know what's going to happen
+ * to it. It can enter another bridge; it can be hung up; it can continue on
+ * in the dialplan. It can even enter into limbo! Pending holds the state of the
+ * CDR until we get a subsequent Stasis message telling us what should happen.
+ *
+ * The following transitions can occur while in the Pending state:
+ * \li If a \ref ast_bridge_blob_type message is received, a new CDR is created
+ * and it is transitioned to the Bridge state
+ * \li If a \ref ast_channel_dial_type indicating a Dial Begin is received, a
+ * new CDR is created and it is transitioned to the Dial state
+ * \li If a \ref ast_channel_cache_update is received indicating a change in
+ * Context/Extension/Priority, a new CDR is created and transitioned to the
+ * Single state. If the update indicates that the party has been hung up, the
+ * CDR is transitioned to the Finalized state.
+ *
+ * \par Finalized
+ *
+ * Once a CDR enters the finalized state, it is finished. No further updates
+ * can be made to the party information, and the CDR cannot be changed.
+ *
+ * One exception to this occurs during linkedid propagation, in which the CDRs
+ * linkedids are updated based on who the channel is bridged with. In general,
+ * however, a finalized CDR is waiting for dispatch to the CDR backends.
+ */
+
+/*! \brief CDR engine settings */
+enum ast_cdr_settings {
+	CDR_ENABLED = 1 << 0,				/*< Enable CDRs */
+	CDR_BATCHMODE = 1 << 1,				/*< Whether or not we should dispatch CDRs in batches */
+	CDR_UNANSWERED = 1 << 2,			/*< Log unanswered CDRs */
+	CDR_CONGESTION = 1 << 3,			/*< Treat congestion as if it were a failed call */
+	CDR_END_BEFORE_H_EXTEN = 1 << 4,	/*< End the CDR before the 'h' extension runs */
+	CDR_INITIATED_SECONDS = 1 << 5,		/*< Include microseconds into the billing time */
+	CDR_DEBUG = 1 << 6,					/*< Enables extra debug statements */
+};
+
+/*! \brief CDR Batch Mode settings */
+enum ast_cdr_batch_mode_settings {
+	BATCH_MODE_SCHEDULER_ONLY = 1 << 0,	/*< Don't spawn a thread to handle the batches - do it on the scheduler */
+	BATCH_MODE_SAFE_SHUTDOWN = 1 << 1,	/*< During safe shutdown, submit the batched CDRs */
+};
 
 /*!
- * \brief CDR Flags
+ * \brief CDR manipulation options. Certain function calls will manipulate the
+ * state of a CDR object based on these flags.
  */
-enum {
-	AST_CDR_FLAG_KEEP_VARS     = (1 << 0),
-	AST_CDR_FLAG_POSTED        = (1 << 1),
-	AST_CDR_FLAG_LOCKED        = (1 << 2),
-	AST_CDR_FLAG_CHILD         = (1 << 3),
-	AST_CDR_FLAG_POST_DISABLED = (1 << 4),
-	AST_CDR_FLAG_BRIDGED       = (1 << 5),
-	AST_CDR_FLAG_MAIN          = (1 << 6),
-	AST_CDR_FLAG_ENABLE        = (1 << 7),
-	AST_CDR_FLAG_ANSLOCKED     = (1 << 8),
-	AST_CDR_FLAG_DONT_TOUCH    = (1 << 9),
-	AST_CDR_FLAG_POST_ENABLE   = (1 << 10),
-	AST_CDR_FLAG_DIALED        = (1 << 11),
-	AST_CDR_FLAG_ORIGINATED    = (1 << 12),
+enum ast_cdr_options {
+	AST_CDR_FLAG_KEEP_VARS = (1 << 0),			/*< Copy variables during the operation */
+	AST_CDR_FLAG_DISABLE = (1 << 1),			/*< Disable the current CDR */
+	AST_CDR_FLAG_DISABLE_ALL = (3 << 1),		/*< Disable the CDR and all future CDRs */
+	AST_CDR_FLAG_PARTY_A = (1 << 3),			/*< Set the channel as party A */
+	AST_CDR_FLAG_FINALIZE = (1 << 4),			/*< Finalize the current CDRs */
+	AST_CDR_FLAG_SET_ANSWER = (1 << 5),			/*< If the channel is answered, set the answer time to now */
+	AST_CDR_FLAG_RESET = (1 << 6),				/*< If set, set the start and answer time to now */
 };
 
 /*!
  * \brief CDR Flags - Disposition
  */
-enum {
+enum ast_cdr_disposition {
 	AST_CDR_NOANSWER = 0,
 	AST_CDR_NULL     = (1 << 0),
 	AST_CDR_FAILED   = (1 << 1),
@@ -61,21 +244,16 @@ enum {
 	AST_CDR_CONGESTION = (1 << 4),
 };
 
-/*!
- * \brief CDR AMA Flags
- */
-enum {
-	AST_CDR_OMIT          = 1,
-	AST_CDR_BILLING       = 2,
-	AST_CDR_DOCUMENTATION = 3,
+
+/*! \brief The global options available for CDRs */
+struct ast_cdr_config {
+	struct ast_flags settings;			/*< CDR settings */
+	struct batch_settings {
+		unsigned int time;				/*< Time between batches */
+		unsigned int size;				/*< Size to trigger a batch */
+		struct ast_flags settings;		/*< Settings for batches */
+	} batch_settings;
 };
-
-#define AST_MAX_USER_FIELD     256
-#define AST_MAX_ACCOUNT_CODE   20
-
-/* Include channel.h after relevant declarations it will need */
-#include "asterisk/channel.h"
-#include "asterisk/utils.h"
 
 /*!
  * \brief Responsible for call detail data
@@ -133,13 +311,133 @@ struct ast_cdr {
 	struct ast_cdr *next;
 };
 
-int ast_cdr_isset_unanswered(void);
-int ast_cdr_isset_congestion(void);
-void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw);
-int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur);
-int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char delim, char sep, int recur);
-void ast_cdr_free_vars(struct ast_cdr *cdr, int recur);
-int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
+/*!
+ * \since 12
+ * \brief Obtain the current CDR configuration
+ *
+ * The configuration is a ref counted object. The caller of this function must
+ * decrement the ref count when finished with the configuration.
+ *
+ * \retval NULL on error
+ * \retval The current CDR configuration
+ */
+struct ast_cdr_config *ast_cdr_get_config(void);
+
+/*!
+ * \since 12
+ * \brief Set the current CDR configuration
+ *
+ * \param config The new CDR configuration
+ */
+void ast_cdr_set_config(struct ast_cdr_config *config);
+
+/*!
+ * \since 12
+ * \brief Format a CDR variable from an already posted CDR
+ *
+ * \param cdr The dispatched CDR to process
+ * \param name The name of the variable
+ * \param ret Pointer to the formatted buffer
+ * \param workspace A pointer to the buffer to use to format the variable
+ * \param workspacelen The size of \ref workspace
+ * \param raw If non-zero and a date/time is extraced, provide epoch seconds. Otherwise format as a date/time stamp
+ */
+void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int raw);
+
+/*!
+ * \since 12
+ * \brief Retrieve a CDR variable from a channel's current CDR
+ *
+ * \param channel_name The name of the party A channel that the CDR is associated with
+ * \param name The name of the variable to retrieve
+ * \param value Buffer to hold the value
+ * \param length The size of the buffer
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
+int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size_t length);
+
+/*!
+ * \since 12
+ * \brief Set a variable on a CDR
+ *
+ * \param channel_name The channel to set the variable on
+ * \param name The name of the variable to set
+ * \param value The value of the variable to set
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
+int ast_cdr_setvar(const char *channel_name, const char *name, const char *value);
+
+/*!
+ * \since 12
+ * \brief Fork a CDR
+ *
+ * \param channel_name The name of the channel whose CDR should be forked
+ * \param options Options to control how the fork occurs.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_cdr_fork(const char *channel_name, struct ast_flags *options);
+
+/*!
+ * \since 12
+ * \brief Set a property on a CDR for a channel
+ *
+ * This function sets specific administrative properties on a CDR for a channel.
+ * This includes properties like preventing a CDR from being dispatched, to
+ * setting the channel as the preferred Party A in future CDRs. See
+ * \ref enum ast_cdr_options for more information.
+ *
+ * \param channel_name The CDR's channel
+ * \param option Option to apply to the CDR
+ *
+ * \retval 0 on success
+ * \retval 1 on error
+ */
+int ast_cdr_set_property(const char *channel_name, enum ast_cdr_options option);
+
+/*!
+ * \since 12
+ * \brief Clear a property on a CDR for a channel
+ *
+ * Clears a flag previously set by \ref ast_cdr_set_property
+ *
+ * \param channel_name The CDR's channel
+ * \param option Option to clear from the CDR
+ *
+ * \retval 0 on success
+ * \retval 1 on error
+ */
+int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option);
+
+/*!
+ * \brief Reset the detail record
+ * \param channel_name The channel that the CDR is associated with
+ * \param options Options that control what the reset operation does.
+ *
+ * Valid options are:
+ * \ref AST_CDR_FLAG_KEEP_VARS - keep the variables during the reset
+ * \ref AST_CDR_FLAG_DISABLE_ALL - when used with \ref ast_cdr_reset, re-enables
+ * the CDR
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_cdr_reset(const char *channel_name, struct ast_flags *options);
+
+/*!
+ * \brief Serializes all the data and variables for a current CDR record
+ * \param channel_name The channel to get the CDR for
+ * \param buf A buffer to use for formatting the data
+ * \param delim A delimeter to use to separate variable keys/values
+ * \param sep A separator to use between nestings
+ * \retval the total number of serialized variables
+ */
+int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, char delim, char sep);
 
 /*!
  * \brief CDR backend callback
@@ -150,7 +448,7 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
 
 /*! \brief Return TRUE if CDR subsystem is enabled */
-int check_cdr_enabled(void);
+int ast_cdr_is_enabled(void);
 
 /*!
  * \brief Allocate a CDR record
@@ -159,38 +457,13 @@ int check_cdr_enabled(void);
  */
 struct ast_cdr *ast_cdr_alloc(void);
 
-/*!
- * \brief Duplicate a record and increment the sequence number.
- * \param cdr the record to duplicate
- * \retval a malloc'd ast_cdr structure,
- * \retval NULL on error (malloc failure)
- * \see ast_cdr_dup()
- * \see ast_cdr_dup_unique_swap()
- */
-struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr);
 
 /*!
- * \brief Duplicate a record and increment the sequence number of the old
- * record.
+ * \brief Duplicate a public CDR
  * \param cdr the record to duplicate
- * \retval a malloc'd ast_cdr structure,
- * \retval NULL on error (malloc failure)
- * \note This version increments the original CDR's sequence number rather than
- * the duplicate's sequence number. The effect is as if the original CDR's
- * sequence number was swapped with the duplicate's sequence number.
  *
- * \see ast_cdr_dup()
- * \see ast_cdr_dup_unique()
- */
-struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr);
-
-/*!
- * \brief Duplicate a record
- * \param cdr the record to duplicate
  * \retval a malloc'd ast_cdr structure,
  * \retval NULL on error (malloc failure)
- * \see ast_cdr_dup_unique()
- * \see ast_cdr_dup_unique_swap()
  */
 struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
 
@@ -200,33 +473,6 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
  * Returns nothing
  */
 void ast_cdr_free(struct ast_cdr *cdr);
-
-/*!
- * \brief Discard and free a CDR record
- * \param cdr ast_cdr structure to free
- * Returns nothing  -- same as free, but no checks or complaints
- */
-void ast_cdr_discard(struct ast_cdr *cdr);
-
-/*!
- * \brief Initialize based on a channel
- * \param cdr Call Detail Record to use for channel
- * \param chan Channel to bind CDR with
- * Initializes a CDR and associates it with a particular channel
- * \note The channel should be locked before calling.
- * \return 0 by default
- */
-int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *chan);
-
-/*!
- * \brief Initialize based on a channel
- * \param cdr Call Detail Record to use for channel
- * \param chan Channel to bind CDR with
- * Initializes a CDR and associates it with a particular channel
- * \note The channel should be locked before calling.
- * \return 0 by default
- */
-int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *chan);
 
 /*!
  * \brief Register a CDR handling engine
@@ -247,217 +493,20 @@ int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be);
 void ast_cdr_unregister(const char *name);
 
 /*!
- * \brief Start a call
- * \param cdr the cdr you wish to associate with the call
- * Starts all CDR stuff necessary for monitoring a call
- * Returns nothing
- */
-void ast_cdr_start(struct ast_cdr *cdr);
-
-/*! \brief Answer a call
- * \param cdr the cdr you wish to associate with the call
- * Starts all CDR stuff necessary for doing CDR when answering a call
- * \note NULL argument is just fine.
- */
-void ast_cdr_answer(struct ast_cdr *cdr);
-
-/*!
- * \brief A call wasn't answered
- * \param cdr the cdr you wish to associate with the call
- * Marks the channel disposition as "NO ANSWER"
- * Will skip CDR's in chain with ANS_LOCK bit set. (see
- * forkCDR() application.
- */
-extern void ast_cdr_noanswer(struct ast_cdr *cdr);
-
-/*!
- * \brief A call was set to congestion
- * \param cdr the cdr you wish to associate with the call
- * Markst he channel disposition as "CONGESTION"
- * Will skip CDR's in chain with ANS_LOCK bit set. (see
- * forkCDR() application
- */
-extern void ast_cdr_congestion(struct ast_cdr *cdr);
-
-/*!
- * \brief Busy a call
- * \param cdr the cdr you wish to associate with the call
- * Marks the channel disposition as "BUSY"
- * Will skip CDR's in chain with ANS_LOCK bit set. (see
- * forkCDR() application.
- * Returns nothing
- */
-void ast_cdr_busy(struct ast_cdr *cdr);
-
-/*!
- * \brief Fail a call
- * \param cdr the cdr you wish to associate with the call
- * Marks the channel disposition as "FAILED"
- * Will skip CDR's in chain with ANS_LOCK bit set. (see
- * forkCDR() application.
- * Returns nothing
- */
-void ast_cdr_failed(struct ast_cdr *cdr);
-
-/*!
- * \brief Save the result of the call based on the AST_CAUSE_*
- * \param cdr the cdr you wish to associate with the call
- * \param cause the AST_CAUSE_*
- * Returns nothing
- */
-int ast_cdr_disposition(struct ast_cdr *cdr, int cause);
-
-/*!
- * \brief End a call
- * \param cdr the cdr you have associated the call with
- * Registers the end of call time in the cdr structure.
- * Returns nothing
- */
-void ast_cdr_end(struct ast_cdr *cdr);
-
-/*!
- * \brief Detaches the detail record for posting (and freeing) either now or at a
- * later time in bulk with other records during batch mode operation.
- * \param cdr Which CDR to detach from the channel thread
- * Prevents the channel thread from blocking on the CDR handling
- * Returns nothing
- */
-void ast_cdr_detach(struct ast_cdr *cdr);
-
-/*!
- * \brief Spawns (possibly) a new thread to submit a batch of CDRs to the backend engines
- * \param shutdown Whether or not we are shutting down
- * Blocks the asterisk shutdown procedures until the CDR data is submitted.
- * Returns nothing
- */
-void ast_cdr_submit_batch(int shutdown);
-
-/*!
- * \brief Set the destination channel, if there was one
- * \param cdr Which cdr it's applied to
- * \param chan Channel to which dest will be
- * Sets the destination channel the CDR is applied to
- * Returns nothing
- */
-void ast_cdr_setdestchan(struct ast_cdr *cdr, const char *chan);
-
-/*!
- * \brief Set the last executed application
- * \param cdr which cdr to act upon
- * \param app the name of the app you wish to change it to
- * \param data the data you want in the data field of app you set it to
- * Changes the value of the last executed app
- * Returns nothing
- */
-void ast_cdr_setapp(struct ast_cdr *cdr, const char *app, const char *data);
-
-/*!
- * \brief Set the answer time for a call
- * \param cdr the cdr you wish to associate with the call
- * \param t the answer time
- * Starts all CDR stuff necessary for doing CDR when answering a call
- * NULL argument is just fine.
- */
-void ast_cdr_setanswer(struct ast_cdr *cdr, struct timeval t);
-
-/*!
- * \brief Set the disposition for a call
- * \param cdr the cdr you wish to associate with the call
- * \param disposition the new disposition
- * Set the disposition on a call.
- * NULL argument is just fine.
- */
-void ast_cdr_setdisposition(struct ast_cdr *cdr, long int disposition);
-
-/*!
- * \brief Convert a string to a detail record AMA flag
- * \param flag string form of flag
- * Converts the string form of the flag to the binary form.
- * \return the binary form of the flag
- */
-int ast_cdr_amaflags2int(const char *flag);
-
-/*!
  * \brief Disposition to a string
  * \param disposition input binary form
  * Converts the binary form of a disposition to string form.
  * \return a pointer to the string form
  */
-char *ast_cdr_disp2str(int disposition);
-
-/*!
- * \brief Reset the detail record, optionally posting it first
- * \param cdr which cdr to act upon
- * \param flags |AST_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
- *              |AST_CDR_FLAG_LOCKED whether or not to reset locked CDR's
- */
-void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *flags);
-
-/*! Reset the detail record times, flags */
-/*!
- * \param cdr which cdr to act upon
- * \param flags |AST_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
- *              |AST_CDR_FLAG_LOCKED whether or not to reset locked CDR's
- */
-void ast_cdr_specialized_reset(struct ast_cdr *cdr, struct ast_flags *flags);
-
-/*! Flags to a string */
-/*!
- * \param flags binary flag
- * Converts binary flags to string flags
- * Returns string with flag name
- */
-char *ast_cdr_flags2str(int flags);
-
-/*!
- * \brief Move the non-null data from the "from" cdr to the "to" cdr
- * \param to the cdr to get the goodies
- * \param from the cdr to give the goodies
- */
-void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from);
-
-/*!
- * \brief Set account code, will generate AMI event
- * \note The channel should be locked before calling.
- */
-int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
-
-/*!
- * \brief Set the peer account
- * \note The channel should be locked before calling.
- */
-int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account);
-
-/*!
- * \brief Set AMA flags for channel
- * \note The channel should be locked before calling.
- */
-int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);
+const char *ast_cdr_disp2str(int disposition);
 
 /*!
  * \brief Set CDR user field for channel (stored in CDR)
- * \note The channel should be locked before calling.
+ *
+ * \param channel_name The name of the channel that owns the CDR
+ * \param userfield The user field to set
  */
-int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield);
-/*!
- * \brief Append to CDR user field for channel (stored in CDR)
- * \note The channel should be locked before calling.
- */
-int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield);
-
-
-/*!
- * \brief Update CDR on a channel
- * \note The channel should be locked before calling.
- */
-int ast_cdr_update(struct ast_channel *chan);
-
-
-extern int ast_default_amaflags;
-
-extern char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
-
-struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
+void ast_cdr_setuserfield(const char *channel_name, const char *userfield);
 
 /*! \brief Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
 int ast_cdr_engine_reload(void);
@@ -467,15 +516,5 @@ int ast_cdr_engine_init(void);
 
 /*! Submit any remaining CDRs and prepare for shutdown */
 void ast_cdr_engine_term(void);
-
-/*!
- * \brief
- * \param[in] tree Where to insert the cdr.
- * \param[in] cdr The cdr structure to insert in 'tree'.
- * \param[in] recur Go throw all the cdr levels.
- * \retval <0 on error.
- * \retval 0 on success.
- */
-int ast_cdr_data_add_structure(struct ast_data *tree, struct ast_cdr *cdr, int recur);
 
 #endif /* _ASTERISK_CDR_H */

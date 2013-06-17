@@ -234,7 +234,7 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 	/* Disposition */
 	append_string(buf, ast_cdr_disp2str(cdr->disposition), bufsize);
 	/* AMA Flags */
-	append_string(buf, ast_cdr_flags2str(cdr->amaflags), bufsize);
+	append_string(buf, ast_channel_amaflags2string(cdr->amaflags), bufsize);
 	/* Unique ID */
 	if (loguniqueid)
 		append_string(buf, cdr->uniqueid, bufsize);
@@ -285,9 +285,6 @@ static int csv_log(struct ast_cdr *cdr)
 	char buf[1024];
 	char csvmaster[PATH_MAX];
 	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", ast_config_AST_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
-#if 0
-	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), cdr->accountcode);
-#endif
 	if (build_csv_record(buf, sizeof(buf), cdr)) {
 		ast_log(LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
 		return 0;

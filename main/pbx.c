@@ -470,36 +470,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">Exception</ref>
 		</see-also>
 	</application>
-	<application name="ResetCDR" language="en_US">
-		<synopsis>
-			Resets the Call Data Record.
-		</synopsis>
-		<syntax>
-			<parameter name="options">
-				<optionlist>
-					<option name="w">
-						<para>Store the current CDR record before resetting it.</para>
-					</option>
-					<option name="a">
-						<para>Store any stacked records.</para>
-					</option>
-					<option name="v">
-						<para>Save CDR variables.</para>
-					</option>
-					<option name="e">
-						<para>Enable CDR only (negate effects of NoCDR).</para>
-					</option>
-				</optionlist>
-			</parameter>
-		</syntax>
-		<description>
-			<para>This application causes the Call Data Record to be reset.</para>
-		</description>
-		<see-also>
-			<ref type="application">ForkCDR</ref>
-			<ref type="application">NoCDR</ref>
-		</see-also>
-	</application>
 	<application name="Ringing" language="en_US">
 		<synopsis>
 			Indicate ringing tone.
@@ -657,9 +627,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>This application will set the channel's AMA Flags for billing purposes.</para>
+			<warning><para>This application is deprecated. Please use the CHANNEL function instead.</para></warning>
 		</description>
 		<see-also>
 			<ref type="function">CDR</ref>
+			<ref type="function">CHANNEL</ref>
 		</see-also>
 	</application>
 	<application name="Wait" language="en_US">
@@ -1139,7 +1111,6 @@ static int pbx_builtin_background(struct ast_channel *, const char *);
 static int pbx_builtin_wait(struct ast_channel *, const char *);
 static int pbx_builtin_waitexten(struct ast_channel *, const char *);
 static int pbx_builtin_incomplete(struct ast_channel *, const char *);
-static int pbx_builtin_resetcdr(struct ast_channel *, const char *);
 static int pbx_builtin_setamaflags(struct ast_channel *, const char *);
 static int pbx_builtin_ringing(struct ast_channel *, const char *);
 static int pbx_builtin_proceeding(struct ast_channel *, const char *);
@@ -1326,7 +1297,6 @@ static struct pbx_builtin {
 	{ "Proceeding",     pbx_builtin_proceeding },
 	{ "Progress",       pbx_builtin_progress },
 	{ "RaiseException", pbx_builtin_raise_exception },
-	{ "ResetCDR",       pbx_builtin_resetcdr },
 	{ "Ringing",        pbx_builtin_ringing },
 	{ "SayAlpha",       pbx_builtin_saycharacters },
 	{ "SayDigits",      pbx_builtin_saydigits },
@@ -1565,15 +1535,13 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
-	if (ast_channel_cdr(c) && !ast_check_hangup(c))
-		ast_cdr_setapp(ast_channel_cdr(c), app->name, data);
-
 	/* save channel values */
 	saved_c_appl= ast_channel_appl(c);
 	saved_c_data= ast_channel_data(c);
 
 	ast_channel_appl_set(c, app->name);
 	ast_channel_data_set(c, data);
+	ast_channel_publish_snapshot(c);
 
 	if (app->module)
 		u = __ast_module_user_add(app->module, c);
@@ -5713,10 +5681,6 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 
 	ast_channel_lock(chan);
 
-	if (ast_channel_cdr(chan) && ast_opt_end_cdr_before_h_exten) {
-		ast_cdr_end(ast_channel_cdr(chan));
-	}
-
 	/* Set h exten location */
 	if (context != ast_channel_context(chan)) {
 		ast_channel_context_set(chan, context);
@@ -5795,10 +5759,6 @@ int ast_pbx_hangup_handler_run(struct ast_channel *chan)
 	if (AST_LIST_EMPTY(handlers)) {
 		ast_channel_unlock(chan);
 		return 0;
-	}
-
-	if (ast_channel_cdr(chan) && ast_opt_end_cdr_before_h_exten) {
-		ast_cdr_end(ast_channel_cdr(chan));
 	}
 
 	/*
@@ -6114,12 +6074,6 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		set_ext_pri(c, "s", 1);
 	}
 
-	ast_channel_lock(c);
-	if (ast_channel_cdr(c)) {
-		/* allow CDR variables that have been collected after channel was created to be visible during call */
-		ast_cdr_update(c);
-	}
-	ast_channel_unlock(c);
 	for (;;) {
 		char dst_exten[256];	/* buffer to accumulate digits */
 		int pos = 0;		/* XXX should check bounds */
@@ -6229,11 +6183,6 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					}
 					/* Call timed out with no special extension to jump to. */
 				}
-				ast_channel_lock(c);
-				if (ast_channel_cdr(c)) {
-					ast_cdr_update(c);
-				}
-				ast_channel_unlock(c);
 				error = 1;
 				break;
 			}
@@ -6339,12 +6288,6 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					}
 				}
 			}
-			ast_channel_lock(c);
-			if (ast_channel_cdr(c)) {
-				ast_verb(2, "CDR updated on %s\n",ast_channel_name(c));
-				ast_cdr_update(c);
-			}
-			ast_channel_unlock(c);
 		}
 	}
 
@@ -9991,13 +9934,16 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	}
 
 	dialed = ast_dial_get_channel(outgoing->dial, 0);
+	if (!dialed) {
+		return -1;
+	}
 
 	ast_set_variables(dialed, vars);
 
 	if (account) {
-		ast_cdr_setaccount(dialed, account);
+		ast_channel_accountcode_set(dialed, account);
 	}
-	ast_set_flag(ast_channel_cdr(dialed), AST_CDR_FLAG_ORIGINATED);
+	ast_set_flag(ast_channel_flags(dialed), AST_FLAG_ORIGINATED);
 
 	if (!ast_strlen_zero(cid_num) && !ast_strlen_zero(cid_name)) {
 		struct ast_party_connected_line connected;
@@ -10043,12 +9989,13 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	/* Wait for dialing to complete */
 	if (channel || synchronous) {
 		if (channel) {
+			ast_channel_ref(*channel);
 			ast_channel_unlock(*channel);
 		}
 		while (!outgoing->dialed) {
 			ast_cond_wait(&outgoing->cond, &outgoing->lock);
 		}
-		if (channel) {
+		if (channel && *channel) {
 			ast_channel_lock(*channel);
 		}
 	}
@@ -10078,7 +10025,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 			}
 
 			if (account) {
-				ast_cdr_setaccount(failed, account);
+				ast_channel_accountcode_set(failed, account);
 			}
 
 			set_ext_pri(failed, "failed", 1);
@@ -10387,8 +10334,8 @@ static int pbx_builtin_busy(struct ast_channel *chan, const char *data)
 	/* Don't change state of an UP channel, just indicate
 	   busy in audio */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_BUSY);
 		ast_setstate(chan, AST_STATE_BUSY);
-		ast_cdr_busy(ast_channel_cdr(chan));
 	}
 	wait_for_hangup(chan, data);
 	return -1;
@@ -10403,8 +10350,8 @@ static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 	/* Don't change state of an UP channel, just indicate
 	   congestion in audio */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_CONGESTION);
 		ast_setstate(chan, AST_STATE_BUSY);
-		ast_cdr_congestion(ast_channel_cdr(chan));
 	}
 	wait_for_hangup(chan, data);
 	return -1;
@@ -10416,7 +10363,6 @@ static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 {
 	int delay = 0;
-	int answer_cdr = 1;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(delay);
@@ -10424,7 +10370,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		return __ast_answer(chan, 0, 1);
+		return __ast_answer(chan, 0);
 	}
 
 	parse = ast_strdupa(data);
@@ -10439,10 +10385,12 @@ static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_strlen_zero(args.answer_cdr) && !strcasecmp(args.answer_cdr, "nocdr")) {
-		answer_cdr = 0;
+		if (ast_cdr_set_property(ast_channel_name(chan), AST_CDR_FLAG_DISABLE_ALL)) {
+			ast_log(AST_LOG_WARNING, "Failed to disable CDR on %s\n", ast_channel_name(chan));
+		}
 	}
 
-	return __ast_answer(chan, delay, answer_cdr);
+	return __ast_answer(chan, delay);
 }
 
 static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
@@ -10459,7 +10407,7 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
 	if (ast_check_hangup(chan)) {
 		return -1;
 	} else if (ast_channel_state(chan) != AST_STATE_UP && answer) {
-		__ast_answer(chan, 0, 1);
+		__ast_answer(chan, 0);
 	}
 
 	ast_indicate(chan, AST_CONTROL_INCOMPLETE);
@@ -10467,39 +10415,30 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
 	return AST_PBX_INCOMPLETE;
 }
 
-AST_APP_OPTIONS(resetcdr_opts, {
-	AST_APP_OPTION('w', AST_CDR_FLAG_POSTED),
-	AST_APP_OPTION('a', AST_CDR_FLAG_LOCKED),
-	AST_APP_OPTION('v', AST_CDR_FLAG_KEEP_VARS),
-	AST_APP_OPTION('e', AST_CDR_FLAG_POST_ENABLE),
-});
-
-/*!
- * \ingroup applications
- */
-static int pbx_builtin_resetcdr(struct ast_channel *chan, const char *data)
-{
-	char *args;
-	struct ast_flags flags = { 0 };
-
-	if (!ast_strlen_zero(data)) {
-		args = ast_strdupa(data);
-		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
-	}
-
-	ast_cdr_reset(ast_channel_cdr(chan), &flags);
-
-	return 0;
-}
-
 /*!
  * \ingroup applications
  */
 static int pbx_builtin_setamaflags(struct ast_channel *chan, const char *data)
 {
+	ast_log(AST_LOG_WARNING, "The SetAMAFlags application is deprecated. Please use the CHANNEL function instead.\n");
+
+	if (ast_strlen_zero(data)) {
+		ast_log(AST_LOG_WARNING, "No parameter passed to SetAMAFlags\n");
+		return 0;
+	}
 	/* Copy the AMA Flags as specified */
 	ast_channel_lock(chan);
-	ast_cdr_setamaflags(chan, data ? data : "");
+	if (isdigit(data[0])) {
+		int amaflags;
+		if (sscanf(data, "%30d", &amaflags) != 1) {
+			ast_log(AST_LOG_WARNING, "Unable to set AMA flags on channel %s\n", ast_channel_name(chan));
+			ast_channel_unlock(chan);
+			return 0;
+		}
+		ast_channel_amaflags_set(chan, amaflags);
+	} else {
+		ast_channel_amaflags_set(chan, ast_channel_string2amaflag(data));
+	}
 	ast_channel_unlock(chan);
 	return 0;
 }

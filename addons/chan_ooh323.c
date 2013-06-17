@@ -2376,7 +2376,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				ast_parse_allow_disallow(&user->prefs,
 					 user->cap,  tcodecs, 1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
-				user->amaflags = ast_cdr_amaflags2int(v->value);
+				user->amaflags = ast_channel_string2amaflag(v->value);
          		} else if (!strcasecmp(v->name, "ip") || !strcasecmp(v->name, "host")) {
 				struct ast_sockaddr p;
 				if (!ast_parse_arg(v->value, PARSE_ADDR, &p)) {
@@ -2560,7 +2560,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 				ast_parse_allow_disallow(&peer->prefs, peer->cap, 
 												 tcodecs, 1);				 
 			} else if (!strcasecmp(v->name,  "amaflags")) {
-				peer->amaflags = ast_cdr_amaflags2int(v->value);
+				peer->amaflags = ast_channel_string2amaflag(v->value);
 			} else if (!strcasecmp(v->name, "roundtrip")) {
 				sscanf(v->value, "%d,%d", &peer->rtdrcount, &peer->rtdrinterval);
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
@@ -2917,7 +2917,7 @@ int reload_config(int reload)
 											"'lowdelay', 'throughput', 'reliability', "
 											"'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "amaflags")) {
-			gAMAFLAGS = ast_cdr_amaflags2int(v->value);
+			gAMAFLAGS = ast_channel_string2amaflag(v->value);
 		} else if (!strcasecmp(v->name, "accountcode")) {
          ast_copy_string(gAccountcode, v->value, sizeof(gAccountcode));
 		} else if (!strcasecmp(v->name, "disallow")) {
@@ -3117,7 +3117,7 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 		}
 
 		ast_cli(a->fd, "%-15.15s%s\n", "AccountCode: ", peer->accountcode);
-		ast_cli(a->fd, "%-15.15s%s\n", "AMA flags: ", ast_cdr_flags2str(peer->amaflags));
+		ast_cli(a->fd, "%-15.15s%s\n", "AMA flags: ", ast_channel_amaflags2string(peer->amaflags));
 		ast_cli(a->fd, "%-15.15s%s\n", "IP:Port: ", ip_port);
 		ast_cli(a->fd, "%-15.15s%d\n", "OutgoingLimit: ", peer->outgoinglimit);
 		ast_cli(a->fd, "%-15.15s%d\n", "rtptimeout: ", peer->rtptimeout);
@@ -3276,7 +3276,7 @@ static char *handle_cli_ooh323_show_user(struct ast_cli_entry *e, int cmd, struc
 		}
 
 		ast_cli(a->fd, "%-15.15s%s\n", "AccountCode: ", user->accountcode);
-		ast_cli(a->fd, "%-15.15s%s\n", "AMA flags: ", ast_cdr_flags2str(user->amaflags));
+		ast_cli(a->fd, "%-15.15s%s\n", "AMA flags: ", ast_channel_amaflags2string(user->amaflags));
 		ast_cli(a->fd, "%-15.15s%s\n", "Context: ", user->context);
 		ast_cli(a->fd, "%-15.15s%d\n", "IncomingLimit: ", user->incominglimit);
 		ast_cli(a->fd, "%-15.15s%d\n", "InUse: ", user->inUse);
@@ -3524,7 +3524,7 @@ static char *handle_cli_ooh323_show_config(struct ast_cli_entry *e, int cmd, str
 
 	ast_cli(a->fd, "%-20s%ld\n", "Call counter: ", callnumber);
 	ast_cli(a->fd, "%-20s%s\n", "AccountCode: ", gAccountcode);
-	ast_cli(a->fd, "%-20s%s\n", "AMA flags: ", ast_cdr_flags2str(gAMAFLAGS));
+	ast_cli(a->fd, "%-20s%s\n", "AMA flags: ", ast_channel_amaflags2string(gAMAFLAGS));
 
 	pAlias = gAliasList;
 	if(pAlias) {

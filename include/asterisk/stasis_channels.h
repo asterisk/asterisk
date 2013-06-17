@@ -38,36 +38,38 @@
  */
 struct ast_channel_snapshot {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);			/*!< ASCII unique channel name */
-		AST_STRING_FIELD(accountcode);		/*!< Account code for billing */
-		AST_STRING_FIELD(peeraccount);		/*!< Peer account code for billing */
-		AST_STRING_FIELD(userfield);		/*!< Userfield for CEL billing */
-		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
-		AST_STRING_FIELD(linkedid);		/*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(parkinglot);		/*!< Default parking lot, if empty, default parking lot */
-		AST_STRING_FIELD(hangupsource);		/*!< Who is responsible for hanging up this channel */
-		AST_STRING_FIELD(appl);			/*!< Current application */
-		AST_STRING_FIELD(data);			/*!< Data passed to current application */
-		AST_STRING_FIELD(context);		/*!< Dialplan: Current extension context */
-		AST_STRING_FIELD(exten);		/*!< Dialplan: Current extension number */
-		AST_STRING_FIELD(caller_name);		/*!< Caller ID Name */
-		AST_STRING_FIELD(caller_number);	/*!< Caller ID Number */
-		AST_STRING_FIELD(caller_ani);		/*!< Caller ID ANI Number */
-		AST_STRING_FIELD(caller_rdnis);		/*!< Caller ID RDNIS Number */
-		AST_STRING_FIELD(caller_dnid);		/*!< Caller ID DNID Number */
-		AST_STRING_FIELD(connected_name);	/*!< Connected Line Name */
-		AST_STRING_FIELD(connected_number);	/*!< Connected Line Number */
-		AST_STRING_FIELD(language);		/*!< The default spoken language for the channel */
+		AST_STRING_FIELD(name);             /*!< ASCII unique channel name */
+		AST_STRING_FIELD(accountcode);      /*!< Account code for billing */
+		AST_STRING_FIELD(peeraccount);      /*!< Peer account code for billing */
+		AST_STRING_FIELD(userfield);        /*!< Userfield for CEL billing */
+		AST_STRING_FIELD(uniqueid);         /*!< Unique Channel Identifier */
+		AST_STRING_FIELD(linkedid);         /*!< Linked Channel Identifier -- gets propagated by linkage */
+		AST_STRING_FIELD(parkinglot);       /*!< Default parking lot, if empty, default parking lot */
+		AST_STRING_FIELD(hangupsource);     /*!< Who is responsible for hanging up this channel */
+		AST_STRING_FIELD(appl);             /*!< Current application */
+		AST_STRING_FIELD(data);             /*!< Data passed to current application */
+		AST_STRING_FIELD(context);          /*!< Dialplan: Current extension context */
+		AST_STRING_FIELD(exten);            /*!< Dialplan: Current extension number */
+		AST_STRING_FIELD(caller_name);      /*!< Caller ID Name */
+		AST_STRING_FIELD(caller_number);    /*!< Caller ID Number */
+		AST_STRING_FIELD(caller_dnid);      /*!< Dialed ID Number */
+		AST_STRING_FIELD(caller_ani);       /*< Caller ID ANI Number */
+		AST_STRING_FIELD(caller_rdnis);     /*!< Caller ID RDNIS Number */
+		AST_STRING_FIELD(caller_subaddr);   /*!< Caller subaddress */
+		AST_STRING_FIELD(dialed_subaddr);   /*!< Dialed subaddress */
+		AST_STRING_FIELD(connected_name);   /*!< Connected Line Name */
+		AST_STRING_FIELD(connected_number); /*!< Connected Line Number */
+		AST_STRING_FIELD(language);         /*!< The default spoken language for the channel */
 	);
 
-	struct timeval creationtime;	/*!< The time of channel creation */
-	enum ast_channel_state state;	/*!< State of line */
-	int priority;			/*!< Dialplan: Current extension priority */
-	int amaflags;			/*!< AMA flags for billing */
-	int hangupcause;		/*!< Why is the channel hanged up. See causes.h */
-	int caller_pres;		/*!< Caller ID presentation. */
-	struct ast_flags flags;		/*!< channel flags of AST_FLAG_ type */
-	struct varshead *manager_vars;	/*!< Variables to be appended to manager events */
+	struct timeval creationtime;            /*!< The time of channel creation */
+	enum ast_channel_state state;           /*!< State of line */
+	int priority;                           /*!< Dialplan: Current extension priority */
+	int amaflags;                           /*!< AMA flags for billing */
+	int hangupcause;                        /*!< Why is the channel hanged up. See causes.h */
+	int caller_pres;                        /*!< Caller ID presentation. */
+	struct ast_flags flags;                 /*!< channel flags of AST_FLAG_ type */
+	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
 };
 
 /*!
@@ -300,7 +302,7 @@ void ast_channel_publish_snapshot(struct ast_channel *chan);
  * \since 12
  * \brief Publish a \ref ast_channel_varset for a channel.
  *
- * \param chan Channel to pulish the event for, or \c NULL for 'none'.
+ * \param chan Channel to publish the event for, or \c NULL for 'none'.
  * \param variable Name of the variable being set
  * \param value Value.
  */

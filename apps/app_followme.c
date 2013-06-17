@@ -578,29 +578,6 @@ static void clear_caller(struct findme_user *tmpuser)
 	}
 
 	outbound = tmpuser->ochan;
-	ast_channel_lock(outbound);
-	if (!ast_channel_cdr(outbound)) {
-		ast_channel_cdr_set(outbound, ast_cdr_alloc());
-		if (ast_channel_cdr(outbound)) {
-			ast_cdr_init(ast_channel_cdr(outbound), outbound);
-		}
-	}
-	if (ast_channel_cdr(outbound)) {
-		char tmp[256];
-
-		snprintf(tmp, sizeof(tmp), "Local/%s", tmpuser->dialarg);
-		ast_cdr_setapp(ast_channel_cdr(outbound), "FollowMe", tmp);
-		ast_cdr_update(outbound);
-		ast_cdr_start(ast_channel_cdr(outbound));
-		ast_cdr_end(ast_channel_cdr(outbound));
-		/* If the cause wasn't handled properly */
-		if (ast_cdr_disposition(ast_channel_cdr(outbound), ast_channel_hangupcause(outbound))) {
-			ast_cdr_failed(ast_channel_cdr(outbound));
-		}
-	} else {
-		ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
-	}
-	ast_channel_unlock(outbound);
 	ast_hangup(outbound);
 	tmpuser->ochan = NULL;
 }
@@ -1127,11 +1104,6 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 				 * Destoy all new outgoing calls.
 				 */
 				while ((tmpuser = AST_LIST_REMOVE_HEAD(&new_user_list, entry))) {
-					ast_channel_lock(tmpuser->ochan);
-					if (ast_channel_cdr(tmpuser->ochan)) {
-						ast_cdr_init(ast_channel_cdr(tmpuser->ochan), tmpuser->ochan);
-					}
-					ast_channel_unlock(tmpuser->ochan);
 					destroy_calling_node(tmpuser);
 				}
 
@@ -1153,11 +1125,6 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 				AST_LIST_REMOVE_CURRENT(entry);
 
 				/* Destroy this failed new outgoing call. */
-				ast_channel_lock(tmpuser->ochan);
-				if (ast_channel_cdr(tmpuser->ochan)) {
-					ast_cdr_init(ast_channel_cdr(tmpuser->ochan), tmpuser->ochan);
-				}
-				ast_channel_unlock(tmpuser->ochan);
 				destroy_calling_node(tmpuser);
 				continue;
 			}
@@ -1310,15 +1277,10 @@ static void end_bridge_callback(void *data)
 	time(&end);
 
 	ast_channel_lock(chan);
-	if (ast_channel_cdr(chan)->answer.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", (long) end - ast_channel_cdr(chan)->answer.tv_sec);
-		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
-	}
-
-	if (ast_channel_cdr(chan)->start.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", (long) end - ast_channel_cdr(chan)->start.tv_sec);
-		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
-	}
+	snprintf(buf, sizeof(buf), "%d", ast_channel_get_up_time(chan));
+	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
+	snprintf(buf, sizeof(buf), "%d", ast_channel_get_duration(chan));
+	pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
 	ast_channel_unlock(chan);
 }
 

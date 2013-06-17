@@ -112,10 +112,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="d">
 						<para>make the app return <literal>-1</literal> if there is an error condition.</para>
 					</option>
-					<option name="c">
-						<para>change the CDR so that the source of the call is
-						<literal>Agent/agent_id</literal></para>
-					</option>
 					<option name="n">
 						<para>don't generate the warnings when there is no callerid or the
 						agentid is not known. It's handy if you want to have one context
@@ -234,7 +230,6 @@ static char recordformat[AST_MAX_BUF] = "";
 static char recordformatext[AST_MAX_BUF] = "";
 static char urlprefix[AST_MAX_BUF] = "";
 static char savecallsin[AST_MAX_BUF] = "";
-static int updatecdr = 0;
 static char beep[AST_MAX_BUF] = "beep";
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
@@ -573,7 +568,7 @@ static int agent_answer(struct ast_channel *ast)
 
 static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p, int needlock)
 {
-	char tmp[AST_MAX_BUF],tmp2[AST_MAX_BUF], *pointer;
+	char tmp[AST_MAX_BUF], tmp2[AST_MAX_BUF], *pointer;
 	char filename[AST_MAX_BUF];
 	int res = -1;
 	if (!p)
@@ -590,9 +585,7 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 #if 0
 		ast_verbose("name is %s, link is %s\n",tmp, tmp2);
 #endif
-		if (!ast_channel_cdr(ast))
-			ast_channel_cdr_set(ast, ast_cdr_alloc());
-		ast_cdr_setuserfield(ast, tmp2);
+		ast_cdr_setuserfield(ast_channel_name(ast), tmp2);
 		res = 0;
 	} else
 		ast_log(LOG_ERROR, "Recording already started on that call.\n");
@@ -1199,11 +1192,6 @@ static int read_agent_config(int reload)
 			strcpy(agentgoodbye,v->value);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			ast_copy_string(moh, v->value, sizeof(moh));
-		} else if (!strcasecmp(v->name, "updatecdr")) {
-			if (ast_true(v->value))
-				updatecdr = 1;
-			else
-				updatecdr = 0;
 		} else if (!strcasecmp(v->name, "autologoffunavail")) {
 			if (ast_true(v->value))
 				autologoffunavail = 1;
@@ -1898,7 +1886,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 	const char *tmpoptions = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
-	int update_cdr = updatecdr;
 
 	user[0] = '\0';
 	xpass[0] = '\0';
@@ -1917,14 +1904,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 			max_login_tries = 0;
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES");
 		ast_verb(3, "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,ast_channel_name(chan));
-	}
-	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
-		if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
-			update_cdr = 1;
-		else
-			update_cdr = 0;
-		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR");
-		ast_verb(3, "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,ast_channel_name(chan));
 	}
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
 		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
@@ -2093,8 +2072,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n",
 							      p->agent, ast_channel_name(chan), ast_channel_uniqueid(chan));
-						if (update_cdr && ast_channel_cdr(chan))
-							snprintf(ast_channel_cdr(chan)->channel, sizeof(ast_channel_cdr(chan)->channel), "%s", agent);
 						ast_queue_log("NONE", ast_channel_uniqueid(chan), agent, "AGENTLOGIN", "%s", ast_channel_name(chan));
 						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
 								    ast_getformatname(ast_channel_readformat(chan)), ast_getformatname(ast_channel_writeformat(chan)));
@@ -2242,17 +2219,16 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
-	int changeoutgoing = 0;
 	int res = 0;
 	char agent[AST_MAX_AGENT];
 
 	if (data) {
-		if (strchr(data, 'd'))
+		if (strchr(data, 'd')) {
 			exitifnoagentid = 1;
-		if (strchr(data, 'n'))
+		}
+		if (strchr(data, 'n')) {
 			nowarnings = 1;
-		if (strchr(data, 'c'))
-			changeoutgoing = 1;
+		}
 	}
 	if (ast_channel_caller(chan)->id.number.valid
 		&& !ast_strlen_zero(ast_channel_caller(chan)->id.number.str)) {
@@ -2266,7 +2242,6 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 			AST_LIST_LOCK(&agents);
 			AST_LIST_TRAVERSE(&agents, p, list) {
 				if (!strcasecmp(p->agent, tmp)) {
-					if (changeoutgoing) snprintf(ast_channel_cdr(chan)->channel, sizeof(ast_channel_cdr(chan)->channel), "Agent/%s", p->agent);
 					__agent_start_monitoring(chan, p, 1);
 					break;
 				}

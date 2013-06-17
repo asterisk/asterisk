@@ -67,7 +67,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
 #include "asterisk/say.h"
-#include "asterisk/cdr.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features.h"
 #include "asterisk/app.h"
@@ -4087,7 +4086,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "amaflags")) {
-			y = ast_cdr_amaflags2int(v->value);
+			y = ast_channel_string2amaflag(v->value);
 			if (y < 0) {
 				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 			} else {

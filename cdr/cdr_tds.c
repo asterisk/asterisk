@@ -176,7 +176,7 @@ retry:
 					 settings->table,
 					 accountcode, src, dst, dcontext, clid, channel,
 					 dstchannel, lastapp, lastdata, start, answer, end, hrduration,
-					 hrbillsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid,
+					 hrbillsec, ast_cdr_disp2str(cdr->disposition), ast_channel_amaflags2string(cdr->amaflags), uniqueid,
 					 userfield
 			);
 		} else {
@@ -196,7 +196,7 @@ retry:
 					 settings->table,
 					 accountcode, src, dst, dcontext, clid, channel,
 					 dstchannel, lastapp, lastdata, start, answer, end, cdr->duration,
-					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid,
+					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_channel_amaflags2string(cdr->amaflags), uniqueid,
 					 userfield
 			);
 		}
@@ -226,7 +226,7 @@ retry:
 					 settings->table,
 					 accountcode, src, dst, dcontext, clid, channel,
 					 dstchannel, lastapp, lastdata, start, answer, end, hrduration,
-					 hrbillsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid
+					 hrbillsec, ast_cdr_disp2str(cdr->disposition), ast_channel_amaflags2string(cdr->amaflags), uniqueid
 			);
 		} else {
 			erc = dbfcmd(settings->dbproc,
@@ -245,7 +245,7 @@ retry:
 					 settings->table,
 					 accountcode, src, dst, dcontext, clid, channel,
 					 dstchannel, lastapp, lastdata, start, answer, end, cdr->duration,
-					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid
+					 cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_channel_amaflags2string(cdr->amaflags), uniqueid
 			);
 		}
 	}

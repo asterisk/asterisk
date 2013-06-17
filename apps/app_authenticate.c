@@ -213,9 +213,9 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 						continue;
 					ast_md5_hash(md5passwd, passwd);
 					if (!strcmp(md5passwd, md5secret)) {
-						if (ast_test_flag(&flags,OPT_ACCOUNT)) {
+						if (ast_test_flag(&flags, OPT_ACCOUNT)) {
 							ast_channel_lock(chan);
-							ast_cdr_setaccount(chan, buf);
+							ast_channel_accountcode_set(chan, buf);
 							ast_channel_unlock(chan);
 						}
 						break;
@@ -224,7 +224,7 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 					if (!strcmp(passwd, buf)) {
 						if (ast_test_flag(&flags, OPT_ACCOUNT)) {
 							ast_channel_lock(chan);
-							ast_cdr_setaccount(chan, buf);
+							ast_channel_accountcode_set(chan, buf);
 							ast_channel_unlock(chan);
 						}
 						break;
@@ -250,7 +250,7 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 	if ((retries < 3) && !res) {
 		if (ast_test_flag(&flags,OPT_ACCOUNT) && !ast_test_flag(&flags,OPT_MULTIPLE)) {
 			ast_channel_lock(chan);
-			ast_cdr_setaccount(chan, passwd);
+			ast_channel_accountcode_set(chan, passwd);
 			ast_channel_unlock(chan);
 		}
 		if (!(res = ast_streamfile(chan, "auth-thankyou", ast_channel_language(chan))))

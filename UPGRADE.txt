@@ -21,6 +21,49 @@
 ===
 ===========================================================
 
+AgentMonitorOutgoing
+ - The 'c' option has been removed. It is not possible to modify the name of a
+   channel involved in a CDR.
+
+NoCDR:
+ - This application is deprecated. Please use the CDR_PROP function instead.
+
+ResetCDR:
+ - The 'w' and 'a' options have been removed. Dispatching CDRs to registered
+   backends occurs on an as-needed basis in order to preserve linkedid
+   propagation and other needed behavior.
+ - The 'e' option is deprecated. Please use the CDR_PROP function to enable
+   CDRs on a channel that they were previously disabled on.
+ - The ResetCDR application is no longer a part of core Asterisk, and instead
+   is now delivered as part of app_cdr.
+
+ForkCDR:
+ - ForkCDR no longer automatically resets the forked CDR. See the 'r' option
+   for more information.
+ - Variables are no longer purged from the original CDR. See the 'v' option for
+   more information.
+ - The 'A' option has been removed. The Answer time on a CDR is never updated
+   once set.
+ - The 'd' option has been removed. The disposition on a CDR is a function of
+   the state of the channel and cannot be altered.
+ - The 'D' option has been removed. Who the Party B is on a CDR is a function
+   of the state of the respective channels, and cannot be altered.
+ - The 'r' option has been changed. Previously, ForkCDR always reset the CDR
+   such that the start time and, if applicable, the answer time was updated.
+   Now, by default, ForkCDR simply forks the CDR, maintaining any times. The
+   'r' option now triggers the Reset, setting the start time (and answer time
+   if applicable) to the current time.
+ - The 's' option has been removed. A variable can be set on the original CDR
+   if desired using the CDR function, and removed from a forked CDR using the
+   same function.
+ - The 'T' option has been removed. The concept of DONT_TOUCH and LOCKED no
+   longer applies in the CDR engine.
+ - The 'v' option now prevents the copy of the variables from the original CDR
+   to the forked CDR. Previously the variables were always copied but were
+   removed from the original. Removing variables from a CDR can have unintended
+   side effects - this option allows the user to prevent propagation of
+   variables from the original to the forked without modifying the original.
+
 AMI:
  - The SIP SIPqualifypeer action now sends a response indicating it will qualify
    a peer once a peer has been found to qualify.  Once the qualify has been
@@ -72,6 +115,16 @@ SendDTMF:
  - Now recognizes 'W' to pause sending DTMF for one second in addition to
    the previously existing 'w' that paused sending DTMF for half a second.
 
+SetAMAFlags
+ - This application is deprecated in favor of the CHANNEL function.
+
+chan_agent:
+ - The updatecdr option has been removed. Altering the names of channels on a
+   CDR is not supported - the name of the channel is the name of the channel,
+   and pretending otherwise helps no one.
+ - The AGENTUPDATECDR channel variable has also been removed, for the same
+   reason as the updatecdr option.
+
 chan_dahdi:
  - Analog port dialing and deferred DTMF dialing for PRI now distinguishes
    between 'w' and 'W'.  The 'w' pauses dialing for half a second.  The 'W'
@@ -79,7 +132,7 @@ chan_dahdi:
  - The default for inband_on_proceeding has changed to no.
 
 chan_local:
- - The /b option is removed.
+ - The /b option has been removed.
 
 Dialplan:
  - All channel and global variable names are evaluated in a case-sensitive manner.

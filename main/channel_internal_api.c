@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/channel_internal.h"
 #include "asterisk/data.h"
@@ -143,6 +144,7 @@ struct ast_channel {
 	struct ast_namedgroups *named_callgroups;	/*!< Named call group for call pickups */
 	struct ast_namedgroups *named_pickupgroups;	/*!< Named pickup group - which call groups can be picked up? */
 	struct timeval creationtime;			/*!< The time of channel creation */
+	struct timeval answertime;				/*!< The time the channel was answered */
 	struct ast_readq_list readq;
 	struct ast_jb jb;				/*!< The jitterbuffer state */
 	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
@@ -205,6 +207,9 @@ struct ast_channel {
 	struct stasis_subscription *forwarder;		/*!< Subscription for event forwarding to all topic */
 	struct stasis_subscription *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 };
+
+/*! \brief The monotonically increasing integer counter for channel uniqueids */
+static int uniqueint;
 
 /* AST_DATA definitions, which will probably have to be re-thought since the channel will be opaque */
 
@@ -333,7 +338,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	if (!enum_node) {
 		return -1;
 	}
-	ast_data_add_str(enum_node, "text", ast_cdr_flags2str(ast_channel_amaflags(chan)));
+	ast_data_add_str(enum_node, "text", ast_channel_amaflags2string(ast_channel_amaflags(chan)));
 	ast_data_add_int(enum_node, "value", ast_channel_amaflags(chan));
 
 	/* transfercapability */
@@ -400,8 +405,6 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 		return -1;
 	}
 
-	ast_cdr_data_add_structure(data_cdr, ast_channel_cdr(chan), 1);
-
 	return 0;
 }
 
@@ -413,9 +416,11 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree,
 
 /* ACCESSORS */
 
-#define DEFINE_STRINGFIELD_SETTERS_FOR(field, publish)			\
+#define DEFINE_STRINGFIELD_SETTERS_FOR(field, publish, assert_on_null) \
 void ast_channel_##field##_set(struct ast_channel *chan, const char *value) \
 { \
+	if ((assert_on_null)) ast_assert(!ast_strlen_zero(value)); \
+	if (!strcmp(value, chan->field)) return; \
 	ast_string_field_set(chan, field, value); \
 	if (publish) ast_channel_publish_snapshot(chan); \
 } \
@@ -431,20 +436,20 @@ void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...)
 	va_start(ap, fmt); \
 	ast_channel_##field##_build_va(chan, fmt, ap); \
 	va_end(ap); \
-	if (publish) ast_channel_publish_snapshot(chan); \
 }
 
-DEFINE_STRINGFIELD_SETTERS_FOR(name, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(language, 1);
-DEFINE_STRINGFIELD_SETTERS_FOR(musicclass, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(accountcode, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(userfield, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(call_forward, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(name, 0, 1);
+DEFINE_STRINGFIELD_SETTERS_FOR(language, 1, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(musicclass, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(accountcode, 1, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount, 1, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(userfield, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(call_forward, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid, 0, 1);
+DEFINE_STRINGFIELD_SETTERS_FOR(linkedid, 1, 1);
+DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext, 0, 0);
 
 #define DEFINE_STRINGFIELD_GETTER_FOR(field) const char *ast_channel_##field(const struct ast_channel *chan) \
 { \
@@ -463,12 +468,6 @@ DEFINE_STRINGFIELD_GETTER_FOR(linkedid);
 DEFINE_STRINGFIELD_GETTER_FOR(parkinglot);
 DEFINE_STRINGFIELD_GETTER_FOR(hangupsource);
 DEFINE_STRINGFIELD_GETTER_FOR(dialcontext);
-
-void ast_channel_linkedid_set(struct ast_channel *chan, const char *value)
-{
-	ast_assert(!ast_strlen_zero(value));
-	ast_string_field_set(chan, linkedid, value);
-}
 
 const char *ast_channel_appl(const struct ast_channel *chan)
 {
@@ -555,14 +554,20 @@ void ast_channel_sending_dtmf_tv_set(struct ast_channel *chan, struct timeval va
 	chan->sending_dtmf_tv = value;
 }
 
-int ast_channel_amaflags(const struct ast_channel *chan)
+enum ama_flags ast_channel_amaflags(const struct ast_channel *chan)
 {
 	return chan->amaflags;
 }
-void ast_channel_amaflags_set(struct ast_channel *chan, int value)
+
+void ast_channel_amaflags_set(struct ast_channel *chan, enum ama_flags value)
 {
+	if (chan->amaflags == value) {
+		return;
+	}
 	chan->amaflags = value;
+	ast_channel_publish_snapshot(chan);
 }
+
 #ifdef HAVE_EPOLL
 int ast_channel_epfd(const struct ast_channel *chan)
 {
@@ -1043,6 +1048,16 @@ void ast_channel_creationtime_set(struct ast_channel *chan, struct timeval *valu
 	chan->creationtime = *value;
 }
 
+struct timeval ast_channel_answertime(struct ast_channel *chan)
+{
+	return chan->answertime;
+}
+
+void ast_channel_answertime_set(struct ast_channel *chan, struct timeval *value)
+{
+	chan->answertime = *value;
+}
+
 /* Evil softhangup accessors */
 int ast_channel_softhangup_internal_flag(struct ast_channel *chan)
 {
@@ -1350,7 +1365,7 @@ static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 
 #define DIALED_CAUSES_BUCKETS 37
 
-struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const char *file, int line, const char *function)
+struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const char *linkedid, const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
 #if defined(REF_DEBUG)
@@ -1368,7 +1383,21 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 	}
 
 	if (!(tmp->dialed_causes = ao2_container_alloc(DIALED_CAUSES_BUCKETS, pvt_cause_hash_fn, pvt_cause_cmp_fn))) {
-	        return ast_channel_unref(tmp);
+		return ast_channel_unref(tmp);
+	}
+
+	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+		ast_channel_uniqueid_build(tmp, "%li.%d", (long)time(NULL),
+			ast_atomic_fetchadd_int(&uniqueint, 1));
+	} else {
+		ast_channel_uniqueid_build(tmp, "%s-%li.%d", ast_config_AST_SYSTEM_NAME,
+			(long)time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
+	}
+
+	if (!ast_strlen_zero(linkedid)) {
+		ast_string_field_set(tmp, linkedid, linkedid);
+	} else {
+		ast_string_field_set(tmp, linkedid, tmp->uniqueid);
 	}
 
 	return tmp;

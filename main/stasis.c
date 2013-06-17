@@ -32,6 +32,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis_internal.h"
 #include "asterisk/stasis.h"
 #include "asterisk/threadpool.h"
 #include "asterisk/taskprocessor.h"
@@ -170,7 +171,7 @@ static void subscription_invoke(struct stasis_subscription *sub,
 
 static void send_subscription_change_message(struct stasis_topic *topic, char *uniqueid, char *description);
 
-static struct stasis_subscription *__stasis_subscribe(
+struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
 	void *data,
@@ -213,7 +214,7 @@ struct stasis_subscription *stasis_subscribe(
 	stasis_subscription_cb callback,
 	void *data)
 {
-	return __stasis_subscribe(topic, callback, data, 1);
+	return internal_stasis_subscribe(topic, callback, data, 1);
 }
 
 struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
@@ -476,7 +477,7 @@ struct stasis_subscription *stasis_forward_all(struct stasis_topic *from_topic, 
 	 * mailbox. Otherwise, messages forwarded to the same topic from
 	 * different topics may get reordered. Which is bad.
 	 */
-	sub = __stasis_subscribe(from_topic, stasis_forward_cb, to_topic, 0);
+	sub = internal_stasis_subscribe(from_topic, stasis_forward_cb, to_topic, 0);
 	if (sub) {
 		/* hold a ref to to_topic for this forwarding subscription */
 		ao2_ref(to_topic, +1);

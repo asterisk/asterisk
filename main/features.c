@@ -3618,7 +3618,7 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 
 	/* Answer if need be */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
-		if (ast_raw_answer(chan, 1)) {
+		if (ast_raw_answer(chan)) {
 			return -1;
 		}
 	}
@@ -3628,8 +3628,6 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 	ast_channel_log("Pre-bridge CHAN Channel info", chan);
 	ast_channel_log("Pre-bridge PEER Channel info", peer);
 #endif
-	/* two channels are being marked as linked here */
-	ast_channel_set_linkgroup(chan, peer);
 
 	/*
 	 * If we are bridging a call, stop worrying about forwarding

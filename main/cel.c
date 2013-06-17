@@ -433,16 +433,6 @@ static int dialstatus_cmp(void *obj, void *arg, int flags)
 	return !strcmp(blob1_id, blob2_id) ? CMP_MATCH | CMP_STOP : 0;
 }
 
-/*!
- * \brief Map of ast_cel_ama_flags to strings
- */
-static const char * const cel_ama_flags[AST_CEL_AMA_FLAG_TOTAL] = {
-	[AST_CEL_AMA_FLAG_NONE]          = "NONE",
-	[AST_CEL_AMA_FLAG_OMIT]          = "OMIT",
-	[AST_CEL_AMA_FLAG_BILLING]       = "BILLING",
-	[AST_CEL_AMA_FLAG_DOCUMENTATION] = "DOCUMENTATION",
-};
-
 unsigned int ast_cel_check_enabled(void)
 {
 	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
@@ -623,16 +613,6 @@ static int do_reload(void)
 const char *ast_cel_get_type_name(enum ast_cel_event_type type)
 {
 	return S_OR(cel_event_types[type], "Unknown");
-}
-
-const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
-{
-	if (flag < 0 || flag >= ARRAY_LEN(cel_ama_flags)) {
-		ast_log(LOG_WARNING, "Invalid AMA flag: %d\n", flag);
-		return "Unknown";
-	}
-
-	return S_OR(cel_ama_flags[flag], "Unknown");
 }
 
 static int cel_track_app(const char *const_app)

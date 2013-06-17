@@ -1482,7 +1482,7 @@ static struct oh323_user *build_user(const char *name, struct ast_variable *v, s
 			/* Let us know we need to use ip authentication */
 			user->host = 1;
 		} else if (!strcasecmp(v->name, "amaflags")) {
-			format = ast_cdr_amaflags2int(v->value);
+			format = ast_channel_string2amaflag(v->value);
 			if (format < 0) {
 				ast_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
 			} else {

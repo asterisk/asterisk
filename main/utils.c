@@ -1546,6 +1546,15 @@ int ast_remaining_ms(struct timeval start, int max_ms)
 	return ms;
 }
 
+void ast_format_duration_hh_mm_ss(int duration, char *buf, size_t length)
+{
+	int durh, durm, durs;
+	durh = duration / 3600;
+	durm = (duration % 3600) / 60;
+	durs = duration % 60;
+	snprintf(buf, length, "%02d:%02d:%02d", durh, durm, durs);
+}
+
 #undef ONE_MILLION
 
 #ifndef linux
