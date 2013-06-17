@@ -248,11 +248,14 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 				|| !strcasecmp("answer", args.variable)) {
 			struct timeval fmt_time;
 			struct ast_tm tm;
-			if (sscanf(tempbuf, "%ld.%ld", &fmt_time.tv_sec, &fmt_time.tv_usec) != 2) {
+			/* tv_usec is suseconds_t, which could be int or long */
+			long int tv_usec;
+			if (sscanf(tempbuf, "%ld.%ld", &fmt_time.tv_sec, &tv_usec) != 2) {
 				ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
 						args.variable, tempbuf, ast_channel_name(chan));
 				return 0;
 			}
+			fmt_time.tv_usec = tv_usec;
 			ast_localtime(&fmt_time, &tm, NULL);
 			ast_strftime(tempbuf, sizeof(*tempbuf), "%Y-%m-%d %T", &tm);
 		} else if (!strcasecmp("disposition", args.variable)) {
