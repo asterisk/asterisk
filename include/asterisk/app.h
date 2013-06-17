@@ -29,6 +29,7 @@
 #include "asterisk/file.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
+#include "asterisk/stasis.h"
 
 struct ast_flags64;
 
