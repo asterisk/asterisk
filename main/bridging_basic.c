@@ -119,7 +119,6 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
  * \param swap Bridge channel to swap places with if not NULL.
  *
  * \note On entry, self is already locked.
- * \note Stub because of nothing to do.
  *
  * \retval 0 on success
  * \retval -1 on failure
