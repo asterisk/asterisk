@@ -436,6 +436,8 @@ struct ast_bridge {
 	unsigned int reconfigured:1;
 	/*! TRUE if the bridge has been dissolved.  Any channel that now tries to join is immediately ejected. */
 	unsigned int dissolved:1;
+	/*! TRUE if the bridge construction was completed. */
+	unsigned int construction_completed:1;
 };
 
 /*!

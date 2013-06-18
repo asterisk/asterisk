@@ -1382,6 +1382,7 @@ static void bridge_handle_actions(struct ast_bridge *bridge)
 static struct stasis_message *create_bridge_snapshot_message(struct ast_bridge *bridge)
 {
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
+
 	snapshot = ast_bridge_snapshot_create(bridge);
 	if (!snapshot) {
 		return NULL;
@@ -1393,17 +1394,21 @@ static struct stasis_message *create_bridge_snapshot_message(struct ast_bridge *
 static void destroy_bridge(void *obj)
 {
 	struct ast_bridge *bridge = obj;
-	RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
 
 	ast_debug(1, "Bridge %s: actually destroying %s bridge, nobody wants it anymore\n",
 		bridge->uniqueid, bridge->v_table->name);
 
-	clear_msg = create_bridge_snapshot_message(bridge);
-	if (clear_msg) {
-		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-		msg = stasis_cache_clear_create(clear_msg);
-		if (msg) {
-			stasis_publish(ast_bridge_topic(bridge), msg);
+	if (bridge->construction_completed) {
+		RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
+
+		clear_msg = create_bridge_snapshot_message(bridge);
+		if (clear_msg) {
+			RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+			msg = stasis_cache_clear_create(clear_msg);
+			if (msg) {
+				stasis_publish(ast_bridge_topic(bridge), msg);
+			}
 		}
 	}
 
@@ -1447,6 +1452,7 @@ static void destroy_bridge(void *obj)
 struct ast_bridge *ast_bridge_register(struct ast_bridge *bridge)
 {
 	if (bridge) {
+		bridge->construction_completed = 1;
 		ast_bridge_publish_state(bridge);
 		if (!ao2_link(bridges, bridge)) {
 			ast_bridge_destroy(bridge);
@@ -1495,8 +1501,8 @@ struct ast_bridge *ast_bridge_base_init(struct ast_bridge *self, uint32_t capabi
 	/* Use our helper function to find the "best" bridge technology. */
 	self->technology = find_best_technology(capabilities, self);
 	if (!self->technology) {
-		ast_debug(1, "Bridge %s: Could not create.  No technology available to support it.\n",
-			self->uniqueid);
+		ast_log(LOG_WARNING, "Bridge %s: Could not create class %s.  No technology to support it.\n",
+			self->uniqueid, self->v_table->name);
 		ao2_ref(self, -1);
 		return NULL;
 	}
@@ -1505,7 +1511,7 @@ struct ast_bridge *ast_bridge_base_init(struct ast_bridge *self, uint32_t capabi
 	ast_debug(1, "Bridge %s: calling %s technology constructor\n",
 		self->uniqueid, self->technology->name);
 	if (self->technology->create && self->technology->create(self)) {
-		ast_debug(1, "Bridge %s: failed to setup %s technology\n",
+		ast_log(LOG_WARNING, "Bridge %s: failed to setup bridge technology %s\n",
 			self->uniqueid, self->technology->name);
 		ao2_ref(self, -1);
 		return NULL;
@@ -1513,7 +1519,7 @@ struct ast_bridge *ast_bridge_base_init(struct ast_bridge *self, uint32_t capabi
 	ast_debug(1, "Bridge %s: calling %s technology start\n",
 		self->uniqueid, self->technology->name);
 	if (self->technology->start && self->technology->start(self)) {
-		ast_debug(1, "Bridge %s: failed to start %s technology\n",
+		ast_log(LOG_WARNING, "Bridge %s: failed to start bridge technology %s\n",
 			self->uniqueid, self->technology->name);
 		ao2_ref(self, -1);
 		return NULL;
