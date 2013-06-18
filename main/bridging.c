@@ -651,6 +651,7 @@ static int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 		|| ast_bridge_channel_establish_roles(bridge_channel)) {
 		ast_debug(1, "Bridge %s: pushing %p(%s) into bridge failed\n",
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
+		bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		return -1;
 	}
 	bridge_channel->in_bridge = 1;
