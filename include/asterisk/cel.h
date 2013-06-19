@@ -148,31 +148,6 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type);
  */
 enum ast_cel_event_type ast_cel_str_to_event_type(const char *name);
 
-/*! 
- * \brief Check and potentially retire a Linked ID
- *
- * \param chan channel that is being destroyed or its linkedid is changing
- *
- * \since 1.8
- *
- * If at least one CEL backend is looking for CEL_LINKEDID_END
- * events, this function will check if the given channel is the last
- * active channel with that linkedid, and if it is, emit a
- * CEL_LINKEDID_END event.
- *
- * \return nothing
- */
-void ast_cel_check_retire_linkedid(struct ast_channel *chan);
-
-/*!
- * \brief Inform CEL that a new linkedid is being used
- * \since 11
- *
- * \retval -1 error
- * \retval 0 success
- */
-int ast_cel_linkedid_ref(const char *linkedid);
-
 /*!
  * \brief Create a fake channel from data in a CEL event
  *

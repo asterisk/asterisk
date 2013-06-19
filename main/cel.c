@@ -634,6 +634,7 @@ static int cel_track_app(const char *const_app)
 	return 1;
 }
 
+static int cel_linkedid_ref(const char *linkedid);
 static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
 		const char *extra, const char *peer2_name)
@@ -663,7 +664,7 @@ static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
 	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
 	if (ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
-		if (ast_cel_linkedid_ref(linkedid)) {
+		if (cel_linkedid_ref(linkedid)) {
 			return -1;
 		}
 	}
@@ -868,7 +869,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	return tchan;
 }
 
-int ast_cel_linkedid_ref(const char *linkedid)
+static int cel_linkedid_ref(const char *linkedid)
 {
 	char *lid;
 
@@ -909,7 +910,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
 	if (ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
-		if (ast_cel_linkedid_ref(linkedid)) {
+		if (cel_linkedid_ref(linkedid)) {
 			return -1;
 		}
 	}
@@ -1114,7 +1115,11 @@ static void cel_channel_linkedid_change(
 		return;
 	}
 
+	ast_assert(!ast_strlen_zero(new_snapshot->linkedid));
+	ast_assert(!ast_strlen_zero(old_snapshot->linkedid));
+
 	if (strcmp(old_snapshot->linkedid, new_snapshot->linkedid)) {
+		cel_linkedid_ref(new_snapshot->linkedid);
 		check_retire_linkedid(old_snapshot);
 	}
 }
