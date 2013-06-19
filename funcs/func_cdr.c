@@ -205,8 +205,9 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		    char *buf, size_t len)
 {
 	char format_buf[128];
+	char *value = NULL;
 	struct ast_flags flags = { 0 };
-	char tempbuf[128];
+	char tempbuf[512];
 	char *info;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
@@ -228,7 +229,15 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
 	}
 
-	if (ast_cdr_getvar(ast_channel_name(chan), args.variable, tempbuf, sizeof(tempbuf))) {
+	if (ast_strlen_zero(ast_channel_name(chan))) {
+		/* Format request on a dummy channel */
+		ast_cdr_format_var(ast_channel_cdr(chan), args.variable, &value, tempbuf, sizeof(tempbuf), 0);
+		if (ast_strlen_zero(value)) {
+			return 0;
+		}
+		ast_copy_string(tempbuf, value, sizeof(tempbuf));
+		ast_set_flag(&flags, OPT_UNPARSED);
+	}else if (ast_cdr_getvar(ast_channel_name(chan), args.variable, tempbuf, sizeof(tempbuf))) {
 		return 0;
 	}
 
