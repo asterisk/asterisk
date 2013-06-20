@@ -1167,6 +1167,10 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	case SIP_GET_DEST_EXTEN_NOT_FOUND:
 	case SIP_GET_DEST_EXTEN_PARTIAL:
 	default:
+		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s:%d) to extension '%s' rejected because extension not found in context '%s'.\n",
+			ast_sorcery_object_get_id(session->endpoint), rdata->tp_info.transport->type_name, rdata->pkt_info.src_name,
+			rdata->pkt_info.src_port, session->exten, session->endpoint->context);
+
 		if (pjsip_inv_initial_answer(inv_session, rdata, 404, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			ast_sip_session_send_response(session, tdata);
 		} else  {
