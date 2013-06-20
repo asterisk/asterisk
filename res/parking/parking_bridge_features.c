@@ -542,6 +542,7 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 	if (ast_bridge_interval_hook(features, time_limit,
 		parking_duration_callback, user, parking_duration_cb_destroyer, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 		ast_log(LOG_ERROR, "Failed to apply duration limits to the parking call.\n");
+		ao2_ref(user, -1);
 	}
 }
 

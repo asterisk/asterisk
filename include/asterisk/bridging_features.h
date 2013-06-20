@@ -390,7 +390,7 @@ int ast_bridge_interval_unregister(enum ast_bridge_builtin_interval interval);
  * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
  *
  * Example usage:
  *
@@ -420,7 +420,7 @@ int ast_bridge_join_hook(struct ast_bridge_features *features,
  * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
  *
  * Example usage:
  *
@@ -450,7 +450,7 @@ int ast_bridge_leave_hook(struct ast_bridge_features *features,
  * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
  *
  * Example usage:
  *
@@ -481,7 +481,7 @@ int ast_bridge_hangup_hook(struct ast_bridge_features *features,
  * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
  *
  * Example usage:
  *
@@ -503,7 +503,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
 	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
- * \brief attach an interval hook to a bridge features structure
+ * \brief Attach an interval hook to a bridge features structure
  *
  * \param features Bridge features structure
  * \param interval The interval that the hook should execute at in milliseconds
@@ -513,7 +513,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
  * \param remove_flags Dictates what situations the hook should be removed.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
  *
  * \code
  * struct ast_bridge_features features;

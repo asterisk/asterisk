@@ -3415,6 +3415,7 @@ static int dynamic_dtmf_hook_add(struct ast_bridge_features *features, unsigned 
 	size_t len_moh = ast_strlen_zero(moh_class) ? 0 : strlen(moh_class) + 1;
 	size_t len_feature = strlen(feature_name) + 1;
 	size_t len_data = sizeof(*hook_data) + len_name + len_args + len_moh + len_feature;
+	int res;
 
 	/* Fill in application run hook data. */
 	hook_data = ast_malloc(len_data);
@@ -3434,8 +3435,12 @@ static int dynamic_dtmf_hook_add(struct ast_bridge_features *features, unsigned 
 	}
 	strcpy(&hook_data->app_name[hook_data->feature_offset], feature_name);/* Safe */
 
-	return ast_bridge_dtmf_hook(features, dtmf, dynamic_dtmf_hook_trip, hook_data,
+	res = ast_bridge_dtmf_hook(features, dtmf, dynamic_dtmf_hook_trip, hook_data,
 		ast_free_ptr, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+	if (res) {
+		ast_free(hook_data);
+	}
+	return res;
 }
 
 static int setup_dynamic_feature(void *obj, void *arg, void *data, int flags)

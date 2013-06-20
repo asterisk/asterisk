@@ -4893,6 +4893,15 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
 
 	/* Once done we put it in the container. */
 	res = ao2_link(features->dtmf_hooks, hook) ? 0 : -1;
+	if (res) {
+		/*
+		 * Could not link the hook into the container.
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->destructor = NULL;
+	}
 	ao2_ref(hook, -1);
 
 	return res;
@@ -4916,6 +4925,15 @@ int ast_bridge_hangup_hook(struct ast_bridge_features *features,
 
 	/* Once done we put it in the container. */
 	res = ao2_link(features->hangup_hooks, hook) ? 0 : -1;
+	if (res) {
+		/*
+		 * Could not link the hook into the container.
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->destructor = NULL;
+	}
 	ao2_ref(hook, -1);
 
 	return res;
@@ -4939,6 +4957,15 @@ int ast_bridge_join_hook(struct ast_bridge_features *features,
 
 	/* Once done we put it in the container. */
 	res = ao2_link(features->join_hooks, hook) ? 0 : -1;
+	if (res) {
+		/*
+		 * Could not link the hook into the container.
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->destructor = NULL;
+	}
 	ao2_ref(hook, -1);
 
 	return res;
@@ -4962,6 +4989,15 @@ int ast_bridge_leave_hook(struct ast_bridge_features *features,
 
 	/* Once done we put it in the container. */
 	res = ao2_link(features->leave_hooks, hook) ? 0 : -1;
+	if (res) {
+		/*
+		 * Could not link the hook into the container.
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->destructor = NULL;
+	}
 	ao2_ref(hook, -1);
 
 	return res;
@@ -5013,11 +5049,17 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 		hook, hook->parms.timer.interval, features);
 	ast_heap_wrlock(features->interval_hooks);
 	res = ast_heap_push(features->interval_hooks, hook);
+	ast_heap_unlock(features->interval_hooks);
 	if (res) {
-		/* Could not push the hook onto the heap. */
+		/*
+		 * Could not push the hook into the heap
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->destructor = NULL;
 		ao2_ref(hook, -1);
 	}
-	ast_heap_unlock(features->interval_hooks);
 
 	return res ? -1 : 0;
 }
