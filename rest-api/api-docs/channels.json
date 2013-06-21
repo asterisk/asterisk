@@ -579,7 +579,7 @@
 						},
 						{
 							"code": 409,
-							"reason": "The channel is currently bridges with other channels."
+							"reason": "The channel is currently bridged with other channels."
 						}
 					]
 				}
