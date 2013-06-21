@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Autosupport Version 2.0.19
+# Autosupport Version 2.1.0
 # Collect support information
 #
 # Copyright (C) 2005-2013, Digium, Inc.
@@ -21,7 +21,7 @@
 # Ensure the PATH variable includes '/usr/sbin' and '/sbin'
 PATH=/usr/sbin:/sbin:${PATH}
 
-DATE_STAMP=$(date +%Y%m%d)
+DATE_STAMP=$(date +%F)
 OUTPUT_FILE=digiuminfo.txt
 TARBALL_OUTPUT_FILE="digium-info_${DATE_STAMP}.tar"
 VAR_LIB_LIST_FILE="list-of-varlibasterisk.txt"
@@ -30,10 +30,11 @@ FOLDER_PREFIX="${HOME}/"
 files="n";
 NONINTERACTIVE=0
 
+
 # If a prefix is specified on command-line, add it.
 if (set -u; : $1) 2> /dev/null
 then
-  if [ $1 == "-h" ] || [ $1 == "--help" ]; then
+  if [ $1 = "-h" ] || [ $1 = "--help" ]; then
     echo
     echo "Digium autosupport script"
     echo "Copyright (C) 2005-2013, Digium, Inc."
@@ -53,7 +54,7 @@ then
     echo "    XXXXXXXX_${TARBALL_OUTPUT_FILE}"
     echo
     exit
-  elif [ $1 == "-n" ] || [ $1 == "--non-interactive" ]; then
+  elif [ $1 = "-n" ] || [ $1 = "--non-interactive" ]; then
     FILE_PREFIX=
     NONINTERACTIVE=1
   else
@@ -187,7 +188,10 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
       "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show status" "dahdi show channels" \
       "dahdi show channel 1" "core show channels" "skype show version" "skype show licenses" "skype show users" \
       "skype show hostid" "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" "fax show version" \
-      "fax show licenses" "fax show hostid" "fax show stats" "digium_phones show version"; do
+      "fax show licenses" "fax show hostid" "fax show stats" "digium_phones show version" "digium_phones show alerts" \
+			"digium_phones show applications" "digium_phones show firmwares" "digium_phones show lines" "digium_phones show networks" \
+			"digium_phones show phones" "digium_phones show sessions" "digium_phones show settings" "digium_phones show translations" ;
+	do
     echo "asterisk -rx \"$command\"" >> $OUTPUT;
     asterisk -rx "$command" >> $OUTPUT;
     echo >> $OUTPUT;
@@ -195,6 +199,67 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
   done
   echo >> $OUTPUT;
 fi
+
+
+for type in alerts applications firmwares lines networks phones translations; 
+do 
+	echo "------------------" >> $OUTPUT; 
+	echo "DIGIUM PHONE: $type " >> $OUTPUT; 
+	echo "------------------" >> $OUTPUT; 
+	TEMP=$(asterisk -rx "digium_phones show $type"); 
+	if [ "$type" = "lines" ];
+	then
+		NUM=$(echo $TEMP | tail -n 1 | awk -F' ' '{print $(NF-4)}');
+		if [ $NUM -gt 0 ];
+		then
+			for l in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //; 
+				s/Lines \(Un-\)\?Mapped to Phones --- //g; 
+				s/ Internal//g; 
+				s/---- [a-zA-Z0-9 ]\+ ----$//;
+				s/--- //g');
+			do
+				asterisk -rx "digium_phones show line $l" >> $OUTPUT;                                                                      
+				echo "--------" >> $OUTPUT;                                                                                                                         
+				echo >> $OUTPUT; 
+			done
+		else
+			echo "No configurations of type $type..." >> $OUTPUT;
+			echo >> $OUTPUT;
+		fi;
+	elif [ "$type" = "firmwares" ];
+	then
+		for f in $(echo $TEMP | sed 's/--- Configured Firmware Options --- //');
+		do
+			asterisk -rx "digium_phones show firmware $f" >> $OUTPUT;
+			echo "--------" >> $OUTPUT;                                                                                                                         
+			echo >> $OUTPUT; 
+		done
+	elif [ "$type" = "translations" ];
+	then
+		for t in $(echo $TEMP | sed 's/--- Translation tables ---//');
+		do
+			asterisk -rx "digium_phones show translation $t" 
+		done
+	else
+		NUM=$(echo $TEMP | tail -n 1 | awk -F' ' '{print $(NF-3)}'); 
+		if [ $NUM -gt 0 ]; 
+		then   
+			for t in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //; 
+																	 s/---- [a-zA-Z0-9 ]\+ ----$//
+																	 s/---- Digium Phones ---- //'); 
+			do 
+				asterisk -rx "digium_phones show $(echo $type | sed 's/s\b//') $t" >> $OUTPUT; 
+				echo "--------" >> $OUTPUT; 
+				echo >> $OUTPUT; 
+			done; 
+		else 
+			echo "No configurations of type $type..." >> $OUTPUT;
+			echo >> $OUTPUT;
+		fi;
+	fi;
+done;
+echo >> $OUTPUT;
+
 
 echo "------------------" >> $OUTPUT;
 echo "OTHER INFO : cat /etc/*{issue,release,version}*" >> $OUTPUT;
