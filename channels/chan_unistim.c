@@ -77,6 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features_config.h"
+#include "asterisk/bridging.h"
 
 
 #define DEFAULTCONTEXT	  "default"
@@ -2305,72 +2306,36 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 	return 0;
 }
 
-static void unistim_quiet_chan(struct ast_channel *chan)
-{
-	if (chan && ast_channel_state(chan) == AST_STATE_UP) {
-		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_MOH)) {
-			ast_moh_stop(chan);
-		} else if (ast_channel_generatordata(chan)) {
-			ast_deactivate_generator(chan);
-		}
-	}
-}
-
 static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subchannel *p2)
 {
-	int res = 0;
-	struct ast_channel
-	 *chana = NULL, *chanb = NULL, *bridgea = NULL, *bridgeb = NULL, *peera =
-		NULL, *peerb = NULL, *peerc = NULL, *peerd = NULL;
+	RAII_VAR(struct ast_channel *, chana, NULL, ast_channel_unref);
+	RAII_VAR(struct ast_channel *, chanb, NULL, ast_channel_unref);
 
 	if (!p1->owner || !p2->owner) {
 		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
 		return -1;
 	}
-	chana = p1->owner;
-	chanb = p2->owner;
-	bridgea = ast_bridged_channel(chana);
-	bridgeb = ast_bridged_channel(chanb);
+	chana = ast_channel_ref(p1->owner);
+	chanb = ast_channel_ref(p2->owner);
 
-	if (bridgea) {
-		peera = chana;
-		peerb = chanb;
-		peerc = bridgea;
-		peerd = bridgeb;
-	} else if (bridgeb) {
-		peera = chanb;
-		peerb = chana;
-		peerc = bridgeb;
-		peerd = bridgea;
+	switch (ast_bridge_transfer_attended(chana, chanb)) {
+	case AST_BRIDGE_TRANSFER_INVALID:
+		ast_log(LOG_WARNING, "Transfer failed. Invalid bridge setup\n");
+		break;
+	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
+		ast_log(LOG_WARNING, "Transfer not permitted\n");
+		break;
+	case AST_BRIDGE_TRANSFER_FAIL:
+		ast_log(LOG_WARNING, "Transfer encountered internal error\n");
+		break;
+	case AST_BRIDGE_TRANSFER_SUCCESS:
+		return 0;
 	}
 
-	if (peera && peerb && peerc && (peerb != peerc)) {
-		unistim_quiet_chan(peera);
-		unistim_quiet_chan(peerb);
-		unistim_quiet_chan(peerc);
-		if (peerd) {
-			unistim_quiet_chan(peerd);
-		}
-
-		ast_log(LOG_NOTICE, "UNISTIM transfer: trying to masquerade %s into %s\n", ast_channel_name(peerc), ast_channel_name(peerb));
-		if (ast_channel_masquerade(peerb, peerc)) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", ast_channel_name(peerb),
-					ast_channel_name(peerc));
-			res = -1;
-		}
-		return res;
-	} else {
-		ast_log(LOG_NOTICE,
-				"Transfer attempted with no appropriate bridged calls to transfer\n");
-		if (chana) {
-			ast_softhangup_nolock(chana, AST_SOFTHANGUP_DEV);
-		}
-		if (chanb) {
-			ast_softhangup_nolock(chanb, AST_SOFTHANGUP_DEV);
-		}
-		return -1;
-	}
-	return 0;
+	/* Control only reaches this point if transfer has failed */
+	ast_softhangup_nolock(chana, AST_SOFTHANGUP_DEV);
+	ast_softhangup_nolock(chanb, AST_SOFTHANGUP_DEV);
+	return -1;
 }
 
 void change_callerid(struct unistimsession *pte, int type, char *callerid)
