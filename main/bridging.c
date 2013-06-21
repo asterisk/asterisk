@@ -4499,6 +4499,21 @@ static int check_swap_optimize_out(struct ast_bridge *chan_bridge,
 		return 0;
 	}
 
+/*
+ * BUGBUG Need to take into account frame hooks on the unreal/local channels optimization.
+ *
+ * Frame hooks on the unreal/local channels may inhibit optimization here if they cannot
+ * be moved to an appropriate peer channel.
+ *
+ * caller -- Bridge -- L;1 -- L;2 -- Bridge -- agent
+ * Any frame hooks on L;1 need to be moved to agent channel.
+ * Any frame hooks on L;2 need to be moved to caller channel.
+ *
+ * Moving the frame hooks may cause the hooks to miss a frame if
+ * the destination channel has already read a frame but cannot
+ * write it into the bridge yet because optimization has the
+ * bridge locked.
+ */
 	other = ast_bridge_channel_peer(src_bridge_channel);
 	if (other && other->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 		ast_debug(1, "Move-swap optimizing %s <-- %s.\n",
@@ -4602,6 +4617,7 @@ static int check_merge_optimize_out(struct ast_bridge *chan_bridge,
 		return 0;
 	}
 
+/* BUGBUG Frame hooks on the unreal/local channels need to inhibit optimization here. */
 	ast_debug(1, "Merge optimizing %s -- %s out.\n",
 		ast_channel_name(chan_bridge_channel->chan),
 		ast_channel_name(peer_bridge_channel->chan));
