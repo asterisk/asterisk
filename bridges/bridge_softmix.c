@@ -378,11 +378,12 @@ static void softmix_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridg
  *
  * \param bridge_channel Which channel source is changing.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-static void softmix_src_change(struct ast_bridge_channel *bridge_channel)
+static int softmix_src_change(struct ast_bridge_channel *bridge_channel)
 {
-	ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_SRCCHANGE, NULL, 0);
+	return ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_SRCCHANGE, NULL, 0);
 }
 
 /*! \brief Function called when a channel is joined into the bridge */

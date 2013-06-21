@@ -196,8 +196,11 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology);
  * \param bridge_channel The bridge channel that has either started or stopped talking.
  * \param started_talking set to 1 when this indicates the channel has started talking set to 0
  * when this indicates the channel has stopped talking.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking);
+int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking);
 
 /*!
  * \brief Suspend a bridge technology from consideration

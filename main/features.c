@@ -3308,10 +3308,11 @@ static void dynamic_dtmf_hook_callback(struct ast_bridge_channel *bridge_channel
 		run_data->moh_offset ? &run_data->app_name[run_data->moh_offset] : NULL);
 }
 
-static void dynamic_dtmf_hook_run_callback(struct ast_bridge_channel *bridge_channel,
+static int dynamic_dtmf_hook_run_callback(struct ast_bridge_channel *bridge_channel,
 	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
 	callback(bridge_channel, payload, payload_size);
+	return 0;
 }
 
 struct dynamic_dtmf_hook_data {
@@ -3342,7 +3343,7 @@ struct dynamic_dtmf_hook_data {
 static int dynamic_dtmf_hook_trip(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct dynamic_dtmf_hook_data *pvt = hook_pvt;
-	void (*run_it)(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+	int (*run_it)(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 	struct dynamic_dtmf_hook_run *run_data;
 	const char *activated_name;
 	size_t len_name;

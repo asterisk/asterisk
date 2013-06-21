@@ -1088,9 +1088,10 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
  * \param data Frame payload data to pass.
  * \param datalen Frame payload data length to pass.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-typedef void (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+typedef int (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
 
 /*!
  * \brief Queue an action frame onto the bridge channel with data.
@@ -1101,9 +1102,10 @@ typedef void (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *b
  * \param data Frame payload data to pass.
  * \param datalen Frame payload data length to pass.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+int ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
 
 /*!
  * \brief Write an action frame into the bridge with data.
@@ -1114,9 +1116,10 @@ void ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_chan
  * \param data Frame payload data to pass.
  * \param datalen Frame payload data length to pass.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
+int ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen);
 
 /*!
  * \brief Queue a control frame onto the bridge channel with data.
@@ -1127,9 +1130,10 @@ void ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_chan
  * \param data Frame payload data to pass.
  * \param datalen Frame payload data length to pass.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
+int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
 
 /*!
  * \brief Write a control frame into the bridge with data.
@@ -1140,9 +1144,10 @@ void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_cha
  * \param data Frame payload data to pass.
  * \param datalen Frame payload data length to pass.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
+int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
 
 /*!
  * \brief Write a hold frame into the bridge.
@@ -1151,9 +1156,10 @@ void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_cha
  * \param bridge_channel Which channel is putting the hold into the bridge.
  * \param moh_class The suggested music class for the other end to use.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class);
+int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class);
 
 /*!
  * \brief Write an unhold frame into the bridge.
@@ -1161,9 +1167,10 @@ void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, co
  *
  * \param bridge_channel Which channel is putting the hold into the bridge.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel);
+int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \brief Run an application on the bridge channel.
@@ -1195,9 +1202,10 @@ void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
+int ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
 
 /*!
  * \brief Queue a bridge action run application frame onto the bridge channel.
@@ -1212,9 +1220,10 @@ void ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, con
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
+int ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class);
 
 /*!
  * \brief Custom interpretation of the playfile name.
@@ -1256,9 +1265,10 @@ void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+int ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
 
 /*!
  * \brief Queue a bridge action play file frame onto the bridge channel.
@@ -1273,9 +1283,10 @@ void ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+int ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
 
 /*!
  * \brief Custom callback run on a bridge channel.
@@ -1303,9 +1314,10 @@ typedef void (*ast_bridge_custom_callback_fn)(struct ast_bridge_channel *bridge_
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 
 /*!
  * \brief Queue a bridge action custom callback frame onto the bridge channel.
@@ -1320,9 +1332,10 @@ void ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 
 /*!
  * \brief Have a bridge channel park a channel in the bridge
@@ -1335,9 +1348,10 @@ void ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel
  *
  * \note This is intended to be called by bridge hooks.
  *
- * \return Nothing
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
+int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
 	const char *parker_uuid, const char *app_data);
 
 /*!

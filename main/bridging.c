@@ -397,7 +397,7 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 	return 0;
 }
 
-void ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
+int ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
@@ -406,10 +406,10 @@ void ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_chan
 		.data.ptr = (void *) data,
 	};
 
-	ast_bridge_channel_queue_frame(bridge_channel, &frame);
+	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
 }
 
-void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
+int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_CONTROL,
@@ -418,7 +418,7 @@ void ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_cha
 		.data.ptr = (void *) data,
 	};
 
-	ast_bridge_channel_queue_frame(bridge_channel, &frame);
+	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
 }
 
 void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel)
@@ -749,7 +749,7 @@ static int bridge_channel_interval_ready(struct ast_bridge_channel *bridge_chann
 	return ready;
 }
 
-void ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking)
+int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking)
 {
 	struct ast_frame action = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
@@ -757,10 +757,10 @@ void ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int st
 			? AST_BRIDGE_ACTION_TALKING_START : AST_BRIDGE_ACTION_TALKING_STOP,
 	};
 
-	ast_bridge_channel_queue_frame(bridge_channel, &action);
+	return ast_bridge_channel_queue_frame(bridge_channel, &action);
 }
 
-static void bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	ast_bridge_channel_lock_bridge(bridge_channel);
 /*
@@ -771,9 +771,15 @@ static void bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel
  */
 	bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
 	ast_bridge_unlock(bridge_channel->bridge);
+
+	/*
+	 * Claim successful write to bridge.  If deferred frame
+	 * support is added, claim successfully deferred.
+	 */
+	return 0;
 }
 
-void ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
+int ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
@@ -782,10 +788,10 @@ void ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_chan
 		.data.ptr = (void *) data,
 	};
 
-	bridge_channel_write_frame(bridge_channel, &frame);
+	return bridge_channel_write_frame(bridge_channel, &frame);
 }
 
-void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
+int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_CONTROL,
@@ -794,10 +800,10 @@ void ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_cha
 		.data.ptr = (void *) data,
 	};
 
-	bridge_channel_write_frame(bridge_channel, &frame);
+	return bridge_channel_write_frame(bridge_channel, &frame);
 }
 
-void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class)
+int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	size_t datalen;
@@ -813,14 +819,14 @@ void ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, co
 	}
 
 	ast_channel_publish_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
-	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD, moh_class,
-		datalen);
+	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
+		moh_class, datalen);
 }
 
-void ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
+int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 {
 	ast_channel_publish_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
-	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
+	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
 
 static int run_app_helper(struct ast_channel *chan, const char *app_name, const char *app_args)
@@ -884,7 +890,7 @@ static void bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, st
 		data->moh_offset ? &data->app_name[data->moh_offset] : NULL);
 }
 
-static void payload_helper_app(ast_bridge_channel_post_action_data post_it,
+static int payload_helper_app(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
 	struct bridge_run_app *app_data;
@@ -905,18 +911,18 @@ static void payload_helper_app(ast_bridge_channel_post_action_data post_it,
 		strcpy(&app_data->app_name[app_data->moh_offset], moh_class);/* Safe */
 	}
 
-	post_it(bridge_channel, AST_BRIDGE_ACTION_RUN_APP, app_data, len_data);
+	return post_it(bridge_channel, AST_BRIDGE_ACTION_RUN_APP, app_data, len_data);
 }
 
-void ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
+int ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
-	payload_helper_app(ast_bridge_channel_write_action_data,
+	return payload_helper_app(ast_bridge_channel_write_action_data,
 		bridge_channel, app_name, app_args, moh_class);
 }
 
-void ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
+int ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
-	payload_helper_app(ast_bridge_channel_queue_action_data,
+	return payload_helper_app(ast_bridge_channel_queue_action_data,
 		bridge_channel, app_name, app_args, moh_class);
 }
 
@@ -971,7 +977,7 @@ static void bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, s
 		payload->moh_offset ? &payload->playfile[payload->moh_offset] : NULL);
 }
 
-static void payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
+static int payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
 	struct bridge_playfile *payload;
@@ -988,18 +994,18 @@ static void payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
 		strcpy(&payload->playfile[payload->moh_offset], moh_class);/* Safe */
 	}
 
-	post_it(bridge_channel, AST_BRIDGE_ACTION_PLAY_FILE, payload, len_payload);
+	return post_it(bridge_channel, AST_BRIDGE_ACTION_PLAY_FILE, payload, len_payload);
 }
 
-void ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
+int ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
-	payload_helper_playfile(ast_bridge_channel_write_action_data,
+	return payload_helper_playfile(ast_bridge_channel_write_action_data,
 		bridge_channel, custom_play, playfile, moh_class);
 }
 
-void ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
+int ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
-	payload_helper_playfile(ast_bridge_channel_queue_action_data,
+	return payload_helper_playfile(ast_bridge_channel_queue_action_data,
 		bridge_channel, custom_play, playfile, moh_class);
 }
 
@@ -1029,7 +1035,7 @@ static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel
 	data->callback(bridge_channel, data->payload_exists ? data->payload : NULL, data->payload_size);
 }
 
-static void payload_helper_cb(ast_bridge_channel_post_action_data post_it,
+static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
 	struct bridge_custom_callback *cb_data;
@@ -1038,7 +1044,7 @@ static void payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 	/* Sanity check. */
 	if (!callback) {
 		ast_assert(0);
-		return;
+		return -1;
 	}
 
 	/* Fill in custom callback frame data. */
@@ -1050,18 +1056,18 @@ static void payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 		memcpy(cb_data->payload, payload, payload_size);/* Safe */
 	}
 
-	post_it(bridge_channel, AST_BRIDGE_ACTION_CALLBACK, cb_data, len_data);
+	return post_it(bridge_channel, AST_BRIDGE_ACTION_CALLBACK, cb_data, len_data);
 }
 
-void ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
-	payload_helper_cb(ast_bridge_channel_write_action_data,
+	return payload_helper_cb(ast_bridge_channel_write_action_data,
 		bridge_channel, callback, payload, payload_size);
 }
 
-void ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
-	payload_helper_cb(ast_bridge_channel_queue_action_data,
+	return payload_helper_cb(ast_bridge_channel_queue_action_data,
 		bridge_channel, callback, payload, payload_size);
 }
 
@@ -1079,7 +1085,7 @@ static void bridge_channel_park(struct ast_bridge_channel *bridge_channel, struc
 		payload->app_data_offset ? &payload->parkee_uuid[payload->app_data_offset] : NULL);
 }
 
-static void payload_helper_park(ast_bridge_channel_post_action_data post_it,
+static int payload_helper_park(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel,
 	const char *parkee_uuid,
 	const char *parker_uuid,
@@ -1100,12 +1106,12 @@ static void payload_helper_park(ast_bridge_channel_post_action_data post_it,
 		strcpy(&payload->parkee_uuid[payload->app_data_offset], app_data);
 	}
 
-	post_it(bridge_channel, AST_BRIDGE_ACTION_PARK, payload, len_payload);
+	return post_it(bridge_channel, AST_BRIDGE_ACTION_PARK, payload, len_payload);
 }
 
-void ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
+int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
 {
-	payload_helper_park(ast_bridge_channel_write_action_data,
+	return payload_helper_park(ast_bridge_channel_write_action_data,
 		bridge_channel, parkee_uuid, parker_uuid, app_data);
 }
 
@@ -2349,9 +2355,9 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 	ast_heap_unlock(bridge_channel->features->interval_hooks);
 }
 
-static void bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
+static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
 {
-	ast_bridge_channel_write_action_data(bridge_channel,
+	return ast_bridge_channel_write_action_data(bridge_channel,
 		AST_BRIDGE_ACTION_DTMF_STREAM, dtmf, strlen(dtmf) + 1);
 }
 
@@ -5833,8 +5839,9 @@ static struct ast_channel *get_transferee(struct ao2_container *channels, struct
  * \param exten The destination extension for the transferee
  * \param context The destination context for the transferee
  * \param hook Frame hook to attach to transferee
- * \retval 0 Successfully queued the action
- * \retval non-zero Failed to queue the action
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 static int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
 		const char *exten, const char *context,
@@ -5858,11 +5865,8 @@ static int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
 	ast_copy_string(blind_data.exten, exten, sizeof(blind_data.exten));
 	ast_copy_string(blind_data.context, context, sizeof(blind_data.context));
 
-/* BUGBUG Why doesn't this function return success/failure? */
-	ast_bridge_channel_queue_action_data(transferee_bridge_channel,
-			AST_BRIDGE_ACTION_BLIND_TRANSFER, &blind_data, sizeof(blind_data));
-
-	return 0;
+	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+		AST_BRIDGE_ACTION_BLIND_TRANSFER, &blind_data, sizeof(blind_data));
 }
 
 static int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
@@ -5882,11 +5886,9 @@ static int bridge_channel_queue_attended_transfer(struct ast_channel *transferee
 	ast_copy_string(unbridged_chan_name, ast_channel_name(unbridged_chan),
 		sizeof(unbridged_chan_name));
 
-	ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
 		AST_BRIDGE_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
 		sizeof(unbridged_chan_name));
-
-	return 0;
 }
 
 enum try_parking_result {
