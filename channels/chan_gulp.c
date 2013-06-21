@@ -368,6 +368,7 @@ static int gulp_set_rtp_peer(struct ast_channel *chan,
 	struct ast_sip_session *session = pvt->session;
 	int changed = 0;
 
+	/* BUGBUG - ast_bridged_channel will always return NULL, meaning direct media will never occur */
 	/* Don't try to do any direct media shenanigans on early bridges */
 	if ((rtp || vrtp || tpeer) && !ast_bridged_channel(chan)) {
 		return 0;
