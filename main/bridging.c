@@ -421,6 +421,22 @@ int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_chan
 	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
 }
 
+int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+{
+	struct ast_bridge_channel *cur;
+	int not_written = -1;
+
+	AST_LIST_TRAVERSE(&bridge->channels, cur, entry) {
+		if (cur == bridge_channel) {
+			continue;
+		}
+		if (!ast_bridge_channel_queue_frame(cur, frame)) {
+			not_written = 0;
+		}
+	}
+	return not_written;
+}
+
 void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel)
 {
 	/* Restore original formats of the channel as they came in */

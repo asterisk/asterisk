@@ -445,29 +445,6 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 	ast_free(sc);
 }
 
-/*!
- * \internal
- * \brief Pass the given frame to everyone else.
- * \since 12.0.0
- *
- * \param bridge What bridge to distribute frame.
- * \param bridge_channel Channel to optionally not pass frame to. (NULL to pass to everyone)
- * \param frame Frame to pass.
- *
- * \return Nothing
- */
-static void softmix_pass_everyone_else(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
-{
-	struct ast_bridge_channel *cur;
-
-	AST_LIST_TRAVERSE(&bridge->channels, cur, entry) {
-		if (cur == bridge_channel) {
-			continue;
-		}
-		ast_bridge_channel_queue_frame(cur, frame);
-	}
-}
-
 static void softmix_pass_video_top_priority(struct ast_bridge *bridge, struct ast_frame *frame)
 {
 	struct ast_bridge_channel *cur;
@@ -507,7 +484,7 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
 		video_src_priority = ast_bridge_is_video_src(bridge, bridge_channel->chan);
 		if (video_src_priority == 1) {
 			/* Pass to me and everyone else. */
-			softmix_pass_everyone_else(bridge, NULL, frame);
+			ast_bridge_queue_everyone_else(bridge, NULL, frame);
 		}
 		break;
 	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
@@ -522,7 +499,7 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
 			int num_src = ast_bridge_number_video_src(bridge);
 			int echo = num_src > 1 ? 0 : 1;
 
-			softmix_pass_everyone_else(bridge, echo ? NULL : bridge_channel, frame);
+			ast_bridge_queue_everyone_else(bridge, echo ? NULL : bridge_channel, frame);
 		} else if (video_src_priority == 2) {
 			softmix_pass_video_top_priority(bridge, frame);
 		}
@@ -612,12 +589,14 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
  * \param bridge_channel Which channel is writing the frame.
  * \param frame What is being written.
  *
- * \return Nothing
+ * \retval 0 Frame accepted into the bridge.
+ * \retval -1 Frame needs to be deferred.
  */
-static void softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 /* BUGBUG need to look at channel roles to determine what to do with control frame. */
 	/*! \todo BUGBUG softmix_bridge_write_control() not written */
+	return 0;
 }
 
 /*!
@@ -629,8 +608,8 @@ static void softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_b
  * \param bridge_channel Which channel is writing the frame.
  * \param frame What is being written.
  *
- * \retval 0 on success
- * \retval -1 on failure
+ * \retval 0 Frame accepted into the bridge.
+ * \retval -1 Frame needs to be deferred.
  *
  * \note On entry, bridge is already locked.
  */
@@ -638,30 +617,35 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 {
 	int res = 0;
 
-	if (!bridge->tech_pvt || !bridge_channel->tech_pvt) {
-		return -1;
+	if (!bridge->tech_pvt || (bridge_channel && !bridge_channel->tech_pvt)) {
+		/* "Accept" the frame and discard it. */
+		return 0;
 	}
 
 	switch (frame->frametype) {
 	case AST_FRAME_DTMF_BEGIN:
 	case AST_FRAME_DTMF_END:
-		softmix_pass_everyone_else(bridge, bridge_channel, frame);
+		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_VOICE:
-		softmix_bridge_write_voice(bridge, bridge_channel, frame);
+		if (bridge_channel) {
+			softmix_bridge_write_voice(bridge, bridge_channel, frame);
+		}
 		break;
 	case AST_FRAME_VIDEO:
-		softmix_bridge_write_video(bridge, bridge_channel, frame);
+		if (bridge_channel) {
+			softmix_bridge_write_video(bridge, bridge_channel, frame);
+		}
 		break;
 	case AST_FRAME_CONTROL:
-		softmix_bridge_write_control(bridge, bridge_channel, frame);
+		res = softmix_bridge_write_control(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_BRIDGE_ACTION:
-		softmix_pass_everyone_else(bridge, bridge_channel, frame);
+		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
 	default:
 		ast_debug(3, "Frame type %d unsupported\n", frame->frametype);
-		res = -1;
+		/* "Accept" the frame and discard it. */
 		break;
 	}
 

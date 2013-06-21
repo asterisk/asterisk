@@ -1065,6 +1065,22 @@ void ast_bridge_update_linkedids(struct ast_bridge *bridge, struct ast_bridge_ch
 void ast_bridge_update_accountcodes(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
 
 /*!
+ * \brief Queue the given frame to everyone else.
+ * \since 12.0.0
+ *
+ * \param bridge What bridge to distribute frame.
+ * \param bridge_channel Channel to optionally not pass frame to. (NULL to pass to everyone)
+ * \param frame Frame to pass.
+ *
+ * \note This is intended to be called by bridge hooks and
+ * bridge technologies.
+ *
+ * \retval 0 Frame written to at least one channel.
+ * \retval -1 Frame written to no channels.
+ */
+int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
+
+/*!
  * \brief Write a frame to the specified bridge_channel.
  * \since 12.0.0
  *

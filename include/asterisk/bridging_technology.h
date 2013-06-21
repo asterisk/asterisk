@@ -124,8 +124,10 @@ struct ast_bridge_technology {
 	/*!
 	 * \brief Write a frame into the bridging technology instance for a bridge.
 	 *
-	 * \retval 0 on success
-	 * \retval -1 on failure
+	 * \note The bridge must be tolerant of bridge_channel being NULL.
+	 *
+	 * \retval 0 Frame accepted into the bridge.
+	 * \retval -1 Frame needs to be deferred.
 	 *
 	 * \note On entry, bridge is already locked.
 	 */

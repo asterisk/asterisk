@@ -255,27 +255,25 @@ static void holding_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 
 static int holding_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
-	struct ast_bridge_channel *cur;
-	struct holding_channel *hc = bridge_channel->tech_pvt;
+	struct holding_channel *hc = bridge_channel ? bridge_channel->tech_pvt : NULL;
 
 	/* If there is no tech_pvt, then the channel failed to allocate one when it joined and is borked. Don't listen to him. */
 	if (!hc) {
-		return -1;
+		/* "Accept" the frame and discard it. */
+		return 0;
 	}
 
 	/* If we aren't an announcer, we never have any business writing anything. */
 	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_ANNOUNCER)) {
-		return -1;
+		/* "Accept" the frame and discard it. */
+		return 0;
 	}
 
-	/* Ok, so we are the announcer and there are one or more people available to receive our writes. Let's do it. */
-	AST_LIST_TRAVERSE(&bridge->channels, cur, entry) {
-		if (bridge_channel == cur || !cur->tech_pvt) {
-			continue;
-		}
-
-		ast_bridge_channel_queue_frame(cur, frame);
-	}
+	/*
+	 * Ok, so we are the announcer.  Write the frame to all other
+	 * channels if any.
+	 */
+	ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 
 	return 0;
 }

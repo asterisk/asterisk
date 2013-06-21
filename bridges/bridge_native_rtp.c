@@ -389,16 +389,7 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 
 static int native_rtp_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
-	struct ast_bridge_channel *other = ast_bridge_channel_peer(bridge_channel);
-
-	if (!other) {
-		return -1;
-	}
-
-	/* The bridging core takes care of freeing the passed in frame. */
-	ast_bridge_channel_queue_frame(other, frame);
-
-	return 0;
+	return ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 }
 
 static struct ast_bridge_technology native_rtp_bridge = {
