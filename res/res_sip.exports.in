@@ -37,6 +37,10 @@
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_contact_from_aor_list;
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_aor_contacts;
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_contact;
+		LINKER_SYMBOL_PREFIXast_sip_location_add_contact_transport;
+		LINKER_SYMBOL_PREFIXast_sip_location_delete_contact_transport;
+		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_contact_transport_by_uri;
+		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_contact_transport_by_transport;
 		LINKER_SYMBOL_PREFIXast_sip_location_add_contact;
 		LINKER_SYMBOL_PREFIXast_sip_location_update_contact;
 		LINKER_SYMBOL_PREFIXast_sip_location_delete_contact;
@@ -47,6 +51,12 @@
 		LINKER_SYMBOL_PREFIXast_sip_dialog_get_endpoint;
 		LINKER_SYMBOL_PREFIXast_sip_retrieve_auths;
 		LINKER_SYMBOL_PREFIXast_sip_cleanup_auths;
+		LINKER_SYMBOL_PREFIXast_sip_is_content_type;
+		LINKER_SYMBOL_PREFIXast_sip_report_invalid_endpoint;
+		LINKER_SYMBOL_PREFIXast_sip_report_failed_acl;
+		LINKER_SYMBOL_PREFIXast_sip_report_auth_failed_challenge_response;
+		LINKER_SYMBOL_PREFIXast_sip_report_auth_success;
+		LINKER_SYMBOL_PREFIXast_sip_report_auth_challenge_sent;
 	local:
 		*;
 };

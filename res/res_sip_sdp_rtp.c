@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/sched.h"
 #include "asterisk/acl.h"
+#include "asterisk/sdp_srtp.h"
 
 #include "asterisk/res_sip.h"
 #include "asterisk/res_sip_session.h"
@@ -116,6 +117,10 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 
 	ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(session_media->rtp),
 					 session_media->rtp, &session->endpoint->prefs);
+
+	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+	}
 
 	if (!session->endpoint->ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
 		ice->stop(session_media->rtp);
@@ -289,6 +294,18 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 	return attr;
 }
 
+static int codec_pref_has_type(struct ast_codec_pref *prefs, enum ast_format_type media_type)
+{
+	int i;
+	struct ast_format fmt;
+	for (i = 0; ast_codec_pref_index(prefs, i, &fmt); ++i) {
+		if (AST_FORMAT_GET_TYPE(fmt.id) == media_type) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /*! \brief Function which adds ICE attributes to a media stream */
 static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
 {
@@ -460,6 +477,101 @@ static void apply_packetization(struct ast_sip_session *session, struct ast_sip_
 					 session_media->rtp, pref);
 }
 
+/*! \brief figure out media transport encryption type from the media transport string */
+static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t transport)
+{
+	RAII_VAR(char *, transport_str, ast_strndup(transport.ptr, transport.slen), ast_free);
+	if (strstr(transport_str, "UDP/TLS")) {
+		return AST_SIP_MEDIA_ENCRYPT_DTLS;
+	} else if (strstr(transport_str, "SAVP")) {
+		return AST_SIP_MEDIA_ENCRYPT_SDES;
+	} else {
+		return AST_SIP_MEDIA_ENCRYPT_NONE;
+	}
+}
+
+/*!
+ * \brief Checks whether the encryption offered in SDP is compatible with the endpoint's configuration
+ * \internal
+ *
+ * \param endpoint_encryption Media encryption configured for the endpoint
+ * \param stream pjmedia_sdp_media stream description
+ *
+ * \retval AST_SIP_MEDIA_TRANSPORT_INVALID on encryption mismatch
+ * \retval The encryption requested in the SDP
+ */
+static enum ast_sip_session_media_encryption check_endpoint_media_transport(
+	struct ast_sip_endpoint *endpoint,
+	const struct pjmedia_sdp_media *stream)
+{
+	enum ast_sip_session_media_encryption incoming_encryption;
+
+	if (endpoint->use_avpf) {
+		char transport_end = stream->desc.transport.ptr[stream->desc.transport.slen - 1];
+		if (transport_end != 'F') {
+			return AST_SIP_MEDIA_TRANSPORT_INVALID;
+		}
+	}
+
+	incoming_encryption = get_media_encryption_type(stream->desc.transport);
+	if (incoming_encryption == AST_SIP_MEDIA_ENCRYPT_DTLS) {
+		/* DTLS not yet supported */
+		return AST_SIP_MEDIA_TRANSPORT_INVALID;
+	}
+
+	if (incoming_encryption == endpoint->media_encryption) {
+		return incoming_encryption;
+	}
+
+	return AST_SIP_MEDIA_TRANSPORT_INVALID;
+}
+
+static int setup_sdes_srtp(struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *stream)
+{
+	int i;
+
+	for (i = 0; i < stream->attr_count; i++) {
+		pjmedia_sdp_attr *attr;
+		RAII_VAR(char *, crypto_str, NULL, ast_free);
+
+		/* check the stream for the required crypto attribute */
+		attr = stream->attr[i];
+		if (pj_strcmp2(&attr->name, "crypto")) {
+			continue;
+		}
+
+		crypto_str = ast_strndup(attr->value.ptr, attr->value.slen);
+		if (!crypto_str) {
+			return -1;
+		}
+
+		if (!session_media->srtp) {
+			session_media->srtp = ast_sdp_srtp_alloc();
+			if (!session_media->srtp) {
+				return -1;
+			}
+		}
+
+		if (!session_media->srtp->crypto) {
+			session_media->srtp->crypto = ast_sdp_crypto_alloc();
+			if (!session_media->srtp->crypto) {
+				return -1;
+			}
+		}
+
+		if (!ast_sdp_crypto_process(session_media->rtp, session_media->srtp, crypto_str)) {
+			/* found a valid crypto attribute */
+			return 0;
+		}
+
+		ast_debug(1, "Ignoring crypto offer with unsupported parameters: %s\n", crypto_str);
+	}
+
+	/* no usable crypto attributes found */
+	return -1;
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 					 const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream)
@@ -467,10 +579,17 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	char host[NI_MAXHOST];
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
 	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
+	enum ast_sip_session_media_encryption incoming_encryption;
 
 	/* If no type formats have been configured reject this stream */
 	if (!ast_format_cap_has_type(session->endpoint->codecs, media_type)) {
 		return 0;
+	}
+
+	/* Ensure incoming transport is compatible with the endpoint's configuration */
+	incoming_encryption = check_endpoint_media_transport(session->endpoint, stream);
+	if (incoming_encryption == AST_SIP_MEDIA_TRANSPORT_INVALID) {
+		return -1;
 	}
 
 	ast_copy_pj_str(host, stream->conn ? &stream->conn->addr : &sdp->conn->addr, sizeof(host));
@@ -486,7 +605,40 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		return -1;
 	}
 
+	if (incoming_encryption == AST_SIP_MEDIA_ENCRYPT_SDES
+			&& setup_sdes_srtp(session_media, stream)) {
+		return -1;
+	}
+
 	return set_caps(session, session_media, stream);
+}
+
+static int add_crypto_to_stream(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media,
+	pj_pool_t *pool, pjmedia_sdp_media *media)
+{
+	pj_str_t stmp;
+	pjmedia_sdp_attr *attr;
+	const char *crypto_attribute;
+
+	if (!session_media->srtp && session->endpoint->media_encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+		session_media->srtp = ast_sdp_srtp_alloc();
+		if (!session_media->srtp) {
+			return -1;
+		}
+	}
+
+	crypto_attribute = ast_sdp_srtp_get_attrib(session_media->srtp,
+		0 /* DTLS can not be enabled for res_sip */,
+		0 /* don't prefer 32byte tag length */);
+	if (!crypto_attribute) {
+		/* No crypto attribute to add */
+		return -1;
+	}
+
+	attr = pjmedia_sdp_attr_create(pool, "crypto", pj_cstr(&stmp, crypto_attribute));
+	media->attr[media->attr_count++] = attr;
+	return 0;
 }
 
 /*! \brief Function which creates an outgoing stream */
@@ -497,7 +649,6 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_IN = { "IN", 2 };
 	static const pj_str_t STR_IP4 = { "IP4", 3};
 	static const pj_str_t STR_IP6 = { "IP6", 3};
-	static const pj_str_t STR_RTP_AVP = { "RTP/AVP", 7 };
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
 	pjmedia_sdp_media *media;
 	char hostip[PJ_INET6_ADDRSTRLEN+2];
@@ -508,14 +659,19 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	int index = 0, min_packet_size = 0, noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) ? AST_RTP_DTMF : 0;
 	int rtp_code;
 	struct ast_format format;
-	struct ast_format compat_format;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ast_format_cap_destroy);
 	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
+	int crypto_res;
 
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		!ast_format_cap_is_empty(session->direct_media_cap);
 
-	if (!ast_format_cap_has_type(session->endpoint->codecs, media_type)) {
+	int use_override_prefs = session->override_prefs.formats[0].id;
+	struct ast_codec_pref *prefs = use_override_prefs ?
+		&session->override_prefs : &session->endpoint->prefs;
+
+	if ((use_override_prefs && !codec_pref_has_type(&session->override_prefs, media_type)) ||
+	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
 	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->rtp_ipv6)) {
@@ -527,9 +683,11 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		return -1;
 	}
 
-	/* TODO: This should eventually support SRTP */
+	crypto_res = add_crypto_to_stream(session, session_media, pool, media);
+
 	media->desc.media = pj_str(session_media->stream_type);
-	media->desc.transport = STR_RTP_AVP;
+	media->desc.transport = pj_str(ast_sdp_get_rtp_profile(
+		!crypto_res, session_media->rtp, session->endpoint->use_avpf));
 
 	/* Add connection level details */
 	if (direct_media_enabled) {
@@ -565,36 +723,36 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	} else if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
 		ast_format_cap_copy(caps, session->endpoint->codecs);
 	} else {
-		ast_format_cap_joint_copy(session->endpoint->codecs, session->req_caps, caps);
+		ast_format_cap_copy(caps, session->req_caps);
 	}
 
-	for (index = 0; ast_codec_pref_index(&session->endpoint->prefs, index, &format); ++index) {
+	for (index = 0; ast_codec_pref_index(prefs, index, &format); ++index) {
 		struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(session_media->rtp)->pref;
 
 		if (AST_FORMAT_GET_TYPE(format.id) != media_type) {
 			continue;
 		}
 
-		if (!ast_format_cap_get_compatible_format(caps, &format, &compat_format)) {
+		if (!use_override_prefs && !ast_format_cap_get_compatible_format(caps, &format, &format)) {
 			continue;
 		}
 
-		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, &compat_format, 0)) == -1) {
+		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, &format, 0)) == -1) {
 			return -1;
 		}
 
-		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, &compat_format, 0))) {
+		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, &format, 0))) {
 			continue;
 		}
 
 		media->attr[media->attr_count++] = attr;
 
-		if ((attr = generate_fmtp_attr(pool, &compat_format, rtp_code))) {
+		if ((attr = generate_fmtp_attr(pool, &format, rtp_code))) {
 			media->attr[media->attr_count++] = attr;
 		}
 
 		if (pref && media_type != AST_FORMAT_TYPE_VIDEO) {
-			struct ast_format_list fmt = ast_codec_pref_getsize(pref, &compat_format);
+			struct ast_format_list fmt = ast_codec_pref_getsize(pref, &format);
 			if (fmt.cur_ms && ((fmt.cur_ms < min_packet_size) || !min_packet_size)) {
 				min_packet_size = fmt.cur_ms;
 			}
@@ -768,9 +926,9 @@ static int video_info_incoming_request(struct ast_sip_session *session, struct p
 	struct pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
 	pjsip_tx_data *tdata;
 
-	if (pj_strcmp2(&rdata->msg_info.msg->body->content_type.type, "application") ||
-	    pj_strcmp2(&rdata->msg_info.msg->body->content_type.subtype, "media_control+xml")) {
-
+	if (!ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
+				     "application",
+				     "media_control+xml")) {
 		return 0;
 	}
 

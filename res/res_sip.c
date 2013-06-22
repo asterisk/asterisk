@@ -53,7 +53,7 @@
 					It contains the core SIP related options only, endpoints are <emphasis>NOT</emphasis>
 					dialable entries of their own. Communication with another SIP device is
 					accomplished via Addresses of Record (AoRs) which have one or more
-					contacts assicated with them. Endpoints <emphasis>NOT</emphasis> configured to 
+					contacts assicated with them. Endpoints <emphasis>NOT</emphasis> configured to
 					use a <literal>transport</literal> will default to first transport found
 					in <filename>res_sip.conf</filename> that matches its type.
 					</para>
@@ -61,6 +61,12 @@
 					When it comes time to call an AoR, PJSIP will find the
 					first transport that matches the type. A SIP URI of <literal>sip:5000@[11::33]</literal>
 					will use the first IPv6 transport and try to send the request.
+					</para>
+					<para>If the anonymous endpoint identifier is in use an endpoint with the name
+					"anonymous@domain" will be searched for as a last resort. If this is not found
+					it will fall back to searching for "anonymous". If neither endpoints are found
+					the anonymous endpoint identifier will not return an endpoint and anonymous
+					calling will not be possible.
 					</para>
 				</description>
 				<configOption name="100rel" default="yes">
@@ -161,6 +167,19 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="connected_line_method" default="invite">
+					<synopsis>Connected line method type</synopsis>
+					<description>
+						<para>Method used when updating connected line information.</para>
+						<enumlist>
+							<enum name="invite" />
+							<enum name="reinvite">
+								<para>Alias for the <literal>invite</literal> value.</para>
+							</enum>
+							<enum name="update" />
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="direct_media" default="yes">
 					<synopsis>Determines whether media may flow directly between endpoints.</synopsis>
 				</configOption>
@@ -222,13 +241,6 @@
 				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Proxy through which to send requests</synopsis>
-				</configOption>
-				<configOption name="qualify_frequency" default="0">
-					<synopsis>Interval at which to qualify an endpoint</synopsis>
-					<description><para>
-						Interval between attempts to qualify the endpoint for reachability.
-						If <literal>0</literal> never qualify. Time in seconds.
-					</para></description>
 				</configOption>
 				<configOption name="rewrite_contact">
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
@@ -297,6 +309,75 @@
 				</configOption>
 				<configOption name="use_ptime" default="no">
 					<synopsis>Use Endpoint's requested packetisation interval</synopsis>
+				</configOption>
+				<configOption name="use_avpf" default="no">
+					<synopsis>Determines whether res_sip will use and enforce usage of AVPF for this
+					endpoint.</synopsis>
+					<description><para>
+						If set to <literal>yes</literal>, res_sip will use use the AVPF or SAVPF RTP
+						profile for all media offers on outbound calls and media updates and will
+						decline media offers not using the AVPF or SAVPF profile.
+					</para><para>
+						If set to <literal>no</literal>, res_sip will use use the AVP or SAVP RTP
+						profile for all media offers on outbound calls and media updates and will
+						decline media offers not using the AVP or SAVP profile.
+					</para></description>
+				</configOption>
+				<configOption name="media_encryption" default="no">
+					<synopsis>Determines whether res_sip will use and enforce usage of media encryption
+					for this endpoint.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="no"><para>
+								res_sip will offer no encryption and allow no encryption to be setup.
+							</para></enum>
+							<enum name="sdes"><para>
+								res_sip will offer standard SRTP setup via in-SDP keys. Encrypted SIP
+								transport should be used in conjunction with this option to prevent
+								exposure of media encryption keys.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="inband_progress" default="no">
+					<synopsis>Determines whether chan_gulp will indicate ringing using inband
+					    progress.</synopsis>
+					<description><para>
+						If set to <literal>yes</literal>, chan_gulp will send a 183 Session Progress
+						when told to indicate ringing and will immediately start sending ringing
+						as audio.
+					</para><para>
+						If set to <literal>no</literal>, chan_gulp will send a 180 Ringing when told
+						to indicate ringing and will NOT send it as audio.
+					</para></description>
+				</configOption>
+				<configOption name="callgroup">
+					<synopsis>The numeric pickup groups for a channel.</synopsis>
+					<description><para>
+						Can be set to a comma separated list of numbers or ranges between the values
+						of 0-63 (maximum of 64 groups).
+					</para></description>
+				</configOption>
+				<configOption name="pickupgroup">
+					<synopsis>The numeric pickup groups that a channel can pickup.</synopsis>
+					<description><para>
+						Can be set to a comma separated list of numbers or ranges between the values
+						of 0-63 (maximum of 64 groups).
+					</para></description>
+				</configOption>
+				<configOption name="namedcallgroup">
+					<synopsis>The named pickup groups for a channel.</synopsis>
+					<description><para>
+						Can be set to a comma separated list of case sensitive strings limited by
+						supported line length.
+					</para></description>
+				</configOption>
+				<configOption name="namedpickupgroup">
+					<synopsis>The named pickup groups that a channel can pickup.</synopsis>
+					<description><para>
+						Can be set to a comma separated list of case sensitive strings limited by
+						supported line length.
+					</para></description>
 				</configOption>
 				<configOption name="devicestate_busy_at" default="0">
 					<synopsis>The number of in-use channels which will cause busy to be returned as device state</synopsis>
@@ -479,6 +560,35 @@
 						Time to keep alive a contact. String style specification.
 					</para></description>
 				</configOption>
+				<configOption name="qualify_frequency" default="0">
+					<synopsis>Interval at which to qualify a contact</synopsis>
+					<description><para>
+						Interval between attempts to qualify the contact for reachability.
+						If <literal>0</literal> never qualify. Time in seconds.
+					</para></description>
+				</configOption>
+			</configObject>
+			<configObject name="contact_status">
+				<synopsis>Status for a contact</synopsis>
+				<description><para>
+					The contact status keeps track of whether or not a contact is reachable
+					and how long it took to qualify the contact (round trip time).
+				</para></description>
+				<configOption name="status">
+					<synopsis>A contact's status</synopsis>
+					<description>
+						<enumlist>
+							<enum name="AVAILABLE" />
+							<enum name="UNAVAILABLE" />
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="rtt">
+					<synopsis>Round trip time</synopsis>
+					<description><para>
+						The time, in microseconds, it took to qualify the contact.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>
@@ -548,6 +658,20 @@
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'aor'.</synopsis>
+				</configOption>
+				<configOption name="qualify_frequency" default="0">
+					<synopsis>Interval at which to qualify an AoR</synopsis>
+					<description><para>
+						Interval between attempts to qualify the AoR for reachability.
+						If <literal>0</literal> never qualify. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="authenticate_qualify" default="no">
+					<synopsis>Authenticates a qualify request if needed</synopsis>
+					<description><para>
+						If true and a qualify request receives a challenge or authenticate response
+						authentication is attempted before declaring the contact available.
+					</para></description>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -782,7 +906,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	}
 
 	/* If the host is IPv6 turn the transport into an IPv6 version */
-	if (pj_strchr(&sip_uri->host, ':')) {
+	if (pj_strchr(&sip_uri->host, ':') && type < PJSIP_TRANSPORT_START_OTHER) {
 		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
 	}
 
@@ -792,8 +916,8 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 		return -1;
 	}
 
-	/* If IPv6 was not specified in the host but is in the transport, set the proper type */
-	if (!pj_strchr(&sip_uri->host, ':') && pj_strchr(&local_addr, ':')) {
+	/* If IPv6 was specified in the transport, set the proper type */
+	if (pj_strchr(&local_addr, ':') && type < PJSIP_TRANSPORT_START_OTHER) {
 		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
 	}
 
@@ -828,15 +952,31 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 		return -1;
 	}
 
-	if (transport->type == AST_TRANSPORT_UDP) {
+	if (transport->state->transport) {
 		selector->type = PJSIP_TPSELECTOR_TRANSPORT;
 		selector->u.transport = transport->state->transport;
-	} else if (transport->type == AST_TRANSPORT_TCP || transport->type == AST_TRANSPORT_TLS) {
+	} else if (transport->state->factory) {
 		selector->type = PJSIP_TPSELECTOR_LISTENER;
 		selector->u.listener = transport->state->factory;
 	} else {
 		return -1;
 	}
+
+	return 0;
+}
+
+static int sip_get_tpselector_from_uri(const char *uri, pjsip_tpselector *selector)
+{
+	RAII_VAR(struct ast_sip_contact_transport *, contact_transport, NULL, ao2_cleanup);
+
+	contact_transport = ast_sip_location_retrieve_contact_transport_by_uri(uri);
+
+	if (!contact_transport) {
+		return -1;
+	}
+
+	selector->type = PJSIP_TPSELECTOR_TRANSPORT;
+	selector->u.transport = contact_transport->transport;
 
 	return 0;
 }
@@ -855,7 +995,7 @@ pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, con
 		return NULL;
 	}
 
-	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
+	if (sip_get_tpselector_from_uri(uri, &selector) && sip_get_tpselector_from_endpoint(endpoint, &selector)) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -905,6 +1045,7 @@ pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, con
 
 /* PJSIP doesn't know about the INFO method, so we have to define it ourselves */
 const pjsip_method pjsip_info_method = {PJSIP_OTHER_METHOD, {"INFO", 4} };
+const pjsip_method pjsip_message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
 
 static struct {
 	const char *method;
@@ -920,6 +1061,7 @@ static struct {
 	{ "NOTIFY", &pjsip_notify_method },
 	{ "PUBLISH", &pjsip_publish_method },
 	{ "INFO", &pjsip_info_method },
+	{ "MESSAGE", &pjsip_message_method },
 };
 
 static const pjsip_method *get_pjsip_method(const char *method)
@@ -953,6 +1095,11 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	if (ast_strlen_zero(uri)) {
+		if (!endpoint) {
+			ast_log(LOG_ERROR, "An endpoint and/or uri must be specified\n");
+			return -1;
+		}
+
 		contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
 		if (!contact || ast_strlen_zero(contact->uri)) {
 			ast_log(LOG_ERROR, "Unable to retrieve contact for endpoint %s\n",
@@ -965,10 +1112,12 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pj_cstr(&remote_uri, uri);
 	}
 
-	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
-		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport selector for endpoint %s\n",
+	if (endpoint) {
+		if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
+			ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport selector for endpoint %s\n",
 				ast_sorcery_object_get_id(endpoint));
-		return -1;
+			return -1;
+		}
 	}
 
 	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Outbound request", 256, 256);
@@ -1073,7 +1222,7 @@ int ast_sip_add_header(pjsip_tx_data *tdata, const char *name, const char *value
 	pj_str_t hdr_name;
 	pj_str_t hdr_value;
 	pjsip_generic_string_hdr *hdr;
-	
+
 	pj_cstr(&hdr_name, name);
 	pj_cstr(&hdr_value, value);
 
@@ -1092,7 +1241,7 @@ static pjsip_msg_body *ast_body_to_pjsip_body(pj_pool_t *pool, const struct ast_
 	pj_cstr(&type, body->type);
 	pj_cstr(&subtype, body->subtype);
 	pj_cstr(&body_text, body->body_text);
-	
+
 	return pjsip_msg_body_create(pool, &type, &subtype, &body_text);
 }
 
@@ -1213,11 +1362,24 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
 	return std.fail;
 }
 
-void ast_copy_pj_str(char *dest, pj_str_t *src, size_t size)
+void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size)
 {
 	size_t chars_to_copy = MIN(size - 1, pj_strlen(src));
 	memcpy(dest, pj_strbuf(src), chars_to_copy);
 	dest[chars_to_copy] = '\0';
+}
+
+int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *subtype)
+{
+	pjsip_media_type compare;
+
+	if (!content_type) {
+		return 0;
+	}
+
+	pjsip_media_type_init2(&compare, type, subtype);
+
+	return pjsip_media_type_cmp(content_type, &compare, 0) ? -1 : 0;
 }
 
 pj_caching_pool caching_pool;
@@ -1351,6 +1513,8 @@ static int load_module(void)
 	}
 
 	ast_res_sip_init_options_handling(0);
+
+	ast_res_sip_init_contact_transports();
 
 return AST_MODULE_LOAD_SUCCESS;
 

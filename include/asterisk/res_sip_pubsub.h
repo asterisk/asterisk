@@ -261,7 +261,22 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
  * \retval non-NULL The underlying pjsip_evsub
  */
 pjsip_evsub *ast_sip_subscription_get_evsub(struct ast_sip_subscription *sub);
- 
+
+/*!
+ * \brief Get the underlying PJSIP dialog structure
+ *
+ * Call this function when information needs to be retrieved from the
+ * underlying pjsip dialog.
+ *
+ * This function, as well as all methods called on the pjsip_evsub should
+ * be done in a SIP servant thread.
+ *
+ * \param sub The subscription
+ * \retval NULL Failure
+ * \retval non-NULL The underlying pjsip_dialog
+ */
+pjsip_dialog *ast_sip_subscription_get_dlg(struct ast_sip_subscription *sub);
+
 /*!
  * \brief Send a request created via a PJSIP evsub method
  *

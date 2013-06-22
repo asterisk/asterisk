@@ -149,16 +149,12 @@ static pjsip_evsub *allocate_evsub(const char *event, enum ast_sip_subscription_
 	if (role == AST_SIP_NOTIFIER) {
 		if (!strcmp(event, "message-summary")) {
 			pjsip_mwi_create_uas(dlg, &pubsub_cb, rdata, &evsub);
-		} else if (!strcmp(event, "presence")) {
-			pjsip_pres_create_uas(dlg, &pubsub_cb, rdata, &evsub);
 		} else {
 			pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &evsub);
 		}
 	} else {
 		if (!strcmp(event, "message-summary")) {
 			pjsip_mwi_create_uac(dlg, &pubsub_cb, 0, &evsub);
-		} else if (!strcmp(event, "presence")) {
-			pjsip_pres_create_uac(dlg, &pubsub_cb, 0, &evsub);
 		} else {
 			pj_str_t pj_event;
 			pj_cstr(&pj_event, event);
@@ -237,6 +233,11 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
 pjsip_evsub *ast_sip_subscription_get_evsub(struct ast_sip_subscription *sub)
 {
 	return sub->evsub;
+}
+
+pjsip_dialog *ast_sip_subscription_get_dlg(struct ast_sip_subscription *sub)
+{
+	return sub->dlg;
 }
 
 int ast_sip_subscription_send_request(struct ast_sip_subscription *sub, pjsip_tx_data *tdata)
@@ -340,7 +341,6 @@ static int handler_exists_for_event_name(const char *event_name)
 
 int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *handler)
 {
-	pj_str_t event;
 	pj_str_t accept[AST_SIP_MAX_ACCEPT];
 	int i;
 
@@ -354,29 +354,29 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
 		return -1;
 	}
 
-	if (handler_exists_for_event_name(handler->event_name)) {
-		ast_log(LOG_ERROR, "A subscription handler for event %s already exists. Not registering "
-				"new subscription handler\n", handler->event_name);
-		return -1;
-	}
-
-	pj_cstr(&event, handler->event_name);
 	for (i = 0; i < AST_SIP_MAX_ACCEPT && !ast_strlen_zero(handler->accept[i]); ++i) {
 		pj_cstr(&accept[i], handler->accept[i]);
 	}
 
-	if (!strcmp(handler->event_name, "message-summary")) {
-		pjsip_mwi_init_module(ast_sip_get_pjsip_endpoint(), pjsip_evsub_instance());
-	} else if (!strcmp(handler->event_name, "presence")) {
-		pjsip_pres_init_module(ast_sip_get_pjsip_endpoint(), pjsip_evsub_instance());
+	if (!handler_exists_for_event_name(handler->event_name)) {
+		pj_str_t event;
+
+		pj_cstr(&event, handler->event_name);
+
+		if (!strcmp(handler->event_name, "message-summary")) {
+			pjsip_mwi_init_module(ast_sip_get_pjsip_endpoint(), pjsip_evsub_instance());
+		} else {
+			pjsip_evsub_register_pkg(&sub_module, &event, DEFAULT_EXPIRES, i, accept);
+		}
 	} else {
-		pjsip_evsub_register_pkg(&sub_module, &event, DEFAULT_EXPIRES, i, accept);
+		pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), &sub_module, PJSIP_H_ACCEPT, NULL,
+			i, accept);
 	}
 
 	add_handler(handler);
 	return 0;
 }
- 
+
 void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler *handler)
 {
 	struct ast_sip_subscription_handler *iter;
@@ -475,7 +475,19 @@ static pj_bool_t sub_on_rx_request(pjsip_rx_data *rdata)
 	}
 	sub = handler->new_subscribe(endpoint, rdata);
 	if (!sub) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		pjsip_transaction *trans = pjsip_rdata_get_tsx(rdata);
+
+		if (trans) {
+			pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
+			pjsip_tx_data *tdata;
+
+			if (pjsip_endpt_create_response(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, &tdata) != PJ_SUCCESS) {
+				return PJ_TRUE;
+			}
+			pjsip_dlg_send_response(dlg, trans, tdata);
+		} else {
+			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		}
 	}
 	return PJ_TRUE;
 }
@@ -515,7 +527,8 @@ static void pubsub_on_tsx_state(pjsip_evsub *evsub, pjsip_transaction *tsx, pjsi
 		return;
 	}
 
-	if (tsx->role == PJSIP_ROLE_UAC && event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
+	if (sub->handler->notify_response && tsx->role == PJSIP_ROLE_UAC &&
+	    event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
 		sub->handler->notify_response(sub, event->body.tsx_state.src.rdata);
 	}
 }
@@ -599,7 +612,7 @@ static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p
 		.status_code = 200,
 	};
 
-	if (!sub|| !sub->handler->notify_request) {
+	if (!sub || !sub->handler->notify_request) {
 		return;
 	}
 

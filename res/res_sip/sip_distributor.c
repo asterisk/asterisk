@@ -140,11 +140,21 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 	}
 
 	if (!endpoint && !is_ack) {
+		char name[AST_UUID_STR_LEN] = "";
+		pjsip_uri *from = rdata->msg_info.from->uri;
+
 		/* XXX When we do an alwaysauthreject-like option, we'll need to take that into account
 		 * for this response. Either that, or have a pseudo-endpoint to pass along so that authentication
 		 * will fail
 		 */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+
+		if (PJSIP_URI_SCHEME_IS_SIP(from) || PJSIP_URI_SCHEME_IS_SIPS(from)) {
+			pjsip_sip_uri *sip_from = pjsip_uri_get_uri(from);
+			ast_copy_pj_str(name, &sip_from->user, sizeof(name));
+		}
+
+		ast_sip_report_invalid_endpoint(name, rdata);
 		return PJ_TRUE;
 	}
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
@@ -164,16 +174,20 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 		switch (ast_sip_check_authentication(endpoint, rdata, tdata)) {
 		case AST_SIP_AUTHENTICATION_CHALLENGE:
 			/* Send the 401 we created for them */
+			ast_sip_report_auth_challenge_sent(endpoint, rdata, tdata);
 			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_SUCCESS:
+			ast_sip_report_auth_success(endpoint, rdata);
 			pjsip_tx_data_dec_ref(tdata);
 			return PJ_FALSE;
 		case AST_SIP_AUTHENTICATION_FAILED:
+			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
 			pjsip_tx_data_dec_ref(tdata);
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_ERROR:
+			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
 			pjsip_tx_data_dec_ref(tdata);
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 			return PJ_TRUE;

@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_sip_register_exten_state_provider;
+		LINKER_SYMBOL_PREFIXast_sip_unregister_exten_state_provider;
+	local:
+		*;
+};

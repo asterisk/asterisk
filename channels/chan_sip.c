@@ -285,8 +285,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/config_parser.h"
 #include "sip/include/reqresp_parser.h"
 #include "sip/include/sip_utils.h"
-#include "sip/include/srtp.h"
-#include "sip/include/sdp_crypto.h"
+#include "asterisk/sdp_srtp.h"
 #include "asterisk/ccss.h"
 #include "asterisk/xml.h"
 #include "sip/include/dialog.h"
@@ -1490,8 +1489,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 static void handle_response(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, uint32_t seqno);
 
 /*------ SRTP Support -------- */
-static int setup_srtp(struct sip_srtp **srtp);
-static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a);
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct ast_sdp_srtp **srtp, const char *a);
 
 /*------ T38 Support --------- */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -5918,7 +5916,7 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 }
 
 /*! \brief Initialize DTLS-SRTP support on an RTP instance */
-static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_rtp_instance *rtp, struct sip_srtp **srtp)
+static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_rtp_instance *rtp, struct ast_sdp_srtp **srtp)
 {
 	struct ast_rtp_engine_dtls *dtls;
 
@@ -5943,7 +5941,7 @@ static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_
 		return -1;
 	}
 
-	if (!(*srtp = sip_srtp_alloc())) {
+	if (!(*srtp = ast_sdp_srtp_alloc())) {
 		ast_log(LOG_ERROR, "Failed to create required SRTP structure on RTP instance '%p'\n",
 			rtp);
 		return -1;
@@ -6418,17 +6416,17 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 			ast_clear_flag(&p->flags[0], SIP_REINVITE);
 		}
 
-		if (p->rtp && !p->srtp && setup_srtp(&p->srtp) < 0) {
+		if (p->rtp && !p->srtp && !(p->srtp = ast_sdp_srtp_alloc())) {
 			ast_log(LOG_WARNING, "SRTP audio setup failed\n");
 			return -1;
 		}
 
-		if (p->vrtp && !p->vsrtp && setup_srtp(&p->vsrtp) < 0) {
+		if (p->vrtp && !p->vsrtp && !(p->vsrtp = ast_sdp_srtp_alloc())) {
 			ast_log(LOG_WARNING, "SRTP video setup failed\n");
 			return -1;
 		}
 
-		if (p->trtp && !p->tsrtp && setup_srtp(&p->tsrtp) < 0) {
+		if (p->trtp && !p->tsrtp && !(p->tsrtp = ast_sdp_srtp_alloc())) {
 			ast_log(LOG_WARNING, "SRTP text setup failed\n");
 			return -1;
 		}
@@ -6690,17 +6688,17 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	destroy_msg_headers(p);
 
 	if (p->srtp) {
-		sip_srtp_destroy(p->srtp);
+		ast_sdp_srtp_destroy(p->srtp);
 		p->srtp = NULL;
 	}
 
 	if (p->vsrtp) {
-		sip_srtp_destroy(p->vsrtp);
+		ast_sdp_srtp_destroy(p->vsrtp);
 		p->vsrtp = NULL;
 	}
 
 	if (p->tsrtp) {
-		sip_srtp_destroy(p->tsrtp);
+		ast_sdp_srtp_destroy(p->tsrtp);
 		p->tsrtp = NULL;
 	}
 
@@ -10154,7 +10152,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					secure_audio = 1;
 
 					if (p->srtp) {
-						ast_set_flag(p->srtp, SRTP_CRYPTO_OFFER_OK);
+						ast_set_flag(p->srtp, AST_SRTP_CRYPTO_OFFER_OK);
 					}
 				} else if (!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "RTP/SAVPF")) {
 					secure_audio = 1;
@@ -10235,8 +10233,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
 					secure_video = 1;
 
-					if (p->vsrtp || (p->vsrtp = sip_srtp_alloc())) {
-						ast_set_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK);
+					if (p->vsrtp || (p->vsrtp = ast_sdp_srtp_alloc())) {
+						ast_set_flag(p->vsrtp, AST_SRTP_CRYPTO_OFFER_OK);
 					}
 				} else if (!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "RTP/SAVPF")) {
 					secure_video = 1;
@@ -10516,7 +10514,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
-	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)))) {
+	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, AST_SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
 		res = -1;
 		goto process_sdp_cleanup;
@@ -10528,7 +10526,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
-	if (secure_video && !(p->vsrtp && (ast_test_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK)))) {
+	if (secure_video && !(p->vsrtp && (ast_test_flag(p->vsrtp, AST_SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure video requested in SDP offer\n");
 		res = -1;
 		goto process_sdp_cleanup;
@@ -12993,52 +12991,20 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 	}
 }
 
-static void get_crypto_attrib(struct sip_pvt *p, struct sip_srtp *srtp, const char **a_crypto)
+static char *crypto_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32)
 {
-	int taglen = 80;
+	char *a_crypto;
+	char *orig_crypto;
 
-	/* Set encryption properties */
-	if (srtp) {
-		if (!srtp->crypto) {
-			srtp->crypto = sdp_crypto_setup();
-		}
-
-		if (p->dtls_cfg.enabled) {
-			/* If DTLS-SRTP is enabled the key details will be pulled from TLS */
-			return;
-		}
-
-		/* set the key length based on INVITE or settings */
-		if (ast_test_flag(srtp, SRTP_CRYPTO_TAG_80)) {
-			taglen = 80;
-		} else if (ast_test_flag(&p->flags[2], SIP_PAGE3_SRTP_TAG_32) ||
-		    ast_test_flag(srtp, SRTP_CRYPTO_TAG_32)) {
-			taglen = 32;
-		}
-
-		if (srtp->crypto && (sdp_crypto_offer(srtp->crypto, taglen) >= 0)) {
-			*a_crypto = sdp_crypto_attrib(srtp->crypto);
-		}
-
-		if (!*a_crypto) {
-			ast_log(LOG_WARNING, "No SRTP key management enabled\n");
-		}
+	if (!srtp) {
+		return NULL;
 	}
-}
 
-static char *get_sdp_rtp_profile(const struct sip_pvt *p, unsigned int secure, struct ast_rtp_instance *instance)
-{
-	struct ast_rtp_engine_dtls *dtls;
-
-	if ((dtls = ast_rtp_instance_get_dtls(instance)) && dtls->active(instance)) {
-		return ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF) ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
-	} else {
-		if (ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-			return secure ? "RTP/SAVPF" : "RTP/AVPF";
-		} else {
-			return secure ? "RTP/SAVP" : "RTP/AVP";
-		}
+	orig_crypto = ast_strdupa(ast_sdp_srtp_get_attrib(srtp, dtls_enabled, default_taglen_32));
+	if (ast_asprintf(&a_crypto, "a=crypto:%s\r\n", orig_crypto) == -1) {
+		return NULL;
 	}
+	return a_crypto;
 }
 
 /*! \brief Add Session Description Protocol message
@@ -13079,9 +13045,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	struct ast_str *a_video = ast_str_create(256); /* Attributes for video */
 	struct ast_str *a_text = ast_str_create(256);  /* Attributes for text */
 	struct ast_str *a_modem = ast_str_alloca(1024); /* Attributes for modem */
-	const char *a_crypto = NULL;
-	const char *v_a_crypto = NULL;
-	const char *t_a_crypto = NULL;
+	RAII_VAR(char *, a_crypto, NULL, ast_free);
+	RAII_VAR(char *, v_a_crypto, NULL, ast_free);
+	RAII_VAR(char *, t_a_crypto, NULL, ast_free);
 
 	int x;
 	struct ast_format tmp_fmt;
@@ -13199,9 +13165,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Ok, we need video. Let's add what we need for video and set codecs.
 		   Video is handled differently than audio since we can not transcode. */
 		if (needvideo) {
-			get_crypto_attrib(p, p->vsrtp, &v_a_crypto);
+			v_a_crypto = crypto_get_attrib(p->vsrtp, p->dtls_cfg.enabled,
+				ast_test_flag(&p->flags[2], SIP_PAGE3_SRTP_TAG_32));
 			ast_str_append(&m_video, 0, "m=video %d %s", ast_sockaddr_port(&vdest),
-				       get_sdp_rtp_profile(p, v_a_crypto ? 1 : 0, p->vrtp));
+				ast_sdp_get_rtp_profile(v_a_crypto ? 1 : 0, p->vrtp,
+					ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)));
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -13224,9 +13192,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needtext) {
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
-			get_crypto_attrib(p, p->tsrtp, &t_a_crypto);
+			t_a_crypto = crypto_get_attrib(p->tsrtp, p->dtls_cfg.enabled,
+				ast_test_flag(&p->flags[2], SIP_PAGE3_SRTP_TAG_32));
 			ast_str_append(&m_text, 0, "m=text %d %s", ast_sockaddr_port(&tdest),
-				       get_sdp_rtp_profile(p, t_a_crypto ? 1 : 0, p->trtp));
+				ast_sdp_get_rtp_profile(t_a_crypto ? 1 : 0, p->trtp,
+					ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)));
 			if (debug) {  /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
@@ -13245,9 +13215,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		get_crypto_attrib(p, p->srtp, &a_crypto);
+		a_crypto = crypto_get_attrib(p->srtp, p->dtls_cfg.enabled,
+			ast_test_flag(&p->flags[2], SIP_PAGE3_SRTP_TAG_32));
 		ast_str_append(&m_audio, 0, "m=audio %d %s", ast_sockaddr_port(&dest),
-			       get_sdp_rtp_profile(p, a_crypto ? 1 : 0, p->rtp));
+			ast_sdp_get_rtp_profile(a_crypto ? 1 : 0, p->rtp,
+				ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)));
 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
@@ -25767,7 +25739,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
 			} else if ((p->t38.state == T38_DISABLED) || (p->t38.state == T38_REJECTED)) {
 				/* If this is not a re-invite or something to ignore - it's critical */
-				if (p->srtp && !ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)) {
+				if (p->srtp && !ast_test_flag(p->srtp, AST_SRTP_CRYPTO_OFFER_OK)) {
 					ast_log(LOG_WARNING, "Target does not support required crypto\n");
 					transmit_response_reliable(p, "488 Not Acceptable Here (crypto)", req);
 				} else {
@@ -32791,22 +32763,7 @@ static void sip_send_all_mwi_subscriptions(void)
 	} while (0));
 }
 
-/* SRTP */
-static int setup_srtp(struct sip_srtp **srtp)
-{
-	if (!ast_rtp_engine_srtp_is_registered()) {
-		ast_debug(1, "No SRTP module loaded, can't setup SRTP session.\n");
-		return -1;
-	}
-
-	if (!(*srtp = sip_srtp_alloc())) { /* Allocate SRTP data structure */
-		return -1;
-	}
-
-	return 0;
-}
-
-static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a)
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct ast_sdp_srtp **srtp, const char *a)
 {
 	struct ast_rtp_engine_dtls *dtls;
 
@@ -32819,26 +32776,27 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 	if (strncasecmp(a, "crypto:", 7)) {
 		return FALSE;
 	}
+	/* skip "crypto:" */
+	a += strlen("crypto:");
+
 	if (!*srtp) {
 		if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			ast_log(LOG_WARNING, "Ignoring unexpected crypto attribute in SDP answer\n");
 			return FALSE;
 		}
 
-		if (setup_srtp(srtp) < 0) {
+		if (!(*srtp = ast_sdp_srtp_alloc())) {
 			return FALSE;
 		}
 	}
 
-	if (!(*srtp)->crypto && !((*srtp)->crypto = sdp_crypto_setup())) {
+	if (!(*srtp)->crypto && !((*srtp)->crypto = ast_sdp_crypto_alloc())) {
 		return FALSE;
 	}
 
-	if (sdp_crypto_process((*srtp)->crypto, a, rtp, *srtp) < 0) {
+	if (ast_sdp_crypto_process(rtp, *srtp, a) < 0) {
 		return FALSE;
 	}
-
-	ast_set_flag(*srtp, SRTP_CRYPTO_OFFER_OK);
 
 	if ((dtls = ast_rtp_instance_get_dtls(rtp))) {
 		dtls->stop(rtp);

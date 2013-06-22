@@ -22,3 +22,5 @@ dtmfmode=rfc4733          ; Supported DTMF modes are rfc4733, inband, info, and 
 ;rtp_ipv6=yes             ; Force IPv6 for RTP transport
 ;rtp_symmetric=yes        ; Enable symmetric RTP support
 ;use_ptime=yes            ; Whether to use the ptime value received from the endpoint or not
+;media_encryption=no      ; Options for media encryption are no, and sdes
+;use_avpf=no              ; Whether to force usage of AVPF transport for this endpoint

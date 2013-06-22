@@ -46,8 +46,7 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 	char event = '\0';
 	unsigned int duration = 0;
 
-	if (pj_strcmp2(&body->content_type.type, "application") ||
-	    pj_strcmp2(&body->content_type.subtype, "dtmf-relay")) {
+	if (!ast_sip_is_content_type(&body->content_type, "application", "dtmf-relay")) {
 		return 0;
 	}
 

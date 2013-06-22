@@ -40,6 +40,14 @@ int ast_res_sip_reload_configuration(void);
 int ast_res_sip_init_options_handling(int reload);
 
 /*!
+ * \brief Initialize transport storage for contacts.
+ *
+ * \retval 0 on success
+ * \retval other on failure
+ */
+int ast_res_sip_init_contact_transports(void);
+
+/*!
  * \brief Initialize outbound authentication support
  *
  * \retval 0 Success

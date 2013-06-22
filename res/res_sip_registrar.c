@@ -90,12 +90,12 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 	}
 
 	while ((contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next))) {
-		int expiration;
+		int expiration = registrar_get_expiration(aor, contact, rdata);
 		RAII_VAR(struct ast_sip_contact *, existing, NULL, ao2_cleanup);
 
 		if (contact->star) {
 			/* The expiration MUST be 0 when a '*' contact is used and there must be no other contact */
-			if ((contact->expires != 0) || previous) {
+			if ((expiration != 0) || previous) {
 				pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 				return -1;
 			}
@@ -111,7 +111,6 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 		}
 
 		details.uri = pjsip_uri_get_uri(contact->uri);
-		expiration = registrar_get_expiration(aor, contact, rdata);
 
 		/* Determine if this is an add, update, or delete for policy enforcement purposes */
 		if (!(existing = ao2_callback(contacts, 0, registrar_find_contact, &details))) {
@@ -199,11 +198,13 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	if (ast_strlen_zero(endpoint->aors)) {
 		/* Short circuit early if the endpoint has no AORs configured on it, which means no registration possible */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_configured_aors");
 		return PJ_TRUE;
 	}
 
 	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 416, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_uri_in_to_received");
 		return PJ_TRUE;
 	}
 
@@ -238,12 +239,14 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	if (ast_strlen_zero(aor_name) || !(aor = ast_sip_location_retrieve_aor(aor_name))) {
 		/* The provided AOR name was not found (be it within the configuration or sorcery itself) */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_requested_aor_not_found");
 		return PJ_TRUE;
 	}
 
 	if (!aor->max_contacts) {
 		/* Registration is not permitted for this AOR */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_registration_permitted");
 		return PJ_TRUE;
 	}
 
@@ -256,12 +259,14 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	if (registrar_validate_contacts(rdata, contacts, aor, &added, &updated, &deleted)) {
 		/* The provided Contact headers do not conform to the specification */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
 		return PJ_TRUE;
 	}
 
 	if ((MAX(added - deleted, 0) + (!aor->remove_existing ? ao2_container_count(contacts) : 0)) > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
 		return PJ_TRUE;
 	}
 
@@ -304,8 +309,9 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 				contact_uri, aor_name, expiration);
 		} else if (expiration) {
 			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
-
 			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
+			updated->qualify_frequency = aor->qualify_frequency;
+			updated->authenticate_qualify = aor->authenticate_qualify;
 
 			ast_sip_location_update_contact(updated);
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",

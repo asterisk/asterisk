@@ -11814,7 +11814,7 @@ int ast_pbx_init(void)
 	hintdevices = ao2_container_alloc(HASH_EXTENHINT_SIZE, hintdevice_hash_cb, hintdevice_cmp_multiple);
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 
-	ast_register_atexit(pbx_shutdown);
+	ast_register_cleanup(pbx_shutdown);
 
 	return (hints && hintdevices && statecbs) ? 0 : -1;
 }

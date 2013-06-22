@@ -145,6 +145,8 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->tls.password = pj_str((char*)transport->password);
 
 		res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &transport->tls, &transport->host, NULL, transport->async_operations, &transport->state->factory);
+	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
+		res = PJ_SUCCESS;
 	}
 
 	if (res != PJ_SUCCESS) {
@@ -168,8 +170,11 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 		transport->type = AST_TRANSPORT_TCP;
 	} else if (!strcasecmp(var->value, "tls")) {
 		transport->type = AST_TRANSPORT_TLS;
+	} else if (!strcasecmp(var->value, "ws")) {
+		transport->type = AST_TRANSPORT_WS;
+	} else if (!strcasecmp(var->value, "wss")) {
+		transport->type = AST_TRANSPORT_WSS;
 	} else {
-		/* TODO: Implement websockets */
 		return -1;
 	}
 

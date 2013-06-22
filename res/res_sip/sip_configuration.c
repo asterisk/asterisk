@@ -134,8 +134,93 @@ static char *handle_cli_show_endpoints(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
+static int show_contact(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ast_cli_args *a = arg;
+	RAII_VAR(struct ast_sip_contact_status *, status, ast_sorcery_retrieve_by_id(
+			 ast_sip_get_sorcery(), CONTACT_STATUS,
+			 ast_sorcery_object_get_id(contact)), ao2_cleanup);
+
+	ast_cli(a->fd, "\tContact %s:\n", contact->uri);
+
+	if (!status) {
+		ast_cli(a->fd, "\tStatus not found!\n");
+		return 0;
+	}
+
+	ast_cli(a->fd, "\t\tavailable = %s\n", status->status ? "yes" : "no");
+
+	if (status->status) {
+		ast_cli(a->fd, "\t\tRTT = %lld microseconds\n", (long long)status->rtt);
+	}
+
+	return 0;
+}
+
+static void show_endpoint(struct ast_sip_endpoint *endpoint, struct ast_cli_args *a)
+{
+	char *aor_name, *aors;
+
+	if (ast_strlen_zero(endpoint->aors)) {
+		return;
+	}
+
+	aors = ast_strdupa(endpoint->aors);
+
+	while ((aor_name = strsep(&aors, ","))) {
+		RAII_VAR(struct ast_sip_aor *, aor,
+			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
+		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+
+		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+			continue;
+		}
+
+		ast_cli(a->fd, "AOR %s:\n", ast_sorcery_object_get_id(aor));
+		ao2_callback(contacts, OBJ_NODATA, show_contact, a);
+	}
+
+	return;
+}
+
+static char *cli_show_endpoint(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	const char *endpoint_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip show endpoint";
+		e->usage =
+			"Usage: sip show endpoint <endpoint>\n"
+			"       Show the given SIP endpoint.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	endpoint_name = a->argv[3];
+
+	if (!(endpoint = ast_sorcery_retrieve_by_id(
+		      ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
+		ast_cli(a->fd, "Unable to retrieve endpoint %s\n", endpoint_name);
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "Endpoint %s:\n", endpoint_name);
+	show_endpoint(endpoint, a);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(handle_cli_show_endpoints, "Show SIP Endpoints"),
+	AST_CLI_DEFINE(cli_show_endpoint, "Show SIP Endpoint")
 };
 
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -291,6 +376,22 @@ static int direct_media_method_handler(const struct aco_option *opt, struct ast_
 	return 0;
 }
 
+static int connected_line_method_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp(var->value, "invite") || !strcasecmp(var->value, "reinvite")) {
+		endpoint->connected_line_method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
+	} else if (!strcasecmp(var->value, "update")) {
+		endpoint->connected_line_method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+	} else {
+		ast_log(LOG_NOTICE, "Unrecognized option value %s for %s on endpoint %s\n",
+				var->value, var->name, ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+	return 0;
+}
+
 static int direct_media_glare_mitigation_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -351,6 +452,65 @@ static int caller_id_tag_handler(const struct aco_option *opt, struct ast_variab
 	struct ast_sip_endpoint *endpoint = obj;
 	endpoint->id.tag = ast_strdup(var->value);
 	return endpoint->id.tag ? 0 : -1;
+}
+
+static int media_encryption_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp("no", var->value)) {
+		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
+	} else if (!strcasecmp("sdes", var->value)) {
+		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_SDES;
+	/*} else if (!strcasecmp("dtls", var->value)) {
+		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;*/
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int group_handler(const struct aco_option *opt,
+			 struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strncmp(var->name, "callgroup", 9)) {
+		if (!(endpoint->callgroup = ast_get_group(var->value))) {
+			return -1;
+		}
+	} else if (!strncmp(var->name, "pickupgroup", 11)) {
+		if (!(endpoint->pickupgroup = ast_get_group(var->value))) {
+			return -1;
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int named_groups_handler(const struct aco_option *opt,
+				struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strncmp(var->name, "namedcallgroup", 14)) {
+		if (!(endpoint->named_callgroups =
+		      ast_get_namedgroups(var->value))) {
+			return -1;
+		}
+	} else if (!strncmp(var->name, "namedpickupgroup", 16)) {
+		if (!(endpoint->named_pickupgroups =
+		      ast_get_namedgroups(var->value))) {
+			return -1;
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
 }
 
 static void *sip_nat_hook_alloc(const char *name)
@@ -450,7 +610,6 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "context", "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disallow", "", OPT_CODEC_T, 0, FLDSET(struct ast_sip_endpoint, prefs, codecs));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow", "", OPT_CODEC_T, 1, FLDSET(struct ast_sip_endpoint, prefs, codecs));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "qualify_frequency", 0, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_endpoint, qualify_frequency), 0, 86400);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtmfmode", "rfc4733", dtmf_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, rtp_ipv6));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_symmetric", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, rtp_symmetric));
@@ -472,6 +631,7 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username,location", ident_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, direct_media));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_method", "invite", direct_media_method_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "connected_line_method", "invite", connected_line_method_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_glare_mitigation", "none", direct_media_glare_mitigation_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disable_direct_media_on_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, disable_direct_media_on_nat));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid", "", caller_id_handler, NULL, 0, 0);
@@ -481,8 +641,17 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_outbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, trust_id_outbound));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_pai", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_pai));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_rpid", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_rpid));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_diversion", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_diversion));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mailboxes));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aggregate_mwi", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, aggregate_mwi));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "media_encryption", "no", media_encryption_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_avpf", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, use_avpf));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "one_touch_recording", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, one_touch_recording));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "inband_progress", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, inband_progress));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callgroup", "", group_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "pickupgroup", "", group_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedcallgroup", "", named_groups_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedpickupgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "devicestate_busy_at", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, devicestate_busy_at));
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
@@ -494,6 +663,13 @@ int ast_res_sip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_location(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP location support with sorcery\n");
+		ast_sorcery_unref(sip_sorcery);
+		sip_sorcery = NULL;
+		return -1;
+	}
+
+	if (ast_sip_initialize_sorcery_qualify(sip_sorcery)) {
+		ast_log(LOG_ERROR, "Failed to register SIP qualify support with sorcery\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
 		return -1;
@@ -539,6 +715,8 @@ static void endpoint_destructor(void* obj)
 	destroy_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths);
 	destroy_auths(endpoint->sip_outbound_auths, endpoint->num_outbound_auths);
 	ast_party_id_free(&endpoint->id);
+	endpoint->named_callgroups = ast_unref_namedgroups(endpoint->named_callgroups);
+	endpoint->named_pickupgroups = ast_unref_namedgroups(endpoint->named_pickupgroups);
 	ao2_cleanup(endpoint->persistent);
 }
 
@@ -596,4 +774,3 @@ struct ast_sorcery *ast_sip_get_sorcery(void)
 {
 	return sip_sorcery;
 }
-

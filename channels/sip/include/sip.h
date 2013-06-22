@@ -1165,9 +1165,9 @@ struct sip_pvt {
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	struct sip_invite_param *options;   /*!< Options for INVITE */
 	struct sip_st_dlg *stimer;          /*!< SIP Session-Timers */
-	struct sip_srtp *srtp;              /*!< Structure to hold Secure RTP session data for audio */
-	struct sip_srtp *vsrtp;             /*!< Structure to hold Secure RTP session data for video */
-	struct sip_srtp *tsrtp;             /*!< Structure to hold Secure RTP session data for text */
+	struct ast_sdp_srtp *srtp;              /*!< Structure to hold Secure RTP session data for audio */
+	struct ast_sdp_srtp *vsrtp;             /*!< Structure to hold Secure RTP session data for video */
+	struct ast_sdp_srtp *tsrtp;             /*!< Structure to hold Secure RTP session data for text */
 
 	int red;                            /*!< T.140 RTP Redundancy */
 	int hangupcause;                    /*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */

@@ -40,6 +40,8 @@
 #include "asterisk/pbx.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/causes.h"
+#include "asterisk/sdp_srtp.h"
+#include "asterisk/dsp.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
@@ -335,9 +337,32 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		char media[20];
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
+		RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
 
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
+
+		session_media = ao2_find(session->media, media, OBJ_KEY);
+		if (!session_media) {
+			/* if the session_media doesn't exist, there weren't
+			 * any handlers at the time of its creation */
+			continue;
+		}
+
+		if (session_media->handler) {
+			int res;
+			handler = session_media->handler;
+			res = handler->negotiate_incoming_sdp_stream(
+				session, session_media, sdp, sdp->media[i]);
+			if (res <= 0) {
+				/* Catastrophic failure or ignored by assigned handler. Abort! */
+				return -1;
+			}
+			if (res > 0) {
+				/* Handled by this handler. Move to the next stream */
+				continue;
+			}
+		}
 
 		handler_list = ao2_find(sdp_handlers, media, OBJ_KEY);
 		if (!handler_list) {
@@ -346,9 +371,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
 			int res;
-			RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
-			session_media = ao2_find(session->media, handler_list->stream_type, OBJ_KEY);
-			if (!session_media || session_media->handler) {
+			if (session_media->handler) {
 				/* There is only one slot for this stream type and it has already been claimed
 				 * so it will go unhandled */
 				break;
@@ -710,7 +733,7 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		return 0;
 	}
 
-	if (inv_session->invite_tsx) {
+	if ((method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) && inv_session->invite_tsx) {
 		/* We can't send a reinvite yet, so delay it */
 		ast_debug(3, "Delaying sending reinvite to %s because of outstanding transaction...\n",
 				ast_sorcery_object_get_id(session->endpoint));
@@ -787,6 +810,23 @@ void ast_sip_session_send_request(struct ast_sip_session *session, pjsip_tx_data
 	ast_sip_session_send_request_with_cb(session, tdata, NULL);
 }
 
+int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data **tdata)
+{
+	pjmedia_sdp_session *offer;
+
+	if (!(offer = create_local_sdp(session->inv_session, session, NULL))) {
+		pjsip_inv_terminate(session->inv_session, 500, PJ_FALSE);
+		return -1;
+	}
+
+	pjsip_inv_set_local_sdp(session->inv_session, offer);
+	pjmedia_sdp_neg_set_prefer_remote_codec_order(session->inv_session->neg, PJ_FALSE);
+	if (pjsip_inv_invite(session->inv_session, tdata) != PJ_SUCCESS) {
+		return -1;
+	}
+	return 0;
+}
+
 /*!
  * \brief Called when the PJSIP core loads us
  *
@@ -859,6 +899,9 @@ static void session_media_dtor(void *obj)
 	if (session_media->handler) {
 		session_media->handler->stream_destroy(session_media);
 	}
+	if (session_media->srtp) {
+		ast_sdp_srtp_destroy(session_media->srtp);
+	}
 }
 
 static void session_destructor(void *obj)
@@ -887,6 +930,10 @@ static void session_destructor(void *obj)
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
 	ast_format_cap_destroy(session->req_caps);
+
+	if (session->dsp) {
+		ast_dsp_free(session->dsp);
+	}
 
 	if (session->inv_session) {
 		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
@@ -956,6 +1003,14 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->inv_session = inv_session;
 	session->req_caps = ast_format_cap_alloc_nolock();
 
+	if (endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+		if (!(session->dsp = ast_dsp_new())) {
+			return NULL;
+		}
+
+		ast_dsp_set_features(session->dsp, DSP_FEATURE_DIGIT_DETECT);
+	}
+
 	if (add_supplements(session)) {
 		return NULL;
 	}
@@ -991,7 +1046,6 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	pjsip_dialog *dlg;
 	struct pjsip_inv_session *inv_session;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
-	pjmedia_sdp_session *offer;
 
 	/* If no location has been provided use the AOR list from the endpoint itself */
 	location = S_OR(location, endpoint->aors);
@@ -1033,16 +1087,68 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	}
 
 	ast_format_cap_copy(session->req_caps, req_caps);
-	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS) ||
-	    !(offer = create_local_sdp(inv_session, session, NULL))) {
+	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS)) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
 
-	pjsip_inv_set_local_sdp(inv_session, offer);
-	pjmedia_sdp_neg_set_prefer_remote_codec_order(inv_session->neg, PJ_FALSE);
+	ao2_ref(session, +1);
+	return session;
+}
+
+static int session_termination_task(void *data)
+{
+	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
+	pjsip_tx_data *packet = NULL;
+
+	if (!session->inv_session) {
+		return 0;
+	}
+
+	if (pjsip_inv_end_session(session->inv_session, 603, NULL, &packet) == PJ_SUCCESS) {
+		ast_sip_session_send_request(session, packet);
+	}
+
+	return 0;
+}
+
+static void session_termination_cb(pj_timer_heap_t *timer_heap, struct pj_timer_entry *entry)
+{
+	struct ast_sip_session *session = entry->user_data;
+
+	if (ast_sip_push_task(session->serializer, session_termination_task, session)) {
+		ao2_cleanup(session);
+	}
+}
+
+void ast_sip_session_defer_termination(struct ast_sip_session *session)
+{
+	pj_time_val delay = { .sec = 60, };
+
+	session->defer_terminate = 1;
+
+	session->scheduled_termination.id = 0;
+	ao2_ref(session, +1);
+	session->scheduled_termination.user_data = session;
+	session->scheduled_termination.cb = session_termination_cb;
+
+	if (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(), &session->scheduled_termination, &delay) != PJ_SUCCESS) {
+		ao2_ref(session, -1);
+	}
+}
+
+struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
+{
+	pjsip_inv_session *inv_session = pjsip_dlg_get_inv_session(dlg);
+	struct ast_sip_session *session;
+
+	if (!inv_session ||
+		!(session = inv_session->mod_data[session_module.id])) {
+		return NULL;
+	}
 
 	ao2_ref(session, +1);
+
 	return session;
 }
 
@@ -1102,11 +1208,11 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		return NULL;
 	}
 	if (pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, NULL, &dlg) != PJ_SUCCESS) {
-		pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
-        return NULL;
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		return NULL;
 	}
 	if (pjsip_inv_create_uas(dlg, rdata, NULL, 0, &inv_session) != PJ_SUCCESS) {
-		pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -1223,7 +1329,20 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	handle_incoming_request(session, rdata);
 }
 
-static int has_supplement(struct ast_sip_session *session, pjsip_rx_data *rdata)
+static pj_bool_t does_method_match(const pj_str_t *message_method, const char *supplement_method)
+{
+	pj_str_t method;
+
+	if (ast_strlen_zero(supplement_method)) {
+		return PJ_TRUE;
+	}
+
+	pj_cstr(&method, supplement_method);
+
+	return pj_stristr(&method, message_method) ? PJ_TRUE : PJ_FALSE;
+}
+
+static pj_bool_t has_supplement(const struct ast_sip_session *session, const pjsip_rx_data *rdata)
 {
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_method *method = &rdata->msg_info.msg->line.req.method;
@@ -1233,7 +1352,7 @@ static int has_supplement(struct ast_sip_session *session, pjsip_rx_data *rdata)
 	}
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
-		if (!supplement->method || !pj_strcmp2(&method->name, supplement->method)) {
+		if (does_method_match(&method->name, supplement->method)) {
 			return PJ_TRUE;
 		}
 	}
@@ -1383,9 +1502,10 @@ static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_da
 
 	ast_debug(3, "Method is %.*s\n", (int) pj_strlen(&req.method.name), pj_strbuf(&req.method.name));
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
-		if (supplement->incoming_request && (
-				!supplement->method || !pj_strcmp2(&req.method.name, supplement->method))) {
-			supplement->incoming_request(session, rdata);
+		if (supplement->incoming_request && does_method_match(&req.method.name, supplement->method)) {
+			if (supplement->incoming_request(session, rdata)) {
+				break;
+			}
 		}
 	}
 }
@@ -1399,8 +1519,7 @@ static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_d
 			pj_strbuf(&status.reason));
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
-		if (supplement->incoming_response && (
-				!supplement->method || !pj_strcmp2(&rdata->msg_info.cseq->method.name, supplement->method))) {
+		if (supplement->incoming_response && does_method_match(&rdata->msg_info.cseq->method.name, supplement->method)) {
 			supplement->incoming_response(session, rdata);
 		}
 	}
@@ -1427,8 +1546,7 @@ static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_da
 
 	ast_debug(3, "Method is %.*s\n", (int) pj_strlen(&req.method.name), pj_strbuf(&req.method.name));
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
-		if (supplement->outgoing_request &&
-				(!supplement->method || !pj_strcmp2(&req.method.name, supplement->method))) {
+		if (supplement->outgoing_request && does_method_match(&req.method.name, supplement->method)) {
 			supplement->outgoing_request(session, tdata);
 		}
 	}
@@ -1438,15 +1556,13 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 {
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_status_line status = tdata->msg->line.status;
-	ast_debug(3, "Response is %d %.*s\n", status.code, (int) pj_strlen(&status.reason),
-			pj_strbuf(&status.reason));
+	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
+	ast_debug(3, "Method is %.*s, Response is %d %.*s\n", (int) pj_strlen(&cseq->method.name),
+		pj_strbuf(&cseq->method.name), status.code, (int) pj_strlen(&status.reason),
+		pj_strbuf(&status.reason));
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
-		/* XXX Not sure how to get the method from a response.
-		 * For now, just call supplements on all responses, no
-		 * matter the method. This is less than ideal
-		 */
-		if (supplement->outgoing_response) {
+		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
 			supplement->outgoing_response(session, tdata);
 		}
 	}
@@ -1466,6 +1582,11 @@ static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdat
 static int session_end(struct ast_sip_session *session)
 {
 	struct ast_sip_session_supplement *iter;
+
+	/* Stop the scheduled termination */
+	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &session->scheduled_termination)) {
+		ao2_ref(session, -1);
+	}
 
 	/* Session is dead. Let's get rid of the reference to the session */
 	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
@@ -1714,8 +1835,17 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 
 static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const pjsip_uri *target, const pjsip_event *e)
 {
-	/* XXX STUB */
-	return PJSIP_REDIRECT_REJECT;
+	struct ast_sip_session *session = inv->mod_data[session_module.id];
+
+	if (PJSIP_URI_SCHEME_IS_SIP(target) || PJSIP_URI_SCHEME_IS_SIPS(target)) {
+		const pjsip_sip_uri *uri = pjsip_uri_get_uri(target);
+		char exten[AST_MAX_EXTENSION];
+
+		ast_copy_pj_str(exten, &uri->user, sizeof(exten));
+		ast_channel_call_forward_set(session->channel, exten);
+	}
+
+	return PJSIP_REDIRECT_STOP;
 }
 
 static pjsip_inv_callback inv_callback = {

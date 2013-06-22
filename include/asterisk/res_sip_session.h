@@ -26,6 +26,8 @@
 #include "asterisk/channel.h"
 /* Needed for ast_sockaddr struct */
 #include "asterisk/netsock.h"
+/* Neeed for ast_sdp_srtp struct */
+#include "asterisk/sdp_srtp.h"
 
 /* Forward declarations */
 struct ast_sip_endpoint;
@@ -41,6 +43,7 @@ struct ast_party_id;
 struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
 struct ast_rtp_instance;
+struct ast_dsp;
 
 struct ast_sip_session_sdp_handler;
 
@@ -54,6 +57,8 @@ struct ast_sip_session_media {
 	struct ast_sockaddr direct_media_addr;
 	/*! \brief SDP handler that setup the RTP */
 	struct ast_sip_session_sdp_handler *handler;
+	/*! \brief Holds SRTP information */
+	struct ast_sdp_srtp *srtp;
 	/*! \brief Stream is on hold */
 	unsigned int held:1;
 	/*! \brief Stream type this session media handles */
@@ -97,10 +102,18 @@ struct ast_sip_session {
 	pj_timer_entry rescheduled_reinvite;
 	/* Format capabilities pertaining to direct media */
 	struct ast_format_cap *direct_media_cap;
+	/* When we need to forcefully end the session */
+	pj_timer_entry scheduled_termination;
 	/* Identity of endpoint this session deals with */
 	struct ast_party_id id;
 	/* Requested capabilities */
 	struct ast_format_cap *req_caps;
+	/* Codecs overriden by dialplan on an outgoing request */
+	struct ast_codec_pref override_prefs;
+	/* Optional DSP, used only for inband DTMF detection if configured */
+	struct ast_dsp *dsp;
+	/* Whether the termination of the session should be deferred */
+	unsigned int defer_terminate:1;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
@@ -289,6 +302,13 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint, const char *location, const char *request_user, struct ast_format_cap *req_caps);
 
 /*!
+ * \brief Defer local termination of a session until remote side terminates, or an amount of time passes
+ *
+ * \param session The session to defer termination on
+ */
+void ast_sip_session_defer_termination(struct ast_sip_session *session);
+
+/*!
  * \brief Register an SDP handler
  *
  * An SDP handler is responsible for parsing incoming SDP streams and ensuring that
@@ -452,6 +472,14 @@ void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_dat
 void ast_sip_session_send_request(struct ast_sip_session *session, pjsip_tx_data *tdata);
 
 /*!
+ * \brief Creates an INVITE request.
+ *
+ * \param session Starting session for the INVITE
+ * \param tdata The created request.
+ */
+int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data **tdata);
+
+/*!
  * \brief Send a SIP request and get called back when a response is received
  *
  * This will send the request out exactly the same as ast_sip_send_request() does.
@@ -464,5 +492,19 @@ void ast_sip_session_send_request(struct ast_sip_session *session, pjsip_tx_data
  */
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response);
+
+/*!
+ * \brief Retrieves a session from a dialog
+ *
+ * \param dlg The dialog to retrieve the session from
+ *
+ * \retval non-NULL if session exists
+ * \retval NULL if no session
+ *
+ * \note The reference count of the session is increased when returned
+ *
+ * \note This function *must* be called with the dialog locked
+ */
+struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg);
 
 #endif /* _RES_SIP_SESSION_H */

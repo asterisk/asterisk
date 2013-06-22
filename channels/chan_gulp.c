@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/causes.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/dsp.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_channels.h"
 
@@ -77,6 +78,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Returns a properly formatted dial string for dialing all contacts on an AOR.</para>
+		</description>
+	</function>
+	<function name="GULP_MEDIA_OFFER" language="en_US">
+		<synopsis>
+			Media and codec offerings to be set on an outbound SIP channel prior to dialing.
+		</synopsis>
+		<syntax>
+			<parameter name="media" required="true">
+				<para>types of media offered</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns the codecs offered based upon the media choice</para>
 		</description>
 	</function>
  ***/
@@ -128,6 +142,7 @@ static int gulp_answer(struct ast_channel *ast);
 static struct ast_frame *gulp_read(struct ast_channel *ast);
 static int gulp_write(struct ast_channel *ast, struct ast_frame *f);
 static int gulp_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
+static int gulp_transfer(struct ast_channel *ast, const char *target);
 static int gulp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int gulp_devicestate(const char *data);
 
@@ -147,6 +162,7 @@ static struct ast_channel_tech gulp_tech = {
 	.write_video = gulp_write,
 	.exception = gulp_read,
 	.indicate = gulp_indicate,
+	.transfer = gulp_transfer,
 	.fixup = gulp_fixup,
 	.devicestate = gulp_devicestate,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
@@ -253,6 +269,105 @@ static int gulp_dial_contacts(struct ast_channel *chan, const char *cmd, char *d
 static struct ast_custom_function gulp_dial_contacts_function = {
 	.name = "GULP_DIAL_CONTACTS",
 	.read = gulp_dial_contacts,
+};
+
+static int media_offer_read_av(struct ast_sip_session *session, char *buf,
+			       size_t len, enum ast_format_type media_type)
+{
+	int i, size = 0;
+	struct ast_format fmt;
+	const char *name;
+
+	for (i = 0; ast_codec_pref_index(&session->override_prefs, i, &fmt); ++i) {
+		if (AST_FORMAT_GET_TYPE(fmt.id) != media_type) {
+			continue;
+		}
+
+		name = ast_getformatname(&fmt);
+
+		if (ast_strlen_zero(name)) {
+			ast_log(LOG_WARNING, "GULP_MEDIA_OFFER unrecognized format %s\n", name);
+			continue;
+		}
+
+		/* add one since we'll include a comma */
+		size = strlen(name) + 1;
+		len -= size;
+		if ((len) < 0) {
+			break;
+		}
+
+		/* no reason to use strncat here since we have already ensured buf has
+                   enough space, so strcat can be safely used */
+		strcat(buf, name);
+		strcat(buf, ",");
+	}
+
+	if (size) {
+		/* remove the extra comma */
+		buf[strlen(buf) - 1] = '\0';
+	}
+	return 0;
+}
+
+struct media_offer_data {
+	struct ast_sip_session *session;
+	enum ast_format_type media_type;
+	const char *value;
+};
+
+static int media_offer_write_av(void *obj)
+{
+	struct media_offer_data *data = obj;
+	int i;
+	struct ast_format fmt;
+	/* remove all of the given media type first */
+	for (i = 0; ast_codec_pref_index(&data->session->override_prefs, i, &fmt); ++i) {
+		if (AST_FORMAT_GET_TYPE(fmt.id) == data->media_type) {
+			ast_codec_pref_remove(&data->session->override_prefs, &fmt);
+		}
+	}
+	ast_format_cap_remove_bytype(data->session->req_caps, data->media_type);
+	ast_parse_allow_disallow(&data->session->override_prefs, data->session->req_caps, data->value, 1);
+
+	return 0;
+}
+
+static int media_offer_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	if (!strcmp(data, "audio")) {
+		return media_offer_read_av(pvt->session, buf, len, AST_FORMAT_TYPE_AUDIO);
+	} else if (!strcmp(data, "video")) {
+		return media_offer_read_av(pvt->session, buf, len, AST_FORMAT_TYPE_VIDEO);
+	}
+
+	return 0;
+}
+
+static int media_offer_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	struct media_offer_data mdata = {
+		.session = pvt->session,
+		.value = value
+	};
+
+	if (!strcmp(data, "audio")) {
+		mdata.media_type = AST_FORMAT_TYPE_AUDIO;
+	} else if (!strcmp(data, "video")) {
+		mdata.media_type = AST_FORMAT_TYPE_VIDEO;
+	}
+
+	return ast_sip_push_task_synchronous(pvt->session->serializer, media_offer_write_av, &mdata);
+}
+
+static struct ast_custom_function media_offer_function = {
+	.name = "GULP_MEDIA_OFFER",
+	.read = media_offer_read,
+	.write = media_offer_write
 };
 
 /*! \brief Function called by RTP engine to get local audio RTP peer */
@@ -402,7 +517,11 @@ static int gulp_set_rtp_peer(struct ast_channel *chan,
 
 	if (changed) {
 		ao2_ref(session, +1);
-		ast_sip_push_task(session->serializer, send_direct_media_request, session);
+
+
+		if (ast_sip_push_task(session->serializer, send_direct_media_request, session)) {
+			ao2_cleanup(session);
+		}
 	}
 
 	return 0;
@@ -467,6 +586,12 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 	ast_channel_exten_set(chan, S_OR(exten, "s"));
 	ast_channel_priority_set(chan, 1);
 
+	ast_channel_callgroup_set(chan, session->endpoint->callgroup);
+	ast_channel_pickupgroup_set(chan, session->endpoint->pickupgroup);
+
+	ast_channel_named_callgroups_set(chan, session->endpoint->named_callgroups);
+	ast_channel_named_pickupgroups_set(chan, session->endpoint->named_pickupgroups);
+
 	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 
 	return chan;
@@ -513,6 +638,7 @@ static int gulp_answer(struct ast_channel *ast)
 static struct ast_frame *gulp_read(struct ast_channel *ast)
 {
 	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
+	struct ast_sip_session *session = pvt->session;
 	struct ast_frame *f;
 	struct ast_sip_session_media *media = NULL;
 	int rtcp = 0;
@@ -539,14 +665,27 @@ static struct ast_frame *gulp_read(struct ast_channel *ast)
 		return &ast_null_frame;
 	}
 
-	f = ast_rtp_instance_read(media->rtp, rtcp);
+	if (!(f = ast_rtp_instance_read(media->rtp, rtcp))) {
+		return f;
+	}
 
-	if (f && f->frametype == AST_FRAME_VOICE) {
-		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &f->subclass.format))) {
-			ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
-			ast_format_cap_set(ast_channel_nativeformats(ast), &f->subclass.format);
-			ast_set_read_format(ast, ast_channel_readformat(ast));
-			ast_set_write_format(ast, ast_channel_writeformat(ast));
+	if (f->frametype != AST_FRAME_VOICE) {
+		return f;
+	}
+
+	if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &f->subclass.format))) {
+		ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
+		ast_format_cap_set(ast_channel_nativeformats(ast), &f->subclass.format);
+		ast_set_read_format(ast, ast_channel_readformat(ast));
+		ast_set_write_format(ast, ast_channel_writeformat(ast));
+	}
+
+	if (session->dsp) {
+		f = ast_dsp_process(ast, session->dsp, f);
+
+		if (f && (f->frametype == AST_FRAME_DTMF)) {
+			ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
+				ast_channel_name(ast));
 		}
 	}
 
@@ -769,7 +908,7 @@ static int transmit_info_with_vidupdate(void *data)
 		.body_text = xml
 	};
 
-	struct ast_sip_session *session = data;
+	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
 	struct pjsip_tx_data *tdata;
 
 	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, &tdata)) {
@@ -781,6 +920,40 @@ static int transmit_info_with_vidupdate(void *data)
 		return -1;
 	}
 	ast_sip_session_send_request(session, tdata);
+
+	return 0;
+}
+
+/*! \brief Update connected line information */
+static int update_connected_line_information(void *data)
+{
+	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
+
+	if ((ast_channel_state(session->channel) != AST_STATE_UP) && (session->inv_session->role == PJSIP_UAS_ROLE)) {
+		int response_code = 0;
+
+		if (ast_channel_state(session->channel) == AST_STATE_RING) {
+			response_code = !session->endpoint->inband_progress ? 180 : 183;
+		} else if (ast_channel_state(session->channel) == AST_STATE_RINGING) {
+			response_code = 183;
+		}
+
+		if (response_code) {
+			struct pjsip_tx_data *packet = NULL;
+
+			if (pjsip_inv_answer(session->inv_session, response_code, NULL, NULL, &packet) == PJ_SUCCESS) {
+				ast_sip_session_send_response(session, packet);
+			}
+		}
+	} else {
+		enum ast_sip_session_refresh_method method = session->endpoint->connected_line_method;
+
+		if (session->inv_session->invite_tsx && (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
+			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+		}
+
+		ast_sip_session_refresh(session, NULL, NULL, method, 0);
+	}
 
 	return 0;
 }
@@ -797,7 +970,12 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 	switch (condition) {
 	case AST_CONTROL_RINGING:
 		if (ast_channel_state(ast) == AST_STATE_RING) {
-			response_code = 180;
+			if (session->endpoint->inband_progress) {
+				response_code = 183;
+				res = -1;
+			} else {
+				response_code = 180;
+			}
 		} else {
 			res = -1;
 		}
@@ -841,9 +1019,20 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 	case AST_CONTROL_VIDUPDATE:
 		media = pvt->media[SIP_MEDIA_VIDEO];
 		if (media && media->rtp) {
-			ast_sip_push_task(session->serializer, transmit_info_with_vidupdate, session);
-		} else
+			ao2_ref(session, +1);
+
+			if (ast_sip_push_task(session->serializer, transmit_info_with_vidupdate, session)) {
+				ao2_cleanup(session);
+			}
+		} else {
 			res = -1;
+		}
+		break;
+	case AST_CONTROL_CONNECTED_LINE:
+		ao2_ref(session, +1);
+		if (ast_sip_push_task(session->serializer, update_connected_line_information, session)) {
+			ao2_cleanup(session);
+		}
 		break;
 	case AST_CONTROL_UPDATE_RTP_PEER:
 	case AST_CONTROL_PVT_CAUSE_CODE:
@@ -858,6 +1047,13 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		break;
 	case AST_CONTROL_SRCCHANGE:
 		break;
+	case AST_CONTROL_REDIRECTING:
+		if (ast_channel_state(ast) != AST_STATE_UP) {
+			response_code = 181;
+		} else {
+			res = -1;
+		}
+		break;
 	case -1:
 		res = -1;
 		break;
@@ -867,21 +1063,141 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		break;
 	}
 
-	if (!res && response_code) {
+	if (response_code) {
 		struct indicate_data *ind_data = indicate_data_alloc(session, condition, response_code, data, datalen);
-		if (ind_data) {
-			res = ast_sip_push_task(session->serializer, indicate, ind_data);
-			if (res) {
-				ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could not queue task properly\n",
-						response_code, ast_sorcery_object_get_id(session->endpoint));
-				ao2_cleanup(ind_data);
-			}
-		} else {
+		if (!ind_data || ast_sip_push_task(session->serializer, indicate, ind_data)) {
+			ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could not queue task properly\n",
+					response_code, ast_sorcery_object_get_id(session->endpoint));
+			ao2_cleanup(ind_data);
 			res = -1;
 		}
 	}
 
 	return res;
+}
+
+struct transfer_data {
+	struct ast_sip_session *session;
+	char *target;
+};
+
+static void transfer_data_destroy(void *obj)
+{
+	struct transfer_data *trnf_data = obj;
+
+	ast_free(trnf_data->target);
+	ao2_cleanup(trnf_data->session);
+}
+
+static struct transfer_data *transfer_data_alloc(struct ast_sip_session *session, const char *target)
+{
+	struct transfer_data *trnf_data = ao2_alloc(sizeof(*trnf_data), transfer_data_destroy);
+
+	if (!trnf_data) {
+		return NULL;
+	}
+
+	if (!(trnf_data->target = ast_strdup(target))) {
+		ao2_ref(trnf_data, -1);
+		return NULL;
+	}
+
+	ao2_ref(session, +1);
+	trnf_data->session = session;
+
+	return trnf_data;
+}
+
+static void transfer_redirect(struct ast_sip_session *session, const char *target)
+{
+	pjsip_tx_data *packet;
+	enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
+	pjsip_contact_hdr *contact;
+	pj_str_t tmp;
+
+	if (pjsip_inv_end_session(session->inv_session, 302, NULL, &packet) != PJ_SUCCESS) {
+		message = AST_TRANSFER_FAILED;
+		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+
+		return;
+	}
+
+	if (!(contact = pjsip_msg_find_hdr(packet->msg, PJSIP_H_CONTACT, NULL))) {
+		contact = pjsip_contact_hdr_create(packet->pool);
+	}
+
+	pj_strdup2_with_null(packet->pool, &tmp, target);
+	if (!(contact->uri = pjsip_parse_uri(packet->pool, tmp.ptr, tmp.slen, PJSIP_PARSE_URI_AS_NAMEADDR))) {
+		message = AST_TRANSFER_FAILED;
+		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		pjsip_tx_data_dec_ref(packet);
+
+		return;
+	}
+	pjsip_msg_add_hdr(packet->msg, (pjsip_hdr *) contact);
+
+	ast_sip_session_send_response(session, packet);
+	ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+}
+
+static void transfer_refer(struct ast_sip_session *session, const char *target)
+{
+	pjsip_evsub *sub;
+	enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
+	pj_str_t tmp;
+	pjsip_tx_data *packet;
+
+	if (pjsip_xfer_create_uac(session->inv_session->dlg, NULL, &sub) != PJ_SUCCESS) {
+		message = AST_TRANSFER_FAILED;
+		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+
+		return;
+	}
+
+	if (pjsip_xfer_initiate(sub, pj_cstr(&tmp, target), &packet) != PJ_SUCCESS) {
+		message = AST_TRANSFER_FAILED;
+		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		pjsip_evsub_terminate(sub, PJ_FALSE);
+
+		return;
+	}
+
+	pjsip_xfer_send_request(sub, packet);
+	ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+}
+
+static int transfer(void *data)
+{
+	struct transfer_data *trnf_data = data;
+
+	if (ast_channel_state(trnf_data->session->channel) == AST_STATE_RING) {
+		transfer_redirect(trnf_data->session, trnf_data->target);
+	} else {
+		transfer_refer(trnf_data->session, trnf_data->target);
+	}
+
+	ao2_ref(trnf_data, -1);
+	return 0;
+}
+
+/*! \brief Function called by core for Asterisk initiated transfer */
+static int gulp_transfer(struct ast_channel *chan, const char *target)
+{
+	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_session *session = pvt->session;
+	struct transfer_data *trnf_data = transfer_data_alloc(session, target);
+
+	if (!trnf_data) {
+		return -1;
+	}
+
+	if (ast_sip_push_task(session->serializer, transfer, trnf_data)) {
+		ast_log(LOG_WARNING, "Error requesting transfer\n");
+		ao2_cleanup(trnf_data);
+		return -1;
+	}
+
+	return 0;
 }
 
 /*! \brief Function called by core to start a DTMF digit */
@@ -1014,18 +1330,18 @@ static int gulp_digit_end(struct ast_channel *ast, char digit, unsigned int dura
 
 static int call(void *data)
 {
-	pjsip_tx_data *packet;
 	struct ast_sip_session *session = data;
+	pjsip_tx_data *tdata;
 
-	if (pjsip_inv_invite(session->inv_session, &packet) != PJ_SUCCESS) {
+	int res = ast_sip_session_create_invite(session, &tdata);
+
+	if (res) {
 		ast_queue_hangup(session->channel);
 	} else {
-		ast_sip_session_send_request(session, packet);
+		ast_sip_session_send_request(session, tdata);
 	}
-
 	ao2_ref(session, -1);
-
-	return 0;
+	return res;
 }
 
 /*! \brief Function called by core to actually start calling a remote party */
@@ -1128,7 +1444,8 @@ static int hangup(void *data)
 	struct ast_sip_session *session = pvt->session;
 	int cause = h_data->cause;
 
-	if (((status = pjsip_inv_end_session(session->inv_session, cause ? cause : 603, NULL, &packet)) == PJ_SUCCESS) && packet) {
+	if (!session->defer_terminate &&
+		((status = pjsip_inv_end_session(session->inv_session, cause ? cause : 603, NULL, &packet)) == PJ_SUCCESS) && packet) {
 		if (packet->msg->type == PJSIP_RESPONSE_MSG) {
 			ast_sip_session_send_response(session, packet);
 		} else {
@@ -1255,9 +1572,66 @@ static struct ast_channel *gulp_request(const char *type, struct ast_format_cap 
 	return session->channel;
 }
 
+struct sendtext_data {
+	struct ast_sip_session *session;
+	char text[0];
+};
+
+static void sendtext_data_destroy(void *obj)
+{
+	struct sendtext_data *data = obj;
+	ao2_ref(data->session, -1);
+}
+
+static struct sendtext_data* sendtext_data_create(struct ast_sip_session *session, const char *text)
+{
+	int size = strlen(text) + 1;
+	struct sendtext_data *data = ao2_alloc(sizeof(*data)+size, sendtext_data_destroy);
+
+	if (!data) {
+		return NULL;
+	}
+
+	data->session = session;
+	ao2_ref(data->session, +1);
+	ast_copy_string(data->text, text, size);
+	return data;
+}
+
+static int sendtext(void *obj)
+{
+	RAII_VAR(struct sendtext_data *, data, obj, ao2_cleanup);
+	pjsip_tx_data *tdata;
+
+	const struct ast_sip_body body = {
+		.type = "text",
+		.subtype = "plain",
+		.body_text = data->text
+	};
+
+	/* NOT ast_strlen_zero, because a zero-length message is specifically
+	 * allowed by RFC 3428 (See section 10, Examples) */
+	if (!data->text) {
+		return 0;
+	}
+
+	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, &tdata);
+	ast_sip_add_body(tdata, &body);
+	ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint);
+
+	return 0;
+}
+
 /*! \brief Function called by core to send text on Gulp session */
 static int gulp_sendtext(struct ast_channel *ast, const char *text)
 {
+	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
+	struct sendtext_data *data = sendtext_data_create(pvt->session, text);
+
+	if (!data || ast_sip_push_task(pvt->session->serializer, sendtext, data)) {
+		ao2_ref(data, -1);
+		return -1;
+	}
 	return 0;
 }
 
@@ -1391,7 +1765,6 @@ static void gulp_session_end(struct ast_sip_session *session)
 static int gulp_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	pjsip_tx_data *packet = NULL;
-	int res = AST_PBX_FAILED;
 
 	if (session->channel) {
 		return 0;
@@ -1405,6 +1778,14 @@ static int gulp_incoming_request(struct ast_sip_session *session, struct pjsip_r
 		ast_log(LOG_ERROR, "Failed to allocate new GULP channel on incoming SIP INVITE\n");
 		return -1;
 	}
+	/* channel gets created on incoming request, but we wait to call start
+           so other supplements have a chance to run */
+	return 0;
+}
+
+static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	int res;
 
 	res = ast_pbx_start(session->channel);
 
@@ -1428,6 +1809,12 @@ static int gulp_incoming_request(struct ast_sip_session *session, struct pjsip_r
 
 	return (res == AST_PBX_SUCCESS) ? 0 : -1;
 }
+
+static struct ast_sip_session_supplement pbx_start_supplement = {
+	.method = "INVITE",
+	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_LAST,
+	.incoming_request = pbx_start_incoming_request,
+};
 
 /*! \brief Function called when a response is received on the session */
 static void gulp_incoming_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
@@ -1496,13 +1883,24 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (ast_custom_function_register(&media_offer_function)) {
+		ast_log(LOG_WARNING, "Unable to register GULP_MEDIA_OFFER dialplan function\n");
+	}
+
 	if (ast_sip_session_register_supplement(&gulp_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register Gulp supplement\n");
 		goto end;
 	}
 
+	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
+		ast_log(LOG_ERROR, "Unable to register Gulp pbx start supplement\n");
+		ast_sip_session_unregister_supplement(&gulp_supplement);
+		goto end;
+	}
+
 	if (ast_sip_session_register_supplement(&gulp_ack_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register Gulp ACK supplement\n");
+		ast_sip_session_unregister_supplement(&pbx_start_supplement);
 		ast_sip_session_unregister_supplement(&gulp_supplement);
 		goto end;
 	}
@@ -1510,6 +1908,7 @@ static int load_module(void)
 	return 0;
 
 end:
+	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&gulp_dial_contacts_function);
 	ast_channel_unregister(&gulp_tech);
 	ast_rtp_glue_unregister(&gulp_rtp_glue);
@@ -1526,7 +1925,11 @@ static int reload(void)
 /*! \brief Unload the Gulp channel from Asterisk */
 static int unload_module(void)
 {
+	ast_custom_function_unregister(&media_offer_function);
+
 	ast_sip_session_unregister_supplement(&gulp_supplement);
+	ast_sip_session_unregister_supplement(&pbx_start_supplement);
+
 	ast_custom_function_unregister(&gulp_dial_contacts_function);
 	ast_channel_unregister(&gulp_tech);
 	ast_rtp_glue_unregister(&gulp_rtp_glue);

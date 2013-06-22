@@ -139,6 +139,47 @@ struct ast_sip_contact {
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
+	/*! Frequency to send OPTIONS requests to contact. 0 is disabled. */
+	unsigned int qualify_frequency;
+	/*! If true authenticate the qualify if needed */
+	int authenticate_qualify;
+};
+
+#define CONTACT_STATUS "contact_status"
+
+/*!
+ * \brief Status type for a contact.
+ */
+enum ast_sip_contact_status_type {
+	UNAVAILABLE,
+	AVAILABLE
+};
+
+/*!
+ * \brief A contact's status.
+ *
+ * \detail Maintains a contact's current status and round trip time
+ *         if available.
+ */
+struct ast_sip_contact_status {
+	SORCERY_OBJECT(details);
+	/*! Current status for a contact (default - unavailable) */
+	enum ast_sip_contact_status_type status;
+	/*! The round trip start time set before sending a qualify request */
+	struct timeval rtt_start;
+	/*! The round trip time in microseconds */
+	int64_t rtt;
+};
+
+/*!
+ * \brief A transport to be used for messages to a contact
+ */
+struct ast_sip_contact_transport {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Full URI of the contact */
+		AST_STRING_FIELD(uri);
+	);
+	pjsip_transport *transport;
 };
 
 /*!
@@ -157,6 +198,10 @@ struct ast_sip_aor {
 	unsigned int maximum_expiration;
 	/*! Default contact expiration if one is not provided in the contact */
 	unsigned int default_expiration;
+	/*! Frequency to send OPTIONS requests to AOR contacts. 0 is disabled. */
+	unsigned int qualify_frequency;
+	/*! If true authenticate the qualify if needed */
+	int authenticate_qualify;
 	/*! Maximum number of external contacts, 0 to disable */
 	unsigned int max_contacts;
 	/*! Whether to remove any existing contacts not related to an incoming REGISTER when it comes in */
@@ -245,6 +290,17 @@ enum ast_sip_direct_media_glare_mitigation {
 	AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_INCOMING,
 };
 
+enum ast_sip_session_media_encryption {
+	/*! Invalid media encryption configuration */
+	AST_SIP_MEDIA_TRANSPORT_INVALID = 0,
+	/*! Do not allow any encryption of session media */
+	AST_SIP_MEDIA_ENCRYPT_NONE,
+	/*! Offer SDES-encrypted session media */
+	AST_SIP_MEDIA_ENCRYPT_SDES,
+	/*! Offer encrypted session media with datagram TLS key exchange */
+	AST_SIP_MEDIA_ENCRYPT_DTLS,
+};
+
 /*!
  * \brief An entity with which Asterisk communicates
  */
@@ -306,14 +362,14 @@ struct ast_sip_endpoint {
 	unsigned int sess_expires;
 	/*! List of outbound registrations */
 	AST_LIST_HEAD_NOLOCK(, ast_sip_registration) registrations;
-	/*! Frequency to send OPTIONS requests to endpoint. 0 is disabled. */
-	unsigned int qualify_frequency;
 	/*! Method(s) by which the endpoint should be identified. */
 	enum ast_sip_endpoint_identifier_type ident_method;
 	/*! Boolean indicating if direct_media is permissible */
 	unsigned int direct_media;
 	/*! When using direct media, which method should be used */
 	enum ast_sip_session_refresh_method direct_media_method;
+	/*! When performing connected line update, which method should be used */
+	enum ast_sip_session_refresh_method connected_line_method;
 	/*! Take steps to mitigate glare for direct media */
 	enum ast_sip_direct_media_glare_mitigation direct_media_glare_mitigation;
 	/*! Do not attempt direct media session refreshes if a media NAT is detected */
@@ -326,8 +382,26 @@ struct ast_sip_endpoint {
 	unsigned int send_pai;
 	/*! Do we send Remote-Party-ID headers to this endpoint? */
 	unsigned int send_rpid;
+	/*! Do we add Diversion headers to applicable outgoing requests/responses? */
+	unsigned int send_diversion;
 	/*! Should unsolicited MWI be aggregated into a single NOTIFY? */
 	unsigned int aggregate_mwi;
+	/*! Do we use media encryption? what type? */
+	enum ast_sip_session_media_encryption media_encryption;
+	/*! Do we use AVPF exclusively for this endpoint? */
+	unsigned int use_avpf;
+	/*! Is one-touch recording permitted? */
+	unsigned int one_touch_recording;
+	/*! Boolean indicating if ringing should be sent as inband progress */
+	unsigned int inband_progress;
+	/*! Call group */
+	ast_group_t callgroup;
+	/*! Pickup group */
+	ast_group_t pickupgroup;
+	/*! Named call group */
+	struct ast_namedgroups *named_callgroups;
+	/*! Named pickup group */
+	struct ast_namedgroups *named_pickupgroups;
 	/*! Pointer to the persistent Asterisk endpoint */
 	struct ast_endpoint *persistent;
 	/*! The number of channels at which busy device state is returned */
@@ -553,6 +627,16 @@ struct ast_sorcery *ast_sip_get_sorcery(void);
 int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery);
 
 /*!
+ * \brief Initialize qualify support on a sorcery instance
+ *
+ * \param sorcery The sorcery instance
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_sorcery_qualify(struct ast_sorcery *sorcery);
+
+/*!
  * \brief Initialize location support on a sorcery instance
  *
  * \param sorcery The sorcery instance
@@ -609,6 +693,37 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const ch
  * \retval non-NULL if found
  */
 struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_name);
+
+/*!
+ * \brief Add a transport for a contact to use
+ */
+
+void ast_sip_location_add_contact_transport(struct ast_sip_contact_transport *ct);
+
+/*!
+ * \brief Delete a transport for a contact that went away
+ */
+void ast_sip_location_delete_contact_transport(struct ast_sip_contact_transport *ct);
+
+/*!
+ * \brief Retrieve a contact_transport, by URI
+ *
+ * \param contact_uri URI of the contact
+ *
+ * \retval NULL if not found
+ * \retval non-NULL if found
+ */
+struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_uri(const char *contact_uri);
+
+/*!
+ * \brief Retrieve a contact_transport, by transport
+ *
+ * \param transport transport the contact uses
+ *
+ * \retval NULL if not found
+ * \retval non-NULL if found
+ */
+struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_transport(pjsip_transport *transport);
 
 /*!
  * \brief Add a new contact to an AOR
@@ -1045,7 +1160,7 @@ int ast_sip_append_body(pjsip_tx_data *tdata, const char *body_text);
  * \param src The pj_str_t to copy
  * \param size The size of the destination buffer.
  */
-void ast_copy_pj_str(char *dest, pj_str_t *src, size_t size);
+void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size);
 
 /*!
  * \brief Get the looked-up endpoint on an out-of dialog request or response
@@ -1084,5 +1199,62 @@ int ast_sip_retrieve_auths(const char *auth_names[], size_t num_auths, struct as
  * \param num_auths The number of auths in the array
  */
 void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
+
+/*!
+ * \brief Checks if the given content type matches type/subtype.
+ *
+ * Compares the pjsip_media_type with the passed type and subtype and
+ * returns the result of that comparison.  The media type parameters are
+ * ignored.
+ *
+ * \param content_type The pjsip_media_type structure to compare
+ * \param type The media type to compare
+ * \param subtype The media subtype to compare
+ * \retval 0 No match
+ * \retval -1 Match
+ */
+int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *subtype);
+
+/*!
+ * \brief Send a security event notification for when an invalid endpoint is requested
+ *
+ * \param name Name of the endpoint requested
+ * \param rdata Received message
+ */
+void ast_sip_report_invalid_endpoint(const char *name, pjsip_rx_data *rdata);
+
+/*!
+ * \brief Send a security event notification for when an ACL check fails
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ * \param name Name of the ACL
+ */
+void ast_sip_report_failed_acl(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *name);
+
+/*!
+ * \brief Send a security event notification for when a challenge response has failed
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ */
+void ast_sip_report_auth_failed_challenge_response(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
+/*!
+ * \brief Send a security event notification for when authentication succeeds
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ */
+void ast_sip_report_auth_success(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
+/*!
+ * \brief Send a security event notification for when an authentication challenge is sent
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ * \param tdata Sent message
+ */
+void ast_sip_report_auth_challenge_sent(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pjsip_tx_data *tdata);
 
 #endif /* _RES_SIP_H */

@@ -24,6 +24,10 @@
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/sorcery.h"
+#include "include/res_sip_private.h"
+
+#define CONTACT_TRANSPORTS_BUCKETS 7
+static struct ao2_container *contact_transports;
 
 /*! \brief Destructor for AOR */
 static void aor_destroy(void *obj)
@@ -68,6 +72,48 @@ static void *contact_alloc(const char *name)
 	}
 
 	return contact;
+}
+
+/*! \brief Callback function for finding a contact_transport by URI */
+static int contact_transport_find_by_uri(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact_transport *ct = obj;
+	const char *contact_uri = arg;
+
+	return (!strcmp(ct->uri, contact_uri)) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/*! \brief Callback function for finding a contact_transport by transport */
+static int contact_transport_find_by_transport(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact_transport *ct = obj;
+	pjsip_transport *transport = arg;
+
+	return (ct->transport == transport) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+void ast_sip_location_add_contact_transport(struct ast_sip_contact_transport *ct)
+{
+	ao2_link(contact_transports, ct);
+
+	return;
+}
+
+void ast_sip_location_delete_contact_transport(struct ast_sip_contact_transport *ct)
+{
+	ao2_unlink(contact_transports, ct);
+
+	return;
+}
+
+struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_uri(const char *contact_uri)
+{
+	return ao2_callback(contact_transports, 0, contact_transport_find_by_uri, (void *)contact_uri);
+}
+
+struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_transport(pjsip_transport *transport)
+{
+	return ao2_callback(contact_transports, 0, contact_transport_find_by_transport, transport);
 }
 
 struct ast_sip_aor *ast_sip_location_retrieve_aor(const char *aor_name)
@@ -189,6 +235,8 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struc
 
 	ast_string_field_set(contact, uri, uri);
 	contact->expiration_time = expiration_time;
+	contact->qualify_frequency = aor->qualify_frequency;
+	contact->authenticate_qualify = aor->authenticate_qualify;
 
 	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
 }
@@ -248,15 +296,33 @@ int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, "contact", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, uri));
 	ast_sorcery_object_field_register_custom(sorcery, "contact", "expiration_time", "", expiration_str2struct, expiration_struct2str, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "contact", "qualify_frequency", 0, OPT_UINT_T,
+					  PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
 
 	ast_sorcery_object_field_register(sorcery, "aor", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "minimum_expiration", "60", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, minimum_expiration));
 	ast_sorcery_object_field_register(sorcery, "aor", "maximum_expiration", "7200", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, maximum_expiration));
 	ast_sorcery_object_field_register(sorcery, "aor", "default_expiration", "3600", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, default_expiration));
+	ast_sorcery_object_field_register(sorcery, "aor", "qualify_frequency", 0, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_aor, qualify_frequency), 0, 86400);
+	ast_sorcery_object_field_register(sorcery, "aor", "authenticate_qualify", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, authenticate_qualify));
 	ast_sorcery_object_field_register(sorcery, "aor", "max_contacts", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, max_contacts));
 	ast_sorcery_object_field_register(sorcery, "aor", "remove_existing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, remove_existing));
 	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, mailboxes));
+
+	return 0;
+}
+
+int ast_res_sip_init_contact_transports(void)
+{
+	if (contact_transports) {
+		ao2_t_ref(contact_transports, -1, "Remove old contact transports");
+	}
+
+	contact_transports = ao2_t_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CONTACT_TRANSPORTS_BUCKETS, NULL, NULL, "Create container for contact transports");
+	if (!contact_transports) {
+		return -1;
+	}
 
 	return 0;
 }

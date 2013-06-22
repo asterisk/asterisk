@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
-/*! \file sdp_crypto.c
+/*! \file ast_sdp_crypto.c
  *
- * \brief SDP Security descriptions
+ * \brief SRTP and SDP Security descriptions
  *
+ * Specified in RFC 3711
  * Specified in RFC 4568
  *
  * \author Mikael Magnusson <mikma@users.sourceforge.net>
@@ -35,8 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
-#include "include/sdp_crypto.h"
-#include "include/srtp.h"
+#include "asterisk/sdp_srtp.h"
 
 #define SRTP_MASTER_LEN 30
 #define SRTP_MASTERKEY_LEN 16
@@ -46,7 +46,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 extern struct ast_srtp_res *res_srtp;
 extern struct ast_srtp_policy_res *res_srtp_policy;
 
-struct sdp_crypto {
+struct ast_sdp_srtp *ast_sdp_srtp_alloc(void)
+{
+	if (!ast_rtp_engine_srtp_is_registered()) {
+	       ast_debug(1, "No SRTP module loaded, can't setup SRTP session.\n");
+	       return NULL;
+	}
+
+	return ast_calloc(1, sizeof(struct ast_sdp_srtp));
+}
+
+void ast_sdp_srtp_destroy(struct ast_sdp_srtp *srtp)
+{
+	if (srtp->crypto) {
+		ast_sdp_crypto_destroy(srtp->crypto);
+	}
+	srtp->crypto = NULL;
+	ast_free(srtp);
+}
+
+struct ast_sdp_crypto {
 	char *a_crypto;
 	unsigned char local_key[SRTP_MASTER_LEN];
 	char *tag;
@@ -56,12 +75,7 @@ struct sdp_crypto {
 
 static int set_crypto_policy(struct ast_srtp_policy *policy, int suite_val, const unsigned char *master_key, unsigned long ssrc, int inbound);
 
-static struct sdp_crypto *sdp_crypto_alloc(void)
-{
-	return ast_calloc(1, sizeof(struct sdp_crypto));
-}
-
-void sdp_crypto_destroy(struct sdp_crypto *crypto)
+void ast_sdp_crypto_destroy(struct ast_sdp_crypto *crypto)
 {
 	ast_free(crypto->a_crypto);
 	crypto->a_crypto = NULL;
@@ -70,9 +84,9 @@ void sdp_crypto_destroy(struct sdp_crypto *crypto)
 	ast_free(crypto);
 }
 
-struct sdp_crypto *sdp_crypto_setup(void)
+struct ast_sdp_crypto *ast_sdp_crypto_alloc(void)
 {
-	struct sdp_crypto *p;
+	struct ast_sdp_crypto *p;
 	int key_len;
 	unsigned char remote_key[SRTP_MASTER_LEN];
 
@@ -80,12 +94,12 @@ struct sdp_crypto *sdp_crypto_setup(void)
 		return NULL;
 	}
 
-	if (!(p = sdp_crypto_alloc())) {
+	if (!(p = ast_calloc(1, sizeof(*p)))) {
 		return NULL;
 	}
 
 	if (res_srtp->get_random(p->local_key, sizeof(p->local_key)) < 0) {
-		sdp_crypto_destroy(p);
+		ast_sdp_crypto_destroy(p);
 		return NULL;
 	}
 
@@ -133,7 +147,7 @@ static int set_crypto_policy(struct ast_srtp_policy *policy, int suite_val, cons
 	return 0;
 }
 
-static int sdp_crypto_activate(struct sdp_crypto *p, int suite_val, unsigned char *remote_key, struct ast_rtp_instance *rtp)
+static int crypto_activate(struct ast_sdp_crypto *p, int suite_val, unsigned char *remote_key, struct ast_rtp_instance *rtp)
 {
 	struct ast_srtp_policy *local_policy = NULL;
 	struct ast_srtp_policy *remote_policy = NULL;
@@ -189,7 +203,7 @@ err:
 	return res;
 }
 
-int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_instance *rtp, struct sip_srtp *srtp)
+int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *srtp, const char *attr)
 {
 	char *str = NULL;
 	char *tag = NULL;
@@ -204,6 +218,7 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 	int suite_val = 0;
 	unsigned char remote_key[SRTP_MASTER_LEN];
 	int taglen = 0;
+	struct ast_sdp_crypto *crypto = srtp->crypto;
 
 	if (!ast_rtp_engine_srtp_is_registered()) {
 		return -1;
@@ -211,7 +226,6 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 
 	str = ast_strdupa(attr);
 
-	strsep(&str, ":");
 	tag = strsep(&str, " ");
 	suite = strsep(&str, " ");
 	key_params = strsep(&str, " ");
@@ -229,11 +243,11 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 
 	if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_80")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_80;
-		ast_set_flag(srtp, SRTP_CRYPTO_TAG_80);
+		ast_set_flag(srtp, AST_SRTP_CRYPTO_TAG_80);
 		taglen = 80;
 	} else if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_32")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_32;
-		ast_set_flag(srtp, SRTP_CRYPTO_TAG_32);
+		ast_set_flag(srtp, AST_SRTP_CRYPTO_TAG_32);
 		taglen = 32;
 	} else {
 		ast_log(LOG_WARNING, "Unsupported crypto suite: %s\n", suite);
@@ -271,48 +285,98 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 		return -1;
 	}
 
-	if (!memcmp(p->remote_key, remote_key, sizeof(p->remote_key))) {
+	if (!memcmp(crypto->remote_key, remote_key, sizeof(crypto->remote_key))) {
 		ast_debug(1, "SRTP remote key unchanged; maintaining current policy\n");
+		ast_set_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
 		return 0;
 	}
-	memcpy(p->remote_key, remote_key, sizeof(p->remote_key));
+	memcpy(crypto->remote_key, remote_key, sizeof(crypto->remote_key));
 
-	if (sdp_crypto_activate(p, suite_val, remote_key, rtp) < 0) {
+	if (crypto_activate(crypto, suite_val, remote_key, rtp) < 0) {
 		return -1;
 	}
 
-	if (!p->tag) {
-		ast_log(LOG_DEBUG, "Accepting crypto tag %s\n", tag);
-		p->tag = ast_strdup(tag);
-		if (!p->tag) {
+	if (!crypto->tag) {
+		ast_debug(1, "Accepting crypto tag %s\n", tag);
+		crypto->tag = ast_strdup(tag);
+		if (!crypto->tag) {
 			ast_log(LOG_ERROR, "Could not allocate memory for tag\n");
 			return -1;
 		}
 	}
 
 	/* Finally, rebuild the crypto line */
-	return sdp_crypto_offer(p, taglen);
+	if (ast_sdp_crypto_build_offer(crypto, taglen)) {
+		return -1;
+	}
+
+	ast_set_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
+	return 0;
 }
 
-int sdp_crypto_offer(struct sdp_crypto *p, int taglen)
+int ast_sdp_crypto_build_offer(struct ast_sdp_crypto *p, int taglen)
 {
 	/* Rebuild the crypto line */
 	if (p->a_crypto) {
 		ast_free(p->a_crypto);
 	}
 
-	if (ast_asprintf(&p->a_crypto, "a=crypto:%s AES_CM_128_HMAC_SHA1_%i inline:%s\r\n",
+	if (ast_asprintf(&p->a_crypto, "%s AES_CM_128_HMAC_SHA1_%i inline:%s",
 			 p->tag ? p->tag : "1", taglen, p->local_key64) == -1) {
 			ast_log(LOG_ERROR, "Could not allocate memory for crypto line\n");
 		return -1;
 	}
 
-	ast_log(LOG_DEBUG, "Crypto line: %s", p->a_crypto);
+	ast_debug(1, "Crypto line: a=crypto:%s\n", p->a_crypto);
 
 	return 0;
 }
 
-const char *sdp_crypto_attrib(struct sdp_crypto *p)
+const char *ast_sdp_srtp_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32)
 {
-	return p->a_crypto;
+	int taglen = default_taglen_32 ? 32 : 80;
+
+	if (!srtp) {
+		return NULL;
+	}
+
+	/* Set encryption properties */
+	if (!srtp->crypto) {
+		srtp->crypto = ast_sdp_crypto_alloc();
+	}
+
+	if (dtls_enabled) {
+		/* If DTLS-SRTP is enabled the key details will be pulled from TLS */
+		return NULL;
+	}
+
+	/* set the key length based on INVITE or settings */
+	if (ast_test_flag(srtp, AST_SRTP_CRYPTO_TAG_80)) {
+		taglen = 80;
+	} else if (ast_test_flag(srtp, AST_SRTP_CRYPTO_TAG_32)) {
+		taglen = 32;
+	}
+
+	if (srtp->crypto && (ast_sdp_crypto_build_offer(srtp->crypto, taglen) >= 0)) {
+		return srtp->crypto->a_crypto;
+	}
+
+	ast_log(LOG_WARNING, "No SRTP key management enabled\n");
+	return NULL;
 }
+
+char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf)
+{
+	struct ast_rtp_engine_dtls *dtls;
+
+	if ((dtls = ast_rtp_instance_get_dtls(instance)) && dtls->active(instance)) {
+		return using_avpf ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
+	} else {
+		if (using_avpf) {
+			return sdes_active ? "RTP/SAVPF" : "RTP/AVPF";
+		} else {
+			return sdes_active ? "RTP/SAVP" : "RTP/AVP";
+		}
+	}
+}
+

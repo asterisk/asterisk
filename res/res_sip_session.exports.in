@@ -1,5 +1,6 @@
 {
 	global:
+		LINKER_SYMBOL_PREFIXast_sip_session_defer_termination;
 		LINKER_SYMBOL_PREFIXast_sip_session_register_sdp_handler;
 		LINKER_SYMBOL_PREFIXast_sip_session_unregister_sdp_handler;
 		LINKER_SYMBOL_PREFIXast_sip_session_register_supplement;
@@ -12,7 +13,9 @@
 		LINKER_SYMBOL_PREFIXast_sip_session_refresh;
 		LINKER_SYMBOL_PREFIXast_sip_session_send_response;
 		LINKER_SYMBOL_PREFIXast_sip_session_send_request;
+		LINKER_SYMBOL_PREFIXast_sip_session_create_invite;
 		LINKER_SYMBOL_PREFIXast_sip_session_create_outgoing;
+		LINKER_SYMBOL_PREFIXast_sip_dialog_get_session;
 	local:
 		*;
 };
