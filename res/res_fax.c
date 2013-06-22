@@ -58,7 +58,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page res_fax.conf res_fax.conf
  * \verbinclude res_fax.conf.sample
  */
@@ -1775,15 +1775,26 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 	ast_json_array_append(json_array, json_filename);
 
 	{
+		const char *remote_station_id;
+		const char *local_station_id;
+		const char *fax_pages;
+		const char *fax_resolution;
+		const char *fax_bitrate;
 		SCOPED_CHANNELLOCK(lock, chan);
 
-		json_object = ast_json_pack("s: s, s: s, s: s, s: s, s: s, s: s, s: o",
-				"type", "receive"
-				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
-				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
-				"fax_pages", S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
-				"fax_resolution", S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
-				"fax_bitrate", S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
+		remote_station_id = S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), "");
+		local_station_id = S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), "");
+		fax_pages = S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), "");
+		fax_resolution = S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), "");
+		fax_bitrate = S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), "");
+
+		json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: O}",
+				"type", "receive",
+				"remote_station_id", remote_station_id,
+				"local_station_id", local_station_id,
+				"fax_pages", fax_pages,
+				"fax_resolution", fax_resolution,
+				"fax_bitrate", fax_bitrate,
 				"filenames", json_array);
 		if (!json_object) {
 			return -1;
@@ -1793,7 +1804,6 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 		if (!message) {
 			return -1;
 		}
-
 		stasis_publish(ast_channel_topic(chan), message);
 	}
 	return 0;
@@ -2256,14 +2266,26 @@ static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_sessi
 	}
 
 	{
+		const char *remote_station_id;
+		const char *local_station_id;
+		const char *fax_pages;
+		const char *fax_resolution;
+		const char *fax_bitrate;
 		SCOPED_CHANNELLOCK(lock, chan);
+
+		remote_station_id = S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), "");
+		local_station_id = S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), "");
+		fax_pages = S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), "");
+		fax_resolution = S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), "");
+		fax_bitrate = S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), "");
+
 		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
 				"type", "send"
-				"remote_station_id", S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
-				"local_station_id", S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
-				"fax_pages", S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
-				"fax_resolution", S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
-				"fax_bitrate", S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
+				"remote_station_id", remote_station_id,
+				"local_station_id", local_station_id,
+				"fax_pages", fax_pages,
+				"fax_resolution", fax_resolution,
+				"fax_bitrate", fax_bitrate,
 				"filenames", json_filenames);
 		if (!json_obj) {
 			return -1;
@@ -2980,6 +3002,10 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	struct ast_channel *active;
 	RAII_VAR(struct ast_fax_session_details *, details, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, peer, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, chan_ref, chan, ao2_cleanup);
+
+	/* Ref bump channel for when we have to unlock it */
+	ao2_ref(chan_ref, 1);
 
 	if (gateway->s) {
 		details = gateway->s->details;
@@ -3000,7 +3026,10 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_set_read_format(chan, &gateway->chan_read_format);
 			ast_set_read_format(chan, &gateway->chan_write_format);
 
-			if ((peer = ast_channel_bridge_peer(chan))) {
+			ast_channel_unlock(chan);
+			peer = ast_channel_bridge_peer(chan);
+			ast_channel_lock(chan);
+			if (peer) {
 				ast_set_read_format(peer, &gateway->peer_read_format);
 				ast_set_read_format(peer, &gateway->peer_write_format);
 				ast_channel_make_compatible(chan, peer);
@@ -3019,7 +3048,10 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	}
 
 	/* If we aren't bridged or we don't have a peer, don't do anything */
-	if (!(peer = ast_channel_bridge_peer(chan))) {
+	ast_channel_unlock(chan);
+	peer = ast_channel_bridge_peer(chan);
+	ast_channel_lock(chan);
+	if (!peer) {
 		return f;
 	}
 
@@ -3290,7 +3322,11 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	struct ast_fax_session_details *details;
 	struct ast_control_t38_parameters *control_params;
 	RAII_VAR(struct ast_channel *, peer, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, chan_ref, chan, ao2_cleanup);
 	int result = 0;
+
+	/* Ref bump the channel for when we have to unlock it */
+	ao2_ref(chan, 1);
 
 	details = faxdetect->details;
 
@@ -3314,7 +3350,10 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	case AST_FRAMEHOOK_EVENT_DETACHED:
 		/* restore audio formats when we are detached */
 		ast_set_read_format(chan, &faxdetect->orig_format);
-		if ((peer = ast_channel_bridge_peer(chan))) {
+		ast_channel_unlock(chan);
+		peer = ast_channel_bridge_peer(chan);
+		ast_channel_lock(chan);
+		if (peer) {
 			ast_channel_make_compatible(chan, peer);
 		}
 		return NULL;
@@ -4138,8 +4177,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
