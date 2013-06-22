@@ -515,7 +515,7 @@ static int named_groups_handler(const struct aco_option *opt,
 
 static void *sip_nat_hook_alloc(const char *name)
 {
-	return ao2_alloc(sizeof(struct ast_sip_nat_hook), NULL);
+	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
 }
 
 /*! \brief Destructor function for persistent endpoint information */
@@ -722,7 +722,7 @@ static void endpoint_destructor(void* obj)
 
 void *ast_sip_endpoint_alloc(const char *name)
 {
-	struct ast_sip_endpoint *endpoint = ao2_alloc(sizeof(*endpoint), endpoint_destructor);
+	struct ast_sip_endpoint *endpoint = ast_sorcery_generic_alloc(sizeof(*endpoint), endpoint_destructor);
 	if (!endpoint) {
 		return NULL;
 	}

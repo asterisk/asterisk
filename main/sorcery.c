@@ -58,6 +58,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Thread pool for observers */
 static struct ast_threadpool *threadpool;
 
+/*! \brief Structure for internal sorcery object information */
+struct ast_sorcery_object {
+	/*! \brief Unique identifier of this object */
+	char id[AST_UUID_STR_LEN];
+
+	/*! \brief Type of object */
+	char type[MAX_OBJECT_TYPE];
+
+	/*! \brief Optional object destructor */
+	ao2_destructor_fn destructor;
+
+	/*! \brief Extended object fields */
+	struct ast_variable *extended;
+};
+
 /*! \brief Structure for registered object type */
 struct ast_sorcery_object_type {
 	/*! \brief Unique name of the object type */
@@ -525,6 +540,24 @@ int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, c
 	return sorcery_apply_wizard_mapping(sorcery, type, module, name, data, 0);
 }
 
+static int sorcery_extended_config_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	return ast_sorcery_object_set_extended(obj, var->name, var->value);
+}
+
+static int sorcery_extended_fields_handler(const void *obj, struct ast_variable **fields)
+{
+	const struct ast_sorcery_object_details *details = obj;
+
+	if (details->object->extended) {
+		*fields = ast_variables_dup(details->object->extended);
+	} else {
+		*fields = NULL;
+	}
+
+	return 0;
+}
+
 int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
@@ -544,6 +577,10 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 	object_type->file->types[1] = NULL;
 
 	if (aco_info_init(object_type->info)) {
+		return -1;
+	}
+
+	if (ast_sorcery_object_fields_register(sorcery, type, "^@", sorcery_extended_config_handler, sorcery_extended_fields_handler)) {
 		return -1;
 	}
 
@@ -784,7 +821,7 @@ void ast_sorcery_ref(struct ast_sorcery *sorcery)
 struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorcery, const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	struct ao2_iterator i;
 	struct ast_sorcery_object_field *object_field;
 	struct ast_variable *fields = NULL;
@@ -816,7 +853,7 @@ struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorc
 			continue;
 		}
 
-		if (!res) {
+		if (!res && tmp) {
 			tmp->next = fields;
 			fields = tmp;
 		}
@@ -836,7 +873,7 @@ struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorc
 struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sorcery, const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	struct ao2_iterator i;
 	struct ast_sorcery_object_field *object_field;
 	struct ast_json *json = ast_json_object_create();
@@ -898,7 +935,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object, struct ast_variable *objectset)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_variable *, transformed, NULL, ast_variables_destroy);
 	struct ast_variable *field;
 	int res = 0;
@@ -914,7 +951,7 @@ int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object,
 	}
 
 	for (; field; field = field->next) {
-		if ((res = aco_process_var(&object_type->type, details->id, field, object))) {
+		if ((res = aco_process_var(&object_type->type, details->object->id, field, object))) {
 			break;
 		}
 	}
@@ -977,6 +1014,32 @@ int ast_sorcery_changeset_create(const struct ast_variable *original, const stru
 	return res;
 }
 
+static void sorcery_object_destructor(void *object)
+{
+	struct ast_sorcery_object_details *details = object;
+
+	if (details->object->destructor) {
+		details->object->destructor(object);
+	}
+
+	ast_variables_destroy(details->object->extended);
+}
+
+void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor)
+{
+	void *object = ao2_alloc_options(size + sizeof(struct ast_sorcery_object), sorcery_object_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	struct ast_sorcery_object_details *details = object;
+
+	if (!object) {
+		return NULL;
+	}
+
+	details->object = object + size;
+	details->object->destructor = destructor;
+
+	return object;
+}
+
 void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, const char *id)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
@@ -988,12 +1051,12 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 	}
 
 	if (ast_strlen_zero(id)) {
-		ast_uuid_generate_str(details->id, sizeof(details->id));
+		ast_uuid_generate_str(details->object->id, sizeof(details->object->id));
 	} else {
-		ast_copy_string(details->id, id, sizeof(details->id));
+		ast_copy_string(details->object->id, id, sizeof(details->object->id));
 	}
 
-	ast_copy_string(details->type, type, sizeof(details->type));
+	ast_copy_string(details->object->type, type, sizeof(details->object->type));
 
 	if (aco_set_defaults(&object_type->type, id, details)) {
 		ao2_ref(details, -1);
@@ -1006,8 +1069,8 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 void *ast_sorcery_copy(const struct ast_sorcery *sorcery, const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
-	struct ast_sorcery_object_details *copy = ast_sorcery_alloc(sorcery, details->type, details->id);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
+	struct ast_sorcery_object_details *copy = ast_sorcery_alloc(sorcery, details->object->type, details->object->id);
 	RAII_VAR(struct ast_variable *, objectset, NULL, ast_variables_destroy);
 	int res = 0;
 
@@ -1120,7 +1183,6 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 	unsigned int cached = 0;
 
 	if (!object_type) {
-		ast_log(LOG_NOTICE, "Can't find object type '%s'\n", type);
 		return NULL;
 	}
 
@@ -1222,7 +1284,7 @@ static int sorcery_observers_notify_create(void *data)
 int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
 	struct sorcery_details sdetails = {
 		.sorcery = sorcery,
@@ -1281,7 +1343,7 @@ static int sorcery_wizard_update(void *obj, void *arg, int flags)
 int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
 	struct sorcery_details sdetails = {
 		.sorcery = sorcery,
@@ -1340,7 +1402,7 @@ static int sorcery_wizard_delete(void *obj, void *arg, int flags)
 int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, NULL, ao2_cleanup);
 	struct sorcery_details sdetails = {
 		.sorcery = sorcery,
@@ -1371,13 +1433,55 @@ void ast_sorcery_unref(struct ast_sorcery *sorcery)
 const char *ast_sorcery_object_get_id(const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	return details->id;
+	return details->object->id;
 }
 
 const char *ast_sorcery_object_get_type(const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
-	return details->type;
+	return details->object->type;
+}
+
+const char *ast_sorcery_object_get_extended(const void *object, const char *name)
+{
+	const struct ast_sorcery_object_details *details = object;
+	struct ast_variable *field;
+
+	for (field = details->object->extended; field; field = field->next) {
+		if (!strcmp(field->name + 1, name)) {
+			return field->value;
+		}
+	}
+
+	return NULL;
+}
+
+int ast_sorcery_object_set_extended(const void *object, const char *name, const char *value)
+{
+	RAII_VAR(struct ast_variable *, field, NULL, ast_variables_destroy);
+	struct ast_variable *extended = ast_variable_new(name, value, ""), *previous = NULL;
+	const struct ast_sorcery_object_details *details = object;
+
+	if (!extended) {
+		return -1;
+	}
+
+	for (field = details->object->extended; field; previous = field, field = field->next) {
+		if (!strcmp(field->name, name)) {
+			if (previous) {
+				previous->next = field->next;
+			} else {
+				details->object->extended = field->next;
+			}
+			field->next = NULL;
+			break;
+		}
+	}
+
+	extended->next = details->object->extended;
+	details->object->extended = extended;
+
+	return 0;
 }
 
 int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks)

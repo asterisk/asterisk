@@ -49,7 +49,7 @@ struct test_sorcery_object {
 /*! \brief Internal function to allocate a test object */
 static void *test_sorcery_object_alloc(const char *id)
 {
-	return ao2_alloc(sizeof(struct test_sorcery_object), NULL);
+	return ast_sorcery_generic_alloc(sizeof(struct test_sorcery_object), NULL);
 }
 
 /*! \brief Internal function for object set transformation */
@@ -1294,6 +1294,71 @@ AST_TEST_DEFINE(objectset_apply_fields)
 		res = AST_TEST_FAIL;
 	} else if (obj->bob != 256) {
 		ast_test_status_update(test, "Regex field handler was not called when it should have been\n");
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(extended_fields)
+{
+	int res = AST_TEST_PASS;
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+	const char *value;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "extended_fields";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery object extended fields unit test";
+		info->description =
+			"Test extended fields support in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objset = ast_variable_new("@testing", "toast", ""))) {
+		ast_test_status_update(test, "Failed to create an object set, test could not occur\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_sorcery_objectset_apply(sorcery, obj, objset)) {
+		ast_test_status_update(test, "Failed to apply valid object set to object\n");
+		res = AST_TEST_FAIL;
+	} else if (!(value = ast_sorcery_object_get_extended(obj, "testing"))) {
+		ast_test_status_update(test, "Extended field, which was set using object set, could not be found\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(value, "toast")) {
+		ast_test_status_update(test, "Extended field does not contain expected value\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_sorcery_object_set_extended(obj, "@tacos", "supreme")) {
+		ast_test_status_update(test, "Extended field could not be set\n");
+		res = AST_TEST_FAIL;
+	} else if (!(value = ast_sorcery_object_get_extended(obj, "tacos"))) {
+		ast_test_status_update(test, "Extended field, which was set using the API, could not be found\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(value, "supreme")) {
+		ast_test_status_update(test, "Extended field does not contain expected value\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_sorcery_object_set_extended(obj, "@tacos", "canadian")) {
+		ast_test_status_update(test, "Extended field could not be set a second time\n");
+		res = AST_TEST_FAIL;
+	} else if (!(value = ast_sorcery_object_get_extended(obj, "tacos"))) {
+		ast_test_status_update(test, "Extended field, which was set using the API, could not be found\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(value, "canadian")) {
+		ast_test_status_update(test, "Extended field does not contain expected value\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -2604,6 +2669,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(objectset_apply_invalid);
 	AST_TEST_UNREGISTER(objectset_transform);
 	AST_TEST_UNREGISTER(objectset_apply_fields);
+	AST_TEST_UNREGISTER(extended_fields);
 	AST_TEST_UNREGISTER(changeset_create);
 	AST_TEST_UNREGISTER(changeset_create_unchanged);
 	AST_TEST_UNREGISTER(object_create);
@@ -2651,6 +2717,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(objectset_apply_invalid);
 	AST_TEST_REGISTER(objectset_transform);
 	AST_TEST_REGISTER(objectset_apply_fields);
+	AST_TEST_REGISTER(extended_fields);
 	AST_TEST_REGISTER(changeset_create);
 	AST_TEST_REGISTER(changeset_create_unchanged);
 	AST_TEST_REGISTER(object_create);

@@ -33,7 +33,7 @@ static void domain_alias_destroy(void *obj)
 
 static void *domain_alias_alloc(const char *name)
 {
-	struct ast_sip_domain_alias *alias = ao2_alloc(sizeof(*alias), domain_alias_destroy);
+        struct ast_sip_domain_alias *alias = ast_sorcery_generic_alloc(sizeof(*alias), domain_alias_destroy);
 
 	if (!alias) {
 		return NULL;

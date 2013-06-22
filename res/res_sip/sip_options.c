@@ -42,8 +42,7 @@ static int qualify_contact(struct ast_sip_contact *contact);
  */
 static void *contact_status_alloc(const char *name)
 {
-	struct ast_sip_contact_status *status = ao2_alloc_options(
-		sizeof(*status), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	struct ast_sip_contact_status *status = ast_sorcery_generic_alloc(sizeof(*status), NULL);
 
 	if (!status) {
 		ast_log(LOG_ERROR, "Unable to allocate ast_sip_contact_status\n");

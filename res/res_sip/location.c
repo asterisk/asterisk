@@ -41,7 +41,7 @@ static void aor_destroy(void *obj)
 /*! \brief Allocator for AOR */
 static void *aor_alloc(const char *name)
 {
-	struct ast_sip_aor *aor = ao2_alloc_options(sizeof(struct ast_sip_aor), aor_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	struct ast_sip_aor *aor = ast_sorcery_generic_alloc(sizeof(struct ast_sip_aor), aor_destroy);
 	if (!aor) {
 		return NULL;
 	}
@@ -60,7 +60,7 @@ static void contact_destroy(void *obj)
 /*! \brief Allocator for contact */
 static void *contact_alloc(const char *name)
 {
-	struct ast_sip_contact *contact = ao2_alloc_options(sizeof(*contact), contact_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	struct ast_sip_contact *contact = ast_sorcery_generic_alloc(sizeof(*contact), contact_destroy);
 
 	if (!contact) {
 		return NULL;

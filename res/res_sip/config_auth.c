@@ -32,7 +32,7 @@ static void auth_destroy(void *obj)
 
 static void *auth_alloc(const char *name)
 {
-	struct ast_sip_auth *auth = ao2_alloc(sizeof(*auth), auth_destroy);
+	struct ast_sip_auth *auth = ast_sorcery_generic_alloc(sizeof(*auth), auth_destroy);
 
 	if (!auth) {
 		return NULL;

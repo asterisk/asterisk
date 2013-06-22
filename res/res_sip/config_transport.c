@@ -62,7 +62,7 @@ static void transport_destroy(void *obj)
 /*! \brief Allocator for transport */
 static void *transport_alloc(const char *name)
 {
-	struct ast_sip_transport *transport = ao2_alloc(sizeof(*transport), transport_destroy);
+	struct ast_sip_transport *transport = ast_sorcery_generic_alloc(sizeof(*transport), transport_destroy);
 
 	if (!transport) {
 		return NULL;

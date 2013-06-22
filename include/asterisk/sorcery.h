@@ -247,13 +247,13 @@ struct ast_sorcery_observer {
 	void (*loaded)(const char *object_type);
 };
 
+/*! \brief Opaque structure for internal sorcery object */
+struct ast_sorcery_object;
+
 /*! \brief Structure which contains details about a sorcery object */
 struct ast_sorcery_object_details {
-	/*! \brief Unique identifier of this object */
-	char id[AST_UUID_STR_LEN];
-
-	/*! \brief Type of object */
-	char type[MAX_OBJECT_TYPE];
+	/*! \brief Pointer to internal sorcery object information */
+	struct ast_sorcery_object *object;
 };
 
 /*! \brief Macro which must be used at the beginning of each sorcery capable object */
@@ -529,6 +529,17 @@ int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object,
 int ast_sorcery_changeset_create(const struct ast_variable *original, const struct ast_variable *modified, struct ast_variable **changes);
 
 /*!
+ * \brief Allocate a generic sorcery capable object
+ *
+ * \param size Size of the object
+ * \param destructor Optional destructor function
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor);
+
+/*!
  * \brief Allocate an object
  *
  * \param sorcery Pointer to a sorcery structure
@@ -694,6 +705,34 @@ const char *ast_sorcery_object_get_id(const void *object);
  * \retval type of object
  */
 const char *ast_sorcery_object_get_type(const void *object);
+
+/*!
+ * \brief Get an extended field value from a sorcery object
+ *
+ * \param object Pointer to a sorcery object
+ * \param name Name of the extended field value
+ *
+ * \retval non-NULL if found
+ * \retval NULL if not found
+ *
+ * \note The returned string does NOT need to be freed and is guaranteed to remain valid for the lifetime of the object
+ */
+const char *ast_sorcery_object_get_extended(const void *object, const char *name);
+
+/*!
+ * \brief Set an extended field value on a sorcery object
+ *
+ * \param object Pointer to a sorcery object
+ * \param name Name of the extended field
+ * \param value Value of the extended field
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note The field name MUST begin with '@' to indicate it is an extended field.
+ * \note If the extended field already exists it will be overwritten with the new value.
+ */
+int ast_sorcery_object_set_extended(const void *object, const char *name, const char *value);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
