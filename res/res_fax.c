@@ -1783,18 +1783,33 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 		SCOPED_CHANNELLOCK(lock, chan);
 
 		remote_station_id = S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), "");
+		if (!ast_strlen_zero(remote_station_id)) {
+			remote_station_id = ast_strdupa(remote_station_id);
+		}
 		local_station_id = S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), "");
+		if (!ast_strlen_zero(local_station_id)) {
+			local_station_id = ast_strdupa(local_station_id);
+		}
 		fax_pages = S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), "");
+		if (!ast_strlen_zero(fax_pages)) {
+			fax_pages = ast_strdupa(fax_pages);
+		}
 		fax_resolution = S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), "");
+		if (!ast_strlen_zero(fax_resolution)) {
+			fax_resolution = ast_strdupa(fax_resolution);
+		}
 		fax_bitrate = S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), "");
+		if (!ast_strlen_zero(fax_bitrate)) {
+			fax_bitrate = ast_strdupa(fax_bitrate);
+		}
 
 		json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: O}",
 				"type", "receive",
-				"remote_station_id", remote_station_id,
-				"local_station_id", local_station_id,
-				"fax_pages", fax_pages,
-				"fax_resolution", fax_resolution,
-				"fax_bitrate", fax_bitrate,
+				"remote_station_id", S_OR(remote_station_id, ""),
+				"local_station_id", S_OR(local_station_id, ""),
+				"fax_pages", S_OR(fax_pages, ""),
+				"fax_resolution", S_OR(fax_resolution, ""),
+				"fax_bitrate", S_OR(fax_bitrate, ""),
 				"filenames", json_array);
 		if (!json_object) {
 			return -1;
@@ -2274,18 +2289,33 @@ static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_sessi
 		SCOPED_CHANNELLOCK(lock, chan);
 
 		remote_station_id = S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), "");
+		if (!ast_strlen_zero(remote_station_id)) {
+			remote_station_id = ast_strdupa(remote_station_id);
+		}
 		local_station_id = S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), "");
+		if (!ast_strlen_zero(local_station_id)) {
+			local_station_id = ast_strdupa(local_station_id);
+		}
 		fax_pages = S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), "");
+		if (!ast_strlen_zero(fax_pages)) {
+			fax_pages = ast_strdupa(fax_pages);
+		}
 		fax_resolution = S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), "");
+		if (!ast_strlen_zero(fax_resolution)) {
+			fax_resolution = ast_strdupa(fax_resolution);
+		}
 		fax_bitrate = S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), "");
+		if (!ast_strlen_zero(fax_bitrate)) {
+			fax_bitrate = ast_strdupa(fax_bitrate);
+		}
 
 		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
 				"type", "send"
-				"remote_station_id", remote_station_id,
-				"local_station_id", local_station_id,
-				"fax_pages", fax_pages,
-				"fax_resolution", fax_resolution,
-				"fax_bitrate", fax_bitrate,
+				"remote_station_id", S_OR(remote_station_id, ""),
+				"local_station_id", S_OR(local_station_id, ""),
+				"fax_pages", S_OR(fax_pages, ""),
+				"fax_resolution", S_OR(fax_resolution, ""),
+				"fax_bitrate", S_OR(fax_bitrate, ""),
 				"filenames", json_filenames);
 		if (!json_obj) {
 			return -1;
