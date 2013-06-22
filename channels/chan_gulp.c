@@ -53,6 +53,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/causes.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/stasis_endpoints.h"
+#include "asterisk/stasis_channels.h"
 
 #include "asterisk/res_sip.h"
 #include "asterisk/res_sip_session.h"
@@ -81,6 +83,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char desc[] = "Gulp SIP Channel";
 static const char channel_type[] = "Gulp";
+
+static unsigned int chan_idx;
 
 /*!
  * \brief Positions of various media
@@ -125,6 +129,7 @@ static struct ast_frame *gulp_read(struct ast_channel *ast);
 static int gulp_write(struct ast_channel *ast, struct ast_frame *f);
 static int gulp_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int gulp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int gulp_devicestate(const char *data);
 
 /*! \brief PBX interface structure for channel registration */
 static struct ast_channel_tech gulp_tech = {
@@ -143,6 +148,7 @@ static struct ast_channel_tech gulp_tech = {
 	.exception = gulp_read,
 	.indicate = gulp_indicate,
 	.fixup = gulp_fixup,
+	.devicestate = gulp_devicestate,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
 };
 
@@ -422,8 +428,8 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", linkedid, 0, "Gulp/%s-%.*s", ast_sorcery_object_get_id(session->endpoint),
-		(int)session->inv_session->dlg->call_id->id.slen, session->inv_session->dlg->call_id->id.ptr))) {
+	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", linkedid, 0, "Gulp/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
+		ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
 		ao2_cleanup(pvt);
 		return NULL;
 	}
@@ -460,6 +466,8 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 	ast_channel_context_set(chan, session->endpoint->context);
 	ast_channel_exten_set(chan, S_OR(exten, "s"));
 	ast_channel_priority_set(chan, 1);
+
+	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 
 	return chan;
 }
@@ -623,6 +631,68 @@ static int gulp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
+/*! \brief Function called to get the device state of an endpoint */
+static int gulp_devicestate(const char *data)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", data), ao2_cleanup);
+	enum ast_device_state state = AST_DEVICE_UNKNOWN;
+	RAII_VAR(struct ast_endpoint_snapshot *, endpoint_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
+	struct ast_devstate_aggregate aggregate;
+	int num, inuse = 0;
+
+	if (!endpoint) {
+		return AST_DEVICE_INVALID;
+	}
+
+	endpoint_snapshot = ast_endpoint_latest_snapshot(ast_endpoint_get_tech(endpoint->persistent),
+		ast_endpoint_get_resource(endpoint->persistent), 1);
+
+	if (endpoint_snapshot->state == AST_ENDPOINT_OFFLINE) {
+		state = AST_DEVICE_UNAVAILABLE;
+	} else if (endpoint_snapshot->state == AST_ENDPOINT_ONLINE) {
+		state = AST_DEVICE_NOT_INUSE;
+	}
+
+	if (!endpoint_snapshot->num_channels || !(caching_topic = ast_channel_topic_all_cached())) {
+		return state;
+	}
+
+	ast_devstate_aggregate_init(&aggregate);
+
+	ao2_ref(caching_topic, +1);
+
+	for (num = 0; num < endpoint_snapshot->num_channels; num++) {
+		RAII_VAR(struct stasis_message *, msg, stasis_cache_get_extended(caching_topic, ast_channel_snapshot_type(),
+			endpoint_snapshot->channel_ids[num], 1), ao2_cleanup);
+		struct ast_channel_snapshot *snapshot;
+
+		if (!msg) {
+			continue;
+		}
+
+		snapshot = stasis_message_data(msg);
+
+		if (snapshot->state == AST_STATE_DOWN) {
+			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_NOT_INUSE);
+		} else if (snapshot->state == AST_STATE_RINGING) {
+			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_RINGING);
+		} else if ((snapshot->state == AST_STATE_UP) || (snapshot->state == AST_STATE_RING) ||
+			(snapshot->state == AST_STATE_BUSY)) {
+			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_INUSE);
+			inuse++;
+		}
+	}
+
+	if (endpoint->devicestate_busy_at && (inuse == endpoint->devicestate_busy_at)) {
+		state = AST_DEVICE_BUSY;
+	} else if (ast_devstate_aggregate_result(&aggregate) != AST_DEVICE_INVALID) {
+		state = ast_devstate_aggregate_result(&aggregate);
+	}
+
+	return state;
+}
+
 struct indicate_data {
 	struct ast_sip_session *session;
 	int condition;
@@ -731,6 +801,7 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		} else {
 			res = -1;
 		}
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Gulp/%s", ast_sorcery_object_get_id(session->endpoint));
 		break;
 	case AST_CONTROL_BUSY:
 		if (ast_channel_state(ast) != AST_STATE_UP) {
@@ -1326,7 +1397,7 @@ static int gulp_incoming_request(struct ast_sip_session *session, struct pjsip_r
 		return 0;
 	}
 
-	if (!(session->channel = gulp_new(session, AST_STATE_DOWN, session->exten, NULL, NULL, NULL))) {
+	if (!(session->channel = gulp_new(session, AST_STATE_RING, session->exten, NULL, NULL, NULL))) {
 		if (pjsip_inv_end_session(session->inv_session, 503, NULL, &packet) == PJ_SUCCESS) {
 			ast_sip_session_send_response(session, packet);
 		}
@@ -1335,7 +1406,6 @@ static int gulp_incoming_request(struct ast_sip_session *session, struct pjsip_r
 		return -1;
 	}
 
-	ast_setstate(session->channel, AST_STATE_RING);
 	res = ast_pbx_start(session->channel);
 
 	switch (res) {

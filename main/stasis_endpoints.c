@@ -35,11 +35,138 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="PeerStatus">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when the state of a peer changes.</synopsis>
+			<syntax>
+				<parameter name="ChannelType">
+					<para>The channel technology of the peer.</para>
+				</parameter>
+				<parameter name="Peer">
+					<para>The name of the peer (including channel technology).</para>
+				</parameter>
+				<parameter name="PeerStatus">
+					<para>New status of the peer.</para>
+					<enumlist>
+						<enum name="Unknown"/>
+						<enum name="Registered"/>
+						<enum name="Unregistered"/>
+						<enum name="Rejected"/>
+						<enum name="Lagged"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Cause">
+					<para>The reason the status has changed.</para>
+				</parameter>
+				<parameter name="Address">
+					<para>New address of the peer.</para>
+				</parameter>
+				<parameter name="Port">
+					<para>New port for the peer.</para>
+				</parameter>
+				<parameter name="Time">
+					<para>Time it takes to reach the peer and receive a response.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+***/
+
+static struct ast_manager_event_blob *peerstatus_to_ami(struct stasis_message *msg);
+
 STASIS_MESSAGE_TYPE_DEFN(ast_endpoint_snapshot_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_endpoint_state_type,
+	.to_ami = peerstatus_to_ami,
+);
 
 static struct stasis_topic *endpoint_topic_all;
 
 static struct stasis_caching_topic *endpoint_topic_all_cached;
+
+static struct ast_manager_event_blob *peerstatus_to_ami(struct stasis_message *msg)
+{
+	struct ast_endpoint_blob *obj = stasis_message_data(msg);
+	RAII_VAR(struct ast_str *, peerstatus_event_string, ast_str_create(64), ast_free);
+	const char *value;
+
+	/* peer_status is the only *required* thing */
+	if (!(value = ast_json_string_get(ast_json_object_get(obj->blob, "peer_status")))) {
+		return NULL;
+	}
+	ast_str_append(&peerstatus_event_string, 0, "PeerStatus: %s\r\n", value);
+
+	if ((value = ast_json_string_get(ast_json_object_get(obj->blob, "cause")))) {
+		ast_str_append(&peerstatus_event_string, 0, "Cause: %s\r\n", value);
+	}
+	if ((value = ast_json_string_get(ast_json_object_get(obj->blob, "address")))) {
+		ast_str_append(&peerstatus_event_string, 0, "Address: %s\r\n", value);
+	}
+	if ((value = ast_json_string_get(ast_json_object_get(obj->blob, "port")))) {
+		ast_str_append(&peerstatus_event_string, 0, "Port: %s\r\n", value);
+	}
+	if ((value = ast_json_string_get(ast_json_object_get(obj->blob, "time")))) {
+		ast_str_append(&peerstatus_event_string, 0, "Time: %s\r\n", value);
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_SYSTEM, "PeerStatus",
+		"ChannelType: %s\r\n"
+		"Peer: %s/%s\r\n"
+		"%s",
+		obj->snapshot->tech,
+		obj->snapshot->tech,
+		obj->snapshot->resource,
+		ast_str_buffer(peerstatus_event_string));
+}
+
+static void endpoint_blob_dtor(void *obj)
+{
+	struct ast_endpoint_blob *event = obj;
+	ao2_cleanup(event->snapshot);
+	ast_json_unref(event->blob);
+}
+
+struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
+	struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct ast_endpoint_blob *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!blob) {
+		blob = ast_json_null();
+	}
+
+	if (!(obj = ao2_alloc(sizeof(*obj), endpoint_blob_dtor))) {
+		return NULL;
+	}
+
+	if (endpoint) {
+		if (!(obj->snapshot = ast_endpoint_snapshot_create(endpoint))) {
+			return NULL;
+		}
+	}
+
+	obj->blob = ast_json_ref(blob);
+
+	if (!(msg = stasis_message_create(type, obj))) {
+		return NULL;
+	}
+
+	ao2_ref(msg, +1);
+	return msg;
+}
+
+void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_message_type *type,
+	struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	if (blob) {
+		message = ast_endpoint_blob_create(endpoint, type, blob);
+	}
+	if (message) {
+		stasis_publish(ast_endpoint_topic(endpoint), message);
+	}
+}
 
 struct stasis_topic *ast_endpoint_topic_all(void)
 {
@@ -172,6 +299,10 @@ int ast_endpoint_stasis_init(void)
 	}
 
 	if (!endpoint_topic_all_cached) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_state_type) != 0) {
 		return -1;
 	}
 

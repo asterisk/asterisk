@@ -15724,6 +15724,7 @@ static void set_socket_transport(struct sip_socket *socket, int transport)
 static int expire_register(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	if (!peer) {		/* Hmmm. We have no peer. Weird. */
 		return 0;
@@ -15743,7 +15744,11 @@ static int expire_register(const void *data)
 		peer->socket.ws_session = NULL;
 	}
 
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+	ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+	blob = ast_json_pack("{s: s, s: s}",
+		"peer_status", "Unregistered",
+		"cause", "Expired");
+	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 
@@ -15988,6 +15993,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	int start = 0;
 	int wildcard_found = 0;
 	int single_binding_found = 0;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	ast_copy_string(contact, __get_header(req, "Contact", &start), sizeof(contact));
 
@@ -16174,7 +16180,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 		ast_db_put("SIP/Registry", peer->name, data);
 	}
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name,  ast_sockaddr_stringify(&peer->addr));
+
+	ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+	blob = ast_json_pack("{s: s, s: s}",
+		"peer_status", "Registered",
+		"address", ast_sockaddr_stringify(&peer->addr));
+	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 
 	/* Is this a new IP address for us? */
 	if (ast_sockaddr_cmp(&peer->addr, &oldsin)) {
@@ -17178,6 +17189,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		/* Create peer if we have autocreate mode enabled */
 		peer = temp_peer(name);
 		if (peer) {
+			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 			ao2_t_link(peers, peer, "link peer into peer table");
 			if (!ast_sockaddr_isnull(&peer->addr)) {
 				ao2_t_link(peers_by_ip, peer, "link peer into peers-by-ip table");
@@ -17206,7 +17218,11 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name, ast_sockaddr_stringify(addr));
+				ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+				blob = ast_json_pack("{s: s, s: s}",
+					"peer_status", "Registered",
+					"address", ast_sockaddr_stringify(addr));
+				ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 				send_mwi = 1;
 				res = 0;
 				break;
@@ -17225,6 +17241,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		switch (res) {
 		case AUTH_SECRET_FAILED:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
@@ -17232,14 +17250,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			if (global_authfailureevents) {
 				const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 				const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-					      "ChannelType: SIP\r\n"
-					      "Peer: SIP/%s\r\n"
-					      "PeerStatus: Rejected\r\n"
-					      "Cause: AUTH_SECRET_FAILED\r\n"
-					      "Address: %s\r\n"
-					      "Port: %s\r\n",
-					      name, peer_addr, peer_port);
+
+				blob = ast_json_pack("{s: s, s: s, s: s, s: s}",
+					"peer_status", "Rejected",
+					"cause", "AUTH_SECRET_FAILED",
+					"address", peer_addr,
+					"port", peer_port);
 			}
 			break;
 		case AUTH_USERNAME_MISMATCH:
@@ -17255,16 +17271,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				if (global_authfailureevents) {
 					const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 					const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-						      "ChannelType: SIP\r\n"
-						      "Peer: SIP/%s\r\n"
-						      "PeerStatus: Rejected\r\n"
-						      "Cause: %s\r\n"
-						      "Address: %s\r\n"
-						      "Port: %s\r\n",
-						      name,
-						      res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
-						      peer_addr, peer_port);
+
+					blob = ast_json_pack("{s: s, s: s, s: s, s: s}",
+						"peer_status", "Rejected",
+						"cause", res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
+						"address", peer_addr,
+						"port", peer_port);
 				}
 			} else {
 				/* URI not found */
@@ -17273,30 +17285,24 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 					if (global_authfailureevents) {
 						const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 						const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
-						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-							"ChannelType: SIP\r\n"
-							"Peer: SIP/%s\r\n"
-							"PeerStatus: Rejected\r\n"
-							"Cause: AUTH_PEER_NOT_DYNAMIC\r\n"
-							"Address: %s\r\n"
-							"Port: %s\r\n",
-							name, peer_addr, peer_port);
+
+						blob = ast_json_pack("{s: s, s: s, s: s, s: s}",
+							"peer_status", "Rejected",
+							"cause", "AUTH_PEER_NOT_DYNAMIC",
+							"address", peer_addr,
+							"port", peer_port);
 					}
 				} else {
 					transmit_response(p, "404 Not found", &p->initreq);
 					if (global_authfailureevents) {
 						const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
 						const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
-						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-							"ChannelType: SIP\r\n"
-							"Peer: SIP/%s\r\n"
-							"PeerStatus: Rejected\r\n"
-							"Cause: %s\r\n"
-							"Address: %s\r\n"
-							"Port: %s\r\n",
-							name,
-							(res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
-							peer_addr, peer_port);
+
+						blob = ast_json_pack("{s: s, s: s, s: s, s: s}",
+							"peer_status", "Rejected",
+							"cause", (res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
+							"address", peer_addr,
+							"port", peer_port);
 					}
 				}
 			}
@@ -17305,6 +17311,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		default:
 			break;
 		}
+
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 	}
 	if (peer) {
 		sip_unref_peer(peer, "register_verify: sip_unref_peer: tossing stack peer pointer at end of func");
@@ -23804,6 +23812,8 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	if (statechanged) {
 		const char *s = is_reachable ? "Reachable" : "Lagged";
 		char str_lastms[20];
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		snprintf(str_lastms, sizeof(str_lastms), "%d", pingtime);
 
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
@@ -23812,9 +23822,11 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		if (sip_cfg.peer_rtupdate) {
 			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", str_lastms, SENTINEL);
 		}
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
-			peer->name, s, pingtime);
+		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+		blob = ast_json_pack("{s: s, s: i}",
+			"peer_status", s,
+			"time", pingtime);
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 		if (is_reachable && sip_cfg.regextenonqualify)
 			register_peer_exten(peer, TRUE);
 	}
@@ -29094,11 +29106,17 @@ static int sip_poke_noanswer(const void *data)
 	peer->pokeexpire = -1;
 
 	if (peer->lastms > -1) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
 		if (sip_cfg.peer_rtupdate) {
 			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", "-1", SENTINEL);
 		}
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s, s: s}",
+			"peer_status", "Unreachable",
+			"time", "-1");
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 		if (sip_cfg.regextenonqualify) {
 			register_peer_exten(peer, FALSE);
 		}

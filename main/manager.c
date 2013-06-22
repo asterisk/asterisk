@@ -7771,6 +7771,10 @@ static int __init_manager(int reload, int by_external_config)
 		if (manager_bridging_init()) {
 			return -1;
 		}
+		if (manager_endpoints_init()) {
+			ast_log(AST_LOG_ERROR, "Failed to initialize manager endpoints handling\n");
+			return -1;
+		}
 	}
 
 	if (!registered) {

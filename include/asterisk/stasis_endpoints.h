@@ -79,6 +79,45 @@ struct ast_endpoint_blob {
 };
 
 /*!
+ * \since 12
+ * \brief Creates a \ref ast_endpoint_blob message.
+ *
+ * The given \a blob should be treated as immutable and not modified after it is
+ * put into the message.
+ *
+ * \param endpoint Endpoint blob is associated with.
+ * \param type Message type for this blob.
+ * \param blob JSON object representing the data, or \c NULL for no data. If
+ *             \c NULL, ast_json_null() is put into the object.
+ *
+ * \return \ref ast_endpoint_blob message.
+ * \return \c NULL on error
+ */
+struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
+	struct stasis_message_type *type, struct ast_json *blob);
+
+/*!
+ * \since 12
+ * \brief Creates and publishes a \ref ast_endpoint_blob message.
+ *
+ * The given \a blob should be treated as immutable and not modified after it is
+ * put into the message.
+ *
+ * \param endpoint Endpoint blob is associated with.
+ * \param type Message type for this blob.
+ * \param blob JSON object representing the data, or \c NULL for no data. If
+ *             \c NULL, ast_json_null() is put into the object.
+ */
+void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_message_type *type,
+	struct ast_json *blob);
+
+/*!
+ * \brief Message type for endpoint state changes.
+ * \since 12
+ */
+struct stasis_message_type *ast_endpoint_state_type(void);
+
+/*!
  * \brief Message type for \ref ast_endpoint_snapshot.
  * \since 12
  */

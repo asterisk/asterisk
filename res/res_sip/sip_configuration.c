@@ -17,8 +17,85 @@
 #include "asterisk/utils.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/callerid.h"
+#include "asterisk/stasis_endpoints.h"
+
+/*! \brief Number of buckets for persistent endpoint information */
+#define PERSISTENT_BUCKETS 53
+
+/*! \brief Persistent endpoint information */
+struct sip_persistent_endpoint {
+	/*! \brief Asterisk endpoint itself */
+	struct ast_endpoint *endpoint;
+	/*! \brief AORs that we should react to */
+	char *aors;
+};
+
+/*! \brief Container for persistent endpoint information */
+static struct ao2_container *persistent_endpoints;
 
 static struct ast_sorcery *sip_sorcery;
+
+/*! \brief Hashing function for persistent endpoint information */
+static int persistent_endpoint_hash(const void *obj, const int flags)
+{
+	const struct sip_persistent_endpoint *persistent = obj;
+	const char *id = (flags & OBJ_KEY ? obj : ast_endpoint_get_resource(persistent->endpoint));
+
+	return ast_str_hash(id);
+}
+
+/*! \brief Comparison function for persistent endpoint information */
+static int persistent_endpoint_cmp(void *obj, void *arg, int flags)
+{
+	const struct sip_persistent_endpoint *persistent1 = obj;
+	const struct sip_persistent_endpoint *persistent2 = arg;
+	const char *id = (flags & OBJ_KEY ? arg : ast_endpoint_get_resource(persistent2->endpoint));
+
+	return !strcmp(ast_endpoint_get_resource(persistent1->endpoint), id) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/*! \brief Callback function for changing the state of an endpoint */
+static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
+{
+	struct sip_persistent_endpoint *persistent = obj;
+	char *aor = arg;
+	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	if (!ast_strlen_zero(aor) && !strstr(persistent->aors, aor)) {
+		return 0;
+	}
+
+	if ((contact = ast_sip_location_retrieve_contact_from_aor_list(persistent->aors))) {
+		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_ONLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Reachable");
+	} else {
+		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Unreachable");
+	}
+
+	ast_endpoint_blob_publish(persistent->endpoint, ast_endpoint_state_type(), blob);
+
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Gulp/%s", ast_endpoint_get_resource(persistent->endpoint));
+
+	return 0;
+}
+
+/*! \brief Function called when stuff relating to a contact happens (created/deleted) */
+static void persistent_endpoint_contact_observer(const void *object)
+{
+	char *id = ast_strdupa(ast_sorcery_object_get_id(object)), *aor = NULL;
+
+	aor = strsep(&id, ";@");
+
+	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+}
+
+/*! \brief Observer for contacts so state can be updated on respective endpoints */
+static struct ast_sorcery_observer state_contact_observer = {
+	.created = persistent_endpoint_contact_observer,
+	.deleted = persistent_endpoint_contact_observer,
+};
 
 static char *handle_cli_show_endpoints(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -281,9 +358,64 @@ static void *sip_nat_hook_alloc(const char *name)
 	return ao2_alloc(sizeof(struct ast_sip_nat_hook), NULL);
 }
 
+/*! \brief Destructor function for persistent endpoint information */
+static void persistent_endpoint_destroy(void *obj)
+{
+	struct sip_persistent_endpoint *persistent = obj;
+
+	ast_endpoint_shutdown(persistent->endpoint);
+	ast_free(persistent->aors);
+}
+
+/*! \brief Internal function which finds (or creates) persistent endpoint information */
+static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_sip_endpoint *endpoint)
+{
+	RAII_VAR(struct sip_persistent_endpoint *, persistent, NULL, ao2_cleanup);
+	SCOPED_AO2LOCK(lock, persistent_endpoints);
+
+	if (!(persistent = ao2_find(persistent_endpoints, ast_sorcery_object_get_id(endpoint), OBJ_KEY | OBJ_NOLOCK))) {
+		if (!(persistent = ao2_alloc(sizeof(*persistent), persistent_endpoint_destroy))) {
+			return NULL;
+		}
+
+		if (!(persistent->endpoint = ast_endpoint_create("Gulp", ast_sorcery_object_get_id(endpoint)))) {
+			return NULL;
+		}
+
+		persistent->aors = ast_strdup(endpoint->aors);
+
+		if (ast_strlen_zero(persistent->aors)) {
+			ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
+		} else {
+			persistent_endpoint_update_state(persistent, NULL, 0);
+		}
+
+		ao2_link_flags(persistent_endpoints, persistent, OBJ_NOLOCK);
+	}
+
+	ao2_ref(persistent->endpoint, +1);
+	return persistent->endpoint;
+}
+
+/*! \brief Callback function for when an object is finalized */
+static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!(endpoint->persistent = persistent_endpoint_find_or_create(endpoint))) {
+		return -1;
+	}
+
+	return 0;
+}
+
 int ast_res_sip_initialize_configuration(void)
 {
 	if (ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands))) {
+		return -1;
+	}
+
+	if (!(persistent_endpoints = ao2_container_alloc(PERSISTENT_BUCKETS, persistent_endpoint_hash, persistent_endpoint_cmp))) {
 		return -1;
 	}
 
@@ -305,7 +437,7 @@ int ast_res_sip_initialize_configuration(void)
 
 	ast_sorcery_apply_default(sip_sorcery, "nat_hook", "memory", NULL);
 
-	if (ast_sorcery_object_register(sip_sorcery, "endpoint", ast_sip_endpoint_alloc, NULL, NULL)) {
+	if (ast_sorcery_object_register(sip_sorcery, "endpoint", ast_sip_endpoint_alloc, NULL, sip_endpoint_apply_handler)) {
 		ast_log(LOG_ERROR, "Failed to register SIP endpoint object with sorcery\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
@@ -351,6 +483,7 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_rpid", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_rpid));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mailboxes));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aggregate_mwi", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, aggregate_mwi));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "devicestate_busy_at", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, devicestate_busy_at));
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -365,6 +498,8 @@ int ast_res_sip_initialize_configuration(void)
 		sip_sorcery = NULL;
 		return -1;
 	}
+
+	ast_sorcery_observer_add(sip_sorcery, "contact", &state_contact_observer);
 
 	if (ast_sip_initialize_sorcery_domain_alias(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP domain aliases support with sorcery\n");
@@ -404,6 +539,7 @@ static void endpoint_destructor(void* obj)
 	destroy_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths);
 	destroy_auths(endpoint->sip_outbound_auths, endpoint->num_outbound_auths);
 	ast_party_id_free(&endpoint->id);
+	ao2_cleanup(endpoint->persistent);
 }
 
 void *ast_sip_endpoint_alloc(const char *name)

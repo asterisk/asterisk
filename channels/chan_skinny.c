@@ -80,6 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/stasis_endpoints.h"
 #include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
@@ -1585,6 +1586,7 @@ struct skinny_device {
 	struct skinny_line *activeline;
 	struct ast_format_cap *cap;
 	struct ast_format_cap *confcap;
+	struct ast_endpoint *endpoint;
 	AST_LIST_HEAD(, skinny_line) lines;
 	AST_LIST_HEAD(, skinny_speeddial) speeddials;
 	AST_LIST_HEAD(, skinny_serviceurl) serviceurls;
@@ -1687,7 +1689,7 @@ static struct skinny_line *skinny_line_destroy(struct skinny_line *l)
 	ast_free(l);
 	return NULL;
 }
-static struct skinny_device *skinny_device_alloc(void)
+static struct skinny_device *skinny_device_alloc(const char *dname)
 {
 	struct skinny_device *d;
 	if (!(d = ast_calloc(1, sizeof(*d)))) {
@@ -1696,18 +1698,23 @@ static struct skinny_device *skinny_device_alloc(void)
 
 	d->cap = ast_format_cap_alloc_nolock();
 	d->confcap = ast_format_cap_alloc_nolock();
-	if (!d->cap || !d->confcap) {
+	d->endpoint = ast_endpoint_create("Skinny", dname);
+	if (!d->cap || !d->confcap || !d->endpoint) {
 		d->cap = ast_format_cap_destroy(d->cap);
 		d->confcap = ast_format_cap_destroy(d->confcap);
 		ast_free(d);
 		return NULL;
 	}
+
+	ast_copy_string(d->name, dname, sizeof(d->name));
+
 	return d;
 }
 static struct skinny_device *skinny_device_destroy(struct skinny_device *d)
 {
 	d->cap = ast_format_cap_destroy(d->cap);
 	d->confcap = ast_format_cap_destroy(d->confcap);
+	ast_endpoint_shutdown(d->endpoint);
 	ast_free(d);
 	return NULL;
 }
@@ -2244,6 +2251,8 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 		ast_sockaddr_from_sin(&addr, &s->sin);
 		if (!d->session && !strcasecmp(req->data.reg.name, d->id)
 				&& ast_apply_ha(d->ha, &addr)) {
+			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 			s->device = d;
 			d->type = letohl(req->data.reg.type);
 			d->protocolversion = letohl(req->data.reg.protocolVersion);
@@ -2277,7 +2286,6 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				l->instance = instance;
 				l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
 				set_callforwards(l, NULL, SKINNY_CFWD_ALL|SKINNY_CFWD_BUSY|SKINNY_CFWD_NOANSWER);
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
 				register_exten(l);
 				/* initialize MWI on line and device */
 				mwi_event_cb(l, NULL, NULL, NULL);
@@ -2287,6 +2295,9 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 				--instance;
 			}
+			ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_ONLINE);
+			blob = ast_json_pack("{s: s}", "peer_status", "Registered");
+			ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
 			break;
 		}
 	}
@@ -2306,6 +2317,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 	d = s->device;
 
 	if (d) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 		d->session = NULL;
 
 		AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
@@ -2317,11 +2329,14 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				ast_format_cap_remove_all(l->cap);
 				ast_parse_allow_disallow(&l->prefs, l->cap, "all", 0);
 				l->instance = 0;
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
 				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
 			}
 		}
+
+		ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Unregistered");
+		ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
 	}
 
 	return -1; /* main loop will destroy the session */
@@ -8220,7 +8235,7 @@ static struct skinny_device *config_device(const char *dname, struct ast_variabl
 		}
 	}
 
-	if (!(d = skinny_device_alloc())) {
+	if (!(d = skinny_device_alloc(dname))) {
 		ast_verb(1, "Unable to allocate memory for device %s.\n", dname);
 		AST_LIST_UNLOCK(&devices);
 		return NULL;
@@ -8613,6 +8628,8 @@ static int unload_module(void)
 	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */
 	while((s = AST_LIST_REMOVE_HEAD(&sessions, list))) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		d = s->device;
 		AST_LIST_TRAVERSE(&d->lines, l, list){
 			ast_mutex_lock(&l->lock);
@@ -8627,9 +8644,11 @@ static int unload_module(void)
 				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
 			}
 			ast_mutex_unlock(&l->lock);
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 			unregister_exten(l);
 		}
+		ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Unregistered");
+		ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
 		if (s->fd > -1)
 			close(s->fd);
 		pthread_cancel(s->t);

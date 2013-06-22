@@ -30,6 +30,8 @@
 #include "asterisk/sorcery.h"
 /* Needed for ast_dnsmgr */
 #include "asterisk/dnsmgr.h"
+/* Needed for ast_endpoint */
+#include "asterisk/endpoints.h"
 /* Needed for pj_sockaddr */
 #include <pjlib.h>
 
@@ -326,6 +328,10 @@ struct ast_sip_endpoint {
 	unsigned int send_rpid;
 	/*! Should unsolicited MWI be aggregated into a single NOTIFY? */
 	unsigned int aggregate_mwi;
+	/*! Pointer to the persistent Asterisk endpoint */
+	struct ast_endpoint *persistent;
+	/*! The number of channels at which busy device state is returned */
+	unsigned int devicestate_busy_at;
 };
 
 /*!

@@ -298,6 +298,13 @@
 				<configOption name="use_ptime" default="no">
 					<synopsis>Use Endpoint's requested packetisation interval</synopsis>
 				</configOption>
+				<configOption name="devicestate_busy_at" default="0">
+					<synopsis>The number of in-use channels which will cause busy to be returned as device state</synopsis>
+					<description><para>
+						When the number of in-use channels for the endpoint matches the devicestate_busy_at setting the
+						Gulp channel driver will return busy as the device state instead of in use.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

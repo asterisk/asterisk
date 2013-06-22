@@ -464,6 +464,14 @@ int manager_mwi_init(void);
 int manager_bridging_init(void);
 
 /*!
+ * \brief Initialize support for AMI endpoint events.
+ * \return 0 on success.
+ * \return non-zero on error.
+ * \since 12
+ */
+int manager_endpoints_init(void);
+
+/*!
  * \since 12
  * \brief Get the \ref stasis_message_type for generic messages
  *

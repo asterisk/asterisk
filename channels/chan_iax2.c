@@ -101,6 +101,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/security_events.h"
+#include "asterisk/stasis_endpoints.h"
 #include "asterisk/bridging.h"
 
 #include "iax2/include/iax2.h"
@@ -552,6 +553,8 @@ struct iax2_peer {
 
 	struct ast_acl_list *acl;
 	enum calltoken_peer_enum calltoken_required;	/*!< Is calltoken validation required or not, can be YES, NO, or AUTO */
+
+	struct ast_endpoint *endpoint; /*!< Endpoint structure for this peer */
 };
 
 #define IAX2_TRUNK_PREFACE (sizeof(struct iax_frame) + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr))
@@ -8563,6 +8566,7 @@ static void unlink_peer(struct iax2_peer *peer)
 static void __expire_registry(const void *data)
 {
 	struct iax2_peer *peer = (struct iax2_peer *) data;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	if (!peer)
 		return;
@@ -8576,7 +8580,11 @@ static void __expire_registry(const void *data)
 	ast_debug(1, "Expiring registration for peer '%s'\n", peer->name);
 	if (ast_test_flag64((&globalflags), IAX_RTUPDATE) && (ast_test_flag64(peer, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
 		realtime_update_peer(peer->name, &peer->addr, 0);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+	ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+	blob = ast_json_pack("{s: s, s: s}",
+		"peer_status", "Unregistered",
+		"cause", "Expired");
+	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 	/* modify entry in peercnts table as _not_ registered */
 	peercnt_modify(0, 0, &peer->addr);
 	/* Reset the address */
@@ -8701,6 +8709,8 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	}
 
 	if (ast_sockaddr_cmp(&p->addr, &sockaddr)) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		if (iax2_regfunk) {
 			iax2_regfunk(p->name, 1);
 		}
@@ -8716,17 +8726,26 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			ast_db_put("IAX/Registry", p->name, data);
 			ast_verb(3, "Registered IAX2 '%s' (%s) at %s:%d\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", p->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			ast_endpoint_set_state(p->endpoint, AST_ENDPOINT_ONLINE);
+			blob = ast_json_pack("{s: s, s: s, s: i}",
+				"peer_status", "Registered",
+				"address", ast_inet_ntoa(sin->sin_addr),
+				"port", ntohs(sin->sin_port));
 			register_peer_exten(p, 1);
 			ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag64(p, IAX_TEMPONLY)) {
 			ast_verb(3, "Unregistered IAX2 '%s' (%s)\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED");
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+			ast_endpoint_set_state(p->endpoint, AST_ENDPOINT_OFFLINE);
+			blob = ast_json_pack("{s: s}",
+				"peer_status", "Unregistered");
 			register_peer_exten(p, 0);
 			ast_db_del("IAX/Registry", p->name);
 			ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "IAX2/%s", p->name); /* Activate notification */
 		}
+
+		ast_endpoint_blob_publish(p->endpoint, ast_endpoint_state_type(), blob);
+
 		/* Update the host */
 		/* Verify that the host is really there */
 		iax2_poke_peer(p, callno);
@@ -10759,20 +10778,28 @@ static int socket_process_helper(struct iax2_thread *thread)
 				log_jitterstats(fr->callno);
 
 				if (iaxs[fr->callno]->peerpoke) {
+					RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 					peer = iaxs[fr->callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+							blob = ast_json_pack("{s: s, s: i}",
+								"peer_status", "Reachable",
+								"time", iaxs[fr->callno]->pingtime);
 							ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+							blob = ast_json_pack("{s: s, s: i}",
+								"peer_status", "Lagged",
+								"time", iaxs[fr->callno]->pingtime);
 							ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
+					ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 					peer->lastms = iaxs[fr->callno]->pingtime;
 					if (peer->smoothing && (peer->lastms > -1))
 						peer->historicms = (iaxs[fr->callno]->pingtime + peer->historicms) / 2;
@@ -11886,8 +11913,14 @@ static void __iax2_poke_noanswer(const void *data)
 	int callno;
 
 	if (peer->lastms > -1) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
+		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s, s: i}",
+			"peer_status", "Unreachable",
+			"time", peer->lastms);
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 		ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 	}
 	if ((callno = peer->callno) > 0) {
@@ -12307,6 +12340,8 @@ static void peer_destructor(void *obj)
 	peer->mwi_event_sub = stasis_unsubscribe(peer->mwi_event_sub);
 
 	ast_string_field_free_memory(peer);
+
+	ast_endpoint_shutdown(peer->endpoint);
 }
 
 /*! \brief Create peer structure based on configuration */
@@ -12340,6 +12375,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		peer->addr.len = sizeof(struct sockaddr_in);
 		if (ast_string_field_init(peer, 32))
 			peer = peer_unref(peer);
+		if (!(peer->endpoint = ast_endpoint_create("IAX2", name))) {
+			peer = peer_unref(peer);
+		}
 	}
 
 	if (peer) {
