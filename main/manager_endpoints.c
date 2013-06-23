@@ -39,25 +39,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static struct stasis_message_router *endpoint_router;
 
-/*! \brief The \ref stasis subscription returned by the forwarding of the endpoint topic
- * to the manager topic
- */
-static struct stasis_subscription *topic_forwarder;
-
 static void manager_endpoints_shutdown(void)
 {
 	stasis_message_router_unsubscribe_and_join(endpoint_router);
 	endpoint_router = NULL;
+}
 
-	stasis_unsubscribe(topic_forwarder);
-	topic_forwarder = NULL;
+static void endpoint_state_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	stasis_forward_message(ast_manager_get_topic(), stasis_caching_get_topic(ast_endpoint_topic_all_cached()), message);
 }
 
 int manager_endpoints_init(void)
 {
-	struct stasis_topic *manager_topic;
 	struct stasis_topic *endpoint_topic;
-	struct stasis_message_router *message_router;
 	int ret = 0;
 
 	if (endpoint_router) {
@@ -67,21 +64,8 @@ int manager_endpoints_init(void)
 
 	ast_register_atexit(manager_endpoints_shutdown);
 
-	manager_topic = ast_manager_get_topic();
-	if (!manager_topic) {
-		return -1;
-	}
-	message_router = ast_manager_get_message_router();
-	if (!message_router) {
-		return -1;
-	}
 	endpoint_topic = stasis_caching_get_topic(ast_endpoint_topic_all_cached());
 	if (!endpoint_topic) {
-		return -1;
-	}
-
-	topic_forwarder = stasis_forward_all(endpoint_topic, manager_topic);
-	if (!topic_forwarder) {
 		return -1;
 	}
 
@@ -90,6 +74,8 @@ int manager_endpoints_init(void)
 	if (!endpoint_router) {
 		return -1;
 	}
+
+	ret |= stasis_message_router_add(endpoint_router, ast_endpoint_state_type(), endpoint_state_cb, NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.
