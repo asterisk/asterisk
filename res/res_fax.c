@@ -2308,9 +2308,8 @@ static int report_send_fax_status(struct ast_channel *chan, struct ast_fax_sessi
 		if (!ast_strlen_zero(fax_bitrate)) {
 			fax_bitrate = ast_strdupa(fax_bitrate);
 		}
-
 		json_obj = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
-				"type", "send"
+				"type", "send",
 				"remote_station_id", S_OR(remote_station_id, ""),
 				"local_station_id", S_OR(local_station_id, ""),
 				"fax_pages", S_OR(fax_pages, ""),
