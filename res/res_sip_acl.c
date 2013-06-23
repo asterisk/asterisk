@@ -226,7 +226,7 @@ static void sip_acl_destructor(void *obj)
 
 static void *sip_acl_alloc(const char *name)
 {
-	struct sip_acl *acl = ao2_alloc(sizeof(*acl), sip_acl_destructor);
+	struct sip_acl *acl = ast_sorcery_generic_alloc(sizeof(*acl), sip_acl_destructor);
 	if (!acl) {
 		return NULL;
 	}

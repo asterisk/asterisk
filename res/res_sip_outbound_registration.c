@@ -469,7 +469,7 @@ static void sip_outbound_registration_destroy(void *obj)
 /*! \brief Allocator function for registration information */
 static void *sip_outbound_registration_alloc(const char *name)
 {
-	struct sip_outbound_registration *registration = ao2_alloc(sizeof(*registration), sip_outbound_registration_destroy);
+	struct sip_outbound_registration *registration = ast_sorcery_generic_alloc(sizeof(*registration), sip_outbound_registration_destroy);
 
 	if (!registration || ast_string_field_init(registration, 256)) {
 		ao2_cleanup(registration);

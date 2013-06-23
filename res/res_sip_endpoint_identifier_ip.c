@@ -74,7 +74,7 @@ static void ip_identify_destroy(void *obj)
 /*! \brief Allocator function for a matching object */
 static void *ip_identify_alloc(const char *name)
 {
-	struct ip_identify_match *identify = ao2_alloc(sizeof(*identify), ip_identify_destroy);
+	struct ip_identify_match *identify = ast_sorcery_generic_alloc(sizeof(*identify), ip_identify_destroy);
 
 	if (!identify || ast_string_field_init(identify, 256)) {
 		ao2_cleanup(identify);
