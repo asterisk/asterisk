@@ -201,7 +201,7 @@ struct test_sorcery_object {
 /*! \brief Internal function to allocate a test object */
 static void *test_sorcery_object_alloc(const char *id)
 {
-	return ao2_alloc(sizeof(struct test_sorcery_object), NULL);
+	return ast_sorcery_generic_alloc(sizeof(struct test_sorcery_object), NULL);
 }
 
 static struct ast_sorcery *alloc_and_initialize_sorcery(void)
