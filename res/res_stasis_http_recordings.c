@@ -394,8 +394,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT,
-	"RESTful API module - Recording resources",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Recording resources",
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_stasis_http,res_stasis",

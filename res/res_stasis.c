@@ -1018,7 +1018,7 @@ static int unload_module(void)
 	return r;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS,
-		"Stasis application support",
-		.load = load_module,
-		.unload = unload_module);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application support",
+	.load = load_module,
+	.unload = unload_module,
+	);

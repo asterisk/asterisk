@@ -103,8 +103,9 @@ struct stasis_message_sink *stasis_message_sink_create(void)
  * Why the roundabout way of exposing this via stasis_message_sink_cb()? Well,
  * it has to do with how we load modules.
  *
- * Modules have their own metadata compiled into them in the AST_MODULE_INFO()
- * block. This includes dependency information in the \c nonoptreq field.
+ * Modules have their own metadata compiled into them in the module info block
+ * at the end of the file.  This includes dependency information in the
+ * \c nonoptreq field.
  *
  * Asterisk loads the module, inspects the field, then loads any needed
  * dependencies. This works because Asterisk passes \c RTLD_LAZY to the initial
@@ -274,9 +275,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY,
-	AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER,
-	"Stasis test utilities",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Stasis test utilities",
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND,

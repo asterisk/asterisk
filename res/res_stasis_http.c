@@ -937,9 +937,7 @@ static int reload_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY,
-	AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER,
-	"Stasis HTTP bindings",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Stasis HTTP bindings",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,

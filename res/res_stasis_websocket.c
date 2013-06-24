@@ -285,10 +285,9 @@ static int unload_module(void)
 	return r;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER,
-	"Stasis HTTP bindings",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Stasis HTTP bindings",
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_stasis,res_http_websocket",
 	.load_pri = AST_MODPRI_APP_DEPEND,
-        );
+	);

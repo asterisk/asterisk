@@ -316,9 +316,7 @@ static int reload_module(void)
 /* The priority of this module is set to be as low as possible, since it could
  * be used by any other sort of module.
  */
-AST_MODULE_INFO(ASTERISK_GPL_KEY,
-	AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER,
-	"Statsd client support",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Statsd client support",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,
