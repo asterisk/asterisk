@@ -26,8 +26,248 @@
 #include "asterisk/app.h"
 #include "asterisk/cli.h"
 
-/* BUGBUG XML Documentation is still needed for configuration options */
 /*** DOCUMENTATION
+	<configInfo name="features" language="en_US">
+		<synopsis>Features Configuration</synopsis>
+		<configFile name="features.conf">
+			<configObject name="globals">
+				<synopsis>
+				</synopsis>
+				<configOption name="featuredigittimeout" default="1000">
+					<synopsis>Milliseconds allowed between digit presses when entering a feature code.</synopsis>
+				</configOption>
+				<configOption name="courtesytone">
+					<synopsis>Sound to play when automon or automixmon is activated</synopsis>
+				</configOption>
+				<configOption name="transferdigittimeout" default="3000">
+					<synopsis>Milliseconds allowed between digit presses when dialing a transfer destination</synopsis>
+				</configOption>
+				<configOption name="atxfernoanswertimeout" default="15000">
+					<synopsis>Milliseconds to wait for attended transfer destination to answer</synopsis>
+				</configOption>
+				<configOption name="atxferdropcall" default="no">
+					<synopsis>Hang up the call entirely if the attended transfer fails</synopsis>
+					<description>
+						<para>When this option is set to <literal>no</literal>, then Asterisk will attempt to
+						re-call the transferrer if the call to the transfer target fails. If the call to the
+						transferrer fails, then Asterisk will wait <replaceable>atxferloopdelay</replaceable>
+						milliseconds and then attempt to dial the transfer target again. This process will
+						repeat until <replaceable>atxfercallbackretries</replaceable> attempts to re-call
+						the transferrer have occurred.</para>
+						<para>When this option is set to <literal>yes</literal>, then Asterisk will not attempt
+						to re-call the transferrer if the call to the transfer target fails. Asterisk will instead
+						hang up all channels involved in the transfer.</para>
+					</description>
+				</configOption>
+				<configOption name="atxferloopdelay" default="10000">
+					<synopsis>Milliseconds to wait between attempts to re-dial transfer destination</synopsis>
+					<see-also><ref type="configOption">atxferdropcall</ref></see-also>
+				</configOption>
+				<configOption name="atxfercallbackretries" default="2">
+					<synopsis>Number of times to re-attempt dialing a transfer destination</synopsis>
+					<see-also><ref type="configOption">atxferdropcall</ref></see-also>
+				</configOption>
+				<configOption name="xfersound" default="beep">
+					<synopsis>Sound to play to during transfer and transfer-like operations.</synopsis>
+					<description>
+						<para>This sound will play to the transferrer and transfer target channels when
+						an attended transfer completes. This sound is also played to channels when performing
+						an AMI <literal>Bridge</literal> action.</para>
+					</description>
+				</configOption>
+				<configOption name="xferfailsound" default="beeperr">
+					<synopsis>Sound to play to a transferee when a transfer fails</synopsis>
+				</configOption>
+				<configOption name="atxferabort" default="*1">
+					<synopsis>Digits to dial to abort an attended transfer attempt</synopsis>
+					<description>
+						<para>This option is only available to the transferrer during an attended
+						transfer operation. Aborting a transfer results in the transfer being cancelled and
+						the original parties in the call being re-bridged.</para>
+					</description>
+				</configOption>
+				<configOption name="atxfercomplete" default="*2">
+					<synopsis>Digits to dial to complete an attended transfer</synopsis>
+					<description>
+						<para>This option is only available to the transferrer during an attended
+						transfer operation. Completing the transfer with a DTMF sequence is functionally
+						equivalent to hanging up the transferrer channel during an attended transfer. The
+						result is that the transfer target and transferees are bridged.</para>
+					</description>
+				</configOption>
+				<configOption name="atxferthreeway" default="*3">
+					<synopsis>Digits to dial to change an attended transfer into a three-way call</synopsis>
+					<description>
+						<para>This option is only available to the transferrer during an attended
+						transfer operation. Pressing this DTMF sequence will result in the transferrer,
+						the transferees, and the transfer target all being in a single bridge together.</para>
+					</description>
+				</configOption>
+				<configOption name="pickupexten" default="*8">
+					<synopsis>Digits used for picking up ringing calls</synopsis>
+					<description>
+						<para>In order for the pickup attempt to be successful, the party attempting to
+						pick up the call must either have a <replaceable>namedpickupgroup</replaceable> in
+						common with a ringing party's <replaceable>namedcallgroup</replaceable> or must
+						have a <replaceable>pickupgroup</replaceable> in common with a ringing party's
+						<replaceable>callgroup</replaceable>.</para>
+					</description>
+				</configOption>
+				<configOption name="pickupsound">
+					<synopsis>Sound to play to picker when a call is picked up</synopsis>
+				</configOption>
+				<configOption name="pickupfailsound">
+					<synopsis>Sound to play to picker when a call cannot be picked up</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="featuremap">
+				<synopsis>DTMF options that can be triggered during bridged calls</synopsis>
+				<configOption name="atxfer">
+					<synopsis>DTMF sequence to initiate an attended transfer</synopsis>
+					<description>
+						<para>The transferee parties will be placed on hold and the
+						transferrer may dial an extension to reach a transfer target. During an
+						attended transfer, the transferrer may consult with the transfer target
+						before completing the transfer. Once the transferrer has hung up or pressed
+						the <replaceable>atxfercomplete</replaceable> DTMF sequence, then the transferees
+						and transfer target will be bridged.</para>
+					</description>
+				</configOption>
+				<configOption name="blindxfer" default="#">
+					<synopsis>DTMF sequence to initiate a blind transfer</synopsis>
+					<description>
+						<para>The transferee parties will be placed on hold and the
+						transferrer may dial an extension to reach a transfer target. During a
+						blind transfer, as soon as the transfer target is dialed, the transferrer
+						is hung up.</para>
+					</description>
+				</configOption>
+				<configOption name="disconnect" default="*">
+					<synopsis>DTMF sequence to disconnect the current call</synopsis>
+					<description>
+						<para>Entering this DTMF sequence will cause the bridge to end, no
+						matter the number of parties present</para>
+					</description>
+				</configOption>
+				<configOption name="parkcall">
+					<synopsis>DTMF sequence to park a call</synopsis>
+					<description>
+						<para>The parking lot used to park the call is determined by using either the
+						<replaceable>PARKINGLOT</replaceable> channel variable or a configured value on
+						the channel (provided by the channel driver) if the variable is not present. If
+						no configured value on the channel is present, then <literal>"default"</literal>
+						is used. The call is parked in the next available space in the parking lot.</para>
+					</description>
+				</configOption>
+				<configOption name="automon">
+					<synopsis>DTMF sequence to start or stop monitoring a call</synopsis>
+					<description>
+						<para>This will cause the channel that pressed the DTMF sequence
+						to be monitored by the <literal>Monitor</literal> application. The
+						format for the recording is determined by the <replaceable>TOUCH_MONITOR_FORMAT</replaceable>
+						channel variable. If this variable is not specified, then <literal>wav</literal> is the
+						default. The filename is constructed in the following manner:</para>
+							
+						<para>    prefix-timestamp-filename</para>
+
+						<para>where prefix is either the value of the <replaceable>TOUCH_MONITOR_PREFIX</replaceable>
+						channel variable or <literal>auto</literal> if the variable is not set. The timestamp
+						is a UNIX timestamp. The filename is either the value of the <replaceable>TOUCH_MONITOR</replaceable>
+						channel variable or the callerID of the channels if the variable is not set.</para>
+					</description>
+				</configOption>
+				<configOption name="automixmon">
+					<synopsis>DTMF sequence to start or stop mixmonitoring a call </synopsis>
+					<description>
+						<para>Operation of the automixmon is similar to the <literal> automon </literal>
+						feature, with the following exceptions:
+							<replaceable>TOUCH_MIXMONITOR</replaceable> is used in place of <replaceable>TOUCH_MONITOR</replaceable>
+							<replaceable>TOUCH_MIXMONITOR_FORMAT</replaceable> is used in place of <replaceable>TOUCH_MIXMONITOR</replaceable>
+							There is no equivalent for <replaceable>TOUCH_MONITOR_PREFIX</replaceable>. <literal>"auto"</literal> is always how the filename begins.</para>
+					</description>
+					<see-also><ref type="configOption">automon</ref></see-also>
+				</configOption>
+			</configObject>
+			<configObject name="applicationmap">
+				<synopsis>Section for defining custom feature invocations during a call</synopsis>
+				<description>
+					<para>The applicationmap is an area where new custom features can be created. Items
+					defined in the applicationmap are not automatically accessible to bridged parties. Access
+					to the individual items is controled using the <replaceable>DYNAMIC_FEATURES</replaceable> channel variable.
+					The <replaceable>DYNAMIC_FEATURES</replaceable> is a <literal>#</literal> separated list of
+					either applicationmap item names or featuregroup names.</para>
+				</description>
+				<configOption name="^.*$" regex="true">
+					<synopsis>A custom feature to invoke during a bridged call</synopsis>
+					<description>
+						<para>Each item listed here is a comma-separated list of parameters that determine
+						how a feature may be invoked during a call</para>
+						<para>    Example:</para>
+						<para>    eggs = *5,self,Playback(hello-world),default</para>
+						<para>This would create a feature called <literal>eggs</literal> that could be invoked
+						during a call by pressing the <literal>*5</literal>. The party that presses the DTMF
+						sequence would then trigger the <literal>Playback</literal> application to play the
+						<literal>hello-world</literal> file. The application invocation would happen on the
+						party that pressed the DTMF sequence since <literal>self</literal> is specified. The
+						other parties in the bridge would hear the <literal>default</literal> music on hold
+						class during the playback.</para>
+						<para>In addition to the syntax outlined in this documentation, a backwards-compatible alternative
+						is also allowed. The following applicationmap lines are functionally identical:</para>
+						<para>    eggs = *5,self,Playback(hello-world),default</para>
+						<para>    eggs = *5,self,Playback,hello-world,default</para>
+						<para>    eggs = *5,self,Playback,"hello-world",default</para>
+					</description>
+					<syntax argsep=",">
+						<parameter name="dtmf" required="true">
+							<para>The DTMF sequence used to trigger the option</para>
+						</parameter>
+						<parameter name="activate_on" required="true">
+							<para>The party that the feature will be invoked on</para>
+							<optionlist>
+								<option name="self"><para>Feature is invoked on party that presses the DTMF sequence</para></option>
+								<option name="peer"><para>Feature is invoked on other parties in the bridge</para></option>
+							</optionlist>
+						</parameter>
+						<parameter name="app" required="true">
+							<para>The dialplan application to run when the DTMF sequence is pressed</para>
+							<argument name="app_args" required="false">
+								<para>The arguments to the dialplan application to run</para>
+							</argument>
+						</parameter>
+						<parameter name="moh_class" required="false">
+							<para>Music on hold class to play to bridge participants that are not the target of the application invocation</para>
+						</parameter>
+					</syntax>
+				</configOption>
+			</configObject>
+			<configObject name="featuregroup">
+				<synopsis>Groupings of items from the applicationmap</synopsis>
+				<description>
+					<para>Feature groups allow for multiple applicationmap items to be
+					grouped together. Like with individual applicationmap items, feature groups
+					can be part of the <replaceable>DYNAMIC_FEATURES</replaceable> channel variable.
+					In addition to creating groupings, the feature group section allows for the
+					DTMF sequence used to invoke an applicationmap item to be overridden with
+					a different sequence.</para>
+				</description>
+				<configOption name="^.*$" regex="true">
+					<synopsis>Applicationmap item to place in the feature group</synopsis>
+					<description>
+						<para>Each item here must be a name of an item in the applicationmap. The
+						argument may either be a new DTMF sequence to use for the item or it
+						may be left blank in order to use the DTMF sequence specified in the
+						applicationmap. For example:</para>
+						<para>	eggs => *1</para>
+						<para>	bacon =></para>
+						<para>would result in the applicationmap items <literal>eggs</literal> and
+						<literal>bacon</literal> being in the featuregroup. The former would have its
+						default DTMF trigger overridden with <literal>*1</literal> and the latter would
+						have the DTMF value specified in the applicationmap.</para>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
 	<function name="FEATURE" language="en_US">
 		<synopsis>
 			Get or set a feature option on a channel.
@@ -37,21 +277,21 @@
 				<para>The allowed values are:</para>
 				<enumlist>
 					<enum name="inherit"><para>Inherit feature settings made in FEATURE or FEATUREMAP to child channels.</para></enum>
-					<enum name="featuredigittimeout"><para>Milliseconds allowed between digits when entering a feature code.</para></enum>
-					<enum name="transferdigittimeout"><para>Milliseconds allowed between digits when dialing a transfer destination</para></enum>
-					<enum name="atxfernoanswertimeout"><para>Milliseconds to wait for transfer destination to answer</para></enum>
-					<enum name="atxferdropcall"><para>Hang up the call entirely if the attended transfer fails</para></enum>
-					<enum name="atxferloopdelay"><para>Milliseconds to wait between attempts to re-dial transfer destination</para></enum>
-					<enum name="atxfercallbackretries"><para>Number of times to re-attempt dialing a transfer destination</para></enum>
-					<enum name="xfersound"><para>Sound to play to a transferee when a transfer completes</para></enum>
-					<enum name="xferfailsound"><para>Sound to play to a transferee when a transfer fails</para></enum>
-					<enum name="atxferabort"><para>Digits to dial to abort an attended transfer attempt</para></enum>
-					<enum name="atxfercomplete"><para>Digits to dial to complete an attended transfer</para></enum>
-					<enum name="atxferthreeway"><para>Digits to dial to change an attended transfer into a three-way call</para></enum>
-					<enum name="pickupexten"><para>Digits used for picking up ringing calls</para></enum>
-					<enum name="pickupsound"><para>Sound to play to picker when a call is picked up</para></enum>
-					<enum name="pickupfailsound"><para>Sound to play to picker when a call cannot be picked up</para></enum>
-					<enum name="courtesytone"><para>Sound to play when automon or automixmon is activated</para></enum>
+					<enum name="featuredigittimeout"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='featuredigittimeout']/synopsis/text())" /></para></enum>
+					<enum name="transferdigittimeout"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferdigittimeout']/synopsis/text())" /></para></enum>
+					<enum name="atxfernoanswertimeout"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxfernoanswertimeout']/synopsis/text())" /></para></enum>
+					<enum name="atxferdropcall"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxferdropcall']/synopsis/text())" /></para></enum>
+					<enum name="atxferloopdelay"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxferloopdelay']/synopsis/text())" /></para></enum>
+					<enum name="atxfercallbackretries"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxfercallbackretries']/synopsis/text())" /></para></enum>
+					<enum name="xfersound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='xfersound']/synopsis/text())" /></para></enum>
+					<enum name="xferfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='xferfailsound']/synopsis/text())" /></para></enum>
+					<enum name="atxferabort"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxferabort']/synopsis/text())" /></para></enum>
+					<enum name="atxfercomplete"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxfercomplete']/synopsis/text())" /></para></enum>
+					<enum name="atxferthreeway"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='atxferthreeway']/synopsis/text())" /></para></enum>
+					<enum name="pickupexten"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupexten']/synopsis/text())" /></para></enum>
+					<enum name="pickupsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupsound']/synopsis/text())" /></para></enum>
+					<enum name="pickupfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupfailsound']/synopsis/text())" /></para></enum>
+					<enum name="courtesytone"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='courtesytone']/synopsis/text())" /></para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -97,6 +337,7 @@
  ***/
 /*! Default general options */
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT               1000
+#define DEFAULT_COURTESY_TONE                       ""
 
 /*! Default xfer options */
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT              3000

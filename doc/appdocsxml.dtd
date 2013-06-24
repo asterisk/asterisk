@@ -71,7 +71,7 @@
   <!ELEMENT see-also (ref|xi:include)*>
 
   <!ELEMENT ref (#PCDATA)>
-  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|manager|managerEvent) #REQUIRED>
+  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi|manager|managerEvent|configOption) #REQUIRED>
   <!ATTLIST ref module CDATA #IMPLIED>
 
   <!ELEMENT synopsis (#PCDATA)>
