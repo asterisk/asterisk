@@ -41,10 +41,12 @@
  * JSON models
  *
  * Sound
- * - lang: string (required)
  * - text: string
  * - id: string (required)
- * - formats: List[string] (required)
+ * - formats: List[FormatLangPair] (required)
+ * FormatLangPair
+ * - language: string (required)
+ * - format: string (required)
  */
 
 #endif /* _ASTERISK_RESOURCE_SOUNDS_H */
