@@ -253,6 +253,19 @@ static int sorcery_wizard_cmp(void *obj, void *arg, int flags)
 	return !strcmp(wizard1->name, flags & OBJ_KEY ? name : wizard2->name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \brief Cleanup function */
+static void sorcery_exit(void)
+{
+	ast_threadpool_shutdown(threadpool);
+	threadpool = NULL;
+}
+
+/*! \brief Cleanup function for graceful shutdowns */
+static void sorcery_cleanup(void)
+{
+	ao2_cleanup(wizards);
+}
+
 int ast_sorcery_init(void)
 {
 	struct ast_threadpool_options options = {
@@ -265,6 +278,7 @@ int ast_sorcery_init(void)
 	ast_assert(wizards == NULL);
 
 	if (!(threadpool = ast_threadpool_create("Sorcery", NULL, &options))) {
+		threadpool = NULL;
 		return -1;
 	}
 
@@ -272,6 +286,9 @@ int ast_sorcery_init(void)
 		ast_threadpool_shutdown(threadpool);
 		return -1;
 	}
+
+	ast_register_cleanup(sorcery_cleanup);
+	ast_register_atexit(sorcery_exit);
 
 	return 0;
 }

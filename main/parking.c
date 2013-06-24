@@ -80,6 +80,7 @@ static void parked_call_payload_destructor(void *obj)
 
 	ao2_cleanup(park_obj->parkee);
 	ao2_cleanup(park_obj->parker);
+	ao2_cleanup(park_obj->retriever);
 	ast_string_field_free_memory(park_obj);
 }
 

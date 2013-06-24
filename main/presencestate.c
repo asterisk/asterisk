@@ -314,8 +314,7 @@ static void presence_state_engine_cleanup(void)
 {
 	ao2_cleanup(presence_state_topic_all);
 	presence_state_topic_all = NULL;
-	ao2_cleanup(presence_state_topic_cached);
-	presence_state_topic_cached = NULL;
+	presence_state_topic_cached = stasis_caching_unsubscribe_and_join(presence_state_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_presence_state_message_type);
 }
 

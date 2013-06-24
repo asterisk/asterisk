@@ -1415,6 +1415,8 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 
 static void ast_cel_engine_term(void)
 {
+	aco_info_destroy(&cel_cfg_info);
+	ao2_global_obj_release(cel_configs);
 	stasis_message_router_unsubscribe_and_join(cel_state_router);
 	cel_state_router = NULL;
 	ao2_cleanup(cel_state_topic);
@@ -1422,11 +1424,13 @@ static void ast_cel_engine_term(void)
 	cel_channel_forwarder = stasis_unsubscribe_and_join(cel_channel_forwarder);
 	cel_bridge_forwarder = stasis_unsubscribe_and_join(cel_bridge_forwarder);
 	cel_parking_forwarder = stasis_unsubscribe_and_join(cel_parking_forwarder);
-	ao2_cleanup(linkedids);
-	linkedids = NULL;
-	ast_cli_unregister(&cli_status);
 	ao2_cleanup(bridge_primaries);
 	bridge_primaries = NULL;
+	ast_cli_unregister(&cli_status);
+	ao2_cleanup(cel_dialstatus_store);
+	cel_dialstatus_store = NULL;
+	ao2_cleanup(linkedids);
+	linkedids = NULL;
 }
 
 int ast_cel_engine_init(void)

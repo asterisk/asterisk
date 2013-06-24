@@ -66,10 +66,8 @@ static void destroy_parked_user(void *obj)
 	struct parked_user *pu = obj;
 
 	ao2_cleanup(pu->lot);
-	pu->lot = NULL;
-
 	ao2_cleanup(pu->parker);
-	pu->parker = NULL;
+	ao2_cleanup(pu->retriever);
 }
 
 /*!

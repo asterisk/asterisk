@@ -3514,13 +3514,18 @@ static void cdr_engine_shutdown(void)
 	ao2_callback(active_cdrs_by_channel, OBJ_NODATA, cdr_object_dispatch_all_cb,
 		NULL);
 	finalize_batch_mode();
-	aco_info_destroy(&cfg_info);
 	ast_cli_unregister(&cli_status);
 	ast_cli_unregister(&cli_debug);
 	ast_sched_context_destroy(sched);
 	sched = NULL;
 	ast_free(batch);
 	batch = NULL;
+
+	channel_subscription = stasis_unsubscribe_and_join(channel_subscription);
+	bridge_subscription = stasis_unsubscribe_and_join(bridge_subscription);
+	stasis_message_router_unsubscribe_and_join(stasis_router);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(module_configs);
 
 	ao2_ref(active_cdrs_by_channel, -1);
 	ao2_ref(active_cdrs_by_bridge, -1);

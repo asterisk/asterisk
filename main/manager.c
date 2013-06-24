@@ -7659,6 +7659,7 @@ static void manager_shutdown(void)
 		ast_manager_unregister("ModuleCheck");
 		ast_manager_unregister("AOCMessage");
 		ast_manager_unregister("Filter");
+		ast_manager_unregister("BlindTransfer");
 		ast_custom_function_unregister(&managerclient_function);
 		ast_cli_unregister_multiple(cli_manager, ARRAY_LEN(cli_manager));
 	}
