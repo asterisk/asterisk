@@ -51,6 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/test.h"
+#include "asterisk/stasis.h"
+#include "asterisk/json.h"
 
 /*! \brief
  * The following variable controls the layout of localized sound files.
@@ -65,6 +67,55 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 int ast_language_is_prefix = 1;
 
 static AST_RWLIST_HEAD_STATIC(formats, ast_format_def);
+
+STASIS_MESSAGE_TYPE_DEFN(ast_format_register_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_format_unregister_type);
+
+static struct ast_json *json_array_from_list(const char *list, const char *sep)
+{
+	RAII_VAR(struct ast_json *, array, ast_json_array_create(), ast_json_unref);
+	RAII_VAR(char *, stringp, ast_strdup(list), ast_free);
+	char *ext;
+
+	if (!array || !stringp) {
+		return NULL;
+	}
+
+	while ((ext = strsep(&stringp, sep))) {
+		if (ast_json_array_append(array, ast_json_string_create(ext))) {
+			return NULL;
+		}
+	}
+
+	return ast_json_ref(array);
+}
+
+static int publish_format_update(const struct ast_format_def *f, struct stasis_message_type *type)
+{
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+
+	json_object = ast_json_pack("{s: s, s: o}",
+		"format", f->name,
+		"extensions", json_array_from_list(f->exts, "|"));
+	if (!json_object) {
+		return -1;
+	}
+
+	json_payload = ast_json_payload_create(json_object);
+	if (!json_payload) {
+		return -1;
+	}
+
+	msg = stasis_message_create(type, json_payload);
+	if (!msg) {
+		return -1;
+	}
+
+	stasis_publish(ast_system_topic(), msg);
+	return 0;
+}
 
 int __ast_format_def_register(const struct ast_format_def *f, struct ast_module *mod)
 {
@@ -99,6 +150,7 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
 	AST_RWLIST_UNLOCK(&formats);
 	ast_verb(2, "Registered file format %s, extension(s) %s\n", f->name, f->exts);
+	publish_format_update(f, ast_format_register_type());
 
 	return 0;
 }
@@ -112,6 +164,7 @@ int ast_format_def_unregister(const char *name)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
+			publish_format_update(tmp, ast_format_unregister_type());
 			ast_free(tmp);
 			res = 0;
 		}
@@ -1672,6 +1725,19 @@ static char *handle_cli_core_show_file_formats(struct ast_cli_entry *e, int cmd,
 #undef FORMAT2
 }
 
+const struct ast_format *ast_get_format_for_file_ext(const char *file_ext)
+{
+	struct ast_format_def *f;
+	SCOPED_RDLOCK(lock, &formats.lock);
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
+		if (exts_compare(f->exts, file_ext)) {
+			return &f->format;
+		}
+	}
+
+	return NULL;
+}
+
 static struct ast_cli_entry cli_file[] = {
 	AST_CLI_DEFINE(handle_cli_core_show_file_formats, "Displays file formats")
 };
@@ -1679,10 +1745,14 @@ static struct ast_cli_entry cli_file[] = {
 static void file_shutdown(void)
 {
 	ast_cli_unregister_multiple(cli_file, ARRAY_LEN(cli_file));
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_format_register_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_format_unregister_type);
 }
 
 int ast_file_init(void)
 {
+	STASIS_MESSAGE_TYPE_INIT(ast_format_register_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_format_unregister_type);
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
 	ast_register_atexit(file_shutdown);
 	return 0;

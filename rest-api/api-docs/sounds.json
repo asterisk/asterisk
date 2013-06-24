@@ -58,6 +58,19 @@
 		}
 	],
 	"models": {
+		"FormatLangPair": {
+			"id": "FormatLangPair",
+			"properties": {
+				"language": {
+					"required": true,
+					"type": "string"
+				},
+				"format": {
+					"required": true,
+					"type": "string"
+				}
+			}
+		},
 		"Sound": {
 			"id": "Sound",
 			"properties": {
@@ -71,13 +84,10 @@
 					"description": "Text description of the sound, usually the words spoken.",
 					"type": "string"
 				},
-				"lang": {
-					"required": true,
-					"type": "string"
-				},
 				"formats": {
 					"required": true,
-					"type": "List[string]"
+					"description": "The formats and languages in which this sound is available.",
+					"type": "List[FormatLangPair]"
 				}
 			}
 		}

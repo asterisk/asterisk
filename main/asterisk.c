@@ -4396,6 +4396,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_sounds_index_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if ((moduleresult = load_modules(0))) {		/* Load modules */
 		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);

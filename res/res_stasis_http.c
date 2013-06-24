@@ -506,7 +506,7 @@ void stasis_http_invoke(const char *uri,
 	struct stasis_rest_handlers *handler;
 	struct ast_variable *path_vars = NULL;
 	char *path = ast_strdupa(uri);
-	const char *path_segment;
+	char *path_segment;
 	stasis_rest_callback callback;
 
 	root = handler = get_root_handler();
@@ -515,6 +515,7 @@ void stasis_http_invoke(const char *uri,
 	while ((path_segment = strsep(&path, "/")) && (strlen(path_segment) > 0)) {
 		struct stasis_rest_handlers *found_handler = NULL;
 		int i;
+		ast_uri_decode(path_segment, ast_uri_http_legacy);
 		ast_debug(3, "Finding handler for %s\n", path_segment);
 		for (i = 0; found_handler == NULL && i < handler->num_children; ++i) {
 			struct stasis_rest_handlers *child = handler->children[i];
@@ -863,6 +864,7 @@ static struct ast_http_uri http_uri = {
 	.has_subtree = 1,
 	.data = NULL,
 	.key = __FILE__,
+	.no_decode_uri = 1,
 };
 
 static int load_module(void)

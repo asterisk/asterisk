@@ -140,4 +140,7 @@ int ast_rtp_engine_init(void);
  * \since 12.0.0
  */
 int ast_parking_stasis_init(void);
+
+/*! \brief initialize the sounds index */
+int ast_sounds_index_init(void);
 #endif /* _ASTERISK__PRIVATE_H */

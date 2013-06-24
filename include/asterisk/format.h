@@ -471,4 +471,22 @@ int ast_format_is_slinear(const struct ast_format *format);
  * \brief Get the best slinear format id for a given sample rate
  */
 enum ast_format_id ast_format_slin_by_rate(unsigned int rate);
+
+/*!
+ * \since 12
+ * \brief Get the message type used for signaling a format registration
+ *
+ * \retval Stasis message type for format registration
+ * \retval NULL on error
+ */
+struct stasis_message_type *ast_format_register_type(void);
+
+/*!
+ * \since 12
+ * \brief Get the message type used for signaling a format unregistration
+ *
+ * \retval Stasis message type for format unregistration
+ * \retval NULL on error
+ */
+struct stasis_message_type *ast_format_unregister_type(void);
 #endif /* _AST_FORMAT_H */

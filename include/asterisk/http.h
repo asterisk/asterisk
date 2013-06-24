@@ -101,6 +101,8 @@ struct ast_http_uri {
 	unsigned int mallocd:1;
 	/*! Data structure is malloc'd */
 	unsigned int dmallocd:1;
+	/*! Don't automatically decode URI before passing it to the callback */
+	unsigned int no_decode_uri:1;
 	/*! Data to bind to the uri if needed */
 	void *data;
 	/*! Key to be used for unlinking if multiple URIs registered */

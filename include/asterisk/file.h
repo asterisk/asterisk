@@ -376,6 +376,17 @@ int ast_file_init(void);
  */
 char *ast_format_str_reduce(char *fmts);
 
+/*!
+ * \brief Get the ast_format associated with the given file extension
+ * \since 12
+ *
+ * \param file_ext The file extension for which to find the format
+ *
+ * \retval NULL if not found
+ * \retval A pointer to the ast_format associated with this file extension
+ */
+const struct ast_format *ast_get_format_for_file_ext(const char *file_ext);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

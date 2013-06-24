@@ -718,7 +718,6 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 			}
 		}
 	}
-	ast_uri_decode(uri, ast_uri_http_legacy);
 
 	AST_RWLIST_RDLOCK(&uri_redirects);
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
@@ -760,6 +759,9 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 		AST_RWLIST_UNLOCK(&uris);
 	}
 	if (urih) {
+		if (!urih->no_decode_uri) {
+			ast_uri_decode(uri, ast_uri_http_legacy);
+		}
 		res = urih->callback(ser, urih, uri, method, get_vars, headers);
 	} else {
 		ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
