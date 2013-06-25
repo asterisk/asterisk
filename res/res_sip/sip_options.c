@@ -688,11 +688,6 @@ int ast_sip_initialize_sorcery_qualify(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
 					  1, FLDSET(struct ast_sip_contact_status, rtt));
 
-	if (ast_sorcery_observer_add(sorcery, "contact", &contact_observer)) {
-		ast_log(LOG_WARNING, "Unable to add contact observer\n");
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -774,6 +769,11 @@ int ast_res_sip_init_options_handling(int reload)
 
 	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &STR_OPTIONS) != PJ_SUCCESS) {
 		pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
+		return -1;
+	}
+
+	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &contact_observer)) {
+		ast_log(LOG_WARNING, "Unable to add contact observer\n");
 		return -1;
 	}
 
