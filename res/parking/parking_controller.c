@@ -244,15 +244,8 @@ int comeback_goto(struct parked_user *pu, struct parking_lot *lot)
 {
 	struct ast_channel *chan = pu->chan;
 	char *peername;
-	const char *blindtransfer;
 
-	ast_channel_lock(chan);
-	if ((blindtransfer = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"))) {
-		blindtransfer = ast_strdupa(blindtransfer);
-	}
-	ast_channel_unlock(chan);
-
-	peername = blindtransfer ? ast_strdupa(blindtransfer) : ast_strdupa(pu->parker->name);
+	peername = ast_strdupa(S_OR(pu->blindtransfer, pu->parker->name));
 
 	/* Flatten the peername so that it can be used for performing the timeout PBX operations */
 	flatten_peername(peername);

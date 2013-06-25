@@ -106,6 +106,9 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 		return NULL;
 	}
 
+	ast_channel_lock(chan);
+	ast_copy_string(new_parked_user->blindtransfer, S_OR(pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"), ""), AST_CHANNEL_NAME);
+	ast_channel_unlock(chan);
 
 	if (use_random_space) {
 		preferred_space = ast_random() % (lot->cfg->parking_stop - lot->cfg->parking_start + 1);
@@ -125,7 +128,6 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 			}
 		}
 	}
-
 
 	/* We need to keep the lot locked between parking_lot_get_space and actually placing it in the lot. Or until we decide not to. */
 	ao2_lock(lot);

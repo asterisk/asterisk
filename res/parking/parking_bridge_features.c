@@ -328,7 +328,7 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 		return;
 	}
 
-	if (!(parking_bridge = park_common_setup(bridge_channel->chan, parker, app_data, NULL))) {
+	if (!(parking_bridge = park_application_setup(bridge_channel->chan, parker, app_data, NULL))) {
 		publish_parked_call_failure(bridge_channel->chan);
 		return;
 	}
@@ -426,7 +426,7 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 	pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parking_space); /* Deprecated version of PARKING_SPACE */
 	pbx_builtin_setvar_helper(chan, "PARKEDLOT", user->lot->name);
 
-	peername = ast_strdupa(user->parker->name);
+	peername = ast_strdupa(S_OR(user->blindtransfer, user->parker->name));
 	channel_name_to_dial_string(peername);
 
 	peername_flat = ast_strdupa(user->parker->name);

@@ -528,6 +528,50 @@ static void bridge_dissolve(struct ast_bridge *bridge)
 
 /*!
  * \internal
+ * \brief Determine whether a bridge channel leaving the bridge will cause it to dissolve or not.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel causing the check
+ * \param bridge The bridge we are concerned with
+ *
+ * \note the bridge should be locked prior to calling this function
+ *
+ * \retval 0 if the channel leaving shouldn't cause the bridge to dissolve
+ * \retval non-zero if the channel should cause the bridge to dissolve
+ */
+static int bridge_check_will_dissolve(struct ast_bridge_channel *bridge_channel, struct ast_bridge *bridge, int assume_end_state)
+{
+	if (bridge->dissolved) {
+		/* The bridge is already dissolved. Don't try to dissolve it again. */
+		return 0;
+	}
+
+	if (!bridge->num_channels
+		&& ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY)) {
+		/* Last channel leaving the bridge turns off the lights. */
+		return 1;
+	}
+
+	switch (assume_end_state ? AST_BRIDGE_CHANNEL_STATE_END : bridge_channel->state) {
+	case AST_BRIDGE_CHANNEL_STATE_END:
+		/* Do we need to dissolve the bridge because this channel hung up? */
+		if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_HANGUP)
+			|| (bridge_channel->features->usable
+				&& ast_test_flag(&bridge_channel->features->feature_flags,
+					AST_BRIDGE_CHANNEL_FLAG_DISSOLVE_HANGUP))) {
+			return 1;
+		}
+
+		break;
+	default:
+		break;
+	}
+	/* BUGBUG need to implement AST_BRIDGE_CHANNEL_FLAG_LONELY support here */
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief Check if a bridge should dissolve and do it.
  * \since 12.0.0
  *
@@ -541,32 +585,9 @@ static void bridge_dissolve_check(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 
-	if (bridge->dissolved) {
-		return;
-	}
-
-	if (!bridge->num_channels
-		&& ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY)) {
-		/* Last channel leaving the bridge turns off the lights. */
+	if (bridge_check_will_dissolve(bridge_channel, bridge, 0)) {
 		bridge_dissolve(bridge);
-		return;
 	}
-
-	switch (bridge_channel->state) {
-	case AST_BRIDGE_CHANNEL_STATE_END:
-		/* Do we need to dissolve the bridge because this channel hung up? */
-		if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_HANGUP)
-			|| (bridge_channel->features->usable
-				&& ast_test_flag(&bridge_channel->features->feature_flags,
-					AST_BRIDGE_CHANNEL_FLAG_DISSOLVE_HANGUP))) {
-			bridge_dissolve(bridge);
-			return;
-		}
-		break;
-	default:
-		break;
-	}
-/* BUGBUG need to implement AST_BRIDGE_CHANNEL_FLAG_LONELY support here */
 }
 
 /*!
@@ -4298,6 +4319,73 @@ int ast_bridge_move(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge
 	ast_bridge_unlock(src_bridge);
 	ast_bridge_unlock(dst_bridge);
 	return res;
+}
+
+int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
+		struct ast_bridge_features *features, int play_tone, const char *xfersound)
+{
+	RAII_VAR(struct ast_bridge *, chan_bridge, NULL, ao2_cleanup);
+	struct ast_channel *bridge_chan = NULL;
+
+	ast_channel_lock(chan);
+	chan_bridge = ast_channel_get_bridge(chan);
+	ast_channel_unlock(chan);
+
+	if (chan_bridge) {
+		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+		int hangup = 0;
+
+		/* Simply moving the channel from the bridge won't perform the dissolve check
+		 * so we need to manually check here to see if we should dissolve after moving. */
+		ao2_lock(chan_bridge);
+		if ((bridge_channel = ast_channel_get_bridge_channel(chan))) {
+			hangup = bridge_check_will_dissolve(bridge_channel, chan_bridge, 1);
+		}
+
+		if (ast_bridge_move(bridge, chan_bridge, chan, NULL, 1)) {
+			ao2_unlock(chan_bridge);
+			return -1;
+		}
+
+		if (hangup) {
+			bridge_dissolve(chan_bridge);
+		}
+		ao2_unlock(chan_bridge);
+
+	} else {
+		/* Slightly less easy case. We need to yank channel A from
+		 * where he currently is and impart him into our bridge.
+		 */
+		bridge_chan = ast_channel_yank(chan);
+		if (!bridge_chan) {
+			ast_log(LOG_WARNING, "Could not gain control of channel %s\n", ast_channel_name(chan));
+			return -1;
+		}
+		if (ast_channel_state(bridge_chan) != AST_STATE_UP) {
+			ast_answer(bridge_chan);
+		}
+		if (ast_bridge_impart(bridge, bridge_chan, NULL, features, 1)) {
+			ast_log(LOG_WARNING, "Could not add %s to the bridge\n", ast_channel_name(chan));
+			return -1;
+		}
+	}
+
+	if (play_tone && !ast_strlen_zero(xfersound)) {
+		struct ast_channel *play_chan = bridge_chan ?: chan;
+		RAII_VAR(struct ast_bridge_channel *, play_bridge_channel, NULL, ao2_cleanup);
+
+		ast_channel_lock(play_chan);
+		play_bridge_channel = ast_channel_get_bridge_channel(play_chan);
+		ast_channel_unlock(play_chan);
+
+		if (!play_bridge_channel) {
+			ast_log(LOG_WARNING, "Unable to play tone for channel %s. Unable to get bridge channel\n",
+					ast_channel_name(play_chan));
+		} else {
+			ast_bridge_channel_queue_playfile(play_bridge_channel, NULL, xfersound, NULL);
+		}
+	}
+	return 0;
 }
 
 struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel)

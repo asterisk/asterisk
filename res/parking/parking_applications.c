@@ -375,24 +375,12 @@ void get_park_common_datastore_data(struct ast_channel *parkee, char **parker_uu
 	ast_channel_unlock(parkee);
 }
 
-struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_channel *parker, const char *app_data,
-		int *silence_announcements)
+struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_channel *parker,
+		const char *lot_name, const char *comeback_override,
+		int use_ringing, int randomize, int time_limit, int silence_announcements)
 {
-	int use_ringing = 0;
-	int randomize = 0;
-	int time_limit = -1;
-	char *lot_name;
-
 	struct ast_bridge *parking_bridge;
-	RAII_VAR(char *, comeback_override, NULL, ast_free);
-	RAII_VAR(char *, lot_name_app_arg, NULL, ast_free);
 	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
-
-	if (app_data) {
-		park_app_parse_data(app_data, silence_announcements, &use_ringing, &randomize, &time_limit, &comeback_override, &lot_name_app_arg);
-	}
-
-	lot_name = lot_name_app_arg;
 
 	/* If the name of the parking lot isn't specified in the arguments, find it based on the channel. */
 	if (ast_strlen_zero(lot_name)) {
@@ -412,16 +400,34 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
 	parking_bridge = parking_lot_get_bridge(lot);
 	ao2_unlock(lot);
 
-	if (parking_bridge) {
-		/* Apply relevant bridge roles and such to the parking channel */
-		parking_channel_set_roles(parkee, lot, use_ringing);
-		setup_park_common_datastore(parkee, ast_channel_uniqueid(parker), comeback_override, randomize, time_limit,
-			silence_announcements ? *silence_announcements : 0);
-		return parking_bridge;
+	if (!parking_bridge) {
+		return NULL;
 	}
 
-	/* Couldn't get the parking bridge. Epic failure. */
-	return NULL;
+	/* Apply relevant bridge roles and such to the parking channel */
+	parking_channel_set_roles(parkee, lot, use_ringing);
+	setup_park_common_datastore(parkee, ast_channel_uniqueid(parker), comeback_override, randomize, time_limit,
+		silence_announcements);
+	return parking_bridge;
+}
+
+struct ast_bridge *park_application_setup(struct ast_channel *parkee, struct ast_channel *parker, const char *app_data,
+		int *silence_announcements)
+{
+	int use_ringing = 0;
+	int randomize = 0;
+	int time_limit = -1;
+
+	RAII_VAR(char *, comeback_override, NULL, ast_free);
+	RAII_VAR(char *, lot_name_app_arg, NULL, ast_free);
+
+	if (app_data) {
+		park_app_parse_data(app_data, silence_announcements, &use_ringing, &randomize, &time_limit, &comeback_override, &lot_name_app_arg);
+	}
+
+	return park_common_setup(parkee, parker, lot_name_app_arg, comeback_override, use_ringing,
+		randomize, time_limit, silence_announcements ? *silence_announcements : 0);
+
 }
 
 /* XXX BUGBUG - determining the parker when transferred to deep park priority
@@ -452,7 +458,7 @@ int park_app_exec(struct ast_channel *chan, const char *data)
 	ast_channel_unlock(chan);
 
 	/* Handle the common parking setup stuff */
-	if (!(parking_bridge = park_common_setup(chan, chan, data, &silence_announcements))) {
+	if (!(parking_bridge = park_application_setup(chan, chan, data, &silence_announcements))) {
 		if (!silence_announcements && !blind_transfer) {
 			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
 		}
@@ -753,7 +759,7 @@ int park_and_announce_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Handle the common parking setup stuff */
-	if (!(parking_bridge = park_common_setup(chan, chan, data, &silence_announcements))) {
+	if (!(parking_bridge = park_application_setup(chan, chan, data, &silence_announcements))) {
 		return 0;
 	}
 

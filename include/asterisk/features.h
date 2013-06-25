@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief Call Parking and Pickup API 
+ * \brief Call Parking and Pickup API
  * Includes code and algorithms from the Zapata library.
  */
 
@@ -26,6 +26,7 @@
 
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/bridging.h"
 
 #define FEATURE_MAX_LEN		11
 #define FEATURE_APP_LEN		64
@@ -166,6 +167,33 @@ void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval st
 
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
+
+/*!
+ * \brief Add an arbitrary channel to a bridge
+ * \since 12.0.0
+ *
+ * The channel that is being added to the bridge can be in any state: unbridged,
+ * bridged, answered, unanswered, etc. The channel will be added asynchronously,
+ * meaning that when this function returns once the channel has been added to
+ * the bridge, not once the channel has been removed from the bridge.
+ *
+ * In addition, a tone can optionally be played to the channel once the
+ * channel is placed into the bridge.
+ *
+ * \note When this function returns, there is no guarantee that the channel that
+ * was passed in is valid any longer. Do not attempt to operate on the channel
+ * after this function returns.
+ *
+ * \param bridge Bridge to which the channel should be added
+ * \param chan The channel to add to the bridge
+ * \param features Features for this channel in the bridge
+ * \param play_tone Indicates if a tone should be played to the channel
+ * \param xfersound Sound that should be used to indicate transfer with play_tone
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
+		struct ast_bridge_features *features, int play_tone, const char *xfersound);
 
 /*!
  * \brief Test if a channel can be picked up.

@@ -330,6 +330,11 @@ Parking
  * The AMI command 'ParkedCalls' will now accept a 'ParkingLot' argument which
    can be used to get a list of parked calls only for a specific parking lot.
 
+ * The AMI command 'Park' has had the argument 'Channel2' renamed to
+   'TimeoutChannel'. 'TimeoutChannel' is no longer a required argument.
+   'Channel2' can still be used as the argument name, but it is deprecated
+   and the 'TimeoutChannel' argument will be used if both are present.
+
  * The ParkAndAnnounce application is now provided through res_parking instead
    of through the separate app_parkandannounce module.
 

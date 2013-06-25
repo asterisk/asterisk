@@ -105,8 +105,9 @@ struct parked_user {
 	struct timeval start;                     /*!< When the call was parked */
 	int parking_space;                        /*!< Which parking space is used */
 	char comeback[AST_MAX_CONTEXT];           /*!< Where to go on parking timeout */
+	char blindtransfer[AST_CHANNEL_NAME];     /*!< What the BLINDTRANSFER variable was at the time of entry */
 	unsigned int time_limit;                  /*!< How long this specific channel may remain in the parking lot before timing out */
-	struct parking_lot *lot;      /*!< Which parking lot the user is parked to */
+	struct parking_lot *lot;                  /*!< Which parking lot the user is parked to */
 	enum park_call_resolution resolution;     /*!< How did the parking session end? If the call is in a bridge, lock parked_user before checking/setting */
 };
 
@@ -335,6 +336,15 @@ void publish_parked_call(struct parked_user *pu, enum ast_parked_call_event_type
 
 /*!
  * \since 12.0.0
+ * \brief Setup a parked call on a parking bridge without needing to parse appdata
+ *
+ */
+struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_channel *parker,
+		const char *lot_name, const char *comeback_override,
+		int use_ringing, int randomize, int time_limit, int silence_announcements);
+
+/*!
+ * \since 12.0.0
  * \brief Function to prepare a channel for parking by determining which parking bridge should
  *        be used, setting up a park common datastore so that the parking bridge will have access
  *        to necessary parking information when joining, and applying various bridge roles to the
@@ -351,7 +361,7 @@ void publish_parked_call(struct parked_user *pu, enum ast_parked_call_event_type
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
  */
-struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_channel *parker,
+struct ast_bridge *park_application_setup(struct ast_channel *parkee, struct ast_channel *parker,
 	const char *app_data, int *silence_announcements);
 
 struct park_common_datastore {

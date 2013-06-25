@@ -254,29 +254,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
-	<manager name="Park" language="en_US">
-		<synopsis>
-			Park a channel.
-		</synopsis>
-		<syntax>
-			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Channel" required="true">
-				<para>Channel name to park.</para>
-			</parameter>
-			<parameter name="Channel2" required="true">
-				<para>Channel to return to if timeout.</para>
-			</parameter>
-			<parameter name="Timeout">
-				<para>Number of milliseconds to wait before callback.</para>
-			</parameter>
-			<parameter name="Parkinglot">
-				<para>Specify in which parking lot to park the channel.</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>Park a channel.</para>
-		</description>
-	</manager>
 	<manager name="Bridge" language="en_US">
 		<synopsis>
 			Bridge two channels already in the PBX.
@@ -4344,87 +4321,6 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
-/*!
- * \internal
- * \brief Add an arbitrary channel to a bridge
- *
- * The channel that is being added to the bridge can be in any state: unbridged,
- * bridged, answered, unanswered, etc. The channel will be added asynchronously,
- * meaning that when this function returns once the channel has been added to
- * the bridge, not once the channel has been removed from the bridge.
- *
- * In addition, a tone can optionally be played to the channel once the
- * channel is placed into the bridge.
- *
- * \note When this function returns, there is no guarantee that the channel that
- * was passed in is valid any longer. Do not attempt to operate on the channel
- * after this function returns.
- *
- * \param bridge Bridge to which the channel should be added
- * \param chan The channel to add to the bridge
- * \param features Features for this channel in the bridge
- * \param play_tone Indicates if a tone should be played to the channel
- * \retval 0 Success
- * \retval -1 Failure
- */
-static int add_to_bridge(struct ast_bridge *bridge, struct ast_channel *chan,
-		struct ast_bridge_features *features, int play_tone)
-{
-	RAII_VAR(struct ast_bridge *, chan_bridge, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
-	struct ast_channel *bridge_chan = NULL;
-	const char *tone = NULL;
-
-	ast_channel_lock(chan);
-	chan_bridge = ast_channel_get_bridge(chan);
-	xfer_cfg = ast_get_chan_features_xfer_config(chan);
-	if (!xfer_cfg) {
-		ast_log(LOG_ERROR, "Unable to determine what tone to play to channel.\n");
-	} else {
-		tone = ast_strdupa(xfer_cfg->xfersound);
-	}
-	ast_channel_unlock(chan);
-
-	if (chan_bridge) {
-		if (ast_bridge_move(bridge, chan_bridge, chan, NULL, 1)) {
-			return -1;
-		}
-	} else {
-		/* Slightly less easy case. We need to yank channel A from
-		 * where he currently is and impart him into our bridge.
-		 */
-		bridge_chan = ast_channel_yank(chan);
-		if (!bridge_chan) {
-			ast_log(LOG_WARNING, "Could not gain control of channel %s\n", ast_channel_name(chan));
-			return -1;
-		}
-		if (ast_channel_state(bridge_chan) != AST_STATE_UP) {
-			ast_answer(bridge_chan);
-		}
-		if (ast_bridge_impart(bridge, bridge_chan, NULL, features, 1)) {
-			ast_log(LOG_WARNING, "Could not add %s to the bridge\n", ast_channel_name(chan));
-			return -1;
-		}
-	}
-
-	if (play_tone && !ast_strlen_zero(tone)) {
-		struct ast_channel *play_chan = bridge_chan ?: chan;
-		RAII_VAR(struct ast_bridge_channel *, play_bridge_channel, NULL, ao2_cleanup);
-
-		ast_channel_lock(play_chan);
-		play_bridge_channel = ast_channel_get_bridge_channel(play_chan);
-		ast_channel_unlock(play_chan);
-
-		if (!play_bridge_channel) {
-			ast_log(LOG_WARNING, "Unable to play tone for channel %s. Unable to get bridge channel\n",
-					ast_channel_name(play_chan));
-		} else {
-			ast_bridge_channel_queue_playfile(play_bridge_channel, NULL, tone, NULL);
-		}
-	}
-	return 0;
-}
-
 enum play_tone_action {
 	PLAYTONE_NONE = 0,
 	PLAYTONE_CHANNEL1 = (1 << 0),
@@ -4478,6 +4374,8 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	int chanb_priority;
 	struct ast_bridge *bridge;
 	char buf[256];
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg_a, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg_b, NULL, ao2_cleanup);
 
 	/* make sure valid channels were specified */
 	if (ast_strlen_zero(channela) || ast_strlen_zero(channelb)) {
@@ -4492,6 +4390,10 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, buf);
 		return 0;
 	}
+
+	xfer_cfg_a = ast_get_chan_features_xfer_config(chana);
+	xfer_cfg_b = ast_get_chan_features_xfer_config(chanb);
+
 	ast_channel_lock(chana);
 	chana_name = ast_strdupa(ast_channel_name(chana));
 	chana_exten = ast_strdupa(ast_channel_exten(chana));
@@ -4525,7 +4427,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	}
 
 	ast_after_bridge_set_go_on(chana, chana_context, chana_exten, chana_priority, NULL);
-	if (add_to_bridge(bridge, chana, NULL, playtone & PLAYTONE_CHANNEL1)) {
+	if (ast_bridge_add_channel(bridge, chana, NULL, playtone & PLAYTONE_CHANNEL1, xfer_cfg_a ? xfer_cfg_a->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel1 to bridge: %s", ast_channel_name(chana));
 		astman_send_error(s, m, buf);
 		ast_bridge_destroy(bridge);
@@ -4533,7 +4435,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	}
 
 	ast_after_bridge_set_go_on(chanb, chanb_context, chanb_exten, chanb_priority, NULL);
-	if (add_to_bridge(bridge, chanb, NULL, playtone & PLAYTONE_CHANNEL2)) {
+	if (ast_bridge_add_channel(bridge, chanb, NULL, playtone & PLAYTONE_CHANNEL2, xfer_cfg_b ? xfer_cfg_b->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel2 to bridge: %s", ast_channel_name(chanb));
 		astman_send_error(s, m, buf);
 		ast_bridge_destroy(bridge);
@@ -4570,100 +4472,6 @@ static int action_bridge(struct mansession *s, const struct message *m)
 static struct ast_cli_entry cli_features[] = {
 	AST_CLI_DEFINE(handle_features_reload, "Reloads configured features"),
 };
-
-/*!
- * \brief Create manager event for parked calls
- * \param s
- * \param m
- *
- * Get channels involved in park, create event.
- * \return Always 0
- *
- * \note ADSI is not compatible with this AMI action for the
- * same reason ch2 can no longer announce the parking space.
- */
-static int manager_park(struct mansession *s, const struct message *m)
-{
-	const char *channel = astman_get_header(m, "Channel");
-	const char *channel2 = astman_get_header(m, "Channel2");
-	const char *timeout = astman_get_header(m, "Timeout");
-	const char *parkinglotname = astman_get_header(m, "Parkinglot");
-	char buf[BUFSIZ];
-	int res = 0;
-	struct ast_channel *ch1, *ch2;
-	struct ast_park_call_args args = {
-			/*
-			 * Don't say anything to ch2 since AMI is a third party parking
-			 * a call and we will likely crash if we do.
-			 *
-			 * XXX When the AMI action was originally implemented, the
-			 * parking space was announced to ch2.  Unfortunately, grabbing
-			 * the ch2 lock and holding it while the announcement is played
-			 * was not really a good thing to do to begin with since it
-			 * could hold up the system.  Also holding the lock is no longer
-			 * possible with a masquerade.
-			 *
-			 * Restoring the announcement to ch2 is not easily doable for
-			 * the following reasons:
-			 *
-			 * 1) The AMI manager is not the thread processing ch2.
-			 *
-			 * 2) ch2 could be the same as ch1, bridged to ch1, or some
-			 * random uninvolved channel.
-			 */
-			.flags = AST_PARK_OPT_SILENCE,
-		};
-
-	if (ast_strlen_zero(channel)) {
-		astman_send_error(s, m, "Channel not specified");
-		return 0;
-	}
-
-	if (ast_strlen_zero(channel2)) {
-		astman_send_error(s, m, "Channel2 not specified");
-		return 0;
-	}
-
-	if (!ast_strlen_zero(timeout)) {
-		if (sscanf(timeout, "%30d", &args.timeout) != 1) {
-			astman_send_error(s, m, "Invalid timeout value.");
-			return 0;
-		}
-	}
-
-	if (!(ch1 = ast_channel_get_by_name(channel))) {
-		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
-		astman_send_error(s, m, buf);
-		return 0;
-	}
-
-	if (!(ch2 = ast_channel_get_by_name(channel2))) {
-		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
-		astman_send_error(s, m, buf);
-		ast_channel_unref(ch1);
-		return 0;
-	}
-
-	if (!ast_strlen_zero(parkinglotname)) {
-		args.parkinglot = find_parkinglot(parkinglotname);
-	}
-
-	res = masq_park_call(ch1, ch2, &args);
-	if (!res) {
-		ast_softhangup(ch2, AST_SOFTHANGUP_EXPLICIT);
-		astman_send_ack(s, m, "Park successful");
-	} else {
-		astman_send_error(s, m, "Park failure");
-	}
-
-	if (args.parkinglot) {
-		parkinglot_unref(args.parkinglot);
-	}
-	ch1 = ast_channel_unref(ch1);
-	ch2 = ast_channel_unref(ch2);
-
-	return 0;
-}
 
 /*!
  * The presence of this datastore on the channel indicates that
@@ -5112,6 +4920,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features chan_features;
 	struct ast_bridge_features *peer_features;
 	struct ast_bridge *bridge;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest_chan);
@@ -5251,7 +5060,9 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		goto done;
 	}
 
-	if (add_to_bridge(bridge, current_dest_chan, peer_features, ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE))) {
+	xfer_cfg = ast_get_chan_features_xfer_config(current_dest_chan);
+
+	if (ast_bridge_add_channel(bridge, current_dest_chan, peer_features, ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE), xfer_cfg ? xfer_cfg->xfersound : NULL)) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		ast_bridge_destroy(bridge);
@@ -5788,7 +5599,6 @@ int ast_features_init(void)
 		return -1;
 	}
 	res |= ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
-	res |= ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
 	res |= ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);

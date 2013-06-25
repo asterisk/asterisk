@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
+#include "asterisk/bridging.h"
 
 /*** DOCUMENTATION
 	<manager name="Parkinglots" language="en_US">
@@ -62,6 +63,33 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>List parked calls.</para>
+		</description>
+	</manager>
+	<manager name="Park" language="en_US">
+		<synopsis>
+			Park a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to park.</para>
+			</parameter>
+			<parameter name="TimeoutChannel" required="false">
+				<para>Channel name to use when constructing the dial string that will be dialed if the parked channel times out.</para>
+			</parameter>
+			<parameter name="Timeout" required="false">
+				<para>Overrides the timeout of the parking lot for this park action. Specified in milliseconds, but will be converted to
+					seconds. Use a value of 0 to nullify the timeout.
+				</para>
+			</parameter>
+			<parameter name="Parkinglot" required="false">
+				<para>The parking lot to use when parking the channel</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Park an arbitrary channel with optional arguments for specifying the parking lot used, how long
+				the channel should remain parked, and what dial string to use as the parker if the call times out.
+			</para>
 		</description>
 	</manager>
 	<managerEvent language="en_US" name="ParkedCall">
@@ -498,6 +526,61 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 	return RESULT_SUCCESS;
 }
 
+static int manager_park(struct mansession *s, const struct message *m)
+{
+	const char *channel = astman_get_header(m, "Channel");
+	const char *timeout_channel = S_OR(astman_get_header(m, "TimeoutChannel"), astman_get_header(m, "Channel2"));
+	const char *timeout = astman_get_header(m, "Timeout");
+	const char *parkinglot = astman_get_header(m, "Parkinglot");
+	char buf[BUFSIZ];
+	int timeout_override = -1;
+
+	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "Channel not specified");
+		return 0;
+	}
+
+	if (!ast_strlen_zero(timeout)) {
+		if (sscanf(timeout, "%30d", &timeout_override) != 1 || timeout < 0) {
+			astman_send_error(s, m, "Invalid Timeout value.");
+			return 0;
+		}
+
+		if (timeout_override > 0) {
+			/* If greater than zero, convert to seconds for internal use. Must be >= 1 second. */
+			timeout_override = MAX(1, timeout_override / 1000);
+		}
+	}
+
+	if (!(chan = ast_channel_get_by_name(channel))) {
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
+		astman_send_error(s, m, buf);
+		return 0;
+	}
+
+	ast_channel_lock(chan);
+	if (!ast_strlen_zero(timeout_channel)) {
+		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", timeout_channel);
+	}
+	ast_channel_unlock(chan);
+
+	if (!(parking_bridge = park_common_setup(chan, chan, parkinglot, NULL, 0, 0, timeout_override, 0))) {
+		astman_send_error(s, m, "Park action failed\n");
+		return 0;
+	}
+
+	if (ast_bridge_add_channel(parking_bridge, chan, NULL, 0, NULL)) {
+		astman_send_error(s, m, "Park action failed\n");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Park successful\n");
+	return 0;
+}
+
 void publish_parked_call_failure(struct ast_channel *parkee)
 {
 	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
@@ -588,9 +671,9 @@ int load_parking_manager(void)
 {
 	int res;
 
-	res = ast_manager_register_xml_core("Parkinglots", 0, manager_parking_lot_list);
-	res |= ast_manager_register_xml_core("ParkedCalls", 0, manager_parking_status);
-	/* TODO Add a 'Park' manager action */
+	res = ast_manager_register_xml_core("Parkinglots", EVENT_FLAG_CALL, manager_parking_lot_list);
+	res |= ast_manager_register_xml_core("ParkedCalls", EVENT_FLAG_CALL, manager_parking_status);
+	res |= ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
 	parking_manager_enable_stasis();
 	return res ? -1 : 0;
 }
