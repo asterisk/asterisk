@@ -588,6 +588,8 @@ int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, co
  *
  * \retval 0 success
  * \retval -1 failure
+ *
+ * \note You must be ready to accept observer invocations before this function is called
  */
 int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks);
 
