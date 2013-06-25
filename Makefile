@@ -476,7 +476,7 @@ doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 	@echo "</docs>" >> $@
 
 ifneq ($(GREP),)
-  XMX_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
+  XML_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 endif
 
 doc/full-en_US.xml: makeopts .lastclean $(XML_full_en_US)
