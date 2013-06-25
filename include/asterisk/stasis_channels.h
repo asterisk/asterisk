@@ -456,6 +456,24 @@ void ast_channel_publish_dial(struct ast_channel *caller,
 
 /*!
  * \since 12
+ * \brief Publish in the \ref ast_channel_topic or \ref ast_channel_topic_all
+ * topics a stasis message for the channels involved in a dial operation that
+ * is forwarded.
+ *
+ * \param caller The channel performing the dial operation
+ * \param peer The channel being dialed
+ * \param dialstring The information passed to the dialing application when beginning a dial
+ * \param dialstatus The current status of the dial operation
+ * \param forward The call forward string provided by the dialed channel
+ */
+void ast_channel_publish_dial_forward(struct ast_channel *caller,
+		struct ast_channel *peer,
+		const char *dialstring,
+		const char *dialstatus,
+		const char *forward);
+
+/*!
+ * \since 12
  * \brief Publish in the \ref ast_channel_topic a \ref ast_channel_snapshot
  * message indicating a change in channel state
  *

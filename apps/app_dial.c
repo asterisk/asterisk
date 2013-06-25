@@ -859,8 +859,6 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 		ast_clear_flag64(o, OPT_IGNORE_CONNECTEDLINE);
 	}
 
-	ast_cel_report_event(in, AST_CEL_FORWARD, NULL, ast_channel_call_forward(c), NULL);
-
 	/* Before processing channel, go ahead and check for forwarding */
 	ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", ast_channel_name(in), tech, stuff, ast_channel_name(c));
 	/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
@@ -1004,7 +1002,8 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_channel_unlock(c);
 
 			ast_channel_lock_both(original, in);
-			ast_channel_publish_dial(in, original, NULL, "CANCEL");
+			ast_channel_publish_dial_forward(in, original, NULL, "CANCEL",
+				ast_channel_call_forward(c));
 			ast_channel_unlock(in);
 			ast_channel_unlock(original);
 

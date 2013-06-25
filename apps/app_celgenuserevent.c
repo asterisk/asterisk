@@ -62,6 +62,7 @@ static int celgenuserevent_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *parse;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(event);
 		AST_APP_ARG(extra);
@@ -74,7 +75,13 @@ static int celgenuserevent_exec(struct ast_channel *chan, const char *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_cel_report_event(chan, AST_CEL_USER_DEFINED, args.event, args.extra, NULL);
+	blob = ast_json_pack("{s: s, s: s}",
+		"event", args.event,
+		"extra", args.extra);
+	if (!blob) {
+		return res;
+	}
+	ast_cel_publish_event(chan, AST_CEL_USER_DEFINED, blob);
 	return res;
 }
 

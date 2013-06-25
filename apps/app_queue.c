@@ -4449,8 +4449,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						o->block_connected_update = 0;
 					}
 
-					ast_cel_report_event(in, AST_CEL_FORWARD, NULL, ast_channel_call_forward(o->chan), NULL);
-
 					ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", inchan_name, tech, stuff, ochan_name);
 					/* Setup parameters */
 					o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &status);
@@ -4544,7 +4542,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_channel_unlock(qe->chan);
 
 					ast_channel_lock_both(qe->chan, original);
-					ast_channel_publish_dial(qe->chan, original, NULL, "CANCEL");
+					ast_channel_publish_dial_forward(qe->chan, original, NULL, "CANCEL",
+						ast_channel_call_forward(original));
 					ast_channel_unlock(original);
 					ast_channel_unlock(qe->chan);
 					/* Hangup the original channel now, in case we needed it */

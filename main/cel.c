@@ -96,7 +96,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="APP_END"/>
 						<enum name="BRIDGE_START"/>
 						<enum name="BRIDGE_END"/>
-						<enum name="BRIDGE_UPDATE"/>
 						<enum name="BRIDGE_TO_CONF"/>
 						<enum name="CONF_START"/>
 						<enum name="CONF_END"/>
@@ -126,8 +125,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Message router for state that CEL needs to know about */
 static struct stasis_message_router *cel_state_router;
 
+/*! Topic for CEL-specific messages */
+static struct stasis_topic *cel_topic;
+
 /*! Aggregation topic for all topics CEL needs to know about */
-static struct stasis_topic *cel_state_topic;
+static struct stasis_topic *cel_aggregation_topic;
 
 /*! Subscription for forwarding the channel caching topic */
 static struct stasis_subscription *cel_channel_forwarder;
@@ -138,8 +140,14 @@ static struct stasis_subscription *cel_bridge_forwarder;
 /*! Subscription for forwarding the parking topic */
 static struct stasis_subscription *cel_parking_forwarder;
 
+/*! Subscription for forwarding the CEL-specific topic */
+static struct stasis_subscription *cel_cel_forwarder;
+
 /*! Container for primary channel/bridge ID listing for 2 party bridges */
 static struct ao2_container *bridge_primaries;
+
+struct stasis_message_type *cel_generic_type(void);
+STASIS_MESSAGE_TYPE_DEFN(cel_generic_type);
 
 /*! The number of buckets into which primary channel uniqueids will be hashed */
 #define BRIDGE_PRIMARY_BUCKETS 251
@@ -305,7 +313,6 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_APP_END]          = "APP_END",
 	[AST_CEL_BRIDGE_START]     = "BRIDGE_START",
 	[AST_CEL_BRIDGE_END]       = "BRIDGE_END",
-	[AST_CEL_BRIDGE_UPDATE]    = "BRIDGE_UPDATE",
 	[AST_CEL_BRIDGE_TO_CONF]   = "BRIDGE_TO_CONF",
 	[AST_CEL_CONF_START]       = "CONF_START",
 	[AST_CEL_CONF_END]         = "CONF_END",
@@ -1050,14 +1057,14 @@ static struct ast_multi_channel_blob *get_dialstatus_blob(const char *uniqueid)
 	return ao2_find(cel_dialstatus_store, uniqueid, OBJ_KEY | OBJ_UNLINK);
 }
 
-static const char *get_caller_dialstatus(struct ast_multi_channel_blob *blob)
+static const char *get_blob_variable(struct ast_multi_channel_blob *blob, const char *varname)
 {
 	struct ast_json *json = ast_multi_channel_blob_get_json(blob);
 	if (!json) {
 		return NULL;
 	}
 
-	json = ast_json_object_get(json, "dialstatus");
+	json = ast_json_object_get(json, varname);
 	if (!json) {
 		return NULL;
 	}
@@ -1090,8 +1097,8 @@ static void cel_channel_state_change(
 		RAII_VAR(struct ast_str *, extra_str, ast_str_create(128), ast_free);
 		RAII_VAR(struct ast_multi_channel_blob *, blob, get_dialstatus_blob(new_snapshot->uniqueid), ao2_cleanup);
 		const char *dialstatus = "";
-		if (blob && !ast_strlen_zero(get_caller_dialstatus(blob))) {
-			dialstatus = get_caller_dialstatus(blob);
+		if (blob && !ast_strlen_zero(get_blob_variable(blob, "dialstatus"))) {
+			dialstatus = get_blob_variable(blob, "dialstatus");
 		}
 		ast_str_set(&extra_str, 0, "%d,%s,%s",
 			new_snapshot->hangupcause,
@@ -1406,11 +1413,43 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
-	if (ast_strlen_zero(get_caller_dialstatus(blob))) {
+	if (!ast_strlen_zero(get_blob_variable(blob, "forward"))) {
+		struct ast_channel_snapshot *caller = ast_multi_channel_blob_get_channel(blob, "caller");
+		if (!caller) {
+			return;
+		}
+
+		report_event_snapshot(caller, AST_CEL_FORWARD, NULL, get_blob_variable(blob, "forward"), NULL);
+	}
+
+	if (ast_strlen_zero(get_blob_variable(blob, "dialstatus"))) {
 		return;
 	}
 
 	save_dialstatus(blob);
+}
+
+static void cel_generic_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	int event_type = ast_json_integer_get(ast_json_object_get(obj->blob, "event_type"));
+	struct ast_json *event_details = ast_json_object_get(obj->blob, "event_details");
+
+	switch (event_type) {
+	case AST_CEL_USER_DEFINED:
+		{
+			const char *event = ast_json_string_get(ast_json_object_get(event_details, "event"));
+			const char *extra = ast_json_string_get(ast_json_object_get(event_details, "extra"));
+			report_event_snapshot(obj->snapshot, event_type, event, extra, NULL);
+			break;
+		}
+	default:
+		ast_log(LOG_ERROR, "Unhandled %s event blob\n", ast_cel_get_type_name(event_type));
+		break;
+	}
 }
 
 static void ast_cel_engine_term(void)
@@ -1419,11 +1458,14 @@ static void ast_cel_engine_term(void)
 	ao2_global_obj_release(cel_configs);
 	stasis_message_router_unsubscribe_and_join(cel_state_router);
 	cel_state_router = NULL;
-	ao2_cleanup(cel_state_topic);
-	cel_state_topic = NULL;
+	ao2_cleanup(cel_aggregation_topic);
+	cel_aggregation_topic = NULL;
+	ao2_cleanup(cel_topic);
+	cel_topic = NULL;
 	cel_channel_forwarder = stasis_unsubscribe_and_join(cel_channel_forwarder);
 	cel_bridge_forwarder = stasis_unsubscribe_and_join(cel_bridge_forwarder);
 	cel_parking_forwarder = stasis_unsubscribe_and_join(cel_parking_forwarder);
+	cel_cel_forwarder = stasis_unsubscribe_and_join(cel_cel_forwarder);
 	ao2_cleanup(bridge_primaries);
 	bridge_primaries = NULL;
 	ast_cli_unregister(&cli_status);
@@ -1431,6 +1473,7 @@ static void ast_cel_engine_term(void)
 	cel_dialstatus_store = NULL;
 	ao2_cleanup(linkedids);
 	linkedids = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(cel_generic_type);
 }
 
 int ast_cel_engine_init(void)
@@ -1444,6 +1487,10 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
+	if (STASIS_MESSAGE_TYPE_INIT(cel_generic_type)) {
+		return -1;
+	}
+
 	if (ast_cli_register(&cli_status)) {
 		return -1;
 	}
@@ -1453,33 +1500,45 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	cel_state_topic = stasis_topic_create("cel_state_topic");
-	if (!cel_state_topic) {
+	cel_aggregation_topic = stasis_topic_create("cel_aggregation_topic");
+	if (!cel_aggregation_topic) {
+		return -1;
+	}
+
+	cel_topic = stasis_topic_create("cel_topic");
+	if (!cel_topic) {
 		return -1;
 	}
 
 	cel_channel_forwarder = stasis_forward_all(
 		stasis_caching_get_topic(ast_channel_topic_all_cached()),
-		cel_state_topic);
+		cel_aggregation_topic);
 	if (!cel_channel_forwarder) {
 		return -1;
 	}
 
 	cel_bridge_forwarder = stasis_forward_all(
 		stasis_caching_get_topic(ast_bridge_topic_all_cached()),
-		cel_state_topic);
+		cel_aggregation_topic);
 	if (!cel_bridge_forwarder) {
 		return -1;
 	}
 
 	cel_parking_forwarder = stasis_forward_all(
 		ast_parking_topic(),
-		cel_state_topic);
+		cel_aggregation_topic);
 	if (!cel_parking_forwarder) {
 		return -1;
 	}
 
-	cel_state_router = stasis_message_router_create(cel_state_topic);
+	cel_cel_forwarder = stasis_forward_all(
+		ast_cel_topic(),
+		cel_aggregation_topic);
+	if (!cel_cel_forwarder) {
+		return -1;
+	}
+
+	cel_state_router = stasis_message_router_create(cel_aggregation_topic);
 	if (!cel_state_router) {
 		return -1;
 	}
@@ -1507,6 +1566,11 @@ int ast_cel_engine_init(void)
 	ret |= stasis_message_router_add(cel_state_router,
 		ast_parked_call_type(),
 		cel_parking_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		cel_generic_type(),
+		cel_generic_cb,
 		NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
@@ -1538,3 +1602,24 @@ int ast_cel_engine_reload(void)
 	return do_reload();
 }
 
+void ast_cel_publish_event(struct ast_channel *chan,
+	enum ast_cel_event_type event_type,
+	struct ast_json *blob)
+{
+	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, cel_blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	cel_blob = ast_json_pack("{s: i, s: O}",
+		"event_type", event_type,
+		"event_details", blob);
+
+	message = ast_channel_blob_create(chan, cel_generic_type(), cel_blob);
+	if (message) {
+		stasis_publish(ast_cel_topic(), message);
+	}
+}
+
+struct stasis_topic *ast_cel_topic(void)
+{
+	return cel_topic;
+}

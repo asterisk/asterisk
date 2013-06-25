@@ -210,7 +210,8 @@ static void channel_blob_dtor(void *obj)
 	ast_json_unref(event->blob);
 }
 
-void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *peer, const char *dialstring, const char *dialstatus)
+void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_channel *peer,
+	const char *dialstring, const char *dialstatus, const char *forward)
 {
 	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -219,8 +220,9 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 	RAII_VAR(struct ast_channel_snapshot *, peer_snapshot, NULL, ao2_cleanup);
 
 	ast_assert(peer != NULL);
-	blob = ast_json_pack("{s: s, s: s}",
+	blob = ast_json_pack("{s: s, s: s, s: s}",
 			     "dialstatus", S_OR(dialstatus, ""),
+			     "forward", S_OR(forward, ""),
 			     "dialstring", S_OR(dialstring, ""));
 	if (!blob) {
 		return;
@@ -250,6 +252,12 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 	}
 
 	publish_message_for_channel_topics(msg, caller);
+}
+
+void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *peer,
+	const char *dialstring, const char *dialstatus)
+{
+	ast_channel_publish_dial_forward(caller, peer, dialstring, dialstatus, NULL);
 }
 
 static struct stasis_message *create_channel_blob_message(struct ast_channel_snapshot *snapshot,

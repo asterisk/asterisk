@@ -83,8 +83,6 @@ enum ast_cel_event_type {
 	AST_CEL_USER_DEFINED = 21,
 	/*! \brief the last channel with the given linkedid is retired  */
 	AST_CEL_LINKEDID_END = 22,
-	/*! \brief a masquerade happened to alter the participants on a bridge  */
-	AST_CEL_BRIDGE_UPDATE = 23,
 	/*! \brief a directed pickup was performed on this channel  */
 	AST_CEL_PICKUP = 24,
 	/*! \brief this call was forwarded somewhere else  */
@@ -244,6 +242,26 @@ struct ast_cel_event_record {
  * \retval non-zero failure
  */
 int ast_cel_fill_record(const struct ast_event *event, struct ast_cel_event_record *r);
+
+/*!
+ * \brief Publish a CEL event
+ * \since 12
+ *
+ * \param chan This is the primary channel associated with this channel event.
+ * \param event_type This is the type of call event being reported.
+ * \param blob This contains any additional parameters that need to be conveyed for this event.
+ */
+void ast_cel_publish_event(struct ast_channel *chan,
+	enum ast_cel_event_type event_type,
+	struct ast_json *blob);
+
+/*!
+ * \brief Get the CEL topic
+ *
+ * \retval The CEL topic
+ * \retval NULL if not allocated
+ */
+struct stasis_topic *ast_cel_topic(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
