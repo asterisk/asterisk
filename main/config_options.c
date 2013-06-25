@@ -186,14 +186,15 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 				|| xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type)
 #endif /* AST_XML_DOCS */
 		) {
-			while (--idx) {
+			do {
 				ao2_unlink(types[idx]->internal->opts, opt);
-			}
+			} while (--idx);
 			return -1;
 		}
-		/* The container should hold the only ref to opt */
-		ao2_ref(opt, -1);
 	}
+	/* The container(s) should hold the only ref to opt */
+	ao2_ref(opt, -1);
+
 	return 0;
 }
 

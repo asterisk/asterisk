@@ -360,21 +360,6 @@ struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_un
 /*! \brief Message type for named ACL changes */
 STASIS_MESSAGE_TYPE_DEFN(ast_named_acl_change_type);
 
-static void acl_stasis_cleanup(void)
-{
-	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
-}
-
-/*!
- * \internal
- * \brief Initialize Named ACL related stasis topics/messages
- */
-static void ast_acl_stasis_init(void)
-{
-	ast_register_cleanup(acl_stasis_cleanup);
-	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
-}
-
 /*!
  * \internal
  * \brief Sends a stasis message corresponding to a given named ACL that has changed or
@@ -580,15 +565,24 @@ static struct ast_cli_entry cli_named_acl[] = {
 	AST_CLI_DEFINE(handle_show_named_acl_cmd, "Show a named ACL or list all named ACLs"),
 };
 
+static void named_acl_cleanup(void)
+{
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
+}
+
 int ast_named_acl_init()
 {
 	ast_cli_register_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
 
+	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
+
+	ast_register_cleanup(named_acl_cleanup);
+
 	if (aco_info_init(&cfg_info)) {
 		return 0;
 	}
-
-	ast_acl_stasis_init();
 
 	/* Register the per level options. */
 	aco_option_register(&cfg_info, "permit", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 1, FLDSET(struct named_acl, ha));
