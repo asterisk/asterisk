@@ -2555,9 +2555,9 @@ static int load_module(void)
 	aco_option_register_custom(&cfg_info, "connection", ACO_EXACT, endpoint_options, NULL, custom_connection_handler, 0);
 	aco_option_register_custom(&cfg_info, "transport", ACO_EXACT, endpoint_options, NULL, custom_transport_handler, 0);
 	aco_option_register(&cfg_info, "maxicecandidates", ACO_EXACT, endpoint_options, DEFAULT_MAX_ICE_CANDIDATES, OPT_UINT_T, PARSE_DEFAULT,
-			    FLDSET(struct jingle_endpoint, maxicecandidates));
+			    FLDSET(struct jingle_endpoint, maxicecandidates), DEFAULT_MAX_ICE_CANDIDATES);
 	aco_option_register(&cfg_info, "maxpayloads", ACO_EXACT, endpoint_options, DEFAULT_MAX_PAYLOADS, OPT_UINT_T, PARSE_DEFAULT,
-			    FLDSET(struct jingle_endpoint, maxpayloads));
+			    FLDSET(struct jingle_endpoint, maxpayloads), DEFAULT_MAX_PAYLOADS);
 
 	ast_format_cap_add_all_by_type(jingle_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
 
@@ -2608,6 +2608,8 @@ static int reload(void)
 static int unload_module(void)
 {
 	ast_channel_unregister(&jingle_tech);
+	ast_format_cap_destroy(jingle_tech.capabilities);
+	jingle_tech.capabilities = NULL;
 	ast_rtp_glue_unregister(&jingle_rtp_glue);
 	ast_sched_context_destroy(sched);
 	aco_info_destroy(&cfg_info);

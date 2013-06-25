@@ -153,14 +153,15 @@ static int link_option_to_types(struct aco_type **types, struct aco_option *opt)
 			return -1;
 		}
 		if (!ao2_link(type->internal->opts, opt)) {
-			while (--idx) {
+			do {
 				ao2_unlink(types[idx]->internal->opts, opt);
-			}
+			} while (--idx);
 			return -1;
 		}
-		/* The container should hold the only ref to opt */
-		ao2_ref(opt, -1);
 	}
+	/* The container(s) should hold the only ref to opt */
+	ao2_ref(opt, -1);
+
 	return 0;
 }
 

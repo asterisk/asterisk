@@ -1810,6 +1810,8 @@ static int unload_module(void)
 
 	/* Remove all calendars */
 	ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+	ao2_cleanup(calendars);
+	calendars = NULL;
 
 	ast_mutex_lock(&refreshlock);
 	module_unloading = 1;
