@@ -527,13 +527,8 @@ static int option_handler_parkedfeature(const struct aco_option *opt, struct ast
 		break;
 	}
 
-	if (!parameter) {
-		ast_log(LOG_ERROR, "Unable to handle option '%s'\n", var->name);
-		return -1;
-	}
-
-	if (parking_feature_flag_cfg(parameter, var->value)) {
-		ast_log(LOG_ERROR, "'%s' is not a valid value for parking lot option '%s'\n", var->value, var->name);
+	ast_assert(parameter != NULL);
+	if (!parameter || parking_feature_flag_cfg(parameter, var->value)) {
 		return -1;
 	}
 
