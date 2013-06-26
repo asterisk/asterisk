@@ -4390,10 +4390,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, buf);
 		return 0;
 	}
-
 	xfer_cfg_a = ast_get_chan_features_xfer_config(chana);
-	xfer_cfg_b = ast_get_chan_features_xfer_config(chanb);
-
 	ast_channel_lock(chana);
 	chana_name = ast_strdupa(ast_channel_name(chana));
 	chana_exten = ast_strdupa(ast_channel_exten(chana));
@@ -4410,6 +4407,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, buf);
 		return 0;
 	}
+	xfer_cfg_b = ast_get_chan_features_xfer_config(chanb);
 	ast_channel_lock(chanb);
 	chanb_name = ast_strdupa(ast_channel_name(chanb));
 	chanb_exten = ast_strdupa(ast_channel_exten(chanb));
@@ -5061,8 +5059,8 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	xfer_cfg = ast_get_chan_features_xfer_config(current_dest_chan);
-
-	if (ast_bridge_add_channel(bridge, current_dest_chan, peer_features, ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE), xfer_cfg ? xfer_cfg->xfersound : NULL)) {
+	if (ast_bridge_add_channel(bridge, current_dest_chan, peer_features,
+		ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE), xfer_cfg ? xfer_cfg->xfersound : NULL)) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		ast_bridge_destroy(bridge);
