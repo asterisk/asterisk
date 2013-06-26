@@ -24777,8 +24777,8 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 		int *nounlock, struct sip_pvt *replaces_pvt, struct ast_channel *replaces_chan)
 {
+	struct ast_channel *c;
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel *, c, NULL, ao2_cleanup);
 
 	if (req->ignore) {
 		return 0;
@@ -24813,7 +24813,9 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 	ast_channel_unlock(replaces_chan);
 
 	if (bridge) {
-		ast_bridge_impart(bridge, c, replaces_chan, NULL, 1);
+		if (ast_bridge_impart(bridge, c, replaces_chan, NULL, 1)) {
+			ast_hangup(c);
+		}
 	} else {
 		ast_channel_move(replaces_chan, c);
 		ast_hangup(c);

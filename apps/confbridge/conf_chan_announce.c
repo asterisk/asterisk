@@ -172,8 +172,8 @@ void conf_announce_channel_depart(struct ast_channel *chan)
 int conf_announce_channel_push(struct ast_channel *ast)
 {
 	struct ast_bridge_features *features;
+	struct ast_channel *chan;
 	RAII_VAR(struct announce_pvt *, p, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel *, chan, NULL, ast_channel_unref);
 
 	{
 		SCOPED_CHANNELLOCK(lock, ast);
@@ -192,12 +192,15 @@ int conf_announce_channel_push(struct ast_channel *ast)
 
 	features = ast_bridge_features_new();
 	if (!features) {
+		ast_channel_unref(chan);
 		return -1;
 	}
 	ast_set_flag(&features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE);
 
 	/* Impart the output channel into the bridge */
 	if (ast_bridge_impart(p->bridge, chan, NULL, features, 0)) {
+		ast_bridge_features_destroy(features);
+		ast_channel_unref(chan);
 		return -1;
 	}
 	ao2_lock(p);

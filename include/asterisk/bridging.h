@@ -654,7 +654,7 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  * \brief Impart (non-blocking) a channel onto a bridge
  *
  * \param bridge Bridge to impart on
- * \param chan Channel to impart
+ * \param chan Channel to impart (The channel reference is stolen if impart successful.)
  * \param swap Channel to swap out if swapping.  NULL if not swapping.
  * \param features Bridge features structure.
  * \param independent TRUE if caller does not want to reclaim the channel using ast_bridge_depart().
