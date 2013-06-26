@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "control.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_features.h"
+#include "asterisk/pbx.h"
 
 struct stasis_app_control {
 	/*! Queue of commands to dispatch on the channel */
@@ -91,17 +92,43 @@ int control_is_done(struct stasis_app_control *control)
 	return control->is_done;
 }
 
+struct stasis_app_control_continue_data {
+	char context[AST_MAX_CONTEXT];
+	char extension[AST_MAX_EXTENSION];
+	int priority;
+};
+
 static void *app_control_continue(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
+	RAII_VAR(struct stasis_app_control_continue_data *, continue_data, data, ast_free);
+
 	/* Called from stasis_app_exec thread; no lock needed */
+	ast_explicit_goto(control->channel, continue_data->context, continue_data->extension, continue_data->priority);
+
 	control->is_done = 1;
+
 	return NULL;
 }
 
-void stasis_app_control_continue(struct stasis_app_control *control)
+int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority)
 {
-	stasis_app_send_command_async(control, app_control_continue, NULL);
+	struct stasis_app_control_continue_data *continue_data;
+
+	if (!(continue_data = ast_calloc(1, sizeof(*continue_data)))) {
+		return -1;
+	}
+	ast_copy_string(continue_data->context, S_OR(context, ""), sizeof(continue_data->context));
+	ast_copy_string(continue_data->extension, S_OR(extension, ""), sizeof(continue_data->extension));
+	if (priority > 0) {
+		continue_data->priority = priority;
+	} else {
+		continue_data->priority = -1;
+	}
+
+	stasis_app_send_command_async(control, app_control_continue, continue_data);
+
+	return 0;
 }
 
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(

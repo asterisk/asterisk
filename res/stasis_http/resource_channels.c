@@ -97,7 +97,11 @@ void stasis_http_continue_in_dialplan(
 		return;
 	}
 
-	stasis_app_control_continue(control);
+	if (stasis_app_control_continue(control, args->context, args->extension, args->priority)) {
+		stasis_http_response_alloc_failed(response);
+		return;
+	}
+
 	stasis_http_response_no_content(response);
 }
 

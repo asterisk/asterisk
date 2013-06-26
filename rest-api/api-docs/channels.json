@@ -207,6 +207,30 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "context",
+							"description": "The context to continue to.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "extension",
+							"description": "The extension to continue to.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "priority",
+							"description": "The priority to continue to.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int"
 						}
 					],
 					"errorResponses": [

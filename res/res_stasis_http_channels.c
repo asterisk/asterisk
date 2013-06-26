@@ -191,6 +191,18 @@ static void stasis_http_continue_in_dialplan_cb(
 	struct ast_continue_in_dialplan_args args = {};
 	struct ast_variable *i;
 
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "context") == 0) {
+			args.context = (i->value);
+		} else
+		if (strcmp(i->name, "extension") == 0) {
+			args.extension = (i->value);
+		} else
+		if (strcmp(i->name, "priority") == 0) {
+			args.priority = atoi(i->value);
+		} else
+		{}
+	}
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "channelId") == 0) {
 			args.channel_id = (i->value);

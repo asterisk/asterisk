@@ -124,6 +124,12 @@ void stasis_http_dial(struct ast_variable *headers, struct ast_dial_args *args, 
 struct ast_continue_in_dialplan_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
+	/*! \brief The context to continue to. */
+	const char *context;
+	/*! \brief The extension to continue to. */
+	const char *extension;
+	/*! \brief The priority to continue to. */
+	int priority;
 };
 /*!
  * \brief Exit application; continue execution in the dialplan.

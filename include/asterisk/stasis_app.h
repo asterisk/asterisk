@@ -142,8 +142,14 @@ const char *stasis_app_control_get_channel_id(
  * If the channel is no longer in \c res_stasis, this function does nothing.
  *
  * \param control Control for \c res_stasis
+ * \param context An optional context to continue to
+ * \param extension An optional extension to continue to
+ * \param priority An optional priority to continue to
+ *
+ * \return 0 for success
+ * \return -1 for error.
  */
-void stasis_app_control_continue(struct stasis_app_control *control);
+int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority);
 
 /*!
  * \brief Answer the channel associated with this control.
