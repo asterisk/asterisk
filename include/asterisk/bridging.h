@@ -1634,6 +1634,16 @@ void ast_after_bridge_goto_run(struct ast_channel *chan);
  */
 void ast_after_bridge_goto_discard(struct ast_channel *chan);
 
+/*!
+ * \brief Read after bridge goto if it exists
+ * \since 12.0.0
+ *
+ * \param chan Channel to read the after bridge goto parseable goto string from
+ * \param buffer Buffer to write the after bridge goto data to
+ * \param buf_size size of the buffer being written to
+ */
+void ast_after_bridge_goto_read(struct ast_channel *chan, char *buffer, size_t buf_size);
+
 /*! Reason the the after bridge callback will not be called. */
 enum ast_after_bridge_cb_reason {
 	/*! The datastore is being destroyed.  Likely due to hangup. */

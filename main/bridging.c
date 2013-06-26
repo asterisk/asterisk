@@ -3414,6 +3414,47 @@ void ast_after_bridge_goto_discard(struct ast_channel *chan)
 	}
 }
 
+void ast_after_bridge_goto_read(struct ast_channel *chan, char *buffer, size_t buf_size)
+{
+	struct ast_datastore *datastore;
+	struct after_bridge_goto_ds *after_bridge;
+	char *current_pos = buffer;
+	size_t remaining_size = buf_size;
+
+	SCOPED_CHANNELLOCK(lock, chan);
+
+	datastore = ast_channel_datastore_find(chan, &after_bridge_goto_info, NULL);
+	if (!datastore) {
+		buffer[0] = '\0';
+		return;
+	}
+
+	after_bridge = datastore->data;
+
+	if (after_bridge->parseable_goto) {
+		snprintf(buffer, buf_size, "%s", after_bridge->parseable_goto);
+		return;
+	}
+
+	if (!ast_strlen_zero(after_bridge->context)) {
+		snprintf(current_pos, remaining_size, "%s,", after_bridge->context);
+		remaining_size = remaining_size - strlen(current_pos);
+		current_pos += strlen(current_pos);
+	}
+
+	if (after_bridge->run_h_exten) {
+		snprintf(current_pos, remaining_size, "h,");
+		remaining_size = remaining_size - strlen(current_pos);
+		current_pos += strlen(current_pos);
+	} else if (!ast_strlen_zero(after_bridge->exten)) {
+		snprintf(current_pos, remaining_size, "%s,", after_bridge->exten);
+		remaining_size = remaining_size - strlen(current_pos);
+		current_pos += strlen(current_pos);
+	}
+
+	snprintf(current_pos, remaining_size, "%d", after_bridge->priority);
+}
+
 int ast_after_bridge_goto_setup(struct ast_channel *chan)
 {
 	struct ast_datastore *datastore;
@@ -3479,6 +3520,10 @@ int ast_after_bridge_goto_setup(struct ast_channel *chan)
 				after_bridge->exten, after_bridge->priority + 1);
 		}
 		if (!goto_failed) {
+			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
+				ast_channel_priority_set(chan, ast_channel_priority(chan) + 1);
+			}
+
 			ast_debug(1, "Setup after bridge goto location to %s,%s,%d.\n",
 				ast_channel_context(chan),
 				ast_channel_exten(chan),

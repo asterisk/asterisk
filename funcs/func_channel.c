@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
+#include "asterisk/bridging.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
@@ -117,6 +118,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</enum>
 					<enum name="checkhangup">
 						<para>R/O Whether the channel is hanging up (1/0)</para>
+					</enum>
+					<enum name="after_bridge_goto">
+						<para>R/W the parseable goto string indicating where the channel is
+						expected to return to in the PBX after exiting the next bridge it joins
+						on the condition that it doesn't hang up. The parseable goto string uses
+						the same syntax as the <literal>Goto</literal> application.</para>
 					</enum>
 					<enum name="hangup_handler_pop">
 						<para>W/O Replace the most recently added hangup handler
@@ -475,6 +482,8 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		struct ast_str *tmp_str = ast_str_alloca(1024);
 
 		locked_copy_string(chan, buf,  ast_print_namedgroups(&tmp_str, ast_channel_named_pickupgroups(chan)), len);
+	} else if (!strcasecmp(data, "after_bridge_goto")) {
+		ast_after_bridge_goto_read(chan, buf, len);
 	} else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);
 		snprintf(buf, len, "%d", ast_channel_amaflags(chan));
@@ -516,7 +525,13 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		locked_string_field_set(chan, accountcode, value);
 	else if (!strcasecmp(data, "userfield"))
 		locked_string_field_set(chan, userfield, value);
-	else if (!strcasecmp(data, "amaflags")) {
+	else if (!strcasecmp(data, "after_bridge_goto")) {
+		if (ast_strlen_zero(value)) {
+			ast_after_bridge_goto_discard(chan);
+		} else {
+			ast_after_bridge_set_go_on(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan), value);
+		}
+	} else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);
 		if (isdigit(*value)) {
 			int amaflags;
