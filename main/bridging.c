@@ -772,10 +772,10 @@ static void bridge_handle_hangup(struct ast_bridge_channel *bridge_channel)
 	/* Run any hangup hooks. */
 	iter = ao2_iterator_init(features->hangup_hooks, 0);
 	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
-		int failed;
+		int remove_me;
 
-		failed = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
-		if (failed) {
+		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		if (remove_me) {
 			ast_debug(1, "Hangup hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 			ao2_unlink(features->hangup_hooks, hook);
@@ -2486,10 +2486,10 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 
 	/* If a hook was actually matched execute it on this channel, otherwise stream up the DTMF to the other channels */
 	if (hook) {
-		int failed;
+		int remove_me;
 
-		failed = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
-		if (failed) {
+		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		if (remove_me) {
 			ast_debug(1, "DTMF hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 			ao2_unlink(features->dtmf_hooks, hook);
