@@ -265,7 +265,7 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     int enabled;
 	 * };
-		aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_BOOL_T, 1, FLDSET(struct test_item, enabled));
+	 * aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_BOOL_T, 1, FLDSET(struct test_item, enabled));
 	 * {endcode}
 	 */
 	OPT_BOOL_T,
@@ -284,13 +284,15 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     unsigned int flags;
 	 * };
-		aco_option_register(&cfg_info, "quiet", ACO_EXACT, my_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), MY_TYPE_ISQUIET);
+	 * aco_option_register(&cfg_info, "quiet", ACO_EXACT, my_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), MY_TYPE_ISQUIET);
 	 * {endcode}
 	 */
-
 	OPT_BOOLFLAG_T,
 
-	/*! \brief Type for default option handler for character arrays
+	/*! \brief Type for default option handler for character array strings
+	 * \note aco_option_register flags:
+	 *   non-zero : String cannot be empty.
+	 *   0        : String can be empty.
 	 * \note aco_option_register varargs:
 	 *   CHARFLDSET macro with a field of type char[]
 	 *
@@ -299,7 +301,7 @@ enum aco_option_type {
 	 * struct test_item {
 	 *     char description[128];
 	 * };
-	 * aco_option_register(&cfg_info, "description", ACO_EXACT, my_types, "none", OPT_CHAR_ARRAY_T, CHARFLDSET(struct test_item, description));
+	 * aco_option_register(&cfg_info, "description", ACO_EXACT, my_types, "none", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct test_item, description));
 	 * {endcode}
 	 */
 	OPT_CHAR_ARRAY_T,
@@ -338,7 +340,7 @@ enum aco_option_type {
 	 *     double dub;
 	 * };
 	 * {code}
-	 * aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, my_types, "3", OPT_DOUBLE_T, FLDSET(struct test_item, dub));
+	 * aco_option_register(&cfg_info, "doubleopt", ACO_EXACT, my_types, "3", OPT_DOUBLE_T, 0, FLDSET(struct test_item, dub));
 	 * {endcode}
 	 */
 	OPT_DOUBLE_T,
@@ -393,7 +395,8 @@ enum aco_option_type {
 
 	/*! \brief Type for default option handler for stringfields
 	 * \note aco_option_register flags:
-	 *   none
+	 *   non-zero : String cannot be empty.
+	 *   0        : String can be empty.
 	 * aco_option_register varargs:
 	 *   STRFLDSET macro with the field being the field created by AST_STRING_FIELD
 	 *

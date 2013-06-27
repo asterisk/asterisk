@@ -1342,6 +1342,10 @@ static int stringfield_handler_fn(const struct aco_option *opt, struct ast_varia
 	ast_string_field *field = (const char **)(obj + opt->args[0]);
 	struct ast_string_field_pool **pool = (struct ast_string_field_pool **)(obj + opt->args[1]);
 	struct ast_string_field_mgr *mgr = (struct ast_string_field_mgr *)(obj + opt->args[2]);
+
+	if (opt->flags && ast_strlen_zero(var->value)) {
+		return -1;
+	}
 	ast_string_field_ptr_set_by_fields(*pool, *mgr, field, var->value);
 	return 0;
 }
@@ -1384,7 +1388,7 @@ static int sockaddr_handler_fn(const struct aco_option *opt, struct ast_variable
 	return ast_parse_arg(var->value, PARSE_ADDR | opt->flags, field);
 }
 
-/*! \brief Default handler for doing noithing
+/*! \brief Default handler for doing nothing
  */
 static int noop_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -1400,6 +1404,9 @@ static int chararray_handler_fn(const struct aco_option *opt, struct ast_variabl
 	char *field = (char *)(obj + opt->args[0]);
 	size_t len = opt->args[1];
 
+	if (opt->flags && ast_strlen_zero(var->value)) {
+		return -1;
+	}
 	ast_copy_string(field, var->value, len);
 	return 0;
 }
