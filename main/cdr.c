@@ -1601,6 +1601,11 @@ static int dial_state_process_bridge_enter(struct cdr_object *cdr, struct ast_br
 				continue;
 			}
 
+			/* If we don't have a Party B (originated channel), skip it */
+			if (!cdr->party_b.snapshot) {
+				continue;
+			}
+
 			/* Skip any records that aren't our Party B */
 			if (strcmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name)) {
 				continue;

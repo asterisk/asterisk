@@ -494,6 +494,102 @@ AST_TEST_DEFINE(test_cdr_unanswered_outbound_call)
 	return result;
 }
 
+AST_TEST_DEFINE(test_cdr_outbound_bridged_call)
+{
+	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
+	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_cdr_config *, config, ao2_alloc(sizeof(*config), NULL),
+			ao2_cleanup);
+	struct timespec to_sleep = {1, 0};
+	enum ast_test_result_state result = AST_TEST_NOT_RUN;
+
+	struct ast_party_caller caller = ALICE_CALLERID;
+	struct ast_cdr alice_expected = {
+		.clid = "\"Alice\" <100>",
+		.src = "100",
+		.dst = "100",
+		.dcontext = "default",
+		.channel = CHANNEL_TECH_NAME "/Alice",
+		.dstchannel = CHANNEL_TECH_NAME "/Bob",
+		.lastapp = "",
+		.lastdata = "",
+		.amaflags = AST_AMA_DOCUMENTATION,
+		.billsec = 1,
+		.disposition = AST_CDR_ANSWERED,
+		.accountcode = "100",
+		.peeraccount = "200",
+	};
+	struct ast_cdr bob_expected = {
+		.clid = "\"\" <>",
+		.src = "",
+		.dst = "s",
+		.dcontext = "default",
+		.channel = CHANNEL_TECH_NAME "/Bob",
+		.dstchannel = "",
+		.lastapp = "AppDial",
+		.lastdata = "(Outgoing Line)",
+		.amaflags = AST_AMA_DOCUMENTATION,
+		.billsec = 1,
+		.disposition = AST_CDR_ANSWERED,
+		.accountcode = "200",
+		.peeraccount = "",
+		.next = &alice_expected,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = TEST_CATEGORY;
+		info->summary = "Test dialing, answering, and going into a 2-party bridge";
+		info->description =
+			"The most 'basic' of scenarios\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	SWAP_CONFIG(config, debug_cdr_config);
+
+	CREATE_ALICE_CHANNEL(chan_alice, &caller, &alice_expected);
+	ast_channel_state_set(chan_alice, AST_STATE_UP);
+
+	bridge = ast_bridge_basic_new();
+	ast_test_validate(test, bridge != NULL);
+	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+
+	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+
+	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, ast_channel_linkedid(chan_alice), 0, CHANNEL_TECH_NAME "/Bob");
+	ast_copy_string(bob_expected.linkedid, ast_channel_linkedid(chan_bob), sizeof(bob_expected.linkedid));
+	ast_copy_string(bob_expected.uniqueid, ast_channel_uniqueid(chan_bob), sizeof(bob_expected.uniqueid));
+	ast_set_flag(ast_channel_flags(chan_bob), AST_FLAG_OUTGOING);
+	ast_set_flag(ast_channel_flags(chan_bob), AST_FLAG_ORIGINATED);
+	EMULATE_APP_DATA(chan_bob, 0, "AppDial", "(Outgoing Line)");
+
+	ast_channel_publish_dial(NULL, chan_bob, "Bob", NULL);
+	ast_channel_state_set(chan_bob, AST_STATE_RINGING);
+	ast_channel_publish_dial(NULL, chan_bob, NULL, "ANSWER");
+
+	ast_channel_state_set(chan_bob, AST_STATE_UP);
+
+	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+
+	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+
+	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+
+	ast_bridge_depart(chan_bob);
+	ast_bridge_depart(chan_alice);
+
+	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL);
+	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL);
+
+	result = verify_mock_cdr_record(test, &bob_expected, 2);
+	return result;
+}
+
+
 AST_TEST_DEFINE(test_cdr_single_party)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
@@ -511,7 +607,7 @@ AST_TEST_DEFINE(test_cdr_single_party)
 		.lastapp = "VoiceMailMain",
 		.lastdata = "1",
 		.billsec = 1,
-		.amaflags = AST_AMA_DOCUMENTATION,
+	.amaflags = AST_AMA_DOCUMENTATION,
 		.disposition = AST_CDR_ANSWERED,
 		.accountcode = "100",
 	};
@@ -2338,12 +2434,15 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_cdr_channel_creation);
 	AST_TEST_UNREGISTER(test_cdr_unanswered_inbound_call);
 	AST_TEST_UNREGISTER(test_cdr_unanswered_outbound_call);
+
 	AST_TEST_UNREGISTER(test_cdr_single_party);
 	AST_TEST_UNREGISTER(test_cdr_single_bridge);
 	AST_TEST_UNREGISTER(test_cdr_single_bridge_continue);
 	AST_TEST_UNREGISTER(test_cdr_single_twoparty_bridge_a);
 	AST_TEST_UNREGISTER(test_cdr_single_twoparty_bridge_b);
 	AST_TEST_UNREGISTER(test_cdr_single_multiparty_bridge);
+
+	AST_TEST_UNREGISTER(test_cdr_outbound_bridged_call);
 
 	AST_TEST_UNREGISTER(test_cdr_dial_unanswered);
 	AST_TEST_UNREGISTER(test_cdr_dial_congestion);
@@ -2383,6 +2482,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cdr_single_twoparty_bridge_a);
 	AST_TEST_REGISTER(test_cdr_single_twoparty_bridge_b);
 	AST_TEST_REGISTER(test_cdr_single_multiparty_bridge);
+
+	AST_TEST_REGISTER(test_cdr_outbound_bridged_call);
 
 	AST_TEST_REGISTER(test_cdr_dial_unanswered);
 	AST_TEST_REGISTER(test_cdr_dial_congestion);
