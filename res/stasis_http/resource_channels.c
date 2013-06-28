@@ -172,14 +172,14 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 
 	if (args->skipms < 0) {
 		stasis_http_response_error(
-			response, 500, "Internal Server Error",
+			response, 400, "Bad Request",
 			"skipms cannot be negative");
 		return;
 	}
 
 	if (args->offsetms < 0) {
 		stasis_http_response_error(
-			response, 500, "Internal Server Error",
+			response, 400, "Bad Request",
 			"offsetms cannot be negative");
 		return;
 	}
