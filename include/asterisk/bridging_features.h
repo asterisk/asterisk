@@ -47,9 +47,9 @@ enum ast_bridge_feature_flags {
 	/*! Bridge channels can be moved to another bridge only by masquerade (ConfBridge) */
 	AST_BRIDGE_FLAG_MASQUERADE_ONLY = (1 << 7),
 	/*! Bridge does not allow transfers of channels out */
-	AST_BRIDGE_FLAG_TRANSFER_PROHIBITED = (1 << 6),
+	AST_BRIDGE_FLAG_TRANSFER_PROHIBITED = (1 << 8),
 	/*! Bridge transfers require transfer of entire bridge rather than individual channels */
-	AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY = (1 << 7),
+	AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY = (1 << 9),
 };
 
 /*! \brief Flags used for per bridge channel features */
