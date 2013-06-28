@@ -99,6 +99,9 @@
  * has hung up, the state transitions to Finalized
  * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
  * state transitions to Bridge
+ * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
+ * holding bridge with a subclass type of "parking" is received, the CDR is
+ * transitioned to the Parked state.
  *
  * \par Dial
  *
@@ -138,6 +141,9 @@
  * if we have a Party B. Otherwise, we transition to the Single state.
  * \li If a \ref ast_bridge_blob_type is received indicating a Bridge Enter, the
  * state transitions to Bridge (through the Dial state)
+ * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
+ * holding bridge with a subclass type of "parking" is received, the CDR is
+ * transitioned to the Parked state.
  *
  * \par Bridge
  *
@@ -174,6 +180,31 @@
  * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
  * the state transitions to the Pending state
  *
+ * \par Parked
+ *
+ * Parking is technically just another bridge in the Asterisk bridging
+ * framework. Unlike other bridges, however there are several key distinctions:
+ * \li With normal bridges, you want to show paths of communication between
+ * the participants. In parking, however, each participant is independent.
+ * From the perspective of a CDR, a call in parking should look like a dialplan
+ * application just executed.
+ * \li Holding bridges are typically items using in more complex applications,
+ * and so we usually don't want to show them. However, with Park, there is no
+ * application execution - often, a channel will be put directly into the
+ * holding bridge, bypassing the dialplan. This occurs when a call is blind
+ * transferred to a parking extension.
+ *
+ * As such, if a channel enters a bridge and that happens to be a holding bridge
+ * with a subclass type of "parking", we transition the CDR into the Parked
+ * state. The parking Stasis message updates the application name and data to
+ * reflect that the channel is in parking. When this occurs, a special flag is
+ * set on the CDR that prevents the application name from being updates by
+ * subsequent channel snapshot updates.
+ *
+ * The following transitions can occur while in the Parked state:
+ * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
+ * the state transitions to the Pending state
+ *
  * \par Pending
  *
  * After a channel leaves a bridge, we often don't know what's going to happen
@@ -190,6 +221,9 @@
  * Context/Extension/Priority, a new CDR is created and transitioned to the
  * Single state. If the update indicates that the party has been hung up, the
  * CDR is transitioned to the Finalized state.
+ * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
+ * holding bridge with a subclass type of "parking" is received, the CDR is
+ * transitioned to the Parked state.
  *
  * \par Finalized
  *
@@ -203,19 +237,19 @@
 
 /*! \brief CDR engine settings */
 enum ast_cdr_settings {
-	CDR_ENABLED = 1 << 0,				/*< Enable CDRs */
-	CDR_BATCHMODE = 1 << 1,				/*< Whether or not we should dispatch CDRs in batches */
-	CDR_UNANSWERED = 1 << 2,			/*< Log unanswered CDRs */
-	CDR_CONGESTION = 1 << 3,			/*< Treat congestion as if it were a failed call */
-	CDR_END_BEFORE_H_EXTEN = 1 << 4,	/*< End the CDR before the 'h' extension runs */
-	CDR_INITIATED_SECONDS = 1 << 5,		/*< Include microseconds into the billing time */
-	CDR_DEBUG = 1 << 6,					/*< Enables extra debug statements */
+	CDR_ENABLED = 1 << 0,               /*< Enable CDRs */
+	CDR_BATCHMODE = 1 << 1,             /*< Whether or not we should dispatch CDRs in batches */
+	CDR_UNANSWERED = 1 << 2,            /*< Log unanswered CDRs */
+	CDR_CONGESTION = 1 << 3,            /*< Treat congestion as if it were a failed call */
+	CDR_END_BEFORE_H_EXTEN = 1 << 4,    /*< End the CDR before the 'h' extension runs */
+	CDR_INITIATED_SECONDS = 1 << 5,     /*< Include microseconds into the billing time */
+	CDR_DEBUG = 1 << 6,                 /*< Enables extra debug statements */
 };
 
 /*! \brief CDR Batch Mode settings */
 enum ast_cdr_batch_mode_settings {
-	BATCH_MODE_SCHEDULER_ONLY = 1 << 0,	/*< Don't spawn a thread to handle the batches - do it on the scheduler */
-	BATCH_MODE_SAFE_SHUTDOWN = 1 << 1,	/*< During safe shutdown, submit the batched CDRs */
+	BATCH_MODE_SCHEDULER_ONLY = 1 << 0, /*< Don't spawn a thread to handle the batches - do it on the scheduler */
+	BATCH_MODE_SAFE_SHUTDOWN = 1 << 1,  /*< During safe shutdown, submit the batched CDRs */
 };
 
 /*!
@@ -223,24 +257,25 @@ enum ast_cdr_batch_mode_settings {
  * state of a CDR object based on these flags.
  */
 enum ast_cdr_options {
-	AST_CDR_FLAG_KEEP_VARS = (1 << 0),			/*< Copy variables during the operation */
-	AST_CDR_FLAG_DISABLE = (1 << 1),			/*< Disable the current CDR */
-	AST_CDR_FLAG_DISABLE_ALL = (3 << 1),		/*< Disable the CDR and all future CDRs */
-	AST_CDR_FLAG_PARTY_A = (1 << 3),			/*< Set the channel as party A */
-	AST_CDR_FLAG_FINALIZE = (1 << 4),			/*< Finalize the current CDRs */
-	AST_CDR_FLAG_SET_ANSWER = (1 << 5),			/*< If the channel is answered, set the answer time to now */
-	AST_CDR_FLAG_RESET = (1 << 6),				/*< If set, set the start and answer time to now */
+	AST_CDR_FLAG_KEEP_VARS = (1 << 0),   /*< Copy variables during the operation */
+	AST_CDR_FLAG_DISABLE = (1 << 1),     /*< Disable the current CDR */
+	AST_CDR_FLAG_DISABLE_ALL = (3 << 1), /*< Disable the CDR and all future CDRs */
+	AST_CDR_FLAG_PARTY_A = (1 << 3),     /*< Set the channel as party A */
+	AST_CDR_FLAG_FINALIZE = (1 << 4),    /*< Finalize the current CDRs */
+	AST_CDR_FLAG_SET_ANSWER = (1 << 5),  /*< If the channel is answered, set the answer time to now */
+	AST_CDR_FLAG_RESET = (1 << 6),       /*< If set, set the start and answer time to now */
+	AST_CDR_LOCK_APP = (1 << 7),         /*< Prevent any further changes to the application field/data field for this CDR */
 };
 
 /*!
  * \brief CDR Flags - Disposition
  */
 enum ast_cdr_disposition {
-	AST_CDR_NOANSWER = 0,
-	AST_CDR_NULL     = (1 << 0),
-	AST_CDR_FAILED   = (1 << 1),
-	AST_CDR_BUSY     = (1 << 2),
-	AST_CDR_ANSWERED = (1 << 3),
+	AST_CDR_NOANSWER   = 0,
+	AST_CDR_NULL       = (1 << 0),
+	AST_CDR_FAILED     = (1 << 1),
+	AST_CDR_BUSY       = (1 << 2),
+	AST_CDR_ANSWERED   = (1 << 3),
 	AST_CDR_CONGESTION = (1 << 4),
 };
 

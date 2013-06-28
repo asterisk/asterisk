@@ -4333,6 +4333,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_parking_stasis_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_cdr_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -4362,11 +4367,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (load_pbx()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_parking_stasis_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

@@ -56,6 +56,8 @@ struct ast_parked_call_payload {
 	);
 };
 
+struct ast_exten;
+
 /*!
  * \brief Constructor for parked_call_payload objects
  * \since 12

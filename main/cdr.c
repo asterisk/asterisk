@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/config_options.h"
 #include "asterisk/json.h"
+#include "asterisk/parking.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridging.h"
@@ -329,6 +330,9 @@ static struct stasis_subscription *bridge_subscription;
 /*! \brief Our subscription for channels */
 static struct stasis_subscription *channel_subscription;
 
+/*! \brief Our subscription for parking */
+static struct stasis_subscription *parking_subscription;
+
 /*! \brief The parent topic for all topics we want to aggregate for CDRs */
 static struct stasis_topic *cdr_topic;
 
@@ -416,15 +420,34 @@ struct cdr_object_fn_table {
 	 * of this channel into the bridge is handled by the higher level message
 	 * handler.
 	 *
+	 * Note that this handler is for when a channel enters into a "normal"
+	 * bridge, where people actually talk to each other. Parking is its own
+	 * thing.
+	 *
 	 * \param cdr The \ref cdr_object
 	 * \param bridge The bridge that the Party A just entered into
 	 * \param channel The \ref ast_channel_snapshot for this CDR's Party A
 	 *
 	 * \retval 0 This CDR found a Party B for itself and updated it, or there
 	 * was no Party B to find (we're all alone)
-	 * \retval 1 This CDR couldn't find a Party B, and there were options
+	 * \retval 1 This CDR couldn't find a Party B and channels were in the bridge
 	 */
 	int (* const process_bridge_enter)(struct cdr_object *cdr,
+			struct ast_bridge_snapshot *bridge,
+			struct ast_channel_snapshot *channel);
+
+	/*!
+	 * \brief Process entering into a parking bridge.
+	 *
+	 * \param cdr The \ref cdr_object
+	 * \param bridge The parking bridge that Party A just entered into
+	 * \param channel The \ref ast_channel_snapshot for this CDR's Party A
+	 *
+	 * \retval 0 This CDR successfully transitioned itself into the parked state
+	 * \retval 1 This CDR couldn't handle the parking transition and we need a
+	 *  new CDR.
+	 */
+	int (* const process_parking_bridge_enter)(struct cdr_object *cdr,
 			struct ast_bridge_snapshot *bridge,
 			struct ast_channel_snapshot *channel);
 
@@ -441,16 +464,30 @@ struct cdr_object_fn_table {
 	int (* const process_bridge_leave)(struct cdr_object *cdr,
 			struct ast_bridge_snapshot *bridge,
 			struct ast_channel_snapshot *channel);
+
+	/*!
+	 * \brief Process an update informing us that the channel got itself parked
+	 *
+	 * \param cdr The \ref cdr_object
+	 * \param channel The parking information for this CDR's party A
+	 *
+	 * \retval 0 This CDR successfully parked itself
+	 * \retval 1 This CDR couldn't handle the park
+	 */
+	int (* const process_parked_channel)(struct cdr_object *cdr,
+			struct ast_parked_call_payload *parking_info);
 };
 
 static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
 static int base_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
 static int base_process_dial_end(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer, const char *dial_status);
+static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked_call_payload *parking_info);
 
 static void single_state_init_function(struct cdr_object *cdr);
 static void single_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
 static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer);
 static int single_state_process_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
+static int single_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
 
 /*!
  * \brief The virtual table for the Single state.
@@ -471,7 +508,9 @@ struct cdr_object_fn_table single_state_fn_table = {
 	.process_dial_begin = single_state_process_dial_begin,
 	.process_dial_end = base_process_dial_end,
 	.process_bridge_enter = single_state_process_bridge_enter,
+	.process_parking_bridge_enter = single_state_process_parking_bridge_enter,
 	.process_bridge_leave = base_process_bridge_leave,
+	.process_parked_channel = base_process_parked_channel,
 };
 
 static void dial_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
@@ -505,6 +544,7 @@ struct cdr_object_fn_table dial_state_fn_table = {
 static int dialed_pending_state_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
 static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer);
 static int dialed_pending_state_process_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
+static int dialed_pending_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
 
 /*!
  * \brief The virtual table for the Dialed Pending state.
@@ -529,7 +569,9 @@ struct cdr_object_fn_table dialed_pending_state_fn_table = {
 	.process_party_a = dialed_pending_state_process_party_a,
 	.process_dial_begin = dialed_pending_state_process_dial_begin,
 	.process_bridge_enter = dialed_pending_state_process_bridge_enter,
+	.process_parking_bridge_enter = dialed_pending_state_process_parking_bridge_enter,
 	.process_bridge_leave = base_process_bridge_leave,
+	.process_parked_channel = base_process_parked_channel,
 };
 
 static void bridge_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
@@ -550,12 +592,14 @@ struct cdr_object_fn_table bridge_state_fn_table = {
 	.process_party_a = base_process_party_a,
 	.process_party_b = bridge_state_process_party_b,
 	.process_bridge_leave = bridge_state_process_bridge_leave,
+	.process_parked_channel = base_process_parked_channel,
 };
 
 static void pending_state_init_function(struct cdr_object *cdr);
 static int pending_state_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot);
 static int pending_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer);
 static int pending_state_process_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
+static int pending_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
 
 /*!
  * \brief The virtual table for the Pending state
@@ -576,7 +620,27 @@ struct cdr_object_fn_table bridged_pending_state_fn_table = {
 	.process_dial_begin = pending_state_process_dial_begin,
 	.process_dial_end = base_process_dial_end,
 	.process_bridge_enter = pending_state_process_bridge_enter,
+	.process_parking_bridge_enter = pending_state_process_parking_bridge_enter,
 	.process_bridge_leave = base_process_bridge_leave,
+	.process_parked_channel = base_process_parked_channel,
+};
+
+static int parked_state_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel);
+
+/*!
+ * \brief The virtual table for the Parked state
+ *
+ * Parking is weird. Unlike typical bridges, it has to be treated somewhat
+ * uniquely - a channel in a parking bridge (which is a subclass of a holding
+ * bridge) has to be handled as if the channel went into an application.
+ * However, when the channel comes out, we need a new CDR - unlike the Single
+ * state.
+ */
+struct cdr_object_fn_table parked_state_fn_table = {
+	.name = "Parked",
+	.process_party_a = base_process_party_a,
+	.process_bridge_leave = parked_state_process_bridge_leave,
+	.process_parked_channel = base_process_parked_channel,
 };
 
 static void finalized_state_init_function(struct cdr_object *cdr);
@@ -1239,7 +1303,9 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	 * of "AppDialX". Prevent that, and any other application changes we might not want
 	 * here.
 	 */
-	if (!ast_strlen_zero(snapshot->appl) && (strncasecmp(snapshot->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))) {
+	if (!ast_strlen_zero(snapshot->appl)
+			&& (strncasecmp(snapshot->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))
+			&& !ast_test_flag(&cdr->flags, AST_CDR_LOCK_APP)) {
 		ast_string_field_set(cdr, appl, snapshot->appl);
 		ast_string_field_set(cdr, data, snapshot->data);
 	}
@@ -1262,6 +1328,26 @@ static int base_process_dial_end(struct cdr_object *cdr, struct ast_channel_snap
 {
 	/* In general, most things shouldn't get a dial end. */
 	ast_assert(0);
+	return 0;
+}
+
+static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked_call_payload *parking_info)
+{
+	char park_info[128];
+
+	ast_assert(!strcmp(parking_info->parkee->name, cdr->party_a.snapshot->name));
+
+	/* Update Party A information regardless */
+	cdr->fn_table->process_party_a(cdr, parking_info->parkee);
+
+	/* Fake out where we're parked */
+	ast_string_field_set(cdr, appl, "Park");
+	snprintf(park_info, sizeof(park_info), "%s:%u", parking_info->parkinglot, parking_info->parkingspace);
+	ast_string_field_set(cdr, data, park_info);
+
+	/* Prevent any further changes to the App/Data fields for this record */
+	ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
+
 	return 0;
 }
 
@@ -1394,6 +1480,13 @@ static int single_state_process_bridge_enter(struct cdr_object *cdr, struct ast_
 	/* Success implies that we have a Party B */
 	return success;
 }
+
+static int single_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
+{
+	cdr_object_transition_state(cdr, &parked_state_fn_table);
+	return 0;
+}
+
 
 /* DIAL STATE */
 
@@ -1567,14 +1660,18 @@ static int dialed_pending_state_process_bridge_enter(struct cdr_object *cdr, str
 	return cdr->fn_table->process_bridge_enter(cdr, bridge, channel);
 }
 
+static int dialed_pending_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
+{
+	/* We can't handle this as we have a Party B - ask for a new one */
+	return 1;
+}
+
 static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer)
 {
-	struct cdr_object *new_cdr;
-
 	cdr_object_transition_state(cdr, &finalized_state_fn_table);
-	new_cdr = cdr_object_create_and_append(cdr);
-	cdr_object_transition_state(cdr, &single_state_fn_table);
-	return new_cdr->fn_table->process_dial_begin(cdr, caller, peer);
+
+	/* Ask for a new CDR */
+	return 1;
 }
 
 /* BRIDGE STATE */
@@ -1647,6 +1744,25 @@ static int pending_state_process_bridge_enter(struct cdr_object *cdr, struct ast
 	return cdr->fn_table->process_bridge_enter(cdr, bridge, channel);
 }
 
+static int pending_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
+{
+	cdr_object_transition_state(cdr, &single_state_fn_table);
+	ast_cdr_clear_property(cdr->name, AST_CDR_FLAG_DISABLE);
+	return cdr->fn_table->process_parking_bridge_enter(cdr, bridge, channel);
+}
+
+/* PARKED STATE */
+
+static int parked_state_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
+{
+	if (strcmp(cdr->party_a.snapshot->name, channel->name)) {
+		return 1;
+	}
+	cdr_object_transition_state(cdr, &finalized_state_fn_table);
+
+	return 0;
+}
+
 /* FINALIZED STATE */
 
 static void finalized_state_init_function(struct cdr_object *cdr)
@@ -1688,15 +1804,13 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *caller;
 	struct ast_channel_snapshot *peer;
+	struct ast_channel_snapshot *party_a_snapshot;
+	struct ast_channel_snapshot *party_b_snapshot;
 	struct cdr_object_snapshot *party_a;
-	struct cdr_object_snapshot *party_b;
 	struct cdr_object *it_cdr;
 	struct ast_json *dial_status_blob;
 	const char *dial_status = NULL;
 	int res = 1;
-
-	CDR_DEBUG(mod_cfg, "Dial message: %u.%08u\n", (unsigned int)stasis_message_timestamp(message)->tv_sec, (unsigned int)stasis_message_timestamp(message)->tv_usec);
-	ast_assert(payload != NULL);
 
 	caller = ast_multi_channel_blob_get_channel(payload, "caller");
 	peer = ast_multi_channel_blob_get_channel(payload, "peer");
@@ -1708,6 +1822,13 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 		dial_status = ast_json_string_get(dial_status_blob);
 	}
 
+	CDR_DEBUG(mod_cfg, "Dial %s message for %s, %s: %u.%08u\n",
+			ast_strlen_zero(dial_status) ? "Begin" : "End",
+			caller ? caller->name : "(none)",
+			peer ? peer->name : "(none)",
+			(unsigned int)stasis_message_timestamp(message)->tv_sec,
+			(unsigned int)stasis_message_timestamp(message)->tv_usec);
+
 	/* Figure out who is running this show */
 	if (caller) {
 		cdr_caller = ao2_find(active_cdrs_by_channel, caller->name, OBJ_KEY);
@@ -1716,22 +1837,24 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 		cdr_peer = ao2_find(active_cdrs_by_channel, peer->name, OBJ_KEY);
 	}
 	if (cdr_caller && cdr_peer) {
-		party_a = cdr_object_pick_party_a(&cdr_caller->party_a, &cdr_peer->party_a);
-		if (!strcmp(party_a->snapshot->name, cdr_caller->party_a.snapshot->name)) {
+		party_a = cdr_object_pick_party_a(&cdr_caller->last->party_a, &cdr_peer->last->party_a);
+		if (!strcmp(party_a->snapshot->name, cdr_caller->last->party_a.snapshot->name)) {
 			cdr = cdr_caller;
-			party_b = &cdr_peer->party_a;
+			party_a_snapshot = caller;
+			party_b_snapshot = peer;
 		} else {
 			cdr = cdr_peer;
-			party_b = &cdr_caller->party_a;
+			party_a_snapshot = peer;
+			party_b_snapshot = caller;
 		}
 	} else if (cdr_caller) {
 		cdr = cdr_caller;
-		party_a = &cdr_caller->party_a;
-		party_b = NULL;
+		party_a_snapshot = caller;
+		party_b_snapshot = NULL;
 	} else if (cdr_peer) {
 		cdr = cdr_peer;
-		party_a = NULL;
-		party_b = &cdr_peer->party_a;
+		party_a_snapshot = NULL;
+		party_b_snapshot = peer;
 	} else {
 		return;
 	}
@@ -1744,22 +1867,22 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial Begin message for channel %s, peer %s\n",
 					cdr,
-					party_a ? party_a->snapshot->name : "(none)",
-					party_b ? party_b->snapshot->name : "(none)");
+					party_a_snapshot ? party_a_snapshot->name : "(none)",
+					party_b_snapshot ? party_b_snapshot->name : "(none)");
 			res &= it_cdr->fn_table->process_dial_begin(it_cdr,
-					party_a ? party_a->snapshot : NULL,
-					party_b ? party_b->snapshot : NULL);
+					party_a_snapshot,
+					party_b_snapshot);
 		} else {
 			if (!it_cdr->fn_table->process_dial_end) {
 				continue;
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial End message for channel %s, peer %s\n",
 					cdr,
-					party_a ? party_a->snapshot->name : "(none)",
-					party_b ? party_b->snapshot->name : "(none)");
+					party_a_snapshot ? party_a_snapshot->name : "(none)",
+					party_b_snapshot ? party_b_snapshot->name : "(none)");
 			it_cdr->fn_table->process_dial_end(it_cdr,
-					party_a ? party_a->snapshot : NULL,
-					party_b ? party_b->snapshot : NULL,
+					party_a_snapshot,
+					party_b_snapshot,
 					dial_status);
 		}
 	}
@@ -1773,8 +1896,8 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			return;
 		}
 		new_cdr->fn_table->process_dial_begin(new_cdr,
-				party_a ? party_a->snapshot : NULL,
-				party_b ? party_b->snapshot : NULL);
+				party_a_snapshot,
+				party_b_snapshot);
 	}
 	ao2_unlock(cdr);
 }
@@ -1932,7 +2055,9 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 				/* We're not hung up and we have a new snapshot - we need a new CDR */
 				struct cdr_object *new_cdr;
 				new_cdr = cdr_object_create_and_append(cdr);
-				new_cdr->fn_table->process_party_a(new_cdr, new_snapshot);
+				if (new_cdr) {
+					new_cdr->fn_table->process_party_a(new_cdr, new_snapshot);
+				}
 			}
 		} else {
 			CDR_DEBUG(mod_cfg, "%p - Beginning finalize/dispatch for %s\n", cdr, old_snapshot->name);
@@ -1998,7 +2123,7 @@ static int filter_bridge_messages(struct ast_bridge_snapshot *bridge)
 	/* Ignore holding bridge technology messages. We treat this simply as an application
 	 * that a channel enters into.
 	 */
-	if (!strcmp(bridge->technology, "holding_bridge")) {
+	if (!strcmp(bridge->technology, "holding_bridge") && strcmp(bridge->subclass, "parking")) {
 		return 1;
 	}
 	return 0;
@@ -2006,8 +2131,10 @@ static int filter_bridge_messages(struct ast_bridge_snapshot *bridge)
 
 /*!
  * \brief Handler for when a channel leaves a bridge
- * \param bridge The \ref ast_bridge_snapshot representing the bridge
- * \param channel The \ref ast_channel_snapshot representing the channel
+ * \param data Passed on
+ * \param sub The stasis subscription for this message callback
+ * \param topic The topic this message was published for
+ * \param message The message - hopefully a bridge one!
  */
 static void handle_bridge_leave_message(void *data, struct stasis_subscription *sub,
 		struct stasis_topic *topic, struct stasis_message *message)
@@ -2032,7 +2159,10 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 		return;
 	}
 
-	CDR_DEBUG(mod_cfg, "Bridge Leave message: %u.%08u\n", (unsigned int)stasis_message_timestamp(message)->tv_sec, (unsigned int)stasis_message_timestamp(message)->tv_usec);
+	CDR_DEBUG(mod_cfg, "Bridge Leave message for %s: %u.%08u\n",
+			channel->name,
+			(unsigned int)stasis_message_timestamp(message)->tv_sec,
+			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
@@ -2057,19 +2187,25 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 		return;
 	}
 
-	ao2_unlink(active_cdrs_by_bridge, cdr);
+	if (strcmp(bridge->subclass, "parking")) {
+		ao2_unlink(active_cdrs_by_bridge, cdr);
+	}
 
 	/* Create a new pending record. If the channel decides to do something else,
 	 * the pending record will handle it - otherwise, if gets dropped.
 	 */
 	pending_cdr = cdr_object_create_and_append(cdr);
-	cdr_object_transition_state(pending_cdr, &bridged_pending_state_fn_table);
+	if (pending_cdr) {
+		cdr_object_transition_state(pending_cdr, &bridged_pending_state_fn_table);
+	}
 	ao2_unlock(cdr);
 
-	/* Party B */
-	ao2_callback(active_cdrs_by_bridge, OBJ_NODATA,
-			cdr_object_party_b_left_bridge_cb,
-			&leave_data);
+	if (strcmp(bridge->subclass, "parking")) {
+		/* Party B */
+		ao2_callback(active_cdrs_by_bridge, OBJ_NODATA,
+				cdr_object_party_b_left_bridge_cb,
+				&leave_data);
+	}
 }
 
 struct bridge_candidate {
@@ -2239,6 +2375,9 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 	struct cdr_object *new_cdr;
 
 	new_cdr = cdr_object_create_and_append(cdr);
+	if (!new_cdr) {
+		return;
+	}
 	cdr_object_snapshot_copy(&new_cdr->party_b, party_b);
 	cdr_object_check_party_a_answer(new_cdr);
 	ast_string_field_set(new_cdr, bridge, cdr->bridge);
@@ -2340,38 +2479,60 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
 	return;
 }
 
-/*!
- * \brief Handler for Stasis-Core bridge enter messages
- * \param data Passed on
- * \param sub The stasis subscription for this message callback
- * \param topic The topic this message was published for
- * \param message The message - hopefully a bridge one!
+/*! \brief Handle entering into a parking bridge
+ * \param cdr The CDR to operate on
+ * \param bridge The bridge the channel just entered
+ * \param channel The channel snapshot
  */
-static void handle_bridge_enter_message(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
+		struct ast_bridge_snapshot *bridge,
+		struct ast_channel_snapshot *channel)
 {
-	struct ast_bridge_blob *update = stasis_message_data(message);
-	struct ast_bridge_snapshot *bridge = update->bridge;
-	struct ast_channel_snapshot *channel = update->channel;
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct module_config *, mod_cfg,
+			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	int res = 1;
+	struct cdr_object *it_cdr;
+	struct cdr_object *new_cdr;
+
+	ao2_lock(cdr);
+
+	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		if (it_cdr->fn_table->process_parking_bridge_enter) {
+			res &= it_cdr->fn_table->process_parking_bridge_enter(it_cdr, bridge, channel);
+		}
+		if (it_cdr->fn_table->process_party_a) {
+			CDR_DEBUG(mod_cfg, "%p - Updating Party A %s snapshot\n", it_cdr,
+					channel->name);
+			it_cdr->fn_table->process_party_a(it_cdr, channel);
+		}
+	}
+
+	if (res) {
+		/* No one handled it - we need a new one! */
+		new_cdr = cdr_object_create_and_append(cdr);
+		if (new_cdr) {
+			/* Let the single state transition us to Parked */
+			cdr_object_transition_state(new_cdr, &single_state_fn_table);
+			new_cdr->fn_table->process_parking_bridge_enter(new_cdr, bridge, channel);
+		}
+	}
+	ao2_unlock(cdr);
+}
+
+/*! \brief Handle a bridge enter message for a 'normal' bridge
+ * \param cdr The CDR to operate on
+ * \param bridge The bridge the channel just entered
+ * \param channel The channel snapshot
+ */
+static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
+		struct ast_bridge_snapshot *bridge,
+		struct ast_channel_snapshot *channel)
+{
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 	int res = 1;
 	struct cdr_object *it_cdr;
 	struct cdr_object *handled_cdr = NULL;
-
-	if (filter_bridge_messages(bridge)) {
-		return;
-	}
-
-	CDR_DEBUG(mod_cfg, "Bridge Enter message: %u.%08u\n", (unsigned int)stasis_message_timestamp(message)->tv_sec, (unsigned int)stasis_message_timestamp(message)->tv_usec);
-
-	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
-		return;
-	}
 
 	ao2_lock(cdr);
 
@@ -2414,6 +2575,96 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 
 	ao2_link(active_cdrs_by_bridge, cdr);
 	ao2_unlock(cdr);
+}
+
+/*!
+ * \brief Handler for Stasis-Core bridge enter messages
+ * \param data Passed on
+ * \param sub The stasis subscription for this message callback
+ * \param topic The topic this message was published for
+ * \param message The message - hopefully a bridge one!
+ */
+static void handle_bridge_enter_message(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_bridge_blob *update = stasis_message_data(message);
+	struct ast_bridge_snapshot *bridge = update->bridge;
+	struct ast_channel_snapshot *channel = update->channel;
+	RAII_VAR(struct cdr_object *, cdr,
+			ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY),
+			ao2_cleanup);
+	RAII_VAR(struct module_config *, mod_cfg,
+			ao2_global_obj_ref(module_configs), ao2_cleanup);
+
+	if (filter_bridge_messages(bridge)) {
+		return;
+	}
+
+	CDR_DEBUG(mod_cfg, "Bridge Enter message for channel %s: %u.%08u\n",
+			channel->name,
+			(unsigned int)stasis_message_timestamp(message)->tv_sec,
+			(unsigned int)stasis_message_timestamp(message)->tv_usec);
+
+	if (!cdr) {
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		return;
+	}
+
+	if (!strcmp(bridge->subclass, "parking")) {
+		handle_parking_bridge_enter_message(cdr, bridge, channel);
+	} else {
+		handle_standard_bridge_enter_message(cdr, bridge, channel);
+	}
+}
+
+/*!
+ * \brief Handler for when a channel is parked
+ * \param data Passed on
+ * \param sub The stasis subscription for this message callback
+ * \param topic The topic this message was published for
+ * \param message The message about who got parked
+ * */
+static void handle_parked_call_message(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct ast_parked_call_payload *payload = stasis_message_data(message);
+	struct ast_channel_snapshot *channel = payload->parkee;
+	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
+	RAII_VAR(struct module_config *, mod_cfg,
+			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	struct cdr_object *it_cdr;
+
+	/* Anything other than getting parked will be handled by other updates */
+	if (payload->event_type != PARKED_CALL) {
+		return;
+	}
+
+	/* No one got parked? */
+	if (!channel) {
+		return;
+	}
+
+	CDR_DEBUG(mod_cfg, "Parked Call message for channel %s: %u.%08u\n",
+			channel->name,
+			(unsigned int)stasis_message_timestamp(message)->tv_sec,
+			(unsigned int)stasis_message_timestamp(message)->tv_usec);
+
+	cdr = ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY);
+	if (!cdr) {
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		return;
+	}
+
+	ao2_lock(cdr);
+
+	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		if (it_cdr->fn_table->process_parked_channel) {
+			it_cdr->fn_table->process_parked_channel(it_cdr, payload);
+		}
+	}
+
+	ao2_unlock(cdr);
+
 }
 
 struct ast_cdr_config *ast_cdr_get_config(void)
@@ -2953,6 +3204,7 @@ static void post_cdr(struct ast_cdr *cdr)
 		if (!ast_test_flag(&mod_cfg->general->settings, CDR_UNANSWERED) &&
 				cdr->disposition < AST_CDR_ANSWERED &&
 				(ast_strlen_zero(cdr->channel) || ast_strlen_zero(cdr->dstchannel))) {
+			ast_log(AST_LOG_WARNING, "Skipping CDR since we weren't answered\n");
 			continue;
 		}
 
@@ -3584,6 +3836,11 @@ int ast_cdr_engine_init(void)
 	if (!bridge_subscription) {
 		return -1;
 	}
+	parking_subscription = stasis_forward_all(ast_parking_topic(), cdr_topic);
+	if (!parking_subscription) {
+		return -1;
+	}
+
 	stasis_router = stasis_message_router_create(cdr_topic);
 	if (!stasis_router) {
 		return -1;
@@ -3592,6 +3849,7 @@ int ast_cdr_engine_init(void)
 	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
+	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
 
 	sched = ast_sched_context_create();
 	if (!sched) {
