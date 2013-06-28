@@ -4064,7 +4064,7 @@ static int action_blind_transfer(struct mansession *s, const struct message *m)
 		context = ast_channel_context(chan);
 	}
 
-	switch (ast_bridge_transfer_blind(chan, exten, context, NULL, NULL)) {
+	switch (ast_bridge_transfer_blind(1, chan, exten, context, NULL, NULL)) {
 	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
 		astman_send_error(s, m, "Transfer not permitted");
 		break;

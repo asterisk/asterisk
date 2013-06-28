@@ -10684,7 +10684,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 					ast_channel_unlock(owner);
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 
-					if (ast_bridge_transfer_blind(owner, ies.called_number,
+					if (ast_bridge_transfer_blind(1, owner, ies.called_number,
 								context, NULL, NULL) != AST_BRIDGE_TRANSFER_SUCCESS) {
 						ast_log(LOG_WARNING, "Blind transfer of '%s' to '%s@%s' failed\n",
 							ast_channel_name(owner), ies.called_number,

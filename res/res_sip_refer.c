@@ -552,7 +552,7 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 		refer.replaces = replaces;
 		refer.refer_to = target_uri;
 
-		switch (ast_bridge_transfer_blind(session->channel, "external_replaces", context, refer_blind_callback, &refer)) {
+		switch (ast_bridge_transfer_blind(1, session->channel, "external_replaces", context, refer_blind_callback, &refer)) {
 		case AST_BRIDGE_TRANSFER_INVALID:
 			return 400;
 		case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
@@ -594,7 +594,7 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	refer.progress = progress;
 	refer.rdata = rdata;
 
-	switch (ast_bridge_transfer_blind(session->channel, exten, context, refer_blind_callback, &refer)) {
+	switch (ast_bridge_transfer_blind(1, session->channel, exten, context, refer_blind_callback, &refer)) {
 	case AST_BRIDGE_TRANSFER_INVALID:
 		return 400;
 	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:

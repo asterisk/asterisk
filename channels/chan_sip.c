@@ -26191,7 +26191,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 	}
 
 	sip_pvt_unlock(p);
-	transfer_res = ast_bridge_transfer_blind(transferer, refer_to, refer_to_context, blind_transfer_cb, &cb_data);
+	transfer_res = ast_bridge_transfer_blind(1, transferer, refer_to, refer_to_context, blind_transfer_cb, &cb_data);
 	sip_pvt_lock(p);
 
 	switch (transfer_res) {

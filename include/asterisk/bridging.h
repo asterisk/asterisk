@@ -1499,6 +1499,7 @@ typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data,
  * \note Absolutely _NO_ channel locks should be held before
  * calling this function.
  *
+ * \param is_external Indicates that transfer was initiated externally
  * \param transferer The channel performing the blind transfer
  * \param exten The dialplan extension to send the call to
  * \param context The dialplan context to send the call to
@@ -1507,8 +1508,8 @@ typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data,
  * \param user_data Argument for new_channel_cb
  * \return The success or failure result of the blind transfer
  */
-enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transferer,
-		const char *exten, const char *context,
+enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
+		struct ast_channel *transferer, const char *exten, const char *context,
 		transfer_channel_cb new_channel_cb, void *user_data);
 
 /*!

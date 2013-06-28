@@ -108,6 +108,11 @@ static struct stasis_message_router *bridge_state_router;
 	</manager>
  ***/
 
+/*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
+ * to the manager topic
+ */
+static struct stasis_subscription *topic_forwarder;
+
 struct ast_str *ast_manager_build_bridge_state_string(
 	const struct ast_bridge_snapshot *snapshot,
 	const char *suffix)
@@ -409,10 +414,16 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static void manager_bridging_shutdown(void)
+static void manager_bridging_cleanup(void)
 {
 	stasis_message_router_unsubscribe(bridge_state_router);
 	bridge_state_router = NULL;
+	stasis_unsubscribe(topic_forwarder);
+	topic_forwarder = NULL;
+}
+
+static void manager_bridging_shutdown(void)
+{
 	ast_manager_unregister("BridgeList");
 	ast_manager_unregister("BridgeInfo");
 }
@@ -420,6 +431,8 @@ static void manager_bridging_shutdown(void)
 int manager_bridging_init(void)
 {
 	int ret = 0;
+	struct stasis_topic *manager_topic;
+	struct stasis_topic *bridge_topic;
 
 	if (bridge_state_router) {
 		/* Already initialized */
@@ -427,10 +440,29 @@ int manager_bridging_init(void)
 	}
 
 	ast_register_atexit(manager_bridging_shutdown);
+	ast_register_cleanup(manager_bridging_cleanup);
 
-	bridge_state_router = stasis_message_router_create(
-		stasis_caching_get_topic(ast_bridge_topic_all_cached()));
+	manager_topic = ast_manager_get_topic();
+	if (!manager_topic) {
+		return -1;
+	}
 
+	bridge_topic = stasis_caching_get_topic(ast_bridge_topic_all_cached());
+	if (!bridge_topic) {
+		return -1;
+	}
+
+	topic_forwarder = stasis_forward_all(bridge_topic, manager_topic);
+	if (!topic_forwarder) {
+		return -1;
+	}
+
+	/* BUGBUG - This should really route off of the manager_router, but
+	 * can't b/c manager_channels is already routing the
+	 * stasis_cache_update_type() messages. Having a separate router can
+	 * cause some message ordering issues with bridge and channel messages.
+	 */
+	bridge_state_router = stasis_message_router_create(bridge_topic);
 	if (!bridge_state_router) {
 		return -1;
 	}

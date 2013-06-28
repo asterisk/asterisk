@@ -5924,6 +5924,113 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 }
 
 /*!
+ * \internal
+ * \brief Base data to publish for stasis attended transfer messages
+ */
+struct stasis_attended_transfer_publish_data {
+	/* The bridge between the transferer and transferee, and the transferer channel in this bridge */
+	struct ast_bridge_channel_pair to_transferee;
+	/* The bridge between the transferer and transfer target, and the transferer channel in this bridge */
+	struct ast_bridge_channel_pair to_transfer_target;
+};
+
+static void stasis_publish_data_cleanup(struct stasis_attended_transfer_publish_data *publication)
+{
+	ast_channel_unref(publication->to_transferee.channel);
+	ast_channel_unref(publication->to_transfer_target.channel);
+	ao2_cleanup(publication->to_transferee.bridge);
+	ao2_cleanup(publication->to_transfer_target.bridge);
+}
+
+/*!
+ * \internal
+ * \brief Set up base data for an attended transfer stasis publication
+ *
+ * \param to_transferee The original transferer channel, which may be bridged to a transferee
+ * \param to_transferee_bridge The bridge that to_transferee is in.
+ * \param to_transfer_target The second transferer channel, which may be bridged to a transfer target
+ * \param to_target_bridge The bridge that to_transfer_target_is in.
+ * \param[out] publication A structure to hold the other parameters
+ */
+static void stasis_publish_data_init(struct ast_channel *to_transferee,
+		struct ast_bridge *to_transferee_bridge, struct ast_channel *to_transfer_target,
+		struct ast_bridge *to_target_bridge,
+		struct stasis_attended_transfer_publish_data *publication)
+{
+	memset(publication, 0, sizeof(*publication));
+	publication->to_transferee.channel = ast_channel_ref(to_transferee);
+	if (to_transferee_bridge) {
+		ao2_ref(to_transferee_bridge, +1);
+		publication->to_transferee.bridge = to_transferee_bridge;
+	}
+
+	publication->to_transfer_target.channel = ast_channel_ref(to_transfer_target);
+	if (to_target_bridge) {
+		ao2_ref(to_target_bridge, +1);
+		publication->to_transfer_target.bridge = to_target_bridge;
+	}
+}
+
+/*
+ * \internal
+ * \brief Publish a stasis attended transfer resulting in a bridge merge
+ *
+ * \param publication Base data about the attended transfer
+ * \param final_bridge The surviving bridge of the attended transfer
+ */
+static void publish_attended_transfer_bridge_merge(struct stasis_attended_transfer_publish_data *publication,
+		struct ast_bridge *final_bridge)
+{
+	ast_bridge_publish_attended_transfer_bridge_merge(1, AST_BRIDGE_TRANSFER_SUCCESS,
+			&publication->to_transferee, &publication->to_transfer_target, final_bridge);
+}
+
+/*
+ * \internal
+ * \brief Publish a stasis attended transfer to an application
+ *
+ * \param publication Base data about the attended transfer
+ * \param app The app that is running at the conclusion of the transfer
+ */
+static void publish_attended_transfer_app(struct stasis_attended_transfer_publish_data *publication,
+		const char *app)
+{
+	ast_bridge_publish_attended_transfer_app(1, AST_BRIDGE_TRANSFER_SUCCESS,
+			&publication->to_transferee, &publication->to_transfer_target, app);
+}
+
+/*
+ * \internal
+ * \brief Publish a stasis attended transfer showing a link between bridges
+ *
+ * \param publication Base data about the attended transfer
+ * \param local_channel1 Local channel in the original bridge
+ * \param local_channel2 Local channel in the second bridge
+ */
+static void publish_attended_transfer_link(struct stasis_attended_transfer_publish_data *publication,
+		struct ast_channel *local_channel1, struct ast_channel *local_channel2)
+{
+	struct ast_channel *locals[2] = { local_channel1, local_channel2 };
+
+	ast_bridge_publish_attended_transfer_link(1, AST_BRIDGE_TRANSFER_SUCCESS,
+			&publication->to_transferee, &publication->to_transfer_target, locals);
+}
+
+/*
+ * \internal
+ * \brief Publish a stasis attended transfer failure
+ *
+ * \param publication Base data about the attended transfer
+ * \param result The transfer result
+ */
+static void publish_attended_transfer_fail(struct stasis_attended_transfer_publish_data *publication,
+		enum ast_transfer_result result)
+{
+	ast_bridge_publish_attended_transfer_fail(1, result, &publication->to_transferee,
+			&publication->to_transfer_target);
+}
+
+/*!
  * \brief Perform an attended transfer of a bridge
  *
  * This performs an attended transfer of an entire bridge to a target.
@@ -5941,16 +6048,19 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
  * \param chan2 Other transferer channel. May or may not be bridged.
  * \param bridge1 Bridge that chan1 is in. Guaranteed to be non-NULL.
  * \param bridge2 Bridge that chan2 is in. If NULL, then chan2 is not bridged.
+ * \param publication Data to publish for a stasis attended transfer message.
  * \retval AST_BRIDGE_TRANSFER_FAIL Internal error occurred
  * \retval AST_BRIDGE_TRANSFER_SUCCESS Succesfully transferred the bridge
  */
 static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *chan1,
-		struct ast_channel *chan2, struct ast_bridge *bridge1, struct ast_bridge *bridge2)
+		struct ast_channel *chan2, struct ast_bridge *bridge1, struct ast_bridge *bridge2,
+		struct stasis_attended_transfer_publish_data *publication)
 {
 	static const char *dest = "_attended@transfer/m";
 	struct ast_channel *local_chan;
 	int cause;
 	int res;
+	const char *app = NULL;
 
 	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), chan1,
 			dest, &cause);
@@ -5962,6 +6072,7 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	if (bridge2) {
 		res = ast_local_setup_bridge(local_chan, bridge2, chan2, NULL);
 	} else {
+		app = ast_strdupa(ast_channel_appl(chan2));
 		res = ast_local_setup_masquerade(local_chan, chan2);
 	}
 
@@ -5980,6 +6091,20 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	if (bridge2) {
+		RAII_VAR(struct ast_channel *, local_chan2, NULL, ao2_cleanup);
+
+		ast_channel_lock(local_chan);
+		local_chan2 = ast_local_get_peer(local_chan);
+		ast_channel_unlock(local_chan);
+
+		ast_assert(local_chan2 != NULL);
+
+		publish_attended_transfer_link(publication,
+				local_chan, local_chan2);
+	} else {
+		publish_attended_transfer_app(publication, app);
+	}
 	return AST_BRIDGE_TRANSFER_SUCCESS;
 }
 
@@ -6162,8 +6287,18 @@ static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
 	return bridge;
 }
 
-enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transferer,
-		const char *exten, const char *context,
+static void publish_blind_transfer(int is_external, enum ast_transfer_result result,
+		struct ast_channel *transferer, struct ast_bridge *bridge,
+		const char *context, const char *exten)
+{
+	struct ast_bridge_channel_pair pair;
+	pair.channel = transferer;
+	pair.bridge = bridge;
+	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten);
+}
+
+enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
+		struct ast_channel *transferer, const char *exten, const char *context,
 		transfer_channel_cb new_channel_cb, void *user_data)
 {
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
@@ -6173,16 +6308,19 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 	int do_bridge_transfer;
 	int transfer_prohibited;
 	enum try_parking_result parking_result;
+	enum ast_transfer_result transfer_result;
 
 	bridge = acquire_bridge(transferer);
 	if (!bridge) {
-		return AST_BRIDGE_TRANSFER_INVALID;
+		transfer_result = AST_BRIDGE_TRANSFER_INVALID;
+		goto publish;
 	}
 	ast_channel_lock(transferer);
 	bridge_channel = ast_channel_get_bridge_channel(transferer);
 	ast_channel_unlock(transferer);
 	if (!bridge_channel) {
-		return AST_BRIDGE_TRANSFER_INVALID;
+		transfer_result = AST_BRIDGE_TRANSFER_INVALID;
+		goto publish;
 	}
 
 	/* Take off hold if they are on hold. */
@@ -6191,9 +6329,11 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 	parking_result = try_parking(bridge, transferer, exten, context);
 	switch (parking_result) {
 	case PARKING_SUCCESS:
-		return AST_BRIDGE_TRANSFER_SUCCESS;
+		transfer_result = AST_BRIDGE_TRANSFER_SUCCESS;
+		goto publish;
 	case PARKING_FAILURE:
-		return AST_BRIDGE_TRANSFER_FAIL;
+		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
+		goto publish;
 	case PARKING_NOT_APPLICABLE:
 	default:
 		break;
@@ -6204,10 +6344,12 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 
 		channels = ast_bridge_peers_nolock(bridge);
 		if (!channels) {
-			return AST_BRIDGE_TRANSFER_FAIL;
+			transfer_result = AST_BRIDGE_TRANSFER_FAIL;
+			goto publish;
 		}
 		if (ao2_container_count(channels) <= 1) {
-			return AST_BRIDGE_TRANSFER_INVALID;
+			transfer_result = AST_BRIDGE_TRANSFER_INVALID;
+			goto publish;
 		}
 		transfer_prohibited = ast_test_flag(&bridge->feature_flags,
 				AST_BRIDGE_FLAG_TRANSFER_PROHIBITED);
@@ -6217,30 +6359,38 @@ enum ast_transfer_result ast_bridge_transfer_blind(struct ast_channel *transfere
 	}
 
 	if (transfer_prohibited) {
-		return AST_BRIDGE_TRANSFER_NOT_PERMITTED;
+		transfer_result = AST_BRIDGE_TRANSFER_NOT_PERMITTED;
+		goto publish;
 	}
 
 	set_blind_transfer_variables(transferer, channels);
 
 	if (do_bridge_transfer) {
-		return blind_transfer_bridge(transferer, bridge, exten, context,
+		transfer_result = blind_transfer_bridge(transferer, bridge, exten, context,
 				new_channel_cb, user_data);
+		goto publish;
 	}
 
 	/* Reaching this portion means that we're dealing with a two-party bridge */
 
 	transferee = get_transferee(channels, transferer);
 	if (!transferee) {
-		return AST_BRIDGE_TRANSFER_FAIL;
+		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
+		goto publish;
 	}
 
 	if (bridge_channel_queue_blind_transfer(transferee, exten, context,
 				new_channel_cb, user_data)) {
-		return AST_BRIDGE_TRANSFER_FAIL;
+		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
+		goto publish;
 	}
 
 	ast_bridge_remove(bridge, transferer);
-	return AST_BRIDGE_TRANSFER_SUCCESS;
+	transfer_result = AST_BRIDGE_TRANSFER_SUCCESS;
+
+publish:
+	publish_blind_transfer(is_external, transfer_result, transferer, bridge, context, exten);
+	return transfer_result;
 }
 
 /*!
@@ -6297,30 +6447,42 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
  * \param to_target_bridge_channel to_transfer_target's bridge_channel
  * \param to_transferee_bridge The bridge between to_transferee and the transferee
  * \param to_target_bridge The bridge between to_transfer_target and the transfer_target
+ * \param publication Data to publish for a stasis attended transfer message
  * \return The success or failure of the attended transfer
  */
 static enum ast_transfer_result two_bridge_attended_transfer(struct ast_channel *to_transferee,
 		struct ast_bridge_channel *to_transferee_bridge_channel,
 		struct ast_channel *to_transfer_target,
 		struct ast_bridge_channel *to_target_bridge_channel,
-		struct ast_bridge *to_transferee_bridge, struct ast_bridge *to_target_bridge)
+		struct ast_bridge *to_transferee_bridge, struct ast_bridge *to_target_bridge,
+		struct stasis_attended_transfer_publish_data *publication)
 {
 	struct ast_bridge_channel *kick_me[] = {
 			to_transferee_bridge_channel,
 			to_target_bridge_channel,
 	};
+	enum ast_transfer_result res;
+	struct ast_bridge *final_bridge = NULL;
 
 	switch (ast_bridges_allow_optimization(to_transferee_bridge, to_target_bridge)) {
 	case AST_BRIDGE_OPTIMIZE_SWAP_TO_CHAN_BRIDGE:
-		return bridge_swap_attended_transfer(to_transferee_bridge, to_target_bridge_channel, to_transferee);
+		final_bridge = to_transferee_bridge;
+		res = bridge_swap_attended_transfer(to_transferee_bridge, to_target_bridge_channel, to_transferee);
+		goto end;
 	case AST_BRIDGE_OPTIMIZE_SWAP_TO_PEER_BRIDGE:
-		return bridge_swap_attended_transfer(to_target_bridge, to_transferee_bridge_channel, to_transfer_target);
+		final_bridge = to_target_bridge;
+		res = bridge_swap_attended_transfer(to_target_bridge, to_transferee_bridge_channel, to_transfer_target);
+		goto end;
 	case AST_BRIDGE_OPTIMIZE_MERGE_TO_CHAN_BRIDGE:
+		final_bridge = to_transferee_bridge;
 		bridge_merge_do(to_transferee_bridge, to_target_bridge, kick_me, ARRAY_LEN(kick_me));
-		return AST_BRIDGE_TRANSFER_SUCCESS;
+		res = AST_BRIDGE_TRANSFER_SUCCESS;
+		goto end;
 	case AST_BRIDGE_OPTIMIZE_MERGE_TO_PEER_BRIDGE:
+		final_bridge = to_target_bridge;
 		bridge_merge_do(to_target_bridge, to_transferee_bridge, kick_me, ARRAY_LEN(kick_me));
-		return AST_BRIDGE_TRANSFER_SUCCESS;
+		res = AST_BRIDGE_TRANSFER_SUCCESS;
+		goto end;
 	case AST_BRIDGE_OPTIMIZE_PROHIBITED:
 	default:
 		/* Just because optimization wasn't doable doesn't necessarily mean
@@ -6329,11 +6491,23 @@ static enum ast_transfer_result two_bridge_attended_transfer(struct ast_channel 
 		 */
 		if (to_transferee_bridge->inhibit_merge || to_transferee_bridge->dissolved ||
 				to_target_bridge->inhibit_merge || to_target_bridge->dissolved) {
-			return AST_BRIDGE_TRANSFER_INVALID;
+			res = AST_BRIDGE_TRANSFER_INVALID;
+			goto end;
 		}
+
+		/* Don't goto end here. attended_transfer_bridge will publish its own
+		 * stasis message if it succeeds
+		 */
 		return attended_transfer_bridge(to_transferee, to_transfer_target,
-			to_transferee_bridge, to_target_bridge);
+			to_transferee_bridge, to_target_bridge, publication);
 	}
+
+end:
+	if (res == AST_BRIDGE_TRANSFER_SUCCESS) {
+		publish_attended_transfer_bridge_merge(publication, final_bridge);
+	}
+
+	return res;
 }
 
 enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_transferee,
@@ -6350,13 +6524,20 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	struct ast_channel *chan_unbridged;
 	int transfer_prohibited;
 	int do_bridge_transfer;
+	enum ast_transfer_result res;
+	const char *app = NULL;
+	struct stasis_attended_transfer_publish_data publication;
 
 	to_transferee_bridge = acquire_bridge(to_transferee);
 	to_target_bridge = acquire_bridge(to_transfer_target);
 
+	stasis_publish_data_init(to_transferee, to_transferee_bridge,
+			to_transfer_target, to_target_bridge, &publication);
+
 	/* They can't both be unbridged, you silly goose! */
 	if (!to_transferee_bridge && !to_target_bridge) {
-		return AST_BRIDGE_TRANSFER_INVALID;
+		res = AST_BRIDGE_TRANSFER_INVALID;
+		goto end;
 	}
 
 	ast_channel_lock(to_transferee);
@@ -6407,20 +6588,20 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 
 	/* Let's get the easy one out of the way first */
 	if (to_transferee_bridge && to_target_bridge) {
-		enum ast_transfer_result res;
 
 		if (!to_transferee_bridge_channel || !to_target_bridge_channel) {
-			return AST_BRIDGE_TRANSFER_INVALID;
+			res = AST_BRIDGE_TRANSFER_INVALID;
+			goto end;
 		}
 
 		ast_bridge_lock_both(to_transferee_bridge, to_target_bridge);
 		res = two_bridge_attended_transfer(to_transferee, to_transferee_bridge_channel,
 				to_transfer_target, to_target_bridge_channel,
-				to_transferee_bridge, to_target_bridge);
+				to_transferee_bridge, to_target_bridge, &publication);
 		ast_bridge_unlock(to_transferee_bridge);
 		ast_bridge_unlock(to_target_bridge);
 
-		return res;
+		goto end;
 	}
 
 	the_bridge = to_transferee_bridge ?: to_target_bridge;
@@ -6433,11 +6614,13 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 
 		channels = ast_bridge_peers_nolock(the_bridge);
 		if (!channels) {
-			return AST_BRIDGE_TRANSFER_FAIL;
+			res = AST_BRIDGE_TRANSFER_FAIL;
+			goto end;
 		}
 		chan_count = ao2_container_count(channels);
 		if (chan_count <= 1) {
-			return AST_BRIDGE_TRANSFER_INVALID;
+			res = AST_BRIDGE_TRANSFER_INVALID;
+			goto end;
 		}
 		transfer_prohibited = ast_test_flag(&the_bridge->feature_flags,
 				AST_BRIDGE_FLAG_TRANSFER_PROHIBITED);
@@ -6447,24 +6630,41 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	}
 
 	if (transfer_prohibited) {
-		return AST_BRIDGE_TRANSFER_NOT_PERMITTED;
+		res = AST_BRIDGE_TRANSFER_NOT_PERMITTED;
+		goto end;
 	}
 
 	if (do_bridge_transfer) {
-		return attended_transfer_bridge(chan_bridged, chan_unbridged, the_bridge, NULL);
+		 res = attended_transfer_bridge(chan_bridged, chan_unbridged, the_bridge, NULL, &publication);
+		 goto end;
 	}
 
 	transferee = get_transferee(channels, chan_bridged);
 	if (!transferee) {
-		return AST_BRIDGE_TRANSFER_FAIL;
+		res = AST_BRIDGE_TRANSFER_FAIL;
+		goto end;
 	}
 
+	app = ast_strdupa(ast_channel_appl(chan_unbridged));
 	if (bridge_channel_queue_attended_transfer(transferee, chan_unbridged)) {
-		return AST_BRIDGE_TRANSFER_FAIL;
+		res = AST_BRIDGE_TRANSFER_FAIL;
+		goto end;
 	}
 
 	ast_bridge_remove(the_bridge, chan_bridged);
+
+	publish_attended_transfer_app(&publication, app);
 	return AST_BRIDGE_TRANSFER_SUCCESS;
+
+end:
+	/* All successful transfer paths have published an appropriate stasis message.
+	 * All failure paths have deferred publishing a stasis message until this point
+	 */
+	if (res != AST_BRIDGE_TRANSFER_SUCCESS) {
+		publish_attended_transfer_fail(&publication, res);
+	}
+	stasis_publish_data_cleanup(&publication);
+	return res;
 }
 
 /*!

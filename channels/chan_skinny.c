@@ -5288,7 +5288,7 @@ static void skinny_transfer_blind(struct skinny_subchannel *sub)
 	xferee->related = NULL;
 
 	ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
-	res = ast_bridge_transfer_blind(xferee->owner, sub->exten, sub->line->context, NULL, NULL);
+	res = ast_bridge_transfer_blind(1, xferee->owner, sub->exten, sub->line->context, NULL, NULL);
 
 	if (res != AST_BRIDGE_TRANSFER_SUCCESS) {
 		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d failed to blind transfer %d to '%s'@'%s' - %d\n",

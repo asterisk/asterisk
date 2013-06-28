@@ -218,7 +218,7 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 		ast_after_bridge_set_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
 	}
 
-	if (ast_bridge_transfer_blind(bridge_channel->chan, exten, context, blind_transfer_cb,
+	if (ast_bridge_transfer_blind(0, bridge_channel->chan, exten, context, blind_transfer_cb,
 			bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS &&
 			!ast_strlen_zero(goto_on_blindxfr)) {
 		ast_after_bridge_goto_discard(bridge_channel->chan);
