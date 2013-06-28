@@ -4688,7 +4688,7 @@ static int check_swap_optimize_out(struct ast_bridge *chan_bridge,
  */
 	other = ast_bridge_channel_peer(src_bridge_channel);
 	if (other && other->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
-		ast_debug(1, "Move-swap optimizing %s <-- %s.\n",
+		ast_verb(3, "Move-swap optimizing %s <-- %s.\n",
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
 
@@ -4790,7 +4790,7 @@ static int check_merge_optimize_out(struct ast_bridge *chan_bridge,
 	}
 
 /* BUGBUG Frame hooks on the unreal/local channels need to inhibit optimization here. */
-	ast_debug(1, "Merge optimizing %s -- %s out.\n",
+	ast_verb(3, "Merge optimizing %s -- %s out.\n",
 		ast_channel_name(chan_bridge_channel->chan),
 		ast_channel_name(peer_bridge_channel->chan));
 
