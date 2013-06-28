@@ -118,6 +118,7 @@ struct parked_user {
  *        struct based on a parking lot configuration and return a reference to the new one.
  *
  * \param cfg The configuration being used as a reference to build the parking lot from.
+ * \param dynamic non-zero if creating a dynamic parking lot with this. Don't replace existing parking lots. Ever.
  *
  * \retval A reference to the new parking lot
  * \retval NULL if it was not found and could not be be allocated
@@ -125,7 +126,7 @@ struct parked_user {
  * \note The parking lot will need to be unreffed if it ever falls out of scope
  * \note The parking lot will automatically be added to the parking lot container if needed as part of this process
  */
-struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *cfg);
+struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *cfg, int dynamic);
 
 /*!
  * \since 12.0.0
@@ -133,10 +134,13 @@ struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *cfg);
  *
  * \param lot Which parking lot is being checked for elimination
  *
+ * \retval 0 if the parking lot was removed
+ * \retval -1 if the parking lot wasn't removed.
+ *
  * \note This should generally be called when something is happening that could cause a parking lot to die such as a call being unparked or
  *       a parking lot no longer existing in configurations.
  */
-void parking_lot_remove_if_unused(struct parking_lot *lot);
+int parking_lot_remove_if_unused(struct parking_lot *lot);
 
 /*!
  * \since 12.0.0
@@ -250,6 +254,21 @@ struct ao2_container *get_parking_lot_container(void);
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
  */
 struct parking_lot *parking_lot_find_by_name(const char *lot_name);
+
+/*!
+ * \since 12.0.0
+ * \brief Create a dynamic parking lot
+ *
+ * \param name Dynamic parking lot name to create
+ * \param chan Channel parkee to get dynamic parking lot parameters from
+ *
+ * \retval dynamically created parking lot on success
+ * \retval NULL on error
+ *
+ * \note This should be called only after verifying that the named parking lot doesn't already exist in a non-dynamic way.
+ *       The parking lots container should be locked before verifying and remain locked until after this function is called.
+ */
+struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_channel *chan);
 
 /*!
  * \since 12.0.0
@@ -397,6 +416,15 @@ void get_park_common_datastore_data(struct ast_channel *parkee,
  * \param state new device state
  */
 void parking_notify_metermaids(int exten, const char *context, enum ast_device_state state);
+
+/*!
+ * \since 12.0.0
+ * \brief Check global configuration to see if dynamic parking is enabled
+ *
+ * \retval 1 if dynamic parking is enabled
+ * \retval 0 if dynamic parking is disabled
+ */
+int parking_dynamic_lots_enabled(void);
 
 /*!
  * \since 12.0.0

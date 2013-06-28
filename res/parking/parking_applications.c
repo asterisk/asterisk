@@ -390,6 +390,9 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
 	}
 
 	lot = parking_lot_find_by_name(lot_name);
+	if (!lot) {
+		lot = parking_create_dynamic_lot(lot_name, parkee);
+	}
 
 	if (!lot) {
 		ast_log(LOG_ERROR, "Could not find parking lot: '%s'\n", lot_name);
@@ -450,6 +453,11 @@ int park_app_exec(struct ast_channel *chan, const char *data)
 	int res;
 	int silence_announcements = 0;
 	const char *blind_transfer;
+
+	/* Answer the channel if needed */
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_answer(chan);
+	}
 
 	ast_channel_lock(chan);
 	if ((blind_transfer = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"))) {

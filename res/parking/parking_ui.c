@@ -66,6 +66,7 @@ static void display_parking_lot(struct parking_lot *lot, int fd)
 	ast_cli(fd, "Comeback Dial Time  :  %u sec\n", lot->cfg->comebackdialtime);
 	ast_cli(fd, "MusicOnHold Class   :  %s\n", lot->cfg->mohclass);
 	ast_cli(fd, "Enabled             :  %s\n", (lot->mode == PARKINGLOT_DISABLED) ? "no" : "yes");
+	ast_cli(fd, "Dynamic             :  %s\n", (lot->mode == PARKINGLOT_DYNAMIC) ? "yes" : "no");
 	ast_cli(fd, "\n");
 }
 
@@ -99,6 +100,14 @@ static void cli_display_parking_lot(int fd, const char *name)
 	}
 
 	ao2_callback(lot->parked_users, OBJ_MULTIPLE | OBJ_NODATA, display_parked_users_cb, &fd);
+	ast_cli(fd, "\n");
+}
+
+static void cli_display_parking_global(int fd)
+{
+	ast_cli(fd, "Parking General Options\n"
+	            "-----------------------\n");
+	ast_cli(fd, "Dynamic Parking     :  %s\n", parking_dynamic_lots_enabled() ? "yes" : "no");
 	ast_cli(fd, "\n");
 }
 
@@ -172,6 +181,7 @@ static char *handle_show_parking_lot_cmd(struct ast_cli_entry *e, int cmd, struc
 	ast_cli(a->fd, "\n");
 
 	if (a->argc == 2) {
+		cli_display_parking_global(a->fd);
 		cli_display_parking_lot_list(a->fd);
 		return CLI_SUCCESS;
 	}

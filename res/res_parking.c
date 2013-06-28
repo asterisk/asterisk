@@ -231,7 +231,6 @@ static int config_parking_preapply(void);
 static void link_configured_disable_marked_lots(void);
 
 struct parking_global_config {
-	/* TODO Implement dynamic parking lots. Entirely. */
 	int parkeddynamic;
 };
 
@@ -353,23 +352,30 @@ static void *parking_config_alloc(void)
 	return cfg;
 }
 
-void parking_lot_remove_if_unused(struct parking_lot *lot)
+int parking_lot_remove_if_unused(struct parking_lot *lot)
 {
-
 	if (lot->mode != PARKINGLOT_DISABLED) {
-		return;
+		return -1;
 	}
-
 
 	if (!ao2_container_count(lot->parked_users)) {
 		ao2_unlink(parking_lot_container, lot);
+		return 0;
 	}
+
+	return -1;
 }
 
 static void parking_lot_disable(struct parking_lot *lot)
 {
+	/* If a dynamic lot wasn't removed, we need to restore it to full functionality afterwards. */
+	int was_dynamic = (lot->mode == PARKINGLOT_DYNAMIC);
+
 	lot->mode = PARKINGLOT_DISABLED;
-	parking_lot_remove_if_unused(lot);
+	if (parking_lot_remove_if_unused(lot) && was_dynamic) {
+		lot->mode = PARKINGLOT_DYNAMIC;
+		lot->disable_mark = 0;
+	}
 }
 
 /*! \brief Destroy a parking lot cfg object */
@@ -703,17 +709,20 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 	struct ast_exten *existing_exten;
 	struct ast_context *lot_context;
 	struct pbx_find_info find_info = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
-	const char *registrar_pointer;
+	const char *parkext_registrar_pointer; /* Used for park extension */
+	const char *parkedcall_registrar_pointer; /* Used for parkedcall extensions/hints */
 
 	if (ast_strlen_zero(lot_cfg->parkext)) {
 		return 0;
 	}
 
+	ast_string_field_build(lot_cfg, registrar, "%s/%s", BASE_REGISTRAR, lot_cfg->name);
+	parkedcall_registrar_pointer = lot_cfg->registrar;
+
 	if (lot_cfg->parkext_exclusive) {
-		ast_string_field_build(lot_cfg, registrar, "%s/%s", BASE_REGISTRAR, lot_cfg->name);
-		registrar_pointer = lot_cfg->registrar;
+		parkext_registrar_pointer = lot_cfg->registrar;
 	} else {
-		registrar_pointer = BASE_REGISTRAR;
+		parkext_registrar_pointer = BASE_REGISTRAR;
 	}
 
 	/* We need the contexts list locked to safely be able to both read and lock the specific context within */
@@ -722,7 +731,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 		return -1;
 	}
 
-	if (!(lot_context = ast_context_find_or_create(NULL, NULL, lot_cfg->parking_con, registrar_pointer))) {
+	if (!(lot_context = ast_context_find_or_create(NULL, NULL, lot_cfg->parking_con, parkext_registrar_pointer))) {
 		ast_log(LOG_ERROR, "Parking lot '%s' -- Needs a context '%s' which does not exist and Asterisk was unable to create\n",
 			lot_cfg->name, lot_cfg->parking_con);
 		if (ast_unlock_contexts()) {
@@ -750,7 +759,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 			return -1;
 		}
 	} else if (parking_add_extension(lot_context, 0, lot_cfg->parkext, 1, PARK_APPLICATION,
-	           lot_cfg->parkext_exclusive ? lot_cfg->name : "", registrar_pointer)) {
+	           lot_cfg->parkext_exclusive ? lot_cfg->name : "", parkext_registrar_pointer)) {
 		ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add %s extension '%s@%s' to the PBX.\n",
 		        lot_cfg->name, PARK_APPLICATION, lot_cfg->parkext, lot_cfg->parking_con);
 		ast_unlock_context(lot_context);
@@ -779,7 +788,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 
 		ast_str_set(&arguments_string, 0, "%s,%s", lot_cfg->name, space);
 		if (parking_add_extension(lot_context, 0, space, 1, PARKED_CALL_APPLICATION,
-		    ast_str_buffer(arguments_string), registrar_pointer)) {
+		    ast_str_buffer(arguments_string), parkedcall_registrar_pointer)) {
 			ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add %s extension '%s@%s' to the PBX.\n",
 			        lot_cfg->name, PARKED_CALL_APPLICATION, space, lot_cfg->parking_con);
 			ast_unlock_context(lot_context);
@@ -800,7 +809,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 					return -1;
 			}
 
-			if (parking_add_extension(lot_context, 0, space, PRIORITY_HINT, hint_device, "", registrar_pointer)) {
+			if (parking_add_extension(lot_context, 0, space, PRIORITY_HINT, hint_device, "", parkedcall_registrar_pointer)) {
 				ast_log(LOG_ERROR, "Parking lot '%s' -- Failed to add hint '%s@%s' to the PBX.\n",
 				        lot_cfg->name, space, lot_cfg->parking_con);
 				ast_unlock_context(lot_context);
@@ -816,7 +825,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 	return 0;
 }
 
-struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *lot_cfg)
+struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *lot_cfg, int dynamic)
 {
 	struct parking_lot *lot;
 	struct parking_lot_cfg *replaced_cfg = NULL;
@@ -833,6 +842,12 @@ struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *lot_cfg)
 		}
 	} else {
 		found = 1;
+
+		if (dynamic) {
+			ast_log(LOG_ERROR, "Tried to create dynamic parking lot with name '%s' but a lot with that name already exists.\n", lot_cfg->name);
+			ao2_cleanup(lot);
+			return NULL;
+		}
 	}
 
 	/* Set the configuration reference. Unref the one currently in the lot if it's there. */
@@ -847,7 +862,7 @@ struct parking_lot *parking_lot_build_or_update(struct parking_lot_cfg *lot_cfg)
 
 	/* Set the operating mode to normal since the parking lot has a configuration. */
 	lot->disable_mark = 0;
-	lot->mode = PARKINGLOT_NORMAL;
+	lot->mode = dynamic ? PARKINGLOT_DYNAMIC : PARKINGLOT_NORMAL;
 
 	if (!found) {
 		/* Link after configuration is set since a lot without configuration will cause all kinds of trouble. */
@@ -865,10 +880,141 @@ static void generate_or_link_lots_to_configs(void)
 
 	for (iter = ao2_iterator_init(cfg->parking_lots, 0); (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
 		RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
-		lot = parking_lot_build_or_update(lot_cfg);
+		lot = parking_lot_build_or_update(lot_cfg, 0);
 	}
 
 	ao2_iterator_destroy(&iter);
+}
+
+int parking_dynamic_lots_enabled(void)
+{
+	RAII_VAR(struct parking_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
+
+	if (!cfg) {
+		return 0;
+	}
+
+	return cfg->global->parkeddynamic;
+}
+
+static struct parking_lot_cfg *clone_parkinglot_cfg(struct parking_lot_cfg *source, const char *name)
+{
+	struct parking_lot_cfg *cfg = parking_lot_cfg_alloc(name);
+
+	if (!cfg) {
+		return NULL;
+	}
+
+	ast_string_fields_copy(cfg, source);
+
+	/* Needs to be reset after being copied */
+	ast_string_field_set(cfg, name, name);
+
+	/* Stuff that should be cloned that isn't hit by string field copy */
+	cfg->parking_start = source->parking_start;
+	cfg->parking_stop = source->parking_stop;
+	cfg->parkingtime = source->parkingtime;
+	cfg->comebackdialtime = source->comebackdialtime;
+	cfg->parkfindnext = source->parkfindnext;
+	cfg->parkext_exclusive = source->parkext_exclusive;
+	cfg->parkaddhints = source->parkaddhints;
+	cfg->comebacktoorigin = source->comebacktoorigin;
+	cfg->parkedplay = source->parkedplay;
+	cfg->parkedcalltransfers = source->parkedcalltransfers;
+	cfg->parkedcallreparking = source->parkedcallreparking;
+	cfg->parkedcallhangup = source->parkedcallhangup;
+	cfg->parkedcallrecording = source->parkedcallrecording;
+
+	return cfg;
+}
+
+struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_channel *chan)
+{
+	RAII_VAR(struct parking_lot_cfg *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct parking_lot *, template_lot, NULL, ao2_cleanup);
+
+	struct parking_lot *lot;
+	const char *dyn_context;
+	const char *dyn_exten;
+	const char *dyn_range;
+	const char *template_name;
+	const char *chan_template_name;
+	int dyn_start;
+	int dyn_end;
+
+	if (!parking_dynamic_lots_enabled()) {
+		return NULL;
+	}
+
+	ast_channel_lock(chan);
+	chan_template_name = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNAMIC"), ""));
+	dyn_context = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNCONTEXT"), ""));
+	dyn_exten = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNEXTEN"), ""));
+	dyn_range = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNPOS"), ""));
+	ast_channel_unlock(chan);
+
+	template_name = S_OR(chan_template_name, DEFAULT_PARKING_LOT);
+
+	template_lot = parking_lot_find_by_name(template_name);
+	if (!template_lot) {
+		ast_log(LOG_ERROR, "Lot %s does not exist. Can not use it as a dynamic parking lot template.\n",
+			template_name);
+		return NULL;
+	}
+
+	cfg = clone_parkinglot_cfg(template_lot->cfg, name);
+
+	if (!cfg) {
+		ast_log(LOG_ERROR, "Failed to allocate dynamic parking lot configuration.\n");
+		return NULL;
+	}
+
+	if (!ast_strlen_zero(dyn_exten)) {
+		ast_string_field_set(cfg, parkext, dyn_exten);
+	}
+
+	if (!ast_strlen_zero(dyn_context)) {
+		ast_string_field_set(cfg, parking_con, dyn_context);
+	}
+
+	if (!ast_strlen_zero(dyn_range)) {
+		if (sscanf(dyn_range, "%30d-%30d", &dyn_start, &dyn_end) != 2) {
+			ast_log(LOG_ERROR,
+				"Invalid parking range %s specified in PARKINGDYNPOS: could not parse minimum/maximum parking space range\n", dyn_range);
+				return NULL;
+		}
+		if (dyn_end < dyn_start || dyn_start < 0) {
+			ast_log(LOG_ERROR,
+				"Invalid parking range %s specified for PARKINGDYNPOS: end parking space must be greater than starting parking space.\n", dyn_range);
+				return NULL;
+		}
+
+		cfg->parking_start = dyn_start;
+		cfg->parking_stop = dyn_end;
+	}
+
+	if (parking_lot_cfg_create_extensions(cfg)) {
+		ast_log(LOG_ERROR, "Extensions for dynamic parking lot '%s' could not be registered. Dynamic lot creation failed.\n", name);
+		return NULL;
+	}
+
+	ao2_lock(parking_lot_container);
+
+	if ((lot = parking_lot_find_by_name(name))) {
+		ao2_unlock(parking_lot_container);
+		ast_log(LOG_ERROR, "Started creating dynamic parking lot '%s', but a parking lot with that name already exists.\n", name);
+		ao2_ref(lot, -1);
+		return NULL;
+	}
+
+	lot = parking_lot_build_or_update(cfg, 1);
+	ao2_unlock(parking_lot_container);
+
+	if (!lot) {
+		ast_log(LOG_NOTICE, "Failed to build dynamic parking lot '%s'\n", name);
+	}
+
+	return lot;
 }
 
 /* Preapply */
@@ -951,11 +1097,6 @@ static void mark_lots_as_disabled(void)
 	struct parking_lot *lot;
 
 	for (iter = ao2_iterator_init(parking_lot_container, 0); (lot = ao2_iterator_next(&iter)); ao2_ref(lot, -1)) {
-		/* We aren't concerned with dynamic lots */
-		if (lot->mode == PARKINGLOT_DYNAMIC) {
-			continue;
-		}
-
 		lot->disable_mark = 1;
 	}
 
@@ -1003,7 +1144,7 @@ static int load_module(void)
 		goto error;
 	}
 
-	parking_lot_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
+	parking_lot_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
 		parking_lot_sort_fn,
 		NULL);
@@ -1013,6 +1154,7 @@ static int load_module(void)
 	}
 
 	/* Global options */
+	aco_option_register(&cfg_info, "parkeddynamic", ACO_EXACT, global_options, "no", OPT_BOOL_T, 1, FLDSET(struct parking_global_config, parkeddynamic));
 
 	/* Register the per parking lot options. */
 	aco_option_register(&cfg_info, "parkext", ACO_EXACT, parking_lot_types, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct parking_lot_cfg, parkext));

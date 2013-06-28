@@ -342,6 +342,22 @@ Parking
    by default. Instead, it will follow the timeout rules of the parking lot. The
    old behavior can be reproduced by using the 'c' option.
 
+ * Dynamic parking lots will now fail to be created if the parking lot specified
+   by PARKINGDYNAMIC does not exist.
+
+ * Dynamic parking lots will also fail to be created now if they require exclusive
+   park and parkedcall extensions which overlap with other parking lots.
+
+ * Dynamic parking lots will be cleared on reload for dynamic parking lots that
+   currently contain no calls. Dynamic parking lots containing parked calls will
+   persist through the reloads without alteration.
+
+ * If parkext_exclusive is set for a parking lot and that extension is already in
+   use when that parking lot tries to register it, this is now considered a parking
+   system configuration error. Configurations which do this will be rejected.
+   Dynamic parking lots which try to register extensions that already exist will
+   also be rejected.
+
  * Added a channel variable PARKER_FLAT which stores the name of the extension
    that would be used to come back to if comebacktoorigin was set to use. This can
    be useful when comebacktoorigin is off if you still want to use the extensions
