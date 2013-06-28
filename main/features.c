@@ -74,6 +74,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
 
 /* BUGBUG TEST_FRAMEWORK is disabled because parking tests no longer work. */
@@ -320,6 +322,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="Pickup">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a call pickup occurs.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="TargetChannel"/>
+				<parameter name="TargetChannelState"><para>A numeric code for the channel's current state, related to TargetChannelStateDesc</para></parameter>
+				<parameter name="TargetChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="TargetCallerIDNum"/>
+				<parameter name="TargetCallerIDName"/>
+				<parameter name="TargetConnectedLineNum"/>
+				<parameter name="TargetConnectedLineName"/>
+				<parameter name="TargetAccountCode"/>
+				<parameter name="TargetContext"/>
+				<parameter name="TargetExten"/>
+				<parameter name="TargetPriority"/>
+				<parameter name="TargetUniqueid"/>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #define DEFAULT_PARK_TIME							45000	/*!< ms */
@@ -551,6 +587,13 @@ struct ast_dial_features {
 	/*! Bridge peer's feature flags. */
 	struct ast_flags peer_features;
 };
+
+static struct ast_manager_event_blob *call_pickup_to_ami(struct stasis_message *message);
+
+STASIS_MESSAGE_TYPE_DEFN(
+	ast_call_pickup_type,
+	.to_ami = call_pickup_to_ami);
+
 
 #if defined(ATXFER_NULL_TECH)
 /*!
@@ -4650,14 +4693,68 @@ int ast_pickup_call(struct ast_channel *chan)
 	return res;
 }
 
+static struct ast_manager_event_blob *call_pickup_to_ami(struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *contents = stasis_message_data(message);
+	struct ast_channel_snapshot *chan;
+	struct ast_channel_snapshot *target;
+	struct ast_manager_event_blob *res;
+
+	RAII_VAR(struct ast_str *, channel_str, NULL, ast_free);
+	RAII_VAR(struct ast_str *, target_str, NULL, ast_free);
+
+	chan = ast_multi_channel_blob_get_channel(contents, "channel");
+	target = ast_multi_channel_blob_get_channel(contents, "target");
+
+	ast_assert(chan != NULL && target != NULL);
+
+	if (!(channel_str = ast_manager_build_channel_state_string(chan))) {
+		return NULL;
+	}
+
+	if (!(target_str = ast_manager_build_channel_state_string_prefix(target, "Target"))) {
+		return NULL;
+	}
+
+	res = ast_manager_event_blob_create(EVENT_FLAG_CALL, "Pickup",
+		"%s"
+		"%s",
+		ast_str_buffer(channel_str),
+		ast_str_buffer(target_str));
+
+	return res;
+}
+
+static int send_call_pickup_stasis_message(struct ast_channel *picking_up, struct ast_channel_snapshot *chan, struct ast_channel_snapshot *target)
+{
+	RAII_VAR(struct ast_multi_channel_blob *, pickup_payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!(pickup_payload = ast_multi_channel_blob_create(ast_json_null()))) {
+		return -1;
+	}
+
+	ast_multi_channel_blob_add_channel(pickup_payload, "channel", chan);
+	ast_multi_channel_blob_add_channel(pickup_payload, "target", target);
+
+	if (!(msg = stasis_message_create(ast_call_pickup_type(), pickup_payload))) {
+		return -1;
+	}
+
+	stasis_publish(ast_channel_topic(picking_up), msg);
+	return 0;
+}
+
 int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 {
 	struct ast_party_connected_line connected_caller;
-	struct ast_channel *chans[2] = { chan, target };
 	struct ast_datastore *ds_pickup;
 	const char *chan_name;/*!< A masquerade changes channel names. */
 	const char *target_name;/*!< A masquerade changes channel names. */
 	int res = -1;
+
+	RAII_VAR(struct ast_channel_snapshot *, chan_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, target_snapshot, NULL, ao2_cleanup);
 
 	target_name = ast_strdupa(ast_channel_name(target));
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target_name, ast_channel_name(chan));
@@ -4707,26 +4804,22 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	/* setting the HANGUPCAUSE so the ringing channel knows this call was not a missed call */
 	ast_channel_hangupcause_set(chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 
+	if (!(chan_snapshot = ast_channel_snapshot_create(chan))) {
+		goto pickup_failed;
+	}
+
+	if (!(target_snapshot = ast_channel_snapshot_create(target))) {
+		goto pickup_failed;
+	}
+
 	if (ast_channel_move(target, chan)) {
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name,
 			target_name);
 		goto pickup_failed;
 	}
 
-	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a call pickup occurs.</synopsis>
-			<syntax>
-				<parameter name="Channel"><para>The name of the channel that initiated the pickup.</para></parameter>
-				<parameter name="TargetChannel"><para>The name of the channel that is being picked up.</para></parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
-		"Channel: %s\r\n"
-		"TargetChannel: %s\r\n",
-		chan_name, target_name);
+	/* target points to the channel that did the pickup at this point, so use that channel's topic instead of chan */
+	send_call_pickup_stasis_message(target, chan_snapshot, target_snapshot);
 
 	res = 0;
 
@@ -5570,6 +5663,7 @@ static void features_shutdown(void)
 
 	ast_unregister_application(app_bridge);
 
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_call_pickup_type);
 	pthread_cancel(parking_thread);
 	pthread_kill(parking_thread, SIGURG);
 	pthread_join(parking_thread, NULL);
@@ -5596,6 +5690,7 @@ int ast_features_init(void)
 		ast_cli_unregister_multiple(cli_features, ARRAY_LEN(cli_features));
 		return -1;
 	}
+	STASIS_MESSAGE_TYPE_INIT(ast_call_pickup_type);
 	res |= ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
 	res |= ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 

@@ -232,6 +232,15 @@ int ast_pickup_call(struct ast_channel *chan);
  */
 int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target);
 
+/*!
+ * \brief accessor for call pickup message type
+ * \since 12.0.0
+ *
+ * \retval pointer to the stasis message type
+ * \retval NULL if not initialized
+ */
+struct stasis_message_type *ast_call_pickup_type(void);
+
 /*! \brief Reload call features from features.conf */
 int ast_features_reload(void);
 
