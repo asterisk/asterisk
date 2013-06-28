@@ -719,7 +719,7 @@ static void remove_trailing_slash(const char *uri,
 	 * is probably our best bet.
 	 */
 	stasis_http_response_error(response, 404, "Not Found",
-		"ARI URL's do not end with a slash. Try /%s", slashless);
+		"ARI URLs do not end with a slash. Try /%s", slashless);
 }
 
 /*!
