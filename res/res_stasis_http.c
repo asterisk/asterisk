@@ -702,10 +702,24 @@ static void remove_trailing_slash(const char *uri,
 	char *slashless = ast_strdupa(uri);
 	slashless[strlen(slashless) - 1] = '\0';
 
-	ast_str_append(&response->headers, 0,
-		       "Location: /stasis/%s\r\n", slashless);
-	stasis_http_response_error(response, 302, "Found",
-				   "Redirecting to %s", slashless);
+	/* While it's tempting to redirect the client to the slashless URL,
+	 * that is problematic. A 302 Found is the most appropriate response,
+	 * but most clients issue a GET on the location you give them,
+	 * regardless of the method of the original request.
+	 *
+	 * While there are some ways around this, it gets into a lot of client
+	 * specific behavior and corner cases in the HTTP standard. There's also
+	 * very little practical benefit of redirecting; only GET and HEAD can
+	 * be redirected automagically; all other requests "MUST NOT
+	 * automatically redirect the request unless it can be confirmed by the
+	 * user, since this might change the conditions under which the request
+	 * was issued."
+	 *
+	 * Given all of that, a 404 with a nice message telling them what to do
+	 * is probably our best bet.
+	 */
+	stasis_http_response_error(response, 404, "Not Found",
+		"ARI URL's do not end with a slash. Try /%s", slashless);
 }
 
 /*!
