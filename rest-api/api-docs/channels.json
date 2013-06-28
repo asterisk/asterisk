@@ -25,15 +25,15 @@
 					"parameters": [
 						{
 							"name": "endpoint",
-							"description": "Endpoint to call. If not specified, originate is routed via dialplan",
+							"description": "Endpoint to call.",
 							"paramType": "query",
-							"required": false,
+							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
 						},
 						{
 							"name": "extension",
-							"description": "When routing via dialplan, the extension to dial",
+							"description": "The extension to dial after the endpoint answers",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -41,7 +41,31 @@
 						},
 						{
 							"name": "context",
-							"description": "When routing via dialplan, the context to use. If omitted, uses 'default'",
+							"description": "The context to dial after the endpoint answers. If omitted, uses 'default'",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "priority",
+							"description": "The priority to dial after the endpoint answers. If omitted, uses 1",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "long"
+						},
+						{
+							"name": "app",
+							"description": "The application name to pass to the Stasis application.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "appArgs",
+							"description": "The application arguments to pass to the Stasis application.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -63,22 +87,6 @@
 							"allowMultiple": false,
 							"dataType": "int",
 							"defaultValue": 30
-						},
-						{
-							"name": "app",
-							"description": "Application name to pass to the Stasis application.",
-							"paramType": "query",
-							"required": true,
-							"allowMultiple": false,
-							"dataType": "string"
-						},
-						{
-							"name": "appArgs",
-							"description": "Application arguments to pass to the Stasis application.",
-							"paramType": "query",
-							"required": false,
-							"allowMultiple": false,
-							"dataType": "string"
 						}
 					]
 				}

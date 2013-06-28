@@ -83,17 +83,20 @@ static void stasis_http_originate_cb(
 		if (strcmp(i->name, "context") == 0) {
 			args.context = (i->value);
 		} else
-		if (strcmp(i->name, "callerId") == 0) {
-			args.caller_id = (i->value);
-		} else
-		if (strcmp(i->name, "timeout") == 0) {
-			args.timeout = atoi(i->value);
+		if (strcmp(i->name, "priority") == 0) {
+			args.priority = atol(i->value);
 		} else
 		if (strcmp(i->name, "app") == 0) {
 			args.app = (i->value);
 		} else
 		if (strcmp(i->name, "appArgs") == 0) {
 			args.app_args = (i->value);
+		} else
+		if (strcmp(i->name, "callerId") == 0) {
+			args.caller_id = (i->value);
+		} else
+		if (strcmp(i->name, "timeout") == 0) {
+			args.timeout = atoi(i->value);
 		} else
 		{}
 	}

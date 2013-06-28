@@ -320,51 +320,37 @@ void stasis_http_originate(struct ast_variable *headers,
 			   struct ast_originate_args *args,
 			   struct stasis_http_response *response)
 {
-	const char *dialtech = NULL;
+	char *dialtech;
 	char dialdevice[AST_CHANNEL_NAME];
 	char *caller_id = NULL;
 	char *cid_num = NULL;
 	char *cid_name = NULL;
 	int timeout = 30000;
 
-	const char *app = "Stasis";
-	RAII_VAR(struct ast_str *, appdata, ast_str_create(64), ast_free);
+	char *stuff;
 
-	if (!appdata) {
-		stasis_http_response_alloc_failed(response);
+	if (ast_strlen_zero(args->endpoint)) {
+		stasis_http_response_error(response, 400, "Bad Request",
+			"Endpoint must be specified");
 		return;
 	}
 
-	ast_str_set(&appdata, 0, "%s", args->app);
-	if (!ast_strlen_zero(args->app_args)) {
-		ast_str_append(&appdata, 0, ",%s", args->app_args);
+	dialtech = ast_strdupa(args->endpoint);
+	if ((stuff = strchr(dialtech, '/'))) {
+		*stuff++ = '\0';
+		ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+	}
+
+	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
+		stasis_http_response_error(response, 400, "Bad Request",
+			"Invalid endpoint specified");
+		return;
 	}
 
 	if (args->timeout > 0) {
 		timeout = args->timeout * 1000;
 	} else if (args->timeout == -1) {
 		timeout = -1;
-	}
-
-	if (!ast_strlen_zero(args->endpoint)) {
-		char *tmp = ast_strdupa(args->endpoint);
-		char *stuff;
-
-		if ((stuff = strchr(tmp, '/'))) {
-			*stuff++ = '\0';
-			dialtech = tmp;
-			ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
-	        }
-	} else if (!ast_strlen_zero(args->extension) && !ast_strlen_zero(args->context)) {
-		dialtech = "Local";
-		snprintf(dialdevice, sizeof(dialdevice), "%s@%s", args->extension, args->context);
-	}
-
-	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
-		stasis_http_response_error(
-			response, 500, "Internal server error",
-			"Invalid endpoint or extension and context specified");
-		return;
 	}
 
 	if (!ast_strlen_zero(args->caller_id)) {
@@ -376,11 +362,35 @@ void stasis_http_originate(struct ast_variable *headers,
 		}
 	}
 
-	ast_debug(1, "Dialing %s/%s\n", dialtech, dialdevice);
+	if (!ast_strlen_zero(args->app)) {
+		const char *app = "Stasis";
 
-	/* originate a channel, putting it into an application */
-	if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, NULL)) {
-		stasis_http_response_alloc_failed(response);
+		RAII_VAR(struct ast_str *, appdata, ast_str_create(64), ast_free);
+
+		if (!appdata) {
+			stasis_http_response_alloc_failed(response);
+			return;
+		}
+
+		ast_str_set(&appdata, 0, "%s", args->app);
+		if (!ast_strlen_zero(args->app_args)) {
+			ast_str_append(&appdata, 0, ",%s", args->app_args);
+		}
+
+		/* originate a channel, putting it into an application */
+		if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, NULL)) {
+			stasis_http_response_alloc_failed(response);
+			return;
+		}
+	} else if (!ast_strlen_zero(args->extension)) {
+		/* originate a channel, sending it to an extension */
+		if (ast_pbx_outgoing_exten(dialtech, NULL, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, NULL, 0)) {
+			stasis_http_response_alloc_failed(response);
+			return;
+		}
+	} else {
+		stasis_http_response_error(response, 400, "Bad Request",
+			"Application or extension must be specified");
 		return;
 	}
 
