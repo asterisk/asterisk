@@ -83,19 +83,3 @@ int ast_datastore_free(struct ast_datastore *datastore)
 
 	return res;
 }
-
-/* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY
- *
- * ONLY FUNCTIONS FOR PROVIDING BACKWARDS ABI COMPATIBILITY BELONG HERE
- *
- */
-
-/* Provide binary compatibility for modules that call ast_datastore_alloc() directly;
- * newly compiled modules will call __ast_datastore_alloc() via the macros in datastore.h
- */
-#undef ast_datastore_alloc
-struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid);
-struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
-{
-	return __ast_datastore_alloc(info, uid, __FILE__, __LINE__, __FUNCTION__);
-}
