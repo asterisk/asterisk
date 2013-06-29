@@ -3309,16 +3309,18 @@ int ast_after_bridge_callback_set(struct ast_channel *chan, ast_after_bridge_cb 
 }
 
 const char *reason_strings[] = {
-	[AST_AFTER_BRIDGE_CB_REASON_DESTROY] = "Bridge Destroyed",
-	[AST_AFTER_BRIDGE_CB_REASON_REPLACED] = "Channel replaced",
+	[AST_AFTER_BRIDGE_CB_REASON_DESTROY] = "Channel destroyed (hungup)",
+	[AST_AFTER_BRIDGE_CB_REASON_REPLACED] = "Callback was replaced",
 	[AST_AFTER_BRIDGE_CB_REASON_MASQUERADE] = "Channel masqueraded",
-	[AST_AFTER_BRIDGE_CB_REASON_DEPART] = "Channel departed",
-	[AST_AFTER_BRIDGE_CB_REASON_REMOVED] = "Channel removed",
+	[AST_AFTER_BRIDGE_CB_REASON_DEPART] = "Channel was departed from bridge",
+	[AST_AFTER_BRIDGE_CB_REASON_REMOVED] = "Callback was removed",
 };
 
 const char *ast_after_bridge_cb_reason_string(enum ast_after_bridge_cb_reason reason)
 {
-	if (reason < AST_AFTER_BRIDGE_CB_REASON_DESTROY || reason > AST_AFTER_BRIDGE_CB_REASON_REMOVED) {
+	if (reason < AST_AFTER_BRIDGE_CB_REASON_DESTROY
+		|| AST_AFTER_BRIDGE_CB_REASON_REMOVED < reason
+		|| !reason_strings[reason]) {
 		return "Unknown";
 	}
 

@@ -1653,7 +1653,7 @@ enum ast_after_bridge_cb_reason {
 	AST_AFTER_BRIDGE_CB_REASON_REPLACED,
 	/*! The callback was removed because of a masquerade. (fixup) */
 	AST_AFTER_BRIDGE_CB_REASON_MASQUERADE,
-	/*! The channel departed bridge. */
+	/*! The channel was departed from the bridge. */
 	AST_AFTER_BRIDGE_CB_REASON_DEPART,
 	/*! Was explicitly removed by external code. */
 	AST_AFTER_BRIDGE_CB_REASON_REMOVED,
