@@ -3171,6 +3171,7 @@ static void after_bridge_cb_destroy(void *data)
 		after_bridge->failed(AST_AFTER_BRIDGE_CB_REASON_DESTROY, after_bridge->data);
 		after_bridge->failed = NULL;
 	}
+	ast_free(after_bridge);
 }
 
 /*!
