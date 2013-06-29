@@ -30,18 +30,173 @@ struct ast_datastore;
 struct ast_datastore_info;
 
 /*!
+ * \brief Opaque structure representing a publication
+ */
+struct ast_sip_publication;
+
+/*!
+ * \brief Callbacks that publication handlers will define
+ */
+struct ast_sip_publish_handler {
+	/*! \brief The name of the event this handler deals with */
+	const char *event_name;
+
+	/*! \brief Publications */
+	struct ao2_container *publications;
+
+	/*!
+	 * \brief Called when a PUBLISH to establish a new publication arrives.
+	 *
+	 * \param endpoint The endpoint from whom the PUBLISH arrived
+	 * \param rdata The PUBLISH request
+	 * \retval NULL PUBLISH was not accepted
+	 * \retval non-NULL New publication
+	 *
+	 * \note The callback is expected to send a response for the PUBLISH in success cases.
+	 */
+	struct ast_sip_publication *(*new_publication)(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
+	/*!
+	 * \brief Called when a PUBLISH for an existing publication arrives.
+	 *
+	 * This PUBLISH may be intending to change state or it may be simply renewing
+	 * the publication since the publication is nearing expiration. The callback
+	 * is expected to send a response to the PUBLISH.
+	 *
+	 * \param pub The publication on which the PUBLISH arrived
+	 * \param rdata The PUBLISH request
+	 * \retval 0 Publication was accepted
+	 * \retval non-zero Publication was denied
+	 *
+	 * \note The callback is expected to send a response for the PUBLISH.
+	 */
+	int (*publish_refresh)(struct ast_sip_publication *pub, pjsip_rx_data *rdata);
+
+	/*!
+	 * \brief Called when a publication has reached its expiration.
+	 */
+	void (*publish_expire)(struct ast_sip_publication *pub);
+
+	/*!
+	 * \brief Called when a PUBLISH arrives to terminate a publication.
+	 *
+	 * \param pub The publication that is terminating
+	 * \param rdata The PUBLISH request terminating the publication
+	 *
+	 * \note The callback is expected to send a response for the PUBLISH.
+	 */
+	void (*publish_termination)(struct ast_sip_publication *pub, pjsip_rx_data *rdata);
+
+	AST_LIST_ENTRY(ast_sip_publish_handler) next;
+};
+
+/*!
+ * \brief Create a new publication
+ *
+ * Publication handlers should call this when a PUBLISH arrives to establish a new publication.
+ *
+ * \param endpoint The endpoint from whom the PUBLISHes arrive
+ * \param rdata The PUBLISH that established the publication
+ * \retval NULL Failed to create a publication
+ * \retval non-NULL The newly-created publication
+ */
+struct ast_sip_publication *ast_sip_create_publication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
+/*!
+ * \brief Given a publication, get the associated endpoint
+ *
+ * \param pub The publication
+ * \retval NULL Failure
+ * \retval non-NULL The associated endpoint
+ */
+struct ast_sip_endpoint *ast_sip_publication_get_endpoint(struct ast_sip_publication *pub);
+
+/*!
+ * \brief Create a response to an inbound PUBLISH
+ *
+ * The created response must be sent using ast_sip_publication_send_response
+ *
+ * \param pub The publication
+ * \param status code The status code to place in the response
+ * \param rdata The request to which the response is being made
+ * \param[out] tdata The created response
+ */
+int ast_sip_publication_create_response(struct ast_sip_publication *pub, int status_code, pjsip_rx_data *rdata,
+	pjsip_tx_data **tdata);
+
+/*!
+ * \brief Send a response for an inbound PUBLISH
+ *
+ * \param pub The publication
+ * \param rdata The request to which the response was made
+ * \param tdata The response to the request
+ */
+pj_status_t ast_sip_publication_send_response(struct ast_sip_publication *pub, pjsip_rx_data *rdata,
+	pjsip_tx_data *tdata);
+
+/*!
+ * \brief Register a publish handler
+ *
+ * \retval 0 Handler was registered successfully
+ * \retval non-zero Handler was not registered successfully
+ */
+int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler);
+
+/*!
+ * \brief Unregister a publish handler
+ */
+void ast_sip_unregister_publish_handler(struct ast_sip_publish_handler *handler);
+
+/*!
+ * \brief Add a datastore to a SIP publication
+ *
+ * Note that SIP uses reference counted datastores. The datastore passed into this function
+ * must have been allocated using ao2_alloc() or there will be serious problems.
+ *
+ * \param publication The publication to add the datastore to
+ * \param datastore The datastore to be added to the subscription
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_publication_add_datastore(struct ast_sip_publication *publication, struct ast_datastore *datastore);
+
+/*!
+ * \brief Retrieve a publication datastore
+ *
+ * The datastore retrieved will have its reference count incremented. When the caller is done
+ * with the datastore, the reference counted needs to be decremented using ao2_ref().
+ *
+ * \param publication The publication from which to retrieve the datastore
+ * \param name The name of the datastore to retrieve
+ * \retval NULL Failed to find the specified datastore
+ * \retval non-NULL The specified datastore
+ */
+struct ast_datastore *ast_sip_publication_get_datastore(struct ast_sip_publication *publication, const char *name);
+
+/*!
+ * \brief Remove a publication datastore from the publication
+ *
+ * This operation may cause the datastore's free() callback to be called if the reference
+ * count reaches zero.
+ *
+ * \param publication The publication to remove the datastore from
+ * \param name The name of the datastore to remove
+ */
+void ast_sip_publication_remove_datastore(struct ast_sip_publication *publication, const char *name);
+
+/*!
  * \brief Opaque structure representing an RFC 3265 SIP subscription
  */
 struct ast_sip_subscription;
- 
+
 /*!
  * \brief Role for the subscription that is being created
  */
 enum ast_sip_subscription_role {
-    /* Sending SUBSCRIBEs, receiving NOTIFYs */
-    AST_SIP_SUBSCRIBER,
-    /* Sending NOTIFYs, receiving SUBSCRIBEs */
-    AST_SIP_NOTIFIER,
+	/* Sending SUBSCRIBEs, receiving NOTIFYs */
+	AST_SIP_SUBSCRIBER,
+	/* Sending NOTIFYs, receiving SUBSCRIBEs */
+	AST_SIP_NOTIFIER,
 };
 
 /*!
@@ -56,147 +211,147 @@ enum ast_sip_subscription_role {
  * not provide it with any additional data.
  */
 struct ast_sip_subscription_response_data {
-    /*! Status code of the response */
-    int status_code;
-    /*! Optional status text */
-    const char *status_text;
-    /*! Optional additional headers to add to the response */
-    struct ast_variable *headers;
-    /*! Optional body to add to the response */
-    struct ast_sip_body *body;
+	/*! Status code of the response */
+	int status_code;
+	/*! Optional status text */
+	const char *status_text;
+	/*! Optional additional headers to add to the response */
+	struct ast_variable *headers;
+	/*! Optional body to add to the response */
+	struct ast_sip_body *body;
 };
 
 #define AST_SIP_MAX_ACCEPT 32
 
 struct ast_sip_subscription_handler {
-    /*! The name of the event this handler deals with */
-    const char *event_name;
-    /*! The types of body this handler accepts */
-    const char *accept[AST_SIP_MAX_ACCEPT];
- 
-    /*!
-     * \brief Called when a subscription is to be destroyed
-     *
-     * This is a subscriber and notifier callback.
-     *
-     * The handler is not expected to send any sort of requests or responses
-     * during this callback. The handler MUST, however, begin the destruction
+	/*! The name of the event this handler deals with */
+	const char *event_name;
+	/*! The types of body this handler accepts */
+	const char *accept[AST_SIP_MAX_ACCEPT];
+
+	/*!
+	 * \brief Called when a subscription is to be destroyed
+	 *
+	 * This is a subscriber and notifier callback.
+	 *
+	 * The handler is not expected to send any sort of requests or responses
+	 * during this callback. The handler MUST, however, begin the destruction
 	 * process for the subscription during this callback.
-     */
+	 */
    void (*subscription_shutdown)(struct ast_sip_subscription *subscription);
- 
-    /*!
-     * \brief Called when a SUBSCRIBE arrives in order to create a new subscription
-     *
-     * This is a notifier callback.
-     *
-     * If the notifier wishes to accept the subscription, then it can create
-     * a new ast_sip_subscription to do so. 
-     *
-     * If the notifier chooses to create a new subscription, then it must accept
-     * the incoming subscription using pjsip_evsub_accept() and it must also
-     * send an initial NOTIFY with the current subscription state.
-     *
-     * \param endpoint The endpoint from which we received the SUBSCRIBE
-     * \param rdata The SUBSCRIBE request
-     * \retval NULL The SUBSCRIBE has not been accepted
-     * \retval non-NULL The newly-created subscription
-     */
-    struct ast_sip_subscription *(*new_subscribe)(struct ast_sip_endpoint *endpoint,
-            pjsip_rx_data *rdata);
- 
-    /*!
-     * \brief Called when an endpoint renews a subscription.
-     *
-     * This is a notifier callback.
-     *
-     * Because of the way that the PJSIP evsub framework works, it will automatically
-     * send a response to the SUBSCRIBE. However, the subscription handler must send
+
+	/*!
+	 * \brief Called when a SUBSCRIBE arrives in order to create a new subscription
+	 *
+	 * This is a notifier callback.
+	 *
+	 * If the notifier wishes to accept the subscription, then it can create
+	 * a new ast_sip_subscription to do so.
+	 *
+	 * If the notifier chooses to create a new subscription, then it must accept
+	 * the incoming subscription using pjsip_evsub_accept() and it must also
+	 * send an initial NOTIFY with the current subscription state.
+	 *
+	 * \param endpoint The endpoint from which we received the SUBSCRIBE
+	 * \param rdata The SUBSCRIBE request
+	 * \retval NULL The SUBSCRIBE has not been accepted
+	 * \retval non-NULL The newly-created subscription
+	 */
+	struct ast_sip_subscription *(*new_subscribe)(struct ast_sip_endpoint *endpoint,
+			pjsip_rx_data *rdata);
+
+	/*!
+	 * \brief Called when an endpoint renews a subscription.
+	 *
+	 * This is a notifier callback.
+	 *
+	 * Because of the way that the PJSIP evsub framework works, it will automatically
+	 * send a response to the SUBSCRIBE. However, the subscription handler must send
 	 * a NOTIFY with the current subscription state when this callback is called.
 	 *
 	 * The response_data that is passed into this callback is used to craft what should
 	 * be in the response to the incoming SUBSCRIBE. It is initialized with a 200 status
 	 * code and all other parameters are empty.
-     *
-     * \param sub The subscription that is being renewed
-     * \param rdata The SUBSCRIBE request in question
+	 *
+	 * \param sub The subscription that is being renewed
+	 * \param rdata The SUBSCRIBE request in question
 	 * \param[out] response_data Data pertaining to the SIP response that should be
 	 * sent to the SUBSCRIBE
-     */
-    void (*resubscribe)(struct ast_sip_subscription *sub,
-            pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data);
- 
-    /*!
-     * \brief Called when a subscription times out.
-     *
-     * This is a notifier callback
-     *
-     * This indicates that the subscription has timed out. The subscription handler is
-     * expected to send a NOTIFY that terminates the subscription.
-     *
-     * \param sub The subscription that has timed out
-     */
-    void (*subscription_timeout)(struct ast_sip_subscription *sub);
- 
-    /*!
-     * \brief Called when a subscription is terminated via a SUBSCRIBE or NOTIFY request
-     *
-     * This is a notifier and subscriber callback.
-     *
-     * The PJSIP subscription framework will automatically send the response to the
-     * request. If a notifier receives this callback, then the subscription handler
+	 */
+	void (*resubscribe)(struct ast_sip_subscription *sub,
+			pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data);
+
+	/*!
+	 * \brief Called when a subscription times out.
+	 *
+	 * This is a notifier callback
+	 *
+	 * This indicates that the subscription has timed out. The subscription handler is
+	 * expected to send a NOTIFY that terminates the subscription.
+	 *
+	 * \param sub The subscription that has timed out
+	 */
+	void (*subscription_timeout)(struct ast_sip_subscription *sub);
+
+	/*!
+	 * \brief Called when a subscription is terminated via a SUBSCRIBE or NOTIFY request
+	 *
+	 * This is a notifier and subscriber callback.
+	 *
+	 * The PJSIP subscription framework will automatically send the response to the
+	 * request. If a notifier receives this callback, then the subscription handler
 	 * is expected to send a final NOTIFY to terminate the subscription.
-     *
-     * \param sub The subscription being terminated
-     * \param rdata The request that terminated the subscription
-     */
-    void (*subscription_terminated)(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
- 
-    /*!
-     * \brief Called when a subscription handler's outbound NOTIFY receives a response
-     *
-     * This is a notifier callback.
-     *
-     * \param sub The subscription
-     * \param rdata The NOTIFY response
-     */
-    void (*notify_response)(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
- 
-    /*!
-     * \brief Called when a subscription handler receives an inbound NOTIFY
-     *
-     * This is a subscriber callback.
-     *
-     * Because of the way that the PJSIP evsub framework works, it will automatically
-     * send a response to the NOTIFY. By default this will be a 200 OK response, but
-     * this callback can change details of the response by returning response data
-     * to use.
+	 *
+	 * \param sub The subscription being terminated
+	 * \param rdata The request that terminated the subscription
+	 */
+	void (*subscription_terminated)(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
+
+	/*!
+	 * \brief Called when a subscription handler's outbound NOTIFY receives a response
+	 *
+	 * This is a notifier callback.
+	 *
+	 * \param sub The subscription
+	 * \param rdata The NOTIFY response
+	 */
+	void (*notify_response)(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
+
+	/*!
+	 * \brief Called when a subscription handler receives an inbound NOTIFY
+	 *
+	 * This is a subscriber callback.
+	 *
+	 * Because of the way that the PJSIP evsub framework works, it will automatically
+	 * send a response to the NOTIFY. By default this will be a 200 OK response, but
+	 * this callback can change details of the response by returning response data
+	 * to use.
 	 *
 	 * The response_data that is passed into this callback is used to craft what should
 	 * be in the response to the incoming SUBSCRIBE. It is initialized with a 200 status
 	 * code and all other parameters are empty.
-     *
-     * \param sub The subscription
-     * \param rdata The NOTIFY request
+	 *
+	 * \param sub The subscription
+	 * \param rdata The NOTIFY request
 	 * \param[out] response_data Data pertaining to the SIP response that should be
 	 * sent to the SUBSCRIBE
-     */
-    void (*notify_request)(struct ast_sip_subscription *sub,
-            pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data);
- 
-    /*!
-     * \brief Called when it is time for a subscriber to resubscribe
-     *
-     * This is a subscriber callback.
-     *
-     * The subscriber can reresh the subscription using the pjsip_evsub_initiate()
-     * function.
-     *
-     * \param sub The subscription to refresh
-     * \retval 0 Success
-     * \retval non-zero Failure
-     */
-    int (*refresh_subscription)(struct ast_sip_subscription *sub);
+	 */
+	void (*notify_request)(struct ast_sip_subscription *sub,
+			pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data);
+
+	/*!
+	 * \brief Called when it is time for a subscriber to resubscribe
+	 *
+	 * This is a subscriber callback.
+	 *
+	 * The subscriber can reresh the subscription using the pjsip_evsub_initiate()
+	 * function.
+	 *
+	 * \param sub The subscription to refresh
+	 * \retval 0 Success
+	 * \retval non-zero Failure
+	 */
+	int (*refresh_subscription)(struct ast_sip_subscription *sub);
 	AST_LIST_ENTRY(ast_sip_subscription_handler) next;
 };
 
@@ -221,9 +376,9 @@ struct ast_sip_subscription_handler {
  * \param rdata If acting as a notifier, the SUBSCRIBE request that triggered subscription creation
  */
 struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_subscription_handler *handler,
-        enum ast_sip_subscription_role role, struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
- 
- 
+		enum ast_sip_subscription_role role, struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
+
 /*!
  * \brief Get the endpoint that is associated with this subscription
  *
@@ -234,7 +389,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
  * \retval non-NULL The endpoint
  */
 struct ast_sip_endpoint *ast_sip_subscription_get_endpoint(struct ast_sip_subscription *sub);
- 
+
 /*!
  * \brief Get the serializer for the subscription
  *
@@ -246,7 +401,7 @@ struct ast_sip_endpoint *ast_sip_subscription_get_endpoint(struct ast_sip_subscr
  * \retval non-NULL The subscription's serializer
  */
 struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_subscription *sub);
- 
+
 /*!
  * \brief Get the underlying PJSIP evsub structure
  *
@@ -289,7 +444,7 @@ pjsip_dialog *ast_sip_subscription_get_dlg(struct ast_sip_subscription *sub);
  * \retval non-zero Failure
  */
 int ast_sip_subscription_send_request(struct ast_sip_subscription *sub, pjsip_tx_data *tdata);
- 
+
 /*!
  * \brief Alternative for ast_datastore_alloc()
  *
@@ -307,7 +462,7 @@ int ast_sip_subscription_send_request(struct ast_sip_subscription *sub, pjsip_tx
  * \retval non-NULL Newly allocated datastore
  */
 struct ast_datastore *ast_sip_subscription_alloc_datastore(const struct ast_datastore_info *info, const char *uid);
- 
+
 /*!
  * \brief Add a datastore to a SIP subscription
  *
@@ -320,7 +475,7 @@ struct ast_datastore *ast_sip_subscription_alloc_datastore(const struct ast_data
  * \retval -1 Failure
  */
 int ast_sip_subscription_add_datastore(struct ast_sip_subscription *subscription, struct ast_datastore *datastore);
- 
+
 /*!
  * \brief Retrieve a subscription datastore
  *
@@ -333,7 +488,7 @@ int ast_sip_subscription_add_datastore(struct ast_sip_subscription *subscription
  * \retval non-NULL The specified datastore
  */
 struct ast_datastore *ast_sip_subscription_get_datastore(struct ast_sip_subscription *subscription, const char *name);
- 
+
 /*!
  * \brief Remove a subscription datastore from the subscription
  *
@@ -344,7 +499,7 @@ struct ast_datastore *ast_sip_subscription_get_datastore(struct ast_sip_subscrip
  * \param name The name of the datastore to remove
  */
 void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscription, const char *name);
- 
+
 /*!
  * \brief Register a subscription handler
  *
@@ -352,7 +507,7 @@ void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscrip
  * \retval non-zero Handler was not registered successfully
  */
 int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *handler);
- 
+
 /*!
  * \brief Unregister a subscription handler
  */

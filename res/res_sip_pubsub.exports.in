@@ -12,6 +12,15 @@
 		LINKER_SYMBOL_PREFIXast_sip_subscription_remove_datastore;
 		LINKER_SYMBOL_PREFIXast_sip_register_subscription_handler;
 		LINKER_SYMBOL_PREFIXast_sip_unregister_subscription_handler;
+		LINKER_SYMBOL_PREFIXast_sip_create_publication;
+		LINKER_SYMBOL_PREFIXast_sip_publication_get_endpoint;
+		LINKER_SYMBOL_PREFIXast_sip_publication_create_response;
+		LINKER_SYMBOL_PREFIXast_sip_publication_send_response;
+		LINKER_SYMBOL_PREFIXast_sip_register_publish_handler;
+		LINKER_SYMBOL_PREFIXast_sip_unregister_publish_handler;
+		LINKER_SYMBOL_PREFIXast_sip_publication_add_datastore;
+		LINKER_SYMBOL_PREFIXast_sip_publication_get_datastore;
+		LINKER_SYMBOL_PREFIXast_sip_publication_remove_datastore;
 	local:
 		*;
 };
