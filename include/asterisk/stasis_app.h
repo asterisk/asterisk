@@ -174,6 +174,18 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 int stasis_app_control_answer(struct stasis_app_control *control);
 
 /*!
+ * \brief Place the channel associated with the control on hold.
+ * \param control Control for \c res_stasis.
+ */
+void stasis_app_control_hold(struct stasis_app_control *control);
+
+/*!
+ * \brief Remove the channel associated with the control from hold.
+ * \param control Control for \c res_stasis.
+ */
+void stasis_app_control_unhold(struct stasis_app_control *control);
+
+/*!
  * \brief Returns the most recent snapshot for the associated channel.
  *
  * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.

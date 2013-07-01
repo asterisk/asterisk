@@ -207,6 +207,32 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	return 0;
 }
 
+static void *app_control_hold(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_indicate(control->channel, AST_CONTROL_HOLD);
+
+	return NULL;
+}
+
+void stasis_app_control_hold(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_hold, NULL);
+}
+
+static void *app_control_unhold(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_indicate(control->channel, AST_CONTROL_UNHOLD);
+
+	return NULL;
+}
+
+void stasis_app_control_unhold(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_unhold, NULL);
+}
+
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	const struct stasis_app_control *control)
 {

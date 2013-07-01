@@ -150,11 +150,32 @@ void stasis_http_unmute_channel(struct ast_variable *headers, struct ast_unmute_
 }
 void stasis_http_hold_channel(struct ast_variable *headers, struct ast_hold_channel_args *args, struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_hold_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_hold(control);
+
+	stasis_http_response_no_content(response);
 }
+
 void stasis_http_unhold_channel(struct ast_variable *headers, struct ast_unhold_channel_args *args, struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_unhold_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_unhold(control);
+
+	stasis_http_response_no_content(response);
 }
 
 void stasis_http_play_on_channel(struct ast_variable *headers,
