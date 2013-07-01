@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/test.h"
+#include "asterisk/mixmonitor.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -1246,6 +1247,31 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	return AMI_SUCCESS;
 }
 
+static int start_mixmonitor_callback(struct ast_channel *chan, const char *filename, const char *options)
+{
+	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
+	struct ast_flags flags = { 0 };
+	char args[PATH_MAX] = "";
+	int res;
+
+	if (!ast_strlen_zero(options)) {
+		ast_app_parse_options(mixmonitor_opts, &flags, opts, ast_strdupa(options));
+	}
+
+	snprintf(args, sizeof(args), "%s,%s", filename, options);
+
+	ast_channel_lock(chan);
+	res = mixmonitor_exec(chan, args);
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
+static int stop_mixmonitor_callback(struct ast_channel *chan, const char *mixmonitor_id)
+{
+	return stop_mixmonitor_full(chan, mixmonitor_id);
+}
+
 static int manager_mixmonitor(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -1356,6 +1382,21 @@ static struct ast_cli_entry cli_mixmonitor[] = {
 	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
 
+static int set_mixmonitor_methods(void)
+{
+	struct ast_mixmonitor_methods mixmonitor_methods = {
+		.start = start_mixmonitor_callback,
+		.stop = stop_mixmonitor_callback,
+	};
+
+	return ast_set_mixmonitor_methods(&mixmonitor_methods);
+}
+
+static int clear_mixmonitor_methods(void)
+{
+	return ast_clear_mixmonitor_methods();
+}
+
 static int unload_module(void)
 {
 	int res;
@@ -1366,6 +1407,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("MixMonitorMute");
 	res |= ast_manager_unregister("MixMonitor");
 	res |= ast_manager_unregister("StopMixMonitor");
+	res |= clear_mixmonitor_methods();
 
 	return res;
 }
@@ -1380,6 +1422,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
 	res |= ast_manager_register_xml("MixMonitor", 0, manager_mixmonitor);
 	res |= ast_manager_register_xml("StopMixMonitor", 0, manager_stop_mixmonitor);
+	res |= set_mixmonitor_methods();
 
 	return res;
 }

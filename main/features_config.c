@@ -39,6 +39,9 @@
 				<configOption name="courtesytone">
 					<synopsis>Sound to play when automon or automixmon is activated</synopsis>
 				</configOption>
+				<configOption name="recordingfailsound">
+					<synopsis>Sound to play when automon or automixmon is attempted but fails to start</synopsis>
+				</configOption>
 				<configOption name="transferdigittimeout" default="3000">
 					<synopsis>Milliseconds allowed between digit presses when dialing a transfer destination</synopsis>
 				</configOption>
@@ -292,6 +295,7 @@
 					<enum name="pickupsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupsound']/synopsis/text())" /></para></enum>
 					<enum name="pickupfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupfailsound']/synopsis/text())" /></para></enum>
 					<enum name="courtesytone"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='courtesytone']/synopsis/text())" /></para></enum>
+					<enum name="recordingfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='recordingfailsound']/synopsis/text())" /></para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -338,6 +342,7 @@
 /*! Default general options */
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT               1000
 #define DEFAULT_COURTESY_TONE                       ""
+#define DEFAULT_RECORDING_FAIL_SOUND                ""
 
 /*! Default xfer options */
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT              3000
@@ -787,6 +792,8 @@ static int general_set(struct ast_features_general_config *general, const char *
 		res = ast_parse_arg(value, PARSE_INT32, &general->featuredigittimeout);
 	} else if (!strcasecmp(name, "courtesytone")) {
 		ast_string_field_set(general, courtesytone, value);
+	} else if (!strcasecmp(name, "recordingfailsound")) {
+		ast_string_field_set(general, recordingfailsound, value);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -804,6 +811,8 @@ static int general_get(struct ast_features_general_config *general, const char *
 		snprintf(buf, len, "%u", general->featuredigittimeout);
 	} else if (!strcasecmp(field, "courtesytone")) {
 		ast_copy_string(buf, general->courtesytone, len);
+	} else if (!strcasecmp(field, "recordingfailsound")) {
+		ast_copy_string(buf, general->recordingfailsound, len);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -1595,8 +1604,10 @@ static int load_config(void)
 
 	aco_option_register_custom(&cfg_info, "featuredigittimeout", ACO_EXACT, global_options,
 			__stringify(DEFAULT_FEATURE_DIGIT_TIMEOUT), general_handler, 0);
+	aco_option_register_custom(&cfg_info, "recordingfailsound", ACO_EXACT, global_options,
+			DEFAULT_RECORDING_FAIL_SOUND, general_handler, 0);
 	aco_option_register_custom(&cfg_info, "courtesytone", ACO_EXACT, global_options,
-			__stringify(DEFAULT_COURTESY_TONE), general_handler, 0);
+			DEFAULT_COURTESY_TONE, general_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "transferdigittimeout", ACO_EXACT, global_options,
 			__stringify(DEFAULT_TRANSFER_DIGIT_TIMEOUT), xfer_handler, 0)

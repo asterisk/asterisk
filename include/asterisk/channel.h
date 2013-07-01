@@ -2596,6 +2596,17 @@ struct ast_group_info {
  */
 #define ast_channel_unref(c) ({ ao2_ref(c, -1); (struct ast_channel *) (NULL); })
 
+/*!
+ * \brief Cleanup a channel reference
+ *
+ * \param c the channel (NULL tolerant)
+ *
+ * \retval NULL always
+ *
+ * \since 12.0.0
+ */
+#define ast_channel_cleanup(c) ({ ao2_cleanup(c); (struct ast_channel *) (NULL); })
+
 /*! Channel Iterating @{ */
 
 /*!

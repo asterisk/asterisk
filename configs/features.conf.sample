@@ -105,6 +105,8 @@ context => parkedcalls          ; Which context parked calls are in (default par
 ;pickupfailsound = beeperr      ; to indicate that the pickup failed (default: no sound)
 ;featuredigittimeout = 1000     ; Max time (ms) between digits for
                                 ; feature activation  (default is 1000 ms)
+;recordingfailsound = beeperr   ; indicates that a one-touch monitor or one-touch mixmonitor feature failed
+								; to be applied to the call. (default: no sound)
 ;atxfernoanswertimeout = 15     ; Timeout for answer on attended transfer default is 15 seconds.
 ;atxferdropcall = no            ; If someone does an attended transfer, then hangs up before the transferred
                                 ; caller is connected, then by default, the system will try to call back the

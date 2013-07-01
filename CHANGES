@@ -283,7 +283,7 @@ Features
    will now apply the feature to the calling party while use of a lowercase
    letter will apply that feature to the called party.
 
- * Add support for automixmonitor to the BRIDGE_FEATURES channel variable.
+ * Add support for automixmon to the BRIDGE_FEATURES channel variable.
 
  * Parking has been pulled from core and placed into a separate module called
    res_parking. See Parking changes below for more details.
@@ -291,6 +291,14 @@ Features
  * You can now have the settings for a channel updated using the FEATURE()
    and FEATUREMAP() functions inherited to child channels by setting
    FEATURE(inherit)=yes.
+
+ * automixmon now supports additional channel variables from automon including:
+   TOUCH_MIXMONITOR_PREFIX, TOUCH_MIXMONITOR_MESSAGE_START,
+   and TOUCH_MIXMONITOR_MESSAGE_STOP
+
+ * A new general features.conf option 'recordingfailsound' has been added which
+   allowssetting a failure sound for a user tries to invoke a recording feature
+   such as automon or automixmon and it fails.
 
 Logging
 -------------------

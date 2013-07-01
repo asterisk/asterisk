@@ -30,6 +30,8 @@ struct ast_features_general_config {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Sound played when automon or automixmon features are used */
 		AST_STRING_FIELD(courtesytone);
+		/*! Sound played when automon or automixmon features fail when used */
+		AST_STRING_FIELD(recordingfailsound);
 	);
 	/*! Milliseconds allowed between digit presses when entering feature code */
 	unsigned int featuredigittimeout;
