@@ -131,6 +131,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/features_config.h"
 #include "asterisk/bridging.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<application name="DAHDISendKeypadFacility" language="en_US">
@@ -296,6 +297,85 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Similar to the CLI command "pri show spans".</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="AlarmClear">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
+			<syntax>
+				<parameter name="DAHDIChannel">
+					<para>The DAHDI channel on which the alarm was cleared.</para>
+					<note><para>This is not an Asterisk channel identifier.</para></note>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SpanAlarmClear">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when an alarm is cleared on a DAHDI span.</synopsis>
+			<syntax>
+				<parameter name="Span">
+					<para>The span on which the alarm was cleared.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="DNDState">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when the Do Not Disturb state is changed on a DAHDI channel.</synopsis>
+			<syntax>
+				<parameter name="DAHDIChannel">
+					<para>The DAHDI channel on which DND status changed.</para>
+					<note><para>This is not an Asterisk channel identifier.</para></note>
+				</parameter>
+				<parameter name="Status">
+					<enumlist>
+						<enum name="enabled"/>
+						<enum name="disabled"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="Alarm">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when an alarm is set on a DAHDI channel.</synopsis>
+			<syntax>
+				<parameter name="DAHDIChannel">
+					<para>The channel on which the alarm occurred.</para>
+					<note><para>This is not an Asterisk channel identifier.</para></note>
+				</parameter>
+				<parameter name="Alarm">
+					<para>A textual description of the alarm that occurred.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SpanAlarm">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when an alarm is set on a DAHDI span.</synopsis>
+			<syntax>
+				<parameter name="Span">
+					<para>The span on which the alarm occurred.</para>
+				</parameter>
+				<parameter name="Alarm">
+					<para>A textual description of the alarm that occurred.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="DAHDIChannel">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a DAHDI channel is created or an underlying technology is associated with a DAHDI channel.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="DAHDISpan">
+					<para>The DAHDI span associated with this channel.</para>
+				</parameter>
+				<parameter name="DAHDIChannel">
+					<para>The DAHDI channel associated with this channel.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
@@ -2270,6 +2350,50 @@ static void my_deadlock_avoidance_private(void *pvt)
 	DEADLOCK_AVOIDANCE(&p->lock);
 }
 
+static struct ast_manager_event_blob *dahdichannel_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+	struct ast_json *span, *channel;
+
+	channel_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_string) {
+		return NULL;
+	}
+
+	span = ast_json_object_get(obj->blob, "span");
+	channel = ast_json_object_get(obj->blob, "channel");
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "DAHDIChannel",
+		"%s"
+		"DAHDISpan: %d\r\n"
+		"DAHDIChannel: %s\r\n",
+		ast_str_buffer(channel_string),
+		(unsigned int)ast_json_integer_get(span),
+		ast_json_string_get(channel));
+}
+
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(dahdichannel_type,
+	.to_ami = dahdichannel_to_ami,
+	);
+
+/*! \brief Sends a DAHDIChannel channel blob used to produce DAHDIChannel AMI messages */
+static void publish_dahdichannel(struct ast_channel *chan, int span, const char *dahdi_channel)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	ast_assert(dahdi_channel != NULL);
+
+	blob = ast_json_pack("{s: i, s: s}",
+		"span", span,
+		"channel", dahdi_channel);
+	if (!blob) {
+		return;
+	}
+
+	ast_channel_publish_blob(chan, dahdichannel_type(), blob);
+}
+
 /*!
  * \internal
  * \brief Post an AMI DAHDI channel association event.
@@ -2294,20 +2418,7 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
 		/* Real channel */
 		snprintf(ch_name, sizeof(ch_name), "%d", p->channel);
 	}
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a DAHDI channel is created or an underlying technology is associated with a DAHDI channel.</synopsis>
-		</managerEventInstance>
-	***/
-	ast_manager_event(chan, EVENT_FLAG_CALL, "DAHDIChannel",
-		"Channel: %s\r\n"
-		"Uniqueid: %s\r\n"
-		"DAHDISpan: %d\r\n"
-		"DAHDIChannel: %s\r\n",
-		ast_channel_name(chan),
-		ast_channel_uniqueid(chan),
-		p->span,
-		ch_name);
+	publish_dahdichannel(chan, p->span, ch_name);
 }
 
 #ifdef HAVE_PRI
@@ -3956,6 +4067,37 @@ static void dahdi_queue_frame(struct dahdi_pvt *p, struct ast_frame *f)
 	}
 }
 
+static void publish_channel_alarm_clear(int channel)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	RAII_VAR(struct ast_str *, dahdi_chan, ast_str_create(32), ast_free);
+	if (!dahdi_chan) {
+		return;
+	}
+
+	ast_str_set(&dahdi_chan, 0, "%d", channel);
+	ast_log(LOG_NOTICE, "Alarm cleared on channel DAHDI/%d\n", channel);
+	body = ast_json_pack("{s: s}", "DAHDIChannel", ast_str_buffer(dahdi_chan));
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("AlarmClear", EVENT_FLAG_SYSTEM, body);
+}
+
+static void publish_span_alarm_clear(int span)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+
+	ast_log(LOG_NOTICE, "Alarm cleared on span %d\n", span);
+	body = ast_json_pack("{s: i}", "Span", span);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("SpanAlarmClear", EVENT_FLAG_SYSTEM, body);
+}
+
 static void handle_clear_alarms(struct dahdi_pvt *p)
 {
 #if defined(HAVE_PRI)
@@ -3965,22 +4107,10 @@ static void handle_clear_alarms(struct dahdi_pvt *p)
 #endif	/* defined(HAVE_PRI) */
 
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
+		publish_channel_alarm_clear(p->channel);
 	}
 	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
-		ast_log(LOG_NOTICE, "Alarm cleared on span %d\n", p->span);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an alarm is cleared on a DAHDI span.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarmClear", "Span: %d\r\n", p->span);
+		publish_span_alarm_clear(p->span);
 	}
 }
 
@@ -8037,6 +8167,39 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 	}
 }
 
+static void publish_span_alarm(int span, const char *alarm_txt)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+
+	body = ast_json_pack("{s: i, s: s}",
+		"Span", span,
+		"Alarm", alarm_txt);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("SpanAlarm", EVENT_FLAG_SYSTEM, body);
+}
+
+static void publish_channel_alarm(int channel, const char *alarm_txt)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	RAII_VAR(struct ast_str *, dahdi_chan, ast_str_create(32), ast_free);
+	if (!dahdi_chan) {
+		return;
+	}
+
+	ast_str_set(&dahdi_chan, 0, "%d", channel);
+	body = ast_json_pack("{s: s, s: s}",
+		"DAHDIChannel", ast_str_buffer(dahdi_chan),
+		"Alarm", alarm_txt);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("Alarm", EVENT_FLAG_SYSTEM, body);
+}
+
 static void handle_alarms(struct dahdi_pvt *p, int alms)
 {
 	const char *alarm_str;
@@ -8050,28 +8213,12 @@ static void handle_alarms(struct dahdi_pvt *p, int alms)
 	alarm_str = alarm2str(alms);
 	if (report_alarms & REPORT_CHANNEL_ALARMS) {
 		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an alarm is set on a DAHDI channel.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-					  "Alarm: %s\r\n"
-					  "Channel: %d\r\n",
-					  alarm_str, p->channel);
+		publish_channel_alarm(p->channel, alarm_str);
 	}
 
 	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
 		ast_log(LOG_WARNING, "Detected alarm on span %d: %s\n", p->span, alarm_str);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an alarm is set on a DAHDI span.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarm",
-					  "Alarm: %s\r\n"
-					  "Span: %d\r\n",
-					  alarm_str, p->span);
+		publish_span_alarm(p->span, alarm_str);
 	}
 }
 
@@ -10083,6 +10230,26 @@ static int dahdi_wink(struct dahdi_pvt *p, int idx)
 	return 0;
 }
 
+static void publish_dnd_state(int channel, const char *status)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	RAII_VAR(struct ast_str *, dahdichan, ast_str_create(32), ast_free);
+	if (!dahdichan) {
+		return;
+	}
+
+	ast_str_set(&dahdichan, 0, "%d", channel);
+
+	body = ast_json_pack("{s: s, s: s}",
+		"DAHDIChannel", ast_str_buffer(dahdichan),
+		"Status", status);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("DNDState", EVENT_FLAG_SYSTEM, body);
+}
+
 /*! \brief enable or disable the chan_dahdi Do-Not-Disturb mode for a DAHDI channel
  * \param dahdichan "Physical" DAHDI channel (e.g: DAHDI/5)
  * \param flag on 1 to enable, 0 to disable, -1 return dnd value
@@ -10107,24 +10274,7 @@ static int dahdi_dnd(struct dahdi_pvt *dahdichan, int flag)
 	ast_verb(3, "%s DND on channel %d\n",
 			flag? "Enabled" : "Disabled",
 			dahdichan->channel);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when the Do Not Disturb state is changed on a DAHDI channel.</synopsis>
-			<syntax>
-				<parameter name="Status">
-					<enumlist>
-						<enum name="enabled"/>
-						<enum name="disabled"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-			"Channel: DAHDI/%d\r\n"
-			"Status: %s\r\n", dahdichan->channel,
-			flag? "enabled" : "disabled");
-
+	publish_dnd_state(dahdichan->channel, flag ? "enabled" : "disabled");
 	return 0;
 }
 
@@ -17154,6 +17304,7 @@ static int __unload_module(void)
 	ast_cond_destroy(&ss_thread_complete);
 
 	dahdi_tech.capabilities = ast_format_cap_destroy(dahdi_tech.capabilities);
+	STASIS_MESSAGE_TYPE_CLEANUP(dahdichannel_type);
 	return 0;
 }
 
@@ -19153,6 +19304,10 @@ static int load_module(void)
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int y;
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
+
+	if (STASIS_MESSAGE_TYPE_INIT(dahdichannel_type)) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	if (!(dahdi_tech.capabilities = ast_format_cap_alloc())) {
 		return AST_MODULE_LOAD_FAILURE;

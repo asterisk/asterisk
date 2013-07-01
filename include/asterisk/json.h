@@ -906,6 +906,18 @@ struct ast_json_payload {
  */
 struct ast_json_payload *ast_json_payload_create(struct ast_json *json);
 
+struct ast_party_id;
+/*!
+ * \brief Construct an ast_party_id as JSON.
+ * \since 12.0.0
+ *
+ * \param party The party ID to represent as JSON.
+ *
+ * \return JSON object with \c name, \c number and \c subaddress objects
+ * for those that are valid in the party ID
+ */
+struct ast_json *ast_json_party_id(struct ast_party_id *party);
+
 /*!@}*/
 
 #endif /* _ASTERISK_JSON_H */

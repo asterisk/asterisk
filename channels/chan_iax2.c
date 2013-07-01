@@ -1392,17 +1392,6 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
 	reload_config(1);
 }
 
-
-/*! \brief Send manager event at call setup to link between Asterisk channel name
-	and IAX2 call identifiers */
-static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt)
-{
-	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-		"Channel: %s\r\nChanneltype: IAX2\r\nIAX2-callno-local: %d\r\nIAX2-callno-remote: %d\r\nIAX2-peer: %s\r\n",
-		pvt->owner ? ast_channel_name(pvt->owner) : "",
-		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
-}
-
 static const struct ast_datastore_info iax2_variable_datastore_info = {
 	.type = "IAX2_VARIABLE",
 	.duplicate = iax2_dup_variable_datastore,
@@ -5552,10 +5541,6 @@ static int iax2_answer(struct ast_channel *c)
 {
 	unsigned short callno = PTR_TO_CALLNO(ast_channel_tech_pvt(c));
 	ast_debug(1, "Answering IAX2 call\n");
-	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno])
-		iax2_ami_channelupdate(iaxs[callno]);
-	ast_mutex_unlock(&iaxsl[callno]);
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
@@ -5678,7 +5663,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		}
 		return NULL;
 	}
-	iax2_ami_channelupdate(i);
 	if (!tmp) {
 		return NULL;
 	}
@@ -9351,23 +9335,6 @@ static void log_jitterstats(unsigned short callno)
 			localpackets = jbinfo.frames_in;
 		}
 		ast_debug(3, "JB STATS:%s ping=%d ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
-			ast_channel_name(iaxs[callno]->owner),
-			iaxs[callno]->pingtime,
-			localjitter,
-			localdelay,
-			locallost,
-			locallosspct,
-			localdropped,
-			localooo,
-			localpackets,
-			iaxs[callno]->remote_rr.jitter,
-			iaxs[callno]->remote_rr.delay,
-			iaxs[callno]->remote_rr.losscnt,
-			iaxs[callno]->remote_rr.losspct/1000,
-			iaxs[callno]->remote_rr.dropped,
-			iaxs[callno]->remote_rr.ooo,
-			iaxs[callno]->remote_rr.packets);
-		manager_event(EVENT_FLAG_REPORTING, "JitterBufStats", "Owner: %s\r\nPing: %d\r\nLocalJitter: %d\r\nLocalJBDelay: %d\r\nLocalTotalLost: %d\r\nLocalLossPercent: %d\r\nLocalDropped: %d\r\nLocalooo: %d\r\nLocalReceived: %d\r\nRemoteJitter: %d\r\nRemoteJBDelay: %d\r\nRemoteTotalLost: %d\r\nRemoteLossPercent: %d\r\nRemoteDropped: %d\r\nRemoteooo: %d\r\nRemoteReceived: %d\r\n",
 			ast_channel_name(iaxs[callno]->owner),
 			iaxs[callno]->pingtime,
 			localjitter,

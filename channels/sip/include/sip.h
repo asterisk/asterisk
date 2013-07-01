@@ -219,7 +219,6 @@
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
 #define DEFAULT_KEEPALIVE      0        /*!< Don't send keep alive packets */
 #define DEFAULT_KEEPALIVE_INTERVAL 60   /*!< Send keep alive packets at 60 second intervals */
-#define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
 #define DEFAULT_ALWAYSAUTHREJECT  TRUE  /*!< Don't reject authentication requests always */
 #define DEFAULT_AUTH_OPTIONS  FALSE
 #define DEFAULT_AUTH_MESSAGE  TRUE
@@ -744,7 +743,6 @@ struct sip_settings {
 	int accept_outofcall_message; /*!< Accept MESSAGE outside of a call */
 	int compactheaders;         /*!< send compact sip headers */
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
-	int callevents;             /*!< Whether we send manager events or not */
 	int regextenonqualify;      /*!< Whether to add/remove regexten when qualifying peers */
 	int legacy_useroption_parsing; /*!< Whether to strip useroptions in URI via semicolons */
 	int send_diversion;	        /*!< Whether to Send SIP Diversion headers */

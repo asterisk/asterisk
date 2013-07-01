@@ -1027,17 +1027,11 @@ enum agi_result {
 	AGI_RESULT_HANGUP,
 };
 
-struct stasis_message_type *agi_exec_start_type(void);
-struct stasis_message_type *agi_exec_end_type(void);
-struct stasis_message_type *agi_async_start_type(void);
-struct stasis_message_type *agi_async_exec_type(void);
-struct stasis_message_type *agi_async_end_type(void);
-
-STASIS_MESSAGE_TYPE_DEFN(agi_exec_start_type);
-STASIS_MESSAGE_TYPE_DEFN(agi_exec_end_type);
-STASIS_MESSAGE_TYPE_DEFN(agi_async_start_type);
-STASIS_MESSAGE_TYPE_DEFN(agi_async_exec_type);
-STASIS_MESSAGE_TYPE_DEFN(agi_async_end_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_start_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_end_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_start_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_exec_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_end_type);
 
 static void agi_channel_manager_event(void *data,
 	struct stasis_subscription *sub, struct stasis_topic *topic,

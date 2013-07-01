@@ -86,6 +86,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/jabber.h"
 #include "asterisk/jingle.h"
 #include "asterisk/features.h"
+#include "asterisk/stasis_channels.h"
 
 #define GOOGLE_CONFIG		"gtalk.conf"
 
@@ -546,8 +547,6 @@ static int gtalk_answer(struct ast_channel *ast)
 	ast_debug(1, "Answer!\n");
 	ast_mutex_lock(&p->lock);
 	gtalk_invite(p, p->them, p->us,p->sid, 0);
-	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", "Channel: %s\r\nChanneltype: %s\r\nGtalk-SID: %s\r\n",
-		ast_channel_name(ast), "GTALK", p->sid);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
@@ -1216,9 +1215,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_hangup(tmp);
 		tmp = NULL;
 	} else {
-		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-			"Channel: %s\r\nChanneltype: %s\r\nGtalk-SID: %s\r\n",
-			i->owner ? ast_channel_name(i->owner) : "", "Gtalk", i->sid);
+		send_channel_update(i->owner, i->sid);
 	}
 	return tmp;
 }

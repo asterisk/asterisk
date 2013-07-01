@@ -40,6 +40,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/channel.h"
+#include "asterisk/callerid.h"
 
 #include <jansson.h>
 #include <time.h>
@@ -598,4 +600,71 @@ struct ast_json_payload *ast_json_payload_create(struct ast_json *json)
 	payload->json = json;
 
 	return payload;
+}
+
+static struct ast_json *json_party_number(struct ast_party_number *number)
+{
+	if (!number->valid) {
+		return NULL;
+	}
+	return ast_json_pack("{s: s, s: i, s: i, s: s}",
+		"number", number->str,
+		"plan", number->plan,
+		"presentation", number->presentation,
+		"presentation_txt", ast_describe_caller_presentation(number->presentation));
+}
+
+static struct ast_json *json_party_name(struct ast_party_name *name)
+{
+	if (!name->valid) {
+		return NULL;
+	}
+	return ast_json_pack("{s: s, s: s, s: i, s: s}",
+		"name", name->str,
+		"character_set", ast_party_name_charset_describe(name->char_set),
+		"presentation", name->presentation,
+		"presentation_txt", ast_describe_caller_presentation(name->presentation));
+}
+
+static struct ast_json *json_party_subaddress(struct ast_party_subaddress *subaddress)
+{
+	if (!subaddress->valid) {
+		return NULL;
+	}
+	return ast_json_pack("{s: s, s: i, s: b}",
+		"subaddress", subaddress->str,
+		"type", subaddress->type,
+		"odd", subaddress->odd_even_indicator);
+}
+
+struct ast_json *ast_json_party_id(struct ast_party_id *party)
+{
+	RAII_VAR(struct ast_json *, json_party_id, NULL, ast_json_unref);
+	int pres;
+
+	/* Combined party presentation */
+	pres = ast_party_id_presentation(party);
+	json_party_id = ast_json_pack("{s: i, s: s}",
+		"presentation", pres,
+		"presentation_txt", ast_describe_caller_presentation(pres));
+	if (!json_party_id) {
+		return NULL;
+	}
+
+	/* Party number */
+	if (party->number.valid && ast_json_object_set(json_party_id, "number", json_party_number(&party->number))) {
+		return NULL;
+	}
+
+	/* Party name */
+	if (party->name.valid && ast_json_object_set(json_party_id, "name", json_party_name(&party->name))) {
+		return NULL;
+	}
+
+	/* Party subaddress */
+	if (party->subaddress.valid && ast_json_object_set(json_party_id, "subaddress", json_party_subaddress(&party->subaddress))) {
+		return NULL;
+	}
+
+	return ast_json_ref(json_party_id);
 }

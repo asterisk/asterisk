@@ -736,6 +736,32 @@ void stasis_log_bad_type_access(const char *name);
 	}
 
 /*!
+ * \brief Boiler-plate removing macro for defining local message types.
+ *
+ * \code
+ *	STASIS_MESSAGE_TYPE_DEFN_LOCAL(ast_foo_type,
+ *		.to_ami = foo_to_ami,
+ *		.to_json = foo_to_json,
+ *		);
+ * \endcode
+ *
+ * \param name Name of message type.
+ * \param ... Virtual table methods for messages of this type.
+ * \since 12
+ */
+#define STASIS_MESSAGE_TYPE_DEFN_LOCAL(name, ...)			\
+	static struct stasis_message_vtable _priv_ ## name ## _v = {	\
+		__VA_ARGS__						\
+	};								\
+	static struct stasis_message_type *_priv_ ## name;		\
+	static struct stasis_message_type *name(void) {			\
+		if (_priv_ ## name == NULL) {				\
+			stasis_log_bad_type_access(#name);		\
+		}							\
+		return _priv_ ## name;					\
+	}
+
+/*!
 * \brief Boiler-plate removing macro for initializing message types.
  *
  * \code

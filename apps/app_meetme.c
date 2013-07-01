@@ -1117,75 +1117,15 @@ static const char gain_map[] = {
 	15,
 };
 
-/*!
- * \internal
- * \brief accessor for join message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_join_type(void);
-
-/*!
- * \internal
- * \brief accessor for leave message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_leave_type(void);
-
-/*!
- * \internal
- * \brief accessor for end message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_end_type(void);
-
-/*!
- * \internal
- * \brief accessor for mute message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_mute_type(void);
-
-/*!
- * \internal
- * \brief accessor for talking message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_talking_type(void);
-
-/*!
- * \internal
- * \brief accessor for talk request message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-static struct stasis_message_type *meetme_talk_request_type(void);
-
 /* Routes the various meetme message types to the meetme stasis callback function to turn them into events */
 static struct stasis_message_router *meetme_event_message_router;
 
-STASIS_MESSAGE_TYPE_DEFN(meetme_join_type);
-STASIS_MESSAGE_TYPE_DEFN(meetme_leave_type);
-STASIS_MESSAGE_TYPE_DEFN(meetme_end_type);
-STASIS_MESSAGE_TYPE_DEFN(meetme_mute_type);
-STASIS_MESSAGE_TYPE_DEFN(meetme_talking_type);
-STASIS_MESSAGE_TYPE_DEFN(meetme_talk_request_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_join_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_leave_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_end_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_mute_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_talking_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_talk_request_type);
 
 static void meetme_stasis_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_topic *topic, struct stasis_message *message);

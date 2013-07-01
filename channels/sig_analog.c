@@ -2622,6 +2622,19 @@ int analog_ss_thread_start(struct analog_pvt *p, struct ast_channel *chan)
 	return ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, p);
 }
 
+static void analog_publish_channel_alarm_clear(int channel)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+
+	ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", channel);
+	body = ast_json_pack("{s: i}", "Channel", channel);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("AlarmClear", EVENT_FLAG_SYSTEM, body);
+}
+
 static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_channel *ast)
 {
 	int res, x;
@@ -3086,14 +3099,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		break;
 	case ANALOG_EVENT_NOALARM:
 		analog_set_alarm(p, 0);
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an Alarm is cleared on an Analog channel.</synopsis>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-			"Channel: %d\r\n", p->channel);
+		analog_publish_channel_alarm_clear(p->channel);
 		break;
 	case ANALOG_EVENT_WINKFLASH:
 		if (p->inalarm) {
@@ -3735,9 +3741,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		break;
 	case ANALOG_EVENT_NOALARM:
 		analog_set_alarm(i, 0);
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-			"Channel: %d\r\n", i->channel);
+		analog_publish_channel_alarm_clear(i->channel);
 		break;
 	case ANALOG_EVENT_ALARM:
 		analog_set_alarm(i, 1);
@@ -3940,6 +3944,26 @@ int analog_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, void 
 	return 0;
 }
 
+static void analog_publish_dnd_state(int channel, const char *status)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	RAII_VAR(struct ast_str *, dahdichan, ast_str_create(32), ast_free);
+	if (!dahdichan) {
+		return;
+	}
+
+	ast_str_set(&dahdichan, 0, "DAHDI/%d", channel);
+
+	body = ast_json_pack("{s: s, s: s}",
+		"Channel", ast_str_buffer(dahdichan),
+		"Status", status);
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("DNDState", EVENT_FLAG_SYSTEM, body);
+}
+
 int analog_dnd(struct analog_pvt *p, int flag)
 {
 	if (flag == -1) {
@@ -3951,23 +3975,7 @@ int analog_dnd(struct analog_pvt *p, int flag)
 	ast_verb(3, "%s DND on channel %d\n",
 			flag ? "Enabled" : "Disabled",
 			p->channel);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when the Do Not Disturb state is changed on an Analog channel.</synopsis>
-			<syntax>
-				<parameter name="Status">
-					<enumlist>
-						<enum name="enabled"/>
-						<enum name="disabled"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-			"Channel: DAHDI/%d\r\n"
-			"Status: %s\r\n", p->channel,
-			flag ? "enabled" : "disabled");
+	analog_publish_dnd_state(p->channel, flag ? "enabled" : "disabled");
 
 	return 0;
 }

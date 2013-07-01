@@ -1811,39 +1811,22 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 	new->opos = *pos;
 }
 
-struct stasis_message_type *queue_caller_join_type(void);
-struct stasis_message_type *queue_caller_leave_type(void);
-struct stasis_message_type *queue_caller_abandon_type(void);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_caller_join_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_caller_leave_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_caller_abandon_type);
 
-struct stasis_message_type *queue_member_status_type(void);
-struct stasis_message_type *queue_member_added_type(void);
-struct stasis_message_type *queue_member_removed_type(void);
-struct stasis_message_type *queue_member_pause_type(void);
-struct stasis_message_type *queue_member_penalty_type(void);
-struct stasis_message_type *queue_member_ringinuse_type(void);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_status_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_added_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_removed_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_pause_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_penalty_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_member_ringinuse_type);
 
-struct stasis_message_type *queue_agent_called_type(void);
-struct stasis_message_type *queue_agent_connect_type(void);
-struct stasis_message_type *queue_agent_complete_type(void);
-struct stasis_message_type *queue_agent_dump_type(void);
-struct stasis_message_type *queue_agent_ringnoanswer_type(void);
-
-STASIS_MESSAGE_TYPE_DEFN(queue_caller_join_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_caller_leave_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_caller_abandon_type);
-
-STASIS_MESSAGE_TYPE_DEFN(queue_member_status_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_member_added_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_member_removed_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_member_pause_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_member_penalty_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_member_ringinuse_type);
-
-STASIS_MESSAGE_TYPE_DEFN(queue_agent_called_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_agent_connect_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_agent_complete_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_agent_dump_type);
-STASIS_MESSAGE_TYPE_DEFN(queue_agent_ringnoanswer_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_called_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_connect_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_complete_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_dump_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_ringnoanswer_type);
 
 static void queue_channel_manager_event(void *data,
 	struct stasis_subscription *sub, struct stasis_topic *topic,

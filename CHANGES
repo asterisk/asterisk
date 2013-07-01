@@ -143,7 +143,7 @@ AMI (Asterisk Manager Interface)
 
  * The SIPqualifypeer action now acknowledges the request once it has established
    that the request is against a known peer. It also issues a new event,
-   'SIPqualifypeerdone', once the qualify action has been completed.
+   'SIPQualifyPeerDone', once the qualify action has been completed.
 
  * The PlayDTMF action now supports an optional 'Duration' parameter.  This
    specifies the duration of the digit to be played, in milliseconds.
@@ -237,6 +237,20 @@ AMI (Asterisk Manager Interface)
    Events that reference channels (QueueCaller* and Agent*) will show
    information about each channel.  The (infamous) "Join" and "Leave" AMI
    events have been changed to "QueueCallerJoin" and "QueueCallerLeave".
+
+ * The MCID AMI event now publishes a channel snapshot when available and
+   its non-channel-snapshot parameters now use either the "MCallerID" or
+   "MConnectedID" prefixes with Subaddr*, Name*, and Num* suffixes instead
+   of "CallerID" and "ConnectedID" to avoid confusion with similarly named
+   parameters in the channel snapshot.
+
+ * The "Agentlogin" and "Agentlogoff" events have been renamed "AgentLogin" and
+   "AgentLogoff" respectively.
+
+ * The "Channel" key used in the "AlarmClear", "Alarm", and "DNDState" has been
+   renamed "DAHDIChannel" since it does not convey an Asterisk channel name.
+
+ * "ChannelUpdate" events have been removed.
 
 AGI (Asterisk Gateway Interface)
 ------------------

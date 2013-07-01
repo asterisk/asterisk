@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/core_unreal.h"
 #include "asterisk/core_local.h"
 #include "asterisk/_private.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<manager name="LocalOptimizeAway" language="en_US">
@@ -65,6 +66,101 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			it to optimize away if it's bridged or when it becomes bridged.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="LocalBridge">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when two halves of a Local Channel form a bridge.</synopsis>
+			<syntax>
+				<parameter name="LocalOneChannel">
+				</parameter>
+				<parameter name="LocalOneChannelState">
+					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
+				</parameter>
+				<parameter name="LocalOneChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="LocalOneCallerIDNum">
+				</parameter>
+				<parameter name="LocalOneCallerIDName">
+				</parameter>
+				<parameter name="LocalOneConnectedLineNum">
+				</parameter>
+				<parameter name="LocalOneConnectedLineName">
+				</parameter>
+				<parameter name="LocalOneAccountCode">
+				</parameter>
+				<parameter name="LocalOneContext">
+				</parameter>
+				<parameter name="LocalOneExten">
+				</parameter>
+				<parameter name="LocalOnePriority">
+				</parameter>
+				<parameter name="LocalOneUniqueid">
+				</parameter>
+				<parameter name="LocalTwoChannel">
+				</parameter>
+				<parameter name="LocalTwoChannelState">
+					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
+				</parameter>
+				<parameter name="LocalTwoChannelStateDesc">
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="LocalTwoCallerIDNum">
+				</parameter>
+				<parameter name="LocalTwoCallerIDName">
+				</parameter>
+				<parameter name="LocalTwoConnectedLineNum">
+				</parameter>
+				<parameter name="LocalTwoConnectedLineName">
+				</parameter>
+				<parameter name="LocalTwoAccountCode">
+				</parameter>
+				<parameter name="LocalTwoContext">
+				</parameter>
+				<parameter name="LocalTwoExten">
+				</parameter>
+				<parameter name="LocalTwoPriority">
+				</parameter>
+				<parameter name="LocalTwoUniqueid">
+				</parameter>
+				<parameter name="Context">
+					<para>The context in the dialplan that Channel2 starts in.</para>
+				</parameter>
+				<parameter name="Exten">
+					<para>The extension in the dialplan that Channel2 starts in.</para>
+				</parameter>
+				<parameter name="LocalOptimization">
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 static const char tdesc[] = "Local Proxy Channel Driver";
@@ -230,6 +326,49 @@ static int local_devicestate(const char *data)
 	return res;
 }
 
+static struct ast_manager_event_blob *local_bridge_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_one_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, channel_two_string, NULL, ast_free);
+	struct ast_multi_channel_blob *obj = stasis_message_data(msg);
+	struct ast_json *blob, *context, *exten, *optimize;
+	struct ast_channel_snapshot *chan_one, *chan_two;
+
+	chan_one = ast_multi_channel_blob_get_channel(obj, "1");
+	chan_two = ast_multi_channel_blob_get_channel(obj, "2");
+	blob = ast_multi_channel_blob_get_json(obj);
+
+	channel_one_string = ast_manager_build_channel_state_string_prefix(chan_one, "LocalOne");
+	if (!channel_one_string) {
+		return NULL;
+	}
+
+	channel_two_string = ast_manager_build_channel_state_string_prefix(chan_two, "LocalTwo");
+	if (!channel_two_string) {
+		return NULL;
+	}
+
+	context = ast_json_object_get(blob, "context");
+	exten = ast_json_object_get(blob, "exten");
+	optimize = ast_json_object_get(blob, "optimize");
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "LocalBridge",
+		"%s"
+		"%s"
+		"Context: %s\r\n"
+		"Exten: %s\r\n"
+		"LocalOptimization: %s\r\n",
+		ast_str_buffer(channel_one_string),
+		ast_str_buffer(channel_two_string),
+		ast_json_string_get(context),
+		ast_json_string_get(exten),
+		ast_json_is_true(optimize) ? "Yes" : "No");
+}
+
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(local_bridge_type,
+	.to_ami = local_bridge_to_ami,
+	);
+
 /*!
  * \internal
  * \brief Post the LocalBridge AMI event.
@@ -241,45 +380,45 @@ static int local_devicestate(const char *data)
  */
 static void local_bridge_event(struct local_pvt *p)
 {
-	ao2_lock(p);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when two halves of a Local Channel form a bridge.</synopsis>
-			<syntax>
-				<parameter name="Channel1">
-					<para>The name of the Local Channel half that bridges to another channel.</para>
-				</parameter>
-				<parameter name="Channel2">
-					<para>The name of the Local Channel half that executes the dialplan.</para>
-				</parameter>
-				<parameter name="Context">
-					<para>The context in the dialplan that Channel2 starts in.</para>
-				</parameter>
-				<parameter name="Exten">
-					<para>The extension in the dialplan that Channel2 starts in.</para>
-				</parameter>
-				<parameter name="LocalOptimization">
-					<enumlist>
-						<enum name="Yes"/>
-						<enum name="No"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_CALL, "LocalBridge",
-		"Channel1: %s\r\n"
-		"Channel2: %s\r\n"
-		"Uniqueid1: %s\r\n"
-		"Uniqueid2: %s\r\n"
-		"Context: %s\r\n"
-		"Exten: %s\r\n"
-		"LocalOptimization: %s\r\n",
-		ast_channel_name(p->base.owner), ast_channel_name(p->base.chan),
-		ast_channel_uniqueid(p->base.owner), ast_channel_uniqueid(p->base.chan),
-		p->context, p->exten,
-		ast_test_flag(&p->base, AST_UNREAL_NO_OPTIMIZATION) ? "Yes" : "No");
-	ao2_unlock(p);
+	RAII_VAR(struct ast_multi_channel_blob *, multi_blob, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, one_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, two_snapshot, NULL, ao2_cleanup);
+	SCOPED_AO2LOCK(lock, p);
+
+	blob = ast_json_pack("{s: s, s: s, s: b}",
+		"context", p->context,
+		"exten", p->exten,
+		"optimize", ast_test_flag(&p->base, AST_UNREAL_NO_OPTIMIZATION));
+	if (!blob) {
+		return;
+	}
+
+	multi_blob = ast_multi_channel_blob_create(blob);
+	if (!multi_blob) {
+		return;
+	}
+
+	one_snapshot = ast_channel_snapshot_create(p->base.owner);
+	if (!one_snapshot) {
+		return;
+	}
+
+	two_snapshot = ast_channel_snapshot_create(p->base.chan);
+	if (!two_snapshot) {
+		return;
+	}
+
+	ast_multi_channel_blob_add_channel(multi_blob, "1", one_snapshot);
+	ast_multi_channel_blob_add_channel(multi_blob, "2", two_snapshot);
+
+	msg = stasis_message_create(local_bridge_type(), multi_blob);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_channel_topic(p->base.owner), msg);
 }
 
 int ast_local_setup_bridge(struct ast_channel *ast, struct ast_bridge *bridge, struct ast_channel *swap, struct ast_bridge_features *features)
@@ -744,10 +883,15 @@ static void local_shutdown(void)
 	locals = NULL;
 
 	ast_format_cap_destroy(local_tech.capabilities);
+	STASIS_MESSAGE_TYPE_CLEANUP(local_bridge_type);
 }
 
 int ast_local_init(void)
 {
+	if (STASIS_MESSAGE_TYPE_INIT(local_bridge_type)) {
+		return -1;
+	}
+
 	if (!(local_tech.capabilities = ast_format_cap_alloc())) {
 		return -1;
 	}

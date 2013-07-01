@@ -26,6 +26,68 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="MCID">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Published when a malicious call ID request arrives.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="MCallerIDNumValid">
+				</parameter>
+				<parameter name="MCallerIDNum">
+				</parameter>
+				<parameter name="MCallerIDton">
+				</parameter>
+				<parameter name="MCallerIDNumPlan">
+				</parameter>
+				<parameter name="MCallerIDNumPres">
+				</parameter>
+				<parameter name="MCallerIDNameValid">
+				</parameter>
+				<parameter name="MCallerIDName">
+				</parameter>
+				<parameter name="MCallerIDNameCharSet">
+				</parameter>
+				<parameter name="MCallerIDNamePres">
+				</parameter>
+				<parameter name="MCallerIDSubaddr">
+				</parameter>
+				<parameter name="MCallerIDSubaddrType">
+				</parameter>
+				<parameter name="MCallerIDSubaddrOdd">
+				</parameter>
+				<parameter name="MCallerIDPres">
+				</parameter>
+				<parameter name="MConnectedIDNumValid">
+				</parameter>
+				<parameter name="MConnectedIDNum">
+				</parameter>
+				<parameter name="MConnectedIDton">
+				</parameter>
+				<parameter name="MConnectedIDNumPlan">
+				</parameter>
+				<parameter name="MConnectedIDNumPres">
+				</parameter>
+				<parameter name="MConnectedIDNameValid">
+				</parameter>
+				<parameter name="MConnectedIDName">
+				</parameter>
+				<parameter name="MConnectedIDNameCharSet">
+				</parameter>
+				<parameter name="MConnectedIDNamePres">
+				</parameter>
+				<parameter name="MConnectedIDSubaddr">
+				</parameter>
+				<parameter name="MConnectedIDSubaddrType">
+				</parameter>
+				<parameter name="MConnectedIDSubaddrOdd">
+				</parameter>
+				<parameter name="MConnectedIDPres">
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+ ***/
 
 #include "asterisk.h"
 
@@ -51,6 +113,7 @@
 #include "asterisk/features.h"
 #include "asterisk/aoc.h"
 #include "asterisk/bridging.h"
+#include "asterisk/stasis_channels.h"
 
 #include "sig_pri.h"
 #ifndef PRI_EVENT_FACILITY
@@ -2270,9 +2333,74 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 }
 
 #if defined(HAVE_PRI_MCID)
+static void party_number_json_to_ami(struct ast_str **msg, const char *prefix, struct ast_json *number)
+{
+	const char *num_txt, *pres_txt;
+	int plan, pres;
+	if (!number) {
+		ast_str_append(msg, 0,
+			"%sNumValid: 0\r\n"
+			"%sNum: \r\n"
+			"%ston: 0\r\n",
+			prefix, prefix, prefix);
+		return;
+	}
+
+	num_txt = ast_json_string_get(ast_json_object_get(number, "number"));
+	plan = ast_json_integer_get(ast_json_object_get(number, "plan"));
+	pres = ast_json_integer_get(ast_json_object_get(number, "presentation"));
+	pres_txt = ast_json_string_get(ast_json_object_get(number, "presentation_txt"));
+
+	ast_str_append(msg, 0, "%sNumValid: 1\r\n", prefix);
+	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix, num_txt);
+	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, plan);
+	ast_str_append(msg, 0, "%sNumPlan: %d\r\n", prefix, plan);
+	ast_str_append(msg, 0, "%sNumPres: %d (%s)\r\n", prefix, pres, pres_txt);
+}
+
+static void party_name_json_to_ami(struct ast_str **msg, const char *prefix, struct ast_json *name)
+{
+	const char *name_txt, *pres_txt, *charset;
+	int pres;
+	if (!name) {
+		ast_str_append(msg, 0,
+			"%sNameValid: 0\r\n"
+			"%sName: \r\n",
+			prefix, prefix);
+		return;
+	}
+
+	name_txt = ast_json_string_get(ast_json_object_get(name, "name"));
+	charset = ast_json_string_get(ast_json_object_get(name, "character_set"));
+	pres = ast_json_integer_get(ast_json_object_get(name, "presentation"));
+	pres_txt = ast_json_string_get(ast_json_object_get(name, "presentation_txt"));
+
+	ast_str_append(msg, 0, "%sNameValid: 1\r\n", prefix);
+	ast_str_append(msg, 0, "%sName: %s\r\n", prefix, name_txt);
+	ast_str_append(msg, 0, "%sNameCharSet: %s\r\n", prefix, charset);
+	ast_str_append(msg, 0, "%sNamePres: %d (%s)\r\n", prefix, pres, pres_txt);
+}
+
+static void party_subaddress_json_to_ami(struct ast_str **msg, const char *prefix, struct ast_json *subaddress)
+{
+	const char *subaddress_txt, *type_txt;
+	int odd;
+	if (!subaddress) {
+		return;
+	}
+
+	subaddress_txt = ast_json_string_get(ast_json_object_get(subaddress, "subaddress"));
+	type_txt = ast_json_string_get(ast_json_object_get(subaddress, "type"));
+	odd = ast_json_is_true(ast_json_object_get(subaddress, "odd")) ? 1 : 0;
+
+	ast_str_append(msg, 0, "%sSubaddr: %s\r\n", prefix, subaddress_txt);
+	ast_str_append(msg, 0, "%sSubaddrType: %s\r\n", prefix, type_txt);
+	ast_str_append(msg, 0, "%sSubaddrOdd: %d\r\n", prefix, odd);
+}
+
 /*!
  * \internal
- * \brief Append the given party id to the event string.
+ * \brief Append the given JSON party id to the event string.
  * \since 1.8
  *
  * \param msg Event message string being built.
@@ -2281,58 +2409,72 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
  *
  * \return Nothing
  */
-static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, struct ast_party_id *party)
+static void party_json_to_ami(struct ast_str **msg, const char *prefix, struct ast_json *party)
 {
-	int pres;
+	struct ast_json *presentation = ast_json_object_get(party, "presentation");
+	struct ast_json *presentation_txt = ast_json_object_get(party, "presentation_txt");
+	struct ast_json *name = ast_json_object_get(party, "name");
+	struct ast_json *number = ast_json_object_get(party, "number");
+	struct ast_json *subaddress = ast_json_object_get(party, "subaddress");
 
 	/* Combined party presentation */
-	pres = ast_party_id_presentation(party);
-	ast_str_append(msg, 0, "%sPres: %d (%s)\r\n", prefix, pres,
-		ast_describe_caller_presentation(pres));
+	ast_str_append(msg, 0, "%sPres: %d (%s)\r\n", prefix,
+		(uint32_t)ast_json_integer_get(presentation),
+		ast_json_string_get(presentation_txt));
 
 	/* Party number */
-	ast_str_append(msg, 0, "%sNumValid: %d\r\n", prefix,
-		(unsigned) party->number.valid);
-	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix,
-		S_COR(party->number.valid, party->number.str, ""));
-	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, party->number.plan);
-	if (party->number.valid) {
-		ast_str_append(msg, 0, "%sNumPlan: %d\r\n", prefix, party->number.plan);
-		ast_str_append(msg, 0, "%sNumPres: %d (%s)\r\n", prefix,
-			party->number.presentation,
-			ast_describe_caller_presentation(party->number.presentation));
-	}
+	party_number_json_to_ami(msg, prefix, number);
 
 	/* Party name */
-	ast_str_append(msg, 0, "%sNameValid: %d\r\n", prefix,
-		(unsigned) party->name.valid);
-	ast_str_append(msg, 0, "%sName: %s\r\n", prefix,
-		S_COR(party->name.valid, party->name.str, ""));
-	if (party->name.valid) {
-		ast_str_append(msg, 0, "%sNameCharSet: %s\r\n", prefix,
-			ast_party_name_charset_describe(party->name.char_set));
-		ast_str_append(msg, 0, "%sNamePres: %d (%s)\r\n", prefix,
-			party->name.presentation,
-			ast_describe_caller_presentation(party->name.presentation));
-	}
+	party_name_json_to_ami(msg, prefix, name);
 
-#if defined(HAVE_PRI_SUBADDR)
 	/* Party subaddress */
-	if (party->subaddress.valid) {
-		static const char subaddress[] = "Subaddr";
-
-		ast_str_append(msg, 0, "%s%s: %s\r\n", prefix, subaddress,
-			S_OR(party->subaddress.str, ""));
-		ast_str_append(msg, 0, "%s%sType: %d\r\n", prefix, subaddress,
-			party->subaddress.type);
-		ast_str_append(msg, 0, "%s%sOdd: %d\r\n", prefix, subaddress,
-			party->subaddress.odd_even_indicator);
-	}
-#endif	/* defined(HAVE_PRI_SUBADDR) */
+	party_subaddress_json_to_ami(msg, prefix, subaddress);
 }
-#endif	/* defined(HAVE_PRI_MCID) */
 
-#if defined(HAVE_PRI_MCID)
+static struct ast_manager_event_blob *mcid_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, party_string, ast_str_create(256), ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+
+	if (obj->snapshot) {
+		channel_string = ast_manager_build_channel_state_string(obj->snapshot);
+		if (!channel_string) {
+			return NULL;
+		}
+	}
+
+	party_json_to_ami(&party_string, "MCallerID", ast_json_object_get(obj->blob, "caller"));
+	party_json_to_ami(&party_string, "MConnectedID", ast_json_object_get(obj->blob, "connected"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "MCID",
+		"%s"
+		"%s",
+		S_COR(obj->snapshot, ast_str_buffer(channel_string), ""), ast_str_buffer(party_string));
+}
+
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(mcid_type,
+	.to_ami = mcid_to_ami,
+	);
+
+static void send_mcid(struct ast_channel *chan, struct ast_party_id *caller, struct ast_party_id *connected)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	ast_assert(caller != NULL);
+	ast_assert(connected != NULL);
+
+	blob = ast_json_pack("{s: o, s: o}",
+		"caller", ast_json_party_id(caller),
+		"connected", ast_json_party_id(connected));
+	if (!blob) {
+		return;
+	}
+
+	ast_channel_publish_blob(chan, mcid_type(), blob);
+}
+
 /*!
  * \internal
  * \brief Handle the MCID event.
@@ -2350,15 +2492,12 @@ static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, str
  */
 static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd_mcid_req *mcid, struct ast_channel *owner)
 {
-	struct ast_channel *chans[1];
-	struct ast_str *msg;
-	struct ast_party_id party;
+	struct ast_party_id caller_party;
+	struct ast_party_id connected_party;
 
-	msg = ast_str_create(4096);
-	if (!msg) {
-		return;
-	}
-
+	/* Always use libpri's called party information. */
+	ast_party_id_init(&connected_party);
+	sig_pri_party_id_convert(&connected_party, &mcid->answerer, pri);
 	if (owner) {
 		/*
 		 * The owner channel is present.
@@ -2366,31 +2505,18 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 		 */
 		ast_queue_control(owner, AST_CONTROL_MCID);
 
-		ast_str_append(&msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
-		ast_str_append(&msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(owner));
-
-		sig_pri_event_party_id(&msg, "CallerID", &ast_channel_connected(owner)->id);
+		send_mcid(owner, &ast_channel_connected(owner)->id, &connected_party);
 	} else {
 		/*
 		 * Since we no longer have an owner channel,
 		 * we have to use the caller information supplied by libpri.
 		 */
-		ast_party_id_init(&party);
-		sig_pri_party_id_convert(&party, &mcid->originator, pri);
-		sig_pri_event_party_id(&msg, "CallerID", &party);
-		ast_party_id_free(&party);
+		ast_party_id_init(&caller_party);
+		sig_pri_party_id_convert(&caller_party, &mcid->originator, pri);
+		send_mcid(owner, &caller_party, &connected_party);
+		ast_party_id_free(&caller_party);
 	}
-
-	/* Always use libpri's called party information. */
-	ast_party_id_init(&party);
-	sig_pri_party_id_convert(&party, &mcid->answerer, pri);
-	sig_pri_event_party_id(&msg, "ConnectedID", &party);
-	ast_party_id_free(&party);
-
-	chans[0] = owner;
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "MCID", owner ? 1 : 0, chans, "%s",
-		ast_str_buffer(msg));
-	ast_free(msg);
+	ast_party_id_free(&connected_party);
 }
 #endif	/* defined(HAVE_PRI_MCID) */
 
@@ -10003,6 +10129,12 @@ void sig_pri_cc_monitor_destructor(void *monitor_pvt)
  */
 int sig_pri_load(const char *cc_type_name)
 {
+#if defined(HAVE_PRI_MCID)
+	if (STASIS_MESSAGE_TYPE_INIT(mcid_type)) {
+		return -1;
+	}
+#endif	/* defined(HAVE_PRI_MCID) */
+
 #if defined(HAVE_PRI_CCSS)
 	sig_pri_cc_type_name = cc_type_name;
 	sig_pri_cc_monitors = ao2_container_alloc(37, sig_pri_cc_monitor_instance_hash_fn,
@@ -10028,6 +10160,10 @@ void sig_pri_unload(void)
 		sig_pri_cc_monitors = NULL;
 	}
 #endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_MCID)
+	STASIS_MESSAGE_TYPE_CLEANUP(mcid_type);
+#endif	/* defined(HAVE_PRI_MCID) */
 }
 
 #endif /* HAVE_PRI */

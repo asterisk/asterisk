@@ -295,6 +295,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/bridging.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
 
 /*** DOCUMENTATION
@@ -563,7 +564,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Qualify a SIP peer.</para>
 		</description>
 		<see-also>
-			<ref type="managerEvent">SIPqualifypeerdone</ref>
+			<ref type="managerEvent">SIPQualifyPeerDone</ref>
 		</see-also>
 	</manager>
 	<manager name="SIPshowregistry" language="en_US">
@@ -621,6 +622,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<para>Specifying a prefix of <literal>sip:</literal> will send the
 		message as a SIP MESSAGE request.</para>
 	</info>
+	<managerEvent language="en_US" name="SIPQualifyPeerDone">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when SIPQualifyPeer has finished qualifying the specified peer.</synopsis>
+			<syntax>
+				<parameter name="Peer">
+					<para>The name of the peer.</para>
+				</parameter>
+				<parameter name="ActionID">
+					<para>This is only included if an ActionID Header was sent with the action request, in which case it will be that ActionID.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">SIPqualifypeer</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SessionTimeout">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a SIP session times out.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Source">
+					<para>The source of the session timeout.</para>
+					<enumlist>
+						<enum name="RTPTimeout" />
+						<enum name="SIPSessionTimer" />
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
@@ -1041,6 +1073,11 @@ AST_THREADSTORAGE(sip_transport_str_buf);
 static struct sip_auth_container *authl = NULL;
 /*! \brief Global authentication container protection while adjusting the references. */
 AST_MUTEX_DEFINE_STATIC(authl_lock);
+
+static struct ast_manager_event_blob *session_timeout_to_ami(struct stasis_message *msg);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(session_timeout_type,
+	.to_ami = session_timeout_to_ami,
+	);
 
 /* --- Sockets and networking --------------*/
 
@@ -8210,13 +8247,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	if (i->do_history) {
 		append_history(i, "NewChan", "Channel %s - from %s", ast_channel_name(tmp), i->callid);
-	}
-
-	/* Inform manager user about new channel and their SIP call ID */
-	if (sip_cfg.callevents) {
-		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
-			ast_channel_name(tmp), ast_channel_uniqueid(tmp), "SIP", i->callid, i->fullcontact);
 	}
 
 	return tmp;
@@ -20007,6 +20037,21 @@ static int manager_sip_peer_status(struct mansession *s, const struct message *m
 	return 0;
 }
 
+static void publish_qualify_peer_done(const char *id, const char *peer)
+{
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+
+	if (ast_strlen_zero(id)) {
+		body = ast_json_pack("{s: s}", "Peer", peer);
+	} else {
+		body = ast_json_pack("{s: s, s: s}", "Peer", peer, "ActionID", id);
+	}
+	if (!body) {
+		return;
+	}
+
+	ast_manager_publish_event("SIPQualifyPeerDone", EVENT_FLAG_CALL, body);
+}
 
 /*! \brief Send qualify message to peer from cli or manager. Mostly for debugging. */
 static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
@@ -20019,41 +20064,15 @@ static char *_sip_qualify_peer(int type, int fd, struct mansession *s, const str
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 	if ((peer = sip_find_peer(argv[3], NULL, load_realtime, FINDPEERS, FALSE, 0))) {
-
 		const char *id = astman_get_header(m,"ActionID");
-		char idText[256] = "";
 
 		if (type != 0) {
 			astman_send_ack(s, m, "SIP peer found - will qualify");
 		}
 
-		if (!ast_strlen_zero(id)) {
-			snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-		}
-
 		sip_poke_peer(peer, 1);
 
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when SIPqualifypeer has finished qualifying the specified peer.</synopsis>
-				<syntax>
-					<parameter name="Peer">
-						<para>The name of the peer.</para>
-					</parameter>
-					<parameter name="ActionID">
-						<para>This is only included if an ActionID Header was sent with the action request, in which case it will be that ActionID.</para>
-					</parameter>
-				</syntax>
-				<see-also>
-					<ref type="manager">SIPqualifypeer</ref>
-				</see-also>
-			</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_CALL, "SIPqualifypeerdone",
-			"Peer: %s\r\n"
-			"%s",
-			argv[3],
-			idText);
+		publish_qualify_peer_done(id, argv[3]);
 
 		sip_unref_peer(peer, "qualify: done with peer");
 	} else if (type == 0) {
@@ -20887,7 +20906,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
 	}
 	ast_cli(a->fd, "  Record SIP history:     %s\n", AST_CLI_ONOFF(recordhistory));
-	ast_cli(a->fd, "  Call Events:            %s\n", AST_CLI_ONOFF(sip_cfg.callevents));
 	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", AST_CLI_ONOFF(global_authfailureevents));
 
 	ast_cli(a->fd, "  T.38 support:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
@@ -23140,11 +23158,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->owner) {
 			if (!reinvite) {
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
-				if (sip_cfg.callevents) {
-					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
-						ast_channel_name(p->owner), "SIP", ast_channel_uniqueid(p->owner), p->callid, p->fullcontact, p->peername);
-				}
 			} else {	/* RE-invite */
 				if (p->t38.state == T38_DISABLED || p->t38.state == T38_REJECTED) {
 					ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
@@ -28458,6 +28471,39 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	return 0;
 }
 
+static struct ast_manager_event_blob *session_timeout_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+	const char *source = ast_json_string_get(ast_json_object_get(obj->blob, "source"));
+
+	channel_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_string) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "SessionTimeout",
+		"%s"
+		"Source: %s\r\n",
+		ast_str_buffer(channel_string), source);
+}
+
+/*! \brief Sends a session timeout channel blob used to produce SessionTimeout AMI messages */
+static void send_session_timeout(struct ast_channel *chan, const char *source)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	ast_assert(chan != NULL);
+	ast_assert(source != NULL);
+
+	blob = ast_json_pack("{s: s}", "source", source);
+	if (!blob) {
+		return;
+	}
+
+	ast_channel_publish_blob(chan, session_timeout_type(), blob);
+}
+
 /*!
  * \brief helper function for the monitoring thread -- seems to be called with the assumption that the dialog is locked
  *
@@ -28533,8 +28579,8 @@ static int check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					ast_channel_name(dialog->owner), (long) (t - dialog->lastrtprx));
-				manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: RTPTimeout\r\n"
-						"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(dialog->owner), ast_channel_uniqueid(dialog->owner));
+				send_session_timeout(dialog->owner, "RTPTimeout");
+
 				/* Issue a softhangup */
 				ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
 				ast_channel_unlock(dialog->owner);
@@ -28813,8 +28859,7 @@ static int proc_session_timer(const void *vp)
 			sip_pvt_lock(p);
 		}
 
-		manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: SIPSessionTimer\r\n"
-				"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), ast_channel_uniqueid(p->owner));
+		send_session_timeout(p->owner, "SIPSessionTimer");
 		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 		ast_channel_unlock(p->owner);
 		sip_pvt_unlock(p);
@@ -29551,10 +29596,6 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		callid = ast_callid_unref(callid);
 	}
 
-	if (sip_cfg.callevents)
-		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
-			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
-			p->owner? ast_channel_name(p->owner) : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
 	if (!tmpc) {
 		dialog_unlink_all(p);
@@ -31160,7 +31201,6 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Misc settings for the channel */
 	global_relaxdtmf = FALSE;
-	sip_cfg.callevents = DEFAULT_CALLEVENTS;
 	global_authfailureevents = FALSE;
 	global_t1 = DEFAULT_TIMER_T1;
 	global_timer_b = 64 * DEFAULT_TIMER_T1;
@@ -31641,8 +31681,6 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
 				global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 			}
-		} else if (!strcasecmp(v->name, "callevents")) {
-			sip_cfg.callevents = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "authfailureevents")) {
 			global_authfailureevents = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
@@ -32079,8 +32117,6 @@ static int reload_config(enum channelreloadreason reason)
 		notify_types = NULL;
 	}
 
-	/* Done, tell the manager */
-	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\n", channelreloadreason2txt(reason), registry_count, peer_count);
 	run_end = time(0);
 	ast_debug(4, "SIP reload_config done...Runtime= %d sec\n", (int)(run_end-run_start));
 
@@ -34059,6 +34095,10 @@ static int load_module(void)
 {
 	ast_verbose("SIP channel loading...\n");
 
+	if (STASIS_MESSAGE_TYPE_INIT(session_timeout_type)) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	if (!(sip_tech.capabilities = ast_format_cap_alloc())) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -34424,6 +34464,8 @@ static int unload_module(void)
 
 	ast_format_cap_destroy(sip_tech.capabilities);
 	sip_cfg.caps = ast_format_cap_destroy(sip_cfg.caps);
+
+	STASIS_MESSAGE_TYPE_CLEANUP(session_timeout_type);
 
 	return 0;
 }
