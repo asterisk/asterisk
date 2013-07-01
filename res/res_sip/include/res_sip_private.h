@@ -55,11 +55,4 @@ int ast_res_sip_init_contact_transports(void);
  */
 int ast_sip_initialize_outbound_authentication(void);
 
-/*!
- * \brief Get the current defined endpoints
- *
- * \retval The current endpoints loaded by res_sip
- */
-struct ao2_container *ast_res_sip_get_endpoints(void);
-
 #endif /* RES_SIP_PRIVATE_H_ */

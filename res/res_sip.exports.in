@@ -29,6 +29,7 @@
 		LINKER_SYMBOL_PREFIXast_sip_append_body;
 		LINKER_SYMBOL_PREFIXast_sip_get_pjsip_endpoint;
 		LINKER_SYMBOL_PREFIXast_sip_endpoint_alloc;
+		LINKER_SYMBOL_PREFIXast_sip_get_endpoints;
 		LINKER_SYMBOL_PREFIXast_copy_pj_str;
 		LINKER_SYMBOL_PREFIXast_sip_get_sorcery;
 		LINKER_SYMBOL_PREFIXast_sip_create_dialog;

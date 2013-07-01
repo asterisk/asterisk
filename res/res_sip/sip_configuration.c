@@ -114,7 +114,7 @@ static char *handle_cli_show_endpoints(struct ast_cli_entry *e, int cmd, struct 
 		return NULL;
 	}
 
-	endpoints = ast_res_sip_get_endpoints();
+	endpoints = ast_sip_get_endpoints();
 	if (!endpoints) {
 		return CLI_FAILURE;
 	}
@@ -738,7 +738,7 @@ void *ast_sip_endpoint_alloc(const char *name)
 	return endpoint;
 }
 
-struct ao2_container *ast_res_sip_get_endpoints(void)
+struct ao2_container *ast_sip_get_endpoints(void)
 {
 	struct ao2_container *endpoints;
 

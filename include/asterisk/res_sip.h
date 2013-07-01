@@ -1181,6 +1181,13 @@ void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size);
 struct ast_sip_endpoint *ast_pjsip_rdata_get_endpoint(pjsip_rx_data *rdata);
 
 /*!
+ * \brief Retrieve any endpoints available to sorcery.
+ *
+ * \retval Endpoints available to sorcery, NULL if no endpoints found.
+ */
+struct ao2_container *ast_sip_get_endpoints(void);
+
+/*!
  * \brief Retrieve relevant SIP auth structures from sorcery
  *
  * \param auth_names The sorcery IDs of auths to retrieve

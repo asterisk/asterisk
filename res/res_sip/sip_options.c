@@ -189,7 +189,7 @@ static int on_endpoint(void *obj, void *arg, int flags)
 static struct ao2_container *find_endpoints(struct ast_sip_contact *contact)
 {
 	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_res_sip_get_endpoints(), ao2_cleanup);
+		 ast_sip_get_endpoints(), ao2_cleanup);
 
 	return ao2_callback(endpoints, OBJ_MULTIPLE, on_endpoint, contact);
 }
@@ -736,7 +736,7 @@ static int qualify_and_schedule_permanent_cb(void *obj, void *arg, int flags)
 static void qualify_and_schedule_permanent(void)
 {
 	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_res_sip_get_endpoints(), ao2_cleanup);
+		 ast_sip_get_endpoints(), ao2_cleanup);
 
 	ao2_callback(endpoints, OBJ_NODATA,
 		     qualify_and_schedule_permanent_cb, NULL);
