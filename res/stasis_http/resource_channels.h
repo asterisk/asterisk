@@ -113,6 +113,8 @@ struct ast_dial_args {
 	const char *extension;
 	/*! \brief When routing via dialplan, the context use. If omitted, uses 'default' */
 	const char *context;
+	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
+	int timeout;
 };
 /*!
  * \brief Create a new channel (originate) and bridge to this channel.

@@ -170,6 +170,9 @@ static void stasis_http_dial_cb(
 		if (strcmp(i->name, "context") == 0) {
 			args.context = (i->value);
 		} else
+		if (strcmp(i->name, "timeout") == 0) {
+			args.timeout = atoi(i->value);
+		} else
 		{}
 	}
 	for (i = path_vars; i; i = i->next) {

@@ -31,7 +31,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "command.h"
 #include "control.h"
+#include "asterisk/dial.h"
 #include "asterisk/bridging.h"
+#include "asterisk/bridging_basic.h"
 #include "asterisk/bridging_features.h"
 #include "asterisk/pbx.h"
 
@@ -84,6 +86,80 @@ static struct stasis_app_command *exec_command(
 
 	ao2_ref(command, +1);
 	return command;
+}
+
+struct stasis_app_control_dial_data {
+	char endpoint[AST_CHANNEL_NAME];
+	int timeout;
+};
+
+static void *app_control_dial(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	RAII_VAR(struct ast_dial *, dial, ast_dial_create(), ast_dial_destroy);
+	RAII_VAR(struct stasis_app_control_dial_data *, dial_data, data, ast_free);
+	enum ast_dial_result res;
+	char *tech, *resource;
+
+	struct ast_channel *new_chan;
+	struct ast_bridge *bridge;
+
+	tech = dial_data->endpoint;
+	if (!(resource = strchr(tech, '/'))) {
+		return NULL;
+	}
+	*resource++ = '\0';
+
+	if (!dial) {
+		ast_log(LOG_ERROR, "Failed to create dialing structure.\n");
+		return NULL;
+	}
+
+	if (ast_dial_append(dial, tech, resource) < 0) {
+		ast_log(LOG_ERROR, "Failed to add %s/%s to dialing structure.\n", tech, resource);
+		return NULL;
+	}
+
+	ast_dial_set_global_timeout(dial, dial_data->timeout);
+
+	res = ast_dial_run(dial, NULL, 0);
+
+	if (res != AST_DIAL_RESULT_ANSWERED || !(new_chan = ast_dial_answered_steal(dial))) {
+		return NULL;
+	}
+
+	if (!(bridge = ast_bridge_basic_new())) {
+		ast_log(LOG_ERROR, "Failed to create basic bridge.\n");
+		return NULL;
+	}
+
+	ast_bridge_impart(bridge, new_chan, NULL, NULL, 1);
+	stasis_app_control_add_channel_to_bridge(control, bridge);
+
+	return NULL;
+}
+
+int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, int timeout)
+{
+	struct stasis_app_control_dial_data *dial_data;
+
+	if (!(dial_data = ast_calloc(1, sizeof(*dial_data)))) {
+		return -1;
+	}
+
+	ast_copy_string(dial_data->endpoint, endpoint, sizeof(dial_data->endpoint));
+
+	if (timeout > 0) {
+		dial_data->timeout = timeout * 1000;
+	} else if (timeout == -1) {
+		dial_data->timeout = -1;
+	} else {
+		dial_data->timeout = 30000;
+	}
+
+	stasis_app_send_command_async(control, app_control_dial, dial_data);
+
+	return 0;
 }
 
 int control_is_done(struct stasis_app_control *control)
