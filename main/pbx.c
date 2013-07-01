@@ -9967,6 +9967,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 
 	if (channel) {
 		*channel = dialed;
+		ast_channel_ref(*channel);
 		ast_channel_lock(*channel);
 	}
 
@@ -9981,6 +9982,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		ast_log(LOG_WARNING, "Unable to spawn dialing thread for '%s/%s'\n", type, addr);
 		if (channel) {
 			ast_channel_unlock(*channel);
+			ast_channel_unref(*channel);
 		}
 		ao2_ref(outgoing, -1);
 		return -1;

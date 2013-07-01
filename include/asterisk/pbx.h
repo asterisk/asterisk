@@ -1083,13 +1083,59 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
  */
 int ast_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
 
-/*! Synchronously or asynchronously make an outbound call and send it to a
-   particular extension */
-int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel, int early_media);
+/*! \brief Synchronously or asynchronously make an outbound call and send it to a
+ * particular extension
+ *
+ * \param type The channel technology to create
+ * \param cap The format capabilities for the channel
+ * \param addr Address data to pass to the channel technology driver
+ * \param timeout How long we should attempt to dial the outbound channel
+ * \param context The destination context for the outbound channel
+ * \param exten The destination extension for the outbound channel
+ * \param priority The destination priority for the outbound channel
+ * \param reason Optional. If provided, the hangup cause code of the outbound channel if
+ *  it failed
+ * \param sync If non-zero, block until the outbound channel answers
+ * \param cid_num The caller ID number to set on the outbound channel
+ * \param cid_name The caller ID name to set on the outbound channel
+ * \param vars Variables to set on the outbound channel
+ * \param account The accountcode for the outbound channel
+ * \param locked_channel Optional. The outbound channel that was created. This is returned
+ *  both locked and reference bumped. If a caller provides a channel parameter, it must
+ *  unlock the channel and decrement the reference count.
+ * \param early_media If non-zero, allow early-media on the originated channel
+ */
+int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr,
+    int timeout, const char *context, const char *exten, int priority, int *reason,
+    int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars,
+    const char *account, struct ast_channel **locked_channel, int early_media);
 
-/*! Synchronously or asynchronously make an outbound call and send it to a
-   particular application with given extension */
-int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel);
+/*! \brief Synchronously or asynchronously make an outbound call and execute an
+ *  application on the channel.
+ *
+ * Note that when the application stops executing, the channel is hungup.
+ *
+ * \param type The channel technology to create
+ * \param cap The format capabilities for the channel
+ * \param addr Address data to pass to the channel technology driver
+ * \param timeout How long we should attempt to dial the outbound channel
+ * \param app The name of the application to execute
+ * \param appdata Data to pass to the application
+ * \param reason Optional. If provided, the hangup cause code of the outbound channel if
+ *  it failed
+ * \param sync If non-zero, block until the outbound channel answers
+ * \param cid_num The caller ID number to set on the outbound channel
+ * \param cid_name The caller ID name to set on the outbound channel
+ * \param vars Variables to set on the outbound channel
+ * \param account The accountcode for the outbound channel
+ * \param locked_channel Optional. The outbound channel that was created. This is returned
+ *  both locked and reference bumped. If a caller provides a channel parameter, it must
+ *  unlock the channel and decrement the reference count.
+ */
+int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr,
+    int timeout, const char *app, const char *appdata, int *reason, int sync,
+    const char *cid_num, const char *cid_name, struct ast_variable *vars,
+    const char *account, struct ast_channel **locked_channel);
 
 /*!
  * \brief Evaluate a condition

@@ -4329,9 +4329,10 @@ static void *fast_originate(void *data)
 		S_OR(in->cid_name, "<unknown>")
 		);
 
-	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
+	/* Locked and ref'd by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
 	if (chan) {
 		ast_channel_unlock(chan);
+		ast_channel_unref(chan);
 	}
 	destroy_fast_originate_helper(in);
 	return NULL;
