@@ -1214,8 +1214,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_channel_hangupcause_set(tmp, AST_CAUSE_SWITCH_CONGESTION);
 		ast_hangup(tmp);
 		tmp = NULL;
-	} else {
-		send_channel_update(i->owner, i->sid);
 	}
 	return tmp;
 }
