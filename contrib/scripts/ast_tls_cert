@@ -204,8 +204,12 @@ then
 	CAKEY=${OUTPUT_DIR}/ca.key
 	CACERT=${OUTPUT_DIR}/ca.crt
 	CACFG=${OUTPUT_DIR}/ca.cfg
-	create_config ca "${CACFG}" "${DEFAULT_CA_CN}" "${DEFAULT_CA_ORG}"
-	create_ca
+	if [ ! -r "$CAKEY" ] &&  [ ! -r "$CACFG" ]; then
+		create_config ca "${CACFG}" "${DEFAULT_CA_CN}" "${DEFAULT_CA_ORG}"
+	fi
+	if  [ ! -r "$CACERT" ]; then
+		create_ca
+	fi
 else
 	if [ -z ${CAKEY} ]
 	then
