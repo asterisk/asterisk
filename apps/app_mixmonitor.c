@@ -1155,13 +1155,17 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 				char *filename = "";
 				char *filename_read = "";
 				char *filename_write = "";
+
 				mixmonitor_ds = datastore->data;
-				if (mixmonitor_ds->fs)
-					filename = ast_strdupa(mixmonitor_ds->fs->filename);
-				if (mixmonitor_ds->fs_read)
-					filename_read = ast_strdupa(mixmonitor_ds->fs_read->filename);
-				if (mixmonitor_ds->fs_write)
-					filename_write = ast_strdupa(mixmonitor_ds->fs_write->filename);
+				if (mixmonitor_ds->fs) {
+					filename = mixmonitor_ds->fs->filename;
+				}
+				if (mixmonitor_ds->fs_read) {
+					filename_read = mixmonitor_ds->fs_read->filename;
+				}
+				if (mixmonitor_ds->fs_write) {
+					filename_write = mixmonitor_ds->fs_write->filename;
+				}
 				ast_cli(a->fd, "%p\t%s\t%s\t%s\n", mixmonitor_ds, filename, filename_read, filename_write);
 			}
 		}
