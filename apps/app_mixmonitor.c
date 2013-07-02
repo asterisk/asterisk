@@ -1249,15 +1249,13 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 
 static int start_mixmonitor_callback(struct ast_channel *chan, const char *filename, const char *options)
 {
-	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
-	struct ast_flags flags = { 0 };
-	char args[PATH_MAX] = "";
+	char args[PATH_MAX];
 
-	if (!ast_strlen_zero(options)) {
-		ast_app_parse_options(mixmonitor_opts, &flags, opts, ast_strdupa(options));
+	if (ast_strlen_zero(options)) {
+		snprintf(args, sizeof(args), "%s", filename);
+	} else {
+		snprintf(args, sizeof(args), "%s,%s", filename, options);
 	}
-
-	snprintf(args, sizeof(args), "%s,%s", filename, options);
 
 	return mixmonitor_exec(chan, args);
 }
