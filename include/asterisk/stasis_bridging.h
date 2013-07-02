@@ -228,24 +228,6 @@ struct ast_bridge_channel_pair {
 };
 
 /*!
- * \brief Message representing blind transfer
- */
-struct ast_blind_transfer_message {
-	AST_DECLARE_STRING_FIELDS(
-		/*! The destination context for the blind transfer */
-		AST_STRING_FIELD(context);
-		/*! The destination extension for the blind transfer */
-		AST_STRING_FIELD(exten);
-	);
-	/*! Result of the blind transfer */
-	enum ast_transfer_result result;
-	/*! If 0, was core DTMF transfer, otherwise occurred externally*/
-	int is_external;
-	/*! The transferer and its bridge before starting the transfer*/
-	struct ast_bridge_channel_snapshot_pair transferer;
-};
-
-/*!
  * \since 12
  * \brief Message type for \ref ast_blind_transfer_message.
  *
