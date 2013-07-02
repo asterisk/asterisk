@@ -79,7 +79,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="b">
 						<para>Only save audio to the file while the channel is bridged.</para>
-						<note><para>Does not include conferences or sounds played to each bridged party</para></note>
 						<note><para>If you utilize this option inside a Local channel, you must make sure the Local
 						channel is not optimized away. To do this, be sure to call your Local channel with the
 						<literal>/n</literal> option. For example: Dial(Local/start@mycontext/n)</para></note>
@@ -104,7 +103,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Use the specified file to record the <emphasis>receive</emphasis> audio feed.
 						Like with the basic filename argument, if an absolute path isn't given, it will create
 						the file in the configured monitoring directory.</para>
-
 					</option>
 					<option name="t">
 						<argument name="file" required="true" />
@@ -134,11 +132,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Records the audio on the current channel to the specified file.</para>
 			<para>This application does not automatically answer and should be preceeded by
 			an application such as Answer or Progress().</para>
-			<note><para>MixMonitor runs as an audiohook. In order to keep it running through
-			a transfer, AUDIOHOOK_INHERIT must be set for the channel which ran mixmonitor.
-			For more information, including dialplan configuration set for using
-			AUDIOHOOK_INHERIT with MixMonitor, see the function documentation for
-			AUDIOHOOK_INHERIT.</para></note>
+			<note><para>MixMonitor runs as an audiohook.</para></note>
 			<variablelist>
 				<variable name="MIXMONITOR_FILENAME">
 					<para>Will contain the filename used to record.</para>
@@ -1128,9 +1122,11 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 	case CLI_INIT:
 		e->command = "mixmonitor {start|stop|list}";
 		e->usage =
-			"Usage: mixmonitor <start|stop|list> <chan_name> [args]\n"
-			"       The optional arguments are passed to the MixMonitor\n"
-			"       application when the 'start' command is used.\n";
+			"Usage: mixmonitor start <chan_name> [args]\n"
+			"         The optional arguments are passed to the MixMonitor application.\n"
+			"       mixmonitor stop <chan_name> [args]\n"
+			"         The optional arguments are passed to the StopMixMonitor application.\n"
+			"       mixmonitor list <chan_name>\n";
 		return NULL;
 	case CLI_GENERATE:
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
