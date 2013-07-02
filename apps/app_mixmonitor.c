@@ -1357,6 +1357,7 @@ static int manager_stop_mixmonitor(struct mansession *s, const struct message *m
 	res = stop_mixmonitor_full(c, mixmonitor_id);
 
 	if (res) {
+		ast_channel_unref(c);
 		astman_send_error(s, m, "Could not stop monitoring channel");
 		return AMI_SUCCESS;
 	}
