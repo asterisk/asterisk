@@ -36,6 +36,124 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/_private.h"
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_message_router.h"
+
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="AOC-S">
+		<managerEventInstance class="EVENT_FLAG_AOC">
+			<synopsis>Raised when an Advice of Charge message is sent at the beginning of a call.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Chargeable" />
+				<parameter name="RateType">
+					<enumlist>
+						<enum name="NotAvailable" />
+						<enum name="Free" />
+						<enum name="FreeFromBeginning" />
+						<enum name="Duration" />
+						<enum name="Flag" />
+						<enum name="Volume" />
+						<enum name="SpecialCode" />
+					</enumlist>
+				</parameter>
+				<parameter name="Currency" />
+				<parameter name="Name" />
+				<parameter name="Cost" />
+				<parameter name="Multiplier">
+					<enumlist>
+						<enum name="1/1000" />
+						<enum name="1/100" />
+						<enum name="1/10" />
+						<enum name="1" />
+						<enum name="10" />
+						<enum name="100" />
+						<enum name="1000" />
+					</enumlist>
+				</parameter>
+				<parameter name="ChargingType" />
+				<parameter name="StepFunction" />
+				<parameter name="Granularity" />
+				<parameter name="Length" />
+				<parameter name="Scale" />
+				<parameter name="Unit">
+					<enumlist>
+						<enum name="Octect" />
+						<enum name="Segment" />
+						<enum name="Message" />
+					</enumlist>
+				</parameter>
+				<parameter name="SpecialCode" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AOC-D">
+		<managerEventInstance class="EVENT_FLAG_AOC">
+			<synopsis>Raised when an Advice of Charge message is sent during a call.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Charge" />
+				<parameter name="Type">
+					<enumlist>
+						<enum name="NotAvailable" />
+						<enum name="Free" />
+						<enum name="Currency" />
+						<enum name="Units" />
+					</enumlist>
+				</parameter>
+				<parameter name="BillingID">
+					<enumlist>
+						<enum name="Normal" />
+						<enum name="Reverse" />
+						<enum name="CreditCard" />
+						<enum name="CallForwardingUnconditional" />
+						<enum name="CallForwardingBusy" />
+						<enum name="CallForwardingNoReply" />
+						<enum name="CallDeflection" />
+						<enum name="CallTransfer" />
+						<enum name="NotAvailable" />
+					</enumlist>
+				</parameter>
+				<parameter name="TotalType">
+					<enumlist>
+						<enum name="SubTotal" />
+						<enum name="Total" />
+					</enumlist>
+				</parameter>
+				<parameter name="Currency" />
+				<parameter name="Name" />
+				<parameter name="Cost" />
+				<parameter name="Multiplier">
+					<enumlist>
+						<enum name="1/1000" />
+						<enum name="1/100" />
+						<enum name="1/10" />
+						<enum name="1" />
+						<enum name="10" />
+						<enum name="100" />
+						<enum name="1000" />
+					</enumlist>
+				</parameter>
+				<parameter name="Units" />
+				<parameter name="NumberOf" />
+				<parameter name="TypeOf" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AOC-E">
+		<managerEventInstance class="EVENT_FLAG_AOC">
+			<synopsis>Raised when an Advice of Charge message is sent at the end of a call.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="ChargingAssociation" />
+				<parameter name="Number" />
+				<parameter name="Plan" />
+				<parameter name="ID" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AOC-D']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+***/
 
 /* Encoded Payload Flags */
 #define AST_AOC_ENCODED_TYPE_REQUEST    (0 << 0)
@@ -1289,13 +1407,8 @@ static void aoc_amount_str(struct ast_str **msg, const char *prefix, unsigned in
 		aoc_multiplier_str(mult));
 }
 
-static void aoc_request_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan, struct ast_str **msg)
+static void aoc_request_event(const struct ast_aoc_decoded *decoded, struct ast_str **msg)
 {
-	if (chan) {
-		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
-	}
-
 	if (decoded->request_flag) {
 		ast_str_append(msg, 0, "AOCRequest:");
 		if (decoded->request_flag & AST_AOC_REQUEST_S) {
@@ -1314,16 +1427,11 @@ static void aoc_request_event(const struct ast_aoc_decoded *decoded, struct ast_
 	}
 }
 
-static void aoc_s_event(const struct ast_aoc_decoded *decoded, struct ast_channel *owner, struct ast_str **msg)
+static void aoc_s_event(const struct ast_aoc_decoded *decoded, struct ast_str **msg)
 {
 	const char *rate_str;
 	char prefix[32];
 	int idx;
-
-	if (owner) {
-		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(owner));
-	}
 
 	ast_str_append(msg, 0, "NumberRates: %d\r\n", decoded->aoc_s_count);
 	for (idx = 0; idx < decoded->aoc_s_count; ++idx) {
@@ -1387,16 +1495,11 @@ static void aoc_s_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 	}
 }
 
-static void aoc_d_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan, struct ast_str **msg)
+static void aoc_d_event(const struct ast_aoc_decoded *decoded, struct ast_str **msg)
 {
 	const char *charge_str;
 	int idx;
 	char prefix[32];
-
-	if (chan) {
-		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
-	}
 
 	charge_str = aoc_charge_type_str(decoded->charge_type);
 	ast_str_append(msg, 0, "Type: %s\r\n", charge_str);
@@ -1441,16 +1544,11 @@ static void aoc_d_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 	}
 }
 
-static void aoc_e_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan, struct ast_str **msg)
+static void aoc_e_event(const struct ast_aoc_decoded *decoded, struct ast_str **msg)
 {
 	const char *charge_str;
 	int idx;
 	char prefix[32];
-
-	if (chan) {
-		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
-	}
 
 	charge_str = "ChargingAssociation";
 
@@ -1509,41 +1607,271 @@ static void aoc_e_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 	}
 }
 
+static struct ast_json *units_to_json(const struct ast_aoc_decoded *decoded)
+{
+	int i;
+	struct ast_json *units = ast_json_array_create();
+
+	if (!units) {
+		return ast_json_null();
+	}
+
+	for (i = 0; i < decoded->unit_count; ++i) {
+		struct ast_json *unit = ast_json_object_create();
+
+		if (decoded->unit_list[i].valid_amount) {
+			ast_json_object_set(
+				unit, "NumberOf", ast_json_stringf(
+					"%u", decoded->unit_list[i].amount));
+			}
+
+		if (decoded->unit_list[i].valid_type) {
+			ast_json_object_set(
+				unit, "TypeOf", ast_json_stringf(
+					"%d", decoded->unit_list[i].type));
+		}
+
+		if (ast_json_array_append(units, unit)) {
+			break;
+		}
+	}
+
+	return units;
+}
+
+static struct ast_json *currency_to_json(const char *name, int cost,
+					 enum ast_aoc_currency_multiplier mult)
+{
+	return ast_json_pack("{s:s, s:i, s:s}",	"Name", name,
+			     "Cost", cost, "Multiplier", aoc_multiplier_str(mult));
+}
+
+static struct ast_json *charge_to_json(const struct ast_aoc_decoded *decoded)
+{
+	RAII_VAR(struct ast_json *, obj, NULL, ast_json_unref);
+	const char *obj_type;
+
+	if (decoded->charge_type != AST_AOC_CHARGE_CURRENCY &&
+	    decoded->charge_type != AST_AOC_CHARGE_UNIT) {
+		return ast_json_pack("{s:s}", "Type",
+				     aoc_charge_type_str(decoded->charge_type));
+	}
+
+	if (decoded->charge_type == AST_AOC_CHARGE_CURRENCY) {
+		obj_type = "Currency";
+		obj = currency_to_json(decoded->currency_name, decoded->currency_amount,
+				       decoded->multiplier);
+	} else { /* decoded->charge_type == AST_AOC_CHARGE_UNIT */
+		obj_type = "Units";
+		obj = units_to_json(decoded);
+	}
+
+	return ast_json_pack(
+		"{s:s, s:s, s:s, s:O}",
+		"Type", aoc_charge_type_str(decoded->charge_type),
+		"BillingID", aoc_billingid_str(decoded->billing_id),
+		"TotalType", aoc_type_of_totaling_str(decoded->total_type),
+		obj_type, obj);
+}
+
+static struct ast_json *association_to_json(const struct ast_aoc_decoded *decoded)
+{
+	switch (decoded->charging_association.charging_type) {
+	case AST_AOC_CHARGING_ASSOCIATION_NUMBER:
+		return ast_json_pack(
+			"{s:s, s:i}",
+			"Number", decoded->charging_association.charge.number.number,
+			"Plan", decoded->charging_association.charge.number.plan);
+	case AST_AOC_CHARGING_ASSOCIATION_ID:
+		return ast_json_pack(
+			"{s:i}", "ID", decoded->charging_association.charge.id);
+	case AST_AOC_CHARGING_ASSOCIATION_NA:
+	default:
+		return ast_json_null();
+	}
+}
+
+static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
+{
+	int i;
+	struct ast_json *rates = ast_json_array_create();
+
+	if (!rates) {
+		return ast_json_null();
+	}
+
+	for (i = 0; i < decoded->aoc_s_count; ++i) {
+		struct ast_json *rate = ast_json_object_create();
+		RAII_VAR(struct ast_json *, type, NULL, ast_json_unref);
+		RAII_VAR(struct ast_json *, currency, NULL, ast_json_unref);
+		const char *charge_item = aoc_charged_item_str(
+			decoded->aoc_s_entries[i].charged_item);
+
+		if (decoded->aoc_s_entries[i].charged_item == AST_AOC_CHARGED_ITEM_NA) {
+			rate = ast_json_pack("{s:s}", "Chargeable", charge_item);
+			if (ast_json_array_append(rates, rate)) {
+				break;
+			}
+			continue;
+		}
+
+		switch (decoded->aoc_s_entries[i].rate_type) {
+		case AST_AOC_RATE_TYPE_DURATION:
+		{
+			RAII_VAR(struct ast_json *, time, NULL, ast_json_unref);
+			RAII_VAR(struct ast_json *, granularity, NULL, ast_json_unref);
+
+			currency = currency_to_json(
+				decoded->aoc_s_entries[i].rate.duration.currency_name,
+				decoded->aoc_s_entries[i].rate.duration.amount,
+				decoded->aoc_s_entries[i].rate.duration.multiplier);
+
+			time = ast_json_pack(
+				"{s:i, s:s}",
+				"Length", decoded->aoc_s_entries[i].rate.duration.time,
+				"Scale", decoded->aoc_s_entries[i].rate.duration.time_scale);
+
+			if (decoded->aoc_s_entries[i].rate.duration.granularity_time) {
+				granularity = ast_json_pack(
+					"{s:i, s:s}",
+					"Length", decoded->aoc_s_entries[i].rate.duration.granularity_time,
+					"Scale", decoded->aoc_s_entries[i].rate.duration.granularity_time_scale);
+			}
+
+			type = ast_json_pack("{s:O, s:s, s:O, s:O}", "Currency", currency, "ChargingType",
+					     decoded->aoc_s_entries[i].rate.duration.charging_type ?
+					     "StepFunction" : "ContinuousCharging", "Time", time,
+					     "Granularity", granularity ? granularity : ast_json_null());
+
+			break;
+		}
+		case AST_AOC_RATE_TYPE_FLAT:
+			currency = currency_to_json(
+				decoded->aoc_s_entries[i].rate.flat.currency_name,
+				decoded->aoc_s_entries[i].rate.flat.amount,
+				decoded->aoc_s_entries[i].rate.flat.multiplier);
+
+			type = ast_json_pack("{s:O}", "Currency", currency);
+			break;
+		case AST_AOC_RATE_TYPE_VOLUME:
+			currency = currency_to_json(
+				decoded->aoc_s_entries[i].rate.volume.currency_name,
+				decoded->aoc_s_entries[i].rate.volume.amount,
+				decoded->aoc_s_entries[i].rate.volume.multiplier);
+
+			type = ast_json_pack(
+				"{s:s, s:O}", "Unit", aoc_volume_unit_str(
+					decoded->aoc_s_entries[i].rate.volume.volume_unit),
+				"Currency", currency);
+			break;
+		case AST_AOC_RATE_TYPE_SPECIAL_CODE:
+			type = ast_json_pack("{s:i}", "SpecialCode",
+					    decoded->aoc_s_entries[i].rate.special_code);
+			break;
+		default:
+			break;
+		}
+
+		rate = ast_json_pack("{s:s, s:O}", "Chargeable", charge_item,
+				     aoc_rate_type_str(decoded->aoc_s_entries[i].rate_type), type);
+		if (ast_json_array_append(rates, rate)) {
+			break;
+		}
+	}
+	return rates;
+}
+
+static struct ast_json *d_to_json(const struct ast_aoc_decoded *decoded)
+{
+	return ast_json_pack("{s:o}", "Charge", charge_to_json(decoded));
+}
+
+static struct ast_json *e_to_json(const struct ast_aoc_decoded *decoded)
+{
+	return ast_json_pack("{s:o, s:o}",
+			     "ChargingAssociation", association_to_json(decoded),
+			     "Charge", charge_to_json(decoded));
+}
+
+static struct ast_manager_event_blob *aoc_to_ami(struct stasis_message *message,
+						 const char *event_name)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	RAII_VAR(struct ast_str *, channel, NULL, ast_free);
+	RAII_VAR(struct ast_str *, aoc, NULL, ast_free);
+
+	if (!(channel = ast_manager_build_channel_state_string(
+		      obj->snapshot))) {
+		return NULL;
+	}
+
+	if (!(aoc = ast_manager_str_from_json_object(obj->blob, NULL))) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_AOC, event_name, "%s%s",
+					     AS_OR(channel, ""), ast_str_buffer(aoc));
+}
+
+static struct ast_manager_event_blob *aoc_s_to_ami(struct stasis_message *message)
+{
+	return aoc_to_ami(message, "AOC-S");
+}
+
+static struct ast_manager_event_blob *aoc_d_to_ami(struct stasis_message *message)
+{
+	return aoc_to_ami(message, "AOC-D");
+}
+
+static struct ast_manager_event_blob *aoc_e_to_ami(struct stasis_message *message)
+{
+	return aoc_to_ami(message, "AOC-E");
+}
+
+struct stasis_message_type *aoc_s_type(void);
+struct stasis_message_type *aoc_d_type(void);
+struct stasis_message_type *aoc_e_type(void);
+
+STASIS_MESSAGE_TYPE_DEFN(
+	aoc_s_type,
+	.to_ami = aoc_s_to_ami);
+
+STASIS_MESSAGE_TYPE_DEFN(
+	aoc_d_type,
+	.to_ami = aoc_d_to_ami);
+
+STASIS_MESSAGE_TYPE_DEFN(
+	aoc_e_type,
+	.to_ami = aoc_e_to_ami);
+
 int ast_aoc_manager_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan)
 {
-	struct ast_str *msg;
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	struct stasis_message_type *msg_type;
 
-	if (!decoded || !(msg = ast_str_create(1024))) {
+	if (!decoded) {
 		return -1;
 	}
 
 	switch (decoded->msg_type) {
 	case AST_AOC_S:
-		if (chan) {
-			aoc_s_event(decoded, chan, &msg);
-			ast_manager_event(chan, EVENT_FLAG_AOC, "AOC-S", "%s", ast_str_buffer(msg));
-		}
+		blob = s_to_json(decoded);
+		msg_type = aoc_s_type();
 		break;
 	case AST_AOC_D:
-		if (chan) {
-			aoc_d_event(decoded, chan, &msg);
-			ast_manager_event(chan, EVENT_FLAG_AOC, "AOC-D", "%s", ast_str_buffer(msg));
-		}
+		blob = d_to_json(decoded);
+		msg_type = aoc_d_type();
 		break;
 	case AST_AOC_E:
-		{
-			struct ast_channel *chans[1];
-			aoc_e_event(decoded, chan, &msg);
-			chans[0] = chan;
-			ast_manager_event_multichan(EVENT_FLAG_AOC, "AOC-E", chan ? 1 : 0, chans, "%s", ast_str_buffer(msg));
-		}
+		blob = e_to_json(decoded);
+		msg_type = aoc_e_type();
 		break;
 	default:
 		/* events for AST_AOC_REQUEST are not generated here */
-		break;
+		return 0;
 	}
 
-	ast_free(msg);
+	ast_channel_publish_blob(chan, msg_type, blob);
 	return 0;
 }
 
@@ -1556,19 +1884,19 @@ int ast_aoc_decoded2str(const struct ast_aoc_decoded *decoded, struct ast_str **
 	switch (decoded->msg_type) {
 	case AST_AOC_S:
 		ast_str_append(msg, 0, "AOC-S\r\n");
-		aoc_s_event(decoded, NULL, msg);
+		aoc_s_event(decoded, msg);
 		break;
 	case AST_AOC_D:
 		ast_str_append(msg, 0, "AOC-D\r\n");
-		aoc_d_event(decoded, NULL, msg);
+		aoc_d_event(decoded, msg);
 		break;
 	case AST_AOC_E:
 		ast_str_append(msg, 0, "AOC-E\r\n");
-		aoc_e_event(decoded, NULL, msg);
+		aoc_e_event(decoded, msg);
 		break;
 	case AST_AOC_REQUEST:
 		ast_str_append(msg, 0, "AOC-Request\r\n");
-		aoc_request_event(decoded, NULL, msg);
+		aoc_request_event(decoded, msg);
 		break;
 	}
 
@@ -1607,10 +1935,18 @@ static struct ast_cli_entry aoc_cli[] = {
 
 static void aoc_shutdown(void)
 {
+	STASIS_MESSAGE_TYPE_CLEANUP(aoc_s_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(aoc_d_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(aoc_e_type);
+
 	ast_cli_unregister_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
 }
 int ast_aoc_cli_init(void)
 {
+	STASIS_MESSAGE_TYPE_INIT(aoc_s_type);
+	STASIS_MESSAGE_TYPE_INIT(aoc_d_type);
+	STASIS_MESSAGE_TYPE_INIT(aoc_e_type);
+
 	ast_register_atexit(aoc_shutdown);
 	return ast_cli_register_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
 }

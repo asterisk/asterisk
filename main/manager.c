@@ -1274,47 +1274,98 @@ struct stasis_message_router *ast_manager_get_message_router(void)
 	return stasis_router;
 }
 
+static void manager_json_value_str_append(struct ast_json *value, const char *key,
+					  struct ast_str **res)
+{
+	switch (ast_json_typeof(value)) {
+	case AST_JSON_STRING:
+		ast_str_append(res, 0, "%s: %s\r\n", key, ast_json_string_get(value));
+		break;
+	case AST_JSON_INTEGER:
+		ast_str_append(res, 0, "%s: %jd\r\n", key, ast_json_integer_get(value));
+		break;
+	case AST_JSON_TRUE:
+		ast_str_append(res, 0, "%s: True\r\n", key);
+		break;
+	case AST_JSON_FALSE:
+		ast_str_append(res, 0, "%s: False\r\n", key);
+		break;
+	default:
+		ast_str_append(res, 0, "%s: \r\n", key);
+		break;
+	}
+}
+
+static void manager_json_to_ast_str(struct ast_json *obj, const char *key,
+				    struct ast_str **res, key_exclusion_cb exclusion_cb);
+
+static void manager_json_array_with_key(struct ast_json *obj, const char* key,
+					size_t index, struct ast_str **res,
+					key_exclusion_cb exclusion_cb)
+{
+	struct ast_str *key_str = ast_str_alloca(64);
+	ast_str_set(&key_str, 0, "%s(%zu)", key, index);
+	manager_json_to_ast_str(obj, ast_str_buffer(key_str),
+				res, exclusion_cb);
+}
+
+static void manager_json_obj_with_key(struct ast_json *obj, const char* key,
+				      const char *parent_key, struct ast_str **res,
+				      key_exclusion_cb exclusion_cb)
+{
+	if (parent_key) {
+		struct ast_str *key_str = ast_str_alloca(64);
+		ast_str_set(&key_str, 0, "%s/%s", parent_key, key);
+		manager_json_to_ast_str(obj, ast_str_buffer(key_str),
+					res, exclusion_cb);
+		return;
+	}
+
+	manager_json_to_ast_str(obj, key, res, exclusion_cb);
+}
+
+void manager_json_to_ast_str(struct ast_json *obj, const char *key,
+			     struct ast_str **res, key_exclusion_cb exclusion_cb)
+{
+	struct ast_json_iter *i;
+
+	if (!obj || (!res && !(*res) && (!(*res = ast_str_create(1024))))) {
+		return;
+	}
+
+	if (exclusion_cb && key && exclusion_cb(key)) {
+		return;
+	}
+
+	if (ast_json_typeof(obj) != AST_JSON_OBJECT &&
+	    ast_json_typeof(obj) != AST_JSON_ARRAY) {
+		manager_json_value_str_append(obj, key, res);
+		return;
+	}
+
+	if (ast_json_typeof(obj) == AST_JSON_ARRAY) {
+		size_t j;
+		for (j = 0; j < ast_json_array_size(obj); ++j) {
+			manager_json_array_with_key(ast_json_array_get(obj, j),
+						    key, j, res, exclusion_cb);
+		}
+		return;
+	}
+
+	for (i = ast_json_object_iter(obj); i;
+	     i = ast_json_object_iter_next(obj, i)) {
+		manager_json_obj_with_key(ast_json_object_iter_value(i),
+					  ast_json_object_iter_key(i),
+					  key, res, exclusion_cb);
+	}
+}
+
+
 struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_exclusion_cb exclusion_cb)
 {
-	struct ast_str *output_str = ast_str_create(32);
-	struct ast_json *value;
-	struct ast_json_iter *iter;
-	const char *key;
-	if (!output_str) {
-		return NULL;
-	}
-
-	for (iter = ast_json_object_iter(blob); iter; iter = ast_json_object_iter_next(blob, iter)) {
-		key = ast_json_object_iter_key(iter);
-		value = ast_json_object_iter_value(iter);
-
-		if (exclusion_cb && exclusion_cb(key)) {
-			continue;
-		}
-		switch (ast_json_typeof(value)) {
-		case AST_JSON_STRING:
-			ast_str_append(&output_str, 0, "%s: %s\r\n", key, ast_json_string_get(value));
-			break;
-		case AST_JSON_INTEGER:
-			ast_str_append(&output_str, 0, "%s: %jd\r\n", key, ast_json_integer_get(value));
-			break;
-		case AST_JSON_TRUE:
-			ast_str_append(&output_str, 0, "%s: True\r\n", key);
-			break;
-		case AST_JSON_FALSE:
-			ast_str_append(&output_str, 0, "%s: False\r\n", key);
-			break;
-		default:
-			ast_str_append(&output_str, 0, "%s: \r\n", key);
-			break;
-		}
-
-		if (!output_str) {
-			return NULL;
-		}
-	}
-
-	return output_str;
+	struct ast_str *res = ast_str_create(1024);
+	manager_json_to_ast_str(blob, NULL, &res, exclusion_cb);
+	return res;
 }
 
 static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
