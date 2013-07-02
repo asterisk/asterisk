@@ -160,11 +160,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="OrigTransfererUniqueid">
 				</parameter>
-				<parameter name="BridgeUniqueidOrig">
+				<parameter name="OrigBridgeUniqueid">
 					<para>The ID of the bridge where the Transferer performed the transfer</para>
 					<note><para>This header will not be present if the original transferer was not in a bridge.</para></note>
 				</parameter>
-				<parameter name="BridgeTypeOrig">
+				<parameter name="OrigBridgeType">
 					<para>The type of the bridge where the Transferer performed the transfer</para>
 					<note><para>This header will not be present if the original transferer was not in a bridge.</para></note>
 				</parameter>
@@ -207,11 +207,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="SecondTransfererUniqueid">
 				</parameter>
-				<parameter name="BridgeUniqueidSecond">
+				<parameter name="SecondBridgeUniqueid">
 					<para>The unique ID of the bridge that the second transferer channel was in, or <literal>None</literal> if the second transferer channel was not bridged</para>
 					<note><para>This header will not be present if the second transferer was not in a bridge.</para></note>
 				</parameter>
-				<parameter name="BridgeTypeSecond">
+				<parameter name="SecondBridgeType">
 					<para>The type of the bridge where the Transferer performed the transfer</para>
 					<note><para>This header will not be present if the second transferer was not in a bridge.</para></note>
 				</parameter>
